@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import math
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from types import MappingProxyType
@@ -16,6 +17,7 @@ EVENT_TYPES = frozenset({
 })
 LISTING_STATES = frozenset({"", "active", "delisted", "suspended"})
 PARTITIONS = frozenset({"train", "validation", "test", "walk_forward"})
+RFC3339_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
 
 
 @dataclass(frozen=True)
@@ -107,17 +109,19 @@ class ParsedUniverseEvidence:
 
 
 def parse_utc(value: str) -> datetime:
-    text = str(value or "").strip()
-    if not text.endswith("Z"):
+    if not isinstance(value, str) or not RFC3339_UTC.fullmatch(value):
         raise ValueError("schema_timestamp_invalid")
-    parsed = datetime.fromisoformat(text[:-1] + "+00:00")
+    try:
+        parsed = datetime.fromisoformat(value[:-1] + "+00:00")
+    except ValueError as exc:
+        raise ValueError("schema_timestamp_invalid") from exc
     if parsed.tzinfo != timezone.utc:
         raise ValueError("schema_timestamp_invalid")
     return parsed
 
 
 def optional_utc(value: str) -> datetime | None:
-    return None if not str(value or "").strip() else parse_utc(value)
+    return None if value == "" else parse_utc(value)
 
 
 def optional_positive_float(value: str) -> float | None:
@@ -163,11 +167,32 @@ ROW_ID_FIELDS = {
 }
 
 
-def _required(row: Mapping[str, str], *names: str) -> tuple[str, ...]:
-    values = tuple(str(row.get(name, "") or "").strip() for name in names)
-    if any(not value for value in values):
-        raise ValueError("schema_required_field_missing")
+def _required(
+    row: Mapping[str, str],
+    *names: str,
+    display_normalized: frozenset[str] = frozenset(),
+) -> tuple[str, ...]:
+    values = tuple(row.get(name, "") for name in names)
+    for name, value in zip(names, values, strict=True):
+        if not value or (name in display_normalized and not value.strip()):
+            raise ValueError("schema_required_field_missing")
+        if name not in display_normalized and value != value.strip():
+            raise ValueError("schema_whitespace_invalid")
     return values
+
+
+def _optional_opaque(row: Mapping[str, str], name: str) -> str:
+    value = row[name]
+    if value and value != value.strip():
+        raise ValueError("schema_whitespace_invalid")
+    return value
+
+
+def _has_exact_row_shape(values: Mapping[object, object], columns: tuple[str, ...]) -> bool:
+    return (
+        tuple(values) == columns
+        and all(isinstance(key, str) and isinstance(values[key], str) for key in columns)
+    )
 
 
 def _parse_identity(row: Mapping[str, str]) -> IdentityObservation:
@@ -175,14 +200,15 @@ def _parse_identity(row: Mapping[str, str]) -> IdentityObservation:
         row, "identity_row_id", "security_id", "issuer_id", "ticker", "exchange",
         "security_type", "currency", "valid_from", "source_id", "source_ref",
         "source_published_at", "retrieved_at",
+        display_normalized=frozenset({"ticker"}),
     )
     return IdentityObservation(
         identity_row_id=required[0], security_id=required[1], issuer_id=required[2],
-        ticker=required[3].upper(), exchange=required[4], security_type=required[5],
+        ticker=required[3].strip().upper(), exchange=required[4], security_type=required[5],
         currency=required[6], valid_from=parse_utc(required[7]),
         valid_to=optional_utc(row["valid_to"]), source_id=required[8], source_ref=required[9],
         source_published_at=parse_utc(required[10]), retrieved_at=parse_utc(required[11]),
-        supersedes_identity_row_id=row["supersedes_identity_row_id"].strip(),
+        supersedes_identity_row_id=_optional_opaque(row, "supersedes_identity_row_id"),
     )
 
 
@@ -202,7 +228,7 @@ def _parse_membership(row: Mapping[str, str]) -> MembershipObservation:
         effective_from=parse_utc(required[5]), effective_to=optional_utc(row["effective_to"]),
         observation_at=parse_utc(required[6]), source_id=required[7], source_ref=required[8],
         source_published_at=parse_utc(required[9]), retrieved_at=parse_utc(required[10]),
-        supersedes_membership_row_id=row["supersedes_membership_row_id"].strip(),
+        supersedes_membership_row_id=_optional_opaque(row, "supersedes_membership_row_id"),
     )
 
 
@@ -211,7 +237,8 @@ def _parse_event(row: Mapping[str, str]) -> UniverseEvent:
         row, "event_row_id", "security_id", "event_type", "effective_at", "source_id",
         "source_ref", "source_published_at", "retrieved_at",
     )
-    if required[2] not in EVENT_TYPES or row["listing_state_after"].strip() not in LISTING_STATES:
+    listing_state_after = row["listing_state_after"]
+    if required[2] not in EVENT_TYPES or listing_state_after not in LISTING_STATES:
         raise ValueError("schema_enum_invalid")
     try:
         numerator = optional_positive_float(row["ratio_numerator"])
@@ -220,14 +247,18 @@ def _parse_event(row: Mapping[str, str]) -> UniverseEvent:
         raise ValueError("schema_ratio_invalid") from exc
     if (numerator is None) != (denominator is None):
         raise ValueError("schema_ratio_pair_required")
+    if required[2] in {"split", "reverse_split"} and numerator is None:
+        raise ValueError("schema_ratio_pair_required")
+    if required[2] == "delisting" and listing_state_after != "delisted":
+        raise ValueError("schema_delisting_listing_state_invalid")
     return UniverseEvent(
         event_row_id=required[0], security_id=required[1], event_type=required[2],
         effective_at=parse_utc(required[3]),
-        successor_security_id=row["successor_security_id"].strip(), ratio_numerator=numerator,
-        ratio_denominator=denominator, listing_state_after=row["listing_state_after"].strip(),
+        successor_security_id=_optional_opaque(row, "successor_security_id"), ratio_numerator=numerator,
+        ratio_denominator=denominator, listing_state_after=listing_state_after,
         source_id=required[4], source_ref=required[5],
         source_published_at=parse_utc(required[6]), retrieved_at=parse_utc(required[7]),
-        supersedes_event_row_id=row["supersedes_event_row_id"].strip(),
+        supersedes_event_row_id=_optional_opaque(row, "supersedes_event_row_id"),
     )
 
 
@@ -265,9 +296,17 @@ def parse_universe_evidence(package: LoadedUniversePackage) -> ParsedUniverseEvi
                 findings.append(ContractFinding(contract, 1, "", ("schema_columns_invalid",)))
                 continue
             for source_row, values in enumerate(reader, start=2):
-                clean = MappingProxyType({key: str(value or "") for key, value in values.items()})
-                raw_rows.append(RawEvidenceRow(contract, path.name, source_row, clean))
-                row_id = clean.get(ROW_ID_FIELDS[contract], "").strip()
+                if not _has_exact_row_shape(values, COLUMNS[contract]):
+                    findings.append(ContractFinding(contract, source_row, "", ("schema_columns_invalid",)))
+                    continue
+                clean = MappingProxyType({key: values[key] for key in COLUMNS[contract]})
+                raw_rows.append(RawEvidenceRow(
+                    contract,
+                    path.relative_to(package.manifest_path.parent).as_posix(),
+                    source_row,
+                    clean,
+                ))
+                row_id = clean.get(ROW_ID_FIELDS[contract], "")
                 try:
                     parsed[contract].append(PARSERS[contract](clean))
                 except (KeyError, TypeError, ValueError) as exc:
