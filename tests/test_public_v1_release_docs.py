@@ -1378,3 +1378,13 @@ def test_priority_three_release_docs_record_controller_runtime_evidence_without_
     )
     for text in (readme, product_spec, roadmap, prompt, design):
         assert integrity in text
+
+    confirmation_integrity = (
+        "Confirmation-integrity commit `5a6c55921` binds every displayed preview field, "
+        "preview time, and destination label to the exact receipt. If an append raises after "
+        "it may have written, confirmation returns one-shot `save_pending_reload` with the exact "
+        "record ID unless the locked ledger is provably unchanged; it never invites a blind "
+        "duplicate retry."
+    )
+    for text in (readme, product_spec, roadmap, prompt, design):
+        assert confirmation_integrity in text

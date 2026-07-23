@@ -27,6 +27,7 @@ Priority 4 exit requires one bounded permitted point-in-time dataset with rights
 - Applicable Tasks 1-4 implementation chain: `6b7cdbd3b`, `996d86610`, `10c2c155c`, and `e67b16d04`. This design intentionally does not self-reference the Task 5 commit.
 - Hardening commit `07758114c` closes the confirmation race: all three append engines share one resolved-ledger cooperative lock, receipts bind resolved ledger identity, every new preview resets confirmation, and uncertain post-append teardown requires one-shot read-side reload before success.
 - Final integrity commit `e3a090dba` ensures confirmation appends only the receipt-matched recomputed record and enforces one readable active thesis lineage: revisions must supersede the exact active entry and preserve its thesis ID. The Company Workbench locks and explains that relationship, with temporary-ledger create -> revise -> reload coverage.
+- Confirmation-integrity commit `5a6c55921` binds every displayed preview field, preview time, and destination label to the exact receipt. If an append raises after it may have written, confirmation returns one-shot `save_pending_reload` with the exact record ID unless the locked ledger is provably unchanged; it never invites a blind duplicate retry.
 
 ## Scope
 

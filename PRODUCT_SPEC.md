@@ -13,6 +13,7 @@ The supported workflow is `Research Desk -> Discover -> Company Workbench -> Mon
 Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer.
 A valid record requires an exact preview and explicit confirmation before save.
 Final integrity commit `e3a090dba` ensures confirmation appends only the receipt-matched recomputed record and enforces one readable active thesis lineage: revisions must supersede the exact active entry and preserve its thesis ID. The Company Workbench locks and explains that relationship, with temporary-ledger create -> revise -> reload coverage.
+Confirmation-integrity commit `5a6c55921` binds every displayed preview field, preview time, and destination label to the exact receipt. If an append raises after it may have written, confirmation returns one-shot `save_pending_reload` with the exact record ID unless the locked ledger is provably unchanged; it never invites a blind duplicate retry.
 Drafts are untrusted and preview receipts are session-only.
 Production tests never append repository ledgers; persistence tests use temporary ledgers.
 A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.
