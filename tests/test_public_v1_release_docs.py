@@ -1301,10 +1301,31 @@ def test_stage_b_field_proof_audit_is_documented_as_read_only_and_no_mapping():
     assert "Stage B — completed locally" in roadmap
     assert "Priority 3 — In-app research-record authoring" in roadmap
     assert "Priority 2 is complete locally" in prompt
-    assert "Priority 3 is the next local design and implementation lane" in prompt
+    assert "Priority 3 is the next local implementation lane after required review" in prompt
 
     for text in (operator, roadmap, prompt):
         lowered = text.lower()
         assert "does not activate readiness" in lowered
         assert "does not update canonical data" in lowered
         assert "does not activate company workbench" in lowered
+
+
+def test_priority_three_authoring_design_is_approved_but_not_implemented():
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    design = _read("docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md")
+
+    assert "awaiting the required pre-implementation review" in roadmap
+    assert "no production implementation has started" in roadmap
+    assert "next local implementation lane after required review" in prompt
+    assert "No production implementation is authorized by this document alone" in design
+
+    for text in (roadmap, prompt, design):
+        lowered = text.lower()
+        assert "session-only receipt" in lowered
+        assert "current ledger" in lowered
+        assert "temporary ledger" in lowered
+
+    for text in (roadmap, prompt):
+        assert "selected profile/ticker" in text.lower()
+    assert "selected `profile_key` and normalized ticker" in design

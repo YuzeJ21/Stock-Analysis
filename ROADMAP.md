@@ -401,7 +401,7 @@ A blocked priority does not become complete, and skipping it does not weaken its
 
 ### Priority 3 — In-app research-record authoring
 
-**Current lane:** local design and implementation are executable after the first two priorities.
+**Current lane:** the unified Company Workbench composer design was approved on 2026-07-22 and is recorded in `docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md`. The written specification is awaiting the required pre-implementation review; no production implementation has started.
 
 1. Add simple in-app authoring for thesis, evidence, catalyst, and outcome records using explicit validate -> preview -> confirm flows.
 2. Keep records append-only, ticker/profile scoped, reviewer-authored, timestamped, source-aware where applicable, and independently valid or blocked.
@@ -409,6 +409,8 @@ A blocked priority does not become complete, and skipping it does not weaken its
 4. Empty ledgers remain empty; draft text and candidate context remain untrusted; automated generation cannot become reviewer-authored evidence.
 
 **Exit gate:** desktop and phone workflow evidence plus persistence, rejection, identity, provenance, and no-fabrication tests prove that a researcher can create and revisit records without using the command line or changing deterministic forecasts, probabilities, recommendations, or readiness.
+
+**Approved design boundary:** one collapsed Company Workbench composer reuses the existing thesis-journal, catalyst, and outcome persistence engines. A session-only receipt binds the exact draft, selected profile/ticker, destination ledger, and current ledger fingerprint; any edit or concurrent append requires a fresh preview. Validation and preview write nothing, confirmation appends to exactly one established ledger, and automated tests use temporary ledgers only.
 
 ### Priority 4 — Point-in-time benchmark and universe foundation
 
