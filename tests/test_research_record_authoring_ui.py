@@ -11,7 +11,12 @@ from src import research_record_authoring
 from src import research_record_authoring_ui
 from src.research_record_authoring_ui import authoring_field_contract, authoring_session_key
 from src.catalyst_evidence_timeline import CatalystEvent, append_reviewed_event
-from src.research_outcome_review import ResearchOutcome, append_reviewed_outcome
+from src.catalyst_evidence_timeline import load_catalyst_events
+from src.research_outcome_review import (
+    ResearchOutcome,
+    append_reviewed_outcome,
+    load_outcomes,
+)
 from src.research_thesis_journal import (
     JournalEntry,
     append_journal_entry,
@@ -48,6 +53,45 @@ def _enter_valid_thesis(app: AppTest) -> AppTest:
     app.text_input(key=_field_key("thesis", "reviewer")).set_value("fixture-reviewer")
     app.text_input(key=_field_key("thesis", "confidence")).set_value("0.60")
     return app.text_input(key=_field_key("thesis", "review_due_date")).set_value("2026-08-22").run()
+
+
+def _enter_valid_non_thesis_record(app: AppTest, kind: str) -> AppTest:
+    app.selectbox(key=authoring_session_key("demo", "SYN1", "kind")).set_value(kind).run()
+    fields = {
+        "evidence": {
+            "summary": "Reviewed synthetic evidence.",
+            "effective_at": "2026-07-22T11:00:00Z",
+            "reviewer": "fixture-reviewer",
+            "source": "company_ir",
+            "source_ref": "https://example.invalid/evidence",
+            "source_published_at": "2026-07-22T10:00:00Z",
+        },
+        "catalyst": {
+            "title": "Scheduled synthetic results",
+            "summary": "Reviewed synthetic catalyst context.",
+            "effective_at": "2026-08-20T21:00:00Z",
+            "published_at": "2026-07-22T09:00:00Z",
+            "retrieved_at": "2026-07-22T10:00:00Z",
+            "source": "company_ir",
+            "source_ref": "https://example.invalid/event",
+            "reviewer": "fixture-reviewer",
+        },
+        "outcome": {
+            "reviewed_at": "2026-07-22T12:00:00Z",
+            "observation_start": "2026-07-20T12:00:00Z",
+            "observation_end": "2026-07-22T11:00:00Z",
+            "reviewer": "fixture-reviewer",
+            "summary": "Reviewed synthetic outcome.",
+            "source": "reviewed_research_record",
+            "source_ref": "journal://entry-existing",
+            "source_published_at": "2026-07-22T10:00:00Z",
+            "learning": "Preserve explicit evidence boundaries.",
+        },
+    }[kind]
+    for name, value in fields.items():
+        widget = app.text_area if name in {"summary", "learning"} else app.text_input
+        widget(key=_field_key(kind, name)).set_value(value)
+    return app.run()
 
 
 def test_field_contract_is_kind_specific_and_never_exposes_scope_for_editing():
@@ -159,6 +203,107 @@ def test_confirmed_record_receipt_is_shown_once_after_the_correct_temporary_ledg
 
     assert not app.exception
     assert not app.success
+
+
+@pytest.mark.parametrize("kind", ("evidence", "catalyst", "outcome"))
+def test_non_thesis_composer_saves_exactly_once_only_after_preview_confirmation_and_reload(
+    tmp_path, monkeypatch, kind
+):
+    paths = _paths(tmp_path)
+    thesis = _thesis_entry()
+    append_journal_entry(paths.journal, thesis)
+    app = _enter_valid_non_thesis_record(_app(tmp_path, monkeypatch), kind)
+
+    assert not app.exception
+    assert not any(item.label == "Confirm and save" for item in app.button)
+    assert not app.success
+    assert load_journal_entries(paths.journal) == (thesis,)
+    assert not paths.catalysts.exists()
+    assert not paths.outcomes.exists()
+
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+
+    assert not app.exception
+    assert any(item.value == "#### Exact append-only preview" for item in app.markdown)
+    assert any(item.label == "Confirm and save" for item in app.button)
+    assert not app.success
+    assert load_journal_entries(paths.journal) == (thesis,)
+    assert not paths.catalysts.exists()
+    assert not paths.outcomes.exists()
+
+    app.checkbox(key=authoring_session_key("demo", "SYN1", "confirmed")).check()
+    app.button(key=authoring_session_key("demo", "SYN1", "save")).click().run()
+
+    assert not app.exception
+    assert len(app.success) == 1
+    if kind == "evidence":
+        rows = load_journal_entries(paths.journal)
+        assert len(rows) == 2
+        saved = rows[-1]
+        assert saved.entry_type == "evidence"
+        assert saved.profile_key == "demo"
+        assert saved.ticker == "SYN1"
+        assert saved.thesis_id == thesis.thesis_id
+        assert saved.summary == "Reviewed synthetic evidence."
+        assert saved.effective_at == "2026-07-22T11:00:00Z"
+        assert saved.reviewer == "fixture-reviewer"
+        assert saved.evidence_direction == "supporting"
+        assert saved.source == "company_ir"
+        assert saved.source_ref == "https://example.invalid/evidence"
+        assert saved.source_published_at == "2026-07-22T10:00:00Z"
+        assert not paths.catalysts.exists()
+        assert not paths.outcomes.exists()
+    elif kind == "catalyst":
+        assert load_journal_entries(paths.journal) == (thesis,)
+        rows = load_catalyst_events(paths.catalysts)
+        assert len(rows) == 1
+        saved = rows[0]
+        assert saved.profile_key == "demo"
+        assert saved.ticker == "SYN1"
+        assert saved.event_type == "earnings"
+        assert saved.title == "Scheduled synthetic results"
+        assert saved.summary == "Reviewed synthetic catalyst context."
+        assert saved.effective_at == "2026-08-20T21:00:00Z"
+        assert saved.published_at == "2026-07-22T09:00:00Z"
+        assert saved.retrieved_at == "2026-07-22T10:00:00Z"
+        assert saved.source == "company_ir"
+        assert saved.source_ref == "https://example.invalid/event"
+        assert saved.evidence_state == "candidate_context_only"
+        assert saved.reviewer == "fixture-reviewer"
+        assert not paths.outcomes.exists()
+    else:
+        assert load_journal_entries(paths.journal) == (thesis,)
+        rows = load_outcomes(paths.outcomes)
+        assert len(rows) == 1
+        saved = rows[0]
+        assert saved.profile_key == "demo"
+        assert saved.ticker == "SYN1"
+        assert saved.thesis_id == thesis.thesis_id
+        assert saved.original_thesis_entry_id == thesis.entry_id
+        assert saved.reviewed_at == "2026-07-22T12:00:00Z"
+        assert saved.observation_start == "2026-07-20T12:00:00Z"
+        assert saved.observation_end == "2026-07-22T11:00:00Z"
+        assert saved.reviewer == "fixture-reviewer"
+        assert saved.outcome_state == "supported"
+        assert saved.summary == "Reviewed synthetic outcome."
+        assert saved.source == "reviewed_research_record"
+        assert saved.source_ref == "journal://entry-existing"
+        assert saved.source_published_at == "2026-07-22T10:00:00Z"
+        assert saved.learning == "Preserve explicit evidence boundaries."
+        assert not paths.catalysts.exists()
+
+    saved_message = app.success[0].value
+    assert "Corrections require a new append-only record" in saved_message
+    app.run()
+
+    assert not app.exception
+    assert not app.success
+    if kind == "evidence":
+        assert len(load_journal_entries(paths.journal)) == 2
+    elif kind == "catalyst":
+        assert len(load_catalyst_events(paths.catalysts)) == 1
+    else:
+        assert len(load_outcomes(paths.outcomes)) == 1
 
 
 def test_deleted_confirmed_record_warns_after_temporary_ledger_reload(tmp_path, monkeypatch):
