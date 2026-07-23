@@ -69,3 +69,78 @@ def test_manifest_rejects_symlink_escape(tmp_path):
     manifest.write_text(json.dumps(raw), encoding="utf-8")
     with pytest.raises(ValueError, match="manifest_path_unsafe"):
         load_universe_package(manifest, registry)
+
+
+@pytest.mark.parametrize("unlisted_kind", ["file", "symlink"])
+def test_manifest_rejects_unlisted_package_entry(tmp_path, unlisted_kind):
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+    extra = manifest.parent / "unlisted.csv"
+    if unlisted_kind == "file":
+        extra.write_text("unexpected\n", encoding="utf-8")
+    else:
+        extra.symlink_to(manifest.parent / "identity.csv")
+    with pytest.raises(ValueError, match="manifest_unlisted_file"):
+        load_universe_package(manifest, registry)
+
+
+def test_manifest_rejects_missing_listed_file_with_stable_reason(tmp_path):
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+    raw = json.loads(manifest.read_text())
+    (manifest.parent / raw["files"][0]["path"]).unlink()
+    with pytest.raises(ValueError, match="manifest_file_unreadable"):
+        load_universe_package(manifest, registry)
+
+
+@pytest.mark.parametrize("mutation,match", [
+    ("coverage", "manifest_coverage_semantics_invalid"),
+    ("declared_empty", "manifest_declared_universes_invalid"),
+    ("declared_blank_id", "manifest_declared_universes_invalid"),
+    ("declared_invalid_kind", "manifest_declared_universes_invalid"),
+    ("sources", "manifest_allowed_source_ids_invalid"),
+    ("walk_forward", "manifest_evaluation_policy_invalid"),
+    ("partition_boundaries", "manifest_evaluation_policy_invalid"),
+    ("corporate_actions", "manifest_corporate_action_policy_invalid"),
+    ("delisting", "manifest_delisting_policy_invalid"),
+    ("survivorship", "manifest_survivorship_policy_invalid"),
+    ("reproduction", "manifest_reproduction_contract_invalid"),
+])
+def test_manifest_rejects_invalid_immutable_policy_semantics(tmp_path, mutation, match):
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+    raw = json.loads(manifest.read_text())
+    if mutation == "coverage":
+        raw["coverage_semantics"] = "current_snapshot"
+    elif mutation == "declared_empty":
+        raw["declared_universes"] = []
+    elif mutation == "declared_blank_id":
+        raw["declared_universes"][0]["universe_id"] = ""
+    elif mutation == "declared_invalid_kind":
+        raw["declared_universes"][0]["universe_kind"] = "current_universe"
+    elif mutation == "sources":
+        raw["allowed_source_ids"] = []
+    elif mutation == "walk_forward":
+        raw["evaluation_policy"]["minimum_history_count"] = 0
+    elif mutation == "partition_boundaries":
+        raw["evaluation_policy"] = {
+            "kind": "train_validation_test",
+            "train_end_at": "2021-01-03T00:00:00Z",
+            "validation_start_at": "2021-01-02T00:00:00Z",
+            "validation_end_at": "2021-01-04T00:00:00Z",
+            "test_start_at": "2021-01-05T00:00:00Z",
+        }
+    elif mutation == "corporate_actions":
+        raw["corporate_action_policy"].pop("delisting")
+    elif mutation == "delisting":
+        raw["delisting_policy"]["missing_evidence"] = "ignore"
+    elif mutation == "survivorship":
+        raw["survivorship_policy"]["filter_by_current_listing_state"] = True
+    else:
+        raw["reproduction_contract"] = "membership_count_v0"
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+    with pytest.raises(ValueError, match=match):
+        load_universe_package(manifest, registry)
