@@ -748,6 +748,145 @@ def test_invalid_membership_row_has_exact_complete_exclusion(
     assert packet.analysis_eligible_rows == ()
 
 
+@pytest.mark.parametrize(
+    "case",
+    ["future_kind_mismatch", "future_undeclared_universe"],
+)
+def test_future_invalid_membership_is_only_cutoff_invisible(
+    tmp_path,
+    case,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    baseline = validate_point_in_time_universe(manifest, registry)
+
+    def add_future_invalid_row(rows):
+        rows.append(
+            {
+                **rows[0],
+                "membership_row_id": "member-future-invalid",
+                "universe_id": (
+                    "future-undeclared"
+                    if case == "future_undeclared_universe"
+                    else "bench-1"
+                ),
+                "universe_kind": (
+                    "benchmark"
+                    if case == "future_undeclared_universe"
+                    else "research_universe"
+                ),
+                "security_id": "sec-future-invalid",
+                "effective_from": "2022-01-01T00:00:00Z",
+                "observation_at": "2022-01-01T00:00:00Z",
+                "source_ref": f"fixture://membership/{case}",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        add_future_invalid_row,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    future_exclusion = next(
+        row
+        for row in packet.excluded
+        if row.row_id == "member-future-invalid"
+    )
+
+    assert _decision(packet, "membership_coverage").status == "passed"
+    assert _decision(packet, "membership_coverage").reason_codes == ()
+    assert packet.analysis_eligible is True
+    assert packet.membership_digests == baseline.membership_digests
+    assert packet.display_tickers == baseline.display_tickers
+    assert packet.analysis_eligible_rows == baseline.analysis_eligible_rows
+    assert (
+        future_exclusion.contract,
+        future_exclusion.source_row,
+        future_exclusion.reason_codes,
+    ) == (
+        "membership",
+        4,
+        ("cutoff_unrelated_scope_invisible",),
+    )
+    assert packet.excluded_count == 1
+    assert dict(packet.exclusion_reason_counts) == {
+        "cutoff_unrelated_scope_invisible": 1,
+    }
+
+
+def test_future_membership_kind_mismatch_applies_when_later_evaluation_sees_it(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_future_mismatch(rows):
+        rows.append(
+            {
+                **rows[0],
+                "membership_row_id": "member-future-visible",
+                "universe_kind": "research_universe",
+                "security_id": "sec-future-visible",
+                "effective_from": "2022-01-01T00:00:00Z",
+                "observation_at": "2022-01-01T00:00:00Z",
+                "source_ref": "fixture://membership/future-visible",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+            }
+        )
+
+    def add_later_evaluation(rows):
+        rows.append(
+            {
+                **rows[0],
+                "evaluation_row_id": "eval-bench-later",
+                "evaluation_at": "2023-01-01T00:00:00Z",
+                "available_at": "2023-01-01T00:00:00Z",
+                "source_ref": "fixture://evaluation/bench-later",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        add_future_mismatch,
+    )
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        add_later_evaluation,
+    )
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw.update(
+            observation_cutoff_at="2023-01-01T00:00:00Z",
+            manifest_created_at="2023-01-02T00:00:00Z",
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    offender = next(
+        row
+        for row in packet.excluded
+        if row.row_id == "member-future-visible"
+    )
+
+    assert _decision(packet, "membership_coverage").status == "blocked"
+    assert "membership_universe_kind_mismatch" in offender.reason_codes
+    assert (
+        packet.exclusion_reason_counts[
+            "membership_universe_kind_mismatch"
+        ]
+        == 1
+    )
+
+
 def test_membership_row_exclusion_unions_kind_and_lineage_reasons(tmp_path):
     from src.point_in_time_universe import validate_point_in_time_universe
 

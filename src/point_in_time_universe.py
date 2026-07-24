@@ -435,21 +435,25 @@ def _identity_membership_decisions(
         )
     )
 
-    for row in parsed.memberships:
-        expected_kind = declared.get(row.universe_id)
-        if expected_kind is None:
-            reason = "membership_universe_undeclared"
-            membership_reasons.add(reason)
-            excluded.append(
-                _excluded_record(
-                    source_index,
-                    "membership",
-                    row,
-                    (reason,),
-                )
+    for evaluation in evaluations:
+        visible_memberships = tuple(
+            row
+            for row in parsed.memberships
+            if max(
+                row.observation_at,
+                row.source_published_at,
+                row.retrieved_at,
             )
-        elif row.universe_kind != expected_kind:
-            reason = "membership_universe_kind_mismatch"
+            <= evaluation.evaluation_at
+        )
+        for row in visible_memberships:
+            expected_row_kind = declared.get(row.universe_id)
+            if expected_row_kind is None:
+                reason = "membership_universe_undeclared"
+            elif row.universe_kind != expected_row_kind:
+                reason = "membership_universe_kind_mismatch"
+            else:
+                continue
             membership_reasons.add(reason)
             excluded.append(
                 _excluded_record(
@@ -460,7 +464,6 @@ def _identity_membership_decisions(
                 )
             )
 
-    for evaluation in evaluations:
         membership_lineage = _compose_scoped_lineage(
             parsed.memberships,
             row_id=lambda row: row.membership_row_id,
@@ -795,6 +798,10 @@ def _temporal_decision(
         evaluation.evaluation_row_id
         for evaluation in evaluations
     }
+    declared_universe_ids = {
+        item["universe_id"]
+        for item in manifest.declared_universes
+    }
 
     def record_exclusion(
         contract: str,
@@ -933,6 +940,28 @@ def _temporal_decision(
                     or group[0].security_id
                     in latest_snapshot_security_ids
                 ),
+            )
+        undeclared_memberships_by_scope: dict[
+            tuple[str, str],
+            list,
+        ] = {}
+        for row in parsed.memberships:
+            if row.universe_id in declared_universe_ids:
+                continue
+            undeclared_memberships_by_scope.setdefault(
+                (row.universe_id, row.security_id),
+                [],
+            ).append(row)
+        for group in undeclared_memberships_by_scope.values():
+            classify_scope(
+                "membership",
+                group,
+                lambda row: max(
+                    row.observation_at,
+                    row.source_published_at,
+                    row.retrieved_at,
+                ),
+                required=False,
             )
 
         membership_lineage = _compose_scoped_lineage(
