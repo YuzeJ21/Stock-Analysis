@@ -12,6 +12,8 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping
 
+from src.point_in_time_universe_identifiers import is_control_free
+
 
 REQUIRED_CONTRACTS = frozenset({"security_identity", "membership", "events", "evaluations"})
 ALLOWED_COVERAGE_SEMANTICS = frozenset({"complete_snapshot", "event_history"})
@@ -175,6 +177,14 @@ def _nonempty_string(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
+def _nonempty_identifier(value: Any) -> bool:
+    return (
+        _nonempty_string(value)
+        and value == value.strip()
+        and is_control_free(value)
+    )
+
+
 def _utc_timestamp(value: Any) -> datetime | None:
     if not _nonempty_string(value) or "T" not in value or not value.endswith("Z"):
         return None
@@ -205,14 +215,22 @@ def _valid_evaluation_policy(policy: Any) -> bool:
 
 
 def _validate_manifest_semantics(raw: Mapping[str, Any]) -> None:
-    if not _nonempty_string(raw.get("dataset_id")):
+    if not _nonempty_identifier(raw.get("dataset_id")):
         raise ValueError("manifest_dataset_id_invalid")
-    if not _nonempty_string(raw.get("manifest_id")):
+    if not _nonempty_identifier(raw.get("manifest_id")):
         raise ValueError("manifest_id_invalid")
-    if _utc_timestamp(raw.get("manifest_created_at")) is None:
+    manifest_created_at = _utc_timestamp(raw.get("manifest_created_at"))
+    if manifest_created_at is None:
         raise ValueError("manifest_created_at_invalid")
-    if _utc_timestamp(raw.get("observation_cutoff_at")) is None:
+    observation_cutoff_at = _utc_timestamp(
+        raw.get("observation_cutoff_at")
+    )
+    if observation_cutoff_at is None:
         raise ValueError("manifest_observation_cutoff_at_invalid")
+    if manifest_created_at < observation_cutoff_at:
+        raise ValueError(
+            "manifest_created_before_observation_cutoff"
+        )
     if raw.get("coverage_semantics") not in ALLOWED_COVERAGE_SEMANTICS:
         raise ValueError("manifest_coverage_semantics_invalid")
     declared_universes = raw.get("declared_universes")
@@ -223,7 +241,7 @@ def _validate_manifest_semantics(raw: Mapping[str, Any]) -> None:
         if not isinstance(universe, dict):
             raise ValueError("manifest_declared_universes_invalid")
         universe_id = universe.get("universe_id")
-        if not _nonempty_string(universe_id) or universe.get("universe_kind") not in ALLOWED_UNIVERSE_KINDS:
+        if not _nonempty_identifier(universe_id) or universe.get("universe_kind") not in ALLOWED_UNIVERSE_KINDS:
             raise ValueError("manifest_declared_universes_invalid")
         if universe_id in declared_ids:
             raise ValueError("manifest_declared_universes_invalid")
@@ -232,7 +250,7 @@ def _validate_manifest_semantics(raw: Mapping[str, Any]) -> None:
     if (
         not isinstance(allowed_source_ids, list)
         or not allowed_source_ids
-        or any(not _nonempty_string(source_id) for source_id in allowed_source_ids)
+        or any(not _nonempty_identifier(source_id) for source_id in allowed_source_ids)
         or len(allowed_source_ids) != len(set(allowed_source_ids))
     ):
         raise ValueError("manifest_allowed_source_ids_invalid")
@@ -282,8 +300,8 @@ def _manifest_files(raw: Mapping[str, Any]) -> tuple[ManifestFile, ...]:
         for item in files:
             if (
                 not isinstance(item, dict)
-                or not _nonempty_string(item.get("path"))
-                or not _nonempty_string(item.get("contract"))
+                or not _nonempty_identifier(item.get("path"))
+                or not _nonempty_identifier(item.get("contract"))
                 or not _valid_sha256(item.get("sha256"))
                 or not _valid_row_count(item.get("row_count"))
             ):

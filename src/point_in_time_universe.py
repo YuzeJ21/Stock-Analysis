@@ -20,6 +20,7 @@ from src.point_in_time_universe_contracts import (
     parse_universe_evidence,
     parse_utc,
 )
+from src.point_in_time_universe_identifiers import escape_structural_token
 from src.point_in_time_universe_lineage import resolve_lineage
 from src.point_in_time_universe_manifest import UniverseManifest, load_universe_package
 
@@ -110,6 +111,30 @@ DECISION_ORDER = (
     "leakage_safe",
 )
 MAX_PREVIEW_EXCLUSION_ROWS = 100
+CONTRACT_TIMESTAMP_FIELDS = MappingProxyType({
+    "security_identity": (
+        "valid_from",
+        "valid_to",
+        "source_published_at",
+        "retrieved_at",
+    ),
+    "membership": (
+        "effective_from",
+        "effective_to",
+        "observation_at",
+        "source_published_at",
+        "retrieved_at",
+    ),
+    "events": (
+        "effective_at",
+        "source_published_at",
+        "retrieved_at",
+    ),
+    "evaluations": (
+        "evaluation_at",
+        "available_at",
+    ),
+})
 
 
 def _validate_top_n(top_n: int) -> None:
@@ -811,6 +836,36 @@ def _temporal_decision(
             ),
             set(),
         ).update(reason_codes)
+
+    manifest_created_at = parse_utc(manifest.manifest_created_at)
+    for raw_row in parsed.raw:
+        post_creation_timestamp = False
+        for field in CONTRACT_TIMESTAMP_FIELDS[raw_row.contract]:
+            value = raw_row.values.get(field, "")
+            if not value:
+                continue
+            try:
+                timestamp = parse_utc(value)
+            except (TypeError, ValueError):
+                continue
+            if timestamp > manifest_created_at:
+                post_creation_timestamp = True
+        if not post_creation_timestamp:
+            continue
+        temporal_reasons.add(
+            "temporal_evidence_after_manifest_creation"
+        )
+        exclusion_reasons.setdefault(
+            (
+                raw_row.contract,
+                raw_row.source_row,
+                raw_row.values.get(
+                    ROW_ID_FIELDS[raw_row.contract],
+                    "",
+                ),
+            ),
+            set(),
+        ).add("temporal_evidence_after_manifest_creation")
 
     for evaluation in parsed.evaluations:
         classified_reasons = evaluation_reasons[
@@ -2210,6 +2265,7 @@ def validate_point_in_time_universe(
 
 
 def render_status(packet: PointInTimeUniversePacket) -> str:
+    token = escape_structural_token
     lines = [
         "Point-in-Time Universe Status",
         (
@@ -2228,8 +2284,8 @@ def render_status(packet: PointInTimeUniversePacket) -> str:
             "Priority 4 still requires one independently reviewed, permitted "
             "real dataset."
         ),
-        f"dataset_id: {packet.dataset_id}",
-        f"manifest_id: {packet.manifest_id}",
+        f"dataset_id: {token(packet.dataset_id)}",
+        f"manifest_id: {token(packet.manifest_id)}",
         f"analysis_eligible: {str(packet.analysis_eligible).lower()}",
         f"raw_count: {packet.raw_count}",
         f"normalized_count: {packet.normalized_count}",
@@ -2241,12 +2297,13 @@ def render_status(packet: PointInTimeUniversePacket) -> str:
     ]
     lines.extend(
         (
-            f"{name}: {packet.decisions[name].status}; "
-            f"reasons={','.join(packet.decisions[name].reason_codes) or 'none'}"
+            f"{name}: {token(packet.decisions[name].status)}; "
+            "reasons="
+            f"{','.join(token(reason) for reason in packet.decisions[name].reason_codes) or 'none'}"
         )
         for name in DECISION_ORDER
     )
-    lines.append(f"boundary: {packet.boundary}")
+    lines.append(f"boundary: {token(packet.boundary)}")
     return "\n".join(lines)
 
 
@@ -2256,19 +2313,20 @@ def render_preview(
     top_n: int = 20,
 ) -> str:
     _validate_top_n(top_n)
+    token = escape_structural_token
 
     lines = [render_status(packet), "", "Membership reproduction:"]
     lines.extend(
         (
-            f"- {item.universe_id} @ {item.evaluation_at}: "
-            f"members={item.member_count}; sha256={item.sha256}"
+            f"- {token(item.universe_id)} @ {token(item.evaluation_at)}: "
+            f"members={item.member_count}; sha256={token(item.sha256)}"
         )
         for item in packet.membership_digests
     )
     lines.append("Exclusion reason counts:")
     if packet.exclusion_reason_counts:
         lines.extend(
-            f"- {reason}: {count}"
+            f"- {token(reason)}: {count}"
             for reason, count in packet.exclusion_reason_counts.items()
         )
     else:
@@ -2276,8 +2334,9 @@ def render_preview(
     lines.append("Excluded sample:")
     lines.extend(
         (
-            f"- {item.contract}:{item.source_row}:{item.row_id}; "
-            f"reasons={','.join(item.reason_codes)}"
+            f"- {token(item.contract)}:{item.source_row}:"
+            f"{token(item.row_id)}; "
+            f"reasons={','.join(token(reason) for reason in item.reason_codes)}"
         )
         for item in packet.excluded[:top_n]
     )

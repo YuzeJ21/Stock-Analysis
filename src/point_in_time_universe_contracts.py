@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from types import MappingProxyType
 from typing import Mapping
 
+from src.point_in_time_universe_identifiers import require_control_free
 from src.point_in_time_universe_manifest import LoadedUniversePackage
 
 
@@ -168,6 +169,30 @@ ROW_ID_FIELDS = {
     "events": "event_row_id",
     "evaluations": "evaluation_row_id",
 }
+STRUCTURAL_IDENTIFIER_FIELDS = frozenset({
+    "identity_row_id",
+    "security_id",
+    "issuer_id",
+    "ticker",
+    "exchange",
+    "security_type",
+    "currency",
+    "source_id",
+    "source_ref",
+    "supersedes_identity_row_id",
+    "membership_row_id",
+    "universe_id",
+    "universe_kind",
+    "membership_state",
+    "supersedes_membership_row_id",
+    "event_row_id",
+    "event_type",
+    "successor_security_id",
+    "listing_state_after",
+    "supersedes_event_row_id",
+    "evaluation_row_id",
+    "partition",
+})
 
 
 def _required(
@@ -181,6 +206,11 @@ def _required(
             raise ValueError("schema_required_field_missing")
         if name not in display_normalized and value != value.strip():
             raise ValueError("schema_whitespace_invalid")
+        if name in STRUCTURAL_IDENTIFIER_FIELDS:
+            require_control_free(
+                value,
+                "schema_identifier_control_character",
+            )
     return values
 
 
@@ -188,6 +218,10 @@ def _optional_opaque(row: Mapping[str, str], name: str) -> str:
     value = row[name]
     if value and value != value.strip():
         raise ValueError("schema_whitespace_invalid")
+    require_control_free(
+        value,
+        "schema_identifier_control_character",
+    )
     return value
 
 

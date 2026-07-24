@@ -100,7 +100,7 @@ def build_valid_package(root: Path) -> tuple[Path, Path]:
     manifest = {
         "schema_version": "point_in_time_universe_v1",
         "dataset_id": "fixture-dataset", "manifest_id": "fixture-manifest",
-        "manifest_created_at": "2021-01-02T00:00:00Z",
+        "manifest_created_at": "2030-01-01T00:00:00Z",
         "observation_cutoff_at": "2021-01-01T00:00:00Z",
         "coverage_semantics": "complete_snapshot",
         "declared_universes": [
