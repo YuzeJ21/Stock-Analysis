@@ -699,10 +699,11 @@ def mutate_identity_membership_case(manifest, case):
                 {
                     **rows[0],
                     "identity_row_id": "id-overlap",
+                    "issuer_id": "issuer-overlap",
                     "source_ref": "fixture://identity/id-overlap",
                     "source_published_at": "2020-02-01T00:00:00Z",
                     "retrieved_at": "2020-02-02T00:00:00Z",
-                    "supersedes_identity_row_id": "id-1",
+                    "supersedes_identity_row_id": "",
                 }
             )
 
@@ -966,6 +967,226 @@ def test_identity_lineage_failure_removes_all_members_from_reproduction(
     )
 
 
+def test_visible_inactive_identity_leaf_cannot_fall_back_to_superseded_root(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_visible_future_leaf(rows):
+        rows.append(
+            {
+                **rows[0],
+                "identity_row_id": "id-future-leaf",
+                "ticker": "FUTURE",
+                "valid_from": "2022-01-01T00:00:00Z",
+                "source_ref": "fixture://identity/id-future-leaf",
+                "source_published_at": "2020-02-01T00:00:00Z",
+                "retrieved_at": "2020-02-02T00:00:00Z",
+                "supersedes_identity_row_id": "id-1",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        add_visible_future_leaf,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "identity_coverage").status == "blocked"
+    assert _decision(packet, "identity_coverage").reason_codes == (
+        "identity_missing",
+    )
+    assert _decision(packet, "membership_coverage").status == "passed"
+    assert _decision(packet, "reproduction_ready").status == "passed"
+    assert all(
+        digest.member_count == 0
+        and digest.sha256 == _sha256_members()
+        for digest in packet.membership_digests
+    )
+    assert packet.display_tickers == {}
+    assert packet.analysis_eligible is False
+    assert packet.analysis_eligible_rows == ()
+    assert (
+        "security_identity",
+        3,
+        "id-future-leaf",
+        ("identity_missing",),
+    ) in {
+        (
+            row.contract,
+            row.source_row,
+            row.row_id,
+            row.reason_codes,
+        )
+        for row in packet.excluded
+    }
+
+
+def test_active_identity_leaf_is_used_without_superseded_root_reference(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_active_leaf(rows):
+        rows[0]["valid_to"] = "2020-06-01T00:00:00Z"
+        rows.append(
+            {
+                **rows[0],
+                "identity_row_id": "id-active-leaf",
+                "ticker": "LEAF",
+                "valid_from": "2020-06-01T00:00:00Z",
+                "valid_to": "",
+                "source_ref": "fixture://identity/id-active-leaf",
+                "source_published_at": "2020-06-01T00:00:00Z",
+                "retrieved_at": "2020-06-02T00:00:00Z",
+                "supersedes_identity_row_id": "id-1",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        add_active_leaf,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    eligible_identity_ids = {
+        row.row_id
+        for row in packet.analysis_eligible_rows
+        if row.contract == "security_identity"
+    }
+
+    assert packet.analysis_eligible is True
+    assert packet.display_tickers == {"sec-1": "LEAF"}
+    assert eligible_identity_ids == {"id-active-leaf"}
+
+
+def test_lineage_duplicate_membership_excludes_each_physical_source_row(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def duplicate_benchmark_member(rows):
+        rows.append(
+            {
+                **rows[0],
+                "source_ref": "fixture://membership/duplicate",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        duplicate_benchmark_member,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    duplicate_rows = tuple(
+        row
+        for row in packet.excluded
+        if (
+            row.contract == "membership"
+            and row.row_id == "member-bench-1"
+        )
+    )
+
+    assert {
+        row.source_row for row in duplicate_rows
+    } == {2, 4}
+    assert all(
+        row.reason_codes
+        == ("lineage_duplicate_id", "lineage_multiple_roots")
+        for row in duplicate_rows
+    )
+    assert packet.exclusion_reason_counts["lineage_duplicate_id"] == 2
+    assert packet.exclusion_reason_counts["lineage_multiple_roots"] == 2
+    assert {
+        (row.source_row, row.row_id)
+        for row in packet.normalized_rows
+        if row.contract == "membership"
+    } >= {(2, "member-bench-1"), (4, "member-bench-1")}
+
+
+@pytest.mark.parametrize(
+    "case,expected_reason,expected_source_rows",
+    [
+        ("lineage_duplicate", "lineage_duplicate_id", {2, 3}),
+        ("lineage_missing_parent", "lineage_missing_parent", {2}),
+        ("lineage_fork", "lineage_fork", {2, 3, 4}),
+        ("lineage_cycle", "lineage_cycle", {2, 3}),
+    ],
+)
+def test_invalid_identity_lineage_excludes_exact_physical_source_rows(
+    tmp_path,
+    case,
+    expected_reason,
+    expected_source_rows,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _mutate_identity_lineage_exclusion(manifest, case)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    identity_exclusions = tuple(
+        row
+        for row in packet.excluded
+        if (
+            row.contract == "security_identity"
+            and expected_reason in row.reason_codes
+        )
+    )
+
+    assert {
+        row.source_row for row in identity_exclusions
+    } == expected_source_rows
+    assert packet.exclusion_reason_counts[expected_reason] >= len(
+        expected_source_rows
+    )
+    if case == "lineage_duplicate":
+        assert {
+            (row.source_row, row.row_id)
+            for row in packet.normalized_rows
+            if row.contract == "security_identity"
+        } >= {(2, "id-1"), (3, "id-1")}
+
+
+def test_identity_overlap_excludes_each_overlapping_identity_source_row(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    mutate_identity_membership_case(manifest, "overlapping_identity")
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    identity_exclusions = tuple(
+        row
+        for row in packet.excluded
+        if (
+            row.contract == "security_identity"
+            and row.reason_codes == ("identity_interval_overlap",)
+        )
+    )
+
+    assert {
+        (row.source_row, row.row_id)
+        for row in identity_exclusions
+    } == {(2, "id-1"), (3, "id-overlap")}
+    assert (
+        packet.exclusion_reason_counts["identity_interval_overlap"]
+        == 4
+    )
+
+
 def test_invalid_global_membership_lineage_has_no_valid_digest_leaves(tmp_path):
     from src.point_in_time_universe import validate_point_in_time_universe
 
@@ -1004,10 +1225,11 @@ def test_overlapping_non_member_identity_blocks_identity_coverage(tmp_path):
                 {
                     **root,
                     "identity_row_id": "id-non-member-child",
+                    "issuer_id": "issuer-3",
                     "source_ref": "fixture://identity/id-non-member-child",
                     "source_published_at": "2020-02-01T00:00:00Z",
                     "retrieved_at": "2020-02-02T00:00:00Z",
-                    "supersedes_identity_row_id": "id-non-member-root",
+                    "supersedes_identity_row_id": "",
                 },
             ]
         )
@@ -1192,7 +1414,7 @@ def test_reversed_evaluation_rows_have_canonical_digests_and_latest_ticker(
     assert packets[1].display_tickers == {"sec-1": "BBB"}
 
 
-def test_latest_identity_failure_does_not_fall_back_to_older_ticker(tmp_path):
+def test_latest_active_identity_leaf_replaces_superseded_ticker(tmp_path):
     from src.point_in_time_universe import validate_point_in_time_universe
 
     manifest, registry = build_valid_package(tmp_path)
@@ -1230,12 +1452,18 @@ def test_latest_identity_failure_does_not_fall_back_to_older_ticker(tmp_path):
 
     packet = validate_point_in_time_universe(manifest, registry)
 
-    assert "identity_interval_overlap" in _decision(
-        packet,
-        "identity_coverage",
-    ).reason_codes
+    assert _decision(packet, "identity_coverage").status == "passed"
     assert _decision(packet, "membership_coverage").status == "passed"
-    assert packet.display_tickers == {}
+    assert packet.display_tickers == {"sec-1": "BBB"}
+    assert packet.analysis_eligible is True
+    assert {
+        row.row_id
+        for row in packet.analysis_eligible_rows
+        if (
+            row.contract == "security_identity"
+            and row.evaluation_row_id == "eval-bench-1"
+        )
+    } == {"id-overlap"}
 
 
 @pytest.mark.parametrize("top_n", [True, False, -1, 1.5, "1", None])
@@ -1284,12 +1512,12 @@ def test_complete_row_classifications_and_counts_are_deterministic(tmp_path):
     second = validate_point_in_time_universe(manifest, registry)
 
     expected = (
-        RowReference("evaluations", 2, "eval-bench-1"),
-        RowReference("evaluations", 3, "eval-research-1"),
-        RowReference("events", 2, "event-1"),
+        RowReference("security_identity", 2, "id-1"),
         RowReference("membership", 2, "member-bench-1"),
         RowReference("membership", 3, "member-research-1"),
-        RowReference("security_identity", 2, "id-1"),
+        RowReference("events", 2, "event-1"),
+        RowReference("evaluations", 2, "eval-bench-1"),
+        RowReference("evaluations", 3, "eval-research-1"),
     )
     assert first.raw_rows == expected
     assert first.normalized_rows == expected

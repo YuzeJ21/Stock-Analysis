@@ -134,6 +134,142 @@ def _row_number(
     )
 
 
+def _source_row_numbers(
+    parsed: ParsedUniverseEvidence,
+    contract: str,
+    row_id: str,
+) -> tuple[int, ...]:
+    id_field = ROW_ID_FIELDS[contract]
+    finding_rows = {
+        (finding.contract, finding.source_row)
+        for finding in parsed.findings
+    }
+    return tuple(
+        row.source_row
+        for row in parsed.raw
+        if (
+            row.contract == contract
+            and row.values.get(id_field) == row_id
+            and (contract, row.source_row) not in finding_rows
+        )
+    )
+
+
+def _record_exclusions(
+    parsed: ParsedUniverseEvidence,
+    contract: str,
+    records,
+    row_id,
+    reason_codes: tuple[str, ...],
+) -> tuple[ExcludedRow, ...]:
+    physical_rows = {
+        (source_row, record_id)
+        for record in records
+        for record_id in (row_id(record),)
+        for source_row in _source_row_numbers(
+            parsed,
+            contract,
+            record_id,
+        )
+    }
+    return tuple(
+        ExcludedRow(
+            contract,
+            source_row,
+            record_id,
+            reason_codes,
+        )
+        for source_row, record_id in sorted(physical_rows)
+    )
+
+
+def _lineage_reason_records(
+    records,
+    *,
+    row_id,
+    parent_id,
+    scope,
+    available_at,
+    cutoff,
+) -> Mapping[str, tuple]:
+    eligible = tuple(
+        record for record in records if available_at(record) <= cutoff
+    )
+    marked: dict[str, list] = {}
+
+    def mark(reason: str, *items) -> None:
+        bucket = marked.setdefault(reason, [])
+        for item in items:
+            if item not in bucket:
+                bucket.append(item)
+
+    by_identifier: dict[str, list] = {}
+    for record in eligible:
+        by_identifier.setdefault(row_id(record), []).append(record)
+    for duplicates in by_identifier.values():
+        if len(duplicates) > 1:
+            mark("lineage_duplicate_id", *duplicates)
+
+    by_id = {
+        identifier: items[-1]
+        for identifier, items in by_identifier.items()
+    }
+    roots: dict[str, list] = {}
+    children: dict[str, list] = {}
+    for record in eligible:
+        parent_identifier = parent_id(record)
+        record_scope = scope(record)
+        if not parent_identifier:
+            roots.setdefault(record_scope, []).append(record)
+            continue
+        parent = by_id.get(parent_identifier)
+        if parent is None:
+            mark("lineage_missing_parent", record)
+            continue
+        if scope(parent) != record_scope:
+            mark("lineage_cross_scope_parent", parent, record)
+        if available_at(record) <= available_at(parent):
+            mark("lineage_order_reversed", parent, record)
+        children.setdefault(parent_identifier, []).append(record)
+
+    for scope_roots in roots.values():
+        if len(scope_roots) > 1:
+            mark("lineage_multiple_roots", *scope_roots)
+    for parent_identifier, child_records in children.items():
+        if len(child_records) > 1:
+            mark(
+                "lineage_fork",
+                *by_identifier.get(parent_identifier, ()),
+                *child_records,
+            )
+
+    for start in eligible:
+        path: list = []
+        positions: dict[str, int] = {}
+        current = start
+        while parent_id(current):
+            current_identifier = row_id(current)
+            if current_identifier in positions:
+                mark(
+                    "lineage_cycle",
+                    *path[positions[current_identifier]:],
+                )
+                break
+            positions[current_identifier] = len(path)
+            path.append(current)
+            parent = by_id.get(parent_id(current))
+            if parent is None:
+                break
+            current = parent
+
+    return MappingProxyType(
+        {
+            reason: tuple(items)
+            for reason, items in sorted(marked.items())
+        }
+    )
+
+
 def _identity_membership_decisions(
     manifest: UniverseManifest,
     parsed: ParsedUniverseEvidence,
@@ -217,6 +353,31 @@ def _identity_membership_decisions(
             cutoff=evaluation.evaluation_at,
         )
         membership_reasons.update(membership_lineage.reason_codes)
+        if membership_lineage.reason_codes:
+            lineage_records = _lineage_reason_records(
+                parsed.memberships,
+                row_id=lambda row: row.membership_row_id,
+                parent_id=lambda row: row.supersedes_membership_row_id,
+                scope=lambda row: (
+                    f"{row.universe_id}:{row.security_id}"
+                ),
+                available_at=lambda row: max(
+                    row.observation_at,
+                    row.source_published_at,
+                    row.retrieved_at,
+                ),
+                cutoff=evaluation.evaluation_at,
+            )
+            for reason in membership_lineage.reason_codes:
+                excluded.extend(
+                    _record_exclusions(
+                        parsed,
+                        "membership",
+                        lineage_records.get(reason, ()),
+                        lambda row: row.membership_row_id,
+                        (reason,),
+                    )
+                )
         identity_lineage = resolve_lineage(
             parsed.identities,
             row_id=lambda row: row.identity_row_id,
@@ -229,6 +390,28 @@ def _identity_membership_decisions(
             cutoff=evaluation.evaluation_at,
         )
         identity_reasons.update(identity_lineage.reason_codes)
+        if identity_lineage.reason_codes:
+            lineage_records = _lineage_reason_records(
+                parsed.identities,
+                row_id=lambda row: row.identity_row_id,
+                parent_id=lambda row: row.supersedes_identity_row_id,
+                scope=lambda row: f"{row.security_id}:{row.issuer_id}",
+                available_at=lambda row: max(
+                    row.source_published_at,
+                    row.retrieved_at,
+                ),
+                cutoff=evaluation.evaluation_at,
+            )
+            for reason in identity_lineage.reason_codes:
+                excluded.extend(
+                    _record_exclusions(
+                        parsed,
+                        "security_identity",
+                        lineage_records.get(reason, ()),
+                        lambda row: row.identity_row_id,
+                        (reason,),
+                    )
+                )
 
         expected_kind = declared.get(evaluation.universe_id)
         if expected_kind is None:
@@ -264,15 +447,11 @@ def _identity_membership_decisions(
         overlapping_identity_security_ids: set[str] = set()
         if not identity_lineage.reason_codes:
             available_identity_by_security: dict[str, list] = {}
-            for row in parsed.identities:
-                if (
-                    max(row.source_published_at, row.retrieved_at)
-                    <= evaluation.evaluation_at
-                ):
-                    available_identity_by_security.setdefault(
-                        row.security_id,
-                        [],
-                    ).append(row)
+            for row in identity_lineage.leaves:
+                available_identity_by_security.setdefault(
+                    row.security_id,
+                    [],
+                ).append(row)
             for security_id, identity_rows in (
                 available_identity_by_security.items()
             ):
@@ -288,6 +467,15 @@ def _identity_membership_decisions(
                 if len(active) > 1:
                     identity_reasons.add("identity_interval_overlap")
                     overlapping_identity_security_ids.add(security_id)
+                    excluded.extend(
+                        _record_exclusions(
+                            parsed,
+                            "security_identity",
+                            active,
+                            lambda row: row.identity_row_id,
+                            ("identity_interval_overlap",),
+                        )
+                    )
                 elif len(active) == 1:
                     active_identity_by_security[security_id] = active[0]
 
@@ -381,13 +569,18 @@ def _identity_membership_decisions(
             if active_identity is None:
                 identity_rows = tuple(
                     row
+                    for row in identity_lineage.leaves
+                    if row.security_id == security_id
+                )
+                all_identity_rows = tuple(
+                    row
                     for row in parsed.identities
                     if row.security_id == security_id
                 )
-                if identity_rows and not any(
+                if all_identity_rows and not any(
                     max(row.source_published_at, row.retrieved_at)
                     <= evaluation.evaluation_at
-                    for row in identity_rows
+                    for row in all_identity_rows
                 ):
                     if is_latest_display:
                         display_candidates[security_id] = (
@@ -410,6 +603,15 @@ def _identity_membership_decisions(
                             leaf.membership_row_id,
                         ),
                         leaf.membership_row_id,
+                        ("identity_missing",),
+                    )
+                )
+                excluded.extend(
+                    _record_exclusions(
+                        parsed,
+                        "security_identity",
+                        identity_rows,
+                        lambda row: row.identity_row_id,
                         ("identity_missing",),
                     )
                 )
@@ -1492,21 +1694,12 @@ def _complete_row_references(
     parsed: ParsedUniverseEvidence,
 ) -> tuple[tuple[RowReference, ...], tuple[RowReference, ...]]:
     raw_rows = tuple(
-        sorted(
-            (
-                RowReference(
-                    row.contract,
-                    row.source_row,
-                    row.values.get(ROW_ID_FIELDS[row.contract], ""),
-                )
-                for row in parsed.raw
-            ),
-            key=lambda row: (
-                row.contract,
-                row.source_row,
-                row.row_id,
-            ),
+        RowReference(
+            row.contract,
+            row.source_row,
+            row.values.get(ROW_ID_FIELDS[row.contract], ""),
         )
+        for row in parsed.raw
     )
     finding_rows = {
         (finding.contract, finding.source_row)
@@ -1613,14 +1806,9 @@ def _analysis_row_references(
         for member in member_leaves:
             active_identities = tuple(
                 row
-                for row in parsed.identities
+                for row in identity_lineage.leaves
                 if (
                     row.security_id == member.security_id
-                    and max(
-                        row.source_published_at,
-                        row.retrieved_at,
-                    )
-                    <= evaluation.evaluation_at
                     and _contains(
                         row.valid_from,
                         row.valid_to,

@@ -248,7 +248,7 @@ def test_preview_caps_canonically_sorted_exclusions_without_writing(tmp_path):
     assert len(packet.excluded) > 1
     assert packet.excluded_count == len(packet.excluded)
     assert (
-        "identity_interval_overlap: 2"
+        "identity_interval_overlap: 4"
         in render_preview(packet, top_n=1)
     )
     for proprietary_value in (
