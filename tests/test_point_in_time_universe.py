@@ -623,6 +623,24 @@ def test_ticker_change_preserves_security_identity_without_current_ticker_fallba
     assert packet.display_tickers == {"sec-1": "BBB"}
 
 
+def test_display_ticker_does_not_change_stable_id_membership_digest(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    before = validate_point_in_time_universe(manifest, registry)
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        lambda rows: rows[0].update(ticker="RENAMED"),
+    )
+    after = validate_point_in_time_universe(manifest, registry)
+
+    assert before.membership_digests == after.membership_digests
+    assert before.display_tickers == {"sec-1": "AAA"}
+    assert after.display_tickers == {"sec-1": "RENAMED"}
+
+
 def test_same_ticker_for_two_security_ids_does_not_merge_membership(tmp_path):
     from src.point_in_time_universe import validate_point_in_time_universe
 
@@ -889,7 +907,7 @@ def mutate_integrated_lineage_case(manifest, case):
         ("missing_identity", "identity_missing"),
     ],
 )
-def test_identity_failure_does_not_change_membership_decision_or_digest(
+def test_identity_failure_preserves_membership_decision_but_removes_digest_member(
     tmp_path,
     case,
     identity_reason,
@@ -909,12 +927,43 @@ def test_identity_failure_does_not_change_membership_decision_or_digest(
     ).reason_codes
     assert _decision(packet, "membership_coverage").status == "passed"
     assert _decision(packet, "membership_coverage").reason_codes == ()
-    assert digests["bench-1"].member_count == 1
-    assert digests["bench-1"].sha256 == _sha256_members(
-        "sec-missing" if case == "missing_identity" else "sec-1"
+    assert digests["bench-1"].member_count == 0
+    assert digests["bench-1"].sha256 == _sha256_members()
+    expected_research_members = () if case == "overlapping_identity" else ("sec-1",)
+    assert digests["research-1"].member_count == len(
+        expected_research_members
     )
-    assert digests["research-1"].member_count == 1
-    assert digests["research-1"].sha256 == _sha256_members("sec-1")
+    assert digests["research-1"].sha256 == _sha256_members(
+        *expected_research_members
+    )
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "lineage_missing_parent",
+        "lineage_fork",
+        "lineage_cycle",
+    ],
+)
+def test_identity_lineage_failure_removes_all_members_from_reproduction(
+    tmp_path,
+    case,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _mutate_identity_lineage_exclusion(manifest, case)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "identity_coverage").status == "blocked"
+    assert packet.membership_digests
+    assert all(
+        digest.member_count == 0
+        and digest.sha256 == _sha256_members()
+        for digest in packet.membership_digests
+    )
 
 
 def test_invalid_global_membership_lineage_has_no_valid_digest_leaves(tmp_path):
@@ -1203,40 +1252,125 @@ def test_top_n_rejects_bool_non_integer_and_negative_values(tmp_path, top_n):
         )
 
 
-def test_top_n_zero_returns_no_excluded_rows(tmp_path):
+def test_validation_packet_is_complete_and_independent_of_top_n(tmp_path):
     from src.point_in_time_universe import validate_point_in_time_universe
 
     manifest, registry = build_valid_package(tmp_path)
     mutate_identity_membership_case(manifest, "overlapping_identity")
 
-    packet = validate_point_in_time_universe(
-        manifest,
-        registry,
-        top_n=0,
+    packets = tuple(
+        validate_point_in_time_universe(
+            manifest,
+            registry,
+            top_n=top_n,
+        )
+        for top_n in (0, 1, 10_000)
     )
 
-    assert packet.excluded == ()
+    assert packets[0] == packets[1] == packets[2]
+    assert len(packets[0].excluded) > 1
+    assert packets[0].excluded_count == len(packets[0].excluded)
 
 
-def test_excluded_rows_are_canonically_sorted_before_positive_cap(tmp_path):
+def test_complete_row_classifications_and_counts_are_deterministic(tmp_path):
+    from src.point_in_time_universe import (
+        RowReference,
+        validate_point_in_time_universe,
+    )
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    first = validate_point_in_time_universe(manifest, registry)
+    second = validate_point_in_time_universe(manifest, registry)
+
+    expected = (
+        RowReference("evaluations", 2, "eval-bench-1"),
+        RowReference("evaluations", 3, "eval-research-1"),
+        RowReference("events", 2, "event-1"),
+        RowReference("membership", 2, "member-bench-1"),
+        RowReference("membership", 3, "member-research-1"),
+        RowReference("security_identity", 2, "id-1"),
+    )
+    assert first.raw_rows == expected
+    assert first.normalized_rows == expected
+    assert first.raw_count == len(expected)
+    assert first.normalized_count == len(expected)
+    assert first.excluded == ()
+    assert first.excluded_count == 0
+    assert dict(first.exclusion_reason_counts) == {}
+    assert first == second
+
+
+def test_analysis_eligible_rows_are_evaluation_scoped_and_fail_closed(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    valid_root = tmp_path / "valid"
+    valid_root.mkdir()
+    valid_manifest, valid_registry = build_valid_package(valid_root)
+    valid = validate_point_in_time_universe(
+        valid_manifest,
+        valid_registry,
+    )
+
+    assert valid.analysis_eligible is True
+    assert valid.analysis_eligible_row_count == len(
+        valid.analysis_eligible_rows
+    )
+    assert {
+        row.evaluation_row_id
+        for row in valid.analysis_eligible_rows
+    } == {"eval-bench-1", "eval-research-1"}
+    assert {
+        (
+            row.evaluation_row_id,
+            row.contract,
+            row.row_id,
+        )
+        for row in valid.analysis_eligible_rows
+    } == {
+        ("eval-bench-1", "evaluations", "eval-bench-1"),
+        ("eval-bench-1", "events", "event-1"),
+        ("eval-bench-1", "membership", "member-bench-1"),
+        ("eval-bench-1", "security_identity", "id-1"),
+        ("eval-research-1", "evaluations", "eval-research-1"),
+        ("eval-research-1", "events", "event-1"),
+        ("eval-research-1", "membership", "member-research-1"),
+        ("eval-research-1", "security_identity", "id-1"),
+    }
+
+    blocked_root = tmp_path / "blocked"
+    blocked_root.mkdir()
+    blocked_manifest, blocked_registry = build_valid_package(blocked_root)
+    mutate_identity_membership_case(blocked_manifest, "missing_identity")
+    blocked = validate_point_in_time_universe(
+        blocked_manifest,
+        blocked_registry,
+    )
+
+    assert blocked.analysis_eligible is False
+    assert blocked.analysis_eligible_rows == ()
+    assert blocked.analysis_eligible_row_count == 0
+
+
+def test_complete_reason_counts_equal_full_canonical_exclusions(tmp_path):
+    from collections import Counter
+
     from src.point_in_time_universe import validate_point_in_time_universe
 
     manifest, registry = build_valid_package(tmp_path)
-    _rewrite_csv_and_manifest(
-        manifest,
-        "security_identity",
-        lambda rows: rows[0].update(ticker=""),
-    )
+    mutate_identity_membership_case(manifest, "overlapping_identity")
 
-    packet = validate_point_in_time_universe(
-        manifest,
-        registry,
-        top_n=1,
-    )
+    packet = validate_point_in_time_universe(manifest, registry, top_n=1)
 
-    assert len(packet.excluded) == 1
-    assert packet.excluded[0].contract == "membership"
-    assert packet.excluded[0].row_id == "member-bench-1"
+    expected = Counter(
+        reason
+        for excluded in packet.excluded
+        for reason in excluded.reason_codes
+    )
+    assert dict(packet.exclusion_reason_counts) == dict(sorted(expected.items()))
+    assert packet.excluded_count == len(packet.excluded)
 
 
 def test_split_requires_positive_explicit_ratio_and_does_not_rewrite_membership(

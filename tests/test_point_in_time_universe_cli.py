@@ -112,6 +112,10 @@ def test_renderers_and_cli_are_deterministic_complete_and_read_only(tmp_path):
         assert "dataset_id: fixture-dataset" in output
         assert "manifest_id: fixture-manifest" in output
         assert "analysis_eligible: true" in output
+        assert "raw_count: 6" in output
+        assert "normalized_count: 6" in output
+        assert "excluded_count: 0" in output
+        assert "analysis_eligible_row_count: 8" in output
         assert f"boundary: {packet.boundary}" in output
         for name in DECISION_ORDER:
             decision = packet.decisions[name]
@@ -120,6 +124,8 @@ def test_renderers_and_cli_are_deterministic_complete_and_read_only(tmp_path):
 
     assert len(DECISION_ORDER) == 10
     assert "Membership reproduction:" in preview
+    assert "Exclusion reason counts:" in preview
+    assert "- none" in preview
     for digest in packet.membership_digests:
         assert (
             f"- {digest.universe_id} @ {digest.evaluation_at}: "
@@ -198,9 +204,19 @@ def test_synthetic_package_status_is_local_software_evidence_only(tmp_path):
 
 
 def test_preview_caps_canonically_sorted_exclusions_without_writing(tmp_path):
+    from src.point_in_time_universe import (
+        render_preview,
+        validate_point_in_time_universe,
+    )
+
     manifest, registry = build_valid_package(tmp_path)
     mutate_identity_membership_case(manifest, "overlapping_identity")
     before = _snapshot(tmp_path)
+    packet = validate_point_in_time_universe(
+        manifest,
+        registry,
+        top_n=0,
+    )
 
     one = _run_cli(
         "preview",
@@ -229,6 +245,18 @@ def test_preview_caps_canonically_sorted_exclusions_without_writing(tmp_path):
         "- membership:2:member-bench-1; reasons=identity_interval_overlap"
     ]
     assert no_exclusions == []
+    assert len(packet.excluded) > 1
+    assert packet.excluded_count == len(packet.excluded)
+    assert (
+        "identity_interval_overlap: 2"
+        in render_preview(packet, top_n=1)
+    )
+    for proprietary_value in (
+        "AAA",
+        "fixture://identity/id-1",
+        "fixture://membership/bench-1",
+    ):
+        assert proprietary_value not in one.stdout
     assert _snapshot(tmp_path) == before
 
 

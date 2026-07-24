@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 import hashlib
 from dataclasses import dataclass
 from datetime import datetime
@@ -37,6 +38,14 @@ class ExcludedRow:
 
 
 @dataclass(frozen=True)
+class RowReference:
+    contract: str
+    source_row: int
+    row_id: str
+    evaluation_row_id: str = ""
+
+
+@dataclass(frozen=True)
 class MembershipDigest:
     universe_id: str
     evaluation_at: str
@@ -58,7 +67,13 @@ class PointInTimeUniversePacket:
     decisions: Mapping[str, Decision]
     raw_count: int
     normalized_count: int
+    raw_rows: tuple[RowReference, ...]
+    normalized_rows: tuple[RowReference, ...]
     excluded: tuple[ExcludedRow, ...]
+    excluded_count: int
+    exclusion_reason_counts: Mapping[str, int]
+    analysis_eligible_rows: tuple[RowReference, ...]
+    analysis_eligible_row_count: int
     membership_digests: tuple[MembershipDigest, ...]
     display_tickers: Mapping[str, str]
     boundary: str
@@ -76,6 +91,13 @@ DECISION_ORDER = (
     "reproduction_ready",
     "leakage_safe",
 )
+
+ROW_ID_FIELDS = {
+    "security_identity": "identity_row_id",
+    "membership": "membership_row_id",
+    "events": "event_row_id",
+    "evaluations": "evaluation_row_id",
+}
 
 
 def _membership_digest(
@@ -101,12 +123,7 @@ def _row_number(
     contract: str,
     row_id: str,
 ) -> int:
-    id_field = {
-        "security_identity": "identity_row_id",
-        "membership": "membership_row_id",
-        "events": "event_row_id",
-        "evaluations": "evaluation_row_id",
-    }[contract]
+    id_field = ROW_ID_FIELDS[contract]
     return next(
         (
             row.source_row
@@ -275,6 +292,7 @@ def _identity_membership_decisions(
                     active_identity_by_security[security_id] = active[0]
 
         members: set[str] = set()
+        structurally_eligible_members = 0
         for leaf in membership_lineage.leaves:
             if leaf.universe_id != evaluation.universe_id:
                 continue
@@ -306,7 +324,7 @@ def _identity_membership_decisions(
                 continue
 
             security_id = leaf.security_id
-            members.add(security_id)
+            structurally_eligible_members += 1
             evaluation_key = (
                 evaluation.evaluation_at,
                 evaluation.universe_id,
@@ -402,8 +420,9 @@ def _identity_membership_decisions(
                     evaluation_key,
                     active_identity.ticker,
                 )
+            members.add(security_id)
 
-        if not members and (
+        if structurally_eligible_members == 0 and (
             not scoped_memberships or cutoff_available_memberships
         ):
             membership_reasons.add("membership_no_eligible_members")
@@ -1454,6 +1473,239 @@ def _rights_decision(manifest, parsed, registry) -> Decision:
     )
 
 
+def _row_reference(
+    parsed: ParsedUniverseEvidence,
+    contract: str,
+    row_id: str,
+    *,
+    evaluation_row_id: str = "",
+) -> RowReference:
+    return RowReference(
+        contract,
+        _row_number(parsed, contract, row_id),
+        row_id,
+        evaluation_row_id,
+    )
+
+
+def _complete_row_references(
+    parsed: ParsedUniverseEvidence,
+) -> tuple[tuple[RowReference, ...], tuple[RowReference, ...]]:
+    raw_rows = tuple(
+        sorted(
+            (
+                RowReference(
+                    row.contract,
+                    row.source_row,
+                    row.values.get(ROW_ID_FIELDS[row.contract], ""),
+                )
+                for row in parsed.raw
+            ),
+            key=lambda row: (
+                row.contract,
+                row.source_row,
+                row.row_id,
+            ),
+        )
+    )
+    finding_rows = {
+        (finding.contract, finding.source_row)
+        for finding in parsed.findings
+    }
+    normalized_rows = tuple(
+        row
+        for row in raw_rows
+        if (row.contract, row.source_row) not in finding_rows
+    )
+    return raw_rows, normalized_rows
+
+
+def _analysis_row_references(
+    manifest: UniverseManifest,
+    parsed: ParsedUniverseEvidence,
+    evaluations,
+) -> tuple[RowReference, ...]:
+    references: set[RowReference] = set()
+    declared = {
+        item["universe_id"]: item["universe_kind"]
+        for item in manifest.declared_universes
+    }
+    for evaluation in sorted(
+        evaluations,
+        key=lambda row: (
+            row.evaluation_at,
+            row.universe_id,
+            row.evaluation_row_id,
+        ),
+    ):
+        evaluation_row_id = evaluation.evaluation_row_id
+        references.add(
+            _row_reference(
+                parsed,
+                "evaluations",
+                evaluation_row_id,
+                evaluation_row_id=evaluation_row_id,
+            )
+        )
+        membership_lineage = resolve_lineage(
+            parsed.memberships,
+            row_id=lambda row: row.membership_row_id,
+            parent_id=lambda row: row.supersedes_membership_row_id,
+            scope=lambda row: f"{row.universe_id}:{row.security_id}",
+            available_at=lambda row: max(
+                row.observation_at,
+                row.source_published_at,
+                row.retrieved_at,
+            ),
+            cutoff=evaluation.evaluation_at,
+        )
+        identity_lineage = resolve_lineage(
+            parsed.identities,
+            row_id=lambda row: row.identity_row_id,
+            parent_id=lambda row: row.supersedes_identity_row_id,
+            scope=lambda row: f"{row.security_id}:{row.issuer_id}",
+            available_at=lambda row: max(
+                row.source_published_at,
+                row.retrieved_at,
+            ),
+            cutoff=evaluation.evaluation_at,
+        )
+        if (
+            membership_lineage.reason_codes
+            or identity_lineage.reason_codes
+        ):
+            return ()
+
+        cutoff_memberships = tuple(
+            row
+            for row in parsed.memberships
+            if (
+                row.universe_id == evaluation.universe_id
+                and max(
+                    row.observation_at,
+                    row.source_published_at,
+                    row.retrieved_at,
+                )
+                <= evaluation.evaluation_at
+            )
+        )
+        latest_snapshot_at = max(
+            (row.observation_at for row in cutoff_memberships),
+            default=None,
+        )
+        expected_kind = declared.get(evaluation.universe_id)
+        member_leaves = tuple(
+            row
+            for row in membership_lineage.leaves
+            if (
+                row.universe_id == evaluation.universe_id
+                and row.universe_kind == expected_kind
+                and row.observation_at == latest_snapshot_at
+                and row.membership_state == "included"
+                and _contains(
+                    row.effective_from,
+                    row.effective_to,
+                    evaluation.evaluation_at,
+                )
+            )
+        )
+        member_security_ids: set[str] = set()
+        for member in member_leaves:
+            active_identities = tuple(
+                row
+                for row in parsed.identities
+                if (
+                    row.security_id == member.security_id
+                    and max(
+                        row.source_published_at,
+                        row.retrieved_at,
+                    )
+                    <= evaluation.evaluation_at
+                    and _contains(
+                        row.valid_from,
+                        row.valid_to,
+                        evaluation.evaluation_at,
+                    )
+                )
+            )
+            if len(active_identities) != 1:
+                return ()
+            active_identity = active_identities[0]
+            member_security_ids.add(member.security_id)
+            references.add(
+                _row_reference(
+                    parsed,
+                    "membership",
+                    member.membership_row_id,
+                    evaluation_row_id=evaluation_row_id,
+                )
+            )
+            references.add(
+                _row_reference(
+                    parsed,
+                    "security_identity",
+                    active_identity.identity_row_id,
+                    evaluation_row_id=evaluation_row_id,
+                )
+            )
+
+        visible_events = tuple(
+            event
+            for event in parsed.events
+            if max(
+                event.effective_at,
+                event.source_published_at,
+                event.retrieved_at,
+            )
+            <= evaluation.evaluation_at
+        )
+        events_by_scope: dict[tuple[str, str], list] = {}
+        for event in visible_events:
+            events_by_scope.setdefault(
+                (event.security_id, event.event_type),
+                [],
+            ).append(event)
+        for scope_events in events_by_scope.values():
+            lineage = resolve_lineage(
+                scope_events,
+                row_id=lambda event: event.event_row_id,
+                parent_id=lambda event: event.supersedes_event_row_id,
+                scope=lambda event: (
+                    f"{event.security_id}:{event.event_type}"
+                ),
+                available_at=lambda event: max(
+                    event.effective_at,
+                    event.source_published_at,
+                    event.retrieved_at,
+                ),
+                cutoff=evaluation.evaluation_at,
+            )
+            if lineage.reason_codes:
+                return ()
+            for event in lineage.leaves:
+                if event.security_id in member_security_ids:
+                    references.add(
+                        _row_reference(
+                            parsed,
+                            "events",
+                            event.event_row_id,
+                            evaluation_row_id=evaluation_row_id,
+                        )
+                    )
+
+    return tuple(
+        sorted(
+            references,
+            key=lambda row: (
+                row.evaluation_row_id,
+                row.contract,
+                row.source_row,
+                row.row_id,
+            ),
+        )
+    )
+
+
 def validate_point_in_time_universe(
     manifest_path: Path,
     registry_path: Path,
@@ -1582,26 +1834,47 @@ def validate_point_in_time_universe(
             row_id,
         ), reason_codes in sorted(canonical_exclusion_reasons.items())
     )
+    raw_rows, normalized_rows = _complete_row_references(parsed)
+    exclusion_reason_counts = MappingProxyType(
+        dict(
+            sorted(
+                Counter(
+                    reason
+                    for item in canonical_excluded
+                    for reason in item.reason_codes
+                ).items()
+            )
+        )
+    )
+    analysis_eligible = _final_eligibility(
+        ordered_decisions,
+        digests,
+        package.manifest.declared_universes,
+    )
+    analysis_eligible_rows = (
+        _analysis_row_references(
+            package.manifest,
+            parsed,
+            valid_evaluations,
+        )
+        if analysis_eligible
+        else ()
+    )
 
     return PointInTimeUniversePacket(
         dataset_id=package.manifest.dataset_id,
         manifest_id=package.manifest.manifest_id,
-        analysis_eligible=_final_eligibility(
-            ordered_decisions,
-            digests,
-            package.manifest.declared_universes,
-        ),
+        analysis_eligible=analysis_eligible,
         decisions=ordered_decisions,
-        raw_count=len(parsed.raw),
-        normalized_count=sum(
-            (
-                len(parsed.identities),
-                len(parsed.memberships),
-                len(parsed.events),
-                len(parsed.evaluations),
-            )
-        ),
-        excluded=canonical_excluded[:top_n],
+        raw_count=len(raw_rows),
+        normalized_count=len(normalized_rows),
+        raw_rows=raw_rows,
+        normalized_rows=normalized_rows,
+        excluded=canonical_excluded,
+        excluded_count=len(canonical_excluded),
+        exclusion_reason_counts=exclusion_reason_counts,
+        analysis_eligible_rows=analysis_eligible_rows,
+        analysis_eligible_row_count=len(analysis_eligible_rows),
         membership_digests=digests,
         display_tickers=display,
         boundary=(
@@ -1633,6 +1906,13 @@ def render_status(packet: PointInTimeUniversePacket) -> str:
         f"dataset_id: {packet.dataset_id}",
         f"manifest_id: {packet.manifest_id}",
         f"analysis_eligible: {str(packet.analysis_eligible).lower()}",
+        f"raw_count: {packet.raw_count}",
+        f"normalized_count: {packet.normalized_count}",
+        f"excluded_count: {packet.excluded_count}",
+        (
+            "analysis_eligible_row_count: "
+            f"{packet.analysis_eligible_row_count}"
+        ),
     ]
     lines.extend(
         (
@@ -1665,6 +1945,14 @@ def render_preview(
         )
         for item in packet.membership_digests
     )
+    lines.append("Exclusion reason counts:")
+    if packet.exclusion_reason_counts:
+        lines.extend(
+            f"- {reason}: {count}"
+            for reason, count in packet.exclusion_reason_counts.items()
+        )
+    else:
+        lines.append("- none")
     lines.append("Excluded sample:")
     lines.extend(
         (
