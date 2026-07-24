@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping
@@ -370,7 +371,7 @@ def _event_decisions(
     delisting_reasons: set[str] = set()
     excluded: list[ExcludedRow] = []
     events_by_type: dict[str, list] = {}
-    listing_state_by_security: dict[str, str] = {}
+    listing_state_by_security: dict[str, tuple[str, datetime]] = {}
     listing_state_event_types = {
         "delisting",
         "suspension",
@@ -416,15 +417,20 @@ def _event_decisions(
         ):
             reasons.add("delisting_transition_invalid")
         if event.event_type == "reactivation":
+            prior_listing_state = listing_state_by_security.get(
+                event.security_id
+            )
             if (
                 event.listing_state_after != "active"
-                or listing_state_by_security.get(event.security_id)
-                != "suspended"
+                or prior_listing_state is None
+                or prior_listing_state[0] != "suspended"
+                or prior_listing_state[1] >= event.effective_at
             ):
                 reasons.add("delisting_transition_invalid")
         if event.listing_state_after:
             listing_state_by_security[event.security_id] = (
-                event.listing_state_after
+                event.listing_state_after,
+                event.effective_at,
             )
         if reasons:
             target = (

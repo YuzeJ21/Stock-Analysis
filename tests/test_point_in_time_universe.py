@@ -1012,6 +1012,69 @@ def test_ordered_suspension_reactivation_pair_passes(tmp_path):
     assert _decision(packet, "corporate_action_coverage").status == "passed"
 
 
+@pytest.mark.parametrize(
+    "suspension_row_id,reactivation_row_id",
+    [
+        ("event-a-suspension", "event-z-reactivation"),
+        ("event-z-suspension", "event-a-reactivation"),
+    ],
+)
+def test_same_timestamp_reactivation_is_blocked_regardless_of_row_id_order(
+    tmp_path,
+    suspension_row_id,
+    reactivation_row_id,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_simultaneous_transitions(rows):
+        base = rows[0]
+        rows.extend(
+            [
+                {
+                    **base,
+                    "event_row_id": suspension_row_id,
+                    "event_type": "suspension",
+                    "effective_at": "2020-02-01T00:00:00Z",
+                    "listing_state_after": "suspended",
+                    "source_ref": (
+                        f"fixture://event/{suspension_row_id}"
+                    ),
+                    "source_published_at": "2020-02-01T00:00:00Z",
+                    "retrieved_at": "2020-02-02T00:00:00Z",
+                },
+                {
+                    **base,
+                    "event_row_id": reactivation_row_id,
+                    "event_type": "reactivation",
+                    "effective_at": "2020-02-01T00:00:00Z",
+                    "listing_state_after": "active",
+                    "source_ref": (
+                        f"fixture://event/{reactivation_row_id}"
+                    ),
+                    "source_published_at": "2020-02-01T00:00:00Z",
+                    "retrieved_at": "2020-02-02T00:00:00Z",
+                },
+            ]
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        add_simultaneous_transitions,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "delisting_coverage").status == "blocked"
+    assert _decision(packet, "delisting_coverage").reason_codes == (
+        "delisting_transition_invalid",
+    )
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+    assert _decision(packet, "corporate_action_coverage").reason_codes == ()
+
+
 def test_repeated_reactivation_is_blocked_by_current_listing_state(tmp_path):
     from src.point_in_time_universe import validate_point_in_time_universe
 
