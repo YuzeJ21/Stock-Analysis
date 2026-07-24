@@ -121,6 +121,7 @@ def _identity_membership_decisions(
     manifest: UniverseManifest,
     parsed: ParsedUniverseEvidence,
     evaluations,
+    evaluation_reasons: Mapping[str, tuple[str, ...]],
 ):
     declared = {
         item["universe_id"]: item["universe_kind"]
@@ -137,6 +138,29 @@ def _identity_membership_decisions(
     if not complete_snapshot_supported:
         membership_reasons.add(
             "membership_coverage_semantics_unsupported"
+        )
+    for evaluation in parsed.evaluations:
+        owned_reasons = tuple(
+            reason
+            for reason in evaluation_reasons[
+                evaluation.evaluation_row_id
+            ]
+            if reason.startswith("membership_")
+        )
+        if not owned_reasons:
+            continue
+        membership_reasons.update(owned_reasons)
+        excluded.append(
+            ExcludedRow(
+                "evaluations",
+                _row_number(
+                    parsed,
+                    "evaluations",
+                    evaluation.evaluation_row_id,
+                ),
+                evaluation.evaluation_row_id,
+                owned_reasons,
+            )
         )
     evaluations = tuple(
         sorted(
@@ -452,11 +476,11 @@ def _temporal_decision(
     manifest: UniverseManifest,
     parsed: ParsedUniverseEvidence,
     evaluations,
+    evaluation_reasons: Mapping[str, tuple[str, ...]],
 ) -> tuple[Decision, tuple[str, ...], tuple[ExcludedRow, ...]]:
     temporal_reasons: set[str] = set()
     leakage_reasons: set[str] = set()
     exclusion_reasons: dict[tuple[str, str], set[str]] = {}
-    manifest_cutoff = parse_utc(manifest.observation_cutoff_at)
     valid_evaluation_ids = {
         evaluation.evaluation_row_id
         for evaluation in evaluations
@@ -472,7 +496,10 @@ def _temporal_decision(
         )
 
     for evaluation in parsed.evaluations:
-        if evaluation.evaluation_at > manifest_cutoff:
+        classified_reasons = evaluation_reasons[
+            evaluation.evaluation_row_id
+        ]
+        if "cutoff_evaluation_after_manifest" in classified_reasons:
             temporal_reasons.add("cutoff_evaluation_after_manifest")
             leakage_reasons.add(
                 "leakage_evaluation_after_manifest_cutoff"
@@ -484,7 +511,7 @@ def _temporal_decision(
                 "leakage_evaluation_after_manifest_cutoff",
             )
             continue
-        if evaluation.available_at > evaluation.evaluation_at:
+        if "cutoff_evaluation_unavailable" in classified_reasons:
             temporal_reasons.add("cutoff_evaluation_unavailable")
             leakage_reasons.add("leakage_evaluation_available_late")
             record_exclusion(
@@ -839,6 +866,9 @@ def _partition_validation(
     evaluations,
     extra_reasons=(),
     parsed: ParsedUniverseEvidence | None = None,
+    *,
+    evaluation_reasons: Mapping[str, tuple[str, ...]] | None = None,
+    evaluation_global_reasons: tuple[str, ...] | None = None,
 ) -> tuple[Decision, tuple[ExcludedRow, ...]]:
     reasons = set(extra_reasons)
     exclusion_reasons: dict[str, set[str]] = {}
@@ -850,10 +880,17 @@ def _partition_validation(
             set(),
         ).add(reason)
 
-    _, validity_reasons, global_reasons = _classify_evaluations(
-        manifest,
-        evaluations,
-    )
+    if (
+        evaluation_reasons is None
+        or evaluation_global_reasons is None
+    ):
+        _, validity_reasons, global_reasons = _classify_evaluations(
+            manifest,
+            evaluations,
+        )
+    else:
+        validity_reasons = evaluation_reasons
+        global_reasons = evaluation_global_reasons
     reasons.update(global_reasons)
     for evaluation in evaluations:
         for reason in validity_reasons[evaluation.evaluation_row_id]:
@@ -1460,7 +1497,11 @@ def validate_point_in_time_universe(
             )
         ),
     )
-    valid_evaluations, _, _ = _classify_evaluations(
+    (
+        valid_evaluations,
+        evaluation_reasons,
+        evaluation_global_reasons,
+    ) = _classify_evaluations(
         package.manifest,
         parsed.evaluations,
     )
@@ -1469,6 +1510,7 @@ def validate_point_in_time_universe(
             package.manifest,
             parsed,
             valid_evaluations,
+            evaluation_reasons,
         )
     )
     decisions[identity.area] = identity
@@ -1478,6 +1520,7 @@ def validate_point_in_time_universe(
         package.manifest,
         parsed,
         valid_evaluations,
+        evaluation_reasons,
     )
     decisions[temporal.area] = temporal
     excluded.extend(temporal_excluded)
@@ -1506,6 +1549,8 @@ def validate_point_in_time_universe(
         parsed.evaluations,
         cutoff_leakage,
         parsed,
+        evaluation_reasons=evaluation_reasons,
+        evaluation_global_reasons=evaluation_global_reasons,
     )
     decisions[leakage.area] = leakage
     excluded.extend(partition_excluded)

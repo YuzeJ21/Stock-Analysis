@@ -46,6 +46,7 @@ EXPECTED_EXCLUSION_CODES = {
     "identity_interval_overlap",
     "identity_missing",
     "membership_interval_inactive",
+    "membership_universe_undeclared",
     "corporate_action_policy_unsupported",
     "corporate_action_successor_required",
     "delisting_transition_invalid",
@@ -88,6 +89,7 @@ EXCLUSION_MUTATION_CASES = (
     "schema_membership_interval",
     "schema_event_duplicate",
     "schema_evaluation_duplicate",
+    "evaluation_undeclared",
     "lineage_duplicate",
     "lineage_missing_parent",
     "lineage_cross_scope",
@@ -349,6 +351,22 @@ def _mutate_exclusion_case(manifest, case):
             lambda rows: rows[1].update(
                 evaluation_row_id=rows[0]["evaluation_row_id"],
             ),
+        )
+    elif case == "evaluation_undeclared":
+        def add_undeclared_evaluation(rows):
+            rows.append(
+                {
+                    **rows[0],
+                    "evaluation_row_id": "eval-undeclared",
+                    "universe_id": "ghost",
+                    "source_ref": "fixture://evaluation/undeclared",
+                }
+            )
+
+        _rewrite_csv_and_manifest(
+            manifest,
+            "evaluations",
+            add_undeclared_evaluation,
         )
     elif case.startswith("lineage_"):
         _mutate_identity_lineage_exclusion(manifest, case)
@@ -2096,6 +2114,52 @@ def test_partition_invalid_evaluation_is_not_an_event_cutoff(tmp_path):
         digest.evaluation_at != "2019-01-01T00:00:00Z"
         for digest in packet.membership_digests
     )
+
+
+def test_undeclared_evaluation_is_excluded_and_blocks_membership_coverage(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_undeclared_evaluation(rows):
+        rows.append(
+            {
+                **rows[0],
+                "evaluation_row_id": "eval-undeclared",
+                "universe_id": "ghost",
+                "source_ref": "fixture://evaluation/undeclared",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        add_undeclared_evaluation,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "membership_coverage").status == "blocked"
+    assert _decision(packet, "membership_coverage").reason_codes == (
+        "membership_universe_undeclared",
+    )
+    assert _decision(packet, "temporal_validity").status == "passed"
+    assert _decision(packet, "reproduction_ready").status == "passed"
+    assert all(
+        digest.universe_id != "ghost"
+        for digest in packet.membership_digests
+    )
+    assert [
+        row.reason_codes
+        for row in packet.excluded
+        if (
+            row.contract == "evaluations"
+            and row.row_id == "eval-undeclared"
+        )
+    ] == [("membership_universe_undeclared",)]
+    assert packet.analysis_eligible is False
 
 
 def test_no_valid_evaluation_fails_required_event_coverage_closed(tmp_path):
