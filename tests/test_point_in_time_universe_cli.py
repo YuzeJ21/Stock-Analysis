@@ -428,6 +428,45 @@ def test_make_targets_match_cli_and_leave_package_root_byte_identical(tmp_path):
     assert _snapshot(tmp_path) == before
 
 
+def test_all_entry_paths_preserve_supplied_root_symlink_inventory(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    target = tmp_path / "inventory-target.txt"
+    target.write_text("immutable supplied-root marker\n", encoding="utf-8")
+    link = tmp_path / "inventory-link"
+    link.symlink_to(target.name)
+    before = _snapshot(tmp_path)
+
+    assert before["inventory-link"] == (
+        "symlink",
+        os.fsencode(target.name),
+    )
+    validate_point_in_time_universe(manifest, registry)
+    for mode, target_name in zip(
+        ("status", "preview"),
+        TARGETS,
+        strict=True,
+    ):
+        cli = _run_cli(
+            mode,
+            "--manifest",
+            str(manifest),
+            "--registry",
+            str(registry),
+        )
+        make = _run_make(
+            target_name,
+            f"MANIFEST={manifest}",
+            f"REGISTRY={registry}",
+        )
+        assert cli.returncode == make.returncode == 0
+
+    assert link.is_symlink()
+    assert os.readlink(link) == target.name
+    assert _snapshot(tmp_path) == before
+
+
 def test_make_targets_are_phony_listed_in_help_and_require_manifest():
     makefile = (PROJECT_ROOT / "Makefile").read_text(encoding="utf-8")
     phony = {

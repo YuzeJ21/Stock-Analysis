@@ -24,6 +24,88 @@ EXPECTED_REASON_PREFIXES = {
     "reproduction_",
 }
 
+EXPECTED_EXCLUSION_CODES = {
+    "schema_columns_invalid",
+    "schema_required_field_missing",
+    "schema_whitespace_invalid",
+    "schema_timestamp_invalid",
+    "schema_enum_invalid",
+    "schema_ratio_invalid",
+    "schema_ratio_pair_required",
+    "schema_delisting_listing_state_invalid",
+    "lineage_duplicate_id",
+    "lineage_missing_parent",
+    "lineage_cross_scope_parent",
+    "lineage_order_reversed",
+    "lineage_multiple_roots",
+    "lineage_fork",
+    "lineage_cycle",
+    "identity_interval_overlap",
+    "identity_missing",
+    "membership_interval_inactive",
+    "corporate_action_policy_unsupported",
+    "corporate_action_successor_required",
+    "delisting_transition_invalid",
+    "cutoff_evaluation_after_manifest",
+    "cutoff_evaluation_unavailable",
+    "cutoff_post_evaluation_evidence",
+    "cutoff_required_scope_unavailable",
+    "cutoff_later_revision_invisible",
+    "cutoff_unrelated_scope_invisible",
+    "leakage_evaluation_after_manifest_cutoff",
+    "leakage_evaluation_available_late",
+    "leakage_post_cutoff_evidence",
+    "partition_assignment_invalid",
+    "partition_minimum_history_unmet",
+    "partition_boundary_unassigned",
+    "reproduction_evaluation_after_manifest_cutoff",
+}
+
+EXPECTED_EXCLUSION_PREFIXES = {
+    "schema_",
+    "lineage_",
+    "identity_",
+    "membership_",
+    "corporate_action_",
+    "delisting_",
+    "cutoff_",
+    "leakage_",
+    "partition_",
+    "reproduction_",
+}
+
+EXCLUSION_MUTATION_CASES = (
+    "schema_columns",
+    "schema_required",
+    "schema_whitespace",
+    "schema_timestamp",
+    "schema_enum",
+    "schema_ratio",
+    "schema_ratio_pair",
+    "schema_delisting_state",
+    "lineage_duplicate",
+    "lineage_missing_parent",
+    "lineage_cross_scope",
+    "lineage_order_reversed",
+    "lineage_multiple_roots",
+    "lineage_fork",
+    "lineage_cycle",
+    "identity_interval_overlap",
+    "identity_missing",
+    "membership_interval_inactive",
+    "corporate_action_unsupported",
+    "corporate_action_successor",
+    "delisting_transition",
+    "cutoff_after_manifest",
+    "cutoff_evaluation_unavailable",
+    "cutoff_required_scope",
+    "cutoff_later_revision",
+    "cutoff_unrelated_scope",
+    "partition_assignment",
+    "partition_minimum_history",
+    "partition_boundary",
+)
+
 
 def _sha256_members(*security_ids):
     return hashlib.sha256("\n".join(sorted(security_ids)).encode("utf-8")).hexdigest()
@@ -75,6 +157,303 @@ def _read_contract_rows(manifest, contract):
     path = manifest.parent / entry["path"]
     with path.open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def _refresh_contract_digest(manifest, contract):
+    raw = json.loads(manifest.read_text())
+    entry = next(
+        item for item in raw["files"] if item["contract"] == contract
+    )
+    path = manifest.parent / entry["path"]
+    entry["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    entry["row_count"] = len(path.read_text(encoding="utf-8").splitlines()) - 1
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+
+
+def _mutate_identity_lineage_exclusion(manifest, case):
+    def mutate(rows):
+        base = rows[0]
+        if case == "lineage_duplicate":
+            rows.append(
+                {
+                    **base,
+                    "source_ref": "fixture://identity/duplicate",
+                }
+            )
+        elif case == "lineage_missing_parent":
+            base["supersedes_identity_row_id"] = "missing"
+        elif case == "lineage_cross_scope":
+            rows.append(
+                {
+                    **base,
+                    "identity_row_id": "id-cross-scope",
+                    "security_id": "sec-2",
+                    "issuer_id": "issuer-2",
+                    "source_ref": "fixture://identity/cross-scope",
+                    "source_published_at": "2020-02-01T00:00:00Z",
+                    "retrieved_at": "2020-02-02T00:00:00Z",
+                    "supersedes_identity_row_id": "id-1",
+                }
+            )
+        elif case == "lineage_order_reversed":
+            rows.append(
+                {
+                    **base,
+                    "identity_row_id": "id-reversed",
+                    "source_ref": "fixture://identity/reversed",
+                    "source_published_at": "2020-01-01T00:00:00Z",
+                    "retrieved_at": "2020-01-01T00:00:00Z",
+                    "supersedes_identity_row_id": "id-1",
+                }
+            )
+        elif case == "lineage_multiple_roots":
+            rows.append(
+                {
+                    **base,
+                    "identity_row_id": "id-second-root",
+                    "source_ref": "fixture://identity/second-root",
+                }
+            )
+        elif case == "lineage_fork":
+            for suffix, month in (("a", "02"), ("b", "03")):
+                rows.append(
+                    {
+                        **base,
+                        "identity_row_id": f"id-child-{suffix}",
+                        "source_ref": f"fixture://identity/child-{suffix}",
+                        "source_published_at": (
+                            f"2020-{month}-01T00:00:00Z"
+                        ),
+                        "retrieved_at": f"2020-{month}-02T00:00:00Z",
+                        "supersedes_identity_row_id": "id-1",
+                    }
+                )
+        elif case == "lineage_cycle":
+            base["supersedes_identity_row_id"] = "id-cycle"
+            rows.append(
+                {
+                    **base,
+                    "identity_row_id": "id-cycle",
+                    "source_ref": "fixture://identity/cycle",
+                    "source_published_at": "2020-02-01T00:00:00Z",
+                    "retrieved_at": "2020-02-02T00:00:00Z",
+                    "supersedes_identity_row_id": "id-1",
+                }
+            )
+
+    _rewrite_csv_and_manifest(manifest, "security_identity", mutate)
+
+
+def _mutate_exclusion_case(manifest, case):
+    if case == "schema_columns":
+        identity = manifest.parent / "identity.csv"
+        identity.write_text(
+            identity.read_text(encoding="utf-8").replace(
+                "issuer_id,",
+                "",
+                1,
+            ),
+            encoding="utf-8",
+        )
+        _refresh_contract_digest(manifest, "security_identity")
+    elif case == "schema_required":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "security_identity",
+            lambda rows: rows[0].update(ticker=""),
+        )
+    elif case == "schema_whitespace":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "security_identity",
+            lambda rows: rows[0].update(security_id=" sec-1 "),
+        )
+    elif case == "schema_timestamp":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "security_identity",
+            lambda rows: rows[0].update(valid_from="not-a-timestamp"),
+        )
+    elif case == "schema_enum":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "membership",
+            lambda rows: rows[0].update(membership_state="maybe"),
+        )
+    elif case == "schema_ratio":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "events",
+            lambda rows: rows[0].update(
+                ratio_numerator="nan",
+                ratio_denominator="1",
+            ),
+        )
+    elif case == "schema_ratio_pair":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "events",
+            lambda rows: rows[0].update(
+                event_type="split",
+                ratio_numerator="",
+                ratio_denominator="",
+            ),
+        )
+    elif case == "schema_delisting_state":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "events",
+            lambda rows: rows[0].update(
+                event_type="delisting",
+                listing_state_after="active",
+            ),
+        )
+    elif case.startswith("lineage_"):
+        _mutate_identity_lineage_exclusion(manifest, case)
+    elif case == "identity_interval_overlap":
+        mutate_identity_membership_case(manifest, "overlapping_identity")
+    elif case == "identity_missing":
+        mutate_identity_membership_case(manifest, "missing_identity")
+    elif case == "membership_interval_inactive":
+        mutate_identity_membership_case(
+            manifest,
+            "membership_outside_interval",
+        )
+    elif case == "corporate_action_unsupported":
+        _rewrite_manifest(
+            manifest,
+            lambda raw: raw["corporate_action_policy"].update(
+                listing="unsupported",
+            ),
+        )
+    elif case == "corporate_action_successor":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "events",
+            lambda rows: rows[0].update(
+                event_type="merger",
+                successor_security_id="",
+            ),
+        )
+    elif case == "delisting_transition":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "events",
+            lambda rows: rows[0].update(
+                event_type="suspension",
+                listing_state_after="active",
+            ),
+        )
+    elif case == "cutoff_after_manifest":
+        def add_evaluation(rows):
+            rows.append(
+                {
+                    **rows[-1],
+                    "evaluation_row_id": "eval-after-manifest",
+                    "evaluation_at": "2022-01-01T00:00:00Z",
+                    "available_at": "2022-01-01T00:00:00Z",
+                    "source_ref": "fixture://evaluation/after-manifest",
+                }
+            )
+
+        _rewrite_csv_and_manifest(manifest, "evaluations", add_evaluation)
+    elif case == "cutoff_evaluation_unavailable":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "evaluations",
+            lambda rows: rows[0].update(
+                available_at="2022-01-01T00:00:00Z",
+            ),
+        )
+    elif case == "cutoff_required_scope":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "membership",
+            lambda rows: rows[0].update(
+                retrieved_at="2022-01-01T00:00:00Z",
+            ),
+        )
+    elif case == "cutoff_later_revision":
+        def add_revision(rows):
+            rows.append(
+                {
+                    **rows[0],
+                    "membership_row_id": "member-later",
+                    "source_ref": "fixture://membership/later",
+                    "source_published_at": "2022-01-01T00:00:00Z",
+                    "retrieved_at": "2022-01-02T00:00:00Z",
+                    "supersedes_membership_row_id": rows[0][
+                        "membership_row_id"
+                    ],
+                }
+            )
+
+        _rewrite_csv_and_manifest(manifest, "membership", add_revision)
+    elif case == "cutoff_unrelated_scope":
+        def add_unrelated(rows):
+            rows.append(
+                {
+                    **rows[0],
+                    "identity_row_id": "id-unrelated",
+                    "security_id": "sec-unrelated",
+                    "issuer_id": "issuer-unrelated",
+                    "ticker": "ZZZ",
+                    "source_ref": "fixture://identity/unrelated",
+                    "source_published_at": "2022-01-01T00:00:00Z",
+                    "retrieved_at": "2022-01-02T00:00:00Z",
+                    "supersedes_identity_row_id": "",
+                }
+            )
+
+        _rewrite_csv_and_manifest(
+            manifest,
+            "security_identity",
+            add_unrelated,
+        )
+    elif case == "partition_assignment":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "evaluations",
+            lambda rows: [
+                row.update(partition="test")
+                for row in rows
+            ],
+        )
+    elif case == "partition_minimum_history":
+        _rewrite_manifest(
+            manifest,
+            lambda raw: raw.update(
+                evaluation_policy={
+                    "kind": "walk_forward",
+                    "minimum_history_count": 2,
+                }
+            ),
+        )
+    elif case == "partition_boundary":
+        _rewrite_manifest(
+            manifest,
+            lambda raw: raw.update(
+                evaluation_policy={
+                    "kind": "train_validation_test",
+                    "train_end_at": "2020-06-01T00:00:00Z",
+                    "validation_start_at": "2020-08-01T00:00:00Z",
+                    "validation_end_at": "2020-09-01T00:00:00Z",
+                    "test_start_at": "2020-10-01T00:00:00Z",
+                }
+            ),
+        )
+        _rewrite_csv_and_manifest(
+            manifest,
+            "evaluations",
+            lambda rows: [
+                row.update(
+                    evaluation_at="2020-07-01T00:00:00Z",
+                    available_at="2020-07-01T00:00:00Z",
+                    partition="train",
+                )
+                for row in rows
+            ],
+        )
 
 
 def mutate_package_for_empty_case(manifest, mutation):
@@ -1724,23 +2103,66 @@ def test_valid_fixture_passes_all_decisions_and_is_analysis_eligible(tmp_path):
     assert packet.analysis_eligible is True
 
 
-def test_every_exclusion_uses_an_approved_stable_reason_family(tmp_path):
+def test_every_emitted_exclusion_uses_an_approved_stable_reason(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    observed_by_case = {}
+    for case in EXCLUSION_MUTATION_CASES:
+        case_root = tmp_path / case
+        case_root.mkdir()
+        manifest, registry = build_valid_package(case_root)
+        _mutate_exclusion_case(manifest, case)
+        packet = validate_point_in_time_universe(
+            manifest,
+            registry,
+            top_n=1000,
+        )
+        observed_by_case[case] = {
+            code
+            for item in packet.excluded
+            for code in item.reason_codes
+        }
+
+    observed = set().union(*observed_by_case.values())
+    observed_prefixes = {
+        prefix
+        for prefix in EXPECTED_REASON_PREFIXES
+        if any(code.startswith(prefix) for code in observed)
+    }
+
+    assert all(observed_by_case.values())
+    assert observed == EXPECTED_EXCLUSION_CODES
+    assert observed_prefixes == EXPECTED_EXCLUSION_PREFIXES
+    assert all(
+        any(code.startswith(prefix) for prefix in EXPECTED_REASON_PREFIXES)
+        for code in observed
+    )
+
+
+def test_source_rights_reasons_are_decision_only_not_fabricated_exclusions(
+    tmp_path,
+):
     from src.point_in_time_universe import validate_point_in_time_universe
 
     manifest, registry = build_valid_package(tmp_path)
-    _rewrite_csv_and_manifest(
-        manifest,
-        "membership",
-        lambda rows: rows[0].update(
-            retrieved_at="2022-01-01T00:00:00Z",
+    registry.write_text(
+        registry.read_text(encoding="utf-8").replace(
+            "commercial_use: approved",
+            "commercial_use: unverified",
         ),
+        encoding="utf-8",
     )
+    _refresh_registry_digest(manifest, registry)
 
     packet = validate_point_in_time_universe(manifest, registry)
 
-    assert packet.excluded
+    assert packet.decisions["source_rights_eligibility"].reason_codes == (
+        "source_rights_commercial_rights_unverified",
+    )
     assert all(
-        any(code.startswith(prefix) for prefix in EXPECTED_REASON_PREFIXES)
+        not code.startswith("source_rights_")
         for item in packet.excluded
         for code in item.reason_codes
     )
@@ -1748,10 +2170,12 @@ def test_every_exclusion_uses_an_approved_stable_reason_family(tmp_path):
 
 def test_validator_result_is_unchanged_when_current_universe_files_change(
     tmp_path,
+    monkeypatch,
 ):
     from src.point_in_time_universe import validate_point_in_time_universe
 
     manifest, registry = build_valid_package(tmp_path)
+    monkeypatch.chdir(tmp_path)
     first = validate_point_in_time_universe(manifest, registry)
     data = tmp_path / "data"
     data.mkdir()
