@@ -1164,6 +1164,14 @@ def render_status(packet: PointInTimeUniversePacket) -> str:
             "Research-only: this does not activate readiness, backtesting, "
             "calibration, or probability and is not investment advice."
         ),
+        (
+            "Synthetic or technically valid packages are local software "
+            "evidence only."
+        ),
+        (
+            "Priority 4 still requires one independently reviewed, permitted "
+            "real dataset."
+        ),
         f"dataset_id: {packet.dataset_id}",
         f"manifest_id: {packet.manifest_id}",
         f"analysis_eligible: {str(packet.analysis_eligible).lower()}",

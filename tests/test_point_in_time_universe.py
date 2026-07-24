@@ -9,6 +9,22 @@ from tests.point_in_time_universe_fixture import build_valid_package
 from tests.test_point_in_time_universe_contracts import _rewrite_csv_and_manifest
 
 
+EXPECTED_REASON_PREFIXES = {
+    "manifest_",
+    "schema_",
+    "lineage_",
+    "identity_",
+    "membership_",
+    "corporate_action_",
+    "delisting_",
+    "source_rights_",
+    "cutoff_",
+    "leakage_",
+    "partition_",
+    "reproduction_",
+}
+
+
 def _sha256_members(*security_ids):
     return hashlib.sha256("\n".join(sorted(security_ids)).encode("utf-8")).hexdigest()
 
@@ -1706,6 +1722,55 @@ def test_valid_fixture_passes_all_decisions_and_is_analysis_eligible(tmp_path):
         "leakage_safe": "passed",
     }
     assert packet.analysis_eligible is True
+
+
+def test_every_exclusion_uses_an_approved_stable_reason_family(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        lambda rows: rows[0].update(
+            retrieved_at="2022-01-01T00:00:00Z",
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert packet.excluded
+    assert all(
+        any(code.startswith(prefix) for prefix in EXPECTED_REASON_PREFIXES)
+        for item in packet.excluded
+        for code in item.reason_codes
+    )
+
+
+def test_validator_result_is_unchanged_when_current_universe_files_change(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    first = validate_point_in_time_universe(manifest, registry)
+    data = tmp_path / "data"
+    data.mkdir()
+    current = data / "universe.csv"
+    master = data / "universe_master.csv"
+    current.write_text("ticker\nZZZ\n", encoding="utf-8")
+    master.write_text(
+        "ticker,is_active_listing\nAAA,false\n",
+        encoding="utf-8",
+    )
+    after_add = validate_point_in_time_universe(manifest, registry)
+    current.write_text("ticker\nAAA\nBBB\n", encoding="utf-8")
+    master.write_text(
+        "ticker,is_active_listing\nZZZ,true\n",
+        encoding="utf-8",
+    )
+    after_change = validate_point_in_time_universe(manifest, registry)
+
+    assert first == after_add == after_change
 
 
 def test_blocked_independent_decision_prevents_final_eligibility(tmp_path):

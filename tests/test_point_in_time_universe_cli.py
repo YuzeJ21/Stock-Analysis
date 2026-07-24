@@ -164,6 +164,39 @@ def test_renderers_and_cli_are_deterministic_complete_and_read_only(tmp_path):
     assert _snapshot(tmp_path) == before
 
 
+def test_synthetic_package_status_is_local_software_evidence_only(tmp_path):
+    from src.point_in_time_universe import (
+        render_status,
+        validate_point_in_time_universe,
+    )
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    output = render_status(
+        validate_point_in_time_universe(manifest, registry),
+    )
+
+    assert (
+        "Synthetic or technically valid packages are local software "
+        "evidence only."
+    ) in output
+    assert (
+        "Priority 4 still requires one independently reviewed, permitted "
+        "real dataset."
+    ) in output
+    for prohibited_claim in (
+        "Priority 4 complete",
+        "real-world validation complete",
+        "readiness activated",
+        "backtesting activated",
+        "calibration complete",
+        "probability available",
+        "recommendation:",
+        "investment advice:",
+    ):
+        assert prohibited_claim not in output
+
+
 def test_preview_caps_canonically_sorted_exclusions_without_writing(tmp_path):
     manifest, registry = build_valid_package(tmp_path)
     mutate_identity_membership_case(manifest, "overlapping_identity")
