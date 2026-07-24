@@ -443,7 +443,10 @@ The second fresh whole-branch review found cross-slice defects in raw-row
 source-rights inventory, cutoff-relative walk-forward history, publication
 chronology, and bounded snapshot reads. Remediation 6 and its first
 independent-review follow-up close those findings locally with test-first
-evidence; a third fresh whole-branch engineering review remains pending.
+evidence. The third fresh whole-branch review confirmed those closures and
+found one remaining aggregate read-budget Minor; its narrow test-first
+follow-up is complete locally, and a fourth final whole-branch engineering
+review remains pending.
 
 Local resource budgets for one supplied package: preview sample 100 rows; manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined 64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; package traversal 32 entries.
 
@@ -469,7 +472,7 @@ This local evidence does not change independent readiness for actuals, consensus
 It does not provide investment advice; numerical probability remains unavailable without calibration; Q4 evidence and EPS split-basis compatibility remain explicit; synthetic evidence stays test-only; candidate peer evidence remains candidate-context-only.
 
 **Next executable local step:** run the complete release-gate matrix and
-exact-head CI, then commission a third fresh whole-branch engineering review
+exact-head CI, then commission a fourth final whole-branch engineering review
 over the full Priority 4 implementation and remediation range. Do not retry
 unavailable providers while that local review remains executable.
 
