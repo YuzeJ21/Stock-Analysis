@@ -85,6 +85,8 @@ def _bounded_snapshot(
     maximum_bytes: int,
     size_error: str,
     unreadable_error: str,
+    combined_maximum_bytes: int | None = None,
+    combined_size_error: str | None = None,
 ) -> bytes:
     descriptor: int | None = None
     try:
@@ -99,8 +101,18 @@ def _bounded_snapshot(
             raise ValueError(unreadable_error)
         if before.st_size > maximum_bytes:
             raise ValueError(size_error)
+        if (
+            combined_maximum_bytes is not None
+            and before.st_size > combined_maximum_bytes
+        ):
+            raise ValueError(combined_size_error or size_error)
+        read_maximum = (
+            maximum_bytes
+            if combined_maximum_bytes is None
+            else min(maximum_bytes, combined_maximum_bytes)
+        )
         chunks: list[bytes] = []
-        remaining = maximum_bytes + 1
+        remaining = read_maximum + 1
         while remaining:
             chunk = os.read(descriptor, remaining)
             if not chunk:
@@ -111,6 +123,14 @@ def _bounded_snapshot(
         after = os.fstat(descriptor)
         if len(snapshot) > maximum_bytes or after.st_size > maximum_bytes:
             raise ValueError(size_error)
+        if (
+            combined_maximum_bytes is not None
+            and (
+                len(snapshot) > combined_maximum_bytes
+                or after.st_size > combined_maximum_bytes
+            )
+        ):
+            raise ValueError(combined_size_error or size_error)
         stable_metadata = (
             before.st_dev,
             before.st_ino,
@@ -339,11 +359,20 @@ def load_universe_package(manifest_path: Path, registry_path: Path) -> LoadedUni
     contract_snapshots: dict[str, bytes] = {}
     total_snapshot_bytes = 0
     for item, path in zip(file_records, resolved_paths, strict=True):
+        remaining_combined_bytes = max(
+            MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES
+            - total_snapshot_bytes,
+            0,
+        )
         snapshot = _bounded_snapshot(
             path,
             maximum_bytes=MAX_CONTRACT_SNAPSHOT_BYTES,
             size_error="manifest_file_size_limit_exceeded",
             unreadable_error="manifest_file_unreadable",
+            combined_maximum_bytes=remaining_combined_bytes,
+            combined_size_error=(
+                "manifest_total_snapshot_size_limit_exceeded"
+            ),
         )
         total_snapshot_bytes += len(snapshot)
         if total_snapshot_bytes > MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES:

@@ -477,6 +477,70 @@ def test_combined_contract_limit_accepts_boundary_and_rejects_plus_one(
         loader.load_universe_package(manifest, registry)
 
 
+def test_combined_budget_bounds_each_descriptor_read_by_remaining_allowance(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe_manifest as loader
+
+    manifest, registry = build_valid_package(tmp_path)
+    raw = json.loads(manifest.read_text(encoding="utf-8"))
+    contract_paths = [
+        manifest.parent / item["path"]
+        for item in raw["files"]
+    ]
+    exact_total = sum(path.stat().st_size for path in contract_paths)
+    monkeypatch.setattr(
+        loader,
+        "MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES",
+        exact_total,
+    )
+    loader.load_universe_package(manifest, registry)
+
+    prefix_bytes = sum(
+        path.stat().st_size
+        for path in contract_paths[:-1]
+    )
+    combined_limit = prefix_bytes + 1
+    inode_to_path = {
+        path.stat().st_ino: path
+        for path in contract_paths
+    }
+    original_read = os.read
+    requests: list[tuple[Path, int, int]] = []
+
+    def track_contract_reads(descriptor, amount):
+        chunk = original_read(descriptor, amount)
+        path = inode_to_path.get(os.fstat(descriptor).st_ino)
+        if path is not None:
+            requests.append((path, amount, len(chunk)))
+        return chunk
+
+    monkeypatch.setattr(loader.os, "read", track_contract_reads)
+    monkeypatch.setattr(
+        loader,
+        "MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES",
+        combined_limit,
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="manifest_total_snapshot_size_limit_exceeded",
+    ):
+        loader.load_universe_package(manifest, registry)
+
+    bytes_read = sum(returned for _, _, returned in requests)
+    assert bytes_read <= combined_limit + 1
+    final_path = contract_paths[-1]
+    final_requests = [
+        (requested, returned)
+        for path, requested, returned in requests
+        if path == final_path
+    ]
+    assert sum(returned for _, returned in final_requests) <= 2
+    assert all(requested <= 2 for requested, _ in final_requests)
+
+
 def test_registry_size_limit_accepts_boundary_and_rejects_plus_one_before_read(
     tmp_path,
     monkeypatch,
