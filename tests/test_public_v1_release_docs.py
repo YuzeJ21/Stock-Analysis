@@ -1449,3 +1449,76 @@ def test_priority_four_approved_design_preserves_point_in_time_and_no_write_boun
         assert design_path in text
         assert "current ticker-centric universe" in text
         assert "Synthetic fixtures remain test-only" in text
+
+
+def test_priority_four_local_validator_is_documented_without_claiming_real_data_completion():
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    prompt = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    implementation = (
+        "Implemented locally: read-only immutable-package status/preview with ten "
+        "independent states: manifest, technical, temporal, identity, membership, "
+        "corporate action, delisting, source rights, reproduction, and leakage."
+    )
+    synthetic_boundary = (
+        "Synthetic fixtures remain test-only and local software evidence cannot "
+        "complete Priority 4."
+    )
+    real_data_exit = (
+        "Priority 4 remains open until one bounded permitted real dataset is "
+        "independently reviewed, reproduces the expected membership count and digest, "
+        "and passes rights, identity, corporate-action, delisting, survivorship, "
+        "cutoff, partition, reproduction, and leakage gates."
+    )
+    independent_readiness = (
+        "This local evidence does not change independent readiness for actuals, "
+        "consensus, Revenue, EPS, valuation, catalysts, outcomes, backtesting, or "
+        "calibration."
+    )
+    research_boundaries = (
+        "It does not provide investment advice; numerical probability remains "
+        "unavailable without calibration; Q4 evidence and EPS split-basis "
+        "compatibility remain explicit; synthetic evidence stays test-only; candidate "
+        "peer evidence remains candidate-context-only."
+    )
+    commands = {
+        "make point-in-time-universe-status MANIFEST=<path>",
+        "make point-in-time-universe-preview MANIFEST=<path> TOP_N=20",
+    }
+
+    for text in (roadmap, methodology, prompt):
+        assert implementation in text
+        assert "membership_count_and_sha256_at_cutoff_v1" in text
+        assert synthetic_boundary in text
+        assert text.count(real_data_exit) == 1
+        assert independent_readiness in text
+        assert research_boundaries in text
+        assert set(
+            re.findall(r"`(make point-in-time-universe-[^`]+)`", text)
+        ) == commands
+
+    assert "Priority 4 is complete" not in roadmap
+    assert "Priority 4 is complete" not in methodology
+    assert "Priority 4 is complete" not in prompt
+    assert "Priority 4 — completed" not in roadmap
+    assert "Priority 4 — completed" not in prompt
+
+    assert "Start from current repository truth, not chat memory." in prompt
+    assert (
+        "Verify commit `1361472bce6d23cc537ef222c3735bb640c9838a` or a later "
+        "descendant before relying on this implementation evidence."
+    ) in prompt
+    assert (
+        "When external evidence is unavailable, record its exact unblock condition "
+        "once and continue to the next safe executable lane."
+    ) in prompt
+    assert (
+        "Never claim overall completion without direct current evidence for every "
+        "applicable exit gate."
+    ) in prompt
+    assert (
+        "Do not run readiness rebuilds or generated-artifact commands without "
+        "explicit approval."
+    ) in prompt

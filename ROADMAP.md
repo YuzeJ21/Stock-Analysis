@@ -426,31 +426,41 @@ A saved record cannot change readiness, forecasts, probabilities, recommendation
 
 Priority 3 is complete locally only after all automated acceptance tests and direct desktop/phone review pass; Priority 4 is next and incomplete.
 Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.
+That summary is necessary but not sufficient; the exact Priority 4 exit condition below also requires independent review, expected count/digest reproduction, and the partition gate.
 
 ### Priority 4 — Point-in-time benchmark and universe foundation
 
-**Current lane:** the provider-neutral, read-only foundation design is approved
-and recorded in
+**Current lane:** the provider-neutral first slice is implemented locally
+against the approved design in
 `docs/superpowers/specs/2026-07-23-point-in-time-universe-foundation-design.md`.
-Implementation remains behind written-spec review and a test-first plan.
-Direct completion requires permitted point-in-time data.
+It remains isolated from the current ticker-centric universe merge path and
+does not fetch, normalize to disk, apply, rebuild readiness, or activate
+analysis.
 
-The approved first slice is isolated from the current ticker-centric universe
-merge path. It defines stable security identity, timestamped benchmark and
-research-universe membership, corporate-action and listing-status events,
-evaluation cutoffs, immutable file manifests, exact-source rights, revision
-lineage, deterministic membership digests, and independent fail-closed
-technical, temporal, identity, membership, action, delisting, rights,
-reproduction, and leakage states. Status and preview are read-only; they do
-not fetch, normalize to disk, apply, rebuild readiness, or activate analysis.
-Synthetic fixtures remain test-only and cannot complete this priority.
+Implemented locally: read-only immutable-package status/preview with ten independent states: manifest, technical, temporal, identity, membership, corporate action, delisting, source rights, reproduction, and leakage.
+
+Reproduction contract: `membership_count_and_sha256_at_cutoff_v1`.
+
+The only operating entries for this lane are
+`make point-in-time-universe-status MANIFEST=<path>` and
+`make point-in-time-universe-preview MANIFEST=<path> TOP_N=20`.
+
+Synthetic fixtures remain test-only and local software evidence cannot complete Priority 4.
+
+Priority 4 remains open until one bounded permitted real dataset is independently reviewed, reproduces the expected membership count and digest, and passes rights, identity, corporate-action, delisting, survivorship, cutoff, partition, reproduction, and leakage gates.
+
+This local evidence does not change independent readiness for actuals, consensus, Revenue, EPS, valuation, catalysts, outcomes, backtesting, or calibration.
+
+It does not provide investment advice; numerical probability remains unavailable without calibration; Q4 evidence and EPS split-basis compatibility remain explicit; synthetic evidence stays test-only; candidate peer evidence remains candidate-context-only.
 
 1. Establish timestamped benchmark membership, research-universe membership, security identity, and observation cutoffs with suitable source rights and immutable manifests.
 2. Handle corporate actions, delistings, survivorship, and leakage explicitly; never substitute today's constituents, identifiers, prices, or fundamentals for historical state.
 3. Separate raw, normalized, excluded, and analysis-eligible rows; preserve revision lineage and reproducible rejection reasons.
 4. Add leakage-safe train/validation/test or walk-forward boundaries and benchmark diagnostics before treating any result as out-of-sample evidence.
 
-**Exit gate:** at least one bounded real dataset reproduces the same membership and benchmark result from an immutable manifest and passes corporate-action, delisting, survivorship, cutoff, rights, and leakage checks. Schemas and synthetic fixtures alone do not complete this priority.
+**Exit gate:** the exact permitted-real-data condition above. Do not retry an
+unavailable provider or infer source access, field scope, or rights from the
+local validator.
 
 ### Priority 5 — One permitted consensus source and one reviewed peer relationship
 

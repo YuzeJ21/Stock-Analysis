@@ -417,6 +417,31 @@ The safe local sequence is:
 
 This ladder is why empty or partial outputs are useful: they show the first trustworthy proof step instead of hiding the gap behind a weak conclusion.
 
+### Point-in-Time Universe Validation
+
+Implemented locally: read-only immutable-package status/preview with ten independent states: manifest, technical, temporal, identity, membership, corporate action, delisting, source rights, reproduction, and leakage.
+
+The deterministic reproduction contract is `membership_count_and_sha256_at_cutoff_v1`. It binds each declared universe and evaluation cutoff to the eligible membership count and SHA-256 digest without falling back to current constituents or ticker identity.
+
+The only operating entries for this method are
+`make point-in-time-universe-status MANIFEST=<path>` and
+`make point-in-time-universe-preview MANIFEST=<path> TOP_N=20`. Both are
+read-only local inspection: they do not fetch a provider, write normalized or
+rejected rows, apply data, rebuild readiness, or activate analysis.
+
+Synthetic fixtures remain test-only and local software evidence cannot complete Priority 4.
+
+Priority 4 remains open until one bounded permitted real dataset is independently reviewed, reproduces the expected membership count and digest, and passes rights, identity, corporate-action, delisting, survivorship, cutoff, partition, reproduction, and leakage gates.
+
+This local evidence does not change independent readiness for actuals, consensus, Revenue, EPS, valuation, catalysts, outcomes, backtesting, or calibration.
+
+It does not provide investment advice; numerical probability remains unavailable without calibration; Q4 evidence and EPS split-basis compatibility remain explicit; synthetic evidence stays test-only; candidate peer evidence remains candidate-context-only.
+
+If a permitted dataset or its rights evidence is unavailable, record that
+external dependency and its exact unblock condition once. Do not retry an
+unavailable provider or infer source access, field scope, rights, independent
+review, or real-data validation from the local package result.
+
 ## 12. Earnings Nowcast Pilot Method
 
 The Earnings Nowcast pilot is a separate readiness-gated lane. It does not reuse generic optional-context readiness and does not let an earnings date, current target price, candidate peer, or provider availability unlock a forecast.
