@@ -33,6 +33,9 @@ EXPECTED_EXCLUSION_CODES = {
     "schema_ratio_invalid",
     "schema_ratio_pair_required",
     "schema_delisting_listing_state_invalid",
+    "schema_identity_interval_reversed",
+    "schema_membership_interval_reversed",
+    "schema_evaluation_row_id_duplicate",
     "lineage_duplicate_id",
     "lineage_missing_parent",
     "lineage_cross_scope_parent",
@@ -83,6 +86,9 @@ EXCLUSION_MUTATION_CASES = (
     "schema_ratio",
     "schema_ratio_pair",
     "schema_delisting_state",
+    "schema_identity_interval",
+    "schema_membership_interval",
+    "schema_evaluation_duplicate",
     "lineage_duplicate",
     "lineage_missing_parent",
     "lineage_cross_scope",
@@ -306,6 +312,32 @@ def _mutate_exclusion_case(manifest, case):
             lambda rows: rows[0].update(
                 event_type="delisting",
                 listing_state_after="active",
+            ),
+        )
+    elif case == "schema_identity_interval":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "security_identity",
+            lambda rows: rows[0].update(
+                valid_from="2020-06-01T00:00:00Z",
+                valid_to="2020-05-01T00:00:00Z",
+            ),
+        )
+    elif case == "schema_membership_interval":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "membership",
+            lambda rows: rows[0].update(
+                effective_from="2020-06-01T00:00:00Z",
+                effective_to="2020-05-01T00:00:00Z",
+            ),
+        )
+    elif case == "schema_evaluation_duplicate":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "evaluations",
+            lambda rows: rows[1].update(
+                evaluation_row_id=rows[0]["evaluation_row_id"],
             ),
         )
     elif case.startswith("lineage_"):
@@ -2640,4 +2672,276 @@ def test_unrelated_future_identity_and_event_scopes_do_not_poison_evaluation(
         "event-unrelated-future": ("cutoff_unrelated_scope_invisible",),
         "id-unrelated-future": ("cutoff_unrelated_scope_invisible",),
     }
+    assert packet.analysis_eligible is True
+
+
+def test_complete_snapshot_valid_fixture_remains_eligible_and_deterministic(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    first = validate_point_in_time_universe(manifest, registry)
+    second = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(first, "membership_coverage").status == "passed"
+    assert _decision(first, "reproduction_ready").status == "passed"
+    assert first.membership_digests == second.membership_digests
+    assert first.analysis_eligible is True
+
+
+def test_complete_snapshot_uses_only_explicit_rows_from_latest_snapshot(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_second_identity(rows):
+        rows.append(
+            {
+                **rows[0],
+                "identity_row_id": "id-2",
+                "security_id": "sec-2",
+                "issuer_id": "issuer-2",
+                "ticker": "BBB",
+                "source_ref": "fixture://identity/id-2",
+            }
+        )
+
+    def add_later_benchmark_snapshot(rows):
+        rows.append(
+            {
+                **rows[0],
+                "membership_row_id": "member-bench-later",
+                "security_id": "sec-2",
+                "effective_from": "2020-06-01T00:00:00Z",
+                "observation_at": "2020-06-01T00:00:00Z",
+                "source_ref": "fixture://membership/bench-later",
+                "source_published_at": "2020-06-01T00:00:00Z",
+                "retrieved_at": "2020-06-02T00:00:00Z",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        add_second_identity,
+    )
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        add_later_benchmark_snapshot,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    digests = _digest_by_universe(packet)
+
+    assert _decision(packet, "membership_coverage").status == "passed"
+    assert digests["bench-1"].member_count == 1
+    assert digests["bench-1"].sha256 == _sha256_members("sec-2")
+    assert digests["research-1"].member_count == 1
+    assert digests["research-1"].sha256 == _sha256_members("sec-1")
+    assert packet.analysis_eligible is True
+
+
+def test_event_history_is_blocked_without_a_trusted_membership_digest(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw.update(coverage_semantics="event_history"),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "membership_coverage").status == "blocked"
+    assert _decision(packet, "membership_coverage").reason_codes == (
+        "membership_coverage_semantics_unsupported",
+    )
+    assert _decision(packet, "reproduction_ready").status == "blocked"
+    assert _decision(packet, "reproduction_ready").reason_codes == (
+        "reproduction_coverage_semantics_unsupported",
+    )
+    assert packet.membership_digests == ()
+    assert packet.analysis_eligible is False
+
+
+@pytest.mark.parametrize("member", [True, False])
+def test_reversed_identity_interval_is_excluded_for_member_and_non_member(
+    tmp_path,
+    member,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def reverse_interval(rows):
+        if member:
+            rows[0].update(
+                valid_from="2020-06-01T00:00:00Z",
+                valid_to="2020-05-01T00:00:00Z",
+            )
+        else:
+            rows.append(
+                {
+                    **rows[0],
+                    "identity_row_id": "id-reversed-non-member",
+                    "security_id": "sec-non-member",
+                    "issuer_id": "issuer-non-member",
+                    "source_ref": (
+                        "fixture://identity/id-reversed-non-member"
+                    ),
+                    "valid_from": "2020-06-01T00:00:00Z",
+                    "valid_to": "2020-05-01T00:00:00Z",
+                }
+            )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        reverse_interval,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    row_id = "id-1" if member else "id-reversed-non-member"
+
+    assert _decision(packet, "technical_validity").status == "blocked"
+    assert _decision(packet, "technical_validity").reason_codes == (
+        "schema_identity_interval_reversed",
+    )
+    assert (
+        "security_identity",
+        row_id,
+        ("schema_identity_interval_reversed",),
+    ) in {
+        (row.contract, row.row_id, row.reason_codes)
+        for row in packet.excluded
+    }
+    assert packet.analysis_eligible is False
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_reversed_membership_interval_is_excluded_when_active_or_irrelevant(
+    tmp_path,
+    active,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def reverse_interval(rows):
+        if active:
+            rows[0].update(
+                effective_from="2020-06-01T00:00:00Z",
+                effective_to="2020-05-01T00:00:00Z",
+            )
+        else:
+            rows.append(
+                {
+                    **rows[0],
+                    "membership_row_id": "member-reversed-irrelevant",
+                    "security_id": "sec-non-member",
+                    "membership_state": "excluded",
+                    "effective_from": "2020-06-01T00:00:00Z",
+                    "effective_to": "2020-05-01T00:00:00Z",
+                    "source_ref": (
+                        "fixture://membership/reversed-irrelevant"
+                    ),
+                }
+            )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        reverse_interval,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    row_id = (
+        "member-bench-1" if active else "member-reversed-irrelevant"
+    )
+
+    assert _decision(packet, "technical_validity").status == "blocked"
+    assert _decision(packet, "technical_validity").reason_codes == (
+        "schema_membership_interval_reversed",
+    )
+    assert (
+        "membership",
+        row_id,
+        ("schema_membership_interval_reversed",),
+    ) in {
+        (row.contract, row.row_id, row.reason_codes)
+        for row in packet.excluded
+    }
+    assert packet.analysis_eligible is False
+
+
+@pytest.mark.parametrize("across_universes", [False, True])
+def test_duplicate_evaluation_ids_exclude_every_ambiguous_row(
+    tmp_path,
+    across_universes,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def duplicate_evaluation(rows):
+        if across_universes:
+            rows[1]["evaluation_row_id"] = rows[0]["evaluation_row_id"]
+        else:
+            rows.append(
+                {
+                    **rows[0],
+                    "source_ref": "fixture://evaluation/bench-duplicate",
+                }
+            )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        duplicate_evaluation,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    duplicate_id = "eval-bench-1"
+    duplicate_exclusions = [
+        row
+        for row in packet.excluded
+        if row.contract == "evaluations" and row.row_id == duplicate_id
+    ]
+
+    assert _decision(packet, "technical_validity").status == "blocked"
+    assert _decision(packet, "technical_validity").reason_codes == (
+        "schema_evaluation_row_id_duplicate",
+    )
+    assert len(duplicate_exclusions) == 2
+    assert all(
+        row.reason_codes == ("schema_evaluation_row_id_duplicate",)
+        for row in duplicate_exclusions
+    )
+    assert all(
+        digest.universe_id != "bench-1"
+        for digest in packet.membership_digests
+    )
+    if across_universes:
+        assert packet.membership_digests == ()
+    assert packet.analysis_eligible is False
+
+
+def test_distinct_evaluation_ids_at_same_timestamp_remain_valid(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "technical_validity").status == "passed"
+    assert {
+        digest.universe_id for digest in packet.membership_digests
+    } == {"bench-1", "research-1"}
     assert packet.analysis_eligible is True

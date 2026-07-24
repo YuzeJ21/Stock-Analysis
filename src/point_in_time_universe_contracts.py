@@ -220,7 +220,7 @@ def _parse_identity(row: Mapping[str, str]) -> IdentityObservation:
         "source_published_at", "retrieved_at",
         display_normalized=frozenset({"ticker"}),
     )
-    return IdentityObservation(
+    observation = IdentityObservation(
         identity_row_id=required[0], security_id=required[1], issuer_id=required[2],
         ticker=required[3].strip().upper(), exchange=required[4], security_type=required[5],
         currency=required[6], valid_from=parse_utc(required[7]),
@@ -228,6 +228,12 @@ def _parse_identity(row: Mapping[str, str]) -> IdentityObservation:
         source_published_at=parse_utc(required[10]), retrieved_at=parse_utc(required[11]),
         supersedes_identity_row_id=_optional_opaque(row, "supersedes_identity_row_id"),
     )
+    if (
+        observation.valid_to is not None
+        and observation.valid_to <= observation.valid_from
+    ):
+        raise ValueError("schema_identity_interval_reversed")
+    return observation
 
 
 def _parse_membership(row: Mapping[str, str]) -> MembershipObservation:
@@ -240,7 +246,7 @@ def _parse_membership(row: Mapping[str, str]) -> MembershipObservation:
         raise ValueError("schema_enum_invalid")
     if required[4] not in {"included", "excluded"}:
         raise ValueError("schema_enum_invalid")
-    return MembershipObservation(
+    observation = MembershipObservation(
         membership_row_id=required[0], universe_id=required[1], universe_kind=required[2],
         security_id=required[3], membership_state=required[4],
         effective_from=parse_utc(required[5]), effective_to=optional_utc(row["effective_to"]),
@@ -248,6 +254,12 @@ def _parse_membership(row: Mapping[str, str]) -> MembershipObservation:
         source_published_at=parse_utc(required[9]), retrieved_at=parse_utc(required[10]),
         supersedes_membership_row_id=_optional_opaque(row, "supersedes_membership_row_id"),
     )
+    if (
+        observation.effective_to is not None
+        and observation.effective_to <= observation.effective_from
+    ):
+        raise ValueError("schema_membership_interval_reversed")
+    return observation
 
 
 def _parse_event(row: Mapping[str, str]) -> UniverseEvent:
@@ -333,6 +345,36 @@ def parse_universe_evidence(package: LoadedUniversePackage) -> ParsedUniverseEvi
                     if not reason.startswith("schema_"):
                         reason = "schema_value_invalid"
                     findings.append(ContractFinding(contract, source_row, row_id, (reason,)))
+    evaluation_rows_by_id: dict[str, list[int]] = {}
+    for row in raw_rows:
+        if row.contract != "evaluations":
+            continue
+        row_id = row.values.get("evaluation_row_id", "")
+        if row_id and row_id != RAW_MISSING_CELL:
+            evaluation_rows_by_id.setdefault(row_id, []).append(
+                row.source_row
+            )
+    duplicate_evaluation_ids = {
+        row_id
+        for row_id, source_rows in evaluation_rows_by_id.items()
+        if len(source_rows) > 1
+    }
+    if duplicate_evaluation_ids:
+        parsed["evaluations"] = [
+            row
+            for row in parsed["evaluations"]
+            if row.evaluation_row_id not in duplicate_evaluation_ids
+        ]
+        findings.extend(
+            ContractFinding(
+                "evaluations",
+                source_row,
+                row_id,
+                ("schema_evaluation_row_id_duplicate",),
+            )
+            for row_id in sorted(duplicate_evaluation_ids)
+            for source_row in evaluation_rows_by_id[row_id]
+        )
     return ParsedUniverseEvidence(
         raw=tuple(raw_rows),
         identities=tuple(parsed["security_identity"]),

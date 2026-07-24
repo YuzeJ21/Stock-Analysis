@@ -485,3 +485,80 @@ def test_make_targets_are_phony_listed_in_help_and_require_manifest():
         assert missing.returncode != 0
         assert "MANIFEST is required" in missing.stderr
         assert "Traceback" not in missing.stderr
+
+
+@pytest.mark.parametrize(
+    "case,reason",
+    [
+        (
+            "event_history",
+            "membership_coverage_semantics_unsupported",
+        ),
+        (
+            "reversed_identity",
+            "schema_identity_interval_reversed",
+        ),
+        (
+            "reversed_membership",
+            "schema_membership_interval_reversed",
+        ),
+        (
+            "duplicate_evaluation",
+            "schema_evaluation_row_id_duplicate",
+        ),
+    ],
+)
+def test_remediation_2_blockers_are_traceback_free_and_read_only(
+    tmp_path,
+    case,
+    reason,
+):
+    manifest, registry = build_valid_package(tmp_path)
+
+    if case == "event_history":
+        raw = json.loads(manifest.read_text(encoding="utf-8"))
+        raw["coverage_semantics"] = "event_history"
+        manifest.write_text(json.dumps(raw), encoding="utf-8")
+    elif case == "reversed_identity":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "security_identity",
+            lambda rows: rows[0].update(
+                valid_from="2020-06-01T00:00:00Z",
+                valid_to="2020-05-01T00:00:00Z",
+            ),
+        )
+    elif case == "reversed_membership":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "membership",
+            lambda rows: rows[0].update(
+                effective_from="2020-06-01T00:00:00Z",
+                effective_to="2020-05-01T00:00:00Z",
+            ),
+        )
+    else:
+        _rewrite_csv_and_manifest(
+            manifest,
+            "evaluations",
+            lambda rows: rows[1].update(
+                evaluation_row_id=rows[0]["evaluation_row_id"],
+            ),
+        )
+    before = _snapshot(tmp_path)
+
+    result = _run_cli(
+        "preview",
+        "--manifest",
+        str(manifest),
+        "--registry",
+        str(registry),
+    )
+
+    assert result.returncode == 0
+    assert "analysis_eligible: false" in result.stdout
+    assert reason in result.stdout
+    assert "Traceback" not in result.stderr
+    if case in {"event_history", "duplicate_evaluation"}:
+        assert "sha256=" not in result.stdout
+    assert _snapshot(tmp_path) == before

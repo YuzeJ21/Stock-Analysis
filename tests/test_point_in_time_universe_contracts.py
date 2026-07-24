@@ -334,3 +334,138 @@ def test_repeated_parsing_uses_verified_snapshots_after_paths_disappear(tmp_path
     second = parse_universe_evidence(loaded)
 
     assert second == first
+
+
+@pytest.mark.parametrize(
+    "contract,start_column,end_column,reason",
+    [
+        (
+            "security_identity",
+            "valid_from",
+            "valid_to",
+            "schema_identity_interval_reversed",
+        ),
+        (
+            "membership",
+            "effective_from",
+            "effective_to",
+            "schema_membership_interval_reversed",
+        ),
+    ],
+)
+def test_reversed_intervals_become_schema_findings(
+    tmp_path,
+    contract,
+    start_column,
+    end_column,
+    reason,
+):
+    from src.point_in_time_universe_contracts import parse_universe_evidence
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_csv_and_manifest(
+        manifest,
+        contract,
+        lambda rows: rows[0].update(
+            {
+                start_column: "2020-06-01T00:00:00Z",
+                end_column: "2020-05-01T00:00:00Z",
+            }
+        ),
+    )
+
+    parsed = parse_universe_evidence(
+        load_universe_package(manifest, registry)
+    )
+
+    finding = next(
+        item
+        for item in parsed.findings
+        if reason in item.reason_codes
+    )
+    assert finding.contract == contract
+    assert finding.source_row == 2
+    assert finding.row_id in {"id-1", "member-bench-1"}
+    normalized = (
+        parsed.identities
+        if contract == "security_identity"
+        else parsed.memberships
+    )
+    assert all(
+        getattr(
+            row,
+            (
+                "identity_row_id"
+                if contract == "security_identity"
+                else "membership_row_id"
+            ),
+        )
+        != finding.row_id
+        for row in normalized
+    )
+
+
+@pytest.mark.parametrize("across_universes", [False, True])
+def test_duplicate_evaluation_ids_are_globally_excluded(
+    tmp_path,
+    across_universes,
+):
+    from src.point_in_time_universe_contracts import parse_universe_evidence
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def duplicate(rows):
+        if across_universes:
+            rows[1]["evaluation_row_id"] = rows[0]["evaluation_row_id"]
+        else:
+            rows.append(
+                {
+                    **rows[0],
+                    "source_ref": "fixture://evaluation/bench-duplicate",
+                }
+            )
+
+    _rewrite_csv_and_manifest(manifest, "evaluations", duplicate)
+
+    parsed = parse_universe_evidence(
+        load_universe_package(manifest, registry)
+    )
+    duplicate_findings = [
+        item
+        for item in parsed.findings
+        if item.row_id == "eval-bench-1"
+    ]
+
+    assert len(duplicate_findings) == 2
+    assert all(
+        item.reason_codes
+        == ("schema_evaluation_row_id_duplicate",)
+        for item in duplicate_findings
+    )
+    assert all(
+        evaluation.evaluation_row_id != "eval-bench-1"
+        for evaluation in parsed.evaluations
+    )
+
+
+def test_same_time_evaluations_with_distinct_ids_remain_valid(tmp_path):
+    from src.point_in_time_universe_contracts import parse_universe_evidence
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    parsed = parse_universe_evidence(
+        load_universe_package(manifest, registry)
+    )
+
+    assert not parsed.findings
+    assert {
+        evaluation.evaluation_row_id
+        for evaluation in parsed.evaluations
+    } == {"eval-bench-1", "eval-research-1"}
+    assert len({
+        evaluation.evaluation_at
+        for evaluation in parsed.evaluations
+    }) == 1

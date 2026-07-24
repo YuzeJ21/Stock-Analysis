@@ -125,6 +125,13 @@ def _identity_membership_decisions(
     digests: list[MembershipDigest] = []
     display_candidates: dict[str, tuple[tuple, str | None]] = {}
     cutoff = parse_utc(manifest.observation_cutoff_at)
+    complete_snapshot_supported = (
+        manifest.coverage_semantics == "complete_snapshot"
+    )
+    if not complete_snapshot_supported:
+        membership_reasons.add(
+            "membership_coverage_semantics_unsupported"
+        )
     evaluations = tuple(
         sorted(
             (
@@ -182,6 +189,31 @@ def _identity_membership_decisions(
             membership_reasons.add("membership_universe_undeclared")
             continue
 
+        scoped_memberships = tuple(
+            row
+            for row in parsed.memberships
+            if row.universe_id == evaluation.universe_id
+        )
+        cutoff_available_memberships = tuple(
+            row
+            for row in scoped_memberships
+            if max(
+                row.observation_at,
+                row.source_published_at,
+                row.retrieved_at,
+            )
+            <= evaluation.evaluation_at
+        )
+        latest_snapshot_at = max(
+            (
+                row.observation_at
+                for row in cutoff_available_memberships
+            ),
+            default=None,
+        )
+        if not complete_snapshot_supported:
+            continue
+
         active_identity_by_security: dict[str, IdentityObservation] = {}
         overlapping_identity_security_ids: set[str] = set()
         if not identity_lineage.reason_codes:
@@ -216,6 +248,8 @@ def _identity_membership_decisions(
         members: set[str] = set()
         for leaf in membership_lineage.leaves:
             if leaf.universe_id != evaluation.universe_id:
+                continue
+            if leaf.observation_at != latest_snapshot_at:
                 continue
             if leaf.universe_kind != expected_kind:
                 membership_reasons.add("membership_universe_kind_mismatch")
@@ -340,21 +374,6 @@ def _identity_membership_decisions(
                     active_identity.ticker,
                 )
 
-        scoped_memberships = tuple(
-            row
-            for row in parsed.memberships
-            if row.universe_id == evaluation.universe_id
-        )
-        cutoff_available_memberships = tuple(
-            row
-            for row in scoped_memberships
-            if max(
-                row.observation_at,
-                row.source_published_at,
-                row.retrieved_at,
-            )
-            <= evaluation.evaluation_at
-        )
         if not members and (
             not scoped_memberships or cutoff_available_memberships
         ):
@@ -504,6 +523,32 @@ def _temporal_decision(
             for row in parsed.memberships
             if row.universe_id == evaluation.universe_id
         )
+        cutoff_available_memberships = tuple(
+            row
+            for row in membership_rows
+            if max(
+                row.observation_at,
+                row.source_published_at,
+                row.retrieved_at,
+            )
+            <= evaluation.evaluation_at
+        )
+        latest_snapshot_at = max(
+            (
+                row.observation_at
+                for row in cutoff_available_memberships
+            ),
+            default=None,
+        )
+        latest_snapshot_security_ids = (
+            {
+                row.security_id
+                for row in cutoff_available_memberships
+                if row.observation_at == latest_snapshot_at
+            }
+            if manifest.coverage_semantics == "complete_snapshot"
+            else set()
+        )
         memberships_by_security: dict[str, list] = {}
         for row in membership_rows:
             memberships_by_security.setdefault(
@@ -520,7 +565,11 @@ def _temporal_decision(
                     row.retrieved_at,
                 ),
                 lambda row: row.membership_row_id,
-                required=True,
+                required=(
+                    not cutoff_available_memberships
+                    or group[0].security_id
+                    in latest_snapshot_security_ids
+                ),
             )
 
         membership_lineage = resolve_lineage(
@@ -539,7 +588,9 @@ def _temporal_decision(
             row.security_id
             for row in membership_lineage.leaves
             if (
-                row.universe_id == evaluation.universe_id
+                manifest.coverage_semantics == "complete_snapshot"
+                and row.universe_id == evaluation.universe_id
+                and row.observation_at == latest_snapshot_at
                 and row.membership_state == "included"
                 and _contains(
                     row.effective_from,
@@ -760,6 +811,15 @@ def _reproduction_decision(
     evaluations=(),
 ) -> Decision:
     reasons: set[str] = set()
+    if (
+        getattr(
+            manifest,
+            "coverage_semantics",
+            "complete_snapshot",
+        )
+        != "complete_snapshot"
+    ):
+        reasons.add("reproduction_coverage_semantics_unsupported")
     if (
         manifest.reproduction_contract
         != "membership_count_and_sha256_at_cutoff_v1"
