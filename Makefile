@@ -8,6 +8,7 @@
 EARNINGS_NOWCAST_COHORT ?= NVDA,AMD,AVGO,MU,QCOM
 .PHONY: commercial-source-rights commercial-beta-check commercial-beta-release-check
 .PHONY: private-beta-readiness
+.PHONY: point-in-time-universe-status point-in-time-universe-preview
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -24,6 +25,8 @@ help:
 	@echo "  make provider-setup-checklist   Review optional key setup without exposing secrets"
 	@echo "  make hosted-demo-readiness      Check hosted-app readiness without deploying"
 	@echo "  make commercial-beta-check      Run the read-only commercial-beta contract checks"
+	@echo "  make point-in-time-universe-status MANIFEST=<path> [REGISTRY=<path>] Validate one immutable universe package"
+	@echo "  make point-in-time-universe-preview MANIFEST=<path> [REGISTRY=<path>] [TOP_N=20] Preview one immutable universe package"
 	@echo "  make pilot-review-feedback      Print the controlled 10-20 reviewer feedback capture guide"
 	@echo "  make pilot-feedback-closeout    Print the reviewer feedback closeout and fix/defer checklist"
 	@echo "  make scheduler-activation-checklist Print the safe scheduler activation checklist"
@@ -131,6 +134,10 @@ help-full:
 	@echo "                        Print the copy-ready terminal handoff for verify, stage, commit, and push"
 	@echo "  make license-status"
 	@echo "                        Print the read-only license/reuse gate before public sharing"
+	@echo "  make point-in-time-universe-status MANIFEST=<path> [REGISTRY=<path>]"
+	@echo "                        Print deterministic validation truth for one immutable universe package"
+	@echo "  make point-in-time-universe-preview MANIFEST=<path> [REGISTRY=<path>] [TOP_N=20]"
+	@echo "                        Preview reproduction digests and capped canonical exclusions without writing"
 	@echo "  make session-source-preflight [SEC_USER_AGENT='Name email@example.com']"
 	@echo "                        Check one session's SEC/yfinance/local-fundamentals path before retrying source-backed coverage work"
 	@echo "  make source-activation-guide"
@@ -804,6 +811,24 @@ universe-scope:
 
 staged-hygiene-check:
 	@python3 scripts/diff_hygiene.py --staged-check
+
+point-in-time-universe-status point-in-time-universe-preview: export POINT_IN_TIME_UNIVERSE_MANIFEST := $(value MANIFEST)
+point-in-time-universe-status point-in-time-universe-preview: export POINT_IN_TIME_UNIVERSE_REGISTRY := $(if $(strip $(value REGISTRY)),$(value REGISTRY),config/source_rights.yml)
+point-in-time-universe-status point-in-time-universe-preview: export POINT_IN_TIME_UNIVERSE_TOP_N := $(if $(strip $(value TOP_N)),$(value TOP_N),20)
+
+point-in-time-universe-status:
+	@case "$${POINT_IN_TIME_UNIVERSE_MANIFEST}" in *[![:space:]]*) ;; *) echo "MANIFEST is required" >&2; exit 2;; esac
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.point_in_time_universe status \
+		--manifest "$${POINT_IN_TIME_UNIVERSE_MANIFEST}" \
+		--registry "$${POINT_IN_TIME_UNIVERSE_REGISTRY}" \
+		--top-n "$${POINT_IN_TIME_UNIVERSE_TOP_N}"
+
+point-in-time-universe-preview:
+	@case "$${POINT_IN_TIME_UNIVERSE_MANIFEST}" in *[![:space:]]*) ;; *) echo "MANIFEST is required" >&2; exit 2;; esac
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.point_in_time_universe preview \
+		--manifest "$${POINT_IN_TIME_UNIVERSE_MANIFEST}" \
+		--registry "$${POINT_IN_TIME_UNIVERSE_REGISTRY}" \
+		--top-n "$${POINT_IN_TIME_UNIVERSE_TOP_N}"
 
 public-wording-check:
 	@python3 scripts/public_wording_check.py

@@ -1151,3 +1151,104 @@ def validate_point_in_time_universe(
             "recommendation, or trading activation."
         ),
     )
+
+
+def render_status(packet: PointInTimeUniversePacket) -> str:
+    lines = [
+        "Point-in-Time Universe Status",
+        (
+            "Read-only: validates one supplied immutable package; it does not "
+            "fetch, write, apply, refresh, or rebuild data."
+        ),
+        (
+            "Research-only: this does not activate readiness, backtesting, "
+            "calibration, or probability and is not investment advice."
+        ),
+        f"dataset_id: {packet.dataset_id}",
+        f"manifest_id: {packet.manifest_id}",
+        f"analysis_eligible: {str(packet.analysis_eligible).lower()}",
+    ]
+    lines.extend(
+        (
+            f"{name}: {packet.decisions[name].status}; "
+            f"reasons={','.join(packet.decisions[name].reason_codes) or 'none'}"
+        )
+        for name in DECISION_ORDER
+    )
+    lines.append(f"boundary: {packet.boundary}")
+    return "\n".join(lines)
+
+
+def render_preview(
+    packet: PointInTimeUniversePacket,
+    *,
+    top_n: int = 20,
+) -> str:
+    if (
+        isinstance(top_n, bool)
+        or not isinstance(top_n, int)
+        or top_n < 0
+    ):
+        raise ValueError("top_n_invalid")
+
+    lines = [render_status(packet), "", "Membership reproduction:"]
+    lines.extend(
+        (
+            f"- {item.universe_id} @ {item.evaluation_at}: "
+            f"members={item.member_count}; sha256={item.sha256}"
+        )
+        for item in packet.membership_digests
+    )
+    lines.append("Excluded sample:")
+    lines.extend(
+        (
+            f"- {item.contract}:{item.source_row}:{item.row_id}; "
+            f"reasons={','.join(item.reason_codes)}"
+        )
+        for item in packet.excluded[:top_n]
+    )
+    return "\n".join(lines)
+
+
+def main(argv: list[str] | None = None) -> int:
+    import argparse
+
+    import yaml
+
+    parser = argparse.ArgumentParser(
+        description="Validate one immutable point-in-time universe package."
+    )
+    parser.add_argument("mode", choices=("status", "preview"))
+    parser.add_argument("--manifest", type=Path)
+    parser.add_argument(
+        "--registry",
+        type=Path,
+        default=Path("config/source_rights.yml"),
+    )
+    parser.add_argument("--top-n", type=int, default=20)
+    args = parser.parse_args(argv)
+    if args.manifest is None:
+        parser.error("MANIFEST is required")
+    if args.top_n < 0:
+        parser.error("top_n_invalid")
+
+    try:
+        packet = validate_point_in_time_universe(
+            args.manifest,
+            args.registry,
+            top_n=args.top_n,
+        )
+    except (OSError, ValueError, yaml.YAMLError) as exc:
+        parser.error(str(exc))
+
+    output = (
+        render_preview(packet, top_n=args.top_n)
+        if args.mode == "preview"
+        else render_status(packet)
+    )
+    print(output)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
