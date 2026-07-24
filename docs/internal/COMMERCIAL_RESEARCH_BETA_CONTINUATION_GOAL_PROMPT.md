@@ -14,7 +14,7 @@ Objective:
 Advance the Stock Research Command Center from its current local Commercial Research Beta release-candidate stage through every applicable local, source, hosted-preview, beta-validation, evidence-depth, calibration, and operating-maturity gate. Continue one coherent verified slice at a time while any safe executable in-scope work remains. Do not redefine completion around the work that is already easy or local.
 
 Start from current repository truth, not chat memory.
-Verify commit `f9c517352e588a33541ab0ce0c06225309ee0991` or a later descendant before relying on this implementation evidence.
+Verify commit `b4892b4aed98c2752303a76a0b8bcdbf8380b6b0` or a later descendant before relying on this implementation evidence.
 When external evidence is unavailable, record its exact unblock condition once and continue to the next safe executable lane.
 Never claim overall completion without direct current evidence for every applicable exit gate.
 Do not run readiness rebuilds or generated-artifact commands without explicit approval.
@@ -232,7 +232,7 @@ That summary is necessary but not sufficient; the exact Priority 4 exit conditio
 
 Priority 4 — Point-in-time benchmark and universe foundation
 - The provider-neutral, read-only first slice is implemented locally against the approved design at `docs/superpowers/specs/2026-07-23-point-in-time-universe-foundation-design.md`; reverify its ten independent states and no-write behavior from current repository truth.
-- The second fresh whole-branch review found cross-slice defects in raw-row source-rights inventory, cutoff-relative walk-forward history, publication chronology, and bounded snapshot reads. Remediation 6 closes those findings locally with test-first evidence; a third fresh whole-branch engineering review remains pending.
+- The second fresh whole-branch review found cross-slice defects in raw-row source-rights inventory, cutoff-relative walk-forward history, publication chronology, and bounded snapshot reads. Remediation 6 and its first independent-review follow-up close those findings locally with test-first evidence; a third fresh whole-branch engineering review remains pending.
 - Local resource budgets for one supplied package: preview sample 100 rows; manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined 64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; package traversal 32 entries.
 - Source-bearing raw rows retain independent exact-source rights review even when technical parsing fails; walk-forward history is cutoff-relative; publication must precede or equal retrieval; regular-file snapshot reads retain at most the declared limit plus one byte from one descriptor.
 - These local bounds do not prove scale, hosted reliability, or market readiness.

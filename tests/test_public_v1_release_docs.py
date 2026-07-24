@@ -1507,7 +1507,7 @@ def test_priority_four_local_validator_is_documented_without_claiming_real_data_
 
     assert "Start from current repository truth, not chat memory." in prompt
     assert (
-        "Verify commit `f9c517352e588a33541ab0ce0c06225309ee0991` or a later "
+        "Verify commit `b4892b4aed98c2752303a76a0b8bcdbf8380b6b0` or a later "
         "descendant before relying on this implementation evidence."
     ) in prompt
     assert (
@@ -1553,10 +1553,16 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
         "No permitted independently reviewed real dataset, accepted expected "
         "count/digest, or source-rights proof is on record."
     )
+    review_follow_up = (
+        "Remediation 6 and its first independent-review follow-up close those "
+        "findings locally with test-first evidence; a third fresh whole-branch "
+        "engineering review remains pending."
+    )
 
     for text in (roadmap, methodology, prompt):
         normalized = " ".join(text.split())
         assert remediation_state in normalized
+        assert review_follow_up in normalized
         assert budgets in normalized
         assert scope_boundary in normalized
         assert external_gate in normalized
