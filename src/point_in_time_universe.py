@@ -15,6 +15,7 @@ from src.commercial_source_rights import (
 from src.point_in_time_universe_contracts import (
     IdentityObservation,
     ParsedUniverseEvidence,
+    RAW_MISSING_CELL,
     parse_universe_evidence,
     parse_utc,
 )
@@ -1117,15 +1118,15 @@ def _classify_evaluations(
                 reasons = row_reasons[evaluation.evaluation_row_id]
                 if reasons:
                     continue
-                if (
-                    len(
-                        history_by_universe.get(
-                            evaluation.universe_id,
-                            set(),
-                        )
+                prior_history = {
+                    timestamp
+                    for timestamp in history_by_universe.get(
+                        evaluation.universe_id,
+                        set(),
                     )
-                    < minimum
-                ):
+                    if timestamp < evaluation.evaluation_at
+                }
+                if len(prior_history) < minimum:
                     reasons.add("partition_minimum_history_unmet")
     elif policy.get("kind") == "train_validation_test":
         try:
@@ -1716,46 +1717,106 @@ def _event_decisions(
     )
 
 
-def _rights_decision(manifest, parsed, registry) -> Decision:
+def _raw_required_rights_scope(row) -> tuple[str, ...]:
+    if row.contract == "security_identity":
+        return ("security_identity",)
+    if row.contract == "membership":
+        return ("universe_membership",)
+    if row.contract != "events":
+        return ()
+    event_type = row.values.get("event_type", "")
+    if event_type == "delisting":
+        return ("delistings",)
+    if event_type:
+        return ("corporate_actions",)
+    return ("corporate_actions", "delistings")
+
+
+def _rights_decision(
+    manifest,
+    parsed,
+    registry,
+) -> tuple[Decision, tuple[ExcludedRow, ...]]:
     blockers: set[str] = set()
-    for source_id in sorted(
-        {
-            row.source_id
-            for rows in (
-                parsed.identities,
-                parsed.memberships,
-                parsed.events,
-            )
-            for row in rows
-        }
-    ):
+    row_blockers: dict[tuple[str, int, str], set[str]] = {}
+
+    def block(row, reason: str) -> None:
+        blockers.add(reason)
+        row_id = row.values.get(ROW_ID_FIELDS[row.contract], "")
+        row_blockers.setdefault(
+            (row.contract, row.source_row, row_id),
+            set(),
+        ).add(reason)
+
+    source_rows = tuple(
+        row
+        for row in parsed.raw
+        if row.contract in {"security_identity", "membership", "events"}
+    )
+    for row in source_rows:
+        source_id = row.values.get("source_id", RAW_MISSING_CELL)
+        if source_id == "":
+            block(row, "source_rights_source_missing")
+            continue
+        if (
+            source_id == RAW_MISSING_CELL
+            or source_id != source_id.strip()
+        ):
+            block(row, "source_rights_source_unreadable")
+            continue
         if source_id not in manifest.allowed_source_ids:
-            blockers.add("source_rights_source_not_allowed")
-        required: set[str] = set()
-        if any(row.source_id == source_id for row in parsed.identities):
-            required.add("security_identity")
-        if any(row.source_id == source_id for row in parsed.memberships):
-            required.add("universe_membership")
-        source_events = tuple(
-            row for row in parsed.events if row.source_id == source_id
-        )
-        if any(row.event_type != "delisting" for row in source_events):
-            required.add("corporate_actions")
-        if any(row.event_type == "delisting" for row in source_events):
-            required.add("delistings")
+            block(row, "source_rights_source_not_allowed")
         review = review_commercial_field_scope(
             registry,
             source_id,
-            tuple(sorted(required)),
+            _raw_required_rights_scope(row),
         )
         if not review.commercial_rights_approved:
-            blockers.add(f"source_rights_{review.rights_status}")
+            block(row, f"source_rights_{review.rights_status}")
         if review.missing_supported_fields:
-            blockers.add("source_rights_field_scope_missing")
-    return Decision(
-        "source_rights_eligibility",
-        "blocked" if blockers else "passed",
-        tuple(sorted(blockers)),
+            block(row, "source_rights_field_scope_missing")
+
+    raw_locations = {
+        (row.contract, row.source_row)
+        for row in source_rows
+    }
+    for finding in parsed.findings:
+        if (
+            finding.contract
+            in {"security_identity", "membership", "events"}
+            and "schema_columns_invalid" in finding.reason_codes
+            and (finding.contract, finding.source_row)
+            not in raw_locations
+        ):
+            blockers.add("source_rights_source_unreadable")
+            row_blockers.setdefault(
+                (
+                    finding.contract,
+                    finding.source_row,
+                    finding.row_id,
+                ),
+                set(),
+            ).add("source_rights_source_unreadable")
+
+    return (
+        Decision(
+            "source_rights_eligibility",
+            "blocked" if blockers else "passed",
+            tuple(sorted(blockers)),
+        ),
+        tuple(
+            ExcludedRow(
+                contract,
+                source_row,
+                row_id,
+                tuple(sorted(reasons)),
+            )
+            for (
+                contract,
+                source_row,
+                row_id,
+            ), reasons in sorted(row_blockers.items())
+        ),
     )
 
 
@@ -2037,7 +2098,7 @@ def validate_point_in_time_universe(
         source_index,
         valid_evaluations,
     )
-    source_rights = _rights_decision(
+    source_rights, rights_excluded = _rights_decision(
         package.manifest,
         parsed,
         parse_source_rights_registry(package.registry_snapshot),
@@ -2046,6 +2107,7 @@ def validate_point_in_time_universe(
     decisions[delisting.area] = delisting
     decisions[source_rights.area] = source_rights
     excluded.extend(event_excluded)
+    excluded.extend(rights_excluded)
     reproduction = _reproduction_decision(
         package.manifest,
         digests,

@@ -55,7 +55,7 @@ def build_valid_package(root: Path) -> tuple[Path, Path]:
         {
             "evaluation_row_id": f"eval-{universe}", "universe_id": universe,
             "evaluation_at": "2021-01-01T00:00:00Z",
-            "available_at": "2021-01-01T00:00:00Z", "partition": "walk_forward",
+            "available_at": "2021-01-01T00:00:00Z", "partition": "train",
             "source_ref": f"fixture://evaluation/{universe}",
         }
         for universe in ("bench-1", "research-1")
@@ -110,7 +110,13 @@ def build_valid_package(root: Path) -> tuple[Path, Path]:
         "allowed_source_ids": ["fixture_source"],
         "source_rights_registry_sha256": _sha256(registry),
         "files": files,
-        "evaluation_policy": {"kind": "walk_forward", "minimum_history_count": 1},
+        "evaluation_policy": {
+            "kind": "train_validation_test",
+            "train_end_at": "2021-01-01T00:00:00Z",
+            "validation_start_at": "2021-01-02T00:00:00Z",
+            "validation_end_at": "2021-01-03T00:00:00Z",
+            "test_start_at": "2021-01-04T00:00:00Z",
+        },
         "corporate_action_policy": {
             "listing": "required", "ticker_change": "not_applicable",
             "exchange_change": "not_applicable", "split": "not_applicable",

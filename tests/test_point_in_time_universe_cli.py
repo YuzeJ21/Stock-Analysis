@@ -283,6 +283,36 @@ def test_readable_blocked_package_returns_zero_with_blocked_truth(tmp_path):
     assert _snapshot(tmp_path) == before
 
 
+def test_publication_chronology_failure_is_readable_and_write_free(tmp_path):
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        lambda rows: rows[0].update(
+            source_published_at="2020-01-03T00:00:00Z",
+            retrieved_at="2020-01-02T00:00:00Z",
+        ),
+    )
+    before = _snapshot(tmp_path)
+
+    result = _run_cli(
+        "status",
+        "--manifest",
+        str(manifest),
+        "--registry",
+        str(registry),
+    )
+
+    assert result.returncode == 0
+    assert (
+        "technical_validity: blocked; "
+        "reasons=schema_retrieved_before_publication"
+    ) in result.stdout
+    assert "analysis_eligible: false" in result.stdout
+    assert "Traceback" not in result.stderr
+    assert _snapshot(tmp_path) == before
+
+
 def test_missing_manifest_is_nonzero_without_traceback():
     result = _run_cli("status")
 

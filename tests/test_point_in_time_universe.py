@@ -36,6 +36,7 @@ EXPECTED_EXCLUSION_CODES = {
     "schema_membership_interval_reversed",
     "schema_event_row_id_duplicate",
     "schema_evaluation_row_id_duplicate",
+    "source_rights_source_unreadable",
     "lineage_duplicate_id",
     "lineage_missing_parent",
     "lineage_cross_scope_parent",
@@ -74,6 +75,7 @@ EXPECTED_EXCLUSION_PREFIXES = {
     "cutoff_",
     "leakage_",
     "partition_",
+    "source_rights_",
 }
 
 EXCLUSION_MUTATION_CASES = (
@@ -480,6 +482,14 @@ def _mutate_exclusion_case(manifest, case):
             ],
         )
     elif case == "partition_minimum_history":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "evaluations",
+            lambda rows: [
+                row.update(partition="walk_forward")
+                for row in rows
+            ],
+        )
         _rewrite_manifest(
             manifest,
             lambda raw: raw.update(
@@ -843,13 +853,14 @@ def test_future_membership_kind_mismatch_applies_when_later_evaluation_sees_it(
 
     def add_later_evaluation(rows):
         rows.append(
-            {
-                **rows[0],
-                "evaluation_row_id": "eval-bench-later",
-                "evaluation_at": "2023-01-01T00:00:00Z",
-                "available_at": "2023-01-01T00:00:00Z",
-                "source_ref": "fixture://evaluation/bench-later",
-            }
+                {
+                    **rows[0],
+                    "evaluation_row_id": "eval-bench-later",
+                    "evaluation_at": "2023-01-01T00:00:00Z",
+                    "available_at": "2023-01-01T00:00:00Z",
+                    "partition": "test",
+                    "source_ref": "fixture://evaluation/bench-later",
+                }
         )
 
     _rewrite_csv_and_manifest(
@@ -3311,6 +3322,7 @@ def test_event_lineage_aggregates_across_cutoffs_and_canonicalizes_exclusions(
                 ),
                 "evaluation_at": "2023-01-01T00:00:00Z",
                 "available_at": "2023-01-01T00:00:00Z",
+                "partition": "test",
                 "source_ref": f"{row['source_ref']}/later",
             }
             for row in list(rows)
@@ -3855,13 +3867,12 @@ def test_post_cutoff_evidence_is_excluded_without_poisoning_independent_states(
     from src.point_in_time_universe import validate_point_in_time_universe
 
     manifest, registry = build_valid_package(tmp_path)
-    _rewrite_csv_and_manifest(
-        manifest,
-        contract,
-        lambda rows: rows[0].update(
-            {column: "2022-01-01T00:00:00Z"}
-        ),
-    )
+    def move_after_cutoff(rows):
+        rows[0][column] = "2022-01-01T00:00:00Z"
+        if column == "source_published_at":
+            rows[0]["retrieved_at"] = "2022-01-02T00:00:00Z"
+
+    _rewrite_csv_and_manifest(manifest, contract, move_after_cutoff)
 
     packet = validate_point_in_time_universe(manifest, registry)
 
@@ -4193,7 +4204,7 @@ def test_every_emitted_exclusion_uses_an_approved_stable_reason(
     )
 
 
-def test_source_rights_reasons_are_decision_only_not_fabricated_exclusions(
+def test_source_rights_reasons_retain_exact_evidence_row_lineage(
     tmp_path,
 ):
     from src.point_in_time_universe import validate_point_in_time_universe
@@ -4213,11 +4224,17 @@ def test_source_rights_reasons_are_decision_only_not_fabricated_exclusions(
     assert packet.decisions["source_rights_eligibility"].reason_codes == (
         "source_rights_commercial_rights_unverified",
     )
-    assert all(
-        not code.startswith("source_rights_")
+    assert {
+        (item.contract, item.source_row, item.row_id)
         for item in packet.excluded
-        for code in item.reason_codes
-    )
+        if "source_rights_commercial_rights_unverified"
+        in item.reason_codes
+    } == {
+        ("security_identity", 2, "id-1"),
+        ("membership", 2, "member-bench-1"),
+        ("membership", 3, "member-research-1"),
+        ("events", 2, "event-1"),
+    }
 
 
 def test_validator_result_is_unchanged_when_current_universe_files_change(
@@ -4419,6 +4436,23 @@ def test_walk_forward_policy_rejects_non_walk_forward_evaluation_rows(
     from src.point_in_time_universe import validate_point_in_time_universe
 
     manifest, registry = build_valid_package(tmp_path)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw.update(
+            evaluation_policy={
+                "kind": "walk_forward",
+                "minimum_history_count": 1,
+            }
+        ),
+    )
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        lambda rows: [
+            row.update(partition="walk_forward")
+            for row in rows
+        ],
+    )
     _rewrite_csv_and_manifest(
         manifest,
         "evaluations",
@@ -4541,6 +4575,14 @@ def test_walk_forward_minimum_history_uses_actual_universe_evaluations(
                 "minimum_history_count": 2,
             }
         ),
+    )
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        lambda rows: [
+            row.update(partition="walk_forward")
+            for row in rows
+        ],
     )
 
     packet = validate_point_in_time_universe(manifest, registry)

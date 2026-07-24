@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import os
 
 import pytest
 
@@ -25,26 +26,27 @@ def test_hash_and_row_count_use_the_same_immutable_file_snapshot(
     tmp_path,
     monkeypatch,
 ):
-    from src.point_in_time_universe_manifest import load_universe_package
+    import src.point_in_time_universe_manifest as loader
 
     manifest, registry = build_valid_package(tmp_path)
     identity_path = manifest.parent / "identity.csv"
     verified_bytes = identity_path.read_bytes()
-    original_read_bytes = Path.read_bytes
+    original_sha256 = loader._sha256
     raced = False
 
-    def read_then_append_row(path):
+    def hash_then_append_row(snapshot):
         nonlocal raced
-        snapshot = original_read_bytes(path)
-        if path.resolve() == identity_path.resolve() and not raced:
+        digest = original_sha256(snapshot)
+        if snapshot == verified_bytes and not raced:
             raced = True
             original_row = snapshot.splitlines(keepends=True)[1]
             path.write_bytes(snapshot + original_row)
-        return snapshot
+        return digest
 
-    monkeypatch.setattr(Path, "read_bytes", read_then_append_row)
+    path = identity_path
+    monkeypatch.setattr(loader, "_sha256", hash_then_append_row)
 
-    loaded = load_universe_package(manifest, registry)
+    loaded = loader.load_universe_package(manifest, registry)
 
     assert raced is True
     assert identity_path.read_bytes() != verified_bytes
@@ -63,6 +65,68 @@ def test_loaded_snapshots_are_immutable(tmp_path):
         loaded.contract_snapshots["security_identity"][0] = 0
     with pytest.raises(TypeError):
         loaded.registry_snapshot[0] = 0
+
+
+def test_bounded_reader_accepts_exact_limit_and_rejects_plus_one(tmp_path):
+    from src.point_in_time_universe_manifest import _bounded_snapshot
+
+    path = tmp_path / "snapshot.bin"
+    path.write_bytes(b"abcd")
+    assert _bounded_snapshot(
+        path,
+        maximum_bytes=4,
+        size_error="too_large",
+        unreadable_error="unreadable",
+    ) == b"abcd"
+
+    path.write_bytes(b"abcde")
+    with pytest.raises(ValueError, match="too_large"):
+        _bounded_snapshot(
+            path,
+            maximum_bytes=4,
+            size_error="too_large",
+            unreadable_error="unreadable",
+        )
+
+
+def test_bounded_reader_rejects_non_regular_input(tmp_path):
+    from src.point_in_time_universe_manifest import _bounded_snapshot
+
+    with pytest.raises(ValueError, match="unreadable"):
+        _bounded_snapshot(
+            tmp_path,
+            maximum_bytes=4,
+            size_error="too_large",
+            unreadable_error="unreadable",
+        )
+
+
+def test_bounded_reader_never_requests_or_retains_more_than_limit_plus_one(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe_manifest as loader
+
+    path = tmp_path / "snapshot.bin"
+    path.write_bytes(b"abcd")
+    requests = []
+    original_read = os.read
+
+    def tracked_read(fd, amount):
+        requests.append(amount)
+        return original_read(fd, amount)
+
+    monkeypatch.setattr(loader.os, "read", tracked_read)
+    assert loader._bounded_snapshot(
+        path,
+        maximum_bytes=4,
+        size_error="too_large",
+        unreadable_error="unreadable",
+    ) == b"abcd"
+
+    assert requests
+    assert max(requests) <= 5
+    assert sum(requests) <= 5
 
 
 @pytest.mark.parametrize("mutation,match", [
@@ -168,7 +232,10 @@ def test_manifest_rejects_invalid_immutable_policy_semantics(tmp_path, mutation,
     elif mutation == "sources":
         raw["allowed_source_ids"] = []
     elif mutation == "walk_forward":
-        raw["evaluation_policy"]["minimum_history_count"] = 0
+        raw["evaluation_policy"] = {
+            "kind": "walk_forward",
+            "minimum_history_count": 0,
+        }
     elif mutation == "partition_boundaries":
         raw["evaluation_policy"] = {
             "kind": "train_validation_test",
@@ -304,20 +371,22 @@ def test_contract_post_read_growth_past_limit_is_rejected(tmp_path, monkeypatch)
 
     manifest, registry = build_valid_package(tmp_path)
     identity = manifest.parent / "identity.csv"
-    original_read_bytes = Path.read_bytes
+    original_read = os.read
+    identity_inode = identity.stat().st_ino
     limit = identity.stat().st_size
     raced = False
 
-    def read_then_grow(path):
+    def read_then_grow(descriptor, amount):
         nonlocal raced
-        snapshot = original_read_bytes(path)
-        if path.resolve() == identity.resolve() and not raced:
+        snapshot = original_read(descriptor, amount)
+        if os.fstat(descriptor).st_ino == identity_inode and not raced:
             raced = True
             path.write_bytes(snapshot + b"x")
         return snapshot
 
+    path = identity
     monkeypatch.setattr(loader, "MAX_CONTRACT_SNAPSHOT_BYTES", limit)
-    monkeypatch.setattr(Path, "read_bytes", read_then_grow)
+    monkeypatch.setattr(loader.os, "read", read_then_grow)
     with pytest.raises(ValueError, match="manifest_file_size_limit_exceeded"):
         loader.load_universe_package(manifest, registry)
     assert raced is True
@@ -373,20 +442,22 @@ def test_registry_post_read_growth_past_limit_is_rejected(tmp_path, monkeypatch)
     import src.point_in_time_universe_manifest as loader
 
     manifest, registry = build_valid_package(tmp_path)
-    original_read_bytes = Path.read_bytes
+    original_read = os.read
+    registry_inode = registry.stat().st_ino
     limit = registry.stat().st_size
     raced = False
 
-    def read_then_grow(path):
+    def read_then_grow(descriptor, amount):
         nonlocal raced
-        snapshot = original_read_bytes(path)
-        if path.resolve() == registry.resolve() and not raced:
+        snapshot = original_read(descriptor, amount)
+        if os.fstat(descriptor).st_ino == registry_inode and not raced:
             raced = True
             path.write_bytes(snapshot + b"x")
         return snapshot
 
+    path = registry
     monkeypatch.setattr(loader, "MAX_RIGHTS_REGISTRY_BYTES", limit)
-    monkeypatch.setattr(Path, "read_bytes", read_then_grow)
+    monkeypatch.setattr(loader.os, "read", read_then_grow)
     with pytest.raises(ValueError, match="manifest_registry_size_limit_exceeded"):
         loader.load_universe_package(manifest, registry)
     assert raced is True

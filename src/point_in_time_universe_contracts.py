@@ -213,6 +213,14 @@ def _raw_values(values: Mapping[object, object], columns: tuple[str, ...]) -> Ma
     return MappingProxyType(raw)
 
 
+def _require_publication_before_retrieval(
+    source_published_at: datetime,
+    retrieved_at: datetime,
+) -> None:
+    if retrieved_at < source_published_at:
+        raise ValueError("schema_retrieved_before_publication")
+
+
 def _parse_identity(row: Mapping[str, str]) -> IdentityObservation:
     required = _required(
         row, "identity_row_id", "security_id", "issuer_id", "ticker", "exchange",
@@ -233,6 +241,10 @@ def _parse_identity(row: Mapping[str, str]) -> IdentityObservation:
         and observation.valid_to <= observation.valid_from
     ):
         raise ValueError("schema_identity_interval_reversed")
+    _require_publication_before_retrieval(
+        observation.source_published_at,
+        observation.retrieved_at,
+    )
     return observation
 
 
@@ -259,6 +271,10 @@ def _parse_membership(row: Mapping[str, str]) -> MembershipObservation:
         and observation.effective_to <= observation.effective_from
     ):
         raise ValueError("schema_membership_interval_reversed")
+    _require_publication_before_retrieval(
+        observation.source_published_at,
+        observation.retrieved_at,
+    )
     return observation
 
 
@@ -281,7 +297,7 @@ def _parse_event(row: Mapping[str, str]) -> UniverseEvent:
         raise ValueError("schema_ratio_pair_required")
     if required[2] == "delisting" and listing_state_after != "delisted":
         raise ValueError("schema_delisting_listing_state_invalid")
-    return UniverseEvent(
+    observation = UniverseEvent(
         event_row_id=required[0], security_id=required[1], event_type=required[2],
         effective_at=parse_utc(required[3]),
         successor_security_id=_optional_opaque(row, "successor_security_id"), ratio_numerator=numerator,
@@ -290,6 +306,11 @@ def _parse_event(row: Mapping[str, str]) -> UniverseEvent:
         source_published_at=parse_utc(required[6]), retrieved_at=parse_utc(required[7]),
         supersedes_event_row_id=_optional_opaque(row, "supersedes_event_row_id"),
     )
+    _require_publication_before_retrieval(
+        observation.source_published_at,
+        observation.retrieved_at,
+    )
+    return observation
 
 
 def _parse_evaluation(row: Mapping[str, str]) -> EvaluationObservation:
@@ -334,10 +355,15 @@ def parse_universe_evidence(package: LoadedUniversePackage) -> ParsedUniverseEvi
                     source_row,
                     clean,
                 ))
-                if not _has_exact_row_shape(values, COLUMNS[contract]):
-                    findings.append(ContractFinding(contract, source_row, "", ("schema_columns_invalid",)))
-                    continue
                 row_id = clean.get(ROW_ID_FIELDS[contract], "")
+                if not _has_exact_row_shape(values, COLUMNS[contract]):
+                    findings.append(ContractFinding(
+                        contract,
+                        source_row,
+                        row_id,
+                        ("schema_columns_invalid",),
+                    ))
+                    continue
                 try:
                     parsed[contract].append(PARSERS[contract](clean))
                 except (KeyError, TypeError, ValueError) as exc:

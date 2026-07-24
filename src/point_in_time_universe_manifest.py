@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+import stat
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -85,19 +86,45 @@ def _bounded_snapshot(
     size_error: str,
     unreadable_error: str,
 ) -> bytes:
+    descriptor: int | None = None
     try:
-        if path.stat().st_size > maximum_bytes:
+        flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(
+            os,
+            "O_NONBLOCK",
+            0,
+        )
+        descriptor = os.open(path, flags)
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode):
+            raise ValueError(unreadable_error)
+        if before.st_size > maximum_bytes:
             raise ValueError(size_error)
-        snapshot = path.read_bytes()
-        if (
-            len(snapshot) > maximum_bytes
-            or path.stat().st_size > maximum_bytes
+        snapshot = os.read(descriptor, maximum_bytes + 1)
+        after = os.fstat(descriptor)
+        if len(snapshot) > maximum_bytes or after.st_size > maximum_bytes:
+            raise ValueError(size_error)
+        stable_metadata = (
+            before.st_dev,
+            before.st_ino,
+            before.st_size,
+            before.st_mtime_ns,
+            before.st_ctime_ns,
+        )
+        if stable_metadata != (
+            after.st_dev,
+            after.st_ino,
+            after.st_size,
+            after.st_mtime_ns,
+            after.st_ctime_ns,
         ):
             raise ValueError(size_error)
     except ValueError:
         raise
     except OSError as exc:
         raise ValueError(unreadable_error) from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
     return snapshot
 
 

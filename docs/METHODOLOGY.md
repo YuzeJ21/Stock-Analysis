@@ -421,9 +421,21 @@ This ladder is why empty or partial outputs are useful: they show the first trus
 
 Implemented locally: read-only immutable-package status/preview with ten independent states: manifest, technical, temporal, identity, membership, corporate action, delisting, source rights, reproduction, and leakage.
 
-Known local defect-remediation slices and per-slice independent code review are complete; final whole-branch engineering review remains pending.
+The second fresh whole-branch review found cross-slice defects in raw-row
+source-rights inventory, cutoff-relative walk-forward history, publication
+chronology, and bounded snapshot reads. Remediation 6 closes those findings
+locally with test-first evidence; a third fresh whole-branch engineering review
+remains pending.
 
 Local resource budgets for one supplied package: preview sample 100 rows; manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined 64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; package traversal 32 entries.
+
+Every source-bearing raw evidence row is reviewed independently for exact
+source rights even when technical parsing fails. Walk-forward minimum history
+uses only distinct, otherwise qualifying evaluations for the same universe
+strictly before the classified cutoff. Identity, membership, and event evidence
+requires publication no later than retrieval. Snapshot inputs must be regular
+files and are read from one descriptor with at most the declared limit plus one
+byte retained for overflow detection.
 
 These local bounds do not prove scale, hosted reliability, or market readiness.
 
@@ -445,7 +457,9 @@ This local evidence does not change independent readiness for actuals, consensus
 
 It does not provide investment advice; numerical probability remains unavailable without calibration; Q4 evidence and EPS split-basis compatibility remain explicit; synthetic evidence stays test-only; candidate peer evidence remains candidate-context-only.
 
-The next local evidence step is the complete release-gate matrix followed by a new whole-branch engineering review over the full Priority 4 implementation and remediation range.
+The next local evidence step is the complete release-gate matrix and exact-head
+CI followed by a third fresh whole-branch engineering review over the full
+Priority 4 implementation and remediation range.
 
 If a permitted dataset or its rights evidence is unavailable, record that
 external dependency and its exact unblock condition once. Do not retry an
