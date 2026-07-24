@@ -8,7 +8,7 @@ from types import MappingProxyType
 from typing import Mapping
 
 from src.commercial_source_rights import (
-    load_source_rights_registry,
+    parse_source_rights_registry,
     review_commercial_field_scope,
 )
 from src.point_in_time_universe_contracts import (
@@ -1079,7 +1079,7 @@ def validate_point_in_time_universe(
     source_rights = _rights_decision(
         package.manifest,
         parsed,
-        load_source_rights_registry(package.registry_path),
+        parse_source_rights_registry(package.registry_snapshot),
     )
     decisions[corporate_action.area] = corporate_action
     decisions[delisting.area] = delisting

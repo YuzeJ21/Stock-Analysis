@@ -317,3 +317,20 @@ def test_records_and_raw_values_are_immutable(tmp_path):
         parsed.raw[0].source_file = "changed.csv"
     with pytest.raises(TypeError):
         parsed.raw[0].values["ticker"] = "CHANGED"
+
+
+def test_repeated_parsing_uses_verified_snapshots_after_paths_disappear(tmp_path):
+    from src.point_in_time_universe_contracts import parse_universe_evidence
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+    loaded = load_universe_package(manifest, registry)
+    first = parse_universe_evidence(loaded)
+
+    for path in loaded.files.values():
+        path.unlink()
+    registry.unlink()
+
+    second = parse_universe_evidence(loaded)
+
+    assert second == first

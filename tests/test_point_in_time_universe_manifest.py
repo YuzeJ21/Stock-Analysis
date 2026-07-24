@@ -21,6 +21,50 @@ def test_loads_hash_bound_manifest_without_writing(tmp_path):
     assert _file_bytes(tmp_path) == before
 
 
+def test_hash_and_row_count_use_the_same_immutable_file_snapshot(
+    tmp_path,
+    monkeypatch,
+):
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+    identity_path = manifest.parent / "identity.csv"
+    verified_bytes = identity_path.read_bytes()
+    original_read_bytes = Path.read_bytes
+    raced = False
+
+    def read_then_append_row(path):
+        nonlocal raced
+        snapshot = original_read_bytes(path)
+        if path.resolve() == identity_path.resolve() and not raced:
+            raced = True
+            original_row = snapshot.splitlines(keepends=True)[1]
+            path.write_bytes(snapshot + original_row)
+        return snapshot
+
+    monkeypatch.setattr(Path, "read_bytes", read_then_append_row)
+
+    loaded = load_universe_package(manifest, registry)
+
+    assert raced is True
+    assert identity_path.read_bytes() != verified_bytes
+    assert loaded.contract_snapshots["security_identity"] == verified_bytes
+
+
+def test_loaded_snapshots_are_immutable(tmp_path):
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+    loaded = load_universe_package(manifest, registry)
+
+    with pytest.raises(TypeError):
+        loaded.contract_snapshots["security_identity"] = b"changed"
+    with pytest.raises(TypeError):
+        loaded.contract_snapshots["security_identity"][0] = 0
+    with pytest.raises(TypeError):
+        loaded.registry_snapshot[0] = 0
+
+
 @pytest.mark.parametrize("mutation,match", [
     ("hash", "manifest_hash_mismatch"),
     ("row_count", "manifest_row_count_mismatch"),

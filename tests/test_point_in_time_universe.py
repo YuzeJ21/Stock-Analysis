@@ -2197,6 +2197,70 @@ def test_validator_result_is_unchanged_when_current_universe_files_change(
     assert first == after_add == after_change
 
 
+def test_validator_uses_verified_contract_bytes_when_path_changes_after_load(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe as universe_module
+
+    manifest, registry = build_valid_package(tmp_path)
+    real_load = universe_module.load_universe_package
+
+    def load_then_replace_contract(manifest_path, registry_path):
+        package = real_load(manifest_path, registry_path)
+        identity_path = package.files["security_identity"]
+        identity_path.write_text(
+            identity_path.read_text(encoding="utf-8").replace(",AAA,", ",RACED,"),
+            encoding="utf-8",
+        )
+        return package
+
+    monkeypatch.setattr(
+        universe_module,
+        "load_universe_package",
+        load_then_replace_contract,
+    )
+
+    packet = universe_module.validate_point_in_time_universe(manifest, registry)
+
+    assert packet.decisions["manifest_integrity"].status == "passed"
+    assert packet.display_tickers["sec-1"] == "AAA"
+    assert "RACED" not in packet.display_tickers.values()
+
+
+def test_validator_uses_verified_registry_bytes_when_path_changes_after_load(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe as universe_module
+
+    manifest, registry = build_valid_package(tmp_path)
+    real_load = universe_module.load_universe_package
+
+    def load_then_replace_registry(manifest_path, registry_path):
+        package = real_load(manifest_path, registry_path)
+        registry.write_text(
+            registry.read_text(encoding="utf-8").replace(
+                "commercial_use: approved",
+                "commercial_use: unverified",
+            ),
+            encoding="utf-8",
+        )
+        return package
+
+    monkeypatch.setattr(
+        universe_module,
+        "load_universe_package",
+        load_then_replace_registry,
+    )
+
+    packet = universe_module.validate_point_in_time_universe(manifest, registry)
+
+    assert packet.decisions["manifest_integrity"].status == "passed"
+    assert packet.decisions["source_rights_eligibility"].status == "passed"
+    assert not packet.decisions["source_rights_eligibility"].reason_codes
+
+
 def test_blocked_independent_decision_prevents_final_eligibility(tmp_path):
     from src.point_in_time_universe import validate_point_in_time_universe
 

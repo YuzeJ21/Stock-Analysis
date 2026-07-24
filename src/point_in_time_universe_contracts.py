@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import io
 import math
 import re
 from dataclasses import dataclass
@@ -307,7 +308,8 @@ def parse_universe_evidence(package: LoadedUniversePackage) -> ParsedUniverseEvi
     findings: list[ContractFinding] = []
     for contract in ("security_identity", "membership", "events", "evaluations"):
         path = package.files[contract]
-        with path.open(encoding="utf-8", newline="") as handle:
+        snapshot = package.contract_snapshots[contract]
+        with io.StringIO(snapshot.decode("utf-8"), newline="") as handle:
             reader = csv.DictReader(handle)
             if tuple(reader.fieldnames or ()) != COLUMNS[contract]:
                 findings.append(ContractFinding(contract, 1, "", ("schema_columns_invalid",)))

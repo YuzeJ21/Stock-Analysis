@@ -124,17 +124,24 @@ def build_source_rights_registry(records: Sequence[Mapping[str, Any]]) -> Mappin
     return MappingProxyType(registry)
 
 
+def parse_source_rights_registry(snapshot: bytes) -> Mapping[str, SourceRights]:
+    """Build an immutable source-rights registry from one verified byte snapshot."""
+
+    raw = yaml.safe_load(snapshot.decode("utf-8")) or {}
+    if not isinstance(raw, Mapping) or not isinstance(raw.get("sources"), list):
+        raise ValueError("source rights registry must contain a sources list")
+    return build_source_rights_registry(raw["sources"])
+
+
 def load_source_rights_registry(path: Path | str = DEFAULT_REGISTRY_PATH) -> Mapping[str, SourceRights]:
     """Load the checked-in registry without reading credentials or license documents."""
 
     registry_path = Path(path)
     try:
-        raw = yaml.safe_load(registry_path.read_text(encoding="utf-8")) or {}
+        snapshot = registry_path.read_bytes()
     except OSError as exc:
         raise ValueError(f"cannot read source rights registry: {registry_path}") from exc
-    if not isinstance(raw, Mapping) or not isinstance(raw.get("sources"), list):
-        raise ValueError("source rights registry must contain a sources list")
-    return build_source_rights_registry(raw["sources"])
+    return parse_source_rights_registry(snapshot)
 
 
 def commercial_eligibility(

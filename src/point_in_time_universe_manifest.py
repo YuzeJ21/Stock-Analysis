@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import json
 from dataclasses import dataclass
 from datetime import datetime
@@ -54,14 +55,16 @@ class LoadedUniversePackage:
     registry_path: Path
     manifest: UniverseManifest
     files: Mapping[str, Path]
+    contract_snapshots: Mapping[str, bytes]
+    registry_snapshot: bytes
 
 
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+def _sha256(snapshot: bytes) -> str:
+    return hashlib.sha256(snapshot).hexdigest()
 
 
-def _csv_row_count(path: Path) -> int:
-    with path.open(encoding="utf-8", newline="") as handle:
+def _csv_row_count(snapshot: bytes) -> int:
+    with io.StringIO(snapshot.decode("utf-8"), newline="") as handle:
         return sum(1 for _ in csv.DictReader(handle))
 
 
@@ -232,21 +235,25 @@ def load_universe_package(manifest_path: Path, registry_path: Path) -> LoadedUni
     resolved_paths = tuple(_safe_child(package_dir, item.path) for item in file_records)
     _reject_unlisted_files(package_dir, manifest_path, file_records)
     resolved: dict[str, Path] = {}
+    contract_snapshots: dict[str, bytes] = {}
     for item, path in zip(file_records, resolved_paths, strict=True):
         try:
-            file_hash = _sha256(path)
-            row_count = _csv_row_count(path)
+            snapshot = path.read_bytes()
         except OSError as exc:
             raise ValueError("manifest_file_unreadable") from exc
+        file_hash = _sha256(snapshot)
+        row_count = _csv_row_count(snapshot)
         if file_hash != item.sha256:
             raise ValueError("manifest_hash_mismatch")
         if row_count != item.row_count:
             raise ValueError("manifest_row_count_mismatch")
         resolved[item.contract] = path
+        contract_snapshots[item.contract] = snapshot
     try:
-        registry_hash = _sha256(registry_path)
+        registry_snapshot = registry_path.read_bytes()
     except OSError as exc:
         raise ValueError("manifest_registry_unreadable") from exc
+    registry_hash = _sha256(registry_snapshot)
     if registry_hash != raw.get("source_rights_registry_sha256"):
         raise ValueError("manifest_registry_digest_mismatch")
     manifest = UniverseManifest(
@@ -271,4 +278,6 @@ def load_universe_package(manifest_path: Path, registry_path: Path) -> LoadedUni
         registry_path=registry_path.resolve(),
         manifest=manifest,
         files=MappingProxyType(resolved),
+        contract_snapshots=MappingProxyType(contract_snapshots),
+        registry_snapshot=registry_snapshot,
     )
