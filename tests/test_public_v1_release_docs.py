@@ -1507,7 +1507,7 @@ def test_priority_four_local_validator_is_documented_without_claiming_real_data_
 
     assert "Start from current repository truth, not chat memory." in prompt
     assert (
-        "Verify commit `aa74cafe8e4928b5d530575008f1df86b0b608e1` or a later "
+        "Verify commit `288a5e6ec5e9954edf683cc9a2bf29d20e281935` or a later "
         "descendant before relying on this implementation evidence."
     ) in prompt
     assert (
@@ -1558,10 +1558,12 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
         "findings locally with test-first evidence."
     )
     final_review_state = (
-        "The third fresh whole-branch review confirmed those closures and found "
-        "one remaining aggregate read-budget Minor; its narrow test-first "
-        "follow-up is complete locally, and a fourth final whole-branch "
-        "engineering review remains pending."
+        "The third fresh whole-branch review found one aggregate read-budget "
+        "Minor and its test-first follow-up is complete locally. The fourth "
+        "fresh whole-branch review confirmed that closure and found one bounded "
+        "structured-input recursion Minor; its narrow parser-boundary follow-up "
+        "is complete locally, and a fifth final whole-branch engineering review "
+        "remains pending."
     )
 
     for text in (roadmap, methodology, prompt):
