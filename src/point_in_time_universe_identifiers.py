@@ -1,9 +1,26 @@
 from __future__ import annotations
 
+import unicodedata
+
+
+UNSAFE_RECORD_SEPARATOR_CATEGORIES = frozenset({"Zl", "Zp"})
+
+
+def _unsafe_structural_character(character: str) -> bool:
+    codepoint = ord(character)
+    return (
+        codepoint < 0x20
+        or 0x7F <= codepoint <= 0x9F
+        or unicodedata.category(character)
+        in UNSAFE_RECORD_SEPARATOR_CATEGORIES
+    )
+
 
 def is_control_free(value: object) -> bool:
+    """Reject controls plus Unicode line and paragraph record separators."""
+
     return isinstance(value, str) and not any(
-        ord(character) < 0x20 or 0x7F <= ord(character) <= 0x9F
+        _unsafe_structural_character(character)
         for character in value
     )
 
@@ -20,8 +37,7 @@ def escape_structural_token(value: object) -> str:
     return "".join(
         (
             f"\\u{ord(character):04x}"
-            if ord(character) < 0x20
-            or 0x7F <= ord(character) <= 0x9F
+            if _unsafe_structural_character(character)
             else character
         )
         for character in value

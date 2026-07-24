@@ -68,6 +68,20 @@ def _rewrite_contract(manifest, contract, mutation) -> None:
             ),
             "manifest_allowed_source_ids_invalid",
         ),
+        (
+            "dataset_line_separator",
+            lambda raw: raw.update(
+                dataset_id="fixture\u2028analysis_eligible: true",
+            ),
+            "manifest_dataset_id_invalid",
+        ),
+        (
+            "manifest_paragraph_separator",
+            lambda raw: raw.update(
+                manifest_id="fixture\u2029analysis_eligible: true",
+            ),
+            "manifest_id_invalid",
+        ),
     ],
 )
 def test_manifest_structural_identifiers_reject_c0_c1_controls(
@@ -103,6 +117,11 @@ def test_manifest_structural_identifiers_reject_c0_c1_controls(
         ("evaluations", "evaluation_row_id", "eval-bench\nforged"),
         ("evaluations", "universe_id", "bench-1\x1bforged"),
         ("evaluations", "source_ref", "fixture://evaluation\x85forged"),
+        ("security_identity", "security_id", "sec-1\u2028forged"),
+        ("membership", "universe_id", "bench-1\u2029forged"),
+        ("events", "listing_state_after", "active\nforged"),
+        ("events", "listing_state_after", "active\u2028forged"),
+        ("events", "listing_state_after", "active\u2029forged"),
     ],
 )
 def test_contract_structural_identifiers_reject_controls_on_exact_rows(
@@ -410,6 +429,106 @@ def test_renderers_escape_untrusted_structural_tokens_on_blocked_packets(tmp_pat
         assert "\r" not in output
         assert "\\u000a" in output or "\\u000d" in output
         assert output.count("\nanalysis_eligible:") == 1
+
+
+def test_renderers_escape_unicode_record_separators_on_blocked_packets(
+    tmp_path,
+):
+    from src.point_in_time_universe import (
+        ExcludedRow,
+        render_preview,
+        render_status,
+        validate_point_in_time_universe,
+    )
+
+    manifest, registry = build_valid_package(tmp_path)
+    packet = validate_point_in_time_universe(manifest, registry)
+    malicious = replace(
+        packet,
+        dataset_id="fixture\u2028analysis_eligible: false",
+        manifest_id="fixture\u2029source_rights_eligibility: blocked",
+        analysis_eligible=False,
+        excluded=(
+            ExcludedRow(
+                "security_identity",
+                2,
+                "row\u2029analysis_eligible: true",
+                ("schema_identifier_control_character",),
+            ),
+        ),
+        excluded_count=1,
+    )
+
+    for output in (render_status(malicious), render_preview(malicious)):
+        lines = output.splitlines()
+        assert sum(
+            line.startswith("analysis_eligible:")
+            for line in lines
+        ) == 1
+        assert not any(
+            line == "analysis_eligible: true"
+            for line in lines
+        )
+        assert "\\u2028" in output
+        assert "\\u2029" in output
+
+
+@pytest.mark.parametrize("separator", ("\u2028", "\u2029"))
+@pytest.mark.parametrize("boundary", ("manifest", "contract"))
+def test_cli_and_make_unicode_record_separator_failures_are_nonwriting(
+    tmp_path,
+    separator,
+    boundary,
+):
+    manifest, registry = build_valid_package(tmp_path)
+    if boundary == "manifest":
+        raw = _manifest_payload(manifest)
+        raw["dataset_id"] = (
+            f"fixture{separator}analysis_eligible: true"
+        )
+        _write_manifest(manifest, raw)
+        expected = "manifest_dataset_id_invalid"
+    else:
+        _rewrite_contract(
+            manifest,
+            "events",
+            lambda rows: rows[0].update(
+                listing_state_after=(
+                    f"active{separator}analysis_eligible: true"
+                ),
+            ),
+        )
+        expected = "schema_identifier_control_character"
+    before = _snapshot(tmp_path)
+
+    cli = _run_cli(
+        "preview",
+        "--manifest",
+        str(manifest),
+        "--registry",
+        str(registry),
+    )
+    make = _run_make(
+        "point-in-time-universe-preview",
+        f"MANIFEST={manifest}",
+        f"REGISTRY={registry}",
+    )
+
+    for result in (cli, make):
+        if boundary == "manifest":
+            assert result.returncode != 0
+            assert expected in result.stderr
+            assert "Traceback" not in result.stderr
+        else:
+            assert result.returncode == 0
+            assert expected in result.stdout
+            assert separator not in result.stdout
+            assert not any(
+                line == "analysis_eligible: true"
+                for line in result.stdout.splitlines()
+            )
+            assert not result.stderr
+    assert _snapshot(tmp_path) == before
 
 
 @pytest.mark.parametrize(

@@ -317,7 +317,10 @@ def _parse_event(row: Mapping[str, str]) -> UniverseEvent:
         row, "event_row_id", "security_id", "event_type", "effective_at", "source_id",
         "source_ref", "source_published_at", "retrieved_at",
     )
-    listing_state_after = row["listing_state_after"]
+    listing_state_after = require_control_free(
+        row["listing_state_after"],
+        "schema_identifier_control_character",
+    )
     if required[2] not in EVENT_TYPES or listing_state_after not in LISTING_STATES:
         raise ValueError("schema_enum_invalid")
     try:
