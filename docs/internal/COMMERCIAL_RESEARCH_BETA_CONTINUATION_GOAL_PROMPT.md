@@ -14,7 +14,7 @@ Objective:
 Advance the Stock Research Command Center from its current local Commercial Research Beta release-candidate stage through every applicable local, source, hosted-preview, beta-validation, evidence-depth, calibration, and operating-maturity gate. Continue one coherent verified slice at a time while any safe executable in-scope work remains. Do not redefine completion around the work that is already easy or local.
 
 Start from current repository truth, not chat memory.
-Verify commit `f9c51735249ca21599ff8d91462e3caf5d17aaf9` or a later descendant before relying on this implementation evidence.
+Verify commit `f9c517352e588a33541ab0ce0c06225309ee0991` or a later descendant before relying on this implementation evidence.
 When external evidence is unavailable, record its exact unblock condition once and continue to the next safe executable lane.
 Never claim overall completion without direct current evidence for every applicable exit gate.
 Do not run readiness rebuilds or generated-artifact commands without explicit approval.
