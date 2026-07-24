@@ -1507,7 +1507,7 @@ def test_priority_four_local_validator_is_documented_without_claiming_real_data_
 
     assert "Start from current repository truth, not chat memory." in prompt
     assert (
-        "Verify commit `d7447d2439c9ac150a7f42f17c45cc75998dbf97` or a later "
+        "Verify commit `f9c51735249ca21599ff8d91462e3caf5d17aaf9` or a later "
         "descendant before relying on this implementation evidence."
     ) in prompt
     assert (
@@ -1535,8 +1535,9 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
         "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
     )
     remediation_state = (
-        "Known local defect-remediation slices and per-slice independent code "
-        "review are complete; final whole-branch engineering review remains pending."
+        "The second fresh whole-branch review found cross-slice defects in "
+        "raw-row source-rights inventory, cutoff-relative walk-forward history, "
+        "publication chronology, and bounded snapshot reads."
     )
     budgets = (
         "Local resource budgets for one supplied package: preview sample 100 rows; "
@@ -1554,7 +1555,8 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
     )
 
     for text in (roadmap, methodology, prompt):
-        assert remediation_state in text
-        assert budgets in text
-        assert scope_boundary in text
-        assert external_gate in text
+        normalized = " ".join(text.split())
+        assert remediation_state in normalized
+        assert budgets in normalized
+        assert scope_boundary in normalized
+        assert external_gate in normalized
