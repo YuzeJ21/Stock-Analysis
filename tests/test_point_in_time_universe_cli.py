@@ -1,3 +1,4 @@
+import csv
 import hashlib
 import json
 import os
@@ -9,6 +10,9 @@ import pytest
 
 from tests.point_in_time_universe_fixture import build_valid_package
 from tests.test_point_in_time_universe import mutate_identity_membership_case
+from tests.test_point_in_time_universe_contracts import (
+    _rewrite_csv_and_manifest,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -31,7 +35,9 @@ def _snapshot(root: Path) -> dict[str, tuple[str, bytes]]:
     snapshot: dict[str, tuple[str, bytes]] = {}
     for path in sorted(root.rglob("*")):
         relative = path.relative_to(root).as_posix()
-        if path.is_dir():
+        if path.is_symlink():
+            snapshot[relative] = ("symlink", os.fsencode(os.readlink(path)))
+        elif path.is_dir():
             snapshot[relative] = ("directory", b"")
         elif path.is_file():
             snapshot[relative] = ("file", path.read_bytes())
@@ -299,6 +305,65 @@ def test_invalid_package_is_nonzero_without_traceback_or_writes(tmp_path):
 
     assert result.returncode == 2
     assert "manifest_unreadable" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert _snapshot(tmp_path) == before
+
+
+@pytest.mark.parametrize("mode", ("status", "preview"))
+def test_oversized_manifest_bound_csv_is_controlled_and_read_only(
+    tmp_path,
+    mode,
+):
+    manifest, registry = build_valid_package(tmp_path)
+    oversized = "A" * (csv.field_size_limit() + 1)
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        lambda rows: rows[0].update(ticker=oversized),
+    )
+    before = _snapshot(tmp_path)
+
+    result = _run_cli(
+        mode,
+        "--manifest",
+        str(manifest),
+        "--registry",
+        str(registry),
+    )
+
+    assert result.returncode == 2
+    assert "field larger than field limit" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert _snapshot(tmp_path) == before
+
+
+@pytest.mark.parametrize("mode", ("status", "preview"))
+def test_manifest_referenced_self_loop_symlink_is_controlled_and_read_only(
+    tmp_path,
+    mode,
+):
+    manifest, registry = build_valid_package(tmp_path)
+    raw = json.loads(manifest.read_text(encoding="utf-8"))
+    identity_record = next(
+        item
+        for item in raw["files"]
+        if item["contract"] == "security_identity"
+    )
+    identity = manifest.parent / identity_record["path"]
+    identity.unlink()
+    identity.symlink_to(identity.name)
+    before = _snapshot(tmp_path)
+
+    result = _run_cli(
+        mode,
+        "--manifest",
+        str(manifest),
+        "--registry",
+        str(registry),
+    )
+
+    assert result.returncode == 2
+    assert "symlink" in result.stderr.lower()
     assert "Traceback" not in result.stderr
     assert _snapshot(tmp_path) == before
 

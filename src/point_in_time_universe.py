@@ -1212,6 +1212,7 @@ def render_preview(
 
 def main(argv: list[str] | None = None) -> int:
     import argparse
+    import csv
 
     import yaml
 
@@ -1238,7 +1239,11 @@ def main(argv: list[str] | None = None) -> int:
             args.registry,
             top_n=args.top_n,
         )
-    except (OSError, ValueError, yaml.YAMLError) as exc:
+    except (csv.Error, OSError, ValueError, yaml.YAMLError) as exc:
+        parser.error(str(exc))
+    except RuntimeError as exc:
+        if "Symlink loop" not in str(exc):
+            raise
         parser.error(str(exc))
 
     output = (
