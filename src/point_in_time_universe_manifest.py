@@ -333,13 +333,13 @@ def _reject_unlisted_files(package_dir: Path, manifest_path: Path, file_records:
 def load_universe_package(manifest_path: Path, registry_path: Path) -> LoadedUniversePackage:
     manifest_path = Path(manifest_path).resolve()
     registry_path = Path(registry_path)
+    manifest_snapshot = _bounded_snapshot(
+        manifest_path,
+        maximum_bytes=MAX_MANIFEST_BYTES,
+        size_error="manifest_size_limit_exceeded",
+        unreadable_error="manifest_unreadable",
+    )
     try:
-        manifest_snapshot = _bounded_snapshot(
-            manifest_path,
-            maximum_bytes=MAX_MANIFEST_BYTES,
-            size_error="manifest_size_limit_exceeded",
-            unreadable_error="manifest_unreadable",
-        )
         raw = json.loads(manifest_snapshot.decode("utf-8"))
     except (
         UnicodeDecodeError,

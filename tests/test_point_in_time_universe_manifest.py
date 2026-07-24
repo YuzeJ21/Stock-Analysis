@@ -39,6 +39,28 @@ def test_deeply_nested_manifest_is_stably_unreadable_without_writing(tmp_path):
     assert _file_bytes(tmp_path) == before
 
 
+def test_internal_snapshot_reader_recursion_propagates_unchanged(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe_manifest as loader
+
+    manifest, registry = build_valid_package(tmp_path)
+    failure = RecursionError("internal-reader-recursion")
+    before = _file_bytes(tmp_path)
+
+    def fail_snapshot(*args, **kwargs):
+        raise failure
+
+    monkeypatch.setattr(loader, "_bounded_snapshot", fail_snapshot)
+
+    with pytest.raises(RecursionError) as caught:
+        loader.load_universe_package(manifest, registry)
+
+    assert caught.value is failure
+    assert _file_bytes(tmp_path) == before
+
+
 def test_deeply_nested_rights_registry_is_stably_unreadable():
     from src.commercial_source_rights import parse_source_rights_registry
 
