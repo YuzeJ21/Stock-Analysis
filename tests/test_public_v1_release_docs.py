@@ -1507,7 +1507,7 @@ def test_priority_four_local_validator_is_documented_without_claiming_real_data_
 
     assert "Start from current repository truth, not chat memory." in prompt
     assert (
-        "Verify commit `b2bbd996131cb63c931ce43b28f3237505eceeff` or a later "
+        "Verify commit `c643d066bffc937664576864cc6820f65a3c4d09` or a later "
         "descendant before relying on this implementation evidence."
     ) in prompt
     assert (
@@ -1561,14 +1561,19 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
         "cutoff or bound evidence."
     )
     v5_remediation = (
-        "Commit `b2bbd9961` remediates those V5 findings locally with one shared "
-        "control-character boundary, safe structural-token rendering, an explicit "
+        "Commits `b2bbd9961` and `c643d066b` remediate those V5 findings locally "
+        "with one shared C0/C1 plus Unicode line/paragraph-separator boundary, "
+        "safe structural-token rendering, an explicit "
         "creation-at-or-after-cutoff manifest gate, and exact-row chronology "
         "against every contract timestamp."
     )
+    first_review_follow_up = (
+        "The first independent R7 review found the Unicode separator and "
+        "`listing_state_after` bypass gaps; `c643d066b` closes them locally."
+    )
     final_review_state = (
-        "A sixth fresh whole-branch engineering review remains pending; local "
-        "remediation is not independent approval."
+        "Repeat independent R7 review and a sixth fresh whole-branch engineering "
+        "review remain pending; local remediation is not independent approval."
     )
 
     for text in (roadmap, methodology, prompt):
@@ -1576,6 +1581,7 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
         assert prior_review_closures in normalized
         assert v5_findings in normalized
         assert v5_remediation in normalized
+        assert first_review_follow_up in normalized
         assert final_review_state in normalized
         assert budgets in normalized
         assert scope_boundary in normalized

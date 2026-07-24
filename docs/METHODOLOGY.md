@@ -428,11 +428,14 @@ whole-branch review confirmed those closures and found three Important
 trust-boundary defects: C0/C1 characters in structural identifiers could
 render the newline-delimited membership digest ambiguous and forge public status
 lines, while manifest creation could predate its cutoff or bound evidence.
-Commit `b2bbd9961` remediates those V5 findings locally with one shared
-control-character boundary, safe structural-token rendering, an explicit
-creation-at-or-after-cutoff manifest gate, and exact-row chronology against
-every contract timestamp. A sixth fresh whole-branch engineering review
-remains pending; local remediation is not independent approval.
+Commits `b2bbd9961` and `c643d066b` remediate those V5 findings locally with
+one shared C0/C1 plus Unicode line/paragraph-separator boundary, safe
+structural-token rendering, an explicit creation-at-or-after-cutoff manifest
+gate, and exact-row chronology against every contract timestamp. The first
+independent R7 review found the Unicode separator and `listing_state_after`
+bypass gaps; `c643d066b` closes them locally. Repeat independent R7 review and
+a sixth fresh whole-branch engineering review remain pending; local
+remediation is not independent approval.
 
 Local resource budgets for one supplied package: preview sample 100 rows; manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined 64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; package traversal 32 entries.
 
