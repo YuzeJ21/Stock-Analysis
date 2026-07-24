@@ -439,16 +439,18 @@ analysis.
 
 Implemented locally: read-only immutable-package status/preview with ten independent states: manifest, technical, temporal, identity, membership, corporate action, delisting, source rights, reproduction, and leakage.
 
-The second fresh whole-branch review found cross-slice defects in raw-row
-source-rights inventory, cutoff-relative walk-forward history, publication
-chronology, and bounded snapshot reads. Remediation 6 and its first
-independent-review follow-up close those findings locally with test-first
-evidence. The third fresh whole-branch review found one aggregate read-budget
-Minor and its test-first follow-up is complete locally. The fourth fresh
-whole-branch review confirmed that closure and found one bounded
-structured-input recursion Minor; its narrow parser-boundary follow-up is
-complete locally, and a fifth final whole-branch engineering review remains
-pending.
+The second through fourth fresh whole-branch reviews drove the raw-row rights,
+cutoff-relative history, publication chronology, immutable bounded-read,
+aggregate-budget, and structured-input parser closures. The fifth fresh
+whole-branch review confirmed those closures and found three Important
+trust-boundary defects: C0/C1 characters in structural identifiers could make
+the newline-delimited membership digest ambiguous and forge public status
+lines, while manifest creation could predate its cutoff or bound evidence.
+Commit `b2bbd9961` remediates those V5 findings locally with one shared
+control-character boundary, safe structural-token rendering, an explicit
+creation-at-or-after-cutoff manifest gate, and exact-row chronology against
+every contract timestamp. A sixth fresh whole-branch engineering review
+remains pending; local remediation is not independent approval.
 
 Local resource budgets for one supplied package: preview sample 100 rows; manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined 64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; package traversal 32 entries.
 
@@ -475,10 +477,11 @@ This local evidence does not change independent readiness for actuals, consensus
 
 It does not provide investment advice; numerical probability remains unavailable without calibration; Q4 evidence and EPS split-basis compatibility remain explicit; synthetic evidence stays test-only; candidate peer evidence remains candidate-context-only.
 
-**Next executable local step:** run the complete release-gate matrix and
-exact-head CI, then commission a fifth final whole-branch engineering review
-over the full Priority 4 implementation and remediation range. Do not retry
-unavailable providers while that local review remains executable.
+**Next executable local step:** independently review the V5 remediation, run
+the complete release-gate matrix and exact-head CI, then commission a sixth
+fresh whole-branch engineering review over the full Priority 4 implementation
+and remediation range. Do not retry unavailable providers while that local
+review remains executable.
 
 1. Establish timestamped benchmark membership, research-universe membership, security identity, and observation cutoffs with suitable source rights and immutable manifests.
 2. Handle corporate actions, delistings, survivorship, and leakage explicitly; never substitute today's constituents, identifiers, prices, or fundamentals for historical state.

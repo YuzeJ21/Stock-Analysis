@@ -1507,7 +1507,7 @@ def test_priority_four_local_validator_is_documented_without_claiming_real_data_
 
     assert "Start from current repository truth, not chat memory." in prompt
     assert (
-        "Verify commit `7c2378f70f2bb477d8ec8d4ff93d37c88be1783d` or a later "
+        "Verify commit `b2bbd996131cb63c931ce43b28f3237505eceeff` or a later "
         "descendant before relying on this implementation evidence."
     ) in prompt
     assert (
@@ -1534,10 +1534,10 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
     prompt = _read(
         "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
     )
-    remediation_state = (
-        "The second fresh whole-branch review found cross-slice defects in "
-        "raw-row source-rights inventory, cutoff-relative walk-forward history, "
-        "publication chronology, and bounded snapshot reads."
+    prior_review_closures = (
+        "The second through fourth fresh whole-branch reviews drove the raw-row "
+        "rights, cutoff-relative history, publication chronology, immutable "
+        "bounded-read, aggregate-budget, and structured-input parser closures."
     )
     budgets = (
         "Local resource budgets for one supplied package: preview sample 100 rows; "
@@ -1553,23 +1553,29 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
         "No permitted independently reviewed real dataset, accepted expected "
         "count/digest, or source-rights proof is on record."
     )
-    review_follow_up = (
-        "Remediation 6 and its first independent-review follow-up close those "
-        "findings locally with test-first evidence."
+    v5_findings = (
+        "The fifth fresh whole-branch review confirmed those closures and found "
+        "three Important trust-boundary defects: C0/C1 characters in structural "
+        "identifiers could make the newline-delimited membership digest ambiguous "
+        "and forge public status lines, while manifest creation could predate its "
+        "cutoff or bound evidence."
+    )
+    v5_remediation = (
+        "Commit `b2bbd9961` remediates those V5 findings locally with one shared "
+        "control-character boundary, safe structural-token rendering, an explicit "
+        "creation-at-or-after-cutoff manifest gate, and exact-row chronology "
+        "against every contract timestamp."
     )
     final_review_state = (
-        "The third fresh whole-branch review found one aggregate read-budget "
-        "Minor and its test-first follow-up is complete locally. The fourth "
-        "fresh whole-branch review confirmed that closure and found one bounded "
-        "structured-input recursion Minor; its narrow parser-boundary follow-up "
-        "is complete locally, and a fifth final whole-branch engineering review "
-        "remains pending."
+        "A sixth fresh whole-branch engineering review remains pending; local "
+        "remediation is not independent approval."
     )
 
     for text in (roadmap, methodology, prompt):
         normalized = " ".join(text.split())
-        assert remediation_state in normalized
-        assert review_follow_up in normalized
+        assert prior_review_closures in normalized
+        assert v5_findings in normalized
+        assert v5_remediation in normalized
         assert final_review_state in normalized
         assert budgets in normalized
         assert scope_boundary in normalized

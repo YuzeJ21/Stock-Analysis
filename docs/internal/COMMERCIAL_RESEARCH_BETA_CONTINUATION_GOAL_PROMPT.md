@@ -14,7 +14,7 @@ Objective:
 Advance the Stock Research Command Center from its current local Commercial Research Beta release-candidate stage through every applicable local, source, hosted-preview, beta-validation, evidence-depth, calibration, and operating-maturity gate. Continue one coherent verified slice at a time while any safe executable in-scope work remains. Do not redefine completion around the work that is already easy or local.
 
 Start from current repository truth, not chat memory.
-Verify commit `7c2378f70f2bb477d8ec8d4ff93d37c88be1783d` or a later descendant before relying on this implementation evidence.
+Verify commit `b2bbd996131cb63c931ce43b28f3237505eceeff` or a later descendant before relying on this implementation evidence.
 When external evidence is unavailable, record its exact unblock condition once and continue to the next safe executable lane.
 Never claim overall completion without direct current evidence for every applicable exit gate.
 Do not run readiness rebuilds or generated-artifact commands without explicit approval.
@@ -232,7 +232,7 @@ That summary is necessary but not sufficient; the exact Priority 4 exit conditio
 
 Priority 4 — Point-in-time benchmark and universe foundation
 - The provider-neutral, read-only first slice is implemented locally against the approved design at `docs/superpowers/specs/2026-07-23-point-in-time-universe-foundation-design.md`; reverify its ten independent states and no-write behavior from current repository truth.
-- The second fresh whole-branch review found cross-slice defects in raw-row source-rights inventory, cutoff-relative walk-forward history, publication chronology, and bounded snapshot reads. Remediation 6 and its first independent-review follow-up close those findings locally with test-first evidence. The third fresh whole-branch review found one aggregate read-budget Minor and its test-first follow-up is complete locally. The fourth fresh whole-branch review confirmed that closure and found one bounded structured-input recursion Minor; its narrow parser-boundary follow-up is complete locally, and a fifth final whole-branch engineering review remains pending.
+- The second through fourth fresh whole-branch reviews drove the raw-row rights, cutoff-relative history, publication chronology, immutable bounded-read, aggregate-budget, and structured-input parser closures. The fifth fresh whole-branch review confirmed those closures and found three Important trust-boundary defects: C0/C1 characters in structural identifiers could make the newline-delimited membership digest ambiguous and forge public status lines, while manifest creation could predate its cutoff or bound evidence. Commit `b2bbd9961` remediates those V5 findings locally with one shared control-character boundary, safe structural-token rendering, an explicit creation-at-or-after-cutoff manifest gate, and exact-row chronology against every contract timestamp. A sixth fresh whole-branch engineering review remains pending; local remediation is not independent approval.
 - Local resource budgets for one supplied package: preview sample 100 rows; manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined 64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; package traversal 32 entries.
 - Source-bearing raw rows retain independent exact-source rights review even when technical parsing fails; walk-forward history is cutoff-relative; publication must precede or equal retrieval; regular-file snapshot reads retain at most the declared limit plus one byte from one descriptor; deeply nested manifest JSON or source-rights YAML fails with a stable readable input error instead of a traceback.
 - These local bounds do not prove scale, hosted reliability, or market readiness.
@@ -242,7 +242,7 @@ Priority 4 — Point-in-time benchmark and universe foundation
 - Explicitly control corporate actions, delistings, survivorship, and leakage; never substitute current constituents, identifiers, prices, or fundamentals for historical state.
 - Preserve leakage-safe partition or walk-forward boundaries and reproducible benchmark diagnostics.
 - Keep this priority open under the single registered external dependency condition above. Schemas, fixtures, and local green gates are insufficient.
-- Next, run the complete release-gate matrix and exact-head CI, then commission a fifth final whole-branch engineering review over the full Priority 4 implementation and remediation range. Do not retry unavailable providers while that local work remains executable.
+- Next, independently review the V5 remediation, run the complete release-gate matrix and exact-head CI, then commission a sixth fresh whole-branch engineering review over the full Priority 4 implementation and remediation range. Do not retry unavailable providers while that local work remains executable.
 
 Priority 5 — One permitted consensus source and one reviewed peer relationship
 - Review one permitted point-in-time consensus source for one ticker and exact fiscal period, then perform separate human evidence-preserving mapping into the prospective schema and run the collection preview.
