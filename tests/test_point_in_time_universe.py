@@ -35,6 +35,7 @@ EXPECTED_EXCLUSION_CODES = {
     "schema_delisting_listing_state_invalid",
     "schema_identity_interval_reversed",
     "schema_membership_interval_reversed",
+    "schema_event_row_id_duplicate",
     "schema_evaluation_row_id_duplicate",
     "lineage_duplicate_id",
     "lineage_missing_parent",
@@ -88,6 +89,7 @@ EXCLUSION_MUTATION_CASES = (
     "schema_delisting_state",
     "schema_identity_interval",
     "schema_membership_interval",
+    "schema_event_duplicate",
     "schema_evaluation_duplicate",
     "lineage_duplicate",
     "lineage_missing_parent",
@@ -330,6 +332,17 @@ def _mutate_exclusion_case(manifest, case):
             lambda rows: rows[0].update(
                 effective_from="2020-06-01T00:00:00Z",
                 effective_to="2020-05-01T00:00:00Z",
+            ),
+        )
+    elif case == "schema_event_duplicate":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "events",
+            lambda rows: rows.append(
+                {
+                    **rows[0],
+                    "source_ref": "fixture://event/duplicate",
+                }
             ),
         )
     elif case == "schema_evaluation_duplicate":
@@ -1283,11 +1296,11 @@ def test_delisted_historical_member_is_retained_and_not_filtered_by_current_stat
                 **rows[0],
                 "event_row_id": "event-2",
                 "event_type": "delisting",
-                "effective_at": "2022-01-01T00:00:00Z",
+                "effective_at": "2020-06-01T00:00:00Z",
                 "listing_state_after": "delisted",
                 "source_ref": "fixture://event/event-2",
-                "source_published_at": "2022-01-01T00:00:00Z",
-                "retrieved_at": "2022-01-02T00:00:00Z",
+                "source_published_at": "2020-06-01T00:00:00Z",
+                "retrieved_at": "2020-06-02T00:00:00Z",
                 "supersedes_event_row_id": "",
             }
         )
@@ -1574,7 +1587,9 @@ def test_same_timestamp_reactivation_is_blocked_regardless_of_row_id_order(
     assert _decision(packet, "corporate_action_coverage").reason_codes == ()
 
 
-def test_repeated_reactivation_is_blocked_by_current_listing_state(tmp_path):
+def test_multiple_reactivation_roots_fail_closed_as_ambiguous_lineage(
+    tmp_path,
+):
     from src.point_in_time_universe import validate_point_in_time_universe
 
     manifest, registry = build_valid_package(tmp_path)
@@ -1622,7 +1637,7 @@ def test_repeated_reactivation_is_blocked_by_current_listing_state(tmp_path):
 
     assert _decision(packet, "delisting_coverage").status == "blocked"
     assert _decision(packet, "delisting_coverage").reason_codes == (
-        "delisting_transition_invalid",
+        "lineage_multiple_roots",
     )
     assert _decision(packet, "corporate_action_coverage").status == "passed"
 
@@ -1655,6 +1670,7 @@ def test_intervening_active_transition_invalidates_later_reactivation(tmp_path):
                     "source_ref": "fixture://event/event-active",
                     "source_published_at": "2020-03-01T00:00:00Z",
                     "retrieved_at": "2020-03-02T00:00:00Z",
+                    "supersedes_event_row_id": "event-1",
                 },
                 {
                     **base,
@@ -1678,6 +1694,344 @@ def test_intervening_active_transition_invalidates_later_reactivation(tmp_path):
         "delisting_transition_invalid",
     )
     assert _decision(packet, "corporate_action_coverage").status == "passed"
+
+
+def test_superseded_invalid_event_root_does_not_affect_coverage(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def replace_with_revision(rows):
+        rows[0].update(
+            event_type="suspension",
+            listing_state_after="active",
+            effective_at="2020-02-01T00:00:00Z",
+            source_published_at="2020-02-01T00:00:00Z",
+            retrieved_at="2020-02-02T00:00:00Z",
+        )
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-suspension-revision",
+                "listing_state_after": "suspended",
+                "source_ref": "fixture://event/suspension-revision",
+                "source_published_at": "2020-03-01T00:00:00Z",
+                "retrieved_at": "2020-03-02T00:00:00Z",
+                "supersedes_event_row_id": rows[0]["event_row_id"],
+            }
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", replace_with_revision)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["corporate_action_policy"].update(
+            {"listing": "not_applicable", "suspension": "required"}
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "delisting_coverage").status == "passed"
+    assert _decision(packet, "delisting_coverage").reason_codes == ()
+    assert not any(
+        row.row_id == "event-1"
+        and "delisting_transition_invalid" in row.reason_codes
+        for row in packet.excluded
+    )
+
+
+def test_cutoff_visible_event_revision_is_consumed_leaf(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def replace_with_revision(rows):
+        rows[0].update(
+            event_type="merger",
+            successor_security_id="",
+        )
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-merger-revision",
+                "successor_security_id": "sec-successor",
+                "source_ref": "fixture://event/merger-revision",
+                "source_published_at": "2020-02-01T00:00:00Z",
+                "retrieved_at": "2020-02-02T00:00:00Z",
+                "supersedes_event_row_id": rows[0]["event_row_id"],
+            }
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", replace_with_revision)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["corporate_action_policy"].update(
+            {"listing": "not_applicable", "merger": "required"}
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+    assert _decision(packet, "corporate_action_coverage").reason_codes == ()
+
+
+def test_post_evaluation_invalid_reactivation_does_not_poison_prior_cutoff(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_events(rows):
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-suspension",
+                "event_type": "suspension",
+                "effective_at": "2020-02-01T00:00:00Z",
+                "listing_state_after": "suspended",
+                "source_ref": "fixture://event/suspension",
+                "source_published_at": "2020-02-01T00:00:00Z",
+                "retrieved_at": "2020-02-02T00:00:00Z",
+            }
+        )
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-future-invalid-reactivation",
+                "event_type": "reactivation",
+                "effective_at": "2020-03-01T00:00:00Z",
+                "listing_state_after": "suspended",
+                "source_ref": "fixture://event/future-reactivation",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+            }
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", add_events)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["corporate_action_policy"].update(
+            {"suspension": "required"}
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "delisting_coverage").status == "passed"
+    assert _decision(packet, "delisting_coverage").reason_codes == ()
+    assert {
+        row.row_id: row.reason_codes
+        for row in packet.excluded
+        if row.row_id == "event-future-invalid-reactivation"
+    } == {
+        "event-future-invalid-reactivation": (
+            "cutoff_unrelated_scope_invisible",
+        )
+    }
+
+
+@pytest.mark.parametrize(
+    "mutation,expected_reason,decision_area",
+    [
+        ("missing_parent", "lineage_missing_parent", "corporate_action_coverage"),
+        ("fork", "lineage_fork", "corporate_action_coverage"),
+        ("cycle", "lineage_cycle", "corporate_action_coverage"),
+        ("cross_scope", "lineage_cross_scope_parent", "delisting_coverage"),
+        ("reversed", "lineage_order_reversed", "corporate_action_coverage"),
+    ],
+)
+def test_event_lineage_failures_block_through_public_validator(
+    tmp_path,
+    mutation,
+    expected_reason,
+    decision_area,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def mutate(rows):
+        base = rows[0]
+        if mutation == "missing_parent":
+            base["supersedes_event_row_id"] = "missing-event"
+        elif mutation == "fork":
+            for suffix, month in (("a", "02"), ("b", "03")):
+                rows.append(
+                    {
+                        **base,
+                        "event_row_id": f"event-child-{suffix}",
+                        "source_ref": f"fixture://event/child-{suffix}",
+                        "source_published_at": (
+                            f"2020-{month}-01T00:00:00Z"
+                        ),
+                        "retrieved_at": f"2020-{month}-02T00:00:00Z",
+                        "supersedes_event_row_id": base["event_row_id"],
+                    }
+                )
+        elif mutation == "cycle":
+            base["supersedes_event_row_id"] = "event-cycle"
+            rows.append(
+                {
+                    **base,
+                    "event_row_id": "event-cycle",
+                    "source_ref": "fixture://event/cycle",
+                    "source_published_at": "2020-02-01T00:00:00Z",
+                    "retrieved_at": "2020-02-02T00:00:00Z",
+                    "supersedes_event_row_id": "event-1",
+                }
+            )
+        elif mutation == "cross_scope":
+            rows.append(
+                {
+                    **base,
+                    "event_row_id": "event-cross-scope",
+                    "event_type": "suspension",
+                    "listing_state_after": "suspended",
+                    "source_ref": "fixture://event/cross-scope",
+                    "source_published_at": "2020-02-01T00:00:00Z",
+                    "retrieved_at": "2020-02-02T00:00:00Z",
+                    "supersedes_event_row_id": "event-1",
+                }
+            )
+        elif mutation == "reversed":
+            rows.append(
+                {
+                    **base,
+                    "event_row_id": "event-reversed",
+                    "source_ref": "fixture://event/reversed",
+                    "source_published_at": "2020-01-01T00:00:00Z",
+                    "retrieved_at": "2020-01-01T00:00:00Z",
+                    "supersedes_event_row_id": "event-1",
+                }
+            )
+
+    _rewrite_csv_and_manifest(manifest, "events", mutate)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, decision_area).status == "blocked"
+    assert expected_reason in _decision(
+        packet,
+        decision_area,
+    ).reason_codes
+    assert any(
+        expected_reason in row.reason_codes
+        for row in packet.excluded
+        if row.contract == "events"
+    )
+    assert packet.analysis_eligible is False
+
+
+def test_duplicate_event_row_ids_are_globally_excluded(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def duplicate(rows):
+        rows.append(
+            {
+                **rows[0],
+                "security_id": "sec-duplicate",
+                "source_ref": "fixture://event/duplicate",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+            }
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", duplicate)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "technical_validity").status == "blocked"
+    assert _decision(packet, "technical_validity").reason_codes == (
+        "schema_event_row_id_duplicate",
+    )
+    duplicate_exclusions = [
+        row
+        for row in packet.excluded
+        if row.contract == "events" and row.row_id == "event-1"
+    ]
+    assert len(duplicate_exclusions) == 2
+    assert all(
+        row.reason_codes == ("schema_event_row_id_duplicate",)
+        for row in duplicate_exclusions
+    )
+    assert packet.analysis_eligible is False
+
+
+def test_event_lineage_aggregates_across_cutoffs_and_canonicalizes_exclusions(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_later_fork(rows):
+        base = rows[0]
+        for suffix, month in (("a", "01"), ("b", "02")):
+            rows.append(
+                {
+                    **base,
+                    "event_row_id": f"event-later-child-{suffix}",
+                    "source_ref": f"fixture://event/later-child-{suffix}",
+                    "source_published_at": (
+                        f"2022-{month}-01T00:00:00Z"
+                    ),
+                    "retrieved_at": f"2022-{month}-02T00:00:00Z",
+                    "supersedes_event_row_id": base["event_row_id"],
+                }
+            )
+
+    def add_later_evaluations(rows):
+        rows.extend(
+            {
+                **row,
+                "evaluation_row_id": (
+                    f"{row['evaluation_row_id']}-later"
+                ),
+                "evaluation_at": "2023-01-01T00:00:00Z",
+                "available_at": "2023-01-01T00:00:00Z",
+                "source_ref": f"{row['source_ref']}/later",
+            }
+            for row in list(rows)
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", add_later_fork)
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        add_later_evaluations,
+    )
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw.update(
+            observation_cutoff_at="2023-01-01T00:00:00Z",
+        ),
+    )
+
+    packet = validate_point_in_time_universe(
+        manifest,
+        registry,
+        top_n=100,
+    )
+
+    assert _decision(packet, "corporate_action_coverage").status == "blocked"
+    assert "lineage_fork" in _decision(
+        packet,
+        "corporate_action_coverage",
+    ).reason_codes
+    later_child_exclusions = [
+        row
+        for row in packet.excluded
+        if row.row_id == "event-later-child-a"
+    ]
+    assert len(later_child_exclusions) == 1
+    assert later_child_exclusions[0].reason_codes == (
+        "cutoff_later_revision_invisible",
+        "lineage_fork",
+    )
 
 
 def test_technical_pass_does_not_promote_unverified_rights(tmp_path):
@@ -1886,10 +2240,19 @@ def test_post_cutoff_evidence_is_excluded_without_poisoning_independent_states(
         "technical_validity",
         "identity_coverage",
         "membership_coverage",
-        "corporate_action_coverage",
         "source_rights_eligibility",
     ):
         assert _decision(packet, independent).status == "passed"
+    if contract == "events":
+        assert _decision(
+            packet,
+            "corporate_action_coverage",
+        ).reason_codes == ("corporate_action_evidence_missing",)
+    else:
+        assert _decision(
+            packet,
+            "corporate_action_coverage",
+        ).status == "passed"
     assert _decision(packet, "delisting_coverage").status == "not_applicable"
     assert packet.analysis_eligible is False
 

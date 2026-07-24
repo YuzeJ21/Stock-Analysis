@@ -345,15 +345,42 @@ def parse_universe_evidence(package: LoadedUniversePackage) -> ParsedUniverseEvi
                     if not reason.startswith("schema_"):
                         reason = "schema_value_invalid"
                     findings.append(ContractFinding(contract, source_row, row_id, (reason,)))
+    event_rows_by_id: dict[str, list[int]] = {}
     evaluation_rows_by_id: dict[str, list[int]] = {}
     for row in raw_rows:
-        if row.contract != "evaluations":
+        if row.contract == "events":
+            row_id = row.values.get("event_row_id", "")
+            row_numbers = event_rows_by_id
+        elif row.contract == "evaluations":
+            row_id = row.values.get("evaluation_row_id", "")
+            row_numbers = evaluation_rows_by_id
+        else:
             continue
-        row_id = row.values.get("evaluation_row_id", "")
         if row_id and row_id != RAW_MISSING_CELL:
-            evaluation_rows_by_id.setdefault(row_id, []).append(
+            row_numbers.setdefault(row_id, []).append(
                 row.source_row
             )
+    duplicate_event_ids = {
+        row_id
+        for row_id, source_rows in event_rows_by_id.items()
+        if len(source_rows) > 1
+    }
+    if duplicate_event_ids:
+        parsed["events"] = [
+            row
+            for row in parsed["events"]
+            if row.event_row_id not in duplicate_event_ids
+        ]
+        findings.extend(
+            ContractFinding(
+                "events",
+                source_row,
+                row_id,
+                ("schema_event_row_id_duplicate",),
+            )
+            for row_id in sorted(duplicate_event_ids)
+            for source_row in event_rows_by_id[row_id]
+        )
     duplicate_evaluation_ids = {
         row_id
         for row_id, source_rows in evaluation_rows_by_id.items()

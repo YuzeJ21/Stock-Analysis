@@ -917,14 +917,24 @@ def _event_decisions(
 ) -> tuple[Decision, Decision, tuple[ExcludedRow, ...]]:
     action_reasons: set[str] = set()
     delisting_reasons: set[str] = set()
-    excluded: list[ExcludedRow] = []
-    events_by_type: dict[str, list] = {}
-    listing_state_by_security: dict[str, tuple[str, datetime]] = {}
+    exclusion_reasons: dict[str, set[str]] = {}
     listing_state_event_types = {
         "delisting",
         "suspension",
         "reactivation",
     }
+
+    def target_reasons(event_type: str) -> set[str]:
+        if event_type in listing_state_event_types:
+            return delisting_reasons
+        return action_reasons
+
+    def exclude(event, *reasons: str) -> None:
+        exclusion_reasons.setdefault(
+            event.event_row_id,
+            set(),
+        ).update(reasons)
+
     if any(
         finding.contract == "events"
         and "schema_delisting_listing_state_invalid"
@@ -932,84 +942,177 @@ def _event_decisions(
         for finding in parsed.findings
     ):
         delisting_reasons.add("delisting_state_invalid")
-    for event in sorted(
-        parsed.events,
-        key=lambda item: (
-            item.security_id,
-            item.effective_at,
-            item.event_row_id,
-        ),
-    ):
-        events_by_type.setdefault(event.event_type, []).append(event)
-        reasons: set[str] = set()
-        policy = manifest.corporate_action_policy.get(event.event_type)
-        if policy == "unsupported":
-            reasons.add("corporate_action_policy_unsupported")
-        if event.event_type in {"split", "reverse_split"} and (
-            event.ratio_numerator is None or event.ratio_denominator is None
-        ):
-            reasons.add("corporate_action_ratio_required")
-        if (
-            event.event_type in {"merger", "acquisition", "spinoff"}
-            and not event.successor_security_id
-        ):
-            reasons.add("corporate_action_successor_required")
-        if (
-            event.event_type == "delisting"
-            and event.listing_state_after != "delisted"
-        ):
-            reasons.add("delisting_state_invalid")
-        if (
-            event.event_type == "suspension"
-            and event.listing_state_after != "suspended"
-        ):
-            reasons.add("delisting_transition_invalid")
-        if event.event_type == "reactivation":
-            prior_listing_state = listing_state_by_security.get(
-                event.security_id
-            )
-            if (
-                event.listing_state_after != "active"
-                or prior_listing_state is None
-                or prior_listing_state[0] != "suspended"
-                or prior_listing_state[1] >= event.effective_at
-            ):
-                reasons.add("delisting_transition_invalid")
-        if event.listing_state_after:
-            listing_state_by_security[event.security_id] = (
-                event.listing_state_after,
+
+    manifest_cutoff = parse_utc(manifest.observation_cutoff_at)
+    evaluation_cutoffs = tuple(
+        sorted(
+            {
+                evaluation.evaluation_at
+                for evaluation in parsed.evaluations
+                if (
+                    evaluation.evaluation_at <= manifest_cutoff
+                    and evaluation.available_at <= evaluation.evaluation_at
+                )
+            }
+        )
+    )
+    delisting_applicable = any(
+        manifest.corporate_action_policy.get(event_type) == "required"
+        for event_type in listing_state_event_types
+    )
+
+    for evaluation_at in evaluation_cutoffs:
+        visible_events = tuple(
+            event
+            for event in parsed.events
+            if max(
                 event.effective_at,
+                event.source_published_at,
+                event.retrieved_at,
             )
-        if reasons:
-            target = (
-                delisting_reasons
-                if event.event_type in listing_state_event_types
-                else action_reasons
-            )
-            target.update(reasons)
-            source_row = next(
-                (
-                    row.source_row
-                    for row in parsed.raw
-                    if row.contract == "events"
-                    and row.values.get("event_row_id") == event.event_row_id
-                ),
-                0,
-            )
-            excluded.append(
-                ExcludedRow(
-                    "events",
-                    source_row,
-                    event.event_row_id,
-                    tuple(sorted(reasons)),
+            <= evaluation_at
+        )
+        visible_by_id = {
+            event.event_row_id: event
+            for event in visible_events
+        }
+        events_by_scope: dict[tuple[str, str], list] = {}
+        for event in visible_events:
+            events_by_scope.setdefault(
+                (event.security_id, event.event_type),
+                [],
+            ).append(event)
+
+        leaves: list = []
+        for scope, scope_events in sorted(events_by_scope.items()):
+            cross_scope_events = tuple(
+                event
+                for event in scope_events
+                if (
+                    event.supersedes_event_row_id
+                    and event.supersedes_event_row_id in visible_by_id
+                    and (
+                        visible_by_id[
+                            event.supersedes_event_row_id
+                        ].security_id,
+                        visible_by_id[
+                            event.supersedes_event_row_id
+                        ].event_type,
+                    )
+                    != scope
                 )
             )
-    for event_type, state in manifest.corporate_action_policy.items():
-        if state == "required" and not events_by_type.get(event_type):
+            if cross_scope_events:
+                target_reasons(scope[1]).add(
+                    "lineage_cross_scope_parent"
+                )
+                for event in cross_scope_events:
+                    exclude(event, "lineage_cross_scope_parent")
+                continue
+
+            lineage = resolve_lineage(
+                scope_events,
+                row_id=lambda event: event.event_row_id,
+                parent_id=lambda event: event.supersedes_event_row_id,
+                scope=lambda event: (
+                    f"{event.security_id}:{event.event_type}"
+                ),
+                available_at=lambda event: max(
+                    event.effective_at,
+                    event.source_published_at,
+                    event.retrieved_at,
+                ),
+                cutoff=evaluation_at,
+            )
+            if lineage.reason_codes:
+                target_reasons(scope[1]).update(
+                    lineage.reason_codes
+                )
+                for event in lineage.excluded:
+                    exclude(event, *lineage.reason_codes)
+                continue
+            leaves.extend(lineage.leaves)
+
+        leaves_by_type: dict[str, list] = {}
+        listing_state_by_security: dict[
+            str,
+            tuple[str, datetime],
+        ] = {}
+        for event in sorted(
+            leaves,
+            key=lambda item: (
+                item.security_id,
+                item.effective_at,
+                item.event_row_id,
+            ),
+        ):
+            leaves_by_type.setdefault(event.event_type, []).append(event)
+            reasons: set[str] = set()
+            policy = manifest.corporate_action_policy.get(
+                event.event_type
+            )
+            if policy == "unsupported":
+                reasons.add("corporate_action_policy_unsupported")
+            if event.event_type in {"split", "reverse_split"} and (
+                event.ratio_numerator is None
+                or event.ratio_denominator is None
+            ):
+                reasons.add("corporate_action_ratio_required")
+            if (
+                event.event_type
+                in {"merger", "acquisition", "spinoff"}
+                and not event.successor_security_id
+            ):
+                reasons.add("corporate_action_successor_required")
+            if (
+                event.event_type == "delisting"
+                and event.listing_state_after != "delisted"
+            ):
+                reasons.add("delisting_state_invalid")
+            if (
+                event.event_type == "suspension"
+                and event.listing_state_after != "suspended"
+            ):
+                reasons.add("delisting_transition_invalid")
+            if event.event_type == "reactivation":
+                prior_listing_state = listing_state_by_security.get(
+                    event.security_id
+                )
+                if (
+                    event.listing_state_after != "active"
+                    or prior_listing_state is None
+                    or prior_listing_state[0] != "suspended"
+                    or prior_listing_state[1] >= event.effective_at
+                ):
+                    reasons.add("delisting_transition_invalid")
+            if event.listing_state_after:
+                listing_state_by_security[event.security_id] = (
+                    event.listing_state_after,
+                    event.effective_at,
+                )
+            if reasons:
+                target_reasons(event.event_type).update(reasons)
+                exclude(event, *reasons)
+
+        for event_type, state in (
+            manifest.corporate_action_policy.items()
+        ):
+            if state != "required" or leaves_by_type.get(event_type):
+                continue
             if event_type in listing_state_event_types:
                 delisting_reasons.add("delisting_evidence_missing")
             else:
-                action_reasons.add("corporate_action_evidence_missing")
+                action_reasons.add(
+                    "corporate_action_evidence_missing"
+                )
+        delisting_applicable = (
+            delisting_applicable
+            or any(
+                event.event_type in listing_state_event_types
+                for event in leaves
+            )
+        )
+
     if manifest.delisting_policy.get("retain_historical_members") is not True:
         delisting_reasons.add("delisting_survivorship_policy_invalid")
     if (
@@ -1017,15 +1120,14 @@ def _event_decisions(
         is not False
     ):
         delisting_reasons.add("delisting_survivorship_policy_invalid")
-    delisting_applicable = (
-        any(
-            manifest.corporate_action_policy.get(event_type) == "required"
-            for event_type in listing_state_event_types
+    excluded = tuple(
+        ExcludedRow(
+            "events",
+            _row_number(parsed, "events", row_id),
+            row_id,
+            tuple(sorted(reasons)),
         )
-        or any(
-            event.event_type in listing_state_event_types
-            for event in parsed.events
-        )
+        for row_id, reasons in sorted(exclusion_reasons.items())
     )
     return (
         Decision(
@@ -1042,7 +1144,7 @@ def _event_decisions(
             else "not_applicable",
             tuple(sorted(delisting_reasons)),
         ),
-        tuple(excluded),
+        excluded,
     )
 
 
@@ -1177,24 +1279,27 @@ def validate_point_in_time_universe(
             for name in DECISION_ORDER
         }
     )
+    canonical_exclusion_reasons: dict[
+        tuple[str, int, str],
+        set[str],
+    ] = {}
+    for item in excluded:
+        canonical_exclusion_reasons.setdefault(
+            (item.contract, item.source_row, item.row_id),
+            set(),
+        ).update(item.reason_codes)
     canonical_excluded = tuple(
-        sorted(
-            (
-                ExcludedRow(
-                    item.contract,
-                    item.source_row,
-                    item.row_id,
-                    tuple(sorted(set(item.reason_codes))),
-                )
-                for item in excluded
-            ),
-            key=lambda item: (
-                item.contract,
-                item.source_row,
-                item.row_id,
-                item.reason_codes,
-            ),
+        ExcludedRow(
+            contract,
+            source_row,
+            row_id,
+            tuple(sorted(reason_codes)),
         )
+        for (
+            contract,
+            source_row,
+            row_id,
+        ), reason_codes in sorted(canonical_exclusion_reasons.items())
     )
 
     return PointInTimeUniversePacket(
