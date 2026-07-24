@@ -2938,9 +2938,33 @@ def test_distinct_evaluation_ids_at_same_timestamp_remain_valid(tmp_path):
 
     manifest, registry = build_valid_package(tmp_path)
 
+    def add_distinct_same_cutoff(rows):
+        rows.append(
+            {
+                **rows[0],
+                "evaluation_row_id": "eval-bench-distinct-2",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        add_distinct_same_cutoff,
+    )
+
     packet = validate_point_in_time_universe(manifest, registry)
+    benchmark_digests = [
+        digest
+        for digest in packet.membership_digests
+        if (
+            digest.universe_id == "bench-1"
+            and digest.evaluation_at == "2021-01-01T00:00:00Z"
+        )
+    ]
 
     assert _decision(packet, "technical_validity").status == "passed"
+    assert _decision(packet, "reproduction_ready").status == "passed"
+    assert len(benchmark_digests) == 1
     assert {
         digest.universe_id for digest in packet.membership_digests
     } == {"bench-1", "research-1"}

@@ -414,6 +414,18 @@ def _identity_membership_decisions(
             ),
         )
     )
+    canonical_digests: list[MembershipDigest] = []
+    first_digest_by_cutoff: dict[
+        tuple[str, str],
+        MembershipDigest,
+    ] = {}
+    for digest in sorted_digests:
+        key = (digest.universe_id, digest.evaluation_at)
+        first_digest = first_digest_by_cutoff.get(key)
+        if first_digest == digest:
+            continue
+        canonical_digests.append(digest)
+        first_digest_by_cutoff.setdefault(key, digest)
     return (
         Decision(
             "identity_coverage",
@@ -425,7 +437,7 @@ def _identity_membership_decisions(
             "blocked" if membership_reasons else "passed",
             tuple(sorted(membership_reasons)),
         ),
-        sorted_digests,
+        tuple(canonical_digests),
         MappingProxyType(display),
         tuple(excluded),
     )

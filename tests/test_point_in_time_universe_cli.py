@@ -562,3 +562,44 @@ def test_remediation_2_blockers_are_traceback_free_and_read_only(
     if case in {"event_history", "duplicate_evaluation"}:
         assert "sha256=" not in result.stdout
     assert _snapshot(tmp_path) == before
+
+
+def test_distinct_evaluation_ids_share_one_read_only_cutoff_digest(
+    tmp_path,
+):
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_distinct_same_cutoff(rows):
+        rows.append(
+            {
+                **rows[0],
+                "evaluation_row_id": "eval-bench-distinct-2",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        add_distinct_same_cutoff,
+    )
+    before = _snapshot(tmp_path)
+
+    result = _run_cli(
+        "preview",
+        "--manifest",
+        str(manifest),
+        "--registry",
+        str(registry),
+    )
+
+    assert result.returncode == 0
+    assert "analysis_eligible: true" in result.stdout
+    assert (
+        "reproduction_ready: passed; reasons=none"
+        in result.stdout
+    )
+    assert result.stdout.count(
+        "- bench-1 @ 2021-01-01T00:00:00Z:"
+    ) == 1
+    assert "Traceback" not in result.stderr
+    assert _snapshot(tmp_path) == before
