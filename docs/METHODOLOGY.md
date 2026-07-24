@@ -425,8 +425,8 @@ The second through fourth fresh whole-branch reviews drove the raw-row rights,
 cutoff-relative history, publication chronology, immutable bounded-read,
 aggregate-budget, and structured-input parser closures. The fifth fresh
 whole-branch review confirmed those closures and found three Important
-trust-boundary defects: C0/C1 characters in structural identifiers could make
-the newline-delimited membership digest ambiguous and forge public status
+trust-boundary defects: C0/C1 characters in structural identifiers could
+render the newline-delimited membership digest ambiguous and forge public status
 lines, while manifest creation could predate its cutoff or bound evidence.
 Commit `b2bbd9961` remediates those V5 findings locally with one shared
 control-character boundary, safe structural-token rendering, an explicit

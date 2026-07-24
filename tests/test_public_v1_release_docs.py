@@ -1556,7 +1556,7 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
     v5_findings = (
         "The fifth fresh whole-branch review confirmed those closures and found "
         "three Important trust-boundary defects: C0/C1 characters in structural "
-        "identifiers could make the newline-delimited membership digest ambiguous "
+        "identifiers could render the newline-delimited membership digest ambiguous "
         "and forge public status lines, while manifest creation could predate its "
         "cutoff or bound evidence."
     )
