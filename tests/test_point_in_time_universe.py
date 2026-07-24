@@ -1,5 +1,7 @@
+import csv
 import hashlib
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -34,6 +36,76 @@ def _refresh_registry_digest(manifest, registry):
             ).hexdigest()
         ),
     )
+
+
+def _replace_contract_rows(manifest, contract, rows):
+    raw = json.loads(manifest.read_text())
+    entry = next(item for item in raw["files"] if item["contract"] == contract)
+    path = manifest.parent / entry["path"]
+    with path.open(encoding="utf-8", newline="") as handle:
+        fieldnames = next(csv.reader(handle))
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    entry["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
+    entry["row_count"] = len(rows)
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+
+
+def _read_contract_rows(manifest, contract):
+    raw = json.loads(manifest.read_text())
+    entry = next(item for item in raw["files"] if item["contract"] == contract)
+    path = manifest.parent / entry["path"]
+    with path.open(encoding="utf-8", newline="") as handle:
+        return list(csv.DictReader(handle))
+
+
+def mutate_package_for_empty_case(manifest, mutation):
+    memberships = _read_contract_rows(manifest, "membership")
+    evaluations = _read_contract_rows(manifest, "evaluations")
+    raw = json.loads(manifest.read_text())
+    if mutation == "no_evaluations":
+        _replace_contract_rows(manifest, "evaluations", [])
+        return
+    if mutation == "benchmark_only":
+        memberships = [
+            row
+            for row in memberships
+            if row["universe_kind"] == "benchmark"
+        ]
+        evaluations = [
+            row
+            for row in evaluations
+            if row["universe_id"] == "bench-1"
+        ]
+        raw["declared_universes"] = [
+            item
+            for item in raw["declared_universes"]
+            if item["universe_kind"] == "benchmark"
+        ]
+    elif mutation == "research_only":
+        memberships = [
+            row
+            for row in memberships
+            if row["universe_kind"] == "research_universe"
+        ]
+        evaluations = [
+            row
+            for row in evaluations
+            if row["universe_id"] == "research-1"
+        ]
+        raw["declared_universes"] = [
+            item
+            for item in raw["declared_universes"]
+            if item["universe_kind"] == "research_universe"
+        ]
+    elif mutation == "all_excluded":
+        for row in memberships:
+            row["membership_state"] = "excluded"
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+    _replace_contract_rows(manifest, "membership", memberships)
+    _replace_contract_rows(manifest, "evaluations", evaluations)
 
 
 def _append_registry_source(
@@ -1339,3 +1411,341 @@ def test_registered_approved_source_not_in_allowlist_is_blocked_exactly(
     )
     assert packet.decisions["corporate_action_coverage"].status == "passed"
     assert packet.decisions["delisting_coverage"].status == "not_applicable"
+
+
+@pytest.mark.parametrize(
+    "contract,column",
+    [
+        ("security_identity", "source_published_at"),
+        ("security_identity", "retrieved_at"),
+        ("membership", "observation_at"),
+        ("membership", "source_published_at"),
+        ("membership", "retrieved_at"),
+        ("events", "effective_at"),
+        ("events", "source_published_at"),
+        ("events", "retrieved_at"),
+    ],
+)
+def test_post_cutoff_evidence_is_excluded_without_poisoning_independent_states(
+    tmp_path,
+    contract,
+    column,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_csv_and_manifest(
+        manifest,
+        contract,
+        lambda rows: rows[0].update(
+            {column: "2022-01-01T00:00:00Z"}
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "temporal_validity").status == "blocked"
+    assert _decision(packet, "leakage_safe").status == "blocked"
+    assert "leakage_post_cutoff_evidence" in _decision(
+        packet,
+        "leakage_safe",
+    ).reason_codes
+    assert any(
+        row.contract == contract
+        and "leakage_post_cutoff_evidence" in row.reason_codes
+        for row in packet.excluded
+    )
+    for independent in (
+        "technical_validity",
+        "identity_coverage",
+        "membership_coverage",
+        "corporate_action_coverage",
+        "source_rights_eligibility",
+    ):
+        assert _decision(packet, independent).status == "passed"
+    assert _decision(packet, "delisting_coverage").status == "not_applicable"
+    assert packet.analysis_eligible is False
+
+
+def test_later_revision_is_invisible_at_earlier_evaluation(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_later_revision(rows):
+        rows.append(
+            {
+                **rows[0],
+                "membership_row_id": "member-late",
+                "membership_state": "excluded",
+                "source_ref": "fixture://membership/late",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+                "supersedes_membership_row_id": rows[0][
+                    "membership_row_id"
+                ],
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        add_later_revision,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _digest_by_universe(packet)["bench-1"].member_count == 1
+    assert _digest_by_universe(packet)["research-1"].member_count == 1
+    assert any(
+        row.row_id == "member-late"
+        and "leakage_post_cutoff_evidence" in row.reason_codes
+        for row in packet.excluded
+    )
+
+
+def test_repeated_validation_reproduces_all_canonical_outputs(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    first = validate_point_in_time_universe(manifest, registry)
+    second = validate_point_in_time_universe(manifest, registry)
+
+    assert first.membership_digests == second.membership_digests
+    assert first.decisions == second.decisions
+    assert first.excluded == second.excluded
+    assert tuple(first.decisions) == (
+        "manifest_integrity",
+        "technical_validity",
+        "temporal_validity",
+        "identity_coverage",
+        "membership_coverage",
+        "corporate_action_coverage",
+        "delisting_coverage",
+        "source_rights_eligibility",
+        "reproduction_ready",
+        "leakage_safe",
+    )
+    assert {
+        digest.universe_id: digest.member_count
+        for digest in first.membership_digests
+    } == {"bench-1": 1, "research-1": 1}
+    assert {
+        digest.universe_id: digest.sha256
+        for digest in first.membership_digests
+    } == {
+        "bench-1": _sha256_members("sec-1"),
+        "research-1": _sha256_members("sec-1"),
+    }
+    assert all(
+        decision.reason_codes
+        == tuple(sorted(set(decision.reason_codes)))
+        for decision in first.decisions.values()
+    )
+    assert all(
+        row.reason_codes == tuple(sorted(set(row.reason_codes)))
+        for row in first.excluded
+    )
+
+
+@pytest.mark.parametrize(
+    "policy,reason",
+    [
+        (
+            {
+                "kind": "train_validation_test",
+                "train_end_at": "2020-07-01T00:00:00Z",
+                "validation_start_at": "2020-06-01T00:00:00Z",
+                "validation_end_at": "2020-09-01T00:00:00Z",
+                "test_start_at": "2020-10-01T00:00:00Z",
+            },
+            "partition_overlap",
+        ),
+        (
+            {
+                "kind": "train_validation_test",
+                "train_end_at": "2020-06-01T00:00:00Z",
+                "validation_start_at": "2020-07-01T00:00:00Z",
+                "validation_end_at": "2020-05-01T00:00:00Z",
+                "test_start_at": "2020-10-01T00:00:00Z",
+            },
+            "partition_order_invalid",
+        ),
+        (
+            {"kind": "train_validation_test"},
+            "partition_schema_invalid",
+        ),
+        (
+            {"kind": "walk_forward", "minimum_history_count": 0},
+            "partition_minimum_history_invalid",
+        ),
+    ],
+)
+def test_partition_policy_failures_are_canonical_and_fail_closed(
+    policy,
+    reason,
+):
+    from src.point_in_time_universe import _partition_decision
+
+    decision = _partition_decision(
+        SimpleNamespace(evaluation_policy=policy),
+        (),
+    )
+
+    assert decision.area == "leakage_safe"
+    assert decision.status == "blocked"
+    assert reason in decision.reason_codes
+    assert decision.reason_codes == tuple(sorted(set(decision.reason_codes)))
+
+
+@pytest.mark.parametrize(
+    "contract,digests,reason",
+    [
+        (
+            "unsupported_v2",
+            (),
+            "reproduction_contract_unsupported",
+        ),
+        (
+            "membership_count_and_sha256_at_cutoff_v1",
+            (
+                ("bench-1", "2021-01-01T00:00:00Z", 1, "a" * 64),
+                ("bench-1", "2021-01-01T00:00:00Z", 1, "b" * 64),
+            ),
+            "reproduction_duplicate_evaluation",
+        ),
+        (
+            "membership_count_and_sha256_at_cutoff_v1",
+            (
+                ("bench-1", "2021-01-01T00:00:00Z", 1, "g" * 64),
+            ),
+            "reproduction_digest_invalid",
+        ),
+    ],
+)
+def test_reproduction_failures_block_independently(
+    contract,
+    digests,
+    reason,
+):
+    from src.point_in_time_universe import (
+        MembershipDigest,
+        _reproduction_decision,
+    )
+
+    decision = _reproduction_decision(
+        SimpleNamespace(reproduction_contract=contract),
+        tuple(MembershipDigest(*digest) for digest in digests),
+    )
+
+    assert decision.area == "reproduction_ready"
+    assert decision.status == "blocked"
+    assert decision.reason_codes == (reason,)
+
+
+@pytest.mark.parametrize(
+    "mutation,reason",
+    [
+        ("no_evaluations", "membership_no_evaluation"),
+        ("benchmark_only", "membership_research_universe_missing"),
+        ("research_only", "membership_benchmark_missing"),
+        ("all_excluded", "membership_no_eligible_members"),
+    ],
+)
+def test_empty_or_one_sided_packages_fail_closed(tmp_path, mutation, reason):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    mutate_package_for_empty_case(manifest, mutation)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert packet.analysis_eligible is False
+    assert reason in {
+        code
+        for decision in packet.decisions.values()
+        for code in decision.reason_codes
+    }
+
+
+def test_valid_fixture_passes_all_decisions_and_is_analysis_eligible(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert tuple(packet.decisions) == (
+        "manifest_integrity",
+        "technical_validity",
+        "temporal_validity",
+        "identity_coverage",
+        "membership_coverage",
+        "corporate_action_coverage",
+        "delisting_coverage",
+        "source_rights_eligibility",
+        "reproduction_ready",
+        "leakage_safe",
+    )
+    assert {
+        area: decision.status
+        for area, decision in packet.decisions.items()
+    } == {
+        "manifest_integrity": "passed",
+        "technical_validity": "passed",
+        "temporal_validity": "passed",
+        "identity_coverage": "passed",
+        "membership_coverage": "passed",
+        "corporate_action_coverage": "passed",
+        "delisting_coverage": "not_applicable",
+        "source_rights_eligibility": "passed",
+        "reproduction_ready": "passed",
+        "leakage_safe": "passed",
+    }
+    assert packet.analysis_eligible is True
+
+
+def test_blocked_independent_decision_prevents_final_eligibility(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    registry.write_text(
+        registry.read_text().replace(
+            "commercial_use: approved",
+            "commercial_use: unverified",
+        ),
+        encoding="utf-8",
+    )
+    _refresh_registry_digest(manifest, registry)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "source_rights_eligibility").status == "blocked"
+    assert _decision(packet, "delisting_coverage").status == "not_applicable"
+    assert packet.analysis_eligible is False
+
+
+def test_not_applicable_is_accepted_only_for_delisting_contract(tmp_path):
+    from src.point_in_time_universe import (
+        Decision,
+        _final_eligibility,
+        validate_point_in_time_universe,
+    )
+
+    manifest, registry = build_valid_package(tmp_path)
+    packet = validate_point_in_time_universe(manifest, registry)
+    decisions = dict(packet.decisions)
+    decisions["temporal_validity"] = Decision(
+        "temporal_validity",
+        "not_applicable",
+        (),
+    )
+    declared = json.loads(manifest.read_text())["declared_universes"]
+
+    assert _decision(packet, "delisting_coverage").status == "not_applicable"
+    assert packet.analysis_eligible is True
+    assert _final_eligibility(
+        decisions,
+        packet.membership_digests,
+        declared,
+    ) is False
