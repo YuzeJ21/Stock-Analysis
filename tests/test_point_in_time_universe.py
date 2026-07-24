@@ -19,6 +19,51 @@ def _digest_by_universe(packet):
     return {digest.universe_id: digest for digest in packet.membership_digests}
 
 
+def _rewrite_manifest(manifest, mutate):
+    raw = json.loads(manifest.read_text())
+    mutate(raw)
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+
+
+def _refresh_registry_digest(manifest, registry):
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw.update(
+            source_rights_registry_sha256=hashlib.sha256(
+                registry.read_bytes()
+            ).hexdigest()
+        ),
+    )
+
+
+def _append_registry_source(
+    registry,
+    source_id,
+    supported_fields,
+    *,
+    commercial_use="approved",
+):
+    fields = ", ".join(supported_fields)
+    registry.write_text(
+        registry.read_text()
+        + (
+            f"  - source_id: {source_id}\n"
+            f"    display_name: {source_id}\n"
+            "    permitted_use: test_only\n"
+            f"    commercial_use: {commercial_use}\n"
+            "    redistribution: test_only\n"
+            "    storage_limits: pytest temporary directory only\n"
+            "    attribution: synthetic fixture\n"
+            "    rate_limits: not_applicable\n"
+            "    authentication: none\n"
+            "    expected_freshness: point in time\n"
+            f"    supported_fields: [{fields}]\n"
+            "    fallback_priority: 2\n"
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_ticker_change_preserves_security_identity_without_current_ticker_fallback(
     tmp_path,
 ):
@@ -689,8 +734,41 @@ def test_split_requires_positive_explicit_ratio_and_does_not_rewrite_membership(
 
     packet = validate_point_in_time_universe(manifest, registry)
 
-    assert packet.decisions["corporate_action_coverage"].status == "passed"
+    assert _decision(packet, "corporate_action_coverage").area == (
+        "corporate_action_coverage"
+    )
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+    assert _decision(packet, "corporate_action_coverage").reason_codes == ()
+    assert _decision(packet, "delisting_coverage").status == "not_applicable"
     assert packet.membership_digests[0].member_count == 1
+
+
+def test_reverse_split_has_independent_action_coverage(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        lambda rows: rows[0].update(
+            event_type="reverse_split",
+            ratio_numerator="1",
+            ratio_denominator="10",
+        ),
+    )
+
+    def require_reverse_split(raw):
+        raw["corporate_action_policy"]["listing"] = "not_applicable"
+        raw["corporate_action_policy"]["reverse_split"] = "required"
+
+    _rewrite_manifest(manifest, require_reverse_split)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+    assert _decision(packet, "corporate_action_coverage").reason_codes == ()
+    assert _decision(packet, "delisting_coverage").status == "not_applicable"
+    assert all(digest.member_count == 1 for digest in packet.membership_digests)
 
 
 def test_delisted_historical_member_is_retained_and_not_filtered_by_current_state(
@@ -727,32 +805,55 @@ def test_delisted_historical_member_is_retained_and_not_filtered_by_current_stat
 
 
 @pytest.mark.parametrize(
-    "event_type,updates,reason",
+    "event_type,updates,reason,decision_area,sibling_area,sibling_status",
     [
         (
             "merger",
             {"successor_security_id": ""},
             "corporate_action_successor_required",
+            "corporate_action_coverage",
+            "delisting_coverage",
+            "not_applicable",
         ),
         (
             "acquisition",
             {"successor_security_id": ""},
             "corporate_action_successor_required",
+            "corporate_action_coverage",
+            "delisting_coverage",
+            "not_applicable",
         ),
         (
             "spinoff",
             {"successor_security_id": ""},
             "corporate_action_successor_required",
+            "corporate_action_coverage",
+            "delisting_coverage",
+            "not_applicable",
         ),
         (
             "delisting",
             {"listing_state_after": "active"},
             "delisting_state_invalid",
+            "delisting_coverage",
+            "corporate_action_coverage",
+            "passed",
+        ),
+        (
+            "suspension",
+            {"listing_state_after": "active"},
+            "delisting_transition_invalid",
+            "delisting_coverage",
+            "corporate_action_coverage",
+            "passed",
         ),
         (
             "reactivation",
             {"listing_state_after": "active"},
             "delisting_transition_invalid",
+            "delisting_coverage",
+            "corporate_action_coverage",
+            "passed",
         ),
     ],
 )
@@ -761,6 +862,9 @@ def test_invalid_action_or_listing_transition_is_blocked(
     event_type,
     updates,
     reason,
+    decision_area,
+    sibling_area,
+    sibling_status,
 ):
     from src.point_in_time_universe import validate_point_in_time_universe
 
@@ -771,16 +875,16 @@ def test_invalid_action_or_listing_transition_is_blocked(
 
     _rewrite_csv_and_manifest(manifest, "events", mutate)
     raw = json.loads(manifest.read_text())
+    raw["corporate_action_policy"]["listing"] = "not_applicable"
     raw["corporate_action_policy"][event_type] = "required"
     manifest.write_text(json.dumps(raw), encoding="utf-8")
 
     packet = validate_point_in_time_universe(manifest, registry)
 
-    assert reason in {
-        code
-        for decision in packet.decisions.values()
-        for code in decision.reason_codes
-    }
+    assert _decision(packet, decision_area).status == "blocked"
+    assert reason in _decision(packet, decision_area).reason_codes
+    assert _decision(packet, sibling_area).status == sibling_status
+    assert reason not in _decision(packet, sibling_area).reason_codes
 
 
 def test_present_event_marked_unsupported_is_blocked(tmp_path):
@@ -797,6 +901,221 @@ def test_present_event_marked_unsupported_is_blocked(tmp_path):
         "corporate_action_policy_unsupported"
         in packet.decisions["corporate_action_coverage"].reason_codes
     )
+    assert _decision(packet, "delisting_coverage").status == "not_applicable"
+    assert _decision(packet, "delisting_coverage").reason_codes == ()
+
+
+@pytest.mark.parametrize("event_type", ["suspension", "reactivation"])
+def test_missing_required_listing_transition_blocks_only_delisting_coverage(
+    tmp_path,
+    event_type,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["corporate_action_policy"].update(
+            {event_type: "required"}
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+    assert _decision(packet, "corporate_action_coverage").reason_codes == ()
+    assert _decision(packet, "delisting_coverage").status == "blocked"
+    assert _decision(packet, "delisting_coverage").reason_codes == (
+        "delisting_evidence_missing",
+    )
+
+
+def test_suspension_transition_is_delisting_coverage(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_suspension(rows):
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-suspension",
+                "event_type": "suspension",
+                "effective_at": "2020-02-01T00:00:00Z",
+                "listing_state_after": "suspended",
+                "source_ref": "fixture://event/event-suspension",
+                "source_published_at": "2020-02-01T00:00:00Z",
+                "retrieved_at": "2020-02-02T00:00:00Z",
+            }
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", add_suspension)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["corporate_action_policy"].update(
+            {"suspension": "required"}
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "delisting_coverage").status == "passed"
+    assert _decision(packet, "delisting_coverage").reason_codes == ()
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+    assert _decision(packet, "corporate_action_coverage").reason_codes == ()
+
+
+def test_ordered_suspension_reactivation_pair_passes(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_transitions(rows):
+        base = rows[0]
+        rows.extend(
+            [
+                {
+                    **base,
+                    "event_row_id": "event-suspension",
+                    "event_type": "suspension",
+                    "effective_at": "2020-02-01T00:00:00Z",
+                    "listing_state_after": "suspended",
+                    "source_ref": "fixture://event/event-suspension",
+                    "source_published_at": "2020-02-01T00:00:00Z",
+                    "retrieved_at": "2020-02-02T00:00:00Z",
+                },
+                {
+                    **base,
+                    "event_row_id": "event-reactivation",
+                    "event_type": "reactivation",
+                    "effective_at": "2020-03-01T00:00:00Z",
+                    "listing_state_after": "active",
+                    "source_ref": "fixture://event/event-reactivation",
+                    "source_published_at": "2020-03-01T00:00:00Z",
+                    "retrieved_at": "2020-03-02T00:00:00Z",
+                },
+            ]
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", add_transitions)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["corporate_action_policy"].update(
+            {"suspension": "required", "reactivation": "required"}
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "delisting_coverage").status == "passed"
+    assert _decision(packet, "delisting_coverage").reason_codes == ()
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+
+
+def test_repeated_reactivation_is_blocked_by_current_listing_state(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_transitions(rows):
+        base = rows[0]
+        rows.extend(
+            [
+                {
+                    **base,
+                    "event_row_id": "event-suspension",
+                    "event_type": "suspension",
+                    "effective_at": "2020-02-01T00:00:00Z",
+                    "listing_state_after": "suspended",
+                    "source_ref": "fixture://event/event-suspension",
+                    "source_published_at": "2020-02-01T00:00:00Z",
+                    "retrieved_at": "2020-02-02T00:00:00Z",
+                },
+                {
+                    **base,
+                    "event_row_id": "event-reactivation-1",
+                    "event_type": "reactivation",
+                    "effective_at": "2020-03-01T00:00:00Z",
+                    "listing_state_after": "active",
+                    "source_ref": "fixture://event/event-reactivation-1",
+                    "source_published_at": "2020-03-01T00:00:00Z",
+                    "retrieved_at": "2020-03-02T00:00:00Z",
+                },
+                {
+                    **base,
+                    "event_row_id": "event-reactivation-2",
+                    "event_type": "reactivation",
+                    "effective_at": "2020-04-01T00:00:00Z",
+                    "listing_state_after": "active",
+                    "source_ref": "fixture://event/event-reactivation-2",
+                    "source_published_at": "2020-04-01T00:00:00Z",
+                    "retrieved_at": "2020-04-02T00:00:00Z",
+                },
+            ]
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", add_transitions)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "delisting_coverage").status == "blocked"
+    assert _decision(packet, "delisting_coverage").reason_codes == (
+        "delisting_transition_invalid",
+    )
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+
+
+def test_intervening_active_transition_invalidates_later_reactivation(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_transitions(rows):
+        base = rows[0]
+        rows.extend(
+            [
+                {
+                    **base,
+                    "event_row_id": "event-suspension",
+                    "event_type": "suspension",
+                    "effective_at": "2020-02-01T00:00:00Z",
+                    "listing_state_after": "suspended",
+                    "source_ref": "fixture://event/event-suspension",
+                    "source_published_at": "2020-02-01T00:00:00Z",
+                    "retrieved_at": "2020-02-02T00:00:00Z",
+                },
+                {
+                    **base,
+                    "event_row_id": "event-active",
+                    "event_type": "listing",
+                    "effective_at": "2020-03-01T00:00:00Z",
+                    "listing_state_after": "active",
+                    "source_ref": "fixture://event/event-active",
+                    "source_published_at": "2020-03-01T00:00:00Z",
+                    "retrieved_at": "2020-03-02T00:00:00Z",
+                },
+                {
+                    **base,
+                    "event_row_id": "event-reactivation",
+                    "event_type": "reactivation",
+                    "effective_at": "2020-04-01T00:00:00Z",
+                    "listing_state_after": "active",
+                    "source_ref": "fixture://event/event-reactivation",
+                    "source_published_at": "2020-04-01T00:00:00Z",
+                    "retrieved_at": "2020-04-02T00:00:00Z",
+                },
+            ]
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", add_transitions)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "delisting_coverage").status == "blocked"
+    assert _decision(packet, "delisting_coverage").reason_codes == (
+        "delisting_transition_invalid",
+    )
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
 
 
 def test_technical_pass_does_not_promote_unverified_rights(tmp_path):
@@ -820,39 +1139,140 @@ def test_technical_pass_does_not_promote_unverified_rights(tmp_path):
 
     assert packet.decisions["technical_validity"].status == "passed"
     assert packet.decisions["source_rights_eligibility"].status == "blocked"
+    assert packet.decisions["source_rights_eligibility"].reason_codes == (
+        "source_rights_commercial_rights_unverified",
+    )
+    assert packet.decisions["corporate_action_coverage"].status == "passed"
+    assert packet.decisions["delisting_coverage"].status == "not_applicable"
     assert packet.analysis_eligible is False
 
 
-def test_missing_registered_delisting_scope_blocks_only_rights_state(tmp_path):
+@pytest.mark.parametrize(
+    "contract,missing_scope,event_type,expected_delisting_status",
+    [
+        ("security_identity", "security_identity", None, "not_applicable"),
+        ("membership", "universe_membership", None, "not_applicable"),
+        ("events", "corporate_actions", "listing", "not_applicable"),
+        ("events", "delistings", "delisting", "passed"),
+    ],
+)
+def test_exact_source_scope_mapping_blocks_only_rights_state(
+    tmp_path,
+    contract,
+    missing_scope,
+    event_type,
+    expected_delisting_status,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    source_id = f"{missing_scope}_source"
+
+    def isolate_source(rows):
+        for row in rows:
+            row["source_id"] = source_id
+        if event_type == "delisting":
+            rows[0].update(
+                event_type="delisting",
+                listing_state_after="delisted",
+            )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        contract,
+        isolate_source,
+    )
+    all_scopes = (
+        "security_identity",
+        "universe_membership",
+        "corporate_actions",
+        "delistings",
+    )
+    _append_registry_source(
+        registry,
+        source_id,
+        tuple(scope for scope in all_scopes if scope != missing_scope),
+    )
+
+    def allow_isolated_source(raw):
+        raw["allowed_source_ids"].append(source_id)
+        if event_type == "delisting":
+            raw["corporate_action_policy"]["listing"] = "not_applicable"
+            raw["corporate_action_policy"]["delisting"] = "required"
+
+    _rewrite_manifest(manifest, allow_isolated_source)
+    _refresh_registry_digest(manifest, registry)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert packet.decisions["technical_validity"].status == "passed"
+    assert packet.decisions["identity_coverage"].status == "passed"
+    assert packet.decisions["membership_coverage"].status == "passed"
+    assert packet.decisions["corporate_action_coverage"].status == "passed"
+    assert (
+        packet.decisions["delisting_coverage"].status
+        == expected_delisting_status
+    )
+    assert packet.decisions["source_rights_eligibility"].status == "blocked"
+    assert packet.decisions["source_rights_eligibility"].reason_codes == (
+        "source_rights_field_scope_missing",
+    )
+    assert packet.analysis_eligible is False
+
+
+def test_allowed_unknown_source_has_exact_rights_reasons(tmp_path):
     from src.point_in_time_universe import validate_point_in_time_universe
 
     manifest, registry = build_valid_package(tmp_path)
     _rewrite_csv_and_manifest(
         manifest,
-        "events",
-        lambda rows: rows[0].update(
-            event_type="delisting",
-            listing_state_after="delisted",
-        ),
+        "security_identity",
+        lambda rows: rows[0].update(source_id="unknown_source"),
     )
-    raw = json.loads(manifest.read_text())
-    raw["corporate_action_policy"]["listing"] = "not_applicable"
-    raw["corporate_action_policy"]["delisting"] = "required"
-    manifest.write_text(json.dumps(raw), encoding="utf-8")
-    registry.write_text(
-        registry.read_text().replace(", delistings", ""),
-        encoding="utf-8",
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["allowed_source_ids"].append("unknown_source"),
     )
-    raw = json.loads(manifest.read_text())
-    raw["source_rights_registry_sha256"] = hashlib.sha256(
-        registry.read_bytes()
-    ).hexdigest()
-    manifest.write_text(json.dumps(raw), encoding="utf-8")
 
     packet = validate_point_in_time_universe(manifest, registry)
 
     assert packet.decisions["technical_validity"].status == "passed"
-    assert (
-        "source_rights_field_scope_missing"
-        in packet.decisions["source_rights_eligibility"].reason_codes
+    assert packet.decisions["identity_coverage"].status == "passed"
+    assert packet.decisions["source_rights_eligibility"].status == "blocked"
+    assert packet.decisions["source_rights_eligibility"].reason_codes == (
+        "source_rights_field_scope_missing",
+        "source_rights_unknown_source",
     )
+    assert packet.decisions["corporate_action_coverage"].status == "passed"
+    assert packet.decisions["delisting_coverage"].status == "not_applicable"
+
+
+def test_registered_approved_source_not_in_allowlist_is_blocked_exactly(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    source_id = "registered_but_not_allowed"
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        lambda rows: rows[0].update(source_id=source_id),
+    )
+    _append_registry_source(
+        registry,
+        source_id,
+        ("security_identity",),
+    )
+    _refresh_registry_digest(manifest, registry)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert packet.decisions["technical_validity"].status == "passed"
+    assert packet.decisions["identity_coverage"].status == "passed"
+    assert packet.decisions["source_rights_eligibility"].status == "blocked"
+    assert packet.decisions["source_rights_eligibility"].reason_codes == (
+        "source_rights_source_not_allowed",
+    )
+    assert packet.decisions["corporate_action_coverage"].status == "passed"
+    assert packet.decisions["delisting_coverage"].status == "not_applicable"

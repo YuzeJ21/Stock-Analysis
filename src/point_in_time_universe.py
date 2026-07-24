@@ -370,6 +370,12 @@ def _event_decisions(
     delisting_reasons: set[str] = set()
     excluded: list[ExcludedRow] = []
     events_by_type: dict[str, list] = {}
+    listing_state_by_security: dict[str, str] = {}
+    listing_state_event_types = {
+        "delisting",
+        "suspension",
+        "reactivation",
+    }
     if any(
         finding.contract == "events"
         and "schema_delisting_listing_state_invalid"
@@ -377,7 +383,14 @@ def _event_decisions(
         for finding in parsed.findings
     ):
         delisting_reasons.add("delisting_state_invalid")
-    for event in parsed.events:
+    for event in sorted(
+        parsed.events,
+        key=lambda item: (
+            item.security_id,
+            item.effective_at,
+            item.event_row_id,
+        ),
+    ):
         events_by_type.setdefault(event.event_type, []).append(event)
         reasons: set[str] = set()
         policy = manifest.corporate_action_policy.get(event.event_type)
@@ -403,19 +416,20 @@ def _event_decisions(
         ):
             reasons.add("delisting_transition_invalid")
         if event.event_type == "reactivation":
-            prior_suspension = any(
-                prior.security_id == event.security_id
-                and prior.event_type == "suspension"
-                and prior.effective_at < event.effective_at
-                for prior in parsed.events
-            )
-            if event.listing_state_after != "active" or not prior_suspension:
+            if (
+                event.listing_state_after != "active"
+                or listing_state_by_security.get(event.security_id)
+                != "suspended"
+            ):
                 reasons.add("delisting_transition_invalid")
+        if event.listing_state_after:
+            listing_state_by_security[event.security_id] = (
+                event.listing_state_after
+            )
         if reasons:
             target = (
                 delisting_reasons
-                if event.event_type
-                in {"delisting", "suspension", "reactivation"}
+                if event.event_type in listing_state_event_types
                 else action_reasons
             )
             target.update(reasons)
@@ -438,7 +452,7 @@ def _event_decisions(
             )
     for event_type, state in manifest.corporate_action_policy.items():
         if state == "required" and not events_by_type.get(event_type):
-            if event_type == "delisting":
+            if event_type in listing_state_event_types:
                 delisting_reasons.add("delisting_evidence_missing")
             else:
                 action_reasons.add("corporate_action_evidence_missing")
@@ -450,10 +464,12 @@ def _event_decisions(
     ):
         delisting_reasons.add("delisting_survivorship_policy_invalid")
     delisting_applicable = (
-        manifest.corporate_action_policy.get("delisting") == "required"
+        any(
+            manifest.corporate_action_policy.get(event_type) == "required"
+            for event_type in listing_state_event_types
+        )
         or any(
-            event.event_type
-            in {"delisting", "suspension", "reactivation"}
+            event.event_type in listing_state_event_types
             for event in parsed.events
         )
     )
