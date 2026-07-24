@@ -1187,7 +1187,243 @@ def test_identity_overlap_excludes_each_overlapping_identity_source_row(
     )
 
 
-def test_invalid_global_membership_lineage_has_no_valid_digest_leaves(tmp_path):
+@pytest.mark.parametrize(
+    "contract,row_id,expected_rows",
+    [
+        ("security_identity", "id-1", {2, 3}),
+        ("membership", "member-bench-1", {2, 4}),
+    ],
+)
+def test_mixed_duplicate_and_orphan_reasons_bind_exact_physical_rows(
+    tmp_path,
+    contract,
+    row_id,
+    expected_rows,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_duplicate_orphan(rows):
+        parent_field = (
+            "supersedes_identity_row_id"
+            if contract == "security_identity"
+            else "supersedes_membership_row_id"
+        )
+        rows.append(
+            {
+                **rows[0],
+                "source_ref": f"fixture://{contract}/duplicate-orphan",
+                parent_field: "missing-parent",
+            }
+        )
+
+    _rewrite_csv_and_manifest(manifest, contract, add_duplicate_orphan)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    exclusions = {
+        row.source_row: row.reason_codes
+        for row in packet.excluded
+        if row.contract == contract and row.row_id == row_id
+    }
+
+    assert set(exclusions) == expected_rows
+    assert exclusions[min(expected_rows)] == ("lineage_duplicate_id",)
+    assert exclusions[max(expected_rows)] == (
+        "lineage_duplicate_id",
+        "lineage_missing_parent",
+    )
+    assert packet.exclusion_reason_counts["lineage_duplicate_id"] == 2
+    assert packet.exclusion_reason_counts["lineage_missing_parent"] == 1
+
+
+def test_unrelated_identity_orphan_blocks_global_state_without_erasing_members(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_unrelated_orphan(rows):
+        rows.append(
+            {
+                **rows[0],
+                "identity_row_id": "id-unrelated-orphan",
+                "security_id": "sec-2",
+                "issuer_id": "issuer-2",
+                "ticker": "UNRELATED",
+                "source_ref": "fixture://identity/unrelated-orphan",
+                "supersedes_identity_row_id": "missing-parent",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        add_unrelated_orphan,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "identity_coverage").status == "blocked"
+    assert _decision(packet, "identity_coverage").reason_codes == (
+        "lineage_missing_parent",
+    )
+    assert {
+        digest.universe_id: digest.member_count
+        for digest in packet.membership_digests
+    } == {"bench-1": 1, "research-1": 1}
+    assert not any(
+        row.contract == "membership"
+        and "lineage_missing_parent" in row.reason_codes
+        for row in packet.excluded
+    )
+    assert {
+        (row.contract, row.source_row, row.row_id, row.reason_codes)
+        for row in packet.excluded
+        if "lineage_missing_parent" in row.reason_codes
+    } == {
+        (
+            "security_identity",
+            3,
+            "id-unrelated-orphan",
+            ("lineage_missing_parent",),
+        )
+    }
+    assert packet.analysis_eligible is False
+    assert packet.analysis_eligible_rows == ()
+
+
+def test_unrelated_membership_orphan_preserves_other_universe_digest(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def orphan_benchmark(rows):
+        rows[0]["supersedes_membership_row_id"] = "missing-parent"
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        orphan_benchmark,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    digests = _digest_by_universe(packet)
+
+    assert _decision(packet, "membership_coverage").status == "blocked"
+    assert digests["bench-1"].member_count == 0
+    assert digests["research-1"].member_count == 1
+    assert digests["research-1"].sha256 == _sha256_members("sec-1")
+    assert (
+        "membership",
+        2,
+        "member-bench-1",
+        ("lineage_missing_parent",),
+    ) in {
+        (
+            row.contract,
+            row.source_row,
+            row.row_id,
+            row.reason_codes,
+        )
+        for row in packet.excluded
+    }
+    assert not any(
+        row.contract == "membership"
+        and row.source_row == 3
+        and "lineage_missing_parent" in row.reason_codes
+        for row in packet.excluded
+    )
+
+
+def test_event_valid_root_and_orphan_attribute_missing_parent_only_to_orphan(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_orphan(rows):
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-orphan",
+                "source_ref": "fixture://event/orphan",
+                "source_published_at": "2020-02-01T00:00:00Z",
+                "retrieved_at": "2020-02-02T00:00:00Z",
+                "supersedes_event_row_id": "missing-parent",
+            }
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", add_orphan)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    event_exclusions = {
+        row.source_row: row.reason_codes
+        for row in packet.excluded
+        if row.contract == "events"
+    }
+
+    assert event_exclusions == {3: ("lineage_missing_parent",)}
+    assert (
+        packet.exclusion_reason_counts["lineage_missing_parent"]
+        == 1
+    )
+    assert "lineage_missing_parent" in _decision(
+        packet,
+        "corporate_action_coverage",
+    ).reason_codes
+
+
+def test_event_roots_and_orphan_preserve_exact_independent_reason_unions(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_second_root_and_orphan(rows):
+        rows.extend(
+            [
+                {
+                    **rows[0],
+                    "event_row_id": "event-second-root",
+                    "source_ref": "fixture://event/second-root",
+                },
+                {
+                    **rows[0],
+                    "event_row_id": "event-orphan",
+                    "source_ref": "fixture://event/orphan",
+                    "supersedes_event_row_id": "missing-parent",
+                },
+            ]
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        add_second_root_and_orphan,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert {
+        row.source_row: row.reason_codes
+        for row in packet.excluded
+        if row.contract == "events"
+    } == {
+        2: ("lineage_multiple_roots",),
+        3: ("lineage_multiple_roots",),
+        4: ("lineage_missing_parent",),
+    }
+    assert packet.exclusion_reason_counts["lineage_multiple_roots"] == 2
+    assert packet.exclusion_reason_counts["lineage_missing_parent"] == 1
+
+
+def test_invalid_membership_scopes_do_not_erase_unaffected_universe_digest(
+    tmp_path,
+):
     from src.point_in_time_universe import validate_point_in_time_universe
 
     manifest, registry = build_valid_package(tmp_path)
@@ -1199,11 +1435,10 @@ def test_invalid_global_membership_lineage_has_no_valid_digest_leaves(tmp_path):
         packet,
         "membership_coverage",
     ).reason_codes
-    assert all(
-        digest.member_count == 0
-        and digest.sha256 == hashlib.sha256(b"").hexdigest()
-        for digest in packet.membership_digests
-    )
+    digests = _digest_by_universe(packet)
+    assert digests["bench-1"].member_count == 0
+    assert digests["research-1"].member_count == 1
+    assert digests["research-1"].sha256 == _sha256_members("sec-1")
 
 
 def test_overlapping_non_member_identity_blocks_identity_coverage(tmp_path):

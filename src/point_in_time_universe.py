@@ -60,6 +60,14 @@ class EvaluationMemberScope:
 
 
 @dataclass(frozen=True)
+class ScopedLineageComposition:
+    leaves: tuple
+    reason_codes: tuple[str, ...]
+    reason_records: Mapping[str, tuple]
+    reasons_by_scope: Mapping[str, tuple[str, ...]]
+
+
+@dataclass(frozen=True)
 class PointInTimeUniversePacket:
     dataset_id: str
     manifest_id: str
@@ -134,24 +142,34 @@ def _row_number(
     )
 
 
-def _source_row_numbers(
+def _record_source_rows(
     parsed: ParsedUniverseEvidence,
     contract: str,
-    row_id: str,
-) -> tuple[int, ...]:
-    id_field = ROW_ID_FIELDS[contract]
+    records,
+) -> Mapping[int, int]:
     finding_rows = {
         (finding.contract, finding.source_row)
         for finding in parsed.findings
     }
-    return tuple(
-        row.source_row
+    normalized_raw = tuple(
+        row
         for row in parsed.raw
         if (
             row.contract == contract
-            and row.values.get(id_field) == row_id
             and (contract, row.source_row) not in finding_rows
         )
+    )
+    if len(normalized_raw) != len(records):
+        raise RuntimeError("normalized_record_source_row_mismatch")
+    return MappingProxyType(
+        {
+            id(record): raw.source_row
+            for record, raw in zip(
+                records,
+                normalized_raw,
+                strict=True,
+            )
+        }
     )
 
 
@@ -162,15 +180,20 @@ def _record_exclusions(
     row_id,
     reason_codes: tuple[str, ...],
 ) -> tuple[ExcludedRow, ...]:
+    all_records = {
+        "security_identity": parsed.identities,
+        "membership": parsed.memberships,
+        "events": parsed.events,
+        "evaluations": parsed.evaluations,
+    }[contract]
+    source_rows = _record_source_rows(
+        parsed,
+        contract,
+        all_records,
+    )
     physical_rows = {
-        (source_row, record_id)
+        (source_rows[id(record)], row_id(record))
         for record in records
-        for record_id in (row_id(record),)
-        for source_row in _source_row_numbers(
-            parsed,
-            contract,
-            record_id,
-        )
     }
     return tuple(
         ExcludedRow(
@@ -200,7 +223,7 @@ def _lineage_reason_records(
     def mark(reason: str, *items) -> None:
         bucket = marked.setdefault(reason, [])
         for item in items:
-            if item not in bucket:
+            if all(existing is not item for existing in bucket):
                 bucket.append(item)
 
     by_identifier: dict[str, list] = {}
@@ -267,6 +290,65 @@ def _lineage_reason_records(
             reason: tuple(items)
             for reason, items in sorted(marked.items())
         }
+    )
+
+
+def _compose_scoped_lineage(
+    records,
+    *,
+    row_id,
+    parent_id,
+    scope,
+    available_at,
+    cutoff,
+) -> ScopedLineageComposition:
+    eligible = tuple(
+        record for record in records if available_at(record) <= cutoff
+    )
+    reason_records = _lineage_reason_records(
+        records,
+        row_id=row_id,
+        parent_id=parent_id,
+        scope=scope,
+        available_at=available_at,
+        cutoff=cutoff,
+    )
+    reasons_by_scope: dict[str, set[str]] = {}
+    for reason, offenders in reason_records.items():
+        for offender in offenders:
+            reasons_by_scope.setdefault(scope(offender), set()).add(reason)
+
+    records_by_scope: dict[str, list] = {}
+    for record in eligible:
+        records_by_scope.setdefault(scope(record), []).append(record)
+    leaves: list = []
+    for record_scope, scoped_records in sorted(records_by_scope.items()):
+        if record_scope in reasons_by_scope:
+            continue
+        resolved = resolve_lineage(
+            scoped_records,
+            row_id=row_id,
+            parent_id=parent_id,
+            scope=scope,
+            available_at=available_at,
+            cutoff=cutoff,
+        )
+        if resolved.reason_codes:
+            raise RuntimeError("scoped_lineage_composition_mismatch")
+        leaves.extend(resolved.leaves)
+
+    return ScopedLineageComposition(
+        tuple(leaves),
+        tuple(reason_records),
+        MappingProxyType(dict(reason_records)),
+        MappingProxyType(
+            {
+                record_scope: tuple(sorted(reasons))
+                for record_scope, reasons in sorted(
+                    reasons_by_scope.items()
+                )
+            }
+        ),
     )
 
 
@@ -340,7 +422,7 @@ def _identity_membership_decisions(
             membership_reasons.add("membership_universe_kind_mismatch")
 
     for evaluation in evaluations:
-        membership_lineage = resolve_lineage(
+        membership_lineage = _compose_scoped_lineage(
             parsed.memberships,
             row_id=lambda row: row.membership_row_id,
             parent_id=lambda row: row.supersedes_membership_row_id,
@@ -354,31 +436,20 @@ def _identity_membership_decisions(
         )
         membership_reasons.update(membership_lineage.reason_codes)
         if membership_lineage.reason_codes:
-            lineage_records = _lineage_reason_records(
-                parsed.memberships,
-                row_id=lambda row: row.membership_row_id,
-                parent_id=lambda row: row.supersedes_membership_row_id,
-                scope=lambda row: (
-                    f"{row.universe_id}:{row.security_id}"
-                ),
-                available_at=lambda row: max(
-                    row.observation_at,
-                    row.source_published_at,
-                    row.retrieved_at,
-                ),
-                cutoff=evaluation.evaluation_at,
-            )
             for reason in membership_lineage.reason_codes:
                 excluded.extend(
                     _record_exclusions(
                         parsed,
                         "membership",
-                        lineage_records.get(reason, ()),
+                        membership_lineage.reason_records.get(
+                            reason,
+                            (),
+                        ),
                         lambda row: row.membership_row_id,
                         (reason,),
                     )
                 )
-        identity_lineage = resolve_lineage(
+        identity_lineage = _compose_scoped_lineage(
             parsed.identities,
             row_id=lambda row: row.identity_row_id,
             parent_id=lambda row: row.supersedes_identity_row_id,
@@ -391,23 +462,15 @@ def _identity_membership_decisions(
         )
         identity_reasons.update(identity_lineage.reason_codes)
         if identity_lineage.reason_codes:
-            lineage_records = _lineage_reason_records(
-                parsed.identities,
-                row_id=lambda row: row.identity_row_id,
-                parent_id=lambda row: row.supersedes_identity_row_id,
-                scope=lambda row: f"{row.security_id}:{row.issuer_id}",
-                available_at=lambda row: max(
-                    row.source_published_at,
-                    row.retrieved_at,
-                ),
-                cutoff=evaluation.evaluation_at,
-            )
             for reason in identity_lineage.reason_codes:
                 excluded.extend(
                     _record_exclusions(
                         parsed,
                         "security_identity",
-                        lineage_records.get(reason, ()),
+                        identity_lineage.reason_records.get(
+                            reason,
+                            (),
+                        ),
                         lambda row: row.identity_row_id,
                         (reason,),
                     )
@@ -445,39 +508,45 @@ def _identity_membership_decisions(
 
         active_identity_by_security: dict[str, IdentityObservation] = {}
         overlapping_identity_security_ids: set[str] = set()
-        if not identity_lineage.reason_codes:
-            available_identity_by_security: dict[str, list] = {}
-            for row in identity_lineage.leaves:
-                available_identity_by_security.setdefault(
-                    row.security_id,
-                    [],
-                ).append(row)
-            for security_id, identity_rows in (
-                available_identity_by_security.items()
-            ):
-                active = tuple(
-                    row
-                    for row in identity_rows
-                    if _contains(
-                        row.valid_from,
-                        row.valid_to,
-                        evaluation.evaluation_at,
+        identity_lineage_reasons_by_security: dict[str, set[str]] = {}
+        for reason, offenders in identity_lineage.reason_records.items():
+            for offender in offenders:
+                identity_lineage_reasons_by_security.setdefault(
+                    offender.security_id,
+                    set(),
+                ).add(reason)
+        available_identity_by_security: dict[str, list] = {}
+        for row in identity_lineage.leaves:
+            available_identity_by_security.setdefault(
+                row.security_id,
+                [],
+            ).append(row)
+        for security_id, identity_rows in (
+            available_identity_by_security.items()
+        ):
+            active = tuple(
+                row
+                for row in identity_rows
+                if _contains(
+                    row.valid_from,
+                    row.valid_to,
+                    evaluation.evaluation_at,
+                )
+            )
+            if len(active) > 1:
+                identity_reasons.add("identity_interval_overlap")
+                overlapping_identity_security_ids.add(security_id)
+                excluded.extend(
+                    _record_exclusions(
+                        parsed,
+                        "security_identity",
+                        active,
+                        lambda row: row.identity_row_id,
+                        ("identity_interval_overlap",),
                     )
                 )
-                if len(active) > 1:
-                    identity_reasons.add("identity_interval_overlap")
-                    overlapping_identity_security_ids.add(security_id)
-                    excluded.extend(
-                        _record_exclusions(
-                            parsed,
-                            "security_identity",
-                            active,
-                            lambda row: row.identity_row_id,
-                            ("identity_interval_overlap",),
-                        )
-                    )
-                elif len(active) == 1:
-                    active_identity_by_security[security_id] = active[0]
+            elif len(active) == 1:
+                active_identity_by_security[security_id] = active[0]
 
         members: set[str] = set()
         structurally_eligible_members = 0
@@ -526,7 +595,7 @@ def _identity_membership_decisions(
                 prior_display is None
                 or evaluation_key > prior_display[0]
             )
-            if identity_lineage.reason_codes:
+            if security_id in identity_lineage_reasons_by_security:
                 if is_latest_display:
                     display_candidates[security_id] = (
                         evaluation_key,
@@ -541,7 +610,7 @@ def _identity_membership_decisions(
                             leaf.membership_row_id,
                         ),
                         leaf.membership_row_id,
-                        identity_lineage.reason_codes,
+                        ("identity_missing",),
                     )
                 )
                 continue
@@ -843,7 +912,7 @@ def _temporal_decision(
                 ),
             )
 
-        membership_lineage = resolve_lineage(
+        membership_lineage = _compose_scoped_lineage(
             parsed.memberships,
             row_id=lambda row: row.membership_row_id,
             parent_id=lambda row: row.supersedes_membership_row_id,
@@ -1280,7 +1349,7 @@ def _member_security_ids_for_evaluation(
     )
     if latest_snapshot_at is None:
         return EvaluationMemberScope(frozenset(), False)
-    lineage = resolve_lineage(
+    lineage = _compose_scoped_lineage(
         parsed.memberships,
         row_id=lambda row: row.membership_row_id,
         parent_id=lambda row: row.supersedes_membership_row_id,
@@ -1292,8 +1361,11 @@ def _member_security_ids_for_evaluation(
         ),
         cutoff=evaluation.evaluation_at,
     )
-    if lineage.reason_codes:
-        return EvaluationMemberScope(frozenset(), False)
+    universe_scope_prefix = f"{evaluation.universe_id}:"
+    universe_scope_invalid = any(
+        record_scope.startswith(universe_scope_prefix)
+        for record_scope in lineage.reasons_by_scope
+    )
     security_ids = frozenset({
         row.security_id
         for row in lineage.leaves
@@ -1311,7 +1383,7 @@ def _member_security_ids_for_evaluation(
     })
     return EvaluationMemberScope(
         security_ids,
-        bool(security_ids),
+        bool(security_ids) and not universe_scope_invalid,
     )
 
 
@@ -1322,7 +1394,12 @@ def _event_decisions(
 ) -> tuple[Decision, Decision, tuple[ExcludedRow, ...]]:
     action_reasons: set[str] = set()
     delisting_reasons: set[str] = set()
-    exclusion_reasons: dict[str, set[str]] = {}
+    exclusion_reasons: dict[tuple[int, str], set[str]] = {}
+    event_source_rows = _record_source_rows(
+        parsed,
+        "events",
+        parsed.events,
+    )
     listing_state_event_types = {
         "delisting",
         "suspension",
@@ -1336,7 +1413,10 @@ def _event_decisions(
 
     def exclude(event, *reasons: str) -> None:
         exclusion_reasons.setdefault(
-            event.event_row_id,
+            (
+                event_source_rows[id(event)],
+                event.event_row_id,
+            ),
             set(),
         ).update(reasons)
 
@@ -1384,76 +1464,25 @@ def _event_decisions(
             evaluation,
         )
         member_security_ids = member_scope.security_ids
-        visible_events = tuple(
-            event
-            for event in parsed.events
-            if max(
+        lineage = _compose_scoped_lineage(
+            parsed.events,
+            row_id=lambda event: event.event_row_id,
+            parent_id=lambda event: event.supersedes_event_row_id,
+            scope=lambda event: (
+                f"{event.security_id}:{event.event_type}"
+            ),
+            available_at=lambda event: max(
                 event.effective_at,
                 event.source_published_at,
                 event.retrieved_at,
-            )
-            <= evaluation_at
+            ),
+            cutoff=evaluation_at,
         )
-        visible_by_id = {
-            event.event_row_id: event
-            for event in visible_events
-        }
-        events_by_scope: dict[tuple[str, str], list] = {}
-        for event in visible_events:
-            events_by_scope.setdefault(
-                (event.security_id, event.event_type),
-                [],
-            ).append(event)
-
-        leaves: list = []
-        for scope, scope_events in sorted(events_by_scope.items()):
-            cross_scope_events = tuple(
-                event
-                for event in scope_events
-                if (
-                    event.supersedes_event_row_id
-                    and event.supersedes_event_row_id in visible_by_id
-                    and (
-                        visible_by_id[
-                            event.supersedes_event_row_id
-                        ].security_id,
-                        visible_by_id[
-                            event.supersedes_event_row_id
-                        ].event_type,
-                    )
-                    != scope
-                )
-            )
-            if cross_scope_events:
-                target_reasons(scope[1]).add(
-                    "lineage_cross_scope_parent"
-                )
-                for event in cross_scope_events:
-                    exclude(event, "lineage_cross_scope_parent")
-                continue
-
-            lineage = resolve_lineage(
-                scope_events,
-                row_id=lambda event: event.event_row_id,
-                parent_id=lambda event: event.supersedes_event_row_id,
-                scope=lambda event: (
-                    f"{event.security_id}:{event.event_type}"
-                ),
-                available_at=lambda event: max(
-                    event.effective_at,
-                    event.source_published_at,
-                    event.retrieved_at,
-                ),
-                cutoff=evaluation_at,
-            )
-            if lineage.reason_codes:
-                target_reasons(scope[1]).update(
-                    lineage.reason_codes
-                )
-                for event in lineage.excluded:
-                    exclude(event, *lineage.reason_codes)
-                continue
-            leaves.extend(lineage.leaves)
+        for reason, offenders in lineage.reason_records.items():
+            for event in offenders:
+                target_reasons(event.event_type).add(reason)
+                exclude(event, reason)
+        leaves = lineage.leaves
 
         leaves_by_scope = {
             (event.security_id, event.event_type): event
@@ -1607,11 +1636,14 @@ def _event_decisions(
     excluded = tuple(
         ExcludedRow(
             "events",
-            _row_number(parsed, "events", row_id),
+            source_row,
             row_id,
             tuple(sorted(reasons)),
         )
-        for row_id, reasons in sorted(exclusion_reasons.items())
+        for (
+            source_row,
+            row_id,
+        ), reasons in sorted(exclusion_reasons.items())
     )
     return (
         Decision(
@@ -1740,7 +1772,7 @@ def _analysis_row_references(
                 evaluation_row_id=evaluation_row_id,
             )
         )
-        membership_lineage = resolve_lineage(
+        membership_lineage = _compose_scoped_lineage(
             parsed.memberships,
             row_id=lambda row: row.membership_row_id,
             parent_id=lambda row: row.supersedes_membership_row_id,
@@ -1752,7 +1784,7 @@ def _analysis_row_references(
             ),
             cutoff=evaluation.evaluation_at,
         )
-        identity_lineage = resolve_lineage(
+        identity_lineage = _compose_scoped_lineage(
             parsed.identities,
             row_id=lambda row: row.identity_row_id,
             parent_id=lambda row: row.supersedes_identity_row_id,
@@ -1837,49 +1869,32 @@ def _analysis_row_references(
                 )
             )
 
-        visible_events = tuple(
-            event
-            for event in parsed.events
-            if max(
+        event_lineage = _compose_scoped_lineage(
+            parsed.events,
+            row_id=lambda event: event.event_row_id,
+            parent_id=lambda event: event.supersedes_event_row_id,
+            scope=lambda event: (
+                f"{event.security_id}:{event.event_type}"
+            ),
+            available_at=lambda event: max(
                 event.effective_at,
                 event.source_published_at,
                 event.retrieved_at,
-            )
-            <= evaluation.evaluation_at
+            ),
+            cutoff=evaluation.evaluation_at,
         )
-        events_by_scope: dict[tuple[str, str], list] = {}
-        for event in visible_events:
-            events_by_scope.setdefault(
-                (event.security_id, event.event_type),
-                [],
-            ).append(event)
-        for scope_events in events_by_scope.values():
-            lineage = resolve_lineage(
-                scope_events,
-                row_id=lambda event: event.event_row_id,
-                parent_id=lambda event: event.supersedes_event_row_id,
-                scope=lambda event: (
-                    f"{event.security_id}:{event.event_type}"
-                ),
-                available_at=lambda event: max(
-                    event.effective_at,
-                    event.source_published_at,
-                    event.retrieved_at,
-                ),
-                cutoff=evaluation.evaluation_at,
-            )
-            if lineage.reason_codes:
-                return ()
-            for event in lineage.leaves:
-                if event.security_id in member_security_ids:
-                    references.add(
-                        _row_reference(
-                            parsed,
-                            "events",
-                            event.event_row_id,
-                            evaluation_row_id=evaluation_row_id,
-                        )
+        if event_lineage.reason_codes:
+            return ()
+        for event in event_lineage.leaves:
+            if event.security_id in member_security_ids:
+                references.add(
+                    _row_reference(
+                        parsed,
+                        "events",
+                        event.event_row_id,
+                        evaluation_row_id=evaluation_row_id,
                     )
+                )
 
     return tuple(
         sorted(
