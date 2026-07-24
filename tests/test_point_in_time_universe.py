@@ -21,7 +21,6 @@ EXPECTED_REASON_PREFIXES = {
     "cutoff_",
     "leakage_",
     "partition_",
-    "reproduction_",
 }
 
 EXPECTED_EXCLUSION_CODES = {
@@ -62,7 +61,6 @@ EXPECTED_EXCLUSION_CODES = {
     "partition_assignment_invalid",
     "partition_minimum_history_unmet",
     "partition_boundary_unassigned",
-    "reproduction_evaluation_after_manifest_cutoff",
 }
 
 EXPECTED_EXCLUSION_PREFIXES = {
@@ -75,7 +73,6 @@ EXPECTED_EXCLUSION_PREFIXES = {
     "cutoff_",
     "leakage_",
     "partition_",
-    "reproduction_",
 }
 
 EXCLUSION_MUTATION_CASES = (
@@ -2093,6 +2090,12 @@ def test_partition_invalid_evaluation_is_not_an_event_cutoff(tmp_path):
     ).reason_codes
     assert _decision(packet, "corporate_action_coverage").status == "passed"
     assert _decision(packet, "corporate_action_coverage").reason_codes == ()
+    assert _decision(packet, "temporal_validity").status == "passed"
+    assert _decision(packet, "reproduction_ready").status == "passed"
+    assert all(
+        digest.evaluation_at != "2019-01-01T00:00:00Z"
+        for digest in packet.membership_digests
+    )
 
 
 def test_no_valid_evaluation_fails_required_event_coverage_closed(tmp_path):
@@ -2104,6 +2107,139 @@ def test_no_valid_evaluation_fails_required_event_coverage_closed(tmp_path):
     packet = validate_point_in_time_universe(manifest, registry)
 
     assert _decision(packet, "membership_coverage").status == "blocked"
+    assert _decision(packet, "corporate_action_coverage").status == "blocked"
+    assert _decision(
+        packet,
+        "corporate_action_coverage",
+    ).reason_codes == ("corporate_action_evidence_missing",)
+    assert packet.analysis_eligible is False
+
+
+def test_one_member_event_satisfies_type_level_coverage_for_member_scope(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_identity(rows):
+        rows.append(
+            {
+                **rows[0],
+                "identity_row_id": "id-2",
+                "security_id": "sec-2",
+                "issuer_id": "issuer-2",
+                "ticker": "BBB",
+                "source_ref": "fixture://identity/id-2",
+            }
+        )
+
+    def add_memberships(rows):
+        rows.extend(
+            {
+                **row,
+                "membership_row_id": (
+                    f"{row['membership_row_id']}-sec-2"
+                ),
+                "security_id": "sec-2",
+                "source_ref": f"{row['source_ref']}/sec-2",
+            }
+            for row in list(rows)
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        add_identity,
+    )
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        add_memberships,
+    )
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        lambda rows: rows[0].update(
+            event_type="split",
+            ratio_numerator="2",
+            ratio_denominator="1",
+        ),
+    )
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["corporate_action_policy"].update(
+            {"listing": "not_applicable", "split": "required"}
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "membership_coverage").status == "passed"
+    assert all(
+        digest.member_count == 2
+        for digest in packet.membership_digests
+    )
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+    assert _decision(packet, "corporate_action_coverage").reason_codes == ()
+    assert packet.analysis_eligible is True
+
+
+def test_empty_membership_scope_fails_required_event_coverage_closed(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _replace_contract_rows(manifest, "membership", [])
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "membership_coverage").status == "blocked"
+    assert _decision(packet, "corporate_action_coverage").status == "blocked"
+    assert _decision(
+        packet,
+        "corporate_action_coverage",
+    ).reason_codes == ("corporate_action_evidence_missing",)
+    assert packet.analysis_eligible is False
+
+
+def test_ambiguous_membership_scope_fails_required_event_coverage_closed(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def fork_membership(rows):
+        base = rows[0]
+        for suffix, month in (("a", "02"), ("b", "03")):
+            rows.append(
+                {
+                    **base,
+                    "membership_row_id": f"member-fork-{suffix}",
+                    "source_ref": f"fixture://membership/fork-{suffix}",
+                    "source_published_at": (
+                        f"2020-{month}-01T00:00:00Z"
+                    ),
+                    "retrieved_at": f"2020-{month}-02T00:00:00Z",
+                    "supersedes_membership_row_id": (
+                        base["membership_row_id"]
+                    ),
+                }
+            )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        fork_membership,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "membership_coverage").status == "blocked"
+    assert "lineage_fork" in _decision(
+        packet,
+        "membership_coverage",
+    ).reason_codes
     assert _decision(packet, "corporate_action_coverage").status == "blocked"
     assert _decision(
         packet,
@@ -2380,7 +2516,7 @@ def test_post_cutoff_evidence_is_excluded_without_poisoning_independent_states(
         "source_rights_eligibility",
     ):
         assert _decision(packet, independent).status == "passed"
-    if contract == "events":
+    if contract in {"events", "membership"}:
         assert _decision(
             packet,
             "corporate_action_coverage",
@@ -2874,10 +3010,8 @@ def test_evaluation_after_manifest_cutoff_is_classified_not_silently_dropped(
         "leakage_evaluation_after_manifest_cutoff"
         in _decision(packet, "leakage_safe").reason_codes
     )
-    assert _decision(packet, "reproduction_ready").status == "blocked"
-    assert _decision(packet, "reproduction_ready").reason_codes == (
-        "reproduction_evaluation_after_manifest_cutoff",
-    )
+    assert _decision(packet, "reproduction_ready").status == "passed"
+    assert _decision(packet, "reproduction_ready").reason_codes == ()
     assert any(
         row.contract == "evaluations"
         and row.row_id == "eval-after-manifest-cutoff"
@@ -2885,7 +3019,6 @@ def test_evaluation_after_manifest_cutoff_is_classified_not_silently_dropped(
         == (
             "cutoff_evaluation_after_manifest",
             "leakage_evaluation_after_manifest_cutoff",
-            "reproduction_evaluation_after_manifest_cutoff",
         )
         for row in packet.excluded
     )

@@ -45,6 +45,12 @@ class MembershipDigest:
 
 
 @dataclass(frozen=True)
+class EvaluationMemberScope:
+    security_ids: frozenset[str]
+    resolved: bool
+
+
+@dataclass(frozen=True)
 class PointInTimeUniversePacket:
     dataset_id: str
     manifest_id: str
@@ -114,6 +120,7 @@ def _row_number(
 def _identity_membership_decisions(
     manifest: UniverseManifest,
     parsed: ParsedUniverseEvidence,
+    evaluations,
 ):
     declared = {
         item["universe_id"]: item["universe_kind"]
@@ -124,7 +131,6 @@ def _identity_membership_decisions(
     excluded: list[ExcludedRow] = []
     digests: list[MembershipDigest] = []
     display_candidates: dict[str, tuple[tuple, str | None]] = {}
-    cutoff = parse_utc(manifest.observation_cutoff_at)
     complete_snapshot_supported = (
         manifest.coverage_semantics == "complete_snapshot"
     )
@@ -136,8 +142,7 @@ def _identity_membership_decisions(
         sorted(
             (
                 item
-                for item in parsed.evaluations
-                if item.evaluation_at <= cutoff
+                for item in evaluations
             ),
             key=lambda item: (
                 item.evaluation_at,
@@ -446,11 +451,16 @@ def _identity_membership_decisions(
 def _temporal_decision(
     manifest: UniverseManifest,
     parsed: ParsedUniverseEvidence,
+    evaluations,
 ) -> tuple[Decision, tuple[str, ...], tuple[ExcludedRow, ...]]:
     temporal_reasons: set[str] = set()
     leakage_reasons: set[str] = set()
     exclusion_reasons: dict[tuple[str, str], set[str]] = {}
     manifest_cutoff = parse_utc(manifest.observation_cutoff_at)
+    valid_evaluation_ids = {
+        evaluation.evaluation_row_id
+        for evaluation in evaluations
+    }
 
     def record_exclusion(
         contract: str,
@@ -472,7 +482,6 @@ def _temporal_decision(
                 evaluation.evaluation_row_id,
                 "cutoff_evaluation_after_manifest",
                 "leakage_evaluation_after_manifest_cutoff",
-                "reproduction_evaluation_after_manifest_cutoff",
             )
             continue
         if evaluation.available_at > evaluation.evaluation_at:
@@ -484,6 +493,8 @@ def _temporal_decision(
                 "cutoff_evaluation_unavailable",
                 "leakage_evaluation_available_late",
             )
+        if evaluation.evaluation_row_id not in valid_evaluation_ids:
+            continue
 
         def classify_scope(
             contract,
@@ -981,15 +992,15 @@ def _member_security_ids_for_evaluation(
     manifest,
     parsed,
     evaluation,
-) -> set[str]:
+) -> EvaluationMemberScope:
     if manifest.coverage_semantics != "complete_snapshot":
-        return set()
+        return EvaluationMemberScope(frozenset(), False)
     expected_kind = {
         item["universe_id"]: item["universe_kind"]
         for item in manifest.declared_universes
     }.get(evaluation.universe_id)
     if expected_kind is None:
-        return set()
+        return EvaluationMemberScope(frozenset(), False)
     scoped_memberships = tuple(
         row
         for row in parsed.memberships
@@ -1009,6 +1020,8 @@ def _member_security_ids_for_evaluation(
         (row.observation_at for row in cutoff_available),
         default=None,
     )
+    if latest_snapshot_at is None:
+        return EvaluationMemberScope(frozenset(), False)
     lineage = resolve_lineage(
         parsed.memberships,
         row_id=lambda row: row.membership_row_id,
@@ -1022,8 +1035,8 @@ def _member_security_ids_for_evaluation(
         cutoff=evaluation.evaluation_at,
     )
     if lineage.reason_codes:
-        return set()
-    return {
+        return EvaluationMemberScope(frozenset(), False)
+    security_ids = frozenset({
         row.security_id
         for row in lineage.leaves
         if (
@@ -1037,7 +1050,11 @@ def _member_security_ids_for_evaluation(
                 evaluation.evaluation_at,
             )
         )
-    }
+    })
+    return EvaluationMemberScope(
+        security_ids,
+        bool(security_ids),
+    )
 
 
 def _event_decisions(
@@ -1103,11 +1120,12 @@ def _event_decisions(
 
     for evaluation in evaluations:
         evaluation_at = evaluation.evaluation_at
-        member_security_ids = _member_security_ids_for_evaluation(
+        member_scope = _member_security_ids_for_evaluation(
             manifest,
             parsed,
             evaluation,
         )
+        member_security_ids = member_scope.security_ids
         visible_events = tuple(
             event
             for event in parsed.events
@@ -1299,8 +1317,9 @@ def _event_decisions(
             if state != "required":
                 continue
             missing_member_evidence = (
-                any(
-                    (security_id, event_type) not in leaves_by_scope
+                not member_scope.resolved
+                or not any(
+                    (security_id, event_type) in leaves_by_scope
                     for security_id in member_security_ids
                 )
             )
@@ -1441,22 +1460,27 @@ def validate_point_in_time_universe(
             )
         ),
     )
+    valid_evaluations, _, _ = _classify_evaluations(
+        package.manifest,
+        parsed.evaluations,
+    )
     identity, membership, digests, display, composed_excluded = (
-        _identity_membership_decisions(package.manifest, parsed)
+        _identity_membership_decisions(
+            package.manifest,
+            parsed,
+            valid_evaluations,
+        )
     )
     decisions[identity.area] = identity
     decisions[membership.area] = membership
     excluded.extend(composed_excluded)
     temporal, cutoff_leakage, temporal_excluded = _temporal_decision(
         package.manifest,
-        parsed
+        parsed,
+        valid_evaluations,
     )
     decisions[temporal.area] = temporal
     excluded.extend(temporal_excluded)
-    valid_evaluations, _, _ = _classify_evaluations(
-        package.manifest,
-        parsed.evaluations,
-    )
     corporate_action, delisting, event_excluded = _event_decisions(
         package.manifest,
         parsed,
@@ -1474,7 +1498,7 @@ def validate_point_in_time_universe(
     reproduction = _reproduction_decision(
         package.manifest,
         digests,
-        parsed.evaluations,
+        valid_evaluations,
     )
     decisions[reproduction.area] = reproduction
     leakage, partition_excluded = _partition_validation(
