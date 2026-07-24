@@ -691,6 +691,107 @@ def test_identity_and_membership_fail_closed(tmp_path, case, reason):
     assert packet.analysis_eligible is False
 
 
+@pytest.mark.parametrize(
+    "case,reason",
+    [
+        ("undeclared_universe", "membership_universe_undeclared"),
+        ("kind_mismatch", "membership_universe_kind_mismatch"),
+    ],
+)
+def test_invalid_membership_row_has_exact_complete_exclusion(
+    tmp_path,
+    case,
+    reason,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    baseline = validate_point_in_time_universe(manifest, registry)
+    baseline_research_digest = _digest_by_universe(baseline)["research-1"]
+    mutate_identity_membership_case(manifest, case)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    membership_exclusions = tuple(
+        row
+        for row in packet.excluded
+        if row.contract == "membership"
+    )
+
+    assert _decision(packet, "membership_coverage").status == "blocked"
+    assert reason in _decision(
+        packet,
+        "membership_coverage",
+    ).reason_codes
+    assert len(membership_exclusions) == 1
+    offender = membership_exclusions[0]
+    assert (
+        offender.contract,
+        offender.source_row,
+        offender.row_id,
+        offender.reason_codes,
+    ) == (
+        "membership",
+        2,
+        "member-bench-1",
+        (reason,),
+    )
+    assert packet.excluded_count == 1
+    assert dict(packet.exclusion_reason_counts) == {reason: 1}
+    assert all(
+        row.row_id != "member-research-1"
+        for row in packet.excluded
+    )
+    assert (
+        _digest_by_universe(packet)["research-1"]
+        == baseline_research_digest
+    )
+    assert packet.analysis_eligible_rows == ()
+
+
+def test_membership_row_exclusion_unions_kind_and_lineage_reasons(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def make_kind_and_lineage_invalid(rows):
+        rows[0].update(
+            universe_kind="research_universe",
+            supersedes_membership_row_id="member-missing-parent",
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        make_kind_and_lineage_invalid,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    offender = next(
+        row
+        for row in packet.excluded
+        if (
+            row.contract == "membership"
+            and row.row_id == "member-bench-1"
+        )
+    )
+
+    assert (
+        offender.source_row,
+        offender.reason_codes,
+    ) == (
+        2,
+        (
+            "lineage_missing_parent",
+            "membership_universe_kind_mismatch",
+        ),
+    )
+    assert dict(packet.exclusion_reason_counts) == {
+        "lineage_missing_parent": 1,
+        "membership_universe_kind_mismatch": 1,
+    }
+    assert packet.excluded_count == 1
+
+
 def mutate_identity_membership_case(manifest, case):
     if case == "overlapping_identity":
 

@@ -438,9 +438,27 @@ def _identity_membership_decisions(
     for row in parsed.memberships:
         expected_kind = declared.get(row.universe_id)
         if expected_kind is None:
-            membership_reasons.add("membership_universe_undeclared")
+            reason = "membership_universe_undeclared"
+            membership_reasons.add(reason)
+            excluded.append(
+                _excluded_record(
+                    source_index,
+                    "membership",
+                    row,
+                    (reason,),
+                )
+            )
         elif row.universe_kind != expected_kind:
-            membership_reasons.add("membership_universe_kind_mismatch")
+            reason = "membership_universe_kind_mismatch"
+            membership_reasons.add(reason)
+            excluded.append(
+                _excluded_record(
+                    source_index,
+                    "membership",
+                    row,
+                    (reason,),
+                )
+            )
 
     for evaluation in evaluations:
         membership_lineage = _compose_scoped_lineage(
