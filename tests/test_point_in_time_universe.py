@@ -1497,11 +1497,14 @@ def test_later_revision_is_invisible_at_earlier_evaluation(tmp_path):
 
     assert _digest_by_universe(packet)["bench-1"].member_count == 1
     assert _digest_by_universe(packet)["research-1"].member_count == 1
-    assert any(
-        row.row_id == "member-late"
-        and "leakage_post_cutoff_evidence" in row.reason_codes
+    assert _decision(packet, "temporal_validity").status == "passed"
+    assert _decision(packet, "leakage_safe").status == "passed"
+    assert next(
+        row
         for row in packet.excluded
-    )
+        if row.row_id == "member-late"
+    ).reason_codes == ("cutoff_later_revision_invisible",)
+    assert packet.analysis_eligible is True
 
 
 def test_repeated_validation_reproduces_all_canonical_outputs(tmp_path):
@@ -1749,3 +1752,339 @@ def test_not_applicable_is_accepted_only_for_delisting_contract(tmp_path):
         packet.membership_digests,
         declared,
     ) is False
+
+
+def test_evaluation_after_manifest_cutoff_is_classified_not_silently_dropped(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_post_manifest_evaluation(rows):
+        rows.append(
+            {
+                **rows[-1],
+                "evaluation_row_id": "eval-after-manifest-cutoff",
+                "evaluation_at": "2022-01-01T00:00:00Z",
+                "available_at": "2022-01-01T00:00:00Z",
+                "source_ref": "fixture://evaluation/after-manifest-cutoff",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        add_post_manifest_evaluation,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "temporal_validity").status == "blocked"
+    assert _decision(packet, "temporal_validity").reason_codes == (
+        "cutoff_evaluation_after_manifest",
+    )
+    assert _decision(packet, "leakage_safe").status == "blocked"
+    assert (
+        "leakage_evaluation_after_manifest_cutoff"
+        in _decision(packet, "leakage_safe").reason_codes
+    )
+    assert _decision(packet, "reproduction_ready").status == "blocked"
+    assert _decision(packet, "reproduction_ready").reason_codes == (
+        "reproduction_evaluation_after_manifest_cutoff",
+    )
+    assert any(
+        row.contract == "evaluations"
+        and row.row_id == "eval-after-manifest-cutoff"
+        and row.reason_codes
+        == (
+            "cutoff_evaluation_after_manifest",
+            "leakage_evaluation_after_manifest_cutoff",
+            "reproduction_evaluation_after_manifest_cutoff",
+        )
+        for row in packet.excluded
+    )
+    assert tuple(
+        digest.universe_id
+        for digest in packet.membership_digests
+    ) == ("bench-1", "research-1")
+    assert packet.analysis_eligible is False
+
+
+def test_walk_forward_policy_rejects_non_walk_forward_evaluation_rows(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        lambda rows: [
+            row.update(partition="test")
+            for row in rows
+        ],
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "leakage_safe").status == "blocked"
+    assert _decision(packet, "leakage_safe").reason_codes == (
+        "partition_assignment_invalid",
+    )
+    assert {
+        row.row_id: row.reason_codes
+        for row in packet.excluded
+        if row.contract == "evaluations"
+    } == {
+        "eval-bench-1": ("partition_assignment_invalid",),
+        "eval-research-1": ("partition_assignment_invalid",),
+    }
+    assert packet.analysis_eligible is False
+
+
+def test_train_validation_test_policy_enforces_row_time_boundaries(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw.update(
+            evaluation_policy={
+                "kind": "train_validation_test",
+                "train_end_at": "2020-06-01T00:00:00Z",
+                "validation_start_at": "2020-08-01T00:00:00Z",
+                "validation_end_at": "2021-06-01T00:00:00Z",
+                "test_start_at": "2021-08-01T00:00:00Z",
+            }
+        ),
+    )
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        lambda rows: [
+            row.update(
+                evaluation_at="2020-07-01T00:00:00Z",
+                available_at="2020-07-01T00:00:00Z",
+                partition="train",
+            )
+            for row in rows
+        ],
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "leakage_safe").status == "blocked"
+    assert _decision(packet, "leakage_safe").reason_codes == (
+        "partition_boundary_unassigned",
+    )
+    assert all(
+        row.reason_codes == ("partition_boundary_unassigned",)
+        for row in packet.excluded
+        if row.contract == "evaluations"
+    )
+    assert packet.analysis_eligible is False
+
+
+def test_train_validation_test_policy_rejects_wrong_row_assignment(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw.update(
+            evaluation_policy={
+                "kind": "train_validation_test",
+                "train_end_at": "2020-06-01T00:00:00Z",
+                "validation_start_at": "2020-08-01T00:00:00Z",
+                "validation_end_at": "2021-06-01T00:00:00Z",
+                "test_start_at": "2021-08-01T00:00:00Z",
+            }
+        ),
+    )
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        lambda rows: [
+            row.update(partition="train")
+            for row in rows
+        ],
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "leakage_safe").status == "blocked"
+    assert _decision(packet, "leakage_safe").reason_codes == (
+        "partition_assignment_invalid",
+    )
+    assert all(
+        row.reason_codes == ("partition_assignment_invalid",)
+        for row in packet.excluded
+        if row.contract == "evaluations"
+    )
+    assert packet.analysis_eligible is False
+
+
+def test_walk_forward_minimum_history_uses_actual_universe_evaluations(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw.update(
+            evaluation_policy={
+                "kind": "walk_forward",
+                "minimum_history_count": 2,
+            }
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "leakage_safe").status == "blocked"
+    assert _decision(packet, "leakage_safe").reason_codes == (
+        "partition_minimum_history_unmet",
+    )
+    assert {
+        row.row_id: row.reason_codes
+        for row in packet.excluded
+        if row.contract == "evaluations"
+    } == {
+        "eval-bench-1": ("partition_minimum_history_unmet",),
+        "eval-research-1": ("partition_minimum_history_unmet",),
+    }
+    assert packet.analysis_eligible is False
+
+
+def test_later_identity_and_event_revisions_do_not_poison_earlier_evaluation(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_later_identity_revision(rows):
+        rows.append(
+            {
+                **rows[0],
+                "identity_row_id": "id-later-revision",
+                "ticker": "BBB",
+                "valid_from": "2022-01-01T00:00:00Z",
+                "source_ref": "fixture://identity/later-revision",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+                "supersedes_identity_row_id": rows[0][
+                    "identity_row_id"
+                ],
+            }
+        )
+
+    def add_later_event_revision(rows):
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-later-revision",
+                "effective_at": "2022-01-01T00:00:00Z",
+                "source_ref": "fixture://event/later-revision",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+                "supersedes_event_row_id": rows[0]["event_row_id"],
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        add_later_identity_revision,
+    )
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        add_later_event_revision,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "temporal_validity").status == "passed"
+    assert _decision(packet, "leakage_safe").status == "passed"
+    assert _decision(packet, "identity_coverage").status == "passed"
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+    assert packet.display_tickers == {"sec-1": "AAA"}
+    assert {
+        row.row_id: row.reason_codes
+        for row in packet.excluded
+        if row.row_id
+        in {"id-later-revision", "event-later-revision"}
+    } == {
+        "event-later-revision": ("cutoff_later_revision_invisible",),
+        "id-later-revision": ("cutoff_later_revision_invisible",),
+    }
+    assert packet.analysis_eligible is True
+
+
+def test_unrelated_future_identity_and_event_scopes_do_not_poison_evaluation(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_unrelated_identity(rows):
+        rows.append(
+            {
+                **rows[0],
+                "identity_row_id": "id-unrelated-future",
+                "security_id": "sec-unrelated",
+                "issuer_id": "issuer-unrelated",
+                "ticker": "ZZZ",
+                "valid_from": "2022-01-01T00:00:00Z",
+                "source_ref": "fixture://identity/unrelated-future",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+                "supersedes_identity_row_id": "",
+            }
+        )
+
+    def add_unrelated_event(rows):
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-unrelated-future",
+                "security_id": "sec-unrelated",
+                "effective_at": "2022-01-01T00:00:00Z",
+                "source_ref": "fixture://event/unrelated-future",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+                "supersedes_event_row_id": "",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        add_unrelated_identity,
+    )
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        add_unrelated_event,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "temporal_validity").status == "passed"
+    assert _decision(packet, "leakage_safe").status == "passed"
+    assert _decision(packet, "identity_coverage").status == "passed"
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+    assert {
+        row.row_id: row.reason_codes
+        for row in packet.excluded
+        if row.row_id
+        in {"id-unrelated-future", "event-unrelated-future"}
+    } == {
+        "event-unrelated-future": ("cutoff_unrelated_scope_invisible",),
+        "id-unrelated-future": ("cutoff_unrelated_scope_invisible",),
+    }
+    assert packet.analysis_eligible is True

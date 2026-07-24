@@ -413,11 +413,13 @@ def _identity_membership_decisions(
 
 
 def _temporal_decision(
+    manifest: UniverseManifest,
     parsed: ParsedUniverseEvidence,
 ) -> tuple[Decision, tuple[str, ...], tuple[ExcludedRow, ...]]:
     temporal_reasons: set[str] = set()
     leakage_reasons: set[str] = set()
     exclusion_reasons: dict[tuple[str, str], set[str]] = {}
+    manifest_cutoff = parse_utc(manifest.observation_cutoff_at)
 
     def record_exclusion(
         contract: str,
@@ -429,6 +431,19 @@ def _temporal_decision(
         )
 
     for evaluation in parsed.evaluations:
+        if evaluation.evaluation_at > manifest_cutoff:
+            temporal_reasons.add("cutoff_evaluation_after_manifest")
+            leakage_reasons.add(
+                "leakage_evaluation_after_manifest_cutoff"
+            )
+            record_exclusion(
+                "evaluations",
+                evaluation.evaluation_row_id,
+                "cutoff_evaluation_after_manifest",
+                "leakage_evaluation_after_manifest_cutoff",
+                "reproduction_evaluation_after_manifest_cutoff",
+            )
+            continue
         if evaluation.available_at > evaluation.evaluation_at:
             temporal_reasons.add("cutoff_evaluation_unavailable")
             leakage_reasons.add("leakage_evaluation_available_late")
@@ -439,77 +454,141 @@ def _temporal_decision(
                 "leakage_evaluation_available_late",
             )
 
-        scoped = (
-            (
-                "security_identity",
-                parsed.identities,
-                lambda row: f"{row.security_id}:{row.issuer_id}",
-                lambda row: max(
-                    row.source_published_at,
-                    row.retrieved_at,
-                ),
-                lambda row: row.identity_row_id,
-            ),
-            (
+        def classify_scope(
+            contract,
+            rows,
+            available_at,
+            row_id,
+            *,
+            required,
+        ) -> None:
+            available = tuple(
+                row
+                for row in rows
+                if available_at(row) <= evaluation.evaluation_at
+            )
+            post_cutoff = tuple(
+                row
+                for row in rows
+                if available_at(row) > evaluation.evaluation_at
+            )
+            if not post_cutoff:
+                return
+            if required and not available:
+                temporal_reasons.update(
+                    {
+                        "cutoff_post_evaluation_evidence",
+                        "cutoff_required_scope_unavailable",
+                    }
+                )
+                leakage_reasons.add("leakage_post_cutoff_evidence")
+                for row in post_cutoff:
+                    record_exclusion(
+                        contract,
+                        row_id(row),
+                        "cutoff_post_evaluation_evidence",
+                        "cutoff_required_scope_unavailable",
+                        "leakage_post_cutoff_evidence",
+                    )
+                return
+            reason = (
+                "cutoff_later_revision_invisible"
+                if required
+                else "cutoff_unrelated_scope_invisible"
+            )
+            for row in post_cutoff:
+                record_exclusion(contract, row_id(row), reason)
+
+        membership_rows = tuple(
+            row
+            for row in parsed.memberships
+            if row.universe_id == evaluation.universe_id
+        )
+        memberships_by_security: dict[str, list] = {}
+        for row in membership_rows:
+            memberships_by_security.setdefault(
+                row.security_id,
+                [],
+            ).append(row)
+        for group in memberships_by_security.values():
+            classify_scope(
                 "membership",
-                tuple(
-                    row
-                    for row in parsed.memberships
-                    if row.universe_id == evaluation.universe_id
-                ),
-                lambda row: f"{row.universe_id}:{row.security_id}",
+                group,
                 lambda row: max(
                     row.observation_at,
                     row.source_published_at,
                     row.retrieved_at,
                 ),
                 lambda row: row.membership_row_id,
+                required=True,
+            )
+
+        membership_lineage = resolve_lineage(
+            parsed.memberships,
+            row_id=lambda row: row.membership_row_id,
+            parent_id=lambda row: row.supersedes_membership_row_id,
+            scope=lambda row: f"{row.universe_id}:{row.security_id}",
+            available_at=lambda row: max(
+                row.observation_at,
+                row.source_published_at,
+                row.retrieved_at,
             ),
-            (
+            cutoff=evaluation.evaluation_at,
+        )
+        member_security_ids = {
+            row.security_id
+            for row in membership_lineage.leaves
+            if (
+                row.universe_id == evaluation.universe_id
+                and row.membership_state == "included"
+                and _contains(
+                    row.effective_from,
+                    row.effective_to,
+                    evaluation.evaluation_at,
+                )
+            )
+        }
+
+        identities_by_security: dict[str, list] = {}
+        for row in parsed.identities:
+            identities_by_security.setdefault(
+                row.security_id,
+                [],
+            ).append(row)
+        for security_id, group in identities_by_security.items():
+            classify_scope(
+                "security_identity",
+                group,
+                lambda row: max(
+                    row.source_published_at,
+                    row.retrieved_at,
+                ),
+                lambda row: row.identity_row_id,
+                required=security_id in member_security_ids,
+            )
+
+        events_by_scope: dict[tuple[str, str], list] = {}
+        for row in parsed.events:
+            events_by_scope.setdefault(
+                (row.security_id, row.event_type),
+                [],
+            ).append(row)
+        for (security_id, event_type), group in events_by_scope.items():
+            classify_scope(
                 "events",
-                parsed.events,
-                lambda row: f"{row.security_id}:{row.event_type}",
+                group,
                 lambda row: max(
                     row.effective_at,
                     row.source_published_at,
                     row.retrieved_at,
                 ),
                 lambda row: row.event_row_id,
-            ),
-        )
-        for contract, rows, scope, available_at, row_id in scoped:
-            groups: dict[str, list] = {}
-            for row in rows:
-                groups.setdefault(scope(row), []).append(row)
-            for group in groups.values():
-                available = tuple(
-                    row
-                    for row in group
-                    if available_at(row) <= evaluation.evaluation_at
-                )
-                post_cutoff = tuple(
-                    row
-                    for row in group
-                    if available_at(row) > evaluation.evaluation_at
-                )
-                if post_cutoff:
-                    temporal_reasons.add("cutoff_post_evaluation_evidence")
-                    leakage_reasons.add("leakage_post_cutoff_evidence")
-                    for row in post_cutoff:
-                        record_exclusion(
-                            contract,
-                            row_id(row),
-                            "cutoff_post_evaluation_evidence",
-                            "leakage_post_cutoff_evidence",
-                        )
-                if group and not available:
-                    temporal_reasons.add("cutoff_required_scope_unavailable")
-                    for row in post_cutoff:
-                        record_exclusion(
-                            contract,
-                            row_id(row),
-                            "cutoff_required_scope_unavailable",
-                        )
+                required=(
+                    security_id in member_security_ids
+                    and manifest.corporate_action_policy.get(event_type)
+                    == "required"
+                ),
+            )
 
     excluded = tuple(
         ExcludedRow(
@@ -533,12 +612,35 @@ def _temporal_decision(
     )
 
 
-def _partition_decision(
+def _partition_validation(
     manifest,
-    _evaluations,
+    evaluations,
     extra_reasons=(),
-) -> Decision:
+    parsed: ParsedUniverseEvidence | None = None,
+) -> tuple[Decision, tuple[ExcludedRow, ...]]:
     reasons = set(extra_reasons)
+    exclusion_reasons: dict[str, set[str]] = {}
+
+    def exclude(evaluation, reason: str) -> None:
+        reasons.add(reason)
+        exclusion_reasons.setdefault(
+            evaluation.evaluation_row_id,
+            set(),
+        ).add(reason)
+
+    manifest_cutoff = (
+        parse_utc(manifest.observation_cutoff_at)
+        if hasattr(manifest, "observation_cutoff_at")
+        else None
+    )
+    cutoff_evaluations = tuple(
+        evaluation
+        for evaluation in evaluations
+        if (
+            manifest_cutoff is None
+            or evaluation.evaluation_at <= manifest_cutoff
+        )
+    )
     policy = manifest.evaluation_policy
     if not isinstance(policy, Mapping):
         reasons.add("partition_policy_invalid")
@@ -550,6 +652,24 @@ def _partition_decision(
             or minimum <= 0
         ):
             reasons.add("partition_minimum_history_invalid")
+        else:
+            history_by_universe: dict[str, set[datetime]] = {}
+            for evaluation in cutoff_evaluations:
+                if evaluation.partition != "walk_forward":
+                    exclude(evaluation, "partition_assignment_invalid")
+                history_by_universe.setdefault(
+                    evaluation.universe_id,
+                    set(),
+                ).add(evaluation.evaluation_at)
+            for evaluation in cutoff_evaluations:
+                if (
+                    len(history_by_universe[evaluation.universe_id])
+                    < minimum
+                ):
+                    exclude(
+                        evaluation,
+                        "partition_minimum_history_unmet",
+                    )
     elif policy.get("kind") == "train_validation_test":
         try:
             train_end = parse_utc(policy["train_end_at"])
@@ -571,16 +691,74 @@ def _partition_decision(
                 < test_start
             ):
                 reasons.add("partition_order_invalid")
+            if not reasons.intersection(
+                {
+                    "partition_overlap",
+                    "partition_order_invalid",
+                }
+            ):
+                for evaluation in cutoff_evaluations:
+                    at = evaluation.evaluation_at
+                    if at <= train_end:
+                        expected_partition = "train"
+                    elif validation_start <= at <= validation_end:
+                        expected_partition = "validation"
+                    elif at >= test_start:
+                        expected_partition = "test"
+                    else:
+                        expected_partition = None
+                    if expected_partition is None:
+                        exclude(
+                            evaluation,
+                            "partition_boundary_unassigned",
+                        )
+                    elif evaluation.partition != expected_partition:
+                        exclude(
+                            evaluation,
+                            "partition_assignment_invalid",
+                        )
     else:
         reasons.add("partition_policy_invalid")
-    return Decision(
-        "leakage_safe",
-        "blocked" if reasons else "passed",
-        tuple(sorted(reasons)),
+    excluded = tuple(
+        ExcludedRow(
+            "evaluations",
+            (
+                _row_number(parsed, "evaluations", row_id)
+                if parsed is not None
+                else 0
+            ),
+            row_id,
+            tuple(sorted(row_reasons)),
+        )
+        for row_id, row_reasons in sorted(exclusion_reasons.items())
+    )
+    return (
+        Decision(
+            "leakage_safe",
+            "blocked" if reasons else "passed",
+            tuple(sorted(reasons)),
+        ),
+        excluded,
     )
 
 
-def _reproduction_decision(manifest, digests) -> Decision:
+def _partition_decision(
+    manifest,
+    evaluations,
+    extra_reasons=(),
+) -> Decision:
+    return _partition_validation(
+        manifest,
+        evaluations,
+        extra_reasons,
+    )[0]
+
+
+def _reproduction_decision(
+    manifest,
+    digests,
+    evaluations=(),
+) -> Decision:
     reasons: set[str] = set()
     if (
         manifest.reproduction_contract
@@ -593,6 +771,13 @@ def _reproduction_decision(manifest, digests) -> Decision:
     ]
     if len(keys) != len(set(keys)):
         reasons.add("reproduction_duplicate_evaluation")
+    if evaluations:
+        manifest_cutoff = parse_utc(manifest.observation_cutoff_at)
+        if any(
+            evaluation.evaluation_at > manifest_cutoff
+            for evaluation in evaluations
+        ):
+            reasons.add("reproduction_evaluation_after_manifest_cutoff")
     for item in digests:
         try:
             parse_utc(item.evaluation_at)
@@ -882,6 +1067,7 @@ def validate_point_in_time_universe(
     decisions[membership.area] = membership
     excluded.extend(composed_excluded)
     temporal, cutoff_leakage, temporal_excluded = _temporal_decision(
+        package.manifest,
         parsed
     )
     decisions[temporal.area] = temporal
@@ -902,14 +1088,17 @@ def validate_point_in_time_universe(
     reproduction = _reproduction_decision(
         package.manifest,
         digests,
+        parsed.evaluations,
     )
     decisions[reproduction.area] = reproduction
-    leakage = _partition_decision(
+    leakage, partition_excluded = _partition_validation(
         package.manifest,
         parsed.evaluations,
         cutoff_leakage,
+        parsed,
     )
     decisions[leakage.area] = leakage
+    excluded.extend(partition_excluded)
     ordered_decisions = MappingProxyType(
         {
             name: decisions[name]
