@@ -341,7 +341,11 @@ def load_universe_package(manifest_path: Path, registry_path: Path) -> LoadedUni
             unreadable_error="manifest_unreadable",
         )
         raw = json.loads(manifest_snapshot.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+        RecursionError,
+    ) as exc:
         raise ValueError("manifest_unreadable") from exc
     if not isinstance(raw, dict):
         raise ValueError("manifest_unreadable")

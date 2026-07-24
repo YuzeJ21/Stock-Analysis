@@ -90,6 +90,24 @@ def _block_source_rights(manifest: Path, registry: Path) -> None:
     manifest.write_text(json.dumps(raw), encoding="utf-8")
 
 
+def _replace_with_deeply_nested_input(
+    manifest: Path,
+    registry: Path,
+    resource: str,
+    depth: int = 2_000,
+) -> str:
+    nested = ("[" * depth + "0" + "]" * depth).encode("utf-8")
+    if resource == "manifest":
+        manifest.write_bytes(nested)
+        return "manifest_unreadable"
+
+    registry.write_bytes(nested)
+    raw = json.loads(manifest.read_text(encoding="utf-8"))
+    raw["source_rights_registry_sha256"] = hashlib.sha256(nested).hexdigest()
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+    return "source_rights_registry_unreadable"
+
+
 def test_renderers_and_cli_are_deterministic_complete_and_read_only(tmp_path):
     from src.point_in_time_universe import (
         DECISION_ORDER,
@@ -580,6 +598,39 @@ def test_invalid_package_is_nonzero_without_traceback_or_writes(tmp_path):
     assert result.returncode == 2
     assert "manifest_unreadable" in result.stderr
     assert "Traceback" not in result.stderr
+    assert _snapshot(tmp_path) == before
+
+
+@pytest.mark.parametrize("resource", ("manifest", "registry"))
+def test_cli_and_make_deep_parser_failures_are_readable_nonwriting(
+    tmp_path,
+    resource,
+):
+    manifest, registry = build_valid_package(tmp_path)
+    error = _replace_with_deeply_nested_input(
+        manifest,
+        registry,
+        resource,
+    )
+    before = _snapshot(tmp_path)
+
+    cli = _run_cli(
+        "status",
+        "--manifest",
+        str(manifest),
+        "--registry",
+        str(registry),
+    )
+    make = _run_make(
+        "point-in-time-universe-status",
+        f"MANIFEST={manifest}",
+        f"REGISTRY={registry}",
+    )
+
+    for result in (cli, make):
+        assert result.returncode == 2
+        assert error in result.stderr
+        assert "Traceback" not in result.stderr
     assert _snapshot(tmp_path) == before
 
 

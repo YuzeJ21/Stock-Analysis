@@ -127,7 +127,14 @@ def build_source_rights_registry(records: Sequence[Mapping[str, Any]]) -> Mappin
 def parse_source_rights_registry(snapshot: bytes) -> Mapping[str, SourceRights]:
     """Build an immutable source-rights registry from one verified byte snapshot."""
 
-    raw = yaml.safe_load(snapshot.decode("utf-8")) or {}
+    try:
+        raw = yaml.safe_load(snapshot.decode("utf-8")) or {}
+    except (
+        UnicodeDecodeError,
+        yaml.YAMLError,
+        RecursionError,
+    ) as exc:
+        raise ValueError("source_rights_registry_unreadable") from exc
     if not isinstance(raw, Mapping) or not isinstance(raw.get("sources"), list):
         raise ValueError("source rights registry must contain a sources list")
     return build_source_rights_registry(raw["sources"])

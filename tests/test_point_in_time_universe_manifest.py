@@ -11,6 +11,10 @@ def _file_bytes(root: Path) -> dict[str, bytes]:
     return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
 
 
+def _deeply_nested_sequence(depth: int = 2_000) -> bytes:
+    return ("[" * depth + "0" + "]" * depth).encode("utf-8")
+
+
 def test_loads_hash_bound_manifest_without_writing(tmp_path):
     from src.point_in_time_universe_manifest import load_universe_package
 
@@ -20,6 +24,39 @@ def test_loads_hash_bound_manifest_without_writing(tmp_path):
     assert loaded.manifest.schema_version == "point_in_time_universe_v1"
     assert set(loaded.files) == {"security_identity", "membership", "events", "evaluations"}
     assert _file_bytes(tmp_path) == before
+
+
+def test_deeply_nested_manifest_is_stably_unreadable_without_writing(tmp_path):
+    from src.point_in_time_universe_manifest import load_universe_package
+
+    manifest, registry = build_valid_package(tmp_path)
+    manifest.write_bytes(_deeply_nested_sequence())
+    before = _file_bytes(tmp_path)
+
+    with pytest.raises(ValueError, match="^manifest_unreadable$"):
+        load_universe_package(manifest, registry)
+
+    assert _file_bytes(tmp_path) == before
+
+
+def test_deeply_nested_rights_registry_is_stably_unreadable():
+    from src.commercial_source_rights import parse_source_rights_registry
+
+    with pytest.raises(
+        ValueError,
+        match="^source_rights_registry_unreadable$",
+    ):
+        parse_source_rights_registry(_deeply_nested_sequence())
+
+
+def test_valid_rights_registry_snapshot_still_parses(tmp_path):
+    from src.commercial_source_rights import parse_source_rights_registry
+
+    _, registry = build_valid_package(tmp_path)
+
+    parsed = parse_source_rights_registry(registry.read_bytes())
+
+    assert "fixture_source" in parsed
 
 
 def test_hash_and_row_count_use_the_same_immutable_file_snapshot(
