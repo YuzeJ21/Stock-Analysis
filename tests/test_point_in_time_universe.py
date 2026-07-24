@@ -887,6 +887,224 @@ def test_future_membership_kind_mismatch_applies_when_later_evaluation_sees_it(
     )
 
 
+def test_future_only_membership_cannot_promote_current_membership_coverage(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _replace_contract_rows(
+        manifest,
+        "membership",
+        [
+            row
+            for row in _read_contract_rows(manifest, "membership")
+            if row["universe_id"] != "bench-1"
+        ],
+    )
+    baseline = validate_point_in_time_universe(manifest, registry)
+
+    def add_future_benchmark_membership(rows):
+        rows.append(
+            {
+                **rows[0],
+                "membership_row_id": "member-bench-future-only",
+                "universe_id": "bench-1",
+                "universe_kind": "benchmark",
+                "effective_from": "2022-01-01T00:00:00Z",
+                "observation_at": "2022-01-01T00:00:00Z",
+                "source_ref": "fixture://membership/bench-future-only",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        add_future_benchmark_membership,
+    )
+    with_future = validate_point_in_time_universe(manifest, registry)
+    future_row = next(
+        row
+        for row in with_future.excluded
+        if row.row_id == "member-bench-future-only"
+    )
+
+    assert _decision(
+        baseline,
+        "membership_coverage",
+    ) == _decision(with_future, "membership_coverage")
+    assert _decision(
+        with_future,
+        "membership_coverage",
+    ).reason_codes == ("membership_no_eligible_members",)
+    assert with_future.membership_digests == baseline.membership_digests
+    assert with_future.display_tickers == baseline.display_tickers
+    assert (
+        with_future.analysis_eligible_rows
+        == baseline.analysis_eligible_rows
+    )
+    assert tuple(
+        row
+        for row in with_future.excluded
+        if row.row_id != "member-bench-future-only"
+    ) == baseline.excluded
+    assert (
+        future_row.contract,
+        future_row.source_row,
+        future_row.reason_codes,
+    ) == (
+        "membership",
+        3,
+        (
+            "cutoff_post_evaluation_evidence",
+            "cutoff_required_scope_unavailable",
+            "leakage_post_cutoff_evidence",
+        ),
+    )
+
+
+def test_future_only_identity_cannot_promote_current_identity_coverage(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_csv_and_manifest(
+        manifest,
+        "membership",
+        lambda rows: rows[0].update(security_id="sec-future-only"),
+    )
+    baseline = validate_point_in_time_universe(manifest, registry)
+
+    def add_future_identity(rows):
+        rows.append(
+            {
+                **rows[0],
+                "identity_row_id": "id-future-only",
+                "security_id": "sec-future-only",
+                "issuer_id": "issuer-future-only",
+                "ticker": "FUTURE",
+                "valid_from": "2022-01-01T00:00:00Z",
+                "source_ref": "fixture://identity/future-only",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        add_future_identity,
+    )
+    with_future = validate_point_in_time_universe(manifest, registry)
+    future_row = next(
+        row
+        for row in with_future.excluded
+        if row.row_id == "id-future-only"
+    )
+
+    assert _decision(
+        baseline,
+        "identity_coverage",
+    ) == _decision(with_future, "identity_coverage")
+    assert _decision(
+        with_future,
+        "identity_coverage",
+    ).reason_codes == ("identity_missing",)
+    assert with_future.membership_digests == baseline.membership_digests
+    assert with_future.display_tickers == baseline.display_tickers
+    assert (
+        with_future.analysis_eligible_rows
+        == baseline.analysis_eligible_rows
+    )
+    assert tuple(
+        row
+        for row in with_future.excluded
+        if row.row_id != "id-future-only"
+    ) == baseline.excluded
+    assert (
+        future_row.contract,
+        future_row.source_row,
+        future_row.reason_codes,
+    ) == (
+        "security_identity",
+        3,
+        (
+            "cutoff_post_evaluation_evidence",
+            "cutoff_required_scope_unavailable",
+            "cutoff_unrelated_scope_invisible",
+            "leakage_post_cutoff_evidence",
+        ),
+    )
+
+
+def test_future_only_required_event_cannot_promote_current_event_coverage(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _replace_contract_rows(manifest, "events", [])
+    baseline = validate_point_in_time_universe(manifest, registry)
+
+    future_event = {
+        "event_row_id": "event-future-only",
+        "security_id": "sec-1",
+        "event_type": "listing",
+        "effective_at": "2022-01-01T00:00:00Z",
+        "successor_security_id": "",
+        "ratio_numerator": "",
+        "ratio_denominator": "",
+        "listing_state_after": "active",
+        "source_id": "fixture_source",
+        "source_ref": "fixture://event/future-only",
+        "source_published_at": "2022-01-01T00:00:00Z",
+        "retrieved_at": "2022-01-02T00:00:00Z",
+        "supersedes_event_row_id": "",
+    }
+    _replace_contract_rows(manifest, "events", [future_event])
+    with_future = validate_point_in_time_universe(manifest, registry)
+    future_row = next(
+        row
+        for row in with_future.excluded
+        if row.row_id == "event-future-only"
+    )
+
+    assert _decision(
+        baseline,
+        "corporate_action_coverage",
+    ) == _decision(with_future, "corporate_action_coverage")
+    assert _decision(
+        with_future,
+        "corporate_action_coverage",
+    ).reason_codes == ("corporate_action_evidence_missing",)
+    assert with_future.membership_digests == baseline.membership_digests
+    assert (
+        with_future.analysis_eligible_rows
+        == baseline.analysis_eligible_rows
+    )
+    assert tuple(
+        row
+        for row in with_future.excluded
+        if row.row_id != "event-future-only"
+    ) == baseline.excluded
+    assert (
+        future_row.contract,
+        future_row.source_row,
+        future_row.reason_codes,
+    ) == (
+        "events",
+        2,
+        (
+            "cutoff_post_evaluation_evidence",
+            "cutoff_required_scope_unavailable",
+            "leakage_post_cutoff_evidence",
+        ),
+    )
+
+
 def test_membership_row_exclusion_unions_kind_and_lineage_reasons(tmp_path):
     from src.point_in_time_universe import validate_point_in_time_universe
 
@@ -3658,13 +3876,30 @@ def test_post_cutoff_evidence_is_excluded_without_poisoning_independent_states(
         and "leakage_post_cutoff_evidence" in row.reason_codes
         for row in packet.excluded
     )
+    expected_cutoff_coverage_block = {
+        "security_identity": {
+            "identity_coverage": ("identity_missing",),
+        },
+        "membership": {
+            "membership_coverage": (
+                "membership_no_eligible_members",
+            ),
+        },
+    }.get(contract, {})
     for independent in (
         "technical_validity",
         "identity_coverage",
         "membership_coverage",
         "source_rights_eligibility",
     ):
-        assert _decision(packet, independent).status == "passed"
+        decision = _decision(packet, independent)
+        if independent in expected_cutoff_coverage_block:
+            assert decision.status == "blocked"
+            assert decision.reason_codes == (
+                expected_cutoff_coverage_block[independent]
+            )
+        else:
+            assert decision.status == "passed"
     if contract in {"events", "membership"}:
         assert _decision(
             packet,

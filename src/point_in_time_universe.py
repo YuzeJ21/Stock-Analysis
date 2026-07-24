@@ -668,22 +668,6 @@ def _identity_membership_decisions(
                     for row in identity_lineage.leaves
                     if row.security_id == security_id
                 )
-                all_identity_rows = tuple(
-                    row
-                    for row in parsed.identities
-                    if row.security_id == security_id
-                )
-                if all_identity_rows and not any(
-                    max(row.source_published_at, row.retrieved_at)
-                    <= evaluation.evaluation_at
-                    for row in all_identity_rows
-                ):
-                    if is_latest_display:
-                        display_candidates[security_id] = (
-                            evaluation_key,
-                            None,
-                        )
-                    continue
                 identity_reasons.add("identity_missing")
                 if is_latest_display:
                     display_candidates[security_id] = (
@@ -715,9 +699,7 @@ def _identity_membership_decisions(
                 )
             members.add(security_id)
 
-        if structurally_eligible_members == 0 and (
-            not scoped_memberships or cutoff_available_memberships
-        ):
+        if structurally_eligible_members == 0:
             membership_reasons.add("membership_no_eligible_members")
         digests.append(
             _membership_digest(
