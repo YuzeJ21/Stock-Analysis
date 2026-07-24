@@ -675,6 +675,154 @@ def _temporal_decision(
     )
 
 
+def _classify_evaluations(
+    manifest,
+    evaluations,
+) -> tuple[tuple, Mapping[str, tuple[str, ...]], tuple[str, ...]]:
+    evaluations = tuple(evaluations)
+    row_reasons: dict[str, set[str]] = {
+        evaluation.evaluation_row_id: set()
+        for evaluation in evaluations
+    }
+    global_reasons: set[str] = set()
+    manifest_cutoff = (
+        parse_utc(manifest.observation_cutoff_at)
+        if hasattr(manifest, "observation_cutoff_at")
+        else None
+    )
+    declared_universe_ids = (
+        {
+            item["universe_id"]
+            for item in manifest.declared_universes
+        }
+        if hasattr(manifest, "declared_universes")
+        else None
+    )
+    for evaluation in evaluations:
+        reasons = row_reasons[evaluation.evaluation_row_id]
+        if (
+            manifest_cutoff is not None
+            and evaluation.evaluation_at > manifest_cutoff
+        ):
+            reasons.add("cutoff_evaluation_after_manifest")
+        if evaluation.available_at > evaluation.evaluation_at:
+            reasons.add("cutoff_evaluation_unavailable")
+        if (
+            declared_universe_ids is not None
+            and evaluation.universe_id not in declared_universe_ids
+        ):
+            reasons.add("membership_universe_undeclared")
+
+    policy = manifest.evaluation_policy
+    if not isinstance(policy, Mapping):
+        global_reasons.add("partition_policy_invalid")
+    elif policy.get("kind") == "walk_forward":
+        minimum = policy.get("minimum_history_count")
+        if (
+            not isinstance(minimum, int)
+            or isinstance(minimum, bool)
+            or minimum <= 0
+        ):
+            global_reasons.add("partition_minimum_history_invalid")
+        else:
+            for evaluation in evaluations:
+                if evaluation.partition != "walk_forward":
+                    row_reasons[evaluation.evaluation_row_id].add(
+                        "partition_assignment_invalid"
+                    )
+            history_by_universe: dict[str, set[datetime]] = {}
+            for evaluation in evaluations:
+                if row_reasons[evaluation.evaluation_row_id]:
+                    continue
+                history_by_universe.setdefault(
+                    evaluation.universe_id,
+                    set(),
+                ).add(evaluation.evaluation_at)
+            for evaluation in evaluations:
+                reasons = row_reasons[evaluation.evaluation_row_id]
+                if reasons:
+                    continue
+                if (
+                    len(
+                        history_by_universe.get(
+                            evaluation.universe_id,
+                            set(),
+                        )
+                    )
+                    < minimum
+                ):
+                    reasons.add("partition_minimum_history_unmet")
+    elif policy.get("kind") == "train_validation_test":
+        try:
+            train_end = parse_utc(policy["train_end_at"])
+            validation_start = parse_utc(policy["validation_start_at"])
+            validation_end = parse_utc(policy["validation_end_at"])
+            test_start = parse_utc(policy["test_start_at"])
+        except (KeyError, TypeError, ValueError):
+            global_reasons.add("partition_schema_invalid")
+        else:
+            if (
+                train_end > validation_start
+                or validation_end > test_start
+            ):
+                global_reasons.add("partition_overlap")
+            if not (
+                train_end
+                < validation_start
+                < validation_end
+                < test_start
+            ):
+                global_reasons.add("partition_order_invalid")
+            if not global_reasons:
+                for evaluation in evaluations:
+                    reasons = row_reasons[
+                        evaluation.evaluation_row_id
+                    ]
+                    if reasons.intersection(
+                        {
+                            "cutoff_evaluation_after_manifest",
+                            "cutoff_evaluation_unavailable",
+                            "membership_universe_undeclared",
+                        }
+                    ):
+                        continue
+                    at = evaluation.evaluation_at
+                    if at <= train_end:
+                        expected_partition = "train"
+                    elif validation_start <= at <= validation_end:
+                        expected_partition = "validation"
+                    elif at >= test_start:
+                        expected_partition = "test"
+                    else:
+                        expected_partition = None
+                    if expected_partition is None:
+                        reasons.add("partition_boundary_unassigned")
+                    elif evaluation.partition != expected_partition:
+                        reasons.add("partition_assignment_invalid")
+    else:
+        global_reasons.add("partition_policy_invalid")
+
+    valid = (
+        ()
+        if global_reasons
+        else tuple(
+            evaluation
+            for evaluation in evaluations
+            if not row_reasons[evaluation.evaluation_row_id]
+        )
+    )
+    return (
+        valid,
+        MappingProxyType(
+            {
+                row_id: tuple(sorted(reasons))
+                for row_id, reasons in sorted(row_reasons.items())
+            }
+        ),
+        tuple(sorted(global_reasons)),
+    )
+
+
 def _partition_validation(
     manifest,
     evaluations,
@@ -691,97 +839,15 @@ def _partition_validation(
             set(),
         ).add(reason)
 
-    manifest_cutoff = (
-        parse_utc(manifest.observation_cutoff_at)
-        if hasattr(manifest, "observation_cutoff_at")
-        else None
+    _, validity_reasons, global_reasons = _classify_evaluations(
+        manifest,
+        evaluations,
     )
-    cutoff_evaluations = tuple(
-        evaluation
-        for evaluation in evaluations
-        if (
-            manifest_cutoff is None
-            or evaluation.evaluation_at <= manifest_cutoff
-        )
-    )
-    policy = manifest.evaluation_policy
-    if not isinstance(policy, Mapping):
-        reasons.add("partition_policy_invalid")
-    elif policy.get("kind") == "walk_forward":
-        minimum = policy.get("minimum_history_count")
-        if (
-            not isinstance(minimum, int)
-            or isinstance(minimum, bool)
-            or minimum <= 0
-        ):
-            reasons.add("partition_minimum_history_invalid")
-        else:
-            history_by_universe: dict[str, set[datetime]] = {}
-            for evaluation in cutoff_evaluations:
-                if evaluation.partition != "walk_forward":
-                    exclude(evaluation, "partition_assignment_invalid")
-                history_by_universe.setdefault(
-                    evaluation.universe_id,
-                    set(),
-                ).add(evaluation.evaluation_at)
-            for evaluation in cutoff_evaluations:
-                if (
-                    len(history_by_universe[evaluation.universe_id])
-                    < minimum
-                ):
-                    exclude(
-                        evaluation,
-                        "partition_minimum_history_unmet",
-                    )
-    elif policy.get("kind") == "train_validation_test":
-        try:
-            train_end = parse_utc(policy["train_end_at"])
-            validation_start = parse_utc(policy["validation_start_at"])
-            validation_end = parse_utc(policy["validation_end_at"])
-            test_start = parse_utc(policy["test_start_at"])
-        except (KeyError, TypeError, ValueError):
-            reasons.add("partition_schema_invalid")
-        else:
-            if (
-                train_end > validation_start
-                or validation_end > test_start
-            ):
-                reasons.add("partition_overlap")
-            if not (
-                train_end
-                < validation_start
-                < validation_end
-                < test_start
-            ):
-                reasons.add("partition_order_invalid")
-            if not reasons.intersection(
-                {
-                    "partition_overlap",
-                    "partition_order_invalid",
-                }
-            ):
-                for evaluation in cutoff_evaluations:
-                    at = evaluation.evaluation_at
-                    if at <= train_end:
-                        expected_partition = "train"
-                    elif validation_start <= at <= validation_end:
-                        expected_partition = "validation"
-                    elif at >= test_start:
-                        expected_partition = "test"
-                    else:
-                        expected_partition = None
-                    if expected_partition is None:
-                        exclude(
-                            evaluation,
-                            "partition_boundary_unassigned",
-                        )
-                    elif evaluation.partition != expected_partition:
-                        exclude(
-                            evaluation,
-                            "partition_assignment_invalid",
-                        )
-    else:
-        reasons.add("partition_policy_invalid")
+    reasons.update(global_reasons)
+    for evaluation in evaluations:
+        for reason in validity_reasons[evaluation.evaluation_row_id]:
+            if reason.startswith("partition_"):
+                exclude(evaluation, reason)
     excluded = tuple(
         ExcludedRow(
             "evaluations",
@@ -911,9 +977,73 @@ def _final_eligibility(
     )
 
 
+def _member_security_ids_for_evaluation(
+    manifest,
+    parsed,
+    evaluation,
+) -> set[str]:
+    if manifest.coverage_semantics != "complete_snapshot":
+        return set()
+    expected_kind = {
+        item["universe_id"]: item["universe_kind"]
+        for item in manifest.declared_universes
+    }.get(evaluation.universe_id)
+    if expected_kind is None:
+        return set()
+    scoped_memberships = tuple(
+        row
+        for row in parsed.memberships
+        if row.universe_id == evaluation.universe_id
+    )
+    cutoff_available = tuple(
+        row
+        for row in scoped_memberships
+        if max(
+            row.observation_at,
+            row.source_published_at,
+            row.retrieved_at,
+        )
+        <= evaluation.evaluation_at
+    )
+    latest_snapshot_at = max(
+        (row.observation_at for row in cutoff_available),
+        default=None,
+    )
+    lineage = resolve_lineage(
+        parsed.memberships,
+        row_id=lambda row: row.membership_row_id,
+        parent_id=lambda row: row.supersedes_membership_row_id,
+        scope=lambda row: f"{row.universe_id}:{row.security_id}",
+        available_at=lambda row: max(
+            row.observation_at,
+            row.source_published_at,
+            row.retrieved_at,
+        ),
+        cutoff=evaluation.evaluation_at,
+    )
+    if lineage.reason_codes:
+        return set()
+    return {
+        row.security_id
+        for row in lineage.leaves
+        if (
+            row.universe_id == evaluation.universe_id
+            and row.universe_kind == expected_kind
+            and row.observation_at == latest_snapshot_at
+            and row.membership_state == "included"
+            and _contains(
+                row.effective_from,
+                row.effective_to,
+                evaluation.evaluation_at,
+            )
+        )
+    }
+
+
 def _event_decisions(
     manifest,
     parsed,
+    evaluations,
 ) -> tuple[Decision, Decision, tuple[ExcludedRow, ...]]:
     action_reasons: set[str] = set()
     delisting_reasons: set[str] = set()
@@ -943,17 +1073,14 @@ def _event_decisions(
     ):
         delisting_reasons.add("delisting_state_invalid")
 
-    manifest_cutoff = parse_utc(manifest.observation_cutoff_at)
-    evaluation_cutoffs = tuple(
+    evaluations = tuple(
         sorted(
-            {
-                evaluation.evaluation_at
-                for evaluation in parsed.evaluations
-                if (
-                    evaluation.evaluation_at <= manifest_cutoff
-                    and evaluation.available_at <= evaluation.evaluation_at
-                )
-            }
+            evaluations,
+            key=lambda evaluation: (
+                evaluation.evaluation_at,
+                evaluation.universe_id,
+                evaluation.evaluation_row_id,
+            ),
         )
     )
     delisting_applicable = any(
@@ -961,7 +1088,26 @@ def _event_decisions(
         for event_type in listing_state_event_types
     )
 
-    for evaluation_at in evaluation_cutoffs:
+    if not evaluations:
+        for event_type, state in (
+            manifest.corporate_action_policy.items()
+        ):
+            if state != "required":
+                continue
+            if event_type in listing_state_event_types:
+                delisting_reasons.add("delisting_evidence_missing")
+            else:
+                action_reasons.add(
+                    "corporate_action_evidence_missing"
+                )
+
+    for evaluation in evaluations:
+        evaluation_at = evaluation.evaluation_at
+        member_security_ids = _member_security_ids_for_evaluation(
+            manifest,
+            parsed,
+            evaluation,
+        )
         visible_events = tuple(
             event
             for event in parsed.events
@@ -1033,20 +1179,32 @@ def _event_decisions(
                 continue
             leaves.extend(lineage.leaves)
 
-        leaves_by_type: dict[str, list] = {}
+        leaves_by_scope = {
+            (event.security_id, event.event_type): event
+            for event in leaves
+        }
+        applicable_leaves = tuple(
+            event
+            for event in leaves
+            if event.security_id in member_security_ids
+        )
         listing_state_by_security: dict[
             str,
             tuple[str, datetime],
         ] = {}
+        listing_state_events: dict[
+            tuple[str, datetime],
+            list,
+        ] = {}
+        invalid_transition_ids: set[str] = set()
         for event in sorted(
-            leaves,
+            applicable_leaves,
             key=lambda item: (
                 item.security_id,
                 item.effective_at,
                 item.event_row_id,
             ),
         ):
-            leaves_by_type.setdefault(event.event_type, []).append(event)
             reasons: set[str] = set()
             policy = manifest.corporate_action_policy.get(
                 event.event_type
@@ -1074,30 +1232,79 @@ def _event_decisions(
                 and event.listing_state_after != "suspended"
             ):
                 reasons.add("delisting_transition_invalid")
-            if event.event_type == "reactivation":
-                prior_listing_state = listing_state_by_security.get(
-                    event.security_id
-                )
-                if (
-                    event.listing_state_after != "active"
-                    or prior_listing_state is None
-                    or prior_listing_state[0] != "suspended"
-                    or prior_listing_state[1] >= event.effective_at
-                ):
-                    reasons.add("delisting_transition_invalid")
             if event.listing_state_after:
-                listing_state_by_security[event.security_id] = (
-                    event.listing_state_after,
-                    event.effective_at,
-                )
+                listing_state_events.setdefault(
+                    (event.security_id, event.effective_at),
+                    [],
+                ).append(event)
             if reasons:
                 target_reasons(event.event_type).update(reasons)
                 exclude(event, *reasons)
+                if "delisting_transition_invalid" in reasons:
+                    invalid_transition_ids.add(event.event_row_id)
+
+        for (
+            security_id,
+            effective_at,
+        ), simultaneous_events in sorted(
+            listing_state_events.items()
+        ):
+            states = {
+                event.listing_state_after
+                for event in simultaneous_events
+            }
+            if len(states) > 1:
+                delisting_reasons.add(
+                    "delisting_transition_invalid"
+                )
+                for event in simultaneous_events:
+                    exclude(event, "delisting_transition_invalid")
+                continue
+            if any(
+                event.event_row_id in invalid_transition_ids
+                for event in simultaneous_events
+            ):
+                continue
+            prior_listing_state = listing_state_by_security.get(
+                security_id
+            )
+            invalid_reactivations = tuple(
+                event
+                for event in simultaneous_events
+                if (
+                    event.event_type == "reactivation"
+                    and (
+                        event.listing_state_after != "active"
+                        or prior_listing_state is None
+                        or prior_listing_state[0] != "suspended"
+                        or prior_listing_state[1] >= effective_at
+                    )
+                )
+            )
+            if invalid_reactivations:
+                delisting_reasons.add(
+                    "delisting_transition_invalid"
+                )
+                for event in invalid_reactivations:
+                    exclude(event, "delisting_transition_invalid")
+                continue
+            listing_state_by_security[security_id] = (
+                next(iter(states)),
+                effective_at,
+            )
 
         for event_type, state in (
             manifest.corporate_action_policy.items()
         ):
-            if state != "required" or leaves_by_type.get(event_type):
+            if state != "required":
+                continue
+            missing_member_evidence = (
+                any(
+                    (security_id, event_type) not in leaves_by_scope
+                    for security_id in member_security_ids
+                )
+            )
+            if not missing_member_evidence:
                 continue
             if event_type in listing_state_event_types:
                 delisting_reasons.add("delisting_evidence_missing")
@@ -1109,7 +1316,7 @@ def _event_decisions(
             delisting_applicable
             or any(
                 event.event_type in listing_state_event_types
-                for event in leaves
+                for event in applicable_leaves
             )
         )
 
@@ -1246,9 +1453,14 @@ def validate_point_in_time_universe(
     )
     decisions[temporal.area] = temporal
     excluded.extend(temporal_excluded)
+    valid_evaluations, _, _ = _classify_evaluations(
+        package.manifest,
+        parsed.evaluations,
+    )
     corporate_action, delisting, event_excluded = _event_decisions(
         package.manifest,
         parsed,
+        valid_evaluations,
     )
     source_rights = _rights_decision(
         package.manifest,

@@ -2034,6 +2034,143 @@ def test_event_lineage_aggregates_across_cutoffs_and_canonicalizes_exclusions(
     )
 
 
+def test_unrelated_security_event_cannot_satisfy_member_event_coverage(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        lambda rows: rows[0].update(
+            security_id="sec-unrelated",
+            source_ref="fixture://event/unrelated-security",
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "identity_coverage").status == "passed"
+    assert _decision(packet, "membership_coverage").status == "passed"
+    assert _decision(packet, "corporate_action_coverage").status == "blocked"
+    assert _decision(
+        packet,
+        "corporate_action_coverage",
+    ).reason_codes == ("corporate_action_evidence_missing",)
+    assert packet.analysis_eligible is False
+
+
+def test_partition_invalid_evaluation_is_not_an_event_cutoff(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_invalid_evaluation(rows):
+        rows.append(
+            {
+                **rows[0],
+                "evaluation_row_id": "eval-invalid-partition",
+                "evaluation_at": "2019-01-01T00:00:00Z",
+                "available_at": "2019-01-01T00:00:00Z",
+                "partition": "test",
+                "source_ref": "fixture://evaluation/invalid-partition",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        add_invalid_evaluation,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "leakage_safe").status == "blocked"
+    assert "partition_assignment_invalid" in _decision(
+        packet,
+        "leakage_safe",
+    ).reason_codes
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+    assert _decision(packet, "corporate_action_coverage").reason_codes == ()
+
+
+def test_no_valid_evaluation_fails_required_event_coverage_closed(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _replace_contract_rows(manifest, "evaluations", [])
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "membership_coverage").status == "blocked"
+    assert _decision(packet, "corporate_action_coverage").status == "blocked"
+    assert _decision(
+        packet,
+        "corporate_action_coverage",
+    ).reason_codes == ("corporate_action_evidence_missing",)
+    assert packet.analysis_eligible is False
+
+
+@pytest.mark.parametrize(
+    "listing_row_id,suspension_row_id",
+    [
+        ("event-a-listing", "event-z-suspension"),
+        ("event-z-listing", "event-a-suspension"),
+    ],
+)
+def test_simultaneous_conflicting_listing_states_fail_closed_independent_of_ids(
+    tmp_path,
+    listing_row_id,
+    suspension_row_id,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_conflicting_transitions(rows):
+        rows[0].update(event_row_id=listing_row_id)
+        base = rows[0]
+        rows.extend(
+            [
+                {
+                    **base,
+                    "event_row_id": suspension_row_id,
+                    "event_type": "suspension",
+                    "listing_state_after": "suspended",
+                    "source_ref": (
+                        f"fixture://event/{suspension_row_id}"
+                    ),
+                },
+                {
+                    **base,
+                    "event_row_id": "event-reactivation",
+                    "event_type": "reactivation",
+                    "effective_at": "2020-02-01T00:00:00Z",
+                    "listing_state_after": "active",
+                    "source_ref": "fixture://event/reactivation",
+                    "source_published_at": "2020-02-01T00:00:00Z",
+                    "retrieved_at": "2020-02-02T00:00:00Z",
+                },
+            ]
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        add_conflicting_transitions,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "corporate_action_coverage").status == "passed"
+    assert _decision(packet, "delisting_coverage").status == "blocked"
+    assert _decision(packet, "delisting_coverage").reason_codes == (
+        "delisting_transition_invalid",
+    )
+    assert packet.analysis_eligible is False
+
+
 def test_technical_pass_does_not_promote_unverified_rights(tmp_path):
     from src.point_in_time_universe import validate_point_in_time_universe
 
@@ -3087,6 +3224,16 @@ def test_complete_snapshot_uses_only_explicit_rows_from_latest_snapshot(
             }
         )
 
+    def add_second_listing_event(rows):
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-sec-2-listing",
+                "security_id": "sec-2",
+                "source_ref": "fixture://event/sec-2-listing",
+            }
+        )
+
     _rewrite_csv_and_manifest(
         manifest,
         "security_identity",
@@ -3096,6 +3243,11 @@ def test_complete_snapshot_uses_only_explicit_rows_from_latest_snapshot(
         manifest,
         "membership",
         add_later_benchmark_snapshot,
+    )
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        add_second_listing_event,
     )
 
     packet = validate_point_in_time_universe(manifest, registry)
