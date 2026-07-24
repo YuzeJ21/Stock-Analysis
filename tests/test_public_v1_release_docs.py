@@ -1507,7 +1507,7 @@ def test_priority_four_local_validator_is_documented_without_claiming_real_data_
 
     assert "Start from current repository truth, not chat memory." in prompt
     assert (
-        "Verify commit `288a5e6ec5e9954edf683cc9a2bf29d20e281935` or a later "
+        "Verify commit `7c2378f70f2bb477d8ec8d4ff93d37c88be1783d` or a later "
         "descendant before relying on this implementation evidence."
     ) in prompt
     assert (
