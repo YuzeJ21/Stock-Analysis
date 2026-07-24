@@ -7,6 +7,7 @@ from types import MappingProxyType
 from typing import Mapping
 
 from src.point_in_time_universe_contracts import (
+    IdentityObservation,
     ParsedUniverseEvidence,
     parse_universe_evidence,
     parse_utc,
@@ -101,10 +102,24 @@ def _identity_membership_decisions(
     membership_reasons: set[str] = set()
     excluded: list[ExcludedRow] = []
     digests: list[MembershipDigest] = []
-    display: dict[str, str] = {}
+    display_candidates: dict[str, tuple[tuple, str | None]] = {}
     cutoff = parse_utc(manifest.observation_cutoff_at)
     evaluations = tuple(
-        item for item in parsed.evaluations if item.evaluation_at <= cutoff
+        sorted(
+            (
+                item
+                for item in parsed.evaluations
+                if item.evaluation_at <= cutoff
+            ),
+            key=lambda item: (
+                item.evaluation_at,
+                item.universe_id,
+                item.evaluation_row_id,
+                item.available_at,
+                item.partition,
+                item.source_ref,
+            ),
+        )
     )
 
     for row in parsed.memberships:
@@ -115,138 +130,178 @@ def _identity_membership_decisions(
             membership_reasons.add("membership_universe_kind_mismatch")
 
     for evaluation in evaluations:
+        membership_lineage = resolve_lineage(
+            parsed.memberships,
+            row_id=lambda row: row.membership_row_id,
+            parent_id=lambda row: row.supersedes_membership_row_id,
+            scope=lambda row: f"{row.universe_id}:{row.security_id}",
+            available_at=lambda row: max(
+                row.observation_at,
+                row.source_published_at,
+                row.retrieved_at,
+            ),
+            cutoff=evaluation.evaluation_at,
+        )
+        membership_reasons.update(membership_lineage.reason_codes)
+        identity_lineage = resolve_lineage(
+            parsed.identities,
+            row_id=lambda row: row.identity_row_id,
+            parent_id=lambda row: row.supersedes_identity_row_id,
+            scope=lambda row: f"{row.security_id}:{row.issuer_id}",
+            available_at=lambda row: max(
+                row.source_published_at,
+                row.retrieved_at,
+            ),
+            cutoff=evaluation.evaluation_at,
+        )
+        identity_reasons.update(identity_lineage.reason_codes)
+
         expected_kind = declared.get(evaluation.universe_id)
         if expected_kind is None:
             membership_reasons.add("membership_universe_undeclared")
             continue
 
-        grouped: dict[str, list] = {}
-        for row in parsed.memberships:
-            if row.universe_id != evaluation.universe_id:
-                continue
-            if row.universe_kind != expected_kind:
-                membership_reasons.add("membership_universe_kind_mismatch")
-                continue
-            grouped.setdefault(row.security_id, []).append(row)
-
-        members: set[str] = set()
-        for security_id, rows in grouped.items():
-            lineage = resolve_lineage(
-                rows,
-                row_id=lambda row: row.membership_row_id,
-                parent_id=lambda row: row.supersedes_membership_row_id,
-                scope=lambda row: f"{row.universe_id}:{row.security_id}",
-                available_at=lambda row: max(
-                    row.observation_at,
-                    row.source_published_at,
-                    row.retrieved_at,
-                ),
-                cutoff=evaluation.evaluation_at,
-            )
-            membership_reasons.update(lineage.reason_codes)
-            for leaf in lineage.leaves:
-                if not _contains(
-                    leaf.effective_from,
-                    leaf.effective_to,
-                    evaluation.evaluation_at,
-                ):
-                    membership_reasons.add("membership_interval_inactive")
-                    excluded.append(
-                        ExcludedRow(
-                            "membership",
-                            _row_number(
-                                parsed,
-                                "membership",
-                                leaf.membership_row_id,
-                            ),
-                            leaf.membership_row_id,
-                            ("membership_interval_inactive",),
-                        )
-                    )
-                    continue
-                if leaf.membership_state == "excluded":
-                    continue
-
-                identity_rows = tuple(
-                    row
-                    for row in parsed.identities
-                    if row.security_id == security_id
-                )
-                identity_lineage = resolve_lineage(
-                    identity_rows,
-                    row_id=lambda row: row.identity_row_id,
-                    parent_id=lambda row: row.supersedes_identity_row_id,
-                    scope=lambda row: row.security_id,
-                    available_at=lambda row: max(
-                        row.source_published_at,
-                        row.retrieved_at,
-                    ),
-                    cutoff=evaluation.evaluation_at,
-                )
-                identity_reasons.update(identity_lineage.reason_codes)
-                if identity_lineage.reason_codes:
-                    excluded.append(
-                        ExcludedRow(
-                            "membership",
-                            _row_number(
-                                parsed,
-                                "membership",
-                                leaf.membership_row_id,
-                            ),
-                            leaf.membership_row_id,
-                            identity_lineage.reason_codes,
-                        )
-                    )
-                    continue
-
-                available_identity_rows = tuple(
-                    row
-                    for row in identity_rows
-                    if max(row.source_published_at, row.retrieved_at)
+        active_identity_by_security: dict[str, IdentityObservation] = {}
+        overlapping_identity_security_ids: set[str] = set()
+        if not identity_lineage.reason_codes:
+            available_identity_by_security: dict[str, list] = {}
+            for row in parsed.identities:
+                if (
+                    max(row.source_published_at, row.retrieved_at)
                     <= evaluation.evaluation_at
-                )
+                ):
+                    available_identity_by_security.setdefault(
+                        row.security_id,
+                        [],
+                    ).append(row)
+            for security_id, identity_rows in (
+                available_identity_by_security.items()
+            ):
                 active = tuple(
                     row
-                    for row in available_identity_rows
+                    for row in identity_rows
                     if _contains(
                         row.valid_from,
                         row.valid_to,
                         evaluation.evaluation_at,
                     )
                 )
-                if not active:
-                    identity_reasons.add("identity_missing")
-                    excluded.append(
-                        ExcludedRow(
-                            "membership",
-                            _row_number(
-                                parsed,
-                                "membership",
-                                leaf.membership_row_id,
-                            ),
-                            leaf.membership_row_id,
-                            ("identity_missing",),
-                        )
-                    )
-                    continue
-                if len(active) != 1:
+                if len(active) > 1:
                     identity_reasons.add("identity_interval_overlap")
-                    excluded.append(
-                        ExcludedRow(
-                            "membership",
-                            _row_number(
-                                parsed,
-                                "membership",
-                                leaf.membership_row_id,
-                            ),
-                            leaf.membership_row_id,
-                            ("identity_interval_overlap",),
-                        )
-                    )
-                    continue
+                    overlapping_identity_security_ids.add(security_id)
+                elif len(active) == 1:
+                    active_identity_by_security[security_id] = active[0]
 
-                members.add(security_id)
-                display[security_id] = active[0].ticker
+        members: set[str] = set()
+        for leaf in membership_lineage.leaves:
+            if leaf.universe_id != evaluation.universe_id:
+                continue
+            if leaf.universe_kind != expected_kind:
+                membership_reasons.add("membership_universe_kind_mismatch")
+                continue
+            if not _contains(
+                leaf.effective_from,
+                leaf.effective_to,
+                evaluation.evaluation_at,
+            ):
+                membership_reasons.add("membership_interval_inactive")
+                excluded.append(
+                    ExcludedRow(
+                        "membership",
+                        _row_number(
+                            parsed,
+                            "membership",
+                            leaf.membership_row_id,
+                        ),
+                        leaf.membership_row_id,
+                        ("membership_interval_inactive",),
+                    )
+                )
+                continue
+            if leaf.membership_state == "excluded":
+                continue
+
+            security_id = leaf.security_id
+            members.add(security_id)
+            evaluation_key = (
+                evaluation.evaluation_at,
+                evaluation.universe_id,
+                evaluation.evaluation_row_id,
+                evaluation.available_at,
+                evaluation.partition,
+                evaluation.source_ref,
+            )
+            prior_display = display_candidates.get(security_id)
+            is_latest_display = (
+                prior_display is None
+                or evaluation_key > prior_display[0]
+            )
+            if identity_lineage.reason_codes:
+                if is_latest_display:
+                    display_candidates[security_id] = (
+                        evaluation_key,
+                        None,
+                    )
+                excluded.append(
+                    ExcludedRow(
+                        "membership",
+                        _row_number(
+                            parsed,
+                            "membership",
+                            leaf.membership_row_id,
+                        ),
+                        leaf.membership_row_id,
+                        identity_lineage.reason_codes,
+                    )
+                )
+                continue
+            if security_id in overlapping_identity_security_ids:
+                if is_latest_display:
+                    display_candidates[security_id] = (
+                        evaluation_key,
+                        None,
+                    )
+                excluded.append(
+                    ExcludedRow(
+                        "membership",
+                        _row_number(
+                            parsed,
+                            "membership",
+                            leaf.membership_row_id,
+                        ),
+                        leaf.membership_row_id,
+                        ("identity_interval_overlap",),
+                    )
+                )
+                continue
+
+            active_identity = active_identity_by_security.get(security_id)
+            if active_identity is None:
+                identity_reasons.add("identity_missing")
+                if is_latest_display:
+                    display_candidates[security_id] = (
+                        evaluation_key,
+                        None,
+                    )
+                excluded.append(
+                    ExcludedRow(
+                        "membership",
+                        _row_number(
+                            parsed,
+                            "membership",
+                            leaf.membership_row_id,
+                        ),
+                        leaf.membership_row_id,
+                        ("identity_missing",),
+                    )
+                )
+                continue
+
+            if is_latest_display:
+                display_candidates[security_id] = (
+                    evaluation_key,
+                    active_identity.ticker,
+                )
 
         if not members:
             membership_reasons.add("membership_no_eligible_members")
@@ -263,9 +318,29 @@ def _identity_membership_decisions(
         membership_reasons.add("membership_benchmark_missing")
     if "research_universe" not in kinds:
         membership_reasons.add("membership_research_universe_missing")
-    if not evaluations:
+    evaluated_universes = {item.universe_id for item in evaluations}
+    if any(
+        universe_id not in evaluated_universes
+        for universe_id in declared
+    ):
         membership_reasons.add("membership_no_evaluation")
 
+    display = {
+        security_id: candidate[1]
+        for security_id, candidate in sorted(display_candidates.items())
+        if candidate[1] is not None
+    }
+    sorted_digests = tuple(
+        sorted(
+            digests,
+            key=lambda item: (
+                item.evaluation_at,
+                item.universe_id,
+                item.sha256,
+                item.member_count,
+            ),
+        )
+    )
     return (
         Decision(
             "identity_coverage",
@@ -277,7 +352,7 @@ def _identity_membership_decisions(
             "blocked" if membership_reasons else "passed",
             tuple(sorted(membership_reasons)),
         ),
-        tuple(digests),
+        sorted_digests,
         MappingProxyType(display),
         tuple(excluded),
     )
@@ -289,6 +364,13 @@ def validate_point_in_time_universe(
     *,
     top_n: int = 20,
 ) -> PointInTimeUniversePacket:
+    if (
+        isinstance(top_n, bool)
+        or not isinstance(top_n, int)
+        or top_n < 0
+    ):
+        raise ValueError("top_n_invalid")
+
     package = load_universe_package(manifest_path, registry_path)
     parsed = parse_universe_evidence(package)
     decisions: dict[str, Decision] = {}
@@ -320,6 +402,17 @@ def validate_point_in_time_universe(
     decisions[identity.area] = identity
     decisions[membership.area] = membership
     excluded.extend(composed_excluded)
+    canonical_excluded = tuple(
+        sorted(
+            excluded,
+            key=lambda item: (
+                item.contract,
+                item.source_row,
+                item.row_id,
+                item.reason_codes,
+            ),
+        )
+    )
 
     return PointInTimeUniversePacket(
         dataset_id=package.manifest.dataset_id,
@@ -335,7 +428,7 @@ def validate_point_in_time_universe(
                 len(parsed.evaluations),
             )
         ),
-        excluded=tuple(excluded[:top_n]),
+        excluded=canonical_excluded[:top_n],
         membership_digests=digests,
         display_tickers=display,
         boundary=(
