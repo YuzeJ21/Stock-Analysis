@@ -1,4 +1,5 @@
 import hashlib
+import json
 
 import pytest
 
@@ -664,3 +665,194 @@ def test_excluded_rows_are_canonically_sorted_before_positive_cap(tmp_path):
     assert len(packet.excluded) == 1
     assert packet.excluded[0].contract == "membership"
     assert packet.excluded[0].row_id == "member-bench-1"
+
+
+def test_split_requires_positive_explicit_ratio_and_does_not_rewrite_membership(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def mutate(rows):
+        rows[0].update(
+            event_type="split",
+            ratio_numerator="2",
+            ratio_denominator="1",
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", mutate)
+    raw = json.loads(manifest.read_text())
+    raw["corporate_action_policy"]["listing"] = "not_applicable"
+    raw["corporate_action_policy"]["split"] = "required"
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert packet.decisions["corporate_action_coverage"].status == "passed"
+    assert packet.membership_digests[0].member_count == 1
+
+
+def test_delisted_historical_member_is_retained_and_not_filtered_by_current_state(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def mutate(rows):
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-2",
+                "event_type": "delisting",
+                "effective_at": "2022-01-01T00:00:00Z",
+                "listing_state_after": "delisted",
+                "source_ref": "fixture://event/event-2",
+                "source_published_at": "2022-01-01T00:00:00Z",
+                "retrieved_at": "2022-01-02T00:00:00Z",
+                "supersedes_event_row_id": "",
+            }
+        )
+
+    _rewrite_csv_and_manifest(manifest, "events", mutate)
+    raw = json.loads(manifest.read_text())
+    raw["corporate_action_policy"]["delisting"] = "required"
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert all(d.member_count == 1 for d in packet.membership_digests)
+    assert packet.decisions["delisting_coverage"].status == "passed"
+
+
+@pytest.mark.parametrize(
+    "event_type,updates,reason",
+    [
+        (
+            "merger",
+            {"successor_security_id": ""},
+            "corporate_action_successor_required",
+        ),
+        (
+            "acquisition",
+            {"successor_security_id": ""},
+            "corporate_action_successor_required",
+        ),
+        (
+            "spinoff",
+            {"successor_security_id": ""},
+            "corporate_action_successor_required",
+        ),
+        (
+            "delisting",
+            {"listing_state_after": "active"},
+            "delisting_state_invalid",
+        ),
+        (
+            "reactivation",
+            {"listing_state_after": "active"},
+            "delisting_transition_invalid",
+        ),
+    ],
+)
+def test_invalid_action_or_listing_transition_is_blocked(
+    tmp_path,
+    event_type,
+    updates,
+    reason,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def mutate(rows):
+        rows[0].update(event_type=event_type, **updates)
+
+    _rewrite_csv_and_manifest(manifest, "events", mutate)
+    raw = json.loads(manifest.read_text())
+    raw["corporate_action_policy"][event_type] = "required"
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert reason in {
+        code
+        for decision in packet.decisions.values()
+        for code in decision.reason_codes
+    }
+
+
+def test_present_event_marked_unsupported_is_blocked(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    raw = json.loads(manifest.read_text())
+    raw["corporate_action_policy"]["listing"] = "unsupported"
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert (
+        "corporate_action_policy_unsupported"
+        in packet.decisions["corporate_action_coverage"].reason_codes
+    )
+
+
+def test_technical_pass_does_not_promote_unverified_rights(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    registry.write_text(
+        registry.read_text().replace(
+            "commercial_use: approved",
+            "commercial_use: unverified",
+        ),
+        encoding="utf-8",
+    )
+    raw = json.loads(manifest.read_text())
+    raw["source_rights_registry_sha256"] = hashlib.sha256(
+        registry.read_bytes()
+    ).hexdigest()
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert packet.decisions["technical_validity"].status == "passed"
+    assert packet.decisions["source_rights_eligibility"].status == "blocked"
+    assert packet.analysis_eligible is False
+
+
+def test_missing_registered_delisting_scope_blocks_only_rights_state(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        lambda rows: rows[0].update(
+            event_type="delisting",
+            listing_state_after="delisted",
+        ),
+    )
+    raw = json.loads(manifest.read_text())
+    raw["corporate_action_policy"]["listing"] = "not_applicable"
+    raw["corporate_action_policy"]["delisting"] = "required"
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+    registry.write_text(
+        registry.read_text().replace(", delistings", ""),
+        encoding="utf-8",
+    )
+    raw = json.loads(manifest.read_text())
+    raw["source_rights_registry_sha256"] = hashlib.sha256(
+        registry.read_bytes()
+    ).hexdigest()
+    manifest.write_text(json.dumps(raw), encoding="utf-8")
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert packet.decisions["technical_validity"].status == "passed"
+    assert (
+        "source_rights_field_scope_missing"
+        in packet.decisions["source_rights_eligibility"].reason_codes
+    )
