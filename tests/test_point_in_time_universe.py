@@ -1421,6 +1421,254 @@ def test_event_roots_and_orphan_preserve_exact_independent_reason_unions(
     assert packet.exclusion_reason_counts["lineage_missing_parent"] == 1
 
 
+@pytest.mark.parametrize(
+    "contract,visible_first",
+    [
+        ("security_identity", True),
+        ("security_identity", False),
+        ("membership", True),
+        ("membership", False),
+    ],
+)
+def test_visible_and_post_cutoff_same_id_rows_keep_exact_physical_provenance(
+    tmp_path,
+    contract,
+    visible_first,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_post_cutoff_duplicate(rows):
+        visible = dict(rows[0])
+        future = {
+            **visible,
+            "source_ref": f"fixture://{contract}/future-duplicate",
+            "source_published_at": "2022-01-01T00:00:00Z",
+            "retrieved_at": "2022-01-02T00:00:00Z",
+        }
+        if contract == "security_identity":
+            future["valid_from"] = "2022-01-01T00:00:00Z"
+            rows[:] = (
+                [visible, future]
+                if visible_first
+                else [future, visible]
+            )
+        else:
+            future["observation_at"] = "2022-01-01T00:00:00Z"
+            future["effective_from"] = "2022-01-01T00:00:00Z"
+            research = dict(rows[1])
+            rows[:] = (
+                [visible, research, future]
+                if visible_first
+                else [future, research, visible]
+            )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        contract,
+        add_post_cutoff_duplicate,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    row_id = (
+        "id-1"
+        if contract == "security_identity"
+        else "member-bench-1"
+    )
+    visible_source_row = (
+        2
+        if visible_first
+        else 3
+        if contract == "security_identity"
+        else 4
+    )
+    future_source_row = (
+        3
+        if visible_first and contract == "security_identity"
+        else 4
+        if visible_first
+        else 2
+    )
+    eligible_rows = {
+        row.source_row
+        for row in packet.analysis_eligible_rows
+        if (
+            row.contract == contract
+            and row.row_id == row_id
+            and row.evaluation_row_id == "eval-bench-1"
+        )
+    }
+    cutoff_exclusions = {
+        row.source_row
+        for row in packet.excluded
+        if (
+            row.contract == contract
+            and row.row_id == row_id
+            and "cutoff_later_revision_invisible" in row.reason_codes
+        )
+    }
+
+    assert packet.analysis_eligible is True
+    assert eligible_rows == {visible_source_row}
+    assert cutoff_exclusions == {future_source_row}
+    assert eligible_rows.isdisjoint(cutoff_exclusions)
+    assert _digest_by_universe(packet)["bench-1"].sha256 == _sha256_members(
+        "sec-1"
+    )
+
+
+def test_colon_components_do_not_collapse_distinct_identity_scopes(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_colliding_textual_scope(rows):
+        rows[0]["issuer_id"] = "issuer:1"
+        rows.append(
+            {
+                **rows[0],
+                "identity_row_id": "id-colon-peer",
+                "security_id": "sec-1:issuer",
+                "issuer_id": "1",
+                "ticker": "COLON",
+                "source_ref": "fixture://identity/colon-peer",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        add_colliding_textual_scope,
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "identity_coverage").status == "passed"
+    assert all(
+        digest.member_count == 1
+        for digest in packet.membership_digests
+    )
+    assert packet.display_tickers == {"sec-1": "AAA"}
+
+
+def test_colon_components_do_not_collapse_distinct_membership_scopes(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def mutate_identities(rows):
+        rows[0]["security_id"] = "sec:1"
+        rows.append(
+            {
+                **rows[0],
+                "identity_row_id": "id-colon-research",
+                "security_id": "1",
+                "issuer_id": "issuer-colon-research",
+                "ticker": "ONE",
+                "source_ref": "fixture://identity/colon-research",
+            }
+        )
+
+    def mutate_memberships(rows):
+        rows[0]["security_id"] = "sec:1"
+        rows[1]["universe_id"] = "bench-1:sec"
+        rows[1]["security_id"] = "1"
+
+    def mutate_events(rows):
+        rows[0]["security_id"] = "sec:1"
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-colon-research",
+                "security_id": "1",
+                "source_ref": "fixture://event/colon-research",
+            }
+        )
+
+    def mutate_evaluations(rows):
+        rows[1]["universe_id"] = "bench-1:sec"
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        mutate_identities,
+    )
+    _rewrite_csv_and_manifest(manifest, "membership", mutate_memberships)
+    _rewrite_csv_and_manifest(manifest, "events", mutate_events)
+    _rewrite_csv_and_manifest(
+        manifest,
+        "evaluations",
+        mutate_evaluations,
+    )
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["declared_universes"][1].update(
+            universe_id="bench-1:sec",
+        ),
+    )
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert _decision(packet, "membership_coverage").status == "passed"
+    assert {
+        digest.universe_id: digest.member_count
+        for digest in packet.membership_digests
+    } == {"bench-1": 1, "bench-1:sec": 1}
+    assert packet.analysis_eligible is True
+
+
+def test_colon_security_ids_remain_distinct_event_scopes(tmp_path):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+
+    def add_colon_identity(rows):
+        rows.append(
+            {
+                **rows[0],
+                "identity_row_id": "id-colon-security",
+                "security_id": "sec:1",
+                "issuer_id": "issuer-colon-security",
+                "ticker": "COLON",
+                "source_ref": "fixture://identity/colon-security",
+            }
+        )
+
+    def add_colon_event(rows):
+        rows.append(
+            {
+                **rows[0],
+                "event_row_id": "event-colon-security",
+                "security_id": "sec:1",
+                "event_type": "delisting",
+                "listing_state_after": "delisted",
+                "source_ref": "fixture://event/colon-security",
+            }
+        )
+
+    _rewrite_csv_and_manifest(
+        manifest,
+        "security_identity",
+        add_colon_identity,
+    )
+    _rewrite_csv_and_manifest(manifest, "events", add_colon_event)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+
+    assert "lineage_multiple_roots" not in {
+        reason
+        for decision in packet.decisions.values()
+        for reason in decision.reason_codes
+    }
+    assert not any(
+        "lineage_multiple_roots" in row.reason_codes
+        for row in packet.excluded
+    )
+
+
 def test_invalid_membership_scopes_do_not_erase_unaffected_universe_digest(
     tmp_path,
 ):

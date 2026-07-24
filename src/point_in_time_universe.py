@@ -64,7 +64,15 @@ class ScopedLineageComposition:
     leaves: tuple
     reason_codes: tuple[str, ...]
     reason_records: Mapping[str, tuple]
-    reasons_by_scope: Mapping[str, tuple[str, ...]]
+    reasons_by_scope: Mapping[object, tuple[str, ...]]
+
+
+@dataclass(frozen=True)
+class RecordSourceIndex:
+    source_rows: Mapping[str, Mapping[int, int]]
+
+    def source_row(self, contract: str, record) -> int:
+        return self.source_rows[contract][id(record)]
 
 
 @dataclass(frozen=True)
@@ -107,6 +115,13 @@ ROW_ID_FIELDS = {
     "evaluations": "evaluation_row_id",
 }
 
+RECORD_ROW_ID_ATTRIBUTES = {
+    "security_identity": "identity_row_id",
+    "membership": "membership_row_id",
+    "events": "event_row_id",
+    "evaluations": "evaluation_row_id",
+}
+
 
 def _membership_digest(
     universe_id: str,
@@ -126,20 +141,8 @@ def _contains(start, end, at):
     return start <= at and (end is None or at < end)
 
 
-def _row_number(
-    parsed: ParsedUniverseEvidence,
-    contract: str,
-    row_id: str,
-) -> int:
-    id_field = ROW_ID_FIELDS[contract]
-    return next(
-        (
-            row.source_row
-            for row in parsed.raw
-            if row.contract == contract and row.values.get(id_field) == row_id
-        ),
-        0,
-    )
+def _record_row_id(contract: str, record) -> str:
+    return getattr(record, RECORD_ROW_ID_ATTRIBUTES[contract])
 
 
 def _record_source_rows(
@@ -173,36 +176,57 @@ def _record_source_rows(
     )
 
 
-def _record_exclusions(
+def _build_record_source_index(
     parsed: ParsedUniverseEvidence,
-    contract: str,
-    records,
-    row_id,
-    reason_codes: tuple[str, ...],
-) -> tuple[ExcludedRow, ...]:
-    all_records = {
+) -> RecordSourceIndex:
+    records_by_contract = {
         "security_identity": parsed.identities,
         "membership": parsed.memberships,
         "events": parsed.events,
         "evaluations": parsed.evaluations,
-    }[contract]
-    source_rows = _record_source_rows(
-        parsed,
-        contract,
-        all_records,
-    )
-    physical_rows = {
-        (source_rows[id(record)], row_id(record))
-        for record in records
     }
+    return RecordSourceIndex(
+        MappingProxyType(
+            {
+                contract: _record_source_rows(
+                    parsed,
+                    contract,
+                    records,
+                )
+                for contract, records in records_by_contract.items()
+            }
+        )
+    )
+
+
+def _excluded_record(
+    source_index: RecordSourceIndex,
+    contract: str,
+    record,
+    reason_codes: tuple[str, ...],
+) -> ExcludedRow:
+    return ExcludedRow(
+        contract,
+        source_index.source_row(contract, record),
+        _record_row_id(contract, record),
+        reason_codes,
+    )
+
+
+def _record_exclusions(
+    source_index: RecordSourceIndex,
+    contract: str,
+    records,
+    reason_codes: tuple[str, ...],
+) -> tuple[ExcludedRow, ...]:
     return tuple(
-        ExcludedRow(
+        _excluded_record(
+            source_index,
             contract,
-            source_row,
-            record_id,
+            record,
             reason_codes,
         )
-        for source_row, record_id in sorted(physical_rows)
+        for record in records
     )
 
 
@@ -313,7 +337,7 @@ def _compose_scoped_lineage(
         available_at=available_at,
         cutoff=cutoff,
     )
-    reasons_by_scope: dict[str, set[str]] = {}
+    reasons_by_scope: dict[object, set[str]] = {}
     for reason, offenders in reason_records.items():
         for offender in offenders:
             reasons_by_scope.setdefault(scope(offender), set()).add(reason)
@@ -355,6 +379,7 @@ def _compose_scoped_lineage(
 def _identity_membership_decisions(
     manifest: UniverseManifest,
     parsed: ParsedUniverseEvidence,
+    source_index: RecordSourceIndex,
     evaluations,
     evaluation_reasons: Mapping[str, tuple[str, ...]],
 ):
@@ -388,11 +413,7 @@ def _identity_membership_decisions(
         excluded.append(
             ExcludedRow(
                 "evaluations",
-                _row_number(
-                    parsed,
-                    "evaluations",
-                    evaluation.evaluation_row_id,
-                ),
+                source_index.source_row("evaluations", evaluation),
                 evaluation.evaluation_row_id,
                 owned_reasons,
             )
@@ -426,7 +447,7 @@ def _identity_membership_decisions(
             parsed.memberships,
             row_id=lambda row: row.membership_row_id,
             parent_id=lambda row: row.supersedes_membership_row_id,
-            scope=lambda row: f"{row.universe_id}:{row.security_id}",
+            scope=lambda row: (row.universe_id, row.security_id),
             available_at=lambda row: max(
                 row.observation_at,
                 row.source_published_at,
@@ -439,13 +460,12 @@ def _identity_membership_decisions(
             for reason in membership_lineage.reason_codes:
                 excluded.extend(
                     _record_exclusions(
-                        parsed,
+                        source_index,
                         "membership",
                         membership_lineage.reason_records.get(
                             reason,
                             (),
                         ),
-                        lambda row: row.membership_row_id,
                         (reason,),
                     )
                 )
@@ -453,7 +473,7 @@ def _identity_membership_decisions(
             parsed.identities,
             row_id=lambda row: row.identity_row_id,
             parent_id=lambda row: row.supersedes_identity_row_id,
-            scope=lambda row: f"{row.security_id}:{row.issuer_id}",
+            scope=lambda row: (row.security_id, row.issuer_id),
             available_at=lambda row: max(
                 row.source_published_at,
                 row.retrieved_at,
@@ -465,13 +485,12 @@ def _identity_membership_decisions(
             for reason in identity_lineage.reason_codes:
                 excluded.extend(
                     _record_exclusions(
-                        parsed,
+                        source_index,
                         "security_identity",
                         identity_lineage.reason_records.get(
                             reason,
                             (),
                         ),
-                        lambda row: row.identity_row_id,
                         (reason,),
                     )
                 )
@@ -538,10 +557,9 @@ def _identity_membership_decisions(
                 overlapping_identity_security_ids.add(security_id)
                 excluded.extend(
                     _record_exclusions(
-                        parsed,
+                        source_index,
                         "security_identity",
                         active,
-                        lambda row: row.identity_row_id,
                         ("identity_interval_overlap",),
                     )
                 )
@@ -565,14 +583,10 @@ def _identity_membership_decisions(
             ):
                 membership_reasons.add("membership_interval_inactive")
                 excluded.append(
-                    ExcludedRow(
+                    _excluded_record(
+                        source_index,
                         "membership",
-                        _row_number(
-                            parsed,
-                            "membership",
-                            leaf.membership_row_id,
-                        ),
-                        leaf.membership_row_id,
+                        leaf,
                         ("membership_interval_inactive",),
                     )
                 )
@@ -602,14 +616,10 @@ def _identity_membership_decisions(
                         None,
                     )
                 excluded.append(
-                    ExcludedRow(
+                    _excluded_record(
+                        source_index,
                         "membership",
-                        _row_number(
-                            parsed,
-                            "membership",
-                            leaf.membership_row_id,
-                        ),
-                        leaf.membership_row_id,
+                        leaf,
                         ("identity_missing",),
                     )
                 )
@@ -621,14 +631,10 @@ def _identity_membership_decisions(
                         None,
                     )
                 excluded.append(
-                    ExcludedRow(
+                    _excluded_record(
+                        source_index,
                         "membership",
-                        _row_number(
-                            parsed,
-                            "membership",
-                            leaf.membership_row_id,
-                        ),
-                        leaf.membership_row_id,
+                        leaf,
                         ("identity_interval_overlap",),
                     )
                 )
@@ -664,23 +670,18 @@ def _identity_membership_decisions(
                         None,
                     )
                 excluded.append(
-                    ExcludedRow(
+                    _excluded_record(
+                        source_index,
                         "membership",
-                        _row_number(
-                            parsed,
-                            "membership",
-                            leaf.membership_row_id,
-                        ),
-                        leaf.membership_row_id,
+                        leaf,
                         ("identity_missing",),
                     )
                 )
                 excluded.extend(
                     _record_exclusions(
-                        parsed,
+                        source_index,
                         "security_identity",
                         identity_rows,
-                        lambda row: row.identity_row_id,
                         ("identity_missing",),
                     )
                 )
@@ -765,12 +766,13 @@ def _identity_membership_decisions(
 def _temporal_decision(
     manifest: UniverseManifest,
     parsed: ParsedUniverseEvidence,
+    source_index: RecordSourceIndex,
     evaluations,
     evaluation_reasons: Mapping[str, tuple[str, ...]],
 ) -> tuple[Decision, tuple[str, ...], tuple[ExcludedRow, ...]]:
     temporal_reasons: set[str] = set()
     leakage_reasons: set[str] = set()
-    exclusion_reasons: dict[tuple[str, str], set[str]] = {}
+    exclusion_reasons: dict[tuple[str, int, str], set[str]] = {}
     valid_evaluation_ids = {
         evaluation.evaluation_row_id
         for evaluation in evaluations
@@ -778,12 +780,17 @@ def _temporal_decision(
 
     def record_exclusion(
         contract: str,
-        row_id: str,
+        record,
         *reason_codes: str,
     ) -> None:
-        exclusion_reasons.setdefault((contract, row_id), set()).update(
-            reason_codes
-        )
+        exclusion_reasons.setdefault(
+            (
+                contract,
+                source_index.source_row(contract, record),
+                _record_row_id(contract, record),
+            ),
+            set(),
+        ).update(reason_codes)
 
     for evaluation in parsed.evaluations:
         classified_reasons = evaluation_reasons[
@@ -796,7 +803,7 @@ def _temporal_decision(
             )
             record_exclusion(
                 "evaluations",
-                evaluation.evaluation_row_id,
+                evaluation,
                 "cutoff_evaluation_after_manifest",
                 "leakage_evaluation_after_manifest_cutoff",
             )
@@ -806,7 +813,7 @@ def _temporal_decision(
             leakage_reasons.add("leakage_evaluation_available_late")
             record_exclusion(
                 "evaluations",
-                evaluation.evaluation_row_id,
+                evaluation,
                 "cutoff_evaluation_unavailable",
                 "leakage_evaluation_available_late",
             )
@@ -817,7 +824,6 @@ def _temporal_decision(
             contract,
             rows,
             available_at,
-            row_id,
             *,
             required,
         ) -> None:
@@ -844,7 +850,7 @@ def _temporal_decision(
                 for row in post_cutoff:
                     record_exclusion(
                         contract,
-                        row_id(row),
+                        row,
                         "cutoff_post_evaluation_evidence",
                         "cutoff_required_scope_unavailable",
                         "leakage_post_cutoff_evidence",
@@ -856,7 +862,7 @@ def _temporal_decision(
                 else "cutoff_unrelated_scope_invisible"
             )
             for row in post_cutoff:
-                record_exclusion(contract, row_id(row), reason)
+                record_exclusion(contract, row, reason)
 
         membership_rows = tuple(
             row
@@ -904,7 +910,6 @@ def _temporal_decision(
                     row.source_published_at,
                     row.retrieved_at,
                 ),
-                lambda row: row.membership_row_id,
                 required=(
                     not cutoff_available_memberships
                     or group[0].security_id
@@ -916,7 +921,7 @@ def _temporal_decision(
             parsed.memberships,
             row_id=lambda row: row.membership_row_id,
             parent_id=lambda row: row.supersedes_membership_row_id,
-            scope=lambda row: f"{row.universe_id}:{row.security_id}",
+            scope=lambda row: (row.universe_id, row.security_id),
             available_at=lambda row: max(
                 row.observation_at,
                 row.source_published_at,
@@ -954,7 +959,6 @@ def _temporal_decision(
                     row.source_published_at,
                     row.retrieved_at,
                 ),
-                lambda row: row.identity_row_id,
                 required=security_id in member_security_ids,
             )
 
@@ -973,7 +977,6 @@ def _temporal_decision(
                     row.source_published_at,
                     row.retrieved_at,
                 ),
-                lambda row: row.event_row_id,
                 required=(
                     security_id in member_security_ids
                     and manifest.corporate_action_policy.get(event_type)
@@ -984,11 +987,15 @@ def _temporal_decision(
     excluded = tuple(
         ExcludedRow(
             contract,
-            _row_number(parsed, contract, row_id),
+            source_row,
             row_id,
             tuple(sorted(reasons)),
         )
-        for (contract, row_id), reasons in sorted(
+        for (
+            contract,
+            source_row,
+            row_id,
+        ), reasons in sorted(
             exclusion_reasons.items()
         )
     )
@@ -1157,18 +1164,20 @@ def _partition_validation(
     extra_reasons=(),
     parsed: ParsedUniverseEvidence | None = None,
     *,
+    source_index: RecordSourceIndex | None = None,
     evaluation_reasons: Mapping[str, tuple[str, ...]] | None = None,
     evaluation_global_reasons: tuple[str, ...] | None = None,
 ) -> tuple[Decision, tuple[ExcludedRow, ...]]:
     reasons = set(extra_reasons)
-    exclusion_reasons: dict[str, set[str]] = {}
+    exclusion_reasons: dict[int, tuple[object, set[str]]] = {}
 
     def exclude(evaluation, reason: str) -> None:
         reasons.add(reason)
-        exclusion_reasons.setdefault(
-            evaluation.evaluation_row_id,
-            set(),
-        ).add(reason)
+        _, row_reasons = exclusion_reasons.setdefault(
+            id(evaluation),
+            (evaluation, set()),
+        )
+        row_reasons.add(reason)
 
     if (
         evaluation_reasons is None
@@ -1190,14 +1199,21 @@ def _partition_validation(
         ExcludedRow(
             "evaluations",
             (
-                _row_number(parsed, "evaluations", row_id)
-                if parsed is not None
+                source_index.source_row("evaluations", evaluation)
+                if source_index is not None
                 else 0
             ),
-            row_id,
+            evaluation.evaluation_row_id,
             tuple(sorted(row_reasons)),
         )
-        for row_id, row_reasons in sorted(exclusion_reasons.items())
+        for evaluation, row_reasons in sorted(
+            exclusion_reasons.values(),
+            key=lambda item: (
+                item[0].evaluation_row_id,
+                item[0].evaluation_at,
+                item[0].source_ref,
+            ),
+        )
     )
     return (
         Decision(
@@ -1353,7 +1369,7 @@ def _member_security_ids_for_evaluation(
         parsed.memberships,
         row_id=lambda row: row.membership_row_id,
         parent_id=lambda row: row.supersedes_membership_row_id,
-        scope=lambda row: f"{row.universe_id}:{row.security_id}",
+        scope=lambda row: (row.universe_id, row.security_id),
         available_at=lambda row: max(
             row.observation_at,
             row.source_published_at,
@@ -1361,9 +1377,8 @@ def _member_security_ids_for_evaluation(
         ),
         cutoff=evaluation.evaluation_at,
     )
-    universe_scope_prefix = f"{evaluation.universe_id}:"
     universe_scope_invalid = any(
-        record_scope.startswith(universe_scope_prefix)
+        record_scope[0] == evaluation.universe_id
         for record_scope in lineage.reasons_by_scope
     )
     security_ids = frozenset({
@@ -1390,16 +1405,12 @@ def _member_security_ids_for_evaluation(
 def _event_decisions(
     manifest,
     parsed,
+    source_index: RecordSourceIndex,
     evaluations,
 ) -> tuple[Decision, Decision, tuple[ExcludedRow, ...]]:
     action_reasons: set[str] = set()
     delisting_reasons: set[str] = set()
     exclusion_reasons: dict[tuple[int, str], set[str]] = {}
-    event_source_rows = _record_source_rows(
-        parsed,
-        "events",
-        parsed.events,
-    )
     listing_state_event_types = {
         "delisting",
         "suspension",
@@ -1414,7 +1425,7 @@ def _event_decisions(
     def exclude(event, *reasons: str) -> None:
         exclusion_reasons.setdefault(
             (
-                event_source_rows[id(event)],
+                source_index.source_row("events", event),
                 event.event_row_id,
             ),
             set(),
@@ -1469,7 +1480,8 @@ def _event_decisions(
             row_id=lambda event: event.event_row_id,
             parent_id=lambda event: event.supersedes_event_row_id,
             scope=lambda event: (
-                f"{event.security_id}:{event.event_type}"
+                event.security_id,
+                event.event_type,
             ),
             available_at=lambda event: max(
                 event.effective_at,
@@ -1708,16 +1720,16 @@ def _rights_decision(manifest, parsed, registry) -> Decision:
 
 
 def _row_reference(
-    parsed: ParsedUniverseEvidence,
+    source_index: RecordSourceIndex,
     contract: str,
-    row_id: str,
+    record,
     *,
     evaluation_row_id: str = "",
 ) -> RowReference:
     return RowReference(
         contract,
-        _row_number(parsed, contract, row_id),
-        row_id,
+        source_index.source_row(contract, record),
+        _record_row_id(contract, record),
         evaluation_row_id,
     )
 
@@ -1748,6 +1760,7 @@ def _complete_row_references(
 def _analysis_row_references(
     manifest: UniverseManifest,
     parsed: ParsedUniverseEvidence,
+    source_index: RecordSourceIndex,
     evaluations,
 ) -> tuple[RowReference, ...]:
     references: set[RowReference] = set()
@@ -1766,9 +1779,9 @@ def _analysis_row_references(
         evaluation_row_id = evaluation.evaluation_row_id
         references.add(
             _row_reference(
-                parsed,
+                source_index,
                 "evaluations",
-                evaluation_row_id,
+                evaluation,
                 evaluation_row_id=evaluation_row_id,
             )
         )
@@ -1776,7 +1789,7 @@ def _analysis_row_references(
             parsed.memberships,
             row_id=lambda row: row.membership_row_id,
             parent_id=lambda row: row.supersedes_membership_row_id,
-            scope=lambda row: f"{row.universe_id}:{row.security_id}",
+            scope=lambda row: (row.universe_id, row.security_id),
             available_at=lambda row: max(
                 row.observation_at,
                 row.source_published_at,
@@ -1788,7 +1801,7 @@ def _analysis_row_references(
             parsed.identities,
             row_id=lambda row: row.identity_row_id,
             parent_id=lambda row: row.supersedes_identity_row_id,
-            scope=lambda row: f"{row.security_id}:{row.issuer_id}",
+            scope=lambda row: (row.security_id, row.issuer_id),
             available_at=lambda row: max(
                 row.source_published_at,
                 row.retrieved_at,
@@ -1854,17 +1867,17 @@ def _analysis_row_references(
             member_security_ids.add(member.security_id)
             references.add(
                 _row_reference(
-                    parsed,
+                    source_index,
                     "membership",
-                    member.membership_row_id,
+                    member,
                     evaluation_row_id=evaluation_row_id,
                 )
             )
             references.add(
                 _row_reference(
-                    parsed,
+                    source_index,
                     "security_identity",
-                    active_identity.identity_row_id,
+                    active_identity,
                     evaluation_row_id=evaluation_row_id,
                 )
             )
@@ -1874,7 +1887,8 @@ def _analysis_row_references(
             row_id=lambda event: event.event_row_id,
             parent_id=lambda event: event.supersedes_event_row_id,
             scope=lambda event: (
-                f"{event.security_id}:{event.event_type}"
+                event.security_id,
+                event.event_type,
             ),
             available_at=lambda event: max(
                 event.effective_at,
@@ -1889,9 +1903,9 @@ def _analysis_row_references(
             if event.security_id in member_security_ids:
                 references.add(
                     _row_reference(
-                        parsed,
+                        source_index,
                         "events",
-                        event.event_row_id,
+                        event,
                         evaluation_row_id=evaluation_row_id,
                     )
                 )
@@ -1924,6 +1938,7 @@ def validate_point_in_time_universe(
 
     package = load_universe_package(manifest_path, registry_path)
     parsed = parse_universe_evidence(package)
+    source_index = _build_record_source_index(parsed)
     decisions: dict[str, Decision] = {}
     excluded: list[ExcludedRow] = [
         ExcludedRow(
@@ -1964,6 +1979,7 @@ def validate_point_in_time_universe(
         _identity_membership_decisions(
             package.manifest,
             parsed,
+            source_index,
             valid_evaluations,
             evaluation_reasons,
         )
@@ -1974,6 +1990,7 @@ def validate_point_in_time_universe(
     temporal, cutoff_leakage, temporal_excluded = _temporal_decision(
         package.manifest,
         parsed,
+        source_index,
         valid_evaluations,
         evaluation_reasons,
     )
@@ -1982,6 +1999,7 @@ def validate_point_in_time_universe(
     corporate_action, delisting, event_excluded = _event_decisions(
         package.manifest,
         parsed,
+        source_index,
         valid_evaluations,
     )
     source_rights = _rights_decision(
@@ -2004,6 +2022,7 @@ def validate_point_in_time_universe(
         parsed.evaluations,
         cutoff_leakage,
         parsed,
+        source_index=source_index,
         evaluation_reasons=evaluation_reasons,
         evaluation_global_reasons=evaluation_global_reasons,
     )
@@ -2058,6 +2077,7 @@ def validate_point_in_time_universe(
         _analysis_row_references(
             package.manifest,
             parsed,
+            source_index,
             valid_evaluations,
         )
         if analysis_eligible
