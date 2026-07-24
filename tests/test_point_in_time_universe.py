@@ -2433,7 +2433,7 @@ def test_validation_packet_is_complete_and_independent_of_top_n(tmp_path):
             registry,
             top_n=top_n,
         )
-        for top_n in (0, 1, 10_000)
+        for top_n in (0, 1, 100)
     )
 
     assert packets[0] == packets[1] == packets[2]
@@ -4169,7 +4169,7 @@ def test_every_emitted_exclusion_uses_an_approved_stable_reason(
         packet = validate_point_in_time_universe(
             manifest,
             registry,
-            top_n=1000,
+            top_n=100,
         )
         observed_by_case[case] = {
             code

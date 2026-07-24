@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +21,15 @@ ALLOWED_EVENT_TYPES = frozenset({
 })
 ALLOWED_ACTION_POLICY_STATES = frozenset({"required", "not_applicable", "unsupported"})
 REPRODUCTION_CONTRACT = "membership_count_and_sha256_at_cutoff_v1"
+
+# Local safeguards for one supplied package. These are not coverage, scale,
+# hosted-reliability, or commercial-capacity claims.
+MAX_MANIFEST_BYTES = 1 * 1024 * 1024
+MAX_CONTRACT_SNAPSHOT_BYTES = 32 * 1024 * 1024
+MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES = 64 * 1024 * 1024
+MAX_RIGHTS_REGISTRY_BYTES = 4 * 1024 * 1024
+MAX_DECLARED_ROWS_PER_CONTRACT = 250_000
+MAX_PACKAGE_TRAVERSAL_ENTRIES = 32
 
 
 @dataclass(frozen=True)
@@ -66,6 +76,29 @@ def _sha256(snapshot: bytes) -> str:
 def _csv_row_count(snapshot: bytes) -> int:
     with io.StringIO(snapshot.decode("utf-8"), newline="") as handle:
         return sum(1 for _ in csv.DictReader(handle))
+
+
+def _bounded_snapshot(
+    path: Path,
+    *,
+    maximum_bytes: int,
+    size_error: str,
+    unreadable_error: str,
+) -> bytes:
+    try:
+        if path.stat().st_size > maximum_bytes:
+            raise ValueError(size_error)
+        snapshot = path.read_bytes()
+        if (
+            len(snapshot) > maximum_bytes
+            or path.stat().st_size > maximum_bytes
+        ):
+            raise ValueError(size_error)
+    except ValueError:
+        raise
+    except OSError as exc:
+        raise ValueError(unreadable_error) from exc
+    return snapshot
 
 
 def _safe_child(base: Path, relative: str) -> Path:
@@ -198,6 +231,8 @@ def _manifest_files(raw: Mapping[str, Any]) -> tuple[ManifestFile, ...]:
                 or not _valid_row_count(item.get("row_count"))
             ):
                 raise ValueError("manifest_file_record_invalid")
+            if item["row_count"] > MAX_DECLARED_ROWS_PER_CONTRACT:
+                raise ValueError("manifest_row_count_limit_exceeded")
         records = tuple(ManifestFile(**item) for item in files)
     except (KeyError, TypeError) as exc:
         raise ValueError("manifest_files_invalid") from exc
@@ -208,19 +243,48 @@ def _manifest_files(raw: Mapping[str, Any]) -> tuple[ManifestFile, ...]:
 
 def _reject_unlisted_files(package_dir: Path, manifest_path: Path, file_records: tuple[ManifestFile, ...]) -> None:
     listed_paths = {Path(item.path).as_posix() for item in file_records}
-    for candidate in package_dir.rglob("*"):
-        if (candidate.is_file() or candidate.is_symlink()) and candidate != manifest_path:
-            relative_path = candidate.relative_to(package_dir).as_posix()
-            if relative_path not in listed_paths:
-                raise ValueError("manifest_unlisted_file")
+    pending = [package_dir]
+    entry_count = 0
+    try:
+        while pending:
+            current = pending.pop()
+            with os.scandir(current) as entries:
+                for entry in entries:
+                    entry_count += 1
+                    if entry_count > MAX_PACKAGE_TRAVERSAL_ENTRIES:
+                        raise ValueError(
+                            "manifest_package_entry_limit_exceeded"
+                        )
+                    candidate = Path(entry.path)
+                    if entry.is_dir(follow_symlinks=False):
+                        pending.append(candidate)
+                    elif (
+                        entry.is_file(follow_symlinks=False)
+                        or entry.is_symlink()
+                    ) and candidate != manifest_path:
+                        relative_path = candidate.relative_to(
+                            package_dir
+                        ).as_posix()
+                        if relative_path not in listed_paths:
+                            raise ValueError("manifest_unlisted_file")
+    except ValueError:
+        raise
+    except OSError as exc:
+        raise ValueError("manifest_package_unreadable") from exc
 
 
 def load_universe_package(manifest_path: Path, registry_path: Path) -> LoadedUniversePackage:
     manifest_path = Path(manifest_path).resolve()
     registry_path = Path(registry_path)
     try:
-        raw = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
+        manifest_snapshot = _bounded_snapshot(
+            manifest_path,
+            maximum_bytes=MAX_MANIFEST_BYTES,
+            size_error="manifest_size_limit_exceeded",
+            unreadable_error="manifest_unreadable",
+        )
+        raw = json.loads(manifest_snapshot.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         raise ValueError("manifest_unreadable") from exc
     if not isinstance(raw, dict):
         raise ValueError("manifest_unreadable")
@@ -236,11 +300,19 @@ def load_universe_package(manifest_path: Path, registry_path: Path) -> LoadedUni
     _reject_unlisted_files(package_dir, manifest_path, file_records)
     resolved: dict[str, Path] = {}
     contract_snapshots: dict[str, bytes] = {}
+    total_snapshot_bytes = 0
     for item, path in zip(file_records, resolved_paths, strict=True):
-        try:
-            snapshot = path.read_bytes()
-        except OSError as exc:
-            raise ValueError("manifest_file_unreadable") from exc
+        snapshot = _bounded_snapshot(
+            path,
+            maximum_bytes=MAX_CONTRACT_SNAPSHOT_BYTES,
+            size_error="manifest_file_size_limit_exceeded",
+            unreadable_error="manifest_file_unreadable",
+        )
+        total_snapshot_bytes += len(snapshot)
+        if total_snapshot_bytes > MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES:
+            raise ValueError(
+                "manifest_total_snapshot_size_limit_exceeded"
+            )
         file_hash = _sha256(snapshot)
         row_count = _csv_row_count(snapshot)
         if file_hash != item.sha256:
@@ -249,10 +321,12 @@ def load_universe_package(manifest_path: Path, registry_path: Path) -> LoadedUni
             raise ValueError("manifest_row_count_mismatch")
         resolved[item.contract] = path
         contract_snapshots[item.contract] = snapshot
-    try:
-        registry_snapshot = registry_path.read_bytes()
-    except OSError as exc:
-        raise ValueError("manifest_registry_unreadable") from exc
+    registry_snapshot = _bounded_snapshot(
+        registry_path,
+        maximum_bytes=MAX_RIGHTS_REGISTRY_BYTES,
+        size_error="manifest_registry_size_limit_exceeded",
+        unreadable_error="manifest_registry_unreadable",
+    )
     registry_hash = _sha256(registry_snapshot)
     if registry_hash != raw.get("source_rights_registry_sha256"):
         raise ValueError("manifest_registry_digest_mismatch")

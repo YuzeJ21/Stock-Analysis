@@ -1526,3 +1526,35 @@ def test_priority_four_local_validator_is_documented_without_claiming_real_data_
         "Do not run readiness rebuilds or generated-artifact commands without "
         "explicit approval."
     ) in prompt
+
+
+def test_priority_four_resource_budgets_and_review_state_are_documented_truthfully():
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    prompt = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    remediation_state = (
+        "Known local defect-remediation slices and per-slice independent code "
+        "review are complete; final whole-branch engineering review remains pending."
+    )
+    budgets = (
+        "Local resource budgets for one supplied package: preview sample 100 rows; "
+        "manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined "
+        "64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; "
+        "package traversal 32 entries."
+    )
+    scope_boundary = (
+        "These local bounds do not prove scale, hosted reliability, or market "
+        "readiness."
+    )
+    external_gate = (
+        "No permitted independently reviewed real dataset, accepted expected "
+        "count/digest, or source-rights proof is on record."
+    )
+
+    for text in (roadmap, methodology, prompt):
+        assert remediation_state in text
+        assert budgets in text
+        assert scope_boundary in text
+        assert external_gate in text

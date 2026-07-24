@@ -291,7 +291,10 @@ def test_missing_manifest_is_nonzero_without_traceback():
     assert "Traceback" not in result.stderr
 
 
-@pytest.mark.parametrize("top_n", ("-1", "true", "false", "1.5", "not-a-number"))
+@pytest.mark.parametrize(
+    "top_n",
+    ("-1", "101", "true", "false", "1.5", "not-a-number"),
+)
 def test_invalid_top_n_is_nonzero_without_traceback(tmp_path, top_n):
     manifest, registry = build_valid_package(tmp_path)
     before = _snapshot(tmp_path)
@@ -308,6 +311,126 @@ def test_invalid_top_n_is_nonzero_without_traceback(tmp_path, top_n):
 
     assert result.returncode != 0
     assert "Traceback" not in result.stderr
+    assert _snapshot(tmp_path) == before
+
+
+def test_preview_top_n_boundaries_and_packet_independence(tmp_path):
+    from src.point_in_time_universe import (
+        render_preview,
+        validate_point_in_time_universe,
+    )
+
+    manifest, registry = build_valid_package(tmp_path)
+    before = _snapshot(tmp_path)
+    packet_zero = validate_point_in_time_universe(
+        manifest,
+        registry,
+        top_n=0,
+    )
+    packet_max = validate_point_in_time_universe(
+        manifest,
+        registry,
+        top_n=100,
+    )
+
+    assert packet_zero == packet_max
+    assert render_preview(packet_zero, top_n=0)
+    assert render_preview(packet_max, top_n=100)
+    for invalid in (-1, 101, True, 1.5, "1"):
+        with pytest.raises(ValueError, match="top_n_invalid"):
+            validate_point_in_time_universe(
+                manifest,
+                registry,
+                top_n=invalid,
+            )
+        with pytest.raises(ValueError, match="top_n_invalid"):
+            render_preview(packet_zero, top_n=invalid)
+    assert _snapshot(tmp_path) == before
+
+
+@pytest.mark.parametrize(
+    "resource,error",
+    [
+        ("manifest", "manifest_size_limit_exceeded"),
+        ("contract", "manifest_file_size_limit_exceeded"),
+        ("combined", "manifest_total_snapshot_size_limit_exceeded"),
+        ("registry", "manifest_registry_size_limit_exceeded"),
+        ("rows", "manifest_row_count_limit_exceeded"),
+        ("traversal", "manifest_package_entry_limit_exceeded"),
+    ],
+)
+def test_cli_and_make_resource_failures_are_readable_nonwriting(
+    tmp_path,
+    resource,
+    error,
+):
+    from src.point_in_time_universe_manifest import (
+        MAX_CONTRACT_SNAPSHOT_BYTES,
+        MAX_MANIFEST_BYTES,
+        MAX_PACKAGE_TRAVERSAL_ENTRIES,
+        MAX_RIGHTS_REGISTRY_BYTES,
+        MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES,
+    )
+
+    manifest, registry = build_valid_package(tmp_path)
+    raw = json.loads(manifest.read_text(encoding="utf-8"))
+    records = {
+        item["contract"]: item
+        for item in raw["files"]
+    }
+    if resource == "manifest":
+        manifest.write_bytes(
+            manifest.read_bytes()
+            + b" " * (MAX_MANIFEST_BYTES + 1 - manifest.stat().st_size)
+        )
+    elif resource == "contract":
+        identity = manifest.parent / records["security_identity"]["path"]
+        identity.write_bytes(b"\n" * (MAX_CONTRACT_SNAPSHOT_BYTES + 1))
+    elif resource == "combined":
+        target_size = MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES // 3 + 1
+        for contract in ("security_identity", "membership", "events"):
+            path = manifest.parent / records[contract]["path"]
+            path.write_bytes(
+                path.read_bytes()
+                + b"\n" * (target_size - path.stat().st_size)
+            )
+            records[contract]["sha256"] = hashlib.sha256(
+                path.read_bytes()
+            ).hexdigest()
+        manifest.write_text(json.dumps(raw), encoding="utf-8")
+    elif resource == "registry":
+        registry.write_bytes(
+            registry.read_bytes()
+            + b" " * (MAX_RIGHTS_REGISTRY_BYTES + 1 - registry.stat().st_size)
+        )
+    elif resource == "rows":
+        records["security_identity"]["row_count"] = 250_001
+        manifest.write_text(json.dumps(raw), encoding="utf-8")
+    else:
+        current_entries = sum(1 for _ in manifest.parent.iterdir())
+        for index in range(
+            MAX_PACKAGE_TRAVERSAL_ENTRIES - current_entries + 1
+        ):
+            (manifest.parent / f"empty-{index:02d}").mkdir()
+
+    before = _snapshot(tmp_path)
+    cli = _run_cli(
+        "preview",
+        "--manifest",
+        str(manifest),
+        "--registry",
+        str(registry),
+    )
+    make = _run_make(
+        "point-in-time-universe-preview",
+        f"MANIFEST={manifest}",
+        f"REGISTRY={registry}",
+    )
+
+    for result in (cli, make):
+        assert result.returncode != 0
+        assert error in result.stderr
+        assert "Traceback" not in result.stderr
     assert _snapshot(tmp_path) == before
 
 

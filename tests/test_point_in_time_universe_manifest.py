@@ -248,3 +248,190 @@ def test_manifest_rejects_invalid_file_record_before_construction(tmp_path, muta
     manifest.write_text(json.dumps(raw), encoding="utf-8")
     with pytest.raises(ValueError, match="manifest_file_record_invalid"):
         load_universe_package(manifest, registry)
+
+
+def test_manifest_size_limit_accepts_boundary_and_rejects_boundary_plus_one(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe_manifest as loader
+
+    manifest, registry = build_valid_package(tmp_path)
+    size = manifest.stat().st_size
+    monkeypatch.setattr(loader, "MAX_MANIFEST_BYTES", size)
+    loader.load_universe_package(manifest, registry)
+
+    monkeypatch.setattr(loader, "MAX_MANIFEST_BYTES", size - 1)
+    with pytest.raises(ValueError, match="manifest_size_limit_exceeded"):
+        loader.load_universe_package(manifest, registry)
+
+
+def test_contract_size_limits_accept_boundaries_and_reject_plus_one_before_read(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe_manifest as loader
+
+    manifest, registry = build_valid_package(tmp_path)
+    contract_paths = tuple(
+        path for path in manifest.parent.glob("*.csv")
+    )
+    largest = max(path.stat().st_size for path in contract_paths)
+    original_read_bytes = Path.read_bytes
+
+    monkeypatch.setattr(loader, "MAX_CONTRACT_SNAPSHOT_BYTES", largest)
+    loader.load_universe_package(manifest, registry)
+
+    read_contracts: list[Path] = []
+
+    def track_reads(path):
+        if path.suffix == ".csv":
+            read_contracts.append(path)
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", track_reads)
+    monkeypatch.setattr(loader, "MAX_CONTRACT_SNAPSHOT_BYTES", largest - 1)
+    with pytest.raises(ValueError, match="manifest_file_size_limit_exceeded"):
+        loader.load_universe_package(manifest, registry)
+    assert not any(
+        path.stat().st_size == largest
+        for path in read_contracts
+    )
+
+
+def test_contract_post_read_growth_past_limit_is_rejected(tmp_path, monkeypatch):
+    import src.point_in_time_universe_manifest as loader
+
+    manifest, registry = build_valid_package(tmp_path)
+    identity = manifest.parent / "identity.csv"
+    original_read_bytes = Path.read_bytes
+    limit = identity.stat().st_size
+    raced = False
+
+    def read_then_grow(path):
+        nonlocal raced
+        snapshot = original_read_bytes(path)
+        if path.resolve() == identity.resolve() and not raced:
+            raced = True
+            path.write_bytes(snapshot + b"x")
+        return snapshot
+
+    monkeypatch.setattr(loader, "MAX_CONTRACT_SNAPSHOT_BYTES", limit)
+    monkeypatch.setattr(Path, "read_bytes", read_then_grow)
+    with pytest.raises(ValueError, match="manifest_file_size_limit_exceeded"):
+        loader.load_universe_package(manifest, registry)
+    assert raced is True
+
+
+def test_combined_contract_limit_accepts_boundary_and_rejects_plus_one(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe_manifest as loader
+
+    manifest, registry = build_valid_package(tmp_path)
+    total = sum(path.stat().st_size for path in manifest.parent.glob("*.csv"))
+    monkeypatch.setattr(loader, "MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES", total)
+    loader.load_universe_package(manifest, registry)
+
+    monkeypatch.setattr(loader, "MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES", total - 1)
+    with pytest.raises(
+        ValueError,
+        match="manifest_total_snapshot_size_limit_exceeded",
+    ):
+        loader.load_universe_package(manifest, registry)
+
+
+def test_registry_size_limit_accepts_boundary_and_rejects_plus_one_before_read(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe_manifest as loader
+
+    manifest, registry = build_valid_package(tmp_path)
+    size = registry.stat().st_size
+    monkeypatch.setattr(loader, "MAX_RIGHTS_REGISTRY_BYTES", size)
+    loader.load_universe_package(manifest, registry)
+
+    original_read_bytes = Path.read_bytes
+    registry_reads = 0
+
+    def track_reads(path):
+        nonlocal registry_reads
+        if path.resolve() == registry.resolve():
+            registry_reads += 1
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", track_reads)
+    monkeypatch.setattr(loader, "MAX_RIGHTS_REGISTRY_BYTES", size - 1)
+    with pytest.raises(ValueError, match="manifest_registry_size_limit_exceeded"):
+        loader.load_universe_package(manifest, registry)
+    assert registry_reads == 0
+
+
+def test_registry_post_read_growth_past_limit_is_rejected(tmp_path, monkeypatch):
+    import src.point_in_time_universe_manifest as loader
+
+    manifest, registry = build_valid_package(tmp_path)
+    original_read_bytes = Path.read_bytes
+    limit = registry.stat().st_size
+    raced = False
+
+    def read_then_grow(path):
+        nonlocal raced
+        snapshot = original_read_bytes(path)
+        if path.resolve() == registry.resolve() and not raced:
+            raced = True
+            path.write_bytes(snapshot + b"x")
+        return snapshot
+
+    monkeypatch.setattr(loader, "MAX_RIGHTS_REGISTRY_BYTES", limit)
+    monkeypatch.setattr(Path, "read_bytes", read_then_grow)
+    with pytest.raises(ValueError, match="manifest_registry_size_limit_exceeded"):
+        loader.load_universe_package(manifest, registry)
+    assert raced is True
+
+
+def test_declared_row_limit_accepts_boundary_and_rejects_plus_one_before_contract_read(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe_manifest as loader
+
+    manifest, registry = build_valid_package(tmp_path)
+    monkeypatch.setattr(loader, "MAX_DECLARED_ROWS_PER_CONTRACT", 2)
+    loader.load_universe_package(manifest, registry)
+
+    original_read_bytes = Path.read_bytes
+    contract_reads: list[Path] = []
+
+    def track_reads(path):
+        if path.suffix == ".csv":
+            contract_reads.append(path)
+        return original_read_bytes(path)
+
+    monkeypatch.setattr(Path, "read_bytes", track_reads)
+    monkeypatch.setattr(loader, "MAX_DECLARED_ROWS_PER_CONTRACT", 1)
+    with pytest.raises(ValueError, match="manifest_row_count_limit_exceeded"):
+        loader.load_universe_package(manifest, registry)
+    assert contract_reads == []
+
+
+def test_package_traversal_limit_accepts_boundary_and_stops_at_plus_one(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe_manifest as loader
+
+    manifest, registry = build_valid_package(tmp_path)
+    entry_count = sum(1 for _ in manifest.parent.iterdir())
+    monkeypatch.setattr(loader, "MAX_PACKAGE_TRAVERSAL_ENTRIES", entry_count)
+    loader.load_universe_package(manifest, registry)
+
+    monkeypatch.setattr(
+        loader,
+        "MAX_PACKAGE_TRAVERSAL_ENTRIES",
+        entry_count - 1,
+    )
+    with pytest.raises(ValueError, match="manifest_package_entry_limit_exceeded"):
+        loader.load_universe_package(manifest, registry)

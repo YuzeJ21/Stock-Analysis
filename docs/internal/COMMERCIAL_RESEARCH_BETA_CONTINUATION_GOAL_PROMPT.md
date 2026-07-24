@@ -232,11 +232,16 @@ That summary is necessary but not sufficient; the exact Priority 4 exit conditio
 
 Priority 4 — Point-in-time benchmark and universe foundation
 - The provider-neutral, read-only first slice is implemented locally against the approved design at `docs/superpowers/specs/2026-07-23-point-in-time-universe-foundation-design.md`; reverify its ten independent states and no-write behavior from current repository truth.
+- Known local defect-remediation slices and per-slice independent code review are complete; final whole-branch engineering review remains pending.
+- Local resource budgets for one supplied package: preview sample 100 rows; manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined 64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; package traversal 32 entries.
+- These local bounds do not prove scale, hosted reliability, or market readiness.
+- No permitted independently reviewed real dataset, accepted expected count/digest, or source-rights proof is on record.
 - Keep the foundation isolated from the current ticker-centric universe merge path. Stable security identity, timestamped membership, corporate-action/listing-status events, evaluation cutoffs, immutable manifests, exact-source rights, revision lineage, and deterministic membership digests remain fail-closed and independent.
 - Use only the two documented read-only status/preview entries. Do not fetch, write normalized artifacts, apply rows, rebuild readiness, or activate analysis.
 - Explicitly control corporate actions, delistings, survivorship, and leakage; never substitute current constituents, identifiers, prices, or fundamentals for historical state.
 - Preserve leakage-safe partition or walk-forward boundaries and reproducible benchmark diagnostics.
 - Keep this priority open under the single registered external dependency condition above. Schemas, fixtures, and local green gates are insufficient.
+- Next, run the complete release-gate matrix and commission a new whole-branch engineering review over the full Priority 4 implementation and remediation range. Do not retry unavailable providers while that local work remains executable.
 
 Priority 5 — One permitted consensus source and one reviewed peer relationship
 - Review one permitted point-in-time consensus source for one ticker and exact fiscal period, then perform separate human evidence-preserving mapping into the prospective schema and run the collection preview.

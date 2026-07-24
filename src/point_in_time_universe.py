@@ -107,6 +107,17 @@ DECISION_ORDER = (
     "reproduction_ready",
     "leakage_safe",
 )
+MAX_PREVIEW_EXCLUSION_ROWS = 100
+
+
+def _validate_top_n(top_n: int) -> None:
+    if (
+        isinstance(top_n, bool)
+        or not isinstance(top_n, int)
+        or top_n < 0
+        or top_n > MAX_PREVIEW_EXCLUSION_ROWS
+    ):
+        raise ValueError("top_n_invalid")
 
 ROW_ID_FIELDS = {
     "security_identity": "identity_row_id",
@@ -1958,12 +1969,7 @@ def validate_point_in_time_universe(
     *,
     top_n: int = 20,
 ) -> PointInTimeUniversePacket:
-    if (
-        isinstance(top_n, bool)
-        or not isinstance(top_n, int)
-        or top_n < 0
-    ):
-        raise ValueError("top_n_invalid")
+    _validate_top_n(top_n)
 
     package = load_universe_package(manifest_path, registry_path)
     parsed = parse_universe_evidence(package)
@@ -2182,12 +2188,7 @@ def render_preview(
     *,
     top_n: int = 20,
 ) -> str:
-    if (
-        isinstance(top_n, bool)
-        or not isinstance(top_n, int)
-        or top_n < 0
-    ):
-        raise ValueError("top_n_invalid")
+    _validate_top_n(top_n)
 
     lines = [render_status(packet), "", "Membership reproduction:"]
     lines.extend(
@@ -2236,7 +2237,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.manifest is None:
         parser.error("MANIFEST is required")
-    if args.top_n < 0:
+    if args.top_n < 0 or args.top_n > MAX_PREVIEW_EXCLUSION_ROWS:
         parser.error("top_n_invalid")
 
     try:
