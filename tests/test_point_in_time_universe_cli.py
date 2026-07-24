@@ -10,6 +10,13 @@ import pytest
 
 from tests.point_in_time_universe_fixture import build_valid_package
 from tests.test_point_in_time_universe import mutate_identity_membership_case
+from tests.test_point_in_time_universe import (
+    _replace_contract_rows,
+    _rewrite_manifest,
+)
+from tests.test_point_in_time_universe_remediation6 import (
+    _walk_forward_rows,
+)
 from tests.test_point_in_time_universe_contracts import (
     _rewrite_csv_and_manifest,
 )
@@ -309,6 +316,59 @@ def test_publication_chronology_failure_is_readable_and_write_free(tmp_path):
         "reasons=schema_retrieved_before_publication"
     ) in result.stdout
     assert "analysis_eligible: false" in result.stdout
+    assert "Traceback" not in result.stderr
+    assert _snapshot(tmp_path) == before
+
+
+def test_walk_forward_preview_shows_early_blocks_and_later_unlock_write_free(
+    tmp_path,
+):
+    manifest, registry = build_valid_package(tmp_path)
+    _replace_contract_rows(
+        manifest,
+        "evaluations",
+        list(reversed(_walk_forward_rows())),
+    )
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw.update(
+            observation_cutoff_at="2023-01-01T00:00:00Z",
+            evaluation_policy={
+                "kind": "walk_forward",
+                "minimum_history_count": 2,
+            },
+        ),
+    )
+    before = _snapshot(tmp_path)
+
+    result = _run_cli(
+        "preview",
+        "--manifest",
+        str(manifest),
+        "--registry",
+        str(registry),
+        "--top-n",
+        "10",
+    )
+
+    assert result.returncode == 0
+    assert (
+        "leakage_safe: blocked; "
+        "reasons=partition_minimum_history_unmet"
+    ) in result.stdout
+    assert (
+        "- bench-1 @ 2023-01-01T00:00:00Z: members=1;"
+        in result.stdout
+    )
+    assert (
+        "- research-1 @ 2023-01-01T00:00:00Z: members=1;"
+        in result.stdout
+    )
+    assert "eval-bench-1-2021" in result.stdout
+    assert "eval-bench-1-2022" in result.stdout
+    assert "eval-bench-1-2023" not in result.stdout.partition(
+        "Excluded sample:\n"
+    )[2]
     assert "Traceback" not in result.stderr
     assert _snapshot(tmp_path) == before
 

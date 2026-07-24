@@ -17,6 +17,68 @@ from tests.test_point_in_time_universe import (
 )
 
 
+@pytest.mark.parametrize("event_type", ("not-a-real-event", ""))
+def test_unclassifiable_event_type_cannot_inherit_corporate_action_rights(
+    tmp_path,
+    event_type,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    manifest, registry = build_valid_package(tmp_path)
+    source_id = "corporate_only_source"
+    _rewrite_csv_and_manifest(
+        manifest,
+        "events",
+        lambda rows: rows[0].update(
+            event_type=event_type,
+            source_id=source_id,
+        ),
+    )
+    _append_registry_source(
+        registry,
+        source_id,
+        ("corporate_actions",),
+    )
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["allowed_source_ids"].append(source_id),
+    )
+    _refresh_registry_digest(manifest, registry)
+
+    packet = validate_point_in_time_universe(manifest, registry)
+    exact = next(
+        row
+        for row in packet.excluded
+        if row.contract == "events" and row.source_row == 2
+    )
+
+    assert _decision(packet, "technical_validity").status == "blocked"
+    assert _decision(
+        packet,
+        "source_rights_eligibility",
+    ).reason_codes == ("source_rights_event_scope_unreadable",)
+    assert "source_rights_event_scope_unreadable" in exact.reason_codes
+
+
+def test_internal_missing_event_type_sentinel_has_no_inferred_rights_scope():
+    from types import MappingProxyType
+
+    from src.point_in_time_universe import _raw_required_rights_scope
+    from src.point_in_time_universe_contracts import (
+        RAW_MISSING_CELL,
+        RawEvidenceRow,
+    )
+
+    row = RawEvidenceRow(
+        "events",
+        "events.csv",
+        2,
+        MappingProxyType({"event_type": RAW_MISSING_CELL}),
+    )
+
+    assert _raw_required_rights_scope(row) is None
+
+
 @pytest.mark.parametrize(
     ("contract", "malformed_field"),
     [
@@ -256,6 +318,77 @@ def test_walk_forward_history_is_strictly_prior_and_input_order_independent(
             "partition_minimum_history_unmet",
         )
         assert reasons[f"eval-{universe}-2023"] == ()
+
+
+def test_public_validator_blocks_early_cutoffs_and_unlocks_only_later_cutoff(
+    tmp_path,
+):
+    from src.point_in_time_universe import validate_point_in_time_universe
+
+    semantic_results = []
+    for index, rows in enumerate(
+        (_walk_forward_rows(), list(reversed(_walk_forward_rows())))
+    ):
+        root = tmp_path / str(index)
+        root.mkdir()
+        manifest, registry = build_valid_package(root)
+        _replace_contract_rows(manifest, "evaluations", rows)
+        _rewrite_manifest(
+            manifest,
+            lambda raw: raw.update(
+                observation_cutoff_at="2023-01-01T00:00:00Z",
+                evaluation_policy={
+                    "kind": "walk_forward",
+                    "minimum_history_count": 2,
+                },
+            ),
+        )
+
+        packet = validate_point_in_time_universe(manifest, registry)
+        semantic_results.append(
+            (
+                packet.decisions,
+                packet.membership_digests,
+                {
+                    row.row_id: row.reason_codes
+                    for row in packet.excluded
+                    if row.contract == "evaluations"
+                },
+                {
+                    row.row_id
+                    for row in packet.raw_rows
+                    if row.contract == "evaluations"
+                },
+            )
+        )
+
+    assert semantic_results[0] == semantic_results[1]
+    decisions, digests, excluded, observed_evaluations = semantic_results[0]
+    assert decisions["leakage_safe"].reason_codes == (
+        "partition_minimum_history_unmet",
+    )
+    assert {
+        (item.universe_id, item.evaluation_at)
+        for item in digests
+    } == {
+        ("bench-1", "2023-01-01T00:00:00Z"),
+        ("research-1", "2023-01-01T00:00:00Z"),
+    }
+    assert observed_evaluations == {
+        f"eval-{universe}-{year}"
+        for universe in ("bench-1", "research-1")
+        for year in (2021, 2022, 2023)
+    }
+    assert set(excluded) == {
+        "eval-bench-1-2021",
+        "eval-bench-1-2022",
+        "eval-research-1-2021",
+        "eval-research-1-2022",
+    }
+    assert all(
+        reasons == ("partition_minimum_history_unmet",)
+        for reasons in excluded.values()
+    )
 
 
 def test_invalid_unavailable_and_same_time_evaluations_do_not_count_as_history(

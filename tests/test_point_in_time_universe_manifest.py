@@ -109,12 +109,13 @@ def test_bounded_reader_never_requests_or_retains_more_than_limit_plus_one(
 
     path = tmp_path / "snapshot.bin"
     path.write_bytes(b"abcd")
-    requests = []
+    calls = []
     original_read = os.read
 
     def tracked_read(fd, amount):
-        requests.append(amount)
-        return original_read(fd, amount)
+        chunk = original_read(fd, amount)
+        calls.append((amount, len(chunk)))
+        return chunk
 
     monkeypatch.setattr(loader.os, "read", tracked_read)
     assert loader._bounded_snapshot(
@@ -124,9 +125,74 @@ def test_bounded_reader_never_requests_or_retains_more_than_limit_plus_one(
         unreadable_error="unreadable",
     ) == b"abcd"
 
-    assert requests
-    assert max(requests) <= 5
-    assert sum(requests) <= 5
+    assert calls
+    remaining = 5
+    for requested, returned in calls:
+        assert requested <= remaining
+        remaining -= returned
+    assert remaining >= 1
+
+
+def test_bounded_reader_completes_legal_short_reads_within_one_budget(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe_manifest as loader
+
+    path = tmp_path / "snapshot.bin"
+    path.write_bytes(b"abcdefgh")
+    original_read = os.read
+    calls = []
+
+    def short_read(descriptor, amount):
+        chunk = original_read(descriptor, min(amount, 2))
+        calls.append((amount, len(chunk)))
+        return chunk
+
+    monkeypatch.setattr(loader.os, "read", short_read)
+
+    assert loader._bounded_snapshot(
+        path,
+        maximum_bytes=8,
+        size_error="too_large",
+        unreadable_error="unreadable",
+    ) == b"abcdefgh"
+    remaining = 9
+    for requested, returned in calls:
+        assert requested <= remaining
+        remaining -= returned
+    assert remaining == 1
+
+
+def test_contract_prefix_digest_cannot_authorize_larger_stable_file(
+    tmp_path,
+    monkeypatch,
+):
+    import src.point_in_time_universe_manifest as loader
+
+    manifest, registry = build_valid_package(tmp_path)
+    identity = manifest.parent / "identity.csv"
+    authorized_prefix = identity.read_bytes()
+    identity.write_bytes(
+        authorized_prefix
+        + authorized_prefix.splitlines(keepends=True)[1]
+    )
+    identity_inode = identity.stat().st_ino
+    original_read = os.read
+    shortened = False
+
+    def prefix_first_read(descriptor, amount):
+        nonlocal shortened
+        if os.fstat(descriptor).st_ino == identity_inode and not shortened:
+            shortened = True
+            return original_read(descriptor, len(authorized_prefix))
+        return original_read(descriptor, amount)
+
+    monkeypatch.setattr(loader.os, "read", prefix_first_read)
+
+    with pytest.raises(ValueError, match="manifest_hash_mismatch"):
+        loader.load_universe_package(manifest, registry)
+    assert shortened is True
 
 
 @pytest.mark.parametrize("mutation,match", [

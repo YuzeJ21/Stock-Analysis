@@ -99,7 +99,15 @@ def _bounded_snapshot(
             raise ValueError(unreadable_error)
         if before.st_size > maximum_bytes:
             raise ValueError(size_error)
-        snapshot = os.read(descriptor, maximum_bytes + 1)
+        chunks: list[bytes] = []
+        remaining = maximum_bytes + 1
+        while remaining:
+            chunk = os.read(descriptor, remaining)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        snapshot = b"".join(chunks)
         after = os.fstat(descriptor)
         if len(snapshot) > maximum_bytes or after.st_size > maximum_bytes:
             raise ValueError(size_error)
@@ -118,6 +126,8 @@ def _bounded_snapshot(
             after.st_ctime_ns,
         ):
             raise ValueError(size_error)
+        if len(snapshot) != after.st_size:
+            raise ValueError(unreadable_error)
     except ValueError:
         raise
     except OSError as exc:

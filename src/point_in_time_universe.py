@@ -13,6 +13,7 @@ from src.commercial_source_rights import (
     review_commercial_field_scope,
 )
 from src.point_in_time_universe_contracts import (
+    EVENT_TYPES,
     IdentityObservation,
     ParsedUniverseEvidence,
     RAW_MISSING_CELL,
@@ -1717,7 +1718,7 @@ def _event_decisions(
     )
 
 
-def _raw_required_rights_scope(row) -> tuple[str, ...]:
+def _raw_required_rights_scope(row) -> tuple[str, ...] | None:
     if row.contract == "security_identity":
         return ("security_identity",)
     if row.contract == "membership":
@@ -1727,9 +1728,9 @@ def _raw_required_rights_scope(row) -> tuple[str, ...]:
     event_type = row.values.get("event_type", "")
     if event_type == "delisting":
         return ("delistings",)
-    if event_type:
+    if event_type in EVENT_TYPES:
         return ("corporate_actions",)
-    return ("corporate_actions", "delistings")
+    return None
 
 
 def _rights_decision(
@@ -1766,10 +1767,14 @@ def _rights_decision(
             continue
         if source_id not in manifest.allowed_source_ids:
             block(row, "source_rights_source_not_allowed")
+        required_scope = _raw_required_rights_scope(row)
+        if required_scope is None:
+            block(row, "source_rights_event_scope_unreadable")
+            required_scope = ()
         review = review_commercial_field_scope(
             registry,
             source_id,
-            _raw_required_rights_scope(row),
+            required_scope,
         )
         if not review.commercial_rights_approved:
             block(row, f"source_rights_{review.rights_status}")
