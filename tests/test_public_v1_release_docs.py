@@ -1507,8 +1507,12 @@ def test_priority_four_local_validator_is_documented_without_claiming_real_data_
 
     assert "Start from current repository truth, not chat memory." in prompt
     assert (
-        "Verify commit `1361472bce6d23cc537ef222c3735bb640c9838a` or a later "
+        "Verify commit `1ece7a3e4adc70450d6318c06571cc8bf54368b0` or a later "
         "descendant before relying on this implementation evidence."
+    ) in prompt
+    assert (
+        "Point-in-time universe production-validator lineage anchor: commit "
+        "`1361472bce6d23cc537ef222c3735bb640c9838a`"
     ) in prompt
     assert (
         "When external evidence is unavailable, record its exact unblock condition "

@@ -14,7 +14,7 @@ Objective:
 Advance the Stock Research Command Center from its current local Commercial Research Beta release-candidate stage through every applicable local, source, hosted-preview, beta-validation, evidence-depth, calibration, and operating-maturity gate. Continue one coherent verified slice at a time while any safe executable in-scope work remains. Do not redefine completion around the work that is already easy or local.
 
 Start from current repository truth, not chat memory.
-Verify commit `1361472bce6d23cc537ef222c3735bb640c9838a` or a later descendant before relying on this implementation evidence.
+Verify commit `1ece7a3e4adc70450d6318c06571cc8bf54368b0` or a later descendant before relying on this implementation evidence.
 When external evidence is unavailable, record its exact unblock condition once and continue to the next safe executable lane.
 Never claim overall completion without direct current evidence for every applicable exit gate.
 Do not run readiness rebuilds or generated-artifact commands without explicit approval.
@@ -70,7 +70,7 @@ Expected lineage to verify, never assume:
 - Public packaging reconciliation design anchor: commit `5dead2a72` or a later verified descendant; reverify the README hierarchy, LinkedIn link boundary, curated Workbench image, answer-level performance marker, and current exact-head CI rather than treating the design as implementation evidence.
 - Public packaging reconciliation plan anchor: commit `e9dc19f41` or a later verified descendant; verify the implementation and current branch state instead of assuming the plan was completed.
 - Research Decision Lab approved-design anchor: commit `54e06e1c3`; composition anchor: `1cfed7490`; Company Workbench anchor: `a4786bb25`; Monitor anchor: `c7ad977b3`, or later verified descendants. Read `docs/superpowers/specs/2026-07-22-research-decision-lab-design.md`, reverify the current implementation and exact-head CI, and do not treat the design commit alone as product evidence.
-- Point-in-time universe local-validator anchor: commit `1361472bce6d23cc537ef222c3735bb640c9838a` or a later verified descendant. Reverify the local implementation and every applicable current gate; the anchor is not permitted-real-data, provider-rights, independent-review, hosted, or commercial-validation evidence.
+- Point-in-time universe production-validator lineage anchor: commit `1361472bce6d23cc537ef222c3735bb640c9838a` or a later verified descendant. Task 8 documentation-evidence reliance requires commit `1ece7a3e4adc70450d6318c06571cc8bf54368b0` or a later descendant. Reverify the local implementation and every applicable current gate; neither anchor is permitted-real-data, provider-rights, independent-review, hosted, or commercial-validation evidence.
 - Do not assume branch cleanliness, push state, or upstream alignment. The tracked PR readiness snapshot remains the June 7 snapshot and is stale under the declared-date policy; an excluded July 21 local generated working-data snapshot may exist but is not committed PR evidence. Reverify with Git and `make readiness-preview TOP_N=20`; the verified local run reported zero stable readiness changes, which does not authorize staging or a readiness rebuild.
 - PR #113 must remain open and draft. Do not merge it.
 - Generated CSV, JSON, readiness reports, stock reports, sample reports, screenshots, browser timing output, and other generated churn must remain excluded unless one exact artifact is intentionally reviewed and explicitly required.
