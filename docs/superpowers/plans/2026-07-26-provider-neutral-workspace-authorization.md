@@ -701,7 +701,7 @@ def test_public_contract_contains_no_secret_or_research_content_fields():
         "thesis",
         "evidence",
         "catalyst",
-        "outcome",
+        "research_outcome",
         "forecast",
         "probability",
         "recommendation",
