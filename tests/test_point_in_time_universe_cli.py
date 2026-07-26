@@ -8,14 +8,14 @@ import sys
 
 import pytest
 
+from tests.point_in_time_universe_remediation_fixtures import (
+    walk_forward_rows,
+)
 from tests.point_in_time_universe_fixture import build_valid_package
 from tests.test_point_in_time_universe import mutate_identity_membership_case
 from tests.test_point_in_time_universe import (
     _replace_contract_rows,
     _rewrite_manifest,
-)
-from tests.test_point_in_time_universe_remediation6 import (
-    _walk_forward_rows,
 )
 from tests.test_point_in_time_universe_contracts import (
     _rewrite_csv_and_manifest,
@@ -338,14 +338,14 @@ def test_publication_chronology_failure_is_readable_and_write_free(tmp_path):
     assert _snapshot(tmp_path) == before
 
 
-def test_walk_forward_preview_shows_early_blocks_and_later_unlock_write_free(
+def test_walk_forward_preview_shows_bootstrap_exclusions_and_later_unlock_write_free(
     tmp_path,
 ):
     manifest, registry = build_valid_package(tmp_path)
     _replace_contract_rows(
         manifest,
         "evaluations",
-        list(reversed(_walk_forward_rows())),
+        list(reversed(walk_forward_rows())),
     )
     _rewrite_manifest(
         manifest,
@@ -370,10 +370,8 @@ def test_walk_forward_preview_shows_early_blocks_and_later_unlock_write_free(
     )
 
     assert result.returncode == 0
-    assert (
-        "leakage_safe: blocked; "
-        "reasons=partition_minimum_history_unmet"
-    ) in result.stdout
+    assert "analysis_eligible: true" in result.stdout
+    assert "leakage_safe: passed; reasons=none" in result.stdout
     assert (
         "- bench-1 @ 2023-01-01T00:00:00Z: members=1;"
         in result.stdout

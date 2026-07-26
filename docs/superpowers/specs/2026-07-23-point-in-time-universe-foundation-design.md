@@ -93,7 +93,7 @@ Required columns:
 | --- | --- |
 | `identity_row_id` | Immutable unique row identifier |
 | `security_id` | Stable security identifier; never derived from ticker |
-| `issuer_id` | Stable issuer identifier, distinct from the security |
+| `issuer_id` | Stable issuer identifier; must not equal `security_id` |
 | `ticker` | Ticker observed during the validity interval |
 | `exchange` | Listing venue observed during the validity interval |
 | `security_type` | Explicit security type |
@@ -110,6 +110,10 @@ Ticker uniqueness is not required globally because symbols may change or be
 reused. A security may have only one active identity interval at an evaluated
 instant. Overlapping unresolved intervals, unknown parents, forks, cycles,
 cross-security supersession, and reversed validity are excluded.
+Adjacent chronological intervals for one stable `security_id` must retain the
+same `issuer_id`; no corporate-action event authorizes stable-ID reuse across
+issuers. A same-effective superseding correction may replace an erroneous
+issuer observation before the effective history is evaluated.
 
 ### Membership observations
 
@@ -216,6 +220,11 @@ The manifest may reference files only beneath its own directory after path
 resolution. Absolute paths, parent traversal, symlink escape, duplicate
 contract entries, missing contracts, unlisted files, and hash or row-count
 mismatches fail closed.
+
+Manifest containers are limited to 64 nested levels before immutable semantic
+freezing. Source identifiers must be scalar, control-free structural tokens.
+Both boundaries fail closed with stable nonzero CLI errors, without traceback
+or package mutation; ordinary Unicode scalar identifiers remain supported.
 
 The rights digest binds validation to the exact reviewed registry state.
 Changing the source-rights registry requires a new manifest and validation;

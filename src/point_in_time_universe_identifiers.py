@@ -3,7 +3,7 @@ from __future__ import annotations
 import unicodedata
 
 
-UNSAFE_RECORD_SEPARATOR_CATEGORIES = frozenset({"Zl", "Zp"})
+UNSAFE_STRUCTURAL_CATEGORIES = frozenset({"Cs", "Zl", "Zp"})
 
 
 def _unsafe_structural_character(character: str) -> bool:
@@ -12,12 +12,12 @@ def _unsafe_structural_character(character: str) -> bool:
         codepoint < 0x20
         or 0x7F <= codepoint <= 0x9F
         or unicodedata.category(character)
-        in UNSAFE_RECORD_SEPARATOR_CATEGORIES
+        in UNSAFE_STRUCTURAL_CATEGORIES
     )
 
 
 def is_control_free(value: object) -> bool:
-    """Reject controls plus Unicode line and paragraph record separators."""
+    """Reject controls, record separators, and non-scalar surrogates."""
 
     return isinstance(value, str) and not any(
         _unsafe_structural_character(character)

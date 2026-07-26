@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import os
 import subprocess
 import sys
 from dataclasses import FrozenInstanceError
@@ -26,6 +27,45 @@ REQUIRED_FIELDS = {
     "supported_fields",
     "fallback_priority",
 }
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _run_rights_make(
+    *assignments: str,
+    cwd: Path = PROJECT_ROOT,
+    include_project_pythonpath: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    environment = {
+        **os.environ,
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+    if include_project_pythonpath:
+        environment["PYTHONPATH"] = str(PROJECT_ROOT)
+    else:
+        environment.pop("PYTHONPATH", None)
+    return subprocess.run(
+        [
+            "make",
+            "--no-print-directory",
+            "-f",
+            str(PROJECT_ROOT / "Makefile"),
+            "commercial-source-rights",
+            *assignments,
+        ],
+        cwd=cwd,
+        check=False,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+
+
+def _tree_snapshot(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
 
 
 def _module():
@@ -211,16 +251,228 @@ def test_commercial_source_rights_cli_reports_unverified_yfinance():
 
 
 def test_make_commercial_source_rights_target_runs_the_cli():
+    result = _run_rights_make("SOURCE=yfinance")
+
+    assert result.returncode == 0
+    assert "source_id: yfinance" in result.stdout
+    assert "status: commercial_rights_unverified" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "registry with spaces.yml",
+        "registry's quote.yml",
+        'registry"double quote.yml',
+        "registry``.yml",
+        "registry$().yml",
+        "registry;semicolon.yml",
+        "-leading-registry.yml",
+    ],
+)
+def test_make_config_preserves_literal_registry_path(
+    tmp_path,
+    filename,
+):
+    registry = tmp_path / filename
+    registry.write_bytes(
+        (PROJECT_ROOT / "config" / "source_rights.yml").read_bytes()
+    )
+
+    result = _run_rights_make(
+        f"CONFIG={filename}",
+        "SOURCE=sec_companyfacts",
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 0
+    assert "source_id: sec_companyfacts" in result.stdout
+    assert "status: approved" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "source with spaces",
+        "source's quote",
+        'source"double quote',
+        "source``",
+        "source$()",
+        "source;semicolon",
+        "-leading-source",
+    ],
+)
+def test_make_source_preserves_one_literal_argument(source):
+    result = _run_rights_make(f"SOURCE={source}")
+
+    assert result.returncode == 0
+    assert f"source_id: {source}" in result.stdout
+    assert "status: unknown_source" in result.stdout
+
+
+def test_multiline_source_id_cannot_forge_cli_status_output():
     result = subprocess.run(
-        ["make", "--no-print-directory", "commercial-source-rights", "SOURCE=yfinance"],
+        [
+            sys.executable,
+            "-m",
+            "src.commercial_source_rights",
+            "--source",
+            "unknown\nstatus: approved",
+        ],
+        cwd=PROJECT_ROOT,
         check=False,
         capture_output=True,
         text=True,
+        env={
+            **os.environ,
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONPATH": str(PROJECT_ROOT),
+        },
+    )
+
+    assert result.returncode == 2
+    assert "source_id_control_character_invalid" in result.stderr
+    assert "status: approved" not in result.stdout
+    assert "Traceback" not in result.stderr
+
+
+def test_valid_unicode_source_id_remains_a_single_safe_status_record():
+    module = _module()
+
+    rendered = module.render_source_rights_status(
+        _registry(),
+        "来源-🚀",
+    )
+
+    assert "source_id: 来源-🚀" in rendered
+    assert "status: unknown_source" in rendered
+
+
+def test_make_literal_config_command_text_cannot_create_sentinel(
+    tmp_path,
+):
+    sentinel = tmp_path / "config-sentinel"
+    literal = f"$(touch {sentinel})"
+
+    result = _run_rights_make(f"CONFIG={literal}")
+
+    assert result.returncode == 2
+    assert "source_rights_registry_unreadable" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert not sentinel.exists()
+
+
+def test_make_literal_source_command_text_cannot_create_sentinel(
+    tmp_path,
+):
+    sentinel = tmp_path / "source-sentinel"
+    literal = f"$(touch {sentinel})"
+
+    result = _run_rights_make(f"SOURCE={literal}")
+
+    assert result.returncode == 0
+    assert f"source_id: {literal}" in result.stdout
+    assert "status: unknown_source" in result.stdout
+    assert not sentinel.exists()
+
+
+def test_make_empty_config_uses_default_registry(tmp_path):
+    result = _run_rights_make(
+        "CONFIG=",
+        "SOURCE=sec_companyfacts",
+        cwd=tmp_path,
+        include_project_pythonpath=False,
+    )
+
+    assert result.returncode == 0
+    assert "source_id: sec_companyfacts" in result.stdout
+    assert "status: approved" in result.stdout
+
+
+def test_make_unset_config_uses_default_outside_repo_without_pythonpath(
+    tmp_path,
+):
+    result = _run_rights_make(
+        "SOURCE=sec_companyfacts",
+        cwd=tmp_path,
+        include_project_pythonpath=False,
+    )
+
+    assert result.returncode == 0
+    assert "source_id: sec_companyfacts" in result.stdout
+    assert "status: approved" in result.stdout
+
+
+def test_make_caller_relative_literal_config_works_without_pythonpath(
+    tmp_path,
+):
+    filename = "caller `` $() registry.yml"
+    registry = tmp_path / filename
+    registry.write_bytes(
+        (PROJECT_ROOT / "config" / "source_rights.yml").read_bytes()
+    )
+
+    result = _run_rights_make(
+        f"CONFIG={filename}",
+        "SOURCE=sec_companyfacts",
+        cwd=tmp_path,
+        include_project_pythonpath=False,
+    )
+
+    assert result.returncode == 0
+    assert "source_id: sec_companyfacts" in result.stdout
+    assert "status: approved" in result.stdout
+
+
+def test_make_normal_source_works_outside_repo_without_pythonpath(
+    tmp_path,
+):
+    result = _run_rights_make(
+        "SOURCE=yfinance",
+        cwd=tmp_path,
+        include_project_pythonpath=False,
     )
 
     assert result.returncode == 0
     assert "source_id: yfinance" in result.stdout
     assert "status: commercial_rights_unverified" in result.stdout
+
+
+def test_make_empty_source_is_omitted():
+    result = _run_rights_make("SOURCE=")
+
+    assert result.returncode == 0
+    assert "- sec_companyfacts: approved" in result.stdout
+    assert "source_id:" not in result.stdout
+
+
+def test_make_duplicate_key_failure_with_literal_path_is_write_free(
+    tmp_path,
+):
+    registry = tmp_path / "duplicate `` $().yml"
+    source = (
+        PROJECT_ROOT / "config" / "source_rights.yml"
+    ).read_text(encoding="utf-8")
+    registry.write_text(
+        source.replace(
+            "    display_name: SEC Companyfacts\n",
+            "    display_name: SEC Companyfacts\n"
+            "    display_name: Duplicate\n",
+            1,
+        ),
+        encoding="utf-8",
+    )
+    before = _tree_snapshot(tmp_path)
+
+    result = _run_rights_make(
+        f"CONFIG={registry.name}",
+        cwd=tmp_path,
+    )
+
+    assert result.returncode == 2
+    assert "source_rights_registry_duplicate_key" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert _tree_snapshot(tmp_path) == before
 
 
 def test_yfinance_provider_remains_available_in_default_research_mode(monkeypatch: pytest.MonkeyPatch):

@@ -20,7 +20,10 @@ from src.point_in_time_universe_contracts import (
     parse_universe_evidence,
     parse_utc,
 )
-from src.point_in_time_universe_identifiers import escape_structural_token
+from src.point_in_time_universe_identifiers import (
+    escape_structural_token,
+    is_control_free,
+)
 from src.point_in_time_universe_lineage import resolve_lineage
 from src.point_in_time_universe_manifest import UniverseManifest, load_universe_package
 
@@ -71,6 +74,44 @@ class ScopedLineageComposition:
 
 
 @dataclass(frozen=True)
+class EffectiveIdentityResolver:
+    history: tuple[IdentityObservation, ...]
+    invalid_scopes: frozenset[str]
+
+    def active_at(
+        self,
+        security_id: str,
+        effective_at: datetime,
+        *,
+        end_inclusive: bool = False,
+        start_strict: bool = False,
+    ) -> tuple[IdentityObservation, ...]:
+        return tuple(
+            identity
+            for identity in self.history
+            if (
+                identity.security_id == security_id
+                and (
+                    identity.valid_from < effective_at
+                    if start_strict
+                    else identity.valid_from <= effective_at
+                )
+                and (
+                    identity.valid_to is None
+                    or (
+                        effective_at <= identity.valid_to
+                        if end_inclusive
+                        else effective_at < identity.valid_to
+                    )
+                )
+            )
+        )
+
+    def security_scope_invalid(self, security_id: str) -> bool:
+        return security_id in self.invalid_scopes
+
+
+@dataclass(frozen=True)
 class RecordSourceIndex:
     source_rows: Mapping[str, Mapping[int, int]]
 
@@ -111,6 +152,50 @@ DECISION_ORDER = (
     "leakage_safe",
 )
 MAX_PREVIEW_EXCLUSION_ROWS = 100
+SUCCESSOR_EVENT_TYPES = frozenset(
+    {"merger", "acquisition", "spinoff"}
+)
+REPLACEMENT_SUCCESSOR_EVENT_TYPES = frozenset(
+    {"merger", "acquisition"}
+)
+INVALID_SUCCESSOR_IDENTIFIERS = frozenset(
+    {"unknown", "ambiguous"}
+)
+RESTRICTIVE_LISTING_STATE_EVENT_TYPES = MappingProxyType(
+    {
+        "delisted": "delisting",
+        "suspended": "suspension",
+    }
+)
+EVENT_LISTING_STATE_CONTRACT = MappingProxyType(
+    {
+        "listing": frozenset({"", "active"}),
+        "ticker_change": frozenset(
+            {"", "active", "delisted", "suspended"}
+        ),
+        "exchange_change": frozenset(
+            {"", "active", "delisted", "suspended"}
+        ),
+        "split": frozenset(
+            {"", "active", "delisted", "suspended"}
+        ),
+        "reverse_split": frozenset(
+            {"", "active", "delisted", "suspended"}
+        ),
+        "merger": frozenset(
+            {"", "active", "delisted", "suspended"}
+        ),
+        "acquisition": frozenset(
+            {"", "active", "delisted", "suspended"}
+        ),
+        "spinoff": frozenset(
+            {"", "active", "delisted", "suspended"}
+        ),
+        "delisting": frozenset({"delisted"}),
+        "suspension": frozenset({"suspended"}),
+        "reactivation": frozenset({"active"}),
+    }
+)
 CONTRACT_TIMESTAMP_FIELDS = MappingProxyType({
     "security_identity": (
         "valid_from",
@@ -296,8 +381,9 @@ def _lineage_reason_records(
             mark("lineage_duplicate_id", *duplicates)
 
     by_id = {
-        identifier: items[-1]
+        identifier: items[0]
         for identifier, items in by_identifier.items()
+        if len(items) == 1
     }
     roots: dict[str, list] = {}
     children: dict[str, list] = {}
@@ -307,15 +393,19 @@ def _lineage_reason_records(
         if not parent_identifier:
             roots.setdefault(record_scope, []).append(record)
             continue
-        parent = by_id.get(parent_identifier)
-        if parent is None:
+        matching_parents = by_identifier.get(parent_identifier)
+        if matching_parents is None:
             mark("lineage_missing_parent", record)
             continue
+        if len(matching_parents) != 1:
+            mark("lineage_duplicate_id", record)
+            continue
+        children.setdefault(parent_identifier, []).append(record)
+        parent = matching_parents[0]
         if scope(parent) != record_scope:
             mark("lineage_cross_scope_parent", parent, record)
         if available_at(record) <= available_at(parent):
             mark("lineage_order_reversed", parent, record)
-        children.setdefault(parent_identifier, []).append(record)
 
     for scope_roots in roots.values():
         if len(scope_roots) > 1:
@@ -411,6 +501,449 @@ def _compose_scoped_lineage(
                 )
             }
         ),
+    )
+
+
+def _effective_identity_interval_history(
+    records: tuple[IdentityObservation, ...],
+    lineage: ScopedLineageComposition,
+    cutoff: datetime,
+) -> tuple[
+    tuple[IdentityObservation, ...],
+    frozenset[str],
+]:
+    eligible_by_scope: dict[
+        str,
+        list[IdentityObservation],
+    ] = {}
+    for record in records:
+        record_scope = record.security_id
+        if (
+            max(record.source_published_at, record.retrieved_at)
+            <= cutoff
+            and record_scope not in lineage.reasons_by_scope
+        ):
+            eligible_by_scope.setdefault(
+                record_scope,
+                [],
+            ).append(record)
+
+    effective_history: list[IdentityObservation] = []
+    invalid_scopes: set[str] = set()
+    for leaf in lineage.leaves:
+        record_scope = leaf.security_id
+        scoped_records = eligible_by_scope[record_scope]
+        by_id = {
+            record.identity_row_id: record
+            for record in scoped_records
+        }
+        chain: list[IdentityObservation] = []
+        current = leaf
+        while True:
+            chain.append(current)
+            if not current.supersedes_identity_row_id:
+                break
+            current = by_id[current.supersedes_identity_row_id]
+        chain.reverse()
+
+        effective: list[IdentityObservation] = []
+        direct_parent: IdentityObservation | None = None
+        for record in chain:
+            if direct_parent is None:
+                effective.append(record)
+            elif (
+                direct_parent.valid_from < record.valid_from
+                and direct_parent.valid_to == record.valid_from
+            ):
+                effective.append(record)
+            else:
+                effective[-1] = record
+                while len(effective) > 1:
+                    prior_effective = effective[-2]
+                    corrected_effective = effective[-1]
+                    if (
+                        prior_effective.valid_from
+                        < corrected_effective.valid_from
+                        and prior_effective.valid_to
+                        == corrected_effective.valid_from
+                    ):
+                        break
+                    del effective[-2]
+            direct_parent = record
+
+        ordered = tuple(
+            sorted(
+                effective,
+                key=lambda record: (
+                    record.valid_from,
+                    record.identity_row_id,
+                ),
+            )
+        )
+        if any(
+            record.valid_to is not None
+            and record.valid_to < record.valid_from
+            for record in ordered
+        ) or any(
+            prior.valid_to is None
+            or prior.valid_to > current.valid_from
+            for prior, current in zip(
+                ordered,
+                ordered[1:],
+                strict=False,
+            )
+        ):
+            invalid_scopes.add(record_scope)
+            continue
+        effective_history.extend(ordered)
+
+    return tuple(effective_history), frozenset(invalid_scopes)
+
+
+def _effective_identity_resolver(
+    records: tuple[IdentityObservation, ...],
+    lineage: ScopedLineageComposition,
+    cutoff: datetime,
+) -> EffectiveIdentityResolver:
+    history, invalid_scopes = _effective_identity_interval_history(
+        records,
+        lineage,
+        cutoff,
+    )
+    return EffectiveIdentityResolver(history, invalid_scopes)
+
+
+def _event_identity_endpoints(
+    event,
+    resolver: EffectiveIdentityResolver,
+) -> tuple[
+    tuple[IdentityObservation, ...],
+    tuple[IdentityObservation, ...],
+]:
+    if event.event_type not in SUCCESSOR_EVENT_TYPES:
+        return (), ()
+    replacement = (
+        event.event_type in REPLACEMENT_SUCCESSOR_EVENT_TYPES
+    )
+    predecessors = resolver.active_at(
+        event.security_id,
+        event.effective_at,
+        end_inclusive=replacement,
+        start_strict=replacement,
+    )
+    successors = resolver.active_at(
+        event.successor_security_id,
+        event.effective_at,
+    )
+    return predecessors, successors
+
+
+def _identity_transition_event_requirements(
+    identity_history: tuple[IdentityObservation, ...],
+    evaluation_at: datetime,
+) -> tuple[tuple[IdentityObservation, str], ...]:
+    by_security: dict[str, list[IdentityObservation]] = {}
+    for identity in identity_history:
+        by_security.setdefault(identity.security_id, []).append(identity)
+
+    requirements: list[tuple[IdentityObservation, str]] = []
+    for identities in by_security.values():
+        ordered = sorted(
+            identities,
+            key=lambda identity: (
+                identity.valid_from,
+                identity.identity_row_id,
+            ),
+        )
+        for prior, current in zip(
+            ordered,
+            ordered[1:],
+            strict=False,
+        ):
+            if (
+                prior.valid_from >= current.valid_from
+                or prior.valid_to != current.valid_from
+                or current.valid_from > evaluation_at
+            ):
+                continue
+            if prior.ticker != current.ticker:
+                requirements.append((current, "ticker_change"))
+            if prior.exchange != current.exchange:
+                requirements.append((current, "exchange_change"))
+    return tuple(requirements)
+
+
+def _identity_security_reuse_records(
+    records: tuple[IdentityObservation, ...],
+    evaluation_at: datetime,
+) -> tuple[IdentityObservation, ...]:
+    effective_by_security_and_start: dict[
+        str,
+        dict[datetime, IdentityObservation],
+    ] = {}
+    for record in records:
+        if (
+            max(record.source_published_at, record.retrieved_at)
+            > evaluation_at
+            or record.valid_from > evaluation_at
+        ):
+            continue
+        by_start = effective_by_security_and_start.setdefault(
+            record.security_id,
+            {},
+        )
+        prior = by_start.get(record.valid_from)
+        if prior is None or (
+            max(record.source_published_at, record.retrieved_at),
+            record.identity_row_id,
+            record.source_ref,
+        ) > (
+            max(prior.source_published_at, prior.retrieved_at),
+            prior.identity_row_id,
+            prior.source_ref,
+        ):
+            by_start[record.valid_from] = record
+
+    reuse_records: list[IdentityObservation] = []
+    for by_start in effective_by_security_and_start.values():
+        ordered = tuple(
+            by_start[valid_from]
+            for valid_from in sorted(by_start)
+        )
+        reuse_records.extend(
+            current
+            for prior, current in zip(
+                ordered,
+                ordered[1:],
+                strict=False,
+            )
+            if prior.issuer_id != current.issuer_id
+        )
+    return tuple(
+        sorted(
+            reuse_records,
+            key=lambda record: (
+                record.security_id,
+                record.valid_from,
+                record.identity_row_id,
+                record.source_ref,
+            ),
+        )
+    )
+
+
+def _identity_cross_issuer_security_ids(
+    records: tuple[IdentityObservation, ...],
+    evaluation_at: datetime,
+) -> frozenset[str]:
+    visible = tuple(
+        record
+        for record in records
+        if (
+            max(record.source_published_at, record.retrieved_at)
+            <= evaluation_at
+            and record.valid_from <= evaluation_at
+        )
+    )
+    records_by_id: dict[str, list[IdentityObservation]] = {}
+    for record in visible:
+        records_by_id.setdefault(
+            record.identity_row_id,
+            [],
+        ).append(record)
+    by_id = {
+        identity_row_id: matching_records[0]
+        for identity_row_id, matching_records in records_by_id.items()
+        if len(matching_records) == 1
+    }
+    children_by_parent: dict[str, list[IdentityObservation]] = {}
+    for record in visible:
+        if record.supersedes_identity_row_id in by_id:
+            children_by_parent.setdefault(
+                record.supersedes_identity_row_id,
+                [],
+            ).append(record)
+
+    def edge_is_cyclic(parent_id: str, child_id: str) -> bool:
+        current_id = parent_id
+        visited: set[str] = set()
+        while current_id in by_id and current_id not in visited:
+            visited.add(current_id)
+            next_id = by_id[current_id].supersedes_identity_row_id
+            if next_id == child_id:
+                return True
+            current_id = next_id
+        return False
+
+    def is_valid_correction_edge(
+        parent: IdentityObservation,
+        child: IdentityObservation,
+    ) -> bool:
+        return (
+            by_id.get(parent.identity_row_id) is parent
+            and by_id.get(child.identity_row_id) is child
+            and child.security_id == parent.security_id
+            and child.valid_from == parent.valid_from
+            and max(
+                child.source_published_at,
+                child.retrieved_at,
+            )
+            > max(
+                parent.source_published_at,
+                parent.retrieved_at,
+            )
+            and not edge_is_cyclic(
+                parent.identity_row_id,
+                child.identity_row_id,
+            )
+        )
+
+    corrected_parent_ids: set[str] = set()
+    for parent_id, children in children_by_parent.items():
+        parent = by_id[parent_id]
+        correction_candidates = tuple(
+            child
+            for child in children
+            if is_valid_correction_edge(parent, child)
+        )
+        if len(correction_candidates) == 1:
+            corrected_parent_ids.add(parent_id)
+    issuers_by_security: dict[str, set[str]] = {}
+    for record in visible:
+        if record.identity_row_id in corrected_parent_ids:
+            continue
+        issuers_by_security.setdefault(
+            record.security_id,
+            set(),
+        ).add(record.issuer_id)
+    return frozenset(
+        security_id
+        for security_id, issuer_ids in issuers_by_security.items()
+        if len(issuer_ids) > 1
+    )
+
+
+def _identity_interval_overlap_records(
+    records: tuple[IdentityObservation, ...],
+    evaluation_at: datetime,
+) -> tuple[IdentityObservation, ...]:
+    visible_active = tuple(
+        record
+        for record in records
+        if (
+            max(record.source_published_at, record.retrieved_at)
+            <= evaluation_at
+            and _contains(
+                record.valid_from,
+                record.valid_to,
+                evaluation_at,
+            )
+        )
+    )
+    superseded_same_effective_ids = {
+        record.supersedes_identity_row_id
+        for record in visible_active
+        for parent in visible_active
+        if (
+            record.supersedes_identity_row_id
+            == parent.identity_row_id
+            and record.security_id == parent.security_id
+            and record.valid_from == parent.valid_from
+            and record.valid_to == parent.valid_to
+        )
+    }
+    effective = tuple(
+        record
+        for record in visible_active
+        if record.identity_row_id not in superseded_same_effective_ids
+    )
+    by_security: dict[str, list[IdentityObservation]] = {}
+    for record in effective:
+        by_security.setdefault(record.security_id, []).append(record)
+    return tuple(
+        sorted(
+            (
+                record
+                for security_records in by_security.values()
+                if len(security_records) > 1
+                for record in security_records
+            ),
+            key=lambda record: (
+                record.security_id,
+                record.valid_from,
+                record.identity_row_id,
+                record.source_ref,
+            ),
+        )
+    )
+
+
+def _unexplained_snapshot_omissions(
+    memberships,
+    lineage: ScopedLineageComposition,
+    *,
+    universe_id: str,
+    universe_kind: str,
+    latest_snapshot_at: datetime | None,
+    evaluation_at: datetime,
+):
+    if latest_snapshot_at is None:
+        return ()
+    explicit_latest_security_ids = {
+        row.security_id
+        for row in lineage.leaves
+        if (
+            row.universe_id == universe_id
+            and row.universe_kind == universe_kind
+            and row.observation_at == latest_snapshot_at
+            and _contains(
+                row.effective_from,
+                row.effective_to,
+                evaluation_at,
+            )
+        )
+    }
+    prior_inclusion_by_security = {}
+    for row in memberships:
+        if (
+            row.universe_id != universe_id
+            or row.universe_kind != universe_kind
+            or row.membership_state != "included"
+            or row.observation_at >= latest_snapshot_at
+            or max(
+                row.observation_at,
+                row.source_published_at,
+                row.retrieved_at,
+            )
+            > evaluation_at
+            or not _contains(
+                row.effective_from,
+                row.effective_to,
+                evaluation_at,
+            )
+        ):
+            continue
+        prior = prior_inclusion_by_security.get(row.security_id)
+        if prior is None or (
+            row.observation_at,
+            row.source_published_at,
+            row.retrieved_at,
+            row.membership_row_id,
+            row.source_ref,
+        ) > (
+            prior.observation_at,
+            prior.source_published_at,
+            prior.retrieved_at,
+            prior.membership_row_id,
+            prior.source_ref,
+        ):
+            prior_inclusion_by_security[row.security_id] = row
+    return tuple(
+        prior_inclusion_by_security[security_id]
+        for security_id in sorted(
+            set(prior_inclusion_by_security)
+            - explicit_latest_security_ids
+        )
     )
 
 
@@ -532,7 +1065,7 @@ def _identity_membership_decisions(
             parsed.identities,
             row_id=lambda row: row.identity_row_id,
             parent_id=lambda row: row.supersedes_identity_row_id,
-            scope=lambda row: (row.security_id, row.issuer_id),
+            scope=lambda row: row.security_id,
             available_at=lambda row: max(
                 row.source_published_at,
                 row.retrieved_at,
@@ -554,6 +1087,73 @@ def _identity_membership_decisions(
                     )
                 )
 
+        issuer_reuse_records = _identity_security_reuse_records(
+            parsed.identities,
+            evaluation.evaluation_at,
+        )
+        cross_issuer_security_ids = _identity_cross_issuer_security_ids(
+            parsed.identities,
+            evaluation.evaluation_at,
+        )
+        issuer_reuse_records = tuple(
+            record
+            for record in issuer_reuse_records
+            if not (
+                set(
+                    identity_lineage.reasons_by_scope.get(
+                        record.security_id,
+                        (),
+                    )
+                )
+                - {"lineage_multiple_roots"}
+            )
+        )
+        if issuer_reuse_records:
+            reason = "identity_security_id_reused_across_issuers"
+            identity_reasons.add(reason)
+            excluded.extend(
+                _record_exclusions(
+                    source_index,
+                    "security_identity",
+                    issuer_reuse_records,
+                    (reason,),
+                )
+            )
+
+        overlap_records = _identity_interval_overlap_records(
+            parsed.identities,
+            evaluation.evaluation_at,
+        )
+        overlap_records = tuple(
+            record
+            for record in overlap_records
+            if not (
+                set(
+                    identity_lineage.reasons_by_scope.get(
+                        record.security_id,
+                        (),
+                    )
+                )
+                - {"lineage_multiple_roots"}
+            )
+        )
+        if overlap_records:
+            identity_reasons.add("identity_interval_overlap")
+            excluded.extend(
+                _record_exclusions(
+                    source_index,
+                    "security_identity",
+                    overlap_records,
+                    ("identity_interval_overlap",),
+                )
+            )
+
+        identity_resolver = _effective_identity_resolver(
+            parsed.identities,
+            identity_lineage,
+            evaluation.evaluation_at,
+        )
+        identity_interval_history = identity_resolver.history
         expected_kind = declared.get(evaluation.universe_id)
         if expected_kind is None:
             membership_reasons.add("membership_universe_undeclared")
@@ -585,7 +1185,14 @@ def _identity_membership_decisions(
             continue
 
         active_identity_by_security: dict[str, IdentityObservation] = {}
-        overlapping_identity_security_ids: set[str] = set()
+        issuer_reuse_security_ids = {
+            record.security_id
+            for record in issuer_reuse_records
+        }
+        overlapping_identity_security_ids = {
+            record.security_id
+            for record in overlap_records
+        }
         identity_lineage_reasons_by_security: dict[str, set[str]] = {}
         for reason, offenders in identity_lineage.reason_records.items():
             for offender in offenders:
@@ -594,22 +1201,15 @@ def _identity_membership_decisions(
                     set(),
                 ).add(reason)
         available_identity_by_security: dict[str, list] = {}
-        for row in identity_lineage.leaves:
+        for row in identity_interval_history:
             available_identity_by_security.setdefault(
                 row.security_id,
                 [],
             ).append(row)
-        for security_id, identity_rows in (
-            available_identity_by_security.items()
-        ):
-            active = tuple(
-                row
-                for row in identity_rows
-                if _contains(
-                    row.valid_from,
-                    row.valid_to,
-                    evaluation.evaluation_at,
-                )
+        for security_id in available_identity_by_security:
+            active = identity_resolver.active_at(
+                security_id,
+                evaluation.evaluation_at,
             )
             if len(active) > 1:
                 identity_reasons.add("identity_interval_overlap")
@@ -625,8 +1225,30 @@ def _identity_membership_decisions(
             elif len(active) == 1:
                 active_identity_by_security[security_id] = active[0]
 
+        omission_records = _unexplained_snapshot_omissions(
+            scoped_memberships,
+            membership_lineage,
+            universe_id=evaluation.universe_id,
+            universe_kind=expected_kind,
+            latest_snapshot_at=latest_snapshot_at,
+            evaluation_at=evaluation.evaluation_at,
+        )
+        if omission_records:
+            reason = "membership_snapshot_omission_unexplained"
+            membership_reasons.add(reason)
+            excluded.extend(
+                _record_exclusions(
+                    source_index,
+                    "membership",
+                    omission_records,
+                    (reason,),
+                )
+            )
+            continue
+
         members: set[str] = set()
         structurally_eligible_members = 0
+        digest_eligible = True
         for leaf in membership_lineage.leaves:
             if leaf.universe_id != evaluation.universe_id:
                 continue
@@ -668,7 +1290,8 @@ def _identity_membership_decisions(
                 prior_display is None
                 or evaluation_key > prior_display[0]
             )
-            if security_id in identity_lineage_reasons_by_security:
+            if security_id in issuer_reuse_security_ids:
+                digest_eligible = False
                 if is_latest_display:
                     display_candidates[security_id] = (
                         evaluation_key,
@@ -698,12 +1321,29 @@ def _identity_membership_decisions(
                     )
                 )
                 continue
+            if security_id in identity_lineage_reasons_by_security:
+                if security_id in cross_issuer_security_ids:
+                    digest_eligible = False
+                if is_latest_display:
+                    display_candidates[security_id] = (
+                        evaluation_key,
+                        None,
+                    )
+                excluded.append(
+                    _excluded_record(
+                        source_index,
+                        "membership",
+                        leaf,
+                        ("identity_missing",),
+                    )
+                )
+                continue
 
             active_identity = active_identity_by_security.get(security_id)
             if active_identity is None:
                 identity_rows = tuple(
                     row
-                    for row in identity_lineage.leaves
+                    for row in identity_interval_history
                     if row.security_id == security_id
                 )
                 identity_reasons.add("identity_missing")
@@ -739,13 +1379,17 @@ def _identity_membership_decisions(
 
         if structurally_eligible_members == 0:
             membership_reasons.add("membership_no_eligible_members")
-        digests.append(
-            _membership_digest(
-                evaluation.universe_id,
-                evaluation.evaluation_at.isoformat().replace("+00:00", "Z"),
-                members,
+        if digest_eligible:
+            digests.append(
+                _membership_digest(
+                    evaluation.universe_id,
+                    evaluation.evaluation_at.isoformat().replace(
+                        "+00:00",
+                        "Z",
+                    ),
+                    members,
+                )
             )
-        )
 
     kinds = set(declared.values())
     if "benchmark" not in kinds:
@@ -1078,6 +1722,10 @@ def _temporal_decision(
                     security_id in member_security_ids
                     and manifest.corporate_action_policy.get(event_type)
                     == "required"
+                    and any(
+                        row.effective_at <= evaluation.evaluation_at
+                        for row in group
+                    )
                 ),
             )
 
@@ -1269,7 +1917,8 @@ def _partition_validation(
     exclusion_reasons: dict[int, tuple[object, set[str]]] = {}
 
     def exclude(evaluation, reason: str) -> None:
-        reasons.add(reason)
+        if reason != "partition_minimum_history_unmet":
+            reasons.add(reason)
         _, row_reasons = exclusion_reasons.setdefault(
             id(evaluation),
             (evaluation, set()),
@@ -1367,6 +2016,21 @@ def _reproduction_decision(
             for evaluation in evaluations
         ):
             reasons.add("reproduction_evaluation_after_manifest_cutoff")
+        expected_keys = {
+            (
+                evaluation.universe_id,
+                evaluation.evaluation_at.isoformat().replace(
+                    "+00:00",
+                    "Z",
+                ),
+            )
+            for evaluation in evaluations
+        }
+        if (
+            manifest.coverage_semantics == "complete_snapshot"
+            and expected_keys - set(keys)
+        ):
+            reasons.add("reproduction_digest_missing")
     for item in digests:
         try:
             parse_utc(item.evaluation_at)
@@ -1499,6 +2163,56 @@ def _member_security_ids_for_evaluation(
     )
 
 
+def _event_touches_member(event, member_security_ids) -> bool:
+    return (
+        event.security_id in member_security_ids
+        or (
+            event.event_type in SUCCESSOR_EVENT_TYPES
+            and event.successor_security_id in member_security_ids
+        )
+    )
+
+
+def _state_event_matches_action(manifest, state_event, action) -> bool:
+    return (
+        state_event.event_type
+        == RESTRICTIVE_LISTING_STATE_EVENT_TYPES[
+            action.listing_state_after
+        ]
+        and state_event.security_id == action.security_id
+        and state_event.effective_at == action.effective_at
+        and state_event.listing_state_after == action.listing_state_after
+        and manifest.corporate_action_policy.get(
+            state_event.event_type
+        )
+        == "required"
+    )
+
+
+def _event_is_applicable(
+    manifest,
+    event,
+    member_security_ids,
+    restrictive_state_actions,
+) -> bool:
+    return (
+        _event_touches_member(event, member_security_ids)
+        or (
+            event.event_type
+            in RESTRICTIVE_LISTING_STATE_EVENT_TYPES.values()
+            and any(
+                _event_touches_member(action, member_security_ids)
+                and _state_event_matches_action(
+                    manifest,
+                    event,
+                    action,
+                )
+                for action in restrictive_state_actions
+            )
+        )
+    )
+
+
 def _event_decisions(
     manifest,
     parsed,
@@ -1550,6 +2264,8 @@ def _event_decisions(
         manifest.corporate_action_policy.get(event_type) == "required"
         for event_type in listing_state_event_types
     )
+    covered_required_event_types: set[str] = set()
+    required_member_scope_unresolved = False
 
     if not evaluations:
         for event_type, state in (
@@ -1570,6 +2286,10 @@ def _event_decisions(
             manifest,
             parsed,
             evaluation,
+        )
+        required_member_scope_unresolved = (
+            required_member_scope_unresolved
+            or not member_scope.resolved
         )
         member_security_ids = member_scope.security_ids
         lineage = _compose_scoped_lineage(
@@ -1593,14 +2313,75 @@ def _event_decisions(
                 exclude(event, reason)
         leaves = lineage.leaves
 
-        leaves_by_scope = {
-            (event.security_id, event.event_type): event
+        identity_lineage = _compose_scoped_lineage(
+            parsed.identities,
+            row_id=lambda row: row.identity_row_id,
+            parent_id=lambda row: row.supersedes_identity_row_id,
+            scope=lambda row: row.security_id,
+            available_at=lambda row: max(
+                row.source_published_at,
+                row.retrieved_at,
+            ),
+            cutoff=evaluation_at,
+        )
+        identity_resolver = _effective_identity_resolver(
+            parsed.identities,
+            identity_lineage,
+            evaluation_at,
+        )
+        identity_interval_history = identity_resolver.history
+        identity_transition_requirements = (
+            _identity_transition_event_requirements(
+                identity_interval_history,
+                evaluation_at,
+            )
+        )
+        for identity, event_type in identity_transition_requirements:
+            matching_event = any(
+                event.event_type == event_type
+                and event.security_id == identity.security_id
+                and event.effective_at == identity.valid_from
+                for event in leaves
+            )
+            if (
+                manifest.corporate_action_policy.get(event_type)
+                != "required"
+                or not matching_event
+            ):
+                action_reasons.add("corporate_action_evidence_missing")
+
+        restrictive_state_actions = tuple(
+            event
             for event in leaves
-        }
+            if (
+                event.event_type != "listing"
+                and event.event_type not in listing_state_event_types
+                and event.listing_state_after
+                in RESTRICTIVE_LISTING_STATE_EVENT_TYPES
+            )
+        )
+
+        for action in restrictive_state_actions:
+            if not any(
+                _state_event_matches_action(
+                    manifest,
+                    event,
+                    action,
+                )
+                for event in leaves
+            ):
+                delisting_reasons.add("delisting_evidence_missing")
+                exclude(action, "delisting_evidence_missing")
+
         applicable_leaves = tuple(
             event
             for event in leaves
-            if event.security_id in member_security_ids
+            if _event_is_applicable(
+                manifest,
+                event,
+                member_security_ids,
+                restrictive_state_actions,
+            )
         )
         listing_state_by_security: dict[
             str,
@@ -1612,7 +2393,7 @@ def _event_decisions(
         ] = {}
         invalid_transition_ids: set[str] = set()
         for event in sorted(
-            applicable_leaves,
+            leaves,
             key=lambda item: (
                 item.security_id,
                 item.effective_at,
@@ -1625,28 +2406,118 @@ def _event_decisions(
             )
             if policy == "unsupported":
                 reasons.add("corporate_action_policy_unsupported")
+            elif policy == "not_applicable":
+                reasons.add(
+                    "corporate_action_policy_not_applicable"
+                )
+            allowed_listing_states = (
+                EVENT_LISTING_STATE_CONTRACT[event.event_type]
+            )
+            listing_state_valid = (
+                event.listing_state_after
+                in allowed_listing_states
+            )
+            if not listing_state_valid:
+                if event.event_type in listing_state_event_types:
+                    reasons.add(
+                        "delisting_state_invalid"
+                        if event.event_type == "delisting"
+                        else "delisting_transition_invalid"
+                    )
+                else:
+                    reasons.add(
+                        "corporate_action_listing_state_invalid"
+                    )
             if event.event_type in {"split", "reverse_split"} and (
                 event.ratio_numerator is None
                 or event.ratio_denominator is None
             ):
                 reasons.add("corporate_action_ratio_required")
+            if event.event_type in SUCCESSOR_EVENT_TYPES:
+                predecessor_scope_invalid = (
+                    event.security_id
+                    in identity_lineage.reasons_by_scope
+                ) or identity_resolver.security_scope_invalid(
+                    event.security_id
+                )
+                (
+                    active_predecessor_identities,
+                    active_successor_identities,
+                ) = _event_identity_endpoints(
+                    event,
+                    identity_resolver,
+                )
+                predecessor_identity_resolved = True
+                predecessor_identity_reason = ""
+                if (
+                    predecessor_scope_invalid
+                    or len(active_predecessor_identities) > 1
+                ):
+                    predecessor_identity_resolved = False
+                    predecessor_identity_reason = (
+                        "corporate_action_predecessor_identity_ambiguous"
+                    )
+                elif not active_predecessor_identities:
+                    predecessor_identity_resolved = False
+                    predecessor_identity_reason = (
+                        "corporate_action_predecessor_identity_missing"
+                    )
+                successor = event.successor_security_id
+                if not successor:
+                    reasons.add(
+                        "corporate_action_successor_required"
+                    )
+                elif successor == event.security_id:
+                    reasons.add("corporate_action_successor_self")
+                elif (
+                    successor.casefold()
+                    in INVALID_SUCCESSOR_IDENTIFIERS
+                ):
+                    reasons.add(
+                        "corporate_action_successor_invalid"
+                    )
+                else:
+                    successor_scope_invalid = (
+                        successor
+                        in identity_lineage.reasons_by_scope
+                    ) or identity_resolver.security_scope_invalid(
+                        successor
+                    )
+                    if (
+                        successor_scope_invalid
+                        or len(active_successor_identities) > 1
+                    ):
+                        reasons.add(
+                            "corporate_action_successor_identity_ambiguous"
+                        )
+                    elif not active_successor_identities:
+                        reasons.add(
+                            "corporate_action_successor_identity_missing"
+                        )
+                    else:
+                        if predecessor_identity_reason:
+                            reasons.add(predecessor_identity_reason)
+                        if (
+                            event.event_type
+                            in REPLACEMENT_SUCCESSOR_EVENT_TYPES
+                            and event.security_id in member_security_ids
+                            and predecessor_identity_resolved
+                        ):
+                            reasons.add(
+                                "corporate_action_successor_"
+                                "membership_inconsistent"
+                            )
             if (
                 event.event_type
-                in {"merger", "acquisition", "spinoff"}
-                and not event.successor_security_id
+                in {
+                    "listing",
+                    "delisting",
+                    "suspension",
+                    "reactivation",
+                }
+                and event.listing_state_after
+                and listing_state_valid
             ):
-                reasons.add("corporate_action_successor_required")
-            if (
-                event.event_type == "delisting"
-                and event.listing_state_after != "delisted"
-            ):
-                reasons.add("delisting_state_invalid")
-            if (
-                event.event_type == "suspension"
-                and event.listing_state_after != "suspended"
-            ):
-                reasons.add("delisting_transition_invalid")
-            if event.listing_state_after:
                 listing_state_events.setdefault(
                     (event.security_id, event.effective_at),
                     [],
@@ -1667,7 +2538,7 @@ def _event_decisions(
                 event.listing_state_after
                 for event in simultaneous_events
             }
-            if len(states) > 1:
+            if len(states) > 1 or len(simultaneous_events) > 1:
                 delisting_reasons.add(
                     "delisting_transition_invalid"
                 )
@@ -1682,24 +2553,33 @@ def _event_decisions(
             prior_listing_state = listing_state_by_security.get(
                 security_id
             )
-            invalid_reactivations = tuple(
+            allowed_prior_states = {
+                "listing": {None, "delisted"},
+                "suspension": {None, "active"},
+                "reactivation": {"suspended"},
+                "delisting": {None, "active", "suspended"},
+            }
+            invalid_transitions = tuple(
                 event
                 for event in simultaneous_events
                 if (
-                    event.event_type == "reactivation"
-                    and (
-                        event.listing_state_after != "active"
-                        or prior_listing_state is None
-                        or prior_listing_state[0] != "suspended"
-                        or prior_listing_state[1] >= effective_at
+                    (
+                        None
+                        if prior_listing_state is None
+                        else prior_listing_state[0]
+                    )
+                    not in allowed_prior_states[event.event_type]
+                    or (
+                        prior_listing_state is not None
+                        and prior_listing_state[1] >= effective_at
                     )
                 )
             )
-            if invalid_reactivations:
+            if invalid_transitions:
                 delisting_reasons.add(
                     "delisting_transition_invalid"
                 )
-                for event in invalid_reactivations:
+                for event in invalid_transitions:
                     exclude(event, "delisting_transition_invalid")
                 continue
             listing_state_by_security[security_id] = (
@@ -1712,14 +2592,37 @@ def _event_decisions(
         ):
             if state != "required":
                 continue
-            missing_member_evidence = (
-                not member_scope.resolved
-                or not any(
-                    (security_id, event_type) in leaves_by_scope
-                    for security_id in member_security_ids
-                )
+            if member_scope.resolved and any(
+                    event.event_type == event_type
+                    and _event_is_applicable(
+                        manifest,
+                        event,
+                        member_security_ids,
+                        restrictive_state_actions,
+                    )
+                    for event in leaves
+            ):
+                covered_required_event_types.add(event_type)
+        delisting_applicable = (
+            delisting_applicable
+            or bool(restrictive_state_actions)
+            or any(
+                event.event_type in listing_state_event_types
+                for event in applicable_leaves
             )
-            if not missing_member_evidence:
+        )
+
+    if evaluations:
+        for event_type, state in (
+            manifest.corporate_action_policy.items()
+        ):
+            if (
+                state != "required"
+                or (
+                    not required_member_scope_unresolved
+                    and event_type in covered_required_event_types
+                )
+            ):
                 continue
             if event_type in listing_state_event_types:
                 delisting_reasons.add("delisting_evidence_missing")
@@ -1727,13 +2630,6 @@ def _event_decisions(
                 action_reasons.add(
                     "corporate_action_evidence_missing"
                 )
-        delisting_applicable = (
-            delisting_applicable
-            or any(
-                event.event_type in listing_state_event_types
-                for event in applicable_leaves
-            )
-        )
 
     if manifest.delisting_policy.get("retain_historical_members") is not True:
         delisting_reasons.add("delisting_survivorship_policy_invalid")
@@ -1783,6 +2679,8 @@ def _raw_required_rights_scope(row) -> tuple[str, ...] | None:
     event_type = row.values.get("event_type", "")
     if event_type == "delisting":
         return ("delistings",)
+    if event_type in {"suspension", "reactivation"}:
+        return ("corporate_actions", "delistings")
     if event_type in EVENT_TYPES:
         return ("corporate_actions",)
     return None
@@ -1817,6 +2715,7 @@ def _rights_decision(
         if (
             source_id == RAW_MISSING_CELL
             or source_id != source_id.strip()
+            or not is_control_free(source_id)
         ):
             block(row, "source_rights_source_unreadable")
             continue
@@ -1962,7 +2861,7 @@ def _analysis_row_references(
             parsed.identities,
             row_id=lambda row: row.identity_row_id,
             parent_id=lambda row: row.supersedes_identity_row_id,
-            scope=lambda row: (row.security_id, row.issuer_id),
+            scope=lambda row: row.security_id,
             available_at=lambda row: max(
                 row.source_published_at,
                 row.retrieved_at,
@@ -1973,6 +2872,13 @@ def _analysis_row_references(
             membership_lineage.reason_codes
             or identity_lineage.reason_codes
         ):
+            return ()
+        identity_resolver = _effective_identity_resolver(
+            parsed.identities,
+            identity_lineage,
+            evaluation.evaluation_at,
+        )
+        if identity_resolver.invalid_scopes:
             return ()
 
         cutoff_memberships = tuple(
@@ -2010,17 +2916,9 @@ def _analysis_row_references(
         )
         member_security_ids: set[str] = set()
         for member in member_leaves:
-            active_identities = tuple(
-                row
-                for row in identity_lineage.leaves
-                if (
-                    row.security_id == member.security_id
-                    and _contains(
-                        row.valid_from,
-                        row.valid_to,
-                        evaluation.evaluation_at,
-                    )
-                )
+            active_identities = identity_resolver.active_at(
+                member.security_id,
+                evaluation.evaluation_at,
             )
             if len(active_identities) != 1:
                 return ()
@@ -2060,13 +2958,48 @@ def _analysis_row_references(
         )
         if event_lineage.reason_codes:
             return ()
+        restrictive_state_actions = tuple(
+            event
+            for event in event_lineage.leaves
+            if (
+                event.event_type != "listing"
+                and event.event_type
+                not in RESTRICTIVE_LISTING_STATE_EVENT_TYPES.values()
+                and event.listing_state_after
+                in RESTRICTIVE_LISTING_STATE_EVENT_TYPES
+            )
+        )
         for event in event_lineage.leaves:
-            if event.security_id in member_security_ids:
+            if not _event_is_applicable(
+                manifest,
+                event,
+                member_security_ids,
+                restrictive_state_actions,
+            ):
+                continue
+            references.add(
+                _row_reference(
+                    source_index,
+                    "events",
+                    event,
+                    evaluation_row_id=evaluation_row_id,
+                )
+            )
+            predecessors, successors = _event_identity_endpoints(
+                event,
+                identity_resolver,
+            )
+            if event.event_type in SUCCESSOR_EVENT_TYPES and (
+                len(predecessors) != 1
+                or len(successors) != 1
+            ):
+                return ()
+            for endpoint_identity in predecessors + successors:
                 references.add(
                     _row_reference(
                         source_index,
-                        "events",
-                        event,
+                        "security_identity",
+                        endpoint_identity,
                         evaluation_row_id=evaluation_row_id,
                     )
                 )

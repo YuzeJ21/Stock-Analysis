@@ -98,9 +98,13 @@ def test_unexpected_or_missing_columns_block_contract(tmp_path):
     entry = next(item for item in raw["files"] if item["contract"] == "security_identity")
     entry["sha256"] = hashlib.sha256(path.read_bytes()).hexdigest()
     manifest.write_text(json.dumps(raw), encoding="utf-8")
-    parsed = parse_universe_evidence(load_universe_package(manifest, registry))
-
-    assert "schema_columns_invalid" in _reason_codes(parsed)
+    with pytest.raises(
+        ValueError,
+        match="^package_csv_columns_invalid$",
+    ):
+        parse_universe_evidence(
+            load_universe_package(manifest, registry)
+        )
 
 
 @pytest.mark.parametrize(

@@ -3,14 +3,16 @@ from __future__ import annotations
 import csv
 import io
 import math
-import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from types import MappingProxyType
 from typing import Mapping
 
 from src.point_in_time_universe_identifiers import require_control_free
-from src.point_in_time_universe_manifest import LoadedUniversePackage
+from src.point_in_time_universe_manifest import (
+    RFC3339_UTC,
+    LoadedUniversePackage,
+)
 
 
 EVENT_TYPES = frozenset({
@@ -19,7 +21,6 @@ EVENT_TYPES = frozenset({
 })
 LISTING_STATES = frozenset({"", "active", "delisted", "suspended"})
 PARTITIONS = frozenset({"train", "validation", "test", "walk_forward"})
-RFC3339_UTC = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
 RAW_MISSING_CELL = "__missing_csv_cell__"
 RAW_SURPLUS_CELL_PREFIX = "__surplus_cell_"
 
@@ -262,6 +263,8 @@ def _parse_identity(row: Mapping[str, str]) -> IdentityObservation:
         "source_published_at", "retrieved_at",
         display_normalized=frozenset({"ticker"}),
     )
+    if required[1] == required[2]:
+        raise ValueError("schema_identity_issuer_matches_security")
     observation = IdentityObservation(
         identity_row_id=required[0], security_id=required[1], issuer_id=required[2],
         ticker=required[3].strip().upper(), exchange=required[4], security_type=required[5],
@@ -382,8 +385,7 @@ def parse_universe_evidence(package: LoadedUniversePackage) -> ParsedUniverseEvi
         with io.StringIO(snapshot.decode("utf-8"), newline="") as handle:
             reader = csv.DictReader(handle)
             if tuple(reader.fieldnames or ()) != COLUMNS[contract]:
-                findings.append(ContractFinding(contract, 1, "", ("schema_columns_invalid",)))
-                continue
+                raise ValueError("package_csv_columns_invalid")
             for source_row, values in enumerate(reader, start=2):
                 clean = _raw_values(values, COLUMNS[contract])
                 raw_rows.append(RawEvidenceRow(

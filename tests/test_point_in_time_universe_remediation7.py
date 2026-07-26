@@ -82,6 +82,16 @@ def _rewrite_contract(manifest, contract, mutation) -> None:
             ),
             "manifest_id_invalid",
         ),
+        (
+            "dataset_high_surrogate",
+            lambda raw: raw.update(dataset_id="fixture\ud800forged"),
+            "manifest_dataset_id_invalid",
+        ),
+        (
+            "manifest_low_surrogate",
+            lambda raw: raw.update(manifest_id="fixture\udfffforged"),
+            "manifest_id_invalid",
+        ),
     ],
 )
 def test_manifest_structural_identifiers_reject_c0_c1_controls(
@@ -153,17 +163,66 @@ def test_contract_structural_identifiers_reject_controls_on_exact_rows(
     )
 
 
+@pytest.mark.parametrize("surrogate", ("\ud800", "\udfff"))
+def test_contract_boundary_rejects_lone_surrogate_identifiers(
+    tmp_path,
+    surrogate,
+):
+    from src.point_in_time_universe_contracts import _parse_event
+
+    manifest, _ = build_valid_package(tmp_path)
+    with (manifest.parent / "events.csv").open(
+        encoding="utf-8",
+        newline="",
+    ) as handle:
+        row = next(csv.DictReader(handle))
+    row["security_id"] = f"sec-1{surrogate}forged"
+
+    with pytest.raises(
+        ValueError,
+        match="^schema_identifier_control_character$",
+    ):
+        _parse_event(row)
+
+
+@pytest.mark.parametrize(
+    "surrogate,escaped",
+    (("\ud800", "\\ud800"), ("\udfff", "\\udfff")),
+)
+def test_shared_structural_predicate_rejects_and_renderer_escapes_non_scalars(
+    surrogate,
+    escaped,
+):
+    from src.point_in_time_universe_identifiers import (
+        escape_structural_token,
+        is_control_free,
+        require_control_free,
+    )
+
+    assert is_control_free(surrogate) is False
+    with pytest.raises(
+        ValueError,
+        match="^schema_identifier_control_character$",
+    ):
+        require_control_free(
+            surrogate,
+            "schema_identifier_control_character",
+        )
+    assert escape_structural_token(surrogate) == escaped
+    assert escape_structural_token(surrogate).isascii()
+
+
 def test_ordinary_unicode_opaque_ids_remain_deterministic_and_digest_safe(tmp_path):
     from src.point_in_time_universe import validate_point_in_time_universe
 
     manifest, registry = build_valid_package(tmp_path)
     raw = _manifest_payload(manifest)
-    raw["dataset_id"] = "研究資料集"
-    raw["manifest_id"] = "清單-é"
+    raw["dataset_id"] = "研究資料集-🚀"
+    raw["manifest_id"] = "清單-é-𐐷"
     for universe in raw["declared_universes"]:
         universe["universe_id"] = {
-            "bench-1": "基準-é",
-            "research-1": "研究-β",
+            "bench-1": "基準-é-🚀",
+            "research-1": "研究-β-𐐷",
         }[universe["universe_id"]]
     _write_manifest(manifest, raw)
     _rewrite_contract(
@@ -171,7 +230,7 @@ def test_ordinary_unicode_opaque_ids_remain_deterministic_and_digest_safe(tmp_pa
         "security_identity",
         lambda rows: rows[0].update(
             identity_row_id="身份-é",
-            security_id="證券-β",
+            security_id="證券-β-🚀",
             issuer_id="發行人-東京",
         ),
     )
@@ -181,8 +240,12 @@ def test_ordinary_unicode_opaque_ids_remain_deterministic_and_digest_safe(tmp_pa
         lambda rows: [
             row.update(
                 membership_row_id=f"成員-{index}",
-                universe_id=("基準-é" if index == 0 else "研究-β"),
-                security_id="證券-β",
+                universe_id=(
+                    "基準-é-🚀"
+                    if index == 0
+                    else "研究-β-𐐷"
+                ),
+                security_id="證券-β-🚀",
             )
             for index, row in enumerate(rows)
         ],
@@ -192,7 +255,7 @@ def test_ordinary_unicode_opaque_ids_remain_deterministic_and_digest_safe(tmp_pa
         "events",
         lambda rows: rows[0].update(
             event_row_id="事件-é",
-            security_id="證券-β",
+            security_id="證券-β-🚀",
         ),
     )
     _rewrite_contract(
@@ -201,7 +264,11 @@ def test_ordinary_unicode_opaque_ids_remain_deterministic_and_digest_safe(tmp_pa
         lambda rows: [
             row.update(
                 evaluation_row_id=f"評估-{index}",
-                universe_id=("基準-é" if index == 0 else "研究-β"),
+                universe_id=(
+                    "基準-é-🚀"
+                    if index == 0
+                    else "研究-β-𐐷"
+                ),
             )
             for index, row in enumerate(rows)
         ],
@@ -209,7 +276,9 @@ def test_ordinary_unicode_opaque_ids_remain_deterministic_and_digest_safe(tmp_pa
 
     first = validate_point_in_time_universe(manifest, registry)
     second = validate_point_in_time_universe(manifest, registry)
-    expected = hashlib.sha256("證券-β".encode("utf-8")).hexdigest()
+    expected = hashlib.sha256(
+        "證券-β-🚀".encode("utf-8"),
+    ).hexdigest()
 
     assert first.analysis_eligible is True
     assert first.membership_digests == second.membership_digests
@@ -471,6 +540,76 @@ def test_renderers_escape_unicode_record_separators_on_blocked_packets(
         )
         assert "\\u2028" in output
         assert "\\u2029" in output
+
+
+def test_renderers_escape_lone_surrogates_on_constructed_blocked_packets(
+    tmp_path,
+):
+    from src.point_in_time_universe import (
+        ExcludedRow,
+        render_preview,
+        render_status,
+        validate_point_in_time_universe,
+    )
+
+    manifest, registry = build_valid_package(tmp_path)
+    packet = validate_point_in_time_universe(manifest, registry)
+    malicious = replace(
+        packet,
+        dataset_id="fixture\ud800analysis_eligible: false",
+        manifest_id="fixture\udfffsource_rights: blocked",
+        analysis_eligible=False,
+        excluded=(
+            ExcludedRow(
+                "security_identity",
+                2,
+                "row\udfffanalysis_eligible: true",
+                ("schema_identifier_control_character",),
+            ),
+        ),
+        excluded_count=1,
+    )
+
+    for output in (render_status(malicious), render_preview(malicious)):
+        assert "\\ud800" in output
+        assert "\\udfff" in output
+        assert output.encode("utf-8")
+        assert sum(
+            line.startswith("analysis_eligible:")
+            for line in output.splitlines()
+        ) == 1
+
+
+@pytest.mark.parametrize("surrogate", ("\ud800", "\udfff"))
+def test_cli_and_make_lone_surrogate_manifest_failures_are_nonwriting(
+    tmp_path,
+    surrogate,
+):
+    manifest, registry = build_valid_package(tmp_path)
+    raw = _manifest_payload(manifest)
+    raw["manifest_id"] = f"fixture{surrogate}forged"
+    _write_manifest(manifest, raw)
+    before = _snapshot(tmp_path)
+
+    cli = _run_cli(
+        "status",
+        "--manifest",
+        str(manifest),
+        "--registry",
+        str(registry),
+    )
+    make = _run_make(
+        "point-in-time-universe-status",
+        f"MANIFEST={manifest}",
+        f"REGISTRY={registry}",
+    )
+
+    for result in (cli, make):
+        assert result.returncode != 0
+        assert "manifest_id_invalid" in result.stderr
+        assert "Traceback" not in result.stderr
+        assert "UnicodeEncodeError" not in result.stderr
+    assert _snapshot(tmp_path) == before
 
 
 @pytest.mark.parametrize("separator", ("\u2028", "\u2029"))

@@ -4,6 +4,9 @@ import json
 
 import pytest
 
+from tests.point_in_time_universe_remediation_fixtures import (
+    walk_forward_rows,
+)
 from tests.point_in_time_universe_fixture import build_valid_package
 from tests.test_point_in_time_universe import (
     _append_registry_source,
@@ -252,21 +255,6 @@ def test_populated_source_rights_failures_have_exact_row_lineage(
     assert expected_reason in exact.reason_codes
 
 
-def _walk_forward_rows() -> list[dict[str, str]]:
-    return [
-        {
-            "evaluation_row_id": f"eval-{universe}-{year}",
-            "universe_id": universe,
-            "evaluation_at": f"{year}-01-01T00:00:00Z",
-            "available_at": f"{year}-01-01T00:00:00Z",
-            "partition": "walk_forward",
-            "source_ref": f"fixture://evaluation/{universe}/{year}",
-        }
-        for universe in ("bench-1", "research-1")
-        for year in (2021, 2022, 2023)
-    ]
-
-
 def test_walk_forward_history_is_strictly_prior_and_input_order_independent(
     tmp_path,
 ):
@@ -276,7 +264,7 @@ def test_walk_forward_history_is_strictly_prior_and_input_order_independent(
 
     results = []
     for index, rows in enumerate(
-        (_walk_forward_rows(), list(reversed(_walk_forward_rows())))
+        (walk_forward_rows(), list(reversed(walk_forward_rows())))
     ):
         root = tmp_path / str(index)
         root.mkdir()
@@ -320,14 +308,14 @@ def test_walk_forward_history_is_strictly_prior_and_input_order_independent(
         assert reasons[f"eval-{universe}-2023"] == ()
 
 
-def test_public_validator_blocks_early_cutoffs_and_unlocks_only_later_cutoff(
+def test_public_validator_excludes_bootstrap_and_unlocks_later_cutoff(
     tmp_path,
 ):
     from src.point_in_time_universe import validate_point_in_time_universe
 
     semantic_results = []
     for index, rows in enumerate(
-        (_walk_forward_rows(), list(reversed(_walk_forward_rows())))
+        (walk_forward_rows(), list(reversed(walk_forward_rows())))
     ):
         root = tmp_path / str(index)
         root.mkdir()
@@ -364,9 +352,8 @@ def test_public_validator_blocks_early_cutoffs_and_unlocks_only_later_cutoff(
 
     assert semantic_results[0] == semantic_results[1]
     decisions, digests, excluded, observed_evaluations = semantic_results[0]
-    assert decisions["leakage_safe"].reason_codes == (
-        "partition_minimum_history_unmet",
-    )
+    assert decisions["leakage_safe"].status == "passed"
+    assert decisions["leakage_safe"].reason_codes == ()
     assert {
         (item.universe_id, item.evaluation_at)
         for item in digests
@@ -401,19 +388,19 @@ def test_invalid_unavailable_and_same_time_evaluations_do_not_count_as_history(
     manifest, registry = build_valid_package(tmp_path)
     rows = [
         {
-            **_walk_forward_rows()[0],
+            **walk_forward_rows()[0],
             "evaluation_row_id": "eval-unavailable",
             "evaluation_at": "2021-01-01T00:00:00Z",
             "available_at": "2021-01-02T00:00:00Z",
         },
         {
-            **_walk_forward_rows()[0],
+            **walk_forward_rows()[0],
             "evaluation_row_id": "eval-same-a",
             "evaluation_at": "2022-01-01T00:00:00Z",
             "available_at": "2022-01-01T00:00:00Z",
         },
         {
-            **_walk_forward_rows()[0],
+            **walk_forward_rows()[0],
             "evaluation_row_id": "eval-same-b",
             "evaluation_at": "2022-01-01T00:00:00Z",
             "available_at": "2022-01-01T00:00:00Z",

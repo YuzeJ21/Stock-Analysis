@@ -11,6 +11,9 @@ from typing import Any, Mapping, Sequence
 
 import yaml
 
+from src.point_in_time_universe_manifest import _bounded_snapshot
+from src.point_in_time_universe_identifiers import is_control_free
+
 
 REQUIRED_FIELDS = (
     "source_id",
@@ -31,6 +34,48 @@ COMMERCIAL_RESEARCH_MODE_ENV = "COMMERCIAL_RESEARCH_MODE"
 _COMMERCIAL_MODE_ENABLED_VALUES = frozenset({"1", "true", "yes", "on", "commercial"})
 _COMMERCIAL_MODE_DISABLED_VALUES = frozenset({"", "0", "false", "no", "off", "research"})
 DEFAULT_REGISTRY_PATH = Path(__file__).resolve().parent.parent / "config" / "source_rights.yml"
+MAX_SOURCE_RIGHTS_REGISTRY_BYTES = 4 * 1024 * 1024
+
+
+def _normalize_source_id(source_id: object) -> str:
+    raw_source_id = str(source_id or "")
+    if not is_control_free(raw_source_id):
+        raise ValueError("source_id_control_character_invalid")
+    return raw_source_id.strip()
+
+
+class _UniqueKeySafeLoader(yaml.SafeLoader):
+    pass
+
+
+def _construct_unique_mapping(
+    loader: _UniqueKeySafeLoader,
+    node: yaml.nodes.MappingNode,
+    deep: bool = False,
+) -> dict[Any, Any]:
+    loader.flatten_mapping(node)
+    result: dict[Any, Any] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        try:
+            duplicate = key in result
+        except TypeError as exc:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                "found an unhashable key",
+                key_node.start_mark,
+            ) from exc
+        if duplicate:
+            raise ValueError("source_rights_registry_duplicate_key")
+        result[key] = loader.construct_object(value_node, deep=deep)
+    return result
+
+
+_UniqueKeySafeLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
 
 
 @dataclass(frozen=True)
@@ -93,7 +138,7 @@ def _source_rights_from_record(record: Mapping[str, Any]) -> SourceRights:
         raise ValueError("source rights record text fields must be non-empty strings")
 
     return SourceRights(
-        source_id=record["source_id"].strip(),
+        source_id=_normalize_source_id(record["source_id"]),
         display_name=record["display_name"].strip(),
         permitted_use=record["permitted_use"].strip(),
         commercial_use=record["commercial_use"].strip(),
@@ -128,7 +173,10 @@ def parse_source_rights_registry(snapshot: bytes) -> Mapping[str, SourceRights]:
     """Build an immutable source-rights registry from one verified byte snapshot."""
 
     try:
-        raw = yaml.safe_load(snapshot.decode("utf-8")) or {}
+        raw = yaml.load(
+            snapshot.decode("utf-8"),
+            Loader=_UniqueKeySafeLoader,
+        ) or {}
     except (
         UnicodeDecodeError,
         yaml.YAMLError,
@@ -144,10 +192,13 @@ def load_source_rights_registry(path: Path | str = DEFAULT_REGISTRY_PATH) -> Map
     """Load the checked-in registry without reading credentials or license documents."""
 
     registry_path = Path(path)
-    try:
-        snapshot = registry_path.read_bytes()
-    except OSError as exc:
-        raise ValueError(f"cannot read source rights registry: {registry_path}") from exc
+    snapshot = _bounded_snapshot(
+        registry_path,
+        maximum_bytes=MAX_SOURCE_RIGHTS_REGISTRY_BYTES,
+        size_error="source_rights_registry_size_limit_exceeded",
+        unreadable_error="source_rights_registry_unreadable",
+        _no_follow=True,
+    )
     return parse_source_rights_registry(snapshot)
 
 
@@ -156,7 +207,7 @@ def commercial_eligibility(
 ) -> CommercialEligibility:
     """Return the fail-closed commercial-mode decision for one registered source."""
 
-    normalized_source_id = str(source_id or "").strip()
+    normalized_source_id = _normalize_source_id(source_id)
     record = registry.get(normalized_source_id)
     if record is None:
         return CommercialEligibility(
@@ -187,7 +238,7 @@ def review_commercial_field_scope(
 ) -> CommercialFieldScopeReview:
     """Review exact-source rights and registered field scope without fetching data."""
 
-    normalized_source_id = str(source_id or "").strip()
+    normalized_source_id = _normalize_source_id(source_id)
     normalized_fields = tuple(str(field or "").strip() for field in required_fields)
     if any(not field for field in normalized_fields) or len(set(normalized_fields)) != len(
         normalized_fields
@@ -273,8 +324,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", type=Path, default=DEFAULT_REGISTRY_PATH, help="Source-rights YAML path.")
     parser.add_argument("--source", help="Optional source id to evaluate in commercial mode.")
     args = parser.parse_args(argv)
-    registry = load_source_rights_registry(args.config)
-    print(render_source_rights_status(registry, args.source))
+    try:
+        registry = load_source_rights_registry(args.config)
+        rendered = render_source_rights_status(
+            registry,
+            args.source,
+        )
+    except ValueError as exc:
+        parser.error(str(exc))
+    print(rendered)
     return 0
 
 

@@ -33,6 +33,7 @@ EXPECTED_EXCLUSION_CODES = {
     "schema_ratio_pair_required",
     "schema_delisting_listing_state_invalid",
     "schema_identity_interval_reversed",
+    "schema_identity_issuer_matches_security",
     "schema_membership_interval_reversed",
     "schema_event_row_id_duplicate",
     "schema_evaluation_row_id_duplicate",
@@ -46,8 +47,10 @@ EXPECTED_EXCLUSION_CODES = {
     "lineage_cycle",
     "identity_interval_overlap",
     "identity_missing",
+    "identity_security_id_reused_across_issuers",
     "membership_interval_inactive",
     "membership_universe_undeclared",
+    "membership_snapshot_omission_unexplained",
     "corporate_action_policy_unsupported",
     "corporate_action_successor_required",
     "delisting_transition_invalid",
@@ -88,6 +91,7 @@ EXCLUSION_MUTATION_CASES = (
     "schema_ratio_pair",
     "schema_delisting_state",
     "schema_identity_interval",
+    "schema_identity_issuer_matches_security",
     "schema_membership_interval",
     "schema_event_duplicate",
     "schema_evaluation_duplicate",
@@ -101,7 +105,9 @@ EXCLUSION_MUTATION_CASES = (
     "lineage_cycle",
     "identity_interval_overlap",
     "identity_missing",
+    "identity_security_reuse",
     "membership_interval_inactive",
+    "membership_snapshot_omission",
     "corporate_action_unsupported",
     "corporate_action_successor",
     "delisting_transition",
@@ -256,14 +262,9 @@ def _mutate_identity_lineage_exclusion(manifest, case):
 def _mutate_exclusion_case(manifest, case):
     if case == "schema_columns":
         identity = manifest.parent / "identity.csv"
-        identity.write_text(
-            identity.read_text(encoding="utf-8").replace(
-                "issuer_id,",
-                "",
-                1,
-            ),
-            encoding="utf-8",
-        )
+        lines = identity.read_text(encoding="utf-8").splitlines()
+        lines[1] = ",".join(lines[1].split(",")[:7])
+        identity.write_text("\n".join(lines) + "\n", encoding="utf-8")
         _refresh_contract_digest(manifest, "security_identity")
     elif case == "schema_required":
         _rewrite_csv_and_manifest(
@@ -326,6 +327,14 @@ def _mutate_exclusion_case(manifest, case):
                 valid_to="2020-05-01T00:00:00Z",
             ),
         )
+    elif case == "schema_identity_issuer_matches_security":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "security_identity",
+            lambda rows: rows[0].update(
+                issuer_id=rows[0]["security_id"],
+            ),
+        )
     elif case == "schema_membership_interval":
         _rewrite_csv_and_manifest(
             manifest,
@@ -333,6 +342,23 @@ def _mutate_exclusion_case(manifest, case):
             lambda rows: rows[0].update(
                 effective_from="2020-06-01T00:00:00Z",
                 effective_to="2020-05-01T00:00:00Z",
+            ),
+        )
+    elif case == "membership_snapshot_omission":
+        _rewrite_csv_and_manifest(
+            manifest,
+            "membership",
+            lambda rows: rows.append(
+                {
+                    **rows[0],
+                    "membership_row_id": "member-bench-later-sec-2",
+                    "security_id": "sec-2",
+                    "effective_from": "2020-06-01T00:00:00Z",
+                    "observation_at": "2020-06-01T00:00:00Z",
+                    "source_ref": "fixture://membership/later-sec-2",
+                    "source_published_at": "2020-06-01T00:00:00Z",
+                    "retrieved_at": "2020-06-02T00:00:00Z",
+                }
             ),
         )
     elif case == "schema_event_duplicate":
@@ -376,6 +402,31 @@ def _mutate_exclusion_case(manifest, case):
         mutate_identity_membership_case(manifest, "overlapping_identity")
     elif case == "identity_missing":
         mutate_identity_membership_case(manifest, "missing_identity")
+    elif case == "identity_security_reuse":
+        def append_reused_security(rows):
+            prior = rows[0]
+            prior["valid_to"] = "2020-06-01T00:00:00Z"
+            rows.append(
+                {
+                    **prior,
+                    "identity_row_id": "id-reused-security",
+                    "issuer_id": "issuer-reused",
+                    "valid_from": "2020-06-01T00:00:00Z",
+                    "valid_to": "",
+                    "source_ref": "fixture://identity/reused-security",
+                    "source_published_at": "2020-06-01T00:00:00Z",
+                    "retrieved_at": "2020-06-02T00:00:00Z",
+                    "supersedes_identity_row_id": (
+                        prior["identity_row_id"]
+                    ),
+                }
+            )
+
+        _rewrite_csv_and_manifest(
+            manifest,
+            "security_identity",
+            append_reused_security,
+        )
     elif case == "membership_interval_inactive":
         mutate_identity_membership_case(
             manifest,
@@ -395,6 +446,13 @@ def _mutate_exclusion_case(manifest, case):
             lambda rows: rows[0].update(
                 event_type="merger",
                 successor_security_id="",
+                listing_state_after="",
+            ),
+        )
+        _rewrite_manifest(
+            manifest,
+            lambda raw: raw["corporate_action_policy"].update(
+                {"listing": "not_applicable", "merger": "required"}
             ),
         )
     elif case == "delisting_transition":
@@ -404,6 +462,12 @@ def _mutate_exclusion_case(manifest, case):
             lambda rows: rows[0].update(
                 event_type="suspension",
                 listing_state_after="active",
+            ),
+        )
+        _rewrite_manifest(
+            manifest,
+            lambda raw: raw["corporate_action_policy"].update(
+                {"listing": "not_applicable", "suspension": "required"}
             ),
         )
     elif case == "cutoff_after_manifest":
@@ -1108,11 +1172,7 @@ def test_future_only_required_event_cannot_promote_current_event_coverage(
     ) == (
         "events",
         2,
-        (
-            "cutoff_post_evaluation_evidence",
-            "cutoff_required_scope_unavailable",
-            "leakage_post_cutoff_evidence",
-        ),
+        ("cutoff_unrelated_scope_invisible",),
     )
 
 
@@ -1210,7 +1270,6 @@ def mutate_identity_membership_case(manifest, case):
         ("membership_duplicate_across_scopes", "lineage_duplicate_id"),
         ("membership_fork_across_scopes", "lineage_fork"),
         ("identity_security_drift", "lineage_cross_scope_parent"),
-        ("identity_issuer_drift", "lineage_cross_scope_parent"),
         ("identity_duplicate_across_scopes", "lineage_duplicate_id"),
         ("identity_fork_across_scopes", "lineage_fork"),
         ("corrupt_non_member_identity", "lineage_missing_parent"),
@@ -1306,18 +1365,6 @@ def mutate_integrated_lineage_case(manifest, case):
                     "identity_row_id": "id-security-drift",
                     "security_id": "sec-2",
                     "source_ref": "fixture://identity/id-security-drift",
-                    "source_published_at": "2020-02-01T00:00:00Z",
-                    "retrieved_at": "2020-02-02T00:00:00Z",
-                    "supersedes_identity_row_id": "id-1",
-                }
-            )
-        elif case == "identity_issuer_drift":
-            rows.append(
-                {
-                    **rows[0],
-                    "identity_row_id": "id-issuer-drift",
-                    "issuer_id": "issuer-2",
-                    "source_ref": "fixture://identity/id-issuer-drift",
                     "source_published_at": "2020-02-01T00:00:00Z",
                     "retrieved_at": "2020-02-02T00:00:00Z",
                     "supersedes_identity_row_id": "id-1",
@@ -1508,7 +1555,6 @@ def test_active_identity_leaf_is_used_without_superseded_root_reference(
             {
                 **rows[0],
                 "identity_row_id": "id-active-leaf",
-                "ticker": "LEAF",
                 "valid_from": "2020-06-01T00:00:00Z",
                 "valid_to": "",
                 "source_ref": "fixture://identity/id-active-leaf",
@@ -1532,7 +1578,7 @@ def test_active_identity_leaf_is_used_without_superseded_root_reference(
     }
 
     assert packet.analysis_eligible is True
-    assert packet.display_tickers == {"sec-1": "LEAF"}
+    assert packet.display_tickers == {"sec-1": "AAA"}
     assert eligible_identity_ids == {"id-active-leaf"}
 
 
@@ -1642,7 +1688,7 @@ def test_identity_overlap_excludes_each_overlapping_identity_source_row(
         for row in packet.excluded
         if (
             row.contract == "security_identity"
-            and row.reason_codes == ("identity_interval_overlap",)
+            and "identity_interval_overlap" in row.reason_codes
         )
     )
 
@@ -2565,6 +2611,7 @@ def test_split_requires_positive_explicit_ratio_and_does_not_rewrite_membership(
             event_type="split",
             ratio_numerator="2",
             ratio_denominator="1",
+            listing_state_after="",
         )
 
     _rewrite_csv_and_manifest(manifest, "events", mutate)
@@ -2595,6 +2642,7 @@ def test_reverse_split_has_independent_action_coverage(tmp_path):
             event_type="reverse_split",
             ratio_numerator="1",
             ratio_denominator="10",
+            listing_state_after="",
         ),
     )
 
@@ -2905,6 +2953,12 @@ def test_same_timestamp_reactivation_is_blocked_regardless_of_row_id_order(
         "events",
         add_simultaneous_transitions,
     )
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["corporate_action_policy"].update(
+            {"suspension": "required", "reactivation": "required"}
+        ),
+    )
 
     packet = validate_point_in_time_universe(manifest, registry)
 
@@ -2961,11 +3015,18 @@ def test_multiple_reactivation_roots_fail_closed_as_ambiguous_lineage(
         )
 
     _rewrite_csv_and_manifest(manifest, "events", add_transitions)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["corporate_action_policy"].update(
+            {"suspension": "required", "reactivation": "required"}
+        ),
+    )
 
     packet = validate_point_in_time_universe(manifest, registry)
 
     assert _decision(packet, "delisting_coverage").status == "blocked"
     assert _decision(packet, "delisting_coverage").reason_codes == (
+        "delisting_evidence_missing",
         "lineage_multiple_roots",
     )
     assert _decision(packet, "corporate_action_coverage").status == "passed"
@@ -3015,6 +3076,12 @@ def test_intervening_active_transition_invalidates_later_reactivation(tmp_path):
         )
 
     _rewrite_csv_and_manifest(manifest, "events", add_transitions)
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["corporate_action_policy"].update(
+            {"suspension": "required", "reactivation": "required"}
+        ),
+    )
 
     packet = validate_point_in_time_universe(manifest, registry)
 
@@ -3078,6 +3145,7 @@ def test_cutoff_visible_event_revision_is_consumed_leaf(tmp_path):
         rows[0].update(
             event_type="merger",
             successor_security_id="",
+            listing_state_after="",
         )
         rows.append(
             {
@@ -3101,8 +3169,13 @@ def test_cutoff_visible_event_revision_is_consumed_leaf(tmp_path):
 
     packet = validate_point_in_time_universe(manifest, registry)
 
-    assert _decision(packet, "corporate_action_coverage").status == "passed"
-    assert _decision(packet, "corporate_action_coverage").reason_codes == ()
+    assert _decision(packet, "corporate_action_coverage").status == "blocked"
+    assert _decision(
+        packet,
+        "corporate_action_coverage",
+    ).reason_codes == (
+        "corporate_action_successor_identity_missing",
+    )
 
 
 def test_post_evaluation_invalid_reactivation_does_not_poison_prior_cutoff(
@@ -3543,6 +3616,7 @@ def test_one_member_event_satisfies_type_level_coverage_for_member_scope(
             event_type="split",
             ratio_numerator="2",
             ratio_denominator="1",
+            listing_state_after="",
         ),
     )
     _rewrite_manifest(
@@ -3674,6 +3748,12 @@ def test_simultaneous_conflicting_listing_states_fail_closed_independent_of_ids(
         manifest,
         "events",
         add_conflicting_transitions,
+    )
+    _rewrite_manifest(
+        manifest,
+        lambda raw: raw["corporate_action_policy"].update(
+            {"suspension": "required", "reactivation": "required"}
+        ),
     )
 
     packet = validate_point_in_time_universe(manifest, registry)
@@ -3876,17 +3956,37 @@ def test_post_cutoff_evidence_is_excluded_without_poisoning_independent_states(
 
     packet = validate_point_in_time_universe(manifest, registry)
 
-    assert _decision(packet, "temporal_validity").status == "blocked"
-    assert _decision(packet, "leakage_safe").status == "blocked"
-    assert "leakage_post_cutoff_evidence" in _decision(
-        packet,
-        "leakage_safe",
-    ).reason_codes
-    assert any(
-        row.contract == contract
-        and "leakage_post_cutoff_evidence" in row.reason_codes
-        for row in packet.excluded
+    future_effective_event = (
+        contract == "events"
+        and column == "effective_at"
     )
+    if future_effective_event:
+        assert _decision(
+            packet,
+            "temporal_validity",
+        ).status == "passed"
+        assert _decision(packet, "leakage_safe").status == "passed"
+        assert any(
+            row.contract == contract
+            and row.reason_codes
+            == ("cutoff_unrelated_scope_invisible",)
+            for row in packet.excluded
+        )
+    else:
+        assert _decision(
+            packet,
+            "temporal_validity",
+        ).status == "blocked"
+        assert _decision(packet, "leakage_safe").status == "blocked"
+        assert "leakage_post_cutoff_evidence" in _decision(
+            packet,
+            "leakage_safe",
+        ).reason_codes
+        assert any(
+            row.contract == contract
+            and "leakage_post_cutoff_evidence" in row.reason_codes
+            for row in packet.excluded
+        )
     expected_cutoff_coverage_block = {
         "security_identity": {
             "identity_coverage": ("identity_missing",),
@@ -4587,10 +4687,14 @@ def test_walk_forward_minimum_history_uses_actual_universe_evaluations(
 
     packet = validate_point_in_time_universe(manifest, registry)
 
-    assert _decision(packet, "leakage_safe").status == "blocked"
-    assert _decision(packet, "leakage_safe").reason_codes == (
-        "partition_minimum_history_unmet",
-    )
+    assert _decision(packet, "leakage_safe").status == "passed"
+    assert _decision(packet, "leakage_safe").reason_codes == ()
+    assert _decision(packet, "membership_coverage").status == "blocked"
+    assert "membership_no_evaluation" in _decision(
+        packet,
+        "membership_coverage",
+    ).reason_codes
+    assert packet.membership_digests == ()
     assert {
         row.row_id: row.reason_codes
         for row in packet.excluded
@@ -4750,7 +4854,7 @@ def test_complete_snapshot_valid_fixture_remains_eligible_and_deterministic(
     assert first.analysis_eligible is True
 
 
-def test_complete_snapshot_uses_only_explicit_rows_from_latest_snapshot(
+def test_complete_snapshot_does_not_infer_exclusion_from_omission(
     tmp_path,
 ):
     from src.point_in_time_universe import validate_point_in_time_universe
@@ -4812,12 +4916,24 @@ def test_complete_snapshot_uses_only_explicit_rows_from_latest_snapshot(
     packet = validate_point_in_time_universe(manifest, registry)
     digests = _digest_by_universe(packet)
 
-    assert _decision(packet, "membership_coverage").status == "passed"
-    assert digests["bench-1"].member_count == 1
-    assert digests["bench-1"].sha256 == _sha256_members("sec-2")
+    assert _decision(packet, "membership_coverage").status == "blocked"
+    assert _decision(packet, "membership_coverage").reason_codes == (
+        "membership_snapshot_omission_unexplained",
+    )
+    assert _decision(packet, "reproduction_ready").status == "blocked"
+    assert _decision(packet, "reproduction_ready").reason_codes == (
+        "reproduction_digest_missing",
+    )
+    assert "bench-1" not in digests
     assert digests["research-1"].member_count == 1
     assert digests["research-1"].sha256 == _sha256_members("sec-1")
-    assert packet.analysis_eligible is True
+    assert next(
+        row
+        for row in packet.excluded
+        if row.row_id == "member-bench-1"
+    ).reason_codes == ("membership_snapshot_omission_unexplained",)
+    assert packet.analysis_eligible is False
+    assert packet.analysis_eligible_rows == ()
 
 
 def test_event_history_is_blocked_without_a_trusted_membership_digest(

@@ -5,6 +5,7 @@ import hashlib
 import io
 import json
 import os
+import re
 import stat
 from dataclasses import dataclass
 from datetime import datetime
@@ -24,6 +25,9 @@ ALLOWED_EVENT_TYPES = frozenset({
 })
 ALLOWED_ACTION_POLICY_STATES = frozenset({"required", "not_applicable", "unsupported"})
 REPRODUCTION_CONTRACT = "membership_count_and_sha256_at_cutoff_v1"
+RFC3339_UTC = re.compile(
+    r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$"
+)
 
 # Local safeguards for one supplied package. These are not coverage, scale,
 # hosted-reliability, or commercial-capacity claims.
@@ -33,6 +37,7 @@ MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES = 64 * 1024 * 1024
 MAX_RIGHTS_REGISTRY_BYTES = 4 * 1024 * 1024
 MAX_DECLARED_ROWS_PER_CONTRACT = 250_000
 MAX_PACKAGE_TRAVERSAL_ENTRIES = 32
+MAX_MANIFEST_NESTING_DEPTH = 64
 
 
 @dataclass(frozen=True)
@@ -41,6 +46,37 @@ class ManifestFile:
     contract: str
     sha256: str
     row_count: int
+
+
+def _freeze_manifest_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return MappingProxyType({
+            key: _freeze_manifest_value(item)
+            for key, item in value.items()
+        })
+    if isinstance(value, (list, tuple)):
+        return tuple(_freeze_manifest_value(item) for item in value)
+    if isinstance(value, (set, frozenset)):
+        return frozenset(_freeze_manifest_value(item) for item in value)
+    return value
+
+
+def _validate_manifest_nesting(value: Any) -> None:
+    pending = [(value, 0)]
+    while pending:
+        item, depth = pending.pop()
+        if depth > MAX_MANIFEST_NESTING_DEPTH:
+            raise ValueError("manifest_nesting_limit_exceeded")
+        if isinstance(item, Mapping):
+            pending.extend(
+                (nested, depth + 1)
+                for nested in item.values()
+            )
+        elif isinstance(item, (list, tuple, set, frozenset)):
+            pending.extend(
+                (nested, depth + 1)
+                for nested in item
+            )
 
 
 @dataclass(frozen=True)
@@ -60,6 +96,22 @@ class UniverseManifest:
     delisting_policy: Mapping[str, Any]
     survivorship_policy: Mapping[str, Any]
     reproduction_contract: str
+
+    def __post_init__(self) -> None:
+        for name in (
+            "declared_universes",
+            "allowed_source_ids",
+            "files",
+            "evaluation_policy",
+            "corporate_action_policy",
+            "delisting_policy",
+            "survivorship_policy",
+        ):
+            object.__setattr__(
+                self,
+                name,
+                _freeze_manifest_value(getattr(self, name)),
+            )
 
 
 @dataclass(frozen=True)
@@ -89,6 +141,8 @@ def _bounded_snapshot(
     unreadable_error: str,
     combined_maximum_bytes: int | None = None,
     combined_size_error: str | None = None,
+    _dir_fd: int | None = None,
+    _no_follow: bool = False,
 ) -> bytes:
     descriptor: int | None = None
     try:
@@ -97,7 +151,12 @@ def _bounded_snapshot(
             "O_NONBLOCK",
             0,
         )
-        descriptor = os.open(path, flags)
+        if _no_follow:
+            no_follow = getattr(os, "O_NOFOLLOW", None)
+            if not isinstance(no_follow, int) or no_follow == 0:
+                raise ValueError(unreadable_error)
+            flags |= no_follow
+        descriptor = os.open(path, flags, dir_fd=_dir_fd)
         before = os.fstat(descriptor)
         if not stat.S_ISREG(before.st_mode):
             raise ValueError(unreadable_error)
@@ -152,12 +211,88 @@ def _bounded_snapshot(
             raise ValueError(unreadable_error)
     except ValueError:
         raise
-    except OSError as exc:
+    except (OSError, TypeError, NotImplementedError) as exc:
         raise ValueError(unreadable_error) from exc
     finally:
         if descriptor is not None:
             os.close(descriptor)
     return snapshot
+
+
+def _open_directory_descriptor(
+    path: Path | str,
+    *,
+    unreadable_error: str,
+    dir_fd: int | None = None,
+) -> int:
+    descriptor: int | None = None
+    try:
+        directory_only = getattr(os, "O_DIRECTORY", None)
+        no_follow = getattr(os, "O_NOFOLLOW", None)
+        if (
+            not isinstance(directory_only, int)
+            or directory_only == 0
+            or not isinstance(no_follow, int)
+            or no_follow == 0
+        ):
+            raise ValueError(unreadable_error)
+        flags = (
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | directory_only
+            | no_follow
+        )
+        descriptor = os.open(path, flags, dir_fd=dir_fd)
+        if not stat.S_ISDIR(os.fstat(descriptor).st_mode):
+            raise ValueError(unreadable_error)
+        return descriptor
+    except ValueError:
+        if descriptor is not None:
+            os.close(descriptor)
+        raise
+    except (OSError, TypeError, NotImplementedError) as exc:
+        if descriptor is not None:
+            os.close(descriptor)
+        raise ValueError(unreadable_error) from exc
+
+
+def _relative_bounded_snapshot(
+    package_descriptor: int,
+    relative_path: str,
+    *,
+    maximum_bytes: int,
+    size_error: str,
+    unreadable_error: str,
+    combined_maximum_bytes: int | None = None,
+    combined_size_error: str | None = None,
+) -> bytes:
+    parts = Path(relative_path).parts
+    current_descriptor: int | None = None
+    try:
+        current_descriptor = os.dup(package_descriptor)
+        for component in parts[:-1]:
+            next_descriptor = _open_directory_descriptor(
+                component,
+                unreadable_error=unreadable_error,
+                dir_fd=current_descriptor,
+            )
+            os.close(current_descriptor)
+            current_descriptor = next_descriptor
+        return _bounded_snapshot(
+            Path(parts[-1]),
+            maximum_bytes=maximum_bytes,
+            size_error=size_error,
+            unreadable_error=unreadable_error,
+            combined_maximum_bytes=combined_maximum_bytes,
+            combined_size_error=combined_size_error,
+            _dir_fd=current_descriptor,
+            _no_follow=True,
+        )
+    except (OSError, TypeError, NotImplementedError) as exc:
+        raise ValueError(unreadable_error) from exc
+    finally:
+        if current_descriptor is not None:
+            os.close(current_descriptor)
 
 
 def _safe_child(base: Path, relative: str) -> Path:
@@ -185,8 +320,22 @@ def _nonempty_identifier(value: Any) -> bool:
     )
 
 
+def _unique_json_object(
+    pairs: list[tuple[str, Any]],
+) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("manifest_duplicate_key")
+        result[key] = value
+    return result
+
+
 def _utc_timestamp(value: Any) -> datetime | None:
-    if not _nonempty_string(value) or "T" not in value or not value.endswith("Z"):
+    if (
+        not isinstance(value, str)
+        or RFC3339_UTC.fullmatch(value) is None
+    ):
         return None
     try:
         timestamp = datetime.fromisoformat(value.removesuffix("Z") + "+00:00")
@@ -231,7 +380,11 @@ def _validate_manifest_semantics(raw: Mapping[str, Any]) -> None:
         raise ValueError(
             "manifest_created_before_observation_cutoff"
         )
-    if raw.get("coverage_semantics") not in ALLOWED_COVERAGE_SEMANTICS:
+    coverage_semantics = raw.get("coverage_semantics")
+    if (
+        not isinstance(coverage_semantics, str)
+        or coverage_semantics not in ALLOWED_COVERAGE_SEMANTICS
+    ):
         raise ValueError("manifest_coverage_semantics_invalid")
     declared_universes = raw.get("declared_universes")
     if not isinstance(declared_universes, list) or not declared_universes:
@@ -241,7 +394,12 @@ def _validate_manifest_semantics(raw: Mapping[str, Any]) -> None:
         if not isinstance(universe, dict):
             raise ValueError("manifest_declared_universes_invalid")
         universe_id = universe.get("universe_id")
-        if not _nonempty_identifier(universe_id) or universe.get("universe_kind") not in ALLOWED_UNIVERSE_KINDS:
+        universe_kind = universe.get("universe_kind")
+        if (
+            not _nonempty_identifier(universe_id)
+            or not isinstance(universe_kind, str)
+            or universe_kind not in ALLOWED_UNIVERSE_KINDS
+        ):
             raise ValueError("manifest_declared_universes_invalid")
         if universe_id in declared_ids:
             raise ValueError("manifest_declared_universes_invalid")
@@ -260,7 +418,11 @@ def _validate_manifest_semantics(raw: Mapping[str, Any]) -> None:
     if (
         not isinstance(corporate_action_policy, dict)
         or set(corporate_action_policy) != ALLOWED_EVENT_TYPES
-        or any(state not in ALLOWED_ACTION_POLICY_STATES for state in corporate_action_policy.values())
+        or any(
+            not isinstance(state, str)
+            or state not in ALLOWED_ACTION_POLICY_STATES
+            for state in corporate_action_policy.values()
+        )
     ):
         raise ValueError("manifest_corporate_action_policy_invalid")
     delisting_policy = raw.get("delisting_policy")
@@ -316,99 +478,335 @@ def _manifest_files(raw: Mapping[str, Any]) -> tuple[ManifestFile, ...]:
     return records
 
 
-def _reject_unlisted_files(package_dir: Path, manifest_path: Path, file_records: tuple[ManifestFile, ...]) -> None:
+def _reject_unlisted_files(
+    package_descriptor: int,
+    manifest_name: str,
+    file_records: tuple[ManifestFile, ...],
+) -> dict[str, int]:
     listed_paths = {Path(item.path).as_posix() for item in file_records}
-    pending = [package_dir]
+    directory_descriptors: dict[str, int] = {}
+    pending: list[str] = []
     entry_count = 0
     try:
+        directory_descriptors[""] = os.dup(package_descriptor)
+        pending.append("")
         while pending:
-            current = pending.pop()
-            with os.scandir(current) as entries:
-                for entry in entries:
-                    entry_count += 1
-                    if entry_count > MAX_PACKAGE_TRAVERSAL_ENTRIES:
-                        raise ValueError(
-                            "manifest_package_entry_limit_exceeded"
+            prefix = pending.pop()
+            current_descriptor = directory_descriptors[prefix]
+            for name in sorted(os.listdir(current_descriptor)):
+                entry_count += 1
+                if entry_count > MAX_PACKAGE_TRAVERSAL_ENTRIES:
+                    raise ValueError(
+                        "manifest_package_entry_limit_exceeded"
+                    )
+                relative_path = (
+                    f"{prefix}/{name}"
+                    if prefix
+                    else name
+                )
+                metadata = os.stat(
+                    name,
+                    dir_fd=current_descriptor,
+                    follow_symlinks=False,
+                )
+                if stat.S_ISDIR(metadata.st_mode):
+                    child_descriptor = (
+                        _open_directory_descriptor(
+                            name,
+                            unreadable_error=(
+                                "manifest_package_unreadable"
+                            ),
+                            dir_fd=current_descriptor,
                         )
-                    candidate = Path(entry.path)
-                    if entry.is_dir(follow_symlinks=False):
-                        pending.append(candidate)
-                    elif (
-                        entry.is_file(follow_symlinks=False)
-                        or entry.is_symlink()
-                    ) and candidate != manifest_path:
-                        relative_path = candidate.relative_to(
-                            package_dir
-                        ).as_posix()
-                        if relative_path not in listed_paths:
-                            raise ValueError("manifest_unlisted_file")
+                    )
+                    directory_descriptors[relative_path] = (
+                        child_descriptor
+                    )
+                    pending.append(relative_path)
+                elif (
+                    stat.S_ISREG(metadata.st_mode)
+                    or stat.S_ISLNK(metadata.st_mode)
+                ) and relative_path != manifest_name:
+                    if relative_path not in listed_paths:
+                        raise ValueError(
+                            "manifest_unlisted_file"
+                        )
+        return directory_descriptors
+    except ValueError:
+        for descriptor in directory_descriptors.values():
+            os.close(descriptor)
+        raise
+    except (OSError, TypeError, NotImplementedError) as exc:
+        for descriptor in directory_descriptors.values():
+            os.close(descriptor)
+        raise ValueError("manifest_package_unreadable") from exc
+
+
+def _verified_contract_parent_descriptor(
+    directory_descriptors: Mapping[str, int],
+    relative_path: str,
+) -> tuple[int, str]:
+    path = Path(relative_path)
+    prefix = ""
+    try:
+        for component in path.parts[:-1]:
+            child_prefix = (
+                f"{prefix}/{component}"
+                if prefix
+                else component
+            )
+            parent_descriptor = directory_descriptors[prefix]
+            child_descriptor = directory_descriptors[child_prefix]
+            visible = os.stat(
+                component,
+                dir_fd=parent_descriptor,
+                follow_symlinks=False,
+            )
+            opened = os.fstat(child_descriptor)
+            if (
+                not stat.S_ISDIR(visible.st_mode)
+                or (visible.st_dev, visible.st_ino)
+                != (opened.st_dev, opened.st_ino)
+            ):
+                raise ValueError("manifest_file_unreadable")
+            prefix = child_prefix
+        return directory_descriptors[prefix], path.name
     except ValueError:
         raise
-    except OSError as exc:
+    except (
+        KeyError,
+        OSError,
+        TypeError,
+        NotImplementedError,
+    ) as exc:
+        raise ValueError("manifest_file_unreadable") from exc
+
+
+def _validate_open_package_inventory(
+    directory_descriptors: Mapping[str, int],
+    manifest_name: str,
+    file_records: tuple[ManifestFile, ...],
+) -> None:
+    expected_directories = set(directory_descriptors) - {""}
+    contract_directories: set[str] = set()
+    for item in file_records:
+        parts = Path(item.path).parts[:-1]
+        for length in range(1, len(parts) + 1):
+            contract_directories.add(
+                Path(*parts[:length]).as_posix()
+            )
+    expected_files = {
+        manifest_name,
+        *(Path(item.path).as_posix() for item in file_records),
+    }
+    observed_directories: set[str] = set()
+    observed_files: set[str] = set()
+    entry_count = 0
+
+    def directory_change_error(relative_path: str) -> str:
+        if relative_path in contract_directories:
+            return "manifest_file_unreadable"
+        return "manifest_package_unreadable"
+
+    def expected_non_regular_error(relative_path: str) -> str:
+        if relative_path == manifest_name:
+            return "manifest_package_unreadable"
+        if relative_path in expected_files:
+            return "manifest_file_unreadable"
+        if relative_path in expected_directories:
+            return directory_change_error(relative_path)
+        return "manifest_unlisted_file"
+
+    try:
+        for prefix, descriptor in directory_descriptors.items():
+            for name in sorted(os.listdir(descriptor)):
+                entry_count += 1
+                if entry_count > MAX_PACKAGE_TRAVERSAL_ENTRIES:
+                    raise ValueError(
+                        "manifest_package_entry_limit_exceeded"
+                    )
+                relative_path = (
+                    f"{prefix}/{name}"
+                    if prefix
+                    else name
+                )
+                metadata = os.stat(
+                    name,
+                    dir_fd=descriptor,
+                    follow_symlinks=False,
+                )
+                if stat.S_ISDIR(metadata.st_mode):
+                    if relative_path in expected_files:
+                        raise ValueError(
+                            expected_non_regular_error(relative_path)
+                        )
+                    observed_directories.add(relative_path)
+                    mapped_descriptor = directory_descriptors.get(
+                        relative_path
+                    )
+                    if mapped_descriptor is not None:
+                        opened = os.fstat(mapped_descriptor)
+                        if (metadata.st_dev, metadata.st_ino) != (
+                            opened.st_dev,
+                            opened.st_ino,
+                        ):
+                            raise ValueError(
+                                directory_change_error(relative_path)
+                            )
+                elif stat.S_ISREG(metadata.st_mode):
+                    observed_files.add(relative_path)
+                else:
+                    raise ValueError(
+                        expected_non_regular_error(relative_path)
+                    )
+
+        extra_directories = (
+            observed_directories - expected_directories
+        )
+        if extra_directories:
+            raise ValueError("manifest_unlisted_file")
+        missing_directories = (
+            expected_directories - observed_directories
+        )
+        if missing_directories:
+            error = (
+                "manifest_file_unreadable"
+                if missing_directories & contract_directories
+                else "manifest_package_unreadable"
+            )
+            raise ValueError(error)
+
+        if observed_files - expected_files:
+            raise ValueError("manifest_unlisted_file")
+        missing_files = expected_files - observed_files
+        if manifest_name in missing_files:
+            raise ValueError("manifest_package_unreadable")
+        if missing_files:
+            raise ValueError("manifest_file_unreadable")
+    except ValueError:
+        raise
+    except (OSError, TypeError, NotImplementedError) as exc:
         raise ValueError("manifest_package_unreadable") from exc
 
 
 def load_universe_package(manifest_path: Path, registry_path: Path) -> LoadedUniversePackage:
-    manifest_path = Path(manifest_path).resolve()
+    requested_manifest_path = Path(manifest_path)
+    package_dir = requested_manifest_path.parent.resolve()
+    manifest_path = package_dir / requested_manifest_path.name
     registry_path = Path(registry_path)
-    manifest_snapshot = _bounded_snapshot(
-        manifest_path,
-        maximum_bytes=MAX_MANIFEST_BYTES,
-        size_error="manifest_size_limit_exceeded",
-        unreadable_error="manifest_unreadable",
-    )
-    try:
-        raw = json.loads(manifest_snapshot.decode("utf-8"))
-    except (
-        UnicodeDecodeError,
-        json.JSONDecodeError,
-        RecursionError,
-    ) as exc:
-        raise ValueError("manifest_unreadable") from exc
-    if not isinstance(raw, dict):
-        raise ValueError("manifest_unreadable")
-    if raw.get("schema_version") != "point_in_time_universe_v1":
-        raise ValueError("manifest_schema_unsupported")
-    _validate_manifest_semantics(raw)
-    file_records = _manifest_files(raw)
-    contracts = [item.contract for item in file_records]
-    if set(contracts) != REQUIRED_CONTRACTS or len(contracts) != len(set(contracts)):
-        raise ValueError("manifest_contract_set_invalid")
-    package_dir = manifest_path.parent
-    resolved_paths = tuple(_safe_child(package_dir, item.path) for item in file_records)
-    _reject_unlisted_files(package_dir, manifest_path, file_records)
     resolved: dict[str, Path] = {}
     contract_snapshots: dict[str, bytes] = {}
     total_snapshot_bytes = 0
-    for item, path in zip(file_records, resolved_paths, strict=True):
-        remaining_combined_bytes = max(
-            MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES
-            - total_snapshot_bytes,
-            0,
+    directory_descriptors: dict[str, int] = {}
+    package_descriptor = _open_directory_descriptor(
+        package_dir,
+        unreadable_error="manifest_package_unreadable",
+    )
+    try:
+        manifest_snapshot = _bounded_snapshot(
+            Path(manifest_path.name),
+            maximum_bytes=MAX_MANIFEST_BYTES,
+            size_error="manifest_size_limit_exceeded",
+            unreadable_error="manifest_unreadable",
+            _dir_fd=package_descriptor,
+            _no_follow=True,
         )
-        snapshot = _bounded_snapshot(
-            path,
-            maximum_bytes=MAX_CONTRACT_SNAPSHOT_BYTES,
-            size_error="manifest_file_size_limit_exceeded",
-            unreadable_error="manifest_file_unreadable",
-            combined_maximum_bytes=remaining_combined_bytes,
-            combined_size_error=(
-                "manifest_total_snapshot_size_limit_exceeded"
-            ),
-        )
-        total_snapshot_bytes += len(snapshot)
-        if total_snapshot_bytes > MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES:
-            raise ValueError(
-                "manifest_total_snapshot_size_limit_exceeded"
+        try:
+            raw = json.loads(
+                manifest_snapshot.decode("utf-8"),
+                object_pairs_hook=_unique_json_object,
             )
-        file_hash = _sha256(snapshot)
-        row_count = _csv_row_count(snapshot)
-        if file_hash != item.sha256:
-            raise ValueError("manifest_hash_mismatch")
-        if row_count != item.row_count:
-            raise ValueError("manifest_row_count_mismatch")
-        resolved[item.contract] = path
-        contract_snapshots[item.contract] = snapshot
+        except (
+            UnicodeDecodeError,
+            json.JSONDecodeError,
+            RecursionError,
+        ) as exc:
+            raise ValueError("manifest_unreadable") from exc
+        if not isinstance(raw, dict):
+            raise ValueError("manifest_unreadable")
+        _validate_manifest_nesting(raw)
+        if raw.get("schema_version") != "point_in_time_universe_v1":
+            raise ValueError("manifest_schema_unsupported")
+        _validate_manifest_semantics(raw)
+        file_records = _manifest_files(raw)
+        contracts = [item.contract for item in file_records]
+        if (
+            set(contracts) != REQUIRED_CONTRACTS
+            or len(contracts) != len(set(contracts))
+        ):
+            raise ValueError("manifest_contract_set_invalid")
+        resolved_paths = tuple(
+            _safe_child(package_dir, item.path)
+            for item in file_records
+        )
+        directory_descriptors = _reject_unlisted_files(
+            package_descriptor,
+            manifest_path.name,
+            file_records,
+        )
+        for item, path in zip(
+            file_records,
+            resolved_paths,
+            strict=True,
+        ):
+            _validate_open_package_inventory(
+                directory_descriptors,
+                manifest_path.name,
+                file_records,
+            )
+            remaining_combined_bytes = max(
+                MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES
+                - total_snapshot_bytes,
+                0,
+            )
+            parent_descriptor, file_name = (
+                _verified_contract_parent_descriptor(
+                    directory_descriptors,
+                    item.path,
+                )
+            )
+            snapshot = _bounded_snapshot(
+                Path(file_name),
+                maximum_bytes=MAX_CONTRACT_SNAPSHOT_BYTES,
+                size_error="manifest_file_size_limit_exceeded",
+                unreadable_error="manifest_file_unreadable",
+                combined_maximum_bytes=remaining_combined_bytes,
+                combined_size_error=(
+                    "manifest_total_snapshot_size_limit_exceeded"
+                ),
+                _dir_fd=parent_descriptor,
+                _no_follow=True,
+            )
+            total_snapshot_bytes += len(snapshot)
+            if (
+                total_snapshot_bytes
+                > MAX_TOTAL_CONTRACT_SNAPSHOT_BYTES
+            ):
+                raise ValueError(
+                    "manifest_total_snapshot_size_limit_exceeded"
+                )
+            file_hash = _sha256(snapshot)
+            row_count = _csv_row_count(snapshot)
+            if file_hash != item.sha256:
+                raise ValueError("manifest_hash_mismatch")
+            if row_count != item.row_count:
+                raise ValueError("manifest_row_count_mismatch")
+            resolved[item.contract] = path
+            contract_snapshots[item.contract] = snapshot
+            _validate_open_package_inventory(
+                directory_descriptors,
+                manifest_path.name,
+                file_records,
+            )
+        _validate_open_package_inventory(
+            directory_descriptors,
+            manifest_path.name,
+            file_records,
+        )
+    finally:
+        for descriptor in directory_descriptors.values():
+            os.close(descriptor)
+        os.close(package_descriptor)
     registry_snapshot = _bounded_snapshot(
         registry_path,
         maximum_bytes=MAX_RIGHTS_REGISTRY_BYTES,

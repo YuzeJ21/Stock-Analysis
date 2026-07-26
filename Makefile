@@ -862,8 +862,22 @@ public-check:
 test:
 	python3 -m pytest tests -q
 
+COMMERCIAL_SOURCE_RIGHTS_REPO_ROOT := $(strip $(shell dirname "$(MAKEFILE_LIST)"))
+
+commercial-source-rights: export COMMERCIAL_SOURCE_RIGHTS_CONFIG := $(value CONFIG)
+commercial-source-rights: export COMMERCIAL_SOURCE_RIGHTS_SOURCE := $(value SOURCE)
+commercial-source-rights: export COMMERCIAL_SOURCE_RIGHTS_REPO_ROOT := $(COMMERCIAL_SOURCE_RIGHTS_REPO_ROOT)
 commercial-source-rights:
-	@python3 -m src.commercial_source_rights $(if $(SOURCE),--source "$(SOURCE)",)
+	@set --; \
+	case "$${COMMERCIAL_SOURCE_RIGHTS_CONFIG}" in \
+		*[![:space:]]*) set -- "$$@" "--config=$${COMMERCIAL_SOURCE_RIGHTS_CONFIG}" ;; \
+	esac; \
+	case "$${COMMERCIAL_SOURCE_RIGHTS_SOURCE}" in \
+		*[![:space:]]*) set -- "$$@" "--source=$${COMMERCIAL_SOURCE_RIGHTS_SOURCE}" ;; \
+	esac; \
+	PYTHONDONTWRITEBYTECODE=1 \
+	PYTHONPATH="$${COMMERCIAL_SOURCE_RIGHTS_REPO_ROOT}$${PYTHONPATH:+:$${PYTHONPATH}}" \
+	python3 -m src.commercial_source_rights "$$@"
 
 status:
 	python3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)
