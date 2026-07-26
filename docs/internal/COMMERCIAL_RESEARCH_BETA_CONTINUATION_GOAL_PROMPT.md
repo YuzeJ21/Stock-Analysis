@@ -262,10 +262,11 @@ Priority 6 — Controlled hosted operating boundary
   It does not prove hosted authentication, deployed isolation, persistence,
   audit storage, retention, monitoring, rollback, incident response, operated
   capacity, or market validation.
-- Reverify `b6108a3629ee94f9c191f6488e76f7d6e7e9c015` and exact-head CI before
-  relying on the local contract. Do not create or change hosted accounts,
-  choose a provider, use credentials, deploy, or publish without explicit
-  approval.
+- Reverify final trust-boundary hardening commit
+  `90b441d25e97655e887803d88f4730497e71e383` or a later descendant and
+  exact-head CI before relying on the local contract. Do not create or change
+  hosted accounts, choose a provider, use credentials, deploy, or publish
+  without explicit approval.
 - After this local policy slice passes, the next provider-neutral executable
   lane is a separately reviewed retention/deletion or append-only audit-event
   interface design. Provider-specific integration remains blocked until the
