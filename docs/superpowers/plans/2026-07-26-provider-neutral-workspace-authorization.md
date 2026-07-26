@@ -1101,4 +1101,3 @@ Report:
 - exact next executable step;
 - whether the branch is safe for review;
 - whether the overall goal remains active.
-
