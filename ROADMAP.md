@@ -560,6 +560,17 @@ local validator.
 
 **Current lane:** provider-neutral local control contracts can proceed; provider-specific implementation and hosted verification require an explicitly approved identity, storage, host, and operating environment.
 
+**Implemented locally:** `src.hosted_access_control.evaluate_workspace_access`
+now provides one pure, provider-neutral, deny-by-default policy decision.
+Structural validation, authenticated-principal matching, active membership,
+exact workspace matching, least-privilege role/resource/action rules,
+append-only research-record protection, stable privacy-safe reasons, and a
+privacy-safe audit obligation are independently tested. The module has no
+dashboard, ledger, readiness, provider, persistence, environment, network, or
+generated-artifact integration. This local contract does not prove hosted
+authentication, deployed isolation, audit storage, retention, monitoring,
+rollback, incident response, operated capacity, or market validation.
+
 1. Before an environment is approved, define only provider-neutral control contracts, threat boundaries, interfaces, and denial-test harnesses; do not silently choose an identity, storage, logging, or hosting architecture.
 2. After explicit environment approval, implement authentication, private-workspace isolation, least-privilege authorization, secret handling, append-only audit logs, retention/deletion controls, monitoring, health checks, backup, rollback, and incident ownership against that exact environment.
 3. Test cross-user and cross-workspace denial, audit completeness, retention execution, failure alerts, recovery, and rollback without exposing local research data.

@@ -34,6 +34,26 @@ def test_proof_readiness_reconciliation_docs_keep_historical_proof_separate_from
     assert "future" in roadmap.lower()
 
 
+def test_provider_neutral_workspace_authorization_is_documented_without_hosted_claims():
+    architecture = _read("docs/PRIVATE_BETA_ARCHITECTURE.md")
+    roadmap = _read("ROADMAP.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+
+    for document in (architecture, roadmap, continuation):
+        normalized = " ".join(document.split())
+        assert "provider-neutral" in normalized
+        assert "deny-by-default" in normalized
+        assert "append-only" in normalized
+        assert "privacy-safe audit obligation" in normalized
+        assert "does not prove hosted authentication" in normalized
+
+    assert "src.hosted_access_control.evaluate_workspace_access" in architecture
+    assert "actual hosted environment" in roadmap
+    assert "Do not create or change hosted accounts" in continuation
+
+
 def test_two_company_cash_preview_docs_preserve_bounded_portability_boundary():
     methodology = _read("docs/METHODOLOGY.md")
     provenance = _read("docs/PROVENANCE_CONTRACT.md")

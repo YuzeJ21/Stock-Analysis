@@ -38,6 +38,24 @@ Credentials, tokens, account identifiers, license documents, and secret values r
 
 ## Local Contract
 
+### Provider-Neutral Authorization Policy
+
+`src.hosted_access_control.evaluate_workspace_access()` is a local,
+provider-neutral, deny-by-default policy contract. It requires exact
+authenticated-principal, active-membership, and workspace matches before an
+explicit role/resource/action rule can allow a request. Thesis, evidence,
+catalyst, and outcome research records remain append-only, and every allow or
+deny result carries a privacy-safe audit obligation that a future approved
+adapter must record.
+
+The evaluator performs no authentication, persistence, audit storage,
+retention, monitoring, network, provider, dashboard, ledger, readiness, or
+generated-artifact operation. This local contract does not prove hosted
+authentication, private-workspace isolation in a deployed service, audit
+storage, retention execution, monitoring, rollback, incident response, or
+operated capacity. All such states remain external until directly verified in
+the actual approved environment.
+
 The classifier reports authentication, workspaces, user data separation, secrets, audit, retention, entitlements, monitoring, and health checks independently from incident response, rollback, and owner capacity. It is intentionally read-only.
 
 A local runbook does not prove that an incident owner is available, rollback works on the host, or recovery can be staffed. Without a real rehearsal, those controls remain `external_operations_required`; declaring external setup moves them only to `manual_verification_required`.

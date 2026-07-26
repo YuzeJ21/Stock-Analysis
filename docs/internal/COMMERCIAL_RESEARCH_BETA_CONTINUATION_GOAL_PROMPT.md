@@ -254,6 +254,24 @@ Priority 5 — One permitted consensus source and one reviewed peer relationship
 - Exit only when one real consensus snapshot and one real peer relationship independently pass technical, temporal, provenance, rights, scope, reviewer, and append-only evidence checks. This does not unlock probability.
 
 Priority 6 — Controlled hosted operating boundary
+- The first local slice implements
+  `src.hosted_access_control.evaluate_workspace_access`, a pure,
+  provider-neutral, deny-by-default contract for authenticated-principal,
+  active-membership, workspace, role/resource/action, append-only
+  research-record, stable reason, and privacy-safe audit obligation decisions.
+  It does not prove hosted authentication, deployed isolation, persistence,
+  audit storage, retention, monitoring, rollback, incident response, operated
+  capacity, or market validation.
+- Reverify `b6108a3629ee94f9c191f6488e76f7d6e7e9c015` and exact-head CI before
+  relying on the local contract. Do not create or change hosted accounts,
+  choose a provider, use credentials, deploy, or publish without explicit
+  approval.
+- After this local policy slice passes, the next provider-neutral executable
+  lane is a separately reviewed retention/deletion or append-only audit-event
+  interface design. Provider-specific integration remains blocked until the
+  exact identity, storage, logging, host, and operating environment are
+  explicitly approved.
+
 - Before an environment is approved, implement only provider-neutral control contracts, threat boundaries, interfaces, and denial-test harnesses; do not silently choose an identity, storage, logging, or hosting architecture.
 - Provider-specific implementation begins only after explicit approval of the exact identity, storage, host, and operating environment. Then implement authentication, private-workspace isolation, least privilege, secret handling, append-only audit logs, retention/deletion, monitoring, health checks, backup, rollback, and incident ownership against it.
 - Test cross-user and cross-workspace denial, audit completeness, retention execution, alerts, recovery, and rollback.
