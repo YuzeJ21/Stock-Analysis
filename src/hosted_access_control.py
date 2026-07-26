@@ -125,6 +125,56 @@ def _structurally_valid(
     )
 
 
+_ALLOWED_ACTIONS = {
+    WorkspaceResource.RESEARCH_RECORD: {
+        WorkspaceRole.VIEWER: frozenset({WorkspaceAction.READ}),
+        WorkspaceRole.EDITOR: frozenset(
+            {WorkspaceAction.READ, WorkspaceAction.APPEND}
+        ),
+        WorkspaceRole.OWNER: frozenset(
+            {
+                WorkspaceAction.READ,
+                WorkspaceAction.APPEND,
+                WorkspaceAction.EXPORT,
+            }
+        ),
+    },
+    WorkspaceResource.SAVED_WORKSPACE_STATE: {
+        WorkspaceRole.VIEWER: frozenset({WorkspaceAction.READ}),
+        WorkspaceRole.EDITOR: frozenset(
+            {
+                WorkspaceAction.READ,
+                WorkspaceAction.APPEND,
+                WorkspaceAction.UPDATE,
+            }
+        ),
+        WorkspaceRole.OWNER: frozenset(
+            {
+                WorkspaceAction.READ,
+                WorkspaceAction.APPEND,
+                WorkspaceAction.UPDATE,
+                WorkspaceAction.DELETE,
+                WorkspaceAction.EXPORT,
+            }
+        ),
+    },
+    WorkspaceResource.WORKSPACE_MEMBERSHIP: {
+        WorkspaceRole.VIEWER: frozenset(),
+        WorkspaceRole.EDITOR: frozenset(),
+        WorkspaceRole.OWNER: frozenset(
+            {WorkspaceAction.READ, WorkspaceAction.MANAGE}
+        ),
+    },
+    WorkspaceResource.WORKSPACE_AUDIT: {
+        WorkspaceRole.VIEWER: frozenset(),
+        WorkspaceRole.EDITOR: frozenset(),
+        WorkspaceRole.OWNER: frozenset(
+            {WorkspaceAction.READ, WorkspaceAction.EXPORT}
+        ),
+    },
+}
+
+
 def evaluate_workspace_access(
     principal: object,
     membership: object,
@@ -133,4 +183,26 @@ def evaluate_workspace_access(
     """Return one immutable policy decision without side effects."""
     if not _structurally_valid(principal, membership, request):
         return _decision(allowed=False, reason_code="invalid_request")
-    return _decision(allowed=False, reason_code="role_action_denied")
+    if principal.authenticated is not True:
+        return _decision(
+            allowed=False,
+            reason_code="authentication_required",
+        )
+    if membership.principal_id != principal.principal_id:
+        return _decision(allowed=False, reason_code="principal_mismatch")
+    if membership.active is not True:
+        return _decision(allowed=False, reason_code="membership_inactive")
+    if request.workspace_id != membership.workspace_id:
+        return _decision(allowed=False, reason_code="workspace_mismatch")
+    if (
+        request.resource is WorkspaceResource.RESEARCH_RECORD
+        and request.action in {WorkspaceAction.UPDATE, WorkspaceAction.DELETE}
+    ):
+        return _decision(
+            allowed=False,
+            reason_code="append_only_mutation_denied",
+        )
+    allowed_actions = _ALLOWED_ACTIONS[request.resource][membership.role]
+    if request.action not in allowed_actions:
+        return _decision(allowed=False, reason_code="role_action_denied")
+    return _decision(allowed=True, reason_code="allowed")
