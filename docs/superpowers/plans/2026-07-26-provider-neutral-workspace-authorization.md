@@ -117,6 +117,27 @@ def test_malformed_boundary_objects_fail_closed(principal, membership, request):
 
 
 @pytest.mark.parametrize(
+    ("principal", "membership", "request"),
+    [
+        (object.__new__(PrincipalContext),) + _valid_inputs()[1:],
+        (
+            _valid_inputs()[0],
+            object.__new__(WorkspaceMembership),
+            _valid_inputs()[2],
+        ),
+        _valid_inputs()[:2] + (object.__new__(WorkspaceAccessRequest),),
+    ],
+)
+def test_incomplete_exact_type_objects_fail_closed(
+    principal, membership, request
+):
+    decision = evaluate_workspace_access(principal, membership, request)
+
+    assert decision.allowed is False
+    assert decision.reason_code == "invalid_request"
+
+
+@pytest.mark.parametrize(
     ("field", "value"),
     [
         ("principal_id", None),
@@ -298,25 +319,51 @@ def _decision(*, allowed: bool, reason_code: str) -> WorkspaceAccessDecision:
     )
 
 
+_MISSING_FIELD = object()
+
+
 def _structurally_valid(
     principal: object,
     membership: object,
     request: object,
 ) -> bool:
+    if (
+        type(principal) is not PrincipalContext
+        or type(membership) is not WorkspaceMembership
+        or type(request) is not WorkspaceAccessRequest
+    ):
+        return False
+
+    principal_id = getattr(principal, "principal_id", _MISSING_FIELD)
+    authenticated = getattr(principal, "authenticated", _MISSING_FIELD)
+    membership_principal_id = getattr(
+        membership,
+        "principal_id",
+        _MISSING_FIELD,
+    )
+    membership_workspace_id = getattr(
+        membership,
+        "workspace_id",
+        _MISSING_FIELD,
+    )
+    role = getattr(membership, "role", _MISSING_FIELD)
+    active = getattr(membership, "active", _MISSING_FIELD)
+    request_id = getattr(request, "request_id", _MISSING_FIELD)
+    request_workspace_id = getattr(request, "workspace_id", _MISSING_FIELD)
+    action = getattr(request, "action", _MISSING_FIELD)
+    resource = getattr(request, "resource", _MISSING_FIELD)
+
     return (
-        type(principal) is PrincipalContext
-        and type(membership) is WorkspaceMembership
-        and type(request) is WorkspaceAccessRequest
-        and _valid_identifier(principal.principal_id)
-        and type(principal.authenticated) is bool
-        and _valid_identifier(membership.principal_id)
-        and _valid_identifier(membership.workspace_id)
-        and isinstance(membership.role, WorkspaceRole)
-        and type(membership.active) is bool
-        and _valid_identifier(request.request_id)
-        and _valid_identifier(request.workspace_id)
-        and isinstance(request.action, WorkspaceAction)
-        and isinstance(request.resource, WorkspaceResource)
+        _valid_identifier(principal_id)
+        and type(authenticated) is bool
+        and _valid_identifier(membership_principal_id)
+        and _valid_identifier(membership_workspace_id)
+        and isinstance(role, WorkspaceRole)
+        and type(active) is bool
+        and _valid_identifier(request_id)
+        and _valid_identifier(request_workspace_id)
+        and isinstance(action, WorkspaceAction)
+        and isinstance(resource, WorkspaceResource)
     )
 
 
@@ -948,7 +995,8 @@ Verify the remote compare contains exactly those four files and zero generated a
 ### Task 4: Run Full Release Verification And Update Draft PR Evidence
 
 **Files:**
-- Verify only: all Task 1–3 intentional paths.
+- Verify only: all six Task 1–3 intentional paths plus this reviewed plan,
+  for seven paths total.
 - Update externally: draft PR #113 description.
 - Do not modify: generated CSV/JSON/report/sample-report/screenshot/timing artifacts.
 
@@ -1047,7 +1095,9 @@ merged: false
 generated paths in this slice: 0
 ```
 
-The slice compare must contain only:
+The authoritative reviewed slice from
+`3c5a2bc8fc47ac144290087e9dad513bb683252c` must contain only these seven
+paths:
 
 ```text
 src/hosted_access_control.py
@@ -1056,6 +1106,7 @@ docs/PRIVATE_BETA_ARCHITECTURE.md
 ROADMAP.md
 docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md
 tests/test_public_v1_release_docs.py
+docs/superpowers/plans/2026-07-26-provider-neutral-workspace-authorization.md
 ```
 
 - [ ] **Step 6: Require exact-head GitHub Actions success**

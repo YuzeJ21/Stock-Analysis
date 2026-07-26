@@ -50,8 +50,45 @@ def test_provider_neutral_workspace_authorization_is_documented_without_hosted_c
         assert "does not prove hosted authentication" in normalized
 
     assert "src.hosted_access_control.evaluate_workspace_access" in architecture
-    assert "actual hosted environment" in roadmap
+    normalized_architecture = " ".join(architecture.split())
+    assert (
+        "The evaluator performs no authentication, persistence, audit storage, "
+        "retention, monitoring" in normalized_architecture
+    )
+    assert (
+        "rollback, incident response, or operated capacity. All such states "
+        "remain external" in normalized_architecture
+    )
+
+    normalized_roadmap = " ".join(roadmap.split())
+    assert (
+        "**Exit gate:** the actual hosted environment directly proves every "
+        "claimed control, including an observed rollback rehearsal and named "
+        "owner." in normalized_roadmap
+    )
+    assert (
+        "The module has no dashboard, ledger, readiness, provider, persistence, "
+        "environment, network, or generated-artifact integration."
+        in normalized_roadmap
+    )
+    assert (
+        "does not prove hosted authentication, deployed isolation, audit storage, "
+        "retention, monitoring, rollback, incident response, operated capacity"
+        in normalized_roadmap
+    )
+
+    normalized_continuation = " ".join(continuation.split())
     assert "Do not create or change hosted accounts" in continuation
+    assert (
+        "does not prove hosted authentication, deployed isolation, persistence, "
+        "audit storage, retention, monitoring, rollback, incident response, "
+        "operated capacity" in normalized_continuation
+    )
+    assert (
+        "Provider-specific integration remains blocked until the exact identity, "
+        "storage, logging, host, and operating environment are explicitly approved."
+        in normalized_continuation
+    )
 
 
 def test_two_company_cash_preview_docs_preserve_bounded_portability_boundary():

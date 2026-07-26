@@ -66,6 +66,27 @@ def test_malformed_boundary_objects_fail_closed(
 
 
 @pytest.mark.parametrize(
+    ("principal", "membership", "access_request"),
+    [
+        (object.__new__(PrincipalContext),) + _valid_inputs()[1:],
+        (
+            _valid_inputs()[0],
+            object.__new__(WorkspaceMembership),
+            _valid_inputs()[2],
+        ),
+        _valid_inputs()[:2] + (object.__new__(WorkspaceAccessRequest),),
+    ],
+)
+def test_incomplete_exact_type_objects_fail_closed(
+    principal, membership, access_request
+):
+    decision = evaluate_workspace_access(principal, membership, access_request)
+
+    assert decision.allowed is False
+    assert decision.reason_code == "invalid_request"
+
+
+@pytest.mark.parametrize(
     ("field", "value"),
     [
         ("principal_id", None),
@@ -253,6 +274,29 @@ def test_earlier_denial_cannot_be_overridden_by_later_allow_rule():
     assert decision.reason_code == "authentication_required"
 
 
+def test_principal_mismatch_precedes_inactive_membership_and_workspace_mismatch():
+    decision = evaluate_workspace_access(
+        *_valid_inputs(
+            membership_principal_id="principal-2",
+            active=False,
+            request_workspace_id="workspace-2",
+        )
+    )
+
+    assert decision.reason_code == "principal_mismatch"
+
+
+def test_membership_inactive_precedes_workspace_mismatch():
+    decision = evaluate_workspace_access(
+        *_valid_inputs(
+            active=False,
+            request_workspace_id="workspace-2",
+        )
+    )
+
+    assert decision.reason_code == "membership_inactive"
+
+
 def test_workspace_mismatch_precedes_append_only_policy_denial():
     decision = evaluate_workspace_access(
         *_valid_inputs(
@@ -349,11 +393,40 @@ def test_public_contract_contains_no_secret_or_research_content_fields():
 def test_evaluation_does_not_mutate_inputs_or_write_files(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     principal, membership, request = _valid_inputs()
-    before = (principal, membership, request)
+    before = (
+        (principal.principal_id, principal.authenticated),
+        (
+            membership.principal_id,
+            membership.workspace_id,
+            membership.role,
+            membership.active,
+        ),
+        (
+            request.request_id,
+            request.workspace_id,
+            request.action,
+            request.resource,
+        ),
+    )
 
     evaluate_workspace_access(principal, membership, request)
 
-    assert (principal, membership, request) == before
+    after = (
+        (principal.principal_id, principal.authenticated),
+        (
+            membership.principal_id,
+            membership.workspace_id,
+            membership.role,
+            membership.active,
+        ),
+        (
+            request.request_id,
+            request.workspace_id,
+            request.action,
+            request.resource,
+        ),
+    )
+    assert after == before
     assert list(tmp_path.iterdir()) == []
 
 

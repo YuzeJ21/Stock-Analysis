@@ -77,6 +77,8 @@ _AUDIT_FIELDS = (
     "occurred_at",
 )
 
+_MISSING_FIELD = object()
+
 
 def _valid_identifier(value: object) -> bool:
     if type(value) is not str or not 1 <= len(value) <= 128:
@@ -108,20 +110,43 @@ def _structurally_valid(
     membership: object,
     request: object,
 ) -> bool:
+    if (
+        type(principal) is not PrincipalContext
+        or type(membership) is not WorkspaceMembership
+        or type(request) is not WorkspaceAccessRequest
+    ):
+        return False
+
+    principal_id = getattr(principal, "principal_id", _MISSING_FIELD)
+    authenticated = getattr(principal, "authenticated", _MISSING_FIELD)
+    membership_principal_id = getattr(
+        membership,
+        "principal_id",
+        _MISSING_FIELD,
+    )
+    membership_workspace_id = getattr(
+        membership,
+        "workspace_id",
+        _MISSING_FIELD,
+    )
+    role = getattr(membership, "role", _MISSING_FIELD)
+    active = getattr(membership, "active", _MISSING_FIELD)
+    request_id = getattr(request, "request_id", _MISSING_FIELD)
+    request_workspace_id = getattr(request, "workspace_id", _MISSING_FIELD)
+    action = getattr(request, "action", _MISSING_FIELD)
+    resource = getattr(request, "resource", _MISSING_FIELD)
+
     return (
-        type(principal) is PrincipalContext
-        and type(membership) is WorkspaceMembership
-        and type(request) is WorkspaceAccessRequest
-        and _valid_identifier(principal.principal_id)
-        and type(principal.authenticated) is bool
-        and _valid_identifier(membership.principal_id)
-        and _valid_identifier(membership.workspace_id)
-        and isinstance(membership.role, WorkspaceRole)
-        and type(membership.active) is bool
-        and _valid_identifier(request.request_id)
-        and _valid_identifier(request.workspace_id)
-        and isinstance(request.action, WorkspaceAction)
-        and isinstance(request.resource, WorkspaceResource)
+        _valid_identifier(principal_id)
+        and type(authenticated) is bool
+        and _valid_identifier(membership_principal_id)
+        and _valid_identifier(membership_workspace_id)
+        and isinstance(role, WorkspaceRole)
+        and type(active) is bool
+        and _valid_identifier(request_id)
+        and _valid_identifier(request_workspace_id)
+        and isinstance(action, WorkspaceAction)
+        and isinstance(resource, WorkspaceResource)
     )
 
 
