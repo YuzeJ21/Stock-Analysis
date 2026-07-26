@@ -473,8 +473,12 @@ is 4,084 passing tests,
 one environment-limited socket test skipped, and one existing dependency
 deprecation warning. The final fresh whole-slice review found one Important
 cutoff-relative event regression; it was reproduced, fixed, and confirmed
-closed with no remaining Critical or Important issue. Exact-head CI and
-real-data evidence remain pending; Priority 4 remains externally incomplete.
+closed with no remaining Critical or Important issue. The consolidated package
+was synchronized at `69c49968e77bfd55fa259695089e1f34ac2fddfb`, and exact-head
+GitHub Actions run `30185232040` passed the full 4,084-test, dashboard-startup,
+Personal Research render, public-wording, PR-range generated-artifact hygiene,
+and whitespace matrix. Real-data evidence remains pending; Priority 4 remains
+externally incomplete.
 
 Local resource budgets for one supplied package: preview sample 100 rows; manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined 64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; package traversal 32 entries.
 
@@ -510,9 +514,14 @@ This local evidence does not change independent readiness for actuals, consensus
 
 It does not provide investment advice; numerical probability remains unavailable without calibration; Q4 evidence and EPS split-basis compatibility remain explicit; synthetic evidence stays test-only; candidate peer evidence remains candidate-context-only.
 
-The next local evidence step is the refreshed complete release-gate matrix,
-followed by exact staging without generated artifacts, commit, push, and
-exact-head CI.
+The synchronized Priority 4 local validator is frozen unless a newly
+reproduced Critical or Important defect requires reopening it. One bounded
+permitted real dataset remains the exact external exit gate. While that
+dataset and the independent Priority 5 source and peer evidence are
+unavailable, the next executable local methodology lane is the
+provider-neutral hosted-control contract in Priority 6. Local contracts cannot
+prove hosted authentication, isolation, audit storage, retention, monitoring,
+rollback, or operated capacity.
 
 If a permitted dataset or its rights evidence is unavailable, record that
 external dependency and its exact unblock condition once. Do not retry an

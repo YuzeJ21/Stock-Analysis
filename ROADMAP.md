@@ -491,8 +491,12 @@ is 4,084 passing tests,
 one environment-limited socket test skipped, and one existing dependency
 deprecation warning. The final fresh whole-slice review found one Important
 cutoff-relative event regression; it was reproduced, fixed, and confirmed
-closed with no remaining Critical or Important issue. Exact-head CI and
-real-data evidence remain pending; Priority 4 remains externally incomplete.
+closed with no remaining Critical or Important issue. The consolidated package
+was synchronized at `69c49968e77bfd55fa259695089e1f34ac2fddfb`, and exact-head
+GitHub Actions run `30185232040` passed the full 4,084-test, dashboard-startup,
+Personal Research render, public-wording, PR-range generated-artifact hygiene,
+and whitespace matrix. Real-data evidence remains pending; Priority 4 remains
+externally incomplete.
 
 Local resource budgets for one supplied package: preview sample 100 rows; manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined 64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; package traversal 32 entries.
 
@@ -521,11 +525,15 @@ This local evidence does not change independent readiness for actuals, consensus
 
 It does not provide investment advice; numerical probability remains unavailable without calibration; Q4 evidence and EPS split-basis compatibility remain explicit; synthetic evidence stays test-only; candidate peer evidence remains candidate-context-only.
 
-**Next executable local step:** rerun the refreshed complete release-gate
-matrix, stage only the exact reviewed product package without the 18 generated
-artifacts, commit, complete the controlled draft integration, and require CI on
-that exact revision. Do not retry unavailable providers while that local work
-remains executable.
+**Next executable local step:** keep the synchronized Priority 4 local
+validator frozen unless a newly reproduced Critical or Important defect
+requires reopening it. One bounded permitted real dataset remains the exact
+external exit gate. While that dataset and the independent Priority 5 source
+and peer evidence are unavailable, advance the provider-neutral hosted-control
+contracts in Priority 6. The live accessibility protocol remains separately
+blocked in environments that cannot bind the local dashboard socket; do not
+substitute AppTest or screenshots for direct keyboard and assisted-technology
+evidence.
 
 1. Establish timestamped benchmark membership, research-universe membership, security identity, and observation cutoffs with suitable source rights and immutable manifests.
 2. Handle corporate actions, delistings, survivorship, and leakage explicitly; never substitute today's constituents, identifiers, prices, or fundamentals for historical state.

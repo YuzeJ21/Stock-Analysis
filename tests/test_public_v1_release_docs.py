@@ -1507,8 +1507,14 @@ def test_priority_four_local_validator_is_documented_without_claiming_real_data_
 
     assert "Start from current repository truth, not chat memory." in prompt
     assert (
-        "Verify commit `f143d48edc2dd22b569a4877f96fed4fa548ca21` or a later "
-        "descendant before relying on this implementation evidence."
+        "Verify authoritative remote commit "
+        "`69c49968e77bfd55fa259695089e1f34ac2fddfb` or a later descendant "
+        "before relying on this implementation evidence."
+    ) in prompt
+    assert "exact-head GitHub Actions run `30185232040` passed" in prompt
+    assert (
+        "compare the actual product tree and remote PR head instead of recommitting "
+        "an already synchronized package"
     ) in prompt
     assert (
         "Point-in-time universe production-validator lineage anchor: commit "
@@ -1634,8 +1640,12 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
     remaining_boundary = (
         "The final fresh whole-slice review found one Important cutoff-relative "
         "event regression; it was reproduced, fixed, and confirmed closed with no "
-        "remaining Critical or Important issue. Exact-head CI and real-data evidence "
-        "remain pending; Priority 4 remains externally incomplete."
+        "remaining Critical or Important issue. The consolidated package was "
+        "synchronized at `69c49968e77bfd55fa259695089e1f34ac2fddfb`, and exact-head "
+        "GitHub Actions run `30185232040` passed"
+    )
+    remaining_external_boundary = (
+        "Real-data evidence remains pending; Priority 4 remains externally incomplete."
     )
     controlled_failures = (
         "Duplicate JSON/YAML mapping keys and malformed contract headers also "
@@ -1659,6 +1669,7 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
         assert freeze_reconciliation in normalized
         assert local_verification in normalized
         assert remaining_boundary in normalized
+        assert remaining_external_boundary in normalized
         assert controlled_failures in normalized
         assert budgets in normalized
         assert scope_boundary in normalized
