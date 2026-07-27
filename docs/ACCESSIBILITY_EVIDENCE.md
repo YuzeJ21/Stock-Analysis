@@ -253,3 +253,59 @@ Root-cause and next-design boundary:
 - Priority 7 remains incomplete. Phone keyboard, complete K05-K09, zoom,
   forced colors, reduced motion, screen-reader tasks, stable `main` landmark,
   and remaining P02 coverage still require direct current evidence.
+
+## 2026-07-27 zoom-environment and phone-target follow-up
+
+Run metadata:
+
+- Run ID: `a11y-2026-07-27-reflow-targets-02`.
+- Commit: `6aef0f8a9e89e8ec94d308095ca18ef33ea4177a`.
+- Environment: the same macOS and Chrome versions as the preceding direct
+  keyboard run. Screen reader: `not_run`. Reviewer:
+  `Local supervised browser review`.
+- The run used saved readiness and performed no refresh, readiness rebuild,
+  valid authoring preview, research-record save, screenshot capture, or
+  generated-artifact write.
+
+Zoom classification:
+
+- Chrome page-level keyboard input remained available for route tasks, but the
+  connected review surface did not pass browser-level zoom shortcuts through
+  to Chrome. Repeated `Meta`/`Control` plus zoom attempts left the CSS viewport
+  and device-pixel ratio unchanged.
+- Z01-Z03 are therefore `blocked_environment`, not `passed_direct`.
+- A separate viewport-only stress check at `640px` and `320px` found no
+  document-level horizontal overflow on Research Desk, Discover, Company
+  Workbench, or Monitor. This is bounded responsive-reflow evidence only. A
+  smaller viewport is not substituted for 200% or 400% browser zoom.
+
+Phone target and spacing follow-up:
+
+- At a `390x844` CSS viewport, every route was allowed to complete its
+  Streamlit render before measurement.
+- The first overlap scan included controls retained inside closed native
+  disclosures and reported false-positive geometry intersections. Excluding
+  closed disclosure contents removed those intersections; they are not
+  recorded as product defects.
+- Visible main-content route controls, primary links, search controls, and
+  disclosure headers on the four routes had no measured target below
+  `24px`, no measured adjacent overlap, and no document-level horizontal
+  overflow in the inspected collapsed state.
+- Opening `Add a reviewed research record` exposed the current thesis authoring
+  controls without entering or saving data. The Record type control measured
+  approximately `265.8x38`, Summary measured `297.8x92`, and
+  `Validate and preview` measured `299.8x40`; no adjacent overlap or
+  document-level horizontal overflow was measured.
+- This advances P02 only as `partial_local_evidence`. Mobile-sidebar route
+  choices, every record-kind field set, pointer misactivation, and controls
+  revealed by all Advanced disclosures were not fully exercised and are not
+  promoted to `passed_direct`.
+
+Evidence boundary:
+
+- The run found no new implementation defect beyond K01, K04, and K05 from the
+  preceding direct keyboard audit.
+- Priority 7 remains incomplete. The proposed K01/K04/K05 remediation still
+  requires design approval; Z01-Z03 require a true browser-zoom environment;
+  forced colors, reduced motion, screen-reader tasks, stable `main` landmark,
+  phone keyboard, and remaining P02 coverage remain open.
