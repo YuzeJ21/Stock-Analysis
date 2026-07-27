@@ -418,3 +418,72 @@ Evidence boundary:
 - Priority 7 remains incomplete. K01, K04-K06, K09, phone keyboard, true zoom,
   forced colors, reduced motion, S01-S07, stable `main`, and remaining P02
   coverage still require remediation or direct evidence.
+
+## 2026-07-27 phone keyboard and mobile-sidebar continuation
+
+Run metadata:
+
+- Run ID: `a11y-2026-07-27-phone-keyboard-05`.
+- Commit: `c748b192dd4fe27f1c17f2feba07eaccd24e4619`.
+- Route base: local `http://localhost:8501/`.
+- Environment: macOS `26.5.1` build `25F80`; Google Chrome
+  `150.0.7871.182`; explicit CSS viewport `390x844`; device-pixel ratio `1`;
+  default colors and motion.
+- Input: direct Chrome keyboard input plus read-only target geometry.
+  Screen reader: `not_run`. Reviewer: `Local supervised browser review`.
+- The run used saved readiness only. It entered no research content, produced
+  no authoring preview, saved no record, captured no screenshot, and wrote no
+  generated artifact.
+
+Direct task results:
+
+- K01 phone: `failed_reproducible`. After reload, the first focus sequence was
+  Workspace help at approximately `x=-202`, the selected Workspace radio at
+  `x=-271`, the selected route radio at `x=-271`, the Streamlit main section,
+  then the visible `Skip to page answer` link. The first three controls were
+  in the closed off-canvas sidebar and could not expose perceivable focus in
+  the `390px` viewport.
+- K02 phone: `passed_direct` on ticker-bound AVGO Company Workbench. Enter on
+  the visible skip link retained `mode=research`, the Workbench route,
+  `ticker=AVGO`, and `open=1`, appended only `#public-page-answer`, and moved
+  focus to the answer target.
+- K03 phone: `failed_reproducible`. Arrow Down on the off-canvas selected
+  route radio changed the URL and rendered Discover, but the focused radio
+  remained at approximately `x=-271`. The route was keyboard-operable but did
+  not satisfy visible focus. The framework sidebar-open control measured
+  `0x0`, was hidden, and did not occur in the recorded Tab sequence.
+- K04 phone: `failed_reproducible` for the same identity defect as desktop.
+  Keyboard input reached the visible `334x36` search control, entered and
+  applied `AVGO`, and opened the correct ticker-bound Workbench from an
+  approximately `86x44` action. The action's accessible name remained only
+  `Open review`; the preceding Advanced summary also repeated the
+  no-visible-outline defect.
+- K05/K09 phone: not rerun end to end. The directly encountered focused
+  Advanced summary again had computed `outline: none`; no broader pass is
+  inferred.
+
+P02 mobile-sidebar result:
+
+- P02: `failed_reproducible` for the mobile sidebar route choices. Research
+  Desk, Discover, Company Workbench, and Monitor labels measured approximately
+  `104x50`, but all target boxes began at `x=-279` and ended left of the
+  visible viewport. The hidden `0x0` sidebar-open control provided no visible
+  pointer or keyboard entry to those choices.
+- Visible main-route controls inspected in this run retained at least `24px`
+  on each measured target dimension, and Company Workbench retained
+  `document.scrollWidth == document.clientWidth == 390`. These bounded
+  positives do not override the off-canvas route-choice failure.
+
+Evidence boundary:
+
+- The new defect is mobile navigation visibility, not route-state logic:
+  off-canvas arrow navigation changed routes deterministically, but users
+  cannot rely on an invisible focused control.
+- Remediation requires a visible, labelled, keyboard-operable mobile route
+  navigation entry plus direct keyboard and pointer retesting. It must not
+  duplicate route state, change research readiness, or move technical
+  evidence into the primary answer.
+- Priority 7 remains incomplete. K01, K03-K06, K09, mobile navigation P02,
+  true zoom, forced colors, reduced motion, S01-S07, stable `main`, and
+  remaining disclosure-state coverage still require remediation or direct
+  evidence.
