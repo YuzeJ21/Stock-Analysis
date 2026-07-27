@@ -800,7 +800,7 @@ def test_research_workflow_skip_link_preserves_route_and_precedes_page_answer():
         },
         mode=nav.RESEARCH_MODE,
     )
-    assert href == "?mode=research&page=company-workbench&ticker=AVGO&open=1#public-page-answer"
+    assert href == "#public-page-answer"
 
     main_start = source.index("def main()")
     output_frames = source.index(

@@ -1424,13 +1424,29 @@ def test_active_product_docs_use_evidence_first_positioning_and_current_stage_tr
         "Priority 7 accessibility remediation is the next safe executable local lane."
         in " ".join(methodology.split())
     )
-    assert "Current verified synchronization anchor: `d99e081aeda410c9340190fdce783147345f0659`" in prompt
-    assert "exact-head GitHub Actions run `30234516708` passed" in prompt
+    assert "Current verified synchronization anchor: `d2d58f90590f7dfb43f75b01c0213d15d0c19699`" in prompt
+    assert "exact-head GitHub Actions run `30235442248` passed" in prompt
     assert "4,211 passing tests" in prompt
 
     for text in (readme, roadmap, methodology, prompt):
         assert "Priority 4 is next and incomplete" not in text
         assert "next executable local methodology lane is the\nprovider-neutral hosted-control contract in Priority 6" not in text
+
+
+def test_accessibility_evidence_records_same_page_skip_fix_without_overclaim():
+    roadmap = _read("ROADMAP.md")
+    evidence = _read("docs/ACCESSIBILITY_EVIDENCE.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, evidence, prompt):
+        assert 'target="_blank"' in text
+        assert 'target="_self"' in text
+        assert "#public-page-answer" in text
+        assert "blocked_environment" in text
+
+    assert "K01 and K02 therefore remain `blocked_environment`" in evidence
+    assert "no complete keyboard-only traversal is claimed" in evidence
+    assert "Priority 7 remains incomplete" in evidence
 
 
 def test_priority_three_release_docs_record_controller_runtime_evidence_without_claiming_production_persistence():

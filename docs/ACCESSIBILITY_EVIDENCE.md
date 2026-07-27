@@ -89,3 +89,48 @@ Next safe local step:
 
 The protocol is not completion evidence and no task result is inferred merely
 because the protocol now exists.
+
+## 2026-07-26 same-page skip-link routing audit
+
+Scope:
+
+- Local Streamlit `1.59.2` dashboard in Personal Research mode.
+- macOS `26.5.1` at a `1280x720` CSS viewport.
+- Research Desk and ticker-bound Company Workbench route for `AVGO`.
+- No readiness rebuild, source refresh, research-record save, screenshot
+  capture, or generated-artifact write.
+
+Directly reproduced:
+
+- Although the helper emitted no target attribute, the live Streamlit DOM
+  normalized `Skip to page answer` to `target="_blank"`.
+- Activating that live link did not move focus to the answer target or retain
+  the current tab's route context.
+- Existing tests asserted the constructed route URL and target element but did
+  not cover the live same-tab contract.
+
+Remediation and direct retest:
+
+- The skip link now uses the fragment-only destination
+  `#public-page-answer` plus explicit `target="_self"`. A fragment-only
+  destination retains every current mode, route, ticker, and disclosure query
+  parameter without triggering a Streamlit rerun that resets focus.
+- The helper contract is covered for Public, Personal Research, and Operator
+  routes.
+- Direct Company Workbench retest retained
+  `?mode=research&page=company-workbench&ticker=AVGO&open=1`, appended only
+  `#public-page-answer`, kept the same browser tab, scrolled the answer target
+  to the top of the viewport, and left `document.activeElement` on the
+  focusable `public-page-answer` target.
+
+Evidence boundary:
+
+- This closes the reproduced new-tab/rerun defect and proves the live
+  same-document target behavior in the stated environment.
+- The available browser-control environment could not activate ordinary links
+  through its synthetic Enter input, including the unrelated `Open Discover`
+  control. K01 and K02 therefore remain `blocked_environment`, not
+  `passed_direct`; no complete keyboard-only traversal is claimed.
+- Priority 7 remains incomplete. Direct keyboard, zoom, forced-colors,
+  reduced-motion, target-size, screen-reader, and stable-main-landmark evidence
+  remains required under `docs/ACCESSIBILITY_TASK_PROTOCOL.md`.

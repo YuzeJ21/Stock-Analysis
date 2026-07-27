@@ -29682,7 +29682,7 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     assert "clip-path: inset(50%)" in source
     assert ".public-skip-link:focus" in source
     assert "clip-path: none" in source
-    assert 'return "?" + urlencode(params) + "#public-page-answer"' in source
+    assert 'return "#public-page-answer"' in source
     assert "id='public-page-answer'" in source
     assert "tabindex='-1'" in source
 
@@ -29699,12 +29699,13 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
         "Single-Stock Report",
         {"mode": "public", "page": "single-stock-report", "ticker": "NVDA", "open": "1"},
     )
-    assert skip_href == "?mode=public&page=single-stock-report&ticker=NVDA&open=1#public-page-answer"
+    assert skip_href == "#public-page-answer"
 
     html = dashboard.public_workflow_skip_link_html(skip_href)
     assert "Skip to page answer" in html
-    assert "href='?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1#public-page-answer'" in html
+    assert "href='#public-page-answer'" in html
     assert "aria-label='Skip to page answer'" in html
+    assert "target='_self'" in html
 
     target_html = dashboard.public_workflow_skip_target_html()
     assert "id='public-page-answer'" in target_html
@@ -29741,7 +29742,7 @@ def test_operator_workflow_skip_link_has_a_main_content_target():
         {"mode": "operator", "page": "data-health", "lane": "fundamentals", "drawer": "queue"},
         mode="operator",
     )
-    assert operator_href == "?mode=operator&page=data-health&lane=fundamentals&drawer=queue#public-page-answer"
+    assert operator_href == "#public-page-answer"
 
     main_index = source.index("def main()")
     sidebar_index = source.index("with st.sidebar:", main_index)

@@ -6985,41 +6985,15 @@ def public_workflow_skip_href(
     *,
     mode: str = PUBLIC_DEMO_MODE,
 ) -> str:
-    if mode == OPERATOR_DEMO_MODE:
-        skip_mode = OPERATOR_DEMO_MODE
-    elif mode == RESEARCH_MODE:
-        skip_mode = RESEARCH_MODE
-    else:
-        skip_mode = PUBLIC_DEMO_MODE
-    params: list[tuple[str, str]] = [("mode", skip_mode)]
-    if page_title != "Home":
-        params.append(("page", dashboard_page_slug(page_title)))
-
-    getter = getattr(query_params, "get", None)
-    if callable(getter):
-        for key in (
-            "ticker",
-            "open",
-            "lane",
-            "drawer",
-            "queue_details",
-            "batch_details",
-            "metric_details",
-            "proof_details",
-        ):
-            value = getter(key)
-            if isinstance(value, (list, tuple)):
-                value = value[-1] if value else ""
-            text = str(value or "").strip()
-            if text:
-                params.append((key, text))
-    return "?" + urlencode(params) + "#public-page-answer"
+    # A fragment-only destination preserves every current route parameter and
+    # avoids a Streamlit rerun that would reset keyboard focus to the document.
+    return "#public-page-answer"
 
 
 def public_workflow_skip_link_html(skip_href: str = "#public-page-answer") -> str:
     return (
         f"<a class='public-skip-link' href='{html.escape(skip_href, quote=True)}' "
-        "aria-label='Skip to page answer'>Skip to page answer</a>"
+        "target='_self' aria-label='Skip to page answer'>Skip to page answer</a>"
     )
 
 
