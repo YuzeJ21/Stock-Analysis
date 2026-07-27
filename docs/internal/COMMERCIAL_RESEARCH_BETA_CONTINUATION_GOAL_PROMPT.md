@@ -38,6 +38,7 @@ Expected lineage to verify, never assume:
 
 - Branch: `codex/personal-research-mode-mvp`.
 - Draft PR: https://github.com/YuzeJ21/Stock-Analysis/pull/113.
+- Current verified synchronization anchor: `369da3a13cac2016300d4b8f08e2306d0f1bac7f`; exact-head GitHub Actions run `30191193745` passed and the local full suite reported 4,210 passing tests. Reverify all three before reliance.
 - Priority 4 freeze synchronization anchor: remote commit `69c49968e77bfd55fa259695089e1f34ac2fddfb`; exact-head GitHub Actions run `30185232040` passed. Reverify both instead of treating the local read-only index as authoritative remote state.
 - Evidence-quality lineage anchor: commit `781ba2481` or a later verified descendant.
 - SEC quarterly cash-generation pilot anchor: commit `a262eda9f` or a later verified descendant.
@@ -212,7 +213,7 @@ Priority 2 — Stage B field-proof audit and operator hardening
 - Exit only when focused read-only evidence proves clearer deterministic review and errors with no ledger or generated-artifact write.
 
 Priority 3 — In-app research-record authoring
-- Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix. The approved specification is at `docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md` and its test-first implementation plan is at `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`. Priority 4 is the next incomplete lane.
+- Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix. The approved specification is at `docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md` and its test-first implementation plan is at `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`. Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete. Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent. Priority 7 accessibility remediation is the next safe executable local lane.
 - The approved design uses one collapsed Company Workbench composer over the existing thesis-journal, catalyst, and outcome engines. A session-only receipt binds the exact draft, selected profile/ticker, destination ledger, and current ledger fingerprint; edits or concurrent appends require a fresh preview. Tests must use temporary ledgers and must not append production research data.
 - Hardening commit `07758114c` closes the confirmation race: all three append engines share one resolved-ledger cooperative lock, receipts bind resolved ledger identity, every new preview resets confirmation, and uncertain post-append teardown requires one-shot read-side reload before success.
 - Final integrity commit `e3a090dba` ensures confirmation appends only the receipt-matched recomputed record and enforces one readable active thesis lineage: revisions must supersede the exact active entry and preserve its thesis ID. The Company Workbench locks and explains that relationship, with temporary-ledger create -> revise -> reload coverage.
@@ -227,8 +228,9 @@ Drafts are untrusted and preview receipts are session-only.
 Production tests never append repository ledgers; persistence tests use temporary ledgers.
 A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.
 
-Priority 3 is complete locally only after all automated acceptance tests and direct desktop/phone review pass; Priority 4 is next and incomplete.
-Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.
+Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.
+Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.
+Priority 7 accessibility remediation is the next safe executable local lane.
 That summary is necessary but not sufficient; the exact Priority 4 exit condition below also requires independent review, expected count/digest reproduction, and the partition gate.
 
 Priority 4 — Point-in-time benchmark and universe foundation
@@ -243,7 +245,7 @@ Priority 4 — Point-in-time benchmark and universe foundation
 - Explicitly control corporate actions, delistings, survivorship, and leakage; never substitute current constituents, identifiers, prices, or fundamentals for historical state.
 - Preserve leakage-safe partition or walk-forward boundaries and reproducible benchmark diagnostics.
 - Keep this priority open under the single registered external dependency condition above. Schemas, fixtures, and local green gates are insufficient.
-- Keep the synchronized Priority 4 local validator frozen unless a newly reproduced Critical or Important defect requires reopening it. One bounded permitted real dataset remains the exact external exit gate. While that dataset and the independent Priority 5 consensus/peer evidence are unavailable, advance the provider-neutral hosted-control contract in Priority 6. Do not retry unavailable providers or recommit the already synchronized package because the original local index is stale.
+- Keep the synchronized Priority 4 local validator frozen unless a newly reproduced Critical or Important defect requires reopening it. One bounded permitted real dataset remains the exact external exit gate. While that dataset and the independent Priority 5 consensus/peer evidence are unavailable, keep Priority 6's completed local policy contract separate from unavailable hosted implementation and advance Priority 7 accessibility remediation. Do not retry unavailable providers or recommit the already synchronized package.
 
 Priority 5 — One permitted consensus source and one reviewed peer relationship
 - Review one permitted point-in-time consensus source for one ticker and exact fiscal period, then perform separate human evidence-preserving mapping into the prospective schema and run the collection preview.

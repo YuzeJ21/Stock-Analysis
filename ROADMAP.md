@@ -401,7 +401,7 @@ A blocked priority does not become complete, and skipping it does not weaken its
 
 ### Priority 3 — In-app research-record authoring
 
-**Current lane:** Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix. The test-first implementation plan is recorded in `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`. Priority 4 is the next incomplete lane.
+**Current lane:** Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix. The test-first implementation plan is recorded in `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`. Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete. Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent. Priority 7 accessibility remediation is the next safe executable local lane.
 
 1. Add simple in-app authoring for thesis, evidence, catalyst, and outcome records using explicit validate -> preview -> confirm flows.
 2. Keep records append-only, ticker/profile scoped, reviewer-authored, timestamped, source-aware where applicable, and independently valid or blocked.
@@ -424,8 +424,9 @@ Drafts are untrusted and preview receipts are session-only.
 Production tests never append repository ledgers; persistence tests use temporary ledgers.
 A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.
 
-Priority 3 is complete locally only after all automated acceptance tests and direct desktop/phone review pass; Priority 4 is next and incomplete.
-Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.
+Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.
+Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.
+Priority 7 accessibility remediation is the next safe executable local lane.
 That summary is necessary but not sufficient; the exact Priority 4 exit condition below also requires independent review, expected count/digest reproduction, and the partition gate.
 
 ### Priority 4 — Point-in-time benchmark and universe foundation

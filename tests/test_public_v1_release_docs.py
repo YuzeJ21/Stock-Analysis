@@ -1386,17 +1386,51 @@ def test_priority_three_authoring_release_docs_require_current_runtime_evidence_
         "Production tests never append repository ledgers; persistence tests use temporary ledgers.",
         "A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.",
     )
-    priority_contract = (
+    historical_priority_contract = (
         "Priority 3 is complete locally only after all automated acceptance tests and direct desktop/phone review pass; Priority 4 is next and incomplete.",
         "Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.",
     )
 
     for text in (readme, product_spec, roadmap, prompt, design):
-        for statement in (*release_contract, *priority_contract):
+        for statement in release_contract:
             assert statement in text
+
+    for statement in historical_priority_contract:
+        assert statement in design
+
+    current_priority_contract = (
+        "Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.",
+        "Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.",
+        "Priority 7 accessibility remediation is the next safe executable local lane.",
+    )
+    for text in (readme, product_spec, roadmap, prompt):
+        for statement in current_priority_contract:
+            assert statement in text
+        assert historical_priority_contract[0] not in text
 
     assert "selected `profile_key` and normalized ticker" in design
     assert "current ledger fingerprint" in plan.lower()
+
+
+def test_active_product_docs_use_evidence_first_positioning_and_current_stage_truth():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "Evidence-First Research Workbench" in readme
+    assert "serious individual equity researchers and small research teams" in readme
+    assert (
+        "Priority 7 accessibility remediation is the next safe executable local lane."
+        in " ".join(methodology.split())
+    )
+    assert "Current verified synchronization anchor: `369da3a13cac2016300d4b8f08e2306d0f1bac7f`" in prompt
+    assert "exact-head GitHub Actions run `30191193745` passed" in prompt
+    assert "4,210 passing tests" in prompt
+
+    for text in (readme, roadmap, methodology, prompt):
+        assert "Priority 4 is next and incomplete" not in text
+        assert "next executable local methodology lane is the\nprovider-neutral hosted-control contract in Priority 6" not in text
 
 
 def test_priority_three_release_docs_record_controller_runtime_evidence_without_claiming_production_persistence():

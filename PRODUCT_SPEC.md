@@ -18,8 +18,9 @@ Drafts are untrusted and preview receipts are session-only.
 Production tests never append repository ledgers; persistence tests use temporary ledgers.
 A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.
 
-Priority 3 is complete locally only after all automated acceptance tests and direct desktop/phone review pass; Priority 4 is next and incomplete.
-Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.
+Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.
+Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.
+Priority 7 accessibility remediation is the next safe executable local lane.
 
 ## Target User
 

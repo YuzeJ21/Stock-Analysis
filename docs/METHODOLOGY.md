@@ -518,10 +518,11 @@ The synchronized Priority 4 local validator is frozen unless a newly
 reproduced Critical or Important defect requires reopening it. One bounded
 permitted real dataset remains the exact external exit gate. While that
 dataset and the independent Priority 5 source and peer evidence are
-unavailable, the next executable local methodology lane is the
-provider-neutral hosted-control contract in Priority 6. Local contracts cannot
-prove hosted authentication, isolation, audit storage, retention, monitoring,
-rollback, or operated capacity.
+unavailable, Priority 6's provider-neutral authorization contract is complete
+locally; hosted implementation remains environment-dependent. Priority 7
+accessibility remediation is the next safe executable local lane. Local
+contracts cannot prove hosted authentication, isolation, audit storage,
+retention, monitoring, rollback, or operated capacity.
 
 If a permitted dataset or its rights evidence is unavailable, record that
 external dependency and its exact unblock condition once. Do not retry an
