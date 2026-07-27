@@ -1424,9 +1424,9 @@ def test_active_product_docs_use_evidence_first_positioning_and_current_stage_tr
         "Priority 7 accessibility remediation is the next safe executable local lane."
         in " ".join(methodology.split())
     )
-    assert "Current verified synchronization anchor: `369da3a13cac2016300d4b8f08e2306d0f1bac7f`" in prompt
-    assert "exact-head GitHub Actions run `30191193745` passed" in prompt
-    assert "4,210 passing tests" in prompt
+    assert "Current verified synchronization anchor: `d99e081aeda410c9340190fdce783147345f0659`" in prompt
+    assert "exact-head GitHub Actions run `30234516708` passed" in prompt
+    assert "4,211 passing tests" in prompt
 
     for text in (readme, roadmap, methodology, prompt):
         assert "Priority 4 is next and incomplete" not in text
@@ -1631,6 +1631,7 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
     prompt = _read(
         "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
     )
+    history = _read("docs/internal/POINT_IN_TIME_UNIVERSE_REVIEW_HISTORY.md")
     prior_review_closures = (
         "The second through fourth fresh whole-branch reviews drove the raw-row "
         "rights, cutoff-relative history, publication chronology, immutable "
@@ -1744,24 +1745,59 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
         "validator and CLI/Make boundaries."
     )
 
+    normalized_history = " ".join(history.split())
+    for statement in (
+        prior_review_closures,
+        v5_findings,
+        v5_remediation,
+        first_review_follow_up,
+        v6_finding,
+        v6_remediation,
+        v7_findings,
+        v7_remediation,
+        scoped_review_state,
+        eighth_review_state,
+        eighth_remediation_state,
+        freeze_reconciliation,
+        local_verification,
+        remaining_boundary,
+        remaining_external_boundary,
+        controlled_failures,
+        budgets,
+        scope_boundary,
+        external_gate,
+    ):
+        assert statement in normalized_history
+
+    history_link = "docs/internal/POINT_IN_TIME_UNIVERSE_REVIEW_HISTORY.md"
     for text in (roadmap, methodology, prompt):
         normalized = " ".join(text.split())
-        assert prior_review_closures in normalized
-        assert v5_findings in normalized
-        assert v5_remediation in normalized
-        assert first_review_follow_up in normalized
-        assert v6_finding in normalized
-        assert v6_remediation in normalized
-        assert v7_findings in normalized
-        assert v7_remediation in normalized
-        assert scoped_review_state in normalized
-        assert eighth_review_state in normalized
-        assert eighth_remediation_state in normalized
-        assert freeze_reconciliation in normalized
-        assert local_verification in normalized
-        assert remaining_boundary in normalized
-        assert remaining_external_boundary in normalized
-        assert controlled_failures in normalized
+        assert history_link in text
+        assert "Priority 4 remains externally incomplete" in normalized
         assert budgets in normalized
         assert scope_boundary in normalized
         assert external_gate in normalized
+        assert prior_review_closures not in normalized
+        assert v5_findings not in normalized
+        assert eighth_review_state not in normalized
+        assert freeze_reconciliation not in normalized
+
+    assert prior_review_closures in normalized_history
+    assert v5_findings in normalized_history
+    assert v5_remediation in normalized_history
+    assert first_review_follow_up in normalized_history
+    assert v6_finding in normalized_history
+    assert v6_remediation in normalized_history
+    assert v7_findings in normalized_history
+    assert v7_remediation in normalized_history
+    assert scoped_review_state in normalized_history
+    assert eighth_review_state in normalized_history
+    assert eighth_remediation_state in normalized_history
+    assert freeze_reconciliation in normalized_history
+    assert local_verification in normalized_history
+    assert remaining_boundary in normalized_history
+    assert remaining_external_boundary in normalized_history
+    assert controlled_failures in normalized_history
+    assert budgets in normalized_history
+    assert scope_boundary in normalized_history
+    assert external_gate in normalized_history
