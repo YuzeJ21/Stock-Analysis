@@ -1440,22 +1440,20 @@ def test_roadmap_keeps_active_plan_separate_from_completed_product_history():
     for phrase in (
         "## Now",
         "## Next",
+        "## Externally blocked",
         "## Later",
+        "## Completed with evidence",
         "### P0: Performance Release Candidate",
         "### P1: Controlled Hosted Preview Verification",
         "### P1: Controlled Pilot Review",
-        "### P2: FMP One-Ticker Source Smoke",
-        "### P3: 25-50 Company Trusted-Peer Pilot",
-        "keep GitHub as the public link until the hosted route is verified.",
+        "`hosted_account_and_controls_required`",
+        "`independent_reviewers_required`",
     ):
         assert phrase in roadmap
 
-    assert roadmap.index("### P0: Performance Release Candidate") < roadmap.index(
-        "### P1: Controlled Hosted Preview Verification"
-    )
-    assert roadmap.index("### P1: Controlled Hosted Preview Verification") < roadmap.index(
-        "### P1: Controlled Pilot Review"
-    )
+    completed = roadmap.index("## Completed with evidence")
+    assert completed < roadmap.index("### P0: Performance Release Candidate")
+    assert roadmap.index("## Externally blocked") < completed
 
 
 def test_roadmap_routes_exhausted_proof_queues_to_provider_setup_before_candidate_loops():

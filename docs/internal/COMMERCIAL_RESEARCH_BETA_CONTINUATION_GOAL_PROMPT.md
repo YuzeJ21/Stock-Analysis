@@ -38,7 +38,8 @@ Expected lineage to verify, never assume:
 
 - Branch: `codex/personal-research-mode-mvp`.
 - Draft PR: https://github.com/YuzeJ21/Stock-Analysis/pull/113.
-- Current verified synchronization anchor: `125127f674cec6606037ffe8509f72e17a1801e2` or a later verified descendant; exact-head GitHub Actions run `30236225841` passed and the local full suite reported 4,212 passing tests. Reverify all three before reliance.
+- Current verified synchronization anchor: `88d7a9cd057f9e671360bf1203a6a253c0301675` or a later verified descendant; exact-head GitHub Actions run `30246863731` passed and the local full suite reported 4,215 passing tests. Reverify all three before reliance.
+- Roadmap truth-reconciliation contract: `ROADMAP.md` is the concise current decision index with `Now`, `Next`, `Externally blocked`, `Later`, and `Completed with evidence`; detailed remediation history stays in its named evidence documents. Reverify the line-budget contract, focused documentation tests, release gates, commit, push, draft-PR update, and exact-head CI before calling the reconciliation slice complete.
 - Priority 4 freeze synchronization anchor: remote commit `69c49968e77bfd55fa259695089e1f34ac2fddfb`; exact-head GitHub Actions run `30185232040` passed. Reverify both instead of treating the local read-only index as authoritative remote state.
 - Evidence-quality lineage anchor: commit `781ba2481` or a later verified descendant.
 - SEC quarterly cash-generation pilot anchor: commit `a262eda9f` or a later verified descendant.

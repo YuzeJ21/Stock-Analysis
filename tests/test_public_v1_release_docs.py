@@ -178,6 +178,20 @@ def test_readme_and_roadmap_keep_active_planning_separate_from_completed_history
     assert "without reopening broad proof loops" in completed
 
 
+def test_active_roadmap_is_a_concise_current_decision_index():
+    roadmap = _read("ROADMAP.md")
+
+    for heading in (
+        "## Now",
+        "## Next",
+        "## Externally blocked",
+        "## Later",
+        "## Completed with evidence",
+    ):
+        assert heading in roadmap
+    assert len(roadmap.splitlines()) <= 320
+
+
 def test_roadmap_current_counts_are_live_command_gated():
     roadmap = _read("ROADMAP.md")
 
@@ -255,14 +269,14 @@ def test_public_status_language_keeps_share_review_ready_local_only():
     assert "make public-performance-gate" in readme
 
 
-def test_active_roadmap_puts_performance_before_hosting_and_external_pilot():
+def test_active_roadmap_keeps_completed_performance_separate_from_external_gates():
     roadmap = _read("ROADMAP.md")
 
+    completed = roadmap.index("## Completed with evidence")
     performance = roadmap.index("### P0: Performance Release Candidate")
-    hosted = roadmap.index("### P1: Controlled Hosted Preview Verification")
-    pilot = roadmap.index("### P1: Controlled Pilot Review")
-
-    assert performance < hosted < pilot
+    assert roadmap.index("## Externally blocked") < completed < performance
+    assert "`hosted_account_and_controls_required`" in roadmap
+    assert "`independent_reviewers_required`" in roadmap
     assert "data/demo/manifest.json" in roadmap
     assert "first useful" in roadmap.lower()
     assert "p90" in roadmap.lower()
@@ -1424,9 +1438,9 @@ def test_active_product_docs_use_evidence_first_positioning_and_current_stage_tr
         "Priority 7 accessibility remediation is the next safe executable local lane."
         in " ".join(methodology.split())
     )
-    assert "Current verified synchronization anchor: `125127f674cec6606037ffe8509f72e17a1801e2`" in prompt
-    assert "exact-head GitHub Actions run `30236225841` passed" in prompt
-    assert "4,212 passing tests" in prompt
+    assert "Current verified synchronization anchor: `88d7a9cd057f9e671360bf1203a6a253c0301675`" in prompt
+    assert "exact-head GitHub Actions run `30246863731` passed" in prompt
+    assert "4,215 passing tests" in prompt
 
     for text in (readme, roadmap, methodology, prompt):
         assert "Priority 4 is next and incomplete" not in text
