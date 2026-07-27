@@ -309,3 +309,58 @@ Evidence boundary:
   requires design approval; Z01-Z03 require a true browser-zoom environment;
   forced colors, reduced motion, screen-reader tasks, stable `main` landmark,
   phone keyboard, and remaining P02 coverage remain open.
+
+## 2026-07-27 Monitor keyboard and landmark continuation
+
+Run metadata:
+
+- Run ID: `a11y-2026-07-27-monitor-landmark-03`.
+- Commit: `1a8727706595f87df459eeb5c7c762dafad83577`.
+- Route base: local `http://localhost:8501/`.
+- Environment: macOS `26.5.1` build `25F80`; Google Chrome
+  `150.0.7871.182`; CSS viewport `3440x1208`; device-pixel ratio `1`;
+  default colors and motion.
+- Input: direct Chrome `Tab` and `Shift+Tab` keyboard input plus read-only
+  accessibility-role inspection. Screen reader: `not_run`. Reviewer:
+  `Local supervised browser review`.
+- The run used saved readiness only. It performed no refresh, readiness
+  rebuild, authoring input, research-record save, screenshot capture, or
+  generated-artifact write.
+
+Direct task results:
+
+- K08: `passed_direct` for the recorded current Monitor state. Forward
+  keyboard traversal reached the Research Discipline table controls and
+  accessible canvas text, the truthful no-change state, the explicit
+  `This is a monitoring state, not a stock ranking` boundary, the
+  `Open Discover` next action, and the Advanced disclosures. The weekly
+  summary reported `0 traceable items`; no fabricated change or ranked
+  company was presented.
+- K09: `failed_reproducible`. Forward traversal wrapped back to the first
+  control and fourteen direct `Shift+Tab` steps reversed through the same
+  route without a keyboard trap. However, each focused native `summary`
+  again exposed computed `outline: none`, so the expected continuously
+  visible reverse-focus state did not pass. This is the same focus-contract
+  defect recorded under K05, not a separate remediation.
+- Stable route-level `main` landmark: `failed_reproducible`. Direct
+  accessibility-role inspection returned zero `main` landmarks on Research
+  Desk, Discover, ticker-bound AVGO Company Workbench, and Monitor at the
+  exact recorded commit. This does not promote screen-reader task S02, which
+  remains `not_run`.
+- C01-C02 and M01: `blocked_environment`. Both connected local browser
+  surfaces reported forced colors and reduced motion inactive and exposed
+  viewport control only; neither exposed a supported media-emulation or
+  platform-mode control. Default-mode inspection cannot substitute for the
+  named forced-colors or reduced-motion tasks.
+
+Evidence boundary:
+
+- This run extends direct desktop keyboard evidence only. It is not phone
+  keyboard, screen-reader, forced-colors, reduced-motion, independent-human,
+  hosted, or WCAG-conformance evidence.
+- The pending narrow remediation still covers the first-focus skip placement,
+  ticker-specific Discover action names, and native-summary focus visibility.
+  A stable semantic `main` remains a separately named open design problem.
+- Priority 7 remains incomplete. K06-K07, complete K05, phone keyboard, true
+  zoom, forced colors, reduced motion, S01-S07, the stable `main` fix, and
+  remaining P02 coverage still require direct evidence or remediation.
