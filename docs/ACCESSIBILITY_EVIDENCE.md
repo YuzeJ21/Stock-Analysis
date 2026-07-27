@@ -177,3 +177,79 @@ Evidence boundary:
   reduced motion, screen-reader behavior, or WCAG conformance.
 - Priority 7 remains incomplete under
   `docs/ACCESSIBILITY_TASK_PROTOCOL.md`.
+
+## 2026-07-27 direct Chrome keyboard workflow audit
+
+Run metadata:
+
+- Run ID: `a11y-2026-07-27-chrome-keyboard-01`.
+- Commit: `15c5270070238b91343a9f6eaa26f86527bfcaf2`.
+- Route base: local `http://localhost:8501/`.
+- Environment: macOS `26.5.1` build `25F80`; Google Chrome
+  `150.0.7871.182`; external display `3440x1440`; explicit CSS viewport
+  `1280x720`; 100% zoom; default colors and motion.
+- Input: direct Chrome browser-control `Tab`, `Shift+Tab`, arrow, Enter, and
+  text-key input. Screen reader: `not_run`. Reviewer:
+  `Local supervised browser review`.
+- The run used saved readiness only. It performed no refresh, readiness
+  rebuild, research-record save, screenshot capture, or generated-artifact
+  write. Browser-control input is direct functional evidence in this exact
+  environment; it is not independent human or assistive-technology review.
+
+Direct task results:
+
+- K01: `failed_reproducible`. After reload, the first focus sequence was
+  Workspace help button -> selected Workspace radio input -> selected route
+  radio input -> Streamlit main section -> `Skip to page answer`. Each of the
+  repeated shell controls therefore preceded the skip link. The inspected
+  controls had a visible three-pixel teal outline.
+- K02: `passed_direct` in the recorded environment. Enter on the focused skip
+  link retained
+  `?mode=research&page=research-desk`, appended only
+  `#public-page-answer`, and moved `document.activeElement` to the
+  `public-page-answer` target.
+- K03: `passed_direct` in the recorded environment. Arrow Down on the selected
+  route radio changed the URL to
+  `?mode=research&page=discover`, rendered the `Discover` `h1`, retained
+  keyboard focus, and showed the focus outline.
+- K04: `failed_reproducible`. Search accepted `AVGO` and Enter, Tab, and Enter
+  opened the correct ticker-bound Company Workbench route without a pointer.
+  However, every result action exposed the same accessible text
+  `Open review`; neither the ticker nor company identity was present in the
+  link's accessible name. The action is operable but is not distinguishable
+  in a screen-reader links list or when encountered outside its visual row.
+- K05: `failed_reproducible` at the first material focus defect. Native
+  disclosure `summary` elements received focus in the route sequence but had
+  computed `outline: none`; the complete disclosure traversal was stopped at
+  that first mismatch rather than promoted to a pass.
+- K06-K09, Z01-Z03, C01-C02, M01, S01-S07, and remaining P02 coverage:
+  `not_run` in this run.
+
+Additional bounded observations:
+
+- An intentionally incomplete authoring validation was triggered with a
+  pointer only and saved no record. After the Streamlit rerun completed, the
+  `thesis_id is required` message was contained by
+  `data-testid="stAlertContainer"` with `role="alert"`. This DOM observation
+  does not pass keyboard task K06 or screen-reader task S06.
+- The earlier apparent `23.2x18.7` skip-link target was measured while the link
+  was deliberately clipped off screen. When focused through the direct
+  keyboard path, the visible target measured approximately `132.6x38.2`.
+  No target-size defect is recorded from the clipped state.
+
+Root-cause and next-design boundary:
+
+- Streamlit renders the sidebar before the main section in DOM focus order.
+  The current skip link lives in the main section, so source-call ordering
+  cannot place it before sidebar controls.
+- The shared focus selector covers links, buttons, form controls, explicit
+  roles, and nonnegative `tabindex`, but not native `summary`.
+- Discover renders ticker-specific destinations with identical visible and
+  accessible `Open review` text.
+- The narrow remediation should place one skip link as the first focusable
+  sidebar child, add ticker-specific accessible names while retaining the
+  concise visible action label, and include `summary:focus-visible` in the
+  shared focus contract. This is a proposed design, not an implemented fix.
+- Priority 7 remains incomplete. Phone keyboard, complete K05-K09, zoom,
+  forced colors, reduced motion, screen-reader tasks, stable `main` landmark,
+  and remaining P02 coverage still require direct current evidence.
