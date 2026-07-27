@@ -154,12 +154,19 @@ Directly reproduced:
 
 Remediation and direct retest:
 
-- The shared dashboard style now reserves at least `24x24` CSS pixels for
-  Streamlit tooltip/help targets and dataframe toolbar buttons.
-- Desktop retest measured the visible help target and all 16 exposed dataframe
-  toolbar targets at exactly `24x24`.
-- Phone retest measured every visible inspected help and dataframe target at
-  `24x24`; document width remained equal to the `390px` viewport width.
+- The first style correction enlarged the tooltip wrapper, not its nested
+  button. An expanded P02 audit caught the actual help button still at
+  `16x24`; this intermediate result is not completion evidence.
+- The corrected shared style now reserves at least `24x24` CSS pixels for the
+  actual nested Streamlit tooltip/help buttons and dataframe toolbar buttons.
+  The phone Workbench `Open Data Health` action also retains its compact text
+  treatment with an explicit `24px` minimum height instead of the reproduced
+  `21px`.
+- Final desktop retest measured the visible actual help button and all 16
+  exposed dataframe toolbar buttons at exactly `24x24`.
+- Final phone retest measured the visible actual help and dataframe buttons at
+  `24x24` and `Open Data Health` at `102x24`; document width remained equal to
+  the `390px` viewport width.
 
 Evidence boundary:
 

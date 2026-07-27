@@ -2130,7 +2130,7 @@ def apply_dashboard_theme() -> None:
           outline-offset: 3px !important;
           box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.20) !important;
         }
-        [data-testid="stTooltipHoverTarget"],
+        [data-testid="stTooltipHoverTarget"] button,
         [data-testid="stDataFrame"] button {
           min-width: 24px !important;
           min-height: 24px !important;
@@ -34584,8 +34584,8 @@ def render_research_workspace_styles() -> None:
             .public-ticker-summary.research .public-ticker-action small { margin-top: .12rem; }
             .public-ticker-summary.research .public-ticker-action { gap: .15rem; }
             .public-ticker-summary.research .public-primary-action {
-                min-height: auto;
-                padding: 0;
+                min-height: 24px;
+                padding: .1rem 0;
                 background: transparent;
                 color: #0f766e !important;
                 text-decoration: underline !important;

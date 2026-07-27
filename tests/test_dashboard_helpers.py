@@ -29716,10 +29716,19 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
 def test_framework_help_and_dataframe_controls_reserve_minimum_touch_targets():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
-    assert '[data-testid="stTooltipHoverTarget"],' in source
+    assert '[data-testid="stTooltipHoverTarget"] button,' in source
     assert '[data-testid="stDataFrame"] button {' in source
     assert "min-width: 24px !important;" in source
     assert "min-height: 24px !important;" in source
+
+    research_styles = source.index("def render_research_workspace_styles")
+    research_mobile = source.index("@media (max-width: 640px)", research_styles)
+    action_start = source.index(
+        ".public-ticker-summary.research .public-primary-action {",
+        research_mobile,
+    )
+    action_end = source.index("}", action_start)
+    assert "min-height: 24px;" in source[action_start:action_end]
 
 
 def test_public_page_answer_precedes_shared_advanced_evidence():

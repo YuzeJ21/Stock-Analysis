@@ -1448,6 +1448,8 @@ def test_accessibility_evidence_records_same_page_skip_fix_without_overclaim():
     assert "no complete keyboard-only traversal is claimed" in evidence
     assert "framework-control target-size audit" in evidence
     assert "exactly `24x24`" in evidence
+    assert "enlarged the tooltip wrapper, not its nested" in evidence
+    assert "`Open Data Health` at `102x24`" in evidence
     assert "does not prove pointer-spacing exceptions" in evidence
     assert "Priority 7 remains incomplete" in evidence
 
