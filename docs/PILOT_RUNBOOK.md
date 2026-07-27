@@ -116,7 +116,7 @@ Coverage gate: No broad coverage batch should run from setup alone. Provider set
 
 Use 5 to 10 operating companies as the fixed research cohort and run 10 to 20 task-based reviewer sessions. ETF/index examples such as QQQ and SMH are useful monitor-context demos, but they are not operating-company DCF targets.
 
-Measure each session with the privacy-safe feedback template: **Task success**, **Time to first answer**, **Readiness comprehension**, **Misuse risk**, **Trust in evidence**, **Perceived performance**, and **Repeat-use case**. These measures test workflow value and comprehension only; they do not validate market data, model accuracy, or investment outcomes.
+Measure each session with the privacy-safe feedback template: **Task success**, **Time to first answer** (specifically, the first useful research answer), **Readiness comprehension**, **Evidence trace**, **Authoring friction**, **Misuse risk**, **Trust in evidence**, **Perceived performance**, **Repeat-use case and intent**, and **Most important missing workflow**. Before starting, confirm voluntary participation, withdrawal rights, minimal anonymous capture, and a working-note deletion date. These measures test workflow value and comprehension only; they do not validate market data, model accuracy, demand, or investment outcomes.
 
 ## 5. Refresh Data Safely
 

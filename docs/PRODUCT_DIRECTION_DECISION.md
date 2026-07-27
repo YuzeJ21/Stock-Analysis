@@ -55,6 +55,7 @@ Evidence expected:
 
 - Local five-route desktop/mobile performance gate: passed on the fixed demo snapshot.
 - Public package: pilot-ready with manual gates.
+- Independent-beta protocol: locally ready for the current four-route Commercial Research Beta workflow, with a complete privacy-safe scorecard; no independent sessions are on record.
 - Hosted URL and enforced private access: `external_account_required`.
 - Controlled reviewer findings: `awaiting_external_review`.
 - Trusted-peer expansion and any commercial-use peer rights: `awaiting_reviewed_source`.

@@ -1,5 +1,6 @@
 from pathlib import Path
 import csv
+import subprocess
 
 
 def test_pilot_review_feedback_template_keeps_clarity_feedback_separate_from_data_proof():
@@ -69,6 +70,25 @@ def test_pilot_review_feedback_make_target_is_read_only_and_discoverable():
     assert "does not refresh data, import rows, stage files, commit, push, deploy, or publish feedback" in closeout_target
 
 
+def test_pilot_review_feedback_command_prints_current_workflow_and_complete_scorecard():
+    result = subprocess.run(
+        ["make", "pilot-review-feedback"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in result.stdout
+    assert "Evidence trace" in result.stdout
+    assert "Authoring friction" in result.stdout
+    assert "Repeat-use intent" in result.stdout
+    assert "Most important missing workflow" in result.stdout
+    assert "voluntary participation" in result.stdout
+    assert "withdrawal" in result.stdout
+    assert "deletion date" in result.stdout
+    assert "Home -> Stock Selector -> Single-Stock Report" not in result.stdout
+
+
 def test_pilot_review_feedback_log_template_is_anonymous_and_comparable():
     path = Path("docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv")
     rows = list(csv.DictReader(path.read_text(encoding="utf-8").splitlines()))
@@ -114,6 +134,30 @@ def test_pilot_review_feedback_log_template_is_anonymous_and_comparable():
     assert "sell" not in body.lower()
 
 
+def test_commercial_beta_feedback_log_captures_complete_validation_and_consent_contract():
+    path = Path("docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv")
+    rows = list(csv.DictReader(path.read_text(encoding="utf-8").splitlines()))
+
+    assert rows
+    header = rows[0].keys()
+    for column in (
+        "consent_confirmed",
+        "consent_withdrawn",
+        "retention_delete_after",
+        "evidence_trace_result",
+        "authoring_friction",
+        "repeat_use_intent",
+        "most_important_missing_workflow",
+    ):
+        assert column in header
+
+    example = rows[0]
+    assert example["consent_confirmed"] == "yes / no"
+    assert example["consent_withdrawn"] == "yes / no"
+    assert example["evidence_trace_result"] == "completed / completed_with_help / not_completed"
+    assert example["repeat_use_intent"] == "yes / maybe / no"
+
+
 def test_pilot_feedback_closeout_checklist_keeps_feedback_out_of_data_gates():
     body = Path("docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md").read_text(encoding="utf-8")
     readme = Path("README.md").read_text(encoding="utf-8")
@@ -142,7 +186,7 @@ def test_pilot_review_invitation_is_a_short_privacy_safe_entry_point():
     readme = Path("README.md").read_text(encoding="utf-8")
     linkedin_brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
 
-    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in invitation
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in invitation
     assert "under three minutes" in invitation
     assert "Where did you start?" in invitation
     assert "What could you use now?" in invitation

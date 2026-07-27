@@ -1,9 +1,9 @@
 # Pilot Feedback Closeout Checklist
 
-Use this checklist after 5-10 external reviewers complete the public workflow:
+Use this checklist after 10-20 independent target-persona reviewers complete the Commercial Research Beta workflow:
 
 ```text
-Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History
+Research Desk -> Discover -> Company Workbench -> Monitor
 ```
 
 This closeout is product-workflow evidence only. It is not data proof, source proof, data freshness proof, investment advice, broker integration, or a trade instruction.
@@ -16,7 +16,7 @@ Keep the working feedback log outside the repository:
 cp docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv /tmp/stock-command-center-pilot-feedback.csv
 ```
 
-Before any reviewed feedback artifact is committed, remove names, account details, investment opinions, price targets, trade decisions, portfolio information, and any other personal information.
+Before any reviewed feedback artifact is committed, remove names, contact details, account details, investment opinions, price targets, trade decisions, portfolio information, and any other personal information. Delete rows with `consent_confirmed=no` or `consent_withdrawn=yes`. Delete remaining working rows on their `retention_delete_after` date unless they have become intentionally reviewed, anonymized aggregate evidence.
 
 ## 2. Classify Every Reviewer Row
 
@@ -31,6 +31,12 @@ Each row should end in one of these product outcomes:
 | `intentionally_deferred` | Valid suggestion, but not needed for controlled pilot readiness. | Record the reason and keep sharing boundaries unchanged. |
 
 Do not classify a reviewer preference as a source-proof defect unless it names a missing trusted source row, validate/preview/apply failure, or proof-ledger gap.
+
+Before aggregating results, confirm that each included row records task success,
+time to first useful answer, readiness comprehension, evidence tracing,
+authoring friction, trust, misuse risk, perceived performance, repeat-use
+intent, and the most important missing workflow. Missing fields remain missing;
+do not infer or backfill reviewer answers.
 
 ## 3. Fix Only Reproducible Product Issues
 

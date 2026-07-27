@@ -550,10 +550,12 @@ unsafe DOM-mutation workaround is not accepted as `main` landmark evidence.
 **Current lane:** externally dependent on non-owner participants.
 
 1. Run 10-20 independent workflow sessions with the target researcher persona; maintain a session protocol that prevents coaching and avoids collecting investment recommendations or unnecessary personal data.
-2. Measure task completion, time to first answer, readiness comprehension, trust, misuse risk, perceived performance, and repeat-use intent.
+2. Measure task completion, time to first useful answer, readiness comprehension, evidence tracing, authoring friction, trust, misuse risk, perceived performance, repeat-use intent, and the most important missing workflow.
 3. Separate usability findings from financial evidence, predictive validity, demand, and product-market fit.
 
 **Exit gate:** 10-20 independent workflow sessions have complete anonymized evidence, reproducible findings, severity decisions, and retest outcomes for material defects. Automated, subagent, owner, or screenshot review does not count.
+
+**Local protocol evidence:** the invitation, feedback template, anonymous CSV schema, runbook, and closeout checklist use the current `Research Desk -> Discover -> Company Workbench -> Monitor` workflow, require voluntary minimal-data capture plus withdrawal and deletion handling, and cover the full Stage 5 scorecard. This makes the protocol locally ready; it does not satisfy the external-session exit gate.
 
 ### Priority 9 — Out-of-sample calibration cohort
 

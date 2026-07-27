@@ -299,8 +299,9 @@ Priority 7 — Accessibility evidence beyond screenshots
 - Exit only when automated and manual task evidence covers the complete workflow and all material defects are fixed or explicitly bounded.
 
 Priority 8 — Independent workflow validation
+- The local protocol is ready: the invitation, feedback template, anonymous CSV schema, runbook, and closeout checklist use `Research Desk -> Discover -> Company Workbench -> Monitor`, prevent coaching, exclude owner/Codex/subagent/fixture/screenshot evidence, capture the complete scorecard, and require voluntary minimal-data capture with withdrawal and deletion handling. This is protocol evidence only; zero independent sessions are on record.
 - Run 10-20 independent workflow sessions with the target researcher persona under a non-coaching protocol.
-- Measure task completion, time to first answer, readiness comprehension, trust, misuse risk, perceived performance, and repeat-use intent without collecting investment recommendations or unnecessary personal data.
+- Measure task completion, time to first useful answer, readiness comprehension, evidence tracing, authoring friction, trust, misuse risk, perceived performance, repeat-use intent, and the most important missing workflow without collecting investment recommendations or unnecessary personal data.
 - Exit only when all sessions have anonymized evidence, reproducible findings, severity decisions, and material-defect retests. Automated, subagent, owner, or screenshot review does not count.
 
 Priority 9 — Out-of-sample calibration cohort
@@ -366,7 +367,7 @@ Stage 3 — Controlled hosted preview
 
 Stage 4 — Controlled beta validation
 - Run 10-20 task-based reviewer sessions through the complete Personal Research workflow.
-- Measure time to first answer, readiness comprehension, trust, misuse risk, perceived performance, and repeat-use intent.
+- Measure time to first useful answer, readiness comprehension, evidence tracing, authoring friction, trust, misuse risk, perceived performance, repeat-use intent, and the most important missing workflow.
 - Record reproducible workflow defects only; reviewer feedback is not financial evidence.
 - Exit only when reviewers complete the workflow without mistaking readiness, context, scenarios, or evidence gaps for advice or live-market certainty.
 
