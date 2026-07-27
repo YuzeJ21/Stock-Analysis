@@ -29713,6 +29713,15 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     assert "Page answer begins" in target_html
 
 
+def test_framework_help_and_dataframe_controls_reserve_minimum_touch_targets():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert '[data-testid="stTooltipHoverTarget"],' in source
+    assert '[data-testid="stDataFrame"] button {' in source
+    assert "min-width: 24px !important;" in source
+    assert "min-height: 24px !important;" in source
+
+
 def test_public_page_answer_precedes_shared_advanced_evidence():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

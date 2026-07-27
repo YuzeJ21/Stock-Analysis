@@ -1424,9 +1424,9 @@ def test_active_product_docs_use_evidence_first_positioning_and_current_stage_tr
         "Priority 7 accessibility remediation is the next safe executable local lane."
         in " ".join(methodology.split())
     )
-    assert "Current verified synchronization anchor: `d2d58f90590f7dfb43f75b01c0213d15d0c19699`" in prompt
-    assert "exact-head GitHub Actions run `30235442248` passed" in prompt
-    assert "4,211 passing tests" in prompt
+    assert "Current verified synchronization anchor: `125127f674cec6606037ffe8509f72e17a1801e2`" in prompt
+    assert "exact-head GitHub Actions run `30236225841` passed" in prompt
+    assert "4,212 passing tests" in prompt
 
     for text in (readme, roadmap, methodology, prompt):
         assert "Priority 4 is next and incomplete" not in text
@@ -1446,6 +1446,9 @@ def test_accessibility_evidence_records_same_page_skip_fix_without_overclaim():
 
     assert "K01 and K02 therefore remain `blocked_environment`" in evidence
     assert "no complete keyboard-only traversal is claimed" in evidence
+    assert "framework-control target-size audit" in evidence
+    assert "exactly `24x24`" in evidence
+    assert "does not prove pointer-spacing exceptions" in evidence
     assert "Priority 7 remains incomplete" in evidence
 
 

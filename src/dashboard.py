@@ -2130,6 +2130,11 @@ def apply_dashboard_theme() -> None:
           outline-offset: 3px !important;
           box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.20) !important;
         }
+        [data-testid="stTooltipHoverTarget"],
+        [data-testid="stDataFrame"] button {
+          min-width: 24px !important;
+          min-height: 24px !important;
+        }
         .public-skip-link {
           position: absolute;
           top: 0.55rem;

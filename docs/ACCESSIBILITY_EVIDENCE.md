@@ -134,3 +134,39 @@ Evidence boundary:
 - Priority 7 remains incomplete. Direct keyboard, zoom, forced-colors,
   reduced-motion, target-size, screen-reader, and stable-main-landmark evidence
   remains required under `docs/ACCESSIBILITY_TASK_PROTOCOL.md`.
+
+## 2026-07-27 framework-control target-size audit
+
+Scope:
+
+- The same local Streamlit, macOS, Personal Research, and no-write boundary as
+  the preceding audit.
+- Ticker-bound Company Workbench for `AVGO`.
+- Desktop `1280x720` and phone `390x844` CSS viewports.
+- The Workbench quarterly-trend disclosure was opened only to expose its
+  existing dataframe toolbars; no data or research state was changed.
+
+Directly reproduced:
+
+- The visible framework help target measured `16x16` CSS pixels.
+- Visible dataframe `Show/hide columns`, `Download as CSV`, `Search`, and
+  `Fullscreen` targets measured `22x22` CSS pixels.
+
+Remediation and direct retest:
+
+- The shared dashboard style now reserves at least `24x24` CSS pixels for
+  Streamlit tooltip/help targets and dataframe toolbar buttons.
+- Desktop retest measured the visible help target and all 16 exposed dataframe
+  toolbar targets at exactly `24x24`.
+- Phone retest measured every visible inspected help and dataframe target at
+  `24x24`; document width remained equal to the `390px` viewport width.
+
+Evidence boundary:
+
+- This directly closes the reproduced P01 size defect for the inspected
+  framework controls and current Streamlit markup.
+- It does not prove pointer-spacing exceptions, every framework version,
+  complete P02 route-control coverage, keyboard order, zoom, forced colors,
+  reduced motion, screen-reader behavior, or WCAG conformance.
+- Priority 7 remains incomplete under
+  `docs/ACCESSIBILITY_TASK_PROTOCOL.md`.
