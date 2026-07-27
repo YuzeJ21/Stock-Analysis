@@ -364,3 +364,57 @@ Evidence boundary:
 - Priority 7 remains incomplete. K06-K07, complete K05, phone keyboard, true
   zoom, forced colors, reduced motion, S01-S07, the stable `main` fix, and
   remaining P02 coverage still require direct evidence or remediation.
+
+## 2026-07-27 keyboard authoring validation and no-write exit
+
+Run metadata:
+
+- Run ID: `a11y-2026-07-27-authoring-k06-k07-04`.
+- Commit: `b1dd457b574045c06496fdf4ec6772dddfc7d751`.
+- Route base: local
+  `http://localhost:8501/?mode=research&page=workbench&ticker=AVGO&open=1`.
+- Environment: macOS `26.5.1` build `25F80`; Google Chrome
+  `150.0.7871.182`; default colors and motion.
+- Input: direct Chrome keyboard input. Screen reader: `not_run`. Reviewer:
+  `Local supervised browser review`.
+- The run used saved readiness only. It entered no research content, produced
+  no valid preview, saved no record, captured no screenshot, and wrote no
+  generated artifact.
+
+Pre-run ledger state:
+
+- `data/research_thesis_journal.csv` existed with one header line and SHA-256
+  `0c427c359c1bdb6d8c8410aece9b3a46831ffb9ccd91d401aeb7930b5f401717`.
+- `data/catalyst_evidence.csv` and
+  `data/research_outcome_reviews.csv` did not exist.
+
+Direct task results:
+
+- K06: `failed_reproducible`. Enter opened
+  `Add a reviewed research record`. Nine direct Tab steps traversed Record
+  type, every empty thesis field, Supersedes Entry Id, and
+  `Validate and preview`; every inspected control had the shared visible
+  three-pixel focus outline. Enter on the validation button produced
+  `thesis_id is required` inside one `role="alert"` and exposed no
+  `Confirm and save` button. However, the affected Thesis Id control had no
+  `aria-invalid`, `aria-describedby`, or `aria-errormessage`, and focus
+  remained on `Validate and preview`. The global alert is bounded positive
+  evidence but does not satisfy the required affected-control association or
+  screen-reader announcement.
+- K07: `passed_direct`. Keyboard activation of the selected Company Workbench
+  route radio followed by Arrow Down opened Monitor, retained active focus on
+  the selected Monitor route, and rendered the truthful Monitor state without
+  a trap. After exit, the thesis journal line count and SHA-256 were unchanged,
+  the catalyst and outcome ledgers remained absent, and no ledger path was
+  dirty.
+
+Evidence boundary:
+
+- This run does not pass S06 or S07 because no screen reader was used.
+- The required K06 remediation is field-level invalid-state and error
+  association, followed by direct keyboard and supported screen-reader
+  retesting. Confirmation and persistence must remain unavailable for a
+  rejected draft.
+- Priority 7 remains incomplete. K01, K04-K06, K09, phone keyboard, true zoom,
+  forced colors, reduced motion, S01-S07, stable `main`, and remaining P02
+  coverage still require remediation or direct evidence.
