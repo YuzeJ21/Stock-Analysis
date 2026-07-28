@@ -121,11 +121,13 @@ The actual environment must prove authentication, cross-user/cross-workspace den
 
 ### Priority 7 — Accessibility evidence beyond screenshots
 
-Implement and retest the approved narrow remediation for first-focus skip placement, visible labelled mobile navigation, ticker-specific action names, disclosure-summary focus visibility, and field-level error association. A stable semantic `main` needs a separately reviewed framework-safe design.
+The approved narrow remediation is implemented and has reproducible local direct-browser evidence at product anchor `94e469b0948a441ac54d130741185812179a1117`. `make research-accessibility-browser-check` passed all eight Research Desk, Discover, ticker-bound Company Workbench, and Monitor cases at `1280x720` and `390x844`: the skip link is first in application focus order, becomes fully visible inside each viewport, preserves the route and focuses the answer; the labelled workflow navigation is visible; all four actually rendered eligible Discover actions have unique ticker-bound names; focused summaries expose a solid three-pixel outline; and rejected empty-thesis validation binds, describes, and focuses Thesis Id while retaining one global alert. The gate fails closed without Chrome/Playwright, assumes no Discover row count, and writes no JSON, timing, report, screenshot, readiness, canonical-data, or ledger artifact.
 
-Complete keyboard order, 200%/400% zoom and reflow, forced colors, reduced motion, screen-reader tasks, loading/empty/withheld/stale/failure states, and material-defect retests. Screenshots and automated scans are supporting evidence only.
+This closes the five narrow reproduced defects for the recorded local automated browser matrix only. A stable semantic `main` needs the separately reviewed framework-safe design. Complete independent human keyboard review, 200%/400% zoom and reflow, forced colors, reduced motion, screen-reader tasks, loading/empty/withheld/stale/failure states, and remaining material-defect retests. Screenshots and automated scans are supporting evidence only.
 
-The old Streamlit normalization to `target="_blank"` was corrected with a fragment destination and `target="_self"`, but K01/K03/K04/K05/K06/K09 and mobile-navigation findings remain bounded in `docs/ACCESSIBILITY_EVIDENCE.md`. Priority 7 remains incomplete.
+The earlier K01/K03/K04/K05/K06/K09 and mobile-navigation failures remain historical evidence in `docs/ACCESSIBILITY_EVIDENCE.md`; the new direct gate supersedes those five narrow implementation findings only at its recorded product anchor and viewports. Priority 7 remains incomplete.
+
+The earlier Streamlit normalization to `target="_blank"` also remains historical evidence; the route-preserving correction continues to use fragment-only `#public-page-answer` with `target="_self"`. The current gate directly verifies the resulting same-route focus transfer without treating the historical defect as current.
 
 Use `docs/ACCESSIBILITY_TASK_PROTOCOL.md`; the protocol is not completion evidence. The corrected same-page target is `#public-page-answer`; incomplete direct tasks remain `blocked_environment`. No WCAG conformance claim is made.
 

@@ -40,7 +40,7 @@ help:
 	@echo ""
 	@echo "For the full local command catalog, run: make help-full"
 
-.PHONY: dashboard-render-smoke research-dashboard-render-smoke commercial-beta-performance-contract commercial-beta-performance-gate
+.PHONY: dashboard-render-smoke research-dashboard-render-smoke commercial-beta-performance-contract commercial-beta-performance-gate research-accessibility-browser-check
 .PHONY: price-history-batch-closeout
 
 next-stage:
@@ -454,6 +454,9 @@ commercial-beta-performance-contract:
 
 commercial-beta-performance-gate:
 	@python3 -m src.public_performance_gate --workflow research --browser --root . --warm-runs $(or $(WARM_RUNS),5) --cold-runs $(or $(COLD_RUNS),1) --timeout-seconds $(or $(TIMEOUT_SECONDS),30) --output "$(or $(OUTPUT),/tmp/stock-command-center-commercial-beta-performance.json)" $(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
+
+research-accessibility-browser-check:
+	@python3 -m src.research_accessibility_browser_gate --root . --timeout-seconds $(or $(TIMEOUT_SECONDS),45) $(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
 
 public-ux-review-checklist:
 	@python3 -m src.public_ux_review_checklist

@@ -487,3 +487,61 @@ Evidence boundary:
   true zoom, forced colors, reduced motion, S01-S07, stable `main`, and
   remaining disclosure-state coverage still require remediation or direct
   evidence.
+
+## 2026-07-27 narrow-remediation direct browser gate
+
+Run metadata:
+
+- Run ID: `a11y-2026-07-27-narrow-remediation-gate-06`.
+- Product-under-test commit:
+  `94e469b0948a441ac54d130741185812179a1117`.
+- Command: `make research-accessibility-browser-check`.
+- Environment: macOS arm64; local Streamlit demo profile; Google Chrome at
+  `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`; Playwright
+  headless browser control.
+- Routes: Research Desk, Discover, ticker-bound NVDA Company Workbench, and
+  Monitor.
+- Viewports: desktop `1280x720` and phone `390x844`.
+- The gate starts one local demo-profile server, reads the rendered DOM, and
+  returns results in memory/stdout. It does not write timing, JSON, report,
+  screenshot, readiness, canonical-data, or research-ledger artifacts.
+
+Direct automated results:
+
+- All eight route-and-viewport cases passed with no rendered traceback and
+  zero horizontal overflow.
+- K01/K02 retest: exactly one `Skip to page answer` link was first in the
+  visible application focus order. When focused, its horizontal box was
+  approximately `x=8.8..141.4`, fully within both viewports. Enter activation
+  retained the complete route query, appended only
+  `#public-page-answer`, and focused that target.
+- K03/P02 narrow-navigation retest: every route exposed one visible
+  `Personal research workflow` navigation with one current route. Research
+  Desk, Discover, and Monitor exposed the three applicable routes; the
+  ticker-bound Workbench additionally exposed Company Workbench.
+- K04 retest: Discover rendered four actual eligible actions in the demo
+  profile at each viewport. Every action used a unique
+  `Open {TICKER} review` accessible name that matched its ticker-bound
+  destination. The gate fails when zero eligible actions render and does not
+  assume or fabricate a row count.
+- K05/K09 retest: the directly focused native disclosure summary on every
+  route and viewport exposed a solid `3px` outline with color
+  `rgb(15, 118, 110)`.
+- K06 retest: empty thesis validation on Company Workbench retained one
+  global `thesis_id is required` alert, applied `aria-invalid=true` and one
+  stable `aria-describedby` target to Thesis Id, rendered the adjacent error,
+  and focused the affected field. No confirmation action or ledger write was
+  performed.
+
+Evidence boundary:
+
+- This is reproducible local engineering evidence from automated direct
+  browser control. It is not an independent human keyboard review,
+  screen-reader result, hosted result, or WCAG conformance claim.
+- Browser-runtime absence fails the gate closed. The gate records no generated
+  evidence file; terminal output is intentionally ephemeral.
+- True 200%/400% browser zoom, forced colors, reduced motion, supported
+  screen-reader navigation, complete loading/empty/withheld/stale/failure
+  states, independent human testing, and the separately designed stable
+  semantic `main` landmark remain incomplete. Priority 7 therefore remains
+  open.
