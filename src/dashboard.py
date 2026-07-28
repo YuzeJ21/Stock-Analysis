@@ -377,6 +377,7 @@ from src.research_workspace import (
     research_desk_cards_html,
     research_evidence_return_link,
     research_monitor_frame,
+    research_workflow_navigation_html,
     research_workspace_header_html,
     weekly_summary_cards,
 )
@@ -2120,6 +2121,7 @@ def apply_dashboard_theme() -> None:
         [role="button"]:focus-visible,
         [role="radio"]:focus-visible,
         [role="tab"]:focus-visible,
+        summary:focus-visible,
         [tabindex]:not([tabindex="-1"]):focus-visible {
           outline: 3px solid #0f766e !important;
           outline-offset: 3px !important;
@@ -29141,6 +29143,11 @@ def research_comparison_frame(comparison: ResearchComparison) -> pd.DataFrame:
     return pd.DataFrame(comparison_matrix_rows(comparison))
 
 
+def discover_review_action_label(ticker: str) -> str:
+    symbol = str(ticker or "").strip().upper()
+    return f"Open {symbol} review" if symbol else "Open review"
+
+
 def stock_selector_result_table_html(
     frame: pd.DataFrame,
     *,
@@ -29187,7 +29194,7 @@ def stock_selector_result_table_html(
             f"<div class='selector-result-body'>{html.escape(supported)}</div>"
             "</div>"
             "<div class='selector-actions'>"
-            f"<a class='selector-action-link' href='{report_href}' target='_self'>Open review</a>"
+            f"<a class='selector-action-link' href='{report_href}' target='_self'>{html.escape(discover_review_action_label(ticker))}</a>"
             "</div>"
             "</div>"
         )
@@ -34530,6 +34537,29 @@ def render_research_workspace_styles() -> None:
             text-decoration: none;
         }
         .research-evidence-link span { color: #52615c; font-size: .86rem; }
+        .research-workflow-navigation {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .45rem;
+            margin: .45rem 0 .8rem;
+            max-width: 100%;
+        }
+        .research-workflow-link {
+            align-items: center;
+            border: 1px solid #c8d5cf;
+            border-radius: 6px;
+            color: #0f4c3a !important;
+            display: inline-flex;
+            min-height: 2.75rem;
+            padding: .35rem .7rem;
+            text-decoration: none !important;
+        }
+        .research-workflow-link[aria-current='page'] {
+            background: #0f766e;
+            border-color: #0f766e;
+            color: #fff !important;
+            font-weight: 760;
+        }
         .public-ticker-summary.research {
             display: grid;
             grid-template-columns: 8rem minmax(0, 1fr) minmax(0, 1fr) minmax(12rem, 0.8fr);
@@ -34600,6 +34630,8 @@ def render_research_workspace_styles() -> None:
             text-decoration: none !important;
         }
         @media (max-width: 640px) {
+            .research-workflow-navigation { gap: .35rem; margin: .35rem 0 .65rem; }
+            .research-workflow-link { flex: 1 1 10rem; justify-content: center; min-width: 0; }
             .research-desk-grid { grid-template-columns: 1fr; }
             .research-workspace-header {
                 padding: .72rem .78rem;
@@ -35086,6 +35118,10 @@ def main() -> None:
                 selected_page,
                 st.query_params,
                 mode=RESEARCH_MODE,
+            )
+            st.markdown(
+                research_workflow_navigation_html(active_page=selected_page, ticker=ticker),
+                unsafe_allow_html=True,
             )
         render_app_header(
             catalog,

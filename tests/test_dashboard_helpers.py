@@ -2158,7 +2158,7 @@ def test_stock_selector_public_rows_render_one_action_without_raw_table_first():
     assert "selector-result-table" in rendered
     assert "selector-readiness-pill partial" in rendered
     assert "NVDA" in rendered
-    assert "Open review" in rendered
+    assert "Open NVDA review" in rendered
     assert "?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1" in rendered
     assert "Review-ready with limits" in rendered
     assert "Check proof" not in rendered
@@ -2353,7 +2353,7 @@ def test_public_selector_rows_keep_one_neutral_state_and_one_primary_action():
     assert "Supported now" not in rendered
     assert "Blocked" not in rendered
     assert "Proof" not in rendered
-    assert rendered.count("Open review") == 1
+    assert rendered.count("Open NVDA review") == 1
     assert "Check proof" not in rendered
     assert "data-health" not in rendered
 
@@ -29737,6 +29737,16 @@ def test_dashboard_theme_removes_framework_heading_links_from_keyboard_flow():
     assert "[data-testid=\"stMain\"]:focus-visible" in source
     assert "[data-testid=\"stSidebar\"] [role=\"radiogroup\"] label:focus-within" in source
     assert "outline: 3px solid #0f766e !important;" in source
+
+
+def test_discover_action_label_is_ticker_specific():
+    assert dashboard.discover_review_action_label("avgo") == "Open AVGO review"
+
+
+def test_dashboard_theme_gives_summary_elements_visible_keyboard_focus():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "summary:focus-visible" in source
 
 
 def test_public_workflow_skip_link_bypasses_the_shared_public_shell():

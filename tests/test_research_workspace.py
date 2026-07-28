@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from src import research_workspace
 from src.research_workspace import (
     RESEARCH_ROUTING_STATES,
     advanced_evidence_links,
@@ -679,6 +680,18 @@ def test_research_workspace_header_keeps_scope_freshness_action_and_boundary_vis
     assert "class='research-workspace-meta-item research-workspace-action'" in rendered
     assert "Research-only" in rendered
     assert "investment advice" in rendered
+
+
+def test_mobile_workflow_navigation_is_labelled_and_has_one_current_page():
+    rendered = research_workspace.research_workflow_navigation_html(active_page="discover", ticker="AVGO")
+
+    assert "aria-label='Personal research workflow'" in rendered
+    assert rendered.count("aria-current='page'") == 1
+    assert all(label in rendered for label in ("Research Desk", "Discover", "Company Workbench", "Monitor"))
+    assert "ticker=AVGO" in rendered
+    assert "Company Workbench" not in research_workspace.research_workflow_navigation_html(
+        active_page="discover",
+    )
 
 
 def test_research_workspace_header_labels_saved_readiness_without_changing_its_argument():

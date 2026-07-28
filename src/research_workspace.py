@@ -597,6 +597,34 @@ def _quoted_ticker(ticker: str) -> str:
     return quote(str(ticker or "").strip().upper(), safe="")
 
 
+def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> str:
+    """Render the deterministic Personal Research route sequence."""
+
+    active_slug = str(active_page or "").strip().lower().replace(" ", "-")
+    symbol = _quoted_ticker(ticker)
+    routes = [
+        ("Research Desk", "research-desk", "?mode=research&page=research-desk"),
+        ("Discover", "discover", "?mode=research&page=discover"),
+    ]
+    if symbol:
+        routes.append(
+            (
+                "Company Workbench",
+                "company-workbench",
+                f"?mode=research&page=company-workbench&ticker={symbol}&open=1",
+            )
+        )
+    routes.append(("Monitor", "monitor", "?mode=research&page=monitor"))
+    links = "".join(
+        "<a class='research-workflow-link' "
+        f"href='{html.escape(href, quote=True)}' target='_self'"
+        + (" aria-current='page'" if active_slug == slug else "")
+        + f">{html.escape(label)}</a>"
+        for label, slug, href in routes
+    )
+    return f"<nav class='research-workflow-navigation' aria-label='Personal research workflow'>{links}</nav>"
+
+
 def advanced_evidence_links(ticker: str) -> list[dict[str, str]]:
     symbol = _quoted_ticker(ticker)
     suffix = f"&ticker={symbol}" if symbol else ""
