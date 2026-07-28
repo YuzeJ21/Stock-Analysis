@@ -82,6 +82,42 @@ def test_focused_skip_geometry_must_be_fully_inside_the_horizontal_viewport():
     )["passed"] is False
 
 
+def test_viewport_geometry_rejects_off_canvas_zero_size_and_short_route_links():
+    from src.research_accessibility_browser_gate import evaluate_viewport_geometry
+
+    viewport = (390, 844)
+    assert evaluate_viewport_geometry(
+        {"x": 8, "y": 120, "width": 120, "height": 44},
+        viewport=viewport,
+        expected_min_height=44,
+        label="Discover",
+    )["passed"] is True
+    for rectangle in (
+        {"x": -180, "y": 120, "width": 120, "height": 44},
+        {"x": 400, "y": 120, "width": 120, "height": 44},
+        {"x": 8, "y": 120, "width": 0, "height": 44},
+        {"x": 8, "y": 120, "width": 120, "height": 0},
+        {"x": 8, "y": 120, "width": 120, "height": 43},
+    ):
+        assert evaluate_viewport_geometry(
+            rectangle,
+            viewport=viewport,
+            expected_min_height=44,
+            label="Discover",
+        )["passed"] is False
+
+
+def test_skip_gate_uses_one_physical_tab_instead_of_dom_order_or_focus_substitution():
+    source = Path("src/research_accessibility_browser_gate.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'page.keyboard.press("Tab")' in source
+    assert "_visible_application_focus_order" not in source
+    assert "skip_links.first.focus()" not in source
+    assert "document.activeElement === element" in source
+
+
 def test_makefile_exposes_non_writing_browser_gate():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 

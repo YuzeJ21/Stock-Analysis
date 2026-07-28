@@ -124,75 +124,122 @@ def evaluate_skip_geometry(
     }
 
 
+def evaluate_viewport_geometry(
+    rectangle: dict[str, float] | None,
+    *,
+    viewport: tuple[int, int],
+    expected_min_height: float,
+    label: str,
+) -> dict[str, object]:
+    """Require usable geometry inside the horizontal viewport and on screen."""
+
+    viewport_width, viewport_height = viewport
+    if (
+        not rectangle
+        or viewport_width <= 0
+        or viewport_height <= 0
+        or expected_min_height <= 0
+    ):
+        return {
+            "passed": False,
+            "detail": f"{label} geometry or viewport contract is unavailable",
+        }
+    x = float(rectangle.get("x", 0))
+    y = float(rectangle.get("y", 0))
+    width = float(rectangle.get("width", 0))
+    height = float(rectangle.get("height", 0))
+    right = x + width
+    bottom = y + height
+    passed = (
+        width > 0
+        and height >= expected_min_height
+        and x >= 0
+        and right <= float(viewport_width)
+        and bottom > 0
+        and y < float(viewport_height)
+    )
+    return {
+        "passed": passed,
+        "detail": (
+            f"{label} geometry x={x:.1f}..{right:.1f}, "
+            f"y={y:.1f}..{bottom:.1f}, height={height:.1f}px "
+            f"{'meets' if passed else 'fails'} viewport and "
+            f"{expected_min_height:.1f}px height contract"
+        ),
+    }
+
+
 def _assertion(name: str, passed: bool, detail: str) -> dict[str, object]:
     return {"name": name, "passed": bool(passed), "detail": str(detail)}
-
-
-def _visible_application_focus_order(page: Any) -> list[dict[str, str]]:
-    return page.evaluate(
-        """
-() => {
-  const selector = [
-    "a[href]",
-    "button",
-    "input",
-    "select",
-    "textarea",
-    "summary",
-    "[tabindex]"
-  ].join(",");
-  const visible = (element) => {
-    const style = getComputedStyle(element);
-    const rect = element.getBoundingClientRect();
-    return style.display !== "none" &&
-      style.visibility !== "hidden" &&
-      rect.width > 0 &&
-      rect.height > 0 &&
-      !element.disabled &&
-      element.tabIndex >= 0;
-  };
-  return Array.from(document.querySelectorAll(selector))
-    .filter((element) => element.closest('[data-testid="stApp"]'))
-    .filter((element) => !element.closest('[data-testid="stHeader"]'))
-    .filter((element) => !element.closest('[data-testid="stToolbar"]'))
-    .filter(visible)
-    .map((element) => ({
-      text: (element.getAttribute("aria-label") || element.textContent || "").trim(),
-      href: element.getAttribute("href") || "",
-      tag: element.tagName.toLowerCase()
-    }));
-}
-"""
-    )
 
 
 def _skip_link_assertions(page: Any) -> list[dict[str, object]]:
     skip_links = page.locator("a.public-skip-link[href='#public-page-answer']")
     count = skip_links.count()
-    order = _visible_application_focus_order(page)
-    first_is_skip = bool(order) and order[0].get("href") == "#public-page-answer"
+    if count != 1:
+        return [
+            _assertion(
+                "skip_link_first_physical_tab",
+                False,
+                f"expected one skip link before keyboard traversal, found {count}",
+            )
+        ]
+
+    page.evaluate(
+        """
+() => {
+  if (document.activeElement && document.activeElement !== document.body) {
+    document.activeElement.blur();
+  }
+  document.body.setAttribute("tabindex", "-1");
+  document.body.focus({preventScroll: true});
+}
+"""
+    )
+    page.keyboard.press("Tab")
+    page.evaluate("document.body.removeAttribute('tabindex')")
+    active_is_skip = bool(
+        skip_links.first.evaluate("element => document.activeElement === element")
+    )
+    active_description = page.evaluate(
+        """
+() => {
+  const active = document.activeElement;
+  if (!active) return "none";
+  return active.getAttribute("aria-label") ||
+    active.textContent.trim() ||
+    active.tagName.toLowerCase();
+}
+"""
+    )
     results = [
         _assertion(
-            "skip_link_first_application_focus",
-            count == 1 and first_is_skip,
+            "skip_link_first_physical_tab",
+            active_is_skip,
             (
-                "one skip link is first in application focus order"
-                if count == 1 and first_is_skip
-                else f"skip_count={count}; first_focus={order[0] if order else 'none'}"
+                "one physical Tab focused the sole skip link"
+                if active_is_skip
+                else f"one physical Tab focused {active_description!r}"
             ),
         )
     ]
-    if count != 1:
-        results.append(
-            _assertion(
-                "skip_link_activation",
-                False,
-                f"expected one skip link before activation, found {count}",
+    if not active_is_skip:
+        results.extend(
+            (
+                _assertion(
+                    "skip_link_focused_geometry",
+                    False,
+                    "skip link was not keyboard-focused; geometry not credited",
+                ),
+                _assertion(
+                    "skip_link_activation",
+                    False,
+                    "skip link was not keyboard-focused; Enter was not sent",
+                ),
             )
         )
         return results
 
-    skip_links.first.focus()
     geometry = evaluate_skip_geometry(
         skip_links.first.bounding_box(),
         viewport_width=int(page.evaluate("window.innerWidth")),
@@ -251,23 +298,59 @@ def _navigation_assertion(page: Any, route: ResearchRoute) -> dict[str, object]:
             False,
             f"expected one visible labelled navigation, found {count}",
         )
+    links = navigation.first.locator("a.research-workflow-link")
     link_names = [
         text.strip()
-        for text in navigation.first.locator("a.research-workflow-link").all_inner_texts()
+        for text in links.all_inner_texts()
     ]
     current = navigation.first.locator("a[aria-current='page']").all_inner_texts()
     expected = ["Research Desk", "Discover"]
     if route.name == "Company Workbench":
         expected.append("Company Workbench")
     expected.append("Monitor")
-    passed = link_names == expected and current == [route.name]
+    viewport = (
+        int(page.evaluate("window.innerWidth")),
+        int(page.evaluate("window.innerHeight")),
+    )
+    navigation_geometry = evaluate_viewport_geometry(
+        navigation.first.bounding_box(),
+        viewport=viewport,
+        expected_min_height=1,
+        label="workflow navigation",
+    )
+    link_geometry = [
+        evaluate_viewport_geometry(
+            links.nth(index).bounding_box(),
+            viewport=viewport,
+            expected_min_height=44,
+            label=label,
+        )
+        for index, label in enumerate(link_names)
+    ]
+    geometry_passed = bool(navigation_geometry["passed"]) and all(
+        bool(result["passed"]) for result in link_geometry
+    )
+    passed = (
+        link_names == expected
+        and current == [route.name]
+        and geometry_passed
+    )
+    geometry_detail = "; ".join(
+        [
+            str(navigation_geometry["detail"]),
+            *(str(result["detail"]) for result in link_geometry),
+        ]
+    )
     return _assertion(
         "labelled_workflow_navigation",
         passed,
         (
-            f"visible route sequence {link_names} with current {current}"
+            f"visible route sequence {link_names} with current {current}; {geometry_detail}"
             if passed
-            else f"expected={expected}; actual={link_names}; current={current}"
+            else (
+                f"expected={expected}; actual={link_names}; current={current}; "
+                f"{geometry_detail}"
+            )
         ),
     )
 
@@ -415,8 +498,8 @@ def _measure_route(
                 f"horizontal overflow={overflow}px",
             )
         )
-        assertions.extend(_skip_link_assertions(page))
         assertions.append(_navigation_assertion(page, route))
+        assertions.extend(_skip_link_assertions(page))
         assertions.append(_summary_focus_assertion(page))
         if route.name == "Discover":
             assertions.append(_discover_action_assertion(page))

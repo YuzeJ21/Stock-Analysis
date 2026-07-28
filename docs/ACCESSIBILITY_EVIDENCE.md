@@ -494,7 +494,7 @@ Run metadata:
 
 - Run ID: `a11y-2026-07-27-narrow-remediation-gate-06`.
 - Product-under-test commit:
-  `94e469b0948a441ac54d130741185812179a1117`.
+  `746604cdb97cc6af739576d57cd3c2d7684b4404`.
 - Command: `make research-accessibility-browser-check`.
 - Environment: macOS arm64; local Streamlit demo profile; Google Chrome at
   `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`; Playwright
@@ -510,15 +510,20 @@ Direct automated results:
 
 - All eight route-and-viewport cases passed with no rendered traceback and
   zero horizontal overflow.
-- K01/K02 retest: exactly one `Skip to page answer` link was first in the
-  visible application focus order. When focused, its horizontal box was
-  approximately `x=8.8..141.4`, fully within both viewports. Enter activation
-  retained the complete route query, appended only
-  `#public-page-answer`, and focused that target.
+- K01/K02 retest: after initial focus was cleared, one physical Tab focused
+  the sole `Skip to page answer` link. No DOM-order enumeration or
+  programmatic link focus substitutes for that keyboard result. Its focused
+  horizontal box was approximately `x=8.8..141.4`, fully within both
+  viewports. Enter activation retained the complete route query, appended
+  only `#public-page-answer`, and focused that target.
 - K03/P02 narrow-navigation retest: every route exposed one visible
   `Personal research workflow` navigation with one current route. Research
   Desk, Discover, and Monitor exposed the three applicable routes; the
-  ticker-bound Workbench additionally exposed Company Workbench.
+  ticker-bound Workbench additionally exposed Company Workbench. Every
+  applicable route link was fully inside the horizontal viewport and at least
+  `44px` high. Desktop navigation began at approximately `y=24`; phone
+  navigation began at approximately `y=22.4`, and its links wrapped without
+  leaving the viewport.
 - K04 retest: Discover rendered four actual eligible actions in the demo
   profile at each viewport. Every action used a unique
   `Open {TICKER} review` accessible name that matched its ticker-bound
