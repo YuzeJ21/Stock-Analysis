@@ -488,13 +488,13 @@ Evidence boundary:
   remaining disclosure-state coverage still require remediation or direct
   evidence.
 
-## 2026-07-27 narrow-remediation direct browser gate
+## 2026-07-28 narrow-remediation direct browser gate
 
 Run metadata:
 
-- Run ID: `a11y-2026-07-27-narrow-remediation-gate-06`.
+- Run ID: `a11y-2026-07-28-narrow-remediation-gate-07`.
 - Product-under-test commit:
-  `746604cdb97cc6af739576d57cd3c2d7684b4404`.
+  `0000c97e7db17e5d4353e30e976f2b7dec6bfd46`.
 - Command: `make research-accessibility-browser-check`.
 - Environment: macOS arm64; local Streamlit demo profile; Google Chrome at
   `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`; Playwright
@@ -505,6 +505,10 @@ Run metadata:
 - The gate starts one local demo-profile server, reads the rendered DOM, and
   returns results in memory/stdout. It does not write timing, JSON, report,
   screenshot, readiness, canonical-data, or research-ledger artifacts.
+- Before attributing the run, the gate verified the rendered Stock Research
+  Command Center identity and `Demo` profile, verified a clean
+  product/code/test/docs tree, and classified and excluded exactly 18 unstaged
+  generated CSV/output paths under the existing hygiene contract.
 
 Direct automated results:
 
@@ -513,9 +517,10 @@ Direct automated results:
 - K01/K02 retest: after initial focus was cleared, one physical Tab focused
   the sole `Skip to page answer` link. No DOM-order enumeration or
   programmatic link focus substitutes for that keyboard result. Its focused
-  horizontal box was approximately `x=8.8..141.4`, fully within both
-  viewports. Enter activation retained the complete route query, appended
-  only `#public-page-answer`, and focused that target.
+  box was approximately `x=8.8..141.4`, `y=8.8..47.0`, fully within both the
+  horizontal and vertical bounds of each viewport. Enter activation retained
+  the complete route query, appended only `#public-page-answer`, and focused
+  that target.
 - K03/P02 narrow-navigation retest: every route exposed one visible
   `Personal research workflow` navigation with one current route. Research
   Desk, Discover, and Monitor exposed the three applicable routes; the
@@ -535,16 +540,24 @@ Direct automated results:
 - K06 retest: empty thesis validation on Company Workbench retained one
   global `thesis_id is required` alert, applied `aria-invalid=true` and one
   stable `aria-describedby` target to Thesis Id, rendered the adjacent error,
-  and focused the affected field. No confirmation action or ledger write was
-  performed.
+  and focused the affected field. A live draft change then removed the
+  bridge-owned Thesis Id error node and relationships. The next validation
+  associated, described, and focused only Effective At for
+  `effective_at is required`, on both desktop and phone. AppTest additionally
+  verified cleanup payloads for accepted preview and non-field errors while
+  preserving all three ledger byte states. No confirmation action or ledger
+  write was performed.
 
 Evidence boundary:
 
 - This is reproducible local engineering evidence from automated direct
   browser control. It is not an independent human keyboard review,
   screen-reader result, hosted result, or WCAG conformance claim.
-- Browser-runtime absence fails the gate closed. The gate records no generated
-  evidence file; terminal output is intentionally ephemeral.
+- A non-loopback or rendered-identity/profile-mismatched server, staged path,
+  dirty non-generated implementation path, or absent Chrome/Playwright runtime
+  fails the gate closed. Such a run receives no local commit/profile
+  attribution. The gate records no generated evidence file; terminal output
+  is intentionally ephemeral.
 - True 200%/400% browser zoom, forced colors, reduced motion, supported
   screen-reader navigation, complete loading/empty/withheld/stale/failure
   states, independent human testing, and the separately designed stable
