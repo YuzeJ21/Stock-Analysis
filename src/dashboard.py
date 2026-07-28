@@ -2159,11 +2159,21 @@ def apply_dashboard_theme() -> None:
           box-shadow: 0 14px 32px rgba(0,0,0,0.24);
         }
         .public-skip-link:focus {
-          width: auto;
-          height: auto;
-          overflow: visible;
-          clip-path: none;
-          white-space: normal;
+          position: fixed !important;
+          inset: 0.55rem auto auto 0.55rem !important;
+          width: max-content !important;
+          max-width: calc(100vw - 1.1rem) !important;
+          height: auto !important;
+          overflow: visible !important;
+          clip-path: none !important;
+          white-space: nowrap !important;
+        }
+        @media (max-width: 760px) {
+          [data-testid="stSidebar"]:has(.public-skip-link:focus) {
+            transform: none !important;
+            left: -100vw !important;
+            transition: none !important;
+          }
         }
         .public-workflow-skip-target {
           width: 1px;

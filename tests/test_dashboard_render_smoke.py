@@ -155,6 +155,91 @@ def test_public_skip_link_stays_in_first_sidebar_dom_bucket_and_renders_once():
     assert sum("class='public-skip-link'" in value for value in rendered) == 1
 
 
+def test_focused_skip_link_is_a_visible_horizontal_banner_in_public_and_research():
+    import pytest
+
+    from src.public_performance_gate import (
+        _local_demo_server,
+        _wait_for_dom_stability,
+        _wait_for_visible_text,
+        find_chrome_executable,
+    )
+
+    chrome = find_chrome_executable()
+    if chrome is None:
+        pytest.skip("Chrome-compatible browser is unavailable")
+    playwright = pytest.importorskip("playwright.sync_api")
+    cases = (
+        ("/?mode=public", "What is this product and where do I start?"),
+        ("/?mode=research&page=research-desk", "Weekly research summary"),
+    )
+
+    with _local_demo_server(Path("."), timeout_seconds=60) as base_url:
+        with playwright.sync_playwright() as runtime:
+            browser = runtime.chromium.launch(
+                executable_path=str(chrome),
+                headless=True,
+            )
+            try:
+                for width, height in ((1280, 720), (390, 844)):
+                    for route, marker in cases:
+                        context = browser.new_context(
+                            viewport={"width": width, "height": height}
+                        )
+                        page = context.new_page()
+                        try:
+                            page.goto(
+                                f"{base_url}{route}",
+                                wait_until="domcontentloaded",
+                                timeout=60_000,
+                            )
+                            _wait_for_visible_text(
+                                page,
+                                marker,
+                                timeout_seconds=60,
+                            )
+                            _wait_for_dom_stability(page, timeout_seconds=60)
+                            page.evaluate(
+                                "document.activeElement && document.activeElement.blur()"
+                            )
+                            page.keyboard.press("Tab")
+
+                            skip_links = page.locator(
+                                "a.public-skip-link[href='#public-page-answer']"
+                            )
+                            active = page.evaluate(
+                                """
+                                () => {
+                                  const element = document.activeElement;
+                                  const rect = element.getBoundingClientRect();
+                                  return {
+                                    label: element.getAttribute("aria-label"),
+                                    href: element.getAttribute("href"),
+                                    left: rect.left,
+                                    top: rect.top,
+                                    right: rect.right,
+                                    bottom: rect.bottom,
+                                    width: rect.width,
+                                    height: rect.height
+                                  };
+                                }
+                                """
+                            )
+
+                            assert skip_links.count() == 1
+                            assert active["label"] == "Skip to page answer"
+                            assert active["href"] == "#public-page-answer"
+                            assert 0 <= active["left"] < active["right"] <= width
+                            assert 0 <= active["top"] < active["bottom"] <= height
+                            assert active["width"] >= 120
+                            assert 36 <= active["height"] <= 64
+                            assert active["width"] >= active["height"] * 2
+                        finally:
+                            context.close()
+            finally:
+                browser.close()
+
+
 def test_authoring_composer_renders_once_only_in_closed_research_company_workbench():
     workbench = AppTest.from_file("src/dashboard.py", default_timeout=120)
     workbench.query_params.update(
