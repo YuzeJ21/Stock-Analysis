@@ -1,4 +1,6 @@
+from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 
 from src import dashboard
 from src import dashboard_navigation as nav
@@ -29,6 +31,75 @@ def test_personal_research_routes_do_not_render_ambiguous_freshness_label():
     assert "<small>Freshness</small>" not in source
     assert "Saved readiness" in source
     assert "load_observation_recency" in source
+
+
+def test_personal_research_route_loads_once_from_selected_profile_and_passes_one_result(
+    monkeypatch,
+):
+    context = SimpleNamespace(data_dir=Path("/selected-profile/data"))
+    recency = object()
+    review_date = date(2026, 7, 27)
+    load_calls: list[tuple[Path, str, date]] = []
+    rendered: list[tuple[str, object]] = []
+
+    def load_recency(path, *, selected_ticker, as_of):
+        load_calls.append((path, selected_ticker, as_of))
+        return recency
+
+    monkeypatch.setattr(dashboard, "load_observation_recency", load_recency)
+    monkeypatch.setattr(
+        dashboard,
+        "render_research_desk",
+        lambda *args: rendered.append(("Research Desk", args[-1])),
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "render_research_workspace_header",
+        lambda *args, **kwargs: rendered.append(("Discover", kwargs["observation_recency"])),
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "render_company_workbench",
+        lambda *args: rendered.append(("Company Workbench", args[-1])),
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "render_research_monitor",
+        lambda *args: rendered.append(("Monitor", args[-1])),
+    )
+    monkeypatch.setattr(dashboard, "dashboard_output_frames_for_page", lambda page: {})
+    monkeypatch.setattr(dashboard, "render_stock_selector", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "focused_cohort_cards", lambda cohort: [])
+    monkeypatch.setattr(dashboard, "focused_cohort_coverage_cards", lambda coverage: [])
+    monkeypatch.setattr(dashboard.st, "markdown", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "caption", lambda *args, **kwargs: None)
+
+    class Expander:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+
+    for selected_page in ("Research Desk", "Discover", "Company Workbench", "Monitor"):
+        assert dashboard.render_personal_research_route(
+            selected_page=selected_page,
+            provider=object(),
+            context=context,
+            state={},
+            cohort=SimpleNamespace(members=()),
+            coverage=object(),
+            weekly_summary=object(),
+            ticker="AVGO",
+            review_date=review_date,
+        )
+        assert load_calls == [(context.data_dir / "prices.csv", "AVGO", review_date)]
+        assert rendered == [(selected_page, recency)]
+        load_calls.clear()
+        rendered.clear()
 
 
 def test_dashboard_quarantines_legacy_deep_links_outside_operator_mode():
@@ -179,9 +250,10 @@ def test_research_discover_can_limit_selector_rows_to_the_focused_cohort():
 
 def test_research_discover_renders_selector_before_advanced_cohort_context():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
-    discover_start = source.index('elif research_mode and selected_page == "Discover":')
+    route_start = source.index("def render_personal_research_route(")
+    discover_start = source.index('elif selected_page == "Discover":', route_start)
     discover_end = source.index(
-        'elif research_mode and selected_page == "Company Workbench":',
+        'elif selected_page == "Company Workbench":',
         discover_start,
     )
     discover = source[discover_start:discover_end]
@@ -191,9 +263,9 @@ def test_research_discover_renders_selector_before_advanced_cohort_context():
     advanced = discover.index(
         'with st.expander("Advanced: cohort readiness context", expanded=False):'
     )
-    cohort = discover.index("focused_cohort_cards(focused_cohort)", advanced)
+    cohort = discover.index("focused_cohort_cards(cohort)", advanced)
     coverage = discover.index(
-        "focused_cohort_coverage_cards(focused_cohort_coverage)",
+        "focused_cohort_coverage_cards(coverage)",
         advanced,
     )
 
@@ -823,10 +895,7 @@ def test_research_workflow_skip_link_preserves_route_and_precedes_page_answer():
         output_frames,
     )
     answer_target = source.index("render_public_workflow_skip_target()", research_skip)
-    dispatch = source.index(
-        'if research_mode and selected_page == "Research Desk":',
-        answer_target,
-    )
+    dispatch = source.index("if research_mode and render_personal_research_route(", answer_target)
 
     assert research_skip < answer_target < dispatch
 

@@ -1,12 +1,14 @@
 from pathlib import Path
 from unittest.mock import patch
 
+import pandas as pd
 from streamlit.testing.v1 import AppTest
 
 from src.company_workbench_cash_generation_preview import (
     CashGenerationPreviewMetric,
     CompanyWorkbenchCashGenerationPreview,
 )
+from src.observation_recency import load_observation_recency
 
 
 def test_public_routes_render_without_exceptions_and_keep_core_markers():
@@ -43,11 +45,24 @@ def test_company_workbench_renders_independent_observation_states_for_avgo_spy_a
         )
 
         result = render_public_routes(Path("."), routes=(route,))[0]
+        rendered = "\n".join(result.rendered_blocks)
+        observation = load_observation_recency(
+            Path("data/prices.csv"),
+            selected_ticker=ticker,
+            as_of=pd.Timestamp.now(tz="UTC").date(),
+        )
+        selected = observation.selected_ticker
+        selected_scope = (
+            f"<small>Scope</small><strong>{ticker}</strong>"
+            f"<small>Through date</small><span>{selected.through_date or 'Unavailable'}</span>"
+            f"<small>State</small><span>{selected.state.replace('_', ' ').title()}</span>"
+        )
 
         assert result.exceptions == ()
         assert result.missing_markers == ()
         assert result.forbidden_markers == ()
         assert result.expanded_advanced == ()
+        assert selected_scope in rendered
 
 
 def test_research_routes_render_without_exceptions_and_keep_answer_first_markers():

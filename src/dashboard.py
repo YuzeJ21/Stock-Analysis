@@ -34853,6 +34853,62 @@ def render_company_workbench(
     render_research_change_route_summary("Single-Stock Report", state, ticker=ticker)
 
 
+def render_personal_research_route(
+    *,
+    selected_page: str,
+    provider,
+    context: ProfileContext,
+    state: dict[str, object],
+    cohort: FocusedCohort,
+    coverage: FocusedCohortCoverage,
+    weekly_summary: WeeklyResearchSummary,
+    ticker: str,
+    review_date,
+) -> bool:
+    """Load one local observation result and render one primary research route."""
+    if selected_page not in RESEARCH_PATH_PAGE_TITLES:
+        return False
+
+    observation_recency = load_observation_recency(
+        context.data_dir / "prices.csv",
+        selected_ticker=ticker,
+        as_of=review_date,
+    )
+    if selected_page == "Research Desk":
+        render_research_desk(state, context, cohort, coverage, weekly_summary, observation_recency)
+    elif selected_page == "Discover":
+        render_research_workspace_header(
+            "Discover",
+            context,
+            primary_action="Choose one readiness-backed company and open its workbench",
+            observation_recency=observation_recency,
+        )
+        st.markdown("## Which stock can I review?")
+        render_stock_selector(
+            dashboard_output_frames_for_page(STOCK_SELECTOR_PATH_TITLE),
+            public_mode=True,
+            target_mode=RESEARCH_MODE,
+            target_page="company-workbench",
+            allowed_tickers=tuple(member.ticker for member in cohort.members),
+        )
+        with st.expander("Advanced: cohort readiness context", expanded=False):
+            render_signal_cards(focused_cohort_cards(cohort), show_commands=False, variant="queue")
+            render_signal_cards(
+                focused_cohort_coverage_cards(coverage),
+                show_commands=False,
+                variant="queue",
+            )
+            st.caption(
+                "Cohort membership and lane coverage remain evidence context only; "
+                "they do not rank expected return or create a recommendation."
+            )
+    elif selected_page == "Company Workbench":
+        render_company_workbench(provider, context, state, coverage, observation_recency)
+    else:
+        render_research_monitor(state, context, weekly_summary, cohort, observation_recency)
+    return True
+
+
 def main() -> None:
     global ACTIVE_RESEARCH_CHANGE_STATE
     st.set_page_config(page_title="Stock Research Command Center", layout="wide")
@@ -35014,12 +35070,6 @@ def main() -> None:
 
     content_page = workspace_content_page(selected_page, mode)
     ticker = str(st.query_params.get("ticker") or "").strip().upper()
-    review_date = pd.Timestamp.now(tz="UTC").date()
-    observation_recency = load_observation_recency(
-        profile_context.data_dir / "prices.csv",
-        selected_ticker=ticker,
-        as_of=review_date,
-    )
     output_frames = dashboard_output_frames_for_page(content_page)
     if public_demo_mode:
         if bootstrap_placeholder is not None:
@@ -35062,58 +35112,19 @@ def main() -> None:
     if content_page in {"Overview", "Universe Manager"}:
         universe_summary = summarize_universe_manager(BASE_DIR)
 
-    if research_mode and selected_page == "Research Desk":
-        render_research_desk(
-            research_change_state,
-            profile_context,
-            focused_cohort,
-            focused_cohort_coverage,
-            weekly_research_summary,
-            observation_recency,
-        )
-    elif research_mode and selected_page == "Discover":
-        render_research_workspace_header(
-            "Discover",
-            profile_context,
-            primary_action="Choose one readiness-backed company and open its workbench",
-            observation_recency=observation_recency,
-        )
-        st.markdown("## Which stock can I review?")
-        render_stock_selector(
-            output_frames,
-            public_mode=True,
-            target_mode=RESEARCH_MODE,
-            target_page="company-workbench",
-            allowed_tickers=tuple(member.ticker for member in focused_cohort.members),
-        )
-        with st.expander("Advanced: cohort readiness context", expanded=False):
-            render_signal_cards(focused_cohort_cards(focused_cohort), show_commands=False, variant="queue")
-            render_signal_cards(
-                focused_cohort_coverage_cards(focused_cohort_coverage),
-                show_commands=False,
-                variant="queue",
-            )
-            st.caption(
-                "Cohort membership and lane coverage remain evidence context only; "
-                "they do not rank expected return or create a recommendation."
-            )
-    elif research_mode and selected_page == "Company Workbench":
-        render_company_workbench(
-            provider,
-            profile_context,
-            research_change_state,
-            focused_cohort_coverage,
-            observation_recency,
-        )
-    elif research_mode and selected_page == "Monitor":
-        render_research_monitor(
-            research_change_state,
-            profile_context,
-            weekly_research_summary,
-            focused_cohort,
-            observation_recency,
-        )
-    elif content_page == "Home":
+    if research_mode and render_personal_research_route(
+        selected_page=selected_page,
+        provider=provider,
+        context=profile_context,
+        state=research_change_state,
+        cohort=focused_cohort,
+        coverage=focused_cohort_coverage,
+        weekly_summary=weekly_research_summary,
+        ticker=ticker,
+        review_date=pd.Timestamp.now(tz="UTC").date(),
+    ):
+        return
+    if content_page == "Home":
         render_home_page(
             catalog,
             output_frames,
