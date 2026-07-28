@@ -433,12 +433,16 @@ def evaluate_browser_errors(errors: Iterable[str]) -> dict[str, object]:
 def evaluate_same_document_streamlit_rerun(
     *,
     trigger_count: int,
+    trigger_activated: bool,
     initial_observer_available: bool,
     token_before: str,
     token_after: str,
     same_document: bool,
     top_level_navigation_count: int,
-    observer_replaced: bool,
+    initial_script_state: str,
+    script_states: Iterable[str],
+    final_script_state: str,
+    observer_available: bool,
     active_target: bool,
     bridge_status: str | None,
     route_before: str,
@@ -446,6 +450,24 @@ def evaluate_same_document_streamlit_rerun(
 ) -> list[dict[str, object]]:
     """Require one real Streamlit rerun without replacing the top document."""
 
+    observed_script_states = tuple(
+        str(state or "").strip() for state in script_states
+    )
+    try:
+        running_index = observed_script_states.index("running")
+    except ValueError:
+        running_index = -1
+    completed_index = (
+        observed_script_states.index("notRunning", running_index + 1)
+        if running_index >= 0
+        and "notRunning" in observed_script_states[running_index + 1 :]
+        else -1
+    )
+    cycle_completed = (
+        running_index >= 1
+        and completed_index > running_index
+        and final_script_state == "notRunning"
+    )
     return [
         _assertion(
             "streamlit_rerun_trigger_available",
@@ -453,9 +475,27 @@ def evaluate_same_document_streamlit_rerun(
             f"Public visitor mode workspace radio count={trigger_count}",
         ),
         _assertion(
+            "streamlit_rerun_trigger_activated",
+            trigger_activated,
+            f"controlled native radio activation completed={trigger_activated}",
+        ),
+        _assertion(
             "streamlit_rerun_initial_observer_available",
             initial_observer_available,
             f"initial semantic-main observer available={initial_observer_available}",
+        ),
+        _assertion(
+            "streamlit_rerun_initial_script_idle",
+            initial_script_state == "notRunning",
+            f"initial Streamlit script state={initial_script_state!r}",
+        ),
+        _assertion(
+            "streamlit_rerun_cycle_completed",
+            cycle_completed,
+            (
+                f"Streamlit script states={list(observed_script_states)}; "
+                f"final={final_script_state!r}"
+            ),
         ),
         _assertion(
             "streamlit_rerun_same_document",
@@ -475,9 +515,9 @@ def evaluate_same_document_streamlit_rerun(
             f"top-level frame navigations={top_level_navigation_count}",
         ),
         _assertion(
-            "streamlit_rerun_observer_replaced",
-            observer_replaced,
-            f"semantic-main observer replaced={observer_replaced}",
+            "streamlit_rerun_observer_live",
+            observer_available,
+            f"semantic-main observer remains live={observer_available}",
         ),
         _assertion(
             "streamlit_rerun_active_target",
@@ -518,12 +558,16 @@ def _same_document_streamlit_rerun_assertions(
     if trigger_count != 1:
         return evaluate_same_document_streamlit_rerun(
             trigger_count=trigger_count,
+            trigger_activated=False,
             initial_observer_available=False,
             token_before="",
             token_after="",
             same_document=False,
             top_level_navigation_count=len(top_level_navigations),
-            observer_replaced=False,
+            initial_script_state="",
+            script_states=(),
+            final_script_state="",
+            observer_available=False,
             active_target=False,
             bridge_status=None,
             route_before="",
@@ -536,58 +580,122 @@ def _same_document_streamlit_rerun_assertions(
   const probeKey = "__a11ySameDocumentRerunProbe";
   const token = `${Date.now()}-${Math.random()}`;
   const route = `${location.pathname}${location.search}`;
+  const scriptStateAttribute = "data-test-script-state";
+  const app = document.querySelector('[data-testid="stApp"]');
+  const initialScriptState = app
+    ? app.getAttribute(scriptStateAttribute)
+    : "";
+  const scriptStates = initialScriptState ? [initialScriptState] : [];
+  const appendScriptState = (state) => {
+    if (state && scriptStates[scriptStates.length - 1] !== state) {
+      scriptStates.push(state);
+    }
+  };
+  const scriptStateObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      const target = mutation.target;
+      if (
+        mutation.type === "attributes" &&
+        target instanceof Element &&
+        target.matches('[data-testid="stApp"]')
+      ) {
+        appendScriptState(mutation.oldValue);
+        appendScriptState(target.getAttribute(scriptStateAttribute));
+      }
+    }
+  });
+  scriptStateObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: [scriptStateAttribute],
+    attributeOldValue: true,
+    subtree: true
+  });
   window[probeKey] = {
     token,
     document: document,
     observer: window.__stockResearchMainObserver,
     target: window.__stockResearchMainTarget,
-    route
+    route,
+    scriptStates,
+    scriptStateObserver
   };
   return {
     token,
     initial_observer_available: Boolean(window[probeKey].observer),
+    initial_script_state: initialScriptState,
     route
   };
 }
 """
     )
     top_level_navigations.clear()
-    trigger.check(force=True)
-    page.wait_for_function(
-        """
+    trigger_activated = bool(
+        trigger.evaluate(
+            """
+element => {
+  if (
+    !(element instanceof HTMLInputElement) ||
+    element.type !== "radio" ||
+    element.disabled ||
+    element.checked
+  ) {
+    return false;
+  }
+  element.click();
+  return element.checked && element.isConnected;
+}
+"""
+        )
+    )
+    if trigger_activated:
+        page.wait_for_function(
+            """
 () => {
   const probe = window.__a11ySameDocumentRerunProbe;
-  const target = document.querySelector('[data-testid="stMain"]');
-  return Boolean(
-    probe &&
-    probe.document === document &&
-    probe.route === `${location.pathname}${location.search}` &&
-    window.__stockResearchMainObserver &&
-    window.__stockResearchMainObserver !== probe.observer &&
-    window.__stockResearchMainTarget === target &&
-    document.documentElement.getAttribute(
-      "data-research-main-bridge-status"
-    ) === "applied"
+  const app = document.querySelector('[data-testid="stApp"]');
+  if (!probe || !app) return false;
+  const states = probe.scriptStates;
+  const runningIndex = states.indexOf("running");
+  const completedIndex = states.indexOf("notRunning", runningIndex + 1);
+  return (
+    runningIndex >= 1 &&
+    completedIndex > runningIndex &&
+    app.getAttribute("data-test-script-state") === "notRunning"
   );
 }
 """,
-        timeout=int(timeout_seconds * 1000),
-    )
+            timeout=int(timeout_seconds * 1000),
+        )
     after = page.evaluate(
         """
 () => {
   const probe = window.__a11ySameDocumentRerunProbe;
   const target = document.querySelector('[data-testid="stMain"]');
+  const app = document.querySelector('[data-testid="stApp"]');
+  const finalScriptState = app
+    ? app.getAttribute("data-test-script-state")
+    : "";
+  if (
+    probe &&
+    finalScriptState &&
+    probe.scriptStates[probe.scriptStates.length - 1] !== finalScriptState
+  ) {
+    probe.scriptStates.push(finalScriptState);
+  }
+  const scriptStates = probe ? [...probe.scriptStates] : [];
+  if (probe && probe.scriptStateObserver) {
+    probe.scriptStateObserver.disconnect();
+  }
   return {
     token: probe ? probe.token : "",
     same_document: Boolean(probe && probe.document === document),
-    observer_replaced: Boolean(
-      probe &&
-      window.__stockResearchMainObserver &&
-      window.__stockResearchMainObserver !== probe.observer
-    ),
+    script_states: scriptStates,
+    final_script_state: finalScriptState,
+    observer_available: Boolean(window.__stockResearchMainObserver),
     active_target: Boolean(
       probe &&
+      target &&
+      target.isConnected &&
       window.__stockResearchMainTarget === target
     ),
     bridge_status: document.documentElement.getAttribute(
@@ -600,6 +708,7 @@ def _same_document_streamlit_rerun_assertions(
     )
     return evaluate_same_document_streamlit_rerun(
         trigger_count=trigger_count,
+        trigger_activated=trigger_activated,
         initial_observer_available=bool(
             before.get("initial_observer_available")
         ),
@@ -607,7 +716,10 @@ def _same_document_streamlit_rerun_assertions(
         token_after=str(after.get("token") or ""),
         same_document=bool(after.get("same_document")),
         top_level_navigation_count=len(top_level_navigations),
-        observer_replaced=bool(after.get("observer_replaced")),
+        initial_script_state=str(before.get("initial_script_state") or ""),
+        script_states=tuple(after.get("script_states") or ()),
+        final_script_state=str(after.get("final_script_state") or ""),
+        observer_available=bool(after.get("observer_available")),
         active_target=bool(after.get("active_target")),
         bridge_status=str(after.get("bridge_status") or ""),
         route_before=str(before.get("route") or ""),

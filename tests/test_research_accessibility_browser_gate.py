@@ -148,12 +148,16 @@ def test_same_document_streamlit_rerun_contract_fails_closed_for_each_gap():
 
     passing_values = {
         "trigger_count": 1,
+        "trigger_activated": True,
         "initial_observer_available": True,
         "token_before": "probe-1",
         "token_after": "probe-1",
         "same_document": True,
         "top_level_navigation_count": 0,
-        "observer_replaced": True,
+        "initial_script_state": "notRunning",
+        "script_states": ("notRunning", "running", "notRunning"),
+        "final_script_state": "notRunning",
+        "observer_available": True,
         "active_target": True,
         "bridge_status": "applied",
         "route_before": "/?mode=research&page=data-health&ticker=NVDA",
@@ -164,32 +168,65 @@ def test_same_document_streamlit_rerun_contract_fails_closed_for_each_gap():
     assert all(assertion["passed"] for assertion in passed)
     assert [assertion["name"] for assertion in passed] == [
         "streamlit_rerun_trigger_available",
+        "streamlit_rerun_trigger_activated",
         "streamlit_rerun_initial_observer_available",
+        "streamlit_rerun_initial_script_idle",
+        "streamlit_rerun_cycle_completed",
         "streamlit_rerun_same_document",
         "streamlit_rerun_no_top_level_navigation",
-        "streamlit_rerun_observer_replaced",
+        "streamlit_rerun_observer_live",
         "streamlit_rerun_active_target",
         "streamlit_rerun_bridge_status",
         "streamlit_rerun_route_preserved",
     ]
 
-    for changed in (
-        {"trigger_count": 0},
-        {"initial_observer_available": False},
-        {"token_after": "new-document", "same_document": False},
-        {"top_level_navigation_count": 1},
-        {"observer_replaced": False},
-        {"active_target": False},
-        {"bridge_status": "missing"},
-        {"route_after": "/?mode=research&page=discover"},
+    for assertion_name, changed in (
+        ("streamlit_rerun_trigger_available", {"trigger_count": 0}),
+        ("streamlit_rerun_trigger_activated", {"trigger_activated": False}),
+        (
+            "streamlit_rerun_initial_observer_available",
+            {"initial_observer_available": False},
+        ),
+        (
+            "streamlit_rerun_initial_script_idle",
+            {"initial_script_state": "running"},
+        ),
+        (
+            "streamlit_rerun_cycle_completed",
+            {
+                "script_states": ("notRunning", "rerunRequested", "notRunning"),
+            },
+        ),
+        (
+            "streamlit_rerun_cycle_completed",
+            {
+                "script_states": ("notRunning", "running"),
+                "final_script_state": "running",
+            },
+        ),
+        (
+            "streamlit_rerun_same_document",
+            {"token_after": "new-document", "same_document": False},
+        ),
+        (
+            "streamlit_rerun_no_top_level_navigation",
+            {"top_level_navigation_count": 1},
+        ),
+        ("streamlit_rerun_observer_live", {"observer_available": False}),
+        ("streamlit_rerun_active_target", {"active_target": False}),
+        ("streamlit_rerun_bridge_status", {"bridge_status": "missing"}),
+        (
+            "streamlit_rerun_route_preserved",
+            {"route_after": "/?mode=research&page=discover"},
+        ),
     ):
         failed_values = {**passing_values, **changed}
-        assert not all(
-            assertion["passed"]
-            for assertion in evaluate_same_document_streamlit_rerun(
-                **failed_values
-            )
-        )
+        failed = evaluate_same_document_streamlit_rerun(**failed_values)
+        assert next(
+            assertion
+            for assertion in failed
+            if assertion["name"] == assertion_name
+        )["passed"] is False
 
 
 def test_same_document_rerun_helper_uses_real_workspace_widget_event():
@@ -204,18 +241,21 @@ def test_same_document_rerun_helper_uses_real_workspace_widget_event():
         def count(self):
             return 1
 
-        def check(self, *, force):
-            self.page.checked_force = force
+        def evaluate(self, script):
+            assert "element.click()" in script
+            assert "element.checked" in script
+            self.page.used_dom_click = True
             self.page.rerun_triggered = True
             if self.page.simulate_top_navigation:
                 self.page.frame_handler(self.page.main_frame)
+            return True
 
     class FakePage:
         def __init__(self, *, simulate_top_navigation=False):
             self.main_frame = object()
             self.simulate_top_navigation = simulate_top_navigation
             self.frame_handler = None
-            self.checked_force = None
+            self.used_dom_click = False
             self.rerun_triggered = False
             self.evaluate_calls = 0
 
@@ -237,16 +277,22 @@ def test_same_document_rerun_helper_uses_real_workspace_widget_event():
             self.evaluate_calls += 1
             if self.evaluate_calls == 1:
                 assert "document: document" in script
+                assert "data-test-script-state" in script
+                assert "MutationObserver" in script
                 return {
                     "token": "probe-1",
                     "initial_observer_available": True,
+                    "initial_script_state": "notRunning",
                     "route": "/?mode=research&page=data-health&ticker=NVDA",
                 }
             assert "__stockResearchMainTarget" in script
+            assert "scriptStateObserver.disconnect()" in script
             return {
                 "token": "probe-1",
                 "same_document": True,
-                "observer_replaced": self.rerun_triggered,
+                "script_states": ["notRunning", "running", "notRunning"],
+                "final_script_state": "notRunning",
+                "observer_available": self.rerun_triggered,
                 "active_target": True,
                 "bridge_status": "applied",
                 "route": "/?mode=research&page=data-health&ticker=NVDA",
@@ -255,7 +301,8 @@ def test_same_document_rerun_helper_uses_real_workspace_widget_event():
         def wait_for_function(self, script, *, timeout):
             assert self.rerun_triggered is True
             assert "__a11ySameDocumentRerunProbe" in script
-            assert "__stockResearchMainObserver" in script
+            assert 'states.indexOf("running")' in script
+            assert 'states.indexOf("notRunning", runningIndex + 1)' in script
             assert timeout == 5_000
 
     page = FakePage()
@@ -269,7 +316,7 @@ def test_same_document_rerun_helper_uses_real_workspace_widget_event():
         timeout_seconds=5,
     )
 
-    assert page.checked_force is True
+    assert page.used_dom_click is True
     assert all(assertion["passed"] for assertion in passed)
     assert next(
         assertion
