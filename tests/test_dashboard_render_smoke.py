@@ -1,7 +1,7 @@
+from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-import pandas as pd
 from streamlit.testing.v1 import AppTest
 
 from src.company_workbench_cash_generation_preview import (
@@ -32,37 +32,46 @@ def test_public_routes_render_without_exceptions_and_keep_core_markers():
 def test_company_workbench_renders_independent_observation_states_for_avgo_spy_and_qqq():
     from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
 
-    for ticker in ("AVGO", "SPY", "QQQ"):
-        route = DashboardRenderRoute(
-            name=f"{ticker} Company Workbench observation recency",
-            query_params=(
-                ("mode", "research"),
-                ("page", "company-workbench"),
-                ("ticker", ticker),
-                ("open", "1"),
-            ),
-            required_markers=("Company Workbench", "profile_price_lane", ticker, "Research-only"),
-        )
+    review_date = date(2026, 7, 27)
+    observation = load_observation_recency(
+        Path("data/prices.csv"),
+        selected_ticker="AVGO",
+        as_of=review_date,
+    )
+    route = DashboardRenderRoute(
+        name="AVGO Company Workbench observation recency",
+        query_params=(
+            ("mode", "research"),
+            ("page", "company-workbench"),
+            ("ticker", "AVGO"),
+            ("open", "1"),
+        ),
+        required_markers=("Company Workbench", "profile_price_lane", "AVGO", "SPY", "QQQ", "Research-only"),
+    )
 
+    with patch(
+        "src.dashboard.pd.Timestamp.now",
+        return_value=datetime(2026, 7, 27, tzinfo=timezone.utc),
+    ):
         result = render_public_routes(Path("."), routes=(route,))[0]
         rendered = "\n".join(result.rendered_blocks)
-        observation = load_observation_recency(
-            Path("data/prices.csv"),
-            selected_ticker=ticker,
-            as_of=pd.Timestamp.now(tz="UTC").date(),
-        )
-        selected = observation.selected_ticker
-        selected_scope = (
-            f"<small>Scope</small><strong>{ticker}</strong>"
-            f"<small>Through date</small><span>{selected.through_date or 'Unavailable'}</span>"
-            f"<small>State</small><span>{selected.state.replace('_', ' ').title()}</span>"
-        )
 
-        assert result.exceptions == ()
-        assert result.missing_markers == ()
-        assert result.forbidden_markers == ()
-        assert result.expanded_advanced == ()
-        assert selected_scope in rendered
+    assert result.exceptions == ()
+    assert result.missing_markers == ()
+    assert result.forbidden_markers == ()
+    assert result.expanded_advanced == ()
+    for row in (observation.selected_ticker, *observation.benchmarks):
+        message = (
+            "Historical context only; no current-market claim is made."
+            if row.state == "stale_review_only"
+            else row.message
+        )
+        assert (
+            f"<small>Scope</small><strong>{row.scope}</strong>"
+            f"<small>Through date</small><span>{row.through_date or 'Unavailable'}</span>"
+            f"<small>State</small><span>{row.state}</span>"
+            f"<p>{message}</p>"
+        ) in rendered
 
 
 def test_research_routes_render_without_exceptions_and_keep_answer_first_markers():

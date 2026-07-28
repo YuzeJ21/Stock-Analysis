@@ -1,6 +1,9 @@
+import csv
+import io
 from datetime import date
 from pathlib import Path
 
+import src.observation_recency as observation_recency
 from src.observation_recency import evaluate_observation_rows, load_observation_recency
 
 
@@ -52,6 +55,59 @@ def test_missing_file_returns_unavailable_results_without_fallback(tmp_path: Pat
     assert result.selected_ticker.state == "unavailable"
     assert result.profile_price_lane.state == "unavailable"
     assert [row.state for row in result.benchmarks] == ["unavailable", "unavailable"]
+
+
+def test_loader_evaluates_csv_rows_while_the_selected_file_is_open(monkeypatch, tmp_path: Path):
+    prices_path = tmp_path / "prices.csv"
+    selected_file = io.StringIO("ticker,date\nAVGO,2026-07-27\n")
+    sentinel = object()
+
+    original_open = observation_recency.Path.open
+
+    def open_selected_file(path, *args, **kwargs):
+        if path == prices_path:
+            return selected_file
+        return original_open(path, *args, **kwargs)
+
+    monkeypatch.setattr(observation_recency.Path, "open", open_selected_file)
+
+    def evaluate_while_open(rows, **kwargs):
+        assert not selected_file.closed
+        assert isinstance(rows, csv.DictReader)
+        return sentinel
+
+    monkeypatch.setattr(observation_recency, "evaluate_observation_rows", evaluate_while_open)
+
+    assert load_observation_recency(
+        prices_path,
+        selected_ticker="AVGO",
+        as_of=date(2026, 7, 27),
+    ) is sentinel
+
+
+def test_loader_discards_partial_rows_when_csv_iteration_fails(tmp_path: Path, monkeypatch):
+    prices_path = tmp_path / "prices.csv"
+    prices_path.write_text("ticker,date\nAVGO,2026-07-27\n", encoding="utf-8")
+
+    def partially_broken_rows(_handle):
+        yield {"ticker": "AVGO", "date": "2026-07-27"}
+        raise csv.Error("malformed row after valid data")
+
+    monkeypatch.setattr(observation_recency.csv, "DictReader", partially_broken_rows)
+
+    result = load_observation_recency(
+        prices_path,
+        selected_ticker="AVGO",
+        as_of=date(2026, 7, 27),
+    )
+
+    assert result.selected_ticker.state == "unavailable"
+    assert result.profile_price_lane.state == "unavailable"
+    assert [row.state for row in result.benchmarks] == ["unavailable", "unavailable"]
+    assert all(
+        row.message == "No current-market interpretation"
+        for row in (result.selected_ticker, result.profile_price_lane, *result.benchmarks)
+    )
 
 
 def test_missing_benchmark_does_not_change_selected_ticker_result():

@@ -5328,7 +5328,7 @@ def _observation_recency_message(row: ObservationRecency) -> str:
 
 def _observation_recency_item_html(row: ObservationRecency) -> str:
     through_date = row.through_date or "Unavailable"
-    state = row.state.replace("_", " ").title() or "Unavailable"
+    state = row.state or "unavailable"
     return (
         "<article class='observation-recency-item'>"
         f"<small>Scope</small><strong>{html.escape(row.scope)}</strong>"
@@ -5365,7 +5365,7 @@ def observation_recency_advanced_details(result: ObservationRecencySet) -> dict[
 
     rows = (result.selected_ticker, result.profile_price_lane, *result.benchmarks)
     return {
-        "Policy threshold": "7 calendar days",
+        "Policy threshold": f"{result.policy_days} calendar days",
         "Source path": result.source_path or "Unavailable",
         "Review date": result.as_of,
         "Excluded dates": {row.scope: row.excluded_date_count for row in rows},

@@ -48,7 +48,7 @@ def _result(scope: str, dates: list[date], excluded: int, as_of: date) -> Observ
             "",
             None,
             "unavailable",
-            "No valid observation is available on or before the review date.",
+            "No current-market interpretation",
             excluded,
         )
 
@@ -136,14 +136,18 @@ def load_observation_recency(
     source_path = str(prices_path)
     try:
         with prices_path.open("r", encoding="utf-8", newline="") as handle:
-            rows = list(csv.DictReader(handle))
+            return evaluate_observation_rows(
+                csv.DictReader(handle),
+                selected_ticker=selected_ticker,
+                benchmark_tickers=benchmark_tickers,
+                as_of=as_of,
+                source_path=source_path,
+            )
     except (OSError, UnicodeError, csv.Error):
-        rows = []
-
-    return evaluate_observation_rows(
-        rows,
-        selected_ticker=selected_ticker,
-        benchmark_tickers=benchmark_tickers,
-        as_of=as_of,
-        source_path=source_path,
-    )
+        return evaluate_observation_rows(
+            (),
+            selected_ticker=selected_ticker,
+            benchmark_tickers=benchmark_tickers,
+            as_of=as_of,
+            source_path=source_path,
+        )

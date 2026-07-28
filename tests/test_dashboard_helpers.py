@@ -7,6 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+
 import src.dashboard as dashboard
 import src.data_health_generated_churn as generated_churn
 from src.observation_recency import evaluate_observation_rows
@@ -82,6 +83,26 @@ def test_stale_observation_strip_exposes_date_without_current_market_claim(stale
     assert "2026-05-22" in rendered
     assert "Historical context only" in rendered
     assert "current-market" not in rendered.lower().replace("no current-market", "")
+
+
+def test_observation_strip_preserves_machine_readable_state_tokens_and_unavailable_message(stale_recency):
+    rendered = dashboard.observation_recency_strip_html(stale_recency, include_selected=True)
+
+    assert "<small>State</small><span>stale_review_only</span>" in rendered
+
+    unavailable = evaluate_observation_rows(
+        [],
+        selected_ticker="AVGO",
+        as_of=date(2026, 7, 27),
+    )
+    unavailable_rendered = dashboard.observation_recency_strip_html(unavailable, include_selected=True)
+    assert unavailable_rendered.count("No current-market interpretation") == 4
+
+
+def test_observation_recency_advanced_details_uses_the_result_policy_days(stale_recency):
+    details = dashboard.observation_recency_advanced_details(replace(stale_recency, policy_days=9))
+
+    assert details["Policy threshold"] == "9 calendar days"
 
 
 def test_observation_recency_advanced_details_keep_policy_source_and_excluded_counts(stale_recency):
@@ -29472,7 +29493,7 @@ def test_public_pages_use_compact_shell_before_page_content():
 
     shell_style_index = source.index("render_public_shell_mode_styles()")
     shell_index = source.index("render_public_app_shell(selected_page)", shell_style_index)
-    dispatch_index = source.index('if research_mode and selected_page == "Research Desk":', shell_index)
+    dispatch_index = source.index("if research_mode and render_personal_research_route(", shell_index)
     operator_header_index = source.index("render_app_header(\n            catalog,\n            output_frames,", shell_index)
     assert shell_style_index < shell_index < operator_header_index < dispatch_index
     assert "public-app-shell" in source
@@ -29738,7 +29759,7 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     skip_link_index = source.index("render_public_workflow_skip_link(selected_page, st.query_params)", public_shell_style_index)
     shell_index = source.index("render_public_app_shell(selected_page)", skip_link_index)
     skip_target_index = source.index("render_public_workflow_skip_target()", shell_index)
-    dispatch_index = source.index('if research_mode and selected_page == "Research Desk":', skip_target_index)
+    dispatch_index = source.index("if research_mode and render_personal_research_route(", skip_target_index)
     assert public_mode_index < public_shell_style_index < skip_link_index < shell_index < skip_target_index < dispatch_index
 
     skip_href = dashboard.public_workflow_skip_href(
@@ -29788,7 +29809,7 @@ def test_public_page_answer_precedes_shared_advanced_evidence():
         public_mode_index,
     )
     skip_target_index = source.index("render_public_workflow_skip_target()", public_profile_index)
-    dispatch_index = source.index('if research_mode and selected_page == "Research Desk":', skip_target_index)
+    dispatch_index = source.index("if research_mode and render_personal_research_route(", skip_target_index)
     profile_details_index = source.index("render_profile_trust_details(profile_context)", dispatch_index)
     change_details_index = source.index(
         "render_research_change_route_summary(",
@@ -29818,7 +29839,7 @@ def test_operator_workflow_skip_link_has_a_main_content_target():
     operator_branch_index = source.index("else:", output_frames_index)
     app_header_index = source.index("render_app_header(", operator_branch_index)
     skip_target_index = source.index("render_public_workflow_skip_target()", app_header_index)
-    dispatch_index = source.index('if research_mode and selected_page == "Research Desk":', skip_target_index)
+    dispatch_index = source.index("if research_mode and render_personal_research_route(", skip_target_index)
 
     assert sidebar_index < operator_link_index < output_frames_index < operator_branch_index < app_header_index < skip_target_index < dispatch_index
 
@@ -29918,7 +29939,7 @@ def test_public_route_bootstrap_clears_before_the_actual_shell_to_avoid_duplicat
     public_mode_index = source.index("if public_demo_mode:", source.index("output_frames = dashboard_output_frames_for_page(content_page)"))
     clear_index = source.index("if bootstrap_placeholder is not None:", public_mode_index)
     shell_index = source.index("render_public_app_shell(selected_page)", clear_index)
-    dispatch_index = source.index('if research_mode and selected_page == "Research Desk":', shell_index)
+    dispatch_index = source.index("if research_mode and render_personal_research_route(", shell_index)
 
     assert public_mode_index < clear_index < shell_index < dispatch_index
     assert "bootstrap_placeholder.empty()" in source[clear_index:shell_index]
