@@ -91,6 +91,15 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
     ),
 )
 
+ROUND_TRIP_AWAY_ROUTE_NAMES: dict[str, str] = {
+    "Research Desk": "Discover",
+    "Discover": "Company Workbench",
+    "Company Workbench": "Monitor",
+    "Monitor": "Research Data Health",
+    "Research Data Health": "Research Proof History",
+    "Research Proof History": "Research Desk",
+}
+
 
 def validated_loopback_base_url(base_url: str) -> str | None:
     """Return one normalized loopback root URL or fail closed."""
@@ -427,6 +436,27 @@ def evaluate_browser_errors(errors: Iterable[str]) -> dict[str, object]:
         "no_browser_errors",
         not observed,
         "no console or page errors" if not observed else "; ".join(observed),
+    )
+
+
+def evaluate_exact_route_url(
+    *,
+    actual_url: str,
+    expected_url: str,
+    phase: str,
+) -> dict[str, object]:
+    """Require an exact route URL, including query order and empty fragment."""
+
+    phase_name = str(phase or "snapshot").strip().lower().replace(" ", "_")
+    passed = bool(expected_url) and actual_url == expected_url
+    return _assertion(
+        f"exact_route_url_{phase_name}",
+        passed,
+        (
+            f"exact route URL retained: {expected_url}"
+            if passed
+            else f"expected route URL={expected_url!r}; actual={actual_url!r}"
+        ),
     )
 
 
@@ -1354,6 +1384,53 @@ def _wait_for_route_heading(
     )
 
 
+def _route_transition_target(route: ResearchRoute) -> ResearchRoute:
+    """Resolve one explicit, deterministic, non-self route transition."""
+
+    away_name = ROUND_TRIP_AWAY_ROUTE_NAMES.get(route.name, "")
+    matches = tuple(
+        candidate for candidate in RESEARCH_ROUTES
+        if candidate.name == away_name
+    )
+    if not away_name or len(matches) != 1 or matches[0] == route:
+        raise ValueError(
+            f"invalid route-transition mapping for {route.name!r}: {away_name!r}"
+        )
+    return matches[0]
+
+
+def _navigate_and_verify_route(
+    page: Any,
+    *,
+    base_url: str,
+    route: ResearchRoute,
+    phase: str,
+    timeout_seconds: float,
+) -> list[dict[str, object]]:
+    """Navigate, settle the exact route content, then reject late URL drift."""
+
+    expected_url = f"{base_url.rstrip('/')}{route.route}"
+    page.goto(
+        expected_url,
+        wait_until="domcontentloaded",
+        timeout=int(timeout_seconds * 1000),
+    )
+    _wait_for_visible_text(
+        page,
+        route.marker,
+        timeout_seconds=timeout_seconds,
+    )
+    _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+    _wait_for_route_heading(page, route, timeout_seconds=timeout_seconds)
+    return [
+        evaluate_exact_route_url(
+            actual_url=page.url,
+            expected_url=expected_url,
+            phase=phase,
+        )
+    ]
+
+
 def _measure_route(
     browser: Any,
     *,
@@ -1421,6 +1498,51 @@ def _measure_route(
         if not route.requires_primary_navigation:
             assertions.append(
                 _secondary_navigation_absence_assertion(page, phase="streamlit_rerun")
+            )
+
+        away_route = _route_transition_target(route)
+        assertions.extend(
+            _navigate_and_verify_route(
+                page,
+                base_url=base_url,
+                route=away_route,
+                phase="route_away",
+                timeout_seconds=timeout_seconds,
+            )
+        )
+        assertions.extend(
+            _semantic_main_assertions(page, phase="route_away")
+        )
+        assertions.extend(
+            _runtime_dom_assertions(page, phase="route_away")
+        )
+        if away_route.requires_primary_navigation:
+            assertions.append(_navigation_assertion(page, away_route))
+        else:
+            assertions.append(
+                _secondary_navigation_absence_assertion(page, phase="route_away")
+            )
+
+        assertions.extend(
+            _navigate_and_verify_route(
+                page,
+                base_url=base_url,
+                route=route,
+                phase="route_return",
+                timeout_seconds=timeout_seconds,
+            )
+        )
+        assertions.extend(
+            _semantic_main_assertions(page, phase="route_return")
+        )
+        assertions.extend(
+            _runtime_dom_assertions(page, phase="route_return")
+        )
+        if route.requires_primary_navigation:
+            assertions.append(_navigation_assertion(page, route))
+        else:
+            assertions.append(
+                _secondary_navigation_absence_assertion(page, phase="route_return")
             )
     except Exception as exc:
         assertions.append(

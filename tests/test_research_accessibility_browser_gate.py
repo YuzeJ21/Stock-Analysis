@@ -364,10 +364,133 @@ def test_secondary_navigation_contract_requires_explicit_absence():
     assert present_after_rerender["passed"] is False
 
 
-def test_browser_measurement_collects_errors_and_rechecks_landmark_after_streamlit_rerun():
+def test_route_transition_target_is_deterministic_and_never_self():
+    from src.research_accessibility_browser_gate import (
+        RESEARCH_ROUTES,
+        ROUND_TRIP_AWAY_ROUTE_NAMES,
+        _route_transition_target,
+    )
+
+    assert ROUND_TRIP_AWAY_ROUTE_NAMES == {
+        "Research Desk": "Discover",
+        "Discover": "Company Workbench",
+        "Company Workbench": "Monitor",
+        "Monitor": "Research Data Health",
+        "Research Data Health": "Research Proof History",
+        "Research Proof History": "Research Desk",
+    }
+    assert [
+        _route_transition_target(route).name
+        for route in RESEARCH_ROUTES
+    ] == [
+        "Discover",
+        "Company Workbench",
+        "Monitor",
+        "Research Data Health",
+        "Research Proof History",
+        "Research Desk",
+    ]
+    assert all(
+        _route_transition_target(route) != route
+        for route in RESEARCH_ROUTES
+    )
+
+
+def test_exact_route_url_contract_rejects_fragment_or_query_drift():
+    from src.research_accessibility_browser_gate import evaluate_exact_route_url
+
+    expected = (
+        "http://127.0.0.1:8501/"
+        "?mode=research&page=company-workbench&ticker=NVDA&open=1"
+    )
+    passed = evaluate_exact_route_url(
+        actual_url=expected,
+        expected_url=expected,
+        phase="route_return",
+    )
+    fragment = evaluate_exact_route_url(
+        actual_url=f"{expected}#public-page-answer",
+        expected_url=expected,
+        phase="route_return",
+    )
+    query_drift = evaluate_exact_route_url(
+        actual_url=expected.replace("open=1", "open=0"),
+        expected_url=expected,
+        phase="route_return",
+    )
+
+    assert passed["passed"] is True
+    assert passed["name"] == "exact_route_url_route_return"
+    assert fragment["passed"] is False
+    assert query_drift["passed"] is False
+
+
+def test_route_transition_verifies_url_after_late_render_mutation(monkeypatch):
+    import src.research_accessibility_browser_gate as gate
+
+    expected = "http://127.0.0.1:8501/?mode=research&page=research-desk"
+    events = []
+
+    class FakePage:
+        url = ""
+
+        def goto(self, url, *, wait_until, timeout):
+            assert wait_until == "domcontentloaded"
+            assert timeout == 5_000
+            self.url = url
+            events.append("goto")
+
+    def late_stability_drift(page, *, timeout_seconds):
+        assert timeout_seconds == 5
+        events.append("stability")
+        page.url = f"{page.url}#late-render-drift"
+
+    monkeypatch.setattr(
+        gate,
+        "_wait_for_visible_text",
+        lambda page, marker, *, timeout_seconds: events.append("marker"),
+    )
+    monkeypatch.setattr(gate, "_wait_for_dom_stability", late_stability_drift)
+    monkeypatch.setattr(
+        gate,
+        "_wait_for_route_heading",
+        lambda page, route, *, timeout_seconds: events.append("h1"),
+    )
+    monkeypatch.setattr(gate, "_semantic_main_assertions", lambda page, *, phase: [])
+    monkeypatch.setattr(gate, "_runtime_dom_assertions", lambda page, *, phase: [])
+    monkeypatch.setattr(
+        gate,
+        "_navigation_assertion",
+        lambda page, route: {
+            "name": "labelled_workflow_navigation",
+            "passed": True,
+            "detail": "fake navigation",
+        },
+    )
+
+    assertions = gate._navigate_and_verify_route(
+        FakePage(),
+        base_url="http://127.0.0.1:8501",
+        route=gate.RESEARCH_ROUTES[0],
+        phase="route_away",
+        timeout_seconds=5,
+    )
+
+    assert events == ["goto", "marker", "stability", "h1"]
+    assert next(
+        assertion
+        for assertion in assertions
+        if assertion["name"] == "exact_route_url_route_away"
+    )["passed"] is False
+    assert expected in str(assertions[0]["detail"])
+
+
+def test_browser_measurement_rechecks_landmark_after_rerun_and_route_transition():
     source = Path("src/research_accessibility_browser_gate.py").read_text(
         encoding="utf-8"
     )
+    transition = source[source.index("def _navigate_and_verify_route(") :]
+    transition = transition[: transition.index("\ndef _measure_route(")]
     measurement = source[source.index("def _measure_route(") :]
     measurement = measurement[: measurement.index("\ndef _failed_payload(")]
 
@@ -378,8 +501,20 @@ def test_browser_measurement_collects_errors_and_rechecks_landmark_after_streaml
         '_semantic_main_assertions(page, phase="streamlit_rerun")'
         in measurement
     )
+    assert '_semantic_main_assertions(page, phase="route_away")' in measurement
+    assert '_semantic_main_assertions(page, phase="route_return")' in measurement
     assert '_wait_for_route_heading(page, route,' in measurement
+    assert measurement.count("_wait_for_route_heading(") == 2
+    assert "away_route," in measurement
     assert "_same_document_streamlit_rerun_assertions(" in measurement
+    assert "away_route = _route_transition_target(route)" in measurement
+    assert measurement.count("_navigate_and_verify_route(") == 2
+    assert transition.count("page.goto(") == 1
+    assert transition.index("_wait_for_route_heading(") < transition.index(
+        "evaluate_exact_route_url("
+    )
+    assert 'phase="route_away"' in measurement
+    assert 'phase="route_return"' in measurement
     assert (
         '_secondary_navigation_absence_assertion(page, phase="initial")'
         in measurement
@@ -388,7 +523,20 @@ def test_browser_measurement_collects_errors_and_rechecks_landmark_after_streaml
         '_secondary_navigation_absence_assertion(page, phase="streamlit_rerun")'
         in measurement
     )
+    assert (
+        '_secondary_navigation_absence_assertion(page, phase="route_away")'
+        in measurement
+    )
+    assert (
+        '_secondary_navigation_absence_assertion(page, phase="route_return")'
+        in measurement
+    )
+    assert '_runtime_dom_assertions(page, phase="route_away")' in measurement
+    assert '_runtime_dom_assertions(page, phase="route_return")' in measurement
     assert measurement.count("page.goto(") == 1
+    assert measurement.index(
+        "_same_document_streamlit_rerun_assertions("
+    ) < measurement.index("away_route = _route_transition_target(route)")
 
 
 def test_discover_action_contract_uses_every_actual_row_and_fails_when_empty():
