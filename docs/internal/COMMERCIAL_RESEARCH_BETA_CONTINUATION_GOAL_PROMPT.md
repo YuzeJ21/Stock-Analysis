@@ -90,7 +90,7 @@ Current locally implemented capabilities to verify:
 - Earnings Nowcast readiness and five-company cohort board.
 - Prospective append-only point-in-time consensus collection contracts.
 - Prospective-only per-field proof operations: `make prospective-field-proof-status`, `make prospective-field-proof-preview INPUT=<reviewed_field_proof.csv> AS_OF=<utc-cutoff>`, and explicit `make prospective-field-proof-record INPUT=<same-file> AS_OF=<same-cutoff> PREVIEW_RECEIPT=<exact-receipt> CONFIRM_REVIEWED=1`. An absent ledger is a valid empty state; legacy narrative proof is not upgraded, and no sample rows are product evidence. Preview reports `technical_write_eligible` and `commercial_evidence_eligible` independently, and its preview receipt binds ledger, input, cutoff, commercial mode, and source-rights registry. The ledger does not activate readiness, does not update canonical data, does not update proof-readiness reconciliation, and does not activate Company Workbench. Any mapping requires a separate design.
-- Historical Valuation Regime, Research Outcome Review, and Catalyst Evidence Timeline.
+- Historical Valuation Regime, Research Outcome Review, and Catalyst Evidence Timeline. Historical-valuation numeric loading rejects blank or malformed numerator/denominator evidence per row rather than coercing it to zero or discarding valid sibling rows.
 - Forward View, Scenario Lab, Source Freshness Timeline, Research Comparison, Peer Read-Through Map, and Decision-Process Scorecard.
 - Local Decision Lab implementation is complete when current repository evidence reconfirms the immutable six-lane contract, Workbench placement, Monitor stable-order Research Discipline Review, per-ticker fail-closed isolation, responsive runtime behavior, release gates, exact staging, push, draft-PR update, and exact-head CI. It adds no route, ledger, readiness state, transaction field, position sizing, stop/profit rule, recommendation, or broker action. Do not reimplement it unless a current regression is directly reproduced.
 - The local Decision Lab does not prove source coverage, predictive accuracy, investment performance, independent adoption, hosted reliability, commercial demand, competitive superiority, or product-market fit.
@@ -204,7 +204,7 @@ Documentation and routing reconciliation is complete locally. Reopen it only whe
 
 Current local execution queue:
 
-1. Add shared quant provenance/recency eligibility without coupling readiness.
+1. Add shared quant provenance/recency eligibility without coupling readiness. The historical-valuation numeric-integrity prerequisite is complete locally; do not treat it as completion of the shared contract.
 2. Address semantic-main bridge framework reliability through direct runtime evidence.
 3. Resume the remaining automated portion of Priority 7.
 

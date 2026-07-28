@@ -45,7 +45,7 @@ Stage A-G labels are continuation maturity lanes only; they do not replace the n
 - Research Desk frames the saved cohort and change state; Discover selects a readiness-backed company; Company Workbench composes trends, valuation, forward scenarios, evidence, and authoring; Monitor reviews verified change and research discipline.
 - Research Decision Lab supports read-only composition plus append-only thesis, counter-thesis, evidence, catalyst, invalidation, scenario-assumption, and outcome records through validate -> preview -> explicit confirm.
 - SEC quarterly actuals preserve source lineage. EPS split basis remains unverified without explicit proof. Q4 actuals require an explicit SEC-filed Q4 table; Q4 is never derived.
-- Historical Valuation Regime, Source Freshness Timeline - Implemented, Research Comparison View - Implemented, Peer Read-Through Map, Scenario Lab, Research Outcome Review, and Catalyst Evidence Timeline stay fail-closed when their ledgers or source inputs are empty.
+- Historical Valuation Regime, Source Freshness Timeline - Implemented, Research Comparison View - Implemented, Peer Read-Through Map, Scenario Lab, Research Outcome Review, and Catalyst Evidence Timeline stay fail-closed when their ledgers or source inputs are empty. Historical-valuation numeric loading also rejects blank or malformed numerator/denominator evidence per row instead of coercing it to zero or discarding valid sibling rows.
 - Calculation software supports price setup, drawdown, volatility, beta, Sharpe/Sortino, DCF/scenarios, valuation context, deterministic nowcast contracts, walk-forward review, and point-in-time-universe validation.
 - Commercial source-rights, refresh-operation, provider-neutral authorization, workspace-isolation, audit-obligation, retention, monitoring, incident, and rollback contracts are locally testable. Local contracts do not prove hosted operation.
 - Public/package/release gates and current-head automation verify code, wording, route rendering, hygiene, and research boundaries. Automated evidence is not independent human review.
@@ -76,7 +76,7 @@ overflow without writing screenshots or other artifacts.
 
 Immediate approved local reliability queue:
 
-1. Add shared provenance and recency eligibility to valuation, indicator, and review-metric interpretation without coupling their independent readiness states.
+1. Add shared provenance and recency eligibility to valuation, indicator, and review-metric interpretation without coupling their independent readiness states. The independent historical-valuation numeric-integrity repair is complete locally; it does not substitute for this shared interpretation contract.
 2. Resolve the Streamlit semantic-main bridge framework reliability warning through a separately tested compatibility design; do not substitute an iframe without preserving the same-document landmark contract.
 3. Continue the remaining safe automated Priority 7 accessibility work.
 

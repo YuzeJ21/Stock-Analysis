@@ -2,7 +2,11 @@ from dataclasses import replace
 
 import pytest
 
-from src.historical_valuation_regime import ValuationObservation, build_valuation_regime
+from src.historical_valuation_regime import (
+    ValuationObservation,
+    build_valuation_regime,
+    load_valuation_observations,
+)
 from src.commercial_source_rights import SourceRights
 
 
@@ -144,6 +148,47 @@ def test_regime_rejects_non_finite_multiple_inputs(field, value):
     assert packet.state == "insufficient_history"
     assert packet.observation_count == 0
     assert packet.rejected_count == 1
+    assert packet.rejected_reasons == ("numerator and denominator must be finite",)
+
+
+@pytest.mark.parametrize(
+    ("numerator", "denominator"),
+    [
+        ("", "1.0"),
+        ("not-a-number", "1.0"),
+        ("22.0", "not-a-number"),
+    ],
+)
+def test_loader_keeps_valid_rows_and_rejects_invalid_numeric_evidence(
+    tmp_path,
+    numerator,
+    denominator,
+):
+    observations_path = tmp_path / "historical_valuation_observations.csv"
+    observations_path.write_text(
+        "ticker,metric,numerator,denominator,numerator_as_of,denominator_period_end,"
+        "denominator_available_at,definition_id,source,source_ref,retrieved_at\n"
+        f"NVDA,price_to_fcf_per_share,{numerator},{denominator},2025-01-28T21:00:00Z,2024-12-31,"
+        "2025-01-20T21:00:00Z,trailing_fcf_per_share_v1,reviewed_local_evidence,"
+        "evidence://valuation/invalid,2025-01-28T21:01:00Z\n"
+        "NVDA,price_to_fcf_per_share,22.0,1.0,2025-02-28T21:00:00Z,2024-12-31,"
+        "2025-01-20T21:00:00Z,trailing_fcf_per_share_v1,reviewed_local_evidence,"
+        "evidence://valuation/valid,2025-02-28T21:01:00Z\n",
+        encoding="utf-8",
+    )
+
+    packet = build_valuation_regime(
+        load_valuation_observations(observations_path),
+        ticker="NVDA",
+        metric="price_to_fcf_per_share",
+        as_of="2025-03-01T00:00:00Z",
+        minimum_observations=1,
+    )
+
+    assert packet.state == "ready"
+    assert packet.observation_count == 1
+    assert packet.rejected_count == 1
+    assert packet.latest_multiple == 22.0
     assert packet.rejected_reasons == ("numerator and denominator must be finite",)
 
 

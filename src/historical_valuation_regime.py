@@ -55,6 +55,13 @@ class ValuationRegimePacket:
     boundary: str
 
 
+def _numeric_evidence(value: object) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return float("nan")
+
+
 def load_valuation_observations(path: Path | str) -> tuple[ValuationObservation, ...]:
     source = Path(path)
     if not source.is_file():
@@ -66,8 +73,8 @@ def load_valuation_observations(path: Path | str) -> tuple[ValuationObservation,
                 ValuationObservation(
                     ticker=str(row.get("ticker") or ""),
                     metric=str(row.get("metric") or ""),
-                    numerator=float(row.get("numerator") or 0),
-                    denominator=float(row.get("denominator") or 0),
+                    numerator=_numeric_evidence(row.get("numerator")),
+                    denominator=_numeric_evidence(row.get("denominator")),
                     numerator_as_of=str(row.get("numerator_as_of") or ""),
                     denominator_period_end=str(row.get("denominator_period_end") or ""),
                     denominator_available_at=str(row.get("denominator_available_at") or ""),

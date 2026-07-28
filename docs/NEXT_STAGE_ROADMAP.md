@@ -13,7 +13,7 @@ Research routes show one route-relevant interpretation, while exact selected/
 profile/SPY/QQQ evidence remains in responsive Advanced cards. The direct
 desktop/phone browser matrix writes no screenshots or other artifacts.
 
-1. Add shared provenance/recency eligibility to quant interpretation while keeping every readiness lane independent.
+1. Add shared provenance/recency eligibility to quant interpretation while keeping every readiness lane independent. The historical-valuation numeric-loading repair is complete locally and remains only a prerequisite, not the shared eligibility contract.
 2. Resolve semantic-main bridge framework reliability with direct runtime evidence.
 3. Continue the remaining safe automated Priority 7 accessibility work.
 
