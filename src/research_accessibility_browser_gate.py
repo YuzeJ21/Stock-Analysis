@@ -4,15 +4,23 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import ipaddress
 import json
 import os
 import platform
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import parse_qs, urlparse
 
+from scripts.diff_hygiene import (
+    StatusEntry,
+    classify_path,
+    load_staged_status,
+    load_status,
+)
 from src.paths import resolve_project_root
 from src.public_performance_gate import (
     _git_commit,
@@ -26,6 +34,8 @@ from src.public_performance_gate import (
 
 VIEWPORTS: tuple[tuple[int, int], ...] = ((1280, 720), (390, 844))
 DATA_PROFILE_CONTRACT = ("STOCK_RESEARCH_DATA_PROFILE", "demo")
+EXPECTED_APP_TITLE = "Stock Research Command Center"
+EXPECTED_PROFILE_LABEL = "Demo"
 
 
 @dataclass(frozen=True)
@@ -57,6 +67,130 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "WEEKLY RESEARCH SUMMARY",
     ),
 )
+
+
+def validated_loopback_base_url(base_url: str) -> str | None:
+    """Return one normalized loopback root URL or fail closed."""
+
+    try:
+        parsed = urlparse(str(base_url or "").strip())
+        port = parsed.port
+    except ValueError:
+        return None
+    if (
+        parsed.scheme != "http"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path not in {"", "/"}
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    hostname = parsed.hostname.lower()
+    if hostname != "localhost":
+        try:
+            if not ipaddress.ip_address(hostname).is_loopback:
+                return None
+        except ValueError:
+            return None
+    display_host = f"[{hostname}]" if ":" in hostname else hostname
+    port_suffix = f":{port}" if port is not None else ""
+    return f"http://{display_host}{port_suffix}"
+
+
+def evaluate_demo_app_identity(
+    *,
+    page_title: str,
+    brand_text: str,
+    profile_label: str,
+    profile_caption: str,
+) -> dict[str, object]:
+    """Require the expected app shell and the rendered demo data profile."""
+
+    observed = {
+        "page_title": str(page_title or "").strip(),
+        "brand_text": str(brand_text or "").strip(),
+        "profile_label": str(profile_label or "").strip(),
+        "profile_caption": str(profile_caption or "").strip(),
+    }
+    passed = (
+        observed["page_title"] == EXPECTED_APP_TITLE
+        and observed["brand_text"] == EXPECTED_APP_TITLE
+        and observed["profile_label"] == EXPECTED_PROFILE_LABEL
+        and observed["profile_caption"].lower() == "data profile: demo"
+    )
+    return {
+        "passed": passed,
+        "detail": (
+            "rendered Stock Research Command Center demo profile identity verified"
+            if passed
+            else f"rendered app/profile identity mismatch: {observed}"
+        ),
+    }
+
+
+def evaluate_repository_hygiene(
+    entries: Iterable[StatusEntry],
+    *,
+    staged_entries: Iterable[StatusEntry],
+) -> dict[str, object]:
+    """Allow only unstaged generated churn classified by the hygiene contract."""
+
+    status_entries = tuple(entries)
+    staged = tuple(staged_entries)
+    staged_paths = sorted({entry.path for entry in staged})
+    excluded_generated_paths = sorted(
+        {
+            entry.path
+            for entry in status_entries
+            if classify_path(entry.path) == "generated_csv_churn"
+            and entry.path not in staged_paths
+        }
+    )
+    dirty_product_paths = sorted(
+        {
+            entry.path
+            for entry in status_entries
+            if classify_path(entry.path) != "generated_csv_churn"
+        }
+    )
+    passed = not staged_paths and not dirty_product_paths
+    return {
+        "passed": passed,
+        "dirty_product_paths": dirty_product_paths,
+        "staged_paths": staged_paths,
+        "excluded_generated_paths": excluded_generated_paths,
+        "detail": (
+            f"product tree clean; {len(excluded_generated_paths)} unstaged generated "
+            "artifact(s) classified and excluded"
+            if passed
+            else (
+                f"dirty product/manual paths={dirty_product_paths}; "
+                f"staged paths={staged_paths}"
+            )
+        ),
+    }
+
+
+def _repository_hygiene(root: Path) -> dict[str, object]:
+    try:
+        return evaluate_repository_hygiene(
+            load_status(root),
+            staged_entries=load_staged_status(root),
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return {
+            "passed": False,
+            "dirty_product_paths": [],
+            "staged_paths": [],
+            "excluded_generated_paths": [],
+            "detail": (
+                "repository hygiene could not be verified and failed closed: "
+                f"{type(exc).__name__}: {exc}"
+            ),
+        }
 
 
 def evaluate_discover_action_names(names: Iterable[str]) -> dict[str, object]:
@@ -102,24 +236,36 @@ def evaluate_skip_geometry(
     rectangle: dict[str, float] | None,
     *,
     viewport_width: int,
+    viewport_height: int,
 ) -> dict[str, object]:
     """Require a focused skip link to be usable and fully inside the viewport."""
 
-    if not rectangle or viewport_width <= 0:
+    if not rectangle or viewport_width <= 0 or viewport_height <= 0:
         return {
             "passed": False,
-            "detail": "focused skip geometry or viewport width is unavailable",
+            "detail": "focused skip geometry or viewport bounds are unavailable",
         }
     x = float(rectangle.get("x", 0))
+    y = float(rectangle.get("y", 0))
     width = float(rectangle.get("width", 0))
     height = float(rectangle.get("height", 0))
     right = x + width
-    passed = width > 0 and height > 0 and x >= 0 and right <= float(viewport_width)
+    bottom = y + height
+    passed = (
+        width > 0
+        and height > 0
+        and x >= 0
+        and y >= 0
+        and right <= float(viewport_width)
+        and bottom <= float(viewport_height)
+    )
     return {
         "passed": passed,
         "detail": (
-            f"focused skip geometry x={x:.1f}..{right:.1f} "
-            f"{'within' if passed else 'outside'} {viewport_width}px viewport"
+            f"focused skip geometry x={x:.1f}..{right:.1f}, "
+            f"y={y:.1f}..{bottom:.1f} "
+            f"{'within' if passed else 'outside'} "
+            f"{viewport_width}x{viewport_height} viewport"
         ),
     }
 
@@ -243,6 +389,7 @@ def _skip_link_assertions(page: Any) -> list[dict[str, object]]:
     geometry = evaluate_skip_geometry(
         skip_links.first.bounding_box(),
         viewport_width=int(page.evaluate("window.innerWidth")),
+        viewport_height=int(page.evaluate("window.innerHeight")),
     )
     results.append(
         _assertion(
@@ -404,24 +551,28 @@ element => {
     )
 
 
-def _authoring_error_assertion(page: Any) -> dict[str, object]:
+def _authoring_error_assertions(page: Any) -> list[dict[str, object]]:
     composer = page.locator("details").filter(
         has=page.get_by_text("Add a reviewed research record", exact=True)
     )
     if composer.count() != 1:
-        return _assertion(
-            "authoring_field_error_association",
-            False,
-            f"expected one authoring disclosure, found {composer.count()}",
-        )
+        return [
+            _assertion(
+                "authoring_field_error_association",
+                False,
+                f"expected one authoring disclosure, found {composer.count()}",
+            )
+        ]
     composer.locator("summary").click()
     validate = page.get_by_role("button", name="Validate and preview", exact=True)
     if validate.count() != 1:
-        return _assertion(
-            "authoring_field_error_association",
-            False,
-            f"expected one validation button, found {validate.count()}",
-        )
+        return [
+            _assertion(
+                "authoring_field_error_association",
+                False,
+                f"expected one validation button, found {validate.count()}",
+            )
+        ]
     validate.click()
     page.locator(
         '[aria-label="Thesis Id"][aria-invalid="true"]'
@@ -445,7 +596,7 @@ def _authoring_error_assertion(page: Any) -> dict[str, object]:
         and global_alerts.count() == 1
         and active_label == "Thesis Id"
     )
-    return _assertion(
+    first_result = _assertion(
         "authoring_field_error_association",
         passed,
         (
@@ -458,6 +609,145 @@ def _authoring_error_assertion(page: Any) -> dict[str, object]:
             )
         ),
     )
+    if not passed:
+        return [first_result]
+
+    field.fill("thesis-browser-regression")
+    field.press("Tab")
+    try:
+        error.first.wait_for(state="detached", timeout=10_000)
+        _wait_for_dom_stability(page, timeout_seconds=10)
+    except Exception as exc:
+        return [
+            first_result,
+            _assertion(
+                "authoring_field_error_cleanup_transition",
+                False,
+                f"old Thesis Id error did not clear after draft change: {type(exc).__name__}: {exc}",
+            ),
+        ]
+
+    thesis_after_change = page.get_by_label("Thesis Id", exact=True)
+    stale_thesis_clean = (
+        thesis_after_change.get_attribute("aria-invalid") is None
+        and thesis_after_change.get_attribute("aria-describedby") is None
+        and page.locator(f"#{described_by}").count() == 0
+    )
+    validate = page.get_by_role("button", name="Validate and preview", exact=True)
+    validate.click()
+    effective = page.locator('[aria-label="Effective At"][aria-invalid="true"]')
+    try:
+        effective.wait_for(state="attached", timeout=10_000)
+    except Exception as exc:
+        return [
+            first_result,
+            _assertion(
+                "authoring_field_error_cleanup_transition",
+                False,
+                (
+                    f"Effective At did not receive the next required error: "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+            ),
+        ]
+    effective_described_by = effective.get_attribute("aria-describedby") or ""
+    effective_error = (
+        page.locator(f"#{effective_described_by}")
+        if effective_described_by
+        else page.locator("#__missing-effective-at-error")
+    )
+    effective_alerts = page.get_by_role("alert").filter(
+        has_text="effective_at is required"
+    )
+    active_label = page.evaluate(
+        "document.activeElement && document.activeElement.getAttribute('aria-label')"
+    )
+    thesis_after_validation = page.get_by_label("Thesis Id", exact=True)
+    passed_transition = (
+        stale_thesis_clean
+        and thesis_after_validation.get_attribute("aria-invalid") is None
+        and thesis_after_validation.get_attribute("aria-describedby") is None
+        and effective.count() == 1
+        and bool(effective_described_by)
+        and effective_error.count() == 1
+        and effective_error.first.inner_text().strip() == "effective_at is required"
+        and effective_alerts.count() == 1
+        and active_label == "Effective At"
+    )
+    return [
+        first_result,
+        _assertion(
+            "authoring_field_error_cleanup_transition",
+            passed_transition,
+            (
+                "draft change cleared the bridge-owned Thesis Id state and the next "
+                "validation bound only Effective At"
+                if passed_transition
+                else (
+                    f"stale_thesis_clean={stale_thesis_clean}; "
+                    f"effective_count={effective.count()}; "
+                    f"effective_described_by={effective_described_by!r}; "
+                    f"effective_error_count={effective_error.count()}; "
+                    f"alert_count={effective_alerts.count()}; "
+                    f"active_label={active_label!r}"
+                )
+            ),
+        ),
+    ]
+
+
+def _demo_app_identity_assertion(
+    browser: Any,
+    *,
+    base_url: str,
+    timeout_seconds: float,
+) -> dict[str, object]:
+    context = browser.new_context(viewport={"width": 1280, "height": 720})
+    page = context.new_page()
+    try:
+        route = RESEARCH_ROUTES[0]
+        page.goto(
+            f"{base_url.rstrip('/')}{route.route}",
+            wait_until="domcontentloaded",
+            timeout=int(timeout_seconds * 1000),
+        )
+        _wait_for_visible_text(page, route.marker, timeout_seconds=timeout_seconds)
+        _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+        brands = [
+            value.strip()
+            for value in page.locator(".sidebar-nav-title").all_text_contents()
+            if value.strip()
+        ]
+        profile_labels = [
+            value.strip()
+            for value in page.locator(
+                "section[aria-label='Selected data profile and saved readiness'] strong"
+            ).all_text_contents()
+            if value.strip()
+        ]
+        captions = [
+            value.strip()
+            for value in page.locator(
+                '[data-testid="stSidebar"] [data-testid="stCaptionContainer"]'
+            ).all_text_contents()
+            if value.strip().lower().startswith("data profile:")
+        ]
+        return evaluate_demo_app_identity(
+            page_title=page.title(),
+            brand_text=brands[0] if len(brands) == 1 else "",
+            profile_label=profile_labels[0] if len(profile_labels) == 1 else "",
+            profile_caption=captions[0] if len(captions) == 1 else "",
+        )
+    except Exception as exc:
+        return {
+            "passed": False,
+            "detail": (
+                "rendered app/profile identity could not be verified: "
+                f"{type(exc).__name__}: {exc}"
+            ),
+        }
+    finally:
+        context.close()
 
 
 def _measure_route(
@@ -504,7 +794,7 @@ def _measure_route(
         if route.name == "Discover":
             assertions.append(_discover_action_assertion(page))
         if route.name == "Company Workbench":
-            assertions.append(_authoring_error_assertion(page))
+            assertions.extend(_authoring_error_assertions(page))
     except Exception as exc:
         assertions.append(
             _assertion(
@@ -526,12 +816,23 @@ def _measure_route(
     }
 
 
-def _failed_payload(root: Path, failure: str) -> dict[str, object]:
+def _failed_payload(
+    failure: str,
+    *,
+    repository_hygiene: dict[str, object] | None = None,
+) -> dict[str, object]:
     return {
         "verdict": "failed",
-        "commit": _git_commit(root),
+        "commit": "",
         "environment": f"{platform.system()} {platform.machine()}",
-        "data_profile": DATA_PROFILE_CONTRACT[1],
+        "data_profile": "unverified",
+        "repository_hygiene": repository_hygiene or {
+            "passed": False,
+            "dirty_product_paths": [],
+            "staged_paths": [],
+            "excluded_generated_paths": [],
+            "detail": "repository hygiene not verified",
+        },
         "viewports": [f"{width}x{height}" for width, height in VIEWPORTS],
         "routes": [route.name for route in RESEARCH_ROUTES],
         "results": [],
@@ -553,20 +854,34 @@ def run_research_accessibility_browser_gate(
     """Run deterministic read-only accessibility retests at both viewports."""
 
     root = resolve_project_root(base_dir)
+    normalized_base_url = ""
+    if base_url:
+        normalized_base_url = validated_loopback_base_url(base_url) or ""
+        if not normalized_base_url:
+            return _failed_payload(
+                "Explicit BASE_URL must be an HTTP loopback root URL; gate failed closed."
+            )
     chrome = chrome_executable or find_chrome_executable()
     if chrome is None or not Path(chrome).is_file() or not os.access(chrome, os.X_OK):
         return _failed_payload(
-            root,
             "Required Chrome-compatible browser runtime is unavailable; gate failed closed.",
         )
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
         return _failed_payload(
-            root,
             "Required Playwright browser runtime is unavailable; gate failed closed.",
         )
 
+    repository_hygiene = _repository_hygiene(root)
+    if not repository_hygiene["passed"]:
+        return _failed_payload(
+            "Repository contains staged or dirty non-generated implementation evidence; "
+            "gate failed closed.",
+            repository_hygiene=repository_hygiene,
+        )
+
+    identity: dict[str, object] | None = None
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(
@@ -575,18 +890,34 @@ def run_research_accessibility_browser_gate(
             )
             try:
                 server_context = (
-                    contextlib.nullcontext(base_url)
-                    if base_url
+                    contextlib.nullcontext(normalized_base_url)
+                    if normalized_base_url
                     else _local_demo_server(
                         root,
                         timeout_seconds=max(5.0, timeout_seconds),
                     )
                 )
                 with server_context as active_url:
+                    verified_active_url = validated_loopback_base_url(active_url)
+                    if not verified_active_url:
+                        return _failed_payload(
+                            "Active dashboard URL was not loopback; gate failed closed.",
+                            repository_hygiene=repository_hygiene,
+                        )
+                    identity = _demo_app_identity_assertion(
+                        browser,
+                        base_url=verified_active_url,
+                        timeout_seconds=max(5.0, timeout_seconds),
+                    )
+                    if not identity["passed"]:
+                        return _failed_payload(
+                            str(identity["detail"]),
+                            repository_hygiene=repository_hygiene,
+                        )
                     results = [
                         _measure_route(
                             browser,
-                            base_url=active_url,
+                            base_url=verified_active_url,
                             route=route,
                             viewport=viewport,
                             timeout_seconds=max(5.0, timeout_seconds),
@@ -598,8 +929,8 @@ def run_research_accessibility_browser_gate(
                 browser.close()
     except Exception as exc:
         return _failed_payload(
-            root,
             f"Browser gate could not execute and failed closed: {type(exc).__name__}: {exc}",
+            repository_hygiene=repository_hygiene,
         )
 
     failures = [
@@ -621,6 +952,8 @@ def run_research_accessibility_browser_gate(
             f"{platform.system()} {platform.machine()} | Chrome: {Path(chrome)}"
         ),
         "data_profile": DATA_PROFILE_CONTRACT[1],
+        "app_identity": identity,
+        "repository_hygiene": repository_hygiene,
         "viewports": [f"{width}x{height}" for width, height in VIEWPORTS],
         "routes": [route.name for route in RESEARCH_ROUTES],
         "results": results,

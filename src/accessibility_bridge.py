@@ -60,15 +60,15 @@ def authoring_field_error(
 
 def render_authoring_error_binding(
     component_html: Callable[..., Any],
-    error: AuthoringFieldError,
+    error: AuthoringFieldError | None,
 ) -> None:
-    """Associate and focus one exact-label field within the containing composer."""
+    """Clear bridge-owned state, then optionally associate one current error."""
 
     config = json.dumps(
         {
-            "fieldLabel": error.field_label,
-            "errorId": error.error_id,
-            "message": error.message,
+            "fieldLabel": error.field_label if error is not None else None,
+            "errorId": error.error_id if error is not None else None,
+            "message": error.message if error is not None else None,
         },
         ensure_ascii=True,
     )
@@ -81,6 +81,47 @@ def render_authoring_error_binding(
     if (!frameElement) return;
     const composer = frameElement.closest('[data-testid="stExpander"]');
     if (!composer) return;
+
+    for (const control of composer.querySelectorAll(
+      "[data-research-authoring-describedby-owned], " +
+      "[data-research-authoring-previous-invalid]"
+    )) {{
+      const ownedDescription = control.getAttribute(
+        "data-research-authoring-describedby-owned"
+      );
+      if (ownedDescription) {{
+        const describedBy = (control.getAttribute("aria-describedby") || "")
+          .split(/\\s+/)
+          .filter(Boolean);
+        const remainingDescriptions = describedBy.filter(
+          (token) => token !== ownedDescription
+        );
+        if (remainingDescriptions.length) {{
+          control.setAttribute("aria-describedby", remainingDescriptions.join(" "));
+        }} else {{
+          control.removeAttribute("aria-describedby");
+        }}
+        control.removeAttribute("data-research-authoring-describedby-owned");
+      }}
+
+      const previousInvalid = control.getAttribute(
+        "data-research-authoring-previous-invalid"
+      );
+      if (previousInvalid !== null) {{
+        if (previousInvalid === "__absent__") {{
+          control.removeAttribute("aria-invalid");
+        }} else {{
+          control.setAttribute("aria-invalid", previousInvalid);
+        }}
+        control.removeAttribute("data-research-authoring-previous-invalid");
+      }}
+    }}
+    for (const errorText of composer.querySelectorAll(
+      '[data-research-authoring-error-owned="true"]'
+    )) {{
+      errorText.remove();
+    }}
+    if (!config.errorId) return;
 
     const selector = 'input, textarea, select, [role="combobox"]';
     const candidates = [];
@@ -109,20 +150,32 @@ def render_authoring_error_binding(
     const existingErrors = Array.from(composer.querySelectorAll("[id]")).filter(
       (element) => element.id === config.errorId
     );
-    if (existingErrors.length > 1) return;
+    if (existingErrors.length !== 0) return;
 
     const control = controls[0];
-    let errorText = existingErrors[0];
-    if (!errorText) {{
-      errorText = document.createElement("p");
-      errorText.id = config.errorId;
-      errorText.className = "research-authoring-field-error";
-    }}
+    const errorText = document.createElement("p");
+    errorText.id = config.errorId;
+    errorText.className = "research-authoring-field-error";
+    errorText.setAttribute("data-research-authoring-error-owned", "true");
     errorText.textContent = config.message;
     errorText.style.color = "var(--text-color)";
     errorText.style.margin = "0.25rem 0 0";
+
+    const previousInvalid = control.getAttribute("aria-invalid");
+    control.setAttribute(
+      "data-research-authoring-previous-invalid",
+      previousInvalid === null ? "__absent__" : previousInvalid
+    );
     control.setAttribute("aria-invalid", "true");
-    control.setAttribute("aria-describedby", config.errorId);
+    const describedBy = (control.getAttribute("aria-describedby") || "")
+      .split(/\\s+/)
+      .filter(Boolean);
+    if (!describedBy.includes(config.errorId)) describedBy.push(config.errorId);
+    control.setAttribute("aria-describedby", describedBy.join(" "));
+    control.setAttribute(
+      "data-research-authoring-describedby-owned",
+      config.errorId
+    );
     control.insertAdjacentElement("afterend", errorText);
     control.focus({{preventScroll: false}});
   }} catch (error) {{

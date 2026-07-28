@@ -62,24 +62,135 @@ def test_focused_skip_geometry_must_be_fully_inside_the_horizontal_viewport():
     from src.research_accessibility_browser_gate import evaluate_skip_geometry
 
     assert evaluate_skip_geometry(
-        {"x": 16, "width": 174, "height": 44},
+        {"x": 16, "y": 8, "width": 174, "height": 44},
         viewport_width=390,
+        viewport_height=844,
     ) == {
         "passed": True,
-        "detail": "focused skip geometry x=16.0..190.0 within 390px viewport",
+        "detail": (
+            "focused skip geometry x=16.0..190.0, y=8.0..52.0 "
+            "within 390x844 viewport"
+        ),
     }
     assert evaluate_skip_geometry(
-        {"x": -320, "width": 174, "height": 44},
+        {"x": -320, "y": 8, "width": 174, "height": 44},
         viewport_width=390,
+        viewport_height=844,
     )["passed"] is False
     assert evaluate_skip_geometry(
-        {"x": 350, "width": 174, "height": 44},
+        {"x": 350, "y": 8, "width": 174, "height": 44},
         viewport_width=390,
+        viewport_height=844,
     )["passed"] is False
     assert evaluate_skip_geometry(
-        {"x": 16, "width": 0, "height": 44},
+        {"x": 16, "y": 8, "width": 0, "height": 44},
         viewport_width=390,
+        viewport_height=844,
     )["passed"] is False
+    assert evaluate_skip_geometry(
+        {"x": 16, "y": -1, "width": 174, "height": 44},
+        viewport_width=390,
+        viewport_height=844,
+    )["passed"] is False
+    assert evaluate_skip_geometry(
+        {"x": 16, "y": 820, "width": 174, "height": 44},
+        viewport_width=390,
+        viewport_height=844,
+    )["passed"] is False
+
+
+def test_explicit_base_url_accepts_only_loopback_root_urls():
+    from src.research_accessibility_browser_gate import validated_loopback_base_url
+
+    assert validated_loopback_base_url("http://127.0.0.1:8501") == (
+        "http://127.0.0.1:8501"
+    )
+    assert validated_loopback_base_url("http://localhost:8501/") == (
+        "http://localhost:8501"
+    )
+    assert validated_loopback_base_url("http://[::1]:8501") == (
+        "http://[::1]:8501"
+    )
+    for invalid in (
+        "https://example.com",
+        "http://0.0.0.0:8501",
+        "http://127.0.0.1:8501/unrelated",
+        "http://127.0.0.1:8501?mode=research",
+        "file:///tmp/dashboard.html",
+    ):
+        assert validated_loopback_base_url(invalid) is None
+
+
+def test_gate_rejects_non_loopback_before_browser_discovery(tmp_path):
+    from src.research_accessibility_browser_gate import (
+        run_research_accessibility_browser_gate,
+    )
+
+    payload = run_research_accessibility_browser_gate(
+        tmp_path,
+        base_url="https://example.com",
+        chrome_executable=tmp_path / "missing-chrome",
+    )
+
+    assert payload["verdict"] == "failed"
+    assert payload["commit"] == ""
+    assert payload["data_profile"] == "unverified"
+    assert "loopback" in " ".join(payload["failures"]).lower()
+
+
+def test_demo_identity_requires_product_title_brand_and_demo_profile():
+    from src.research_accessibility_browser_gate import evaluate_demo_app_identity
+
+    passed = evaluate_demo_app_identity(
+        page_title="Stock Research Command Center",
+        brand_text="Stock Research Command Center",
+        profile_label="Demo",
+        profile_caption="Data profile: demo",
+    )
+    wrong_profile = evaluate_demo_app_identity(
+        page_title="Stock Research Command Center",
+        brand_text="Stock Research Command Center",
+        profile_label="Local Research",
+        profile_caption="Data profile: local",
+    )
+    wrong_app = evaluate_demo_app_identity(
+        page_title="Another dashboard",
+        brand_text="Another dashboard",
+        profile_label="Demo",
+        profile_caption="Data profile: demo",
+    )
+
+    assert passed["passed"] is True
+    assert wrong_profile["passed"] is False
+    assert wrong_app["passed"] is False
+
+
+def test_repository_hygiene_allows_only_unstaged_generated_churn():
+    from scripts.diff_hygiene import StatusEntry
+    from src.research_accessibility_browser_gate import evaluate_repository_hygiene
+
+    generated = StatusEntry("M", "data/reports/ticker_readiness_report.csv")
+    product = StatusEntry("M", "src/dashboard.py")
+
+    clean_product = evaluate_repository_hygiene([generated], staged_entries=[])
+    dirty_product = evaluate_repository_hygiene(
+        [generated, product], staged_entries=[]
+    )
+    staged_generated = evaluate_repository_hygiene(
+        [generated], staged_entries=[generated]
+    )
+
+    assert clean_product["passed"] is True
+    assert clean_product["excluded_generated_paths"] == [
+        "data/reports/ticker_readiness_report.csv"
+    ]
+    assert clean_product["dirty_product_paths"] == []
+    assert dirty_product["passed"] is False
+    assert dirty_product["dirty_product_paths"] == ["src/dashboard.py"]
+    assert staged_generated["passed"] is False
+    assert staged_generated["staged_paths"] == [
+        "data/reports/ticker_readiness_report.csv"
+    ]
 
 
 def test_viewport_geometry_rejects_off_canvas_zero_size_and_short_route_links():

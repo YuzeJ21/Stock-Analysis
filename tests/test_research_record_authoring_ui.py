@@ -166,7 +166,11 @@ def test_invalid_thesis_preview_shows_error_without_confirmation_or_writing(tmp_
 
     assert not app.exception
     assert "effective_at must be an ISO-8601 timestamp" in "\n".join(item.value for item in app.error)
-    assert not app.get("iframe")
+    assert len(app.get("iframe")) == 1
+    cleanup = app.get("iframe")[0].proto.srcdoc
+    assert '"fieldLabel": null' in cleanup
+    assert '"errorId": null' in cleanup
+    assert '"message": null' in cleanup
     assert not any(item.label == "Confirm and save" for item in app.button)
     assert not any(tmp_path.iterdir())
 
@@ -191,6 +195,56 @@ def test_empty_thesis_binds_first_required_field_and_preserves_all_ledger_bytes(
         in binding
     )
     assert not any(item.label == "Confirm and save" for item in app.button)
+    after = tuple(path.read_bytes() if path.exists() else None for path in paths.all())
+    assert after == before == (None, None, None)
+
+
+def test_required_field_binding_advances_from_thesis_id_to_effective_at_without_writing(
+    tmp_path, monkeypatch
+):
+    paths = _paths(tmp_path)
+    before = tuple(path.read_bytes() if path.exists() else None for path in paths.all())
+    app = _app(tmp_path, monkeypatch)
+    validate_key = authoring_session_key("demo", "SYN1", "validate")
+
+    app.button(key=validate_key).click().run()
+    assert [item.value for item in app.error] == ["thesis_id is required"]
+    first_binding = app.get("iframe")[0].proto.srcdoc
+    assert '"fieldLabel": "Thesis Id"' in first_binding
+
+    app.text_input(key=_field_key("thesis", "thesis_id")).set_value(
+        "thesis-new"
+    ).run()
+    assert not app.error
+    cleanup = app.get("iframe")[0].proto.srcdoc
+    assert '"fieldLabel": null' in cleanup
+    assert '"errorId": null' in cleanup
+    assert "Draft changed after preview" in "\n".join(item.value for item in app.warning)
+
+    app.button(key=validate_key).click().run()
+    assert [item.value for item in app.error] == ["effective_at is required"]
+    second_binding = app.get("iframe")[0].proto.srcdoc
+    assert '"fieldLabel": "Effective At"' in second_binding
+    assert '"message": "effective_at is required"' in second_binding
+    after = tuple(path.read_bytes() if path.exists() else None for path in paths.all())
+    assert after == before == (None, None, None)
+
+
+def test_accepted_preview_renders_cleanup_binding_without_changing_ledger_bytes(
+    tmp_path, monkeypatch
+):
+    paths = _paths(tmp_path)
+    before = tuple(path.read_bytes() if path.exists() else None for path in paths.all())
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+
+    assert not app.error
+    assert any(item.label == "Confirm and save" for item in app.button)
+    assert len(app.get("iframe")) == 1
+    cleanup = app.get("iframe")[0].proto.srcdoc
+    assert '"fieldLabel": null' in cleanup
+    assert '"errorId": null' in cleanup
     after = tuple(path.read_bytes() if path.exists() else None for path in paths.all())
     assert after == before == (None, None, None)
 

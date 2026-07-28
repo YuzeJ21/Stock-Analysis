@@ -288,12 +288,14 @@ def render_research_record_authoring(
                 active_thesis = _active_thesis(scoped_theses)
             except (OSError, ValueError) as exc:
                 st_api.error(f"Thesis references could not be loaded; no record can be saved: {exc}")
+                render_authoring_error_binding(component_html, None)
                 return
         if kind in {"evidence", "outcome"} and not thesis_options:
             st_api.warning(
                 "This record type requires an existing thesis in this locked profile and ticker. "
                 "Add and confirm a thesis first."
             )
+            render_authoring_error_binding(component_html, None)
             return
         if kind == "thesis" and active_thesis is not None:
             st_api.caption(
@@ -338,6 +340,20 @@ def render_research_record_authoring(
                 generated_id=_generated_id(kind),
             )
         preview: AuthoringPreview | None = st_api.session_state.get(preview_key)
+        field_error = None
+        if (
+            validation_attempted
+            and preview is not None
+            and preview.draft_digest == authoring_draft_digest(draft)
+            and preview.state == "rejected"
+        ):
+            field_error = authoring_field_error(
+                preview.reason,
+                profile_key=profile_key,
+                ticker=symbol,
+                kind=kind,
+            )
+        render_authoring_error_binding(component_html, field_error)
         if preview is None:
             st_api.caption(
                 "No record is saved until this draft passes preview and you confirm the exact reviewed source evidence."
@@ -350,15 +366,6 @@ def render_research_record_authoring(
             return
         if preview.state == "rejected":
             st_api.error(preview.reason)
-            if validation_attempted:
-                field_error = authoring_field_error(
-                    preview.reason,
-                    profile_key=profile_key,
-                    ticker=symbol,
-                    kind=kind,
-                )
-                if field_error is not None:
-                    render_authoring_error_binding(component_html, field_error)
             return
 
         _render_preview(st_api, preview)

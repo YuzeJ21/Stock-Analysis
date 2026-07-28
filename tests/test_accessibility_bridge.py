@@ -94,6 +94,26 @@ def test_rendered_binding_contains_only_fixed_error_configuration():
     assert options == {"height": 0, "scrolling": False}
 
 
+def test_cleanup_binding_contains_no_field_configuration():
+    calls = []
+
+    _bridge_module().render_authoring_error_binding(
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+        None,
+    )
+
+    assert len(calls) == 1
+    (document,), options = calls[0]
+    match = re.search(r"const config = (\{.*\});", document)
+    assert match is not None
+    assert json.loads(match.group(1)) == {
+        "fieldLabel": None,
+        "errorId": None,
+        "message": None,
+    }
+    assert options == {"height": 0, "scrolling": False}
+
+
 def test_rendered_binding_is_bounded_exact_label_idempotent_and_non_actioning():
     calls = []
     bridge = _bridge_module()
@@ -112,11 +132,17 @@ def test_rendered_binding_is_bounded_exact_label_idempotent_and_non_actioning():
     assert "label.textContent.trim() === config.fieldLabel" in document
     assert "controls.length !== 1" in document
     assert 'setAttribute("aria-invalid", "true")' in document
-    assert 'setAttribute("aria-describedby", config.errorId)' in document
-    assert "existingErrors.length > 1" in document
-    assert "if (!errorText)" in document
+    assert 'setAttribute("aria-describedby", describedBy.join(" "))' in document
+    assert "existingErrors.length !== 0" in document
+    assert 'document.createElement("p")' in document
     assert "insertAdjacentElement" in document
     assert ".focus(" in document
+    assert 'data-research-authoring-error-owned' in document
+    assert 'data-research-authoring-describedby-owned' in document
+    assert 'data-research-authoring-previous-invalid' in document
+    assert "token !== ownedDescription" in document
+    assert "remainingDescriptions.join" in document
+    assert 'if (!config.errorId) return' in document
     for forbidden in (
         ".click(",
         "dispatchevent",
