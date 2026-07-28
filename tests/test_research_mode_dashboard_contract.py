@@ -24,6 +24,13 @@ def test_dashboard_defaults_local_use_to_research_desk_and_preserves_explicit_mo
     ) == "Data Health"
 
 
+def test_personal_research_routes_do_not_render_ambiguous_freshness_label():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    assert "<small>Freshness</small>" not in source
+    assert "Saved readiness" in source
+    assert "load_observation_recency" in source
+
+
 def test_dashboard_quarantines_legacy_deep_links_outside_operator_mode():
     for page in nav.LEGACY_RESEARCH_UTILITY_PAGES:
         assert dashboard.workspace_default_page(

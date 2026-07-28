@@ -27,6 +27,29 @@ def test_public_routes_render_without_exceptions_and_keep_core_markers():
     assert all(result.expanded_advanced == () for result in results)
 
 
+def test_company_workbench_renders_independent_observation_states_for_avgo_spy_and_qqq():
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    for ticker in ("AVGO", "SPY", "QQQ"):
+        route = DashboardRenderRoute(
+            name=f"{ticker} Company Workbench observation recency",
+            query_params=(
+                ("mode", "research"),
+                ("page", "company-workbench"),
+                ("ticker", ticker),
+                ("open", "1"),
+            ),
+            required_markers=("Company Workbench", "profile_price_lane", ticker, "Research-only"),
+        )
+
+        result = render_public_routes(Path("."), routes=(route,))[0]
+
+        assert result.exceptions == ()
+        assert result.missing_markers == ()
+        assert result.forbidden_markers == ()
+        assert result.expanded_advanced == ()
+
+
 def test_research_routes_render_without_exceptions_and_keep_answer_first_markers():
     from src.dashboard_render_smoke import RESEARCH_RENDER_ROUTES, render_public_routes
 
@@ -44,6 +67,17 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     assert all(result.missing_markers == () for result in results)
     assert all(result.forbidden_markers == () for result in results)
     assert all(result.expanded_advanced == () for result in results)
+    primary_routes = {
+        "Research Desk",
+        "Discover",
+        "Company Workbench",
+        "Monitor",
+    }
+    assert all(
+        "profile_price_lane" in "\n".join(result.rendered_blocks)
+        for result in results
+        if result.name in primary_routes
+    )
 
 
 def test_authoring_composer_renders_once_only_in_closed_research_company_workbench():

@@ -55,6 +55,7 @@ Stage A-G labels are continuation maturity lanes only; they do not replace the n
 - Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`.
 - Numerical Beat/Miss probability remains `awaiting_calibration_evidence` and withheld until at least 100 valid leakage-safe out-of-sample events pass every predeclared gate.
 - A saved artifact being current relative to local files does not render its latest market observation current. Current-market interpretation requires an independent observation-recency state.
+- Local market-observation recency is implemented as a read-only, independently fail-closed check of the selected local `prices.csv` path. Its exact policy is seven calendar days from the dashboard review date, not an exchange-session SLA. Permitted market-data source rights and hosted freshness remain external gates.
 - One permitted independently reviewed real point-in-time universe package, one permitted point-in-time consensus source, and one genuinely reviewed peer relationship are not on record.
 - Independent beta sessions completed: zero. The local protocol is ready, but it is not user-validation or demand evidence.
 

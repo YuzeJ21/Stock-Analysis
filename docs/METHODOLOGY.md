@@ -60,6 +60,12 @@ Freshness is evaluated per lane because a daily price series, an annual filing, 
 - `review_due`: the row may remain useful as historical context, but the expected event or review cadence has arrived and the lane needs source review before a current-state claim.
 - `stale_or_unknown`: the as-of date, source event, or review evidence is missing or too uncertain to support a freshness claim. Required analysis stays blocked when freshness is part of its gate.
 
+### Local Market-Observation Recency
+
+The four Personal Research routes receive one read-only evaluation of the selected local `prices.csv` path per dashboard run. The evaluator uses the dashboard's UTC review date, independently checks the profile price lane, selected ticker, SPY, and QQQ where shown, and fails closed for unreadable files, invalid dates, future dates, or missing usable observations. Its exact `current` threshold is seven calendar days; it is not an exchange-session SLA and does not imply intraday, real-time, provider, or hosted freshness.
+
+This local observation-recency check is separate from saved readiness, technical usability, source provenance, and commercial rights. A current local observation does not establish permitted market-data source rights or hosted freshness; those remain external gates. A stale observation remains historical context only and cannot support a current-market interpretation.
+
 | Lane | Review expectation | Stale or changed behavior |
 | --- | --- | --- |
 | Price / momentum | Check the latest saved trading date when the project is opened; a daily after-close refresh is appropriate when current setup context is needed. | Show the latest date and short-history state. Do not imply intraday or real-time coverage, and do not fabricate missing OHLCV history. |

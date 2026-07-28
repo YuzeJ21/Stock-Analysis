@@ -354,7 +354,7 @@ from src.review_metrics import build_metric_readiness_summary, configured_risk_f
 from src.risk_context_workflow import data_health_risk_context_cards, split_risk_context_by_price_ready
 from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
 from src.profile_context import ProfileContext, build_profile_context
-from src.observation_recency import ObservationRecency, ObservationRecencySet
+from src.observation_recency import ObservationRecency, ObservationRecencySet, load_observation_recency
 from src.company_workbench_cash_generation_preview import (
     CompanyWorkbenchCashGenerationPreview,
     company_workbench_cash_preview_requested,
@@ -35013,6 +35013,13 @@ def main() -> None:
             )
 
     content_page = workspace_content_page(selected_page, mode)
+    ticker = str(st.query_params.get("ticker") or "").strip().upper()
+    review_date = pd.Timestamp.now(tz="UTC").date()
+    observation_recency = load_observation_recency(
+        profile_context.data_dir / "prices.csv",
+        selected_ticker=ticker,
+        as_of=review_date,
+    )
     output_frames = dashboard_output_frames_for_page(content_page)
     if public_demo_mode:
         if bootstrap_placeholder is not None:
@@ -35062,12 +35069,14 @@ def main() -> None:
             focused_cohort,
             focused_cohort_coverage,
             weekly_research_summary,
+            observation_recency,
         )
     elif research_mode and selected_page == "Discover":
         render_research_workspace_header(
             "Discover",
             profile_context,
             primary_action="Choose one readiness-backed company and open its workbench",
+            observation_recency=observation_recency,
         )
         st.markdown("## Which stock can I review?")
         render_stock_selector(
@@ -35089,13 +35098,20 @@ def main() -> None:
                 "they do not rank expected return or create a recommendation."
             )
     elif research_mode and selected_page == "Company Workbench":
-        render_company_workbench(provider, profile_context, research_change_state, focused_cohort_coverage)
+        render_company_workbench(
+            provider,
+            profile_context,
+            research_change_state,
+            focused_cohort_coverage,
+            observation_recency,
+        )
     elif research_mode and selected_page == "Monitor":
         render_research_monitor(
             research_change_state,
             profile_context,
             weekly_research_summary,
             focused_cohort,
+            observation_recency,
         )
     elif content_page == "Home":
         render_home_page(
