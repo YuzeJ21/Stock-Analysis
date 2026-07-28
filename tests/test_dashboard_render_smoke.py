@@ -127,6 +127,19 @@ def test_research_route_renders_one_fragment_skip_link_and_one_existing_answer_t
     assert rendered.count("id='public-page-answer'") == 1
 
 
+def test_research_skip_link_is_first_in_streamlit_sidebar_dom_bucket():
+    app = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    app.query_params.update({"mode": "research", "page": "research-desk"})
+    app.run(timeout=120)
+
+    assert not app.exception
+    sidebar_markdown = [item.value for item in app.sidebar.markdown]
+    main_markdown = [item.value for item in app.main.markdown]
+
+    assert "class='public-skip-link'" in sidebar_markdown[0]
+    assert not any("class='public-skip-link'" in value for value in main_markdown)
+
+
 def test_authoring_composer_renders_once_only_in_closed_research_company_workbench():
     workbench = AppTest.from_file("src/dashboard.py", default_timeout=120)
     workbench.query_params.update(

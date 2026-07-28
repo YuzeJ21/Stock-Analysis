@@ -34983,9 +34983,12 @@ def main() -> None:
         if initial_mode == PUBLIC_DEMO_MODE
         else None
     )
-    render_public_workflow_skip_link(initial_page, st.query_params, mode=initial_mode)
-
     with st.sidebar:
+        render_public_workflow_skip_link(
+            initial_page,
+            st.query_params,
+            mode=initial_mode,
+        )
         render_sidebar_nav_header()
         mode_options = [RESEARCH_MODE, PUBLIC_DEMO_MODE, OPERATOR_DEMO_MODE]
         mode_selection = st.radio(
