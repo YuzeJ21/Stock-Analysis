@@ -6322,8 +6322,41 @@ def render_public_shell_mode_styles() -> None:
     st.markdown(
         """
         <style>
-        [data-testid="stSidebar"] {
+        [data-testid="stApp"] [data-testid="stSidebar"] {
+          display: block !important;
+          position: absolute !important;
+          inset: 0 auto auto 0 !important;
+          width: 0 !important;
+          min-width: 0 !important;
+          height: 0 !important;
+          overflow: visible !important;
+          border: 0 !important;
+          background: transparent !important;
+          z-index: 10001 !important;
+        }
+        [data-testid="stApp"] [data-testid="stSidebar"] [data-testid="stSidebarContent"],
+        [data-testid="stApp"] [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+          width: 0 !important;
+          min-width: 0 !important;
+          height: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+          background: transparent !important;
+          border: 0 !important;
+          gap: 0 !important;
+        }
+        [data-testid="stApp"] [data-testid="stSidebar"] [data-testid="stElementContainer"] {
           display: none !important;
+        }
+        [data-testid="stApp"] [data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.public-skip-link) {
+          display: block !important;
+          width: 0 !important;
+          min-width: 0 !important;
+          height: 0 !important;
+          overflow: visible !important;
+        }
+        [data-testid="stApp"] [data-testid="stSidebar"] .public-skip-link {
+          visibility: visible !important;
         }
         [data-testid="stMain"] {
           margin-left: 0 !important;
@@ -7075,9 +7108,10 @@ def render_public_workflow_skip_link(
     query_params: object | None = None,
     *,
     mode: str = PUBLIC_DEMO_MODE,
+    st_api: object = st,
 ) -> None:
     skip_href = public_workflow_skip_href(page_title, query_params, mode=mode) if page_title else "#public-page-answer"
-    st.markdown(public_workflow_skip_link_html(skip_href), unsafe_allow_html=True)
+    st_api.markdown(public_workflow_skip_link_html(skip_href), unsafe_allow_html=True)
 
 
 def render_research_workflow_navigation(selected_page: str, *, ticker: str = "") -> None:
@@ -34983,12 +35017,13 @@ def main() -> None:
         if initial_mode == PUBLIC_DEMO_MODE
         else None
     )
+    render_public_workflow_skip_link(
+        initial_page,
+        st.query_params,
+        mode=initial_mode,
+        st_api=st.sidebar,
+    )
     with st.sidebar:
-        render_public_workflow_skip_link(
-            initial_page,
-            st.query_params,
-            mode=initial_mode,
-        )
         render_sidebar_nav_header()
         mode_options = [RESEARCH_MODE, PUBLIC_DEMO_MODE, OPERATOR_DEMO_MODE]
         mode_selection = st.radio(

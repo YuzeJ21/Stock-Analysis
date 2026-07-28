@@ -29762,10 +29762,7 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     assert "tabindex='-1'" in source
 
     main_index = source.index("def main()")
-    skip_link_index = source.index(
-        "render_public_workflow_skip_link(initial_page, st.query_params, mode=initial_mode)",
-        main_index,
-    )
+    skip_link_index = source.index("render_public_workflow_skip_link(", main_index)
     sidebar_index = source.index("with st.sidebar:", main_index)
     output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(content_page)", sidebar_index)
     public_mode_index = source.index("if public_demo_mode:", output_frames_index)
@@ -29773,6 +29770,7 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     shell_index = source.index("render_public_app_shell(selected_page)", public_shell_style_index)
     skip_target_index = source.index("render_public_workflow_skip_target()", shell_index)
     dispatch_index = source.index("if research_mode and render_personal_research_route(", skip_target_index)
+    assert "st_api=st.sidebar" in source[skip_link_index:sidebar_index]
     assert skip_link_index < sidebar_index < output_frames_index
     assert public_mode_index < public_shell_style_index < shell_index < skip_target_index < dispatch_index
     assert source[main_index:].count("render_public_workflow_skip_link(") == 1
@@ -29793,6 +29791,40 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     assert "id='public-page-answer'" in target_html
     assert "tabindex='-1'" in target_html
     assert "Page answer begins" in target_html
+
+
+def test_public_shell_collapses_sidebar_but_preserves_only_skip_wrapper(monkeypatch):
+    rendered: list[str] = []
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda body, **_kwargs: rendered.append(str(body)),
+    )
+
+    dashboard.render_public_shell_mode_styles()
+
+    assert len(rendered) == 1
+    style = rendered[0]
+    sidebar_start = style.index(
+        '[data-testid="stApp"] [data-testid="stSidebar"] {'
+    )
+    sidebar_rule = style[sidebar_start : style.index("}", sidebar_start)]
+
+    assert "display: none !important;" not in sidebar_rule
+    assert "position: absolute !important;" in sidebar_rule
+    assert "width: 0 !important;" in sidebar_rule
+    assert "min-width: 0 !important;" in sidebar_rule
+    assert "overflow: visible !important;" in sidebar_rule
+    assert (
+        '[data-testid="stApp"] [data-testid="stSidebar"] '
+        '[data-testid="stElementContainer"] {'
+        in style
+    )
+    assert (
+        '[data-testid="stApp"] [data-testid="stSidebar"] '
+        '[data-testid="stElementContainer"]:has(.public-skip-link) {'
+        in style
+    )
 
 
 def test_framework_help_and_dataframe_controls_reserve_minimum_touch_targets():
@@ -29845,10 +29877,7 @@ def test_operator_workflow_skip_link_has_a_main_content_target():
     assert operator_href == "#public-page-answer"
 
     main_index = source.index("def main()")
-    operator_link_index = source.index(
-        "render_public_workflow_skip_link(initial_page, st.query_params, mode=initial_mode)",
-        main_index,
-    )
+    operator_link_index = source.index("render_public_workflow_skip_link(", main_index)
     sidebar_index = source.index("with st.sidebar:", main_index)
     output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(content_page)", sidebar_index)
     operator_branch_index = source.index("else:", output_frames_index)
@@ -29856,6 +29885,7 @@ def test_operator_workflow_skip_link_has_a_main_content_target():
     skip_target_index = source.index("render_public_workflow_skip_target()", app_header_index)
     dispatch_index = source.index("if research_mode and render_personal_research_route(", skip_target_index)
 
+    assert "st_api=st.sidebar" in source[operator_link_index:sidebar_index]
     assert operator_link_index < sidebar_index < output_frames_index < operator_branch_index < app_header_index < skip_target_index < dispatch_index
     assert source[main_index:].count("render_public_workflow_skip_link(") == 1
 

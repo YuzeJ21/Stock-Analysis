@@ -140,6 +140,21 @@ def test_research_skip_link_is_first_in_streamlit_sidebar_dom_bucket():
     assert not any("class='public-skip-link'" in value for value in main_markdown)
 
 
+def test_public_skip_link_stays_in_first_sidebar_dom_bucket_and_renders_once():
+    app = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    app.query_params.update({"mode": "public"})
+    app.run(timeout=120)
+
+    assert not app.exception
+    sidebar_markdown = [item.value for item in app.sidebar.markdown]
+    main_markdown = [item.value for item in app.main.markdown]
+    rendered = sidebar_markdown + main_markdown
+
+    assert "class='public-skip-link'" in sidebar_markdown[0]
+    assert not any("class='public-skip-link'" in value for value in main_markdown)
+    assert sum("class='public-skip-link'" in value for value in rendered) == 1
+
+
 def test_authoring_composer_renders_once_only_in_closed_research_company_workbench():
     workbench = AppTest.from_file("src/dashboard.py", default_timeout=120)
     workbench.query_params.update(

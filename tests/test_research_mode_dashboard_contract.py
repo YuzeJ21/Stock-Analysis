@@ -884,7 +884,7 @@ def test_company_workbench_places_one_decision_lab_after_what_changed_before_bus
     assert "decision_lab_state.identity" in report
 
 
-def test_skip_link_renders_first_inside_sidebar_and_precedes_page_answer():
+def test_skip_link_renders_in_first_sidebar_bucket_before_page_answer():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
 
     href = dashboard.public_workflow_skip_href(
@@ -906,7 +906,8 @@ def test_skip_link_renders_first_inside_sidebar_and_precedes_page_answer():
     answer_target = main.index("render_public_workflow_skip_target()")
     dispatch = main.index("if research_mode and render_personal_research_route(")
 
-    assert sidebar_entrypoint < skip_call < sidebar_header < answer_target < dispatch
+    assert "st_api=st.sidebar" in main[skip_call:sidebar_entrypoint]
+    assert skip_call < sidebar_entrypoint < sidebar_header < answer_target < dispatch
     assert main.count("render_public_workflow_skip_link(") == 1
 
 
