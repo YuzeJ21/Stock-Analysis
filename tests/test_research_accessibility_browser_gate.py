@@ -16,24 +16,47 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
         "Research Proof History",
     ]
     assert [
-        (route.route, route.marker, route.requires_primary_navigation)
+        (
+            route.route,
+            route.marker,
+            route.expected_h1,
+            route.requires_primary_navigation,
+        )
         for route in RESEARCH_ROUTES
     ] == [
-        ("/?mode=research&page=research-desk", "Weekly research summary", True),
-        ("/?mode=research&page=discover", "Which stock can I review?", True),
+        (
+            "/?mode=research&page=research-desk",
+            "Weekly research summary",
+            "Research Desk",
+            True,
+        ),
+        (
+            "/?mode=research&page=discover",
+            "Which stock can I review?",
+            "Discover",
+            True,
+        ),
         (
             "/?mode=research&page=company-workbench&ticker=NVDA&open=1",
             "Company Workbench",
+            "Company Workbench",
             True,
         ),
-        ("/?mode=research&page=monitor", "WEEKLY RESEARCH SUMMARY", True),
+        (
+            "/?mode=research&page=monitor",
+            "WEEKLY RESEARCH SUMMARY",
+            "Monitor",
+            True,
+        ),
         (
             "/?mode=research&page=data-health&ticker=NVDA",
+            "Data Health",
             "Data Health",
             False,
         ),
         (
             "/?mode=research&page=proof-history&ticker=NVDA",
+            "Proof History",
             "Proof History",
             False,
         ),
@@ -118,6 +141,28 @@ def test_browser_error_contract_rejects_console_and_page_errors():
     assert "unhandled exception" in str(failed["detail"])
 
 
+def test_secondary_navigation_contract_requires_explicit_absence():
+    from src.research_accessibility_browser_gate import (
+        evaluate_secondary_navigation_absence,
+    )
+
+    absent = evaluate_secondary_navigation_absence(
+        navigation_count=0,
+        phase="initial",
+    )
+    present_after_rerender = evaluate_secondary_navigation_absence(
+        navigation_count=1,
+        phase="rerender",
+    )
+
+    assert absent == {
+        "name": "secondary_workflow_navigation_absent_initial",
+        "passed": True,
+        "detail": "labelled primary workflow navigation count=0",
+    }
+    assert present_after_rerender["passed"] is False
+
+
 def test_browser_measurement_collects_errors_and_rechecks_landmark_after_rerender():
     source = Path("src/research_accessibility_browser_gate.py").read_text(
         encoding="utf-8"
@@ -129,6 +174,16 @@ def test_browser_measurement_collects_errors_and_rechecks_landmark_after_rerende
     assert 'page.on("pageerror"' in measurement
     assert '_semantic_main_assertions(page, phase="initial")' in measurement
     assert '_semantic_main_assertions(page, phase="rerender")' in measurement
+    assert '_wait_for_route_heading(page, route,' in measurement
+    assert '_wait_for_route_heading(page, away_route,' in measurement
+    assert (
+        '_secondary_navigation_absence_assertion(page, phase="initial")'
+        in measurement
+    )
+    assert (
+        '_secondary_navigation_absence_assertion(page, phase="rerender")'
+        in measurement
+    )
     assert "_rerender_route(" in measurement
 
 

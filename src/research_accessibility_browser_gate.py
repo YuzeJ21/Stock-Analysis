@@ -46,6 +46,7 @@ class ResearchRoute:
     name: str
     route: str
     marker: str
+    expected_h1: str
     requires_primary_navigation: bool = True
 
 
@@ -54,31 +55,37 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "Research Desk",
         "/?mode=research&page=research-desk",
         "Weekly research summary",
+        "Research Desk",
     ),
     ResearchRoute(
         "Discover",
         "/?mode=research&page=discover",
         "Which stock can I review?",
+        "Discover",
     ),
     ResearchRoute(
         "Company Workbench",
         "/?mode=research&page=company-workbench&ticker=NVDA&open=1",
+        "Company Workbench",
         "Company Workbench",
     ),
     ResearchRoute(
         "Monitor",
         "/?mode=research&page=monitor",
         "WEEKLY RESEARCH SUMMARY",
+        "Monitor",
     ),
     ResearchRoute(
         "Research Data Health",
         "/?mode=research&page=data-health&ticker=NVDA",
+        "Data Health",
         "Data Health",
         requires_primary_navigation=False,
     ),
     ResearchRoute(
         "Research Proof History",
         "/?mode=research&page=proof-history&ticker=NVDA",
+        "Proof History",
         "Proof History",
         requires_primary_navigation=False,
     ),
@@ -420,6 +427,35 @@ def evaluate_browser_errors(errors: Iterable[str]) -> dict[str, object]:
         "no_browser_errors",
         not observed,
         "no console or page errors" if not observed else "; ".join(observed),
+    )
+
+
+def evaluate_secondary_navigation_absence(
+    *,
+    navigation_count: int,
+    phase: str,
+) -> dict[str, object]:
+    """Require secondary evidence routes to omit the primary workflow nav."""
+
+    phase_name = str(phase or "snapshot").strip().lower().replace(" ", "_")
+    return _assertion(
+        f"secondary_workflow_navigation_absent_{phase_name}",
+        navigation_count == 0,
+        f"labelled primary workflow navigation count={navigation_count}",
+    )
+
+
+def _secondary_navigation_absence_assertion(
+    page: Any,
+    *,
+    phase: str,
+) -> dict[str, object]:
+    navigation_count = page.locator(
+        "nav[aria-label='Personal research workflow']"
+    ).count()
+    return evaluate_secondary_navigation_absence(
+        navigation_count=navigation_count,
+        phase=phase,
     )
 
 
@@ -930,6 +966,23 @@ def _rerender_route(route: ResearchRoute) -> ResearchRoute:
     return RESEARCH_ROUTES[(index + 1) % len(RESEARCH_ROUTES)]
 
 
+def _wait_for_route_heading(
+    page: Any,
+    route: ResearchRoute,
+    *,
+    timeout_seconds: float,
+) -> None:
+    page.get_by_role("main").get_by_role(
+        "heading",
+        level=1,
+        name=route.expected_h1,
+        exact=True,
+    ).wait_for(
+        state="visible",
+        timeout=int(timeout_seconds * 1000),
+    )
+
+
 def _measure_route(
     browser: Any,
     *,
@@ -961,11 +1014,16 @@ def _measure_route(
         )
         _wait_for_visible_text(page, route.marker, timeout_seconds=timeout_seconds)
         _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+        _wait_for_route_heading(page, route, timeout_seconds=timeout_seconds)
 
         assertions.extend(_semantic_main_assertions(page, phase="initial"))
         assertions.extend(_runtime_dom_assertions(page, phase="initial"))
         if route.requires_primary_navigation:
             assertions.append(_navigation_assertion(page, route))
+        else:
+            assertions.append(
+                _secondary_navigation_absence_assertion(page, phase="initial")
+            )
         assertions.extend(_skip_link_assertions(page))
         if route.requires_primary_navigation:
             assertions.append(_summary_focus_assertion(page))
@@ -986,6 +1044,7 @@ def _measure_route(
             timeout_seconds=timeout_seconds,
         )
         _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+        _wait_for_route_heading(page, away_route, timeout_seconds=timeout_seconds)
         page.goto(
             f"{base_url.rstrip('/')}{route.route}",
             wait_until="domcontentloaded",
@@ -993,8 +1052,13 @@ def _measure_route(
         )
         _wait_for_visible_text(page, route.marker, timeout_seconds=timeout_seconds)
         _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+        _wait_for_route_heading(page, route, timeout_seconds=timeout_seconds)
         assertions.extend(_semantic_main_assertions(page, phase="rerender"))
         assertions.extend(_runtime_dom_assertions(page, phase="rerender"))
+        if not route.requires_primary_navigation:
+            assertions.append(
+                _secondary_navigation_absence_assertion(page, phase="rerender")
+            )
     except Exception as exc:
         assertions.append(
             _assertion(
