@@ -141,6 +141,143 @@ def test_browser_error_contract_rejects_console_and_page_errors():
     assert "unhandled exception" in str(failed["detail"])
 
 
+def test_same_document_streamlit_rerun_contract_fails_closed_for_each_gap():
+    from src.research_accessibility_browser_gate import (
+        evaluate_same_document_streamlit_rerun,
+    )
+
+    passing_values = {
+        "trigger_count": 1,
+        "initial_observer_available": True,
+        "token_before": "probe-1",
+        "token_after": "probe-1",
+        "same_document": True,
+        "top_level_navigation_count": 0,
+        "observer_replaced": True,
+        "active_target": True,
+        "bridge_status": "applied",
+        "route_before": "/?mode=research&page=data-health&ticker=NVDA",
+        "route_after": "/?mode=research&page=data-health&ticker=NVDA",
+    }
+    passed = evaluate_same_document_streamlit_rerun(**passing_values)
+
+    assert all(assertion["passed"] for assertion in passed)
+    assert [assertion["name"] for assertion in passed] == [
+        "streamlit_rerun_trigger_available",
+        "streamlit_rerun_initial_observer_available",
+        "streamlit_rerun_same_document",
+        "streamlit_rerun_no_top_level_navigation",
+        "streamlit_rerun_observer_replaced",
+        "streamlit_rerun_active_target",
+        "streamlit_rerun_bridge_status",
+        "streamlit_rerun_route_preserved",
+    ]
+
+    for changed in (
+        {"trigger_count": 0},
+        {"initial_observer_available": False},
+        {"token_after": "new-document", "same_document": False},
+        {"top_level_navigation_count": 1},
+        {"observer_replaced": False},
+        {"active_target": False},
+        {"bridge_status": "missing"},
+        {"route_after": "/?mode=research&page=discover"},
+    ):
+        failed_values = {**passing_values, **changed}
+        assert not all(
+            assertion["passed"]
+            for assertion in evaluate_same_document_streamlit_rerun(
+                **failed_values
+            )
+        )
+
+
+def test_same_document_rerun_helper_uses_real_workspace_widget_event():
+    from src.research_accessibility_browser_gate import (
+        _same_document_streamlit_rerun_assertions,
+    )
+
+    class FakeRadio:
+        def __init__(self, page):
+            self.page = page
+
+        def count(self):
+            return 1
+
+        def check(self, *, force):
+            self.page.checked_force = force
+            self.page.rerun_triggered = True
+            if self.page.simulate_top_navigation:
+                self.page.frame_handler(self.page.main_frame)
+
+    class FakePage:
+        def __init__(self, *, simulate_top_navigation=False):
+            self.main_frame = object()
+            self.simulate_top_navigation = simulate_top_navigation
+            self.frame_handler = None
+            self.checked_force = None
+            self.rerun_triggered = False
+            self.evaluate_calls = 0
+
+        def on(self, event, handler):
+            assert event == "framenavigated"
+            self.frame_handler = handler
+
+        def get_by_role(self, role, *, name, exact):
+            assert (role, name, exact) == (
+                "radio",
+                "Public visitor mode",
+                True,
+            )
+            return FakeRadio(self)
+
+        def evaluate(self, script):
+            assert "__a11ySameDocumentRerunProbe" in script
+            assert "__stockResearchMainObserver" in script
+            self.evaluate_calls += 1
+            if self.evaluate_calls == 1:
+                assert "document: document" in script
+                return {
+                    "token": "probe-1",
+                    "initial_observer_available": True,
+                    "route": "/?mode=research&page=data-health&ticker=NVDA",
+                }
+            assert "__stockResearchMainTarget" in script
+            return {
+                "token": "probe-1",
+                "same_document": True,
+                "observer_replaced": self.rerun_triggered,
+                "active_target": True,
+                "bridge_status": "applied",
+                "route": "/?mode=research&page=data-health&ticker=NVDA",
+            }
+
+        def wait_for_function(self, script, *, timeout):
+            assert self.rerun_triggered is True
+            assert "__a11ySameDocumentRerunProbe" in script
+            assert "__stockResearchMainObserver" in script
+            assert timeout == 5_000
+
+    page = FakePage()
+    passed = _same_document_streamlit_rerun_assertions(
+        page,
+        timeout_seconds=5,
+    )
+    navigated_page = FakePage(simulate_top_navigation=True)
+    failed = _same_document_streamlit_rerun_assertions(
+        navigated_page,
+        timeout_seconds=5,
+    )
+
+    assert page.checked_force is True
+    assert all(assertion["passed"] for assertion in passed)
+    assert next(
+        assertion
+        for assertion in failed
+        if assertion["name"] == "streamlit_rerun_no_top_level_navigation"
+    )["passed"] is False
+
+
 def test_secondary_navigation_contract_requires_explicit_absence():
     from src.research_accessibility_browser_gate import (
         evaluate_secondary_navigation_absence,
@@ -163,7 +300,7 @@ def test_secondary_navigation_contract_requires_explicit_absence():
     assert present_after_rerender["passed"] is False
 
 
-def test_browser_measurement_collects_errors_and_rechecks_landmark_after_rerender():
+def test_browser_measurement_collects_errors_and_rechecks_landmark_after_streamlit_rerun():
     source = Path("src/research_accessibility_browser_gate.py").read_text(
         encoding="utf-8"
     )
@@ -173,18 +310,21 @@ def test_browser_measurement_collects_errors_and_rechecks_landmark_after_rerende
     assert 'page.on("console"' in measurement
     assert 'page.on("pageerror"' in measurement
     assert '_semantic_main_assertions(page, phase="initial")' in measurement
-    assert '_semantic_main_assertions(page, phase="rerender")' in measurement
+    assert (
+        '_semantic_main_assertions(page, phase="streamlit_rerun")'
+        in measurement
+    )
     assert '_wait_for_route_heading(page, route,' in measurement
-    assert '_wait_for_route_heading(page, away_route,' in measurement
+    assert "_same_document_streamlit_rerun_assertions(" in measurement
     assert (
         '_secondary_navigation_absence_assertion(page, phase="initial")'
         in measurement
     )
     assert (
-        '_secondary_navigation_absence_assertion(page, phase="rerender")'
+        '_secondary_navigation_absence_assertion(page, phase="streamlit_rerun")'
         in measurement
     )
-    assert "_rerender_route(" in measurement
+    assert measurement.count("page.goto(") == 1
 
 
 def test_discover_action_contract_uses_every_actual_row_and_fails_when_empty():

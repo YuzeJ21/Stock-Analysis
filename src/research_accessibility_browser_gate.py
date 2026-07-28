@@ -430,6 +430,191 @@ def evaluate_browser_errors(errors: Iterable[str]) -> dict[str, object]:
     )
 
 
+def evaluate_same_document_streamlit_rerun(
+    *,
+    trigger_count: int,
+    initial_observer_available: bool,
+    token_before: str,
+    token_after: str,
+    same_document: bool,
+    top_level_navigation_count: int,
+    observer_replaced: bool,
+    active_target: bool,
+    bridge_status: str | None,
+    route_before: str,
+    route_after: str,
+) -> list[dict[str, object]]:
+    """Require one real Streamlit rerun without replacing the top document."""
+
+    return [
+        _assertion(
+            "streamlit_rerun_trigger_available",
+            trigger_count == 1,
+            f"Public visitor mode workspace radio count={trigger_count}",
+        ),
+        _assertion(
+            "streamlit_rerun_initial_observer_available",
+            initial_observer_available,
+            f"initial semantic-main observer available={initial_observer_available}",
+        ),
+        _assertion(
+            "streamlit_rerun_same_document",
+            (
+                bool(token_before)
+                and token_before == token_after
+                and same_document
+            ),
+            (
+                f"probe token preserved={bool(token_before) and token_before == token_after}; "
+                f"document retained={same_document}"
+            ),
+        ),
+        _assertion(
+            "streamlit_rerun_no_top_level_navigation",
+            top_level_navigation_count == 0,
+            f"top-level frame navigations={top_level_navigation_count}",
+        ),
+        _assertion(
+            "streamlit_rerun_observer_replaced",
+            observer_replaced,
+            f"semantic-main observer replaced={observer_replaced}",
+        ),
+        _assertion(
+            "streamlit_rerun_active_target",
+            active_target,
+            f"bridge target is current stMain={active_target}",
+        ),
+        _assertion(
+            "streamlit_rerun_bridge_status",
+            bridge_status == EXPECTED_MAIN_STATUS,
+            f"bridge status={bridge_status!r}",
+        ),
+        _assertion(
+            "streamlit_rerun_route_preserved",
+            bool(route_before) and route_before == route_after,
+            f"route before={route_before!r}; after={route_after!r}",
+        ),
+    ]
+
+
+def _same_document_streamlit_rerun_assertions(
+    page: Any,
+    *,
+    timeout_seconds: float,
+) -> list[dict[str, object]]:
+    top_level_navigations: list[str] = []
+
+    def capture_top_level_navigation(frame: Any) -> None:
+        if frame == page.main_frame:
+            top_level_navigations.append("top-level")
+
+    page.on("framenavigated", capture_top_level_navigation)
+    trigger = page.get_by_role(
+        "radio",
+        name="Public visitor mode",
+        exact=True,
+    )
+    trigger_count = trigger.count()
+    if trigger_count != 1:
+        return evaluate_same_document_streamlit_rerun(
+            trigger_count=trigger_count,
+            initial_observer_available=False,
+            token_before="",
+            token_after="",
+            same_document=False,
+            top_level_navigation_count=len(top_level_navigations),
+            observer_replaced=False,
+            active_target=False,
+            bridge_status=None,
+            route_before="",
+            route_after="",
+        )
+
+    before = page.evaluate(
+        """
+() => {
+  const probeKey = "__a11ySameDocumentRerunProbe";
+  const token = `${Date.now()}-${Math.random()}`;
+  const route = `${location.pathname}${location.search}`;
+  window[probeKey] = {
+    token,
+    document: document,
+    observer: window.__stockResearchMainObserver,
+    target: window.__stockResearchMainTarget,
+    route
+  };
+  return {
+    token,
+    initial_observer_available: Boolean(window[probeKey].observer),
+    route
+  };
+}
+"""
+    )
+    top_level_navigations.clear()
+    trigger.check(force=True)
+    page.wait_for_function(
+        """
+() => {
+  const probe = window.__a11ySameDocumentRerunProbe;
+  const target = document.querySelector('[data-testid="stMain"]');
+  return Boolean(
+    probe &&
+    probe.document === document &&
+    probe.route === `${location.pathname}${location.search}` &&
+    window.__stockResearchMainObserver &&
+    window.__stockResearchMainObserver !== probe.observer &&
+    window.__stockResearchMainTarget === target &&
+    document.documentElement.getAttribute(
+      "data-research-main-bridge-status"
+    ) === "applied"
+  );
+}
+""",
+        timeout=int(timeout_seconds * 1000),
+    )
+    after = page.evaluate(
+        """
+() => {
+  const probe = window.__a11ySameDocumentRerunProbe;
+  const target = document.querySelector('[data-testid="stMain"]');
+  return {
+    token: probe ? probe.token : "",
+    same_document: Boolean(probe && probe.document === document),
+    observer_replaced: Boolean(
+      probe &&
+      window.__stockResearchMainObserver &&
+      window.__stockResearchMainObserver !== probe.observer
+    ),
+    active_target: Boolean(
+      probe &&
+      window.__stockResearchMainTarget === target
+    ),
+    bridge_status: document.documentElement.getAttribute(
+      "data-research-main-bridge-status"
+    ),
+    route: `${location.pathname}${location.search}`
+  };
+}
+"""
+    )
+    return evaluate_same_document_streamlit_rerun(
+        trigger_count=trigger_count,
+        initial_observer_available=bool(
+            before.get("initial_observer_available")
+        ),
+        token_before=str(before.get("token") or ""),
+        token_after=str(after.get("token") or ""),
+        same_document=bool(after.get("same_document")),
+        top_level_navigation_count=len(top_level_navigations),
+        observer_replaced=bool(after.get("observer_replaced")),
+        active_target=bool(after.get("active_target")),
+        bridge_status=str(after.get("bridge_status") or ""),
+        route_before=str(before.get("route") or ""),
+        route_after=str(after.get("route") or ""),
+    )
+
+
 def evaluate_secondary_navigation_absence(
     *,
     navigation_count: int,
@@ -961,11 +1146,6 @@ def _runtime_dom_assertions(
     ]
 
 
-def _rerender_route(route: ResearchRoute) -> ResearchRoute:
-    index = RESEARCH_ROUTES.index(route)
-    return RESEARCH_ROUTES[(index + 1) % len(RESEARCH_ROUTES)]
-
-
 def _wait_for_route_heading(
     page: Any,
     route: ResearchRoute,
@@ -1032,32 +1212,24 @@ def _measure_route(
         if route.name == "Company Workbench":
             assertions.extend(_authoring_error_assertions(page))
 
-        away_route = _rerender_route(route)
-        page.goto(
-            f"{base_url.rstrip('/')}{away_route.route}",
-            wait_until="domcontentloaded",
-            timeout=int(timeout_seconds * 1000),
-        )
-        _wait_for_visible_text(
-            page,
-            away_route.marker,
-            timeout_seconds=timeout_seconds,
-        )
-        _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
-        _wait_for_route_heading(page, away_route, timeout_seconds=timeout_seconds)
-        page.goto(
-            f"{base_url.rstrip('/')}{route.route}",
-            wait_until="domcontentloaded",
-            timeout=int(timeout_seconds * 1000),
+        assertions.extend(
+            _same_document_streamlit_rerun_assertions(
+                page,
+                timeout_seconds=timeout_seconds,
+            )
         )
         _wait_for_visible_text(page, route.marker, timeout_seconds=timeout_seconds)
         _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
         _wait_for_route_heading(page, route, timeout_seconds=timeout_seconds)
-        assertions.extend(_semantic_main_assertions(page, phase="rerender"))
-        assertions.extend(_runtime_dom_assertions(page, phase="rerender"))
+        assertions.extend(
+            _semantic_main_assertions(page, phase="streamlit_rerun")
+        )
+        assertions.extend(
+            _runtime_dom_assertions(page, phase="streamlit_rerun")
+        )
         if not route.requires_primary_navigation:
             assertions.append(
-                _secondary_navigation_absence_assertion(page, phase="rerender")
+                _secondary_navigation_absence_assertion(page, phase="streamlit_rerun")
             )
     except Exception as exc:
         assertions.append(
