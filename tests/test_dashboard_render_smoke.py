@@ -60,7 +60,13 @@ def test_company_workbench_renders_independent_observation_states_for_avgo_spy_a
     assert result.missing_markers == ()
     assert result.forbidden_markers == ()
     assert result.expanded_advanced == ()
-    for row in (observation.selected_ticker, *observation.benchmarks):
+    assert "observation-recency-summary" in rendered
+    assert rendered.count("<section class='observation-recency-summary") == 1
+    for row in (
+        observation.selected_ticker,
+        observation.profile_price_lane,
+        *observation.benchmarks,
+    ):
         message = (
             "Historical context only; no current-market claim is made."
             if row.state == "stale_review_only"
@@ -72,6 +78,109 @@ def test_company_workbench_renders_independent_observation_states_for_avgo_spy_a
             f"<small>State</small><span>{row.state}</span>"
             f"<p>{message}</p>"
         ) in rendered
+
+
+def test_research_routes_keep_observation_summary_and_advanced_evidence_responsive():
+    import pytest
+
+    from src.public_performance_gate import (
+        _local_demo_server,
+        _wait_for_dom_stability,
+        _wait_for_visible_text,
+        find_chrome_executable,
+    )
+
+    chrome = find_chrome_executable()
+    if chrome is None:
+        pytest.skip("Chrome-compatible browser is unavailable")
+    playwright = pytest.importorskip("playwright.sync_api")
+    routes = (
+        ("/?mode=research&page=research-desk", "Weekly research summary", "selected_ticker"),
+        ("/?mode=research&page=discover", "Which stock can I review?", "selected_ticker"),
+        (
+            "/?mode=research&page=company-workbench&ticker=AVGO&open=1",
+            "Company Workbench",
+            "AVGO",
+        ),
+        (
+            "/?mode=research&page=monitor",
+            "Research Discipline Review",
+            "selected_ticker",
+        ),
+    )
+
+    with _local_demo_server(Path("."), timeout_seconds=60) as base_url:
+        with playwright.sync_playwright() as runtime:
+            browser = runtime.chromium.launch(
+                executable_path=str(chrome),
+                headless=True,
+            )
+            try:
+                for width, height in ((1280, 720), (390, 844)):
+                    for route, marker, selected_scope in routes:
+                        context = browser.new_context(
+                            viewport={"width": width, "height": height}
+                        )
+                        page = context.new_page()
+                        try:
+                            page.goto(
+                                f"{base_url}{route}",
+                                wait_until="domcontentloaded",
+                                timeout=60_000,
+                            )
+                            _wait_for_visible_text(page, marker, timeout_seconds=60)
+                            _wait_for_dom_stability(page, timeout_seconds=60)
+
+                            summaries = page.locator(
+                                "section.observation-recency-summary"
+                            )
+                            advanced = page.locator("details").filter(
+                                has_text="Advanced: market observation recency"
+                            )
+                            assert summaries.count() == 1
+                            assert advanced.count() == 1
+
+                            advanced.locator("summary").click()
+                            evidence = advanced.locator(
+                                "section.observation-recency-evidence"
+                            )
+                            cards = evidence.locator(
+                                "article.observation-recency-item"
+                            )
+                            assert evidence.count() == 1
+                            assert cards.count() == 4
+                            assert [
+                                cards.nth(index).locator("strong").first.inner_text()
+                                for index in range(cards.count())
+                            ] == [
+                                selected_scope,
+                                "profile_price_lane",
+                                "SPY",
+                                "QQQ",
+                            ]
+
+                            if width == 390:
+                                assert evidence.evaluate(
+                                    "node => node.scrollWidth <= node.clientWidth"
+                                )
+                                boxes = [
+                                    cards.nth(index).bounding_box()
+                                    for index in range(cards.count())
+                                ]
+                                assert all(box is not None for box in boxes)
+                                assert len(
+                                    {round(box["y"]) for box in boxes if box is not None}
+                                ) == 4
+                                assert all(
+                                    0 <= box["x"]
+                                    and box["x"] + box["width"] <= width
+                                    for box in boxes
+                                    if box is not None
+                                )
+                        finally:
+                            context.close()
+            finally:
+                browser.close()
 
 
 def test_research_routes_render_without_exceptions_and_keep_answer_first_markers():

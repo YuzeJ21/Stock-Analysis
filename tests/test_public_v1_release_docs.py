@@ -1547,6 +1547,29 @@ def test_capability_audit_records_recency_as_implemented_and_keeps_quant_gate_op
     assert "separate calculation readiness from observation recency" not in audit
 
 
+def test_completed_observation_recency_repair_routes_to_shared_quant_eligibility():
+    roadmap = _read("ROADMAP.md")
+    next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    audit = _read("docs/analysis_capability_audit.md")
+
+    for text in (roadmap, next_stage, prompt, audit):
+        assert "observation-recency UX repair is complete locally" in text
+        assert "responsive Advanced" in text
+
+    assert "1. Complete the observation-recency UX repair." not in prompt
+    assert "1. Implement the observation-recency UX repair" not in next_stage
+    assert (
+        "1. Add shared quant provenance/recency eligibility without coupling readiness."
+        in prompt
+    )
+    assert (
+        "1. Add shared provenance and recency eligibility to valuation, indicator, "
+        "and review-metric interpretation"
+        in roadmap
+    )
+
+
 def test_accessibility_evidence_records_same_page_skip_fix_without_overclaim():
     roadmap = _read("ROADMAP.md")
     evidence = _read("docs/ACCESSIBILITY_EVIDENCE.md")

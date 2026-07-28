@@ -270,3 +270,135 @@ gh pr checks 113 --watch
 ```
 
 Expected: PR #113 remains open and draft; exact-head CI passes; pre-existing generated working-data churn remains unstaged.
+
+### Task 4: Concise Primary Interpretation and Responsive Advanced Evidence
+
+**Files:**
+- Modify: `src/dashboard.py`
+- Modify: `tests/test_dashboard_helpers.py`
+- Modify: `tests/test_dashboard_render_smoke.py`
+- Modify: `ROADMAP.md`
+- Modify: `docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md`
+
+**Interfaces:**
+- Consumes: the existing immutable `ObservationRecencySet`.
+- Produces: `observation_recency_summary_html(result: ObservationRecencySet, *, include_selected: bool) -> str`.
+- Produces: `observation_recency_evidence_html(result: ObservationRecencySet) -> str`.
+- Retires: the obsolete full-detail `observation_recency_strip_html(...)`
+  renderer after all production consumers move to the summary/evidence split.
+- Preserves: `observation_recency_advanced_details(...)`, the evaluator, the
+  seven-calendar-day policy, and every independent readiness state.
+
+- [ ] **Step 1: Write failing helper tests for primary/Advanced separation**
+
+```python
+def test_observation_primary_summary_is_one_route_relevant_interpretation(stale_recency):
+    rendered = dashboard.observation_recency_summary_html(
+        stale_recency,
+        include_selected=True,
+    )
+    assert "Stale" in rendered
+    assert "Historical context only" in rendered
+    assert "AVGO" not in rendered
+    assert "2026-05-22" not in rendered
+    assert "stale_review_only" not in rendered
+    assert "SPY" not in rendered
+    assert "QQQ" not in rendered
+
+
+def test_observation_advanced_evidence_keeps_all_scopes_and_dates(stale_recency):
+    rendered = dashboard.observation_recency_evidence_html(stale_recency)
+    for value in ("AVGO", "profile_price_lane", "SPY", "QQQ"):
+        assert value in rendered
+    for value in ("2026-05-22", "2026-05-21", "2026-05-20"):
+        assert value in rendered
+    assert rendered.count("stale_review_only") == 4
+```
+
+- [ ] **Step 2: Run the focused tests and verify the intended failure**
+
+Run:
+
+```bash
+python3 -m pytest \
+  tests/test_dashboard_helpers.py::test_observation_primary_summary_is_one_route_relevant_interpretation \
+  tests/test_dashboard_helpers.py::test_observation_advanced_evidence_keeps_all_scopes_and_dates -q
+```
+
+Expected: FAIL because the two presentation helpers do not yet exist.
+
+- [ ] **Step 3: Implement the minimal presentation split**
+
+Add two pure, escaped HTML helpers in `src/dashboard.py`. The summary chooses
+`selected_ticker` when `include_selected=True`, otherwise
+`profile_price_lane`, and maps states to the exact labels `Current`, `Stale`,
+and `Unavailable`. The evidence helper renders all four scopes with scope,
+through date, machine state, and fail-closed message, then renders review date,
+policy, source path, and excluded counts. `render_observation_recency(...)`
+renders the summary before the collapsed Advanced expander and the evidence
+inside it.
+
+- [ ] **Step 4: Add and pass responsive-style contract tests**
+
+```python
+def test_observation_evidence_has_responsive_non_concatenating_styles():
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    evidence_css = source[
+        source.index(".observation-recency-evidence {"):
+        source.index(".research-workspace-heading span,")
+    ]
+    assert "display: grid" in evidence_css
+    assert "grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr))" in evidence_css
+    assert "overflow-wrap: anywhere" in evidence_css
+    assert "@media (max-width: 640px)" in evidence_css
+    assert "grid-template-columns: 1fr" in evidence_css
+```
+
+Run:
+
+```bash
+python3 -m pytest tests/test_dashboard_helpers.py tests/test_dashboard_render_smoke.py -q
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Update durable routing truth**
+
+Mark the bounded observation-recency UX repair complete in `ROADMAP.md` and
+move the active local queue to shared quant provenance/recency eligibility.
+Update the continuation prompt with the exact implementation evidence and keep
+all external source-rights and hosted-freshness gates open.
+
+- [ ] **Step 6: Run focused, full, release, and hygiene verification**
+
+Run:
+
+```bash
+python3 -m pytest tests/test_observation_recency.py tests/test_dashboard_helpers.py tests/test_dashboard_render_smoke.py tests/test_research_mode_dashboard_contract.py -q
+python3 -m pytest tests -q
+make dashboard-smoke
+make research-dashboard-render-smoke
+make public-wording-check
+make public-check
+make commercial-beta-release-check
+make pilot-readiness-check TOP_N=10
+make diff-hygiene-summary
+git diff --check
+```
+
+Expected: all commands pass without producing or staging CSV, JSON, report,
+sample-report, screenshot, timing, canonical-data, or research-ledger churn.
+
+- [ ] **Step 7: Stage exact files, verify staged hygiene, commit, push, and require exact-head CI**
+
+```bash
+git add src/dashboard.py tests/test_dashboard_helpers.py tests/test_dashboard_render_smoke.py ROADMAP.md docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md docs/superpowers/specs/2026-07-27-observation-recency-design.md docs/superpowers/plans/2026-07-27-observation-recency.md
+make staged-hygiene-check
+git diff --cached --check
+git commit -m "Clarify market observation recency"
+git push origin codex/personal-research-mode-mvp
+gh pr checks 113 --watch
+```
+
+Expected: PR #113 remains open and draft, exact-head CI passes, and all
+pre-existing generated working-data differences remain unstaged.

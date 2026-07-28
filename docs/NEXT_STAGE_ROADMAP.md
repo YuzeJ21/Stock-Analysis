@@ -8,10 +8,14 @@ Documentation and routing reconciliation is complete locally. Reopen it only whe
 
 Start with current repository, PR, CI, and hygiene truth. Use `make project-status-check` and `make readiness-ops-center` only as read-only diagnostics; do not follow their generic provider or broad-coverage suggestions when they conflict with the active no-refresh boundary. Then follow the immediate local reliability queue:
 
-1. Implement the observation-recency UX repair without changing readiness or generating data.
-2. Add shared provenance/recency eligibility to quant interpretation while keeping every readiness lane independent.
-3. Resolve semantic-main bridge framework reliability with direct runtime evidence.
-4. Continue the remaining safe automated Priority 7 accessibility work.
+The observation-recency UX repair is complete locally: the four primary
+Research routes show one route-relevant interpretation, while exact selected/
+profile/SPY/QQQ evidence remains in responsive Advanced cards. The direct
+desktop/phone browser matrix writes no screenshots or other artifacts.
+
+1. Add shared provenance/recency eligibility to quant interpretation while keeping every readiness lane independent.
+2. Resolve semantic-main bridge framework reliability with direct runtime evidence.
+3. Continue the remaining safe automated Priority 7 accessibility work.
 
 Priority 7 accessibility remains the next numbered maturity priority. External point-in-time data, consensus, peer review, hosted controls, independent sessions, assistive-technology review, and calibration remain incomplete and must be classified once rather than retried without changed evidence.
 

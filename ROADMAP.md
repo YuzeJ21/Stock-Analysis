@@ -65,11 +65,20 @@ Select the first priority with a safe executable task. If its next gate needs an
 
 Documentation and routing reconciliation is complete locally. Reopen it only when current repository evidence reproduces contract drift.
 
+The bounded observation-recency UX repair is complete locally. Research Desk,
+Discover, and Monitor now show one profile-lane interpretation; Company
+Workbench shows one selected-ticker interpretation. Exact selected/profile/SPY/
+QQQ dates, machine states, policy, path, and excluded-date diagnostics remain
+inside responsive Advanced evidence. A direct four-route browser matrix at
+`1280x720` and `390x844` verifies one summary, four independently labelled
+cards, phone single-column layout, and no evidence-container horizontal
+overflow without writing screenshots or other artifacts.
+
 Immediate approved local reliability queue:
 
-1. Perform the observation-recency UX repair so the primary answer retains one concise current/stale/unavailable interpretation while selected/profile/SPY/QQQ dates, states, scope, and policy remain responsive Advanced evidence.
-2. Add shared provenance and recency eligibility to valuation, indicator, and review-metric interpretation without coupling their independent readiness states.
-3. Resolve the Streamlit semantic-main bridge framework reliability warning through a separately tested compatibility design; do not substitute an iframe without preserving the same-document landmark contract.
+1. Add shared provenance and recency eligibility to valuation, indicator, and review-metric interpretation without coupling their independent readiness states.
+2. Resolve the Streamlit semantic-main bridge framework reliability warning through a separately tested compatibility design; do not substitute an iframe without preserving the same-document landmark contract.
+3. Continue the remaining safe automated Priority 7 accessibility work.
 
 Priority 7 accessibility remains the next numbered maturity priority. Its remaining safe automated work follows these bounded reliability repairs; true zoom, forced colors, reduced motion, screen-reader, and independent-human evidence remain external until a suitable environment exists.
 

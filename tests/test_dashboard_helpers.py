@@ -77,25 +77,97 @@ def test_profile_strip_labels_saved_readiness_not_generic_freshness():
     assert "<small>Freshness</small>" not in rendered
 
 
-def test_stale_observation_strip_exposes_date_without_current_market_claim(stale_recency):
-    rendered = dashboard.observation_recency_strip_html(stale_recency, include_selected=True)
+def test_stale_observation_evidence_exposes_date_without_current_market_claim(stale_recency):
+    rendered = dashboard.observation_recency_evidence_html(stale_recency)
 
     assert "2026-05-22" in rendered
     assert "Historical context only" in rendered
     assert "current-market" not in rendered.lower().replace("no current-market", "")
 
 
-def test_observation_strip_preserves_machine_readable_state_tokens_and_unavailable_message(stale_recency):
-    rendered = dashboard.observation_recency_strip_html(stale_recency, include_selected=True)
+def test_observation_primary_summary_is_one_route_relevant_interpretation(stale_recency):
+    rendered = dashboard.observation_recency_summary_html(
+        stale_recency,
+        include_selected=True,
+    )
+
+    assert "Stale" in rendered
+    assert "Historical context only" in rendered
+    assert "AVGO" not in rendered
+    assert "2026-05-22" not in rendered
+    assert "stale_review_only" not in rendered
+    assert "SPY" not in rendered
+    assert "QQQ" not in rendered
+
+
+def test_observation_primary_summary_uses_profile_lane_outside_workbench(stale_recency):
+    current_profile = replace(
+        stale_recency,
+        profile_price_lane=replace(
+            stale_recency.profile_price_lane,
+            state="current",
+            message="Observation is within the seven-calendar-day local review policy.",
+        ),
+    )
+
+    rendered = dashboard.observation_recency_summary_html(
+        current_profile,
+        include_selected=False,
+    )
+
+    assert "Current" in rendered
+    assert "within the seven-calendar-day local review policy" in rendered
+    assert "Stale" not in rendered
+
+
+def test_observation_advanced_evidence_keeps_all_scopes_and_dates(stale_recency):
+    rendered = dashboard.observation_recency_evidence_html(stale_recency)
+
+    for value in ("AVGO", "profile_price_lane", "SPY", "QQQ"):
+        assert value in rendered
+    for value in ("2026-05-22", "2026-05-21", "2026-05-20"):
+        assert value in rendered
+    assert rendered.count("stale_review_only") == 4
+    assert "7 calendar days" in rendered
+    assert "/private/data/prices.csv" in rendered
+
+
+def test_observation_evidence_has_responsive_non_concatenating_styles():
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    evidence_css = source[
+        source.index(".observation-recency-evidence {") :
+        source.index(".research-workspace-heading span,")
+    ]
+    research_mobile_start = source.index(
+        "@media (max-width: 640px)",
+        source.index(".public-ticker-summary.research .public-primary-action {"),
+    )
+    research_mobile = source[
+        research_mobile_start :
+        source.index("</style>", research_mobile_start)
+    ]
+
+    assert "display: grid" in evidence_css
+    assert "grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr))" in evidence_css
+    assert "overflow-wrap: anywhere" in evidence_css
+    assert ".observation-recency-evidence-grid," in research_mobile
+    assert ".observation-recency-evidence-meta," in research_mobile
+    assert ".observation-recency-exclusions ul" in research_mobile
+    assert "grid-template-columns: 1fr" in research_mobile
+
+
+def test_observation_evidence_preserves_machine_state_and_labels_empty_selected_scope(stale_recency):
+    rendered = dashboard.observation_recency_evidence_html(stale_recency)
 
     assert "<small>State</small><span>stale_review_only</span>" in rendered
 
     unavailable = evaluate_observation_rows(
         [],
-        selected_ticker="AVGO",
+        selected_ticker="",
         as_of=date(2026, 7, 27),
     )
-    unavailable_rendered = dashboard.observation_recency_strip_html(unavailable, include_selected=True)
+    unavailable_rendered = dashboard.observation_recency_evidence_html(unavailable)
+    assert "<small>Scope</small><strong>selected_ticker</strong>" in unavailable_rendered
     assert unavailable_rendered.count("No current-market interpretation") == 4
 
 

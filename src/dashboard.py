@@ -5339,12 +5339,17 @@ def _observation_recency_message(row: ObservationRecency) -> str:
     return row.message
 
 
-def _observation_recency_item_html(row: ObservationRecency) -> str:
+def _observation_recency_item_html(
+    row: ObservationRecency,
+    *,
+    scope_label: str = "",
+) -> str:
     through_date = row.through_date or "Unavailable"
     state = row.state or "unavailable"
+    displayed_scope = scope_label or row.scope or "Unavailable"
     return (
         "<article class='observation-recency-item'>"
-        f"<small>Scope</small><strong>{html.escape(row.scope)}</strong>"
+        f"<small>Scope</small><strong>{html.escape(displayed_scope)}</strong>"
         f"<small>Through date</small><span>{html.escape(through_date)}</span>"
         f"<small>State</small><span>{html.escape(state)}</span>"
         f"<p>{html.escape(_observation_recency_message(row))}</p>"
@@ -5352,24 +5357,71 @@ def _observation_recency_item_html(row: ObservationRecency) -> str:
     )
 
 
-def observation_recency_strip_html(
+def observation_recency_summary_html(
     result: ObservationRecencySet,
     *,
     include_selected: bool,
 ) -> str:
-    """Render supplied local observation recency without loading market data."""
+    """Render one route-relevant interpretation without technical evidence."""
 
-    rows = [result.profile_price_lane]
-    if include_selected:
-        rows.extend((result.selected_ticker, *result.benchmarks))
+    row = result.selected_ticker if include_selected else result.profile_price_lane
+    state_presentation = {
+        "current": ("Current", "current"),
+        "stale_review_only": ("Stale", "stale"),
+        "unavailable": ("Unavailable", "unavailable"),
+    }
+    state_label, state_class = state_presentation.get(
+        row.state,
+        ("Unavailable", "unavailable"),
+    )
     return (
-        "<section class='observation-recency-strip' aria-label='Market observation recency'>"
-        "<div class='observation-recency-heading'>"
-        "<span>Local market observations</span>"
-        f"<strong>Review date {html.escape(str(result.as_of or 'Unavailable'))}</strong>"
+        f"<section class='observation-recency-summary {state_class}' "
+        "aria-label='Market observation interpretation'>"
+        "<span>Market observation</span>"
+        f"<strong>{html.escape(state_label)}</strong>"
+        f"<p>{html.escape(_observation_recency_message(row))}</p>"
+        "</section>"
+    )
+
+
+def observation_recency_evidence_html(result: ObservationRecencySet) -> str:
+    """Render complete independently labelled observation evidence."""
+
+    labelled_rows = (
+        (result.selected_ticker, result.selected_ticker.scope or "selected_ticker"),
+        (result.profile_price_lane, result.profile_price_lane.scope),
+        *((row, row.scope) for row in result.benchmarks),
+    )
+    cards = "".join(
+        _observation_recency_item_html(row, scope_label=scope_label)
+        for row, scope_label in labelled_rows
+    )
+    excluded = "".join(
+        "<li>"
+        f"<span>{html.escape(scope_label)}</span>"
+        f"<strong>{row.excluded_date_count:,}</strong>"
+        "</li>"
+        for row, scope_label in labelled_rows
+    )
+    return (
+        "<section class='observation-recency-evidence' "
+        "aria-label='Detailed market observation recency evidence'>"
+        "<div class='observation-recency-evidence-grid'>"
+        f"{cards}"
         "</div>"
-        + "".join(_observation_recency_item_html(row) for row in rows)
-        + "</section>"
+        "<dl class='observation-recency-evidence-meta'>"
+        "<div><dt>Review date</dt>"
+        f"<dd>{html.escape(str(result.as_of or 'Unavailable'))}</dd></div>"
+        "<div><dt>Policy threshold</dt>"
+        f"<dd>{result.policy_days:,} calendar days</dd></div>"
+        "<div><dt>Source path</dt>"
+        f"<dd>{html.escape(result.source_path or 'Unavailable')}</dd></div>"
+        "</dl>"
+        "<div class='observation-recency-exclusions'>"
+        "<strong>Excluded dates by scope</strong>"
+        f"<ul>{excluded}</ul>"
+        "</div>"
+        "</section>"
     )
 
 
@@ -5391,11 +5443,11 @@ def render_observation_recency(
     include_selected: bool,
 ) -> None:
     st.markdown(
-        observation_recency_strip_html(result, include_selected=include_selected),
+        observation_recency_summary_html(result, include_selected=include_selected),
         unsafe_allow_html=True,
     )
     with st.expander("Advanced: market observation recency", expanded=False):
-        st.json(observation_recency_advanced_details(result))
+        st.markdown(observation_recency_evidence_html(result), unsafe_allow_html=True)
 
 
 def render_profile_trust_details(context: ProfileContext) -> None:
@@ -34548,6 +34600,144 @@ def render_research_workspace_styles() -> None:
         .profile-freshness.stale,
         .profile-freshness.mixed { color: #a15c00; }
         .profile-freshness.missing { color: #b42318; }
+        .observation-recency-summary {
+            display: grid;
+            grid-template-columns: auto auto minmax(0, 1fr);
+            align-items: baseline;
+            gap: .35rem .55rem;
+            margin: -.25rem 0 .8rem;
+            padding: .55rem .7rem;
+            border: 1px solid #d9e0dc;
+            border-left: 4px solid #667085;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+        .observation-recency-summary > span {
+            color: #667085;
+            font-size: .7rem;
+            font-weight: 760;
+            text-transform: uppercase;
+        }
+        .observation-recency-summary > strong {
+            color: #475569;
+            font-size: .82rem;
+        }
+        .observation-recency-summary > p {
+            min-width: 0;
+            margin: 0;
+            color: #52615c;
+            font-size: .8rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        .observation-recency-summary.current {
+            border-left-color: #0f766e;
+        }
+        .observation-recency-summary.current > strong {
+            color: #0f766e;
+        }
+        .observation-recency-summary.stale {
+            border-left-color: #a15c00;
+        }
+        .observation-recency-summary.stale > strong {
+            color: #a15c00;
+        }
+        .observation-recency-summary.unavailable {
+            border-left-color: #b42318;
+        }
+        .observation-recency-summary.unavailable > strong {
+            color: #b42318;
+        }
+        .observation-recency-evidence {
+            display: grid;
+            gap: .8rem;
+            min-width: 0;
+        }
+        .observation-recency-evidence-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+            gap: .65rem;
+            min-width: 0;
+        }
+        .observation-recency-item {
+            display: grid;
+            grid-template-columns: minmax(5rem, .7fr) minmax(0, 1.3fr);
+            align-content: start;
+            gap: .28rem .5rem;
+            min-width: 0;
+            padding: .72rem .76rem;
+            border: 1px solid #dfe4e1;
+            border-radius: 8px;
+            background: #ffffff;
+            overflow-wrap: anywhere;
+        }
+        .observation-recency-item small {
+            color: #667085;
+            font-size: .68rem;
+            font-weight: 760;
+            text-transform: uppercase;
+        }
+        .observation-recency-item strong,
+        .observation-recency-item span {
+            min-width: 0;
+            color: #243b53;
+            font-size: .76rem;
+            overflow-wrap: anywhere;
+        }
+        .observation-recency-item p {
+            grid-column: 1 / -1;
+            margin: .2rem 0 0;
+            color: #52615c;
+            font-size: .76rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        .observation-recency-evidence-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+            gap: .65rem;
+            margin: 0;
+        }
+        .observation-recency-evidence-meta > div {
+            min-width: 0;
+            padding: .58rem .64rem;
+            border-top: 1px solid #dfe4e1;
+        }
+        .observation-recency-evidence-meta dt {
+            color: #667085;
+            font-size: .68rem;
+            font-weight: 760;
+            text-transform: uppercase;
+        }
+        .observation-recency-evidence-meta dd {
+            margin: .18rem 0 0;
+            color: #243b53;
+            font-size: .76rem;
+            overflow-wrap: anywhere;
+        }
+        .observation-recency-exclusions {
+            min-width: 0;
+            color: #243b53;
+            font-size: .76rem;
+        }
+        .observation-recency-exclusions ul {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+            gap: .35rem;
+            margin: .4rem 0 0;
+            padding: 0;
+            list-style: none;
+        }
+        .observation-recency-exclusions li {
+            display: flex;
+            justify-content: space-between;
+            gap: .5rem;
+            min-width: 0;
+            padding: .4rem .5rem;
+            border: 1px solid #e6ebe8;
+            border-radius: 6px;
+            overflow-wrap: anywhere;
+        }
         .research-workspace-heading span,
         .research-desk-answer > span {
             color: #52615c;
@@ -34684,6 +34874,17 @@ def render_research_workspace_styles() -> None:
             text-decoration: none !important;
         }
         @media (max-width: 640px) {
+            .observation-recency-summary {
+                grid-template-columns: auto 1fr;
+            }
+            .observation-recency-summary > p {
+                grid-column: 1 / -1;
+            }
+            .observation-recency-evidence-grid,
+            .observation-recency-evidence-meta,
+            .observation-recency-exclusions ul {
+                grid-template-columns: 1fr;
+            }
             .research-workflow-navigation { gap: .35rem; margin: .35rem 0 .65rem; }
             .research-workflow-link { flex: 1 1 10rem; justify-content: center; min-width: 0; }
             .research-desk-grid { grid-template-columns: 1fr; }

@@ -118,18 +118,34 @@ other.
 Across Research Desk, Discover, Company Workbench, and Monitor:
 
 - replace the ambiguous `Freshness` label with `Saved readiness`;
-- show the latest profile price observation and its state;
+- show one concise route-relevant observation interpretation near the primary
+  answer;
 - never write `current-market` when the observation is stale or unavailable.
 
-Company Workbench additionally shows:
+The route-relevant primary state is the selected ticker on Company Workbench
+and the profile price lane on Research Desk, Discover, and Monitor. The primary
+summary contains one human-readable `Current`, `Stale`, or `Unavailable` label
+and one fail-closed interpretation. It does not repeat scope, exact dates,
+machine state tokens, policy, paths, or diagnostics.
 
+Responsive Advanced evidence shows:
+
+- profile price lane `through_date` and state;
 - selected ticker `through_date` and state;
 - SPY and QQQ `through_date` and state independently;
 - stale values as `Historical context only`;
 - unavailable values as `No current-market interpretation`.
 
-The primary answer shows the date and state. Excluded-date counts, policy
-threshold, file path, and raw date diagnostics stay under Advanced evidence.
+Exact dates, machine state tokens, excluded-date counts, policy threshold, file
+path, review date, and raw date diagnostics stay under `Advanced: market
+observation recency`. Advanced evidence uses labelled cards and a responsive
+grid rather than an unstyled concatenated stream. At phone widths the cards
+collapse to one column, every card has a distinct border and spacing, and long
+paths or tokens wrap instead of creating horizontal overflow.
+
+The current label means only that the local observation is within the exact
+seven-calendar-day review policy. It does not prove source rights, hosted
+freshness, exchange-session recency, or suitability for a recommendation.
 
 Forward View and quantitative review copy may continue to say that saved
 evidence/readiness is current only when clearly labelled as saved state. It
@@ -156,8 +172,12 @@ Focused tests must prove:
 - one missing benchmark cannot change the selected ticker state;
 - selected profile isolation;
 - saved readiness remains unchanged;
-- primary UI exposes exact dates and truthful labels;
-- Advanced evidence contains policy and exclusion diagnostics;
+- primary UI exposes one truthful human-readable state without duplicating
+  scope, exact dates, or machine state tokens;
+- Advanced evidence contains independently labelled selected ticker, profile
+  lane, SPY, and QQQ cards plus policy and exclusion diagnostics;
+- Advanced evidence has explicit grid, card, phone-collapse, and long-value
+  wrapping styles;
 - stale data cannot produce current-market wording.
 
 The local fixture test must demonstrate that the existing worktree data is
@@ -170,9 +190,13 @@ required.
 
 1. No Personal Research route displays ambiguous `Freshness: Current`.
 2. Saved readiness and observation recency are visibly independent.
-3. Selected ticker, SPY, and QQQ show exact, independently evaluated dates.
+3. The primary answer contains one route-relevant human interpretation;
+   selected ticker, profile lane, SPY, and QQQ exact dates remain independently
+   visible under Advanced.
 4. Stale observations are labelled `stale_review_only` and historical context
    only.
 5. Missing observations fail closed.
-6. No generated file or research ledger changes.
-7. Full verification and exact-head CI pass.
+6. Advanced cards remain distinct and wrap without horizontal overflow at
+   phone widths.
+7. No generated file or research ledger changes.
+8. Full verification and exact-head CI pass.
