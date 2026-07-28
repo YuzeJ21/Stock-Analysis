@@ -51,6 +51,27 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
       return true;
     }
 
+    function rememberFrameworkMutation(mutation) {
+      const target = window.parent[targetKey];
+      if (
+        mutation.type !== "attributes" ||
+        mutation.target !== target ||
+        !Object.prototype.hasOwnProperty.call(
+          bridgeAttributes,
+          mutation.attributeName
+        )
+      ) {
+        return;
+      }
+      const ownership = target[ownershipKey];
+      if (ownership) {
+        ownership.attributes[mutation.attributeName] = attributeSnapshot(
+          target,
+          mutation.attributeName
+        );
+      }
+    }
+
     function writeAttribute(target, name, value) {
       if (target.getAttribute(name) !== value) {
         rememberOwnedMutation(target, name);
@@ -204,6 +225,7 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
       let shouldApply = false;
       for (const mutation of mutations) {
         if (consumeOwnedMutation(mutation)) continue;
+        rememberFrameworkMutation(mutation);
         if (
           mutation.type === "childList" ||
           (

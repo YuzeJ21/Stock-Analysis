@@ -611,6 +611,72 @@ def test_semantic_main_bridge_cleanup_preserves_later_framework_changes():
     }
 
 
+def test_semantic_main_bridge_restores_latest_metadata_after_reassertion():
+    result = _run_semantic_main_scenario(
+        elements=[
+            {
+                "name": "target",
+                "tag": "div",
+                "attributes": {
+                    "data-testid": "stMain",
+                    "role": "region",
+                    "id": "workspace",
+                    "aria-label": "Original",
+                },
+            }
+        ],
+        operations=[
+            {"op": "run"},
+            {
+                "op": "set-attribute",
+                "target": "target",
+                "name": "role",
+                "value": "complementary",
+            },
+            {
+                "op": "set-attribute",
+                "target": "target",
+                "name": "id",
+                "value": "framework-workspace",
+            },
+            {
+                "op": "set-attribute",
+                "target": "target",
+                "name": "aria-label",
+                "value": "Framework",
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+            {"op": "flush"},
+            {"op": "capture"},
+            {
+                "op": "remove-attribute",
+                "target": "target",
+                "name": "data-testid",
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
+    )
+
+    reasserted, filtered, cleaned = result["captures"]
+    assert reasserted["elements"]["target"]["attributes"] == {
+        "data-testid": "stMain",
+        "role": "main",
+        "id": "research-main",
+        "aria-label": "Stock research workspace",
+        "data-research-main-bridge-owned": "true",
+    }
+    assert filtered["queryCount"] == reasserted["queryCount"]
+    assert cleaned["status"] == "missing"
+    assert cleaned["elements"]["target"]["attributes"] == {
+        "role": "complementary",
+        "id": "framework-workspace",
+        "aria-label": "Framework",
+    }
+    assert result["flushes"] == [1, 1, 1]
+
+
 def test_semantic_main_bridge_observes_attribute_only_target_transitions():
     result = _run_semantic_main_scenario(
         elements=[{"name": "target", "tag": "div"}],
