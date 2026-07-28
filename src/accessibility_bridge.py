@@ -1,4 +1,4 @@
-"""Bounded presentation bridge for authoring field-error association."""
+"""Bounded presentation bridges for research accessibility semantics."""
 
 from __future__ import annotations
 
@@ -6,6 +6,65 @@ import json
 import re
 from dataclasses import dataclass
 from typing import Any, Callable
+
+import streamlit
+
+
+SEMANTIC_MAIN_BRIDGE_HTML = """
+<script>
+(() => {
+  try {
+    const host = window.parent.document;
+    const observerKey = "__stockResearchMainObserver";
+    const targetKey = "__stockResearchMainTarget";
+    if (window.parent[observerKey]) {
+      window.parent[observerKey].disconnect();
+    }
+    function applyMainLandmark() {
+      const nodes = host.querySelectorAll('[data-testid="stMain"]');
+      const status = nodes.length === 1 ? "applied" : (nodes.length === 0 ? "missing" : "ambiguous");
+      host.documentElement.setAttribute("data-research-main-bridge-status", status);
+      const previous = window.parent[targetKey];
+      if (previous && (nodes.length !== 1 || previous !== nodes[0])) {
+        if (
+          previous.getAttribute("data-research-main-bridge-owned") === "true"
+        ) {
+          previous.removeAttribute("role");
+          previous.removeAttribute("id");
+          previous.removeAttribute("aria-label");
+          previous.removeAttribute("data-research-main-bridge-owned");
+        }
+        window.parent[targetKey] = null;
+      }
+      if (nodes.length !== 1) return;
+      const target = nodes[0];
+      if (target.tagName.toLowerCase() !== "main" && target.getAttribute("role") !== "main") {
+        target.setAttribute("data-research-main-bridge-owned", "true");
+      }
+      target.setAttribute("role", "main");
+      target.setAttribute("id", "research-main");
+      target.setAttribute("aria-label", "Stock research workspace");
+      window.parent[targetKey] = target;
+    }
+    applyMainLandmark();
+    window.parent[observerKey] = new MutationObserver(applyMainLandmark);
+    window.parent[observerKey].observe(
+      host.body, {childList: true, subtree: true}
+    );
+  } catch (error) {
+    return;
+  }
+})();
+</script>
+"""
+
+
+def render_semantic_main_bridge(
+    component_html: Callable[..., Any] = streamlit.components.v1.html,
+) -> None:
+    """Render the fixed, local semantic-main bridge without research data."""
+
+    component_html(SEMANTIC_MAIN_BRIDGE_HTML, height=0, scrolling=False)
 
 
 @dataclass(frozen=True)

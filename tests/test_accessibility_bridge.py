@@ -1,4 +1,5 @@
 import importlib
+import inspect
 import json
 import re
 from pathlib import Path
@@ -168,3 +169,104 @@ def test_accessibility_bridge_has_no_network_storage_clipboard_or_value_reading(
         ".value",
     ):
         assert forbidden not in source
+
+
+def test_semantic_main_bridge_is_fixed_idempotent_and_non_networked():
+    document = _bridge_module().SEMANTIC_MAIN_BRIDGE_HTML
+    source = document.lower()
+
+    assert '[data-testid="stmain"]' in source
+    assert 'setattribute("role", "main")' in source
+    assert 'setattribute("id", "research-main")' in source
+    assert 'setattribute("aria-label", "stock research workspace")' in source
+    assert "mutationobserver" in source
+    assert "disconnect()" in source
+    for forbidden in (
+        "fetch(",
+        "xmlhttprequest",
+        "websocket",
+        "localstorage",
+        "sessionstorage",
+        "indexeddb",
+        ".cookie",
+        "clipboard",
+        ".value",
+        "postmessage",
+        ".click(",
+        "dispatchevent",
+        "requestsubmit",
+        ".submit(",
+        "window.location",
+        "document.location",
+        "history.",
+    ):
+        assert forbidden not in source
+
+
+def test_semantic_main_bridge_reports_ambiguity_before_current_target_mutation():
+    document = _bridge_module().SEMANTIC_MAIN_BRIDGE_HTML
+
+    assert (
+        document.count('host.querySelectorAll(\'[data-testid="stMain"]\')') == 1
+    )
+    assert 'nodes.length === 1 ? "applied"' in document
+    assert 'nodes.length === 0 ? "missing" : "ambiguous"' in document
+    assert (
+        'host.documentElement.setAttribute('
+        '"data-research-main-bridge-status", status'
+        in document
+    )
+    return_index = document.index("if (nodes.length !== 1) return;")
+    target_index = document.index("const target = nodes[0];")
+    mutation_index = document.index('target.setAttribute("role", "main");')
+    assert return_index < target_index < mutation_index
+    assert "createElement" not in document
+    assert "appendChild" not in document
+    assert "insertAdjacentElement" not in document
+
+
+def test_semantic_main_bridge_replaces_observer_and_cleans_only_owned_target():
+    document = _bridge_module().SEMANTIC_MAIN_BRIDGE_HTML
+
+    disconnect_index = document.index(
+        "window.parent[observerKey].disconnect();"
+    )
+    observer_index = document.index(
+        "window.parent[observerKey] = new MutationObserver(applyMainLandmark);"
+    )
+    assert disconnect_index < observer_index
+    assert (
+        'previous.getAttribute("data-research-main-bridge-owned") === "true"'
+        in document
+    )
+    assert 'previous.removeAttribute("role");' in document
+    assert 'previous.removeAttribute("id");' in document
+    assert 'previous.removeAttribute("aria-label");' in document
+    assert (
+        'target.tagName.toLowerCase() !== "main" && '
+        'target.getAttribute("role") !== "main"'
+        in document
+    )
+    assert (
+        'target.setAttribute("data-research-main-bridge-owned", "true");'
+        in document
+    )
+
+
+def test_render_semantic_main_bridge_renders_only_the_fixed_constant():
+    bridge = _bridge_module()
+    calls = []
+
+    result = bridge.render_semantic_main_bridge(
+        lambda *args, **kwargs: calls.append((args, kwargs))
+    )
+
+    assert result is None
+    assert calls == [
+        ((bridge.SEMANTIC_MAIN_BRIDGE_HTML,), {"height": 0, "scrolling": False})
+    ]
+    assert tuple(
+        inspect.signature(bridge.render_semantic_main_bridge).parameters
+    ) == (
+        "component_html",
+    )
