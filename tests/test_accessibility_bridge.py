@@ -2,12 +2,233 @@ import importlib
 import inspect
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 
 
 BRIDGE_PATH = Path("src/accessibility_bridge.py")
+BUNDLED_NODE = (
+    Path.home()
+    / ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+)
+
+SEMANTIC_MAIN_DOM_HARNESS = r"""
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const request = JSON.parse(fs.readFileSync(0, "utf8"));
+const pendingMutations = [];
+const observers = [];
+
+class Element {
+  constructor(name, tagName, attributes = {}, inBody = true) {
+    this.name = name;
+    this.tagName = tagName.toUpperCase();
+    this.isConnected = true;
+    this.inBody = inBody;
+    this.attributes = new Map(
+      Object.entries(attributes).map(([key, value]) => [key, String(value)])
+    );
+  }
+
+  getAttribute(name) {
+    return this.attributes.has(name) ? this.attributes.get(name) : null;
+  }
+
+  hasAttribute(name) {
+    return this.attributes.has(name);
+  }
+
+  setAttribute(name, value) {
+    const normalized = String(value);
+    if (this.getAttribute(name) === normalized) return;
+    this.attributes.set(name, normalized);
+    pendingMutations.push({
+      type: "attributes",
+      target: this,
+      attributeName: name,
+    });
+  }
+
+  removeAttribute(name) {
+    if (!this.attributes.has(name)) return;
+    this.attributes.delete(name);
+    pendingMutations.push({
+      type: "attributes",
+      target: this,
+      attributeName: name,
+    });
+  }
+}
+
+const elements = new Map();
+const documentElement = new Element("document", "html", {}, false);
+const body = new Element("body", "body");
+
+function addElement(definition, announce = false) {
+  const element = new Element(
+    definition.name,
+    definition.tag,
+    definition.attributes || {}
+  );
+  elements.set(definition.name, element);
+  if (announce) {
+    pendingMutations.push({type: "childList", target: body});
+  }
+  return element;
+}
+
+for (const definition of request.elements || []) addElement(definition);
+
+function matchesSimpleSelector(element, selector) {
+  const attributeMatch = selector.match(
+    /^\[([a-zA-Z0-9_-]+)="([^"]*)"\]$/
+  );
+  if (attributeMatch) {
+    return element.getAttribute(attributeMatch[1]) === attributeMatch[2];
+  }
+  return element.tagName.toLowerCase() === selector.toLowerCase();
+}
+
+const document = {
+  body,
+  documentElement,
+  queryCount: 0,
+  querySelectorAll(selector) {
+    this.queryCount += 1;
+    const selectors = selector.split(",").map((part) => part.trim());
+    return Array.from(elements.values()).filter(
+      (element) =>
+        element.isConnected &&
+        selectors.some((part) => matchesSimpleSelector(element, part))
+    );
+  },
+};
+
+class MutationObserver {
+  constructor(callback) {
+    this.callback = callback;
+    this.disconnected = false;
+    this.options = null;
+    observers.push(this);
+  }
+
+  disconnect() {
+    this.disconnected = true;
+  }
+
+  observe(_target, options) {
+    this.options = options;
+  }
+}
+
+function flushMutations() {
+  const records = pendingMutations.splice(0);
+  let deliveries = 0;
+  for (const observer of observers) {
+    if (observer.disconnected || !observer.options) continue;
+    const selected = records.filter((record) => {
+      if (record.type === "childList") return observer.options.childList;
+      if (record.type !== "attributes" || !observer.options.attributes) {
+        return false;
+      }
+      if (!record.target.inBody) return false;
+      const filter = observer.options.attributeFilter;
+      return !filter || filter.includes(record.attributeName);
+    });
+    if (selected.length) {
+      deliveries += 1;
+      observer.callback(selected, observer);
+    }
+  }
+  return deliveries;
+}
+
+const parentWindow = {document};
+const context = {
+  MutationObserver,
+  window: {parent: parentWindow},
+};
+
+function runBridge() {
+  vm.runInNewContext(request.script, context);
+}
+
+function snapshot() {
+  const connected = Array.from(elements.values()).filter(
+    (element) => element.isConnected
+  );
+  const mains = connected.filter(
+    (element) =>
+      element.tagName.toLowerCase() === "main" ||
+      element.getAttribute("role") === "main"
+  );
+  const researchMainIds = connected.filter(
+    (element) => element.getAttribute("id") === "research-main"
+  );
+  return {
+    status: documentElement.getAttribute(
+      "data-research-main-bridge-status"
+    ),
+    elements: Object.fromEntries(
+      Array.from(elements.entries()).map(([name, element]) => [
+        name,
+        {
+          attributes: Object.fromEntries(element.attributes.entries()),
+          connected: element.isConnected,
+          tag: element.tagName.toLowerCase(),
+        },
+      ])
+    ),
+    mainCount: mains.length,
+    researchMainIdCount: researchMainIds.length,
+    observerCount: observers.length,
+    observers: observers.map((observer) => ({
+      disconnected: observer.disconnected,
+      options: observer.options,
+    })),
+    queryCount: document.queryCount,
+  };
+}
+
+const captures = [];
+const flushes = [];
+for (const operation of request.operations || []) {
+  if (operation.op === "run") {
+    runBridge();
+  } else if (operation.op === "capture") {
+    captures.push(snapshot());
+  } else if (operation.op === "flush") {
+    flushes.push(flushMutations());
+  } else if (operation.op === "add") {
+    addElement(operation.element, true);
+  } else if (operation.op === "set-attribute") {
+    elements.get(operation.target).setAttribute(
+      operation.name,
+      operation.value
+    );
+  } else if (operation.op === "remove-attribute") {
+    elements.get(operation.target).removeAttribute(operation.name);
+  } else if (operation.op === "set-connected") {
+    const element = elements.get(operation.target);
+    if (element.isConnected !== operation.connected) {
+      element.isConnected = operation.connected;
+      pendingMutations.push({type: "childList", target: body});
+    }
+  } else {
+    throw new Error(`Unsupported operation: ${operation.op}`);
+  }
+}
+
+process.stdout.write(JSON.stringify({
+  captures,
+  final: snapshot(),
+  flushes,
+}));
+"""
 
 
 def _bridge_module():
@@ -15,6 +236,32 @@ def _bridge_module():
         return importlib.import_module("src.accessibility_bridge")
     except ModuleNotFoundError:
         pytest.fail("src.accessibility_bridge does not exist")
+
+
+def _run_semantic_main_scenario(*, elements, operations):
+    document = _bridge_module().SEMANTIC_MAIN_BRIDGE_HTML
+    match = re.fullmatch(r"\s*<script>\s*(.*?)\s*</script>\s*", document, re.S)
+    assert match is not None
+    node = shutil.which("node")
+    if node is None and BUNDLED_NODE.exists():
+        node = str(BUNDLED_NODE)
+    assert node is not None, "Node is required for executable bridge tests"
+
+    completed = subprocess.run(
+        [node, "-e", SEMANTIC_MAIN_DOM_HARNESS],
+        check=False,
+        capture_output=True,
+        input=json.dumps(
+            {
+                "elements": elements,
+                "operations": operations,
+                "script": match.group(1),
+            }
+        ),
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    return json.loads(completed.stdout)
 
 
 def test_required_thesis_id_maps_to_stable_field_error():
@@ -181,6 +428,9 @@ def test_semantic_main_bridge_is_fixed_idempotent_and_non_networked():
     assert 'setattribute("aria-label", "stock research workspace")' in source
     assert "mutationobserver" in source
     assert "disconnect()" in source
+    assert document.count(
+        'host.querySelectorAll(\'[data-testid="stMain"]\')'
+    ) == 1
     for forbidden in (
         "fetch(",
         "xmlhttprequest",
@@ -199,58 +449,395 @@ def test_semantic_main_bridge_is_fixed_idempotent_and_non_networked():
         "window.location",
         "document.location",
         "history.",
+        "createelement",
+        "appendchild",
+        "insertadjacentelement",
     ):
         assert forbidden not in source
 
 
-def test_semantic_main_bridge_reports_ambiguity_before_current_target_mutation():
-    document = _bridge_module().SEMANTIC_MAIN_BRIDGE_HTML
+@pytest.mark.parametrize(
+    ("tag", "metadata"),
+    (
+        ("div", {}),
+        ("main", {"id": "native-main", "aria-label": "Native workspace"}),
+        (
+            "div",
+            {
+                "role": "main",
+                "id": "existing-main",
+                "aria-label": "Existing workspace",
+            },
+        ),
+        (
+            "div",
+            {
+                "role": "region",
+                "id": "workspace",
+                "aria-label": "Workspace",
+            },
+        ),
+    ),
+)
+def test_semantic_main_bridge_restores_each_original_attribute(tag, metadata):
+    original = {"data-testid": "stMain", **metadata}
+    result = _run_semantic_main_scenario(
+        elements=[{"name": "target", "tag": tag, "attributes": original}],
+        operations=[
+            {"op": "run"},
+            {"op": "capture"},
+            {
+                "op": "remove-attribute",
+                "target": "target",
+                "name": "data-testid",
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
+    )
 
-    assert (
-        document.count('host.querySelectorAll(\'[data-testid="stMain"]\')') == 1
+    applied, cleaned = result["captures"]
+    assert applied["status"] == "applied"
+    assert applied["elements"]["target"]["attributes"] | {
+        "data-testid": "stMain"
+    } == {
+        "data-testid": "stMain",
+        "role": "main",
+        "id": "research-main",
+        "aria-label": "Stock research workspace",
+        "data-research-main-bridge-owned": "true",
+    }
+    assert cleaned["status"] == "missing"
+    assert cleaned["elements"]["target"]["attributes"] == metadata
+    assert cleaned["mainCount"] == int(
+        tag == "main" or metadata.get("role") == "main"
     )
-    assert 'nodes.length === 1 ? "applied"' in document
-    assert 'nodes.length === 0 ? "missing" : "ambiguous"' in document
-    assert (
-        'host.documentElement.setAttribute('
-        '"data-research-main-bridge-status", status'
-        in document
-    )
-    return_index = document.index("if (nodes.length !== 1) return;")
-    target_index = document.index("const target = nodes[0];")
-    mutation_index = document.index('target.setAttribute("role", "main");')
-    assert return_index < target_index < mutation_index
-    assert "createElement" not in document
-    assert "appendChild" not in document
-    assert "insertAdjacentElement" not in document
+    assert cleaned["researchMainIdCount"] == 0
 
 
-def test_semantic_main_bridge_replaces_observer_and_cleans_only_owned_target():
-    document = _bridge_module().SEMANTIC_MAIN_BRIDGE_HTML
+def test_semantic_main_bridge_does_not_resnapshot_on_idempotent_rerender():
+    metadata = {
+        "role": "region",
+        "id": "workspace",
+        "aria-label": "Original workspace",
+    }
+    result = _run_semantic_main_scenario(
+        elements=[
+            {
+                "name": "target",
+                "tag": "div",
+                "attributes": {"data-testid": "stMain", **metadata},
+            }
+        ],
+        operations=[
+            {"op": "run"},
+            {"op": "run"},
+            {
+                "op": "remove-attribute",
+                "target": "target",
+                "name": "data-testid",
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
+    )
 
-    disconnect_index = document.index(
-        "window.parent[observerKey].disconnect();"
+    cleaned = result["captures"][0]
+    assert cleaned["elements"]["target"]["attributes"] == metadata
+    assert cleaned["observerCount"] == 2
+    assert [observer["disconnected"] for observer in cleaned["observers"]] == [
+        True,
+        False,
+    ]
+
+
+def test_semantic_main_bridge_cleanup_preserves_later_framework_changes():
+    result = _run_semantic_main_scenario(
+        elements=[
+            {
+                "name": "target",
+                "tag": "div",
+                "attributes": {
+                    "data-testid": "stMain",
+                    "role": "region",
+                    "id": "workspace",
+                    "aria-label": "Original workspace",
+                },
+            }
+        ],
+        operations=[
+            {"op": "run"},
+            {
+                "op": "set-attribute",
+                "target": "target",
+                "name": "role",
+                "value": "complementary",
+            },
+            {
+                "op": "set-attribute",
+                "target": "target",
+                "name": "id",
+                "value": "framework-workspace",
+            },
+            {
+                "op": "set-attribute",
+                "target": "target",
+                "name": "aria-label",
+                "value": "Framework workspace",
+            },
+            {
+                "op": "remove-attribute",
+                "target": "target",
+                "name": "data-testid",
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
     )
-    observer_index = document.index(
-        "window.parent[observerKey] = new MutationObserver(applyMainLandmark);"
+
+    assert result["captures"][0]["elements"]["target"]["attributes"] == {
+        "role": "complementary",
+        "id": "framework-workspace",
+        "aria-label": "Framework workspace",
+    }
+
+
+def test_semantic_main_bridge_observes_attribute_only_target_transitions():
+    result = _run_semantic_main_scenario(
+        elements=[{"name": "target", "tag": "div"}],
+        operations=[
+            {"op": "run"},
+            {"op": "capture"},
+            {
+                "op": "set-attribute",
+                "target": "target",
+                "name": "data-testid",
+                "value": "stMain",
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+            {"op": "flush"},
+            {"op": "capture"},
+            {
+                "op": "remove-attribute",
+                "target": "target",
+                "name": "data-testid",
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
     )
-    assert disconnect_index < observer_index
-    assert (
-        'previous.getAttribute("data-research-main-bridge-owned") === "true"'
-        in document
+
+    missing, applied, stable, removed = result["captures"]
+    assert missing["status"] == "missing"
+    assert applied["status"] == "applied"
+    assert applied["elements"]["target"]["attributes"] == {
+        "data-testid": "stMain",
+        "role": "main",
+        "id": "research-main",
+        "aria-label": "Stock research workspace",
+        "data-research-main-bridge-owned": "true",
+    }
+    assert stable["queryCount"] == applied["queryCount"]
+    assert removed["status"] == "missing"
+    assert removed["elements"]["target"]["attributes"] == {}
+    assert result["flushes"] == [1, 0, 1]
+    assert applied["observers"][0]["options"] == {
+        "attributes": True,
+        "attributeFilter": ["data-testid"],
+        "childList": True,
+        "subtree": True,
+    }
+
+
+def test_semantic_main_bridge_cleans_ambiguity_then_applies_remaining_target():
+    result = _run_semantic_main_scenario(
+        elements=[
+            {
+                "name": "first",
+                "tag": "div",
+                "attributes": {"data-testid": "stMain"},
+            }
+        ],
+        operations=[
+            {"op": "run"},
+            {
+                "op": "add",
+                "element": {
+                    "name": "second",
+                    "tag": "div",
+                    "attributes": {"data-testid": "stMain"},
+                },
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+            {
+                "op": "set-connected",
+                "target": "first",
+                "connected": False,
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
     )
-    assert 'previous.removeAttribute("role");' in document
-    assert 'previous.removeAttribute("id");' in document
-    assert 'previous.removeAttribute("aria-label");' in document
-    assert (
-        'target.tagName.toLowerCase() !== "main" && '
-        'target.getAttribute("role") !== "main"'
-        in document
+
+    ambiguous, replacement = result["captures"]
+    assert ambiguous["status"] == "ambiguous"
+    assert ambiguous["mainCount"] == 0
+    assert ambiguous["researchMainIdCount"] == 0
+    assert ambiguous["elements"]["first"]["attributes"] == {
+        "data-testid": "stMain"
+    }
+    assert ambiguous["elements"]["second"]["attributes"] == {
+        "data-testid": "stMain"
+    }
+    assert replacement["status"] == "applied"
+    assert replacement["mainCount"] == 1
+    assert replacement["researchMainIdCount"] == 1
+    assert replacement["elements"]["second"]["attributes"]["role"] == "main"
+
+
+def test_semantic_main_bridge_replaces_plain_target_without_duplicate_landmark():
+    result = _run_semantic_main_scenario(
+        elements=[
+            {
+                "name": "first",
+                "tag": "div",
+                "attributes": {
+                    "data-testid": "stMain",
+                    "role": "region",
+                    "id": "first-workspace",
+                },
+            }
+        ],
+        operations=[
+            {"op": "run"},
+            {
+                "op": "set-attribute",
+                "target": "first",
+                "name": "data-testid",
+                "value": "retiredMain",
+            },
+            {
+                "op": "add",
+                "element": {
+                    "name": "second",
+                    "tag": "div",
+                    "attributes": {"data-testid": "stMain"},
+                },
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
     )
-    assert (
-        'target.setAttribute("data-research-main-bridge-owned", "true");'
-        in document
+
+    replacement = result["captures"][0]
+    assert replacement["status"] == "applied"
+    assert replacement["mainCount"] == 1
+    assert replacement["researchMainIdCount"] == 1
+    assert replacement["elements"]["first"]["attributes"] == {
+        "data-testid": "retiredMain",
+        "role": "region",
+        "id": "first-workspace",
+    }
+    assert replacement["elements"]["second"]["attributes"]["role"] == "main"
+
+
+@pytest.mark.parametrize(
+    ("tag", "metadata"),
+    (
+        ("main", {"id": "native-workspace"}),
+        ("div", {"role": "main", "id": "role-workspace"}),
+        ("div", {"role": "region", "id": "research-main"}),
+    ),
+)
+def test_semantic_main_bridge_fails_closed_before_unsafe_replacement(
+    tag, metadata
+):
+    result = _run_semantic_main_scenario(
+        elements=[
+            {
+                "name": "first",
+                "tag": tag,
+                "attributes": {"data-testid": "stMain", **metadata},
+            }
+        ],
+        operations=[
+            {"op": "run"},
+            {
+                "op": "set-attribute",
+                "target": "first",
+                "name": "data-testid",
+                "value": "retiredMain",
+            },
+            {
+                "op": "add",
+                "element": {
+                    "name": "second",
+                    "tag": "div",
+                    "attributes": {"data-testid": "stMain"},
+                },
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+            {
+                "op": "set-connected",
+                "target": "first",
+                "connected": False,
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
     )
+
+    blocked, recovered = result["captures"]
+    assert blocked["status"] == "ambiguous"
+    assert blocked["mainCount"] <= 1
+    assert blocked["researchMainIdCount"] <= 1
+    assert blocked["elements"]["second"]["attributes"] == {
+        "data-testid": "stMain"
+    }
+    assert recovered["status"] == "applied"
+    assert recovered["mainCount"] == 1
+    assert recovered["researchMainIdCount"] == 1
+
+
+@pytest.mark.parametrize(
+    "blocker",
+    (
+        {"name": "other", "tag": "main", "attributes": {}},
+        {
+            "name": "other",
+            "tag": "div",
+            "attributes": {"role": "main"},
+        },
+        {
+            "name": "other",
+            "tag": "div",
+            "attributes": {"id": "research-main"},
+        },
+    ),
+)
+def test_semantic_main_bridge_does_not_apply_beside_connected_conflict(blocker):
+    result = _run_semantic_main_scenario(
+        elements=[
+            {
+                "name": "target",
+                "tag": "div",
+                "attributes": {"data-testid": "stMain"},
+            },
+            blocker,
+        ],
+        operations=[{"op": "run"}, {"op": "capture"}],
+    )
+
+    blocked = result["captures"][0]
+    assert blocked["status"] == "ambiguous"
+    assert blocked["mainCount"] <= 1
+    assert blocked["researchMainIdCount"] <= 1
+    assert blocked["elements"]["target"]["attributes"] == {
+        "data-testid": "stMain"
+    }
 
 
 def test_render_semantic_main_bridge_renders_only_the_fixed_constant():

@@ -17,39 +17,178 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
     const host = window.parent.document;
     const observerKey = "__stockResearchMainObserver";
     const targetKey = "__stockResearchMainTarget";
+    const ownershipKey = "__stockResearchMainOwnership";
+    const markerName = "data-research-main-bridge-owned";
+    const bridgeAttributes = {
+      "role": "main",
+      "id": "research-main",
+      "aria-label": "Stock research workspace"
+    };
     if (window.parent[observerKey]) {
       window.parent[observerKey].disconnect();
     }
+
+    function writeAttribute(target, name, value) {
+      if (target.getAttribute(name) !== value) {
+        target.setAttribute(name, value);
+      }
+    }
+
+    function setStatus(status) {
+      writeAttribute(
+        host.documentElement,
+        "data-research-main-bridge-status",
+        status
+      );
+    }
+
+    function attributeSnapshot(target, name) {
+      return {
+        present: target.hasAttribute(name),
+        prior: target.getAttribute(name)
+      };
+    }
+
+    function snapshotTarget(target) {
+      if (!target[ownershipKey]) {
+        target[ownershipKey] = {
+          attributes: {
+            "role": attributeSnapshot(target, "role"),
+            "id": attributeSnapshot(target, "id"),
+            "aria-label": attributeSnapshot(target, "aria-label")
+          },
+          marker: attributeSnapshot(target, markerName)
+        };
+      }
+      return target[ownershipKey];
+    }
+
+    function restoreAttribute(target, name, original) {
+      if (target.getAttribute(name) !== bridgeAttributes[name]) return;
+      if (original.present) {
+        writeAttribute(target, name, original.prior);
+      } else {
+        target.removeAttribute(name);
+      }
+    }
+
+    function cleanupTarget(target) {
+      const ownership = target[ownershipKey];
+      if (!ownership) return;
+      for (const name of Object.keys(bridgeAttributes)) {
+        restoreAttribute(target, name, ownership.attributes[name]);
+      }
+      if (target.getAttribute(markerName) === "true") {
+        if (ownership.marker.present) {
+          writeAttribute(target, markerName, ownership.marker.prior);
+        } else {
+          target.removeAttribute(markerName);
+        }
+      }
+      delete target[ownershipKey];
+    }
+
+    function valueAfterCleanup(target, name) {
+      const ownership = target[ownershipKey];
+      const current = target.getAttribute(name);
+      if (!ownership || current !== bridgeAttributes[name]) return current;
+      const original = ownership.attributes[name];
+      return original.present ? original.prior : null;
+    }
+
+    function unsafeConnectedCleanup(target) {
+      if (!target.isConnected) return false;
+      const remainsMain =
+        target.tagName.toLowerCase() === "main" ||
+        valueAfterCleanup(target, "role") === "main";
+      const retainsResearchId =
+        valueAfterCleanup(target, "id") === "research-main";
+      return remainsMain || retainsResearchId;
+    }
+
+    function hasConnectedConflict(target) {
+      const otherMain = Array.from(
+        host.querySelectorAll('main, [role="main"]')
+      ).some((node) => node !== target);
+      const otherResearchId = Array.from(
+        host.querySelectorAll('[id="research-main"]')
+      ).some((node) => node !== target);
+      return otherMain || otherResearchId;
+    }
+
     function applyMainLandmark() {
       const nodes = host.querySelectorAll('[data-testid="stMain"]');
-      const status = nodes.length === 1 ? "applied" : (nodes.length === 0 ? "missing" : "ambiguous");
-      host.documentElement.setAttribute("data-research-main-bridge-status", status);
       const previous = window.parent[targetKey];
-      if (previous && (nodes.length !== 1 || previous !== nodes[0])) {
-        if (
-          previous.getAttribute("data-research-main-bridge-owned") === "true"
-        ) {
-          previous.removeAttribute("role");
-          previous.removeAttribute("id");
-          previous.removeAttribute("aria-label");
-          previous.removeAttribute("data-research-main-bridge-owned");
-        }
+      if (nodes.length !== 1) {
+        if (previous) cleanupTarget(previous);
+        window.parent[targetKey] = null;
+        setStatus(nodes.length === 0 ? "missing" : "ambiguous");
+        return;
+      }
+
+      const target = nodes[0];
+      if (
+        previous &&
+        previous !== target &&
+        unsafeConnectedCleanup(previous)
+      ) {
+        setStatus("ambiguous");
+        return;
+      }
+      if (previous && previous !== target) {
+        cleanupTarget(previous);
         window.parent[targetKey] = null;
       }
-      if (nodes.length !== 1) return;
-      const target = nodes[0];
-      if (target.tagName.toLowerCase() !== "main" && target.getAttribute("role") !== "main") {
-        target.setAttribute("data-research-main-bridge-owned", "true");
+
+      if (hasConnectedConflict(target)) {
+        if (window.parent[targetKey] === target) {
+          cleanupTarget(target);
+          window.parent[targetKey] = null;
+        }
+        setStatus("ambiguous");
+        return;
       }
-      target.setAttribute("role", "main");
-      target.setAttribute("id", "research-main");
-      target.setAttribute("aria-label", "Stock research workspace");
+
+      snapshotTarget(target);
+      writeAttribute(target, markerName, "true");
+      if (target.getAttribute("role") !== "main") {
+        target.setAttribute("role", "main");
+      }
+      if (target.getAttribute("id") !== "research-main") {
+        target.setAttribute("id", "research-main");
+      }
+      if (
+        target.getAttribute("aria-label") !== "Stock research workspace"
+      ) {
+        target.setAttribute("aria-label", "Stock research workspace");
+      }
       window.parent[targetKey] = target;
+      setStatus("applied");
     }
+
+    function handleMutations(mutations) {
+      if (mutations.some(
+        (mutation) =>
+          mutation.type === "childList" ||
+          (
+            mutation.type === "attributes" &&
+            mutation.attributeName === "data-testid"
+          )
+      )) {
+        applyMainLandmark();
+      }
+    }
+
     applyMainLandmark();
-    window.parent[observerKey] = new MutationObserver(applyMainLandmark);
+    window.parent[observerKey] = new MutationObserver(handleMutations);
     window.parent[observerKey].observe(
-      host.body, {childList: true, subtree: true}
+      host.body,
+      {
+        attributes: true,
+        attributeFilter: ["data-testid"],
+        childList: true,
+        subtree: true
+      }
     );
   } catch (error) {
     return;
