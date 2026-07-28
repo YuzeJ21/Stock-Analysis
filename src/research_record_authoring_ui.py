@@ -7,6 +7,12 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
+from streamlit.components.v1 import html as component_html
+
+from src.accessibility_bridge import (
+    authoring_field_error,
+    render_authoring_error_binding,
+)
 from src.research_record_authoring import (
     AuthoringPaths,
     AuthoringPreview,
@@ -316,11 +322,12 @@ def render_research_record_authoring(
         reset_key = authoring_session_key(profile_key, symbol, "reset-confirmation")
         if st_api.session_state.pop(reset_key, False):
             st_api.session_state.pop(confirmation_key, None)
-        if st_api.button(
+        validation_attempted = st_api.button(
             "Validate and preview",
             key=authoring_session_key(profile_key, symbol, "validate"),
             use_container_width=True,
-        ):
+        )
+        if validation_attempted:
             st_api.session_state.pop(
                 confirmation_key, None
             )
@@ -343,6 +350,15 @@ def render_research_record_authoring(
             return
         if preview.state == "rejected":
             st_api.error(preview.reason)
+            if validation_attempted:
+                field_error = authoring_field_error(
+                    preview.reason,
+                    profile_key=profile_key,
+                    ticker=symbol,
+                    kind=kind,
+                )
+                if field_error is not None:
+                    render_authoring_error_binding(component_html, field_error)
             return
 
         _render_preview(st_api, preview)
