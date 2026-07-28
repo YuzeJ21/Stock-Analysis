@@ -563,3 +563,73 @@ Evidence boundary:
   states, independent human testing, and the separately designed stable
   semantic `main` landmark remain incomplete. Priority 7 therefore remains
   open.
+
+## 2026-07-28 framework-safe semantic-main browser gate
+
+Run metadata:
+
+- Run ID: `a11y-2026-07-28-semantic-main-gate-08`.
+- Product-under-test commit:
+  `284be77deebfb746267edd8ac38279e66e28b982`.
+- Commands:
+  `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest
+  tests/test_research_accessibility_browser_gate.py -q` and
+  `make research-accessibility-browser-check`.
+- Focused result: `17 passed`.
+- Environment: macOS arm64; local Streamlit demo profile; Google Chrome at
+  `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`; Playwright
+  headless browser control.
+- Routes: Research Desk, Discover, ticker-bound NVDA Company Workbench,
+  Monitor, Research Data Health, and Research Proof History.
+- Viewports: desktop `1280x720` and phone `390x844`, for 12
+  route-and-viewport results.
+- Before attributing the browser run, the gate verified the rendered Stock
+  Research Command Center identity and `Demo` profile, verified a clean
+  product/code/test/docs tree, and classified and excluded exactly 18
+  unstaged generated CSV/output paths under the existing hygiene contract.
+
+Direct automated results:
+
+- The gate verdict was `passed`, with an empty failure list and all 12
+  route-and-viewport results passing.
+- Every initial route DOM exposed exactly one role-based `main` with exact
+  `role="main"`, `id="research-main"`, and
+  `aria-label="Stock research workspace"`. That unique landmark contained
+  exactly one `#public-page-answer` and exactly one level-one heading, and the
+  host status was exactly
+  `data-research-main-bridge-status="applied"`.
+- Each case navigated to a different Personal Research route and back, waited
+  for the exact route heading inside the unique main, and repeated the exact
+  landmark count, metadata, answer-target count, heading count, and applied
+  host status. Research Data Health and Research Proof History additionally
+  proved the intentional absence of the primary
+  `Personal research workflow` navigation before and after that rerender.
+- The existing primary-route assertions remained active. After initial focus
+  was cleared, one physical Tab focused the sole skip link; Enter preserved
+  the route and focused the one `#public-page-answer`, and that focused target
+  was inside the unique main. Primary workflow navigation geometry, summary
+  focus outline, Discover action names and destinations, and Workbench
+  field-error association and cleanup also passed where applicable.
+- All 12 cases reported no browser console error, uncaught page error,
+  rendered traceback, or document-level horizontal overflow. Traceback and
+  overflow checks were repeated after the away-and-back rerender.
+- The fixed same-origin bridge and browser gate accept no research-content
+  input and perform no application action. The gate remained read-only and
+  in-memory/stdout-only: it wrote no screenshot, timing, JSON, report,
+  readiness, canonical-data, research-ledger, or generated repository
+  artifact.
+
+Evidence boundary:
+
+- This closes the stable route-level semantic-main defect only for the
+  recorded local automated DOM matrix at the exact implementation anchor.
+  It does not establish assistive-technology behavior beyond those DOM
+  assertions.
+- Automated DOM verification is not WCAG conformance, screen-reader landmark
+  navigation or usability, hosted behavior, independent-human accessibility
+  validation, or complete keyboard-order evidence.
+- True 200%/400% browser zoom and reflow, forced colors, reduced motion,
+  supported screen-reader tasks, dynamic announcements, complete
+  loading/empty/withheld/stale/failure states, remaining small framework
+  controls, and independent-human testing remain incomplete. Priority 7
+  therefore remains open.
