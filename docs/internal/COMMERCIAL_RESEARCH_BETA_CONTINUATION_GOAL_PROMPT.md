@@ -38,7 +38,7 @@ Expected lineage to verify, never assume:
 
 - Branch: `codex/personal-research-mode-mvp`.
 - Draft PR: https://github.com/YuzeJ21/Stock-Analysis/pull/113.
-- Current verified synchronization anchor: `88d7a9cd057f9e671360bf1203a6a253c0301675` or a later verified descendant; exact-head GitHub Actions run `30246863731` passed and the local full suite reported 4,215 passing tests. Reverify all three before reliance.
+- Last verified incoming synchronization anchor: `dcad75b9e4e3cdba24e5add58271a3f038e5ccc4` or a later verified descendant. The incoming exact-head GitHub Actions run `30339299654` passed, and the incoming local full-suite baseline reported 4,306 passing tests. These are historical entry evidence only: reverify the current HEAD, upstream alignment, exact-head CI, and current test count before reliance.
 - Roadmap truth-reconciliation contract: `ROADMAP.md` is the concise current decision index with `Now`, `Next`, `Externally blocked`, `Later`, and `Completed with evidence`; detailed remediation history stays in its named evidence documents. Reverify the line-budget contract, focused documentation tests, release gates, commit, push, draft-PR update, and exact-head CI before calling the reconciliation slice complete.
 - Priority 4 freeze synchronization anchor: remote commit `69c49968e77bfd55fa259695089e1f34ac2fddfb`; exact-head GitHub Actions run `30185232040` passed. Reverify both instead of treating the local read-only index as authoritative remote state.
 - Evidence-quality lineage anchor: commit `781ba2481` or a later verified descendant.
@@ -199,20 +199,26 @@ This is the authoritative priority order after the completed Research Decision L
 
 A blocked priority does not become complete, and moving past it does not weaken its exit gate. Local contracts, fixtures, screenshots, subagent reviews, and green tests cannot substitute for direct source, hosted, accessibility, independent-user, or calibration evidence. Continue cycling through the ordered program while safe executable work exists; overall completion requires direct current evidence for every applicable priority.
 
+Documentation and routing reconciliation is complete locally. Reopen it only when current repository evidence reproduces contract drift.
+
+Current local execution queue:
+
+1. Complete the observation-recency UX repair.
+2. Add shared quant provenance/recency eligibility without coupling readiness.
+3. Address semantic-main bridge framework reliability through direct runtime evidence.
+4. Resume the remaining automated portion of Priority 7.
+
+Priority 7 accessibility remains the next numbered maturity priority. Do not re-run Priorities 1-3 unless a current regression is directly reproduced. Priority 6 provider-neutral retention/deletion or audit-event work is not the active next lane and requires a separate reviewed design; provider-specific work remains blocked on an approved environment.
+
 Priority 1 — Legacy portfolio, ranking, and action-language quarantine
 - Priority 1 is complete locally. The five retained compatibility pages are Operator-only, Public and Personal Research deep links fail closed, and every retained page is labeled `Legacy research utility — not part of Personal Research Mode` with details behind an explicit collapsed control.
 - Direct route, wording, and source-contract tests prove retained legacy output cannot feed Company Workbench, Research Decision Lab, readiness, recommendations, sizing, or transaction behavior. Historical calculations and filenames remain compatibility-only.
-- Inventory every Personal Research, Public, Advanced, operator, report, test, and documentation surface that exposes legacy portfolio, ranking, position, cost-basis, or transaction-like language.
-- Remove those concepts from supported primary flows and public claims, or isolate them behind an unmistakable `Legacy research utility — not part of Personal Research Mode` boundary.
-- Quarantine legacy picks, disposition, entry-zone, add-candidate, position-percentage, cost-basis, and ranked-company labels. Prove retained compatibility code cannot feed the Decision Lab, conclusions, readiness, recommendations, sizing, or transaction behavior.
-- Exit only when route, wording, report, and no-trading tests directly prove the isolation.
+- Reopen only if a current route, wording, report, or no-trading regression is directly reproduced.
 
 Priority 2 — Stage B field-proof audit and operator hardening
 - Priority 2 is complete locally. `make prospective-field-proof-audit` provides read-only append history, active-head state, current blocker explanations, and controlled invalid-ledger routing; preview provides per-row explanations and reports `preview_receipt_persisted=false` and `receipt_revalidation_required=true`.
 - Direct byte-snapshot tests prove audit and preview create no ledger, readiness, canonical-data, report, screenshot, timing, or generated artifact. Audit does not activate readiness, does not update canonical data, and does not activate Company Workbench.
-- Complete the approved read-only audit for prospective field-proof records, preview receipts, append-only history, blocker explanations, and operator review ergonomics.
-- Preserve no readiness mapping, no canonical-data change, no Company Workbench activation, and no automatic evidence recording.
-- Exit only when focused read-only evidence proves clearer deterministic review and errors with no ledger or generated-artifact write.
+- Reopen only if a current read-only, append-history, blocker-explanation, no-mapping, or no-write regression is directly reproduced.
 
 Priority 3 — In-app research-record authoring
 - Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix. The approved specification is at `docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md` and its test-first implementation plan is at `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`. Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete. Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent. Priority 7 accessibility remediation is the next safe executable local lane.
@@ -220,9 +226,7 @@ Priority 3 — In-app research-record authoring
 - Hardening commit `07758114c` closes the confirmation race: all three append engines share one resolved-ledger cooperative lock, receipts bind resolved ledger identity, every new preview resets confirmation, and uncertain post-append teardown requires one-shot read-side reload before success.
 - Final integrity commit `e3a090dba` ensures confirmation appends only the receipt-matched recomputed record and enforces one readable active thesis lineage: revisions must supersede the exact active entry and preserve its thesis ID. The Company Workbench locks and explains that relationship, with temporary-ledger create -> revise -> reload coverage.
 - Confirmation-integrity commit `5a6c55921` binds every displayed preview field, preview time, and destination label to the exact receipt. If an append raises after it may have written, confirmation returns one-shot `save_pending_reload` with the exact record ID unless the locked ledger is provably unchanged; it never invites a blind duplicate retry.
-- Design and implement simple validate -> preview -> confirm authoring for thesis, evidence, catalyst, and outcome records.
-- Keep records append-only, profile/ticker scoped, reviewer-authored, timestamped, source-aware where applicable, and independently valid or blocked. Drafts and candidate context remain untrusted; automated generation cannot become reviewer-authored evidence.
-- Exit only when desktop/phone workflow evidence and persistence, rejection, identity, provenance, empty-state, and no-fabrication tests prove safe command-line-free authoring without changing forecasts, probabilities, recommendations, or readiness.
+- Reopen only if a current desktop/phone, persistence, rejection, identity, provenance, empty-state, or no-fabrication regression is directly reproduced.
 
 Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer.
 A valid record requires an exact preview and explicit confirmation before save.
@@ -271,9 +275,10 @@ Priority 6 — Controlled hosted operating boundary
   exact-head CI before relying on the local contract. Do not create or change
   hosted accounts, choose a provider, use credentials, deploy, or publish
   without explicit approval.
-- After this local policy slice passes, the next provider-neutral executable
-  lane is a separately reviewed retention/deletion or append-only audit-event
-  interface design. Provider-specific integration remains blocked until the
+- The local policy slice is complete. A provider-neutral retention/deletion
+  or append-only audit-event interface remains a separately reviewed future
+  design; provider-neutral retention/deletion or audit-event work is not the
+  active next lane. Provider-specific integration remains blocked until the
   exact identity, storage, logging, host, and operating environment are
   explicitly approved.
 
@@ -326,7 +331,7 @@ Execution order for each continuation:
 3. Before reusing a supporting proof outcome, run `make proof-readiness-reconciliation TOP_N=20`; keep `historical_supported_currently_blocked` lanes blocked, keep scope-only outcomes non-supporting at ticker level, route each current blocker to its named safe review, and move to fresh evidence or another executable lane. Never infer historical source, rights, scope, or cause from narrative proof; the implemented structured per-ticker/per-field record is prospective-only and does not retroactively upgrade narrative history.
 4. Audit the complete user workflow: Research Desk -> Discover -> Company Workbench -> Monitor.
    Also verify that README, LinkedIn copy, the curated Workbench image, and share checks describe that primary workflow consistently and keep the Public five-page path secondary.
-5. Reverify every Research Decision Lab acceptance criterion at the current HEAD. If current evidence remains green, record the local milestone once and do not repeat its implementation. Select the first incomplete safe executable item in the Approved Next-Stage Maturity Program; begin with Priority 1, then Priority 2. If a regression is directly reproduced, fix one coherent slice test-first before continuing.
+5. Reverify the Research Decision Lab only to the depth needed for current changed scope. If current evidence remains green, preserve the recorded local milestone and do not repeat its implementation. Do not re-run Priorities 1-3 unless a current regression is directly reproduced. Follow the current local execution queue, then resume the first incomplete safe numbered priority.
 6. Implement one coherent slice with failing tests first where behavior changes. After it is verified and synchronized, rescan Priorities 1-10 from the top; resume the earliest incomplete executable item and move to the next safe executable priority whenever its next gate is externally blocked.
 7. Preserve independent readiness for actuals, consensus, Revenue, EPS, operating margin, free cash flow, FCF margin, valuation, trusted relationships, peer comparability, peer valuation anchors, catalysts, outcomes, backtesting, and calibration.
 8. Keep technical evidence under Advanced unless it is required to explain the primary research answer.

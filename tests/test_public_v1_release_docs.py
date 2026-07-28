@@ -699,8 +699,8 @@ def test_active_roadmap_and_price_history_maintenance_are_finite_and_read_only()
     assert "The active roadmap is ROADMAP.md" in continuity
     assert "make project-status-check" in next_stage
     assert "make readiness-ops-center" in next_stage
-    assert "make price-history-proof-queue TOP_N=25" in next_stage
-    assert "make price-history-batch-closeout TOP_N=25" in next_stage
+    assert "make price-history-proof-queue TOP_N=25" not in next_stage
+    assert "make price-history-batch-closeout TOP_N=25" not in next_stage
     assert "momentum-not-ready" in roadmap
     assert "unreviewed preferred-history candidates" in roadmap
     assert "reviewed source-limited items" in roadmap
@@ -1438,13 +1438,113 @@ def test_active_product_docs_use_evidence_first_positioning_and_current_stage_tr
         "Priority 7 accessibility remediation is the next safe executable local lane."
         in " ".join(methodology.split())
     )
-    assert "Current verified synchronization anchor: `88d7a9cd057f9e671360bf1203a6a253c0301675`" in prompt
-    assert "exact-head GitHub Actions run `30246863731` passed" in prompt
-    assert "4,215 passing tests" in prompt
+    assert (
+        "Last verified incoming synchronization anchor: "
+        "`dcad75b9e4e3cdba24e5add58271a3f038e5ccc4`"
+        in prompt
+    )
+    assert "incoming exact-head GitHub Actions run `30339299654` passed" in prompt
+    assert "incoming local full-suite baseline reported 4,306 passing tests" in prompt
 
     for text in (readme, roadmap, methodology, prompt):
         assert "Priority 4 is next and incomplete" not in text
         assert "next executable local methodology lane is the\nprovider-neutral hosted-control contract in Priority 6" not in text
+
+
+def test_current_roadmap_consensus_commands_match_makefile_required_inputs():
+    roadmap = _read("ROADMAP.md")
+    makefile = _read("Makefile")
+    priority_five = roadmap.split(
+        "### Priority 5 — One permitted consensus source and one reviewed peer relationship",
+        maxsplit=1,
+    )[1].split("### Priority 6", maxsplit=1)[0]
+    source_target = makefile.split(
+        "earnings-consensus-source-review:",
+        maxsplit=1,
+    )[1].split("earnings-consensus-collection-plan:", maxsplit=1)[0]
+    record_target = makefile.split(
+        "earnings-consensus-collection-record:",
+        maxsplit=1,
+    )[1].split("prospective-field-proof-status:", maxsplit=1)[0]
+
+    assert '$(INPUT)' in source_target
+    assert '$(PROVIDER)' in source_target
+    assert '$(AS_OF)' in source_target
+    assert (
+        "make earnings-consensus-source-review "
+        "INPUT=$SOURCE_INPUT PROVIDER=<source_id> AS_OF=<timestamp>"
+        in priority_five
+    )
+    assert '$(INPUT)' in record_target
+    assert (
+        "make earnings-consensus-collection-record "
+        "INPUT=$COLLECTION_INPUT AS_OF=<same-timestamp>"
+        in priority_five
+    )
+
+
+def test_completed_priorities_are_not_reissued_as_implementation_work():
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    completed_section = prompt.split(
+        "Priority 1 — Legacy portfolio, ranking, and action-language quarantine",
+        maxsplit=1,
+    )[1].split("Priority 4 — Point-in-time benchmark", maxsplit=1)[0]
+
+    for stale_instruction in (
+        "Inventory every Personal Research",
+        "Remove those concepts from supported primary flows",
+        "Complete the approved read-only audit",
+        "Design and implement simple validate -> preview -> confirm authoring",
+        "begin with Priority 1, then Priority 2",
+    ):
+        assert stale_instruction not in completed_section
+        assert stale_instruction not in prompt
+
+    assert (
+        "Do not re-run Priorities 1-3 unless a current regression is directly reproduced."
+        in prompt
+    )
+
+
+def test_current_handoff_routes_to_local_reliability_work_not_exhausted_price_queues():
+    roadmap = _read("ROADMAP.md")
+    next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, next_stage, prompt):
+        assert "Documentation and routing reconciliation is complete locally" in text
+        assert "observation-recency UX repair" in text
+        assert "framework reliability" in text
+
+    assert "Finish this documentation/routing reconciliation once" not in prompt
+    assert "Complete the documentation/routing reconciliation once" not in next_stage
+    assert "make price-history-proof-queue" not in next_stage
+    assert "make price-history-batch-closeout" not in next_stage
+    assert (
+        "Priority 7 accessibility remains the next numbered maturity priority"
+        in roadmap
+    )
+    assert (
+        "provider-neutral retention/deletion or audit-event work is not the active next lane"
+        in prompt
+    )
+
+
+def test_completed_index_labels_local_prerequisites_without_claiming_external_exit():
+    roadmap = _read("ROADMAP.md")
+
+    assert "### P1 local prerequisite: Hosted operating contracts" in roadmap
+    assert "### P1 local prerequisite: Independent beta protocol" in roadmap
+    assert "### P1: Controlled Hosted Preview Verification" not in roadmap
+    assert "### P1: Controlled Pilot Review" not in roadmap
+
+
+def test_capability_audit_records_recency_as_implemented_and_keeps_quant_gate_open():
+    audit = _read("docs/analysis_capability_audit.md")
+
+    assert "observation-recency separation is implemented" in audit
+    assert "shared provenance and recency eligibility" in audit
+    assert "separate calculation readiness from observation recency" not in audit
 
 
 def test_accessibility_evidence_records_same_page_skip_fix_without_overclaim():

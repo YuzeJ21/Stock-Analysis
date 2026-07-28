@@ -1444,8 +1444,8 @@ def test_roadmap_keeps_active_plan_separate_from_completed_product_history():
         "## Later",
         "## Completed with evidence",
         "### P0: Performance Release Candidate",
-        "### P1: Controlled Hosted Preview Verification",
-        "### P1: Controlled Pilot Review",
+        "### P1 local prerequisite: Hosted operating contracts",
+        "### P1 local prerequisite: Independent beta protocol",
         "`hosted_account_and_controls_required`",
         "`independent_reviewers_required`",
     ):

@@ -2,17 +2,17 @@
 
 The active roadmap is ROADMAP.md. It is the sole current prioritization and contains the active Now/Next/Later plan, dependencies, and stop rules.
 
-This handoff is research-only and read-only: do not refresh providers, apply imports, stage files, commit, push, deploy, expose keys, or treat screenshots as data-freshness proof.
+This handoff is research-only and read-only until an approved implementation slice begins: do not refresh providers, apply imports, deploy, expose keys, or treat screenshots as data-freshness proof.
 
-Use current command output instead of static readiness counts:
+Documentation and routing reconciliation is complete locally. Reopen it only when current repository evidence reproduces contract drift.
 
-```bash
-make project-status-check
-make readiness-ops-center
-make price-history-proof-queue TOP_N=25
-make price-history-batch-closeout TOP_N=25
-```
+Start with current repository, PR, CI, and hygiene truth. Use `make project-status-check` and `make readiness-ops-center` only as read-only diagnostics; do not follow their generic provider or broad-coverage suggestions when they conflict with the active no-refresh boundary. Then follow the immediate local reliability queue:
 
-Use `INCLUDE_REVIEWED=1 make price-history-proof-queue TOP_N=25` only to audit reviewed source-limited items. The default queue shows executable unreviewed candidates; the batch closeout is read-only and does not record proof rows, stage, commit, or push.
+1. Implement the observation-recency UX repair without changing readiness or generating data.
+2. Add shared provenance/recency eligibility to quant interpretation while keeping every readiness lane independent.
+3. Resolve semantic-main bridge framework reliability with direct runtime evidence.
+4. Continue the remaining safe automated Priority 7 accessibility work.
 
-Preserve the product boundary: data readiness first, analysis second, research decision last; no investment advice, broker integration, order routing, auto-trading, direct buy/sell instructions, or fabricated data.
+Priority 7 accessibility remains the next numbered maturity priority. External point-in-time data, consensus, peer review, hosted controls, independent sessions, assistive-technology review, and calibration remain incomplete and must be classified once rather than retried without changed evidence.
+
+The observation-recency UX repair and framework reliability slices must remain write-free with respect to readiness, canonical data, research ledgers, CSV, JSON, reports, screenshots, and timing artifacts. Preserve the product boundary: data readiness first, analysis second, research decision last; no investment advice, broker integration, order routing, auto-trading, direct buy/sell instructions, or fabricated data.

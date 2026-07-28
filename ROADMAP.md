@@ -63,6 +63,16 @@ Stage A-G labels are continuation maturity lanes only; they do not replace the n
 
 Select the first priority with a safe executable task. If its next gate needs an unavailable source, account, environment, reviewer, or elapsed event history, classify it once under **Externally blocked** and continue to the next executable priority. Passing local tests never completes an external gate.
 
+Documentation and routing reconciliation is complete locally. Reopen it only when current repository evidence reproduces contract drift.
+
+Immediate approved local reliability queue:
+
+1. Perform the observation-recency UX repair so the primary answer retains one concise current/stale/unavailable interpretation while selected/profile/SPY/QQQ dates, states, scope, and policy remain responsive Advanced evidence.
+2. Add shared provenance and recency eligibility to valuation, indicator, and review-metric interpretation without coupling their independent readiness states.
+3. Resolve the Streamlit semantic-main bridge framework reliability warning through a separately tested compatibility design; do not substitute an iframe without preserving the same-document landmark contract.
+
+Priority 7 accessibility remains the next numbered maturity priority. Its remaining safe automated work follows these bounded reliability repairs; true zoom, forced colors, reduced motion, screen-reader, and independent-human evidence remain external until a suitable environment exists.
+
 ### Priority 1 — Legacy portfolio, ranking, and action-language quarantine
 
 Priority 1 — completed locally. Legacy portfolio, ranking, position, cost-basis, picks, entry-zone, disposition, and transaction-like surfaces are Operator-only compatibility utilities labelled `Legacy research utility — not part of Personal Research Mode`. Public and Personal Research routes fail closed. Retained compatibility code cannot feed Company Workbench, Research Decision Lab, readiness, recommendations, sizing, or transaction behavior.
@@ -109,7 +119,7 @@ Review one exact-source, permitted, point-in-time consensus snapshot for one tic
 
 Neither item unlocks probability, broad coverage, readiness in another lane, or a company conclusion.
 
-Run `make earnings-consensus-source-review SOURCE_INPUT=<reviewed_source_export.csv> AS_OF=<utc-cutoff>` before collection preview. Only after exact review may `CONFIRM_REVIEWED=1 make earnings-consensus-collection-record COLLECTION_INPUT=<prospective_consensus.csv> AS_OF=<same-cutoff> PREVIEW_RECEIPT=<exact-receipt>` create an append-only evidence record. It does not activate readiness or numerical probability. Never infer an explicit provider.
+Set `SOURCE_INPUT=<reviewed_source_export.csv>`, then run `make earnings-consensus-source-review INPUT=$SOURCE_INPUT PROVIDER=<source_id> AS_OF=<timestamp>` before collection preview. After separate human review and explicit evidence-preserving mapping, set `COLLECTION_INPUT=<prospective_consensus.csv>` and run `make earnings-consensus-collection-preview INPUT=$COLLECTION_INPUT AS_OF=<same-timestamp>`. Only after exact preview review may `CONFIRM_REVIEWED=1 make earnings-consensus-collection-record INPUT=$COLLECTION_INPUT AS_OF=<same-timestamp> PREVIEW_RECEIPT=<exact-receipt>` create an append-only evidence record. It does not activate readiness or numerical probability. Never infer an explicit provider.
 
 ### Priority 6 — Controlled hosted operating boundary
 
@@ -207,11 +217,11 @@ Implemented with append-only provenance, invalidation, conflicting evidence, out
 
 Passed on the fixed `data/demo/manifest.json` profile with shell, first useful answer, warm/cold settle, and p90 contracts. `make commercial-beta-performance-gate` and `make commercial-beta-release-check` are the current rerun paths.
 
-### P1: Controlled Hosted Preview Verification
+### P1 local prerequisite: Hosted operating contracts
 
 Local deployment and operating contracts are complete; actual hosted verification remains externally blocked under Priority 6.
 
-### P1: Controlled Pilot Review
+### P1 local prerequisite: Independent beta protocol
 
 The independent-session protocol is locally complete; actual sessions remain externally blocked under Priority 8.
 
