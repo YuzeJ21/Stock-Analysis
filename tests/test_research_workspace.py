@@ -682,8 +682,12 @@ def test_research_workspace_header_keeps_scope_freshness_action_and_boundary_vis
     assert "investment advice" in rendered
 
 
-def test_mobile_workflow_navigation_is_labelled_and_has_one_current_page():
-    rendered = research_workspace.research_workflow_navigation_html(active_page="discover", ticker="AVGO")
+@pytest.mark.parametrize(
+    "active_page",
+    ("research-desk", "discover", "company-workbench", "monitor"),
+)
+def test_mobile_workflow_navigation_is_labelled_and_has_one_current_page(active_page):
+    rendered = research_workspace.research_workflow_navigation_html(active_page=active_page, ticker="AVGO")
 
     assert "aria-label='Personal research workflow'" in rendered
     assert rendered.count("aria-current='page'") == 1
@@ -692,6 +696,13 @@ def test_mobile_workflow_navigation_is_labelled_and_has_one_current_page():
     assert "Company Workbench" not in research_workspace.research_workflow_navigation_html(
         active_page="discover",
     )
+
+
+@pytest.mark.parametrize("active_page", ("data-health", "proof-history"))
+def test_workflow_navigation_has_no_current_link_for_secondary_research_pages(active_page):
+    rendered = research_workspace.research_workflow_navigation_html(active_page=active_page, ticker="AVGO")
+
+    assert rendered.count("aria-current='page'") == 0
 
 
 def test_research_workspace_header_labels_saved_readiness_without_changing_its_argument():

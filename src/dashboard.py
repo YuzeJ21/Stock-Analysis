@@ -35119,10 +35119,11 @@ def main() -> None:
                 st.query_params,
                 mode=RESEARCH_MODE,
             )
-            st.markdown(
-                research_workflow_navigation_html(active_page=selected_page, ticker=ticker),
-                unsafe_allow_html=True,
-            )
+            if selected_page in RESEARCH_PATH_PAGE_TITLES:
+                st.markdown(
+                    research_workflow_navigation_html(active_page=selected_page, ticker=ticker),
+                    unsafe_allow_html=True,
+                )
         render_app_header(
             catalog,
             output_frames,

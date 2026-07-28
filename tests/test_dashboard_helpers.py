@@ -29749,6 +29749,19 @@ def test_dashboard_theme_gives_summary_elements_visible_keyboard_focus():
     assert "summary:focus-visible" in source
 
 
+def test_research_workflow_navigation_renders_only_for_primary_routes():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    main = source[source.index("def main() -> None:") :]
+    research_mode = main.index("if research_mode:")
+    primary_guard = main.index("if selected_page in RESEARCH_PATH_PAGE_TITLES:", research_mode)
+    workflow_navigation = main.index(
+        "research_workflow_navigation_html(active_page=selected_page, ticker=ticker)",
+        primary_guard,
+    )
+
+    assert research_mode < primary_guard < workflow_navigation
+
+
 def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
