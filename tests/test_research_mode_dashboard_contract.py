@@ -911,6 +911,38 @@ def test_skip_link_renders_in_first_sidebar_bucket_before_page_answer():
     assert main.count("render_public_workflow_skip_link(") == 1
 
 
+def test_semantic_main_bridge_runs_once_immediately_after_theme_before_route_content():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    main_start = source.index("def main() -> None:")
+    main_end = source.index('\n\nif __name__ == "__main__":', main_start)
+    main = source[main_start:main_end]
+
+    bridge_call = "render_semantic_main_bridge()"
+    assert (
+        source.count(
+            "from src.accessibility_bridge import render_semantic_main_bridge"
+        )
+        == 1
+    )
+    assert main.count(bridge_call) == 1
+
+    theme = main.index("apply_dashboard_theme()")
+    bridge = main.index(bridge_call)
+    first_route_content = min(
+        main.index("render_public_route_bootstrap("),
+        main.index("render_public_workflow_skip_link("),
+        main.index("with st.sidebar:"),
+        main.index("render_public_app_shell("),
+        main.index("render_personal_research_route("),
+    )
+
+    assert theme < bridge < first_route_content
+    assert (
+        main[theme:bridge].strip()
+        == "apply_dashboard_theme()"
+    )
+
+
 def test_research_primary_sections_follow_route_h1_with_level_two_headings():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     expected_level_two = (

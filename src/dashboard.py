@@ -13,6 +13,7 @@ from urllib.parse import quote, urlencode
 import pandas as pd
 import streamlit as st
 
+from src.accessibility_bridge import render_semantic_main_bridge
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
@@ -34998,6 +34999,7 @@ def main() -> None:
     global ACTIVE_RESEARCH_CHANGE_STATE
     st.set_page_config(page_title="Stock Research Command Center", layout="wide")
     apply_dashboard_theme()
+    render_semantic_main_bridge()
     data_profile = resolve_data_profile(project_root=BASE_DIR)
     profile_context = build_profile_context(project_root=BASE_DIR)
     research_change_state = load_dashboard_research_change_state(profile_context)

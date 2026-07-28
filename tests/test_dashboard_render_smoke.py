@@ -104,6 +104,33 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     )
 
 
+def test_fixed_semantic_main_bridge_iframe_renders_once_across_all_workspaces():
+    from src.accessibility_bridge import SEMANTIC_MAIN_BRIDGE_HTML
+    from src.dashboard_render_smoke import RESEARCH_RENDER_ROUTES
+
+    cases = [
+        ("Public Home", {"mode": "public"}),
+        ("Operator Home", {"mode": "operator"}),
+        *(
+            (route.name, dict(route.query_params))
+            for route in RESEARCH_RENDER_ROUTES
+        ),
+    ]
+
+    for name, query_params in cases:
+        app = AppTest.from_file("src/dashboard.py", default_timeout=120)
+        app.query_params.update(query_params)
+        app.run(timeout=120)
+
+        bridge_iframes = [
+            iframe
+            for iframe in app.get("iframe")
+            if iframe.proto.srcdoc == SEMANTIC_MAIN_BRIDGE_HTML
+        ]
+        assert not app.exception, name
+        assert len(bridge_iframes) == 1, name
+
+
 def test_research_route_renders_one_fragment_skip_link_and_one_existing_answer_target():
     from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
 
