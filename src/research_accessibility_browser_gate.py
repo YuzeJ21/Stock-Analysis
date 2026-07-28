@@ -442,7 +442,7 @@ def evaluate_same_document_streamlit_rerun(
     initial_script_state: str,
     script_states: Iterable[str],
     final_script_state: str,
-    observer_available: bool,
+    observer_liveness_proved: bool,
     active_target: bool,
     bridge_status: str | None,
     route_before: str,
@@ -516,8 +516,11 @@ def evaluate_same_document_streamlit_rerun(
         ),
         _assertion(
             "streamlit_rerun_observer_live",
-            observer_available,
-            f"semantic-main observer remains live={observer_available}",
+            observer_liveness_proved,
+            (
+                "semantic-main observer restored applied status after the "
+                f"inert mutation probe={observer_liveness_proved}"
+            ),
         ),
         _assertion(
             "streamlit_rerun_active_target",
@@ -567,7 +570,7 @@ def _same_document_streamlit_rerun_assertions(
             initial_script_state="",
             script_states=(),
             final_script_state="",
-            observer_available=False,
+            observer_liveness_proved=False,
             active_target=False,
             bridge_status=None,
             route_before="",
@@ -666,6 +669,61 @@ element => {
 """,
             timeout=int(timeout_seconds * 1000),
         )
+    observer_probe_started = bool(
+        page.evaluate(
+            """
+() => {
+  const probe = window.__a11ySameDocumentRerunProbe;
+  const target = document.querySelector('[data-testid="stMain"]');
+  if (
+    !probe ||
+    !target ||
+    !target.isConnected ||
+    window.__stockResearchMainTarget !== target ||
+    !window.__stockResearchMainObserver
+  ) {
+    return false;
+  }
+  const observerProbeNode = document.createElement("span");
+  observerProbeNode.hidden = true;
+  observerProbeNode.setAttribute("aria-hidden", "true");
+  observerProbeNode.setAttribute(
+    "data-a11y-main-observer-probe",
+    probe.token
+  );
+  probe.observerProbeNode = observerProbeNode;
+  document.documentElement.setAttribute(
+    "data-research-main-bridge-status",
+    "observer-probe-pending"
+  );
+  target.appendChild(observerProbeNode);
+  return observerProbeNode.isConnected;
+}
+"""
+        )
+    )
+    if observer_probe_started:
+        page.wait_for_function(
+            """
+() => {
+  const probe = window.__a11ySameDocumentRerunProbe;
+  const target = document.querySelector('[data-testid="stMain"]');
+  return Boolean(
+    probe &&
+    probe.observerProbeNode &&
+    probe.observerProbeNode.isConnected &&
+    window.__stockResearchMainObserver &&
+    target &&
+    target.isConnected &&
+    window.__stockResearchMainTarget === target &&
+    document.documentElement.getAttribute(
+      "data-research-main-bridge-status"
+    ) === "applied"
+  );
+}
+""",
+            timeout=int(timeout_seconds * 1000),
+        )
     after = page.evaluate(
         """
 () => {
@@ -686,12 +744,31 @@ element => {
   if (probe && probe.scriptStateObserver) {
     probe.scriptStateObserver.disconnect();
   }
+  const observerLivenessProved = Boolean(
+    probe &&
+    probe.observerProbeNode &&
+    probe.observerProbeNode.isConnected &&
+    window.__stockResearchMainObserver &&
+    target &&
+    target.isConnected &&
+    window.__stockResearchMainTarget === target &&
+    document.documentElement.getAttribute(
+      "data-research-main-bridge-status"
+    ) === "applied"
+  );
+  if (
+    probe &&
+    probe.observerProbeNode &&
+    probe.observerProbeNode.isConnected
+  ) {
+    probe.observerProbeNode.remove();
+  }
   return {
     token: probe ? probe.token : "",
     same_document: Boolean(probe && probe.document === document),
     script_states: scriptStates,
     final_script_state: finalScriptState,
-    observer_available: Boolean(window.__stockResearchMainObserver),
+    observer_liveness_proved: observerLivenessProved,
     active_target: Boolean(
       probe &&
       target &&
@@ -719,7 +796,9 @@ element => {
         initial_script_state=str(before.get("initial_script_state") or ""),
         script_states=tuple(after.get("script_states") or ()),
         final_script_state=str(after.get("final_script_state") or ""),
-        observer_available=bool(after.get("observer_available")),
+        observer_liveness_proved=bool(
+            after.get("observer_liveness_proved")
+        ),
         active_target=bool(after.get("active_target")),
         bridge_status=str(after.get("bridge_status") or ""),
         route_before=str(before.get("route") or ""),

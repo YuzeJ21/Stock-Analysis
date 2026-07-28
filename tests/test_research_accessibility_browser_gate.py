@@ -157,7 +157,7 @@ def test_same_document_streamlit_rerun_contract_fails_closed_for_each_gap():
         "initial_script_state": "notRunning",
         "script_states": ("notRunning", "running", "notRunning"),
         "final_script_state": "notRunning",
-        "observer_available": True,
+        "observer_liveness_proved": True,
         "active_target": True,
         "bridge_status": "applied",
         "route_before": "/?mode=research&page=data-health&ticker=NVDA",
@@ -212,7 +212,10 @@ def test_same_document_streamlit_rerun_contract_fails_closed_for_each_gap():
             "streamlit_rerun_no_top_level_navigation",
             {"top_level_navigation_count": 1},
         ),
-        ("streamlit_rerun_observer_live", {"observer_available": False}),
+        (
+            "streamlit_rerun_observer_live",
+            {"observer_liveness_proved": False},
+        ),
         ("streamlit_rerun_active_target", {"active_target": False}),
         ("streamlit_rerun_bridge_status", {"bridge_status": "missing"}),
         (
@@ -258,6 +261,7 @@ def test_same_document_rerun_helper_uses_real_workspace_widget_event():
             self.used_dom_click = False
             self.rerun_triggered = False
             self.evaluate_calls = 0
+            self.wait_calls = 0
 
         def on(self, event, handler):
             assert event == "framenavigated"
@@ -285,14 +289,20 @@ def test_same_document_rerun_helper_uses_real_workspace_widget_event():
                     "initial_script_state": "notRunning",
                     "route": "/?mode=research&page=data-health&ticker=NVDA",
                 }
+            if self.evaluate_calls == 2:
+                assert "__stockResearchMainTarget" in script
+                assert "observer-probe-pending" in script
+                assert "appendChild" in script
+                return True
             assert "__stockResearchMainTarget" in script
             assert "scriptStateObserver.disconnect()" in script
+            assert "observerProbeNode.remove()" in script
             return {
                 "token": "probe-1",
                 "same_document": True,
                 "script_states": ["notRunning", "running", "notRunning"],
                 "final_script_state": "notRunning",
-                "observer_available": self.rerun_triggered,
+                "observer_liveness_proved": self.rerun_triggered,
                 "active_target": True,
                 "bridge_status": "applied",
                 "route": "/?mode=research&page=data-health&ticker=NVDA",
@@ -301,8 +311,14 @@ def test_same_document_rerun_helper_uses_real_workspace_widget_event():
         def wait_for_function(self, script, *, timeout):
             assert self.rerun_triggered is True
             assert "__a11ySameDocumentRerunProbe" in script
-            assert 'states.indexOf("running")' in script
-            assert 'states.indexOf("notRunning", runningIndex + 1)' in script
+            self.wait_calls += 1
+            if self.wait_calls == 1:
+                assert 'states.indexOf("running")' in script
+                assert 'states.indexOf("notRunning", runningIndex + 1)' in script
+            else:
+                assert "observerProbeNode" in script
+                assert "data-research-main-bridge-status" in script
+                assert '"applied"' in script
             assert timeout == 5_000
 
     page = FakePage()
@@ -317,6 +333,7 @@ def test_same_document_rerun_helper_uses_real_workspace_widget_event():
     )
 
     assert page.used_dom_click is True
+    assert page.wait_calls == 2
     assert all(assertion["passed"] for assertion in passed)
     assert next(
         assertion
