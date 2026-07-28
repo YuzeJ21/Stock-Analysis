@@ -20,8 +20,13 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 
 const request = JSON.parse(fs.readFileSync(0, "utf8"));
-const pendingMutations = [];
 const observers = [];
+
+function queueMutation(record) {
+  for (const observer of observers) {
+    if (observer.accepts(record)) observer.records.push(record);
+  }
+}
 
 class Element {
   constructor(name, tagName, attributes = {}, inBody = true) {
@@ -46,7 +51,7 @@ class Element {
     const normalized = String(value);
     if (this.getAttribute(name) === normalized) return;
     this.attributes.set(name, normalized);
-    pendingMutations.push({
+    queueMutation({
       type: "attributes",
       target: this,
       attributeName: name,
@@ -56,7 +61,7 @@ class Element {
   removeAttribute(name) {
     if (!this.attributes.has(name)) return;
     this.attributes.delete(name);
-    pendingMutations.push({
+    queueMutation({
       type: "attributes",
       target: this,
       attributeName: name,
@@ -76,7 +81,7 @@ function addElement(definition, announce = false) {
   );
   elements.set(definition.name, element);
   if (announce) {
-    pendingMutations.push({type: "childList", target: body});
+    queueMutation({type: "childList", target: body});
   }
   return element;
 }
@@ -113,35 +118,39 @@ class MutationObserver {
     this.callback = callback;
     this.disconnected = false;
     this.options = null;
+    this.records = [];
     observers.push(this);
+  }
+
+  accepts(record) {
+    if (this.disconnected || !this.options) return false;
+    if (record.type === "childList") return this.options.childList;
+    if (record.type !== "attributes" || !this.options.attributes) {
+      return false;
+    }
+    if (!record.target.inBody || !record.target.isConnected) return false;
+    const filter = this.options.attributeFilter;
+    return !filter || filter.includes(record.attributeName);
   }
 
   disconnect() {
     this.disconnected = true;
+    this.records = [];
   }
 
   observe(_target, options) {
+    this.disconnected = false;
     this.options = options;
   }
 }
 
 function flushMutations() {
-  const records = pendingMutations.splice(0);
   let deliveries = 0;
   for (const observer of observers) {
-    if (observer.disconnected || !observer.options) continue;
-    const selected = records.filter((record) => {
-      if (record.type === "childList") return observer.options.childList;
-      if (record.type !== "attributes" || !observer.options.attributes) {
-        return false;
-      }
-      if (!record.target.inBody) return false;
-      const filter = observer.options.attributeFilter;
-      return !filter || filter.includes(record.attributeName);
-    });
-    if (selected.length) {
+    if (!observer.disconnected && observer.records.length) {
+      const records = observer.records.splice(0);
       deliveries += 1;
-      observer.callback(selected, observer);
+      observer.callback(records, observer);
     }
   }
   return deliveries;
@@ -216,7 +225,7 @@ for (const operation of request.operations || []) {
     const element = elements.get(operation.target);
     if (element.isConnected !== operation.connected) {
       element.isConnected = operation.connected;
-      pendingMutations.push({type: "childList", target: body});
+      queueMutation({type: "childList", target: body});
     }
   } else {
     throw new Error(`Unsupported operation: ${operation.op}`);
@@ -641,13 +650,116 @@ def test_semantic_main_bridge_observes_attribute_only_target_transitions():
     assert stable["queryCount"] == applied["queryCount"]
     assert removed["status"] == "missing"
     assert removed["elements"]["target"]["attributes"] == {}
-    assert result["flushes"] == [1, 0, 1]
+    assert result["flushes"] == [1, 1, 1]
     assert applied["observers"][0]["options"] == {
         "attributes": True,
-        "attributeFilter": ["data-testid"],
+        "attributeFilter": ["data-testid", "role", "id", "aria-label"],
         "childList": True,
         "subtree": True,
     }
+
+
+@pytest.mark.parametrize(
+    ("name", "value", "main_count", "research_id_count"),
+    (
+        ("role", "main", 1, 0),
+        ("id", "research-main", 0, 1),
+    ),
+)
+def test_semantic_main_bridge_fails_closed_on_later_sibling_conflict(
+    name, value, main_count, research_id_count
+):
+    result = _run_semantic_main_scenario(
+        elements=[
+            {
+                "name": "target",
+                "tag": "div",
+                "attributes": {"data-testid": "stMain"},
+            },
+            {"name": "sibling", "tag": "div"},
+        ],
+        operations=[
+            {"op": "run"},
+            {"op": "capture"},
+            {
+                "op": "set-attribute",
+                "target": "sibling",
+                "name": name,
+                "value": value,
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+            {"op": "flush"},
+            {"op": "capture"},
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
+    )
+
+    applied, blocked, filtered, stable = result["captures"]
+    assert applied["status"] == "applied"
+    assert blocked["status"] == "ambiguous"
+    assert blocked["mainCount"] == main_count
+    assert blocked["researchMainIdCount"] == research_id_count
+    assert blocked["elements"]["target"]["attributes"] == {
+        "data-testid": "stMain"
+    }
+    assert blocked["elements"]["sibling"]["attributes"] == {name: value}
+    assert filtered["queryCount"] == blocked["queryCount"]
+    assert stable["queryCount"] == blocked["queryCount"]
+    assert result["flushes"] == [1, 1, 0]
+
+
+def test_semantic_main_dom_harness_does_not_deliver_pre_observation_mutations():
+    result = _run_semantic_main_scenario(
+        elements=[{"name": "target", "tag": "div"}],
+        operations=[
+            {
+                "op": "set-attribute",
+                "target": "target",
+                "name": "data-testid",
+                "value": "stMain",
+            },
+            {"op": "run"},
+            {"op": "capture"},
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
+    )
+
+    before_flush, after_flush = result["captures"]
+    assert after_flush["queryCount"] == before_flush["queryCount"]
+    assert result["flushes"] == [0]
+
+
+def test_semantic_main_dom_harness_disconnect_discards_observer_queue():
+    result = _run_semantic_main_scenario(
+        elements=[
+            {
+                "name": "target",
+                "tag": "div",
+                "attributes": {"data-testid": "stMain"},
+            }
+        ],
+        operations=[
+            {"op": "run"},
+            {
+                "op": "set-attribute",
+                "target": "target",
+                "name": "data-testid",
+                "value": "retiredMain",
+            },
+            {"op": "run"},
+            {"op": "capture"},
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
+    )
+
+    before_flush, after_flush = result["captures"]
+    assert before_flush["status"] == "missing"
+    assert after_flush["queryCount"] == before_flush["queryCount"]
+    assert result["flushes"] == [0]
 
 
 def test_semantic_main_bridge_cleans_ambiguity_then_applies_remaining_target():

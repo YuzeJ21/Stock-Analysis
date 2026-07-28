@@ -27,10 +27,41 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
     if (window.parent[observerKey]) {
       window.parent[observerKey].disconnect();
     }
+    let activeObserver = null;
+    const ownedMutations = [];
+
+    function rememberOwnedMutation(target, name) {
+      if (
+        activeObserver &&
+        Object.prototype.hasOwnProperty.call(bridgeAttributes, name)
+      ) {
+        ownedMutations.push({target: target, name: name});
+      }
+    }
+
+    function consumeOwnedMutation(mutation) {
+      if (mutation.type !== "attributes") return false;
+      const index = ownedMutations.findIndex(
+        (owned) =>
+          owned.target === mutation.target &&
+          owned.name === mutation.attributeName
+      );
+      if (index === -1) return false;
+      ownedMutations.splice(index, 1);
+      return true;
+    }
 
     function writeAttribute(target, name, value) {
       if (target.getAttribute(name) !== value) {
+        rememberOwnedMutation(target, name);
         target.setAttribute(name, value);
+      }
+    }
+
+    function removeAttribute(target, name) {
+      if (target.hasAttribute(name)) {
+        rememberOwnedMutation(target, name);
+        target.removeAttribute(name);
       }
     }
 
@@ -68,7 +99,7 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
       if (original.present) {
         writeAttribute(target, name, original.prior);
       } else {
-        target.removeAttribute(name);
+        removeAttribute(target, name);
       }
     }
 
@@ -152,14 +183,17 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
       snapshotTarget(target);
       writeAttribute(target, markerName, "true");
       if (target.getAttribute("role") !== "main") {
+        rememberOwnedMutation(target, "role");
         target.setAttribute("role", "main");
       }
       if (target.getAttribute("id") !== "research-main") {
+        rememberOwnedMutation(target, "id");
         target.setAttribute("id", "research-main");
       }
       if (
         target.getAttribute("aria-label") !== "Stock research workspace"
       ) {
+        rememberOwnedMutation(target, "aria-label");
         target.setAttribute("aria-label", "Stock research workspace");
       }
       window.parent[targetKey] = target;
@@ -167,25 +201,38 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
     }
 
     function handleMutations(mutations) {
-      if (mutations.some(
-        (mutation) =>
+      let shouldApply = false;
+      for (const mutation of mutations) {
+        if (consumeOwnedMutation(mutation)) continue;
+        if (
           mutation.type === "childList" ||
           (
             mutation.type === "attributes" &&
-            mutation.attributeName === "data-testid"
+            (
+              mutation.attributeName === "data-testid" ||
+              mutation.attributeName === "role" ||
+              mutation.attributeName === "id" ||
+              (
+                mutation.attributeName === "aria-label" &&
+                mutation.target === window.parent[targetKey]
+              )
+            )
           )
-      )) {
-        applyMainLandmark();
+        ) {
+          shouldApply = true;
+        }
       }
+      if (shouldApply) applyMainLandmark();
     }
 
     applyMainLandmark();
-    window.parent[observerKey] = new MutationObserver(handleMutations);
-    window.parent[observerKey].observe(
+    activeObserver = new MutationObserver(handleMutations);
+    window.parent[observerKey] = activeObserver;
+    activeObserver.observe(
       host.body,
       {
         attributes: true,
-        attributeFilter: ["data-testid"],
+        attributeFilter: ["data-testid", "role", "id", "aria-label"],
         childList: true,
         subtree: true
       }
