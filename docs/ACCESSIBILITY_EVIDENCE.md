@@ -568,14 +568,14 @@ Evidence boundary:
 
 Run metadata:
 
-- Run ID: `a11y-2026-07-28-semantic-main-gate-09`.
+- Run ID: `a11y-2026-07-28-semantic-main-gate-10`.
 - Product-under-test commit:
-  `4363ea9d1156894f558d35cf1a24a631a024789d`.
+  `d1328eaa4d08cf08ec2b70939e4e031ee5f907b0`.
 - Commands:
   `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest
   tests/test_research_accessibility_browser_gate.py -q` and
   `make research-accessibility-browser-check`.
-- Focused result: `19 passed`.
+- Focused result: `22 passed`.
 - Environment: macOS arm64; local Streamlit demo profile; Google Chrome at
   `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`; Playwright
   headless browser control.
@@ -613,6 +613,15 @@ Direct automated results:
   host status. Research Data Health and Research Proof History additionally
   proved the intentional absence of the primary
   `Personal research workflow` navigation before and after the script cycle.
+- Separately from that same-document proof, each case navigated to its
+  explicitly mapped different Research route and then back to the exact
+  original route. After marker, DOM-stability, and exact route-H1 waits, the
+  gate required the full URL to match exactly, including the complete query
+  string and empty fragment, with the ticker parameter where present. It
+  repeated the exact semantic-main and runtime assertions on both the away
+  and returned DOMs, required the correct primary workflow navigation where
+  applicable, and explicitly required its absence on secondary evidence
+  routes.
 - The existing primary-route assertions remained active. After initial focus
   was cleared, one physical Tab focused the sole skip link; Enter preserved
   the route and focused the one `#public-page-answer`, and that focused target
@@ -622,11 +631,12 @@ Direct automated results:
 - All 12 cases reported no browser console error, uncaught page error,
   rendered traceback, or document-level horizontal overflow. Traceback and
   overflow checks were repeated after the same-document Streamlit script
-  cycle and observer-liveness probe.
+  cycle, observer-liveness probe, away transition, and exact-route return.
 - The fixed same-origin bridge accepts no research-content input and performs
   no application action. The gate triggers only the controlled Workspace
-  widget rerun and inert observer probe; it performs no research-data write,
-  persistence action, or route navigation. It remained repository/data
+  widget rerun and inert observer probe before deliberately navigating to one
+  deterministic away route and back for transition evidence. It performs no
+  research-data write or persistence action and remained repository/data
   read-only and in-memory/stdout-only: it wrote no screenshot, timing, JSON,
   report, readiness, canonical-data, research-ledger, or generated repository
   artifact.
