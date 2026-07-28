@@ -29761,14 +29761,21 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     assert "id='public-page-answer'" in source
     assert "tabindex='-1'" in source
 
-    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(content_page)")
+    main_index = source.index("def main()")
+    skip_link_index = source.index(
+        "render_public_workflow_skip_link(initial_page, st.query_params, mode=initial_mode)",
+        main_index,
+    )
+    sidebar_index = source.index("with st.sidebar:", main_index)
+    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(content_page)", sidebar_index)
     public_mode_index = source.index("if public_demo_mode:", output_frames_index)
     public_shell_style_index = source.index("render_public_shell_mode_styles()", public_mode_index)
-    skip_link_index = source.index("render_public_workflow_skip_link(selected_page, st.query_params)", public_shell_style_index)
-    shell_index = source.index("render_public_app_shell(selected_page)", skip_link_index)
+    shell_index = source.index("render_public_app_shell(selected_page)", public_shell_style_index)
     skip_target_index = source.index("render_public_workflow_skip_target()", shell_index)
     dispatch_index = source.index("if research_mode and render_personal_research_route(", skip_target_index)
-    assert public_mode_index < public_shell_style_index < skip_link_index < shell_index < skip_target_index < dispatch_index
+    assert skip_link_index < sidebar_index < output_frames_index
+    assert public_mode_index < public_shell_style_index < shell_index < skip_target_index < dispatch_index
+    assert source[main_index:].count("render_public_workflow_skip_link(") == 1
 
     skip_href = dashboard.public_workflow_skip_href(
         "Single-Stock Report",
@@ -29838,18 +29845,19 @@ def test_operator_workflow_skip_link_has_a_main_content_target():
     assert operator_href == "#public-page-answer"
 
     main_index = source.index("def main()")
-    sidebar_index = source.index("with st.sidebar:", main_index)
     operator_link_index = source.index(
-        "render_public_workflow_skip_link(initial_page, st.query_params, mode=OPERATOR_DEMO_MODE)",
-        sidebar_index,
+        "render_public_workflow_skip_link(initial_page, st.query_params, mode=initial_mode)",
+        main_index,
     )
-    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(content_page)", operator_link_index)
+    sidebar_index = source.index("with st.sidebar:", main_index)
+    output_frames_index = source.index("output_frames = dashboard_output_frames_for_page(content_page)", sidebar_index)
     operator_branch_index = source.index("else:", output_frames_index)
     app_header_index = source.index("render_app_header(", operator_branch_index)
     skip_target_index = source.index("render_public_workflow_skip_target()", app_header_index)
     dispatch_index = source.index("if research_mode and render_personal_research_route(", skip_target_index)
 
-    assert sidebar_index < operator_link_index < output_frames_index < operator_branch_index < app_header_index < skip_target_index < dispatch_index
+    assert operator_link_index < sidebar_index < output_frames_index < operator_branch_index < app_header_index < skip_target_index < dispatch_index
+    assert source[main_index:].count("render_public_workflow_skip_link(") == 1
 
 
 def test_public_compact_header_allows_mobile_status_wrap():
