@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 
-def test_accessibility_browser_gate_covers_both_viewports_and_research_routes():
+def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_routes():
     from src.research_accessibility_browser_gate import RESEARCH_ROUTES, VIEWPORTS
 
     assert VIEWPORTS == ((1280, 720), (390, 844))
@@ -12,10 +12,124 @@ def test_accessibility_browser_gate_covers_both_viewports_and_research_routes():
         "Discover",
         "Company Workbench",
         "Monitor",
+        "Research Data Health",
+        "Research Proof History",
     ]
-    assert RESEARCH_ROUTES[2].route.endswith(
-        "page=company-workbench&ticker=NVDA&open=1"
+    assert [
+        (route.route, route.marker, route.requires_primary_navigation)
+        for route in RESEARCH_ROUTES
+    ] == [
+        ("/?mode=research&page=research-desk", "Weekly research summary", True),
+        ("/?mode=research&page=discover", "Which stock can I review?", True),
+        (
+            "/?mode=research&page=company-workbench&ticker=NVDA&open=1",
+            "Company Workbench",
+            True,
+        ),
+        ("/?mode=research&page=monitor", "WEEKLY RESEARCH SUMMARY", True),
+        (
+            "/?mode=research&page=data-health&ticker=NVDA",
+            "Data Health",
+            False,
+        ),
+        (
+            "/?mode=research&page=proof-history&ticker=NVDA",
+            "Proof History",
+            False,
+        ),
+    ]
+
+
+def test_semantic_main_landmark_contract_requires_exact_unique_dom_state():
+    from src.research_accessibility_browser_gate import (
+        evaluate_semantic_main_landmark,
     )
+
+    passed = evaluate_semantic_main_landmark(
+        main_count=1,
+        main_role="main",
+        main_id="research-main",
+        main_label="Stock research workspace",
+        answer_count=1,
+        h1_count=1,
+        bridge_status="applied",
+        phase="initial",
+    )
+    duplicate = evaluate_semantic_main_landmark(
+        main_count=2,
+        main_role="main",
+        main_id="research-main",
+        main_label="Stock research workspace",
+        answer_count=1,
+        h1_count=1,
+        bridge_status="ambiguous",
+        phase="rerender",
+    )
+
+    assert all(assertion["passed"] for assertion in passed)
+    assert [assertion["name"] for assertion in passed] == [
+        "semantic_main_initial_unique",
+        "semantic_main_initial_metadata",
+        "semantic_main_initial_answer",
+        "semantic_main_initial_h1",
+        "semantic_main_initial_bridge_status",
+    ]
+    assert all(assertion["passed"] is False for assertion in duplicate)
+
+
+def test_skip_target_containment_requires_the_focused_target_inside_unique_main():
+    from src.research_accessibility_browser_gate import (
+        evaluate_skip_target_containment,
+    )
+
+    passed = evaluate_skip_target_containment(
+        main_count=1,
+        target_count=1,
+        active_id="public-page-answer",
+        target_inside_main=True,
+    )
+    outside = evaluate_skip_target_containment(
+        main_count=1,
+        target_count=1,
+        active_id="public-page-answer",
+        target_inside_main=False,
+    )
+    duplicate_main = evaluate_skip_target_containment(
+        main_count=2,
+        target_count=1,
+        active_id="public-page-answer",
+        target_inside_main=True,
+    )
+
+    assert passed["passed"] is True
+    assert outside["passed"] is False
+    assert duplicate_main["passed"] is False
+
+
+def test_browser_error_contract_rejects_console_and_page_errors():
+    from src.research_accessibility_browser_gate import evaluate_browser_errors
+
+    assert evaluate_browser_errors([])["passed"] is True
+    failed = evaluate_browser_errors(
+        ["console error: bridge failed", "page error: unhandled exception"]
+    )
+    assert failed["passed"] is False
+    assert "bridge failed" in str(failed["detail"])
+    assert "unhandled exception" in str(failed["detail"])
+
+
+def test_browser_measurement_collects_errors_and_rechecks_landmark_after_rerender():
+    source = Path("src/research_accessibility_browser_gate.py").read_text(
+        encoding="utf-8"
+    )
+    measurement = source[source.index("def _measure_route(") :]
+    measurement = measurement[: measurement.index("\ndef _failed_payload(")]
+
+    assert 'page.on("console"' in measurement
+    assert 'page.on("pageerror"' in measurement
+    assert '_semantic_main_assertions(page, phase="initial")' in measurement
+    assert '_semantic_main_assertions(page, phase="rerender")' in measurement
+    assert "_rerender_route(" in measurement
 
 
 def test_discover_action_contract_uses_every_actual_row_and_fails_when_empty():

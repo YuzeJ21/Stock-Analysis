@@ -36,6 +36,9 @@ VIEWPORTS: tuple[tuple[int, int], ...] = ((1280, 720), (390, 844))
 DATA_PROFILE_CONTRACT = ("STOCK_RESEARCH_DATA_PROFILE", "demo")
 EXPECTED_APP_TITLE = "Stock Research Command Center"
 EXPECTED_PROFILE_LABEL = "Demo"
+EXPECTED_MAIN_ID = "research-main"
+EXPECTED_MAIN_LABEL = "Stock research workspace"
+EXPECTED_MAIN_STATUS = "applied"
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,7 @@ class ResearchRoute:
     name: str
     route: str
     marker: str
+    requires_primary_navigation: bool = True
 
 
 RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
@@ -65,6 +69,18 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "Monitor",
         "/?mode=research&page=monitor",
         "WEEKLY RESEARCH SUMMARY",
+    ),
+    ResearchRoute(
+        "Research Data Health",
+        "/?mode=research&page=data-health&ticker=NVDA",
+        "Data Health",
+        requires_primary_navigation=False,
+    ),
+    ResearchRoute(
+        "Research Proof History",
+        "/?mode=research&page=proof-history&ticker=NVDA",
+        "Proof History",
+        requires_primary_navigation=False,
     ),
 )
 
@@ -319,6 +335,120 @@ def _assertion(name: str, passed: bool, detail: str) -> dict[str, object]:
     return {"name": name, "passed": bool(passed), "detail": str(detail)}
 
 
+def evaluate_semantic_main_landmark(
+    *,
+    main_count: int,
+    main_role: str | None,
+    main_id: str | None,
+    main_label: str | None,
+    answer_count: int,
+    h1_count: int,
+    bridge_status: str | None,
+    phase: str,
+) -> list[dict[str, object]]:
+    """Require the complete semantic-main contract for one DOM snapshot."""
+
+    phase_name = str(phase or "snapshot").strip().lower().replace(" ", "_")
+    unique = main_count == 1
+    return [
+        _assertion(
+            f"semantic_main_{phase_name}_unique",
+            unique,
+            f"role-based main count={main_count}",
+        ),
+        _assertion(
+            f"semantic_main_{phase_name}_metadata",
+            (
+                unique
+                and main_role == "main"
+                and main_id == EXPECTED_MAIN_ID
+                and main_label == EXPECTED_MAIN_LABEL
+            ),
+            (
+                f"role={main_role!r}; id={main_id!r}; "
+                f"aria-label={main_label!r}"
+            ),
+        ),
+        _assertion(
+            f"semantic_main_{phase_name}_answer",
+            unique and answer_count == 1,
+            f"#public-page-answer descendants={answer_count}",
+        ),
+        _assertion(
+            f"semantic_main_{phase_name}_h1",
+            unique and h1_count == 1,
+            f"level-one heading descendants={h1_count}",
+        ),
+        _assertion(
+            f"semantic_main_{phase_name}_bridge_status",
+            unique and bridge_status == EXPECTED_MAIN_STATUS,
+            f"bridge status={bridge_status!r}",
+        ),
+    ]
+
+
+def evaluate_skip_target_containment(
+    *,
+    main_count: int,
+    target_count: int,
+    active_id: str | None,
+    target_inside_main: bool,
+) -> dict[str, object]:
+    """Require the activated skip target to be focused inside the unique main."""
+
+    passed = (
+        main_count == 1
+        and target_count == 1
+        and active_id == "public-page-answer"
+        and target_inside_main
+    )
+    return _assertion(
+        "skip_target_inside_semantic_main",
+        passed,
+        (
+            f"main_count={main_count}; target_count={target_count}; "
+            f"active_id={active_id!r}; inside_main={target_inside_main}"
+        ),
+    )
+
+
+def evaluate_browser_errors(errors: Iterable[str]) -> dict[str, object]:
+    """Reject any browser console error or uncaught page error."""
+
+    observed = [str(error).strip() for error in errors if str(error).strip()]
+    return _assertion(
+        "no_browser_errors",
+        not observed,
+        "no console or page errors" if not observed else "; ".join(observed),
+    )
+
+
+def _semantic_main_assertions(
+    page: Any,
+    *,
+    phase: str,
+) -> list[dict[str, object]]:
+    mains = page.get_by_role("main")
+    main_count = mains.count()
+    main = mains.first if main_count == 1 else None
+    return evaluate_semantic_main_landmark(
+        main_count=main_count,
+        main_role=main.get_attribute("role") if main is not None else None,
+        main_id=main.get_attribute("id") if main is not None else None,
+        main_label=main.get_attribute("aria-label") if main is not None else None,
+        answer_count=(
+            main.locator("#public-page-answer").count() if main is not None else 0
+        ),
+        h1_count=(
+            main.get_by_role("heading", level=1).count() if main is not None else 0
+        ),
+        bridge_status=page.locator("html").get_attribute(
+            "data-research-main-bridge-status"
+        ),
+        phase=phase,
+    )
+
+
 def _skip_link_assertions(page: Any) -> list[dict[str, object]]:
     skip_links = page.locator("a.public-skip-link[href='#public-page-answer']")
     count = skip_links.count()
@@ -382,6 +512,11 @@ def _skip_link_assertions(page: Any) -> list[dict[str, object]]:
                     False,
                     "skip link was not keyboard-focused; Enter was not sent",
                 ),
+                _assertion(
+                    "skip_target_inside_semantic_main",
+                    False,
+                    "skip link was not keyboard-focused; containment not credited",
+                ),
             )
         )
         return results
@@ -431,6 +566,23 @@ def _skip_link_assertions(page: Any) -> list[dict[str, object]]:
                     f"active_id={active_id!r}"
                 )
             ),
+        )
+    )
+    mains = page.get_by_role("main")
+    main_count = mains.count()
+    targets = page.locator("#public-page-answer")
+    target_count = targets.count()
+    target_inside_main = (
+        main_count == 1
+        and target_count == 1
+        and mains.first.locator("#public-page-answer").count() == 1
+    )
+    results.append(
+        evaluate_skip_target_containment(
+            main_count=main_count,
+            target_count=target_count,
+            active_id=active_id,
+            target_inside_main=target_inside_main,
         )
     )
     return results
@@ -750,6 +902,34 @@ def _demo_app_identity_assertion(
         context.close()
 
 
+def _runtime_dom_assertions(
+    page: Any,
+    *,
+    phase: str,
+) -> list[dict[str, object]]:
+    body = page.locator("body").inner_text()
+    traceback = "Traceback (most recent call last)" in body
+    suffix = "" if phase == "initial" else f"_{phase}"
+    overflow = _horizontal_overflow_pixels(page)
+    return [
+        _assertion(
+            f"no_traceback{suffix}",
+            not traceback,
+            "no traceback rendered" if not traceback else "traceback rendered",
+        ),
+        _assertion(
+            f"no_horizontal_overflow{suffix}",
+            overflow <= 1,
+            f"horizontal overflow={overflow}px",
+        ),
+    ]
+
+
+def _rerender_route(route: ResearchRoute) -> ResearchRoute:
+    index = RESEARCH_ROUTES.index(route)
+    return RESEARCH_ROUTES[(index + 1) % len(RESEARCH_ROUTES)]
+
+
 def _measure_route(
     browser: Any,
     *,
@@ -762,6 +942,17 @@ def _measure_route(
     context = browser.new_context(viewport={"width": width, "height": height})
     page = context.new_page()
     assertions: list[dict[str, object]] = []
+    browser_errors: list[str] = []
+
+    def capture_console_error(message: Any) -> None:
+        if str(message.type).lower() == "error":
+            browser_errors.append(f"console error: {message.text}")
+
+    def capture_page_error(error: Any) -> None:
+        browser_errors.append(f"page error: {error}")
+
+    page.on("console", capture_console_error)
+    page.on("pageerror", capture_page_error)
     try:
         page.goto(
             f"{base_url.rstrip('/')}{route.route}",
@@ -771,30 +962,39 @@ def _measure_route(
         _wait_for_visible_text(page, route.marker, timeout_seconds=timeout_seconds)
         _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
 
-        body = page.locator("body").inner_text()
-        traceback = "Traceback (most recent call last)" in body
-        assertions.append(
-            _assertion(
-                "no_traceback",
-                not traceback,
-                "no traceback rendered" if not traceback else "traceback rendered",
-            )
-        )
-        overflow = _horizontal_overflow_pixels(page)
-        assertions.append(
-            _assertion(
-                "no_horizontal_overflow",
-                overflow <= 1,
-                f"horizontal overflow={overflow}px",
-            )
-        )
-        assertions.append(_navigation_assertion(page, route))
+        assertions.extend(_semantic_main_assertions(page, phase="initial"))
+        assertions.extend(_runtime_dom_assertions(page, phase="initial"))
+        if route.requires_primary_navigation:
+            assertions.append(_navigation_assertion(page, route))
         assertions.extend(_skip_link_assertions(page))
-        assertions.append(_summary_focus_assertion(page))
+        if route.requires_primary_navigation:
+            assertions.append(_summary_focus_assertion(page))
         if route.name == "Discover":
             assertions.append(_discover_action_assertion(page))
         if route.name == "Company Workbench":
             assertions.extend(_authoring_error_assertions(page))
+
+        away_route = _rerender_route(route)
+        page.goto(
+            f"{base_url.rstrip('/')}{away_route.route}",
+            wait_until="domcontentloaded",
+            timeout=int(timeout_seconds * 1000),
+        )
+        _wait_for_visible_text(
+            page,
+            away_route.marker,
+            timeout_seconds=timeout_seconds,
+        )
+        _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+        page.goto(
+            f"{base_url.rstrip('/')}{route.route}",
+            wait_until="domcontentloaded",
+            timeout=int(timeout_seconds * 1000),
+        )
+        _wait_for_visible_text(page, route.marker, timeout_seconds=timeout_seconds)
+        _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+        assertions.extend(_semantic_main_assertions(page, phase="rerender"))
+        assertions.extend(_runtime_dom_assertions(page, phase="rerender"))
     except Exception as exc:
         assertions.append(
             _assertion(
@@ -804,6 +1004,7 @@ def _measure_route(
             )
         )
     finally:
+        assertions.append(evaluate_browser_errors(browser_errors))
         context.close()
 
     return {
