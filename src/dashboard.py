@@ -7080,6 +7080,15 @@ def render_public_workflow_skip_link(
     st.markdown(public_workflow_skip_link_html(skip_href), unsafe_allow_html=True)
 
 
+def render_research_workflow_navigation(selected_page: str, *, ticker: str = "") -> None:
+    if selected_page not in RESEARCH_PATH_PAGE_TITLES:
+        return
+    st.markdown(
+        research_workflow_navigation_html(active_page=selected_page, ticker=ticker),
+        unsafe_allow_html=True,
+    )
+
+
 def public_workflow_skip_target_html() -> str:
     return (
         "<div id='public-page-answer' class='public-workflow-skip-target' tabindex='-1'>"
@@ -35119,11 +35128,7 @@ def main() -> None:
                 st.query_params,
                 mode=RESEARCH_MODE,
             )
-            if selected_page in RESEARCH_PATH_PAGE_TITLES:
-                st.markdown(
-                    research_workflow_navigation_html(active_page=selected_page, ticker=ticker),
-                    unsafe_allow_html=True,
-                )
+            render_research_workflow_navigation(selected_page, ticker=ticker)
         render_app_header(
             catalog,
             output_frames,

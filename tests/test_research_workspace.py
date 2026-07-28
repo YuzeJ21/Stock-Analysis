@@ -696,15 +696,6 @@ def test_mobile_workflow_navigation_is_labelled_and_has_one_current_page(active_
     assert "Company Workbench" not in research_workspace.research_workflow_navigation_html(
         active_page="discover",
     )
-
-
-@pytest.mark.parametrize("active_page", ("data-health", "proof-history"))
-def test_workflow_navigation_has_no_current_link_for_secondary_research_pages(active_page):
-    rendered = research_workspace.research_workflow_navigation_html(active_page=active_page, ticker="AVGO")
-
-    assert rendered.count("aria-current='page'") == 0
-
-
 def test_research_workspace_header_labels_saved_readiness_without_changing_its_argument():
     rendered = research_workspace_header_html(
         "Research Desk",

@@ -33,6 +33,24 @@ def test_personal_research_routes_do_not_render_ambiguous_freshness_label():
     assert "load_observation_recency" in source
 
 
+def test_research_workflow_navigation_rendering_scopes_primary_and_secondary_routes(monkeypatch):
+    rendered: list[str] = []
+    monkeypatch.setattr(dashboard.st, "markdown", lambda html, **kwargs: rendered.append(html))
+
+    for selected_page in nav.RESEARCH_PATH_PAGE_TITLES:
+        dashboard.render_research_workflow_navigation(selected_page, ticker="AVGO")
+
+    assert len(rendered) == len(nav.RESEARCH_PATH_PAGE_TITLES)
+    assert all("Personal research workflow" in html for html in rendered)
+    assert all(html.count("aria-current='page'") == 1 for html in rendered)
+
+    rendered.clear()
+    for selected_page in ("Data Health", "Proof History"):
+        dashboard.render_research_workflow_navigation(selected_page, ticker="AVGO")
+
+    assert rendered == []
+
+
 def test_personal_research_route_loads_once_from_selected_profile_and_passes_one_result(
     monkeypatch,
 ):
