@@ -568,14 +568,14 @@ Evidence boundary:
 
 Run metadata:
 
-- Run ID: `a11y-2026-07-28-semantic-main-gate-08`.
+- Run ID: `a11y-2026-07-28-semantic-main-gate-09`.
 - Product-under-test commit:
-  `284be77deebfb746267edd8ac38279e66e28b982`.
+  `4363ea9d1156894f558d35cf1a24a631a024789d`.
 - Commands:
   `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest
   tests/test_research_accessibility_browser_gate.py -q` and
   `make research-accessibility-browser-check`.
-- Focused result: `17 passed`.
+- Focused result: `19 passed`.
 - Environment: macOS arm64; local Streamlit demo profile; Google Chrome at
   `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`; Playwright
   headless browser control.
@@ -598,12 +598,21 @@ Direct automated results:
   exactly one `#public-page-answer` and exactly one level-one heading, and the
   host status was exactly
   `data-research-main-bridge-status="applied"`.
-- Each case navigated to a different Personal Research route and back, waited
-  for the exact route heading inside the unique main, and repeated the exact
+- Each case activated the exact unselected `Public visitor mode` Workspace
+  radio through a controlled native DOM event. The installed Streamlit
+  `1.59.2` test-state contract recorded a complete
+  `notRunning` -> `running` -> `notRunning` script cycle while retaining the
+  same top document, recording zero top-level frame navigations, and
+  preserving the exact pathname and query.
+- After that same-document cycle, the gate required the bridge target to be
+  the current connected `stMain`. It changed the host status to a probe value
+  and appended one hidden, `aria-hidden` inert node beneath that target; the
+  active bridge observer had to restore the exact `applied` status before the
+  probe node was removed. The gate then repeated the exact route heading,
   landmark count, metadata, answer-target count, heading count, and applied
   host status. Research Data Health and Research Proof History additionally
   proved the intentional absence of the primary
-  `Personal research workflow` navigation before and after that rerender.
+  `Personal research workflow` navigation before and after the script cycle.
 - The existing primary-route assertions remained active. After initial focus
   was cleared, one physical Tab focused the sole skip link; Enter preserved
   the route and focused the one `#public-page-answer`, and that focused target
@@ -612,11 +621,14 @@ Direct automated results:
   field-error association and cleanup also passed where applicable.
 - All 12 cases reported no browser console error, uncaught page error,
   rendered traceback, or document-level horizontal overflow. Traceback and
-  overflow checks were repeated after the away-and-back rerender.
-- The fixed same-origin bridge and browser gate accept no research-content
-  input and perform no application action. The gate remained read-only and
-  in-memory/stdout-only: it wrote no screenshot, timing, JSON, report,
-  readiness, canonical-data, research-ledger, or generated repository
+  overflow checks were repeated after the same-document Streamlit script
+  cycle and observer-liveness probe.
+- The fixed same-origin bridge accepts no research-content input and performs
+  no application action. The gate triggers only the controlled Workspace
+  widget rerun and inert observer probe; it performs no research-data write,
+  persistence action, or route navigation. It remained repository/data
+  read-only and in-memory/stdout-only: it wrote no screenshot, timing, JSON,
+  report, readiness, canonical-data, research-ledger, or generated repository
   artifact.
 
 Evidence boundary:
@@ -628,6 +640,10 @@ Evidence boundary:
 - Automated DOM verification is not WCAG conformance, screen-reader landmark
   navigation or usability, hosted behavior, independent-human accessibility
   validation, or complete keyboard-order evidence.
+- The native DOM radio activation and Streamlit test-state transition are
+  controlled framework engineering evidence only. They do not prove pointer,
+  keyboard, or closed-mobile-sidebar operability, and the installed runtime's
+  test-state attribute is not a public cross-version compatibility guarantee.
 - True 200%/400% browser zoom and reflow, forced colors, reduced motion,
   supported screen-reader tasks, dynamic announcements, complete
   loading/empty/withheld/stale/failure states, remaining small framework
