@@ -681,6 +681,18 @@ def test_research_workspace_header_keeps_scope_freshness_action_and_boundary_vis
     assert "investment advice" in rendered
 
 
+def test_research_workspace_header_labels_saved_readiness_without_changing_its_argument():
+    rendered = research_workspace_header_html(
+        "Research Desk",
+        profile_label="Local Research",
+        freshness="Current",
+        primary_action="Open Discover",
+    )
+
+    assert "<dt>Saved readiness</dt>" in rendered
+    assert "<dt>Freshness</dt>" not in rendered
+
+
 def test_compact_research_workspace_header_keeps_identity_scope_and_boundary_without_duplicate_meta():
     rendered = research_workspace_header_html(
         "Company Workbench",

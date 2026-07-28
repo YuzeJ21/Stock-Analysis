@@ -642,7 +642,7 @@ def research_workspace_header_html(
     header_class = "research-workspace-header compact" if compact else "research-workspace-header"
     meta_html = "" if compact else (
         "<dl class='research-workspace-meta'>"
-        f"<div class='research-workspace-meta-item research-workspace-freshness'><dt>Freshness</dt><dd>{html.escape(str(freshness or 'Check saved readiness'))}</dd></div>"
+        f"<div class='research-workspace-meta-item research-workspace-freshness'><dt>Saved readiness</dt><dd>{html.escape(str(freshness or 'Check saved readiness'))}</dd></div>"
         f"<div class='research-workspace-meta-item research-workspace-action'><dt>Next action</dt><dd>{html.escape(str(primary_action or 'Review source-backed evidence'))}</dd></div>"
         "</dl>"
     )

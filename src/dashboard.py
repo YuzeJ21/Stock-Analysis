@@ -354,6 +354,7 @@ from src.review_metrics import build_metric_readiness_summary, configured_risk_f
 from src.risk_context_workflow import data_health_risk_context_cards, split_risk_context_by_price_ready
 from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
 from src.profile_context import ProfileContext, build_profile_context
+from src.observation_recency import ObservationRecency, ObservationRecencySet
 from src.company_workbench_cash_generation_preview import (
     CompanyWorkbenchCashGenerationPreview,
     company_workbench_cash_preview_requested,
@@ -5280,7 +5281,7 @@ def profile_trust_strip_html(context: ProfileContext, *, compact: bool = False) 
     )
     return (
         f"<section class='profile-trust-strip{compact_class}' "
-        "aria-label='Selected data profile and freshness'>"
+        "aria-label='Selected data profile and saved readiness'>"
         "<div class='profile-trust-primary'>"
         "<span class='profile-trust-label'>Data profile</span>"
         f"<strong>{html.escape(context.profile_label)}</strong>"
@@ -5288,7 +5289,7 @@ def profile_trust_strip_html(context: ProfileContext, *, compact: bool = False) 
         f"<span><small>Sources through</small>{html.escape(source_as_of)}</span>"
         f"{readiness_item}"
         f"<span class='profile-freshness {html.escape(context.freshness_state)}'>"
-        f"<small>Freshness</small>{html.escape(freshness)}</span>"
+        f"<small>Saved readiness</small>{html.escape(freshness)}</span>"
         f"<span><small>Price-ready</small>{coverage.price_ready:,}/{coverage.total:,}</span>"
         f"<span><small>DCF-ready</small>{coverage.dcf_ready:,}/{coverage.total:,}</span>"
         "</section>"
@@ -5312,11 +5313,76 @@ def profile_advanced_details(context: ProfileContext) -> dict[str, object]:
         },
         "Data directory": str(context.data_dir),
         "Outputs directory": str(context.outputs_dir),
-        "Freshness detail": context.freshness_message,
+        "Saved readiness detail": context.freshness_message,
         "Refresh command": context.refresh_command or "No refresh required",
         "Lane source dates": dict(context.lane_source_dates),
         "Snapshot inputs": list(context.snapshot_inputs),
     }
+
+
+def _observation_recency_message(row: ObservationRecency) -> str:
+    if row.state == "stale_review_only":
+        return "Historical context only; no current-market claim is made."
+    return row.message
+
+
+def _observation_recency_item_html(row: ObservationRecency) -> str:
+    through_date = row.through_date or "Unavailable"
+    state = row.state.replace("_", " ").title() or "Unavailable"
+    return (
+        "<article class='observation-recency-item'>"
+        f"<small>Scope</small><strong>{html.escape(row.scope)}</strong>"
+        f"<small>Through date</small><span>{html.escape(through_date)}</span>"
+        f"<small>State</small><span>{html.escape(state)}</span>"
+        f"<p>{html.escape(_observation_recency_message(row))}</p>"
+        "</article>"
+    )
+
+
+def observation_recency_strip_html(
+    result: ObservationRecencySet,
+    *,
+    include_selected: bool,
+) -> str:
+    """Render supplied local observation recency without loading market data."""
+
+    rows = [result.profile_price_lane]
+    if include_selected:
+        rows.extend((result.selected_ticker, *result.benchmarks))
+    return (
+        "<section class='observation-recency-strip' aria-label='Market observation recency'>"
+        "<div class='observation-recency-heading'>"
+        "<span>Local market observations</span>"
+        f"<strong>Review date {html.escape(str(result.as_of or 'Unavailable'))}</strong>"
+        "</div>"
+        + "".join(_observation_recency_item_html(row) for row in rows)
+        + "</section>"
+    )
+
+
+def observation_recency_advanced_details(result: ObservationRecencySet) -> dict[str, object]:
+    """Return technical recency evidence for the supplied local result."""
+
+    rows = (result.selected_ticker, result.profile_price_lane, *result.benchmarks)
+    return {
+        "Policy threshold": "7 calendar days",
+        "Source path": result.source_path or "Unavailable",
+        "Review date": result.as_of,
+        "Excluded dates": {row.scope: row.excluded_date_count for row in rows},
+    }
+
+
+def render_observation_recency(
+    result: ObservationRecencySet,
+    *,
+    include_selected: bool,
+) -> None:
+    st.markdown(
+        observation_recency_strip_html(result, include_selected=include_selected),
+        unsafe_allow_html=True,
+    )
+    with st.expander("Advanced: market observation recency", expanded=False):
+        st.json(observation_recency_advanced_details(result))
 
 
 def render_profile_trust_details(context: ProfileContext) -> None:
@@ -34604,6 +34670,8 @@ def render_research_workspace_header(
     ticker: str = "",
     primary_action: str,
     compact: bool = False,
+    observation_recency: ObservationRecencySet | None = None,
+    include_selected_observation: bool = False,
 ) -> None:
     st.markdown(
         research_workspace_header_html(
@@ -34616,6 +34684,11 @@ def render_research_workspace_header(
         ),
         unsafe_allow_html=True,
     )
+    if observation_recency is not None:
+        render_observation_recency(
+            observation_recency,
+            include_selected=include_selected_observation,
+        )
 
 
 def render_research_desk(
@@ -34624,11 +34697,13 @@ def render_research_desk(
     cohort: FocusedCohort,
     coverage: FocusedCohortCoverage,
     weekly_summary: WeeklyResearchSummary,
+    observation_recency: ObservationRecencySet | None = None,
 ) -> None:
     render_research_workspace_header(
         "Research Desk",
         context,
         primary_action="Open Discover and choose one readiness-backed company",
+        observation_recency=observation_recency,
     )
     st.markdown("## Weekly research summary")
     render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
@@ -34661,11 +34736,13 @@ def render_research_monitor(
     context: ProfileContext,
     weekly_summary: WeeklyResearchSummary,
     cohort: FocusedCohort,
+    observation_recency: ObservationRecencySet | None = None,
 ) -> None:
     render_research_workspace_header(
         "Monitor",
         context,
         primary_action="Review unresolved evidence changes; otherwise wait for new source evidence",
+        observation_recency=observation_recency,
     )
     render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
     discipline = load_dashboard_research_discipline_rows(
@@ -34730,6 +34807,7 @@ def render_company_workbench(
     context: ProfileContext,
     state: dict[str, object],
     coverage: FocusedCohortCoverage,
+    observation_recency: ObservationRecencySet | None = None,
 ) -> None:
     ticker = str(st.query_params.get("ticker") or "").strip().upper()
     cash_generation_preview = None
@@ -34741,6 +34819,8 @@ def render_company_workbench(
         ticker=ticker,
         primary_action="Review usable evidence, then record what remains uncertain",
         compact=True,
+        observation_recency=observation_recency,
+        include_selected_observation=True,
     )
     selected_answer_target = st.empty()
     section_names = [section["title"] for section in company_workbench_section_contract()]

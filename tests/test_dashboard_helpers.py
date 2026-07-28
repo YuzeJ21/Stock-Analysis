@@ -1,12 +1,15 @@
 from dataclasses import replace
+from datetime import date
 import json
 import os
 import re
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
 import src.dashboard as dashboard
 import src.data_health_generated_churn as generated_churn
+from src.observation_recency import evaluate_observation_rows
 from src.peer_read_through_map import build_peer_read_through_map
 from src.decision_process_scorecard import ProcessCheck, DecisionProcessScorecard
 from src.profile_context import CoverageCounts, ProfileContext
@@ -41,6 +44,20 @@ def _profile_context_fixture(**overrides):
     return ProfileContext(**values)
 
 
+@pytest.fixture
+def stale_recency():
+    return evaluate_observation_rows(
+        [
+            {"ticker": "AVGO", "date": "2026-05-22"},
+            {"ticker": "SPY", "date": "2026-05-21"},
+            {"ticker": "QQQ", "date": "2026-05-20"},
+        ],
+        selected_ticker="AVGO",
+        as_of=date(2026, 7, 27),
+        source_path="/private/data/prices.csv",
+    )
+
+
 def test_profile_trust_strip_shows_profile_dates_freshness_and_counts():
     rendered = dashboard.profile_trust_strip_html(_profile_context_fixture())
 
@@ -50,6 +67,35 @@ def test_profile_trust_strip_shows_profile_dates_freshness_and_counts():
     assert "Current" in rendered
     assert "Price-ready" in rendered
     assert "DCF-ready" in rendered
+
+
+def test_profile_strip_labels_saved_readiness_not_generic_freshness():
+    rendered = dashboard.profile_trust_strip_html(_profile_context_fixture())
+
+    assert "<small>Saved readiness</small>" in rendered
+    assert "<small>Freshness</small>" not in rendered
+
+
+def test_stale_observation_strip_exposes_date_without_current_market_claim(stale_recency):
+    rendered = dashboard.observation_recency_strip_html(stale_recency, include_selected=True)
+
+    assert "2026-05-22" in rendered
+    assert "Historical context only" in rendered
+    assert "current-market" not in rendered.lower().replace("no current-market", "")
+
+
+def test_observation_recency_advanced_details_keep_policy_source_and_excluded_counts(stale_recency):
+    assert dashboard.observation_recency_advanced_details(stale_recency) == {
+        "Policy threshold": "7 calendar days",
+        "Source path": "/private/data/prices.csv",
+        "Review date": "2026-07-27",
+        "Excluded dates": {
+            "AVGO": 0,
+            "profile_price_lane": 0,
+            "SPY": 0,
+            "QQQ": 0,
+        },
+    }
 
 
 def test_profile_advanced_details_keep_paths_and_hash_out_of_compact_strip():
