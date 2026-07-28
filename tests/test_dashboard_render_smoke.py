@@ -104,6 +104,29 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     )
 
 
+def test_research_route_renders_one_fragment_skip_link_and_one_existing_answer_target():
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    route = DashboardRenderRoute(
+        name="Research skip focus",
+        query_params=(
+            ("mode", "research"),
+            ("page", "company-workbench"),
+            ("ticker", "AVGO"),
+            ("open", "1"),
+        ),
+        required_markers=("Company Workbench",),
+    )
+
+    result = render_public_routes(Path("."), routes=(route,))[0]
+    rendered = "\n".join(result.rendered_blocks)
+
+    assert result.exceptions == ()
+    assert rendered.count("class='public-skip-link'") == 1
+    assert rendered.count("href='#public-page-answer'") == 1
+    assert rendered.count("id='public-page-answer'") == 1
+
+
 def test_authoring_composer_renders_once_only_in_closed_research_company_workbench():
     workbench = AppTest.from_file("src/dashboard.py", default_timeout=120)
     workbench.query_params.update(

@@ -884,7 +884,7 @@ def test_company_workbench_places_one_decision_lab_after_what_changed_before_bus
     assert "decision_lab_state.identity" in report
 
 
-def test_research_workflow_skip_link_preserves_route_and_precedes_page_answer():
+def test_skip_link_renders_before_application_sidebar_widgets_and_precedes_page_answer():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
 
     href = dashboard.public_workflow_skip_href(
@@ -899,23 +899,14 @@ def test_research_workflow_skip_link_preserves_route_and_precedes_page_answer():
     )
     assert href == "#public-page-answer"
 
-    main_start = source.index("def main()")
-    output_frames = source.index(
-        "output_frames = dashboard_output_frames_for_page(content_page)",
-        main_start,
-    )
-    research_skip = source.index(
-        "render_public_workflow_skip_link(\n"
-        "                selected_page,\n"
-        "                st.query_params,\n"
-        "                mode=RESEARCH_MODE,\n"
-        "            )",
-        output_frames,
-    )
-    answer_target = source.index("render_public_workflow_skip_target()", research_skip)
-    dispatch = source.index("if research_mode and render_personal_research_route(", answer_target)
+    main = source[source.index("def main()"):]
+    skip_call = main.index("render_public_workflow_skip_link(")
+    sidebar_entrypoint = main.index("with st.sidebar:")
+    answer_target = main.index("render_public_workflow_skip_target()")
+    dispatch = main.index("if research_mode and render_personal_research_route(")
 
-    assert research_skip < answer_target < dispatch
+    assert skip_call < sidebar_entrypoint < answer_target < dispatch
+    assert main.count("render_public_workflow_skip_link(") == 1
 
 
 def test_research_primary_sections_follow_route_h1_with_level_two_headings():

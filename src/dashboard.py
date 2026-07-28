@@ -34983,6 +34983,7 @@ def main() -> None:
         if initial_mode == PUBLIC_DEMO_MODE
         else None
     )
+    render_public_workflow_skip_link(initial_page, st.query_params, mode=initial_mode)
 
     with st.sidebar:
         render_sidebar_nav_header()
@@ -35001,8 +35002,6 @@ def main() -> None:
         research_mode = mode == RESEARCH_MODE
         public_demo_mode = mode == PUBLIC_DEMO_MODE
         operator_mode = mode == OPERATOR_DEMO_MODE
-        if operator_mode:
-            render_public_workflow_skip_link(initial_page, st.query_params, mode=OPERATOR_DEMO_MODE)
         st.caption(f"Workspace: {dashboard_mode_label(mode)}")
         st.caption(f"Data profile: {data_profile.name}")
         path_options = workspace_path_options(initial_page, mode)
@@ -35117,17 +35116,11 @@ def main() -> None:
             bootstrap_placeholder.empty()
             bootstrap_placeholder = None
         render_public_shell_mode_styles()
-        render_public_workflow_skip_link(selected_page, st.query_params)
         render_public_app_shell(selected_page)
         render_profile_trust_strip(profile_context, compact=True, include_advanced=False)
         render_public_workflow_skip_target()
     else:
         if research_mode:
-            render_public_workflow_skip_link(
-                selected_page,
-                st.query_params,
-                mode=RESEARCH_MODE,
-            )
             render_research_workflow_navigation(selected_page, ticker=ticker)
         render_app_header(
             catalog,
