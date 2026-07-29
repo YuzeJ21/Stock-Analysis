@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 from dataclasses import asdict, dataclass, field
@@ -476,14 +477,18 @@ def _quant_interpretation_decision(
 
 
 def _observation_rows(ticker: str, history: pd.DataFrame) -> list[dict[str, str]]:
-    if history.empty or "date" not in history.columns:
+    if history.empty or "date" not in history.columns or "close" not in history.columns:
         return []
-    rows: list[dict[str, str]] = []
-    for value in history["date"].tolist():
-        parsed = pd.to_datetime(value, errors="coerce")
-        observation_date = "" if pd.isna(parsed) else parsed.date().isoformat()
-        rows.append({"ticker": ticker, "date": observation_date})
-    return rows
+    dates = pd.to_datetime(history["date"], errors="coerce")
+    closes = pd.to_numeric(history["close"], errors="coerce")
+    finite_closes = closes.map(
+        lambda value: bool(pd.notna(value) and math.isfinite(float(value)))
+    )
+    usable = dates.notna() & closes.gt(0) & finite_closes
+    return [
+        {"ticker": ticker, "date": value.date().isoformat()}
+        for value in dates.loc[usable]
+    ]
 
 
 def _benchmark_history(
@@ -494,6 +499,33 @@ def _benchmark_history(
         return provider.get_price_history(benchmark, period="1y", interval="1d")
     except (KeyError, LookupError):
         return pd.DataFrame(columns=["date", "close"])
+
+
+class _PreloadedPriceHistoryProvider:
+    def __init__(
+        self,
+        provider: MarketDataProvider,
+        histories: dict[str, pd.DataFrame],
+    ) -> None:
+        self._provider = provider
+        self._histories = {
+            ticker.upper(): history.copy()
+            for ticker, history in histories.items()
+        }
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._provider, name)
+
+    def get_price_history(
+        self,
+        ticker: str,
+        period: str,
+        interval: str,
+    ) -> pd.DataFrame:
+        scope = ticker.upper()
+        if scope not in self._histories:
+            raise LookupError(f"No preloaded price history for {scope}")
+        return self._histories[scope].copy()
 
 
 def _build_quant_interpretation(
@@ -628,10 +660,15 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
     )
     provider_root = getattr(provider, "base_dir", None)
     risk_free_rate = configured_risk_free_rate(Path(provider_root)) if provider_root is not None else 0.0
+    price_histories = {ticker: history}
+    for benchmark in ("SPY", "QQQ"):
+        if benchmark not in price_histories:
+            price_histories[benchmark] = _benchmark_history(provider, benchmark)
+    metric_provider = _PreloadedPriceHistoryProvider(provider, price_histories)
     review_metric_snapshots = {
         benchmark: build_review_metrics(
             ticker,
-            provider,
+            metric_provider,
             benchmark=benchmark,
             annual_risk_free_rate=risk_free_rate,
         )
@@ -642,7 +679,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
         for benchmark, snapshot in review_metric_snapshots.items()
     }
     benchmark_histories = {
-        benchmark: _benchmark_history(provider, benchmark)
+        benchmark: price_histories[benchmark]
         for benchmark in ("SPY", "QQQ")
     }
     quant_interpretation = _build_quant_interpretation(

@@ -4,6 +4,7 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -467,6 +468,105 @@ def test_stock_report_keeps_quant_values_but_adds_independent_eligibility(provid
         "one_year",
     }
     assert set(payload["quant_interpretation"]["review_metrics"]) == {"SPY", "QQQ"}
+
+
+def test_stock_report_recency_ignores_recent_rows_without_a_usable_close(provider):
+    valid_history = pd.DataFrame(
+        {
+            "date": pd.date_range(end="2026-06-01", periods=60, freq="D"),
+            "close": [100.0 + value for value in range(60)],
+        }
+    )
+    provider.histories[("NVDA", "1y", "1d")] = pd.concat(
+        [
+            valid_history,
+            pd.DataFrame([{"date": pd.Timestamp("2026-07-27"), "close": None}]),
+        ],
+        ignore_index=True,
+    )
+
+    with patch(
+        "src.stock_report.pd.Timestamp.now",
+        return_value=pd.Timestamp("2026-07-28T12:00:00Z"),
+    ):
+        payload = build_stock_report("NVDA", provider).to_dict()
+
+    valuation_decision = payload["quant_interpretation"]["valuation"]
+    assert valuation_decision["observation_through_date"] == "2026-06-01"
+    assert valuation_decision["observation_state"] == "stale_review_only"
+
+
+class _ChangingHistoryProvider:
+    def __init__(
+        self,
+        provider: MockMarketDataProvider,
+        history_versions: dict[str, list[pd.DataFrame]],
+    ) -> None:
+        self._provider = provider
+        self._history_versions = history_versions
+        self.history_calls = {ticker: 0 for ticker in history_versions}
+
+    def __getattr__(self, name: str):
+        return getattr(self._provider, name)
+
+    def get_price_history(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
+        ticker = ticker.upper()
+        call_index = self.history_calls[ticker]
+        versions = self._history_versions[ticker]
+        self.history_calls[ticker] += 1
+        return versions[min(call_index, len(versions) - 1)].copy()
+
+
+def test_stock_report_reuses_one_loaded_history_per_scope_for_metrics_and_eligibility(provider):
+    first_dates = pd.date_range(end="2026-06-01", periods=60, freq="D")
+    changed_dates = pd.date_range(end="2026-07-27", periods=60, freq="D")
+
+    def history(dates: pd.DatetimeIndex, start: float) -> pd.DataFrame:
+        return pd.DataFrame(
+            {
+                "date": dates,
+                "close": [start + value for value in range(len(dates))],
+            }
+        )
+
+    changing_provider = _ChangingHistoryProvider(
+        provider,
+        {
+            "NVDA": [
+                history(first_dates, 100.0),
+                history(changed_dates, 500.0),
+            ],
+            "SPY": [
+                history(first_dates, 200.0),
+                history(changed_dates, 600.0),
+            ],
+            "QQQ": [
+                history(first_dates, 300.0),
+                history(changed_dates, 700.0),
+            ],
+        },
+    )
+
+    with patch(
+        "src.stock_report.pd.Timestamp.now",
+        return_value=pd.Timestamp("2026-07-28T12:00:00Z"),
+    ):
+        payload = build_stock_report("NVDA", changing_provider).to_dict()
+
+    assert changing_provider.history_calls == {"NVDA": 1, "SPY": 1, "QQQ": 1}
+    for benchmark in ("SPY", "QQQ"):
+        calculated_metric = next(
+            metric
+            for metric in payload["review_metrics"][benchmark]["price_metrics"]
+            if metric["name"] == "benchmark_relative_return"
+        )
+        eligibility = payload["quant_interpretation"]["review_metrics"][benchmark][
+            "price_metrics"
+        ]["benchmark_relative_return"]
+        assert calculated_metric["state"] == "ready"
+        assert eligibility["calculation_state"] == "available"
+        assert eligibility["observation_through_date"] == "2026-06-01"
+        assert eligibility["observation_state"] == "stale_review_only"
 
 
 def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
