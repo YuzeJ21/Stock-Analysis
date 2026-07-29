@@ -208,8 +208,17 @@ Current local execution queue:
 Completed local item: `1. Add shared quant provenance/recency eligibility without coupling readiness.` This former queue item is implemented at
 `195ea18da9d1d6e06c36f8320509ccde46cdaa57` and is not an active task.
 
-1. Address semantic-main bridge framework reliability through direct runtime evidence.
-2. Resume the remaining automated portion of Priority 7.
+1. Finish the exact-head same-document transport framework reliability
+   evidence closeout. The dependency boundary, `st.html` migration,
+   behavior-first same-document
+   correction, and fail-closed warning/iframe/focus/height result fields are
+   implemented locally. The normal gate owns and boundedly captures merged
+   local server stdout/stderr; explicit `BASE_URL` mode cannot claim that
+   evidence and fails the strict server-output proof as unavailable. The
+   six-route/two-viewport behavior matrix passed at
+   `e8084099b`, but the new four-field instrumentation still requires one clean
+   exact-head direct-browser run.
+2. Resume the remaining automated portion of Priority 7 after that run.
 
 Priority 7 accessibility remains the next numbered maturity priority. Do not re-run Priorities 1-3 unless a current regression is directly reproduced. Priority 6 provider-neutral retention/deletion or audit-event work is not the active next lane and requires a separate reviewed design; provider-specific work remains blocked on an approved environment.
 
@@ -304,6 +313,25 @@ Priority 7 — Accessibility evidence beyond screenshots
 - Preserve the exact `390x844` phone continuation at `c748b192dd4fe27f1c17f2feba07eaccd24e4619`: K02 passed on ticker-bound AVGO Workbench, retaining every route parameter and transferring focus to the answer. K01 failed because Workspace help, Workspace selection, and route selection received focus at negative x coordinates inside the closed off-canvas sidebar before the main section and skip link. K03 changed routes deterministically with Arrow Down but failed visible focus because the selected route remained off-canvas; the sidebar-open control was hidden at `0x0` and absent from the recorded Tab sequence. Phone K04 reached search, filtered AVGO, and opened the correct `86x44` action, but the accessible name remained only `Open review` and the preceding summary still had no outline. P02 failed for mobile route choices: each route label measured approximately `104x50` but began at `x=-279`; the visible main document retained `390px` scroll and client widths.
 - Preserve the exact-tested narrow-remediation browser gate at implementation anchor `0000c97e7db17e5d4353e30e976f2b7dec6bfd46`: `make research-accessibility-browser-check` verified the rendered Stock Research Command Center `Demo` profile and a clean product/code/test/docs tree while classifying and excluding exactly 18 unstaged generated CSV/output paths, then passed all eight primary research route-and-viewport cases at `1280x720` and `390x844`. After initial focus was cleared, one physical Tab focused the sole skip link; no DOM-order enumeration or programmatic link focus substitutes for that result. The focused link was fully inside both horizontal and vertical viewport bounds at approximately `x=8.8..141.4`, `y=8.8..47.0`, and Enter retained the full route query and focused `#public-page-answer`. The labelled workflow navigation and every applicable route link were inside the viewport, with each link at least `44px` high; all four actually rendered eligible Discover actions had unique ticker-matched names without an assumed row count; directly focused summaries exposed a solid three-pixel outline; and rejected empty-thesis validation associated, described, and focused Thesis Id while retaining one global alert. The live Workbench regression then changed the draft, removed only bridge-owned Thesis Id error state, and associated the next `effective_at is required` rejection only with Effective At on desktop and phone. Non-loopback or mismatched servers, staged paths, dirty non-generated implementation paths, absent Chrome, and absent Playwright fail closed; an unverified run receives no local commit/profile attribution. The gate writes no JSON, timing, report, screenshot, readiness, canonical-data, or ledger artifact. This supersedes only the five narrow failures and the stale-error/provenance evidence gaps at the recorded local implementation anchor; it is automated engineering evidence, not independent-human, screen-reader, hosted, or WCAG-conformance evidence.
 - Preserve the exact-tested framework-safe semantic-main gate at implementation anchor `d1328eaa4d08cf08ec2b70939e4e031ee5f907b0`: focused tests returned `22 passed`, and `make research-accessibility-browser-check` verified the rendered loopback Stock Research Command Center `Demo` profile plus a clean product tree while classifying and excluding exactly the same 18 unstaged generated paths. All 12 Research Desk, Discover, ticker-bound Company Workbench, Monitor, Research Data Health, and Research Proof History cases passed at `1280x720` and `390x844` with no failures. Every initial DOM and every DOM after a same-document Streamlit `notRunning` -> `running` -> `notRunning` script cycle exposed exactly one role-based main with exact `role="main"`, `id="research-main"`, `aria-label="Stock research workspace"`, one contained `#public-page-answer`, one level-one heading, and host status `data-research-main-bridge-status="applied"`; only that rerun/probe phase preserved the exact route with zero top-level navigation. A hidden inert child-list mutation forced the live observer to restore `applied`, after which the probe was removed. Separately, every case deliberately navigated to an explicit different Research route and back, waited for marker/stability/exact H1, required the full away and return URLs including the complete query string and empty fragment with the ticker parameter where present, and repeated semantic-main, runtime, and applicable primary/secondary navigation assertions. One physical Tab still focused the sole initial skip link, its activated target was inside that unique main, and no console/page error, rendered traceback, or horizontal overflow occurred across the recorded phases. The controlled native radio event and installed Streamlit test-state transition are framework engineering evidence only, not pointer/keyboard/mobile-sidebar interaction credit or a public cross-version compatibility guarantee. The gate remained repository/data read-only and in-memory/stdout-only and wrote no screenshot, timing, JSON, report, readiness, canonical-data, ledger, or generated repository artifact.
+- Preserve the behavior-first same-document correction evidence at
+  `e8084099b3ea1b794ce8e2a0af00998602133084`: the direct local gate again
+  passed all 12 route-and-viewport cases with an empty failure list and the
+  same 18 generated paths excluded. This proves the fixed scripts retained
+  landmark, authoring association/cleanup/focus, rerun, mutation, routing,
+  query, error, and overflow behavior after replacing iframe-era
+  `window.frameElement` / `window.parent` assumptions with executing-document
+  ownership. The gate now additionally exposes fail-closed per-result
+  deprecation-warning, bridge-iframe, bridge-focusable, and bridge-height
+  fields. Focused tests return `33 passed`; exact integer validation rejects
+  malformed DOM counts, and the gate-owned local server's bounded merged
+  stdout/stderr is included in warning detection. Warning counting inspects
+  each full line before storage truncation/eviction; reader exceptions and
+  incomplete reader shutdown fail closed. Explicit `BASE_URL` mode
+  classifies server output as unavailable and cannot pass the strict transport
+  proof. The six-route render smoke emits no `st.components.v1.html` warning,
+  but the new fields were added after the
+  `e8084099b3` run; require one clean exact-head direct-browser rerun before
+  crediting their zero values or closing this reliability item.
 - Execute `docs/ACCESSIBILITY_TASK_PROTOCOL.md` for direct task evidence. It records exact revision/environment metadata, keyboard-only navigation, write-free validation, zoom/reflow, forced-colors, reduced-motion, screen-reader, target-size, finding, and completion rules; the protocol is not completion evidence.
 - The current Streamlit container API has no stable semantic-role parameter. Preserve the separately reviewed fixed same-origin bridge, its exact-target and fail-closed ownership rules, and its direct runtime gate; do not broaden it into research-content access, navigation, application actions, persistence, telemetry, or readiness behavior.
 - Continue with the named open findings: small framework controls outside the tested matrix, dynamic announcements, independent-human complete keyboard order, true zoom/reflow, forced colors, reduced motion, screen-reader tasks, and complete loading/empty/withheld/stale/failure-state coverage.

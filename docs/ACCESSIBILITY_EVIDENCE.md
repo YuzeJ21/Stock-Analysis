@@ -659,3 +659,64 @@ Evidence boundary:
   loading/empty/withheld/stale/failure states, remaining small framework
   controls, and independent-human testing remain incomplete. Priority 7
   therefore remains open.
+
+## 2026-07-29 same-document transport behavior and instrumentation
+
+Verified implementation evidence:
+
+- Product-under-test commit:
+  `e8084099b3ea1b794ce8e2a0af00998602133084`.
+- Supported dependency contract: `streamlit>=1.52,<2`; installed local
+  runtime: Streamlit `1.59.2`.
+- Direct command: `make research-accessibility-browser-check`.
+- Environment: macOS arm64; local `Demo` profile; Google Chrome at
+  `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`.
+- Routes: Research Desk, Discover, ticker-bound NVDA Company Workbench,
+  Monitor, Research Data Health, and Research Proof History.
+- Viewports: `1280x720` and `390x844`, for 12 route-and-viewport results.
+- Result: `passed`, with an empty failure list. Repository hygiene classified
+  and excluded exactly 18 unstaged generated CSV/output paths.
+
+The direct run proved that the behavior-first `st.html` correction retained
+one applied same-document main landmark, one contained answer, exact route H1,
+skip focus and activation, exact query retention, rerun and mutation recovery,
+away-and-return route recovery, Workbench Thesis Id cleanup and Effective At
+rebinding, zero browser error, and zero horizontal overflow across the
+recorded matrix. It supersedes the earlier iframe-topology failure only for
+this exact local runtime and commit.
+
+The browser gate now also has fail-closed per-result fields for
+`deprecated_component_warning_count`, `bridge_iframe_count`,
+`bridge_focusable_count`, and `bridge_height`. Focused tests first failed
+because the evaluator and live-DOM observation did not exist, then returned
+`33 passed` after implementation and review hardening. Counts accept only
+exact nonnegative integers; booleans, fractional values, negative values, and
+strings fail closed. The normal gate-owned local server retains a bounded
+in-memory stdout/stderr tail and increments the deprecation counter during
+streaming against the full normalized line, before line-length truncation or
+old-line eviction; lock-protected snapshots avoid reader/route races. Reader
+exceptions and a reader still alive after the bounded shutdown join change
+capture status to explicit failed/incomplete states, which fail the overall
+verdict. An alive reader is not synchronously closed after timeout because a
+shared `TextIOWrapper` lock could block the gate; normal and exception readers
+that have stopped are closed. That exact count is combined with browser console and rendered
+messages. Explicit `BASE_URL` mode reports
+server output as `unavailable_external_base_url` and cannot receive a strict
+passing transport verdict. `make research-dashboard-render-smoke`
+passed all six Research routes without the former
+`st.components.v1.html` deprecation warning.
+
+The four new result fields were added after the `e8084099b3` browser run.
+They therefore require a new clean exact-head direct-browser run before zero
+values can be credited as direct runtime evidence. Until that rerun passes,
+warning removal and zero-footprint instrumentation are locally implemented
+and focused-tested, but this transport-migration evidence item remains open.
+
+Evidence boundary:
+
+- The bridges execute fixed local scripts only and do not read research
+  content, change readiness, persist a record, or perform a research action.
+- No generated data, screenshot, JSON, report, or timing artifact was created
+  by these checks.
+- This is local automated engineering evidence, not screen-reader, WCAG,
+  hosted, cross-major-version, independent-human, or market validation.

@@ -6,13 +6,16 @@ import argparse
 import contextlib
 import ipaddress
 import json
+import math
 import os
 import platform
 import subprocess
 import sys
-from dataclasses import dataclass
+import threading
+from collections import deque
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable
 from urllib.parse import parse_qs, urlparse
 
 from scripts.diff_hygiene import (
@@ -24,8 +27,9 @@ from scripts.diff_hygiene import (
 from src.paths import resolve_project_root
 from src.public_performance_gate import (
     _git_commit,
+    _free_port,
     _horizontal_overflow_pixels,
-    _local_demo_server,
+    _wait_for_health,
     _wait_for_dom_stability,
     _wait_for_visible_text,
     find_chrome_executable,
@@ -39,6 +43,8 @@ EXPECTED_PROFILE_LABEL = "Demo"
 EXPECTED_MAIN_ID = "research-main"
 EXPECTED_MAIN_LABEL = "Stock research workspace"
 EXPECTED_MAIN_STATUS = "applied"
+MAX_SERVER_RUNTIME_LINES = 2_000
+MAX_SERVER_RUNTIME_LINE_LENGTH = 4_000
 
 
 @dataclass(frozen=True)
@@ -48,6 +54,57 @@ class ResearchRoute:
     marker: str
     expected_h1: str
     requires_primary_navigation: bool = True
+
+
+@dataclass
+class RuntimeServerEvidence:
+    """One bounded in-memory server-output capture attached to a loopback URL."""
+
+    base_url: str
+    runtime_messages: deque[str]
+    capture_status: str
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _total_line_count: int = field(default=0, repr=False)
+    _deprecated_warning_count: int = field(default=0, repr=False)
+    _capture_detail: str = field(default="", repr=False)
+
+    def append(self, message: str) -> None:
+        normalized = str(message)
+        with self._lock:
+            self._total_line_count += 1
+            if "st.components.v1.html" in normalized.lower():
+                self._deprecated_warning_count += 1
+            self.runtime_messages.append(
+                normalized[:MAX_SERVER_RUNTIME_LINE_LENGTH]
+            )
+
+    def mark_capture_failure(self, status: str, detail: str) -> None:
+        with self._lock:
+            if self.capture_status == "captured_local_server":
+                self.capture_status = str(status)
+                self._capture_detail = str(detail)
+
+    def snapshot(self) -> tuple[str, ...]:
+        with self._lock:
+            return tuple(self.runtime_messages)
+
+    @property
+    def total_line_count(self) -> int:
+        with self._lock:
+            return self._total_line_count
+
+    @property
+    def truncated_line_count(self) -> int:
+        with self._lock:
+            return max(0, self._total_line_count - len(self.runtime_messages))
+
+    def deprecated_warning_count(self) -> int:
+        with self._lock:
+            return self._deprecated_warning_count
+
+    def capture_detail(self) -> str:
+        with self._lock:
+            return self._capture_detail
 
 
 RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
@@ -437,6 +494,234 @@ def evaluate_browser_errors(errors: Iterable[str]) -> dict[str, object]:
         not observed,
         "no console or page errors" if not observed else "; ".join(observed),
     )
+
+
+def evaluate_bridge_transport(
+    *,
+    runtime_messages: Iterable[str],
+    bridge_iframe_count: int,
+    bridge_focusable_count: int,
+    bridge_heights: Iterable[float],
+    server_deprecated_warning_count: int = 0,
+) -> dict[str, object]:
+    """Require the fixed accessibility bridges to have no legacy transport or box."""
+
+    observed_messages = tuple(
+        str(message).strip()
+        for message in runtime_messages
+        if str(message).strip()
+    )
+    browser_warning_count = sum(
+        "st.components.v1.html" in message.lower()
+        for message in observed_messages
+    )
+    valid_server_warning_count = (
+        type(server_deprecated_warning_count) is int
+        and server_deprecated_warning_count >= 0
+    )
+    deprecated_warning_count = (
+        browser_warning_count + server_deprecated_warning_count
+        if valid_server_warning_count
+        else -1
+    )
+    iframe_count = (
+        bridge_iframe_count
+        if type(bridge_iframe_count) is int and bridge_iframe_count >= 0
+        else -1
+    )
+    focusable_count = (
+        bridge_focusable_count
+        if type(bridge_focusable_count) is int and bridge_focusable_count >= 0
+        else -1
+    )
+    try:
+        heights = tuple(float(height) for height in bridge_heights)
+    except (TypeError, ValueError):
+        heights = ()
+    valid_heights = bool(heights) and all(
+        math.isfinite(height) and height >= 0 for height in heights
+    )
+    bridge_height: float | int = max(heights) if valid_heights else -1
+    if bridge_height == 0:
+        bridge_height = 0
+
+    fields: dict[str, object] = {
+        "deprecated_component_warning_count": deprecated_warning_count,
+        "bridge_iframe_count": iframe_count,
+        "bridge_focusable_count": focusable_count,
+        "bridge_height": bridge_height,
+    }
+    assertions = [
+        _assertion(
+            "deprecated_component_warning_count",
+            deprecated_warning_count == 0,
+            f"deprecated st.components.v1.html warning count={deprecated_warning_count}",
+        ),
+        _assertion(
+            "bridge_iframe_count",
+            iframe_count == 0,
+            f"accessibility bridge iframe count={iframe_count}",
+        ),
+        _assertion(
+            "bridge_focusable_count",
+            focusable_count == 0,
+            f"accessibility bridge focusable descendant count={focusable_count}",
+        ),
+        _assertion(
+            "bridge_height",
+            bridge_height == 0,
+            f"maximum accessibility bridge height={bridge_height}px",
+        ),
+    ]
+    return {
+        **fields,
+        "passed": all(assertion["passed"] for assertion in assertions),
+        "assertions": assertions,
+    }
+
+
+def evaluate_server_runtime_output(
+    *,
+    capture_status: str,
+    runtime_messages: Iterable[str],
+    deprecated_component_warning_count: int | None = None,
+) -> dict[str, object]:
+    """Require owned local server output and reject deprecated transport warnings."""
+
+    status = str(capture_status or "").strip()
+    if status != "captured_local_server":
+        return {
+            "passed": False,
+            "capture_status": status or "unavailable",
+            "deprecated_component_warning_count": None,
+            "detail": (
+                "server stdout/stderr capture unavailable; strict deprecation "
+                "evidence failed closed"
+            ),
+        }
+    observed = tuple(
+        str(message).strip()
+        for message in runtime_messages
+        if str(message).strip()
+    )
+    if deprecated_component_warning_count is None:
+        warning_count = sum(
+            "st.components.v1.html" in message.lower()
+            for message in observed
+        )
+    elif (
+        type(deprecated_component_warning_count) is int
+        and deprecated_component_warning_count >= 0
+    ):
+        warning_count = deprecated_component_warning_count
+    else:
+        warning_count = -1
+    return {
+        "passed": warning_count == 0,
+        "capture_status": status,
+        "deprecated_component_warning_count": warning_count,
+        "detail": (
+            "captured local server stdout/stderr contains no deprecated "
+            "st.components.v1.html warning"
+            if warning_count == 0
+            else (
+                "captured local server stdout/stderr deprecated "
+                f"st.components.v1.html warning count={warning_count}"
+            )
+        ),
+    }
+
+
+@contextlib.contextmanager
+def _captured_local_demo_server(
+    root: Path,
+    *,
+    timeout_seconds: float,
+):
+    """Run the demo server while retaining only bounded in-memory runtime output."""
+
+    selected_port = _free_port()
+    base_url = f"http://127.0.0.1:{selected_port}"
+    env = os.environ.copy()
+    env["STOCK_RESEARCH_DATA_PROFILE"] = "demo"
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "streamlit",
+            "run",
+            "src/dashboard.py",
+            "--server.headless",
+            "true",
+            "--server.fileWatcherType",
+            "none",
+            "--client.toolbarMode",
+            "viewer",
+            "--server.port",
+            str(selected_port),
+        ],
+        cwd=root,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        start_new_session=True,
+    )
+    evidence = RuntimeServerEvidence(
+        base_url=base_url,
+        runtime_messages=deque(maxlen=MAX_SERVER_RUNTIME_LINES),
+        capture_status="captured_local_server",
+    )
+
+    def collect_runtime_output() -> None:
+        if process.stdout is None:
+            evidence.mark_capture_failure(
+                "failed_reader_unavailable",
+                "server stdout pipe was unavailable",
+            )
+            return
+        try:
+            for line in process.stdout:
+                normalized = str(line).strip()
+                if normalized:
+                    evidence.append(normalized)
+        except Exception as exc:
+            evidence.mark_capture_failure(
+                "failed_reader_exception",
+                (
+                    "server stdout/stderr reader failed: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+            )
+
+    reader = threading.Thread(
+        target=collect_runtime_output,
+        name="research-accessibility-server-output",
+        daemon=True,
+    )
+    reader.start()
+    try:
+        _wait_for_health(base_url, timeout_seconds=timeout_seconds)
+        yield evidence
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=8)
+        except subprocess.TimeoutExpired:  # pragma: no cover - defensive cleanup
+            process.kill()
+            process.wait(timeout=5)
+        reader.join(timeout=5)
+        reader_stopped = not reader.is_alive()
+        if not reader_stopped:
+            evidence.mark_capture_failure(
+                "incomplete_reader_shutdown",
+                "server stdout/stderr reader did not stop within 5 seconds",
+            )
+        else:
+            close_stdout = getattr(process.stdout, "close", None)
+            if callable(close_stdout):
+                close_stdout()
 
 
 def evaluate_exact_route_url(
@@ -1344,6 +1629,75 @@ def _demo_app_identity_assertion(
         context.close()
 
 
+def _bridge_transport_observation(
+    page: Any,
+    *,
+    runtime_messages: Iterable[str],
+    server_deprecated_warning_count: int = 0,
+) -> dict[str, object]:
+    """Measure only the two fixed accessibility-script transports in the live DOM."""
+
+    observed = page.evaluate(
+        """
+() => {
+  const bridgeNeedles = [
+    "__stockResearchMainObserver",
+    "data-research-authoring-error-owned"
+  ];
+  const containsBridge = (value) =>
+    bridgeNeedles.some((needle) => String(value || "").includes(needle));
+  const htmlBridges = Array.from(
+    document.querySelectorAll('[data-testid="stHtml"]')
+  ).filter((node) => containsBridge(node.innerHTML));
+  const bridgeIframes = Array.from(document.querySelectorAll("iframe")).filter(
+    (frame) => {
+      let content = frame.getAttribute("srcdoc") || "";
+      try {
+        content += frame.contentDocument?.documentElement?.innerHTML || "";
+      } catch (error) {
+        return containsBridge(content);
+      }
+      return containsBridge(content);
+    }
+  );
+  const focusableSelector = [
+    "a[href]",
+    "area[href]",
+    "button",
+    "input",
+    "select",
+    "textarea",
+    "object",
+    "embed",
+    '[contenteditable="true"]',
+    '[tabindex]:not([tabindex="-1"])'
+  ].join(",");
+  return {
+    bridge_iframe_count: bridgeIframes.length,
+    bridge_focusable_count: htmlBridges.reduce(
+      (count, bridge) => count + bridge.querySelectorAll(focusableSelector).length,
+      0
+    ),
+    bridge_heights: htmlBridges.map(
+      (bridge) => bridge.getBoundingClientRect().height
+    ),
+    rendered_text: document.body.innerText
+  };
+}
+"""
+    )
+    return evaluate_bridge_transport(
+        runtime_messages=(
+            *runtime_messages,
+            str(observed.get("rendered_text", "")),
+        ),
+        bridge_iframe_count=observed.get("bridge_iframe_count", -1),
+        bridge_focusable_count=observed.get("bridge_focusable_count", -1),
+        bridge_heights=observed.get("bridge_heights", ()),
+        server_deprecated_warning_count=server_deprecated_warning_count,
+    )
+
+
 def _runtime_dom_assertions(
     page: Any,
     *,
@@ -1438,21 +1792,35 @@ def _measure_route(
     route: ResearchRoute,
     viewport: tuple[int, int],
     timeout_seconds: float,
+    server_deprecated_warning_count: int | Callable[[], int] = 0,
+    server_runtime_output_status: str = "unverified",
 ) -> dict[str, object]:
     width, height = viewport
     context = browser.new_context(viewport={"width": width, "height": height})
     page = context.new_page()
     assertions: list[dict[str, object]] = []
     browser_errors: list[str] = []
+    runtime_messages: list[str] = []
+    bridge_transport = evaluate_bridge_transport(
+        runtime_messages=(),
+        bridge_iframe_count=-1,
+        bridge_focusable_count=-1,
+        bridge_heights=(),
+    )
 
-    def capture_console_error(message: Any) -> None:
-        if str(message.type).lower() == "error":
-            browser_errors.append(f"console error: {message.text}")
+    def capture_console_message(message: Any) -> None:
+        message_type = str(message.type).lower()
+        detail = f"console {message_type}: {message.text}"
+        runtime_messages.append(detail)
+        if message_type == "error":
+            browser_errors.append(detail)
 
     def capture_page_error(error: Any) -> None:
-        browser_errors.append(f"page error: {error}")
+        detail = f"page error: {error}"
+        runtime_messages.append(detail)
+        browser_errors.append(detail)
 
-    page.on("console", capture_console_error)
+    page.on("console", capture_console_message)
     page.on("pageerror", capture_page_error)
     try:
         page.goto(
@@ -1553,12 +1921,46 @@ def _measure_route(
             )
         )
     finally:
+        server_warning_count = (
+            server_deprecated_warning_count()
+            if callable(server_deprecated_warning_count)
+            else server_deprecated_warning_count
+        )
+        try:
+            bridge_transport = _bridge_transport_observation(
+                page,
+                runtime_messages=runtime_messages,
+                server_deprecated_warning_count=server_warning_count,
+            )
+        except Exception as exc:
+            bridge_transport = evaluate_bridge_transport(
+                runtime_messages=runtime_messages,
+                bridge_iframe_count=-1,
+                bridge_focusable_count=-1,
+                bridge_heights=(),
+                server_deprecated_warning_count=server_warning_count,
+            )
+            assertions.append(
+                _assertion(
+                    "bridge_transport_observation",
+                    False,
+                    f"{type(exc).__name__}: {exc}",
+                )
+            )
+        assertions.extend(bridge_transport["assertions"])
         assertions.append(evaluate_browser_errors(browser_errors))
         context.close()
 
     return {
         "route": route.name,
         "viewport": f"{width}x{height}",
+        "deprecated_component_warning_count": bridge_transport[
+            "deprecated_component_warning_count"
+        ],
+        "bridge_iframe_count": bridge_transport["bridge_iframe_count"],
+        "bridge_focusable_count": bridge_transport["bridge_focusable_count"],
+        "bridge_height": bridge_transport["bridge_height"],
+        "server_runtime_output_status": server_runtime_output_status,
         "passed": bool(assertions) and all(
             bool(assertion["passed"]) for assertion in assertions
         ),
@@ -1586,6 +1988,12 @@ def _failed_payload(
         "viewports": [f"{width}x{height}" for width, height in VIEWPORTS],
         "routes": [route.name for route in RESEARCH_ROUTES],
         "results": [],
+        "server_runtime_output": {
+            "passed": False,
+            "capture_status": "unverified",
+            "deprecated_component_warning_count": None,
+            "detail": "server stdout/stderr capture not verified",
+        },
         "failures": [failure],
         "boundary": (
             "Read-only engineering evidence only; not WCAG conformance, "
@@ -1632,6 +2040,15 @@ def run_research_accessibility_browser_gate(
         )
 
     identity: dict[str, object] | None = None
+    server_evidence = RuntimeServerEvidence(
+        base_url=normalized_base_url,
+        runtime_messages=deque(maxlen=MAX_SERVER_RUNTIME_LINES),
+        capture_status=(
+            "unavailable_external_base_url"
+            if normalized_base_url
+            else "unverified"
+        ),
+    )
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(
@@ -1640,15 +2057,18 @@ def run_research_accessibility_browser_gate(
             )
             try:
                 server_context = (
-                    contextlib.nullcontext(normalized_base_url)
+                    contextlib.nullcontext(server_evidence)
                     if normalized_base_url
-                    else _local_demo_server(
+                    else _captured_local_demo_server(
                         root,
                         timeout_seconds=max(5.0, timeout_seconds),
                     )
                 )
-                with server_context as active_url:
-                    verified_active_url = validated_loopback_base_url(active_url)
+                with server_context as active_server:
+                    server_evidence = active_server
+                    verified_active_url = validated_loopback_base_url(
+                        active_server.base_url
+                    )
                     if not verified_active_url:
                         return _failed_payload(
                             "Active dashboard URL was not loopback; gate failed closed.",
@@ -1671,6 +2091,12 @@ def run_research_accessibility_browser_gate(
                             route=route,
                             viewport=viewport,
                             timeout_seconds=max(5.0, timeout_seconds),
+                            server_deprecated_warning_count=(
+                                active_server.deprecated_warning_count
+                            ),
+                            server_runtime_output_status=(
+                                active_server.capture_status
+                            ),
                         )
                         for viewport in VIEWPORTS
                         for route in RESEARCH_ROUTES
@@ -1683,6 +2109,13 @@ def run_research_accessibility_browser_gate(
             repository_hygiene=repository_hygiene,
         )
 
+    server_runtime_output = evaluate_server_runtime_output(
+        capture_status=server_evidence.capture_status,
+        runtime_messages=server_evidence.snapshot(),
+        deprecated_component_warning_count=(
+            server_evidence.deprecated_warning_count()
+        ),
+    )
     failures = [
         (
             f"{result['route']} {result['viewport']}: "
@@ -1695,6 +2128,8 @@ def run_research_accessibility_browser_gate(
         for result in results
         if not result["passed"]
     ]
+    if not server_runtime_output["passed"]:
+        failures.append(str(server_runtime_output["detail"]))
     return {
         "verdict": "passed" if not failures else "failed",
         "commit": _git_commit(root),
@@ -1707,6 +2142,7 @@ def run_research_accessibility_browser_gate(
         "viewports": [f"{width}x{height}" for width, height in VIEWPORTS],
         "routes": [route.name for route in RESEARCH_ROUTES],
         "results": results,
+        "server_runtime_output": server_runtime_output,
         "failures": failures,
         "boundary": (
             "Read-only engineering evidence only; not WCAG conformance, "

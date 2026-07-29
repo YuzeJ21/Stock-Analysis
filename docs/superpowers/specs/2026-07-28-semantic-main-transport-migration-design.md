@@ -3,7 +3,13 @@
 ## Status
 
 The user approved approach A on 2026-07-28. This written specification is the
-review gate before an implementation plan is created.
+review gate before an implementation plan is created. On 2026-07-29, direct
+browser RED evidence showed that preserving the iframe-era
+`window.frameElement` / `window.parent` topology would make both bridges no-op
+under same-document `st.html`. The user therefore approved the behavior-first
+correction: the fixed scripts may change only as required to preserve their
+approved observable ownership, cleanup, association, and focus behavior in the
+executing document.
 
 ## Decision
 
@@ -36,8 +42,11 @@ one exact main landmark containing the answer target.
 - Change only the two fixed accessibility-script renderers and the supported
   Streamlit dependency range: the semantic-main bridge and the authoring
   field-error binding bridge.
-- Preserve the exact bridge script, target selector, ownership rules,
+- Preserve the exact bridge behavior, target selector, ownership rules,
   MutationObserver lifecycle, failure statuses, and dashboard call location.
+  The semantic bridge uses the executing `document` / `window`; the authoring
+  bridge uses `document.currentScript` to locate its fixed `stHtml` container
+  and nearest composer.
 - Update AppTest and browser-gate inspection so they no longer depend on an
   iframe `srcdoc`.
 - Add a compatibility failure with a clear message if the runtime does not
@@ -80,7 +89,7 @@ pass:
 
 Each fixed script continues to:
 
-- target exactly one parent-document `[data-testid="stMain"]`;
+- target exactly one executing-document `[data-testid="stMain"]`;
 - set `role="main"`, `id="research-main"`, and
   `aria-label="Stock research workspace"`;
 - remove only bridge-owned attributes when the target becomes missing or
@@ -135,7 +144,25 @@ Test-first coverage must prove:
   away-and-back transitions, and mutation recovery still pass;
 - the browser console contains no deprecation warning, error, or page error;
   and
-- there is no visible bridge box, layout gap, or horizontal overflow.
+- every route result exposes a zero
+  `deprecated_component_warning_count`, `bridge_iframe_count`,
+  `bridge_focusable_count`, and `bridge_height`; any positive or unavailable
+  measurement fails closed.
+
+The strict gate owns its normal loopback Streamlit process and captures a
+bounded in-memory tail of merged server stdout/stderr while also observing
+browser console, page errors, rendered warnings, and the live DOM. A supplied
+server warning counter inspects each full normalized line and advances before
+line-length truncation or bounded-tail eviction, and route snapshots are
+lock-protected. Reader exceptions or a reader that remains alive after the
+bounded shutdown join produce explicit failed/incomplete capture states and
+fail the strict verdict. The gate closes stdout only after the reader is
+confirmed stopped; it does not synchronously close a shared text wrapper after
+an alive timeout. A supplied
+`BASE_URL` can still provide browser evidence, but its server stdout/stderr is
+outside the gate's control; the strict transport verdict therefore reports
+`unavailable_external_base_url` and fails closed rather than claiming the
+deprecation-warning check passed.
 
 Direct browser evidence remains engineering evidence only. It does not prove
 screen-reader usability, WCAG conformance, hosted compatibility, or future

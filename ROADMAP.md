@@ -83,8 +83,18 @@ Completed local item: `1. Add shared provenance and recency eligibility to valua
 an open task, and the independent historical-valuation numeric-integrity repair
 did not substitute for it.
 
-1. Resolve the Streamlit semantic-main bridge framework reliability warning through a separately tested compatibility design; do not substitute an iframe without preserving the same-document landmark contract.
-2. Continue the remaining safe automated Priority 7 accessibility work.
+1. Finish the exact-head framework reliability evidence closeout for the
+   same-document Streamlit transport. The supported-range change, `st.html`
+   migration, behavior-first
+   same-document repair, and fail-closed warning/iframe/focus/height
+   instrumentation are implemented locally. The strict gate now owns and
+   boundedly captures local server stdout/stderr; explicit `BASE_URL` mode
+   truthfully fails the server-output proof as unavailable. The direct six-route,
+   two-viewport behavior matrix passed at `e8084099b`, but the four new result
+   fields were added afterward and still require one clean exact-head browser
+   run before this item is closed.
+2. Continue the remaining safe automated Priority 7 accessibility work after
+   that exact-head transport run.
 
 Priority 7 accessibility remains the next numbered maturity priority. Its remaining safe automated work follows these bounded reliability repairs; true zoom, forced colors, reduced motion, screen-reader, and independent-human evidence remain external until a suitable environment exists.
 

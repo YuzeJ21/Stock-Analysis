@@ -141,6 +141,432 @@ def test_browser_error_contract_rejects_console_and_page_errors():
     assert "unhandled exception" in str(failed["detail"])
 
 
+def test_bridge_transport_contract_exposes_zero_footprint_result_fields():
+    from src.research_accessibility_browser_gate import evaluate_bridge_transport
+
+    passed = evaluate_bridge_transport(
+        runtime_messages=("console info: Streamlit app ready",),
+        bridge_iframe_count=0,
+        bridge_focusable_count=0,
+        bridge_heights=(0.0, 0.0),
+    )
+
+    assert passed["passed"] is True
+    assert passed["deprecated_component_warning_count"] == 0
+    assert passed["bridge_iframe_count"] == 0
+    assert passed["bridge_focusable_count"] == 0
+    assert passed["bridge_height"] == 0
+    assert all(assertion["passed"] for assertion in passed["assertions"])
+
+
+def test_bridge_transport_contract_fails_closed_for_each_legacy_or_visible_signal():
+    from src.research_accessibility_browser_gate import evaluate_bridge_transport
+
+    cases = (
+        (
+            {"runtime_messages": ("st.components.v1.html is deprecated",)},
+            "deprecated_component_warning_count",
+        ),
+        ({"bridge_iframe_count": 1}, "bridge_iframe_count"),
+        ({"bridge_focusable_count": 1}, "bridge_focusable_count"),
+        ({"bridge_heights": (0.0, 1.25)}, "bridge_height"),
+    )
+    defaults = {
+        "runtime_messages": (),
+        "bridge_iframe_count": 0,
+        "bridge_focusable_count": 0,
+        "bridge_heights": (0.0,),
+    }
+
+    for changed, failed_field in cases:
+        failed = evaluate_bridge_transport(**{**defaults, **changed})
+        assert failed["passed"] is False
+        assert failed[failed_field] > 0
+        assert next(
+            assertion
+            for assertion in failed["assertions"]
+            if assertion["name"] == failed_field
+        )["passed"] is False
+
+
+def test_bridge_transport_contract_rejects_non_integer_dom_counts_without_coercion():
+    from src.research_accessibility_browser_gate import evaluate_bridge_transport
+
+    defaults = {
+        "runtime_messages": (),
+        "bridge_iframe_count": 0,
+        "bridge_focusable_count": 0,
+        "bridge_heights": (0.0,),
+    }
+    for field in ("bridge_iframe_count", "bridge_focusable_count"):
+        for malformed in (False, True, 0.5, -1, "0"):
+            failed = evaluate_bridge_transport(
+                **{**defaults, field: malformed}
+            )
+            assert failed["passed"] is False
+            assert failed[field] == -1
+
+
+def test_server_runtime_output_contract_fails_on_warning_or_unavailable_capture():
+    from src.research_accessibility_browser_gate import (
+        evaluate_server_runtime_output,
+    )
+
+    clean = evaluate_server_runtime_output(
+        capture_status="captured_local_server",
+        runtime_messages=("Streamlit server started",),
+    )
+    warned = evaluate_server_runtime_output(
+        capture_status="captured_local_server",
+        runtime_messages=("st.components.v1.html is deprecated",),
+    )
+    external = evaluate_server_runtime_output(
+        capture_status="unavailable_external_base_url",
+        runtime_messages=(),
+    )
+
+    assert clean["passed"] is True
+    assert clean["deprecated_component_warning_count"] == 0
+    assert warned["passed"] is False
+    assert warned["deprecated_component_warning_count"] == 1
+    assert external["passed"] is False
+    assert external["deprecated_component_warning_count"] is None
+    assert "unavailable" in str(external["detail"]).lower()
+
+
+def test_local_server_context_captures_bounded_stdout_and_stderr(monkeypatch, tmp_path):
+    import src.research_accessibility_browser_gate as gate
+
+    class FakeOutput:
+        def __init__(self):
+            self.close_calls = 0
+
+        def __iter__(self):
+            return iter(
+                (
+                    "server ready\n",
+                    "st.components.v1.html is deprecated\n",
+                )
+            )
+
+        def close(self):
+            self.close_calls += 1
+
+    class FakeProcess:
+        def __init__(self):
+            self.stdout = FakeOutput()
+
+        def terminate(self):
+            return None
+
+        def wait(self, timeout):
+            return 0
+
+        def kill(self):
+            return None
+
+    monkeypatch.setattr(gate, "_free_port", lambda: 43123)
+    monkeypatch.setattr(gate, "_wait_for_health", lambda *args, **kwargs: None)
+    process = FakeProcess()
+    monkeypatch.setattr(gate.subprocess, "Popen", lambda *args, **kwargs: process)
+
+    with gate._captured_local_demo_server(
+        tmp_path,
+        timeout_seconds=5,
+    ) as server:
+        assert server.base_url == "http://127.0.0.1:43123"
+
+    assert tuple(server.runtime_messages) == (
+        "server ready",
+        "st.components.v1.html is deprecated",
+    )
+    assert server.capture_status == "captured_local_server"
+    assert process.stdout.close_calls == 1
+
+
+def test_bounded_server_capture_retains_warning_count_after_early_line_eviction():
+    from collections import deque
+
+    from src.research_accessibility_browser_gate import (
+        MAX_SERVER_RUNTIME_LINES,
+        RuntimeServerEvidence,
+        evaluate_server_runtime_output,
+    )
+
+    server = RuntimeServerEvidence(
+        base_url="http://127.0.0.1:43123",
+        runtime_messages=deque(maxlen=MAX_SERVER_RUNTIME_LINES),
+        capture_status="captured_local_server",
+    )
+    server.append("st.components.v1.html is deprecated")
+    for index in range(MAX_SERVER_RUNTIME_LINES + 1):
+        server.append(f"clean server line {index}")
+
+    assert all(
+        "st.components.v1.html" not in line
+        for line in server.snapshot()
+    )
+    assert server.total_line_count == MAX_SERVER_RUNTIME_LINES + 2
+    assert server.truncated_line_count == 2
+    evidence = evaluate_server_runtime_output(
+        capture_status=server.capture_status,
+        runtime_messages=server.snapshot(),
+        deprecated_component_warning_count=server.deprecated_warning_count(),
+    )
+    assert evidence["passed"] is False
+    assert evidence["deprecated_component_warning_count"] == 1
+
+
+def test_server_warning_count_inspects_full_line_before_storage_truncation():
+    from collections import deque
+
+    from src.research_accessibility_browser_gate import (
+        MAX_SERVER_RUNTIME_LINE_LENGTH,
+        MAX_SERVER_RUNTIME_LINES,
+        RuntimeServerEvidence,
+    )
+
+    server = RuntimeServerEvidence(
+        base_url="http://127.0.0.1:43123",
+        runtime_messages=deque(maxlen=MAX_SERVER_RUNTIME_LINES),
+        capture_status="captured_local_server",
+    )
+    server.append(
+        ("x" * MAX_SERVER_RUNTIME_LINE_LENGTH)
+        + " st.components.v1.html is deprecated"
+    )
+
+    assert len(server.snapshot()[0]) == MAX_SERVER_RUNTIME_LINE_LENGTH
+    assert "st.components.v1.html" not in server.snapshot()[0]
+    assert server.deprecated_warning_count() == 1
+
+
+def test_server_reader_exception_marks_capture_failed_closed(monkeypatch, tmp_path):
+    import src.research_accessibility_browser_gate as gate
+
+    class ExplodingOutput:
+        def __init__(self):
+            self.close_calls = 0
+
+        def __iter__(self):
+            raise UnicodeDecodeError("utf-8", b"x", 0, 1, "invalid")
+
+        def close(self):
+            self.close_calls += 1
+
+    class FakeProcess:
+        def __init__(self):
+            self.stdout = ExplodingOutput()
+
+        def terminate(self):
+            return None
+
+        def wait(self, timeout):
+            return 0
+
+        def kill(self):
+            return None
+
+    monkeypatch.setattr(gate, "_free_port", lambda: 43123)
+    monkeypatch.setattr(gate, "_wait_for_health", lambda *args, **kwargs: None)
+    process = FakeProcess()
+    monkeypatch.setattr(gate.subprocess, "Popen", lambda *args, **kwargs: process)
+
+    with gate._captured_local_demo_server(
+        tmp_path,
+        timeout_seconds=5,
+    ) as server:
+        pass
+
+    assert server.capture_status == "failed_reader_exception"
+    assert process.stdout.close_calls == 1
+    assert gate.evaluate_server_runtime_output(
+        capture_status=server.capture_status,
+        runtime_messages=server.snapshot(),
+        deprecated_component_warning_count=server.deprecated_warning_count(),
+    )["passed"] is False
+
+
+def test_server_reader_join_timeout_marks_capture_incomplete(monkeypatch, tmp_path):
+    import src.research_accessibility_browser_gate as gate
+
+    class FakeOutput:
+        def __init__(self):
+            self.close_calls = 0
+
+        def close(self):
+            self.close_calls += 1
+
+    class FakeProcess:
+        def __init__(self):
+            self.stdout = FakeOutput()
+
+        def terminate(self):
+            return None
+
+        def wait(self, timeout):
+            return 0
+
+        def kill(self):
+            return None
+
+    class NeverFinishesThread:
+        def __init__(self, **kwargs):
+            self.target = kwargs["target"]
+
+        def start(self):
+            return None
+
+        def join(self, timeout):
+            assert timeout == 5
+
+        def is_alive(self):
+            return True
+
+    monkeypatch.setattr(gate, "_free_port", lambda: 43123)
+    monkeypatch.setattr(gate, "_wait_for_health", lambda *args, **kwargs: None)
+    process = FakeProcess()
+    monkeypatch.setattr(gate.subprocess, "Popen", lambda *args, **kwargs: process)
+    monkeypatch.setattr(gate.threading, "Thread", NeverFinishesThread)
+
+    with gate._captured_local_demo_server(
+        tmp_path,
+        timeout_seconds=5,
+    ) as server:
+        pass
+
+    assert server.capture_status == "incomplete_reader_shutdown"
+    assert process.stdout.close_calls == 0
+    assert gate.evaluate_server_runtime_output(
+        capture_status=server.capture_status,
+        runtime_messages=server.snapshot(),
+        deprecated_component_warning_count=server.deprecated_warning_count(),
+    )["passed"] is False
+
+
+def test_bridge_transport_observation_measures_only_fixed_accessibility_bridges():
+    from src.research_accessibility_browser_gate import (
+        _bridge_transport_observation,
+    )
+
+    class FakePage:
+        def evaluate(self, script):
+            assert '[data-testid="stHtml"]' in script
+            assert "__stockResearchMainObserver" in script
+            assert "data-research-authoring-error-owned" in script
+            assert "iframe" in script
+            assert "getBoundingClientRect" in script
+            assert "tabindex" in script
+            return {
+                "bridge_iframe_count": 0,
+                "bridge_focusable_count": 0,
+                "bridge_heights": [0, 0],
+            }
+
+    observed = _bridge_transport_observation(
+        FakePage(),
+        runtime_messages=("console info: ready",),
+    )
+
+    assert observed["passed"] is True
+    assert observed["deprecated_component_warning_count"] == 0
+    assert observed["bridge_iframe_count"] == 0
+    assert observed["bridge_focusable_count"] == 0
+    assert observed["bridge_height"] == 0
+
+
+def test_route_result_includes_fail_closed_bridge_transport_fields(monkeypatch):
+    import src.research_accessibility_browser_gate as gate
+
+    class FakePage:
+        url = "http://127.0.0.1:8501/?mode=research&page=data-health&ticker=NVDA"
+
+        def on(self, event, handler):
+            assert event in {"console", "pageerror"}
+
+        def goto(self, url, *, wait_until, timeout):
+            self.url = url
+
+    class FakeContext:
+        def __init__(self):
+            self.page = FakePage()
+
+        def new_page(self):
+            return self.page
+
+        def close(self):
+            return None
+
+    class FakeBrowser:
+        def new_context(self, *, viewport):
+            assert viewport == {"width": 390, "height": 844}
+            return FakeContext()
+
+    monkeypatch.setattr(gate, "_wait_for_visible_text", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gate, "_wait_for_dom_stability", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gate, "_wait_for_route_heading", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gate, "_semantic_main_assertions", lambda *args, **kwargs: [])
+    monkeypatch.setattr(gate, "_runtime_dom_assertions", lambda *args, **kwargs: [])
+    monkeypatch.setattr(gate, "_skip_link_assertions", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        gate, "_same_document_streamlit_rerun_assertions", lambda *args, **kwargs: []
+    )
+    monkeypatch.setattr(
+        gate,
+        "_secondary_navigation_absence_assertion",
+        lambda *args, **kwargs: {
+            "name": "secondary_navigation_absent",
+            "passed": True,
+            "detail": "absent",
+        },
+    )
+    monkeypatch.setattr(gate, "_navigation_assertion", lambda *args, **kwargs: {
+        "name": "navigation",
+        "passed": True,
+        "detail": "present",
+    })
+    monkeypatch.setattr(gate, "_navigate_and_verify_route", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        gate,
+        "_bridge_transport_observation",
+        lambda page, *, runtime_messages, server_deprecated_warning_count=0: (
+            gate.evaluate_bridge_transport(
+                runtime_messages=runtime_messages,
+                bridge_iframe_count=0,
+                bridge_focusable_count=0,
+                bridge_heights=(0,),
+                server_deprecated_warning_count=server_deprecated_warning_count,
+            )
+        ),
+    )
+
+    result = gate._measure_route(
+        FakeBrowser(),
+        base_url="http://127.0.0.1:8501",
+        route=gate.RESEARCH_ROUTES[4],
+        viewport=(390, 844),
+        timeout_seconds=5,
+    )
+    warned = gate._measure_route(
+        FakeBrowser(),
+        base_url="http://127.0.0.1:8501",
+        route=gate.RESEARCH_ROUTES[4],
+        viewport=(390, 844),
+        timeout_seconds=5,
+        server_deprecated_warning_count=1,
+        server_runtime_output_status="captured_local_server",
+    )
+
+    assert result["passed"] is True
+    assert result["deprecated_component_warning_count"] == 0
+    assert result["bridge_iframe_count"] == 0
+    assert result["bridge_focusable_count"] == 0
+    assert result["bridge_height"] == 0
+    assert warned["passed"] is False
+    assert warned["deprecated_component_warning_count"] == 1
+    assert warned["server_runtime_output_status"] == "captured_local_server"
+
+
 def test_same_document_streamlit_rerun_contract_fails_closed_for_each_gap():
     from src.research_accessibility_browser_gate import (
         evaluate_same_document_streamlit_rerun,
