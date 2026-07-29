@@ -33,7 +33,9 @@ one exact main landmark containing the answer target.
 
 ## Scope
 
-- Change only the bridge renderer and supported Streamlit dependency range.
+- Change only the two fixed accessibility-script renderers and the supported
+  Streamlit dependency range: the semantic-main bridge and the authoring
+  field-error binding bridge.
 - Preserve the exact bridge script, target selector, ownership rules,
   MutationObserver lifecycle, failure statuses, and dashboard call location.
 - Update AppTest and browser-gate inspection so they no longer depend on an
@@ -67,15 +69,16 @@ This would defer rather than resolve the removal and maintenance risk.
 
 ## Renderer Contract
 
-`render_semantic_main_bridge` accepts a renderer dependency for focused tests
-and defaults to `streamlit.html`. It passes:
+`render_semantic_main_bridge` and `render_authoring_error_binding` accept a
+renderer dependency for focused tests and default to `streamlit.html`. They
+pass:
 
 - the exact immutable `SEMANTIC_MAIN_BRIDGE_HTML` constant;
 - `unsafe_allow_javascript=True`; and
 - no user content, research content, URL, external script, height, scrolling,
   or iframe arguments.
 
-The fixed script continues to:
+Each fixed script continues to:
 
 - target exactly one parent-document `[data-testid="stMain"]`;
 - set `role="main"`, `id="research-main"`, and
@@ -86,6 +89,11 @@ The fixed script continues to:
 - recover after same-document reruns and route transitions; and
 - perform no network, storage, clipboard, form-value, navigation, or research
   operation.
+
+The authoring binding continues to set and remove only the bridge-owned
+`aria-invalid`, `aria-describedby`, error text, and focus state for the exact
+eligible required-field rejection. It does not read the field value or submit
+the form.
 
 ## Compatibility Contract
 
@@ -119,6 +127,8 @@ Test-first coverage must prove:
 - all existing bridge ownership, ambiguity, observer, and cleanup unit tests
   remain green;
 - AppTest can inspect the rendered `st.html` element without an iframe;
+- required-field binding, cleanup, focus, and validation provenance remain
+  unchanged after the authoring renderer migration;
 - direct desktop and `390x844` browser runs expose exactly one main landmark,
   one contained answer target, one route H1, and bridge status `applied`;
 - skip activation, exact query retention, same-document rerun recovery, route

@@ -118,9 +118,12 @@ It returns an immutable attention contract. `build_research_discipline_rows`
 uses it while retaining input order.
 
 `load_dashboard_research_discipline_rows` may read the existing catalyst and
-outcome ledgers read-only. A missing ledger remains empty. A malformed ledger
-fails only the affected ticker's process evidence closed and does not fabricate
-an attention reason.
+outcome ledgers read-only. A missing ledger remains empty. Because the existing
+catalyst loader validates the shared append-only ledger as one unit, a
+malformed catalyst ledger makes catalyst attention unavailable for every
+cohort ticker while journal, outcome, and source-change states remain
+independent. It does not skip the malformed row or fabricate an attention
+reason.
 
 The dashboard renders the pure result and performs no urgency logic.
 
@@ -139,7 +142,9 @@ source metadata, rights blockers, and exact evidence stay under Advanced.
 - Missing Discover fields receive truthful neutral fallbacks.
 - Empty Discover filters keep the existing no-match recovery action.
 - Missing or malformed process evidence returns `unavailable` for the affected
-  scope, never `monitor`.
+  independent evidence dimension, never `monitor`. A malformed shared catalyst
+  ledger affects catalyst attention for the cohort without erasing valid
+  journal, outcome, or source-change state.
 - Unknown lane or attention states fail closed.
 - One ticker's invalid evidence cannot change another ticker's state or order.
 - Candidate-only catalyst context cannot become trusted evidence or change

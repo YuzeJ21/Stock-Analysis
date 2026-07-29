@@ -72,8 +72,10 @@ Mapping:
 | `save_reload_unverified` | `alert` | `assertive` |
 
 The rendered element includes `aria-atomic="true"` and one stable,
-scope-specific identifier. It contains no visually hidden duplicate of the
-same message.
+scope-specific identifier when `announce=True`. When the same exact transition
+identity is rendered again, `announce=False` keeps the visible message but
+uses `role="group"` with no `aria-live` attribute. It contains no visually
+hidden duplicate of the same message.
 
 Only a new state transition is rendered as a new announcement. Ordinary
 Streamlit reruns with the same state and receipt must not create a second
