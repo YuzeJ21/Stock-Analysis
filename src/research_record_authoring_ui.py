@@ -7,8 +7,6 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from streamlit.components.v1 import html as component_html
-
 from src.accessibility_bridge import (
     authoring_field_error,
     render_authoring_error_binding,
@@ -288,14 +286,14 @@ def render_research_record_authoring(
                 active_thesis = _active_thesis(scoped_theses)
             except (OSError, ValueError) as exc:
                 st_api.error(f"Thesis references could not be loaded; no record can be saved: {exc}")
-                render_authoring_error_binding(component_html, None)
+                render_authoring_error_binding(None)
                 return
         if kind in {"evidence", "outcome"} and not thesis_options:
             st_api.warning(
                 "This record type requires an existing thesis in this locked profile and ticker. "
                 "Add and confirm a thesis first."
             )
-            render_authoring_error_binding(component_html, None)
+            render_authoring_error_binding(None)
             return
         if kind == "thesis" and active_thesis is not None:
             st_api.caption(
@@ -353,7 +351,7 @@ def render_research_record_authoring(
                 ticker=symbol,
                 kind=kind,
             )
-        render_authoring_error_binding(component_html, field_error)
+        render_authoring_error_binding(field_error)
         if preview is None:
             st_api.caption(
                 "No record is saved until this draft passes preview and you confirm the exact reviewed source evidence."

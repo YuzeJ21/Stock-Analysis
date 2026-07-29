@@ -325,18 +325,19 @@ def test_error_id_normalizes_scope_without_changing_the_exact_field_contract():
     )
 
 
-def test_rendered_binding_contains_only_fixed_error_configuration():
+def test_authoring_binding_uses_same_document_html_renderer():
+    bridge = _bridge_module()
     calls = []
-    error = _bridge_module().AuthoringFieldError(
+    error = bridge.AuthoringFieldError(
         field_name="thesis_id",
         field_label="Thesis Id",
         message="thesis_id is required",
         error_id="research-authoring-personal-avgo-thesis-thesis-id-error",
     )
 
-    _bridge_module().render_authoring_error_binding(
-        lambda *args, **kwargs: calls.append((args, kwargs)),
+    bridge.render_authoring_error_binding(
         error,
+        html_renderer=lambda *args, **kwargs: calls.append((args, kwargs)),
     )
 
     assert len(calls) == 1
@@ -348,15 +349,22 @@ def test_rendered_binding_contains_only_fixed_error_configuration():
         "errorId": "research-authoring-personal-avgo-thesis-thesis-id-error",
         "message": "thesis_id is required",
     }
-    assert options == {"height": 0, "scrolling": False}
+    assert options == {"unsafe_allow_javascript": True}
+    parameters = inspect.signature(
+        bridge.render_authoring_error_binding
+    ).parameters
+    assert tuple(parameters) == ("error", "html_renderer")
+    assert parameters["error"].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
+    assert parameters["html_renderer"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameters["html_renderer"].default is None
 
 
 def test_cleanup_binding_contains_no_field_configuration():
     calls = []
 
     _bridge_module().render_authoring_error_binding(
-        lambda *args, **kwargs: calls.append((args, kwargs)),
         None,
+        html_renderer=lambda *args, **kwargs: calls.append((args, kwargs)),
     )
 
     assert len(calls) == 1
@@ -368,20 +376,31 @@ def test_cleanup_binding_contains_no_field_configuration():
         "errorId": None,
         "message": None,
     }
-    assert options == {"height": 0, "scrolling": False}
+    assert options == {"unsafe_allow_javascript": True}
+
+
+def test_fixed_renderers_fail_closed_without_supported_streamlit_html(monkeypatch):
+    bridge = _bridge_module()
+    monkeypatch.setattr(bridge.streamlit, "html", None)
+    message = "Streamlit >=1.52,<2 with st.html JavaScript support is required."
+
+    with pytest.raises(RuntimeError, match=re.escape(message)):
+        bridge.render_semantic_main_bridge()
+    with pytest.raises(RuntimeError, match=re.escape(message)):
+        bridge.render_authoring_error_binding(None)
 
 
 def test_rendered_binding_is_bounded_exact_label_idempotent_and_non_actioning():
     calls = []
     bridge = _bridge_module()
     bridge.render_authoring_error_binding(
-        lambda document, **options: calls.append((document, options)),
         bridge.AuthoringFieldError(
             "thesis_id",
             "Thesis Id",
             "thesis_id is required",
             "research-authoring-personal-avgo-thesis-thesis-id-error",
         ),
+        html_renderer=lambda document, **options: calls.append((document, options)),
     )
     document, _ = calls[0]
 
@@ -1018,20 +1037,22 @@ def test_semantic_main_bridge_does_not_apply_beside_connected_conflict(blocker):
     }
 
 
-def test_render_semantic_main_bridge_renders_only_the_fixed_constant():
+def test_semantic_bridge_uses_same_document_html_renderer():
     bridge = _bridge_module()
     calls = []
 
     result = bridge.render_semantic_main_bridge(
-        lambda *args, **kwargs: calls.append((args, kwargs))
+        html_renderer=lambda *args, **kwargs: calls.append((args, kwargs))
     )
 
     assert result is None
     assert calls == [
-        ((bridge.SEMANTIC_MAIN_BRIDGE_HTML,), {"height": 0, "scrolling": False})
+        (
+            (bridge.SEMANTIC_MAIN_BRIDGE_HTML,),
+            {"unsafe_allow_javascript": True},
+        )
     ]
-    assert tuple(
-        inspect.signature(bridge.render_semantic_main_bridge).parameters
-    ) == (
-        "component_html",
-    )
+    parameters = inspect.signature(bridge.render_semantic_main_bridge).parameters
+    assert tuple(parameters) == ("html_renderer",)
+    assert parameters["html_renderer"].kind is inspect.Parameter.KEYWORD_ONLY
+    assert parameters["html_renderer"].default is None

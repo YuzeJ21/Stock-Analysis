@@ -267,12 +267,24 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
 """
 
 
+def _same_document_html_renderer(
+    renderer: Callable[..., Any] | None,
+) -> Callable[..., Any]:
+    resolved = renderer if renderer is not None else getattr(streamlit, "html", None)
+    if not callable(resolved):
+        raise RuntimeError(
+            "Streamlit >=1.52,<2 with st.html JavaScript support is required."
+        )
+    return resolved
+
+
 def render_semantic_main_bridge(
-    component_html: Callable[..., Any] = streamlit.components.v1.html,
+    *, html_renderer: Callable[..., Any] | None = None
 ) -> None:
     """Render the fixed, local semantic-main bridge without research data."""
 
-    component_html(SEMANTIC_MAIN_BRIDGE_HTML, height=0, scrolling=False)
+    renderer = _same_document_html_renderer(html_renderer)
+    renderer(SEMANTIC_MAIN_BRIDGE_HTML, unsafe_allow_javascript=True)
 
 
 @dataclass(frozen=True)
@@ -326,8 +338,9 @@ def authoring_field_error(
 
 
 def render_authoring_error_binding(
-    component_html: Callable[..., Any],
     error: AuthoringFieldError | None,
+    *,
+    html_renderer: Callable[..., Any] | None = None,
 ) -> None:
     """Clear bridge-owned state, then optionally associate one current error."""
 
@@ -451,4 +464,5 @@ def render_authoring_error_binding(
 }})();
 </script>
 """
-    component_html(document, height=0, scrolling=False)
+    renderer = _same_document_html_renderer(html_renderer)
+    renderer(document, unsafe_allow_javascript=True)
