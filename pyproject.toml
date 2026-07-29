@@ -13,7 +13,7 @@ dependencies = [
   "numpy>=1.26",
   "pandas>=2.2",
   "PyYAML>=6.0",
-  "streamlit>=1.44",
+  "streamlit>=1.52,<2",
 ]
 
 [project.optional-dependencies]
