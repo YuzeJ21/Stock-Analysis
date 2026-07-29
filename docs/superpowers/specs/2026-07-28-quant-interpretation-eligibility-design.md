@@ -9,6 +9,33 @@ implementation evidence, not a hosted, source-rights, current-market,
 nowcast, calibration, or commercial-completion claim. Later revisions require
 their own exact-head verification.
 
+## Local Verification Record — Controller Handoff Pending
+
+This is a durable local record for the implementation anchor
+`195ea18da9d1d6e06c36f8320509ccde46cdaa57` and the preceding
+release-evidence documentation state
+`8707d2d2be9937f69e2146e39607ca0d24d17019`. Its reviewed scope is the shared
+eligibility implementation plus these six documentation files: `ROADMAP.md`,
+`docs/METHODOLOGY.md`, `docs/analysis_capability_audit.md`,
+`docs/NEXT_STAGE_ROADMAP.md`,
+`docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md`, and this
+design specification. The local record does not cover uncommitted generated
+working-data changes.
+
+The following local commands completed for that state without creating or
+staging generated artifacts:
+
+- `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/test_quant_interpretation_eligibility.py tests/test_valuation.py tests/test_indicators.py tests/test_review_metrics.py tests/test_stock_report.py tests/test_dashboard_helpers.py tests/test_dashboard_render_smoke.py -q`: 1,201 passed in 238.29s; one third-party `dateutil` deprecation warning.
+- `PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests -q`: 4,367 passed in 354.28s; the same third-party `dateutil` deprecation warning.
+- `make dashboard-smoke`, `make research-dashboard-render-smoke`, `make public-wording-check`, `make public-check`, and `make commercial-beta-release-check`: passed as local read-only gates. Render smoke covered Research Desk, Discover, Company Workbench, Monitor, Research Data Health, and Research Proof History.
+- `make pilot-readiness-check TOP_N=10`: completed with the expected `blocked` packaging verdict; external/source-proof and package gates remain incomplete.
+- `make diff-hygiene-summary`, `git diff --check`, `make staged-hygiene-check`, and `git diff --cached --check`: passed; the six intended documentation files were staged and the 18 pre-existing generated CSV/report/output paths remained unstaged and excluded.
+
+Push, PR #113 update, and hosted exact-head CI are pending controller
+verification. No hosted CI result is claimed for this documentation state or
+for a later descendant; local passing gates do not substitute for an exact-head
+GitHub Actions result.
+
 ## Decision
 
 Add one provider-neutral interpretation-eligibility overlay for valuation,
@@ -237,5 +264,7 @@ fixtures only and must not write repository data.
    primary result.
 8. No nowcast, probability, recommendation, ranking, or transaction behavior
    is activated.
-9. Focused, full, render, release, hygiene, and exact-head CI gates pass with
-   no generated artifact changes.
+9. Focused, full, render, release, and hygiene gates pass locally with no
+   generated artifact changes. Exact-head CI remains a separate controller gate
+   and is satisfied only by a direct hosted GitHub Actions result for the pushed
+   final head; it is pending for this local documentation state.
