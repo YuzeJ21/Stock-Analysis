@@ -2,8 +2,12 @@
 
 ## Status
 
-The user approved approach A on 2026-07-28. This written specification is the
-review gate before an implementation plan is created.
+The user approved approach A on 2026-07-28. The reviewed implementation is at
+`195ea18da9d1d6e06c36f8320509ccde46cdaa57`; that anchor implements the shared
+overlay without changing calculation or readiness states. It is local
+implementation evidence, not a hosted, source-rights, current-market,
+nowcast, calibration, or commercial-completion claim. Later revisions require
+their own exact-head verification.
 
 ## Decision
 
@@ -49,6 +53,12 @@ eligibility decision.
 This slice does not add a provider, fetch data, rebuild readiness, change a
 forecast, activate a nowcast, expose a probability, approve source rights, or
 make a recommendation.
+
+Structured external provenance and exact-source rights proof remain absent for
+the current local quant inputs. Consequently, the overlay preserves those
+results only as historical/review-only context or withholds them wherever the
+required proof is absent; it does not upgrade a local calculation into current
+market context or commercial eligibility.
 
 ## Approaches Considered
 

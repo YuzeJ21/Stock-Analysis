@@ -47,6 +47,7 @@ Stage A-G labels are continuation maturity lanes only; they do not replace the n
 - SEC quarterly actuals preserve source lineage. EPS split basis remains unverified without explicit proof. Q4 actuals require an explicit SEC-filed Q4 table; Q4 is never derived.
 - Historical Valuation Regime, Source Freshness Timeline - Implemented, Research Comparison View - Implemented, Peer Read-Through Map, Scenario Lab, Research Outcome Review, and Catalyst Evidence Timeline stay fail-closed when their ledgers or source inputs are empty. Historical-valuation numeric loading also rejects blank or malformed numerator/denominator evidence per row instead of coercing it to zero or discarding valid sibling rows.
 - Calculation software supports price setup, drawdown, volatility, beta, Sharpe/Sortino, DCF/scenarios, valuation context, deterministic nowcast contracts, walk-forward review, and point-in-time-universe validation.
+- Quant interpretation eligibility is implemented locally at `195ea18da9d1d6e06c36f8320509ccde46cdaa57`: one shared, fail-closed overlay keeps valuation, indicator, and review/risk calculations and readiness independent while classifying their interpretation as current context, historical/review-only, or withheld.
 - Commercial source-rights, refresh-operation, provider-neutral authorization, workspace-isolation, audit-obligation, retention, monitoring, incident, and rollback contracts are locally testable. Local contracts do not prove hosted operation.
 - Public/package/release gates and current-head automation verify code, wording, route rendering, hygiene, and research boundaries. Automated evidence is not independent human review.
 
@@ -56,6 +57,7 @@ Stage A-G labels are continuation maturity lanes only; they do not replace the n
 - Numerical Beat/Miss probability remains `awaiting_calibration_evidence` and withheld until at least 100 valid leakage-safe out-of-sample events pass every predeclared gate.
 - A saved artifact being current relative to local files does not render its latest market observation current. Current-market interpretation requires an independent observation-recency state.
 - Local market-observation recency is implemented as a read-only, independently fail-closed check of the selected local `prices.csv` path. Its exact policy is seven calendar days from the dashboard review date, not an exchange-session SLA. Permitted market-data source rights and hosted freshness remain external gates.
+- Structured external provenance and exact-source rights proof for the current local quant inputs remain absent. The overlay therefore leaves local quant results historical/review-only or withholds them where the required proof is absent; it does not establish a current-market claim, hosted operation, calibration, nowcast activation, or commercial completion.
 - One permitted independently reviewed real point-in-time universe package, one permitted point-in-time consensus source, and one genuinely reviewed peer relationship are not on record.
 - Independent beta sessions completed: zero. The local protocol is ready, but it is not user-validation or demand evidence.
 
@@ -76,9 +78,13 @@ overflow without writing screenshots or other artifacts.
 
 Immediate approved local reliability queue:
 
-1. Add shared provenance and recency eligibility to valuation, indicator, and review-metric interpretation without coupling their independent readiness states. The independent historical-valuation numeric-integrity repair is complete locally; it does not substitute for this shared interpretation contract.
-2. Resolve the Streamlit semantic-main bridge framework reliability warning through a separately tested compatibility design; do not substitute an iframe without preserving the same-document landmark contract.
-3. Continue the remaining safe automated Priority 7 accessibility work.
+Completed local item: `1. Add shared provenance and recency eligibility to valuation, indicator, and review-metric interpretation without coupling their independent readiness states.` The shared overlay is implemented at
+`195ea18da9d1d6e06c36f8320509ccde46cdaa57`; this historical queue entry is not
+an open task, and the independent historical-valuation numeric-integrity repair
+did not substitute for it.
+
+1. Resolve the Streamlit semantic-main bridge framework reliability warning through a separately tested compatibility design; do not substitute an iframe without preserving the same-document landmark contract.
+2. Continue the remaining safe automated Priority 7 accessibility work.
 
 Priority 7 accessibility remains the next numbered maturity priority. Its remaining safe automated work follows these bounded reliability repairs; true zoom, forced colors, reduced motion, screen-reader, and independent-human evidence remain external until a suitable environment exists.
 

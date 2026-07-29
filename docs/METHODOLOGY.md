@@ -15,6 +15,21 @@ Current public method version: **Methodology v1 - readiness-first deterministic 
 
 This method is useful for a controlled research/demo product because it makes the data gate visible before analysis. It is not a complete valuation terminal, not investment advice, and not a recommendation engine.
 
+### Quant Interpretation Eligibility
+
+The shared quant interpretation overlay is implemented locally at
+`195ea18da9d1d6e06c36f8320509ccde46cdaa57`. It evaluates valuation,
+indicator, and review/risk results without changing their calculations or saved
+readiness. The overlay separately records observation recency, structured
+provenance, exact-source rights, and field scope, then permits only current
+context, historical/review-only context, or withholding.
+
+Structured external provenance and exact-source rights proof remain absent for
+the current local quant inputs. Those results must therefore remain
+historical/review-only or be withheld wherever the required proof is absent.
+The local overlay does not establish current-market data, hosted behavior,
+commercial eligibility, a forecast or nowcast, or calibration.
+
 ### Readiness Promotion Evidence Review
 
 When saved readiness is stale, `make readiness-preview TOP_N=20` runs the production readiness logic in memory and keeps the proposed technical state separate from the evidence needed to review a rebuild. False-to-true fundamentals and DCF changes are checked against the exact canonical source value, source/as-of/durable-reference provenance, the checked-in commercial-rights decision, and the registered field list for Revenue, free cash flow, FCF margin, and shares outstanding.

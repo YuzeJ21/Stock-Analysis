@@ -13,9 +13,17 @@ Research routes show one route-relevant interpretation, while exact selected/
 profile/SPY/QQQ evidence remains in responsive Advanced cards. The direct
 desktop/phone browser matrix writes no screenshots or other artifacts.
 
-1. Add shared provenance/recency eligibility to quant interpretation while keeping every readiness lane independent. The historical-valuation numeric-loading repair is complete locally and remains only a prerequisite, not the shared eligibility contract.
-2. Resolve semantic-main bridge framework reliability with direct runtime evidence.
-3. Continue the remaining safe automated Priority 7 accessibility work.
+The shared quant provenance/recency interpretation overlay is implemented locally
+at `195ea18da9d1d6e06c36f8320509ccde46cdaa57`. It keeps valuation, indicator,
+and review/risk calculation and readiness states independent from the
+interpretation decision. Structured external provenance and exact-source rights
+proof remain absent for the current local quant inputs, so results remain
+historical/review-only or are withheld where proof is absent. This local
+implementation does not establish current-market, hosted, commercial, nowcast,
+or calibration completion.
+
+1. Resolve semantic-main bridge framework reliability with direct runtime evidence.
+2. Continue the remaining safe automated Priority 7 accessibility work.
 
 Priority 7 accessibility remains the next numbered maturity priority. External point-in-time data, consensus, peer review, hosted controls, independent sessions, assistive-technology review, and calibration remain incomplete and must be classified once rather than retried without changed evidence.
 

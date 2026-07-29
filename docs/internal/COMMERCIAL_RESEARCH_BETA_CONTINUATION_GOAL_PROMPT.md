@@ -97,6 +97,7 @@ Current locally implemented capabilities to verify:
 - Fail-closed provenance, source-rights, freshness, candidate-context, and synthetic-fixture controls.
 - Local market-observation recency across Research Desk, Discover, Company Workbench, and Monitor: one read-only local `prices.csv` evaluation per dashboard run, using the dashboard UTC review date. The evaluator independently fails closed for unreadable, invalid, future, or missing observations and applies an exact seven-calendar-day policy. It is not an exchange-session SLA, does not make saved readiness current, and does not prove permitted market-data source rights or hosted freshness; those remain external gates.
 - The observation-recency UX repair is complete locally. Research Desk, Discover, and Monitor show one profile-lane `Current`, `Stale`, or `Unavailable` interpretation; Company Workbench shows one selected-ticker interpretation. Exact selected ticker, profile lane, SPY, and QQQ scopes, dates, machine states, messages, policy, source path, and excluded-date counts remain in responsive Advanced cards. A direct browser matrix covers all four routes at `1280x720` and `390x844`, requires one primary summary, four Advanced cards, phone single-column placement, and no evidence-container horizontal overflow, and writes no screenshot, report, timing, readiness, canonical-data, or ledger artifact. This remains local UI/runtime evidence only and proves no source rights, hosted freshness, external accessibility, reviewer understanding, current-market suitability, or recommendation.
+- Shared quant interpretation eligibility is implemented locally at `195ea18da9d1d6e06c36f8320509ccde46cdaa57`. One pure overlay keeps valuation, indicator, and review/risk calculation and readiness states independent from the decision to show current context, historical/review-only context, or withholding. Structured external provenance and exact-source rights proof remain absent for current local quant inputs, so results remain historical/review-only or are withheld where proof is absent. This does not prove current-market suitability, hosted behavior, commercial eligibility, source rights, nowcast activation, or calibration.
 - Shared pilot and reviewed-batch freshness that treats declared source dates newer than the saved readiness build as stale even when file mtimes look current; the read-only gate never runs `make readiness` or writes generated artifacts.
 - No-write readiness impact preview via `make readiness-preview TOP_N=20`; it runs production readiness logic in memory, compares stable saved-versus-proposed states, writes nothing, and does not make saved readiness current.
 - Fail-closed readiness promotion evidence review inside the same no-write command: proposed fundamentals/DCF promotions retain independent exact-source rights, source/as-of/durable-reference provenance, registered field-scope, and DCF price-provenance states. Composite or unregistered source values are not split or granted inferred rights.
@@ -204,9 +205,11 @@ Documentation and routing reconciliation is complete locally. Reopen it only whe
 
 Current local execution queue:
 
-1. Add shared quant provenance/recency eligibility without coupling readiness. The historical-valuation numeric-integrity prerequisite is complete locally; do not treat it as completion of the shared contract.
-2. Address semantic-main bridge framework reliability through direct runtime evidence.
-3. Resume the remaining automated portion of Priority 7.
+Completed local item: `1. Add shared quant provenance/recency eligibility without coupling readiness.` This former queue item is implemented at
+`195ea18da9d1d6e06c36f8320509ccde46cdaa57` and is not an active task.
+
+1. Address semantic-main bridge framework reliability through direct runtime evidence.
+2. Resume the remaining automated portion of Priority 7.
 
 Priority 7 accessibility remains the next numbered maturity priority. Do not re-run Priorities 1-3 unless a current regression is directly reproduced. Priority 6 provider-neutral retention/deletion or audit-event work is not the active next lane and requires a separate reviewed design; provider-specific work remains blocked on an approved environment.
 
