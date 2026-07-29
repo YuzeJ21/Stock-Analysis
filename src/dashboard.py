@@ -7,7 +7,7 @@ import re
 from dataclasses import asdict
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 from urllib.parse import quote, urlencode
 
 import pandas as pd
@@ -11305,6 +11305,95 @@ def stock_report_review_metric_summary_cards(report_payload: dict[str, object]) 
             "badges": ["no guessing", "source first"],
         },
     ]
+
+
+def _stock_report_quant_interpretation_entries(
+    report_payload: Mapping[str, object],
+) -> list[Mapping[str, object]]:
+    entries: list[Mapping[str, object]] = []
+
+    def collect(value: object) -> None:
+        if not isinstance(value, Mapping):
+            return
+        if "interpretation_state" in value and "family" in value:
+            entries.append(value)
+            return
+        for nested in value.values():
+            collect(nested)
+
+    collect(report_payload.get("quant_interpretation", {}))
+    return entries
+
+
+def stock_report_quant_interpretation_cards(
+    report_payload: Mapping[str, object],
+) -> list[dict[str, object]]:
+    labels = {
+        "historical_review_only": "Historical review only",
+        "withheld": "Interpretation withheld",
+    }
+    for entry in _stock_report_quant_interpretation_entries(report_payload):
+        state = str(entry.get("interpretation_state") or "")
+        calculation_state = str(entry.get("calculation_state") or "")
+        if state not in labels or calculation_state not in {"available", "partial"}:
+            continue
+        family = str(entry.get("family") or "quantitative result").replace("_", " ")
+        return [
+            {
+                "kicker": "QUANT INTERPRETATION BOUNDARY",
+                "title": labels[state],
+                "body": str(
+                    entry.get("summary")
+                    or "Quantitative interpretation is limited pending eligible evidence."
+                ),
+                "badges": [
+                    family,
+                    "commercial use not eligible",
+                ],
+            }
+        ]
+    return []
+
+
+def stock_report_quant_interpretation_evidence_frame(
+    report_payload: Mapping[str, object],
+) -> pd.DataFrame:
+    columns = [
+        "Family",
+        "Scope",
+        "Calculation State",
+        "Observation Date",
+        "Observation State",
+        "Provenance",
+        "Rights",
+        "Field Scope",
+        "Reason Codes",
+    ]
+
+    def escaped(value: object, fallback: str = "Unavailable") -> str:
+        if value is None:
+            return fallback
+        if isinstance(value, (list, tuple, set)):
+            text = ", ".join(str(item) for item in value)
+        else:
+            text = str(value)
+        return html.escape(text.strip() or fallback)
+
+    rows = [
+        {
+            "Family": escaped(entry.get("family")),
+            "Scope": escaped(entry.get("scope")),
+            "Calculation State": escaped(entry.get("calculation_state")),
+            "Observation Date": escaped(entry.get("observation_through_date")),
+            "Observation State": escaped(entry.get("observation_state")),
+            "Provenance": escaped(entry.get("provenance_state")),
+            "Rights": escaped(entry.get("rights_state")),
+            "Field Scope": escaped(entry.get("field_scope_state")),
+            "Reason Codes": escaped(entry.get("reasons")),
+        }
+        for entry in _stock_report_quant_interpretation_entries(report_payload)
+    ]
+    return pd.DataFrame(rows, columns=columns)
 
 
 def stock_report_missing_data_text(warnings: list[object]) -> str:
@@ -30752,6 +30841,27 @@ def render_single_stock_report(
                 research_mode=research_mode,
                 selected_answer_target=selected_answer_target,
             )
+            quant_interpretation_cards = stock_report_quant_interpretation_cards(report_payload)
+            quant_interpretation_evidence = stock_report_quant_interpretation_evidence_frame(
+                report_payload
+            )
+            if quant_interpretation_cards:
+                st.markdown("## Quant interpretation boundary")
+                render_signal_cards(
+                    quant_interpretation_cards,
+                    show_commands=False,
+                    variant="queue",
+                )
+            if not quant_interpretation_evidence.empty:
+                with st.expander(
+                    "Advanced: quantitative interpretation evidence",
+                    expanded=False,
+                ):
+                    st.dataframe(
+                        quant_interpretation_evidence,
+                        width="stretch",
+                        hide_index=True,
+                    )
             if research_mode:
                 change_answer = company_change_answer(ticker, research_review_items)
                 change_context_badge = {

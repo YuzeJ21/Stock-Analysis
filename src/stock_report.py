@@ -11,7 +11,8 @@ from typing import Any
 import pandas as pd
 
 from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
-from src.indicators import compute_return
+from src.indicators import compute_return, indicator_quant_assessment
+from src.observation_recency import ObservationRecency, evaluate_observation_rows
 from src.fundamentals_source_ladder import build_fundamentals_source_ladder_rows
 from src.optional_context_sources import build_optional_context_source_ladder_rows, write_optional_context_imports
 from src.providers.alternative_fundamentals import (
@@ -37,9 +38,23 @@ from src.sec_filing_share_stage import stage_sec_filing_share_count_rows
 from src.providers.yfinance_provider import build_yfinance_fundamentals_rows
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.provider_env import load_provider_environment
-from src.review_metrics import build_review_metrics, configured_risk_free_rate
+from src.quant_interpretation_eligibility import (
+    QuantEvidenceAssessment,
+    evaluate_quant_interpretation,
+)
+from src.review_metrics import (
+    ReviewMetricsSnapshot,
+    build_review_metrics,
+    configured_risk_free_rate,
+    review_metric_quant_assessment,
+)
 from src.session_source_preflight import load_session_source_preflight
-from src.valuation import ValuationInput, ValuationResult, build_valuation_result
+from src.valuation import (
+    ValuationInput,
+    ValuationResult,
+    build_valuation_result,
+    valuation_quant_assessment,
+)
 
 
 REPORT_METHOD_VERSION = "readiness-first-v1"
@@ -86,6 +101,7 @@ class StockReport:
     data_freshness: list[DataFreshnessNote]
     valuation_readiness: dict[str, Any] = field(default_factory=dict)
     review_metrics: dict[str, Any] = field(default_factory=dict)
+    quant_interpretation: dict[str, Any] = field(default_factory=dict)
     dataset_coverage: list[dict[str, Any]] = field(default_factory=list)
     local_data_validation: list[dict[str, Any]] = field(default_factory=list)
     screener_context: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -119,6 +135,7 @@ class StockReport:
             "provenance": provenance,
             "valuation_readiness": self.valuation_readiness,
             "review_metrics": self.review_metrics,
+            "quant_interpretation": self.quant_interpretation,
             "dataset_coverage": self.dataset_coverage,
             "local_data_validation": self.local_data_validation,
             "screener_context": self.screener_context,
@@ -443,8 +460,128 @@ def _valuation_readiness_dict(
     }
 
 
+def _quant_interpretation_decision(
+    assessment: QuantEvidenceAssessment,
+) -> dict[str, Any]:
+    decision = asdict(evaluate_quant_interpretation(assessment))
+    return {
+        **decision,
+        "calculation_state": assessment.calculation_state,
+        "observation_state": assessment.observation_state,
+        "observation_through_date": assessment.observation_through_date,
+        "provenance_state": assessment.provenance_state,
+        "rights_state": assessment.rights_state,
+        "field_scope_state": assessment.field_scope_state,
+    }
+
+
+def _observation_rows(ticker: str, history: pd.DataFrame) -> list[dict[str, str]]:
+    if history.empty or "date" not in history.columns:
+        return []
+    rows: list[dict[str, str]] = []
+    for value in history["date"].tolist():
+        parsed = pd.to_datetime(value, errors="coerce")
+        observation_date = "" if pd.isna(parsed) else parsed.date().isoformat()
+        rows.append({"ticker": ticker, "date": observation_date})
+    return rows
+
+
+def _benchmark_history(
+    provider: MarketDataProvider,
+    benchmark: str,
+) -> pd.DataFrame:
+    try:
+        return provider.get_price_history(benchmark, period="1y", interval="1d")
+    except (KeyError, LookupError):
+        return pd.DataFrame(columns=["date", "close"])
+
+
+def _build_quant_interpretation(
+    *,
+    ticker: str,
+    history: pd.DataFrame,
+    benchmark_histories: dict[str, pd.DataFrame],
+    report_cutoff: pd.Timestamp,
+    performance: PerformanceSummary,
+    valuation: ValuationResult,
+    review_metric_snapshots: dict[str, ReviewMetricsSnapshot],
+) -> dict[str, Any]:
+    observation_rows = _observation_rows(ticker, history)
+    for benchmark, benchmark_history in benchmark_histories.items():
+        observation_rows.extend(_observation_rows(benchmark, benchmark_history))
+    observations = evaluate_observation_rows(
+        observation_rows,
+        selected_ticker=ticker,
+        benchmark_tickers=("SPY", "QQQ"),
+        as_of=report_cutoff.date(),
+    )
+    observations_by_scope: dict[str, ObservationRecency] = {
+        observations.selected_ticker.scope: observations.selected_ticker,
+        **{item.scope: item for item in observations.benchmarks},
+    }
+    proof_states = {
+        "provenance_state": "unverified",
+        "rights_state": "unverified",
+        "field_scope_state": "unverified",
+    }
+
+    valuation_decision = _quant_interpretation_decision(
+        valuation_quant_assessment(
+            valuation,
+            scope=f"{ticker}:valuation_snapshot",
+            observation=observations.selected_ticker,
+            **proof_states,
+        )
+    )
+    performance_row = {"ticker": ticker, **performance.to_dict()}
+    indicator_decisions = {
+        metric_name: _quant_interpretation_decision(
+            indicator_quant_assessment(
+                performance_row,
+                metric_name=metric_name,
+                observation=observations.selected_ticker,
+                benchmark_observation=None,
+                **proof_states,
+            )
+        )
+        for metric_name in ("one_month", "three_month", "one_year")
+    }
+    review_metric_decisions: dict[str, Any] = {}
+    for benchmark, snapshot in review_metric_snapshots.items():
+        benchmark_decisions: dict[str, Any] = {}
+        for group_name, metrics in (
+            ("price_metrics", snapshot.price_metrics),
+            ("fundamentals_metrics", snapshot.fundamentals_metrics),
+            ("valuation_metrics", snapshot.valuation_metrics),
+            ("peer_metrics", snapshot.peer_metrics),
+        ):
+            benchmark_decisions[group_name] = {
+                metric.name: _quant_interpretation_decision(
+                    review_metric_quant_assessment(
+                        metric,
+                        ticker=ticker,
+                        observation=observations.selected_ticker,
+                        benchmark_observation=(
+                            observations_by_scope.get(metric.benchmark.upper())
+                            if metric.benchmark
+                            else None
+                        ),
+                        **proof_states,
+                    )
+                )
+                for metric in metrics
+            }
+        review_metric_decisions[benchmark] = benchmark_decisions
+    return {
+        "valuation": valuation_decision,
+        "indicators": indicator_decisions,
+        "review_metrics": review_metric_decisions,
+    }
+
+
 def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport:
     ticker = ticker.upper()
+    report_cutoff = pd.Timestamp.now(tz="UTC")
     quote = provider.get_quote(ticker)
     history = provider.get_price_history(ticker, period="1y", interval="1d")
     financials = provider.get_financials(ticker)
@@ -491,10 +628,32 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
     )
     provider_root = getattr(provider, "base_dir", None)
     risk_free_rate = configured_risk_free_rate(Path(provider_root)) if provider_root is not None else 0.0
-    review_metrics = {
-        benchmark: build_review_metrics(ticker, provider, benchmark=benchmark, annual_risk_free_rate=risk_free_rate).to_dict()
+    review_metric_snapshots = {
+        benchmark: build_review_metrics(
+            ticker,
+            provider,
+            benchmark=benchmark,
+            annual_risk_free_rate=risk_free_rate,
+        )
         for benchmark in ("SPY", "QQQ")
     }
+    review_metrics = {
+        benchmark: snapshot.to_dict()
+        for benchmark, snapshot in review_metric_snapshots.items()
+    }
+    benchmark_histories = {
+        benchmark: _benchmark_history(provider, benchmark)
+        for benchmark in ("SPY", "QQQ")
+    }
+    quant_interpretation = _build_quant_interpretation(
+        ticker=ticker,
+        history=history,
+        benchmark_histories=benchmark_histories,
+        report_cutoff=report_cutoff,
+        performance=performance,
+        valuation=valuation,
+        review_metric_snapshots=review_metric_snapshots,
+    )
     missing_data_warnings = _build_missing_data_warnings(
         performance,
         financials,
@@ -506,7 +665,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
 
     return StockReport(
         ticker=ticker,
-        generated_at=pd.Timestamp.now(tz="UTC").isoformat(),
+        generated_at=report_cutoff.isoformat(),
         provider_name=type(provider).__name__,
         price_snapshot=_price_snapshot_dict(quote),
         performance=performance,
@@ -519,6 +678,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
         data_freshness=data_freshness,
         valuation_readiness=_valuation_readiness_dict(valuation, earnings, estimates, peer_summary),
         review_metrics=review_metrics,
+        quant_interpretation=quant_interpretation,
         dataset_coverage=dataset_coverage,
         local_data_validation=local_data_validation,
         screener_context=screener_context,

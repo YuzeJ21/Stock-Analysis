@@ -46,7 +46,15 @@ def test_company_workbench_renders_independent_observation_states_for_avgo_spy_a
             ("ticker", "AVGO"),
             ("open", "1"),
         ),
-        required_markers=("Company Workbench", "profile_price_lane", "AVGO", "SPY", "QQQ", "Research-only"),
+        required_markers=(
+            "Company Workbench",
+            "profile_price_lane",
+            "AVGO",
+            "SPY",
+            "QQQ",
+            "Quant interpretation boundary",
+            "Research-only",
+        ),
     )
 
     with patch(
@@ -62,6 +70,7 @@ def test_company_workbench_renders_independent_observation_states_for_avgo_spy_a
     assert result.expanded_advanced == ()
     assert "observation-recency-summary" in rendered
     assert rendered.count("<section class='observation-recency-summary") == 1
+    assert "provenance_unverified" not in rendered
     for row in (
         observation.selected_ticker,
         observation.profile_price_lane,

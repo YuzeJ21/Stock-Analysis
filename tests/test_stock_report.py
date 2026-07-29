@@ -390,6 +390,85 @@ def _copy_rich_fixture(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.fixture()
+def provider() -> MockMarketDataProvider:
+    source = make_source_metadata(
+        provider="fixture",
+        freshness="test fixture",
+        official=False,
+        notes=["Test-only source metadata is not structured eligibility proof."],
+        retrieved_at="2026-07-20T20:00:00Z",
+    )
+    history = pd.DataFrame(
+        [
+            {
+                "date": pd.Timestamp("2025-10-31") + pd.Timedelta(days=day),
+                "close": 100.0 + day,
+            }
+            for day in range(260)
+        ]
+    )
+    return MockMarketDataProvider(
+        quotes={
+            "NVDA": QuoteSnapshot(
+                ticker="NVDA",
+                price=360.0,
+                previous_close=355.0,
+                open=356.0,
+                day_high=362.0,
+                day_low=354.0,
+                volume=1_000_000,
+                currency="USD",
+                market_time="2026-07-20T20:00:00Z",
+                source=source,
+            )
+        },
+        histories={("NVDA", "1y", "1d"): history},
+        financials={
+            "NVDA": FinancialSnapshot(
+                ticker="NVDA",
+                revenue=250_000_000_000,
+                revenue_growth=0.10,
+                eps=12.5,
+                free_cash_flow=90_000_000_000,
+                fcf_margin=0.36,
+                shares_outstanding=7_400_000_000,
+                cash=90_000_000_000,
+                debt=40_000_000_000,
+                source=source,
+            )
+        },
+        earnings={"NVDA": EarningsSummary(ticker="NVDA", source=source)},
+        estimates={"NVDA": AnalystEstimateSummary(ticker="NVDA", source=source)},
+    )
+
+
+def test_stock_report_keeps_quant_values_but_adds_independent_eligibility(provider):
+    report = build_stock_report("NVDA", provider)
+    payload = report.to_dict()
+    assert payload["valuation_snapshot"]["status"] == "calculated"
+    assert set(payload["quant_interpretation"]) == {
+        "valuation",
+        "indicators",
+        "review_metrics",
+    }
+    assert payload["quant_interpretation"]["valuation"]["calculation_state"] == "available"
+    assert payload["quant_interpretation"]["valuation"]["interpretation_state"] in {
+        "historical_review_only",
+        "withheld",
+    }
+    assert payload["quant_interpretation"]["valuation"]["commercial_eligible"] is False
+    assert payload["quant_interpretation"]["valuation"]["provenance_state"] == "unverified"
+    assert payload["quant_interpretation"]["valuation"]["rights_state"] == "unverified"
+    assert payload["quant_interpretation"]["valuation"]["field_scope_state"] == "unverified"
+    assert set(payload["quant_interpretation"]["indicators"]) == {
+        "one_month",
+        "three_month",
+        "one_year",
+    }
+    assert set(payload["quant_interpretation"]["review_metrics"]) == {"SPY", "QQQ"}
+
+
 def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     source = make_source_metadata(
         provider="mock",

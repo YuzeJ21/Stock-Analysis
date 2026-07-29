@@ -34047,6 +34047,72 @@ def test_stock_report_review_metric_summary_cards_are_product_first():
     assert "sell" not in rendered
 
 
+def _historical_payload() -> dict[str, object]:
+    return {
+        "valuation_snapshot": {"status": "calculated"},
+        "quant_interpretation": {
+            "valuation": {
+                "family": "valuation",
+                "scope": "NVDA:<script>alert('scope')</script>",
+                "calculation_state": "available",
+                "observation_state": "stale_review_only",
+                "observation_through_date": "2026-07-20",
+                "provenance_state": "unverified",
+                "rights_state": "unverified",
+                "field_scope_state": "unverified",
+                "interpretation_state": "historical_review_only",
+                "commercial_eligible": False,
+                "reasons": (
+                    "observation_stale",
+                    "provenance_unverified",
+                    "rights_unverified",
+                    "field_scope_unverified",
+                ),
+                "summary": "Historical review only through 2026-07-20. <script>alert('summary')</script>",
+                "boundary": "Research interpretation only.",
+            }
+        },
+    }
+
+
+def test_quant_cards_label_historical_values_and_hide_technical_detail():
+    cards = dashboard.stock_report_quant_interpretation_cards(_historical_payload())
+    rendered = str(cards)
+    rendered_html = dashboard.signal_card_html(
+        str(cards[0]["kicker"]),
+        str(cards[0]["title"]),
+        str(cards[0]["body"]),
+        [str(item) for item in cards[0]["badges"]],
+        show_command=False,
+    )
+    assert "Historical review only" in rendered
+    assert "Current market" not in rendered
+    assert "provenance_unverified" not in rendered
+    assert len(cards) == 1
+    assert "<script>" not in rendered_html
+    assert "&lt;script&gt;" in rendered_html
+
+
+def test_quant_advanced_evidence_escapes_values_and_keeps_reason_codes():
+    frame = dashboard.stock_report_quant_interpretation_evidence_frame(_historical_payload())
+    rendered = str(frame.to_dict(orient="records"))
+
+    assert list(frame.columns) == [
+        "Family",
+        "Scope",
+        "Calculation State",
+        "Observation Date",
+        "Observation State",
+        "Provenance",
+        "Rights",
+        "Field Scope",
+        "Reason Codes",
+    ]
+    assert "provenance_unverified" in rendered
+    assert "<script>" not in rendered
+    assert "&lt;script&gt;" in rendered
+
+
 def test_research_thesis_journal_summary_keeps_empty_state_truthful():
     from src.research_thesis_journal import derive_journal_state
 
