@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict, dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -95,6 +96,16 @@ def _strictest_observation(
     observation: ObservationRecency,
     benchmark_observation: ObservationRecency,
 ) -> ObservationRecency:
+    if _has_rejected_through_date(observation) or _has_rejected_through_date(
+        benchmark_observation
+    ):
+        return ObservationRecency(
+            observation.scope,
+            "",
+            None,
+            "unavailable",
+            "A required observation date is invalid for quantitative interpretation.",
+        )
     observation_priority = _OBSERVATION_PRIORITY.get(observation.state, 3)
     benchmark_priority = _OBSERVATION_PRIORITY.get(benchmark_observation.state, 3)
     if benchmark_priority > observation_priority:
@@ -102,6 +113,15 @@ def _strictest_observation(
     if observation_priority > benchmark_priority:
         return observation
     return min((observation, benchmark_observation), key=lambda item: item.through_date)
+
+
+def _has_rejected_through_date(observation: ObservationRecency) -> bool:
+    if observation.state == "unavailable":
+        return False
+    try:
+        return date.fromisoformat(observation.through_date) > date.today()
+    except (TypeError, ValueError):
+        return True
 
 
 @dataclass

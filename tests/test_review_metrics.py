@@ -100,6 +100,22 @@ def test_review_metric_requires_matching_benchmark_evidence_only_for_benchmarked
         )
 
 
+@pytest.mark.parametrize("benchmark_through_date", ["2099-01-01", "malformed"])
+def test_benchmarked_review_metric_withholds_when_benchmark_date_is_rejected(benchmark_through_date):
+    assessment = review_metric_quant_assessment(
+        ReviewMetric("beta_vs_benchmark", READY, 1.1, "ratio", benchmark="SPY"),
+        ticker="NVDA",
+        observation=_recency("NVDA", "current", "2026-07-27"),
+        benchmark_observation=_recency("SPY", "current", benchmark_through_date),
+        provenance_state="verified",
+        rights_state="permitted",
+        field_scope_state="permitted",
+    )
+
+    assert assessment.observation_state == "unavailable"
+    assert evaluate_quant_interpretation(assessment).interpretation_state == "withheld"
+
+
 class FakeMetricsProvider:
     def __init__(
         self,

@@ -62,6 +62,22 @@ def test_relative_indicator_rejects_a_benchmark_observation_for_another_scope():
         )
 
 
+@pytest.mark.parametrize("benchmark_through_date", ["2099-01-01", "malformed"])
+def test_relative_indicator_withholds_when_benchmark_date_is_rejected(benchmark_through_date):
+    assessment = indicator_quant_assessment(
+        {"ticker": "NVDA", "relative_return_vs_spy": 0.12},
+        metric_name="relative_return_vs_spy",
+        observation=_recency("NVDA", "current", "2026-07-27"),
+        benchmark_observation=_recency("SPY", "current", benchmark_through_date),
+        provenance_state="verified",
+        rights_state="permitted",
+        field_scope_state="permitted",
+    )
+
+    assert assessment.observation_state == "unavailable"
+    assert evaluate_quant_interpretation(assessment).interpretation_state == "withheld"
+
+
 def test_moving_averages():
     series = pd.Series([10.0, 20.0, 30.0, 40.0])
     assert sma(series, 2).tolist() == [10.0, 15.0, 25.0, 35.0]
