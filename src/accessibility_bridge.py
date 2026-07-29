@@ -14,7 +14,7 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
 <script>
 (() => {
   try {
-    const host = window.parent.document;
+    const host = document;
     const observerKey = "__stockResearchMainObserver";
     const targetKey = "__stockResearchMainTarget";
     const ownershipKey = "__stockResearchMainOwnership";
@@ -24,8 +24,8 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
       "id": "research-main",
       "aria-label": "Stock research workspace"
     };
-    if (window.parent[observerKey]) {
-      window.parent[observerKey].disconnect();
+    if (window[observerKey]) {
+      window[observerKey].disconnect();
     }
     let activeObserver = null;
     const ownedMutations = [];
@@ -52,7 +52,7 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
     }
 
     function rememberFrameworkMutation(mutation) {
-      const target = window.parent[targetKey];
+      const target = window[targetKey];
       if (
         mutation.type !== "attributes" ||
         mutation.target !== target ||
@@ -170,10 +170,10 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
 
     function applyMainLandmark() {
       const nodes = host.querySelectorAll('[data-testid="stMain"]');
-      const previous = window.parent[targetKey];
+      const previous = window[targetKey];
       if (nodes.length !== 1) {
         if (previous) cleanupTarget(previous);
-        window.parent[targetKey] = null;
+        window[targetKey] = null;
         setStatus(nodes.length === 0 ? "missing" : "ambiguous");
         return;
       }
@@ -189,13 +189,13 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
       }
       if (previous && previous !== target) {
         cleanupTarget(previous);
-        window.parent[targetKey] = null;
+        window[targetKey] = null;
       }
 
       if (hasConnectedConflict(target)) {
-        if (window.parent[targetKey] === target) {
+        if (window[targetKey] === target) {
           cleanupTarget(target);
-          window.parent[targetKey] = null;
+          window[targetKey] = null;
         }
         setStatus("ambiguous");
         return;
@@ -217,7 +217,7 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
         rememberOwnedMutation(target, "aria-label");
         target.setAttribute("aria-label", "Stock research workspace");
       }
-      window.parent[targetKey] = target;
+      window[targetKey] = target;
       setStatus("applied");
     }
 
@@ -236,7 +236,7 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
               mutation.attributeName === "id" ||
               (
                 mutation.attributeName === "aria-label" &&
-                mutation.target === window.parent[targetKey]
+                mutation.target === window[targetKey]
               )
             )
           )
@@ -249,7 +249,7 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
 
     applyMainLandmark();
     activeObserver = new MutationObserver(handleMutations);
-    window.parent[observerKey] = activeObserver;
+    window[observerKey] = activeObserver;
     activeObserver.observe(
       host.body,
       {
@@ -357,9 +357,11 @@ def render_authoring_error_binding(
 (() => {{
   const config = {config};
   try {{
-    const frameElement = window.frameElement;
-    if (!frameElement) return;
-    const composer = frameElement.closest('[data-testid="stExpander"]');
+    const scriptElement = document.currentScript;
+    if (!scriptElement) return;
+    const htmlContainer = scriptElement.closest('[data-testid="stHtml"]');
+    if (!htmlContainer) return;
+    const composer = htmlContainer.closest('[data-testid="stExpander"]');
     if (!composer) return;
 
     for (const control of composer.querySelectorAll(

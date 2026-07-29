@@ -156,10 +156,27 @@ function flushMutations() {
   return deliveries;
 }
 
-const parentWindow = {document};
+const embeddingDocumentElement = new Element(
+  "embedding-document",
+  "html",
+  {},
+  false
+);
+const embeddingDocument = {
+  body: new Element("embedding-body", "body", {}, false),
+  documentElement: embeddingDocumentElement,
+  querySelectorAll() {
+    return [];
+  },
+};
+const window = {
+  document,
+  parent: {document: embeddingDocument},
+};
 const context = {
   MutationObserver,
-  window: {parent: parentWindow},
+  document,
+  window,
 };
 
 function runBridge() {
@@ -180,6 +197,9 @@ function snapshot() {
   );
   return {
     status: documentElement.getAttribute(
+      "data-research-main-bridge-status"
+    ),
+    embeddingStatus: embeddingDocumentElement.getAttribute(
       "data-research-main-bridge-status"
     ),
     elements: Object.fromEntries(
@@ -239,6 +259,195 @@ process.stdout.write(JSON.stringify({
 }));
 """
 
+AUTHORING_BINDING_DOM_HARNESS = r"""
+const fs = require("node:fs");
+const vm = require("node:vm");
+
+const request = JSON.parse(fs.readFileSync(0, "utf8"));
+
+function matchesSimpleSelector(element, selector) {
+  const attributeMatch = selector.match(
+    /^\[([a-zA-Z0-9_-]+)(?:="([^"]*)")?\]$/
+  );
+  if (attributeMatch) {
+    if (attributeMatch[2] === undefined) {
+      return element.hasAttribute(attributeMatch[1]);
+    }
+    return element.getAttribute(attributeMatch[1]) === attributeMatch[2];
+  }
+  return element.tagName.toLowerCase() === selector.toLowerCase();
+}
+
+function matchesSelector(element, selector) {
+  return selector
+    .split(",")
+    .map((part) => part.trim())
+    .some((part) => matchesSimpleSelector(element, part));
+}
+
+class Element {
+  constructor(tagName, attributes = {}, textContent = "") {
+    this.tagName = tagName.toUpperCase();
+    this.attributes = new Map(
+      Object.entries(attributes).map(([key, value]) => [key, String(value)])
+    );
+    this.textContent = textContent;
+    this.children = [];
+    this.parentElement = null;
+    this.style = {};
+  }
+
+  appendChild(child) {
+    child.parentElement = this;
+    this.children.push(child);
+    return child;
+  }
+
+  getAttribute(name) {
+    return this.attributes.has(name) ? this.attributes.get(name) : null;
+  }
+
+  hasAttribute(name) {
+    return this.attributes.has(name);
+  }
+
+  setAttribute(name, value) {
+    this.attributes.set(name, String(value));
+  }
+
+  removeAttribute(name) {
+    this.attributes.delete(name);
+  }
+
+  matches(selector) {
+    return matchesSelector(this, selector);
+  }
+
+  closest(selector) {
+    let current = this;
+    while (current) {
+      if (current.matches(selector)) return current;
+      current = current.parentElement;
+    }
+    return null;
+  }
+
+  querySelectorAll(selector) {
+    const matches = [];
+    function visit(element) {
+      for (const child of element.children) {
+        if (child.matches(selector)) matches.push(child);
+        visit(child);
+      }
+    }
+    visit(this);
+    return matches;
+  }
+
+  insertAdjacentElement(position, element) {
+    if (position !== "afterend" || !this.parentElement) {
+      throw new Error(`Unsupported insertion: ${position}`);
+    }
+    const siblings = this.parentElement.children;
+    const index = siblings.indexOf(this);
+    element.parentElement = this.parentElement;
+    siblings.splice(index + 1, 0, element);
+    return element;
+  }
+
+  remove() {
+    if (!this.parentElement) return;
+    const siblings = this.parentElement.children;
+    const index = siblings.indexOf(this);
+    if (index !== -1) siblings.splice(index, 1);
+    this.parentElement = null;
+  }
+
+  focus() {
+    document.activeElement = this;
+  }
+
+  get id() {
+    return this.getAttribute("id") || "";
+  }
+
+  set id(value) {
+    this.setAttribute("id", value);
+  }
+
+  set className(value) {
+    this.setAttribute("class", value);
+  }
+}
+
+const body = new Element("body");
+const composer = body.appendChild(
+  new Element("div", {"data-testid": "stExpander"})
+);
+const thesisLabel = composer.appendChild(
+  new Element("label", {for: "thesis-id"}, "Thesis Id")
+);
+const thesis = composer.appendChild(
+  new Element(
+    "input",
+    {
+      id: "thesis-id",
+      "aria-label": "Thesis Id",
+      "aria-describedby": "thesis-hint",
+    }
+  )
+);
+const effectiveLabel = composer.appendChild(
+  new Element("label", {for: "effective-at"}, "Effective At")
+);
+const effective = composer.appendChild(
+  new Element("input", {id: "effective-at", "aria-label": "Effective At"})
+);
+const htmlContainer = composer.appendChild(
+  new Element("div", {"data-testid": "stHtml"})
+);
+const scriptElement = htmlContainer.appendChild(new Element("script"));
+body.appendChild(
+  new Element("input", {id: "outside", "aria-label": "Thesis Id"})
+);
+
+const document = {
+  body,
+  activeElement: null,
+  currentScript: scriptElement,
+  createElement(tagName) {
+    return new Element(tagName);
+  },
+};
+const window = {document};
+const context = {document, window};
+
+function snapshot() {
+  const errors = composer.querySelectorAll(
+    '[data-research-authoring-error-owned="true"]'
+  );
+  return {
+    activeLabel: document.activeElement
+      ? document.activeElement.getAttribute("aria-label")
+      : null,
+    thesis: Object.fromEntries(thesis.attributes.entries()),
+    effective: Object.fromEntries(effective.attributes.entries()),
+    errors: errors.map((error) => ({
+      id: error.id,
+      message: error.textContent,
+    })),
+  };
+}
+
+const captures = [];
+for (const script of request.scripts) {
+  vm.runInNewContext(script, context);
+  captures.push(snapshot());
+}
+
+process.stdout.write(JSON.stringify({captures}));
+"""
+
 
 def _bridge_module():
     try:
@@ -267,6 +476,35 @@ def _run_semantic_main_scenario(*, elements, operations):
                 "script": match.group(1),
             }
         ),
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    return json.loads(completed.stdout)
+
+
+def _rendered_authoring_document(error):
+    calls = []
+    _bridge_module().render_authoring_error_binding(
+        error,
+        html_renderer=lambda document, **_options: calls.append(document),
+    )
+    assert len(calls) == 1
+    match = re.fullmatch(r"\s*<script>\s*(.*?)\s*</script>\s*", calls[0], re.S)
+    assert match is not None
+    return match.group(1)
+
+
+def _run_authoring_binding_scenario(*documents):
+    node = shutil.which("node")
+    if node is None and BUNDLED_NODE.exists():
+        node = str(BUNDLED_NODE)
+    assert node is not None, "Node is required for executable bridge tests"
+
+    completed = subprocess.run(
+        [node, "-e", AUTHORING_BINDING_DOM_HARNESS],
+        check=False,
+        capture_output=True,
+        input=json.dumps({"scripts": documents}),
         text=True,
     )
     assert completed.returncode == 0, completed.stderr
@@ -404,7 +642,10 @@ def test_rendered_binding_is_bounded_exact_label_idempotent_and_non_actioning():
     )
     document, _ = calls[0]
 
-    assert 'frameElement.closest(\'[data-testid="stExpander"]\')' in document
+    assert "const scriptElement = document.currentScript" in document
+    assert 'scriptElement.closest(\'[data-testid="stHtml"]\')' in document
+    assert 'htmlContainer.closest(\'[data-testid="stExpander"]\')' in document
+    assert "frameElement" not in document
     assert "label.textContent.trim() === config.fieldLabel" in document
     assert "controls.length !== 1" in document
     assert 'setAttribute("aria-invalid", "true")' in document
@@ -427,6 +668,55 @@ def test_rendered_binding_is_bounded_exact_label_idempotent_and_non_actioning():
         "postmessage",
     ):
         assert forbidden not in document.lower()
+
+
+def test_authoring_binding_executes_association_cleanup_and_focus_in_same_document():
+    bridge = _bridge_module()
+    thesis_error = bridge.authoring_field_error(
+        "thesis_id is required",
+        profile_key="personal",
+        ticker="AVGO",
+        kind="thesis",
+    )
+    effective_error = bridge.authoring_field_error(
+        "effective_at is required",
+        profile_key="personal",
+        ticker="AVGO",
+        kind="thesis",
+    )
+    assert thesis_error is not None
+    assert effective_error is not None
+
+    result = _run_authoring_binding_scenario(
+        _rendered_authoring_document(thesis_error),
+        _rendered_authoring_document(None),
+        _rendered_authoring_document(effective_error),
+    )
+
+    thesis_bound, cleaned, effective_bound = result["captures"]
+    assert thesis_bound["thesis"]["aria-invalid"] == "true"
+    assert thesis_bound["thesis"]["aria-describedby"] == (
+        "thesis-hint " + thesis_error.error_id
+    )
+    assert thesis_bound["errors"] == [
+        {"id": thesis_error.error_id, "message": thesis_error.message}
+    ]
+    assert thesis_bound["activeLabel"] == "Thesis Id"
+
+    assert "aria-invalid" not in cleaned["thesis"]
+    assert cleaned["thesis"]["aria-describedby"] == "thesis-hint"
+    assert cleaned["errors"] == []
+
+    assert "aria-invalid" not in effective_bound["thesis"]
+    assert effective_bound["thesis"]["aria-describedby"] == "thesis-hint"
+    assert effective_bound["effective"]["aria-invalid"] == "true"
+    assert effective_bound["effective"]["aria-describedby"] == (
+        effective_error.error_id
+    )
+    assert effective_bound["errors"] == [
+        {"id": effective_error.error_id, "message": effective_error.message}
+    ]
+    assert effective_bound["activeLabel"] == "Effective At"
 
 
 def test_accessibility_bridge_has_no_network_storage_clipboard_or_value_reading():
@@ -456,6 +746,8 @@ def test_semantic_main_bridge_is_fixed_idempotent_and_non_networked():
     assert 'setattribute("aria-label", "stock research workspace")' in source
     assert "mutationobserver" in source
     assert "disconnect()" in source
+    assert "const host = document" in source
+    assert "window.parent" not in source
     assert document.count(
         'host.querySelectorAll(\'[data-testid="stMain"]\')'
     ) == 1
@@ -526,6 +818,7 @@ def test_semantic_main_bridge_restores_each_original_attribute(tag, metadata):
 
     applied, cleaned = result["captures"]
     assert applied["status"] == "applied"
+    assert applied["embeddingStatus"] is None
     assert applied["elements"]["target"]["attributes"] | {
         "data-testid": "stMain"
     } == {
