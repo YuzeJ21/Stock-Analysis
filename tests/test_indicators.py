@@ -1,7 +1,65 @@
 import pandas as pd
+import pytest
 
 from src.config import AppConfig
-from src.indicators import build_indicator_snapshot, compute_return, ema, relative_strength, sma
+from src.indicators import (
+    build_indicator_snapshot,
+    compute_return,
+    ema,
+    indicator_quant_assessment,
+    relative_strength,
+    sma,
+)
+from src.observation_recency import ObservationRecency
+from src.quant_interpretation_eligibility import evaluate_quant_interpretation
+
+
+def _recency(scope: str, state: str, through_date: str) -> ObservationRecency:
+    return ObservationRecency(scope, through_date, 1, state, "test observation")
+
+
+def test_relative_indicator_requires_both_ticker_and_benchmark_observations():
+    assessment = indicator_quant_assessment(
+        {"ticker": "NVDA", "relative_return_vs_spy": 0.12},
+        metric_name="relative_return_vs_spy",
+        observation=_recency("NVDA", "current", "2026-07-27"),
+        benchmark_observation=_recency("SPY", "stale_review_only", "2026-06-01"),
+        provenance_state="verified",
+        rights_state="permitted",
+        field_scope_state="permitted",
+    )
+
+    assert evaluate_quant_interpretation(
+        assessment
+    ).interpretation_state == "historical_review_only"
+
+
+@pytest.mark.parametrize("value", [None, "not-a-number", float("nan"), float("inf")])
+def test_indicator_adapter_withholds_a_non_finite_selected_metric(value):
+    assessment = indicator_quant_assessment(
+        {"ticker": "NVDA", "return_1m": value},
+        metric_name="return_1m",
+        observation=_recency("NVDA", "current", "2026-07-27"),
+        benchmark_observation=None,
+        provenance_state="verified",
+        rights_state="permitted",
+        field_scope_state="permitted",
+    )
+
+    assert assessment.calculation_state == "unavailable"
+
+
+def test_relative_indicator_rejects_a_benchmark_observation_for_another_scope():
+    with pytest.raises(ValueError, match="benchmark observation scope"):
+        indicator_quant_assessment(
+            {"ticker": "NVDA", "relative_return_vs_spy": 0.12},
+            metric_name="relative_return_vs_spy",
+            observation=_recency("NVDA", "current", "2026-07-27"),
+            benchmark_observation=_recency("QQQ", "current", "2026-07-27"),
+            provenance_state="verified",
+            rights_state="permitted",
+            field_scope_state="permitted",
+        )
 
 
 def test_moving_averages():

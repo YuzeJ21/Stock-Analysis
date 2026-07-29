@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
+from src.observation_recency import ObservationRecency
+from src.quant_interpretation_eligibility import QuantEvidenceAssessment
+
 
 ALLOWED_RESULT_STATUSES = {"calculated", "partial", "insufficient_data", "not_applicable", "peer_data_unavailable"}
 DEFAULT_NORMALIZED_GROWTH_TARGET = 0.08
@@ -11,6 +14,12 @@ DEFAULT_BULL_NORMALIZED_GROWTH_TARGET = 0.10
 DEFAULT_MAX_START_GROWTH = 0.40
 DEFAULT_MAX_FCF_MARGIN = 0.45
 DEFAULT_MAX_PROJECTED_FCF_GROWTH = 0.35
+_QUANT_CALCULATION_STATES = {
+    "calculated": "available",
+    "partial": "partial",
+    "peer_data_unavailable": "partial",
+    "not_applicable": "excluded",
+}
 
 
 @dataclass
@@ -172,6 +181,39 @@ class ValuationResult:
             "notes": self.notes,
             "source_metadata": self.source_metadata,
         }
+
+
+def valuation_quant_assessment(
+    result: ValuationResult | DCFResult | RelativeValuationResult,
+    *,
+    scope: str,
+    observation: ObservationRecency,
+    provenance_state: str,
+    rights_state: str,
+    field_scope_state: str,
+) -> QuantEvidenceAssessment:
+    """Adapt an existing valuation result without changing its calculation state."""
+    _require_matching_observation_scope(scope, observation)
+    return QuantEvidenceAssessment(
+        family="valuation",
+        scope=scope,
+        calculation_state=_QUANT_CALCULATION_STATES.get(result.status, "unavailable"),
+        observation_state=observation.state,
+        observation_through_date=observation.through_date,
+        provenance_state=provenance_state,
+        rights_state=rights_state,
+        field_scope_state=field_scope_state,
+        evidence_notes=tuple(result.notes),
+    )
+
+
+def _require_matching_observation_scope(scope: str, observation: ObservationRecency) -> None:
+    expected_scope = scope.split(":", 1)[0].strip().upper() if isinstance(scope, str) else ""
+    observed_scope = observation.scope.strip().upper() if isinstance(observation.scope, str) else ""
+    if not expected_scope:
+        raise ValueError("scope must include a ticker")
+    if observed_scope != expected_scope:
+        raise ValueError("observation scope must match the valuation scope")
 
 
 def _sorted_unique(items: list[str]) -> list[str]:

@@ -4,18 +4,36 @@ from pathlib import Path
 import pytest
 
 from src.providers.local_market_data import LocalCSVMarketDataProvider
+from src.observation_recency import ObservationRecency
+from src.quant_interpretation_eligibility import evaluate_quant_interpretation
 from src.valuation import (
     DCFAssumptions,
+    DCFResult,
     ValuationInput,
     build_default_scenarios,
     build_sensitivity_table,
     build_valuation_result,
     calculate_dcf,
     calculate_relative_valuation,
+    valuation_quant_assessment,
     validate_dcf_assumptions,
 )
 
 RICH_FIXTURE_DIR = Path(__file__).parent / "fixtures" / "rich_local_data"
+
+
+def _complete_valuation_input() -> ValuationInput:
+    return ValuationInput(
+        ticker="NVDA",
+        revenue=1000.0,
+        free_cash_flow=100.0,
+        shares_outstanding=10.0,
+        net_debt=0.0,
+    )
+
+
+def _recency(scope: str, state: str, through_date: str) -> ObservationRecency:
+    return ObservationRecency(scope, through_date, 1, state, "test observation")
 
 
 def _copy_rich_fixture(tmp_path: Path) -> Path:
@@ -24,6 +42,63 @@ def _copy_rich_fixture(tmp_path: Path) -> Path:
     for path in RICH_FIXTURE_DIR.glob("*.csv"):
         (data_dir / path.name).write_text(path.read_text(encoding="utf-8"), encoding="utf-8")
     return tmp_path
+
+
+def test_calculated_valuation_with_stale_observation_is_historical_only():
+    result = build_valuation_result(_complete_valuation_input())
+
+    assessment = valuation_quant_assessment(
+        result,
+        scope="NVDA:valuation",
+        observation=_recency("NVDA", "stale_review_only", "2026-05-22"),
+        provenance_state="verified",
+        rights_state="permitted",
+        field_scope_state="permitted",
+    )
+
+    decision = evaluate_quant_interpretation(assessment)
+
+    assert result.status == "calculated"
+    assert decision.interpretation_state == "historical_review_only"
+
+
+@pytest.mark.parametrize(
+    ("status", "calculation_state"),
+    [
+        ("calculated", "available"),
+        ("partial", "partial"),
+        ("peer_data_unavailable", "partial"),
+        ("not_applicable", "excluded"),
+        ("insufficient_data", "unavailable"),
+        ("unknown", "unavailable"),
+    ],
+)
+def test_valuation_adapter_maps_only_supported_result_statuses(status, calculation_state):
+    result = DCFResult(status, "dcf", {}, [], [], ["deterministic calculation note"])
+
+    assessment = valuation_quant_assessment(
+        result,
+        scope="NVDA:dcf",
+        observation=_recency("NVDA", "current", "2026-07-27"),
+        provenance_state="verified",
+        rights_state="permitted",
+        field_scope_state="permitted",
+    )
+
+    assert assessment.calculation_state == calculation_state
+    assert assessment.evidence_notes == ("deterministic calculation note",)
+
+
+def test_valuation_adapter_rejects_an_observation_for_another_scope():
+    with pytest.raises(ValueError, match="observation scope"):
+        valuation_quant_assessment(
+            build_valuation_result(_complete_valuation_input()),
+            scope="NVDA:valuation",
+            observation=_recency("AMD", "current", "2026-07-27"),
+            provenance_state="verified",
+            rights_state="permitted",
+            field_scope_state="permitted",
+        )
 
 
 def test_calculate_dcf_with_direct_fcf_and_shares():
