@@ -22,8 +22,18 @@ historical/review-only or are withheld where proof is absent. This local
 implementation does not establish current-market, hosted, commercial, nowcast,
 or calibration completion.
 
-1. Resolve semantic-main bridge framework reliability with direct runtime evidence.
-2. Continue the remaining safe automated Priority 7 accessibility work.
+1. Synchronize and directly verify the current Research State Accessibility
+   candidate on a clean tree. The pure contract and Company Workbench
+   integration, synthetic harness, duplicate-live rejection, and repository-
+   write detection are integrated into the desktop/phone browser gate; the
+   clean-tree result, commit, push, and exact-head CI remain open.
+2. Synchronize and directly verify the current Discover/Monitor Workflow
+   Maturity candidate. Discover now uses three saved-evidence answers with
+   truthful fallbacks; Monitor uses deterministic non-market process attention,
+   read-only catalyst composition, semantic primary/Advanced tables, and
+   preserved cohort order. Direct responsive assertions are integrated; their
+   clean-tree result and exact-head CI remain open.
+3. Continue the remaining safe automated Priority 7 accessibility work.
 
 Priority 7 accessibility remains the next numbered maturity priority. External point-in-time data, consensus, peer review, hosted controls, independent sessions, assistive-technology review, and calibration remain incomplete and must be classified once rather than retried without changed evidence.
 

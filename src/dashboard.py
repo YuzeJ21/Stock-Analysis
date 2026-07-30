@@ -7,7 +7,7 @@ import re
 from dataclasses import asdict
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 from urllib.parse import quote, urlencode
 
 import pandas as pd
@@ -2757,6 +2757,108 @@ def apply_dashboard_theme() -> None:
         }
         .selector-result-row:last-child {
           border-bottom: 0;
+        }
+        .research-discover-result .selector-result-row {
+          grid-template-columns: 7rem minmax(0, 1fr) auto !important;
+          align-items: start;
+        }
+        .research-discover-answers {
+          display: grid;
+          gap: 0.56rem;
+          min-width: 0;
+        }
+        .research-discover-answer {
+          min-width: 0;
+          overflow-wrap: anywhere;
+          white-space: normal;
+        }
+        .research-discover-answer-label {
+          display: block;
+          color: #334155;
+          font-size: 0.7rem;
+          font-weight: 900;
+          letter-spacing: 0.06em;
+          margin-bottom: 0.12rem;
+          text-transform: uppercase;
+        }
+        .research-discover-answer-value {
+          color: #111827;
+          font-size: 0.84rem;
+          line-height: 1.42;
+        }
+        .research-discipline-table-wrap,
+        .research-discipline-identity-table-wrap {
+          width: 100%;
+          max-width: 100%;
+          overflow: hidden;
+          margin: 0.42rem 0 0.72rem 0;
+        }
+        .research-discipline-table,
+        .research-discipline-identity-table {
+          width: 100%;
+          max-width: 100%;
+          table-layout: fixed;
+          border-collapse: collapse;
+          color: #1e293b;
+          font-size: 0.82rem;
+        }
+        .research-discipline-table th,
+        .research-discipline-table td,
+        .research-discipline-identity-table th,
+        .research-discipline-identity-table td {
+          padding: 0.58rem 0.62rem;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+          text-align: left;
+          vertical-align: top;
+          overflow-wrap: anywhere;
+          white-space: normal;
+        }
+        .research-discipline-table thead th,
+        .research-discipline-identity-table thead th {
+          color: #334155;
+          background: #f8fafc;
+          font-size: 0.7rem;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .research-discipline-table th:first-child,
+        .research-discipline-identity-table th:first-child {
+          width: 16%;
+        }
+        .research-discipline-table th:nth-child(2) {
+          width: 22%;
+        }
+        @media (max-width: 760px) {
+          .research-discover-result .selector-result-row {
+            grid-template-columns: 1fr !important;
+          }
+          .research-discover-result .selector-actions {
+            grid-column: auto;
+            grid-row: auto;
+            justify-self: stretch;
+          }
+          .research-discover-result .selector-action-link{
+            box-sizing: border-box;
+            justify-content: center;
+            width: 100%;
+          }
+          .research-discover-answer {
+            display: block;
+          }
+          .research-discipline-table,
+          .research-discipline-identity-table {
+            font-size: 0.76rem;
+          }
+          .research-discipline-table th,
+          .research-discipline-table td,
+          .research-discipline-identity-table th,
+          .research-discipline-identity-table td {
+            padding: 0.46rem 0.38rem;
+          }
+          .research-discipline-table th:first-child,
+          .research-discipline-identity-table th:first-child {
+            width: 18%;
+          }
         }
         .selector-result-ticker {
           color: #07111d;
@@ -5805,9 +5907,16 @@ def load_dashboard_research_discipline_rows(
     except (OSError, UnicodeError, ValueError) as exc:
         outcomes = ()
         ledger_error = ledger_error or f"Research outcome ledger could not be verified: {exc}"
+    catalyst_error = ""
+    try:
+        catalyst_events = load_catalyst_events(DATA_DIR / "catalyst_evidence.csv")
+    except (OSError, UnicodeError, ValueError) as exc:
+        catalyst_events = ()
+        catalyst_error = f"Catalyst evidence ledger could not be verified: {exc}"
 
     saved_review_items = tuple(review_items)
     states_by_ticker = {}
+    catalyst_timelines_by_ticker = {}
     for member in cohort.members:
         ticker = member.ticker.upper()
         if ledger_error:
@@ -5849,6 +5958,14 @@ def load_dashboard_research_discipline_rows(
                 outcome_status=outcome_status,
                 review_items=saved_review_items,
             )
+            if not catalyst_error:
+                catalyst_timelines_by_ticker[ticker] = build_catalyst_timeline(
+                    catalyst_events,
+                    profile_key=context.profile_key,
+                    ticker=ticker,
+                    as_of=selected_as_of,
+                    commercial_mode=True,
+                )
         except (KeyError, TypeError, ValueError) as exc:
             states_by_ticker[ticker] = unavailable_research_decision_lab_state(
                 profile_key=context.profile_key,
@@ -5859,6 +5976,107 @@ def load_dashboard_research_discipline_rows(
     return build_research_discipline_rows(
         states_by_ticker,
         focused_tickers=(member.ticker for member in cohort.members),
+        catalyst_timelines_by_ticker=catalyst_timelines_by_ticker,
+        catalyst_error=catalyst_error,
+    )
+
+
+def research_discipline_summary_cards(
+    rows: Iterable[ResearchDisciplineRow],
+) -> list[dict[str, object]]:
+    """Summarize process timing without sorting or rating companies."""
+
+    labels = [row.attention_label for row in rows]
+    specifications = (
+        (
+            "Needs review",
+            "needs review",
+            "Saved research-process evidence identifies a review follow-up.",
+        ),
+        (
+            "Scheduled",
+            "scheduled",
+            "A saved review date or reviewed catalyst context is scheduled.",
+        ),
+        (
+            "Monitor",
+            "monitor",
+            "No saved research-process transition is currently due.",
+        ),
+    )
+    return [
+        {
+            "kicker": label.upper(),
+            "title": f"{labels.count(label)} {title}",
+            "body": body,
+            "badges": ["process timing", "not a company score"],
+            "command": "",
+        }
+        for label, title, body in specifications
+    ]
+
+
+def research_discipline_table_html(
+    rows: Iterable[ResearchDisciplineRow],
+) -> str:
+    """Render the primary process answer without exposing technical identity."""
+
+    rendered_rows = []
+    for row in rows:
+        order = int(row.cohort_order)
+        rendered_rows.append(
+            "<tr class='research-discipline-row' "
+            f"data-cohort-order='{order}'>"
+            f"<th scope='row'>{html.escape(str(row.ticker))}</th>"
+            f"<td>{html.escape(str(row.attention_label))}</td>"
+            f"<td>{html.escape(str(row.attention_reason))}</td>"
+            "</tr>"
+        )
+    if not rendered_rows:
+        return ""
+    return (
+        "<div class='research-discipline-table-wrap'>"
+        "<table class='research-discipline-table'>"
+        "<thead><tr>"
+        "<th scope='col'>Ticker</th>"
+        "<th scope='col'>Process attention</th>"
+        "<th scope='col'>Why</th>"
+        "</tr></thead>"
+        "<tbody>"
+        + "".join(rendered_rows)
+        + "</tbody></table></div>"
+    )
+
+
+def research_discipline_identity_table_html(
+    rows: Iterable[ResearchDisciplineRow],
+) -> str:
+    """Render source and identity only inside the Advanced evidence disclosure."""
+
+    rendered_rows = []
+    for row in rows:
+        order = int(row.cohort_order)
+        rendered_rows.append(
+            "<tr class='research-discipline-identity-row' "
+            f"data-cohort-order='{order}'>"
+            f"<th scope='row'>{html.escape(str(row.ticker))}</th>"
+            f"<td>{html.escape(str(row.attention_source))}</td>"
+            f"<td>{html.escape(str(row.identity))}</td>"
+            "</tr>"
+        )
+    if not rendered_rows:
+        return ""
+    return (
+        "<div class='research-discipline-identity-table-wrap'>"
+        "<table class='research-discipline-identity-table'>"
+        "<thead><tr>"
+        "<th scope='col'>Ticker</th>"
+        "<th scope='col'>Attention source</th>"
+        "<th scope='col'>Decision Lab identity</th>"
+        "</tr></thead>"
+        "<tbody>"
+        + "".join(rendered_rows)
+        + "</tbody></table></div>"
     )
 
 
@@ -29343,6 +29561,33 @@ def discover_review_action_label(ticker: str) -> str:
     return f"Open {symbol} review" if symbol else "Open review"
 
 
+def discover_research_answer(row: Mapping[str, object]) -> dict[str, str]:
+    """Answer three saved-evidence questions without inferring missing support."""
+
+    fallbacks = {
+        "why_reviewable": "Saved readiness does not record why this company is reviewable.",
+        "usable_now": "No usable research lane is recorded in saved readiness.",
+        "principal_blocker": (
+            "No principal blocker is recorded in saved readiness; this does not mean "
+            "no risk or external research need exists."
+        ),
+    }
+
+    def saved_text(field: str, fallback_key: str) -> str:
+        text = format_missing(row.get(field), "").strip()
+        if not text:
+            return fallbacks[fallback_key]
+        if fallback_key == "principal_blocker" and text.lower() == "no blocker":
+            return fallbacks[fallback_key]
+        return text
+
+    return {
+        "why_reviewable": saved_text("Why Included", "why_reviewable"),
+        "usable_now": saved_text("Supported Now", "usable_now"),
+        "principal_blocker": saved_text("Blocked / Missing", "principal_blocker"),
+    }
+
+
 def stock_selector_result_table_html(
     frame: pd.DataFrame,
     *,
@@ -29363,6 +29608,7 @@ def stock_selector_result_table_html(
             "</div>"
         )
     visible = frame.head(max(limit, 1))
+    research_discover = str(target_mode).strip().lower() == "research"
     rows: list[str] = []
     for _, row in visible.iterrows():
         ticker = str(row.get("Ticker", "")).strip().upper() or "TICKER"
@@ -29381,14 +29627,36 @@ def stock_selector_result_table_html(
             + (f"<div class='selector-result-state'>{html.escape(theme)}</div>" if theme else "")
             + "</div>"
         )
+        if research_discover:
+            answers = discover_research_answer(row)
+            answer_html = (
+                "<div class='selector-result-summary research-discover-answers'>"
+                "<div class='research-discover-answer'>"
+                "<span class='research-discover-answer-label'>Why reviewable</span>"
+                f"<span class='research-discover-answer-value'>{html.escape(answers['why_reviewable'])}</span>"
+                "</div>"
+                "<div class='research-discover-answer'>"
+                "<span class='research-discover-answer-label'>Usable now</span>"
+                f"<span class='research-discover-answer-value'>{html.escape(answers['usable_now'])}</span>"
+                "</div>"
+                "<div class='research-discover-answer'>"
+                "<span class='research-discover-answer-label'>Principal blocker</span>"
+                f"<span class='research-discover-answer-value'>{html.escape(answers['principal_blocker'])}</span>"
+                "</div>"
+                "</div>"
+            )
+        else:
+            answer_html = (
+                "<div class='selector-result-summary'>"
+                f"<span class='selector-readiness-pill {html.escape(readiness_class)}'>{html.escape(state_label)}</span>"
+                f"<div class='selector-result-body'>{html.escape(supported)}</div>"
+                "</div>"
+            )
         rows.append(
             "<div class='selector-result-row'>"
             + identity_html
-            + "<div class='selector-result-summary'>"
-            f"<span class='selector-readiness-pill {html.escape(readiness_class)}'>{html.escape(state_label)}</span>"
-            f"<div class='selector-result-body'>{html.escape(supported)}</div>"
-            "</div>"
-            "<div class='selector-actions'>"
+            + answer_html
+            + "<div class='selector-actions'>"
             f"<a class='selector-action-link' href='{report_href}' target='_self'>{html.escape(discover_review_action_label(ticker))}</a>"
             "</div>"
             "</div>"
@@ -29400,7 +29668,12 @@ def stock_selector_result_table_html(
             f"{len(visible):,} of {len(frame):,} matching rows shown; {total_count:,} readiness-backed rows are available before filtering."
             "</div>"
         )
-    return "<div class='selector-result-table'>" + "".join(rows) + footer + "</div>"
+    result_class = (
+        "selector-result-table research-discover-result"
+        if research_discover
+        else "selector-result-table"
+    )
+    return f"<div class='{result_class}'>" + "".join(rows) + footer + "</div>"
 
 
 def _stock_selector_filter_options(frame: pd.DataFrame, column: str, limit: int = 24) -> list[str]:
@@ -35148,29 +35421,29 @@ def render_research_monitor(
         state.get("queue") or (),
     )
     st.markdown("## Research Discipline Review")
+    render_signal_cards(
+        research_discipline_summary_cards(discipline),
+        show_commands=False,
+        variant="queue",
+    )
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
-    if discipline_frame.empty or not any(row.due_lanes for row in discipline):
+    if discipline_frame.empty or all(
+        row.attention_state == "monitor" for row in discipline
+    ):
         render_context_note(
             "No process item is currently due from saved reviewer-authored evidence.",
             "This does not claim that no market event, risk, or external research need exists.",
         )
     if not discipline_frame.empty:
-        st.dataframe(discipline_frame, width="stretch", hide_index=True)
+        st.markdown(
+            research_discipline_table_html(discipline),
+            unsafe_allow_html=True,
+        )
     with st.expander("Advanced: Research Discipline evidence", expanded=False):
         if discipline:
-            st.dataframe(
-                pd.DataFrame(
-                    [
-                        {
-                            "Cohort order": row.cohort_order,
-                            "Ticker": row.ticker,
-                            "Decision Lab identity": row.identity,
-                        }
-                        for row in discipline
-                    ]
-                ),
-                width="stretch",
-                hide_index=True,
+            st.markdown(
+                research_discipline_identity_table_html(discipline),
+                unsafe_allow_html=True,
             )
         else:
             st.caption("No focused-cohort process identity is available from saved evidence.")

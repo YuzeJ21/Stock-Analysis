@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import hashlib
 import ipaddress
 import json
 import math
@@ -45,6 +46,14 @@ EXPECTED_MAIN_LABEL = "Stock research workspace"
 EXPECTED_MAIN_STATUS = "applied"
 MAX_SERVER_RUNTIME_LINES = 2_000
 MAX_SERVER_RUNTIME_LINE_LENGTH = 4_000
+STATE_HARNESS_APP = Path("tests/fixtures/research_state_accessibility_app.py")
+STATE_HARNESS_TRANSITIONS: tuple[tuple[str, str], ...] = (
+    ("validation_rejected", "Validation rejected"),
+    ("preview_ready", "Preview ready"),
+    ("draft_changed", "Draft changed"),
+    ("save_reloaded", "Record saved"),
+    ("save_reload_unverified", "Save verification incomplete"),
+)
 
 
 @dataclass(frozen=True)
@@ -319,6 +328,230 @@ def evaluate_discover_action_names(names: Iterable[str]) -> dict[str, object]:
             "ticker-specific names"
         ),
     }
+
+
+def evaluate_discover_rows(
+    rows: Iterable[dict[str, object]],
+) -> dict[str, object]:
+    """Require each visible Discover result to answer the three research questions."""
+
+    expected_labels = ("Why reviewable", "Usable now", "Principal blocker")
+    observed = tuple(rows)
+    failures: list[str] = []
+    seen_tickers: set[str] = set()
+    if not observed:
+        failures.append("no visible Discover research rows were rendered")
+    for index, row in enumerate(observed, start=1):
+        ticker = str(row.get("ticker") or "").strip().upper()
+        labels = tuple(str(value or "").strip() for value in row.get("labels", ()))
+        values = tuple(str(value or "").strip() for value in row.get("values", ()))
+        action_name = str(row.get("action_name") or "").strip()
+        action_ticker = str(row.get("action_ticker") or "").strip().upper()
+        try:
+            action_height = float(row.get("action_height", 0))
+        except (TypeError, ValueError):
+            action_height = 0
+        visible = row.get("visible") is True
+        if (
+            not visible
+            or labels != expected_labels
+            or len(values) != 3
+            or any(not value for value in values)
+        ):
+            failures.append(
+                f"row {index} must expose three visible non-empty answers"
+            )
+        if (
+            not ticker
+            or ticker in seen_tickers
+            or action_ticker != ticker
+            or action_name != f"Open {ticker} review"
+        ):
+            failures.append(
+                f"row {index} must expose one unique ticker-bound review action"
+            )
+        if action_height < 44:
+            failures.append(
+                f"row {index} review action height={action_height:.1f}px is below 44px"
+            )
+        if ticker:
+            seen_tickers.add(ticker)
+    return {
+        "passed": not failures,
+        "actual_count": len(observed),
+        "detail": (
+            f"{len(observed)} Discover rows expose three answers and usable actions"
+            if not failures
+            else "; ".join(failures)
+        ),
+    }
+
+
+def evaluate_monitor_rows(
+    rows: Iterable[dict[str, object]],
+    *,
+    primary_columns: Iterable[str],
+    advanced_identity_count: int,
+) -> dict[str, object]:
+    """Require a process-only Monitor table in saved cohort order."""
+
+    observed = tuple(rows)
+    columns = tuple(str(column or "").strip() for column in primary_columns)
+    failures: list[str] = []
+    if not observed:
+        failures.append("no Monitor discipline rows were rendered")
+    orders: list[int] = []
+    for index, row in enumerate(observed, start=1):
+        try:
+            order = int(row.get("cohort_order", 0))
+        except (TypeError, ValueError):
+            order = 0
+        orders.append(order)
+        if (
+            not str(row.get("ticker") or "").strip()
+            or not str(row.get("attention") or "").strip()
+            or not str(row.get("reason") or "").strip()
+        ):
+            failures.append(
+                f"Monitor row {index} must expose ticker, process attention, and reason"
+            )
+    expected_orders = (
+        list(range(orders[0], orders[0] + len(observed)))
+        if orders and orders[0] in {0, 1}
+        else []
+    )
+    if orders != expected_orders:
+        failures.append(
+            f"Monitor rows do not preserve saved cohort order: {orders}"
+        )
+    lowered_columns = tuple(column.lower() for column in columns)
+    if columns != ("Ticker", "Process attention", "Why"):
+        failures.append(f"unexpected primary Monitor columns: {columns}")
+    if any(
+        forbidden in column
+        for column in lowered_columns
+        for forbidden in ("rank", "score", "return")
+    ):
+        failures.append("rank/score/return fields are forbidden in Monitor")
+    if (
+        type(advanced_identity_count) is not int
+        or advanced_identity_count != len(observed)
+    ):
+        failures.append(
+            "Advanced identity evidence must remain separate and complete"
+        )
+    return {
+        "passed": not failures,
+        "actual_count": len(observed),
+        "detail": (
+            f"{len(observed)} Monitor rows preserve process-only cohort order"
+            if not failures
+            else "; ".join(failures)
+        ),
+    }
+
+
+def evaluate_research_state_snapshot(
+    *,
+    static_states: Iterable[dict[str, object]],
+    transition_state: str,
+    transition_nodes: Iterable[dict[str, object]],
+) -> dict[str, object]:
+    """Validate one synthetic state-harness snapshot without trusting hidden DOM."""
+
+    expected_static = ("loading", "empty", "withheld", "stale", "failure", "validation")
+    expected_transition = {
+        "validation_rejected": ("alert", "assertive"),
+        "preview_ready": ("status", "polite"),
+        "draft_changed": ("status", "polite"),
+        "save_reloaded": ("status", "polite"),
+        "save_reload_unverified": ("alert", "assertive"),
+    }
+    states = tuple(static_states)
+    nodes = tuple(transition_nodes)
+    failures: list[str] = []
+    if tuple(str(row.get("state") or "") for row in states) != expected_static:
+        failures.append("synthetic harness must expose exactly the six static states")
+    for row in states:
+        state = str(row.get("state") or "")
+        if (
+            row.get("visible") is not True
+            or str(row.get("role") or "") != "group"
+            or str(row.get("live") or "")
+        ):
+            failures.append(f"static {state or 'unknown'} must be visible and non-live")
+        busy = str(row.get("busy") or "")
+        if (state == "loading" and busy != "true") or (
+            state != "loading" and busy
+        ):
+            failures.append(f"static {state or 'unknown'} has invalid busy semantics")
+    semantics = expected_transition.get(str(transition_state or ""))
+    if semantics is None:
+        failures.append(f"unknown transition state {transition_state!r}")
+    if len(nodes) != 1 or nodes[0].get("visible") is not True:
+        failures.append("exactly one visible transition node is required")
+    elif semantics is not None:
+        node = nodes[0]
+        if (
+            str(node.get("role") or "") != semantics[0]
+            or str(node.get("live") or "") != semantics[1]
+            or str(node.get("atomic") or "") != "true"
+            or "TEST1" not in str(node.get("text") or "")
+        ):
+            failures.append("transition role, live policy, atomicity, or text is invalid")
+    return {
+        "passed": not failures,
+        "static_states": states,
+        "detail": (
+            f"{transition_state} exposes one correct visible live transition"
+            if not failures
+            else "; ".join(failures)
+        ),
+    }
+
+
+def evaluate_research_state_rerender(
+    transition_nodes: Iterable[dict[str, object]],
+) -> dict[str, object]:
+    """Require an unchanged rerender to stay visible without announcing again."""
+
+    nodes = tuple(transition_nodes)
+    passed = (
+        len(nodes) == 1
+        and nodes[0].get("visible") is True
+        and str(nodes[0].get("role") or "") == "group"
+        and not str(nodes[0].get("live") or "")
+        and not str(nodes[0].get("atomic") or "")
+        and "TEST1" in str(nodes[0].get("text") or "")
+    )
+    return _assertion(
+        "research_state_rerender_non_live",
+        passed,
+        (
+            "unchanged transition remains visible as one non-live message"
+            if passed
+            else "unchanged transition must render exactly one visible non-live message"
+        ),
+    )
+
+
+def evaluate_repository_snapshot_unchanged(
+    *,
+    before: str,
+    after: str,
+) -> dict[str, object]:
+    """Reject any repository-status mutation caused by the browser harness."""
+
+    passed = str(before) == str(after)
+    return _assertion(
+        "repository_snapshot_unchanged",
+        passed,
+        (
+            "repository status remained byte-for-byte unchanged"
+            if passed
+            else "repository status changed while the browser harness executed"
+        ),
+    )
 
 
 def evaluate_skip_geometry(
@@ -633,24 +866,28 @@ def evaluate_server_runtime_output(
 
 
 @contextlib.contextmanager
-def _captured_local_demo_server(
+def _captured_local_streamlit_server(
     root: Path,
     *,
+    app_path: Path,
     timeout_seconds: float,
+    demo_profile: bool,
+    reader_name: str,
 ):
-    """Run the demo server while retaining only bounded in-memory runtime output."""
+    """Run one local Streamlit app with bounded in-memory runtime output."""
 
     selected_port = _free_port()
     base_url = f"http://127.0.0.1:{selected_port}"
     env = os.environ.copy()
-    env["STOCK_RESEARCH_DATA_PROFILE"] = "demo"
+    if demo_profile:
+        env["STOCK_RESEARCH_DATA_PROFILE"] = "demo"
     process = subprocess.Popen(
         [
             sys.executable,
             "-m",
             "streamlit",
             "run",
-            "src/dashboard.py",
+            str(app_path),
             "--server.headless",
             "true",
             "--server.fileWatcherType",
@@ -697,7 +934,7 @@ def _captured_local_demo_server(
 
     reader = threading.Thread(
         target=collect_runtime_output,
-        name="research-accessibility-server-output",
+        name=reader_name,
         daemon=True,
     )
     reader.start()
@@ -722,6 +959,42 @@ def _captured_local_demo_server(
             close_stdout = getattr(process.stdout, "close", None)
             if callable(close_stdout):
                 close_stdout()
+
+
+@contextlib.contextmanager
+def _captured_local_demo_server(
+    root: Path,
+    *,
+    timeout_seconds: float,
+):
+    """Run the demo dashboard under the bounded local-server contract."""
+
+    with _captured_local_streamlit_server(
+        root,
+        app_path=Path("src/dashboard.py"),
+        timeout_seconds=timeout_seconds,
+        demo_profile=True,
+        reader_name="research-accessibility-server-output",
+    ) as evidence:
+        yield evidence
+
+
+@contextlib.contextmanager
+def _captured_local_state_harness_server(
+    root: Path,
+    *,
+    timeout_seconds: float,
+):
+    """Run the synthetic state harness without production data or ledgers."""
+
+    with _captured_local_streamlit_server(
+        root,
+        app_path=STATE_HARNESS_APP,
+        timeout_seconds=timeout_seconds,
+        demo_profile=False,
+        reader_name="research-state-accessibility-server-output",
+    ) as evidence:
+        yield evidence
 
 
 def evaluate_exact_route_url(
@@ -1399,6 +1672,104 @@ def _discover_action_assertion(page: Any) -> dict[str, object]:
     return _assertion("discover_action_names", passed, detail)
 
 
+def _discover_rows_assertion(page: Any) -> dict[str, object]:
+    rows = page.locator(
+        ".research-discover-result .selector-result-row"
+    )
+    observed: list[dict[str, object]] = []
+    for index in range(rows.count()):
+        row = rows.nth(index)
+        ticker = row.locator(".selector-result-ticker").inner_text().strip()
+        labels = tuple(
+            text.strip()
+            for text in row.locator(
+                ".research-discover-answer-label"
+            ).all_inner_texts()
+        )
+        values = tuple(
+            text.strip()
+            for text in row.locator(
+                ".research-discover-answer-value"
+            ).all_inner_texts()
+        )
+        action = row.locator("a.selector-action-link")
+        href = action.get_attribute("href") or ""
+        action_ticker = (
+            parse_qs(urlparse(href).query)
+            .get("ticker", [""])[0]
+            .strip()
+            .upper()
+        )
+        geometry = action.bounding_box() or {}
+        observed.append(
+            {
+                "ticker": ticker,
+                "labels": labels,
+                "values": values,
+                "action_name": action.inner_text().strip(),
+                "action_ticker": action_ticker,
+                "action_height": geometry.get("height", 0),
+                "visible": row.is_visible() and action.is_visible(),
+            }
+        )
+    evaluated = evaluate_discover_rows(observed)
+    return _assertion(
+        "discover_three_question_rows",
+        bool(evaluated["passed"]),
+        str(evaluated["detail"]),
+    )
+
+
+def _monitor_rows_assertion(page: Any) -> dict[str, object]:
+    table = page.locator("table.research-discipline-table")
+    if table.count() != 1:
+        return _assertion(
+            "monitor_process_rows",
+            False,
+            f"expected one primary Research Discipline table, found {table.count()}",
+        )
+    columns = tuple(
+        text.strip() for text in table.locator("thead th").all_inner_texts()
+    )
+    rows = table.locator("tbody tr.research-discipline-row")
+    observed: list[dict[str, object]] = []
+    for index in range(rows.count()):
+        row = rows.nth(index)
+        cells = tuple(text.strip() for text in row.locator("td").all_inner_texts())
+        observed.append(
+            {
+                "cohort_order": row.get_attribute("data-cohort-order"),
+                "ticker": row.locator("th[scope='row']").inner_text().strip(),
+                "attention": cells[0] if len(cells) > 0 else "",
+                "reason": cells[1] if len(cells) > 1 else "",
+            }
+        )
+    advanced = page.locator("details").filter(
+        has=page.get_by_text(
+            "Advanced: Research Discipline evidence",
+            exact=True,
+        )
+    )
+    advanced_count = 0
+    if advanced.count() == 1:
+        advanced.locator("summary").click()
+        identity_rows = advanced.locator(
+            "tr.research-discipline-identity-row"
+        )
+        identity_rows.first.wait_for(state="visible", timeout=10_000)
+        advanced_count = identity_rows.count()
+    evaluated = evaluate_monitor_rows(
+        observed,
+        primary_columns=columns,
+        advanced_identity_count=advanced_count,
+    )
+    return _assertion(
+        "monitor_process_rows",
+        bool(evaluated["passed"]),
+        str(evaluated["detail"]),
+    )
+
+
 def _summary_focus_assertion(page: Any) -> dict[str, object]:
     summaries = page.locator("summary:visible")
     count = summaries.count()
@@ -1845,6 +2216,9 @@ def _measure_route(
             assertions.append(_summary_focus_assertion(page))
         if route.name == "Discover":
             assertions.append(_discover_action_assertion(page))
+            assertions.append(_discover_rows_assertion(page))
+        if route.name == "Monitor":
+            assertions.append(_monitor_rows_assertion(page))
         if route.name == "Company Workbench":
             assertions.extend(_authoring_error_assertions(page))
 
@@ -1968,6 +2342,211 @@ def _measure_route(
     }
 
 
+def _repository_content_snapshot(root: Path) -> str:
+    """Hash status plus every dirty/untracked path's current content."""
+
+    def git_bytes(*args: str) -> bytes:
+        return subprocess.run(
+            ["git", *args],
+            cwd=root,
+            check=True,
+            capture_output=True,
+        ).stdout
+
+    status = git_bytes(
+        "status",
+        "--porcelain=v1",
+        "-z",
+        "--untracked-files=all",
+    )
+    dirty_path_bytes = b"".join(
+        (
+            git_bytes("diff", "--name-only", "-z", "--"),
+            git_bytes("diff", "--cached", "--name-only", "-z", "--"),
+            git_bytes("ls-files", "--others", "--exclude-standard", "-z"),
+        )
+    )
+    relative_paths = sorted(
+        {
+            raw.decode("utf-8", errors="surrogateescape")
+            for raw in dirty_path_bytes.split(b"\0")
+            if raw
+        }
+    )
+    digest = hashlib.sha256()
+    digest.update(b"status\0")
+    digest.update(status)
+    for relative_path in relative_paths:
+        encoded_path = relative_path.encode("utf-8", errors="surrogateescape")
+        path = root / relative_path
+        digest.update(b"\0path\0")
+        digest.update(encoded_path)
+        try:
+            if path.is_symlink():
+                digest.update(b"\0symlink\0")
+                digest.update(
+                    os.readlink(path).encode(
+                        "utf-8",
+                        errors="surrogateescape",
+                    )
+                )
+            elif path.is_file():
+                digest.update(b"\0file\0")
+                digest.update(path.read_bytes())
+            elif path.exists():
+                digest.update(b"\0non-file\0")
+            else:
+                digest.update(b"\0missing\0")
+        except OSError as exc:
+            digest.update(b"\0unreadable\0")
+            digest.update(type(exc).__name__.encode("ascii", errors="ignore"))
+    return digest.hexdigest()
+
+
+def _repository_status_snapshot(root: Path) -> str:
+    """Compatibility alias for callers outside the gate."""
+
+    return _repository_content_snapshot(root)
+
+
+def _state_harness_static_observations(page: Any) -> tuple[dict[str, object], ...]:
+    states = page.locator("[data-research-static-state]")
+    observed: list[dict[str, object]] = []
+    for index in range(states.count()):
+        node = states.nth(index)
+        observed.append(
+            {
+                "state": node.get_attribute("data-research-static-state"),
+                "visible": node.is_visible(),
+                "role": node.get_attribute("role"),
+                "live": node.get_attribute("aria-live"),
+                "busy": node.get_attribute("aria-busy"),
+            }
+        )
+    return tuple(observed)
+
+
+def _state_harness_transition_observations(
+    page: Any,
+) -> tuple[dict[str, object], ...]:
+    nodes = page.locator(".research-state-message")
+    observed: list[dict[str, object]] = []
+    for index in range(nodes.count()):
+        node = nodes.nth(index)
+        observed.append(
+            {
+                "visible": node.is_visible(),
+                "role": node.get_attribute("role"),
+                "live": node.get_attribute("aria-live"),
+                "atomic": node.get_attribute("aria-atomic"),
+                "text": node.inner_text().strip(),
+            }
+        )
+    return tuple(observed)
+
+
+def _measure_state_harness(
+    browser: Any,
+    *,
+    base_url: str,
+    viewport: tuple[int, int],
+    timeout_seconds: float,
+) -> dict[str, object]:
+    width, height = viewport
+    context = browser.new_context(viewport={"width": width, "height": height})
+    page = context.new_page()
+    assertions: list[dict[str, object]] = []
+    browser_errors: list[str] = []
+
+    def capture_console_message(message: Any) -> None:
+        if str(message.type).lower() == "error":
+            browser_errors.append(f"console error: {message.text}")
+
+    def capture_page_error(error: Any) -> None:
+        browser_errors.append(f"page error: {error}")
+
+    page.on("console", capture_console_message)
+    page.on("pageerror", capture_page_error)
+    try:
+        page.goto(
+            base_url,
+            wait_until="domcontentloaded",
+            timeout=int(timeout_seconds * 1000),
+        )
+        page.get_by_role(
+            "heading",
+            level=1,
+            name="Synthetic research-state accessibility harness",
+            exact=True,
+        ).wait_for(
+            state="visible",
+            timeout=int(timeout_seconds * 1000),
+        )
+        _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+        static_states = _state_harness_static_observations(page)
+        for state, title in STATE_HARNESS_TRANSITIONS:
+            button = page.get_by_role("button", name=title, exact=True)
+            button.click()
+            page.locator(
+                ".research-state-message[aria-live]"
+            ).wait_for(
+                state="visible",
+                timeout=int(timeout_seconds * 1000),
+            )
+            _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+            live = evaluate_research_state_snapshot(
+                static_states=static_states,
+                transition_state=state,
+                transition_nodes=_state_harness_transition_observations(page),
+            )
+            assertions.append(
+                _assertion(
+                    f"state_{state}_live",
+                    bool(live["passed"]),
+                    str(live["detail"]),
+                )
+            )
+
+            button = page.get_by_role("button", name=title, exact=True)
+            button.click()
+            page.locator(
+                ".research-state-message[role='group']"
+            ).wait_for(
+                state="visible",
+                timeout=int(timeout_seconds * 1000),
+            )
+            _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+            rerender = evaluate_research_state_rerender(
+                _state_harness_transition_observations(page)
+            )
+            assertions.append(
+                _assertion(
+                    f"state_{state}_deduplicated",
+                    bool(rerender["passed"]),
+                    str(rerender["detail"]),
+                )
+            )
+        assertions.extend(_runtime_dom_assertions(page, phase="state_harness"))
+    except Exception as exc:
+        assertions.append(
+            _assertion(
+                "state_harness_execution",
+                False,
+                f"{type(exc).__name__}: {exc}",
+            )
+        )
+    finally:
+        assertions.append(evaluate_browser_errors(browser_errors))
+        context.close()
+    return {
+        "viewport": f"{width}x{height}",
+        "passed": bool(assertions) and all(
+            bool(assertion["passed"]) for assertion in assertions
+        ),
+        "assertions": assertions,
+    }
+
+
 def _failed_payload(
     failure: str,
     *,
@@ -1988,6 +2567,20 @@ def _failed_payload(
         "viewports": [f"{width}x{height}" for width, height in VIEWPORTS],
         "routes": [route.name for route in RESEARCH_ROUTES],
         "results": [],
+        "state_harness": {
+            "passed": False,
+            "results": [],
+            "repository_snapshot": {
+                "passed": False,
+                "detail": "state harness did not execute",
+            },
+            "server_runtime_output": {
+                "passed": False,
+                "capture_status": "unverified",
+                "deprecated_component_warning_count": None,
+                "detail": "state harness server output not verified",
+            },
+        },
         "server_runtime_output": {
             "passed": False,
             "capture_status": "unverified",
@@ -2049,6 +2642,17 @@ def run_research_accessibility_browser_gate(
             else "unverified"
         ),
     )
+    state_server_evidence = RuntimeServerEvidence(
+        base_url="",
+        runtime_messages=deque(maxlen=MAX_SERVER_RUNTIME_LINES),
+        capture_status="unverified",
+    )
+    state_results: list[dict[str, object]] = []
+    state_repository_snapshot = _assertion(
+        "repository_snapshot_unchanged",
+        False,
+        "state harness repository snapshot not executed",
+    )
     try:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(
@@ -2101,6 +2705,26 @@ def run_research_accessibility_browser_gate(
                         for viewport in VIEWPORTS
                         for route in RESEARCH_ROUTES
                     ]
+                repository_before_state_harness = _repository_status_snapshot(root)
+                with _captured_local_state_harness_server(
+                    root,
+                    timeout_seconds=max(5.0, timeout_seconds),
+                ) as active_state_server:
+                    state_server_evidence = active_state_server
+                    state_results = [
+                        _measure_state_harness(
+                            browser,
+                            base_url=active_state_server.base_url,
+                            viewport=viewport,
+                            timeout_seconds=max(5.0, timeout_seconds),
+                        )
+                        for viewport in VIEWPORTS
+                    ]
+                repository_after_state_harness = _repository_status_snapshot(root)
+                state_repository_snapshot = evaluate_repository_snapshot_unchanged(
+                    before=repository_before_state_harness,
+                    after=repository_after_state_harness,
+                )
             finally:
                 browser.close()
     except Exception as exc:
@@ -2116,6 +2740,13 @@ def run_research_accessibility_browser_gate(
             server_evidence.deprecated_warning_count()
         ),
     )
+    state_server_runtime_output = evaluate_server_runtime_output(
+        capture_status=state_server_evidence.capture_status,
+        runtime_messages=state_server_evidence.snapshot(),
+        deprecated_component_warning_count=(
+            state_server_evidence.deprecated_warning_count()
+        ),
+    )
     failures = [
         (
             f"{result['route']} {result['viewport']}: "
@@ -2128,8 +2759,24 @@ def run_research_accessibility_browser_gate(
         for result in results
         if not result["passed"]
     ]
+    failures.extend(
+        (
+            f"Research state harness {result['viewport']}: "
+            + "; ".join(
+                str(assertion["detail"])
+                for assertion in result["assertions"]
+                if not assertion["passed"]
+            )
+        )
+        for result in state_results
+        if not result["passed"]
+    )
     if not server_runtime_output["passed"]:
         failures.append(str(server_runtime_output["detail"]))
+    if not state_server_runtime_output["passed"]:
+        failures.append(str(state_server_runtime_output["detail"]))
+    if not state_repository_snapshot["passed"]:
+        failures.append(str(state_repository_snapshot["detail"]))
     return {
         "verdict": "passed" if not failures else "failed",
         "commit": _git_commit(root),
@@ -2142,6 +2789,17 @@ def run_research_accessibility_browser_gate(
         "viewports": [f"{width}x{height}" for width, height in VIEWPORTS],
         "routes": [route.name for route in RESEARCH_ROUTES],
         "results": results,
+        "state_harness": {
+            "passed": (
+                bool(state_results)
+                and all(result["passed"] for result in state_results)
+                and bool(state_repository_snapshot["passed"])
+                and bool(state_server_runtime_output["passed"])
+            ),
+            "results": state_results,
+            "repository_snapshot": state_repository_snapshot,
+            "server_runtime_output": state_server_runtime_output,
+        },
         "server_runtime_output": server_runtime_output,
         "failures": failures,
         "boundary": (

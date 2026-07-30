@@ -188,3 +188,20 @@ Test-first coverage must prove:
    behavior is added.
 7. Focused, full, browser, render, release, hygiene, and exact-head CI gates
    pass with no generated artifact changes.
+
+## Current Implementation Status
+
+The current local candidate implements the three saved-evidence Discover
+answers, truthful missing and `no blocker` fallbacks, fixed process-attention
+precedence, preserved cohort order and Decision Lab identity, read-only
+catalyst composition, malformed-ledger fail-closed behavior, summary cards,
+and process-attention table columns. Focused pure, dashboard, route-contract,
+and Streamlit AppTest rendering passed without production-ledger or generated
+artifact writes.
+
+This is not yet release closeout. Direct Discover/Monitor desktop and phone
+assertions are integrated for three non-empty answers, ticker-bound 44-pixel
+actions, semantic process-only columns, saved cohort order, and Advanced
+identity separation. Their clean-tree run, staging, commit, push, draft-PR
+update, and exact-head CI remain open because the current managed environment
+cannot bind the required loopback server or write the linked-worktree Git index.

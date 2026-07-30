@@ -46,6 +46,22 @@ def _field_key(kind: str, name: str) -> str:
     return authoring_session_key("demo", "SYN1", f"field:{kind}:{name}")
 
 
+def _state_message_bodies(app: AppTest) -> list[str]:
+    return [
+        element.proto.body
+        for element in app.get("html")
+        if "research-state-message" in element.proto.body
+    ]
+
+
+def _binding_bodies(app: AppTest) -> list[str]:
+    return [
+        element.proto.body
+        for element in app.get("html")
+        if "data-research-authoring-error-owned" in element.proto.body
+    ]
+
+
 def _enter_valid_thesis(app: AppTest) -> AppTest:
     app.text_input(key=_field_key("thesis", "thesis_id")).set_value("thesis-new")
     app.text_area(key=_field_key("thesis", "summary")).set_value("Reviewed synthetic thesis.")
@@ -165,14 +181,69 @@ def test_invalid_thesis_preview_shows_error_without_confirmation_or_writing(tmp_
     app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
 
     assert not app.exception
-    assert "effective_at must be an ISO-8601 timestamp" in "\n".join(item.value for item in app.error)
-    assert len(app.get("html")) == 1
-    cleanup_element = app.get("html")[0]
-    assert cleanup_element.proto.unsafe_allow_javascript is True
-    cleanup = cleanup_element.proto.body
+    assert "effective_at must be an ISO-8601 timestamp" in _state_message_bodies(app)[0]
+    assert len(_binding_bodies(app)) == 1
+    cleanup = _binding_bodies(app)[0]
     assert '"fieldLabel": null' in cleanup
     assert '"errorId": null' in cleanup
     assert '"message": null' in cleanup
+    assert not any(item.label == "Confirm and save" for item in app.button)
+    assert not any(tmp_path.iterdir())
+
+
+def test_valid_preview_announces_unsaved_state_once(tmp_path, monkeypatch):
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+
+    messages = _state_message_bodies(app)
+    assert len(messages) == 1
+    assert "role='status'" in messages[0]
+    assert "aria-live='polite'" in messages[0]
+    assert "Preview ready" in messages[0]
+    assert "This exact record is ready for review and is not saved." in messages[0]
+    assert not any(tmp_path.iterdir())
+
+    app.run()
+    messages = _state_message_bodies(app)
+    assert len(messages) == 1
+    assert "role='group'" in messages[0]
+    assert "aria-live" not in messages[0]
+
+
+def test_rejected_validation_announces_one_alert_then_stays_visible(tmp_path, monkeypatch):
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+    app.text_input(key=_field_key("thesis", "effective_at")).set_value("not-a-timestamp").run()
+
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+
+    messages = _state_message_bodies(app)
+    assert len(messages) == 1
+    assert "role='alert'" in messages[0]
+    assert "aria-live='assertive'" in messages[0]
+    assert "Validation rejected" in messages[0]
+    assert "effective_at must be an ISO-8601 timestamp" in messages[0]
+    assert not any(item.label == "Confirm and save" for item in app.button)
+    assert not any(tmp_path.iterdir())
+
+    app.run()
+    messages = _state_message_bodies(app)
+    assert len(messages) == 1
+    assert "role='group'" in messages[0]
+    assert "aria-live" not in messages[0]
+
+
+def test_changed_draft_announces_revalidation_without_saving(tmp_path, monkeypatch):
+    app = _enter_valid_thesis(_app(tmp_path, monkeypatch))
+    app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
+
+    app.text_area(key=_field_key("thesis", "summary")).set_value("Edited after preview.").run()
+
+    messages = _state_message_bodies(app)
+    assert len(messages) == 1
+    assert "role='status'" in messages[0]
+    assert "Draft changed" in messages[0]
+    assert "Validate and preview this edited draft again before saving." in messages[0]
     assert not any(item.label == "Confirm and save" for item in app.button)
     assert not any(tmp_path.iterdir())
 
@@ -187,11 +258,9 @@ def test_empty_thesis_binds_first_required_field_and_preserves_all_ledger_bytes(
     app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
 
     assert not app.exception
-    assert [item.value for item in app.error] == ["thesis_id is required"]
-    assert len(app.get("html")) == 1
-    binding_element = app.get("html")[0]
-    assert binding_element.proto.unsafe_allow_javascript is True
-    binding = binding_element.proto.body
+    assert "thesis_id is required" in _state_message_bodies(app)[0]
+    assert len(_binding_bodies(app)) == 1
+    binding = _binding_bodies(app)[0]
     assert '"fieldLabel": "Thesis Id"' in binding
     assert '"message": "thesis_id is required"' in binding
     assert (
@@ -212,22 +281,21 @@ def test_required_field_binding_advances_from_thesis_id_to_effective_at_without_
     validate_key = authoring_session_key("demo", "SYN1", "validate")
 
     app.button(key=validate_key).click().run()
-    assert [item.value for item in app.error] == ["thesis_id is required"]
-    first_binding = app.get("html")[0].proto.body
+    assert "thesis_id is required" in _state_message_bodies(app)[0]
+    first_binding = _binding_bodies(app)[0]
     assert '"fieldLabel": "Thesis Id"' in first_binding
 
     app.text_input(key=_field_key("thesis", "thesis_id")).set_value(
         "thesis-new"
     ).run()
-    assert not app.error
-    cleanup = app.get("html")[0].proto.body
+    cleanup = _binding_bodies(app)[0]
     assert '"fieldLabel": null' in cleanup
     assert '"errorId": null' in cleanup
-    assert "Draft changed after preview" in "\n".join(item.value for item in app.warning)
+    assert "Draft changed" in _state_message_bodies(app)[0]
 
     app.button(key=validate_key).click().run()
-    assert [item.value for item in app.error] == ["effective_at is required"]
-    second_binding = app.get("html")[0].proto.body
+    assert "effective_at is required" in _state_message_bodies(app)[0]
+    second_binding = _binding_bodies(app)[0]
     assert '"fieldLabel": "Effective At"' in second_binding
     assert '"message": "effective_at is required"' in second_binding
     after = tuple(path.read_bytes() if path.exists() else None for path in paths.all())
@@ -243,12 +311,9 @@ def test_accepted_preview_renders_cleanup_binding_without_changing_ledger_bytes(
 
     app.button(key=authoring_session_key("demo", "SYN1", "validate")).click().run()
 
-    assert not app.error
     assert any(item.label == "Confirm and save" for item in app.button)
-    assert len(app.get("html")) == 1
-    cleanup_element = app.get("html")[0]
-    assert cleanup_element.proto.unsafe_allow_javascript is True
-    cleanup = cleanup_element.proto.body
+    assert len(_binding_bodies(app)) == 1
+    cleanup = _binding_bodies(app)[0]
     assert '"fieldLabel": null' in cleanup
     assert '"errorId": null' in cleanup
     after = tuple(path.read_bytes() if path.exists() else None for path in paths.all())
@@ -282,12 +347,12 @@ def test_confirmed_record_receipt_is_shown_once_after_the_correct_temporary_ledg
 
     assert not app.exception
     saved_id = load_journal_entries(paths.journal)[0].entry_id
-    assert f"Saved {saved_id}." in "\n".join(item.value for item in app.success)
+    assert f"Saved {saved_id}." in _state_message_bodies(app)[0]
 
     app.run()
 
     assert not app.exception
-    assert not app.success
+    assert not _state_message_bodies(app)
 
 
 @pytest.mark.parametrize("kind", ("evidence", "catalyst", "outcome"))
@@ -301,7 +366,7 @@ def test_non_thesis_composer_saves_exactly_once_only_after_preview_confirmation_
 
     assert not app.exception
     assert not any(item.label == "Confirm and save" for item in app.button)
-    assert not app.success
+    assert not _state_message_bodies(app)
     assert load_journal_entries(paths.journal) == (thesis,)
     assert not paths.catalysts.exists()
     assert not paths.outcomes.exists()
@@ -311,7 +376,7 @@ def test_non_thesis_composer_saves_exactly_once_only_after_preview_confirmation_
     assert not app.exception
     assert any(item.value == "#### Exact append-only preview" for item in app.markdown)
     assert any(item.label == "Confirm and save" for item in app.button)
-    assert not app.success
+    assert "Preview ready" in _state_message_bodies(app)[0]
     assert load_journal_entries(paths.journal) == (thesis,)
     assert not paths.catalysts.exists()
     assert not paths.outcomes.exists()
@@ -320,7 +385,7 @@ def test_non_thesis_composer_saves_exactly_once_only_after_preview_confirmation_
     app.button(key=authoring_session_key("demo", "SYN1", "save")).click().run()
 
     assert not app.exception
-    assert len(app.success) == 1
+    assert len(_state_message_bodies(app)) == 1
     if kind == "evidence":
         rows = load_journal_entries(paths.journal)
         assert len(rows) == 2
@@ -377,12 +442,12 @@ def test_non_thesis_composer_saves_exactly_once_only_after_preview_confirmation_
         assert saved.learning == "Preserve explicit evidence boundaries."
         assert not paths.catalysts.exists()
 
-    saved_message = app.success[0].value
+    saved_message = _state_message_bodies(app)[0]
     assert "Corrections require a new append-only record" in saved_message
     app.run()
 
     assert not app.exception
-    assert not app.success
+    assert not _state_message_bodies(app)
     if kind == "evidence":
         assert len(load_journal_entries(paths.journal)) == 2
     elif kind == "catalyst":
@@ -404,10 +469,8 @@ def test_deleted_confirmed_record_warns_after_temporary_ledger_reload(tmp_path, 
     app.run()
 
     assert not app.exception
-    assert not app.success
-    assert "Saved record could not be reloaded; review the ledger" in "\n".join(
-        item.value for item in app.warning
-    )
+    assert "Saved record could not be reloaded; review the ledger" in _state_message_bodies(app)[0]
+    assert "save another record" in _state_message_bodies(app)[0]
 
 
 def test_teardown_uncertainty_reloads_once_and_never_retries_the_append(tmp_path, monkeypatch):
@@ -426,12 +489,12 @@ def test_teardown_uncertainty_reloads_once_and_never_retries_the_append(tmp_path
 
     assert [entry.entry_id for entry in load_journal_entries(paths.journal)]
     assert len(load_journal_entries(paths.journal)) == 1
-    assert len(app.success) == 1
+    assert "Record saved" in _state_message_bodies(app)[0]
 
     app.run()
 
     assert len(load_journal_entries(paths.journal)) == 1
-    assert not app.success
+    assert not _state_message_bodies(app)
 
 
 def test_teardown_uncertainty_warns_once_when_the_follow_up_reload_is_missing(tmp_path, monkeypatch):
@@ -452,12 +515,10 @@ def test_teardown_uncertainty_warns_once_when_the_follow_up_reload_is_missing(tm
 
     app.run()
 
-    assert "Saved record could not be reloaded; review the ledger" in "\n".join(
-        item.value for item in app.warning
-    )
+    assert "Saved record could not be reloaded; review the ledger" in _state_message_bodies(app)[0]
     assert len(load_journal_entries(paths.journal)) == 0
     app.run()
-    assert not app.warning
+    assert not _state_message_bodies(app)
 
 
 def test_edit_after_preview_hides_save_until_a_fresh_preview(tmp_path, monkeypatch):
@@ -467,7 +528,7 @@ def test_edit_after_preview_hides_save_until_a_fresh_preview(tmp_path, monkeypat
 
     app.text_area(key=_field_key("thesis", "summary")).set_value("Edited after preview.").run()
 
-    assert "Draft changed after preview" in "\n".join(item.value for item in app.warning)
+    assert "Draft changed" in _state_message_bodies(app)[0]
     assert not any(item.label == "Confirm and save" for item in app.button)
     assert not any(tmp_path.iterdir())
 
@@ -564,14 +625,10 @@ def test_initial_thesis_then_ui_revision_reloads_as_one_active_lineage(tmp_path,
 class _ReceiptUI:
     def __init__(self, receipt):
         self.session_state = {authoring_session_key("demo", "SYN1", "pending-reload-receipt"): receipt}
-        self.successes: list[str] = []
-        self.warnings: list[str] = []
+        self.rendered_html: list[str] = []
 
-    def success(self, message: str) -> None:
-        self.successes.append(message)
-
-    def warning(self, message: str) -> None:
-        self.warnings.append(message)
+    def html(self, rendered: str) -> None:
+        self.rendered_html.append(rendered)
 
 
 def _receipt_record(kind: str):
@@ -626,5 +683,12 @@ def test_pending_receipt_is_consumed_once_and_fails_closed_for_every_temporary_l
 
     receipt_key = authoring_session_key("demo", "SYN1", "pending-reload-receipt")
     assert receipt_key not in receipt.session_state
-    assert bool(receipt.successes) is (reload_state == "success")
-    assert bool(receipt.warnings) is (reload_state != "success")
+    assert len(receipt.rendered_html) == 1
+    if reload_state == "success":
+        assert "role='status'" in receipt.rendered_html[0]
+        assert "Record saved" in receipt.rendered_html[0]
+    else:
+        assert "role='alert'" in receipt.rendered_html[0]
+        assert "Save verification incomplete" in receipt.rendered_html[0]
+        assert "Retry save" not in receipt.rendered_html[0]
+        assert "Save again" not in receipt.rendered_html[0]

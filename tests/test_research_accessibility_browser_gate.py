@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import subprocess
 
 
 def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_routes():
@@ -918,7 +919,9 @@ def test_browser_measurement_rechecks_landmark_after_rerun_and_route_transition(
     transition = source[source.index("def _navigate_and_verify_route(") :]
     transition = transition[: transition.index("\ndef _measure_route(")]
     measurement = source[source.index("def _measure_route(") :]
-    measurement = measurement[: measurement.index("\ndef _failed_payload(")]
+    measurement = measurement[
+        : measurement.index("\ndef _repository_status_snapshot(")
+    ]
 
     assert 'page.on("console"' in measurement
     assert 'page.on("pageerror"' in measurement
@@ -988,6 +991,253 @@ def test_discover_action_contract_uses_every_actual_row_and_fails_when_empty():
     assert "no eligible Discover actions" in str(empty["detail"])
     assert duplicate["passed"] is False
     assert "unique" in str(duplicate["detail"])
+
+
+def test_discover_row_contract_requires_three_visible_answers_and_ticker_action():
+    from src.research_accessibility_browser_gate import evaluate_discover_rows
+
+    passed = evaluate_discover_rows(
+        (
+            {
+                "ticker": "NVDA",
+                "labels": ("Why reviewable", "Usable now", "Principal blocker"),
+                "values": (
+                    "Saved readiness supports review.",
+                    "SEC quarterly actuals.",
+                    "Point-in-time consensus is missing.",
+                ),
+                "action_name": "Open NVDA review",
+                "action_ticker": "NVDA",
+                "action_height": 44.0,
+                "visible": True,
+            },
+            {
+                "ticker": "AVGO",
+                "labels": ("Why reviewable", "Usable now", "Principal blocker"),
+                "values": (
+                    "Saved readiness supports review.",
+                    "Historical valuation context.",
+                    "No principal blocker is recorded.",
+                ),
+                "action_name": "Open AVGO review",
+                "action_ticker": "AVGO",
+                "action_height": 48.0,
+                "visible": True,
+            },
+        )
+    )
+    missing_answer = evaluate_discover_rows(
+        (
+            {
+                "ticker": "NVDA",
+                "labels": ("Why reviewable", "Usable now"),
+                "values": ("Saved readiness supports review.", ""),
+                "action_name": "Open NVDA review",
+                "action_ticker": "NVDA",
+                "action_height": 44.0,
+                "visible": True,
+            },
+        )
+    )
+
+    assert passed["passed"] is True
+    assert passed["actual_count"] == 2
+    assert missing_answer["passed"] is False
+    assert "three visible non-empty answers" in str(missing_answer["detail"])
+
+
+def test_monitor_row_contract_preserves_cohort_order_and_rejects_rank_fields():
+    from src.research_accessibility_browser_gate import evaluate_monitor_rows
+
+    passed = evaluate_monitor_rows(
+        (
+            {
+                "cohort_order": 0,
+                "ticker": "BBB",
+                "attention": "Scheduled",
+                "reason": "Reviewed catalyst is scheduled for 2026-08-20.",
+            },
+            {
+                "cohort_order": 1,
+                "ticker": "AAA",
+                "attention": "Monitor",
+                "reason": "No saved research-process transition is due.",
+            },
+        ),
+        primary_columns=("Ticker", "Process attention", "Why"),
+        advanced_identity_count=2,
+    )
+    ranked = evaluate_monitor_rows(
+        (
+            {
+                "cohort_order": 2,
+                "ticker": "AAA",
+                "attention": "Monitor",
+                "reason": "No saved research-process transition is due.",
+            },
+            {
+                "cohort_order": 1,
+                "ticker": "BBB",
+                "attention": "Scheduled",
+                "reason": "Reviewed catalyst is scheduled for 2026-08-20.",
+            },
+        ),
+        primary_columns=("Ticker", "Process attention", "Return score"),
+        advanced_identity_count=2,
+    )
+
+    assert passed["passed"] is True
+    assert ranked["passed"] is False
+    assert "saved cohort order" in str(ranked["detail"])
+    assert "rank/score/return" in str(ranked["detail"])
+
+
+def test_state_harness_snapshot_rejects_hidden_duplicate_or_wrong_live_semantics():
+    from src.research_accessibility_browser_gate import (
+        evaluate_research_state_snapshot,
+    )
+
+    passed = evaluate_research_state_snapshot(
+        static_states=(
+            {"state": "loading", "visible": True, "role": "group", "live": "", "busy": "true"},
+            {"state": "empty", "visible": True, "role": "group", "live": "", "busy": ""},
+            {"state": "withheld", "visible": True, "role": "group", "live": "", "busy": ""},
+            {"state": "stale", "visible": True, "role": "group", "live": "", "busy": ""},
+            {"state": "failure", "visible": True, "role": "group", "live": "", "busy": ""},
+            {"state": "validation", "visible": True, "role": "group", "live": "", "busy": ""},
+        ),
+        transition_state="preview_ready",
+        transition_nodes=(
+            {
+                "visible": True,
+                "role": "status",
+                "live": "polite",
+                "atomic": "true",
+                "text": "Preview ready TEST1",
+            },
+        ),
+    )
+    duplicate = evaluate_research_state_snapshot(
+        static_states=passed["static_states"],
+        transition_state="preview_ready",
+        transition_nodes=(
+            {
+                "visible": True,
+                "role": "status",
+                "live": "polite",
+                "atomic": "true",
+                "text": "Preview ready TEST1",
+            },
+            {
+                "visible": False,
+                "role": "status",
+                "live": "polite",
+                "atomic": "true",
+                "text": "Hidden duplicate TEST1",
+            },
+        ),
+    )
+
+    assert passed["passed"] is True
+    assert duplicate["passed"] is False
+    assert "exactly one visible transition node" in str(duplicate["detail"])
+
+
+def test_state_harness_rerender_requires_one_visible_non_live_message():
+    from src.research_accessibility_browser_gate import (
+        evaluate_research_state_rerender,
+    )
+
+    passed = evaluate_research_state_rerender(
+        (
+            {
+                "visible": True,
+                "role": "group",
+                "live": "",
+                "atomic": "",
+                "text": "Preview ready TEST1",
+            },
+        )
+    )
+    repeated_live = evaluate_research_state_rerender(
+        (
+            {
+                "visible": True,
+                "role": "status",
+                "live": "polite",
+                "atomic": "true",
+                "text": "Preview ready TEST1",
+            },
+        )
+    )
+
+    assert passed["passed"] is True
+    assert repeated_live["passed"] is False
+    assert "non-live" in str(repeated_live["detail"])
+
+
+def test_repository_snapshot_contract_rejects_any_harness_write():
+    from src.research_accessibility_browser_gate import (
+        evaluate_repository_snapshot_unchanged,
+    )
+
+    assert evaluate_repository_snapshot_unchanged(
+        before="M data/generated.csv\0",
+        after="M data/generated.csv\0",
+    )["passed"] is True
+    changed = evaluate_repository_snapshot_unchanged(
+        before="M data/generated.csv\0",
+        after="M data/generated.csv\0?? evidence.json\0",
+    )
+    assert changed["passed"] is False
+    assert "repository status changed" in str(changed["detail"])
+
+
+def test_repository_snapshot_detects_content_change_in_already_dirty_file(tmp_path):
+    from src.research_accessibility_browser_gate import (
+        _repository_content_snapshot,
+    )
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    tracked = tmp_path / "tracked.csv"
+    tracked.write_text("version,1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "--", "tracked.csv"], cwd=tmp_path, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+        cwd=tmp_path,
+        check=True,
+    )
+    tracked.write_text("version,2\n", encoding="utf-8")
+    before = _repository_content_snapshot(tmp_path)
+    status_before = subprocess.run(
+        ["git", "status", "--porcelain=v1"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    tracked.write_text("version,3\n", encoding="utf-8")
+    after = _repository_content_snapshot(tmp_path)
+    status_after = subprocess.run(
+        ["git", "status", "--porcelain=v1"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+
+    assert status_before == status_after == " M tracked.csv\n"
+    assert before != after
 
 
 def test_gate_fails_closed_when_explicit_browser_runtime_is_missing(tmp_path):

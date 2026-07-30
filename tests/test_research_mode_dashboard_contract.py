@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 from src import dashboard
 from src import dashboard_navigation as nav
+from src.catalyst_evidence_timeline import CatalystEvent, append_reviewed_event
 from src.focused_research_cohort import FocusedCohort, FocusedCohortMember, build_focused_cohort
 
 
@@ -759,6 +760,205 @@ def test_monitor_discipline_failure_is_isolated_to_one_focused_ticker(tmp_path, 
     assert rows[1].due_lanes == ("Plan", "Evidence")
 
 
+def test_empty_catalyst_and_outcome_ledgers_do_not_create_attention(tmp_path, monkeypatch):
+    member = FocusedCohortMember(
+        ticker="ALFA",
+        company_name="ALFA",
+        sector="Technology",
+        industry="Semiconductors",
+        cohort_rationale="Saved readiness-backed review scope.",
+        usable_lanes=("price",),
+        blocked_lanes=("dcf",),
+        freshness_state="current",
+        last_review_date="",
+        next_review_reason="Review saved evidence.",
+    )
+    cohort = FocusedCohort("ready", 1, 1, 1, (member,), "One saved company.")
+    context = dashboard.build_profile_context(project_root=tmp_path)
+    monkeypatch.setattr(dashboard, "DATA_DIR", tmp_path)
+
+    rows = dashboard.load_dashboard_research_discipline_rows(
+        context,
+        cohort,
+        (),
+        as_of="2026-07-28T12:00:00Z",
+    )
+
+    assert rows[0].attention_state == "monitor"
+    assert "catalyst" not in rows[0].attention_reason.lower()
+    assert "outcome" not in rows[0].attention_reason.lower()
+
+
+def test_monitor_uses_one_scoped_upcoming_catalyst_without_cross_ticker_state(
+    tmp_path, monkeypatch
+):
+    members = tuple(
+        FocusedCohortMember(
+            ticker=ticker,
+            company_name=ticker,
+            sector="Technology",
+            industry="Semiconductors",
+            cohort_rationale="Saved readiness-backed review scope.",
+            usable_lanes=("price",),
+            blocked_lanes=("dcf",),
+            freshness_state="current",
+            last_review_date="",
+            next_review_reason="Review saved evidence.",
+        )
+        for ticker in ("BBB", "AAA")
+    )
+    cohort = FocusedCohort("ready", 2, 2, 2, members, "Two saved companies.")
+    context = dashboard.build_profile_context(project_root=tmp_path)
+    monkeypatch.setattr(dashboard, "DATA_DIR", tmp_path)
+    append_reviewed_event(
+        tmp_path / "catalyst_evidence.csv",
+        CatalystEvent(
+            "catalyst-evidence-v1",
+            "event-bbb",
+            context.profile_key,
+            "BBB",
+            "earnings",
+            "Synthetic scheduled evidence",
+            "2026-08-20T21:00:00Z",
+            "2026-07-20T09:00:00Z",
+            "2026-07-20T10:00:00Z",
+            "fixture",
+            "fixture:event-bbb",
+            "candidate_context_only",
+            "fixture-reviewer",
+            "Synthetic context only.",
+        ),
+        confirm_reviewed=True,
+    )
+
+    rows = dashboard.load_dashboard_research_discipline_rows(
+        context,
+        cohort,
+        (),
+        as_of="2026-07-28T12:00:00Z",
+    )
+
+    assert [row.ticker for row in rows] == ["BBB", "AAA"]
+    assert rows[0].attention_state == "scheduled_catalyst"
+    assert rows[0].attention_label == "Scheduled"
+    assert "2026-08-20T21:00:00Z" in rows[0].attention_reason
+    assert "urgent" not in rows[0].attention_reason.lower()
+    assert "price" not in rows[0].attention_reason.lower()
+    assert rows[1].attention_state == "monitor"
+
+
+def test_malformed_shared_catalyst_ledger_fails_attention_closed(tmp_path, monkeypatch):
+    member = FocusedCohortMember(
+        ticker="ALFA",
+        company_name="ALFA",
+        sector="Technology",
+        industry="Semiconductors",
+        cohort_rationale="Saved readiness-backed review scope.",
+        usable_lanes=("price",),
+        blocked_lanes=("dcf",),
+        freshness_state="current",
+        last_review_date="",
+        next_review_reason="Review saved evidence.",
+    )
+    cohort = FocusedCohort("ready", 1, 1, 1, (member,), "One saved company.")
+    context = dashboard.build_profile_context(project_root=tmp_path)
+    monkeypatch.setattr(dashboard, "DATA_DIR", tmp_path)
+    (tmp_path / "catalyst_evidence.csv").write_text("bad,header\n1,2\n", encoding="utf-8")
+
+    rows = dashboard.load_dashboard_research_discipline_rows(
+        context,
+        cohort,
+        (),
+        as_of="2026-07-28T12:00:00Z",
+    )
+
+    assert rows[0].attention_state == "unavailable"
+    assert rows[0].attention_source == "catalyst"
+
+
+def test_research_discipline_summary_counts_process_labels_without_ranking():
+    cards = dashboard.research_discipline_summary_cards(
+        (
+            SimpleNamespace(attention_label="Needs review"),
+            SimpleNamespace(attention_label="Scheduled"),
+            SimpleNamespace(attention_label="Monitor"),
+            SimpleNamespace(attention_label="Needs review"),
+        )
+    )
+
+    assert [card["title"] for card in cards] == [
+        "2 needs review",
+        "1 scheduled",
+        "1 monitor",
+    ]
+    assert "rank" not in str(cards).lower()
+
+
+def test_research_discipline_table_is_semantic_ordered_and_primary_answer_only():
+    rows = (
+        SimpleNamespace(
+            cohort_order=1,
+            ticker="BBB",
+            attention_label="Scheduled",
+            attention_reason="Reviewed catalyst <context> is scheduled.",
+            attention_source="catalyst",
+            identity="hidden-identity-bbb",
+        ),
+        SimpleNamespace(
+            cohort_order=2,
+            ticker="AAA",
+            attention_label="Monitor",
+            attention_reason="No saved research-process transition is due.",
+            attention_source="decision_lab",
+            identity="hidden-identity-aaa",
+        ),
+    )
+
+    rendered = dashboard.research_discipline_table_html(rows)
+
+    assert rendered.index("data-cohort-order='1'") < rendered.index(
+        "data-cohort-order='2'"
+    )
+    assert rendered.count("class='research-discipline-row'") == 2
+    assert "<th scope='col'>Ticker</th>" in rendered
+    assert "<th scope='col'>Process attention</th>" in rendered
+    assert "<th scope='col'>Why</th>" in rendered
+    assert "Reviewed catalyst &lt;context&gt; is scheduled." in rendered
+    assert "hidden-identity" not in rendered
+    assert "attention_source" not in rendered
+    assert "rank" not in rendered.lower()
+    assert "score" not in rendered.lower()
+    assert "return" not in rendered.lower()
+
+
+def test_research_discipline_identity_table_keeps_technical_fields_in_advanced():
+    rows = (
+        SimpleNamespace(
+            cohort_order=1,
+            ticker="BBB",
+            attention_source="catalyst<context>",
+            identity="decision-lab-<bbb>",
+        ),
+        SimpleNamespace(
+            cohort_order=2,
+            ticker="AAA",
+            attention_source="decision_lab",
+            identity="decision-lab-aaa",
+        ),
+    )
+
+    rendered = dashboard.research_discipline_identity_table_html(rows)
+
+    assert rendered.count("class='research-discipline-identity-row'") == 2
+    assert "<th scope='col'>Attention source</th>" in rendered
+    assert "<th scope='col'>Decision Lab identity</th>" in rendered
+    assert "catalyst&lt;context&gt;" in rendered
+    assert "decision-lab-&lt;bbb&gt;" in rendered
+    assert rendered.index("data-cohort-order='1'") < rendered.index(
+        "data-cohort-order='2'"
+    )
+
+
 def test_monitor_discipline_empty_state_is_process_only():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     monitor_start = source.index("def render_research_monitor(")
@@ -767,6 +967,8 @@ def test_monitor_discipline_empty_state_is_process_only():
 
     assert "No process item is currently due from saved reviewer-authored evidence." in monitor
     assert "This does not claim that no market event, risk, or external research need exists." in monitor
+    assert "research_discipline_summary_cards(discipline)" in monitor
+    assert '"Process attention"' in Path("src/research_decision_lab.py").read_text(encoding="utf-8")
 
 
 def test_research_evidence_detours_offer_return_before_evidence_content():

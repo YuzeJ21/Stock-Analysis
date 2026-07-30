@@ -7,6 +7,7 @@ import json
 from dataclasses import asdict, dataclass
 from typing import Iterable, Mapping
 
+from src.catalyst_evidence_timeline import CatalystTimeline
 from src.decision_process_scorecard import DecisionProcessScorecard, ProcessCheck
 from src.research_outcome_review import OutcomeStatus
 from src.research_thesis_journal import JournalState
@@ -49,6 +50,14 @@ class ResearchDecisionLabState:
 
 
 @dataclass(frozen=True)
+class ResearchProcessAttention:
+    state: str
+    label: str
+    reason: str
+    source: str
+
+
+@dataclass(frozen=True)
 class ResearchDisciplineRow:
     cohort_order: int
     ticker: str
@@ -56,6 +65,10 @@ class ResearchDisciplineRow:
     due_lanes: tuple[str, ...]
     next_process_step: str
     identity: str
+    attention_state: str
+    attention_label: str
+    attention_reason: str
+    attention_source: str
 
 
 def _text(value: object) -> str:
@@ -483,14 +496,156 @@ def decision_lab_rows(state: ResearchDecisionLabState) -> list[dict[str, str]]:
     ]
 
 
+def derive_research_process_attention(
+    state: ResearchDecisionLabState,
+    catalyst_timeline: CatalystTimeline | None = None,
+    catalyst_error: str = "",
+) -> ResearchProcessAttention:
+    """Derive process timing from saved research evidence, never market metrics."""
+
+    lanes = {lane.key: lane for lane in state.lanes}
+    expected_states = {
+        "plan": {"not_started", "documented", "unavailable"},
+        "evidence": {
+            "not_started",
+            "conflict_review_needed",
+            "current",
+            "unavailable",
+        },
+        "invalidation": {"not_started", "missing", "documented", "unavailable"},
+        "scenario": {"reviewable", "blocked", "excluded", "unavailable"},
+        "review_trigger": {
+            "not_started",
+            "evidence_change_due",
+            "overdue",
+            "scheduled",
+            "unscheduled",
+            "unavailable",
+        },
+        "learning": {
+            "reviewed",
+            "commercial_evidence_blocked",
+            "not_started",
+            "unavailable",
+        },
+    }
+    contract_invalid = set(lanes) != set(expected_states) or any(
+        lane.state not in expected_states[key] for key, lane in lanes.items()
+    )
+    if state.status == "unavailable" or contract_invalid:
+        return ResearchProcessAttention(
+            "unavailable",
+            "Unavailable",
+            "Saved research-process evidence could not be verified.",
+            "research_process",
+        )
+
+    review_trigger = lanes["review_trigger"]
+    evidence = lanes["evidence"]
+    invalidation = lanes["invalidation"]
+    learning = lanes["learning"]
+    if review_trigger.state == "evidence_change_due":
+        return ResearchProcessAttention(
+            "evidence_change_due",
+            "Needs review",
+            "An unresolved source-backed evidence change needs review.",
+            "review_trigger",
+        )
+    if evidence.state == "conflict_review_needed":
+        return ResearchProcessAttention(
+            "conflicting_evidence",
+            "Needs review",
+            "Recorded conflicting evidence needs a later review.",
+            "evidence",
+        )
+    if review_trigger.state == "overdue":
+        return ResearchProcessAttention(
+            "overdue_review",
+            "Needs review",
+            "The reviewer-authored thesis review is overdue.",
+            "review_trigger",
+        )
+    if invalidation.state == "missing":
+        return ResearchProcessAttention(
+            "invalidation_follow_up",
+            "Needs review",
+            "A source-backed invalidation condition still needs to be documented.",
+            "invalidation",
+        )
+    if learning.state == "commercial_evidence_blocked":
+        return ResearchProcessAttention(
+            "outcome_follow_up",
+            "Needs review",
+            "Outcome learning needs exact-source evidence review before commercial use.",
+            "learning",
+        )
+    if any(
+        lanes[key].state == "unavailable"
+        for key in ("plan", "evidence", "invalidation", "review_trigger", "learning")
+    ):
+        return ResearchProcessAttention(
+            "unavailable",
+            "Unavailable",
+            "Saved research-process evidence could not be verified.",
+            "research_process",
+        )
+
+    scoped_catalyst_error = str(catalyst_error or "").strip()
+    if catalyst_timeline is not None:
+        if catalyst_timeline.ticker != state.ticker:
+            scoped_catalyst_error = "Catalyst evidence does not match the selected ticker."
+        elif catalyst_timeline.upcoming:
+            first_event = catalyst_timeline.upcoming[0]
+            if first_event.ticker.upper() != state.ticker:
+                scoped_catalyst_error = (
+                    "Upcoming catalyst evidence does not match the selected ticker."
+                )
+            else:
+                return ResearchProcessAttention(
+                    "scheduled_catalyst",
+                    "Scheduled",
+                    (
+                        "Reviewed catalyst context is scheduled for "
+                        f"{first_event.effective_at}."
+                    ),
+                    "catalyst",
+                )
+    if review_trigger.state == "scheduled":
+        return ResearchProcessAttention(
+            "scheduled_review",
+            "Scheduled",
+            review_trigger.answer,
+            "review_trigger",
+        )
+    if scoped_catalyst_error:
+        return ResearchProcessAttention(
+            "unavailable",
+            "Unavailable",
+            "Catalyst evidence could not be verified for this research scope.",
+            "catalyst",
+        )
+    return ResearchProcessAttention(
+        "monitor",
+        "Monitor",
+        "No saved research-process transition is due; continue monitoring reviewed evidence.",
+        "research_process",
+    )
+
+
 def build_research_discipline_rows(
     states_by_ticker: Mapping[str, ResearchDecisionLabState],
     *,
     focused_tickers: Iterable[str],
+    catalyst_timelines_by_ticker: Mapping[str, CatalystTimeline] | None = None,
+    catalyst_error: str = "",
 ) -> tuple[ResearchDisciplineRow, ...]:
     """Preserve focused-cohort order without severity or market-value sorting."""
 
     normalized = {_text(ticker).upper(): state for ticker, state in states_by_ticker.items()}
+    catalyst_timelines = {
+        _text(ticker).upper(): timeline
+        for ticker, timeline in (catalyst_timelines_by_ticker or {}).items()
+    }
     rows: list[ResearchDisciplineRow] = []
     for cohort_order, raw_ticker in enumerate(focused_tickers):
         ticker = _text(raw_ticker).upper()
@@ -499,6 +654,11 @@ def build_research_discipline_rows(
             continue
         if state.ticker != ticker:
             raise ValueError("Research discipline state must match the focused ticker.")
+        attention = derive_research_process_attention(
+            state,
+            catalyst_timeline=catalyst_timelines.get(ticker),
+            catalyst_error=catalyst_error,
+        )
         due_lanes = tuple(lane.label for lane in state.lanes if _lane_needs_process_work(lane))
         rows.append(
             ResearchDisciplineRow(
@@ -508,6 +668,10 @@ def build_research_discipline_rows(
                 due_lanes=due_lanes,
                 next_process_step=state.next_process_step,
                 identity=state.identity,
+                attention_state=attention.state,
+                attention_label=attention.label,
+                attention_reason=attention.reason,
+                attention_source=attention.source,
             )
         )
     return tuple(rows)
@@ -520,6 +684,8 @@ def research_discipline_rows(rows: Iterable[ResearchDisciplineRow]) -> list[dict
             "Process state": row.status.replace("_", " "),
             "Due lanes": ", ".join(row.due_lanes) or "none due from saved evidence",
             "Next process step": row.next_process_step,
+            "Process attention": row.attention_label,
+            "Why": row.attention_reason,
         }
         for row in rows
     ]

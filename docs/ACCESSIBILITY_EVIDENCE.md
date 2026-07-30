@@ -731,3 +731,45 @@ Evidence boundary:
   by these checks.
 - This is local automated engineering evidence, not screen-reader, WCAG,
   hosted, cross-major-version, independent-human, or market validation.
+
+## 2026-07-29 research-state integration candidate
+
+Current local candidate evidence:
+
+- A closed five-transition helper maps validation rejection and reload
+  uncertainty to assertive alerts, and preview readiness, edited drafts, and
+  verified reloads to polite statuses.
+- Company Workbench authoring uses exact profile, ticker, record kind, receipt
+  or digest, and persisted record identity to deduplicate transitions. The
+  same state remains visible on a normal rerender without another live node.
+- Focused pure and authoring tests passed for escaping, deterministic identity,
+  required-field association, preview-unsaved wording, edited-draft recovery,
+  verified reload, reload uncertainty, and temporary-ledger isolation.
+- A synthetic AppTest harness now covers six ordinary static states and all
+  five transitions using the production renderer and TEST1-only content.
+- The final surrounding full suite reported 4,424 passing tests and one existing
+  skip. Its only two failures were environment failures: the managed sandbox
+  rejected loopback socket binding before the two direct browser tests could
+  start.
+
+Evidence boundary:
+
+- This candidate is not committed or exact-head evidence. The managed
+  environment also rejected the linked-worktree Git index lock, so clean-tree
+  staging and direct browser attribution could not run.
+- The browser gate now runs the harness at both viewports, rejects duplicate or
+  hidden live nodes, verifies unchanged rerenders become visible non-live
+  messages, checks overflow/errors/tracebacks, and compares repository status
+  byte-for-byte before and after. Discover three-answer rows and Monitor
+  process-only semantic tables now have direct browser assertions too. Its
+  repository fingerprint includes Git status plus current content for every
+  tracked dirty and untracked path, so another write to an already-modified
+  generated file also fails the gate.
+- The final focused browser/state/dashboard/document contract run passed 1,220
+  tests; all six Research routes also passed the non-browser render smoke.
+- The clean-tree desktop/phone result, push, draft-PR update, and exact-head CI
+  remain open.
+- No production research ledger or generated CSV, JSON, report, screenshot, or
+  timing artifact was written by the candidate tests.
+- This is not screen-reader, WCAG, hosted, independent-human, or market
+  validation evidence.

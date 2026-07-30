@@ -218,7 +218,21 @@ owned bounded server-output proof also passed with zero warnings. The same 18
 generated paths remained excluded. Require a fresh hosted exact-head CI pass
 after the intentional push; do not treat local evidence as hosted evidence.
 
-1. Resume the remaining automated portion of Priority 7.
+1. Reverify and synchronize the current Research State Accessibility candidate.
+   The pure five-transition contract, Company Workbench integration, synthetic
+   AppTest harness, and write-detecting desktop/phone browser-gate assertions
+   are implemented locally. The clean-tree direct run, staging, commit, push,
+   PR update, and exact-head CI remain open. Do not copy any prior pass count
+   forward without rerunning.
+2. Reverify and synchronize the current Discover/Monitor Workflow Maturity
+   candidate. The local tree contains the three-question Discover answer,
+   deterministic process-attention precedence, read-only catalyst composition,
+   malformed-ledger fail-closed behavior, preserved cohort order, summary
+   cards, semantic primary/Advanced tables, and direct responsive browser
+   assertions. Focused pure/dashboard/contract/AppTest coverage passed. The
+   clean-tree browser result, Git synchronization, and exact-head CI remain open.
+3. Resume the remaining automated portion of Priority 7 after those bounded
+   closeouts.
 
 Priority 7 accessibility remains the next numbered maturity priority. Do not re-run Priorities 1-3 unless a current regression is directly reproduced. Priority 6 provider-neutral retention/deletion or audit-event work is not the active next lane and requires a separate reviewed design; provider-specific work remains blocked on an approved environment.
 

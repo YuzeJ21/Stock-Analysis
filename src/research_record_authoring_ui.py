@@ -21,6 +21,12 @@ from src.research_record_authoring import (
 )
 from src.catalyst_evidence_timeline import load_catalyst_events
 from src.research_outcome_review import load_outcomes
+from src.research_state_accessibility import (
+    ResearchStateMessage,
+    research_state_message,
+    research_state_message_html,
+    research_state_transition_key,
+)
 from src.research_thesis_journal import JournalEntry, load_journal_entries
 
 
@@ -203,6 +209,20 @@ def _render_preview(st_api: Any, preview: AuthoringPreview) -> None:
     )
 
 
+def _render_authoring_state_message(
+    st_api: Any,
+    message: ResearchStateMessage,
+    *,
+    session_key: str,
+) -> None:
+    """Render one live transition, then retain it as ordinary visible content."""
+
+    transition_key = research_state_transition_key(message)
+    announce = st_api.session_state.get(session_key) != transition_key
+    st_api.html(research_state_message_html(message, announce=announce))
+    st_api.session_state[session_key] = transition_key
+
+
 def _show_reloaded_save_receipt(
     st_api: Any, *, profile_key: str, ticker: str, paths: AuthoringPaths
 ) -> None:
@@ -215,7 +235,21 @@ def _show_reloaded_save_receipt(
         return
     del st_api.session_state[receipt_key]
     if not isinstance(receipt, dict):
-        st_api.warning("Saved record could not be reloaded; review the ledger")
+        message = research_state_message(
+            "save_reload_unverified",
+            scope=f"{profile_key}:{symbol}:save",
+            title="Save verification incomplete",
+            detail=(
+                "Saved record could not be reloaded; review the ledger. "
+                "Do not save another record until the ledger is inspected."
+            ),
+            identity="invalid-pending-reload-receipt",
+        )
+        _render_authoring_state_message(
+            st_api,
+            message,
+            session_key=authoring_session_key(profile_key, symbol, "state:save"),
+        )
         return
     record_kind = str(receipt.get("record_kind") or "").strip().lower()
     record_id = str(receipt.get("record_id") or "").strip()
@@ -246,11 +280,32 @@ def _show_reloaded_save_receipt(
     except (OSError, UnicodeError, csv.Error, ValueError):
         record_reloaded = False
     if record_reloaded:
-        st_api.success(
-            f"Saved {record_id}. Corrections require a new append-only record; history is never edited or deleted."
+        message = research_state_message(
+            "save_reloaded",
+            scope=f"{profile_key}:{symbol}:{record_kind}",
+            title="Record saved",
+            detail=(
+                f"Saved {record_id}. Corrections require a new append-only record; "
+                "history is never edited or deleted."
+            ),
+            identity=f"{record_kind}:{record_id}",
         )
     else:
-        st_api.warning("Saved record could not be reloaded; review the ledger")
+        message = research_state_message(
+            "save_reload_unverified",
+            scope=f"{profile_key}:{symbol}:{record_kind or 'save'}",
+            title="Save verification incomplete",
+            detail=(
+                "Saved record could not be reloaded; review the ledger. "
+                "Do not save another record until the ledger is inspected."
+            ),
+            identity=f"{record_kind}:{record_id or 'unknown'}",
+        )
+    _render_authoring_state_message(
+        st_api,
+        message,
+        session_key=authoring_session_key(profile_key, symbol, "state:save"),
+    )
 
 
 def render_research_record_authoring(
@@ -358,14 +413,51 @@ def render_research_record_authoring(
             )
             return
         if preview.draft_digest != authoring_draft_digest(draft):
-            st_api.warning(
-                "Draft changed after preview. Validate and preview again before saving."
+            current_digest = authoring_draft_digest(draft)
+            message = research_state_message(
+                "draft_changed",
+                scope=f"{profile_key}:{symbol}:{kind}",
+                title="Draft changed",
+                detail="Validate and preview this edited draft again before saving.",
+                identity=f"{preview.receipt or preview.draft_digest}:{current_digest}",
+            )
+            _render_authoring_state_message(
+                st_api,
+                message,
+                session_key=authoring_session_key(
+                    profile_key, symbol, f"state:{kind}"
+                ),
             )
             return
         if preview.state == "rejected":
-            st_api.error(preview.reason)
+            message = research_state_message(
+                "validation_rejected",
+                scope=f"{profile_key}:{symbol}:{kind}",
+                title="Validation rejected",
+                detail=preview.reason,
+                identity=f"{preview.draft_digest}:{preview.reason}",
+            )
+            _render_authoring_state_message(
+                st_api,
+                message,
+                session_key=authoring_session_key(
+                    profile_key, symbol, f"state:{kind}"
+                ),
+            )
             return
 
+        message = research_state_message(
+            "preview_ready",
+            scope=f"{profile_key}:{symbol}:{kind}",
+            title="Preview ready",
+            detail="This exact record is ready for review and is not saved.",
+            identity=preview.receipt,
+        )
+        _render_authoring_state_message(
+            st_api,
+            message,
+            session_key=authoring_session_key(profile_key, symbol, f"state:{kind}"),
+        )
         _render_preview(st_api, preview)
         confirmed = st_api.checkbox(
             "I reviewed this exact record and its source evidence",

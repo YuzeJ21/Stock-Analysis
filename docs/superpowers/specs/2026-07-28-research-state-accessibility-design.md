@@ -175,3 +175,21 @@ Test-first coverage must prove:
 6. True assistive-technology and independent-human gates remain open.
 7. Focused, full, browser, render, release, hygiene, and exact-head CI gates
    pass with no generated artifact changes.
+
+## Current Implementation Status
+
+The pure five-state message contract and Company Workbench authoring
+integration are implemented in the current local candidate. Focused tests
+cover exact role/live mapping, escaping, stable transition identity, preview,
+validation, changed draft, verified reload, reload uncertainty, deduplication,
+temporary-ledger isolation, and a synthetic six-static-state/five-transition
+AppTest harness.
+
+This is not yet closeout evidence. The browser gate now runs the synthetic
+harness at desktop and phone widths, rejects hidden or duplicate live nodes,
+checks unchanged rerenders, console errors, overflow, tracebacks, and any
+repository write through a status-plus-dirty-content fingerprint. Its
+clean-tree direct run, staging, commit, push,
+draft-PR update, and exact-head CI remain open because the managed environment
+cannot bind a loopback port or write the linked-worktree Git index. No
+screen-reader, WCAG, hosted, or independent-human claim is made.

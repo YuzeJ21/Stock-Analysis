@@ -3,12 +3,14 @@ from types import SimpleNamespace
 
 import pytest
 
+from src.catalyst_evidence_timeline import CatalystEvent, CatalystTimeline
 from src.decision_process_scorecard import build_decision_process_scorecard
 from src.research_decision_lab import (
     build_research_decision_lab_state,
     build_research_discipline_rows,
     decision_lab_cards,
     decision_lab_rows,
+    derive_research_process_attention,
     research_discipline_rows,
     unavailable_research_decision_lab_state,
 )
@@ -141,6 +143,46 @@ def _state(
 
 def _lane_states(state) -> dict[str, str]:
     return {lane.key: lane.state for lane in state.lanes}
+
+
+def _state_with_lane_states(**lane_states):
+    state = _state()
+    return replace(
+        state,
+        lanes=tuple(
+            replace(lane, state=lane_states.get(lane.key, lane.state))
+            for lane in state.lanes
+        ),
+    )
+
+
+def _upcoming_catalyst(ticker: str = "ALFA") -> CatalystTimeline:
+    event = CatalystEvent(
+        "catalyst-evidence-v1",
+        "event-1",
+        "demo",
+        ticker,
+        "earnings",
+        "Synthetic scheduled evidence",
+        "2026-08-20T21:00:00Z",
+        "2026-07-20T09:00:00Z",
+        "2026-07-20T10:00:00Z",
+        "fixture",
+        "fixture:event-1",
+        "candidate_context_only",
+        "fixture-reviewer",
+        "Synthetic context only.",
+    )
+    return CatalystTimeline(
+        ticker,
+        "candidate_context_only",
+        (event,),
+        (),
+        0,
+        0,
+        (),
+        "Research context only.",
+    )
 
 
 def test_empty_history_keeps_six_lanes_independent_and_not_started():
@@ -288,6 +330,131 @@ def test_cohort_rows_preserve_focused_order_and_never_sort_by_process_severity()
     assert [row["Ticker"] for row in research_discipline_rows(rows)] == ["BETA", "ALFA"]
     assert "rank" not in str(rows).lower()
     assert "market value" not in str(rows).lower()
+
+
+def test_unresolved_change_precedes_overdue_and_invalidation_attention():
+    state = _state_with_lane_states(
+        evidence="current",
+        invalidation="missing",
+        review_trigger="evidence_change_due",
+    )
+
+    attention = derive_research_process_attention(state)
+
+    assert attention.state == "evidence_change_due"
+    assert attention.label == "Needs review"
+    assert attention.source == "review_trigger"
+
+
+@pytest.mark.parametrize(
+    ("lane_states", "expected_state", "expected_label", "expected_source"),
+    [
+        (
+            {"evidence": "conflict_review_needed", "review_trigger": "overdue"},
+            "conflicting_evidence",
+            "Needs review",
+            "evidence",
+        ),
+        (
+            {"review_trigger": "overdue", "invalidation": "missing"},
+            "overdue_review",
+            "Needs review",
+            "review_trigger",
+        ),
+        (
+            {"invalidation": "missing"},
+            "invalidation_follow_up",
+            "Needs review",
+            "invalidation",
+        ),
+        (
+            {"learning": "commercial_evidence_blocked"},
+            "outcome_follow_up",
+            "Needs review",
+            "learning",
+        ),
+        (
+            {"review_trigger": "scheduled"},
+            "scheduled_review",
+            "Scheduled",
+            "review_trigger",
+        ),
+    ],
+)
+def test_attention_uses_fixed_non_market_precedence(
+    lane_states, expected_state, expected_label, expected_source
+):
+    attention = derive_research_process_attention(
+        _state_with_lane_states(**lane_states)
+    )
+
+    assert attention.state == expected_state
+    assert attention.label == expected_label
+    assert attention.source == expected_source
+
+
+def test_scheduled_catalyst_uses_exact_date_after_saved_followups():
+    state = _state_with_lane_states(review_trigger="unscheduled")
+
+    attention = derive_research_process_attention(
+        state,
+        catalyst_timeline=_upcoming_catalyst(),
+    )
+
+    assert attention.state == "scheduled_catalyst"
+    assert attention.label == "Scheduled"
+    assert "2026-08-20T21:00:00Z" in attention.reason
+    assert "urgent" not in attention.reason.lower()
+    assert "price" not in attention.reason.lower()
+    assert attention.source == "catalyst"
+
+
+def test_monitor_and_unavailable_attention_fail_closed_without_ranking():
+    monitor = derive_research_process_attention(
+        _state_with_lane_states(review_trigger="unscheduled")
+    )
+    unavailable = derive_research_process_attention(
+        _state_with_lane_states(review_trigger="unscheduled"),
+        catalyst_error="Catalyst ledger header is invalid.",
+    )
+
+    assert (monitor.state, monitor.label) == ("monitor", "Monitor")
+    assert (unavailable.state, unavailable.label) == ("unavailable", "Unavailable")
+    assert "rank" not in str((monitor, unavailable)).lower()
+
+
+def test_independent_scenario_unavailability_does_not_override_scheduled_review():
+    attention = derive_research_process_attention(
+        _state_with_lane_states(
+            scenario="unavailable",
+            review_trigger="scheduled",
+        )
+    )
+
+    assert attention.state == "scheduled_review"
+    assert attention.source == "review_trigger"
+
+
+def test_discipline_rows_add_attention_without_changing_cohort_order_or_identity():
+    alpha = _state_with_lane_states(review_trigger="overdue")
+    beta = replace(
+        _state_with_lane_states(review_trigger="unscheduled"),
+        ticker="BETA",
+        identity="beta-identity",
+    )
+
+    rows = build_research_discipline_rows(
+        {"ALFA": alpha, "BETA": beta},
+        focused_tickers=("BETA", "ALFA"),
+        catalyst_timelines_by_ticker={"BETA": _upcoming_catalyst("BETA")},
+    )
+
+    assert [row.ticker for row in rows] == ["BETA", "ALFA"]
+    assert [row.identity for row in rows] == ["beta-identity", alpha.identity]
+    assert [row.attention_state for row in rows] == [
+        "scheduled_catalyst",
+        "overdue_review",
+    ]
 
 
 def test_primary_display_copy_contains_no_transaction_or_allocation_language():

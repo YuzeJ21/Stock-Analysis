@@ -2270,6 +2270,68 @@ def test_stock_selector_result_rows_keep_only_the_compact_review_summary():
     assert "Review peer proof" not in rendered
 
 
+def test_discover_row_answers_three_saved_research_questions():
+    rendered = dashboard.stock_selector_result_table_html(
+        pd.DataFrame(
+            [
+                {
+                    "Ticker": "NVDA",
+                    "Readiness": "partial",
+                    "Why Included": "Core company data is ready.",
+                    "Supported Now": "Price and DCF review.",
+                    "Blocked / Missing": "Peer evidence remains unavailable.",
+                }
+            ]
+        ),
+        total_count=1,
+        target_mode="research",
+        target_page="company-workbench",
+    )
+
+    assert "Why reviewable" in rendered
+    assert "Core company data is ready." in rendered
+    assert "Usable now" in rendered
+    assert "Price and DCF review." in rendered
+    assert "Principal blocker" in rendered
+    assert "Peer evidence remains unavailable." in rendered
+    assert rendered.count("Open NVDA review") == 1
+
+
+def test_discover_research_answer_fails_closed_for_blank_nan_and_no_blocker():
+    answers = dashboard.discover_research_answer(
+        {
+            "Why Included": float("nan"),
+            "Supported Now": " ",
+            "Blocked / Missing": "no blocker",
+        }
+    )
+
+    assert answers == {
+        "why_reviewable": "Saved readiness does not record why this company is reviewable.",
+        "usable_now": "No usable research lane is recorded in saved readiness.",
+        "principal_blocker": (
+            "No principal blocker is recorded in saved readiness; this does not mean "
+            "no risk or external research need exists."
+        ),
+    }
+
+
+def test_research_discover_rows_keep_all_answers_on_phone_and_one_large_action():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert ".research-discover-result" in source
+    assert ".research-discover-answer" in source
+    assert "min-height: 2.75rem" in source
+    phone_index = source.index("@media (max-width: 760px)")
+    phone_source = source[phone_index:]
+    assert ".research-discover-result .selector-result-row" in phone_source
+    assert "grid-template-columns: 1fr" in phone_source
+    assert "display: none" not in phone_source[
+        phone_source.index(".research-discover-answer") :
+        phone_source.index(".research-discover-answer") + 180
+    ]
+
+
 def test_public_selector_uses_queue_search_without_an_arbitrary_starting_ticker():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_stock_selector(")
