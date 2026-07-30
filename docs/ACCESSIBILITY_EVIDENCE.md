@@ -732,9 +732,9 @@ Evidence boundary:
 - This is local automated engineering evidence, not screen-reader, WCAG,
   hosted, cross-major-version, independent-human, or market validation.
 
-## 2026-07-29 research-state integration candidate
+## 2026-07-29 research-state implementation and environment-limited gate
 
-Current local candidate evidence:
+Current local implementation evidence:
 
 - A closed five-transition helper maps validation rejection and reload
   uncertainty to assertive alerts, and preview readiness, edited drafts, and
@@ -754,9 +754,9 @@ Current local candidate evidence:
 
 Evidence boundary:
 
-- This candidate is not committed or exact-head evidence. The managed
-  environment also rejected the linked-worktree Git index lock, so clean-tree
-  staging and direct browser attribution could not run.
+- Implementation commit `d353ed652` contains the 18-file product package.
+  Exact staged hygiene reported 18 product/code/docs/test files, zero generated
+  files, zero canonical-data files, and zero manual-review paths.
 - The browser gate now runs the harness at both viewports, rejects duplicate or
   hidden live nodes, verifies unchanged rerenders become visible non-live
   messages, checks overflow/errors/tracebacks, and compares repository status
@@ -767,7 +767,11 @@ Evidence boundary:
   generated file also fails the gate.
 - The final focused browser/state/dashboard/document contract run passed 1,220
   tests; all six Research routes also passed the non-browser render smoke.
-- The clean-tree desktop/phone result, push, draft-PR update, and exact-head CI
+- The clean-tree gate verified product hygiene and excluded exactly 18
+  unstaged generated paths. The environment then terminated headless Chrome
+  before any route or synthetic-harness case executed, so no desktop/phone
+  result is credited.
+- A supported direct browser run, push, draft-PR update, and exact-head CI
   remain open.
 - No production research ledger or generated CSV, JSON, report, screenshot, or
   timing artifact was written by the candidate tests.

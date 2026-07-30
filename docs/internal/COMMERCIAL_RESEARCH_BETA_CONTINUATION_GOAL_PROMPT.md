@@ -221,16 +221,20 @@ after the intentional push; do not treat local evidence as hosted evidence.
 1. Reverify and synchronize the current Research State Accessibility candidate.
    The pure five-transition contract, Company Workbench integration, synthetic
    AppTest harness, and write-detecting desktop/phone browser-gate assertions
-   are implemented locally. The clean-tree direct run, staging, commit, push,
-   PR update, and exact-head CI remain open. Do not copy any prior pass count
-   forward without rerunning.
+   are committed locally at `d353ed652`. Exact staging hygiene passed with 18
+   product files and zero generated files. The clean-tree gate classified and
+   excluded exactly 18 generated paths, then headless Chrome was terminated by
+   the managed environment before route execution. A supported browser run,
+   push, PR update, and exact-head CI remain open. Do not copy any prior pass
+   count forward without rerunning.
 2. Reverify and synchronize the current Discover/Monitor Workflow Maturity
    candidate. The local tree contains the three-question Discover answer,
    deterministic process-attention precedence, read-only catalyst composition,
    malformed-ledger fail-closed behavior, preserved cohort order, summary
    cards, semantic primary/Advanced tables, and direct responsive browser
-   assertions. Focused pure/dashboard/contract/AppTest coverage passed. The
-   clean-tree browser result, Git synchronization, and exact-head CI remain open.
+   assertions at the same local commit. Focused pure/dashboard/contract/AppTest
+   coverage passed. The route browser result, Git synchronization, and
+   exact-head CI remain open under the same browser-runtime condition.
 3. Resume the remaining automated portion of Priority 7 after those bounded
    closeouts.
 

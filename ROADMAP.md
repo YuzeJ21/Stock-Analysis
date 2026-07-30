@@ -93,8 +93,8 @@ and bridge height; the owned bounded server-output capture also reported zero
 deprecated warnings. The same 18 generated paths remained excluded. Hosted
 exact-head CI still requires the intentional push and is not local evidence.
 
-1. Synchronize the focused-green Research State Accessibility candidate; the five scoped transitions, synthetic harness, and write-detecting desktop/phone browser-gate integration are implemented, while a clean-tree direct run, commit/push, and exact-head CI remain open.
-2. Synchronize the focused-green Discover/Monitor candidate; three saved-evidence answers, semantic process tables, preserved cohort order/identity, and direct responsive browser assertions are implemented, while a clean-tree direct run and exact-head CI remain open.
+1. Synchronize implementation commit `d353ed652`: the five scoped transitions, synthetic harness, content-sensitive no-write check, and desktop/phone browser-gate integration are committed locally. The clean-tree gate excluded exactly 18 generated paths but the managed environment terminated headless Chrome before route execution; push and exact-head CI remain open.
+2. The same local commit contains the Discover/Monitor slice: three saved-evidence answers, semantic process tables, preserved cohort order/identity, and direct responsive browser assertions. Its clean-tree route matrix and exact-head CI remain open with the same browser-runtime unblock condition.
 
 Priority 7 accessibility remains the next numbered maturity priority. Its remaining safe automated work follows these bounded reliability repairs; true zoom, forced colors, reduced motion, screen-reader, and independent-human evidence remain external until a suitable environment exists.
 

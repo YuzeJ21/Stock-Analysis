@@ -179,7 +179,7 @@ Test-first coverage must prove:
 ## Current Implementation Status
 
 The pure five-state message contract and Company Workbench authoring
-integration are implemented in the current local candidate. Focused tests
+integration are committed locally at `d353ed652`. Focused tests
 cover exact role/live mapping, escaping, stable transition identity, preview,
 validation, changed draft, verified reload, reload uncertainty, deduplication,
 temporary-ledger isolation, and a synthetic six-static-state/five-transition
@@ -188,8 +188,9 @@ AppTest harness.
 This is not yet closeout evidence. The browser gate now runs the synthetic
 harness at desktop and phone widths, rejects hidden or duplicate live nodes,
 checks unchanged rerenders, console errors, overflow, tracebacks, and any
-repository write through a status-plus-dirty-content fingerprint. Its
-clean-tree direct run, staging, commit, push,
-draft-PR update, and exact-head CI remain open because the managed environment
-cannot bind a loopback port or write the linked-worktree Git index. No
+repository write through a status-plus-dirty-content fingerprint. Exact staging
+hygiene passed with no generated paths. The clean-tree gate then verified
+product hygiene and excluded exactly 18 generated paths, but the managed
+environment terminated headless Chrome before route execution. A supported
+browser run, push, draft-PR update, and exact-head CI remain open. No
 screen-reader, WCAG, hosted, or independent-human claim is made.

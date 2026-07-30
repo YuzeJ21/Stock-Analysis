@@ -191,7 +191,7 @@ Test-first coverage must prove:
 
 ## Current Implementation Status
 
-The current local candidate implements the three saved-evidence Discover
+Local implementation commit `d353ed652` contains the three saved-evidence Discover
 answers, truthful missing and `no blocker` fallbacks, fixed process-attention
 precedence, preserved cohort order and Decision Lab identity, read-only
 catalyst composition, malformed-ledger fail-closed behavior, summary cards,
@@ -202,6 +202,8 @@ artifact writes.
 This is not yet release closeout. Direct Discover/Monitor desktop and phone
 assertions are integrated for three non-empty answers, ticker-bound 44-pixel
 actions, semantic process-only columns, saved cohort order, and Advanced
-identity separation. Their clean-tree run, staging, commit, push, draft-PR
-update, and exact-head CI remain open because the current managed environment
-cannot bind the required loopback server or write the linked-worktree Git index.
+identity separation. Exact staging hygiene passed with zero generated paths.
+The clean-tree gate then verified product hygiene and excluded exactly 18
+generated paths, but the managed environment terminated headless Chrome before
+route execution. A supported browser run, push, draft-PR update, and exact-head
+CI remain open.
