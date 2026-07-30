@@ -664,8 +664,10 @@ Evidence boundary:
 
 Verified implementation evidence:
 
-- Product-under-test commit:
-  `e8084099b3ea1b794ce8e2a0af00998602133084`.
+- Product-under-test commits:
+  behavior-first repair `e8084099b3ea1b794ce8e2a0af00998602133084`;
+  exact transport-instrumentation run
+  `d68ab27bee9c07c450faeb866b08cbf13638b56f`.
 - Supported dependency contract: `streamlit>=1.52,<2`; installed local
   runtime: Streamlit `1.59.2`.
 - Direct command: `make research-accessibility-browser-check`.
@@ -706,11 +708,20 @@ passing transport verdict. `make research-dashboard-render-smoke`
 passed all six Research routes without the former
 `st.components.v1.html` deprecation warning.
 
-The four new result fields were added after the `e8084099b3` browser run.
-They therefore require a new clean exact-head direct-browser run before zero
-values can be credited as direct runtime evidence. Until that rerun passes,
-warning removal and zero-footprint instrumentation are locally implemented
-and focused-tested, but this transport-migration evidence item remains open.
+The clean exact-head run at `d68ab27bee9c07c450faeb866b08cbf13638b56f`
+closed the local transport-instrumentation evidence item. All 12
+route-and-viewport results reported
+`deprecated_component_warning_count=0`, `bridge_iframe_count=0`,
+`bridge_focusable_count=0`, and `bridge_height=0`; each result recorded
+`server_runtime_output_status=captured_local_server`. The overall bounded
+server stdout/stderr evidence also passed with zero deprecated-component
+warnings. The same run had an empty failure list and excluded the same 18
+generated paths. The surrounding verification returned 4,381 passing tests
+and passed dashboard, Research render, public wording, public package,
+commercial-beta, pilot-readiness, hygiene, and whitespace gates.
+
+Hosted exact-head CI remains separate and must be reverified after the
+intentional push. The local result does not expand the evidence boundary below.
 
 Evidence boundary:
 

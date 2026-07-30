@@ -168,6 +168,19 @@ Direct browser evidence remains engineering evidence only. It does not prove
 screen-reader usability, WCAG conformance, hosted compatibility, or future
 Streamlit-major compatibility.
 
+## Local Verification Evidence
+
+Exact local implementation commit
+`d68ab27bee9c07c450faeb866b08cbf13638b56f` passed 4,381 tests and the
+required dashboard, Research render, public wording, public package,
+commercial-beta, pilot-readiness, hygiene, and whitespace gates. The clean
+six-route/two-viewport browser run passed all 12 results with an empty failure
+list. Every result reported zero deprecated-component warnings, bridge
+iframes, bridge focusable descendants, and bridge height, and the bounded
+owned server-output evidence passed with zero warnings. Exactly 18 generated
+paths remained excluded. Hosted exact-head CI remains a separate post-push
+gate.
+
 ## Acceptance Criteria
 
 1. No product path calls `st.components.v1.html`.

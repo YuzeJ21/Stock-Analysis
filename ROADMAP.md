@@ -83,18 +83,17 @@ Completed local item: `1. Add shared provenance and recency eligibility to valua
 an open task, and the independent historical-valuation numeric-integrity repair
 did not substitute for it.
 
-1. Finish the exact-head framework reliability evidence closeout for the
-   same-document Streamlit transport. The supported-range change, `st.html`
-   migration, behavior-first
-   same-document repair, and fail-closed warning/iframe/focus/height
-   instrumentation are implemented locally. The strict gate now owns and
-   boundedly captures local server stdout/stderr; explicit `BASE_URL` mode
-   truthfully fails the server-output proof as unavailable. The direct six-route,
-   two-viewport behavior matrix passed at `e8084099b`, but the four new result
-   fields were added afterward and still require one clean exact-head browser
-   run before this item is closed.
-2. Continue the remaining safe automated Priority 7 accessibility work after
-   that exact-head transport run.
+Completed local framework reliability item: `1. Close the same-document
+Streamlit transport reliability evidence.` Exact local commit
+`d68ab27bee9c07c450faeb866b08cbf13638b56f`
+passed 4,381 tests, the required render/public/commercial-beta/pilot gates, and
+all 12 six-route/two-viewport browser results. Every result reported zero
+deprecated-component warnings, bridge iframes, bridge focusable descendants,
+and bridge height; the owned bounded server-output capture also reported zero
+deprecated warnings. The same 18 generated paths remained excluded. Hosted
+exact-head CI still requires the intentional push and is not local evidence.
+
+1. Continue the remaining safe automated Priority 7 accessibility work.
 
 Priority 7 accessibility remains the next numbered maturity priority. Its remaining safe automated work follows these bounded reliability repairs; true zoom, forced colors, reduced motion, screen-reader, and independent-human evidence remain external until a suitable environment exists.
 

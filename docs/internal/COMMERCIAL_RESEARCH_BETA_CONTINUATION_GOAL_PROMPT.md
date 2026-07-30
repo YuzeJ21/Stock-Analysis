@@ -208,17 +208,17 @@ Current local execution queue:
 Completed local item: `1. Add shared quant provenance/recency eligibility without coupling readiness.` This former queue item is implemented at
 `195ea18da9d1d6e06c36f8320509ccde46cdaa57` and is not an active task.
 
-1. Finish the exact-head same-document transport framework reliability
-   evidence closeout. The dependency boundary, `st.html` migration,
-   behavior-first same-document
-   correction, and fail-closed warning/iframe/focus/height result fields are
-   implemented locally. The normal gate owns and boundedly captures merged
-   local server stdout/stderr; explicit `BASE_URL` mode cannot claim that
-   evidence and fails the strict server-output proof as unavailable. The
-   six-route/two-viewport behavior matrix passed at
-   `e8084099b`, but the new four-field instrumentation still requires one clean
-   exact-head direct-browser run.
-2. Resume the remaining automated portion of Priority 7 after that run.
+Completed local framework reliability item: `1. Close the same-document
+transport framework reliability evidence.` At
+`d68ab27bee9c07c450faeb866b08cbf13638b56f`, 4,381 tests and the required
+render/public/commercial-beta/pilot gates passed. The clean exact local browser
+run passed all 12 six-route/two-viewport results with zero deprecated-component
+warnings, bridge iframes, bridge focusable descendants, and bridge height; the
+owned bounded server-output proof also passed with zero warnings. The same 18
+generated paths remained excluded. Require a fresh hosted exact-head CI pass
+after the intentional push; do not treat local evidence as hosted evidence.
+
+1. Resume the remaining automated portion of Priority 7.
 
 Priority 7 accessibility remains the next numbered maturity priority. Do not re-run Priorities 1-3 unless a current regression is directly reproduced. Priority 6 provider-neutral retention/deletion or audit-event work is not the active next lane and requires a separate reviewed design; provider-specific work remains blocked on an approved environment.
 
@@ -329,9 +329,14 @@ Priority 7 — Accessibility evidence beyond screenshots
   incomplete reader shutdown fail closed. Explicit `BASE_URL` mode
   classifies server output as unavailable and cannot pass the strict transport
   proof. The six-route render smoke emits no `st.components.v1.html` warning,
-  but the new fields were added after the
-  `e8084099b3` run; require one clean exact-head direct-browser rerun before
-  crediting their zero values or closing this reliability item.
+  The clean instrumentation run at
+  `d68ab27bee9c07c450faeb866b08cbf13638b56f` then passed all 12 results with
+  each new field equal to zero, `server_runtime_output_status` captured
+  locally, the overall server warning count equal to zero, an empty failure
+  list, and the same 18 generated paths excluded. The surrounding verification
+  returned 4,381 passing tests and passed the required local release gates.
+  This closes the local transport reliability item only; require hosted
+  exact-head CI after push.
 - Execute `docs/ACCESSIBILITY_TASK_PROTOCOL.md` for direct task evidence. It records exact revision/environment metadata, keyboard-only navigation, write-free validation, zoom/reflow, forced-colors, reduced-motion, screen-reader, target-size, finding, and completion rules; the protocol is not completion evidence.
 - The current Streamlit container API has no stable semantic-role parameter. Preserve the separately reviewed fixed same-origin bridge, its exact-target and fail-closed ownership rules, and its direct runtime gate; do not broaden it into research-content access, navigation, application actions, persistence, telemetry, or readiness behavior.
 - Continue with the named open findings: small framework controls outside the tested matrix, dynamic announcements, independent-human complete keyboard order, true zoom/reflow, forced colors, reduced motion, screen-reader tasks, and complete loading/empty/withheld/stale/failure-state coverage.
