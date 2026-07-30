@@ -1000,7 +1000,7 @@ def test_discover_row_contract_requires_three_visible_answers_and_ticker_action(
         (
             {
                 "ticker": "NVDA",
-                "labels": ("Why reviewable", "Usable now", "Principal blocker"),
+                "labels": ("WHY REVIEWABLE", "USABLE NOW", "PRINCIPAL BLOCKER"),
                 "values": (
                     "Saved readiness supports review.",
                     "SEC quarterly actuals.",
@@ -1064,7 +1064,7 @@ def test_monitor_row_contract_preserves_cohort_order_and_rejects_rank_fields():
                 "reason": "No saved research-process transition is due.",
             },
         ),
-        primary_columns=("Ticker", "Process attention", "Why"),
+        primary_columns=("TICKER", "PROCESS ATTENTION", "WHY"),
         advanced_identity_count=2,
     )
     ranked = evaluate_monitor_rows(

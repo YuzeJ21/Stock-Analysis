@@ -336,6 +336,7 @@ def evaluate_discover_rows(
     """Require each visible Discover result to answer the three research questions."""
 
     expected_labels = ("Why reviewable", "Usable now", "Principal blocker")
+    expected_label_keys = tuple(label.casefold() for label in expected_labels)
     observed = tuple(rows)
     failures: list[str] = []
     seen_tickers: set[str] = set()
@@ -344,6 +345,7 @@ def evaluate_discover_rows(
     for index, row in enumerate(observed, start=1):
         ticker = str(row.get("ticker") or "").strip().upper()
         labels = tuple(str(value or "").strip() for value in row.get("labels", ()))
+        label_keys = tuple(label.casefold() for label in labels)
         values = tuple(str(value or "").strip() for value in row.get("values", ()))
         action_name = str(row.get("action_name") or "").strip()
         action_ticker = str(row.get("action_ticker") or "").strip().upper()
@@ -354,7 +356,7 @@ def evaluate_discover_rows(
         visible = row.get("visible") is True
         if (
             not visible
-            or labels != expected_labels
+            or label_keys != expected_label_keys
             or len(values) != 3
             or any(not value for value in values)
         ):
@@ -424,8 +426,8 @@ def evaluate_monitor_rows(
         failures.append(
             f"Monitor rows do not preserve saved cohort order: {orders}"
         )
-    lowered_columns = tuple(column.lower() for column in columns)
-    if columns != ("Ticker", "Process attention", "Why"):
+    lowered_columns = tuple(column.casefold() for column in columns)
+    if lowered_columns != ("ticker", "process attention", "why"):
         failures.append(f"unexpected primary Monitor columns: {columns}")
     if any(
         forbidden in column
