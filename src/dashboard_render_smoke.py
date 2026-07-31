@@ -92,7 +92,13 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     DashboardRenderRoute(
         name="Discover",
         query_params=(("mode", "research"), ("page", "discover")),
-        required_markers=("Discover", "Focused cohort", "Which stock can I review?", "Research-only"),
+        required_markers=(
+            "Discover",
+            "Focused cohort",
+            "Which stock can I review?",
+            "Daily Momentum & Valuation Research Queue",
+            "Research-only",
+        ),
     ),
     DashboardRenderRoute(
         name="Company Workbench",

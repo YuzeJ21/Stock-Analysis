@@ -217,6 +217,15 @@ from src.catalyst_evidence_timeline import (
     catalyst_timeline_cards,
     load_catalyst_events,
 )
+from src.daily_research_queue import (
+    compare_daily_queues,
+    daily_queue_display_rows,
+    daily_queue_summary_cards,
+)
+from src.daily_research_queue_adapter import (
+    DailyQueueBuildStatus,
+    build_daily_research_queue_from_files,
+)
 from src.historical_valuation_regime import (
     build_valuation_regime,
     load_valuation_observations,
@@ -6272,6 +6281,83 @@ def load_dashboard_valuation_regime(ticker: str, *, as_of: str | None = None):
         as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
         commercial_mode=True,
     )
+
+
+def load_dashboard_daily_research_queue(
+    context: ProfileContext,
+    *,
+    as_of,
+) -> DailyQueueBuildStatus:
+    """Build one selected-profile queue without refreshing or writing data."""
+
+    return build_daily_research_queue_from_files(
+        project_root=BASE_DIR,
+        data_dir=context.data_dir,
+        as_of=as_of,
+    )
+
+
+def render_daily_research_queue(status: DailyQueueBuildStatus) -> None:
+    """Render current research candidates while keeping gate detail secondary."""
+
+    comparison = compare_daily_queues(status.result, None)
+    st.markdown("### Daily Momentum & Valuation Research Queue")
+    render_signal_cards(
+        daily_queue_summary_cards(comparison),
+        show_commands=False,
+        variant="queue",
+    )
+    rows = daily_queue_display_rows(comparison)
+    if rows:
+        st.dataframe(
+            pd.DataFrame(rows),
+            width="stretch",
+            hide_index=True,
+        )
+        for item in comparison.current_eligible:
+            st.link_button(
+                f"Open {item.ticker} Company Workbench",
+                item.workbench_url,
+            )
+    else:
+        render_notice_card(
+            "No company passes every required gate",
+            (
+                "The queue stays empty when current-market, momentum, historical "
+                "valuation, fundamental, provenance, or source-rights evidence is "
+                "missing. Thresholds were not relaxed."
+            ),
+            tone="warning",
+        )
+    st.caption(
+        "No comparable prior queue was supplied, so daily entries and exits remain withheld. "
+        "Rows are alphabetical research candidates, not a company ranking."
+    )
+    with st.expander("Advanced: daily queue evidence", expanded=False):
+        st.caption(status.message)
+        diagnostic_rows = [
+            {"Evidence": "Momentum-ready records evaluated", "Value": status.considered_count},
+            {"Evidence": "Current eligible", "Value": len(status.result.eligible)},
+            {"Evidence": "Withheld", "Value": len(status.result.withheld)},
+            {"Evidence": "Saved price rows read", "Value": status.price_row_count},
+            {
+                "Evidence": "Historical valuation observations read",
+                "Value": status.valuation_observation_count,
+            },
+        ]
+        diagnostic_rows.extend(
+            {
+                "Evidence": f"Blocker: {blocker.replace('_', ' ')}",
+                "Value": count,
+            }
+            for blocker, count in status.blocker_counts
+        )
+        st.dataframe(
+            pd.DataFrame(diagnostic_rows),
+            width="stretch",
+            hide_index=True,
+        )
+        st.caption(status.result.boundary)
 
 
 def load_dashboard_outcome_status(context: ProfileContext, *, ticker: str):
@@ -35554,6 +35640,9 @@ def render_personal_research_route(
             observation_recency=observation_recency,
         )
         st.markdown("## Which stock can I review?")
+        render_daily_research_queue(
+            load_dashboard_daily_research_queue(context, as_of=review_date)
+        )
         render_stock_selector(
             dashboard_output_frames_for_page(STOCK_SELECTOR_PATH_TITLE),
             public_mode=True,

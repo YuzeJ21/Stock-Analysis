@@ -203,6 +203,10 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         "Research Data Health",
         "Research Proof History",
     ]
+    discover_route = next(
+        route for route in RESEARCH_RENDER_ROUTES if route.name == "Discover"
+    )
+    assert "Daily Momentum & Valuation Research Queue" in discover_route.required_markers
     results = render_public_routes(Path("."), routes=RESEARCH_RENDER_ROUTES)
 
     assert all(result.exceptions == () for result in results)

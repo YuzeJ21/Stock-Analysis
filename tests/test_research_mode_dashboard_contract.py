@@ -5,6 +5,12 @@ from types import SimpleNamespace
 from src import dashboard
 from src import dashboard_navigation as nav
 from src.catalyst_evidence_timeline import CatalystEvent, append_reviewed_event
+from src.daily_research_queue import (
+    DailyQueueEvidence,
+    compare_daily_queues,
+    evaluate_daily_queue,
+)
+from src.daily_research_queue_adapter import DailyQueueBuildStatus
 from src.focused_research_cohort import FocusedCohort, FocusedCohortMember, build_focused_cohort
 
 
@@ -60,6 +66,8 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
     review_date = date(2026, 7, 27)
     load_calls: list[tuple[Path, str, date]] = []
     rendered: list[tuple[str, object]] = []
+    daily_queue_calls: list[object] = []
+    queue_status = object()
 
     def load_recency(path, *, selected_ticker, as_of):
         load_calls.append((path, selected_ticker, as_of))
@@ -88,6 +96,18 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
     )
     monkeypatch.setattr(dashboard, "dashboard_output_frames_for_page", lambda page: {})
     monkeypatch.setattr(dashboard, "render_stock_selector", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "load_dashboard_daily_research_queue",
+        lambda *args, **kwargs: queue_status,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "render_daily_research_queue",
+        lambda status: daily_queue_calls.append(status),
+        raising=False,
+    )
     monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard, "focused_cohort_cards", lambda cohort: [])
     monkeypatch.setattr(dashboard, "focused_cohort_coverage_cards", lambda coverage: [])
@@ -117,8 +137,10 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
         )
         assert load_calls == [(context.data_dir / "prices.csv", "AVGO", review_date)]
         assert rendered == [(selected_page, recency)]
+        assert daily_queue_calls == ([queue_status] if selected_page == "Discover" else [])
         load_calls.clear()
         rendered.clear()
+        daily_queue_calls.clear()
 
 
 def test_dashboard_quarantines_legacy_deep_links_outside_operator_mode():
@@ -267,28 +289,147 @@ def test_research_discover_can_limit_selector_rows_to_the_focused_cohort():
     assert dashboard.filter_selector_to_tickers(frame, ()).empty
 
 
-def test_research_discover_renders_selector_before_advanced_cohort_context():
-    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
-    route_start = source.index("def render_personal_research_route(")
-    discover_start = source.index('elif selected_page == "Discover":', route_start)
-    discover_end = source.index(
-        'elif selected_page == "Company Workbench":',
-        discover_start,
-    )
-    discover = source[discover_start:discover_end]
+def test_research_discover_renders_daily_queue_before_selector_and_advanced_context(
+    monkeypatch,
+):
+    calls: list[str] = []
+    context = SimpleNamespace(data_dir=Path("/selected-profile/data"))
 
-    heading = discover.index('st.markdown("## Which stock can I review?")')
-    selector = discover.index("render_stock_selector(", heading)
-    advanced = discover.index(
-        'with st.expander("Advanced: cohort readiness context", expanded=False):'
+    class Expander:
+        def __enter__(self):
+            calls.append("advanced")
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(dashboard, "load_observation_recency", lambda *args, **kwargs: object())
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "load_dashboard_daily_research_queue",
+        lambda *args, **kwargs: object(),
+        raising=False,
     )
-    cohort = discover.index("focused_cohort_cards(cohort)", advanced)
-    coverage = discover.index(
-        "focused_cohort_coverage_cards(coverage)",
-        advanced,
+    monkeypatch.setattr(
+        dashboard,
+        "render_daily_research_queue",
+        lambda status: calls.append("daily queue"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "render_stock_selector",
+        lambda *args, **kwargs: calls.append("selector"),
+    )
+    monkeypatch.setattr(dashboard, "dashboard_output_frames_for_page", lambda page: {})
+    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "focused_cohort_cards", lambda cohort: [])
+    monkeypatch.setattr(dashboard, "focused_cohort_coverage_cards", lambda coverage: [])
+    monkeypatch.setattr(dashboard.st, "markdown", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "caption", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+
+    dashboard.render_personal_research_route(
+        selected_page="Discover",
+        provider=object(),
+        context=context,
+        state={},
+        cohort=SimpleNamespace(members=()),
+        coverage=object(),
+        weekly_summary=object(),
+        ticker="ALFA",
+        review_date=date(2026, 7, 31),
     )
 
-    assert heading < selector < advanced < cohort < coverage
+    assert calls[:2] == ["daily queue", "selector"]
+    assert calls[2:] == ["advanced"]
+
+
+def test_daily_queue_renderer_is_ticker_bound_and_keeps_blockers_in_advanced(
+    monkeypatch,
+):
+    rendered: list[str] = []
+    links: list[tuple[str, str]] = []
+    tables: list[object] = []
+
+    class Expander:
+        def __enter__(self):
+            rendered.append("advanced opened")
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    evidence = DailyQueueEvidence(
+        ticker="ALFA",
+        company_name="Alpha Company",
+        observation_through_date="2026-07-30",
+        momentum_ready=True,
+        current_market_eligible=True,
+        price_provenance_eligible=True,
+        price_rights_eligible=True,
+        price_field_scope_eligible=True,
+        close=120.0,
+        sma_50=110.0,
+        sma_200=100.0,
+        return_3m=0.1,
+        return_6m=0.2,
+        relative_return_vs_spy=0.04,
+        valuation_state="ready",
+        valuation_freshness_state="current",
+        valuation_commercial_eligible=True,
+        valuation_metric="price_to_fcf_per_share",
+        valuation_percentile=30.0,
+        free_cash_flow=100.0,
+        revenue_growth=0.05,
+        debt_to_equity=0.5,
+        fundamentals_provenance_eligible=True,
+        fundamentals_rights_eligible=True,
+        fundamentals_field_scope_eligible=True,
+    )
+    result = evaluate_daily_queue((evidence,))
+    status = DailyQueueBuildStatus(
+        result=result,
+        considered_count=1,
+        readiness_row_count=1,
+        price_row_count=440,
+        valuation_observation_count=8,
+        blocker_counts=(),
+        message="Evaluated one record.",
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "render_signal_cards",
+        lambda cards, **kwargs: rendered.extend(
+            str(value) for card in cards for value in card.values()
+        ),
+    )
+    monkeypatch.setattr(dashboard.st, "markdown", lambda value, **kwargs: rendered.append(value))
+    monkeypatch.setattr(dashboard.st, "caption", lambda value, **kwargs: rendered.append(value))
+    monkeypatch.setattr(dashboard.st, "dataframe", lambda frame, **kwargs: tables.append(frame))
+    monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+    monkeypatch.setattr(
+        dashboard.st,
+        "link_button",
+        lambda label, url, **kwargs: links.append((label, url)),
+    )
+
+    dashboard.render_daily_research_queue(status)
+
+    combined = " ".join(rendered).lower()
+    assert "daily momentum & valuation research queue" in combined
+    assert links == [
+        (
+            "Open ALFA Company Workbench",
+            "?mode=research&page=company-workbench&ticker=ALFA",
+        )
+    ]
+    assert len(tables) == 2
+    assert tables[0]["Ticker"].tolist() == ["ALFA"]
+    assert "advanced opened" in rendered
+    for prohibited in ("buy", "sell", "target price", "expected return", "position size"):
+        assert prohibited not in combined
 
 
 def test_company_workbench_anchors_answer_before_collapsed_navigation_and_passes_target_to_report():
