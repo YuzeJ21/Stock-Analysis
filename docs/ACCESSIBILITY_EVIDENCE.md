@@ -777,3 +777,41 @@ Evidence boundary:
   timing artifact was written by the candidate tests.
 - This is not screen-reader, WCAG, hosted, independent-human, or market
   validation evidence.
+
+## 2026-07-31 clean-tree research-state accessibility matrix
+
+Direct current evidence at commit
+`6328c8cead7c27cb901e7878cd6d7d23fa11bb0e` closes the previously
+environment-limited automated state-harness matrix:
+
+- `make research-accessibility-browser-check TIMEOUT_SECONDS=90` returned
+  `verdict=passed` with an empty failure list on local Chrome.
+- The gate first verified the rendered Stock Research Command Center `Demo`
+  identity and a clean product/code/test/docs tree while classifying and
+  excluding exactly 18 unstaged generated paths.
+- All 12 Research Desk, Discover, ticker-bound Company Workbench, Monitor,
+  Research Data Health, and Research Proof History route-and-viewport results
+  passed at `1280x720` and `390x844`.
+- The separate synthetic state harness passed at both viewports. Its six
+  ordinary static states—loading, empty, withheld, stale, failure, and
+  validation—were visible and non-live, with `aria-busy=true` only for
+  loading. Validation rejection and save-reload uncertainty used one assertive
+  alert; preview readiness, draft change, and verified reload used one polite
+  status. An unchanged rerender kept one visible non-live message instead of
+  repeating an announcement.
+- Both harness cases had no traceback, horizontal overflow, console error, or
+  page error. The repository snapshot remained byte-for-byte unchanged before
+  and after the harness. Bounded local server output was captured with zero
+  deprecated-component warnings.
+
+Evidence boundary:
+
+- The state harness is synthetic, test-only, read-only engineering evidence.
+  It does not prove that a screen reader announces each transition correctly.
+- It does not complete independent-human keyboard order, 200%/400% zoom and
+  reflow, forced colors, reduced motion, screen-reader tasks, hosted behavior,
+  remaining small framework controls, or material-defect retests.
+- It proves no WCAG conformance, research-data readiness, source rights,
+  investment conclusion, market validation, or product-market fit.
+- It wrote no repository CSV, JSON, report, screenshot, timing, readiness,
+  canonical-data, or research-ledger artifact.
