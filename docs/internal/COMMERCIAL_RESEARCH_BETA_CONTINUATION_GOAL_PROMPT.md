@@ -193,7 +193,7 @@ Current external dependency classifications to verify once, then avoid looping:
 - Calibration cohort: `calibration_cohort_required`. Last observed: calibration evidence remains insufficient and numerical probability is withheld. Exact unblock condition: accumulate at least 100 leakage-safe out-of-sample events and pass the declared Brier-score, calibration-bin, and benchmark-improvement gates.
 - Operated owner/incident/rollback capacity: `operated_owner_incident_rollback_capacity_required`. Last observed: no named operated owner or directly rehearsed incident and rollback capacity is on record. Exact unblock condition: provide a named owner and directly rehearsed incident and rollback capacity, then directly verify audit, retention, entitlements, monitoring, and health-check operation. A local runbook or hosted URL is insufficient.
 - Point-in-time benchmark/universe data and rights: `point_in_time_benchmark_universe_and_rights_required`. Last observed: no permitted point-in-time benchmark and universe dataset with approved exact-source rights and independent review is on record. Exact unblock condition: Priority 4 remains open until one bounded permitted real dataset is independently reviewed, reproduces the expected membership count and digest, and passes rights, identity, corporate-action, delisting, survivorship, cutoff, partition, reproduction, and leakage gates. Do not retry an unavailable provider or infer data access, source identity, field scope, or rights.
-- Accessibility manual-review environment: `accessibility_manual_review_environment_required`. Last observed: `docs/ACCESSIBILITY_EVIDENCE.md` records a partial local desktop/phone workflow audit and a local automated six-route/two-viewport gate for one stable role-based `main` landmark. Complete independent-human keyboard, zoom, reflow, forced-colors, reduced-motion, screen-reader, hosted, and assistive-technology landmark-use review remains unproven. Exact unblock condition: verify a suitable local or supervised review environment, execute those remaining manual and assistive-technology tasks, and record reproducible findings and material-defect retests.
+- Accessibility manual-review environment: `accessibility_manual_review_environment_required`. Last observed: `docs/ACCESSIBILITY_EVIDENCE.md` records a partial local desktop/phone workflow audit, a local automated route-and-viewport gate for one stable role-based `main` landmark, and passing forced-colors/reduced-motion browser emulation at the current implementation anchor. Manual color and motion protocol tasks and complete independent-human keyboard, zoom, reflow, screen-reader, hosted, and assistive-technology landmark-use review remain unproven. Exact unblock condition: verify a suitable local or supervised review environment, execute those remaining manual and assistive-technology tasks, and record reproducible findings and material-defect retests.
 - Paper-position laboratory design approval: `paper_position_lab_design_approval_required`. Last observed: no separately approved hypothetical paper-position laboratory design is on record. Exact unblock condition: complete the research-only design, private-data policy, language review, misuse analysis, and acceptance plan, then obtain separate explicit approval before implementation.
 
 Approved Next-Stage Maturity Program:
@@ -223,27 +223,25 @@ owned bounded server-output proof also passed with zero warnings. The same 18
 generated paths remained excluded. Require a fresh hosted exact-head CI pass
 after the intentional push; do not treat local evidence as hosted evidence.
 
-1. Reverify and synchronize the current Research State Accessibility candidate.
-   The pure five-transition contract, Company Workbench integration, synthetic
-   AppTest harness, and write-detecting desktop/phone browser-gate assertions
-   are committed locally at `d353ed652`. Exact staging hygiene passed with 18
-   product files and zero generated files. The clean-tree gate classified and
-   excluded exactly 18 generated paths, then headless Chrome was terminated by
-   the managed environment before route execution. A supported browser run,
-   push, PR update, and exact-head CI remain open. Do not copy any prior pass
-   count forward without rerunning.
-2. Reverify and synchronize the current Discover/Monitor Workflow Maturity
-   candidate. The local tree contains the three-question Discover answer,
-   deterministic process-attention precedence, read-only catalyst composition,
-   malformed-ledger fail-closed behavior, preserved cohort order, summary
-   cards, semantic primary/Advanced tables, and direct responsive browser
-   assertions at the same local commit. Focused pure/dashboard/contract/AppTest
-   coverage passed. The route browser result, Git synchronization, and
-   exact-head CI remain open under the same browser-runtime condition.
-3. Resume the remaining automated portion of Priority 7 after those bounded
-   closeouts.
+Completed local accessibility media-preference engineering slice: exact
+implementation anchor `a97a096e1caf2761176dc42798a8c9686179aecc` passed
+forced-colors and reduced-motion emulation in all 12 six-route/two-viewport
+browser results. Existing landmark, focus, navigation, authoring,
+dynamic-state, runtime, overflow, and repository-write checks remained green,
+and the same 18 generated paths remained excluded. This does not pass C01,
+C02, M01 or complete direct platform, assistive-technology, hosted,
+independent-human, or WCAG review.
 
-Priority 7 accessibility remains the next numbered maturity priority. Do not re-run Priorities 1-3 unless a current regression is directly reproduced. Priority 6 provider-neutral retention/deletion or audit-event work is not the active next lane and requires a separate reviewed design; provider-specific work remains blocked on an approved environment.
+Next safe local scan: reproduce and bound the previously observed Discover
+primary-copy containment gap from the current tree before proposing a narrow
+repair. Keep exact technical evidence under Advanced, preserve the read-only
+research queue and alphabetical cohort identity, and do not convert unavailable
+source, rights, reviewer, hosted, or calibration evidence into product copy.
+
+Priority 7 manual accessibility evidence remains externally incomplete. Do not
+re-run Priorities 1-3 unless a current regression is directly reproduced.
+Priority 6 provider-neutral retention/deletion or audit-event work is not the active next lane and requires a separate reviewed design; provider-specific
+work remains blocked on an approved environment.
 
 Priority 1 — Legacy portfolio, ranking, and action-language quarantine
 - Priority 1 is complete locally. The five retained compatibility pages are Operator-only, Public and Personal Research deep links fail closed, and every retained page is labeled `Legacy research utility — not part of Personal Research Mode` with details behind an explicit collapsed control.
@@ -361,6 +359,7 @@ Priority 7 — Accessibility evidence beyond screenshots
   This closes the local transport reliability item only; require hosted
   exact-head CI after push.
 - Preserve the clean-tree research-state accessibility matrix at `6328c8cead7c27cb901e7878cd6d7d23fa11bb0e`: the direct local browser gate passed all 12 route-and-viewport results and the separate synthetic state harness at `1280x720` and `390x844`, with an empty failure list and exactly 18 generated paths classified and excluded. Loading, empty, withheld, stale, failure, and validation remained visible non-live states with busy semantics only for loading. Validation rejection and reload uncertainty used one assertive alert; preview readiness, draft change, and verified reload used one polite status; unchanged rerenders retained one visible non-live message. Both harness cases had no traceback, overflow, console/page error, or repository mutation. This closes only the previously environment-limited automated matrix; it is not screen-reader, human, hosted, or WCAG evidence.
+- Preserve the automated media-preference matrix at exact implementation anchor `a97a096e1caf2761176dc42798a8c9686179aecc`: `make research-accessibility-browser-check TIMEOUT_SECONDS=90` passed forced-colors and reduced-motion emulation for all 12 Research Desk, Discover, ticker-bound Company Workbench, Monitor, Research Data Health, and Research Proof History cases at `1280x720` and `390x844`. Existing landmark, physical-Tab skip focus and activation, navigation, applicable Discover/authoring, same-document rerun, away-and-return, dynamic-state, runtime-warning, browser-error, overflow, and byte-for-byte repository checks remained green; the same 18 generated paths remained unstaged and excluded. This is automated engineering evidence only. It does not pass C01, C02, M01 or direct platform/human forced-colors, reduced-motion, zoom, screen-reader, assistive-technology, hosted, independent-human, or WCAG evidence.
 - Execute `docs/ACCESSIBILITY_TASK_PROTOCOL.md` for direct task evidence. It records exact revision/environment metadata, keyboard-only navigation, write-free validation, zoom/reflow, forced-colors, reduced-motion, screen-reader, target-size, finding, and completion rules; the protocol is not completion evidence.
 - The current Streamlit container API has no stable semantic-role parameter. Preserve the separately reviewed fixed same-origin bridge, its exact-target and fail-closed ownership rules, and its direct runtime gate; do not broaden it into research-content access, navigation, application actions, persistence, telemetry, or readiness behavior.
 - Continue with the named open findings: small framework controls outside the tested matrix, independent-human complete keyboard order, true zoom/reflow, forced colors, reduced motion, screen-reader tasks, and assistive-technology confirmation of dynamic announcements. Do not reopen the completed synthetic loading/empty/withheld/stale/failure matrix unless a current regression is reproduced.

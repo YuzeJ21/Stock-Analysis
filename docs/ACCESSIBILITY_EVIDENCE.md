@@ -815,3 +815,45 @@ Evidence boundary:
   investment conclusion, market validation, or product-market fit.
 - It wrote no repository CSV, JSON, report, screenshot, timing, readiness,
   canonical-data, or research-ledger artifact.
+
+## 2026-07-31 automated media-preference matrix
+
+Direct local engineering evidence at exact implementation anchor
+`a97a096e1caf2761176dc42798a8c9686179aecc`:
+
+- `make research-accessibility-browser-check TIMEOUT_SECONDS=90` returned
+  `verdict=passed` with an empty failure list on local Chrome.
+- The gate verified Research Desk, Discover, ticker-bound Company Workbench,
+  Monitor, Research Data Health, and Research Proof History at both
+  `1280x720` and `390x844`; all 12 route-and-viewport results passed.
+- Every result passed automated forced-colors emulation. The media query was
+  active; the first physical Tab still focused the sole skip link with a
+  visible outline; current-route state retained a non-color marker; the
+  research-only boundary and required text remained visible; and the boundary
+  retained a visible border without overflow or traceback.
+- Every result passed automated reduced-motion emulation. The media query was
+  active; application-owned motion targets were present; maximum animation
+  and transition duration was `0.01ms`; maximum animation iteration count was
+  one; scroll behavior was `auto`; and required text remained visible without
+  overflow or traceback.
+- Ordinary media preferences were restored between emulated phases. The
+  existing landmark, physical-Tab skip focus and activation, workflow
+  navigation, applicable Discover and authoring, same-document rerun,
+  away-and-return routing, runtime-warning, browser-error, and overflow
+  assertions remained green. The separate dynamic-state harness passed at
+  both viewports, and its repository snapshot remained byte-for-byte
+  unchanged.
+- Repository hygiene still classified and excluded exactly the same 18
+  unstaged generated CSV/output paths. The run wrote no repository JSON,
+  timing, screenshot, report, readiness, canonical-data, or research-ledger
+  artifact.
+
+Evidence boundary:
+
+- Automated media emulation is bounded engineering evidence only. It does not
+  pass manual protocol tasks C01, C02, or M01 and is not direct operating-
+  system forced-colors, platform reduced-motion, or human review evidence.
+- C01, C02, M01, true 200%/400% zoom and reflow, screen-reader,
+  assistive-technology, independent-human, hosted, and WCAG evidence remain
+  incomplete. Priority 7 and
+  `accessibility_manual_review_environment_required` remain open.
