@@ -601,6 +601,7 @@ def test_route_result_includes_fail_closed_bridge_transport_fields(monkeypatch):
     monkeypatch.setattr(gate, "_semantic_main_assertions", lambda *args, **kwargs: [])
     monkeypatch.setattr(gate, "_runtime_dom_assertions", lambda *args, **kwargs: [])
     monkeypatch.setattr(gate, "_skip_link_assertions", lambda *args, **kwargs: [])
+    monkeypatch.setattr(gate, "_media_preference_assertions", lambda *args, **kwargs: [])
     monkeypatch.setattr(
         gate, "_same_document_streamlit_rerun_assertions", lambda *args, **kwargs: []
     )
@@ -749,6 +750,91 @@ def test_same_document_streamlit_rerun_contract_fails_closed_for_each_gap():
             for assertion in failed
             if assertion["name"] == assertion_name
         )["passed"] is False
+
+
+def test_media_preference_assertions_emulate_both_modes_and_restore_each(monkeypatch):
+    import src.research_accessibility_browser_gate as gate
+
+    class FakePage:
+        def __init__(self):
+            self.calls = []
+
+        def emulate_media(self, **kwargs):
+            self.calls.append(kwargs)
+
+    page = FakePage()
+    monkeypatch.setattr(gate, "_forced_colors_observation", lambda page, route: {})
+    monkeypatch.setattr(gate, "_reduced_motion_observation", lambda page, route: {})
+    monkeypatch.setattr(gate, "evaluate_forced_colors_observation", lambda observation, *, primary_route: [{"name": "forced", "passed": True, "detail": "ok"}])
+    monkeypatch.setattr(gate, "evaluate_reduced_motion_observation", lambda observation: [{"name": "motion", "passed": True, "detail": "ok"}])
+
+    assertions = gate._media_preference_assertions(page, gate.RESEARCH_ROUTES[0])
+
+    assert all(item["passed"] for item in assertions)
+    assert page.calls == [
+        {"forced_colors": "active", "reduced_motion": "no-preference"},
+        {"forced_colors": "none", "reduced_motion": "no-preference"},
+        {"forced_colors": "none", "reduced_motion": "reduce"},
+        {"forced_colors": "none", "reduced_motion": "no-preference"},
+    ]
+
+
+def test_media_preference_assertions_restore_and_continue_after_probe_failure(monkeypatch):
+    import src.research_accessibility_browser_gate as gate
+
+    class FakePage:
+        def __init__(self):
+            self.calls = []
+
+        def emulate_media(self, **kwargs):
+            self.calls.append(kwargs)
+
+    def fail_forced(page, route):
+        raise RuntimeError("forced probe")
+
+    page = FakePage()
+    monkeypatch.setattr(gate, "_forced_colors_observation", fail_forced)
+    monkeypatch.setattr(gate, "_reduced_motion_observation", lambda page, route: {})
+    monkeypatch.setattr(gate, "evaluate_reduced_motion_observation", lambda observation: [{"name": "motion", "passed": True, "detail": "ok"}])
+
+    assertions = gate._media_preference_assertions(page, gate.RESEARCH_ROUTES[0])
+
+    forced = next(item for item in assertions if item["name"] == "forced_colors_execution")
+    assert forced["passed"] is False
+    assert "RuntimeError: forced probe" in forced["detail"]
+    assert next(item for item in assertions if item["name"] == "motion")["passed"] is True
+    assert page.calls == [
+        {"forced_colors": "active", "reduced_motion": "no-preference"},
+        {"forced_colors": "none", "reduced_motion": "no-preference"},
+        {"forced_colors": "none", "reduced_motion": "reduce"},
+        {"forced_colors": "none", "reduced_motion": "no-preference"},
+    ]
+
+
+def test_media_preference_assertions_report_each_restore_failure(monkeypatch):
+    import src.research_accessibility_browser_gate as gate
+
+    class FakePage:
+        def __init__(self):
+            self.calls = []
+
+        def emulate_media(self, **kwargs):
+            self.calls.append(kwargs)
+            if kwargs == {"forced_colors": "none", "reduced_motion": "no-preference"}:
+                raise RuntimeError("restore failed")
+
+    page = FakePage()
+    monkeypatch.setattr(gate, "_forced_colors_observation", lambda page, route: {})
+    monkeypatch.setattr(gate, "_reduced_motion_observation", lambda page, route: {})
+    monkeypatch.setattr(gate, "evaluate_forced_colors_observation", lambda observation, *, primary_route: [{"name": "forced", "passed": True, "detail": "ok"}])
+    monkeypatch.setattr(gate, "evaluate_reduced_motion_observation", lambda observation: [{"name": "motion", "passed": True, "detail": "ok"}])
+
+    assertions = gate._media_preference_assertions(page, gate.RESEARCH_ROUTES[0])
+
+    restores = [item for item in assertions if item["name"] == "media_preferences_restore"]
+    assert len(restores) == 2
+    assert all(item["passed"] is False for item in restores)
+    assert all("RuntimeError: restore failed" in item["detail"] for item in restores)
 
 
 def test_same_document_rerun_helper_uses_real_workspace_widget_event():

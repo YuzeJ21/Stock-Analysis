@@ -691,6 +691,194 @@ def evaluate_reduced_motion_observation(
     ]
 
 
+def _forced_colors_observation(
+    page: Any,
+    route: ResearchRoute,
+) -> dict[str, object]:
+    page.evaluate(
+        """
+() => {
+  if (document.activeElement && document.activeElement !== document.body) {
+    document.activeElement.blur();
+  }
+  document.body.setAttribute("tabindex", "-1");
+  document.body.focus({preventScroll: true});
+}
+"""
+    )
+    page.keyboard.press("Tab")
+    page.evaluate("document.body.removeAttribute('tabindex')")
+    return page.evaluate(
+        """
+(primaryRoute) => {
+  const visible = (node) => {
+    if (!node) return false;
+    const box = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    return box.width > 0 && box.height > 0 &&
+      style.display !== "none" && style.visibility !== "hidden";
+  };
+  const width = (style, names) => Math.max(
+    ...names.map((name) => Number.parseFloat(style[name]) || 0)
+  );
+  const skips = [...document.querySelectorAll(
+    "a.public-skip-link[href='#public-page-answer']"
+  )];
+  const currents = [...document.querySelectorAll(
+    ".research-workflow-link[aria-current='page']"
+  )];
+  const boundaries = [...document.querySelectorAll(
+    ".research-workspace-boundary"
+  )];
+  const skipStyle = skips.length === 1 ? getComputedStyle(skips[0]) : null;
+  const currentStyle = currents.length === 1 ? getComputedStyle(currents[0]) : null;
+  const boundaryStyle = boundaries.length === 1 ? getComputedStyle(boundaries[0]) : null;
+  const heading = document.querySelector("[role='main'] h1");
+  return {
+    media_active: matchMedia("(forced-colors: active)").matches,
+    skip_count: skips.length,
+    skip_focused: skips.length === 1 && document.activeElement === skips[0],
+    skip_outline_style: skipStyle ? skipStyle.outlineStyle : "",
+    skip_outline_width_px: skipStyle ? Number.parseFloat(skipStyle.outlineWidth) || 0 : 0,
+    current_route_count: currents.length,
+    current_route_value: currents.length === 1 ? currents[0].getAttribute("aria-current") || "" : "",
+    current_route_marker_width_px: currentStyle ? width(currentStyle, ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "outlineWidth"]) : 0,
+    boundary_count: boundaries.length,
+    boundary_visible: boundaries.length === 1 && visible(boundaries[0]),
+    boundary_border_width_px: boundaryStyle ? width(boundaryStyle, ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth"]) : 0,
+    heading_visible: visible(heading),
+    boundary_text_visible: boundaries.length === 1 && visible(boundaries[0]) && boundaries[0].innerText.includes("Research-only"),
+    overflow_px: Math.max(0, document.documentElement.scrollWidth - window.innerWidth),
+    traceback_visible: document.body.innerText.includes("Traceback (most recent call last)"),
+    primary_route: primaryRoute,
+  };
+}
+""",
+        route.requires_primary_navigation,
+    )
+
+
+def _reduced_motion_observation(
+    page: Any,
+    route: ResearchRoute,
+) -> dict[str, object]:
+    return page.evaluate(
+        """
+() => {
+  const app = document.querySelector(".stApp");
+  const visible = (node) => {
+    if (!node) return false;
+    const box = node.getBoundingClientRect();
+    const style = getComputedStyle(node);
+    return box.width > 0 && box.height > 0 &&
+      style.display !== "none" && style.visibility !== "hidden";
+  };
+  const toMilliseconds = (value) => value.split(",").map((part) => {
+    const token = part.trim();
+    const amount = Number.parseFloat(token);
+    if (!Number.isFinite(amount)) return Number.MAX_SAFE_INTEGER;
+    if (token.endsWith("ms")) return amount;
+    if (token.endsWith("s")) return amount * 1000;
+    return Number.MAX_SAFE_INTEGER;
+  });
+  const toIterations = (value) => value.split(",").map((part) => {
+    const token = part.trim();
+    if (token === "infinite") return Number.MAX_SAFE_INTEGER;
+    const amount = Number.parseFloat(token);
+    return Number.isFinite(amount) ? amount : Number.MAX_SAFE_INTEGER;
+  });
+  const targets = [...new Set([
+    app,
+    ...document.querySelectorAll(".research-workflow-link"),
+    ...document.querySelectorAll(".research-workspace-boundary"),
+    ...document.querySelectorAll(".research-state-message"),
+  ].filter(Boolean))];
+  const styles = targets.map((node) => getComputedStyle(node));
+  const animationDurations = styles.flatMap((style) => toMilliseconds(style.animationDuration));
+  const transitionDurations = styles.flatMap((style) => toMilliseconds(style.transitionDuration));
+  const iterations = styles.flatMap((style) => toIterations(style.animationIterationCount));
+  const boundary = document.querySelector(".research-workspace-boundary");
+  const heading = document.querySelector("[role='main'] h1");
+  return {
+    media_active: matchMedia("(prefers-reduced-motion: reduce)").matches,
+    target_count: targets.length,
+    max_animation_duration_ms: animationDurations.length ? Math.max(...animationDurations) : Number.MAX_SAFE_INTEGER,
+    max_transition_duration_ms: transitionDurations.length ? Math.max(...transitionDurations) : Number.MAX_SAFE_INTEGER,
+    max_animation_iterations: iterations.length ? Math.max(...iterations) : Number.MAX_SAFE_INTEGER,
+    scroll_behavior: app ? getComputedStyle(app).scrollBehavior : "",
+    heading_visible: visible(heading),
+    boundary_visible: visible(boundary),
+    overflow_px: Math.max(0, document.documentElement.scrollWidth - window.innerWidth),
+    traceback_visible: document.body.innerText.includes("Traceback (most recent call last)"),
+  };
+}
+"""
+    )
+
+
+def _media_preference_assertions(
+    page: Any,
+    route: ResearchRoute,
+) -> list[dict[str, object]]:
+    assertions: list[dict[str, object]] = []
+
+    def restore() -> None:
+        try:
+            page.emulate_media(
+                forced_colors="none",
+                reduced_motion="no-preference",
+            )
+        except Exception as exc:
+            assertions.append(
+                _assertion(
+                    "media_preferences_restore",
+                    False,
+                    f"{type(exc).__name__}: {exc}",
+                )
+            )
+
+    try:
+        page.emulate_media(
+            forced_colors="active",
+            reduced_motion="no-preference",
+        )
+        assertions.extend(
+            evaluate_forced_colors_observation(
+                _forced_colors_observation(page, route),
+                primary_route=route.requires_primary_navigation,
+            )
+        )
+    except Exception as exc:
+        assertions.append(
+            _assertion(
+                "forced_colors_execution",
+                False,
+                f"{type(exc).__name__}: {exc}",
+            )
+        )
+    finally:
+        restore()
+
+    try:
+        page.emulate_media(forced_colors="none", reduced_motion="reduce")
+        assertions.extend(
+            evaluate_reduced_motion_observation(
+                _reduced_motion_observation(page, route)
+            )
+        )
+    except Exception as exc:
+        assertions.append(
+            _assertion(
+                "reduced_motion_execution",
+                False,
+                f"{type(exc).__name__}: {exc}",
+            )
+        )
+    finally:
+        restore()
+    return assertions
+
+
 def evaluate_semantic_main_landmark(
     *,
     main_count: int,
@@ -2272,6 +2460,7 @@ def _measure_route(
         if route.name == "Company Workbench":
             assertions.extend(_authoring_error_assertions(page))
 
+        assertions.extend(_media_preference_assertions(page, route))
         assertions.extend(
             _same_document_streamlit_rerun_assertions(
                 page,
