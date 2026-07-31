@@ -1,5 +1,6 @@
 import csv
 import os
+import subprocess
 from pathlib import Path
 
 from src.reviewed_batch import (
@@ -114,23 +115,14 @@ def test_reviewed_batch_reports_missing_readiness_artifacts(tmp_path: Path):
     assert "Do not proceed if" in rendered
 
 
-def test_reviewed_batch_reports_stale_readiness_artifacts(tmp_path: Path):
+def test_reviewed_batch_ignores_mtime_only_changes_when_declared_dates_are_current(tmp_path: Path):
     root = _sample_root(tmp_path)
     source = root / "data" / "prices.csv"
     os.utime(source, (source.stat().st_atime + 1000, source.stat().st_mtime + 1000))
 
-    packet = build_reviewed_batch_packet(root, lane="prices", top_n=2)
-    rendered = render_packet_markdown(packet)
+    status = readiness_freshness_status(root)
 
-    assert packet.freshness.status == "stale"
-    assert reviewed_batch_packet_status(packet) == "blocked_by_freshness"
-    assert reviewed_batch_next_safe_action(packet) == "make readiness"
-    assert "Readiness artifacts may be stale" in rendered
-    assert "make readiness before relying on final counts" in rendered
-    assert "Packet status: `blocked_by_freshness`" in rendered
-    assert "Next safe action: `make readiness`" in rendered
-    assert "## Blocked Preflight" in rendered
-    assert "Treat this packet as a stale-readiness scaffold, not execution approval." in rendered
+    assert status.status == "current"
 
 
 def test_readiness_freshness_uses_explicit_selected_profile_paths(tmp_path: Path):
@@ -158,6 +150,41 @@ def test_readiness_freshness_uses_explicit_selected_profile_paths(tmp_path: Path
     status = readiness_freshness_status(tmp_path, data_dir=local_data)
 
     assert status.status == "current"
+
+
+def test_reviewed_batch_blocks_uncommitted_default_readiness_evidence(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _mark_readiness_current(root)
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "add", "data"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=Codex Test",
+            "-c",
+            "user.email=codex@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+        check=True,
+    )
+    with (root / "data/reports/ticker_readiness_report.csv").open("a", encoding="utf-8") as handle:
+        handle.write("DDD,company,true,true,true,false,false,false,partial,peer,,,\n")
+
+    packet = build_reviewed_batch_packet(root, lane="prices", top_n=2)
+    rendered = render_packet_markdown(packet)
+
+    assert packet.freshness.status == "working_artifact_uncommitted"
+    assert reviewed_batch_packet_status(packet) == "blocked_by_freshness"
+    assert reviewed_batch_next_safe_action(packet) == "make readiness-preview TOP_N=20"
+    assert "not tracked release evidence" in packet.freshness.message.lower()
+    assert "Packet status: `blocked_by_freshness`" in rendered
+    assert "## Blocked Preflight" in rendered
+    assert "ready_for_review" not in rendered
 
 
 def test_readiness_freshness_blocks_newer_declared_source_date_when_file_mtimes_are_current(tmp_path: Path):
@@ -442,8 +469,27 @@ def test_reviewed_batch_preview_shows_next_action_without_writing_outputs(tmp_pa
 
 def test_reviewed_batch_cli_prints_packet_status_and_next_safe_action(tmp_path: Path, capsys):
     root = _sample_root(tmp_path)
-    source = root / "data" / "prices.csv"
-    os.utime(source, (source.stat().st_atime + 1000, source.stat().st_mtime + 1000))
+    _write(
+        root / "data" / "fundamentals.csv",
+        (
+            "ticker,source,revenue,free_cash_flow,fcf_margin,shares_outstanding,as_of_date\n"
+            "AAA,manual,100,20,0.20,,2026-07-16\n"
+        ),
+    )
+    _write(
+        root / "data" / "reports" / "ticker_readiness_report.csv",
+        (
+            "ticker,price_ready,fundamentals_ready,dcf_ready,peer_ready,generated_at\n"
+            "AAA,true,true,false,false,2026-07-15T19:30:00+00:00\n"
+        ),
+    )
+    _write(
+        root / "data" / "reports" / "feature_readiness_summary.csv",
+        (
+            "feature,ready_count,blocked_count,total_count,generated_at\n"
+            "fundamentals,1,0,1,2026-07-15T19:30:00+00:00\n"
+        ),
+    )
 
     rc = main(
         [

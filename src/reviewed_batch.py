@@ -23,17 +23,6 @@ from src.profile_context import build_profile_context
 
 DEFAULT_PACKET_MD = Path("outputs/reviewed_batch_packet.md")
 DEFAULT_PACKET_CSV = Path("outputs/reviewed_batch_packet.csv")
-REQUIRED_READINESS_REPORTS = (
-    "data/reports/ticker_readiness_report.csv",
-    "data/reports/feature_readiness_summary.csv",
-)
-SOURCE_FILES_FOR_FRESHNESS = (
-    "data/prices.csv",
-    "data/fundamentals.csv",
-    "data/peers.csv",
-    "data/earnings.csv",
-    "data/analyst_estimates.csv",
-)
 PROOF_TEMPLATE_FIELDS = (
     "batch_id",
     "lane",
@@ -220,19 +209,6 @@ def normalize_batch_lane(value: str) -> tuple[str, ...]:
     raise ValueError("Unknown reviewed batch lane. Use prices, fundamentals, share_count, peers, metrics, or optional_context.")
 
 
-def _mtime(path: Path) -> float:
-    try:
-        return path.stat().st_mtime
-    except FileNotFoundError:
-        return 0.0
-
-
-def _selected_data_path(relative_path: str, data_dir: Path) -> Path:
-    path = Path(relative_path)
-    parts = path.parts[1:] if path.parts and path.parts[0] == "data" else path.parts
-    return data_dir.joinpath(*parts)
-
-
 def readiness_freshness_status(
     root: Path | str = ".",
     *,
@@ -242,35 +218,27 @@ def readiness_freshness_status(
     project_root = resolve_project_root(root)
     data_path = resolve_data_dir(data_dir, project_root)
     output_path = resolve_outputs_dir(output_dir, project_root)
-    readiness_paths = [_selected_data_path(path, data_path) for path in REQUIRED_READINESS_REPORTS]
-    source_paths = [_selected_data_path(path, data_path) for path in SOURCE_FILES_FOR_FRESHNESS]
-    missing = [str(path.relative_to(data_path)) for path in readiness_paths if not path.exists()]
-    if missing:
-        return FreshnessStatus(
-            "missing",
-            "Missing readiness artifact(s): "
-            + ", ".join(missing)
-            + ". Run make readiness before using this packet for execution.",
-        )
-    readiness_time = min(_mtime(path) for path in readiness_paths)
-    newer_sources = [path for path in source_paths if _mtime(path) > readiness_time]
-    if newer_sources:
-        return FreshnessStatus(
-            "stale",
-            "Readiness artifacts may be stale because source file(s) changed after the saved reports: "
-            + ", ".join(str(path.relative_to(data_path)) for path in newer_sources)
-            + ". Run make readiness before relying on final counts.",
-        )
     profile_context = build_profile_context(
         project_root=project_root,
         data_dir=data_path,
         output_dir=output_path,
     )
     if profile_context.freshness_state != "current":
+        message = profile_context.freshness_message
+        if profile_context.freshness_state == "missing":
+            message = "Missing readiness artifact(s). Run make readiness before using this packet for execution."
+        elif profile_context.freshness_state == "stale":
+            message = f"{message} Run make readiness before relying on final counts."
         return FreshnessStatus(
             profile_context.freshness_state,
-            profile_context.freshness_message,
+            message,
             profile_context.refresh_command or "make readiness",
+        )
+    if profile_context.readiness_evidence_state in {"working_artifact_uncommitted", "unverified"}:
+        return FreshnessStatus(
+            profile_context.readiness_evidence_state,
+            profile_context.readiness_evidence_message,
+            "make readiness-preview TOP_N=20",
         )
     return FreshnessStatus("current", "Readiness artifacts are current relative to watched source files.")
 
@@ -372,7 +340,7 @@ def _join_ticker_arg(tickers: tuple[str, ...]) -> str:
 
 
 def reviewed_batch_packet_status(packet: ReviewedBatchPacket) -> str:
-    if packet.freshness.status in {"missing", "stale"}:
+    if packet.freshness.status != "current":
         return "blocked_by_freshness"
     if not packet.actions:
         return "blocked_no_actions"
@@ -553,7 +521,7 @@ def _do_not_proceed(lane: ReadinessLane, freshness: FreshnessStatus) -> str:
         )
     if lane.lane == "metric_readiness_review":
         blockers.append("the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof")
-    if freshness.status in {"missing", "stale"}:
+    if freshness.status != "current":
         blockers.insert(0, f"{freshness.status}: run {freshness.refresh_command}")
     return "; ".join(blockers)
 

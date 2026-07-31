@@ -2,6 +2,7 @@ import csv
 import hashlib
 import json
 import os
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -200,9 +201,8 @@ def test_profile_freshness_states(tmp_path, monkeypatch, arrange, expected):
             _set_mtime(report, "2026-07-15T19:30:00Z")
             _set_mtime(feature, "2026-07-15T19:30:00Z")
         elif arrange == "stale":
-            _set_mtime(report, "2026-07-15T18:00:00Z")
-            _set_mtime(feature, "2026-07-15T18:00:00Z")
-            _set_mtime(price, "2026-07-15T19:30:00Z")
+            _write_readiness(report, ticker="NVDA", updated_at="2026-07-13T18:00:00Z")
+            _write_feature_summary(feature, updated_at="2026-07-13T18:00:00Z")
         elif arrange == "mixed":
             feature.unlink()
 
@@ -222,6 +222,7 @@ def test_rendered_profile_context_is_compact_and_complete(tmp_path, monkeypatch)
     assert "Readiness built: 2026-07-15T19:30:00+00:00" in rendered
     assert "Snapshot:" in rendered
     assert "Freshness:" in rendered
+    assert "Readiness evidence:" in rendered
     assert "Saved readiness coverage: price=1/1; fundamentals=1/1; DCF=1/1; peers=0/1" in rendered
 
 
@@ -250,3 +251,79 @@ def test_source_date_after_readiness_build_date_is_stale_even_when_file_mtimes_a
     assert context.source_as_of == "2026-07-16"
     assert context.freshness_state == "stale"
     assert "source dates are newer" in context.freshness_message.lower()
+
+
+def test_default_profile_separates_current_dates_from_uncommitted_readiness_evidence(tmp_path, monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+    profile = tmp_path / "data"
+    _write_minimum_profile(profile)
+    for path in (
+        profile / "prices.csv",
+        profile / "fundamentals.csv",
+        profile / "reports/ticker_readiness_report.csv",
+        profile / "reports/feature_readiness_summary.csv",
+    ):
+        _set_mtime(path, "2026-07-15T19:30:00Z")
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "add", "data"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(tmp_path),
+            "-c",
+            "user.name=Codex Test",
+            "-c",
+            "user.email=codex@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+        check=True,
+    )
+    with (profile / "reports/ticker_readiness_report.csv").open("a", encoding="utf-8") as handle:
+        handle.write("AMD,true,true,true,false,2026-07-15T19:30:00Z\n")
+
+    context = build_profile_context(project_root=tmp_path)
+
+    assert context.freshness_state == "current"
+    assert context.readiness_evidence_state == "working_artifact_uncommitted"
+    assert "not tracked release evidence" in context.readiness_evidence_message.lower()
+
+
+def test_default_profile_marks_git_comparison_failure_unverified(tmp_path, monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+    _write_minimum_profile(tmp_path / "data")
+
+    def _raise_git_unavailable(*args, **kwargs):
+        raise OSError("git unavailable")
+
+    monkeypatch.setattr(subprocess, "run", _raise_git_unavailable)
+
+    context = build_profile_context(project_root=tmp_path)
+
+    assert context.readiness_evidence_state == "unverified"
+    assert "could not be compared" in context.readiness_evidence_message.lower()
+
+
+def test_default_profile_distinguishes_non_repository_from_broken_git_probe(tmp_path, monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+    _write_minimum_profile(tmp_path / "data")
+
+    outside_git = build_profile_context(project_root=tmp_path)
+
+    assert outside_git.readiness_evidence_state == "not_applicable"
+
+    def _raise_broken_worktree(*args, **kwargs):
+        raise subprocess.CalledProcessError(
+            128,
+            args[0],
+            stderr="fatal: detected dubious ownership in repository",
+        )
+
+    monkeypatch.setattr(subprocess, "run", _raise_broken_worktree)
+
+    broken_git = build_profile_context(project_root=tmp_path)
+
+    assert broken_git.readiness_evidence_state == "unverified"
+    assert "could not be compared" in broken_git.readiness_evidence_message.lower()

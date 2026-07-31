@@ -6,6 +6,7 @@ import argparse
 import csv
 import hashlib
 import json
+import subprocess
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -62,6 +63,8 @@ class ProfileContext:
     coverage: CoverageCounts
     lane_source_dates: tuple[tuple[str, str], ...]
     snapshot_inputs: tuple[str, ...]
+    readiness_evidence_state: str = "unverified"
+    readiness_evidence_message: str = "Readiness evidence origin was not evaluated."
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -202,6 +205,62 @@ def _local_identity(data_dir: Path) -> tuple[str, tuple[str, ...]]:
     return hashlib.sha256(encoded).hexdigest(), tuple(inputs)
 
 
+def _readiness_evidence(
+    project_root: Path,
+    data_dir: Path,
+    *,
+    profile_key: str,
+) -> tuple[str, str]:
+    """Classify tracked release evidence independently from date freshness."""
+
+    if profile_key != "default" or data_dir != (project_root / "data").resolve():
+        return "not_applicable", "Tracked release-evidence comparison applies only to the default data profile."
+    try:
+        relative_paths = [(data_dir / path).relative_to(project_root).as_posix() for path in READINESS_FILES]
+    except ValueError:
+        return "unverified", "Readiness artifacts are outside the project root and cannot be compared with HEAD."
+    try:
+        repository_check = subprocess.run(
+            ["git", "-C", str(project_root), "rev-parse", "--is-inside-work-tree"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = str(exc.stderr or "").lower()
+        if "not a git repository" in stderr:
+            return "not_applicable", "Tracked release-evidence comparison is unavailable outside a Git worktree."
+        return "unverified", "Readiness artifacts could not be compared with tracked HEAD evidence."
+    except OSError:
+        return "unverified", "Readiness artifacts could not be compared with tracked HEAD evidence."
+    if repository_check.stdout.strip().lower() != "true":
+        return "not_applicable", "Tracked release-evidence comparison is unavailable outside a Git worktree."
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(project_root),
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+                "--",
+                *relative_paths,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return "unverified", "Readiness artifacts could not be compared with tracked HEAD evidence."
+    if result.stdout.strip():
+        return (
+            "working_artifact_uncommitted",
+            "Readiness artifacts differ from HEAD and are not tracked release evidence.",
+        )
+    return "tracked", "Readiness artifacts match tracked HEAD evidence."
+
+
 def _freshness(data_dir: Path) -> tuple[str, str, str]:
     readiness_paths = [data_dir / path for path in READINESS_FILES]
     readiness_present = [path for path in readiness_paths if path.exists()]
@@ -213,9 +272,6 @@ def _freshness(data_dir: Path) -> tuple[str, str, str]:
     source_paths = [data_dir / path for path in SOURCE_DATE_COLUMNS if (data_dir / path).exists()]
     if not source_paths:
         return "mixed", "Readiness exists but selected-profile canonical source files are missing.", "make readiness"
-    oldest_readiness = min(path.stat().st_mtime for path in readiness_present)
-    if any(path.stat().st_mtime > oldest_readiness for path in source_paths):
-        return "stale", "Selected-profile source files are newer than saved readiness.", "make readiness"
     return "current", "Selected-profile readiness is current for the saved source files.", ""
 
 
@@ -244,6 +300,11 @@ def build_profile_context(
 
     readiness_built_at = _readiness_built_at(data_path)
     freshness_state, freshness_message, refresh_command = _freshness(data_path)
+    readiness_evidence_state, readiness_evidence_message = _readiness_evidence(
+        root,
+        data_path,
+        profile_key=profile.name,
+    )
     source_date = _parse_date(source_as_of)
     readiness_time = _parse_datetime(readiness_built_at)
     if (
@@ -274,6 +335,8 @@ def build_profile_context(
         coverage=_coverage_counts(data_path / READINESS_FILES[0]),
         lane_source_dates=lanes,
         snapshot_inputs=snapshot_inputs,
+        readiness_evidence_state=readiness_evidence_state,
+        readiness_evidence_message=readiness_evidence_message,
     )
 
 
@@ -286,6 +349,10 @@ def render_profile_context_text(context: ProfileContext) -> str:
             f"Readiness built: {context.readiness_built_at or 'unavailable'}",
             f"Snapshot: {context.snapshot_identity_short or 'unavailable'}",
             f"Freshness: {context.freshness_state} - {context.freshness_message}",
+            (
+                "Readiness evidence: "
+                f"{context.readiness_evidence_state} - {context.readiness_evidence_message}"
+            ),
             (
                 f"Saved readiness coverage: price={coverage.price_ready}/{coverage.total}; "
                 f"fundamentals={coverage.fundamentals_ready}/{coverage.total}; "

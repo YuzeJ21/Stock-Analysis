@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import csv
-import os
 from dataclasses import replace
 from pathlib import Path
 
@@ -446,8 +445,19 @@ def test_peer_mapping_writeback_guard_cli_is_copy_only(tmp_path: Path, capsys):
 
 def test_peer_mapping_source_review_blocks_on_stale_readiness(tmp_path: Path):
     root = _sample_root(tmp_path)
-    source = root / "data" / "peers.csv"
-    os.utime(source, (source.stat().st_atime + 1000, source.stat().st_mtime + 1000))
+    (root / "data/peers.csv").write_text(
+        "ticker,as_of_date\n,2026-07-16\n",
+        encoding="utf-8",
+    )
+    (root / "data/reports/ticker_readiness_report.csv").write_text(
+        "ticker,price_ready,dcf_ready,peer_ready,overall_readiness_state,generated_at\n"
+        "AAA,true,true,false,partial,2026-07-15T19:30:00+00:00\n",
+        encoding="utf-8",
+    )
+    (root / "data/reports/feature_readiness_summary.csv").write_text(
+        "feature,ready,total,generated_at\npeer_ready,0,1,2026-07-15T19:30:00+00:00\n",
+        encoding="utf-8",
+    )
 
     packet = build_peer_mapping_source_review_packet(root, top_n=1)
     rendered = render_peer_mapping_source_review_markdown(packet)

@@ -24154,6 +24154,22 @@ def _peer_source_review_root(tmp_path: Path) -> Path:
     return root
 
 
+def _mark_peer_readiness_declared_stale(root: Path) -> None:
+    (root / "data/peers.csv").write_text(
+        "ticker,as_of_date\n,2026-07-16\n",
+        encoding="utf-8",
+    )
+    (root / "data/reports/ticker_readiness_report.csv").write_text(
+        "ticker,price_ready,dcf_ready,peer_ready,overall_readiness_state,generated_at\n"
+        "META,true,true,false,partial,2026-07-15T19:30:00+00:00\n",
+        encoding="utf-8",
+    )
+    (root / "data/reports/feature_readiness_summary.csv").write_text(
+        "feature,ready,total,generated_at\npeer_ready,0,1,2026-07-15T19:30:00+00:00\n",
+        encoding="utf-8",
+    )
+
+
 def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp_path: Path):
     packet = dashboard.build_peer_mapping_source_review_packet(_peer_source_review_root(tmp_path), top_n=1)
     cards = dashboard.data_health_peer_source_review_cards(packet)
@@ -24265,8 +24281,7 @@ def test_peer_proof_batch_planner_summarizes_packet_guard_and_stop_rule(tmp_path
 
 def test_data_health_peer_source_review_blocks_stale_readiness(tmp_path: Path):
     root = _peer_source_review_root(tmp_path)
-    source = root / "data" / "peers.csv"
-    os.utime(source, (source.stat().st_atime + 1000, source.stat().st_mtime + 1000))
+    _mark_peer_readiness_declared_stale(root)
 
     packet = dashboard.build_peer_mapping_source_review_packet(root, top_n=1)
     cards = dashboard.data_health_peer_source_review_cards(packet)
@@ -24498,8 +24513,7 @@ def test_peer_operator_summary_surfaces_current_gate_before_peer_tables(tmp_path
 
 def test_peer_proof_loop_outcome_blocks_stale_readiness(tmp_path: Path):
     root = _peer_source_review_root(tmp_path)
-    source = root / "data" / "peers.csv"
-    os.utime(source, (source.stat().st_atime + 1000, source.stat().st_mtime + 1000))
+    _mark_peer_readiness_declared_stale(root)
     packet = dashboard.build_peer_mapping_source_review_packet(root, top_n=1)
 
     outcome = dashboard.data_health_peer_proof_loop_outcome_frame(packet, pd.DataFrame())

@@ -176,7 +176,7 @@ Truth boundaries that must remain unchanged unless direct evidence proves otherw
 - README, LinkedIn copy, committed screenshots, browser-QA markers, and local timing are public-packaging evidence only. They cannot prove data freshness, changing readiness totals, hosted availability, external reviewer comprehension, adoption, competitive differentiation, demand, or product-market fit. Do not publish the stable default-branch link until the reviewed feature is actually present there; label branch or PR links as draft previews.
 - Subagent review is engineering review only; no GitHub human reviews exist.
 - Named change causes explain existing method decisions only. They cannot alter scope, upgrade partial data, establish current readiness totals, create a company-quality judgment, or authorize a rebuild.
-- The stale readiness continuation gate must suppress broad refresh, source-proof, apply, and readiness-rebuild routing from status surfaces. It does not change provider availability or ranking calculations; those remain planning context only until readiness is current or the separate intentional reviewed write is authorized.
+- The stale readiness continuation gate follows declared source dates and keeps tracked release-evidence eligibility independent. It must suppress broad refresh, source-proof, apply, and readiness-rebuild routing when readiness is stale, incomplete, only an uncommitted default-profile working artifact, or cannot be compared with tracked HEAD evidence. A date-current local generated snapshot is not PR evidence. Reviewed-batch temporal routing must use the same declared-date profile context rather than a separate mtime rule. The gate does not change provider availability or ranking calculations; those remain planning context until the separate intentional reviewed write and exact artifact review are authorized.
 
 Current local status boundaries, not external-dependency classifications:
 
@@ -203,6 +203,8 @@ This is the authoritative priority order after the completed Research Decision L
 A blocked priority does not become complete, and moving past it does not weaken its exit gate. Local contracts, fixtures, screenshots, subagent reviews, and green tests cannot substitute for direct source, hosted, accessibility, independent-user, or calibration evidence. Continue cycling through the ordered program while safe executable work exists; overall completion requires direct current evidence for every applicable priority.
 
 Documentation and routing reconciliation is complete locally. Reopen it only when current repository evidence reproduces contract drift.
+
+The reproduced default-profile readiness truth drift is repaired locally: profile context reports declared-date freshness separately from tracked evidence origin, `working_artifact_uncommitted` routes status and reviewed-batch work to the no-write preview, and excluded generated readiness files remain unstaged. This local contract does not approve a readiness rebuild or promote the July working snapshot into PR evidence.
 
 Current local execution queue:
 

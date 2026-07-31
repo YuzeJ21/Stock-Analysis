@@ -24,7 +24,14 @@ def build_continuation_gate(context: ProfileContext) -> ContinuationGate:
     """Return the one safe continuation action for the selected profile."""
 
     rebuild_command = context.refresh_command or "make readiness"
-    if context.freshness_state == "current":
+    evidence_state = getattr(context, "readiness_evidence_state", "not_applicable")
+    evidence_is_uncommitted = evidence_state == "working_artifact_uncommitted"
+    evidence_is_unverified = evidence_state == "unverified"
+    if (
+        context.freshness_state == "current"
+        and not evidence_is_uncommitted
+        and not evidence_is_unverified
+    ):
         return ContinuationGate(
             state="current",
             next_safe_command="",
@@ -34,15 +41,21 @@ def build_continuation_gate(context: ProfileContext) -> ContinuationGate:
             suppress_execution=False,
         )
 
-    state = "inspection_only" if context.freshness_state == "stale" else "inspection_required"
+    state = "inspection_only" if context.freshness_state == "stale" or evidence_is_uncommitted else "inspection_required"
+    evidence_blocks = evidence_is_uncommitted or evidence_is_unverified
+    reason = (
+        getattr(context, "readiness_evidence_message", "Readiness evidence origin is unavailable.")
+        if evidence_blocks
+        else context.freshness_message
+    )
     return ContinuationGate(
         state=state,
         next_safe_command=READINESS_PREVIEW_COMMAND,
-        reason=context.freshness_message,
+        reason=reason,
         rebuild_command=rebuild_command,
         stop_rule=(
-            "Do not start broad refresh, source-proof, apply, or readiness-rebuild work from stale or "
-            "incomplete readiness counts."
+            "Do not start broad refresh, source-proof, apply, or readiness-rebuild work from stale, "
+            "incomplete, or uncommitted working readiness counts."
         ),
         suppress_execution=True,
     )

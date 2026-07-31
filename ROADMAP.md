@@ -18,11 +18,11 @@ It is research-only: no investment advice, recommendation, company ranking, brok
 
 The product deliberately separates the tracked master universe, active universe, and analysis-ready subset. It must never imply that the whole tracked universe is analysis-ready.
 
-The tracked June 7 readiness snapshot remains stale under this roadmap's declared-date policy. An excluded July 21 local generated working-data snapshot is not committed PR evidence. A read-only preview reported zero stable readiness changes, but that observation does not authorize staging or a readiness rebuild. Rerun the current commands instead of copying counts into documentation.
+The tracked June 7 readiness snapshot remains stale under this roadmap's declared-date policy. An excluded July 21 local generated working-data snapshot is date-current relative to the saved local source files but is not committed PR evidence. The product now reports those two states independently: `freshness_state=current` and `readiness_evidence_state=working_artifact_uncommitted`, while the continuation and reviewed-batch gates remain inspection-only. A read-only preview reported zero stable readiness changes, but that observation does not authorize staging or a readiness rebuild. Rerun the current commands instead of copying counts into documentation.
 
 `historical_supported_currently_blocked`, `explicit_ticker_change`, and `current_canonical_row_missing` are distinct reconciliation outcomes. Current saved readiness remains authoritative, and reconciliation does not establish the historical cause of a transition, restore canonical data, or report current readiness totals.
 
-The stale readiness continuation gate follows declared source dates, never file mtimes. `make readiness-preview TOP_N=20` does not make saved readiness current, does not refresh data, and is not current readiness counts or rebuild approval; provider ordering and ranking output remain planning context only until a separate intentional reviewed write runs `make readiness`.
+The stale readiness continuation gate follows declared source dates, never file mtimes, and keeps date freshness independent from tracked evidence eligibility. A date-current but uncommitted default-profile readiness snapshot routes to inspection-only; it cannot become PR evidence through local generated files. `make readiness-preview TOP_N=20` does not make saved readiness current or reviewable, does not refresh data, and is not current readiness counts or rebuild approval; provider ordering and ranking output remain planning context only until a separate intentional reviewed write runs `make readiness` and its exact artifacts are reviewed.
 
 Primary research flow: **Research Desk -> Discover -> Company Workbench -> Monitor**.
 
@@ -76,7 +76,7 @@ inside responsive Advanced evidence. A direct four-route browser matrix at
 cards, phone single-column layout, and no evidence-container horizontal
 overflow without writing screenshots or other artifacts.
 
-Immediate approved local reliability queue:
+Completed local reliability item: default-profile readiness now separates temporal freshness from tracked release-evidence eligibility. Dirty or untracked required readiness reports are labelled `working_artifact_uncommitted`, and Git comparison failures are `unverified`; project status, continuation routing, pilot readiness, and reviewed-batch preflight fail closed to the no-write preview without staging or rewriting generated artifacts. Reviewed-batch temporal routing now uses the same declared-date profile context instead of a separate mtime rule.
 
 Completed local item: `1. Add shared provenance and recency eligibility to valuation, indicator, and review-metric interpretation without coupling their independent readiness states.` The shared overlay is implemented at
 `195ea18da9d1d6e06c36f8320509ccde46cdaa57`; this historical queue entry is not
