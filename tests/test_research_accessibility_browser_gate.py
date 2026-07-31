@@ -4,6 +4,98 @@ from pathlib import Path
 import subprocess
 
 
+def test_forced_colors_observation_fails_closed_for_each_required_signal():
+    from src.research_accessibility_browser_gate import (
+        evaluate_forced_colors_observation,
+    )
+
+    passing = {
+        "media_active": True,
+        "skip_count": 1,
+        "skip_focused": True,
+        "skip_outline_style": "solid",
+        "skip_outline_width_px": 3.0,
+        "current_route_count": 1,
+        "current_route_value": "page",
+        "current_route_marker_width_px": 2.0,
+        "boundary_count": 1,
+        "boundary_visible": True,
+        "boundary_border_width_px": 1.0,
+        "heading_visible": True,
+        "boundary_text_visible": True,
+        "overflow_px": 0.0,
+        "traceback_visible": False,
+    }
+    assertions = evaluate_forced_colors_observation(passing, primary_route=True)
+    assert assertions and all(item["passed"] for item in assertions)
+
+    mutations = (
+        ("forced_colors_media_active", {"media_active": False}),
+        ("forced_colors_skip_focus", {"skip_focused": False}),
+        ("forced_colors_focus_outline", {"skip_outline_width_px": 0.0}),
+        ("forced_colors_current_route", {"current_route_value": ""}),
+        ("forced_colors_current_route_marker", {"current_route_marker_width_px": 0.0}),
+        ("forced_colors_boundary", {"boundary_visible": False}),
+        ("forced_colors_boundary_border", {"boundary_border_width_px": 0.0}),
+        ("forced_colors_required_text", {"heading_visible": False}),
+        ("forced_colors_no_overflow", {"overflow_px": 2.0}),
+        ("forced_colors_no_traceback", {"traceback_visible": True}),
+    )
+    for name, changed in mutations:
+        failed = evaluate_forced_colors_observation(
+            {**passing, **changed},
+            primary_route=True,
+        )
+        assert next(item for item in failed if item["name"] == name)["passed"] is False
+
+    secondary = evaluate_forced_colors_observation(
+        {
+            **passing,
+            "current_route_count": 0,
+            "current_route_value": "",
+            "current_route_marker_width_px": 0.0,
+        },
+        primary_route=False,
+    )
+    assert all(item["passed"] for item in secondary)
+
+
+def test_reduced_motion_observation_fails_closed_for_each_required_signal():
+    from src.research_accessibility_browser_gate import (
+        evaluate_reduced_motion_observation,
+    )
+
+    passing = {
+        "media_active": True,
+        "target_count": 3,
+        "max_animation_duration_ms": 0.01,
+        "max_transition_duration_ms": 0.01,
+        "max_animation_iterations": 1.0,
+        "scroll_behavior": "auto",
+        "heading_visible": True,
+        "boundary_visible": True,
+        "overflow_px": 0.0,
+        "traceback_visible": False,
+    }
+    assertions = evaluate_reduced_motion_observation(passing)
+    assert assertions and all(item["passed"] for item in assertions)
+
+    mutations = (
+        ("reduced_motion_media_active", {"media_active": False}),
+        ("reduced_motion_targets", {"target_count": 0}),
+        ("reduced_motion_animation_duration", {"max_animation_duration_ms": 250.0}),
+        ("reduced_motion_transition_duration", {"max_transition_duration_ms": 250.0}),
+        ("reduced_motion_animation_iterations", {"max_animation_iterations": 2.0}),
+        ("reduced_motion_scroll_behavior", {"scroll_behavior": "smooth"}),
+        ("reduced_motion_required_text", {"boundary_visible": False}),
+        ("reduced_motion_no_overflow", {"overflow_px": 2.0}),
+        ("reduced_motion_no_traceback", {"traceback_visible": True}),
+    )
+    for name, changed in mutations:
+        failed = evaluate_reduced_motion_observation({**passing, **changed})
+        assert next(item for item in failed if item["name"] == name)["passed"] is False
+
+
 def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_routes():
     from src.research_accessibility_browser_gate import RESEARCH_ROUTES, VIEWPORTS
 

@@ -643,6 +643,54 @@ def _assertion(name: str, passed: bool, detail: str) -> dict[str, object]:
     return {"name": name, "passed": bool(passed), "detail": str(detail)}
 
 
+def evaluate_forced_colors_observation(
+    observation: dict[str, object],
+    *,
+    primary_route: bool,
+) -> list[dict[str, object]]:
+    """Fail closed when forced-colors observations lose required affordances."""
+
+    current_route_passed = (
+        int(observation.get("current_route_count", 0)) == 1
+        and str(observation.get("current_route_value") or "") == "page"
+    ) if primary_route else int(observation.get("current_route_count", 0)) == 0
+    marker_passed = (
+        float(observation.get("current_route_marker_width_px", 0)) > 0
+        if primary_route
+        else True
+    )
+    return [
+        _assertion("forced_colors_media_active", observation.get("media_active") is True, "forced-colors media query active"),
+        _assertion("forced_colors_skip_focus", int(observation.get("skip_count", 0)) == 1 and observation.get("skip_focused") is True, "one physical Tab focused the sole skip link"),
+        _assertion("forced_colors_focus_outline", str(observation.get("skip_outline_style") or "") != "none" and float(observation.get("skip_outline_width_px", 0)) > 0, "focused skip link retains a visible outline"),
+        _assertion("forced_colors_current_route", current_route_passed, "current-route semantic state preserved"),
+        _assertion("forced_colors_current_route_marker", marker_passed, "current route retains a non-color marker"),
+        _assertion("forced_colors_boundary", int(observation.get("boundary_count", 0)) == 1 and observation.get("boundary_visible") is True, "one research boundary remains visible"),
+        _assertion("forced_colors_boundary_border", float(observation.get("boundary_border_width_px", 0)) > 0, "research boundary retains a visible border"),
+        _assertion("forced_colors_required_text", observation.get("heading_visible") is True and observation.get("boundary_text_visible") is True, "heading and research-only text remain visible"),
+        _assertion("forced_colors_no_overflow", float(observation.get("overflow_px", math.inf)) <= 1, f"horizontal overflow={observation.get('overflow_px')}px"),
+        _assertion("forced_colors_no_traceback", observation.get("traceback_visible") is False, "no traceback rendered"),
+    ]
+
+
+def evaluate_reduced_motion_observation(
+    observation: dict[str, object],
+) -> list[dict[str, object]]:
+    """Fail closed when reduced-motion observations exceed safe thresholds."""
+
+    return [
+        _assertion("reduced_motion_media_active", observation.get("media_active") is True, "reduced-motion media query active"),
+        _assertion("reduced_motion_targets", int(observation.get("target_count", 0)) > 0, "application-owned motion targets observed"),
+        _assertion("reduced_motion_animation_duration", float(observation.get("max_animation_duration_ms", math.inf)) <= 0.1, f"max animation duration={observation.get('max_animation_duration_ms')}ms"),
+        _assertion("reduced_motion_transition_duration", float(observation.get("max_transition_duration_ms", math.inf)) <= 0.1, f"max transition duration={observation.get('max_transition_duration_ms')}ms"),
+        _assertion("reduced_motion_animation_iterations", float(observation.get("max_animation_iterations", math.inf)) <= 1, f"max animation iterations={observation.get('max_animation_iterations')}"),
+        _assertion("reduced_motion_scroll_behavior", str(observation.get("scroll_behavior") or "") != "smooth", f"scroll behavior={observation.get('scroll_behavior')!r}"),
+        _assertion("reduced_motion_required_text", observation.get("heading_visible") is True and observation.get("boundary_visible") is True, "heading and research boundary remain visible"),
+        _assertion("reduced_motion_no_overflow", float(observation.get("overflow_px", math.inf)) <= 1, f"horizontal overflow={observation.get('overflow_px')}px"),
+        _assertion("reduced_motion_no_traceback", observation.get("traceback_visible") is False, "no traceback rendered"),
+    ]
+
+
 def evaluate_semantic_main_landmark(
     *,
     main_count: int,
