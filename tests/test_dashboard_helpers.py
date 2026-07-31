@@ -10,6 +10,7 @@ import pytest
 
 import src.dashboard as dashboard
 import src.data_health_generated_churn as generated_churn
+import src.source_activation_guide as source_activation_guide
 from src.observation_recency import evaluate_observation_rows
 from src.peer_read_through_map import build_peer_read_through_map
 from src.decision_process_scorecard import ProcessCheck, DecisionProcessScorecard
@@ -602,6 +603,15 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     monkeypatch.delenv("IBKR_HOST", raising=False)
     monkeypatch.delenv("IBKR_PORT", raising=False)
     monkeypatch.delenv("IBKR_CLIENT_ID", raising=False)
+    monkeypatch.setattr(
+        source_activation_guide,
+        "build_profile_context",
+        lambda **_: _profile_context_fixture(
+            freshness_state="stale",
+            freshness_message="Selected-profile source dates are newer than saved readiness.",
+            refresh_command="make readiness",
+        ),
+    )
 
     cards = dashboard.data_health_provider_setup_checklist_cards()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
