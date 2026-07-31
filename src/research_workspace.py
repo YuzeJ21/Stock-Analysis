@@ -625,6 +625,58 @@ def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> 
     return f"<nav class='research-workflow-navigation' aria-label='Personal research workflow'>{links}</nav>"
 
 
+def research_accessibility_media_preferences_css() -> str:
+    """Return Research-only media preference fallbacks without changing data."""
+
+    return """
+@media (forced-colors: active) {
+  .stApp a:focus-visible,
+  .stApp button:focus-visible,
+  .stApp input:focus-visible,
+  .stApp select:focus-visible,
+  .stApp textarea:focus-visible,
+  .stApp [role="button"]:focus-visible,
+  .stApp [role="radio"]:focus-visible,
+  .stApp [role="tab"]:focus-visible,
+  .stApp summary:focus-visible,
+  .stApp [tabindex]:not([tabindex="-1"]):focus-visible {
+    outline: 3px solid Highlight !important;
+    outline-offset: 3px !important;
+    box-shadow: none !important;
+  }
+  .research-workflow-link[aria-current='page'] {
+    border: 2px solid Highlight !important;
+    outline: 1px solid CanvasText !important;
+    outline-offset: -4px !important;
+  }
+  .research-workspace-boundary,
+  .observation-recency-summary,
+  .research-state-message,
+  .signal-card {
+    border-color: CanvasText !important;
+  }
+  .research-workspace-boundary {
+    border-style: solid !important;
+    border-width: 1px !important;
+    border-radius: 4px;
+    padding: 0.2rem 0.35rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stApp,
+  .stApp *,
+  .stApp *::before,
+  .stApp *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+""".strip()
+
+
 def advanced_evidence_links(ticker: str) -> list[dict[str, str]]:
     symbol = _quoted_ticker(ticker)
     suffix = f"&ticker={symbol}" if symbol else ""

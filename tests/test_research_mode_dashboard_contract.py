@@ -723,6 +723,18 @@ def test_research_workspace_phone_styles_compact_profile_and_hide_only_duplicate
     assert "@media (max-width: 640px)" in styles
 
 
+def test_research_workspace_styles_inject_media_preferences_after_normal_styles():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    start = source.index("def render_research_workspace_styles()")
+    end = source.index("\ndef render_research_workspace_header(", start)
+    styles = source[start:end]
+
+    normal_styles = styles.index("st.markdown(")
+    preferences = styles.index("research_accessibility_media_preferences_css()")
+    assert normal_styles < preferences
+    assert "unsafe_allow_html=True" in styles[preferences:]
+
+
 def test_company_workbench_keeps_review_path_and_lane_coverage_after_anchored_answer():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     start = source.index("def render_company_workbench(")

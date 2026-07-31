@@ -18,6 +18,7 @@ from src.research_workspace import (
     quarterly_trend_cards,
     research_desk_cards,
     research_desk_cards_html,
+    research_accessibility_media_preferences_css,
     research_evidence_return_link,
     research_monitor_frame,
     research_workspace_header_html,
@@ -35,6 +36,26 @@ from src.earnings_nowcast_contract import QuarterlyActual
 from src.quarterly_business_trend import build_quarterly_trend_packet
 from src.quarterly_cash_generation import QuarterlyBusinessObservation
 from src.weekly_research_summary import WeeklyResearchSummary
+
+
+def test_research_accessibility_media_preferences_css_declares_bounded_fallbacks():
+    css = research_accessibility_media_preferences_css()
+
+    assert "@media (forced-colors: active)" in css
+    assert ".research-workflow-link[aria-current='page']" in css
+    assert ".research-workspace-boundary" in css
+    assert "outline: 3px solid Highlight !important" in css
+    assert "border-color: CanvasText !important" in css
+    assert "box-shadow: none !important" in css
+    assert "@media (prefers-reduced-motion: reduce)" in css
+    assert ".stApp *::before" in css
+    assert ".stApp *::after" in css
+    assert "animation-duration: 0.01ms !important" in css
+    assert "animation-iteration-count: 1 !important" in css
+    assert "transition-duration: 0.01ms !important" in css
+    assert "transition-delay: 0ms !important" in css
+    assert "scroll-behavior: auto !important" in css
+    assert "forced-color-adjust: none" not in css
 
 
 def _quarterly_actual(period: str, revenue: float, eps: float) -> QuarterlyActual:

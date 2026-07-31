@@ -385,6 +385,7 @@ from src.research_workspace import (
     quarterly_trend_cards,
     research_desk_cards,
     research_desk_cards_html,
+    research_accessibility_media_preferences_css,
     research_evidence_return_link,
     research_monitor_frame,
     research_workflow_navigation_html,
@@ -35415,6 +35416,10 @@ def render_research_workspace_styles() -> None:
         }
         </style>
         """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        "<style>" + research_accessibility_media_preferences_css() + "</style>",
         unsafe_allow_html=True,
     )
 
