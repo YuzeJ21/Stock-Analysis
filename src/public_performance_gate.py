@@ -217,8 +217,10 @@ def summarize_route_timings(samples: Iterable[RouteTimingSample]) -> list[dict[s
     rows: list[dict[str, object]] = []
     for (route, viewport), group in sorted(grouped.items()):
         failures = [sample for sample in group if not sample.success]
-        shell = _timing_values(group, run_kind=None, field="shell_seconds")
-        first_useful = _timing_values(group, run_kind=None, field="first_useful_seconds")
+        warm_shell = _timing_values(group, run_kind="warm", field="shell_seconds")
+        cold_shell = _timing_values(group, run_kind="cold", field="shell_seconds")
+        warm_first_useful = _timing_values(group, run_kind="warm", field="first_useful_seconds")
+        cold_first_useful = _timing_values(group, run_kind="cold", field="first_useful_seconds")
         warm_full = _timing_values(group, run_kind="warm", field="full_settle_seconds")
         cold_full = _timing_values(group, run_kind="cold", field="full_settle_seconds")
         warm_run_count = sum(sample.success and sample.run_kind == "warm" for sample in group)
@@ -232,8 +234,12 @@ def summarize_route_timings(samples: Iterable[RouteTimingSample]) -> list[dict[s
                 "warm_run_count": warm_run_count,
                 "cold_run_count": cold_run_count,
                 "success": not failures,
-                "shell_p90_seconds": nearest_rank_percentile(shell, 90) if shell else None,
-                "first_useful_p90_seconds": nearest_rank_percentile(first_useful, 90) if first_useful else None,
+                "warm_shell_p90_seconds": nearest_rank_percentile(warm_shell, 90) if warm_shell else None,
+                "cold_shell_max_seconds": max(cold_shell) if cold_shell else None,
+                "warm_first_useful_p90_seconds": (
+                    nearest_rank_percentile(warm_first_useful, 90) if warm_first_useful else None
+                ),
+                "cold_first_useful_max_seconds": max(cold_first_useful) if cold_first_useful else None,
                 "warm_full_settle_p90_seconds": nearest_rank_percentile(warm_full, 90) if warm_full else None,
                 "cold_full_settle_max_seconds": max(cold_full) if cold_full else None,
                 "failures": tuple(sample.failure for sample in failures if sample.failure),
@@ -265,8 +271,18 @@ def evaluate_performance_gate(
         if cold_run_count < min_cold_runs:
             failures.append(f"{route}: cold sample count {cold_run_count} is below {min_cold_runs}")
         checks = (
-            ("shell_p90_seconds", thresholds.shell_seconds, "shell p90"),
-            ("first_useful_p90_seconds", thresholds.first_useful_seconds, "first-useful p90"),
+            ("warm_shell_p90_seconds", thresholds.shell_seconds, "warm shell p90"),
+            ("cold_shell_max_seconds", thresholds.shell_seconds, "cold shell max"),
+            (
+                "warm_first_useful_p90_seconds",
+                thresholds.first_useful_seconds,
+                "warm first-useful p90",
+            ),
+            (
+                "cold_first_useful_max_seconds",
+                thresholds.first_useful_seconds,
+                "cold first-useful max",
+            ),
             ("warm_full_settle_p90_seconds", thresholds.warm_full_settle_seconds, "warm full-settle p90"),
             ("cold_full_settle_max_seconds", thresholds.cold_full_settle_seconds, "cold full-settle max"),
         )

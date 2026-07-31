@@ -20,8 +20,10 @@ The tracked demo manifest supplies file hashes and row counts. Broad local CSV/r
 
 | Experience point | Limit |
 | --- | ---: |
-| Visible Streamlit shell p90 | 1.0s |
-| First useful route answer p90 | 3.0s |
+| Warm visible-shell p90 | 1.0s |
+| Cold visible-shell max | 1.0s |
+| Warm first-useful p90 | 3.0s |
+| Cold first-useful max | 3.0s |
 | Warm full-settle p90 | 5.0s |
 | Cold full settle | 10.0s |
 
@@ -31,7 +33,7 @@ Stock Selector, Single-Stock Report, and Data Health are critical routes. Home a
 
 The release run used five warm runs and one server-cold run for every public route at both viewports: 60 recorded route samples, with zero route failures.
 
-| Route | Viewport | Shell p90 | First useful p90 | Warm full p90 | Cold full |
+| Route | Viewport | Legacy combined shell p90 | Legacy combined first useful p90 | Warm full p90 | Cold full |
 | --- | --- | ---: | ---: | ---: | ---: |
 | Home | 1280x720 | 0.250s | 1.974s | 2.487s | 2.823s |
 | Home | 390x844 | 0.247s | 1.987s | 2.206s | 2.843s |
@@ -54,7 +56,7 @@ snapshot and environment. The run covered Research Desk, Discover, Company
 Workbench, and Monitor at both viewports with one cold and five warm samples:
 48 recorded route samples, zero failures, and no horizontal overflow.
 
-| Route | Viewport | Shell p90 | First useful p90 | Warm full p90 | Cold full |
+| Route | Viewport | Legacy combined shell p90 | Legacy combined first useful p90 | Warm full p90 | Cold full |
 | --- | --- | ---: | ---: | ---: | ---: |
 | Research Desk | 1280x720 | 0.238s | 1.934s | 2.137s | 2.881s |
 | Research Desk | 390x844 | 0.202s | 1.991s | 2.153s | 2.875s |
@@ -64,6 +66,29 @@ Workbench, and Monitor at both viewports with one cold and five warm samples:
 | Company Workbench | 390x844 | 0.216s | 1.812s | 2.797s | 3.218s |
 | Monitor | 1280x720 | 0.208s | 1.962s | 2.213s | 2.826s |
 | Monitor | 390x844 | 0.231s | 1.811s | 2.246s | 2.679s |
+
+The two historical tables predate the category-correct sampling contract. Their
+shell and first-useful columns each combined one cold and five warm samples;
+nearest-rank p90 of six values selected the maximum of each mixed population.
+Keep those values as historical evidence only. Current runs report and enforce
+**Warm visible-shell p90** and **Cold visible-shell max** independently at the
+same `1.0s` limit, and **Warm first-useful p90** and **Cold first-useful max**
+independently at the same `3.0s` limit.
+
+## Current Sampling Reconciliation
+
+The current implementation separates warm and cold shell and first-useful
+evidence before aggregation. It preserves the existing warm/cold full-settle
+rules, required sample counts, raw samples, route markers, and thresholds. It
+does not retry, drop outliers, select a fastest run, or omit cold evidence.
+
+The focused unit contract passes locally. A controlled browser rerun attempted
+on 2026-07-31 could not launch Chrome inside the managed execution sandbox and
+recorded no route samples. That environment failure is not a performance pass.
+Run `make commercial-beta-performance-gate TIMEOUT_SECONDS=90` once from a
+normal local terminal after the implementation is committed. Accept its
+category-specific result without an unchanged retry loop; only a directly
+measured warm or cold failure justifies route-startup optimization.
 
 Reproduce the research contract and browser evidence with:
 
@@ -97,7 +122,7 @@ Replace the example only after a real hosted URL exists. A hosted result must be
 ## Stop Rules
 
 - Do not rerun broad data refreshes to improve performance numbers.
-- Do not select the fastest run; use the recorded p90 summary.
+- Do not select the fastest run; keep warm p90 and cold maximum independent for shell and first-useful evidence.
 - Do not call a missing browser dependency a pass.
 - Do not stage the generated JSON by default.
 - Do not call a preview private unless the host enforces access control.

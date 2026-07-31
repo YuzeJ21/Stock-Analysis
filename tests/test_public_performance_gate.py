@@ -127,6 +127,80 @@ def test_performance_summary_and_gate_keep_cold_warm_and_failure_truth_separate(
     assert "Data Health: 1 failed timing run(s)" in result.failures
 
 
+def test_first_useful_summary_and_gate_keep_cold_and_warm_populations_separate():
+    from src.public_performance_gate import (
+        PerformanceThresholds,
+        RouteTimingSample,
+        evaluate_performance_gate,
+        summarize_route_timings,
+    )
+
+    samples = [
+        RouteTimingSample("Company Workbench", "1280x720", "cold", 1.1, 3.1, 8.0, True),
+        RouteTimingSample("Company Workbench", "1280x720", "warm", 0.3, 1.1, 3.0, True),
+        RouteTimingSample("Company Workbench", "1280x720", "warm", 0.3, 1.2, 3.1, True),
+        RouteTimingSample("Company Workbench", "1280x720", "warm", 0.3, 1.3, 3.2, True),
+        RouteTimingSample("Company Workbench", "1280x720", "warm", 0.3, 1.4, 3.3, True),
+        RouteTimingSample("Company Workbench", "1280x720", "warm", 0.3, 1.5, 3.4, True),
+    ]
+
+    summary = summarize_route_timings(samples)
+    workbench = summary[0]
+
+    assert workbench["warm_shell_p90_seconds"] == 0.3
+    assert workbench["cold_shell_max_seconds"] == 1.1
+    assert "shell_p90_seconds" not in workbench
+    assert workbench["warm_first_useful_p90_seconds"] == 1.5
+    assert workbench["cold_first_useful_max_seconds"] == 3.1
+    assert "first_useful_p90_seconds" not in workbench
+
+    result = evaluate_performance_gate(
+        summary,
+        critical_routes={"Company Workbench"},
+        thresholds=PerformanceThresholds(),
+        min_cold_runs=1,
+        min_warm_runs=5,
+    )
+
+    assert result.verdict == "failed"
+    assert "Company Workbench: cold shell max 1.100s exceeds 1.000s" in result.failures
+    assert "Company Workbench: cold first-useful max 3.100s exceeds 3.000s" in result.failures
+    assert not any("warm shell" in failure for failure in result.failures)
+    assert not any("warm first-useful" in failure for failure in result.failures)
+
+
+def test_performance_gate_enforces_warm_shell_and_first_useful_p90_independently():
+    from src.public_performance_gate import (
+        PerformanceThresholds,
+        RouteTimingSample,
+        evaluate_performance_gate,
+        summarize_route_timings,
+    )
+
+    samples = [
+        RouteTimingSample("Discover", "390x844", "cold", 0.9, 2.9, 8.0, True),
+        RouteTimingSample("Discover", "390x844", "warm", 0.7, 2.4, 3.0, True),
+        RouteTimingSample("Discover", "390x844", "warm", 0.8, 2.5, 3.1, True),
+        RouteTimingSample("Discover", "390x844", "warm", 0.9, 2.6, 3.2, True),
+        RouteTimingSample("Discover", "390x844", "warm", 1.1, 3.2, 3.3, True),
+        RouteTimingSample("Discover", "390x844", "warm", 0.9, 2.8, 3.4, True),
+    ]
+
+    result = evaluate_performance_gate(
+        summarize_route_timings(samples),
+        critical_routes={"Discover"},
+        thresholds=PerformanceThresholds(),
+        min_cold_runs=1,
+        min_warm_runs=5,
+    )
+
+    assert result.verdict == "failed"
+    assert "Discover: warm shell p90 1.100s exceeds 1.000s" in result.failures
+    assert "Discover: warm first-useful p90 3.200s exceeds 3.000s" in result.failures
+    assert not any("cold shell" in failure for failure in result.failures)
+    assert not any("cold first-useful" in failure for failure in result.failures)
+
+
 def test_performance_gate_fails_closed_when_required_samples_are_missing():
     from src.public_performance_gate import (
         PerformanceThresholds,
@@ -258,7 +332,14 @@ def test_performance_result_payload_includes_commit_snapshot_samples_and_gate(tm
     assert payload["environment"] == "test chrome"
     assert payload["demo_snapshot"]["sha256"]
     assert payload["samples"][0]["run_kind"] == "cold"
-    assert payload["summary"][0]["warm_full_settle_p90_seconds"] == 2.0
+    summary = payload["summary"][0]
+    assert summary["warm_shell_p90_seconds"] == 0.2
+    assert summary["cold_shell_max_seconds"] == 0.2
+    assert summary["warm_first_useful_p90_seconds"] == 1.0
+    assert summary["cold_first_useful_max_seconds"] == 1.2
+    assert "shell_p90_seconds" not in summary
+    assert "first_useful_p90_seconds" not in summary
+    assert summary["warm_full_settle_p90_seconds"] == 2.0
     assert payload["failures"] == []
 
 
@@ -331,6 +412,11 @@ def test_reviewed_performance_baseline_documents_reproducible_evidence_boundary(
     assert "48 recorded route samples" in baseline
     assert "Company Workbench" in baseline
     assert "Research Desk" in baseline
+    assert "Warm visible-shell p90" in baseline
+    assert "Cold visible-shell max" in baseline
+    assert "Warm first-useful p90" in baseline
+    assert "Cold first-useful max" in baseline
+    assert "3.0s" in baseline
 
 
 def test_performance_progress_line_shows_route_viewport_run_and_outcome():
