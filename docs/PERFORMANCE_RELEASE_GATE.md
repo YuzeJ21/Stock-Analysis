@@ -82,13 +82,29 @@ evidence before aggregation. It preserves the existing warm/cold full-settle
 rules, required sample counts, raw samples, route markers, and thresholds. It
 does not retry, drop outliers, select a fastest run, or omit cold evidence.
 
-The focused unit contract passes locally. A controlled browser rerun attempted
-on 2026-07-31 could not launch Chrome inside the managed execution sandbox and
-recorded no route samples. That environment failure is not a performance pass.
-Run `make commercial-beta-performance-gate TIMEOUT_SECONDS=90` once from a
-normal local terminal after the implementation is committed. Accept its
-category-specific result without an unchanged retry loop; only a directly
-measured warm or cold failure justifies route-startup optimization.
+Commit `6328c8cead7c27cb901e7878cd6d7d23fa11bb0e` passed a controlled local
+Chrome run on 2026-07-31 with 48 recorded samples, zero route failures, and the
+fixed demo snapshot. The aggregate Commercial Research Beta release check also
+passed, including 4,474 full-suite tests. The separate accessibility browser
+gate passed all six routes at both viewports plus its state harness on the same
+commit. These results remain local engineering evidence only.
+
+| Route | Viewport | Warm shell p90 | Cold shell max | Warm first-useful p90 | Cold first-useful max | Warm full p90 | Cold full max |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Research Desk | 1280x720 | 0.189s | 0.217s | 1.395s | 2.132s | 2.249s | 2.984s |
+| Research Desk | 390x844 | 0.187s | 0.178s | 1.403s | 2.020s | 2.279s | 2.914s |
+| Discover | 1280x720 | 0.184s | 0.171s | 1.385s | 1.963s | 2.419s | 2.982s |
+| Discover | 390x844 | 0.191s | 0.175s | 1.389s | 1.918s | 2.423s | 2.932s |
+| Company Workbench | 1280x720 | 0.184s | 0.177s | 1.413s | 1.935s | 2.751s | 3.241s |
+| Company Workbench | 390x844 | 0.199s | 0.171s | 1.442s | 1.949s | 2.787s | 3.246s |
+| Monitor | 1280x720 | 0.188s | 0.179s | 1.536s | 1.985s | 2.395s | 2.839s |
+| Monitor | 390x844 | 0.183s | 0.174s | 1.543s | 1.978s | 2.384s | 2.824s |
+
+The temporary JSON remains at
+`/tmp/stock-command-center-commercial-beta-performance.json` and stays out of
+Git. Accept later category-specific failures without an unchanged retry loop;
+only a directly measured warm or cold failure justifies route-startup
+optimization.
 
 Reproduce the research contract and browser evidence with:
 

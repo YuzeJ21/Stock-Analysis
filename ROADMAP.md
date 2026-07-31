@@ -13,7 +13,7 @@ It is research-only: no investment advice, recommendation, company ranking, brok
 - Stale-readiness impact: use `make readiness-preview TOP_N=20`. It computes future proposed states in memory, writes no files, and does not authorize staging or a readiness rebuild.
 - Source/provider state: use `make session-source-preflight` and `make provider-setup-checklist`.
 - Package/share state: use `make pilot-readiness-check TOP_N=10`, `make public-check`, and `make browser-qa-evidence`.
-- Commercial-beta state: use `make commercial-beta-check`, `make commercial-beta-performance-gate`, and `make commercial-beta-release-check`. Shell and first-useful evidence now separate warm p90 from cold maximum at the unchanged one-second and three-second limits. The current controlled browser rerun remains pending outside the managed sandbox, so the exact-tree performance and aggregate release gates are not yet green. These are local evidence only; they do not refresh data and do not prove market validation.
+- Commercial-beta state: use `make commercial-beta-check`, `make commercial-beta-performance-gate`, and `make commercial-beta-release-check`. Commit `6328c8cea` passed the category-separated 48-sample browser gate, the aggregate release check, and exact-head CI. Shell and first-useful evidence keep warm p90 separate from cold maximum at the unchanged one-second and three-second limits. These are local evidence only; they do not refresh data and do not prove market validation.
 - Point-in-time universe software: only `make point-in-time-universe-status MANIFEST=<path>` and `make point-in-time-universe-preview MANIFEST=<path> TOP_N=20` are supported. Both are read-only.
 
 The product deliberately separates the tracked master universe, active universe, and analysis-ready subset. It must never imply that the whole tracked universe is analysis-ready.
@@ -240,7 +240,7 @@ Implemented with append-only provenance, invalidation, conflicting evidence, out
 
 ### P0: Performance Release Candidate
 
-Implemented locally: warm shell/first-useful p90 and cold shell/first-useful maximum are now separate, independently enforced metrics at the unchanged one-second and three-second limits. Historical fixed-profile runs on `data/demo/manifest.json` remain regression evidence, but the current exact tree is not performance-green until one normal-terminal `make commercial-beta-performance-gate TIMEOUT_SECONDS=90` run records category-specific route samples and the aggregate `make commercial-beta-release-check` passes. The managed sandbox could not launch Chrome and that environment failure is not a pass. Do not retry unchanged failures, select fastest runs, or stage `/tmp` timing evidence.
+Passed on commit `6328c8cea`: warm shell/first-useful p90 and cold shell/first-useful maximum are separate and independently enforced at the unchanged one-second and three-second limits. The fixed `data/demo/manifest.json` run recorded 48 successful samples with no failures; the aggregate release check, 4,474-test full suite, six-route/two-viewport accessibility browser gate, state harness, push, draft-PR exact-head check, and generated-artifact exclusion also passed. This proves a reproducible local release candidate, not hosted performance, source coverage, human validation, or market readiness. Do not retry unchanged failures, select fastest runs, or stage `/tmp` timing evidence.
 
 ### P1 local prerequisite: Hosted operating contracts
 

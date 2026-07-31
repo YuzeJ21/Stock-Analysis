@@ -49,13 +49,13 @@ Run `python3 -m pytest tests/test_public_performance_gate.py -q`.
 
 Expected: all focused tests pass.
 
-- [ ] **Step 5: Run a controlled browser performance result**
+- [x] **Step 5: Run a controlled browser performance result**
 
 Run `make commercial-beta-performance-gate TIMEOUT_SECONDS=90` once from the verified worktree. Inspect all category-specific failures. Do not rerun an unchanged failure.
 
 Expected: the result truthfully passes or identifies a reproducible warm or cold category for later optimization; the temporary JSON remains outside the repository.
 
-Managed-session result: Chrome exited before any route sample because the sandbox forbids the required browser/process operations. This is not a pass. Run the command once from a normal local terminal after committing the implementation; do not repeat it unchanged in the managed sandbox.
+Verified result: commit `6328c8cea` recorded 48 successful category-separated samples with zero failures on local Chrome. The temporary JSON stayed under `/tmp` and out of Git.
 
 ### Task 2: Reconcile documentation and release evidence
 
@@ -83,16 +83,18 @@ Expected: fail until the performance document uses the new terms.
 
 Document the category split, the controlled-browser result, and its exact limits in `docs/PERFORMANCE_RELEASE_GATE.md`. Update `ROADMAP.md` and the continuation contract with the verified performance status. Preserve all external data, reviewer, hosted, calibration, and operating blockers.
 
-- [ ] **Step 4: Run complete verification**
+- [x] **Step 4: Run complete verification**
 
 Run focused tests, `python3 -m pytest tests -q`, dashboard and research render checks, public wording and package checks, commercial-beta performance/release checks, pilot readiness, accessibility checks, `make diff-hygiene-summary`, and `git diff --check`.
 
 Expected: all applicable local gates pass, or a category-specific product performance failure remains explicitly open without retry loops.
 
-Managed-session result: 4,470 non-browser tests, focused tests, public and research AppTest rendering, wording, commercial-beta contracts, package evidence, license, and pilot classification passed. Two localhost/browser tests, dashboard startup smoke, the browser performance gate, and the aggregate release check remain environment-limited until a normal local terminal can bind a port and launch Chrome.
+Verified result: the focused contract, 4,474-test full suite, dashboard startup and render checks, research render checks, public wording/package checks, category-separated performance gate, aggregate Commercial Research Beta release check, pilot classification, six-route/two-viewport accessibility browser gate, state harness, diff hygiene, and whitespace checks passed. Exactly 18 generated differences remained excluded.
 
-- [ ] **Step 5: Stage exact paths, verify hygiene, commit, and push**
+- [x] **Step 5: Stage exact paths, verify hygiene, commit, and push**
 
 Stage only the intentional source, test, specification, plan, roadmap, and documentation paths. Run `make staged-hygiene-check` and `git diff --cached --check`. Commit one coherent slice, push only `codex/personal-research-mode-mvp`, update draft PR #113, and require exact-head CI.
 
 Expected: the branch is aligned with origin, PR #113 remains draft, exact-head CI passes, and all 18 pre-existing generated differences remain unstaged.
+
+Verified result: exact staging and hygiene passed, commit `6328c8cea` was pushed only to `codex/personal-research-mode-mvp`, PR #113 remained open/draft/mergeable, exact-head GitHub Actions run `30634355602` passed, and all 18 generated differences remained unstaged.
