@@ -5,7 +5,7 @@ Personal Research is the default local workspace for repeated company review. It
 ## Workflow
 
 1. **Research Desk** starts with a traceable weekly summary, what changed, what is blocked or stale, what to review next, and the Discover action. Deterministic cohort scope, concise lane coverage, and full matrices remain under collapsed Advanced Evidence.
-2. **Discover** starts with the readiness-backed Stock Selector, limits it to the focused cohort, and opens one company directly in Company Workbench. Cohort scope and lane-coverage context remain available under a collapsed Advanced section after the selection task.
+2. **Discover** starts with the read-only Daily Momentum & Valuation Research Queue, then keeps the readiness-backed Stock Selector for general focused-cohort selection and opens one company directly in Company Workbench. Queue and cohort evidence remain available under separate collapsed Advanced sections.
 3. **Company Workbench** starts with the selected company's compact usable/withheld answer, then follows `What Changed -> Research Decision Lab -> Business Trend` before valuation, forward context, withheld inputs, conclusion, and one authoritative next research task. The Decision Lab's next process step remains separate. Technical lane-coverage and Decision Lab evidence remain under collapsed Advanced sections.
 4. **Monitor** follows `Weekly Research Summary -> Research Discipline Review -> Research change monitor`. The discipline table preserves focused-cohort order and shows process state, due lanes, and one next process step without grading or ranking companies. An empty source-change queue remains a neutral wait state with one Discover action, not proof that nothing changed. Five-company Earnings Nowcast readiness remains under collapsed Advanced evidence.
 
@@ -54,7 +54,9 @@ Closing Advanced Evidence does not remove or combine cohort states. A DCF-ready 
 
 In Company Workbench, the Peer Read-Through Map answers result-context and valuation-anchor questions separately. `core_peer` and `secondary_peer` are the only roles that can become anchors, and only with explicit source, as-of date, relationship rationale, comparability basis, and `valuation_anchor_eligible=yes`. Aspirational, negative, excluded-close, not-clean, candidate, and legacy-unreviewed relationships remain visible context without entering peer medians.
 
-Discover uses the same deterministic cohort but keeps the primary company-selection task first. Its search control and compact readiness-backed rows render before the collapsed cohort context, so a researcher can choose a company without reading technical coverage evidence. This order changes no cohort membership, readiness state, ranking, or Company Workbench route.
+Discover evaluates only saved `momentum_ready` rows through a strict, unweighted intersection: price above SMA50, SMA50 above SMA200, positive three- and six-month returns, positive SPY-relative return, a current commercial-eligible own-history valuation percentile at or below 40, positive free cash flow, non-negative revenue growth, and debt to equity no higher than the configured quality-value limit. Current-market recency, price and fundamental provenance, exact-source rights, and registered field scope must also pass. Missing, stale, non-finite, malformed, unverified, or restricted evidence withholds the row. Results are alphabetical research candidates with ticker-bound Company Workbench routes, never a score or investment ranking.
+
+The first implementation is read-only and accepts no prior saved queue, so Discover labels current eligible rows without claiming they are newly eligible; `new_today`, `still_qualifies`, and `exited_today` remain unavailable until a separately approved operating slice supplies comparable snapshots. It writes no CSV, JSON, report, screenshot, timing, readiness, canonical-data, or ledger artifact. Current repository inputs have no historical-valuation ledger and no approved commercial price lineage, so the truthful real-data result is an empty eligible set with blockers under `Advanced: daily queue evidence`.
 
 Company Workbench keeps the existing selected-ticker coverage calculation but moves its cards under `Advanced: selected-company lane coverage`. The unchanged report renderer supplies the first expanded company answer and continues to show supported evidence, withheld inputs, source-backed changes, uncertainty, and one next task. Closing the lane cards does not infer coverage, combine readiness states, or unlock a report section.
 
@@ -90,7 +92,7 @@ The preview is all-or-nothing: operating margin, free cash flow, and FCF margin 
 
 ## Repeated Review Routine
 
-- **Daily or after a source refresh:** open Research Desk, review traceable changes, then use Monitor for unresolved source tasks.
+- **Daily or after a source refresh:** open Discover and read the strict Daily Momentum & Valuation Research Queue; an empty result is valid. Open Company Workbench only for an evidence-eligible row, then use Monitor for unresolved source tasks.
 - **Company review:** use Discover, open one Company Workbench, read What Changed, Business Trend, Valuation, Forward View, and What Remains Withheld before recording a conclusion.
 - **Weekly:** review the weekly summary, overdue journal reviews, and wait conditions. A no-change summary means no traceable saved event in the review window, not that the company had no real-world change.
 - **Operator handoff:** use Data Health or Proof History only when source proof, blocked inputs, or event evidence is the question.

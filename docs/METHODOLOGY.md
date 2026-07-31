@@ -172,6 +172,16 @@ The product separates source inputs from analysis rules so the report is not a b
 
 Third-party or optional provider data can supply rows, but it does not decide the research conclusion. The project code decides whether each local row is usable, which calculation is allowed, and which section must stay blocked or excluded.
 
+## Daily Momentum And Valuation Research Queue Method
+
+The Discover queue is a deterministic research-prioritization filter, not a security rating. It evaluates only saved `momentum_ready=true` companies. A row passes momentum only when `close > SMA50 > SMA200`, three-month return is positive, six-month return is positive, and the existing benchmark-relative return versus SPY is positive. RSI and volume are not first-version gates.
+
+Valuation is company-relative rather than peer-relative or DCF-relative. The existing point-in-time Historical Valuation Regime must be `ready`, current under its 120-day policy, commercially evidence-eligible, and at or below percentile `40.0` within its latest compatible definition segment. Current denominators are never backfilled over old prices. A missing or incompatible ledger cannot be replaced with a standalone current multiple.
+
+Minimum value-trap safeguards require positive free cash flow, non-negative revenue growth, and debt to equity no higher than the configured quality-value threshold, currently `2.0`. Each quantitative input must be finite. Price and fundamental evidence independently require current observation dates, explicit provenance, approved exact-source commercial rights, and registered field scope. One failed gate withholds the row; no weighted score offsets another failure.
+
+Eligible rows are sorted alphabetically. With an explicit comparable prior queue, set comparison can derive `new_today`, `still_qualifies`, and `exited_today`; without that baseline the product shows only current eligibility and withholds change claims. The dashboard adds no writer or scheduler, reads no legacy Monthly Picks or Final Watchlist output, and cannot modify readiness, forecasts, probabilities, research ledgers, or reviewed evidence. Current repository inputs truthfully produce no eligible real-company row because required valuation history and permitted current-market price evidence are absent.
+
 ## 1. How This Compares To Standard Research Workflows
 
 The product follows a familiar equity-research sequence, but keeps each step visible and gated:
