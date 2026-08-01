@@ -181,8 +181,12 @@ display-safe reference; all other references render as plain text. No field may
 inject a script, style block, event handler, URL scheme, or raw HTML fragment.
 
 The document includes no scripts in version 1. Content Security Policy metadata
-must prohibit scripts, remote connections, framing, form submission, and object
+must prohibit scripts, remote connections, form submission, and object
 embedding while permitting only the inline stylesheet needed by the document.
+An offline downloaded document cannot enforce `frame-ancestors` through a meta
+policy; framing protection for the in-app preview therefore remains the host
+application's responsibility, and the portable document contains no active
+content that can communicate with an embedding page.
 
 The renderer must omit secret values and machine-local details even in Personal
 Research Mode. Its output is a portable artifact and cannot rely on the current
