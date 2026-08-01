@@ -677,6 +677,43 @@ def test_portable_fields_withhold_action_objects_across_bounded_modifier_windows
 
 
 @pytest.mark.parametrize(
+    "field_name, unsafe",
+    (
+        ("use_now", "buy common shares"),
+        ("task_body", "sell restricted stock"),
+        ("quarterly_message", "purchase preferred shares"),
+        ("decision_answer", "execute a block trade"),
+        ("evidence_model_identity", "place a limit order"),
+        ("use_now", "submit a market order"),
+        ("task_body", "build a long position"),
+        ("quarterly_message", "reduce the stock position"),
+        ("decision_answer", "trim our equity position"),
+        ("evidence_model_identity", "go net long"),
+        ("use_now", "buy non-voting Class B common shares"),
+        ("task_body", "sell a newly issued restricted stock"),
+        ("quarterly_message", "purchase five thinly traded preferred securities"),
+        ("decision_answer", "execute one large off-market block trade"),
+        ("evidence_model_identity", "place the next good-til-cancelled limit order"),
+        ("use_now", "submit one immediate-or-cancel market order"),
+        ("task_body", "build a materially larger long position"),
+        ("quarterly_message", "reduce the highly concentrated stock position"),
+        ("decision_answer", "trim our current preferred equity position"),
+        ("evidence_model_identity", "go strategically net long"),
+        ("use_now", "buy 10.5 common shares"),
+        ("task_body", "sell 25% of restricted stock"),
+        ("quarterly_message", "buy restricted_class common shares"),
+    ),
+)
+def test_portable_fields_withhold_structural_action_grammar_with_unseen_qualifiers(field_name, unsafe):
+    snapshot = _snapshot_with_portable_action_text(field_name, unsafe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert unsafe not in repr(snapshot)
+    assert unsafe not in rendered
+    assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
+
+
+@pytest.mark.parametrize(
     "safe",
     (
         "Long-term view remains evidence-led.",
@@ -690,6 +727,28 @@ def test_portable_fields_withhold_action_objects_across_bounded_modifier_windows
     ),
 )
 def test_portable_fields_preserve_non_action_text_near_action_family_words(safe):
+    snapshot = _snapshot_with_portable_action_text("use_now", safe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert snapshot.answers[0].body == safe
+    assert safe in rendered
+
+
+@pytest.mark.parametrize(
+    "safe",
+    (
+        "Higher-order evidence remains unavailable.",
+        "Long-term revenue evidence remains under review.",
+        "Short history limits calibration evidence.",
+        "Revenue increased 12% year over year.",
+        "Debt reduced during the quarter.",
+        "Common shares outstanding were unchanged.",
+        "Preferred stock terms remain under review.",
+        "Market order statistics describe historical liquidity.",
+        "The historical position remained net long throughout 2024.",
+    ),
+)
+def test_portable_fields_preserve_safe_endpoint_terms_without_action_start(safe):
     snapshot = _snapshot_with_portable_action_text("use_now", safe)
     rendered = html_brief.render_company_workbench_html_document(snapshot)
 

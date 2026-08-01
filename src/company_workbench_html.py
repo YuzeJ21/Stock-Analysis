@@ -30,33 +30,32 @@ _STALE = frozenset({"stale", "stale_review_only", "stale_or_unknown"})
 _NOT_RECORDED = frozenset({"not_recorded", "not recorded", "not_started", "empty", "missing"})
 _EXCLUDED = frozenset({"excluded", "not_applicable", "candidate_context_only"})
 _WITHHELD = frozenset({"withheld", "blocked", "still_blocked", "commercial_evidence_blocked", "unavailable", "insufficient_data", "insufficient_history", "not_supported", "unverified", "rejected"})
-_ACTION_BRIDGE_TOKEN = (
-    r"(?:a|an|the|this|that|these|those|my|your|our|their|its|some|any|all|both|each|every|"
-    r"another|more|most|additional|further|remaining|existing|current|new|entire|full|partial|"
-    r"small|large|larger|smaller|several|multiple|single|one|two|three|half|to|of|into|out|up|down|"
-    r"\d+(?:\.\d+)?%?)"
-)
-_ACTION_BRIDGE = rf"(?:{_ACTION_BRIDGE_TOKEN}\s+){{0,3}}"
-_SECURITY_ACTION_VERB = (
+_ACTION_INTERVENING_TOKEN = r"(?:\d+(?:\.\d+)?%?|\w+(?:[-'’]\w+)*)"
+_ACTION_TOKEN_WINDOW = rf"(?:[^\S\r\n]+{_ACTION_INTERVENING_TOKEN}){{0,4}}[^\S\r\n]+"
+_SECURITY_ACTION_START = (
     r"(?:buy|buys|buying|bought|sell|sells|selling|sold|sales?|purchas(?:e|es|ed|ing)|"
     r"acquir(?:e|es|ed|ing)|dispos(?:e|es|ed|ing)|short(?:s|ed|ing)?|hold|holds|holding|held|"
     r"order|orders|ordered|ordering)"
 )
-_SECURITY_ACTION_OBJECT = r"(?:shares?|stocks?|securit(?:y|ies)|equit(?:y|ies)|positions?)"
-_SECURITY_ACTION = rf"{_SECURITY_ACTION_VERB}\s+{_ACTION_BRIDGE}{_SECURITY_ACTION_OBJECT}"
-_EXECUTION_ACTION_VERB = (
+_SECURITY_ACTION_ENDPOINT = r"(?:shares?|stocks?|securit(?:y|ies)|equit(?:y|ies)|positions?)"
+_SECURITY_ACTION = rf"{_SECURITY_ACTION_START}{_ACTION_TOKEN_WINDOW}{_SECURITY_ACTION_ENDPOINT}(?![\w-])"
+_EXECUTION_ACTION_START = (
     r"(?:execut(?:e|es|ed|ing)|plac(?:e|es|ed|ing)|submit|submits|submitted|submitting|"
     r"rout(?:e|es|ed|ing)|order|orders|ordered|ordering)"
 )
-_EXECUTION_ACTION = rf"{_EXECUTION_ACTION_VERB}\s+{_ACTION_BRIDGE}(?:trades?|transactions?|orders?)"
-_DIRECTIONAL_ACTION = r"(?:go|goes|going|went)\s+(?:long|short)"
-_POSITION_ACTION_VERB = (
+_EXECUTION_ACTION_ENDPOINT = r"(?:trades?|transactions?|orders?)"
+_EXECUTION_ACTION = rf"{_EXECUTION_ACTION_START}{_ACTION_TOKEN_WINDOW}{_EXECUTION_ACTION_ENDPOINT}(?![\w-])"
+_DIRECTIONAL_ACTION_START = r"(?:go|goes|going|went)"
+_DIRECTIONAL_ACTION_ENDPOINT = r"(?:long|short)"
+_DIRECTIONAL_ACTION = rf"{_DIRECTIONAL_ACTION_START}{_ACTION_TOKEN_WINDOW}{_DIRECTIONAL_ACTION_ENDPOINT}(?![\w-])"
+_POSITION_ACTION_START = (
     r"(?:enter|enters|entered|entering|open|opens|opened|opening|close|closes|closed|closing|"
     r"exit|exits|exited|exiting|add|adds|added|adding|trim|trims|trimmed|trimming|"
     r"increas(?:e|es|ed|ing)|reduc(?:e|es|ed|ing)|build|builds|building|built|"
     r"initiat(?:e|es|ed|ing)|liquidat(?:e|es|ed|ing)|cover|covers|covered|covering)"
 )
-_POSITION_ACTION = rf"{_POSITION_ACTION_VERB}\s+{_ACTION_BRIDGE}positions?"
+_POSITION_ACTION_ENDPOINT = r"positions?"
+_POSITION_ACTION = rf"{_POSITION_ACTION_START}{_ACTION_TOKEN_WINDOW}{_POSITION_ACTION_ENDPOINT}(?![\w-])"
 _ACTION_PATTERN = re.compile(
     rf"\b(?:recommend(?:ation(?:s)?|s|ed|ing)?|{_SECURITY_ACTION}|{_EXECUTION_ACTION}|"
     rf"{_DIRECTIONAL_ACTION}|{_POSITION_ACTION}|position\s*size|allocation|stop[-\s]?loss|"
