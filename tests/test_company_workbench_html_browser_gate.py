@@ -315,6 +315,129 @@ def _failed_assertion_names(result) -> set[str]:
     return {assertion.name for assertion in result.assertions if not assertion.passed}
 
 
+def _run_actual_browser_page(document: bytes, operation):
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as playwright:
+        executable = browser_gate.find_chrome_executable()
+        if executable is None:
+            executable = Path(playwright.chromium.executable_path)
+        browser = playwright.chromium.launch(
+            executable_path=str(executable), headless=True
+        )
+        try:
+            return browser_gate._run_page_in_context(
+                browser,
+                width=1280,
+                height=720,
+                operation=lambda page: (
+                    page.set_content(document.decode("utf-8"), wait_until="load"),
+                    operation(page),
+                )[1],
+            )
+        finally:
+            browser.close()
+
+
+def test_media_css_settlement_proves_each_observed_transition_and_cleans_probe():
+    transitions = (
+        (
+            {"media": "screen", "forced_colors": "active", "reduced_motion": "no-preference"},
+            {"media": "screen", "forced_colors": "active", "reduced_motion": "no-preference"},
+        ),
+        (
+            {"media": "screen", "forced_colors": "none", "reduced_motion": "reduce"},
+            {"media": "screen", "forced_colors": "none", "reduced_motion": "reduce"},
+        ),
+        (
+            {"media": "print", "forced_colors": "none", "reduced_motion": "reduce"},
+            {"media": "print", "forced_colors": "none", "reduced_motion": "reduce"},
+        ),
+    )
+
+    def observe(page):
+        evidence = []
+        for requested, expected_computed in transitions:
+            evidence.append(
+                browser_gate._settle_media_css(
+                    page,
+                    **requested,
+                    viewport="1280x720",
+                    boundary_selector=".srcc-boundary, .boundary",
+                    provenance_selector=".srcc-advanced-evidence, .advanced-evidence",
+                )
+            )
+            assert not page.evaluate(
+                "Boolean(document.querySelector('#srcc-media-settlement-probe, #srcc-media-settlement-style'))"
+            )
+        return evidence
+
+    evidence = _run_actual_browser_page(_synthetic_brief("complete"), observe)
+
+    assert [item["computed_probe"] for item in evidence] == [
+        expected for _, expected in transitions
+    ]
+    for item, (_, expected) in zip(evidence, transitions):
+        for target_name in ("boundary", "provenance"):
+            assert {
+                key: item["targets"][target_name][key]
+                for key in ("media", "forced_colors", "reduced_motion")
+            } == expected
+    assert [item["match_media"] for item in evidence] == [
+        {"print": False, "forced_colors": True, "reduced_motion": False},
+        {"print": False, "forced_colors": False, "reduced_motion": True},
+        {"print": True, "forced_colors": False, "reduced_motion": True},
+    ]
+    assert all(item["viewport"] == "1280x720" for item in evidence)
+    assert all(item["browser_version"] for item in evidence)
+
+
+def test_media_css_settlement_timeout_fails_closed_with_diagnostics_and_cleanup():
+    sabotaged = _append_test_css(
+        _synthetic_brief("complete"),
+        """
+html body #srcc-media-settlement-probe {
+    --srcc-media-type: stale !important;
+}
+@media print {
+    .srcc-boundary { opacity: 0 !important; }
+    .srcc-advanced-evidence { visibility: hidden !important; }
+}
+""",
+    )
+
+    def observe(page):
+        with pytest.raises(RuntimeError) as captured:
+            browser_gate._settle_media_css(
+                page,
+                media="print",
+                forced_colors="none",
+                reduced_motion="reduce",
+                viewport="1280x720",
+                boundary_selector=".srcc-boundary, .boundary",
+                provenance_selector=".srcc-advanced-evidence, .advanced-evidence",
+                timeout_ms=100,
+            )
+        assert not page.evaluate(
+            "Boolean(document.querySelector('#srcc-media-settlement-probe, #srcc-media-settlement-style'))"
+        )
+        return str(captured.value)
+
+    diagnostic = _run_actual_browser_page(sabotaged, observe)
+
+    assert "HTML brief media/CSS settlement failed" in diagnostic
+    assert "expected" in diagnostic
+    assert "'media': 'print'" in diagnostic
+    assert "'print': True" in diagnostic
+    assert "'media': 'stale'" in diagnostic
+    assert "boundary" in diagnostic
+    assert "'opacity': '0'" in diagnostic
+    assert "provenance" in diagnostic
+    assert "'visibility': 'hidden'" in diagnostic
+    assert "'viewport': '1280x720'" in diagnostic
+    assert "browser_version" in diagnostic
+
+
 def test_evaluator_accepts_the_complete_typed_contract():
     result, assertions = _assertion_map(_complete_observation())
 

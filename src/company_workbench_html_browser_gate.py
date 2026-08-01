@@ -590,6 +590,290 @@ def _focus_cue_is_visible(
     )
 
 
+_MEDIA_SETTLEMENT_PROBE_ID = "srcc-media-settlement-probe"
+_MEDIA_SETTLEMENT_STYLE_ID = "srcc-media-settlement-style"
+
+
+def _media_css_evidence(
+    page,
+    *,
+    viewport: str,
+    boundary_selector: str,
+    provenance_selector: str,
+) -> dict[str, object]:
+    evidence = page.evaluate(
+        """({probeId, boundarySelector, provenanceSelector}) => {
+            const probe = document.getElementById(probeId);
+            const targetState = selector => {
+                const node = document.querySelector(selector);
+                if (!node) return {
+                    present: false,
+                    display: '',
+                    visibility: '',
+                    opacity: '',
+                    media: '',
+                    forced_colors: '',
+                    reduced_motion: '',
+                };
+                const style = getComputedStyle(node);
+                return {
+                    present: true,
+                    display: style.display,
+                    visibility: style.visibility,
+                    opacity: style.opacity,
+                    media: style.getPropertyValue('--srcc-target-media-type').trim(),
+                    forced_colors: style.getPropertyValue('--srcc-target-forced-colors').trim(),
+                    reduced_motion: style.getPropertyValue('--srcc-target-reduced-motion').trim(),
+                };
+            };
+            void document.documentElement.offsetWidth;
+            let computedProbe = {media: '', forced_colors: '', reduced_motion: ''};
+            if (probe) {
+                void probe.offsetWidth;
+                const style = getComputedStyle(probe);
+                computedProbe = {
+                    media: style.getPropertyValue('--srcc-media-type').trim(),
+                    forced_colors: style.getPropertyValue('--srcc-forced-colors').trim(),
+                    reduced_motion: style.getPropertyValue('--srcc-reduced-motion').trim(),
+                };
+            }
+            return {
+                match_media: {
+                    print: matchMedia('print').matches,
+                    forced_colors: matchMedia('(forced-colors: active)').matches,
+                    reduced_motion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+                },
+                computed_probe: computedProbe,
+                targets: {
+                    boundary: targetState(boundarySelector),
+                    provenance: targetState(provenanceSelector),
+                },
+                actual_viewport: `${window.innerWidth}x${window.innerHeight}`,
+            };
+        }""",
+        {
+            "probeId": _MEDIA_SETTLEMENT_PROBE_ID,
+            "boundarySelector": boundary_selector,
+            "provenanceSelector": provenance_selector,
+        },
+    )
+    browser = getattr(getattr(page, "context", None), "browser", None)
+    browser_version = getattr(browser, "version", "") if browser is not None else ""
+    if callable(browser_version):
+        browser_version = browser_version()
+    return {
+        **dict(evidence),
+        "viewport": viewport,
+        "browser_version": str(browser_version or "unavailable"),
+    }
+
+
+def _settle_media_css(
+    page,
+    *,
+    media: str,
+    forced_colors: str,
+    reduced_motion: str,
+    viewport: str,
+    boundary_selector: str,
+    provenance_selector: str,
+    timeout_ms: int = 2_000,
+    operation: Callable[[object], object] | None = None,
+) -> object:
+    """Emulate media and wait until both media queries and CSS cascade agree."""
+    expected = {
+        "media": media,
+        "forced_colors": forced_colors,
+        "reduced_motion": reduced_motion,
+    }
+    if media not in {"screen", "print"}:
+        raise ValueError(f"Unsupported media settlement target: {media!r}")
+    if forced_colors not in {"active", "none"}:
+        raise ValueError(
+            f"Unsupported forced-colors settlement target: {forced_colors!r}"
+        )
+    if reduced_motion not in {"reduce", "no-preference"}:
+        raise ValueError(
+            f"Unsupported reduced-motion settlement target: {reduced_motion!r}"
+        )
+    if type(timeout_ms) is not int or timeout_ms <= 0:
+        raise ValueError("Media settlement timeout must be a positive integer")
+
+    page.evaluate(
+        """({probeId, styleId, boundarySelector, provenanceSelector}) => {
+            document.getElementById(probeId)?.remove();
+            document.getElementById(styleId)?.remove();
+            const style = document.createElement('style');
+            style.id = styleId;
+            const targetSelectors = `${boundarySelector}, ${provenanceSelector}`;
+            style.textContent = `
+                #${probeId} {
+                    --srcc-media-type: screen !important;
+                    --srcc-forced-colors: none !important;
+                    --srcc-reduced-motion: no-preference !important;
+                    position: fixed !important;
+                    inset: 0 auto auto 0 !important;
+                    width: 1px !important;
+                    height: 1px !important;
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                    contain: strict !important;
+                    z-index: -2147483648 !important;
+                }
+                ${targetSelectors} {
+                    --srcc-target-media-type: screen !important;
+                    --srcc-target-forced-colors: none !important;
+                    --srcc-target-reduced-motion: no-preference !important;
+                }
+                @media print {
+                    #${probeId} { --srcc-media-type: print !important; }
+                    ${targetSelectors} { --srcc-target-media-type: print !important; }
+                }
+                @media (forced-colors: active) {
+                    #${probeId} { --srcc-forced-colors: active !important; }
+                    ${targetSelectors} { --srcc-target-forced-colors: active !important; }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    #${probeId} { --srcc-reduced-motion: reduce !important; }
+                    ${targetSelectors} { --srcc-target-reduced-motion: reduce !important; }
+                }
+            `;
+            (document.head || document.documentElement).append(style);
+            const probe = document.createElement('div');
+            probe.id = probeId;
+            probe.setAttribute('aria-hidden', 'true');
+            (document.body || document.documentElement).append(probe);
+            void probe.offsetWidth;
+            getComputedStyle(probe).getPropertyValue('--srcc-media-type');
+        }""",
+        {
+            "probeId": _MEDIA_SETTLEMENT_PROBE_ID,
+            "styleId": _MEDIA_SETTLEMENT_STYLE_ID,
+            "boundarySelector": boundary_selector,
+            "provenanceSelector": provenance_selector,
+        },
+    )
+    try:
+        page.emulate_media(
+            media=media,
+            forced_colors=forced_colors,
+            reduced_motion=reduced_motion,
+        )
+        try:
+            page.wait_for_function(
+                """({probeId, expected, boundarySelector, provenanceSelector}) => {
+                    const probe = document.getElementById(probeId);
+                    if (!probe) return false;
+                    void document.documentElement.offsetWidth;
+                    void probe.offsetWidth;
+                    const style = getComputedStyle(probe);
+                    const computed = {
+                        media: style.getPropertyValue('--srcc-media-type').trim(),
+                        forced_colors: style.getPropertyValue('--srcc-forced-colors').trim(),
+                        reduced_motion: style.getPropertyValue('--srcc-reduced-motion').trim(),
+                    };
+                    const queries = {
+                        media: expected.media === 'print' ? matchMedia('print').matches : matchMedia('screen').matches,
+                        forced_colors: matchMedia('(forced-colors: active)').matches === (expected.forced_colors === 'active'),
+                        reduced_motion: matchMedia('(prefers-reduced-motion: reduce)').matches === (expected.reduced_motion === 'reduce'),
+                    };
+                    const targets = [
+                        document.querySelector(boundarySelector),
+                        document.querySelector(provenanceSelector),
+                    ];
+                    const targetsSettled = targets.every(node => {
+                        if (!node) return false;
+                        void node.offsetWidth;
+                        const targetStyle = getComputedStyle(node);
+                        return targetStyle.getPropertyValue('--srcc-target-media-type').trim() === expected.media &&
+                            targetStyle.getPropertyValue('--srcc-target-forced-colors').trim() === expected.forced_colors &&
+                            targetStyle.getPropertyValue('--srcc-target-reduced-motion').trim() === expected.reduced_motion;
+                    });
+                    const mediaSettled = queries.media && queries.forced_colors && queries.reduced_motion &&
+                        computed.media === expected.media &&
+                        computed.forced_colors === expected.forced_colors &&
+                        computed.reduced_motion === expected.reduced_motion && targetsSettled;
+                    if (!mediaSettled) {
+                        delete probe.__srccMediaSettlement;
+                        return false;
+                    }
+                    const renderedState = targets.map(node => {
+                        const lineage = [];
+                        for (let current = node; current instanceof Element; current = current.parentElement) {
+                            void current.offsetWidth;
+                            const currentStyle = getComputedStyle(current);
+                            const rect = current.getBoundingClientRect();
+                            lineage.push({
+                                display: currentStyle.display,
+                                visibility: currentStyle.visibility,
+                                opacity: currentStyle.opacity,
+                                content_visibility: currentStyle.contentVisibility,
+                                overflow_x: currentStyle.overflowX,
+                                overflow_y: currentStyle.overflowY,
+                                clip: currentStyle.clip,
+                                clip_path: currentStyle.clipPath,
+                                position: currentStyle.position,
+                                left: currentStyle.left,
+                                top: currentStyle.top,
+                                rect: [rect.left, rect.right, rect.top, rect.bottom],
+                            });
+                        }
+                        return lineage;
+                    });
+                    const fingerprint = JSON.stringify(renderedState);
+                    const previous = probe.__srccMediaSettlement;
+                    if (!previous || previous.fingerprint !== fingerprint) {
+                        probe.__srccMediaSettlement = {fingerprint, stableFrames: 0};
+                        return false;
+                    }
+                    previous.stableFrames += 1;
+                    return previous.stableFrames >= 2;
+                }""",
+                arg={
+                    "probeId": _MEDIA_SETTLEMENT_PROBE_ID,
+                    "expected": expected,
+                    "boundarySelector": boundary_selector,
+                    "provenanceSelector": provenance_selector,
+                },
+                polling="raf",
+                timeout=timeout_ms,
+            )
+        except Exception as exc:
+            try:
+                observed = _media_css_evidence(
+                    page,
+                    viewport=viewport,
+                    boundary_selector=boundary_selector,
+                    provenance_selector=provenance_selector,
+                )
+            except Exception as diagnostic_exc:  # pragma: no cover - crashed page
+                observed = {"diagnostic_error": repr(diagnostic_exc)}
+            raise RuntimeError(
+                "HTML brief media/CSS settlement failed; "
+                f"expected={expected!r}; observed={observed!r}"
+            ) from exc
+        evidence = _media_css_evidence(
+            page,
+            viewport=viewport,
+            boundary_selector=boundary_selector,
+            provenance_selector=provenance_selector,
+        )
+        if operation is None:
+            return evidence
+        return operation(page)
+    finally:
+        page.evaluate(
+            """({probeId, styleId}) => {
+                document.getElementById(probeId)?.remove();
+                document.getElementById(styleId)?.remove();
+            }""",
+            {
+                "probeId": _MEDIA_SETTLEMENT_PROBE_ID,
+                "styleId": _MEDIA_SETTLEMENT_STYLE_ID,
+            },
+        )
+
+
 def _browser_observation(
     page,
     *,
@@ -626,28 +910,48 @@ def _browser_observation(
         _visible(page, blocker_selector),
         _visible(page, provenance_selector),
     )
-    page.emulate_media(
-        media="screen", forced_colors="active", reduced_motion="no-preference"
-    )
     forced_colors_non_color_cue = bool(
-        page.evaluate(
-            """() => { const nodes = [document.querySelector('.srcc-boundary, .boundary'), document.querySelector('.srcc-state, .state')]; return nodes.every(node => { if (!node) return false; const style = getComputedStyle(node); return parseFloat(style.borderInlineStartWidth || '0') > 0 && style.borderInlineStartStyle !== 'none' && node.innerText.trim().length > 0; }); }"""
+        _settle_media_css(
+            page,
+            media="screen",
+            forced_colors="active",
+            reduced_motion="no-preference",
+            viewport=viewport,
+            boundary_selector=boundary_selector,
+            provenance_selector=provenance_selector,
+            operation=lambda settled_page: settled_page.evaluate(
+                """() => { const nodes = [document.querySelector('.srcc-boundary, .boundary'), document.querySelector('.srcc-state, .state')]; return nodes.every(node => { if (!node) return false; const style = getComputedStyle(node); return parseFloat(style.borderInlineStartWidth || '0') > 0 && style.borderInlineStartStyle !== 'none' && node.innerText.trim().length > 0; }); }"""
+            ),
         )
     )
-    page.emulate_media(media="screen", forced_colors="none", reduced_motion="reduce")
-    page.wait_for_timeout(25)
     reduced_motion_static = bool(
-        page.evaluate(
-            """() => { const seconds = value => Math.max(...value.split(',').map(raw => { const text = raw.trim(); if (text.endsWith('ms')) return parseFloat(text) / 1000; if (text.endsWith('s')) return parseFloat(text); return 0; })); return document.getAnimations().length === 0 && [...document.querySelectorAll('*')].every(node => { const style = getComputedStyle(node); return seconds(style.animationDuration) <= 0.001 && seconds(style.transitionDuration) <= 0.001 && style.scrollBehavior !== 'smooth'; }); }"""
+        _settle_media_css(
+            page,
+            media="screen",
+            forced_colors="none",
+            reduced_motion="reduce",
+            viewport=viewport,
+            boundary_selector=boundary_selector,
+            provenance_selector=provenance_selector,
+            operation=lambda settled_page: settled_page.evaluate(
+                """() => { const seconds = value => Math.max(...value.split(',').map(raw => { const text = raw.trim(); if (text.endsWith('ms')) return parseFloat(text) / 1000; if (text.endsWith('s')) return parseFloat(text); return 0; })); return document.getAnimations().length === 0 && [...document.querySelectorAll('*')].every(node => { const style = getComputedStyle(node); return seconds(style.animationDuration) <= 0.001 && seconds(style.transitionDuration) <= 0.001 && style.scrollBehavior !== 'smooth'; }); }"""
+            ),
         )
     )
-    page.emulate_media(media="print", forced_colors="none", reduced_motion="reduce")
-    page.wait_for_timeout(25)
-    print_boundary_visible, print_provenance_visible = (
-        _visible(page, boundary_selector),
-        _visible(page, provenance_selector),
+    print_boundary_visible, print_provenance_visible, pdf_bytes = _settle_media_css(
+        page,
+        media="print",
+        forced_colors="none",
+        reduced_motion="reduce",
+        viewport=viewport,
+        boundary_selector=boundary_selector,
+        provenance_selector=provenance_selector,
+        operation=lambda settled_page: (
+            _visible(settled_page, boundary_selector),
+            _visible(settled_page, provenance_selector),
+            settled_page.pdf(),
+        ),
     )
-    pdf_bytes = page.pdf()
     return {
         "state": state,
         "viewport": viewport,
