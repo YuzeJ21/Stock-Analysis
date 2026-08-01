@@ -84,6 +84,9 @@ _PASSIVE_ATTRIBUTION_VERBS = frozenset(
 _PASSIVE_ATTRIBUTION_ACTORS = frozenset({"companies", "company", "issuer", "issuers"})
 _PASSIVE_ATTRIBUTION_ARTICLES = frozenset({"a", "an", "the"})
 _PASSIVE_ATTRIBUTION_CONTEXTS = frozenset({"historical", "past"})
+_PASSIVE_INCOMPATIBLE_ATTRIBUTION_CONTEXTS = frozenset(
+    {"current", "currently", "future", "next", "now", "today", "tomorrow", "upcoming"}
+)
 _PASSIVE_PAST_AUXILIARIES = frozenset({"was", "were"})
 _PASSIVE_ADVERBS = frozenset(
     {
@@ -457,6 +460,8 @@ def _is_descriptive_direct_passive_attribution(
         return False
     if not any(token.text in _PASSIVE_ATTRIBUTION_CONTEXTS for token in lead_in):
         return False
+    if any(token.text in _PASSIVE_INCOMPATIBLE_ATTRIBUTION_CONTEXTS for token in tokens):
+        return False
     if not any(token.text in _PASSIVE_ATTRIBUTION_SUBJECTS for token in lead_in):
         return False
     if not any(token.text in _PASSIVE_ATTRIBUTION_VERBS for token in lead_in):
@@ -473,12 +478,17 @@ def _is_passive_adverb(text: str) -> bool:
     return text in _PASSIVE_ADVERBS
 
 
-def _is_passive_reference_phrase(tokens: tuple[_ActionToken, ...], action_index: int) -> bool:
+def _is_passive_reference_phrase(
+    tokens: tuple[_ActionToken, ...],
+    action_index: int,
+    action_starts: frozenset[str],
+) -> bool:
     token_texts = _token_texts(tokens)
-    return any(
-        token_texts[action_index : action_index + len(phrase)] == phrase
-        for phrase in _PASSIVE_REFERENCE_PHRASES
-    )
+    for phrase in _PASSIVE_REFERENCE_PHRASES:
+        if token_texts[action_index : action_index + len(phrase)] != phrase:
+            continue
+        return not any(token.text in action_starts for token in tokens[action_index + len(phrase) :])
+    return False
 
 
 def _contains_modal_passive_action(tokens: tuple[_ActionToken, ...]) -> bool:
@@ -498,7 +508,7 @@ def _contains_modal_passive_action(tokens: tuple[_ActionToken, ...]) -> bool:
                 if text in action_starts:
                     if not has_auxiliary:
                         break
-                    if _is_passive_reference_phrase(tokens, action_index):
+                    if _is_passive_reference_phrase(tokens, action_index, action_starts):
                         break
                     if (
                         not has_modal

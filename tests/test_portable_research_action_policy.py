@@ -115,6 +115,19 @@ def test_modal_reference_and_classification_prose_remains_portable(text):
 @pytest.mark.parametrize(
     "text, expected",
     (
+        ("Shares are ordered by market capitalization.", False),
+        ("Shares are ordered by market capitalization and then reviewed.", False),
+        ("Shares are ordered by market capitalization and then sold.", True),
+        ("Shares are ordered by market capitalization and then held.", True),
+    ),
+)
+def test_passive_reference_phrase_does_not_hide_appended_actions(text, expected):
+    assert contains_portable_action_language(text) is expected
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    (
         ("Historical evidence shows shares were purchased by the issuer in 2024.", False),
         ("Shares were purchased.", True),
         ("Shares were purchased by the issuer.", True),
@@ -123,6 +136,9 @@ def test_modal_reference_and_classification_prose_remains_portable(text):
         ("The report shows shares are purchased by the issuer tomorrow.", True),
         ("Current evidence shows shares are purchased by the issuer.", True),
         ("Historical evidence shows shares are purchased by the issuer tomorrow.", True),
+        ("Historical evidence shows shares were purchased by the issuer tomorrow.", True),
+        ("Historical evidence shows shares were purchased by the issuer currently.", True),
+        ("Historical evidence shows shares were purchased by the issuer in the future.", True),
     ),
 )
 def test_direct_passive_historical_attribution_exception_is_narrow(text, expected):
