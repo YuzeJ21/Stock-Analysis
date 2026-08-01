@@ -62,6 +62,27 @@ _ACTION_FAMILIES = (
     (_COVERING_ACTION_STARTS, _COVERING_ACTION_ENDPOINTS),
     (_DIRECTIONAL_ACTION_STARTS, _DIRECTIONAL_ACTION_ENDPOINTS),
 )
+_PASSIVE_MODALS = frozenset(
+    {"must", "should", "can", "could", "may", "might", "will", "would", "shall"}
+)
+_PASSIVE_AUXILIARIES = frozenset(
+    {"be", "been", "being", "is", "are", "was", "were", "get", "gets", "got", "getting"}
+)
+_PASSIVE_NEGATIONS = frozenset({"not", "never"})
+_PASSIVE_MAX_CHAIN_TOKENS = 5
+_PASSIVE_ACTION_FAMILIES = (
+    (_SECURITY_ACTION_ENDPOINTS, _SECURITY_ACTION_STARTS),
+    (_EXECUTION_ACTION_ENDPOINTS, _EXECUTION_ACTION_STARTS),
+    (_POSITION_ACTION_ENDPOINTS | frozenset({"exposure", "exposures"}), _POSITION_ACTION_STARTS | _DIRECTIONAL_ACTION_STARTS),
+    (_COVERING_ACTION_ENDPOINTS, _COVERING_ACTION_STARTS),
+    (_DIRECTIONAL_ACTION_ENDPOINTS | frozenset({"exposure", "exposures"}), _DIRECTIONAL_ACTION_STARTS | _POSITION_ACTION_STARTS),
+)
+_PASSIVE_ATTRIBUTION_SUBJECTS = frozenset({"evidence", "report", "reports"})
+_PASSIVE_ATTRIBUTION_VERBS = frozenset(
+    {"documented", "documents", "recorded", "records", "reported", "reports", "showed", "shows"}
+)
+_PASSIVE_ATTRIBUTION_ACTORS = frozenset({"companies", "company", "issuer", "issuers"})
+_PASSIVE_ATTRIBUTION_ARTICLES = frozenset({"a", "an", "the"})
 _APPROVED_NEGATED_BOUNDARIES = (
     ("no", "recommendation"),
     ("no", "buy", "sell", "instruction"),
@@ -417,10 +438,59 @@ def _contains_semantic_action(tokens: tuple[_ActionToken, ...]) -> bool:
     return False
 
 
+def _is_descriptive_direct_passive_attribution(
+    tokens: tuple[_ActionToken, ...],
+    endpoint_index: int,
+    action_index: int,
+) -> bool:
+    lead_in = tokens[:endpoint_index]
+    if not any(token.text in _PASSIVE_ATTRIBUTION_SUBJECTS for token in lead_in):
+        return False
+    if not any(token.text in _PASSIVE_ATTRIBUTION_VERBS for token in lead_in):
+        return False
+    if action_index + 1 >= len(tokens) or tokens[action_index + 1].text != "by":
+        return False
+    actor_index = action_index + 2
+    if actor_index < len(tokens) and tokens[actor_index].text in _PASSIVE_ATTRIBUTION_ARTICLES:
+        actor_index += 1
+    return actor_index < len(tokens) and tokens[actor_index].text in _PASSIVE_ATTRIBUTION_ACTORS
+
+
+def _contains_modal_passive_action(tokens: tuple[_ActionToken, ...]) -> bool:
+    for endpoints, action_starts in _PASSIVE_ACTION_FAMILIES:
+        for endpoint_index, endpoint in enumerate(tokens[:-1]):
+            if endpoint.text not in endpoints:
+                continue
+            chain_index = endpoint_index + 1
+            chain_start = tokens[chain_index].text
+            has_modal = chain_start in _PASSIVE_MODALS
+            if not has_modal and chain_start not in _PASSIVE_AUXILIARIES:
+                continue
+            has_auxiliary = chain_start in _PASSIVE_AUXILIARIES
+            chain_limit = min(len(tokens), chain_index + _PASSIVE_MAX_CHAIN_TOKENS + 1)
+            for action_index in range(chain_index + 1, chain_limit):
+                text = tokens[action_index].text
+                if text in action_starts:
+                    if not has_auxiliary:
+                        break
+                    if (
+                        not has_modal
+                        and _is_descriptive_direct_passive_attribution(tokens, endpoint_index, action_index)
+                    ):
+                        break
+                    return True
+                if text in _PASSIVE_AUXILIARIES:
+                    has_auxiliary = True
+                    continue
+                if text in _PASSIVE_MODALS or text in _PASSIVE_NEGATIONS:
+                    continue
+    return False
+
+
 def contains_portable_action_language(value: str) -> bool:
     for clause in _action_token_clauses(value):
         action_tokens = _without_non_action_classifications(clause)
         action_tokens = _without_approved_negated_boundaries(action_tokens)
-        if _contains_semantic_action(action_tokens):
+        if _contains_semantic_action(action_tokens) or _contains_modal_passive_action(action_tokens):
             return True
     return False

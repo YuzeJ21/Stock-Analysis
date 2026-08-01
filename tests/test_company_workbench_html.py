@@ -397,6 +397,97 @@ def test_validated_https_reference_remains_usable_while_its_label_is_sanitized()
     assert reference.href == "https://www.sec.gov/Archives/edgar/data/1"
 
 
+def _snapshot_with_portable_field_text(field_name: str, text: str):
+    inputs = _inputs()
+    report = inputs.report_payload
+    changes = {}
+    if field_name == "profile_label":
+        changes["profile_context"] = replace(inputs.profile_context, profile_label=text)
+    elif field_name == "source_as_of":
+        changes["profile_context"] = replace(inputs.profile_context, source_as_of=text)
+        changes["forward_view"] = replace(inputs.forward_view, source_cutoff="")
+        report["generated_at"] = ""
+    elif field_name == "model_version":
+        report["method_version"] = text
+    elif field_name == "currency":
+        report["financial_summary"]["currency"] = text
+    elif field_name in {"use_now", "still_blocked"}:
+        selected = dict(inputs.selected_answer)
+        selected["Use Now" if field_name == "use_now" else "Still Blocked"] = text
+        changes["selected_answer"] = selected
+    elif field_name.startswith("task_"):
+        task = dict(inputs.authoritative_task)
+        if field_name == "task_title":
+            task["title"] = text
+        elif field_name == "task_body":
+            task["body"] = text
+        else:
+            task["badges"] = (text,)
+        changes["authoritative_task"] = task
+    elif field_name.startswith("recency_"):
+        recency = inputs.observation_recency
+        selected = replace(
+            recency.selected_ticker,
+            **({"message": text} if field_name == "recency_message" else {"through_date": text}),
+        )
+        changes["observation_recency"] = replace(recency, selected_ticker=selected)
+    elif field_name in {"quarterly_message", "revenue_reason", "eps_reason"}:
+        quarterly = inputs.quarterly_trend
+        if field_name == "quarterly_message":
+            quarterly = replace(quarterly, message=text)
+        elif field_name == "revenue_reason":
+            quarterly = replace(quarterly, revenue=replace(quarterly.revenue, withheld_reason=text))
+        else:
+            quarterly = replace(quarterly, eps=replace(quarterly.eps, withheld_reason=text))
+        changes["quarterly_trend"] = quarterly
+    elif field_name in {"peer_answer", "thesis_answer"}:
+        forward = inputs.forward_view
+        section_name = "peer_context" if field_name == "peer_answer" else "thesis_context"
+        changes["forward_view"] = replace(
+            forward,
+            **{section_name: replace(getattr(forward, section_name), answer=text)},
+        )
+    elif field_name == "risk_summary":
+        report["risk_summary"] = {"state": "ready", "summary": text}
+    elif field_name == "catalyst_boundary":
+        changes["catalyst_timeline"] = replace(inputs.catalyst_timeline, boundary=text)
+    elif field_name == "regime_boundary":
+        changes["valuation_regime"] = replace(inputs.valuation_regime, boundary=text)
+    elif field_name == "decision_answer":
+        lanes = (replace(inputs.decision_lab_state.lanes[0], answer=text),) + inputs.decision_lab_state.lanes[1:]
+        changes["decision_lab_state"] = replace(inputs.decision_lab_state, lanes=lanes)
+    elif field_name == "scenario_method":
+        report["valuation_snapshot"]["scenarios"][1]["dcf_result"]["method_name"] = text
+    elif field_name in {"evidence_source_id", "evidence_model_identity"}:
+        source = _source_record()
+        source["source_id" if field_name == "evidence_source_id" else "model_identity"] = text
+        report["provenance"]["source_records"] = [source]
+    elif field_name == "evidence_input_identity":
+        changes["scenario_lab_result"] = _modified_scenario_result(
+            input_identity=text,
+            source_metadata=(_source_record(),),
+        )
+    elif field_name == "reference_label":
+        report["provenance"]["source_records"] = [_source_record(label=text)]
+    elif field_name == "nowcast_verdict":
+        changes["nowcast_packet"] = {
+            "ticker": "NVDA",
+            "fiscal_period": "2026-Q3",
+            "as_of_timestamp": "2026-07-30T12:00:00Z",
+            "evidence_scope": "source_backed_preview_only",
+            "readiness": {"consensus_ready": True},
+            "backtest_verdict": text,
+            "backtest_count": 4,
+            "calibration_state": "reviewable",
+            "event_count": 4,
+            "gates": (),
+        }
+    else:
+        raise AssertionError(f"unhandled portable field: {field_name}")
+
+    return build_company_workbench_html_snapshot(_inputs(report, **changes))
+
+
 @pytest.mark.parametrize(
     "field_name, unsafe",
     (
@@ -429,80 +520,88 @@ def test_validated_https_reference_remains_usable_while_its_label_is_sanitized()
 def test_each_portable_dynamic_research_text_field_withholds_recommendation_or_transaction_equivalents(
     field_name, unsafe
 ):
-    inputs = _inputs()
-    report = inputs.report_payload
-    changes = {}
-    if field_name == "profile_label":
-        changes["profile_context"] = replace(inputs.profile_context, profile_label=unsafe)
-    elif field_name == "source_as_of":
-        changes["profile_context"] = replace(inputs.profile_context, source_as_of=unsafe)
-        changes["forward_view"] = replace(inputs.forward_view, source_cutoff="")
-        report["generated_at"] = ""
-    elif field_name == "model_version":
-        report["method_version"] = unsafe
-    elif field_name == "currency":
-        report["financial_summary"]["currency"] = unsafe
-    elif field_name in {"use_now", "still_blocked"}:
-        selected = dict(inputs.selected_answer)
-        selected["Use Now" if field_name == "use_now" else "Still Blocked"] = unsafe
-        changes["selected_answer"] = selected
-    elif field_name.startswith("task_"):
-        task = dict(inputs.authoritative_task)
-        if field_name == "task_title":
-            task["title"] = unsafe
-        elif field_name == "task_body":
-            task["body"] = unsafe
-        else:
-            task["badges"] = (unsafe,)
-        changes["authoritative_task"] = task
-    elif field_name.startswith("recency_"):
-        recency = inputs.observation_recency
-        selected = replace(
-            recency.selected_ticker,
-            **({"message": unsafe} if field_name == "recency_message" else {"through_date": unsafe}),
-        )
-        changes["observation_recency"] = replace(recency, selected_ticker=selected)
-    elif field_name in {"quarterly_message", "revenue_reason", "eps_reason"}:
-        quarterly = inputs.quarterly_trend
-        if field_name == "quarterly_message":
-            quarterly = replace(quarterly, message=unsafe)
-        elif field_name == "revenue_reason":
-            quarterly = replace(quarterly, revenue=replace(quarterly.revenue, withheld_reason=unsafe))
-        else:
-            quarterly = replace(quarterly, eps=replace(quarterly.eps, withheld_reason=unsafe))
-        changes["quarterly_trend"] = quarterly
-    elif field_name in {"peer_answer", "thesis_answer"}:
-        forward = inputs.forward_view
-        section_name = "peer_context" if field_name == "peer_answer" else "thesis_context"
-        changes["forward_view"] = replace(
-            forward,
-            **{section_name: replace(getattr(forward, section_name), answer=unsafe)},
-        )
-    elif field_name == "risk_summary":
-        report["risk_summary"] = {"state": "ready", "summary": unsafe}
-    elif field_name == "catalyst_boundary":
-        changes["catalyst_timeline"] = replace(inputs.catalyst_timeline, boundary=unsafe)
-    elif field_name == "regime_boundary":
-        changes["valuation_regime"] = replace(inputs.valuation_regime, boundary=unsafe)
-    elif field_name == "decision_answer":
-        lanes = (replace(inputs.decision_lab_state.lanes[0], answer=unsafe),) + inputs.decision_lab_state.lanes[1:]
-        changes["decision_lab_state"] = replace(inputs.decision_lab_state, lanes=lanes)
-    elif field_name == "scenario_method":
-        report["valuation_snapshot"]["scenarios"][1]["dcf_result"]["method_name"] = unsafe
-    elif field_name in {"evidence_source_id", "evidence_model_identity"}:
-        source = _source_record()
-        source["source_id" if field_name == "evidence_source_id" else "model_identity"] = unsafe
-        report["provenance"]["source_records"] = [source]
-    elif field_name == "evidence_input_identity":
-        changes["scenario_lab_result"] = _modified_scenario_result(
-            input_identity=unsafe,
-            source_metadata=(_source_record(),),
-        )
-
-    snapshot = build_company_workbench_html_snapshot(_inputs(report, **changes))
+    snapshot = _snapshot_with_portable_field_text(field_name, unsafe)
 
     assert unsafe not in repr(snapshot)
     assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
+
+
+def _portable_state_signature(snapshot):
+    return (
+        snapshot.freshness_state,
+        snapshot.rights_state,
+        tuple(row.state for row in snapshot.answers),
+        snapshot.recency.state,
+        tuple(row.state for row in snapshot.readiness_lanes),
+        tuple(row.state for row in snapshot.scenarios),
+        tuple(row.state for row in snapshot.research_sections),
+        tuple(row.state for row in snapshot.decision_lanes),
+        tuple(row.state for row in snapshot.evidence_rows),
+    )
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    (
+        "profile_label",
+        "source_as_of",
+        "model_version",
+        "currency",
+        "use_now",
+        "still_blocked",
+        "task_title",
+        "task_body",
+        "task_badge",
+        "recency_message",
+        "recency_through_date",
+        "quarterly_message",
+        "revenue_reason",
+        "eps_reason",
+        "peer_answer",
+        "thesis_answer",
+        "risk_summary",
+        "catalyst_boundary",
+        "regime_boundary",
+        "decision_answer",
+        "scenario_method",
+        "evidence_source_id",
+        "evidence_model_identity",
+        "evidence_input_identity",
+        "reference_label",
+    ),
+)
+def test_modal_passive_language_is_withheld_from_every_passive_portable_field_surface(field_name):
+    unsafe = "Shares should be bought now."
+    baseline = _snapshot_with_portable_field_text(field_name, "Reviewed historical evidence.")
+    snapshot = _snapshot_with_portable_field_text(field_name, unsafe)
+    fragment = html_brief.render_company_workbench_html_fragment(snapshot)
+    document = html_brief.render_company_workbench_html_document(snapshot)
+    download = html_brief.company_workbench_html_bytes(snapshot)
+
+    assert unsafe not in repr(snapshot)
+    assert unsafe not in fragment
+    assert unsafe not in document
+    assert unsafe.encode("utf-8") not in download
+    assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
+    assert _portable_state_signature(snapshot) == _portable_state_signature(baseline)
+
+
+def test_modal_passive_nowcast_verdict_is_not_emitted_and_cannot_promote_eligible_lane():
+    unsafe = "Shares should be bought now."
+    baseline = _snapshot_with_portable_field_text("nowcast_verdict", "reviewable")
+    snapshot = _snapshot_with_portable_field_text("nowcast_verdict", unsafe)
+    fragment = html_brief.render_company_workbench_html_fragment(snapshot)
+    document = html_brief.render_company_workbench_html_document(snapshot)
+    download = html_brief.company_workbench_html_bytes(snapshot)
+    baseline_lanes = {row.key: row for row in baseline.readiness_lanes}
+    lanes = {row.key: row for row in snapshot.readiness_lanes}
+
+    assert unsafe not in repr(snapshot)
+    assert unsafe not in fragment
+    assert unsafe not in document
+    assert unsafe.encode("utf-8") not in download
+    assert lanes["backtesting"].state == baseline_lanes["backtesting"].state == "partial"
+    assert _portable_state_signature(snapshot) == _portable_state_signature(baseline)
 
 
 @pytest.mark.parametrize(
@@ -561,27 +660,7 @@ def test_portable_field_values_withhold_common_action_inflections(field_name, un
 
 
 def _snapshot_with_portable_action_text(field_name, text):
-    inputs = _inputs()
-    report = inputs.report_payload
-    changes = {}
-    if field_name == "use_now":
-        selected = dict(inputs.selected_answer)
-        selected["Use Now"] = text
-        changes["selected_answer"] = selected
-    elif field_name == "task_body":
-        task = dict(inputs.authoritative_task)
-        task["body"] = text
-        changes["authoritative_task"] = task
-    elif field_name == "quarterly_message":
-        changes["quarterly_trend"] = replace(inputs.quarterly_trend, message=text)
-    elif field_name == "decision_answer":
-        lanes = (replace(inputs.decision_lab_state.lanes[0], answer=text),) + inputs.decision_lab_state.lanes[1:]
-        changes["decision_lab_state"] = replace(inputs.decision_lab_state, lanes=lanes)
-    else:
-        report["provenance"]["source_records"] = [
-            _source_record(model_identity=text)
-        ]
-    return build_company_workbench_html_snapshot(_inputs(report, **changes))
+    return _snapshot_with_portable_field_text(field_name, text)
 
 
 @pytest.mark.parametrize(
