@@ -15,6 +15,8 @@ Run `make company-workbench-html-browser-check` for the direct actual-byte
 complete/partial/withheld browser, keyboard, responsive, print, media-
 preference, PDF-in-memory, CSP, and repository-fingerprint matrix. No HTML, PDF, screenshot, JSON, timing, readiness, canonical-data, or report artifact is written. This command does not refresh data, acquire a source, activate readiness, or establish human/screen-reader accessibility.
 
+The recorded matrix is pre-repair engineering evidence and must be rerun after the portable HTML action-policy repair. It does not certify deterministic active/passive sanitation or current-head release completion.
+
 Local engineering evidence does not establish source rights, current-market data, readiness activation, a new or professional line-item model, hosted operation, human or screen-reader conformance, independent validation, market fit, screening alpha, or probability calibration.
 
 ## 2026-07-18 Personal Research Evidence Detour Continuity

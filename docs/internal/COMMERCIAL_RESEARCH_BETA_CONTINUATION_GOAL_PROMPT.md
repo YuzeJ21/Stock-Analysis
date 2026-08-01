@@ -39,7 +39,7 @@ Expected lineage to verify, never assume:
 - Branch: `codex/personal-research-mode-mvp`.
 - Draft PR: https://github.com/YuzeJ21/Stock-Analysis/pull/113.
 - Performance sampling reconciliation implementation anchor: `6328c8cead7c27cb901e7878cd6d7d23fa11bb0e`. Warm shell/first-useful p90 and cold shell/first-useful maximum separately enforce the unchanged one-second and three-second limits. A controlled local Chrome run recorded 48 successful samples with zero failures; the aggregate release check, 4,474-test full suite, six-route/two-viewport accessibility browser gate, state harness, push, and exact-head GitHub Actions run `30634355602` passed. PR #113 remained open, draft, and mergeable. This is local engineering evidence only; later descendants must reverify it, and category-specific failures must not be hidden by unchanged retry loops.
-- Last verified incoming synchronization anchor: `dcad75b9e4e3cdba24e5add58271a3f038e5ccc4` or a later verified descendant. The incoming exact-head GitHub Actions run `30339299654` passed, and the incoming local full-suite baseline reported 4,306 passing tests. These are historical entry evidence only. The current local branch also contains the read-only Daily Momentum & Valuation Research Queue through local implementation anchor `d36e0071f` or a later verified descendant; reverify the current HEAD, upstream alignment, exact-head CI, current tests, browser result, and generated-artifact hygiene before reliance.
+- Last verified incoming synchronization anchor: `dcad75b9e4e3cdba24e5add58271a3f038e5ccc4` or a later verified descendant. The incoming exact-head GitHub Actions run `30339299654` passed, and the incoming local full-suite baseline reported 4,306 passing tests. These are historical entry evidence only. Live repository and PR truth govern the next action: prior synchronization and CI records do not certify the portable HTML repair. The current local branch also contains the read-only Daily Momentum & Valuation Research Queue through local implementation anchor `d36e0071f` or a later verified descendant; reverify the current HEAD, upstream alignment, exact-head CI, current tests, browser result, and generated-artifact hygiene before reliance.
 - Roadmap truth-reconciliation contract: `ROADMAP.md` is the concise current decision index with `Now`, `Next`, `Externally blocked`, `Later`, and `Completed with evidence`; detailed remediation history stays in its named evidence documents. Reverify the line-budget contract, focused documentation tests, release gates, commit, push, draft-PR update, and exact-head CI before calling the reconciliation slice complete.
 - Priority 4 freeze synchronization anchor: remote commit `69c49968e77bfd55fa259695089e1f34ac2fddfb`; exact-head GitHub Actions run `30185232040` passed. Reverify both instead of treating the local read-only index as authoritative remote state.
 - Evidence-quality lineage anchor: commit `781ba2481` or a later verified descendant.
@@ -67,7 +67,7 @@ Expected lineage to verify, never assume:
 - Shared consensus commercial field-scope design/plan anchor: commit `b7013f161` or a later verified descendant.
 - Consensus source-review command implementation anchor: commit `c7e81d667` or a later verified descendant.
 - PR engineering gate hosted-verification anchor: commit `1fdcaaa78` or a later verified descendant; reverify the current revision's check instead of copying the earlier result forward.
-- Company Workbench HTML Research Brief implementation anchor: `6ad7f34310652f1b172525a0b8f00becf874c44c` or a later verified descendant. It is a local read-only presentation of existing saved evidence and prepared Python scenario math, not a readiness activation, refresh, new source, new calculation engine, human-accessibility result, hosted operation, or market-validation claim.
+- Company Workbench HTML Research Brief implementation anchor: `6ad7f34310652f1b172525a0b8f00becf874c44c` or a later verified descendant. The portable action-policy implementation exists locally but is historical implementation evidence only until the Task 4 full current-head matrix and exact-head CI pass. Route the first executable local release-safety lane to that policy repair. It remains a local read-only presentation of existing saved evidence and prepared Python scenario math, not a readiness activation, refresh, new source, new calculation engine, human-accessibility result, hosted operation, or market-validation claim.
 - Public UX post-fix outcome-contract implementation anchor: commit `74eb4055e` or a later verified descendant.
 - Prospective field-proof Stage A implementation anchor: commit `2c7398402` or a later verified descendant.
 - Company Workbench answer-first handoff design anchor: commit `1a144c9a1` or a later verified descendant; reverify the implementation, responsive measurements, and current exact-head CI rather than treating the design commit as implementation evidence.
@@ -236,11 +236,12 @@ do not reuse the historical anchor as proof of those narrower assertions.
 This does not pass C01, C02, M01 or complete direct platform,
 assistive-technology, hosted, independent-human, or WCAG review.
 
-Next safe local scan: reproduce and bound the previously observed Discover
-primary-copy containment gap from the current tree before proposing a narrow
-repair. Keep exact technical evidence under Advanced, preserve the read-only
-research queue and alphabetical cohort identity, and do not convert unavailable
-source, rights, reviewer, hosted, or calibration evidence into product copy.
+Next safe local lane: complete the portable HTML action-policy repair from live
+repository and PR truth, then run the Task 4 full current-head matrix and
+exact-head CI. Keep exact technical evidence under Advanced, preserve the
+read-only research queue and alphabetical cohort identity, and do not convert
+unavailable source, rights, reviewer, hosted, or calibration evidence into
+product copy.
 
 Priority 7 manual accessibility evidence remains externally incomplete. Do not
 re-run Priorities 1-3 unless a current regression is directly reproduced.
@@ -258,7 +259,7 @@ Priority 2 — Stage B field-proof audit and operator hardening
 - Reopen only if a current read-only, append-history, blocker-explanation, no-mapping, or no-write regression is directly reproduced.
 
 Priority 3 — In-app research-record authoring
-- Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix. The approved specification is at `docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md` and its test-first implementation plan is at `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`. Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete. Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent. Priority 7 accessibility remediation is the next safe executable local lane.
+- Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix. The approved specification is at `docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md` and its test-first implementation plan is at `docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md`. Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete. Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent. The portable HTML action-policy repair is the first executable local release-safety lane; Priority 7 remains open but is not active.
 - The approved design uses one collapsed Company Workbench composer over the existing thesis-journal, catalyst, and outcome engines. A session-only receipt binds the exact draft, selected profile/ticker, destination ledger, and current ledger fingerprint; edits or concurrent appends require a fresh preview. Tests must use temporary ledgers and must not append production research data.
 - Hardening commit `07758114c` closes the confirmation race: all three append engines share one resolved-ledger cooperative lock, receipts bind resolved ledger identity, every new preview resets confirmation, and uncertain post-append teardown requires one-shot read-side reload before success.
 - Final integrity commit `e3a090dba` ensures confirmation appends only the receipt-matched recomputed record and enforces one readable active thesis lineage: revisions must supersede the exact active entry and preserve its thesis ID. The Company Workbench locks and explains that relationship, with temporary-ledger create -> revise -> reload coverage.
@@ -273,7 +274,7 @@ A saved record cannot change readiness, forecasts, probabilities, recommendation
 
 Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.
 Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.
-Priority 7 accessibility remediation is the next safe executable local lane.
+The portable HTML action-policy repair is the first executable local release-safety lane; Priority 7 remains open but is not active.
 That summary is necessary but not sufficient; the exact Priority 4 exit condition below also requires independent review, expected count/digest reproduction, and the partition gate.
 
 Priority 4 — Point-in-time benchmark and universe foundation
@@ -288,7 +289,7 @@ Priority 4 — Point-in-time benchmark and universe foundation
 - Explicitly control corporate actions, delistings, survivorship, and leakage; never substitute current constituents, identifiers, prices, or fundamentals for historical state.
 - Preserve leakage-safe partition or walk-forward boundaries and reproducible benchmark diagnostics.
 - Keep this priority open under the single registered external dependency condition above. Schemas, fixtures, and local green gates are insufficient.
-- Keep the synchronized Priority 4 local validator frozen unless a newly reproduced Critical or Important defect requires reopening it. One bounded permitted real dataset remains the exact external exit gate. While that dataset and the independent Priority 5 consensus/peer evidence are unavailable, keep Priority 6's completed local policy contract separate from unavailable hosted implementation and advance Priority 7 accessibility remediation. Do not retry unavailable providers or recommit the already synchronized package.
+- Keep the synchronized Priority 4 local validator frozen unless a newly reproduced Critical or Important defect requires reopening it. One bounded permitted real dataset remains the exact external exit gate. While that dataset and the independent Priority 5 consensus/peer evidence are unavailable, keep Priority 6's completed local policy contract separate from unavailable hosted implementation and advance the portable HTML action-policy repair. Preserve the external manual-accessibility boundary; Priority 7 remains open but is not active. Do not retry unavailable providers or recommit the already synchronized package.
 
 Priority 5 — One permitted consensus source and one reviewed peer relationship
 - Review one permitted point-in-time consensus source for one ticker and exact fiscal period, then perform separate human evidence-preserving mapping into the prospective schema and run the collection preview.

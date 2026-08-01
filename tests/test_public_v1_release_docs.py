@@ -1468,7 +1468,6 @@ def test_priority_three_authoring_release_docs_require_current_runtime_evidence_
     current_priority_contract = (
         "Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.",
         "Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.",
-        "Priority 7 accessibility remediation is the next safe executable local lane.",
     )
     for text in (readme, product_spec, roadmap, prompt):
         for statement in current_priority_contract:
@@ -1487,17 +1486,6 @@ def test_active_product_docs_use_evidence_first_positioning_and_current_stage_tr
 
     assert "Evidence-First Research Workbench" in readme
     assert "serious individual equity researchers and small research teams" in readme
-    assert (
-        "Priority 7 accessibility remediation is the next safe executable local lane."
-        in " ".join(methodology.split())
-    )
-    assert (
-        "Last verified incoming synchronization anchor: "
-        "`dcad75b9e4e3cdba24e5add58271a3f038e5ccc4`"
-        in prompt
-    )
-    assert "incoming exact-head GitHub Actions run `30339299654` passed" in prompt
-    assert "incoming local full-suite baseline reported 4,306 passing tests" in prompt
 
     for text in (readme, roadmap, methodology, prompt):
         assert "Priority 4 is next and incomplete" not in text
@@ -1573,10 +1561,7 @@ def test_current_handoff_routes_to_local_reliability_work_not_exhausted_price_qu
     assert "Complete the documentation/routing reconciliation once" not in next_stage
     assert "make price-history-proof-queue" not in next_stage
     assert "make price-history-batch-closeout" not in next_stage
-    assert (
-        "Priority 7 accessibility remains the next numbered maturity priority"
-        in roadmap
-    )
+    assert "Priority 7 remains open but is not the active next lane" in roadmap
     assert (
         "provider-neutral retention/deletion or audit-event work is not the active next lane"
         in prompt
@@ -2049,14 +2034,36 @@ def test_html_research_brief_public_and_methodology_docs_keep_the_verified_bound
     _assert_html_brief_section_has_no_affirmative_overclaim(methodology)
 
 
-def test_html_research_brief_roadmap_separates_local_completion_from_external_gates():
+def test_portable_html_action_repair_docs_route_first_and_remain_release_blocked():
+    readme = _read("README.md")
+    product_spec = _read("PRODUCT_SPEC.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
     roadmap_section = _markdown_section(
         _read("ROADMAP.md"), "### Company Workbench HTML Research Brief"
     )
     roadmap = " ".join(roadmap_section.split())
 
+    blocked = "blocked on bidirectional active/passive action sanitation"
+    active_lane = (
+        "portable HTML action-policy repair is the first executable local release-safety lane"
+    )
+
+    assert blocked in roadmap
+    assert active_lane in roadmap
+    assert active_lane in readme
+    assert active_lane in product_spec
+    assert active_lane in methodology
+    assert "historical implementation evidence only" in continuation
+    assert (
+        "prior synchronization and CI records do not certify the portable HTML repair"
+        in continuation
+    )
+    assert "Priority 7 remains open but is not the active next lane" in roadmap
+
     assert "Company Workbench HTML Research Brief" in roadmap
-    assert "Local feature gate: complete" in roadmap
     assert (
         "Source rights, current data, hosted operation, human and screen-reader "
         "accessibility, independent workflow sessions, screening validation, and "

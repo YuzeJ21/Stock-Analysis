@@ -112,6 +112,7 @@ def test_html_brief_code_and_evidence_stay_product_candidates_but_saved_html_req
 
     for path in (
         "src/company_workbench_html.py",
+        "src/portable_research_action_policy.py",
         "src/company_workbench_html_browser_gate.py",
         "tests/test_company_workbench_html.py",
         "tests/test_company_workbench_html_browser_gate.py",

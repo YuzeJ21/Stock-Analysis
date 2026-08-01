@@ -90,6 +90,7 @@ def test_public_wording_scan_scope_is_public_but_not_tests_or_generated_csvs():
     assert "src/dashboard.py" in paths
     assert "src/stock_report.py" in paths
     assert "src/company_workbench_html.py" in paths
+    assert "src/portable_research_action_policy.py" in paths
     assert "outputs/stock_reports/nvda.md" in paths
     assert "tests/test_launchers.py" not in paths
     assert "outputs/research_decisions.csv" not in paths

@@ -1,6 +1,6 @@
 # Portable HTML Action Policy Repair Design
 
-**Status:** proposed for written-spec review
+**Status:** approved for implementation on 2026-08-01
 
 ## Decision
 

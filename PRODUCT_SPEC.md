@@ -20,7 +20,7 @@ A saved record cannot change readiness, forecasts, probabilities, recommendation
 
 Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.
 Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.
-Priority 7 accessibility remediation is the next safe executable local lane.
+The portable HTML action-policy repair is the first executable local release-safety lane; Priority 7 remains open but is not active. The portable download is not release-complete until deterministic active/passive sanitation and current-head verification pass.
 
 ## Target User
 
