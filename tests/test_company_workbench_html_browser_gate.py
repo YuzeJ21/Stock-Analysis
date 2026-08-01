@@ -241,6 +241,27 @@ def _append_test_css(document: bytes, css: str) -> bytes:
     return document.replace(marker, css.encode("utf-8") + marker, 1)
 
 
+def _wrap_skip_link_in_overflow(document: bytes, overflow: str) -> bytes:
+    assert overflow in {"auto", "scroll"}
+    rendered = document.decode("utf-8", errors="strict")
+    body = '<body class="srcc-html-document">'
+    assert rendered.count(body) == 1
+    assert rendered.count("</a><header") == 1
+    rendered = rendered.replace(
+        body,
+        body + f'<div class="test-focus-clip test-focus-clip-{overflow}">',
+        1,
+    ).replace("</a><header", "</a></div><header", 1)
+    return _append_test_css(
+        rendered.encode("utf-8"),
+        f"""
+.test-focus-clip {{ position: absolute; inset: .5rem auto auto .5rem; width: 18rem; height: 3rem; overflow: {overflow} !important; }}
+.test-focus-clip .srcc-skip-link {{ position: static !important; display: block !important; width: 100% !important; height: 100% !important; outline: none !important; box-shadow: none !important; border: 0 !important; }}
+.test-focus-clip .srcc-skip-link:focus-visible {{ outline: 4px solid #d04a00 !important; outline-offset: 8px !important; }}
+""",
+    )
+
+
 def _failed_assertion_names(result) -> set[str]:
     return {assertion.name for assertion in result.assertions if not assertion.passed}
 
@@ -592,6 +613,45 @@ def test_actual_browser_rejects_transparent_clipped_and_offscreen_focus_cues():
     results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
 
     assert all("visible_focus" in _failed_assertion_names(result) for result in results)
+
+
+def test_actual_browser_requires_a_focus_specific_change_and_rejects_overflow_clipping():
+    original = _synthetic_brief("complete")
+    cases = {
+        "focus-static-border": _append_test_css(
+            original,
+            """
+.srcc-skip-link { border: 3px solid #18222e !important; background: #ffffff !important; }
+.srcc-skip-link:focus-visible { outline: none !important; box-shadow: none !important; }
+""",
+        ),
+        "focus-overflow-auto": _wrap_skip_link_in_overflow(original, "auto"),
+        "focus-overflow-scroll": _wrap_skip_link_in_overflow(original, "scroll"),
+    }
+
+    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+
+    assert all("visible_focus" in _failed_assertion_names(result) for result in results)
+
+
+def test_actual_browser_allows_a_visible_focus_specific_inside_cue():
+    inside_cue = _append_test_css(
+        _synthetic_brief("complete"),
+        """
+.srcc-skip-link { border: 2px solid #18222e !important; background: #ffffff !important; outline: none !important; }
+.srcc-skip-link:focus-visible { background: #ffe680 !important; box-shadow: inset 0 0 0 3px #9d2020 !important; outline: none !important; }
+""",
+    )
+
+    results = run_company_workbench_html_browser_gate(
+        {"focus-inside-cue": inside_cue}, repo_root=Path.cwd()
+    )
+
+    assert all(result.passed for result in results), [
+        (result.viewport, _failed_assertion_names(result))
+        for result in results
+        if not result.passed
+    ]
 
 
 def test_make_target_runs_only_the_browser_gate_without_artifact_options():

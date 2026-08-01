@@ -434,6 +434,110 @@ def _run_page_in_context(
         context.close()
 
 
+def _focus_cue_state(page) -> Mapping[str, object]:
+    return page.evaluate(
+        """() => {
+            const node = document.querySelector('a[href="#research-brief-main"]');
+            if (!node) return {};
+            const style = getComputedStyle(node);
+            const sides = ['Top', 'Right', 'Bottom', 'Left'];
+            return {
+                outline: [style.outlineWidth, style.outlineStyle, style.outlineColor, style.outlineOffset],
+                shadow: style.boxShadow,
+                borders: sides.map(side => [style[`border${side}Width`], style[`border${side}Style`], style[`border${side}Color`]]),
+                background: [style.backgroundColor, style.backgroundImage],
+                foreground: [style.color, style.textDecorationLine, style.textDecorationColor],
+            };
+        }"""
+    )
+
+
+def _focus_cue_is_visible(
+    page,
+    *,
+    before: Mapping[str, object],
+    after: Mapping[str, object],
+) -> bool:
+    return bool(
+        page.evaluate(
+            r"""({before, after}) => {
+                const node = document.activeElement;
+                if (!node || !node.matches('a[href="#research-brief-main"]') || !node.matches(':focus-visible')) return false;
+                const changed = key => JSON.stringify(before[key]) !== JSON.stringify(after[key]);
+                const visibleColor = color => {
+                    const normalized = String(color || '').replaceAll(' ', '').toLowerCase();
+                    if (!normalized || normalized === 'transparent') return false;
+                    const rgba = normalized.match(/^rgba\([^,]+,[^,]+,[^,]+,([^\)]+)\)$/);
+                    return !rgba || Number.parseFloat(rgba[1]) > 0.01;
+                };
+                const outlineWidth = Number.parseFloat(after.outline?.[0] || '0');
+                const outlineOffset = Number.parseFloat(after.outline?.[3] || '0');
+                const outlineVisible = outlineWidth >= 1 &&
+                    !['none', 'hidden'].includes(after.outline?.[1]) && visibleColor(after.outline?.[2]);
+                const outlineChanged = changed('outline') && outlineVisible;
+                const shadowParts = String(after.shadow || 'none').split(/,(?![^\(]*\))/);
+                const visibleShadows = shadowParts.filter(part => {
+                    const color = part.match(/rgba?\([^\)]+\)/)?.[0] || '';
+                    const lengths = part.match(/-?\d+(?:\.\d+)?px/g) || [];
+                    return visibleColor(color) && lengths.some(length => Math.abs(Number.parseFloat(length)) >= 1);
+                });
+                const shadowChanged = changed('shadow') && visibleShadows.length > 0;
+                const insetShadowChanged = shadowChanged && visibleShadows.some(part => /\binset\b/.test(part));
+                const borderChanged = changed('borders') && (after.borders || []).some(border =>
+                    Number.parseFloat(border[0] || '0') >= 1 &&
+                    !['none', 'hidden'].includes(border[1]) && visibleColor(border[2])
+                );
+                const backgroundChanged = changed('background') &&
+                    (visibleColor(after.background?.[0]) || after.background?.[1] !== 'none');
+                const foregroundChanged = changed('foreground') && visibleColor(after.foreground?.[0]);
+                const outlineInside = outlineChanged && outlineOffset <= -outlineWidth;
+                const insideCue = borderChanged || backgroundChanged || foregroundChanged || insetShadowChanged || outlineInside;
+                const outwardShadows = shadowChanged ? visibleShadows.filter(part => !/\binset\b/.test(part)) : [];
+                const outwardCue = (outlineChanged && !outlineInside) || outwardShadows.length > 0;
+                if (!insideCue && !outwardCue) return false;
+                if (insideCue) return true;
+
+                const shadowExtent = outwardShadows.reduce((extent, part) => {
+                    const lengths = part.match(/-?\d+(?:\.\d+)?px/g) || [];
+                    return Math.max(extent, ...lengths.map(length => Math.abs(Number.parseFloat(length))));
+                }, 0);
+                const outlineExtent = outlineChanged ? outlineWidth + Math.max(0, outlineOffset) : 0;
+                const extent = Math.max(outlineExtent, shadowExtent);
+                if (extent < 1) return false;
+                const gap = outlineChanged ? Math.max(0, outlineOffset) : 0;
+                const nodeRect = node.getBoundingClientRect();
+                let left = Math.max(0, nodeRect.left - extent);
+                let right = Math.min(window.innerWidth, nodeRect.right + extent);
+                let top = Math.max(0, nodeRect.top - extent);
+                let bottom = Math.min(window.innerHeight, nodeRect.bottom + extent);
+                for (let current = node; current instanceof Element; current = current.parentElement) {
+                    const style = getComputedStyle(current);
+                    if (style.clipPath !== 'none' || style.clip !== 'auto') return false;
+                    if (current !== node) {
+                        const ancestor = current.getBoundingClientRect();
+                        const clipLeft = ancestor.left + current.clientLeft;
+                        const clipTop = ancestor.top + current.clientTop;
+                        const clipRight = clipLeft + current.clientWidth;
+                        const clipBottom = clipTop + current.clientHeight;
+                        if (['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowX)) {
+                            left = Math.max(left, clipLeft);
+                            right = Math.min(right, clipRight);
+                        }
+                        if (['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowY)) {
+                            top = Math.max(top, clipTop);
+                            bottom = Math.min(bottom, clipBottom);
+                        }
+                    }
+                }
+                if (right - left <= 1 || bottom - top <= 1) return false;
+                return left < nodeRect.left - gap - 0.5 || right > nodeRect.right + gap + 0.5 ||
+                    top < nodeRect.top - gap - 0.5 || bottom > nodeRect.bottom + gap + 0.5;
+            }""",
+            {"before": before, "after": after},
+        )
+    )
+
+
 def _browser_observation(
     page,
     *,
@@ -446,57 +550,14 @@ def _browser_observation(
     structural = page.evaluate(
         """() => { const all = [...document.querySelectorAll('*')]; const headings = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')]; return { h1_count: document.querySelectorAll('h1').length, header_count: document.querySelectorAll('header').length, main_count: document.querySelectorAll('main').length, footer_count: document.querySelectorAll('footer').length, section_count: document.querySelectorAll('section').length, heading_levels: headings.map(node => Number(node.tagName.slice(1))), table_count: document.querySelectorAll('table').length, captioned_table_count: [...document.querySelectorAll('table')].filter(table => table.querySelector(':scope > caption')).length, csp: document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute('content') || '', script_count: document.querySelectorAll('script').length, event_handler_count: all.reduce((count, node) => count + [...node.attributes].filter(attr => attr.name.toLowerCase().startsWith('on')).length, 0), form_count: document.querySelectorAll('form').length, iframe_count: document.querySelectorAll('iframe').length, overflow_px: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth) }; }"""
     )
+    focus_before = _focus_cue_state(page)
     page.keyboard.press("Tab")
     rendered_focus = _visible(
         page, 'a[href="#research-brief-main"]', scroll_vertical=False
     )
-    visible_focus = rendered_focus and bool(
-        page.evaluate(
-            r"""() => {
-                const node = document.activeElement;
-                if (!node || !node.matches('a[href="#research-brief-main"]') || !node.matches(':focus-visible')) return false;
-                const style = getComputedStyle(node);
-                const visibleColor = color => {
-                    const normalized = String(color || '').replaceAll(' ', '').toLowerCase();
-                    if (!normalized || normalized === 'transparent') return false;
-                    const rgba = normalized.match(/^rgba\([^,]+,[^,]+,[^,]+,([^\)]+)\)$/);
-                    return !rgba || Number.parseFloat(rgba[1]) > 0.01;
-                };
-                const outline = Number.parseFloat(style.outlineWidth || '0') >= 1 &&
-                    !['none', 'hidden'].includes(style.outlineStyle) && visibleColor(style.outlineColor);
-                const shadow = style.boxShadow !== 'none' && style.boxShadow.split(/,(?![^\(]*\))/).some(part => {
-                    const color = part.match(/rgba?\([^\)]+\)/)?.[0] || '';
-                    const lengths = part.match(/-?\d+(?:\.\d+)?px/g) || [];
-                    return visibleColor(color) && lengths.some(length => Math.abs(Number.parseFloat(length)) >= 1);
-                });
-                const borders = ['Top', 'Right', 'Bottom', 'Left'].some(side =>
-                    Number.parseFloat(style[`border${side}Width`] || '0') >= 1 &&
-                    !['none', 'hidden'].includes(style[`border${side}Style`]) &&
-                    visibleColor(style[`border${side}Color`])
-                );
-                if (!(outline || shadow || borders)) return false;
-                const nodeRect = node.getBoundingClientRect();
-                const outlineExtent = outline ? Number.parseFloat(style.outlineWidth || '0') + Math.max(0, Number.parseFloat(style.outlineOffset || '0')) : 0;
-                const cueRect = {
-                    left: nodeRect.left - outlineExtent,
-                    right: nodeRect.right + outlineExtent,
-                    top: nodeRect.top - outlineExtent,
-                    bottom: nodeRect.bottom + outlineExtent,
-                };
-                for (let current = node; current instanceof Element; current = current.parentElement) {
-                    const currentStyle = getComputedStyle(current);
-                    if (currentStyle.clipPath !== 'none' || currentStyle.clip !== 'auto') return false;
-                    if (current !== node) {
-                        const ancestor = current.getBoundingClientRect();
-                        if (['hidden', 'clip'].includes(currentStyle.overflowX) &&
-                            (cueRect.left < ancestor.left || cueRect.right > ancestor.right)) return false;
-                        if (['hidden', 'clip'].includes(currentStyle.overflowY) &&
-                            (cueRect.top < ancestor.top || cueRect.bottom > ancestor.bottom)) return false;
-                    }
-                }
-                return cueRect.right > 0 && cueRect.left < window.innerWidth && cueRect.bottom > 0 && cueRect.top < window.innerHeight;
-            }"""
-        )
+    focus_after = _focus_cue_state(page)
+    visible_focus = rendered_focus and _focus_cue_is_visible(
+        page, before=focus_before, after=focus_after
     )
     page.keyboard.press("Enter")
     page.wait_for_timeout(25)
