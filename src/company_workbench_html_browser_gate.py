@@ -475,14 +475,33 @@ def _focus_cue_is_visible(
                 const outlineVisible = outlineWidth >= 1 &&
                     !['none', 'hidden'].includes(after.outline?.[1]) && visibleColor(after.outline?.[2]);
                 const outlineChanged = changed('outline') && outlineVisible;
-                const shadowParts = String(after.shadow || 'none').split(/,(?![^\(]*\))/);
-                const visibleShadows = shadowParts.filter(part => {
+                const splitShadows = value => {
+                    const parts = [];
+                    let depth = 0;
+                    let start = 0;
+                    for (let index = 0; index < value.length; index += 1) {
+                        if (value[index] === '(') depth += 1;
+                        if (value[index] === ')') depth = Math.max(0, depth - 1);
+                        if (value[index] === ',' && depth === 0) {
+                            parts.push(value.slice(start, index).trim());
+                            start = index + 1;
+                        }
+                    }
+                    parts.push(value.slice(start).trim());
+                    return parts.filter(Boolean);
+                };
+                const parseShadow = part => {
                     const color = part.match(/rgba?\([^\)]+\)/)?.[0] || '';
-                    const lengths = part.match(/-?\d+(?:\.\d+)?px/g) || [];
-                    return visibleColor(color) && lengths.some(length => Math.abs(Number.parseFloat(length)) >= 1);
-                });
-                const shadowChanged = changed('shadow') && visibleShadows.length > 0;
-                const insetShadowChanged = shadowChanged && visibleShadows.some(part => /\binset\b/.test(part));
+                    const lengths = (part.replace(color, '').match(/-?\d+(?:\.\d+)?px/g) || [])
+                        .map(length => Number.parseFloat(length));
+                    if (!visibleColor(color) || lengths.length < 2 || lengths.length > 4 || lengths.some(length => !Number.isFinite(length))) return null;
+                    const [offsetX, offsetY, blur = 0, spread = 0] = lengths;
+                    if (blur < 0 || ![offsetX, offsetY, blur, spread].some(length => Math.abs(length) >= 1)) return null;
+                    return {part, inset: /\binset\b/.test(part), offsetX, offsetY, blur, spread};
+                };
+                const parsedShadows = splitShadows(String(after.shadow || 'none')).map(parseShadow).filter(Boolean);
+                const shadowChanged = changed('shadow') && parsedShadows.length > 0;
+                const insetShadowChanged = shadowChanged && parsedShadows.some(shadow => shadow.inset);
                 const borderChanged = changed('borders') && (after.borders || []).some(border =>
                     Number.parseFloat(border[0] || '0') >= 1 &&
                     !['none', 'hidden'].includes(border[1]) && visibleColor(border[2])
@@ -492,24 +511,16 @@ def _focus_cue_is_visible(
                 const foregroundChanged = changed('foreground') && visibleColor(after.foreground?.[0]);
                 const outlineInside = outlineChanged && outlineOffset <= -outlineWidth;
                 const insideCue = borderChanged || backgroundChanged || foregroundChanged || insetShadowChanged || outlineInside;
-                const outwardShadows = shadowChanged ? visibleShadows.filter(part => !/\binset\b/.test(part)) : [];
+                // Outward blurred shadows have renderer-dependent soft bounds. Fail closed
+                // instead of using a symmetric approximation that can invent visible pixels.
+                const outwardShadows = shadowChanged ? parsedShadows.filter(shadow => !shadow.inset && shadow.blur === 0) : [];
                 const outwardCue = (outlineChanged && !outlineInside) || outwardShadows.length > 0;
                 if (!insideCue && !outwardCue) return false;
                 if (insideCue) return true;
 
-                const shadowExtent = outwardShadows.reduce((extent, part) => {
-                    const lengths = part.match(/-?\d+(?:\.\d+)?px/g) || [];
-                    return Math.max(extent, ...lengths.map(length => Math.abs(Number.parseFloat(length))));
-                }, 0);
                 const outlineExtent = outlineChanged ? outlineWidth + Math.max(0, outlineOffset) : 0;
-                const extent = Math.max(outlineExtent, shadowExtent);
-                if (extent < 1) return false;
-                const gap = outlineChanged ? Math.max(0, outlineOffset) : 0;
                 const nodeRect = node.getBoundingClientRect();
-                let left = Math.max(0, nodeRect.left - extent);
-                let right = Math.min(window.innerWidth, nodeRect.right + extent);
-                let top = Math.max(0, nodeRect.top - extent);
-                let bottom = Math.min(window.innerHeight, nodeRect.bottom + extent);
+                const clipBounds = {left: 0, right: window.innerWidth, top: 0, bottom: window.innerHeight};
                 for (let current = node; current instanceof Element; current = current.parentElement) {
                     const style = getComputedStyle(current);
                     if (style.clipPath !== 'none' || style.clip !== 'auto') return false;
@@ -520,18 +531,36 @@ def _focus_cue_is_visible(
                         const clipRight = clipLeft + current.clientWidth;
                         const clipBottom = clipTop + current.clientHeight;
                         if (['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowX)) {
-                            left = Math.max(left, clipLeft);
-                            right = Math.min(right, clipRight);
+                            clipBounds.left = Math.max(clipBounds.left, clipLeft);
+                            clipBounds.right = Math.min(clipBounds.right, clipRight);
                         }
                         if (['hidden', 'clip', 'auto', 'scroll'].includes(style.overflowY)) {
-                            top = Math.max(top, clipTop);
-                            bottom = Math.min(bottom, clipBottom);
+                            clipBounds.top = Math.max(clipBounds.top, clipTop);
+                            clipBounds.bottom = Math.min(clipBounds.bottom, clipBottom);
                         }
                     }
                 }
-                if (right - left <= 1 || bottom - top <= 1) return false;
-                return left < nodeRect.left - gap - 0.5 || right > nodeRect.right + gap + 0.5 ||
-                    top < nodeRect.top - gap - 0.5 || bottom > nodeRect.bottom + gap + 0.5;
+                const visibleOutsideNode = (region, gap = 0) => {
+                    const left = Math.max(region.left, clipBounds.left);
+                    const right = Math.min(region.right, clipBounds.right);
+                    const top = Math.max(region.top, clipBounds.top);
+                    const bottom = Math.min(region.bottom, clipBounds.bottom);
+                    if (right - left <= 1 || bottom - top <= 1) return false;
+                    return left < nodeRect.left - gap - 0.5 || right > nodeRect.right + gap + 0.5 ||
+                        top < nodeRect.top - gap - 0.5 || bottom > nodeRect.bottom + gap + 0.5;
+                };
+                if (outlineChanged && !outlineInside && outlineExtent >= 1 && visibleOutsideNode({
+                    left: nodeRect.left - outlineExtent,
+                    right: nodeRect.right + outlineExtent,
+                    top: nodeRect.top - outlineExtent,
+                    bottom: nodeRect.bottom + outlineExtent,
+                }, Math.max(0, outlineOffset))) return true;
+                return outwardShadows.some(shadow => visibleOutsideNode({
+                    left: nodeRect.left + shadow.offsetX - shadow.spread,
+                    right: nodeRect.right + shadow.offsetX + shadow.spread,
+                    top: nodeRect.top + shadow.offsetY - shadow.spread,
+                    bottom: nodeRect.bottom + shadow.offsetY + shadow.spread,
+                }));
             }""",
             {"before": before, "after": after},
         )

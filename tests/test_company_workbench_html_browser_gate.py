@@ -262,6 +262,27 @@ def _wrap_skip_link_in_overflow(document: bytes, overflow: str) -> bytes:
     )
 
 
+def _directional_shadow_clipped_at_edge(
+    document: bytes,
+    *,
+    overflow: str,
+    edge: str,
+) -> bytes:
+    assert overflow in {"auto", "scroll"}
+    assert edge in {"left", "right"}
+    offset = "-16px" if edge == "left" else "16px"
+    justify = "flex-start" if edge == "left" else "flex-end"
+    wrapped = _wrap_skip_link_in_overflow(document, overflow)
+    return _append_test_css(
+        wrapped,
+        f"""
+.test-focus-clip {{ display: flex !important; align-items: stretch !important; justify-content: {justify} !important; }}
+.test-focus-clip .srcc-skip-link {{ flex: 0 0 4rem !important; width: 4rem !important; height: 100% !important; outline: none !important; border: 0 !important; box-shadow: none !important; background: #ffffff !important; }}
+.test-focus-clip .srcc-skip-link:focus-visible {{ outline: none !important; border: 0 !important; background: #ffffff !important; box-shadow: {offset} 0 0 0 #d04a00 !important; }}
+""",
+    )
+
+
 def _failed_assertion_names(result) -> set[str]:
     return {assertion.name for assertion in result.assertions if not assertion.passed}
 
@@ -652,6 +673,24 @@ def test_actual_browser_allows_a_visible_focus_specific_inside_cue():
         for result in results
         if not result.passed
     ]
+
+
+def test_actual_browser_rejects_fully_clipped_directional_focus_shadows():
+    original = _synthetic_brief("complete")
+    cases = {
+        f"focus-shadow-{edge}-{overflow}": _directional_shadow_clipped_at_edge(
+            original,
+            overflow=overflow,
+            edge=edge,
+        )
+        for edge in ("left", "right")
+        for overflow in ("auto", "scroll")
+    }
+
+    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+
+    assert len(results) == 12
+    assert all("visible_focus" in _failed_assertion_names(result) for result in results)
 
 
 def test_make_target_runs_only_the_browser_gate_without_artifact_options():
