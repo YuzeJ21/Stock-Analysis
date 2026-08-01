@@ -466,6 +466,36 @@ def test_scenario_lab_rejects_each_independent_acceptance_gate(changed):
     assert snapshot.sensitivity.value_grid != ((123.0,),)
 
 
+def test_scenario_lab_rejects_non_calculated_outer_status_with_all_other_gates_valid():
+    calculated = _modified_scenario_result()
+    scenario_dcf = replace(
+        calculated.scenario_result,
+        enterprise_value=987654.0,
+        fair_value_per_share=87654.0,
+    )
+    rejected = replace(
+        calculated,
+        status="partial",
+        scenario_result=scenario_dcf,
+        source_metadata=(_source_record(source_id="SCENARIO-ONLY"),),
+    )
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(scenario_lab_result=rejected))
+
+    assert _base(snapshot).modified is False
+    assert _base(snapshot).bridge.enterprise_value != 987654.0
+    assert _base(snapshot).bridge.scenario_value_per_share != 87654.0
+    assert snapshot.sensitivity.value_grid != ((123.0,),)
+    assert all(row.modified is False for row in snapshot.scenarios)
+    assert not any(row.section == "scenario" for row in snapshot.evidence_rows)
+    assert {row.name: row.state for row in snapshot.scenarios} == {
+        "Bear": "available",
+        "Base": "available",
+        "Bull": "available",
+    }
+    assert "Scenario Lab result is not an accepted matching changed calculation." in snapshot.blockers
+
+
 @pytest.mark.parametrize("field, value", (("ticker", "AMD"), ("profile_key", "other")))
 def test_decision_lab_rejects_each_independent_scope_mismatch(field, value):
     snapshot = build_company_workbench_html_snapshot(_inputs(decision_lab_state=replace(_decision(), **{field: value})))
@@ -487,6 +517,153 @@ def test_each_catalyst_event_rejects_each_independent_scope_mismatch(field, valu
     snapshot = build_company_workbench_html_snapshot(_inputs(catalyst_timeline=replace(timeline, upcoming=(event,))))
 
     assert not any(row.section == "catalyst" for row in snapshot.evidence_rows)
+
+
+def test_catalyst_timeline_rejects_outer_ticker_mismatch_when_events_match():
+    matching_events = _catalysts()
+    mismatched_timeline = replace(matching_events, ticker="AMD")
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(catalyst_timeline=mismatched_timeline))
+    lanes = {row.key: row for row in snapshot.readiness_lanes}
+    sections = {row.key: row for row in snapshot.research_sections}
+
+    assert matching_events.upcoming[0].ticker == "NVDA"
+    assert matching_events.upcoming[0].profile_key == "demo"
+    assert lanes["catalysts"].state == "withheld"
+    assert lanes["catalysts"].answer == "No matching catalyst evidence."
+    assert sections["catalysts"].state == "withheld"
+    assert sections["catalysts"].answer == "No matching catalyst evidence."
+    assert not any(row.section == "catalyst" for row in snapshot.evidence_rows)
+    assert lanes["actuals"].answer == "Quarterly evidence"
+    assert sections["key-drivers"].answer == "Reviewed context"
+
+
+def test_nowcast_rejects_fiscal_period_mismatch_with_all_other_gates_valid():
+    packet = {
+        "ticker": "NVDA",
+        "fiscal_period": "2026-Q4",
+        "as_of_timestamp": "2026-07-30T12:00:00Z",
+        "evidence_scope": "source_backed_preview_only",
+        "readiness": {"consensus_ready": True},
+        "backtest_verdict": "reviewable",
+        "backtest_count": 4,
+        "calibration_state": "reviewable",
+        "event_count": 4,
+        "gates": (),
+    }
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(nowcast_packet=packet))
+    lanes = {row.key: row for row in snapshot.readiness_lanes}
+
+    assert [lanes[key].state for key in ("consensus", "backtesting", "calibration")] == [
+        "withheld",
+        "withheld",
+        "withheld",
+    ]
+    assert [lanes[key].answer for key in ("consensus", "backtesting", "calibration")] == [
+        "No portable nowcast evidence.",
+        "No portable nowcast evidence.",
+        "No portable nowcast evidence.",
+    ]
+    assert lanes["actuals"].answer == "Quarterly evidence"
+    assert lanes["valuation"].answer == "Authoritative DCF bridge."
+
+
+def test_nowcast_rejects_invalid_as_of_timestamp_with_all_other_gates_valid():
+    packet = {
+        "ticker": "NVDA",
+        "fiscal_period": "2026-Q3",
+        "as_of_timestamp": "not-a-timestamp",
+        "evidence_scope": "source_backed_preview_only",
+        "readiness": {"consensus_ready": True},
+        "backtest_verdict": "reviewable",
+        "backtest_count": 4,
+        "calibration_state": "reviewable",
+        "event_count": 4,
+        "gates": (),
+    }
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(nowcast_packet=packet))
+    lanes = {row.key: row for row in snapshot.readiness_lanes}
+
+    assert [lanes[key].state for key in ("consensus", "backtesting", "calibration")] == [
+        "withheld",
+        "withheld",
+        "withheld",
+    ]
+    assert [lanes[key].answer for key in ("consensus", "backtesting", "calibration")] == [
+        "No portable nowcast evidence.",
+        "No portable nowcast evidence.",
+        "No portable nowcast evidence.",
+    ]
+    assert lanes["actuals"].answer == "Quarterly evidence"
+    assert lanes["valuation"].answer == "Authoritative DCF bridge."
+
+
+def test_nowcast_rejects_as_of_after_report_generated_at_when_review_cutoff_is_later():
+    report = _inputs().report_payload
+    report["generated_at"] = "2026-07-31T12:00:00Z"
+    forward = replace(_forward(), source_cutoff="2026-08-01T12:00:00Z")
+    packet = {
+        "ticker": "NVDA",
+        "fiscal_period": "2026-Q3",
+        "as_of_timestamp": "2026-07-31T12:00:01Z",
+        "evidence_scope": "source_backed_preview_only",
+        "readiness": {"consensus_ready": True},
+        "backtest_verdict": "reviewable",
+        "backtest_count": 4,
+        "calibration_state": "reviewable",
+        "event_count": 4,
+        "gates": (),
+    }
+
+    snapshot = build_company_workbench_html_snapshot(
+        _inputs(report, forward_view=forward, nowcast_packet=packet)
+    )
+    lanes = {row.key: row for row in snapshot.readiness_lanes}
+
+    assert snapshot.generated_at == "2026-07-31T12:00:00Z"
+    assert snapshot.review_cutoff == "2026-08-01T12:00:00Z"
+    assert [lanes[key].state for key in ("consensus", "backtesting", "calibration")] == [
+        "withheld",
+        "withheld",
+        "withheld",
+    ]
+    assert lanes["actuals"].answer == "Quarterly evidence"
+    assert lanes["valuation"].answer == "Authoritative DCF bridge."
+
+
+def test_nowcast_rejects_as_of_after_review_cutoff_when_report_generated_at_is_later():
+    report = _inputs().report_payload
+    report["generated_at"] = "2026-07-31T12:00:00Z"
+    forward = replace(_forward(), source_cutoff="2026-07-30T12:00:00Z")
+    packet = {
+        "ticker": "NVDA",
+        "fiscal_period": "2026-Q3",
+        "as_of_timestamp": "2026-07-30T12:00:01Z",
+        "evidence_scope": "source_backed_preview_only",
+        "readiness": {"consensus_ready": True},
+        "backtest_verdict": "reviewable",
+        "backtest_count": 4,
+        "calibration_state": "reviewable",
+        "event_count": 4,
+        "gates": (),
+    }
+
+    snapshot = build_company_workbench_html_snapshot(
+        _inputs(report, forward_view=forward, nowcast_packet=packet)
+    )
+    lanes = {row.key: row for row in snapshot.readiness_lanes}
+
+    assert snapshot.generated_at == "2026-07-31T12:00:00Z"
+    assert snapshot.review_cutoff == "2026-07-30T12:00:00Z"
+    assert [lanes[key].state for key in ("consensus", "backtesting", "calibration")] == [
+        "withheld",
+        "withheld",
+        "withheld",
+    ]
+    assert lanes["actuals"].answer == "Quarterly evidence"
+    assert lanes["valuation"].answer == "Authoritative DCF bridge."
 
 
 def test_invalid_or_empty_profile_keys_never_authorize_decision_journal_catalyst_or_scenario_content():
