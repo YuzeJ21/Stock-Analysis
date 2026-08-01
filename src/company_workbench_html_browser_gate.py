@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import hashlib
 import os
+import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping
+from typing import Callable, Mapping
 
 from src.public_performance_gate import find_chrome_executable
 
@@ -312,31 +313,125 @@ def repository_fingerprint(repo_root: Path) -> str:
     listed = subprocess.check_output(
         ["git", "ls-files", "-co", "--exclude-standard", "-z"], cwd=root
     )
+    staged = subprocess.check_output(["git", "ls-files", "--stage", "-z"], cwd=root)
+    index_entries: dict[bytes, list[bytes]] = {}
+    for entry in (item for item in staged.split(b"\0") if item):
+        metadata, relative_bytes = entry.split(b"\t", 1)
+        index_entries.setdefault(relative_bytes, []).append(metadata)
     relative_paths = sorted(set(path for path in listed.split(b"\0") if path))
     digest = hashlib.sha256()
     for relative_bytes in relative_paths:
         path = root / os.fsdecode(relative_bytes)
-        if path.is_symlink():
-            kind, payload = b"symlink", os.fsencode(os.readlink(path))
-        elif path.is_file():
-            kind, payload = b"file", path.read_bytes()
-        elif path.is_dir():
-            kind, payload = b"directory", b""
+        entries = tuple(sorted(index_entries.get(relative_bytes, ())))
+        try:
+            path_stat = path.lstat()
+        except FileNotFoundError:
+            path_stat = None
+        if path_stat is None:
+            kind, mode, payload = b"missing", b"", b""
         else:
-            kind, payload = b"missing", b""
-        for field in (relative_bytes, kind, payload):
+            mode = f"{stat.S_IFMT(path_stat.st_mode):o}:{stat.S_IMODE(path_stat.st_mode):o}".encode()
+            if stat.S_ISLNK(path_stat.st_mode):
+                kind, payload = b"symlink", os.fsencode(os.readlink(path))
+            elif stat.S_ISREG(path_stat.st_mode):
+                kind, payload = b"regular", path.read_bytes()
+            elif stat.S_ISDIR(path_stat.st_mode):
+                is_gitlink = any(entry.startswith(b"160000 ") for entry in entries)
+                kind = b"gitlink" if is_gitlink else b"directory"
+                if is_gitlink:
+                    try:
+                        working_identity = subprocess.check_output(
+                            ["git", "rev-parse", "HEAD"],
+                            cwd=path,
+                            stderr=subprocess.DEVNULL,
+                        ).strip()
+                    except (OSError, subprocess.CalledProcessError):
+                        working_identity = b"unavailable"
+                    payload = working_identity
+                else:
+                    payload = b""
+            elif stat.S_ISFIFO(path_stat.st_mode):
+                kind, payload = b"fifo", b""
+            elif stat.S_ISSOCK(path_stat.st_mode):
+                kind, payload = b"socket", b""
+            elif stat.S_ISCHR(path_stat.st_mode):
+                kind, payload = b"character-device", str(path_stat.st_rdev).encode()
+            elif stat.S_ISBLK(path_stat.st_mode):
+                kind, payload = b"block-device", str(path_stat.st_rdev).encode()
+            else:
+                kind, payload = b"unknown", b""
+        index_payload = b"\0".join(entries)
+        for field in (relative_bytes, kind, mode, index_payload, payload):
             digest.update(len(field).to_bytes(8, "big"))
             digest.update(field)
     return digest.hexdigest()
 
 
-def _visible(page, selector: str) -> bool:
+def _visible(page, selector: str, *, scroll_vertical: bool = True) -> bool:
     return bool(
         page.evaluate(
-            """selector => { const node = document.querySelector(selector); if (!node) return false; const style = getComputedStyle(node); const rect = node.getBoundingClientRect(); return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0; }""",
-            selector,
+            """({selector, scrollVertical}) => {
+                const node = document.querySelector(selector);
+                if (!node) return false;
+                if (scrollVertical) {
+                    const initial = node.getBoundingClientRect();
+                    const targetY = Math.max(0, window.scrollY + initial.top - (window.innerHeight - initial.height) / 2);
+                    window.scrollTo(window.scrollX, targetY);
+                }
+                let rect = node.getBoundingClientRect();
+                let left = Math.max(0, rect.left);
+                let right = Math.min(window.innerWidth, rect.right);
+                let top = Math.max(0, rect.top);
+                let bottom = Math.min(window.innerHeight, rect.bottom);
+                for (let current = node; current instanceof Element; current = current.parentElement) {
+                    const style = getComputedStyle(current);
+                    const opacity = Number.parseFloat(style.opacity || '1');
+                    if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' ||
+                        style.contentVisibility === 'hidden' || !Number.isFinite(opacity) || opacity <= 0.01) return false;
+                    if (current !== node) {
+                        const ancestor = current.getBoundingClientRect();
+                        if (['hidden', 'clip', 'scroll', 'auto'].includes(style.overflowX)) {
+                            left = Math.max(left, ancestor.left);
+                            right = Math.min(right, ancestor.right);
+                        }
+                        if (['hidden', 'clip', 'scroll', 'auto'].includes(style.overflowY)) {
+                            top = Math.max(top, ancestor.top);
+                            bottom = Math.min(bottom, ancestor.bottom);
+                        }
+                    }
+                }
+                if (right - left <= 1 || bottom - top <= 1) return false;
+                const points = [
+                    [(left + right) / 2, (top + bottom) / 2],
+                    [left + 1, top + 1],
+                    [right - 1, bottom - 1],
+                ];
+                return points.some(([x, y]) => document.elementsFromPoint(x, y).some(
+                    candidate => candidate === node || node.contains(candidate)
+                ));
+            }""",
+            {"selector": selector, "scrollVertical": scroll_vertical},
         )
     )
+
+
+def _run_page_in_context(
+    browser,
+    *,
+    width: int,
+    height: int,
+    operation: Callable[[object], object],
+):
+    """Run one page operation while closing context even if page setup/close fails."""
+    context = browser.new_context(viewport={"width": width, "height": height})
+    try:
+        page = context.new_page()
+        try:
+            return operation(page)
+        finally:
+            page.close()
+    finally:
+        context.close()
 
 
 def _browser_observation(
@@ -352,9 +447,55 @@ def _browser_observation(
         """() => { const all = [...document.querySelectorAll('*')]; const headings = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')]; return { h1_count: document.querySelectorAll('h1').length, header_count: document.querySelectorAll('header').length, main_count: document.querySelectorAll('main').length, footer_count: document.querySelectorAll('footer').length, section_count: document.querySelectorAll('section').length, heading_levels: headings.map(node => Number(node.tagName.slice(1))), table_count: document.querySelectorAll('table').length, captioned_table_count: [...document.querySelectorAll('table')].filter(table => table.querySelector(':scope > caption')).length, csp: document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute('content') || '', script_count: document.querySelectorAll('script').length, event_handler_count: all.reduce((count, node) => count + [...node.attributes].filter(attr => attr.name.toLowerCase().startsWith('on')).length, 0), form_count: document.querySelectorAll('form').length, iframe_count: document.querySelectorAll('iframe').length, overflow_px: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth) }; }"""
     )
     page.keyboard.press("Tab")
-    visible_focus = bool(
+    rendered_focus = _visible(
+        page, 'a[href="#research-brief-main"]', scroll_vertical=False
+    )
+    visible_focus = rendered_focus and bool(
         page.evaluate(
-            """() => { const node = document.activeElement; if (!node || !node.matches('a[href="#research-brief-main"]')) return false; const style = getComputedStyle(node); return parseFloat(style.outlineWidth || '0') > 0 && style.outlineStyle !== 'none'; }"""
+            r"""() => {
+                const node = document.activeElement;
+                if (!node || !node.matches('a[href="#research-brief-main"]') || !node.matches(':focus-visible')) return false;
+                const style = getComputedStyle(node);
+                const visibleColor = color => {
+                    const normalized = String(color || '').replaceAll(' ', '').toLowerCase();
+                    if (!normalized || normalized === 'transparent') return false;
+                    const rgba = normalized.match(/^rgba\([^,]+,[^,]+,[^,]+,([^\)]+)\)$/);
+                    return !rgba || Number.parseFloat(rgba[1]) > 0.01;
+                };
+                const outline = Number.parseFloat(style.outlineWidth || '0') >= 1 &&
+                    !['none', 'hidden'].includes(style.outlineStyle) && visibleColor(style.outlineColor);
+                const shadow = style.boxShadow !== 'none' && style.boxShadow.split(/,(?![^\(]*\))/).some(part => {
+                    const color = part.match(/rgba?\([^\)]+\)/)?.[0] || '';
+                    const lengths = part.match(/-?\d+(?:\.\d+)?px/g) || [];
+                    return visibleColor(color) && lengths.some(length => Math.abs(Number.parseFloat(length)) >= 1);
+                });
+                const borders = ['Top', 'Right', 'Bottom', 'Left'].some(side =>
+                    Number.parseFloat(style[`border${side}Width`] || '0') >= 1 &&
+                    !['none', 'hidden'].includes(style[`border${side}Style`]) &&
+                    visibleColor(style[`border${side}Color`])
+                );
+                if (!(outline || shadow || borders)) return false;
+                const nodeRect = node.getBoundingClientRect();
+                const outlineExtent = outline ? Number.parseFloat(style.outlineWidth || '0') + Math.max(0, Number.parseFloat(style.outlineOffset || '0')) : 0;
+                const cueRect = {
+                    left: nodeRect.left - outlineExtent,
+                    right: nodeRect.right + outlineExtent,
+                    top: nodeRect.top - outlineExtent,
+                    bottom: nodeRect.bottom + outlineExtent,
+                };
+                for (let current = node; current instanceof Element; current = current.parentElement) {
+                    const currentStyle = getComputedStyle(current);
+                    if (currentStyle.clipPath !== 'none' || currentStyle.clip !== 'auto') return false;
+                    if (current !== node) {
+                        const ancestor = current.getBoundingClientRect();
+                        if (['hidden', 'clip'].includes(currentStyle.overflowX) &&
+                            (cueRect.left < ancestor.left || cueRect.right > ancestor.right)) return false;
+                        if (['hidden', 'clip'].includes(currentStyle.overflowY) &&
+                            (cueRect.top < ancestor.top || cueRect.bottom > ancestor.bottom)) return false;
+                    }
+                }
+                return cueRect.right > 0 && cueRect.left < window.innerWidth && cueRect.bottom > 0 && cueRect.top < window.innerHeight;
+            }"""
         )
     )
     page.keyboard.press("Enter")
@@ -388,6 +529,7 @@ def _browser_observation(
         )
     )
     page.emulate_media(media="print", forced_colors="none", reduced_motion="reduce")
+    page.wait_for_timeout(25)
     print_boundary_visible, print_provenance_visible = (
         _visible(page, boundary_selector),
         _visible(page, provenance_selector),
@@ -483,38 +625,35 @@ def run_company_workbench_html_browser_gate(
                         )
                     for width, height in ((1280, 720), (390, 844), (640, 900)):
                         viewport = f"{width}x{height}"
-                        context = browser.new_context(
-                            viewport={"width": width, "height": height}
-                        )
-                        page = context.new_page()
                         remote_requests: list[str] = []
                         console_errors: list[str] = []
                         page_errors: list[str] = []
 
-                        def observe_request(request):
-                            if request.url.startswith(("http://", "https://")):
-                                remote_requests.append(request.url)
+                        def observe(page):
+                            def observe_request(request):
+                                if request.url.startswith(("http://", "https://")):
+                                    remote_requests.append(request.url)
 
-                        def intercept(route, request):
-                            if request.url.startswith(("http://", "https://")):
-                                route.abort()
-                            else:
-                                route.continue_()
+                            def intercept(route, request):
+                                if request.url.startswith(("http://", "https://")):
+                                    route.abort()
+                                else:
+                                    route.continue_()
 
-                        page.route("**/*", intercept)
-                        page.on("request", observe_request)
-                        page.on(
-                            "console",
-                            lambda message: (
-                                console_errors.append(message.text)
-                                if message.type == "error"
-                                else None
-                            ),
-                        )
-                        page.on(
-                            "pageerror", lambda error: page_errors.append(str(error))
-                        )
-                        try:
+                            page.route("**/*", intercept)
+                            page.on("request", observe_request)
+                            page.on(
+                                "console",
+                                lambda message: (
+                                    console_errors.append(message.text)
+                                    if message.type == "error"
+                                    else None
+                                ),
+                            )
+                            page.on(
+                                "pageerror",
+                                lambda error: page_errors.append(str(error)),
+                            )
                             page.set_content(document, wait_until="load")
                             observation = _browser_observation(
                                 page,
@@ -524,10 +663,16 @@ def run_company_workbench_html_browser_gate(
                                 console_errors=console_errors,
                                 page_errors=page_errors,
                             )
-                            results.append(evaluate_html_brief_observation(observation))
-                        finally:
-                            page.close()
-                            context.close()
+                            return evaluate_html_brief_observation(observation)
+
+                        results.append(
+                            _run_page_in_context(
+                                browser,
+                                width=width,
+                                height=height,
+                                operation=observe,
+                            )
+                        )
             finally:
                 browser.close()
     finally:

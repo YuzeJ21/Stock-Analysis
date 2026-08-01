@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import os
+import socket
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
 
+import src.company_workbench_html_browser_gate as browser_gate
 from src.company_workbench_html import (
     CompanyWorkbenchHtmlSnapshot,
     HtmlBriefAnswer,
@@ -231,6 +235,16 @@ def _synthetic_brief(state: str) -> bytes:
     return company_workbench_html_bytes(_synthetic_snapshot(state))
 
 
+def _append_test_css(document: bytes, css: str) -> bytes:
+    marker = b"</style>"
+    assert document.count(marker) == 1
+    return document.replace(marker, css.encode("utf-8") + marker, 1)
+
+
+def _failed_assertion_names(result) -> set[str]:
+    return {assertion.name for assertion in result.assertions if not assertion.passed}
+
+
 def test_evaluator_accepts_the_complete_typed_contract():
     result, assertions = _assertion_map(_complete_observation())
 
@@ -383,6 +397,117 @@ def test_repository_fingerprint_hashes_link_type_and_target(tmp_path):
     assert repository_fingerprint(tmp_path) != before
 
 
+def test_repository_fingerprint_detects_executable_bit_changes(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    executable = tmp_path / "tracked-tool"
+    executable.write_bytes(b"same bytes")
+    executable.chmod(0o644)
+    subprocess.run(["git", "add", "tracked-tool"], cwd=tmp_path, check=True)
+    before = repository_fingerprint(tmp_path)
+
+    executable.chmod(0o755)
+
+    assert repository_fingerprint(tmp_path) != before
+
+
+def test_repository_fingerprint_distinguishes_regular_fifo_and_socket():
+    if not hasattr(os, "mkfifo") or not hasattr(socket, "AF_UNIX"):
+        pytest.skip(
+            "FIFO and Unix-domain socket nodes are unavailable on this platform"
+        )
+    with tempfile.TemporaryDirectory(prefix="hb-", dir="/tmp") as directory:
+        repo = Path(directory)
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+        special = repo / "node"
+        special.write_bytes(b"ordinary")
+        subprocess.run(["git", "add", "node"], cwd=repo, check=True)
+        regular = repository_fingerprint(repo)
+
+        special.unlink()
+        os.mkfifo(special)
+        fifo = repository_fingerprint(repo)
+
+        special.unlink()
+        unix_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            unix_socket.bind(str(special))
+            socket_node = repository_fingerprint(repo)
+        finally:
+            unix_socket.close()
+            if special.exists():
+                special.unlink()
+
+    assert regular != fifo
+    assert fifo != socket_node
+
+
+def test_page_context_cleanup_survives_page_close_failure():
+    class Page:
+        def close(self):
+            raise RuntimeError("page close failed")
+
+    class Context:
+        def __init__(self):
+            self.closed = False
+
+        def new_page(self):
+            return Page()
+
+        def close(self):
+            self.closed = True
+
+    class Browser:
+        def __init__(self):
+            self.context = Context()
+
+        def new_context(self, *, viewport):
+            assert viewport == {"width": 390, "height": 844}
+            return self.context
+
+    browser = Browser()
+
+    with pytest.raises(RuntimeError, match="page close failed"):
+        browser_gate._run_page_in_context(
+            browser,
+            width=390,
+            height=844,
+            operation=lambda page: "observed",
+        )
+
+    assert browser.context.closed
+
+
+def test_page_context_cleanup_survives_new_page_failure():
+    class Context:
+        def __init__(self):
+            self.closed = False
+
+        def new_page(self):
+            raise RuntimeError("new page failed")
+
+        def close(self):
+            self.closed = True
+
+    class Browser:
+        def __init__(self):
+            self.context = Context()
+
+        def new_context(self, *, viewport):
+            return self.context
+
+    browser = Browser()
+
+    with pytest.raises(RuntimeError, match="new page failed"):
+        browser_gate._run_page_in_context(
+            browser,
+            width=1280,
+            height=720,
+            operation=lambda page: "unreachable",
+        )
+
+    assert browser.context.closed
+
+
 def test_actual_browser_matrix_accepts_injected_bytes_without_writing_repo():
     cases = {
         state: _synthetic_brief(state) for state in ("complete", "partial", "withheld")
@@ -401,6 +526,72 @@ def test_actual_browser_matrix_accepts_injected_bytes_without_writing_repo():
         for result in results
         if not result.passed
     ]
+
+
+def test_actual_browser_rejects_opacity_clipping_offscreen_and_print_hiding():
+    original = _synthetic_brief("complete")
+    cases = {
+        "boundary-opacity": _append_test_css(
+            original, ".srcc-boundary { opacity: 0 !important; }"
+        ),
+        "provenance-ancestor-clipped": _append_test_css(
+            original,
+            ".srcc-html-document main { height: 1px !important; overflow: hidden !important; }",
+        ),
+        "provenance-offscreen": _append_test_css(
+            original,
+            ".srcc-advanced-evidence { position: fixed !important; left: -10000px !important; top: 0 !important; }",
+        ),
+        "print-boundary-opacity": _append_test_css(
+            original,
+            "@media print { .srcc-boundary { opacity: 0 !important; } }",
+        ),
+        "print-provenance-offscreen": _append_test_css(
+            original,
+            "@media print { .srcc-advanced-evidence { position: fixed !important; left: -10000px !important; top: 0 !important; } }",
+        ),
+    }
+
+    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+    failures = {
+        (result.state, result.viewport): _failed_assertion_names(result)
+        for result in results
+    }
+
+    for viewport in ("1280x720", "390x844", "640x900"):
+        assert "research_boundary_visible" in failures[("boundary-opacity", viewport)]
+        assert (
+            "provenance_visible" in failures[("provenance-ancestor-clipped", viewport)]
+        )
+        assert "provenance_visible" in failures[("provenance-offscreen", viewport)]
+        assert (
+            "print_boundary_visible" in failures[("print-boundary-opacity", viewport)]
+        )
+        assert (
+            "print_provenance_visible"
+            in failures[("print-provenance-offscreen", viewport)]
+        )
+
+
+def test_actual_browser_rejects_transparent_clipped_and_offscreen_focus_cues():
+    original = _synthetic_brief("complete")
+    cases = {
+        "focus-transparent": _append_test_css(
+            original,
+            ".srcc-skip-link:focus-visible { outline-style: none !important; box-shadow: 0 0 0 3px transparent !important; border-style: none !important; }",
+        ),
+        "focus-clipped": _append_test_css(
+            original,
+            ".srcc-skip-link:focus-visible { outline-width: 4px !important; outline-offset: 2px !important; clip-path: inset(0) !important; }",
+        ),
+        "focus-offscreen": _append_test_css(
+            original, ".srcc-skip-link:focus-visible { top: -10000px !important; }"
+        ),
+    }
+
+    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+
+    assert all("visible_focus" in _failed_assertion_names(result) for result in results)
 
 
 def test_make_target_runs_only_the_browser_gate_without_artifact_options():
