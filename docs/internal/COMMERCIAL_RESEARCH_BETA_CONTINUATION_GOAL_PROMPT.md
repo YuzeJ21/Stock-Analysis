@@ -208,7 +208,7 @@ The reproduced default-profile readiness truth drift is repaired locally: profil
 
 Current local execution queue:
 
-Completed local product slice: the Daily Momentum & Valuation Research Queue pure contract, selected-profile adapter, and Discover surface are implemented test-first. The current repository evaluation considers saved momentum-ready rows but truthfully produces zero eligible real-company candidates because current-market price evidence, price/fundamental provenance and rights, registered fundamental field scope, and the historical-valuation observation ledger remain incomplete. Do not add sample evidence, relax thresholds, read legacy ranking output, create a queue snapshot, or claim daily market operation. The next local work is exact-tree verification and Git synchronization; the next data unblock is one bounded permitted price-history plus historical-valuation evidence package through separately reviewed source activation.
+Completed local product slice: the Daily Momentum & Valuation Research Queue pure contract, selected-profile adapter, and Discover surface are implemented test-first. The current repository evaluation considers saved momentum-ready rows but truthfully produces zero eligible real-company candidates because current-market price evidence, price/fundamental provenance and rights, registered fundamental field scope, and the historical-valuation observation ledger remain incomplete. Do not add sample evidence, relax thresholds, read legacy ranking output, create a queue snapshot, or claim daily market operation. Exact-tree local verification is complete in the recorded local evidence. Push and draft-PR synchronization plus exact-head CI are publication steps owned by the controller, not the next local implementation lane. After synchronization, use the named Discover containment scan below as the next safe local work. The next data unblock is one bounded permitted price-history plus historical-valuation evidence package through separately reviewed source activation.
 
 Completed local item: `1. Add shared quant provenance/recency eligibility without coupling readiness.` This former queue item is implemented at
 `195ea18da9d1d6e06c36f8320509ccde46cdaa57` and is not an active task.
@@ -223,14 +223,17 @@ owned bounded server-output proof also passed with zero warnings. The same 18
 generated paths remained excluded. Require a fresh hosted exact-head CI pass
 after the intentional push; do not treat local evidence as hosted evidence.
 
-Completed local accessibility media-preference engineering slice: exact
-implementation anchor `a97a096e1caf2761176dc42798a8c9686179aecc` passed
-forced-colors and reduced-motion emulation in all 12 six-route/two-viewport
-browser results. Existing landmark, focus, navigation, authoring,
-dynamic-state, runtime, overflow, and repository-write checks remained green,
-and the same 18 generated paths remained excluded. This does not pass C01,
-C02, M01 or complete direct platform, assistive-technology, hosted,
-independent-human, or WCAG review.
+Completed local accessibility media-preference base slice: exact implementation
+anchor `a97a096e1caf2761176dc42798a8c9686179aecc` passed the then-current
+forced-colors and reduced-motion evaluators in all 12 six-route/two-viewport
+browser results. Final review found that anchor did not independently verify
+the route-specific state marker and next action in either mode, and its
+forced-colors marker check could credit the generic workflow-link border. The
+later final-review contract requires exact-count visible route markers and next
+actions, plus separate two-pixel active-border and positive-outline evidence;
+do not reuse the historical anchor as proof of those narrower assertions.
+This does not pass C01, C02, M01 or complete direct platform,
+assistive-technology, hosted, independent-human, or WCAG review.
 
 Next safe local scan: reproduce and bound the previously observed Discover
 primary-copy containment gap from the current tree before proposing a narrow
@@ -359,7 +362,7 @@ Priority 7 — Accessibility evidence beyond screenshots
   This closes the local transport reliability item only; require hosted
   exact-head CI after push.
 - Preserve the clean-tree research-state accessibility matrix at `6328c8cead7c27cb901e7878cd6d7d23fa11bb0e`: the direct local browser gate passed all 12 route-and-viewport results and the separate synthetic state harness at `1280x720` and `390x844`, with an empty failure list and exactly 18 generated paths classified and excluded. Loading, empty, withheld, stale, failure, and validation remained visible non-live states with busy semantics only for loading. Validation rejection and reload uncertainty used one assertive alert; preview readiness, draft change, and verified reload used one polite status; unchanged rerenders retained one visible non-live message. Both harness cases had no traceback, overflow, console/page error, or repository mutation. This closes only the previously environment-limited automated matrix; it is not screen-reader, human, hosted, or WCAG evidence.
-- Preserve the automated media-preference matrix at exact implementation anchor `a97a096e1caf2761176dc42798a8c9686179aecc`: `make research-accessibility-browser-check TIMEOUT_SECONDS=90` passed forced-colors and reduced-motion emulation for all 12 Research Desk, Discover, ticker-bound Company Workbench, Monitor, Research Data Health, and Research Proof History cases at `1280x720` and `390x844`. Existing landmark, physical-Tab skip focus and activation, navigation, applicable Discover/authoring, same-document rerun, away-and-return, dynamic-state, runtime-warning, browser-error, overflow, and byte-for-byte repository checks remained green; the same 18 generated paths remained unstaged and excluded. This is automated engineering evidence only. It does not pass C01, C02, M01 or direct platform/human forced-colors, reduced-motion, zoom, screen-reader, assistive-technology, hosted, independent-human, or WCAG evidence.
+- Preserve the historical automated media-preference matrix at exact implementation anchor `a97a096e1caf2761176dc42798a8c9686179aecc`: `make research-accessibility-browser-check TIMEOUT_SECONDS=90` passed the then-current forced-colors and reduced-motion evaluators for all 12 Research Desk, Discover, ticker-bound Company Workbench, Monitor, Research Data Health, and Research Proof History cases at `1280x720` and `390x844`. Existing landmark, physical-Tab skip focus and activation, navigation, applicable Discover/authoring, same-document rerun, away-and-return, dynamic-state, runtime-warning, browser-error, overflow, and byte-for-byte repository checks remained green; the same 18 generated paths remained unstaged and excluded. Final review narrowed this claim: that anchor did not independently observe the route-specific state marker and next action in either emulated mode, and its forced-colors active-marker measurement did not distinguish the generic one-pixel border from the active two-pixel border plus outline. Require a later exact-fix-HEAD direct result before crediting the hardened assertions. This is automated engineering evidence only. It does not pass C01, C02, M01 or direct platform/human forced-colors, reduced-motion, zoom, screen-reader, assistive-technology, hosted, independent-human, or WCAG evidence.
 - Execute `docs/ACCESSIBILITY_TASK_PROTOCOL.md` for direct task evidence. It records exact revision/environment metadata, keyboard-only navigation, write-free validation, zoom/reflow, forced-colors, reduced-motion, screen-reader, target-size, finding, and completion rules; the protocol is not completion evidence.
 - The current Streamlit container API has no stable semantic-role parameter. Preserve the separately reviewed fixed same-origin bridge, its exact-target and fail-closed ownership rules, and its direct runtime gate; do not broaden it into research-content access, navigation, application actions, persistence, telemetry, or readiness behavior.
 - Continue with the named open findings: small framework controls outside the tested matrix, independent-human complete keyboard order, true zoom/reflow, forced colors, reduced motion, screen-reader tasks, and assistive-technology confirmation of dynamic announcements. Do not reopen the completed synthetic loading/empty/withheld/stale/failure matrix unless a current regression is reproduced.

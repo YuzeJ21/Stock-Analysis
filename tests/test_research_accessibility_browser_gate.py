@@ -17,12 +17,19 @@ def test_forced_colors_observation_fails_closed_for_each_required_signal():
         "skip_outline_width_px": 3.0,
         "current_route_count": 1,
         "current_route_value": "page",
-        "current_route_marker_width_px": 2.0,
+        "current_route_visible": True,
+        "current_route_border_width_px": 2.0,
+        "current_route_outline_style": "solid",
+        "current_route_outline_width_px": 1.0,
         "boundary_count": 1,
         "boundary_visible": True,
         "boundary_border_width_px": 1.0,
         "heading_visible": True,
         "boundary_text_visible": True,
+        "route_marker_count": 1,
+        "route_marker_visible": True,
+        "route_next_action_count": 1,
+        "route_next_action_visible": True,
         "overflow_px": 0.0,
         "traceback_visible": False,
     }
@@ -34,10 +41,17 @@ def test_forced_colors_observation_fails_closed_for_each_required_signal():
         ("forced_colors_skip_focus", {"skip_focused": False}),
         ("forced_colors_focus_outline", {"skip_outline_width_px": 0.0}),
         ("forced_colors_current_route", {"current_route_value": ""}),
-        ("forced_colors_current_route_marker", {"current_route_marker_width_px": 0.0}),
+        ("forced_colors_current_route", {"current_route_visible": False}),
+        ("forced_colors_current_route_marker", {"current_route_border_width_px": 1.0}),
+        ("forced_colors_current_route_marker", {"current_route_outline_style": "none"}),
+        ("forced_colors_current_route_marker", {"current_route_outline_width_px": 0.0}),
         ("forced_colors_boundary", {"boundary_visible": False}),
         ("forced_colors_boundary_border", {"boundary_border_width_px": 0.0}),
         ("forced_colors_required_text", {"heading_visible": False}),
+        ("forced_colors_route_marker", {"route_marker_count": 0}),
+        ("forced_colors_route_marker", {"route_marker_visible": False}),
+        ("forced_colors_route_next_action", {"route_next_action_count": 2}),
+        ("forced_colors_route_next_action", {"route_next_action_visible": False}),
         ("forced_colors_no_overflow", {"overflow_px": 2.0}),
         ("forced_colors_no_traceback", {"traceback_visible": True}),
     )
@@ -53,11 +67,90 @@ def test_forced_colors_observation_fails_closed_for_each_required_signal():
             **passing,
             "current_route_count": 0,
             "current_route_value": "",
-            "current_route_marker_width_px": 0.0,
+            "current_route_visible": False,
+            "current_route_border_width_px": 0.0,
+            "current_route_outline_style": "none",
+            "current_route_outline_width_px": 0.0,
         },
         primary_route=False,
     )
     assert all(item["passed"] for item in secondary)
+
+
+def test_forced_colors_active_route_marker_rejects_generic_one_pixel_border():
+    from src.research_accessibility_browser_gate import (
+        evaluate_forced_colors_observation,
+    )
+
+    observation = {
+        "media_active": True,
+        "skip_count": 1,
+        "skip_focused": True,
+        "skip_outline_style": "solid",
+        "skip_outline_width_px": 3.0,
+        "current_route_count": 1,
+        "current_route_value": "page",
+        "current_route_visible": True,
+        "current_route_border_width_px": 1.0,
+        "current_route_outline_style": "none",
+        "current_route_outline_width_px": 0.0,
+        "current_route_marker_width_px": 1.0,
+        "boundary_count": 1,
+        "boundary_visible": True,
+        "boundary_border_width_px": 1.0,
+        "heading_visible": True,
+        "boundary_text_visible": True,
+        "route_marker_count": 1,
+        "route_marker_visible": True,
+        "route_next_action_count": 1,
+        "route_next_action_visible": True,
+        "overflow_px": 0.0,
+        "traceback_visible": False,
+    }
+
+    assertions = evaluate_forced_colors_observation(
+        observation,
+        primary_route=True,
+    )
+
+    marker = next(
+        item
+        for item in assertions
+        if item["name"] == "forced_colors_current_route_marker"
+    )
+    assert marker["passed"] is False
+
+
+def test_forced_colors_observation_fails_closed_on_missing_or_malformed_numbers():
+    from src.research_accessibility_browser_gate import (
+        evaluate_forced_colors_observation,
+    )
+
+    missing = evaluate_forced_colors_observation({}, primary_route=True)
+    assert missing and all(item["passed"] is False for item in missing)
+
+    numeric_mutations = (
+        ("forced_colors_skip_focus", "skip_count"),
+        ("forced_colors_focus_outline", "skip_outline_width_px"),
+        ("forced_colors_current_route", "current_route_count"),
+        ("forced_colors_current_route_marker", "current_route_border_width_px"),
+        ("forced_colors_current_route_marker", "current_route_outline_width_px"),
+        ("forced_colors_boundary", "boundary_count"),
+        ("forced_colors_boundary_border", "boundary_border_width_px"),
+        ("forced_colors_route_marker", "route_marker_count"),
+        ("forced_colors_route_next_action", "route_next_action_count"),
+        ("forced_colors_no_overflow", "overflow_px"),
+    )
+    for assertion_name, field_name in numeric_mutations:
+        failed = evaluate_forced_colors_observation(
+            {field_name: "not-a-number"},
+            primary_route=True,
+        )
+        assertion = next(
+            item for item in failed if item["name"] == assertion_name
+        )
+        assert assertion["passed"] is False
+        assert "not-a-number" in assertion["detail"]
 
 
 def test_reduced_motion_observation_fails_closed_for_each_required_signal():
@@ -74,6 +167,10 @@ def test_reduced_motion_observation_fails_closed_for_each_required_signal():
         "scroll_behavior": "auto",
         "heading_visible": True,
         "boundary_visible": True,
+        "route_marker_count": 1,
+        "route_marker_visible": True,
+        "route_next_action_count": 1,
+        "route_next_action_visible": True,
         "overflow_px": 0.0,
         "traceback_visible": False,
     }
@@ -88,12 +185,44 @@ def test_reduced_motion_observation_fails_closed_for_each_required_signal():
         ("reduced_motion_animation_iterations", {"max_animation_iterations": 2.0}),
         ("reduced_motion_scroll_behavior", {"scroll_behavior": "smooth"}),
         ("reduced_motion_required_text", {"boundary_visible": False}),
+        ("reduced_motion_route_marker", {"route_marker_count": 0}),
+        ("reduced_motion_route_marker", {"route_marker_visible": False}),
+        ("reduced_motion_route_next_action", {"route_next_action_count": 2}),
+        ("reduced_motion_route_next_action", {"route_next_action_visible": False}),
         ("reduced_motion_no_overflow", {"overflow_px": 2.0}),
         ("reduced_motion_no_traceback", {"traceback_visible": True}),
     )
     for name, changed in mutations:
         failed = evaluate_reduced_motion_observation({**passing, **changed})
         assert next(item for item in failed if item["name"] == name)["passed"] is False
+
+
+def test_reduced_motion_observation_fails_closed_on_missing_or_malformed_numbers():
+    from src.research_accessibility_browser_gate import (
+        evaluate_reduced_motion_observation,
+    )
+
+    missing = evaluate_reduced_motion_observation({})
+    assert missing and all(item["passed"] is False for item in missing)
+
+    numeric_mutations = (
+        ("reduced_motion_targets", "target_count"),
+        ("reduced_motion_animation_duration", "max_animation_duration_ms"),
+        ("reduced_motion_transition_duration", "max_transition_duration_ms"),
+        ("reduced_motion_animation_iterations", "max_animation_iterations"),
+        ("reduced_motion_route_marker", "route_marker_count"),
+        ("reduced_motion_route_next_action", "route_next_action_count"),
+        ("reduced_motion_no_overflow", "overflow_px"),
+    )
+    for assertion_name, field_name in numeric_mutations:
+        failed = evaluate_reduced_motion_observation(
+            {field_name: "not-a-number"}
+        )
+        assertion = next(
+            item for item in failed if item["name"] == assertion_name
+        )
+        assert assertion["passed"] is False
+        assert "not-a-number" in assertion["detail"]
 
 
 def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_routes():
@@ -154,6 +283,20 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
             False,
         ),
     ]
+
+
+def test_proof_history_media_marker_selects_the_rendered_public_timeline():
+    from src.dashboard import proof_history_public_timeline_html
+    from src.research_accessibility_browser_gate import RESEARCH_ROUTES
+
+    proof_route = next(
+        route for route in RESEARCH_ROUTES if route.name == "Research Proof History"
+    )
+    rendered = proof_history_public_timeline_html(None, None)
+    marker_class = proof_route.media_marker_selector.removeprefix(".")
+
+    assert proof_route.media_marker_selector.startswith(".")
+    assert f"class='{marker_class}'" in rendered
 
 
 def test_semantic_main_landmark_contract_requires_exact_unique_dom_state():

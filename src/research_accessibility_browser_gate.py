@@ -62,6 +62,8 @@ class ResearchRoute:
     route: str
     marker: str
     expected_h1: str
+    media_marker_selector: str
+    media_next_action_selector: str
     requires_primary_navigation: bool = True
 
 
@@ -122,30 +124,40 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "/?mode=research&page=research-desk",
         "Weekly research summary",
         "Research Desk",
+        ".research-desk-grid[aria-label='Research Desk answers']",
+        ".research-workspace-action",
     ),
     ResearchRoute(
         "Discover",
         "/?mode=research&page=discover",
         "Which stock can I review?",
         "Discover",
+        ".selector-result-table.research-discover-result",
+        ".research-workspace-action",
     ),
     ResearchRoute(
         "Company Workbench",
         "/?mode=research&page=company-workbench&ticker=NVDA&open=1",
         "Company Workbench",
         "Company Workbench",
+        ".public-ticker-summary.research[aria-label='Selected ticker answer']",
+        ".public-ticker-summary.research .public-ticker-action",
     ),
     ResearchRoute(
         "Monitor",
         "/?mode=research&page=monitor",
         "WEEKLY RESEARCH SUMMARY",
         "Monitor",
+        "table.research-discipline-table",
+        ".research-workspace-action",
     ),
     ResearchRoute(
         "Research Data Health",
         "/?mode=research&page=data-health&ticker=NVDA",
         "Data Health",
         "Data Health",
+        ".public-lane-list[aria-label='Coverage by analysis lane']",
+        ".research-workspace-action",
         requires_primary_navigation=False,
     ),
     ResearchRoute(
@@ -153,6 +165,8 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "/?mode=research&page=proof-history&ticker=NVDA",
         "Proof History",
         "Proof History",
+        ".public-proof-timeline",
+        ".research-workspace-action",
         requires_primary_navigation=False,
     ),
 )
@@ -643,6 +657,32 @@ def _assertion(name: str, passed: bool, detail: str) -> dict[str, object]:
     return {"name": name, "passed": bool(passed), "detail": str(detail)}
 
 
+def _safe_int(value: object) -> int | None:
+    """Return one exact integer observation or None for unavailable input."""
+
+    if isinstance(value, bool):
+        return None
+    try:
+        converted = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if isinstance(value, float) and not value.is_integer():
+        return None
+    return converted
+
+
+def _safe_float(value: object) -> float | None:
+    """Return one finite numeric observation or None for unavailable input."""
+
+    if isinstance(value, bool):
+        return None
+    try:
+        converted = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return converted if math.isfinite(converted) else None
+
+
 def evaluate_forced_colors_observation(
     observation: dict[str, object],
     *,
@@ -650,25 +690,53 @@ def evaluate_forced_colors_observation(
 ) -> list[dict[str, object]]:
     """Fail closed when forced-colors observations lose required affordances."""
 
+    skip_count = _safe_int(observation.get("skip_count"))
+    skip_outline_width = _safe_float(observation.get("skip_outline_width_px"))
+    current_route_count = _safe_int(observation.get("current_route_count"))
+    current_route_border_width = _safe_float(
+        observation.get("current_route_border_width_px")
+    )
+    current_route_outline_width = _safe_float(
+        observation.get("current_route_outline_width_px")
+    )
+    current_route_outline_style = str(
+        observation.get("current_route_outline_style") or ""
+    ).strip().lower()
+    boundary_count = _safe_int(observation.get("boundary_count"))
+    boundary_border_width = _safe_float(
+        observation.get("boundary_border_width_px")
+    )
+    route_marker_count = _safe_int(observation.get("route_marker_count"))
+    route_next_action_count = _safe_int(
+        observation.get("route_next_action_count")
+    )
+    overflow = _safe_float(observation.get("overflow_px"))
     current_route_passed = (
-        int(observation.get("current_route_count", 0)) == 1
+        current_route_count == 1
         and str(observation.get("current_route_value") or "") == "page"
-    ) if primary_route else int(observation.get("current_route_count", 0)) == 0
+        and observation.get("current_route_visible") is True
+    ) if primary_route else current_route_count == 0
     marker_passed = (
-        float(observation.get("current_route_marker_width_px", 0)) > 0
+        current_route_border_width is not None
+        and current_route_border_width >= 2
+        and current_route_outline_style not in {"", "none"}
+        and current_route_outline_width is not None
+        and current_route_outline_width > 0
         if primary_route
         else True
     )
     return [
         _assertion("forced_colors_media_active", observation.get("media_active") is True, "forced-colors media query active"),
-        _assertion("forced_colors_skip_focus", int(observation.get("skip_count", 0)) == 1 and observation.get("skip_focused") is True, "one physical Tab focused the sole skip link"),
-        _assertion("forced_colors_focus_outline", str(observation.get("skip_outline_style") or "") != "none" and float(observation.get("skip_outline_width_px", 0)) > 0, "focused skip link retains a visible outline"),
-        _assertion("forced_colors_current_route", current_route_passed, "current-route semantic state preserved"),
-        _assertion("forced_colors_current_route_marker", marker_passed, "current route retains a non-color marker"),
-        _assertion("forced_colors_boundary", int(observation.get("boundary_count", 0)) == 1 and observation.get("boundary_visible") is True, "one research boundary remains visible"),
-        _assertion("forced_colors_boundary_border", float(observation.get("boundary_border_width_px", 0)) > 0, "research boundary retains a visible border"),
+        _assertion("forced_colors_skip_focus", skip_count == 1 and observation.get("skip_focused") is True, f"skip_count={observation.get('skip_count')!r}; skip_focused={observation.get('skip_focused')!r}"),
+        _assertion("forced_colors_focus_outline", str(observation.get("skip_outline_style") or "").strip().lower() not in {"", "none"} and skip_outline_width is not None and skip_outline_width > 0, f"skip_outline_style={observation.get('skip_outline_style')!r}; skip_outline_width_px={observation.get('skip_outline_width_px')!r}"),
+        _assertion("forced_colors_current_route", current_route_passed, f"current_route_count={observation.get('current_route_count')!r}; current_route_value={observation.get('current_route_value')!r}; current_route_visible={observation.get('current_route_visible')!r}"),
+        _assertion("forced_colors_current_route_marker", marker_passed, f"current_route_border_width_px={observation.get('current_route_border_width_px')!r}; current_route_outline_style={observation.get('current_route_outline_style')!r}; current_route_outline_width_px={observation.get('current_route_outline_width_px')!r}"),
+        _assertion("forced_colors_boundary", boundary_count == 1 and observation.get("boundary_visible") is True, f"boundary_count={observation.get('boundary_count')!r}; boundary_visible={observation.get('boundary_visible')!r}"),
+        _assertion("forced_colors_boundary_border", boundary_border_width is not None and boundary_border_width > 0, f"boundary_border_width_px={observation.get('boundary_border_width_px')!r}"),
         _assertion("forced_colors_required_text", observation.get("heading_visible") is True and observation.get("boundary_text_visible") is True, "heading and research-only text remain visible"),
-        _assertion("forced_colors_no_overflow", float(observation.get("overflow_px", math.inf)) <= 1, f"horizontal overflow={observation.get('overflow_px')}px"),
+        _assertion("forced_colors_route_marker", route_marker_count == 1 and observation.get("route_marker_visible") is True, f"route_marker_count={observation.get('route_marker_count')!r}; route_marker_visible={observation.get('route_marker_visible')!r}"),
+        _assertion("forced_colors_route_next_action", route_next_action_count == 1 and observation.get("route_next_action_visible") is True, f"route_next_action_count={observation.get('route_next_action_count')!r}; route_next_action_visible={observation.get('route_next_action_visible')!r}"),
+        _assertion("forced_colors_no_overflow", overflow is not None and overflow <= 1, f"horizontal overflow={observation.get('overflow_px')!r}px"),
         _assertion("forced_colors_no_traceback", observation.get("traceback_visible") is False, "no traceback rendered"),
     ]
 
@@ -678,15 +746,33 @@ def evaluate_reduced_motion_observation(
 ) -> list[dict[str, object]]:
     """Fail closed when reduced-motion observations exceed safe thresholds."""
 
+    target_count = _safe_int(observation.get("target_count"))
+    animation_duration = _safe_float(
+        observation.get("max_animation_duration_ms")
+    )
+    transition_duration = _safe_float(
+        observation.get("max_transition_duration_ms")
+    )
+    animation_iterations = _safe_float(
+        observation.get("max_animation_iterations")
+    )
+    route_marker_count = _safe_int(observation.get("route_marker_count"))
+    route_next_action_count = _safe_int(
+        observation.get("route_next_action_count")
+    )
+    overflow = _safe_float(observation.get("overflow_px"))
+    scroll_behavior = str(observation.get("scroll_behavior") or "").strip().lower()
     return [
         _assertion("reduced_motion_media_active", observation.get("media_active") is True, "reduced-motion media query active"),
-        _assertion("reduced_motion_targets", int(observation.get("target_count", 0)) > 0, "application-owned motion targets observed"),
-        _assertion("reduced_motion_animation_duration", float(observation.get("max_animation_duration_ms", math.inf)) <= 0.1, f"max animation duration={observation.get('max_animation_duration_ms')}ms"),
-        _assertion("reduced_motion_transition_duration", float(observation.get("max_transition_duration_ms", math.inf)) <= 0.1, f"max transition duration={observation.get('max_transition_duration_ms')}ms"),
-        _assertion("reduced_motion_animation_iterations", float(observation.get("max_animation_iterations", math.inf)) <= 1, f"max animation iterations={observation.get('max_animation_iterations')}"),
-        _assertion("reduced_motion_scroll_behavior", str(observation.get("scroll_behavior") or "") != "smooth", f"scroll behavior={observation.get('scroll_behavior')!r}"),
+        _assertion("reduced_motion_targets", target_count is not None and target_count > 0, f"target_count={observation.get('target_count')!r}"),
+        _assertion("reduced_motion_animation_duration", animation_duration is not None and animation_duration <= 0.1, f"max animation duration={observation.get('max_animation_duration_ms')!r}ms"),
+        _assertion("reduced_motion_transition_duration", transition_duration is not None and transition_duration <= 0.1, f"max transition duration={observation.get('max_transition_duration_ms')!r}ms"),
+        _assertion("reduced_motion_animation_iterations", animation_iterations is not None and animation_iterations <= 1, f"max animation iterations={observation.get('max_animation_iterations')!r}"),
+        _assertion("reduced_motion_scroll_behavior", bool(scroll_behavior) and scroll_behavior != "smooth", f"scroll behavior={observation.get('scroll_behavior')!r}"),
         _assertion("reduced_motion_required_text", observation.get("heading_visible") is True and observation.get("boundary_visible") is True, "heading and research boundary remain visible"),
-        _assertion("reduced_motion_no_overflow", float(observation.get("overflow_px", math.inf)) <= 1, f"horizontal overflow={observation.get('overflow_px')}px"),
+        _assertion("reduced_motion_route_marker", route_marker_count == 1 and observation.get("route_marker_visible") is True, f"route_marker_count={observation.get('route_marker_count')!r}; route_marker_visible={observation.get('route_marker_visible')!r}"),
+        _assertion("reduced_motion_route_next_action", route_next_action_count == 1 and observation.get("route_next_action_visible") is True, f"route_next_action_count={observation.get('route_next_action_count')!r}; route_next_action_visible={observation.get('route_next_action_visible')!r}"),
+        _assertion("reduced_motion_no_overflow", overflow is not None and overflow <= 1, f"horizontal overflow={observation.get('overflow_px')!r}px"),
         _assertion("reduced_motion_no_traceback", observation.get("traceback_visible") is False, "no traceback rendered"),
     ]
 
@@ -710,7 +796,7 @@ def _forced_colors_observation(
     page.evaluate("document.body.removeAttribute('tabindex')")
     return page.evaluate(
         """
-(primaryRoute) => {
+({primaryRoute, markerSelector, nextActionSelector}) => {
   const visible = (node) => {
     if (!node) return false;
     const box = node.getBoundingClientRect();
@@ -730,6 +816,8 @@ def _forced_colors_observation(
   const boundaries = [...document.querySelectorAll(
     ".research-workspace-boundary"
   )];
+  const routeMarkers = [...document.querySelectorAll(markerSelector)];
+  const routeNextActions = [...document.querySelectorAll(nextActionSelector)];
   const skipStyle = skips.length === 1 ? getComputedStyle(skips[0]) : null;
   const currentStyle = currents.length === 1 ? getComputedStyle(currents[0]) : null;
   const boundaryStyle = boundaries.length === 1 ? getComputedStyle(boundaries[0]) : null;
@@ -742,19 +830,30 @@ def _forced_colors_observation(
     skip_outline_width_px: skipStyle ? Number.parseFloat(skipStyle.outlineWidth) || 0 : 0,
     current_route_count: currents.length,
     current_route_value: currents.length === 1 ? currents[0].getAttribute("aria-current") || "" : "",
-    current_route_marker_width_px: currentStyle ? width(currentStyle, ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "outlineWidth"]) : 0,
+    current_route_visible: currents.length === 1 && visible(currents[0]),
+    current_route_border_width_px: currentStyle ? width(currentStyle, ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth"]) : 0,
+    current_route_outline_style: currentStyle ? currentStyle.outlineStyle : "",
+    current_route_outline_width_px: currentStyle ? Number.parseFloat(currentStyle.outlineWidth) || 0 : 0,
     boundary_count: boundaries.length,
     boundary_visible: boundaries.length === 1 && visible(boundaries[0]),
     boundary_border_width_px: boundaryStyle ? width(boundaryStyle, ["borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth"]) : 0,
     heading_visible: visible(heading),
     boundary_text_visible: boundaries.length === 1 && visible(boundaries[0]) && boundaries[0].innerText.includes("Research-only"),
+    route_marker_count: routeMarkers.length,
+    route_marker_visible: routeMarkers.length === 1 && visible(routeMarkers[0]),
+    route_next_action_count: routeNextActions.length,
+    route_next_action_visible: routeNextActions.length === 1 && visible(routeNextActions[0]),
     overflow_px: Math.max(0, document.documentElement.scrollWidth - window.innerWidth),
     traceback_visible: document.body.innerText.includes("Traceback (most recent call last)"),
     primary_route: primaryRoute,
   };
 }
 """,
-        route.requires_primary_navigation,
+        {
+            "primaryRoute": route.requires_primary_navigation,
+            "markerSelector": route.media_marker_selector,
+            "nextActionSelector": route.media_next_action_selector,
+        },
     )
 
 
@@ -764,7 +863,7 @@ def _reduced_motion_observation(
 ) -> dict[str, object]:
     return page.evaluate(
         """
-() => {
+({markerSelector, nextActionSelector}) => {
   const app = document.querySelector(".stApp");
   const visible = (node) => {
     if (!node) return false;
@@ -799,6 +898,8 @@ def _reduced_motion_observation(
   const iterations = styles.flatMap((style) => toIterations(style.animationIterationCount));
   const boundary = document.querySelector(".research-workspace-boundary");
   const heading = document.querySelector("[role='main'] h1");
+  const routeMarkers = [...document.querySelectorAll(markerSelector)];
+  const routeNextActions = [...document.querySelectorAll(nextActionSelector)];
   return {
     media_active: matchMedia("(prefers-reduced-motion: reduce)").matches,
     target_count: targets.length,
@@ -808,11 +909,19 @@ def _reduced_motion_observation(
     scroll_behavior: app ? getComputedStyle(app).scrollBehavior : "",
     heading_visible: visible(heading),
     boundary_visible: visible(boundary),
+    route_marker_count: routeMarkers.length,
+    route_marker_visible: routeMarkers.length === 1 && visible(routeMarkers[0]),
+    route_next_action_count: routeNextActions.length,
+    route_next_action_visible: routeNextActions.length === 1 && visible(routeNextActions[0]),
     overflow_px: Math.max(0, document.documentElement.scrollWidth - window.innerWidth),
     traceback_visible: document.body.innerText.includes("Traceback (most recent call last)"),
   };
 }
-"""
+""",
+        {
+            "markerSelector": route.media_marker_selector,
+            "nextActionSelector": route.media_next_action_selector,
+        },
     )
 
 

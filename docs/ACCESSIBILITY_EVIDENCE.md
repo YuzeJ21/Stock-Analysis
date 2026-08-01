@@ -816,7 +816,7 @@ Evidence boundary:
 - It wrote no repository CSV, JSON, report, screenshot, timing, readiness,
   canonical-data, or research-ledger artifact.
 
-## 2026-07-31 automated media-preference matrix
+## 2026-07-31 automated media-preference matrix (historical anchor)
 
 Direct local engineering evidence at exact implementation anchor
 `a97a096e1caf2761176dc42798a8c9686179aecc`:
@@ -826,16 +826,28 @@ Direct local engineering evidence at exact implementation anchor
 - The gate verified Research Desk, Discover, ticker-bound Company Workbench,
   Monitor, Research Data Health, and Research Proof History at both
   `1280x720` and `390x844`; all 12 route-and-viewport results passed.
-- Every result passed automated forced-colors emulation. The media query was
-  active; the first physical Tab still focused the sole skip link with a
-  visible outline; current-route state retained a non-color marker; the
-  research-only boundary and required text remained visible; and the boundary
-  retained a visible border without overflow or traceback.
-- Every result passed automated reduced-motion emulation. The media query was
-  active; application-owned motion targets were present; maximum animation
-  and transition duration was `0.01ms`; maximum animation iteration count was
-  one; scroll behavior was `auto`; and required text remained visible without
-  overflow or traceback.
+- Every result passed the then-current automated forced-colors evaluator. The
+  media query was active; the first physical Tab focused the sole skip link
+  with a visible outline; and the H1, research-only boundary, boundary border,
+  overflow, and traceback checks passed. Final review found that this anchor's
+  route-marker measurement combined border and outline widths, so a generic
+  one-pixel workflow-link border could receive active-marker credit. It also
+  did not independently count and verify a route-specific rendered state
+  marker and route-appropriate next action. Do not reuse this anchor as proof
+  of those narrower contracts.
+- Every result passed the then-current automated reduced-motion evaluator. The
+  media query was active; application-owned motion targets were present;
+  maximum animation and transition duration was `0.01ms`; maximum animation
+  iteration count was one; scroll behavior was `auto`; and the H1 and boundary
+  remained visible without overflow or traceback. This anchor did not
+  independently count and verify a route-specific rendered state marker and
+  route-appropriate next action.
+- The final-review contract now observes route state markers and next actions
+  with exact counts and visibility in both emulated modes. Its forced-colors
+  active-route assertion separately requires the two-pixel active border and a
+  non-`none`, positive-width outline; missing, malformed, duplicate, or hidden
+  observations fail closed. A later exact-fix-HEAD direct-browser result is
+  required before expanding this historical evidence claim.
 - Ordinary media preferences were restored between emulated phases. The
   existing landmark, physical-Tab skip focus and activation, workflow
   navigation, applicable Discover and authoring, same-document rerun,
