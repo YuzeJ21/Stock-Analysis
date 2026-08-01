@@ -119,6 +119,8 @@ def test_modal_reference_and_classification_prose_remains_portable(text):
         ("Shares are ordered by market capitalization and then reviewed.", False),
         ("Shares are ordered by market capitalization and then sold.", True),
         ("Shares are ordered by market capitalization and then held.", True),
+        ("Shares are ordered by market capitalization and then covered.", True),
+        ("Shares are ordered by market capitalization and then routed.", True),
     ),
 )
 def test_passive_reference_phrase_does_not_hide_appended_actions(text, expected):
@@ -129,6 +131,7 @@ def test_passive_reference_phrase_does_not_hide_appended_actions(text, expected)
     "text, expected",
     (
         ("Historical evidence shows shares were purchased by the issuer in 2024.", False),
+        ("Historical evidence shows shares were purchased by the issuer.", False),
         ("Shares were purchased.", True),
         ("Shares were purchased by the issuer.", True),
         ("Historical evidence shows shares were purchased.", True),
@@ -139,6 +142,9 @@ def test_passive_reference_phrase_does_not_hide_appended_actions(text, expected)
         ("Historical evidence shows shares were purchased by the issuer tomorrow.", True),
         ("Historical evidence shows shares were purchased by the issuer currently.", True),
         ("Historical evidence shows shares were purchased by the issuer in the future.", True),
+        ("Historical evidence shows shares were purchased by the issuer in the present period.", True),
+        ("Historical evidence shows shares were purchased by the issuer later this week.", True),
+        ("Historical evidence shows shares were purchased by the issuer during 2024.", True),
     ),
 )
 def test_direct_passive_historical_attribution_exception_is_narrow(text, expected):

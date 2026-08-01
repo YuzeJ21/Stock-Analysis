@@ -77,6 +77,11 @@ _PASSIVE_ACTION_FAMILIES = (
     (_COVERING_ACTION_ENDPOINTS, _COVERING_ACTION_STARTS),
     (_DIRECTIONAL_ACTION_ENDPOINTS | frozenset({"exposure", "exposures"}), _DIRECTIONAL_ACTION_STARTS | _POSITION_ACTION_STARTS),
 )
+_PASSIVE_ACTION_TOKENS = frozenset(
+    token
+    for _, action_starts in _PASSIVE_ACTION_FAMILIES
+    for token in action_starts
+)
 _PASSIVE_ATTRIBUTION_SUBJECTS = frozenset({"evidence", "report", "reports"})
 _PASSIVE_ATTRIBUTION_VERBS = frozenset(
     {"documented", "documents", "recorded", "records", "reported", "reports", "showed", "shows"}
@@ -84,10 +89,8 @@ _PASSIVE_ATTRIBUTION_VERBS = frozenset(
 _PASSIVE_ATTRIBUTION_ACTORS = frozenset({"companies", "company", "issuer", "issuers"})
 _PASSIVE_ATTRIBUTION_ARTICLES = frozenset({"a", "an", "the"})
 _PASSIVE_ATTRIBUTION_CONTEXTS = frozenset({"historical", "past"})
-_PASSIVE_INCOMPATIBLE_ATTRIBUTION_CONTEXTS = frozenset(
-    {"current", "currently", "future", "next", "now", "today", "tomorrow", "upcoming"}
-)
 _PASSIVE_PAST_AUXILIARIES = frozenset({"was", "were"})
+_PASSIVE_APPROVED_ATTRIBUTION_TAILS = ((), ("in", "2024"))
 _PASSIVE_ADVERBS = frozenset(
     {
         "already", "also", "carefully", "commonly", "ever", "immediately", "just", "materially",
@@ -460,8 +463,6 @@ def _is_descriptive_direct_passive_attribution(
         return False
     if not any(token.text in _PASSIVE_ATTRIBUTION_CONTEXTS for token in lead_in):
         return False
-    if any(token.text in _PASSIVE_INCOMPATIBLE_ATTRIBUTION_CONTEXTS for token in tokens):
-        return False
     if not any(token.text in _PASSIVE_ATTRIBUTION_SUBJECTS for token in lead_in):
         return False
     if not any(token.text in _PASSIVE_ATTRIBUTION_VERBS for token in lead_in):
@@ -471,7 +472,9 @@ def _is_descriptive_direct_passive_attribution(
     actor_index = action_index + 2
     if actor_index < len(tokens) and tokens[actor_index].text in _PASSIVE_ATTRIBUTION_ARTICLES:
         actor_index += 1
-    return actor_index < len(tokens) and tokens[actor_index].text in _PASSIVE_ATTRIBUTION_ACTORS
+    if actor_index >= len(tokens) or tokens[actor_index].text not in _PASSIVE_ATTRIBUTION_ACTORS:
+        return False
+    return _token_texts(tokens[actor_index + 1 :]) in _PASSIVE_APPROVED_ATTRIBUTION_TAILS
 
 
 def _is_passive_adverb(text: str) -> bool:
@@ -481,13 +484,12 @@ def _is_passive_adverb(text: str) -> bool:
 def _is_passive_reference_phrase(
     tokens: tuple[_ActionToken, ...],
     action_index: int,
-    action_starts: frozenset[str],
 ) -> bool:
     token_texts = _token_texts(tokens)
     for phrase in _PASSIVE_REFERENCE_PHRASES:
         if token_texts[action_index : action_index + len(phrase)] != phrase:
             continue
-        return not any(token.text in action_starts for token in tokens[action_index + len(phrase) :])
+        return not any(token.text in _PASSIVE_ACTION_TOKENS for token in tokens[action_index + len(phrase) :])
     return False
 
 
@@ -508,7 +510,7 @@ def _contains_modal_passive_action(tokens: tuple[_ActionToken, ...]) -> bool:
                 if text in action_starts:
                     if not has_auxiliary:
                         break
-                    if _is_passive_reference_phrase(tokens, action_index, action_starts):
+                    if _is_passive_reference_phrase(tokens, action_index):
                         break
                     if (
                         not has_modal
