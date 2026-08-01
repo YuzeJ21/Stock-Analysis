@@ -634,6 +634,69 @@ def test_portable_fields_preserve_safe_non_action_research_language(safe):
     assert safe in rendered
 
 
+@pytest.mark.parametrize(
+    "field_name, unsafe",
+    (
+        ("use_now", "buy more shares"),
+        ("task_body", "bought several securities"),
+        ("quarterly_message", "sell some stock"),
+        ("decision_answer", "sold all equities"),
+        ("evidence_model_identity", "purchase additional shares"),
+        ("use_now", "sale of more shares"),
+        ("task_body", "acquire another security"),
+        ("quarterly_message", "disposed of those stocks"),
+        ("decision_answer", "short several equities"),
+        ("evidence_model_identity", "holding multiple shares"),
+        ("use_now", "execute this trade"),
+        ("task_body", "executed multiple orders"),
+        ("quarterly_message", "placing our trade"),
+        ("decision_answer", "submit our transaction"),
+        ("evidence_model_identity", "routed several orders"),
+        ("use_now", "open another position"),
+        ("task_body", "closed all positions"),
+        ("quarterly_message", "exiting our remaining positions"),
+        ("decision_answer", "add to the position"),
+        ("evidence_model_identity", "added more to our positions"),
+        ("use_now", "trim the position"),
+        ("task_body", "trimmed several positions"),
+        ("quarterly_message", "increase the position"),
+        ("decision_answer", "reduced multiple positions"),
+        ("evidence_model_identity", "build a position"),
+        ("use_now", "built up the position"),
+        ("task_body", "initiating another position"),
+        ("quarterly_message", "liquidated all positions"),
+    ),
+)
+def test_portable_fields_withhold_action_objects_across_bounded_modifier_windows(field_name, unsafe):
+    snapshot = _snapshot_with_portable_action_text(field_name, unsafe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert unsafe not in repr(snapshot)
+    assert unsafe not in rendered
+    assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
+
+
+@pytest.mark.parametrize(
+    "safe",
+    (
+        "Long-term view remains evidence-led.",
+        "Short history limits calibration evidence.",
+        "Revenue increased 12% year over year.",
+        "Debt was reduced during the quarter.",
+        "The company increased revenue and reduced debt.",
+        "Company historical evidence records a closed reporting period.",
+        "The company opened another distribution center.",
+        "Higher-order historical evidence remains unavailable.",
+    ),
+)
+def test_portable_fields_preserve_non_action_text_near_action_family_words(safe):
+    snapshot = _snapshot_with_portable_action_text("use_now", safe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert snapshot.answers[0].body == safe
+    assert safe in rendered
+
+
 @pytest.mark.parametrize("credential", ("password hunter2", "api_key hunter2", "Authorization Bearer hunter2"))
 def test_portable_document_bytes_reject_whitespace_and_bearer_credentials(credential):
     inputs = _inputs()
