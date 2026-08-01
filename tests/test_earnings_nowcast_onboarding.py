@@ -139,6 +139,43 @@ def test_validation_rejects_missing_source_reference_and_post_cutoff_rows(tmp_pa
     assert "after forecast cutoff" in result["rejected_rows"][0]["reasons"]
 
 
+def test_validation_rejects_pre_cutoff_evidence_retrieved_after_cutoff(tmp_path):
+    input_dir = _input_dir(tmp_path)
+    _write(
+        input_dir / "quarterly_actuals.csv",
+        [dict(ACTUAL, retrieved_at="2026-02-01T00:00:00Z")],
+    )
+    _write(
+        input_dir / "consensus_snapshots.csv",
+        [dict(CONSENSUS, retrieved_at="2026-02-01T00:00:00Z")],
+    )
+
+    result = validate_onboarding(input_dir, cutoff="2026-01-31T23:59:59Z")
+
+    assert result["valid"] is False
+    assert result["accepted_count"] == 0
+    assert result["rejected_count"] == 2
+    assert all("retrieval timestamp" in row["reasons"] for row in result["rejected_rows"])
+    assert all("after forecast cutoff" in row["reasons"] for row in result["rejected_rows"])
+
+
+def test_onboarding_readiness_names_post_cutoff_retrieval_blocker(tmp_path):
+    input_dir = _input_dir(tmp_path)
+    _write(
+        input_dir / "consensus_snapshots.csv",
+        [dict(CONSENSUS, retrieved_at="2026-02-01T00:00:00Z")],
+    )
+
+    result = onboarding_readiness(
+        input_dir,
+        ticker="SYNX",
+        cutoff="2026-01-31T23:59:59Z",
+    )
+
+    assert result["state"] == "blocked"
+    assert "post_cutoff_evidence" in result["missing_evidence"]
+
+
 def test_preview_separates_exact_duplicates_from_append_only_revisions(tmp_path):
     input_dir = _input_dir(tmp_path)
     existing = tmp_path / "existing"

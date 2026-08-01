@@ -1564,7 +1564,11 @@ def test_current_handoff_routes_to_local_reliability_work_not_exhausted_price_qu
     assert "Complete the documentation/routing reconciliation once" not in next_stage
     assert "make price-history-proof-queue" not in next_stage
     assert "make price-history-batch-closeout" not in next_stage
-    assert "Local implementation verified; draft-branch review safety still requires exact-head CI." in roadmap
+    assert (
+        "Broad-review repairs must be evaluated only through direct current-head local "
+        "and exact-head CI evidence; their presence alone establishes neither gate."
+        in roadmap
+    )
     assert (
         "provider-neutral retention/deletion or audit-event work is not the active next lane"
         in prompt
@@ -1586,6 +1590,11 @@ def test_capability_audit_records_recency_as_implemented_and_keeps_quant_gate_op
     assert "observation-recency separation is implemented" in audit
     assert "shared provenance and recency eligibility" in audit
     assert "separate calculation readiness from observation recency" not in audit
+    assert "The next local quality work is semantic-main bridge framework reliability" not in audit
+    assert (
+        "Remaining accessibility maturity requires direct human and assistive-technology evidence"
+        in audit
+    )
 
 
 def test_completed_observation_recency_repair_routes_to_shared_quant_eligibility():
@@ -2037,7 +2046,7 @@ def test_html_research_brief_public_and_methodology_docs_keep_the_verified_bound
     _assert_html_brief_section_has_no_affirmative_overclaim(methodology)
 
 
-def test_portable_html_action_repair_docs_record_local_verification_and_ci_pending():
+def test_portable_html_action_repair_docs_preserve_recorded_matrix_without_claiming_current_release():
     methodology = _read("docs/METHODOLOGY.md")
     dashboard_qa = _read("docs/DASHBOARD_QA.md")
     continuation = _read(
@@ -2048,22 +2057,19 @@ def test_portable_html_action_repair_docs_record_local_verification_and_ci_pendi
     )
     roadmap = " ".join(roadmap_section.split())
 
-    verified = "Local implementation verified; draft-branch review safety still requires exact-head CI."
+    for document in (roadmap, methodology, continuation):
+        assert "Historical pre-fix evidence: Task 4 local matrix completed at `c8c313b9c`." in document
+        assert (
+            "Broad-review repairs must be evaluated only through direct current-head "
+            "local and exact-head CI evidence; their presence alone establishes neither gate."
+            in document
+        )
 
-    for document in (roadmap, methodology, dashboard_qa, continuation):
-        assert verified in document
-    for commit in (
-        "b10ebcfbd",
-        "923fa850e",
-        "9ce1a6ce4",
-        "84562a7f6",
-        "8218af401",
-    ):
-        assert commit in roadmap
-    assert "630 focused tests" in roadmap
-    assert "5,146 full tests in 448.74s" in roadmap
-    assert "101 Company Workbench HTML-browser tests" in roadmap
-    assert "six modal-passive reproductions withheld" in roadmap
+    assert "This historical pre-fix matrix was recorded on 2026-08-01" in dashboard_qa
+    assert "It is not current-head evidence" in dashboard_qa
+    assert "On 2026-08-01 the historical pre-fix local matrix for this anchor passed" in continuation
+    assert "On 2026-08-01 the current local matrix passed" not in continuation
+    assert "Local implementation verified; draft-branch review safety still requires exact-head CI." not in dashboard_qa
     assert "Pilot packaging remains blocked on readiness freshness and source proof." in roadmap
 
     assert "Company Workbench HTML Research Brief" in roadmap
@@ -2075,6 +2081,53 @@ def test_portable_html_action_repair_docs_record_local_verification_and_ci_pendi
     assert "does not activate readiness" in roadmap
     assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in roadmap
     _assert_html_brief_section_has_no_affirmative_overclaim(roadmap_section)
+
+
+def test_broad_review_docs_use_durable_release_routing_and_fail_closed_boundaries():
+    readme = _read("README.md")
+    product_spec = _read("PRODUCT_SPEC.md")
+    roadmap = _read("ROADMAP.md")
+    next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+
+    durable_routing = (
+        "If the current branch head lacks direct local matrix, branch synchronization, "
+        "draft-PR update, or exact-head CI evidence, complete those release steps first; "
+        "otherwise select the first incomplete safe roadmap priority."
+    )
+    for document in (readme, product_spec, roadmap, next_stage, continuation):
+        assert durable_routing in document
+
+    broad_review_boundary = (
+        "Broad-review repairs must be evaluated only through direct current-head local "
+        "and exact-head CI evidence; their presence alone establishes neither gate."
+    )
+    for document in (readme, product_spec, roadmap, next_stage, methodology, continuation):
+        assert broad_review_boundary in document
+
+    fail_closed_boundaries = (
+        "Modal modifiers and active exposure fail closed.",
+        "A raw calibration count cannot establish calibrated probability.",
+        "`calibrated` requires paired verified calibration status and a leakage-safe "
+        "benchmark-passing `BacktestReport`.",
+        "Evidence publication, snapshot, and retrieval timestamps must all be at or "
+        "before the cutoff.",
+    )
+    for document in (roadmap, methodology, continuation):
+        for boundary in fail_closed_boundaries:
+            assert boundary in document
+
+    active_routing = "\n".join((readme, product_spec, roadmap, next_stage, continuation))
+    for stale_route in (
+        "The portable HTML action-policy repair is the first executable local release-safety lane.",
+        "advance the portable HTML action-policy repair",
+        "Task 4 runs the full current-head matrix",
+        "keep the verified portable HTML action-policy repair unchanged",
+    ):
+        assert stale_route not in active_routing
 
 
 def test_html_research_brief_accessibility_and_dashboard_qa_name_actual_evidence():

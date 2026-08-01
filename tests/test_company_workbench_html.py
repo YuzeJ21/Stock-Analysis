@@ -397,6 +397,85 @@ def test_validated_https_reference_remains_usable_while_its_label_is_sanitized()
     assert reference.href == "https://www.sec.gov/Archives/edgar/data/1"
 
 
+_BROAD_REVIEW_POLICY_LEAKS = (
+    "Shares should be bought now.",
+    "Shares should definitely be bought now.",
+    "Shares should probably be bought now.",
+    "Shares should ultimately be bought now.",
+    "Shares should promptly be bought now.",
+    "Shares should gradually be bought now.",
+    "Shares should aggressively be bought now.",
+    "Shares definitely should be bought now.",
+    "Shares probably should be bought now.",
+    "Shares ultimately should be bought now.",
+    "Shares promptly should be bought now.",
+    "Shares gradually should be bought now.",
+    "Shares aggressively should be bought now.",
+    "Shares reviewwise should planwise be bought now.",
+    "Shares outstanding should be bought now.",
+    "Shares based on review should be bought now.",
+    "The share count should be purchased now.",
+    "Shares data should be bought now.",
+    "Shares should be purchased, dataset quality permitting.",
+    "Shares should be purchased, source dataset quality permitting.",
+    "The share count should be normalized using the most recently purchased dataset and then sold.",
+    "The share count should be normalized using the most recently purchased source dataset and then sold.",
+    "Shares should reviewwise planwise slowly carefully deliberately eventually be bought now.",
+    "Shares reviewwise planwise slowly carefully deliberately eventually should be bought now.",
+    "Increase exposure now.",
+    "Reduce exposure now.",
+    "Build exposure now.",
+    "Initiate exposure now.",
+    "Increase the current direct strategic gross net total aggregate absolute adjusted exposure now.",
+    "Increase the model detail using the reviewed historical assumptions and document the resulting shares now.",
+    "Increase the model detail using the reviewed historical assumptions and increase the resulting exposure now.",
+    "Purchase the entire share count now.",
+    "Sell the selected share count now.",
+    "Buy the full share count now.",
+    "Acquire the resulting share count now.",
+    "The share count should be normalized using the most recently purchased, vendor dataset.",
+    "The share count should be normalized using the dataset most recently purchased, from the vendor.",
+    "The share count should be normalized using the recently sold vendor dataset.",
+    "The share count should be normalized using the recently purchased and then dataset.",
+    "The share count should be normalized using the most recently purchased vendor dataset and then sold.",
+    "The share count should be normalized using the dataset most recently purchased from the vendor and then sold.",
+    "Increase as the model directs and document the resulting share count.",
+    "Increase it per model and document the resulting position estimate.",
+    "Increase model-directed quantity and document the resulting share count.",
+    "Reduce model-directed quantity and document the resulting position estimate.",
+    "Increase the model detail using reviewed historical assumptions and document the resulting position.",
+    "Reduce the model detail using reviewed historical assumptions and document the resulting exposure.",
+    "Build the model detail using reviewed historical assumptions and document the resulting shares.",
+    "Initiate the model review using reviewed historical assumptions and document the resulting position.",
+    "Shares cannot be bought now.",
+    "Shares mustn't be bought now.",
+    "Shares shouldn't be bought now.",
+    "Shares can't be bought now.",
+    "Shares couldn't be bought now.",
+    "Shares mayn't be bought now.",
+    "Shares mightn't be bought now.",
+    "Shares won't be bought now.",
+    "Shares wouldn't be bought now.",
+    "Shares shan't be bought now.",
+    "Shares mustn’t be bought now.",
+    "Shares shouldn’t be bought now.",
+    "Shares can’t be bought now.",
+    "Shares couldn’t be bought now.",
+    "Shares mayn’t be bought now.",
+    "Shares mightn’t be bought now.",
+    "Shares won’t be bought now.",
+    "Shares wouldn’t be bought now.",
+    "Shares shan’t be bought now.",
+)
+
+
+@pytest.mark.parametrize("unsafe", _BROAD_REVIEW_POLICY_LEAKS)
+def test_real_sanitizer_withholds_broad_review_modal_and_exposure_leaks(unsafe):
+    assert safe_html_brief_text(unsafe) == (
+        "Withheld: reviewer-authored action language is not portable research evidence."
+    )
+
+
 def _snapshot_with_portable_field_text(field_name: str, text: str):
     inputs = _inputs()
     report = inputs.report_payload
@@ -489,6 +568,32 @@ def _snapshot_with_portable_field_text(field_name: str, text: str):
 
 
 @pytest.mark.parametrize(
+    "safe",
+    (
+        "The share count should be normalized using the most recently purchased dataset.",
+        "The share count should be normalized using the most recently purchased source dataset.",
+        "The share count should be normalized using the most recently purchased vendor dataset.",
+        "The share count should be normalized using the purchased external source dataset.",
+        "The share count should be normalized using the dataset most recently purchased from the vendor.",
+        "The share count should be normalized using the recently purchased third-party dataset.",
+        "Increase the model detail using the reviewed historical assumptions and document the resulting share count.",
+        "Increase the model detail using reviewed historical assumptions and document the resulting position estimate.",
+    ),
+)
+def test_broad_review_reference_methodology_remains_portable_on_real_surfaces(safe):
+    snapshot = _snapshot_with_portable_field_text("use_now", safe)
+    fragment = html_brief.render_company_workbench_html_fragment(snapshot)
+    document = html_brief.render_company_workbench_html_document(snapshot)
+    download = html_brief.company_workbench_html_bytes(snapshot)
+
+    assert safe_html_brief_text(safe) == safe
+    assert snapshot.answers[0].body == safe
+    assert safe in fragment
+    assert safe in document
+    assert safe.encode("utf-8") in download
+
+
+@pytest.mark.parametrize(
     "field_name, unsafe",
     (
         ("profile_label", "recommend this security"),
@@ -541,37 +646,57 @@ def _portable_state_signature(snapshot):
 
 
 @pytest.mark.parametrize(
-    "field_name",
+    "field_name, unsafe",
     (
-        "profile_label",
-        "source_as_of",
-        "model_version",
-        "currency",
-        "use_now",
-        "still_blocked",
-        "task_title",
-        "task_body",
-        "task_badge",
-        "recency_message",
-        "recency_through_date",
-        "quarterly_message",
-        "revenue_reason",
-        "eps_reason",
-        "peer_answer",
-        "thesis_answer",
-        "risk_summary",
-        "catalyst_boundary",
-        "regime_boundary",
-        "decision_answer",
-        "scenario_method",
-        "evidence_source_id",
-        "evidence_model_identity",
-        "evidence_input_identity",
-        "reference_label",
+        (field_name, unsafe)
+        for field_name in (
+            "profile_label",
+            "source_as_of",
+            "model_version",
+            "currency",
+            "use_now",
+            "still_blocked",
+            "task_title",
+            "task_body",
+            "task_badge",
+            "recency_message",
+            "recency_through_date",
+            "quarterly_message",
+            "revenue_reason",
+            "eps_reason",
+            "peer_answer",
+            "thesis_answer",
+            "risk_summary",
+            "catalyst_boundary",
+            "regime_boundary",
+            "decision_answer",
+            "scenario_method",
+            "evidence_source_id",
+            "evidence_model_identity",
+            "evidence_input_identity",
+            "reference_label",
+        )
+        for unsafe in (
+            "Shares should be bought now.",
+            "Shares reviewwise should planwise be bought now.",
+            "Shares should reviewwise planwise slowly carefully deliberately eventually be bought now.",
+            "Shares reviewwise planwise slowly carefully deliberately eventually should be bought now.",
+            "Shares shouldn’t be bought now.",
+            "Shares cannot be bought now.",
+            "Shares should be purchased, dataset quality permitting.",
+            "The share count should be purchased now.",
+            "Increase the current direct strategic gross net total aggregate absolute adjusted exposure now.",
+            "Increase the model detail using the reviewed historical assumptions and document the resulting shares now.",
+            "Purchase the entire share count now.",
+            "The share count should be normalized using the most recently purchased, vendor dataset.",
+            "Increase as the model directs and document the resulting share count.",
+            "Increase model-directed quantity and document the resulting share count.",
+            "Increase the model detail using reviewed historical assumptions and document the resulting position.",
+            "Increase exposure now.",
+        )
     ),
 )
-def test_modal_passive_language_is_withheld_from_every_passive_portable_field_surface(field_name):
-    unsafe = "Shares should be bought now."
+def test_broad_review_action_language_is_withheld_from_every_portable_field_surface(field_name, unsafe):
     baseline = _snapshot_with_portable_field_text(field_name, "Reviewed historical evidence.")
     snapshot = _snapshot_with_portable_field_text(field_name, unsafe)
     fragment = html_brief.render_company_workbench_html_fragment(snapshot)
@@ -586,8 +711,8 @@ def test_modal_passive_language_is_withheld_from_every_passive_portable_field_su
     assert _portable_state_signature(snapshot) == _portable_state_signature(baseline)
 
 
-def test_modal_passive_nowcast_verdict_is_not_emitted_and_cannot_promote_eligible_lane():
-    unsafe = "Shares should be bought now."
+@pytest.mark.parametrize("unsafe", _BROAD_REVIEW_POLICY_LEAKS)
+def test_broad_review_nowcast_verdict_is_not_emitted_and_cannot_promote_eligible_lane(unsafe):
     absent = _snapshot_with_portable_field_text("nowcast_verdict", "")
     snapshot = _snapshot_with_portable_field_text("nowcast_verdict", unsafe)
     fragment = html_brief.render_company_workbench_html_fragment(snapshot)
@@ -1044,13 +1169,27 @@ def test_portable_fields_preserve_safe_reference_research_and_accounting_semanti
 
 
 @pytest.mark.parametrize(
-    "safe",
+    "unsafe",
     (
         "buy one two three four five six seven eight nine shares",
         "execute one two three four five six seven eight nine trades",
         "open one two three four five six seven eight nine position",
         "cover one two three four five six seven eight nine shares",
         "go one two three four five six seven eight nine long",
+    ),
+)
+def test_portable_action_scanner_uses_clause_boundary_instead_of_token_count(unsafe):
+    snapshot = _snapshot_with_portable_action_text("use_now", unsafe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert unsafe not in repr(snapshot)
+    assert unsafe not in rendered
+    assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
+
+
+@pytest.mark.parametrize(
+    "safe",
+    (
         "Buy assumptions are documented. Common shares remain unchanged.",
         "The instruction says buy; common shares outstanding are unchanged.",
         "Buy assumptions are documented。 Common shares remain unchanged.",
@@ -1063,7 +1202,7 @@ def test_portable_fields_preserve_safe_reference_research_and_accounting_semanti
         "Buy assumptions are documented‽ Common shares remain unchanged.",
     ),
 )
-def test_portable_action_scanner_stops_at_bounded_window_or_clause_boundary(safe):
+def test_portable_action_scanner_stops_at_clause_boundary(safe):
     snapshot = _snapshot_with_portable_action_text("use_now", safe)
     rendered = html_brief.render_company_workbench_html_document(snapshot)
 

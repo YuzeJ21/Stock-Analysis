@@ -20,7 +20,7 @@ A saved record cannot change readiness, forecasts, probabilities, recommendation
 
 Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.
 Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.
-The portable HTML action-policy repair is the first executable local release-safety lane; Priority 7 remains open but is not active. The portable download is not release-complete until deterministic active/passive sanitation and current-head verification pass.
+If the current branch head lacks direct local matrix, branch synchronization, draft-PR update, or exact-head CI evidence, complete those release steps first; otherwise select the first incomplete safe roadmap priority. Modal modifiers and active exposure fail closed. Broad-review repairs must be evaluated only through direct current-head local and exact-head CI evidence; their presence alone establishes neither gate.
 
 ## Target User
 

@@ -11,7 +11,10 @@ from src.earnings_nowcast_readiness import assess_nowcast_readiness, canonicaliz
 CUTOFF = "2026-01-31T23:59:59Z"
 
 
-def _actuals(*, eps_values: tuple[float | None, ...] = (0.8, 0.9, 1.0, 1.1, 1.2)) -> list[QuarterlyActual]:
+def _actuals(
+    *,
+    eps_values: tuple[float | None, ...] = (0.8, 0.9, 1.0, 1.1, 1.2),
+) -> list[QuarterlyActual]:
     rows = (
         ("2024-Q4", "2024-12-31", "2025-02-01T21:00:00Z", 90.0),
         ("2025-Q1", "2025-03-31", "2025-05-01T21:00:00Z", 92.0),
@@ -41,6 +44,7 @@ def _consensus(
     snapshot_at: str = "2026-01-20T12:00:00Z",
     revenue: float | None = 104.0,
     eps: float | None = 1.2,
+    retrieved_at: str | None = None,
 ) -> ConsensusSnapshot:
     return ConsensusSnapshot(
         ticker="SYN1",
@@ -49,7 +53,7 @@ def _consensus(
         revenue_consensus=revenue,
         eps_consensus=eps,
         source="synthetic_test_fixture",
-        retrieved_at=snapshot_at,
+        retrieved_at=retrieved_at or snapshot_at,
     )
 
 
@@ -154,6 +158,39 @@ def test_post_cutoff_evidence_fails_closed_even_when_earlier_rows_exist():
     )
 
     assert result.state == NowcastState.BLOCKED
+    assert "post_cutoff_evidence" in result.missing_evidence
+
+
+def test_pre_cutoff_actual_report_retrieved_after_cutoff_blocks_readiness():
+    rows = _actuals()
+    rows[-1] = replace(rows[-1], retrieved_at="2026-02-01T00:00:00Z")
+
+    result = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp=CUTOFF,
+        actuals=rows,
+        consensus=[_consensus()],
+    )
+
+    assert result.state == NowcastState.BLOCKED
+    assert result.revenue_ready is False
+    assert result.eps_ready is False
+    assert "post_cutoff_evidence" in result.missing_evidence
+
+
+def test_pre_cutoff_consensus_snapshot_retrieved_after_cutoff_blocks_readiness():
+    result = assess_nowcast_readiness(
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp=CUTOFF,
+        actuals=_actuals(),
+        consensus=[_consensus(retrieved_at="2026-02-01T00:00:00Z")],
+    )
+
+    assert result.state == NowcastState.BLOCKED
+    assert result.revenue_ready is False
+    assert result.eps_ready is False
     assert "post_cutoff_evidence" in result.missing_evidence
 
 

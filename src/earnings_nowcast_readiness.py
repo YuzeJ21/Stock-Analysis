@@ -270,12 +270,14 @@ def assess_nowcast_readiness(
         row
         for row in matching_actuals
         if parse_utc_timestamp(row.reported_at) <= parse_utc_timestamp(normalized_cutoff)
+        and parse_utc_timestamp(row.retrieved_at) <= parse_utc_timestamp(normalized_cutoff)
         and row.fiscal_period != normalized_period
     ]
     available_consensus = [
         row
         for row in matching_consensus
         if parse_utc_timestamp(row.snapshot_at) <= parse_utc_timestamp(normalized_cutoff)
+        and parse_utc_timestamp(row.retrieved_at) <= parse_utc_timestamp(normalized_cutoff)
     ]
     available_actuals.sort(key=lambda row: (row.period_end_date, row.reported_at, row.source_ref))
     selected_consensus = _latest_consensus(available_consensus)

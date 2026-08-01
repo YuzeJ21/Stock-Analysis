@@ -75,6 +75,49 @@ def test_walk_forward_never_uses_target_actual_or_later_consensus():
     assert "fixture://actual/2026-Q1" not in report.events[0].input_source_ids
 
 
+def test_walk_forward_event_cutoff_includes_consensus_retrieval_time():
+    snapshot = replace(
+        _consensus()[0],
+        snapshot_at="2026-01-31T23:58:59Z",
+        retrieved_at="2026-01-31T23:59:59Z",
+    )
+
+    report = walk_forward_backtest(_history_with_target(), [snapshot], NowcastConfig())
+
+    assert report.valid_event_count == 1
+    assert report.events[0].as_of_timestamp == "2026-01-31T23:59:59+00:00"
+    assert report.events[0].latest_input_timestamp == "2026-01-31T23:59:59+00:00"
+
+
+def test_walk_forward_event_carries_exact_forecast_binding_metadata():
+    config = NowcastConfig(model_version="deterministic-test-v2")
+
+    report = walk_forward_backtest(_history_with_target(), _consensus(), config)
+
+    event = report.events[0]
+    assert event.model_version == "deterministic-test-v2"
+    assert len(event.input_snapshot_hash or "") == 64
+    assert set(event.input_snapshot_hash or "") <= set("0123456789abcdef")
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"model_version": None}, "model_version is required"),
+        ({"input_snapshot_hash": None}, "input_snapshot_hash must be"),
+    ],
+)
+def test_report_binding_requires_explicit_event_metadata(changes, message):
+    report = walk_forward_backtest(_history_with_target(), _consensus(), NowcastConfig())
+    incomplete = replace(
+        report,
+        events=(replace(report.events[0], **changes),),
+    )
+
+    with pytest.raises(ValueError, match=message):
+        assess_probability_calibration((), backtest_report=incomplete)
+
+
 def test_walk_forward_reports_errors_benchmarks_and_interval_coverage():
     report = walk_forward_backtest(_history_with_target(), _consensus(), NowcastConfig())
 
@@ -126,11 +169,186 @@ def test_empty_probability_evidence_fails_closed():
     assert status.probability_available is False
     assert status.state == NowcastState.BACKTEST_INSUFFICIENT
     assert "no_probability_evidence" in status.failed_gates
+    assert status.observations == ()
+    assert status.outcome_definition is None
+    assert status.evidence_digest is None
 
 
 def test_invalid_probability_is_rejected():
     with pytest.raises(ValueError, match="between 0 and 1"):
         ProbabilityObservation(probability=1.1, outcome=True)
+
+
+def test_probability_observation_requires_a_boolean_outcome():
+    with pytest.raises(ValueError, match="outcome must be Boolean"):
+        ProbabilityObservation(probability=0.1, outcome="false")
+
+
+def test_identityless_probability_observations_remain_standalone_calibration_evidence():
+    observations = tuple(
+        ProbabilityObservation(
+            probability=0.9 if index % 2 == 0 else 0.1,
+            outcome=index % 2 == 0,
+        )
+        for index in range(100)
+    )
+
+    status = assess_probability_calibration(observations)
+
+    assert status.probability_available is True
+    assert status.observations == observations
+    assert status.outcome_definition is None
+    assert status.evidence_digest is None
+
+
+def test_bound_probability_observations_are_canonical_immutable_evidence():
+    observations = tuple(
+        ProbabilityObservation(
+            probability=0.9 if index % 2 == 0 else 0.1,
+            outcome=index % 2 == 0,
+            ticker=f"syn{index:03d}",
+            fiscal_period="2026-q1",
+            as_of_timestamp="2026-01-31T18:59:59-05:00",
+            outcome_definition="revenue_actual_strictly_above_consensus",
+        )
+        for index in reversed(range(100))
+    )
+
+    status = assess_probability_calibration(observations)
+    reordered = assess_probability_calibration(tuple(reversed(observations)))
+
+    assert status.observations[0].ticker == "SYN000"
+    assert status.observations[0].fiscal_period == "2026-Q1"
+    assert status.observations[0].as_of_timestamp == "2026-01-31T23:59:59+00:00"
+    assert status.outcome_definition == "revenue_actual_strictly_above_consensus"
+    assert len(status.evidence_digest or "") == 64
+    assert status.evidence_digest == reordered.evidence_digest
+    assert status.observations == reordered.observations
+
+
+def test_calibration_assessment_can_bind_exact_backtest_event_evidence():
+    report = walk_forward_backtest(_history_with_target(), _consensus(), NowcastConfig())
+    event = report.events[0]
+    observations = (
+        ProbabilityObservation(
+            probability=0.9,
+            outcome=bool(event.revenue_actual > event.consensus_revenue),
+            ticker=event.ticker,
+            fiscal_period=event.fiscal_period,
+            as_of_timestamp=event.as_of_timestamp,
+            outcome_definition="revenue_actual_strictly_above_consensus",
+        ),
+    )
+
+    standalone = assess_probability_calibration(observations)
+    bound = assess_probability_calibration(observations, backtest_report=report)
+
+    assert standalone.backtest_evidence_digest is None
+    assert len(bound.backtest_evidence_digest or "") == 64
+    assert bound.observations == standalone.observations
+    assert bound.brier_score == standalone.brier_score
+
+
+def test_backtest_binding_normalizes_equivalent_chronology_representations():
+    report = walk_forward_backtest(_history_with_target(), _consensus(), NowcastConfig())
+    event = report.events[0]
+    observations = (
+        ProbabilityObservation(
+            probability=0.9,
+            outcome=bool(event.revenue_actual > event.consensus_revenue),
+            ticker=event.ticker,
+            fiscal_period=event.fiscal_period,
+            as_of_timestamp=event.as_of_timestamp,
+            outcome_definition="revenue_actual_strictly_above_consensus",
+        ),
+    )
+    equivalent = replace(
+        report,
+        events=(
+            replace(
+                event,
+                as_of_timestamp="2026-01-31T18:59:59-05:00",
+                latest_input_timestamp="2026-01-31T18:59:59-05:00",
+                target_reported_at="2026-04-20T17:00:00-04:00",
+            ),
+        ),
+    )
+
+    original = assess_probability_calibration(observations, backtest_report=report)
+    normalized = assess_probability_calibration(observations, backtest_report=equivalent)
+
+    assert normalized.backtest_evidence_digest == original.backtest_evidence_digest
+
+
+def test_backtest_binding_includes_the_exact_report_package():
+    report = walk_forward_backtest(_history_with_target(), _consensus(), NowcastConfig())
+    event = report.events[0]
+    observations = (
+        ProbabilityObservation(
+            probability=0.9,
+            outcome=bool(event.revenue_actual > event.consensus_revenue),
+            ticker=event.ticker,
+            fiscal_period=event.fiscal_period,
+            as_of_timestamp=event.as_of_timestamp,
+            outcome_definition="revenue_actual_strictly_above_consensus",
+        ),
+    )
+    relabelled = replace(
+        report,
+        excluded_count=1,
+        exclusion_reasons={"synthetic_test_exclusion": 1},
+        excluded_events=("synthetic test exclusion",),
+    )
+
+    original = assess_probability_calibration(observations, backtest_report=report)
+    changed = assess_probability_calibration(observations, backtest_report=relabelled)
+
+    assert changed.backtest_evidence_digest != original.backtest_evidence_digest
+
+
+def test_partially_bound_probability_observation_is_rejected():
+    with pytest.raises(ValueError, match="bound observation fields must be provided together"):
+        ProbabilityObservation(
+            probability=0.9,
+            outcome=True,
+            ticker="SYN1",
+        )
+
+
+def test_bound_probability_observation_identities_must_be_unique():
+    observation = ProbabilityObservation(
+        probability=0.9,
+        outcome=True,
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp="2026-01-31T23:59:59Z",
+        outcome_definition="revenue_actual_strictly_above_consensus",
+    )
+
+    with pytest.raises(ValueError, match="identities must be unique"):
+        assess_probability_calibration((observation, observation))
+
+
+def test_bound_probability_observations_require_one_outcome_definition():
+    revenue = ProbabilityObservation(
+        probability=0.9,
+        outcome=True,
+        ticker="SYN1",
+        fiscal_period="2026-Q1",
+        as_of_timestamp="2026-01-31T23:59:59Z",
+        outcome_definition="revenue_actual_strictly_above_consensus",
+    )
+    eps = ProbabilityObservation(
+        probability=0.1,
+        outcome=False,
+        ticker="SYN2",
+        fiscal_period="2026-Q1",
+        as_of_timestamp="2026-01-31T23:59:59Z",
+        outcome_definition="eps_actual_strictly_above_consensus",
+    )
+
+    with pytest.raises(ValueError, match="one outcome definition"):
+        assess_probability_calibration((revenue, eps))
 
 
 def test_empty_backtest_evidence_fails_closed():

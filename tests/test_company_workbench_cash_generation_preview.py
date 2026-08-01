@@ -386,7 +386,11 @@ def _evidence_case(name: str) -> SecQuarterlyPilotPreview:
         revenue_actuals = ()
     elif name == "revenue_after_cutoff":
         revenue_actuals = (
-            replace(revenue_actuals[0], reported_at="2026-07-22T00:00:00+00:00"),
+            replace(
+                revenue_actuals[0],
+                reported_at="2026-07-22T00:00:00+00:00",
+                retrieved_at="2026-07-22T00:01:00+00:00",
+            ),
         )
     extraction = replace(
         extraction,

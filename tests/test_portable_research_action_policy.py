@@ -5,6 +5,61 @@ import pytest
 from src.portable_research_action_policy import contains_portable_action_language
 
 
+_MODIFIED_MODAL_PASSIVE_ACTIONS = (
+    "Shares should definitely be bought now.",
+    "Shares should probably be bought now.",
+    "Shares should ultimately be bought now.",
+    "Shares should promptly be bought now.",
+    "Shares should gradually be bought now.",
+    "Shares should aggressively be bought now.",
+    "Shares definitely should be bought now.",
+    "Shares probably should be bought now.",
+    "Shares ultimately should be bought now.",
+    "Shares promptly should be bought now.",
+    "Shares gradually should be bought now.",
+    "Shares aggressively should be bought now.",
+    "Shares reviewwise should planwise be bought now.",
+    "Shares outstanding should be bought now.",
+    "Shares based on review should be bought now.",
+    "The share count should be purchased now.",
+    "Shares data should be bought now.",
+    "Shares should be purchased, dataset quality permitting.",
+    "Shares should be purchased, source dataset quality permitting.",
+    "The share count should be normalized using the most recently purchased dataset and then sold.",
+    "The share count should be normalized using the most recently purchased source dataset and then sold.",
+    "Shares should reviewwise planwise slowly carefully deliberately eventually be bought now.",
+    "Shares reviewwise planwise slowly carefully deliberately eventually should be bought now.",
+)
+_ACTIVE_EXPOSURE_ACTIONS = (
+    "Increase exposure now.",
+    "Reduce exposure now.",
+    "Build exposure now.",
+    "Initiate exposure now.",
+    "Increase the current direct strategic gross net total aggregate absolute adjusted exposure now.",
+)
+_CONTRACTED_MODAL_PASSIVE_ACTIONS = (
+    "Shares cannot be bought now.",
+    "Shares mustn't be bought now.",
+    "Shares shouldn't be bought now.",
+    "Shares can't be bought now.",
+    "Shares couldn't be bought now.",
+    "Shares mayn't be bought now.",
+    "Shares mightn't be bought now.",
+    "Shares won't be bought now.",
+    "Shares wouldn't be bought now.",
+    "Shares shan't be bought now.",
+    "Shares mustn’t be bought now.",
+    "Shares shouldn’t be bought now.",
+    "Shares can’t be bought now.",
+    "Shares couldn’t be bought now.",
+    "Shares mayn’t be bought now.",
+    "Shares mightn’t be bought now.",
+    "Shares won’t be bought now.",
+    "Shares wouldn’t be bought now.",
+    "Shares shan’t be bought now.",
+)
+
+
 @pytest.mark.parametrize(
     "text",
     (
@@ -14,6 +69,8 @@ from src.portable_research_action_policy import contains_portable_action_languag
         "cover the short",
         "go strategically net long",
         "The note says the strategy executes trades.",
+        "Increase the model detail using the reviewed historical assumptions and document the resulting shares now.",
+        "Increase the model detail using the reviewed historical assumptions and increase the resulting exposure now.",
     ),
 )
 def test_existing_active_action_families_remain_non_portable(text):
@@ -47,6 +104,34 @@ def test_existing_reference_and_boundary_prose_remains_portable(text):
     ),
 )
 def test_modal_passive_transaction_language_is_not_portable(text):
+    assert contains_portable_action_language(text) is True
+
+
+@pytest.mark.parametrize("text", _MODIFIED_MODAL_PASSIVE_ACTIONS)
+def test_modal_passive_modifier_runs_cannot_escape_policy_within_a_clause(text):
+    assert contains_portable_action_language(text) is True
+
+
+@pytest.mark.parametrize("text", _ACTIVE_EXPOSURE_ACTIONS)
+def test_active_position_lifecycle_exposure_instructions_are_not_portable(text):
+    assert contains_portable_action_language(text) is True
+
+
+@pytest.mark.parametrize(
+    "text",
+    (
+        "Purchase the entire share count now.",
+        "Sell the selected share count now.",
+        "Buy the full share count now.",
+        "Acquire the resulting share count now.",
+    ),
+)
+def test_active_share_count_transaction_objects_are_not_reference_exempt(text):
+    assert contains_portable_action_language(text) is True
+
+
+@pytest.mark.parametrize("text", _CONTRACTED_MODAL_PASSIVE_ACTIONS)
+def test_supported_modal_negation_contractions_are_not_portable(text):
     assert contains_portable_action_language(text) is True
 
 
@@ -101,6 +186,10 @@ def test_modal_passive_policy_handles_supported_chains_and_normalization(text, e
         "The position estimate should be increased.",
         "The trade record should be ordered by date.",
         "The equity method should be held constant.",
+        "The position estimate based on reviewed historical evidence and documented assumptions should be increased.",
+        "The share count should be normalized using the most recently purchased dataset.",
+        "The share count should be normalized using the most recently purchased source dataset.",
+        "Increase the model detail using the reviewed historical assumptions and document the resulting share count.",
         "Securities are held to maturity.",
         "Assets are available for sale.",
         "Shares are a commonly purchased investment class.",
@@ -110,6 +199,59 @@ def test_modal_passive_policy_handles_supported_chains_and_normalization(text, e
 )
 def test_modal_reference_and_classification_prose_remains_portable(text):
     assert contains_portable_action_language(text) is False
+
+
+@pytest.mark.parametrize(
+    "text",
+    (
+        "The share count should be normalized using the most recently purchased vendor dataset.",
+        "The share count should be normalized using the purchased external source dataset.",
+        "The share count should be normalized using the dataset most recently purchased from the vendor.",
+        "The share count should be normalized using the recently purchased third-party dataset.",
+    ),
+)
+def test_bounded_purchased_dataset_methodology_context_remains_portable(text):
+    assert contains_portable_action_language(text) is False
+
+
+@pytest.mark.parametrize(
+    "text",
+    (
+        "The share count should be normalized using the most recently purchased, vendor dataset.",
+        "The share count should be normalized using the purchased external, source dataset.",
+        "The share count should be normalized using the dataset most recently purchased, from the vendor.",
+        "The share count should be normalized using the recently sold vendor dataset.",
+        "The share count should be normalized using the recently purchased and then dataset.",
+        "The share count should be normalized using the dataset and then purchased from the vendor.",
+        "The share count should be normalized using the most recently purchased vendor dataset and then sold.",
+        "The share count should be normalized using the dataset most recently purchased from the vendor and then sold.",
+    ),
+)
+def test_purchased_dataset_methodology_context_rejects_wrong_participles_boundaries_and_suffix_actions(text):
+    assert contains_portable_action_language(text) is True
+
+
+def test_distant_documented_position_estimate_reference_remains_portable():
+    text = "Increase the model detail using reviewed historical assumptions and document the resulting position estimate."
+
+    assert contains_portable_action_language(text) is False
+
+
+@pytest.mark.parametrize(
+    "text",
+    (
+        "Increase as the model directs and document the resulting share count.",
+        "Increase it per model and document the resulting position estimate.",
+        "Increase model-directed quantity and document the resulting share count.",
+        "Reduce model-directed quantity and document the resulting position estimate.",
+        "Increase the model detail using reviewed historical assumptions and document the resulting position.",
+        "Reduce the model detail using reviewed historical assumptions and document the resulting exposure.",
+        "Build the model detail using reviewed historical assumptions and document the resulting shares.",
+        "Initiate the model review using reviewed historical assumptions and document the resulting position.",
+    ),
+)
+def test_long_distance_unqualified_action_endpoints_remain_non_portable(text):
+    assert contains_portable_action_language(text) is True
 
 
 @pytest.mark.parametrize(

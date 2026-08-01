@@ -189,9 +189,12 @@ class QuarterlyActual:
         object.__setattr__(self, "supersedes_source_ref", _optional_text(self.supersedes_source_ref))
         if self.revenue_actual is None and self.eps_actual is None:
             raise ValueError("at least one quarterly actual metric is required")
+        if parse_utc_timestamp(self.reported_at) > parse_utc_timestamp(self.retrieved_at):
+            raise ValueError("reported_at cannot be after retrieved_at")
 
     def available_at(self, cutoff: object) -> bool:
-        return validate_cutoff(self.reported_at, cutoff, label="quarterly actual")
+        validate_cutoff(self.reported_at, cutoff, label="quarterly actual")
+        return validate_cutoff(self.retrieved_at, cutoff, label="quarterly actual retrieval")
 
 
 @dataclass(frozen=True)
@@ -242,9 +245,12 @@ class ConsensusSnapshot:
         )
         if self.revenue_consensus is None and self.eps_consensus is None:
             raise ValueError("at least one consensus metric is required")
+        if parse_utc_timestamp(self.snapshot_at) > parse_utc_timestamp(self.retrieved_at):
+            raise ValueError("snapshot_at cannot be after retrieved_at")
 
     def available_at(self, cutoff: object) -> bool:
-        return validate_cutoff(self.snapshot_at, cutoff, label="consensus snapshot")
+        validate_cutoff(self.snapshot_at, cutoff, label="consensus snapshot")
+        return validate_cutoff(self.retrieved_at, cutoff, label="consensus snapshot retrieval")
 
 
 @dataclass(frozen=True)

@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 import statistics
 from dataclasses import dataclass
+from numbers import Integral, Real
 from typing import Mapping, Sequence
 
 from src.earnings_nowcast_contract import (
@@ -14,6 +17,14 @@ from src.earnings_nowcast_contract import (
 )
 from src.earnings_nowcast_model import NowcastConfig, build_baseline_nowcast
 from src.earnings_nowcast_readiness import canonicalize_actuals
+
+
+CALIBRATION_OUTCOME_DEFINITIONS = frozenset(
+    {
+        "revenue_actual_strictly_above_consensus",
+        "eps_actual_strictly_above_consensus",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -37,6 +48,8 @@ class BacktestEvent:
     prior_year_revenue: float | None
     prior_year_eps: float | None
     relative_classification: str
+    model_version: str | None = None
+    input_snapshot_hash: str | None = None
 
 
 @dataclass(frozen=True)
@@ -77,14 +90,59 @@ class _CanonicalBacktestTarget:
 class ProbabilityObservation:
     probability: float
     outcome: bool
+    ticker: str | None = None
+    fiscal_period: str | None = None
+    as_of_timestamp: str | None = None
+    outcome_definition: str | None = None
 
     def __post_init__(self) -> None:
         if isinstance(self.probability, bool) or not math.isfinite(float(self.probability)):
             raise ValueError("probability must be finite and between 0 and 1")
         if not 0 <= float(self.probability) <= 1:
             raise ValueError("probability must be between 0 and 1")
+        if not isinstance(self.outcome, bool):
+            raise ValueError("outcome must be Boolean")
         object.__setattr__(self, "probability", float(self.probability))
-        object.__setattr__(self, "outcome", bool(self.outcome))
+        binding = (
+            self.ticker,
+            self.fiscal_period,
+            self.as_of_timestamp,
+            self.outcome_definition,
+        )
+        if all(value is None for value in binding):
+            return
+        if any(value is None for value in binding):
+            raise ValueError("bound observation fields must be provided together")
+        ticker = str(self.ticker or "").strip().upper()
+        fiscal_period = str(self.fiscal_period or "").strip().upper()
+        outcome_definition = str(self.outcome_definition or "").strip().lower()
+        if not ticker:
+            raise ValueError("bound observation ticker is required")
+        try:
+            year, quarter = fiscal_period.split("-Q", 1)
+        except ValueError as exc:
+            raise ValueError("fiscal_period must use YYYY-Q[1-4]") from exc
+        if len(year) != 4 or not year.isdigit() or quarter not in {"1", "2", "3", "4"}:
+            raise ValueError("fiscal_period must use YYYY-Q[1-4]")
+        if outcome_definition not in CALIBRATION_OUTCOME_DEFINITIONS:
+            raise ValueError("outcome_definition is not supported")
+        object.__setattr__(self, "ticker", ticker)
+        object.__setattr__(self, "fiscal_period", fiscal_period)
+        object.__setattr__(
+            self,
+            "as_of_timestamp",
+            parse_utc_timestamp(
+                self.as_of_timestamp,
+                label="probability observation as_of_timestamp",
+            ).isoformat(),
+        )
+        object.__setattr__(self, "outcome_definition", outcome_definition)
+
+    @property
+    def event_identity(self) -> tuple[str, str, str] | None:
+        if self.ticker is None or self.fiscal_period is None or self.as_of_timestamp is None:
+            return None
+        return self.ticker, self.fiscal_period, self.as_of_timestamp
 
 
 @dataclass(frozen=True)
@@ -111,6 +169,10 @@ class CalibrationStatus:
     calibration_bins: tuple["CalibrationBin", ...]
     failed_gates: tuple[str, ...]
     failed_gate_details: Mapping[str, str]
+    observations: tuple[ProbabilityObservation, ...] = ()
+    outcome_definition: str | None = None
+    evidence_digest: str | None = None
+    backtest_evidence_digest: str | None = None
 
 
 @dataclass(frozen=True)
@@ -121,6 +183,200 @@ class CalibrationBin:
     mean_probability: float
     outcome_rate: float
     meets_minimum_size: bool
+
+
+_BACKTEST_EVENT_NUMERIC_FIELDS = (
+    "revenue_forecast",
+    "revenue_low",
+    "revenue_high",
+    "revenue_actual",
+    "eps_forecast",
+    "eps_low",
+    "eps_high",
+    "eps_actual",
+    "consensus_revenue",
+    "consensus_eps",
+    "prior_year_revenue",
+    "prior_year_eps",
+)
+_BACKTEST_REPORT_NUMERIC_FIELDS = (
+    "revenue_mae",
+    "revenue_median_absolute_error",
+    "revenue_wape",
+    "eps_mae",
+    "eps_median_absolute_error",
+    "directional_accuracy",
+    "interval_coverage",
+    "revenue_interval_coverage",
+    "eps_interval_coverage",
+    "joint_interval_coverage",
+)
+
+
+def _canonical_evidence_number(value: object, *, label: str) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise TypeError(f"{label} must be a finite real number or None")
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"{label} must be finite")
+    return number.hex()
+
+
+def _canonical_backtest_events(
+    events: Sequence[BacktestEvent],
+) -> list[dict[str, object]]:
+    canonical_events: list[dict[str, object]] = []
+    for event in events:
+        if not isinstance(event, BacktestEvent):
+            raise TypeError("backtest events must be BacktestEvent values")
+        ticker = event.ticker.strip().upper() if isinstance(event.ticker, str) else ""
+        fiscal_period = (
+            event.fiscal_period.strip().upper()
+            if isinstance(event.fiscal_period, str)
+            else ""
+        )
+        if not ticker or not fiscal_period:
+            raise ValueError("backtest event identity is required")
+        if (
+            not isinstance(event.input_source_ids, tuple)
+            or not event.input_source_ids
+            or any(not isinstance(item, str) or not item.strip() for item in event.input_source_ids)
+        ):
+            raise ValueError("backtest event input_source_ids must be an ordered non-empty tuple")
+        if not isinstance(event.model_version, str) or not event.model_version.strip():
+            raise ValueError("backtest event model_version is required for evidence binding")
+        if (
+            not isinstance(event.input_snapshot_hash, str)
+            or len(event.input_snapshot_hash) != 64
+            or any(character not in "0123456789abcdef" for character in event.input_snapshot_hash)
+        ):
+            raise ValueError(
+                "backtest event input_snapshot_hash must be a lowercase SHA-256 digest"
+            )
+        canonical = {
+            "ticker": ticker,
+            "fiscal_period": fiscal_period,
+            "as_of_timestamp": parse_utc_timestamp(
+                event.as_of_timestamp,
+                label="backtest event as_of_timestamp",
+            ).isoformat(),
+            "latest_input_timestamp": parse_utc_timestamp(
+                event.latest_input_timestamp,
+                label="backtest event latest_input_timestamp",
+            ).isoformat(),
+            "target_reported_at": parse_utc_timestamp(
+                event.target_reported_at,
+                label="backtest event target_reported_at",
+            ).isoformat(),
+            "input_source_ids": list(event.input_source_ids),
+            "model_version": event.model_version,
+            "input_snapshot_hash": event.input_snapshot_hash,
+            "relative_classification": event.relative_classification,
+            "scored_fields": {
+                name: _canonical_evidence_number(
+                    getattr(event, name),
+                    label=f"backtest event {name}",
+                )
+                for name in _BACKTEST_EVENT_NUMERIC_FIELDS
+            },
+        }
+        canonical_events.append(canonical)
+    canonical_events.sort(
+        key=lambda event: (
+            str(event["ticker"]),
+            str(event["fiscal_period"]),
+            str(event["as_of_timestamp"]),
+        )
+    )
+    return canonical_events
+
+
+def _canonical_report_count(value: object, *, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, Integral) or int(value) < 0:
+        raise TypeError(f"{label} must be a non-negative integer")
+    return int(value)
+
+
+def _canonical_text_tuple(value: object, *, label: str) -> list[str]:
+    if not isinstance(value, tuple) or any(not isinstance(item, str) for item in value):
+        raise TypeError(f"{label} must be a tuple of strings")
+    return list(value)
+
+
+def _backtest_report_evidence_digest(report: BacktestReport) -> str:
+    """Bind exact in-memory report integrity; this is not source attestation."""
+
+    if not isinstance(report, BacktestReport):
+        raise TypeError("backtest_report must be a BacktestReport")
+    if not isinstance(report.verdict, str):
+        raise TypeError("backtest report verdict must be a string")
+    if not isinstance(report.exclusion_reasons, Mapping):
+        raise TypeError("backtest report exclusion_reasons must be a mapping")
+    exclusion_reasons: dict[str, int] = {}
+    for reason, count in report.exclusion_reasons.items():
+        if not isinstance(reason, str):
+            raise TypeError("backtest report exclusion reason names must be strings")
+        exclusion_reasons[reason] = _canonical_report_count(
+            count,
+            label=f"backtest report exclusion count for {reason}",
+        )
+    if not isinstance(report.benchmark_metrics, Mapping):
+        raise TypeError("backtest report benchmark_metrics must be a mapping")
+    benchmark_metrics: dict[str, str | None] = {}
+    for name, value in report.benchmark_metrics.items():
+        if not isinstance(name, str):
+            raise TypeError("backtest report benchmark names must be strings")
+        benchmark_metrics[name] = _canonical_evidence_number(
+            value,
+            label=f"backtest report benchmark {name}",
+        )
+    payload = {
+        "schema_version": "earnings-nowcast-backtest-report-evidence-v1",
+        "verdict": report.verdict,
+        "event_count": _canonical_report_count(
+            report.event_count,
+            label="backtest report event_count",
+        ),
+        "valid_event_count": _canonical_report_count(
+            report.valid_event_count,
+            label="backtest report valid_event_count",
+        ),
+        "excluded_count": _canonical_report_count(
+            report.excluded_count,
+            label="backtest report excluded_count",
+        ),
+        "exclusion_reasons": exclusion_reasons,
+        "excluded_events": _canonical_text_tuple(
+            report.excluded_events,
+            label="backtest report excluded_events",
+        ),
+        "summary_metrics": {
+            name: _canonical_evidence_number(
+                getattr(report, name),
+                label=f"backtest report {name}",
+            )
+            for name in _BACKTEST_REPORT_NUMERIC_FIELDS
+        },
+        "benchmark_metrics": benchmark_metrics,
+        "benchmark_failures": _canonical_text_tuple(
+            report.benchmark_failures,
+            label="backtest report benchmark_failures",
+        ),
+        "leakage_failures": _canonical_text_tuple(
+            report.leakage_failures,
+            label="backtest report leakage_failures",
+        ),
+        "failures": _canonical_text_tuple(
+            report.failures,
+            label="backtest report failures",
+        ),
+        "events": _canonical_backtest_events(report.events),
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
 
 def _mean(values: Sequence[float]) -> float | None:
@@ -280,7 +536,7 @@ def walk_forward_backtest(
                 f"{target.ticker} {target.fiscal_period}: latest consensus is {snapshot_age.days} days before reported_at",
             )
             continue
-        cutoff = snapshot.snapshot_at
+        cutoff = snapshot.retrieved_at
         history = [
             row
             for row in actuals
@@ -298,7 +554,11 @@ def walk_forward_backtest(
             failures.append(f"{target.ticker} {target.fiscal_period}: {exc}")
             continue
 
-        input_timestamps = [snapshot.snapshot_at, *(row.reported_at for row in history)]
+        input_timestamps = [
+            snapshot.snapshot_at,
+            snapshot.retrieved_at,
+            *(timestamp for row in history for timestamp in (row.reported_at, row.retrieved_at)),
+        ]
         latest_input = max(input_timestamps, key=parse_utc_timestamp)
         if parse_utc_timestamp(latest_input) > parse_utc_timestamp(cutoff):
             leakage_failures.append(f"{target.ticker} {target.fiscal_period}: input after cutoff")
@@ -335,6 +595,8 @@ def walk_forward_backtest(
                 prior_year_revenue=prior_revenue.revenue_actual if prior_revenue else None,
                 prior_year_eps=prior_eps.eps_actual if prior_eps else None,
                 relative_classification=forecast.relative_classification,
+                model_version=forecast.model_version,
+                input_snapshot_hash=forecast.input_snapshot_hash,
             )
         )
 
@@ -435,12 +697,67 @@ def walk_forward_backtest(
     )
 
 
+def _calibration_evidence(
+    observations: Sequence[ProbabilityObservation],
+) -> tuple[tuple[ProbabilityObservation, ...], str | None, str | None]:
+    rows = tuple(observations)
+    if any(not isinstance(row, ProbabilityObservation) for row in rows):
+        raise TypeError("calibration observations must be ProbabilityObservation values")
+    identities = tuple(row.event_identity for row in rows)
+    if not any(identity is not None for identity in identities):
+        return rows, None, None
+    if any(identity is None for identity in identities):
+        raise ValueError("bound and identity-less calibration observations cannot be mixed")
+    definitions = {row.outcome_definition for row in rows}
+    if len(definitions) != 1:
+        raise ValueError("bound calibration observations must use one outcome definition")
+    if len(set(identities)) != len(identities):
+        raise ValueError("bound calibration observation identities must be unique")
+    canonical = tuple(sorted(rows, key=lambda row: row.event_identity or ("", "", "")))
+    payload = {
+        "schema_version": "earnings-nowcast-calibration-evidence-v1",
+        "observations": [
+            {
+                "ticker": row.ticker,
+                "fiscal_period": row.fiscal_period,
+                "as_of_timestamp": row.as_of_timestamp,
+                "outcome_definition": row.outcome_definition,
+                "probability_hex": row.probability.hex(),
+                "outcome": row.outcome,
+            }
+            for row in canonical
+        ],
+    }
+    digest = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return canonical, next(iter(definitions)), digest
+
+
 def assess_probability_calibration(
     observations: Sequence[ProbabilityObservation],
     policy: CalibrationPolicy | None = None,
+    *,
+    backtest_report: BacktestReport | None = None,
 ) -> CalibrationStatus:
+    """Assess calibration and optionally bind it to an exact report package.
+
+    The binding proves only internal consistency between supplied objects. It
+    does not authenticate sources or independently prove external provenance.
+    """
+
     policy = policy or CalibrationPolicy()
-    if not observations:
+    if backtest_report is not None and not isinstance(backtest_report, BacktestReport):
+        raise TypeError("backtest_report must be a BacktestReport")
+    backtest_evidence_digest = (
+        _backtest_report_evidence_digest(backtest_report)
+        if backtest_report is not None
+        else None
+    )
+    canonical_observations, outcome_definition, evidence_digest = _calibration_evidence(
+        observations
+    )
+    if not canonical_observations:
         return CalibrationStatus(
             state=NowcastState.BACKTEST_INSUFFICIENT,
             probability_available=False,
@@ -454,11 +771,12 @@ def assess_probability_calibration(
                 "no_probability_evidence": "No valid out-of-sample probability observations are available.",
                 "minimum_100_events": f"0 valid events; at least {policy.minimum_events} are required.",
             },
+            backtest_evidence_digest=backtest_evidence_digest,
         )
 
-    probabilities = [row.probability for row in observations]
-    outcomes = [1.0 if row.outcome else 0.0 for row in observations]
-    brier = sum((probability - outcome) ** 2 for probability, outcome in zip(probabilities, outcomes, strict=True)) / len(observations)
+    probabilities = [row.probability for row in canonical_observations]
+    outcomes = [1.0 if row.outcome else 0.0 for row in canonical_observations]
+    brier = sum((probability - outcome) ** 2 for probability, outcome in zip(probabilities, outcomes, strict=True)) / len(canonical_observations)
     base_rate = sum(outcomes) / len(outcomes)
     benchmark = sum((base_rate - outcome) ** 2 for outcome in outcomes) / len(outcomes)
     bins: dict[int, list[tuple[float, float]]] = {}
@@ -478,13 +796,13 @@ def assess_probability_calibration(
         for index, rows in sorted(bins.items())
     )
     calibration_error = sum(
-        len(rows) / len(observations)
+        len(rows) / len(canonical_observations)
         * abs(sum(probability for probability, _ in rows) / len(rows) - sum(outcome for _, outcome in rows) / len(rows))
         for rows in bins.values()
     )
 
     failed: list[str] = []
-    if len(observations) < policy.minimum_events:
+    if len(canonical_observations) < policy.minimum_events:
         failed.append("minimum_100_events")
     if brier > policy.maximum_brier_score:
         failed.append("maximum_brier_score")
@@ -493,7 +811,7 @@ def assess_probability_calibration(
     if brier >= benchmark:
         failed.append("must_improve_constant_rate_benchmark")
     details = {
-        "minimum_100_events": f"{len(observations)} valid events; at least {policy.minimum_events} are required.",
+        "minimum_100_events": f"{len(canonical_observations)} valid events; at least {policy.minimum_events} are required.",
         "maximum_brier_score": f"Brier score {brier:.6f} exceeds the maximum {policy.maximum_brier_score:.6f}.",
         "minimum_calibration_bin_size": f"Every populated calibration bin must contain at least {policy.minimum_bin_size} events.",
         "must_improve_constant_rate_benchmark": f"Brier score {brier:.6f} must be lower than constant-rate benchmark {benchmark:.6f}.",
@@ -504,15 +822,19 @@ def assess_probability_calibration(
             NowcastState.CALIBRATED
             if available
             else NowcastState.BACKTEST_INSUFFICIENT
-            if len(observations) < policy.minimum_events
+            if len(canonical_observations) < policy.minimum_events
             else NowcastState.BACKTEST_READY
         ),
         probability_available=available,
-        event_count=len(observations),
+        event_count=len(canonical_observations),
         brier_score=brier,
         benchmark_brier_score=benchmark,
         calibration_error=calibration_error,
         calibration_bins=calibration_bins,
         failed_gates=tuple(failed),
         failed_gate_details={gate: details[gate] for gate in failed},
+        observations=canonical_observations,
+        outcome_definition=outcome_definition,
+        evidence_digest=evidence_digest,
+        backtest_evidence_digest=backtest_evidence_digest,
     )

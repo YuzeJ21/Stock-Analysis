@@ -6,7 +6,7 @@ import unicodedata
 from dataclasses import dataclass
 
 
-_ACTION_MAX_INTERVENING_TOKENS = 8
+_REFERENCE_MODIFIER_MAX_CONTEXT_TOKENS = 8
 _SECURITY_ACTION_STARTS = frozenset(
     {
         "add", "added", "adding", "adds",
@@ -45,7 +45,8 @@ _POSITION_ACTION_STARTS = frozenset(
         "size", "sized", "sizes", "sizing", "trim", "trimmed", "trimming", "trims",
     }
 ) | _SECURITY_ACTION_STARTS
-_POSITION_ACTION_ENDPOINTS = frozenset({"position", "positions"})
+_EXPOSURE_ACTION_ENDPOINTS = frozenset({"exposure", "exposures"})
+_POSITION_ACTION_ENDPOINTS = frozenset({"position", "positions"}) | _EXPOSURE_ACTION_ENDPOINTS
 _COVERING_ACTION_STARTS = frozenset({"cover", "covered", "covering", "covers"})
 _COVERING_ACTION_ENDPOINTS = _SECURITY_ACTION_ENDPOINTS | _POSITION_ACTION_ENDPOINTS | frozenset({"short", "shorts"})
 _DIRECTIONAL_ACTION_STARTS = frozenset(
@@ -54,7 +55,7 @@ _DIRECTIONAL_ACTION_STARTS = frozenset(
         "exited", "exiting", "exits", "go", "goes", "going", "open", "opened", "opening", "opens", "went",
     }
 )
-_DIRECTIONAL_ACTION_ENDPOINTS = frozenset({"long", "short"})
+_DIRECTIONAL_ACTION_ENDPOINTS = frozenset({"long", "short"}) | _EXPOSURE_ACTION_ENDPOINTS
 _ACTION_FAMILIES = (
     (_SECURITY_ACTION_STARTS, _SECURITY_ACTION_ENDPOINTS),
     (_EXECUTION_ACTION_STARTS, _EXECUTION_ACTION_ENDPOINTS),
@@ -69,13 +70,24 @@ _PASSIVE_AUXILIARIES = frozenset(
     {"be", "been", "being", "is", "are", "was", "were", "get", "gets", "got", "getting"}
 )
 _PASSIVE_NEGATIONS = frozenset({"not", "never"})
-_PASSIVE_MAX_CHAIN_TOKENS = 5
+_PASSIVE_NEGATED_MODAL_STEMS = {
+    "can": "can",
+    "couldn": "could",
+    "mayn": "may",
+    "mightn": "might",
+    "mustn": "must",
+    "shan": "shall",
+    "shouldn": "should",
+    "won": "will",
+    "wouldn": "would",
+}
+_PASSIVE_UNSPACED_NEGATED_MODALS = {"cannot": "can"}
 _PASSIVE_ACTION_FAMILIES = (
     (_SECURITY_ACTION_ENDPOINTS, _SECURITY_ACTION_STARTS),
     (_EXECUTION_ACTION_ENDPOINTS, _EXECUTION_ACTION_STARTS),
-    (_POSITION_ACTION_ENDPOINTS | frozenset({"exposure", "exposures"}), _POSITION_ACTION_STARTS | _DIRECTIONAL_ACTION_STARTS),
+    (_POSITION_ACTION_ENDPOINTS, _POSITION_ACTION_STARTS | _DIRECTIONAL_ACTION_STARTS),
     (_COVERING_ACTION_ENDPOINTS, _COVERING_ACTION_STARTS),
-    (_DIRECTIONAL_ACTION_ENDPOINTS | frozenset({"exposure", "exposures"}), _DIRECTIONAL_ACTION_STARTS | _POSITION_ACTION_STARTS),
+    (_DIRECTIONAL_ACTION_ENDPOINTS, _DIRECTIONAL_ACTION_STARTS | _POSITION_ACTION_STARTS),
 )
 _PASSIVE_ACTION_TOKENS = frozenset(
     token
@@ -91,13 +103,20 @@ _PASSIVE_ATTRIBUTION_ARTICLES = frozenset({"a", "an", "the"})
 _PASSIVE_ATTRIBUTION_CONTEXTS = frozenset({"historical", "past"})
 _PASSIVE_PAST_AUXILIARIES = frozenset({"was", "were"})
 _PASSIVE_APPROVED_ATTRIBUTION_TAILS = ((), ("in", "2024"))
-_PASSIVE_ADVERBS = frozenset(
-    {
-        "already", "also", "carefully", "commonly", "ever", "immediately", "just", "materially",
-        "quietly", "still", "strategically", "then",
-    }
+_PASSIVE_MODAL_REFERENCE_HEADS = frozenset(
+    {("equity", "method"), ("position", "estimate"), ("trade", "record")}
+)
+_PASSIVE_DIRECT_NOMINAL_TAILS = (
+    ("a", "commonly", "purchased", "investment", "class"),
+    ("family", "purchased", "investment", "units"),
 )
 _PASSIVE_REFERENCE_PHRASES = (("ordered", "by", "market", "capitalization"),)
+_PASSIVE_DATASET_REFERENCE_HEADS = frozenset({"dataset"})
+_PASSIVE_DATASET_REFERENCE_MAX_MODIFIERS = 3
+_PASSIVE_DATASET_METHODOLOGY_MAX_CONTEXT_TOKENS = 8
+_ACTIVE_DOCUMENTED_RESULT_REFERENCE_HEADS = frozenset(
+    {("position", "estimate"), ("share", "count")}
+)
 _APPROVED_NEGATED_BOUNDARIES = (
     ("no", "recommendation"),
     ("no", "buy", "sell", "instruction"),
@@ -282,6 +301,42 @@ def _token_texts(tokens: tuple[_ActionToken, ...]) -> tuple[str, ...]:
     return tuple(token.text for token in tokens)
 
 
+def _is_contraction_apostrophe(separator: str) -> bool:
+    if len(separator) != 1:
+        return False
+    name = unicodedata.name(separator, "")
+    return "APOSTROPHE" in name or "SINGLE QUOTATION MARK" in name
+
+
+def _normalize_passive_modal_contractions(
+    tokens: tuple[_ActionToken, ...],
+) -> tuple[_ActionToken, ...]:
+    normalized: list[_ActionToken] = []
+    index = 0
+    while index < len(tokens):
+        token = tokens[index]
+        unspaced_modal = _PASSIVE_UNSPACED_NEGATED_MODALS.get(token.text)
+        if unspaced_modal is not None:
+            normalized.append(_ActionToken(unspaced_modal, token.separator_before))
+            normalized.append(_ActionToken("not", ""))
+            index += 1
+            continue
+        modal = _PASSIVE_NEGATED_MODAL_STEMS.get(token.text)
+        if (
+            modal is not None
+            and index + 1 < len(tokens)
+            and tokens[index + 1].text == "t"
+            and _is_contraction_apostrophe(tokens[index + 1].separator_before)
+        ):
+            normalized.append(_ActionToken(modal, token.separator_before))
+            normalized.append(_ActionToken("not", tokens[index + 1].separator_before))
+            index += 2
+            continue
+        normalized.append(token)
+        index += 1
+    return tuple(normalized)
+
+
 def _without_approved_negated_boundaries(tokens: tuple[_ActionToken, ...]) -> tuple[_ActionToken, ...]:
     ignored: set[int] = set()
     token_texts = _token_texts(tokens)
@@ -323,7 +378,7 @@ def _has_reference_modifier_context(tokens: tuple[_ActionToken, ...], start_inde
         return False
     if start == "short" and not _is_compound_separator(tokens[start_index + 1].separator_before):
         return False
-    context_limit = start_index + _ACTION_MAX_INTERVENING_TOKENS + 2
+    context_limit = start_index + _REFERENCE_MODIFIER_MAX_CONTEXT_TOKENS + 2
     return any(
         token.text in _REFERENCE_SUBJECT_TOKENS or token.text in _REFERENCE_ENDPOINT_FOLLOWERS
         for token in tokens[start_index + 2 : context_limit]
@@ -343,6 +398,25 @@ def _is_compound_separator(separator: str) -> bool:
 def _is_reference_follower(token: _ActionToken) -> bool:
     separator = token.separator_before
     return bool(separator) and (separator.isspace() or _is_compound_separator(separator))
+
+
+def _has_reference_adjacency(
+    tokens: tuple[_ActionToken, ...],
+    start_index: int,
+    end_index: int,
+) -> bool:
+    return all(_is_reference_follower(tokens[index]) for index in range(start_index + 1, end_index + 1))
+
+
+def _has_dataset_reference_modifier_run(
+    tokens: tuple[_ActionToken, ...],
+    start_index: int,
+    end_index: int,
+) -> bool:
+    return _has_reference_adjacency(tokens, start_index, end_index) and not any(
+        token.text in _ENDPOINT_COORDINATION_TOKENS
+        for token in tokens[start_index + 1 : end_index]
+    )
 
 
 def _has_endpoint_coordination(
@@ -366,16 +440,14 @@ def _has_endpoint_coordination(
 
 
 def _has_reference_coverage_endpoint(tokens: tuple[_ActionToken, ...], start_index: int) -> bool:
-    endpoint_limit = min(len(tokens), start_index + _ACTION_MAX_INTERVENING_TOKENS + 2)
     return any(
         token.text in _REFERENCE_COVERAGE_ENDPOINTS
-        for token in tokens[start_index + 1 : endpoint_limit]
+        for token in tokens[start_index + 1 :]
     )
 
 
 def _has_coverage_action_object(tokens: tuple[_ActionToken, ...], start_index: int) -> bool:
-    endpoint_limit = min(len(tokens), start_index + _ACTION_MAX_INTERVENING_TOKENS + 2)
-    return any(token.text in _COVERAGE_ACTION_OBJECTS for token in tokens[start_index + 1 : endpoint_limit])
+    return any(token.text in _COVERAGE_ACTION_OBJECTS for token in tokens[start_index + 1 :])
 
 
 def _has_allowed_reference_follower(start: str, follower: str) -> bool:
@@ -386,13 +458,50 @@ def _has_accounting_subject(tokens: tuple[_ActionToken, ...], start_index: int) 
     return start_index > 0 and tokens[start_index - 1].text in _ACCOUNTING_REFERENCE_SUBJECTS
 
 
+def _is_active_reference_endpoint_head(
+    tokens: tuple[_ActionToken, ...],
+    start_index: int,
+    endpoint_index: int,
+) -> bool:
+    if (
+        tokens[start_index].text != "increase"
+        or endpoint_index + 1 >= len(tokens)
+        or endpoint_index + 2 != len(tokens)
+        or (tokens[endpoint_index].text, tokens[endpoint_index + 1].text)
+        not in _ACTIVE_DOCUMENTED_RESULT_REFERENCE_HEADS
+        or not _has_reference_adjacency(tokens, start_index, endpoint_index + 1)
+    ):
+        return False
+    cursor = start_index + 1
+    if tokens[cursor].text in _PASSIVE_ATTRIBUTION_ARTICLES:
+        cursor += 1
+    for expected in ("model", "detail", "using"):
+        if cursor >= endpoint_index or tokens[cursor].text != expected:
+            return False
+        cursor += 1
+    if cursor < endpoint_index and tokens[cursor].text in _PASSIVE_ATTRIBUTION_ARTICLES:
+        cursor += 1
+    for expected in (
+        "reviewed",
+        "historical",
+        "assumptions",
+        "and",
+        "document",
+    ):
+        if cursor >= endpoint_index or tokens[cursor].text != expected:
+            return False
+        cursor += 1
+    if cursor < endpoint_index and tokens[cursor].text in _PASSIVE_ATTRIBUTION_ARTICLES:
+        cursor += 1
+    return cursor + 1 == endpoint_index and tokens[cursor].text == "resulting"
+
+
 def _family_has_action_endpoint(
     tokens: tuple[_ActionToken, ...],
     start_index: int,
     endpoints: frozenset[str],
 ) -> bool:
-    endpoint_limit = start_index + _ACTION_MAX_INTERVENING_TOKENS + 2
-    endpoint_limit = min(len(tokens), endpoint_limit)
+    endpoint_limit = len(tokens)
     endpoint_index = start_index + 1
     while endpoint_index < endpoint_limit:
         if tokens[endpoint_index].text not in endpoints:
@@ -413,7 +522,13 @@ def _family_has_action_endpoint(
         reference_coverage_context = start in (_BUILD_REFERENCE_STARTS | _COVERAGE_REFERENCE_STARTS) and any(
             token.text == "coverage" for token in tokens[start_index + 1 : endpoint_index + 1]
         )
-        if not reference_follower and not accounting_equity_context and not reference_coverage_context:
+        reference_endpoint_head = _is_active_reference_endpoint_head(tokens, start_index, endpoint_index)
+        if (
+            not reference_follower
+            and not accounting_equity_context
+            and not reference_coverage_context
+            and not reference_endpoint_head
+        ):
             return True
         coordinated_endpoint_index = next(
             (
@@ -477,17 +592,100 @@ def _is_descriptive_direct_passive_attribution(
     return _token_texts(tokens[actor_index + 1 :]) in _PASSIVE_APPROVED_ATTRIBUTION_TAILS
 
 
-def _is_passive_adverb(text: str) -> bool:
-    return text in _PASSIVE_ADVERBS
+def _is_direct_passive_nominal_tail(tokens: tuple[_ActionToken, ...], auxiliary_index: int) -> bool:
+    return _token_texts(tokens[auxiliary_index + 1 :]) in _PASSIVE_DIRECT_NOMINAL_TAILS
+
+
+def _is_passive_modal_reference_head(
+    tokens: tuple[_ActionToken, ...],
+    endpoint_index: int,
+    modal_index: int,
+) -> bool:
+    if modal_index <= endpoint_index + 1:
+        return False
+    return (tokens[endpoint_index].text, tokens[endpoint_index + 1].text) in _PASSIVE_MODAL_REFERENCE_HEADS
+
+
+def _is_bounded_dataset_methodology_reference(
+    tokens: tuple[_ActionToken, ...],
+    endpoint_index: int,
+    action_index: int,
+) -> bool:
+    if (
+        tokens[action_index].text != "purchased"
+        or endpoint_index + 1 >= len(tokens)
+        or (tokens[endpoint_index].text, tokens[endpoint_index + 1].text) != ("share", "count")
+        or not _is_reference_follower(tokens[endpoint_index + 1])
+    ):
+        return False
+    context_start = max(
+        endpoint_index + 2,
+        action_index - _PASSIVE_DATASET_METHODOLOGY_MAX_CONTEXT_TOKENS,
+    )
+    using_index = next(
+        (
+            index
+            for index in range(action_index - 1, context_start - 1, -1)
+            if tokens[index].text == "using"
+        ),
+        None,
+    )
+    if using_index is None:
+        return False
+    pre_nominal_limit = min(
+        len(tokens),
+        action_index + _PASSIVE_DATASET_REFERENCE_MAX_MODIFIERS + 2,
+    )
+    pre_nominal_reference = any(
+        tokens[dataset_index].text in _PASSIVE_DATASET_REFERENCE_HEADS
+        and _has_dataset_reference_modifier_run(tokens, using_index, dataset_index)
+        for dataset_index in range(action_index + 1, pre_nominal_limit)
+    )
+    post_nominal_start = max(
+        using_index + 1,
+        action_index - _PASSIVE_DATASET_REFERENCE_MAX_MODIFIERS - 1,
+    )
+    provider_index = action_index + 2
+    if (
+        provider_index < len(tokens)
+        and tokens[action_index + 1].text == "from"
+        and tokens[provider_index].text in _PASSIVE_ATTRIBUTION_ARTICLES
+    ):
+        provider_index += 1
+    post_nominal_reference = (
+        provider_index < len(tokens)
+        and action_index + 1 < len(tokens)
+        and tokens[action_index + 1].text == "from"
+        and any(
+            tokens[dataset_index].text in _PASSIVE_DATASET_REFERENCE_HEADS
+            and _has_dataset_reference_modifier_run(tokens, using_index, action_index)
+            for dataset_index in range(post_nominal_start, action_index)
+        )
+        and _has_reference_adjacency(tokens, using_index, provider_index)
+    )
+    if not pre_nominal_reference and not post_nominal_reference:
+        return False
+    return not any(
+        token.text in _PASSIVE_ACTION_TOKENS
+        for token in tokens[action_index + 1 :]
+    )
 
 
 def _is_passive_reference_phrase(
     tokens: tuple[_ActionToken, ...],
+    endpoint_index: int,
     action_index: int,
 ) -> bool:
+    if _is_bounded_dataset_methodology_reference(tokens, endpoint_index, action_index):
+        return True
     token_texts = _token_texts(tokens)
     for phrase in _PASSIVE_REFERENCE_PHRASES:
         if token_texts[action_index : action_index + len(phrase)] != phrase:
+            continue
+        if not all(
+            _is_reference_follower(tokens[index])
+            for index in range(action_index + 1, action_index + len(phrase))
+        ):
             continue
         return not any(token.text in _PASSIVE_ACTION_TOKENS for token in tokens[action_index + len(phrase) :])
     return False
@@ -499,21 +697,39 @@ def _contains_modal_passive_action(tokens: tuple[_ActionToken, ...]) -> bool:
             if endpoint.text not in endpoints:
                 continue
             chain_index = endpoint_index + 1
-            chain_start = tokens[chain_index].text
-            has_modal = chain_start in _PASSIVE_MODALS
-            if not has_modal and chain_start not in _PASSIVE_AUXILIARIES:
+            chain_limit = len(tokens)
+            modal_index = next(
+                (
+                    index
+                    for index in range(chain_index, chain_limit)
+                    if tokens[index].text in _PASSIVE_MODALS
+                ),
+                None,
+            )
+            if (
+                modal_index is not None
+                and _is_passive_modal_reference_head(tokens, endpoint_index, modal_index)
+            ):
                 continue
-            has_auxiliary = chain_start in _PASSIVE_AUXILIARIES
-            chain_limit = min(len(tokens), chain_index + _PASSIVE_MAX_CHAIN_TOKENS + 1)
-            for action_index in range(chain_index + 1, chain_limit):
+            if modal_index is not None:
+                has_auxiliary = False
+                action_range = range(modal_index + 1, chain_limit)
+            elif tokens[chain_index].text in _PASSIVE_AUXILIARIES:
+                if _is_direct_passive_nominal_tail(tokens, chain_index):
+                    continue
+                has_auxiliary = True
+                action_range = range(chain_index + 1, chain_limit)
+            else:
+                continue
+            for action_index in action_range:
                 text = tokens[action_index].text
                 if text in action_starts:
                     if not has_auxiliary:
                         break
-                    if _is_passive_reference_phrase(tokens, action_index):
+                    if _is_passive_reference_phrase(tokens, endpoint_index, action_index):
                         break
                     if (
-                        not has_modal
+                        modal_index is None
                         and _is_descriptive_direct_passive_attribution(tokens, endpoint_index, action_index)
                     ):
                         break
@@ -523,9 +739,7 @@ def _contains_modal_passive_action(tokens: tuple[_ActionToken, ...]) -> bool:
                     continue
                 if text in _PASSIVE_MODALS or text in _PASSIVE_NEGATIONS:
                     continue
-                if _is_passive_adverb(text):
-                    continue
-                break
+                continue
     return False
 
 
@@ -533,6 +747,7 @@ def contains_portable_action_language(value: str) -> bool:
     for clause in _action_token_clauses(value):
         action_tokens = _without_non_action_classifications(clause)
         action_tokens = _without_approved_negated_boundaries(action_tokens)
+        action_tokens = _normalize_passive_modal_contractions(action_tokens)
         if _contains_semantic_action(action_tokens) or _contains_modal_passive_action(action_tokens):
             return True
     return False
