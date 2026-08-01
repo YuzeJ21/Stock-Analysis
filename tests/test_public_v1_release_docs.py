@@ -1564,7 +1564,7 @@ def test_current_handoff_routes_to_local_reliability_work_not_exhausted_price_qu
     assert "Complete the documentation/routing reconciliation once" not in next_stage
     assert "make price-history-proof-queue" not in next_stage
     assert "make price-history-batch-closeout" not in next_stage
-    assert "Priority 7 remains open but is not the active next lane" in roadmap
+    assert "Local implementation verified; draft-branch review safety still requires exact-head CI." in roadmap
     assert (
         "provider-neutral retention/deletion or audit-event work is not the active next lane"
         in prompt
@@ -2037,11 +2037,9 @@ def test_html_research_brief_public_and_methodology_docs_keep_the_verified_bound
     _assert_html_brief_section_has_no_affirmative_overclaim(methodology)
 
 
-def test_portable_html_action_repair_docs_route_first_and_remain_release_blocked():
-    readme = _read("README.md")
-    product_spec = _read("PRODUCT_SPEC.md")
+def test_portable_html_action_repair_docs_record_local_verification_and_ci_pending():
     methodology = _read("docs/METHODOLOGY.md")
-    next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
     continuation = _read(
         "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
     )
@@ -2050,24 +2048,23 @@ def test_portable_html_action_repair_docs_route_first_and_remain_release_blocked
     )
     roadmap = " ".join(roadmap_section.split())
 
-    blocked = "blocked on bidirectional active/passive action sanitation"
-    active_lane = (
-        "portable HTML action-policy repair is the first executable local release-safety lane"
-    )
+    verified = "Local implementation verified; draft-branch review safety still requires exact-head CI."
 
-    assert blocked in roadmap
-    assert active_lane in roadmap
-    assert active_lane in readme
-    assert active_lane in product_spec
-    assert active_lane in methodology
-    assert active_lane in next_stage
-    assert "historical implementation evidence only" in continuation
-    assert (
-        "prior synchronization and CI records do not certify the portable HTML repair"
-        in continuation
-    )
-    assert "Priority 7 remains open but is not the active next lane" in roadmap
-    assert "Priority 7 remains open but is not the active next lane" in next_stage
+    for document in (roadmap, methodology, dashboard_qa, continuation):
+        assert verified in document
+    for commit in (
+        "b10ebcfbd",
+        "923fa850e",
+        "9ce1a6ce4",
+        "84562a7f6",
+        "8218af401",
+    ):
+        assert commit in roadmap
+    assert "630 focused tests" in roadmap
+    assert "5,146 full tests in 448.74s" in roadmap
+    assert "101 Company Workbench HTML-browser tests" in roadmap
+    assert "six modal-passive reproductions withheld" in roadmap
+    assert "Pilot packaging remains blocked on readiness freshness and source proof." in roadmap
 
     assert "Company Workbench HTML Research Brief" in roadmap
     assert (
@@ -2076,7 +2073,6 @@ def test_portable_html_action_repair_docs_route_first_and_remain_release_blocked
         "probability calibration remain open gates."
     ) in roadmap
     assert "does not activate readiness" in roadmap
-    assert "does not establish screening alpha" in roadmap
     assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in roadmap
     _assert_html_brief_section_has_no_affirmative_overclaim(roadmap_section)
 
@@ -2126,11 +2122,9 @@ def test_html_research_brief_continuation_contract_preserves_anchor_and_exclusio
         "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
     )
 
-    assert (
-        "Company Workbench HTML Research Brief implementation anchor: "
-        "`6ad7f34310652f1b172525a0b8f00becf874c44c` or a later verified descendant."
-        in continuation
-    )
+    assert "Company Workbench HTML Research Brief implementation anchors:" in continuation
+    assert "`6ad7f34310652f1b172525a0b8f00becf874c44c`" in continuation
+    assert "`8218af401`" in continuation
     assert "Keep PR #113 open and draft" in continuation
     assert "The same 18 protected generated paths remain excluded" in continuation
     for path in (

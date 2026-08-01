@@ -15,7 +15,7 @@ Run `make company-workbench-html-browser-check` for the direct actual-byte
 complete/partial/withheld browser, keyboard, responsive, print, media-
 preference, PDF-in-memory, CSP, and repository-fingerprint matrix. No HTML, PDF, screenshot, JSON, timing, readiness, canonical-data, or report artifact is written. This command does not refresh data, acquire a source, activate readiness, or establish human/screen-reader accessibility.
 
-The recorded matrix is pre-repair engineering evidence and must be rerun after the portable HTML action-policy repair. It does not certify deterministic active/passive sanitation or current-head release completion.
+The portable HTML action-policy repair was rerun locally on 2026-08-01: commits `b10ebcfbd`, `923fa850e`, `9ce1a6ce4`, `84562a7f6`, and `8218af401` passed the 101-test HTML-browser matrix, while the six modal-passive reproductions were withheld. Local implementation verified; draft-branch review safety still requires exact-head CI. This remains automated engineering evidence only and does not establish human or screen-reader accessibility.
 
 Local engineering evidence does not establish source rights, current-market data, readiness activation, a new or professional line-item model, hosted operation, human or screen-reader conformance, independent validation, market fit, screening alpha, or probability calibration.
 

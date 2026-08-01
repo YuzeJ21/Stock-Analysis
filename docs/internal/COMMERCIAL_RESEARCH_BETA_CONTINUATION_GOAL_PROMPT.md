@@ -67,7 +67,7 @@ Expected lineage to verify, never assume:
 - Shared consensus commercial field-scope design/plan anchor: commit `b7013f161` or a later verified descendant.
 - Consensus source-review command implementation anchor: commit `c7e81d667` or a later verified descendant.
 - PR engineering gate hosted-verification anchor: commit `1fdcaaa78` or a later verified descendant; reverify the current revision's check instead of copying the earlier result forward.
-- Company Workbench HTML Research Brief implementation anchor: `6ad7f34310652f1b172525a0b8f00becf874c44c` or a later verified descendant. The portable action-policy implementation exists locally but is historical implementation evidence only until the Task 4 full current-head matrix and exact-head CI pass. Route the first executable local release-safety lane to that policy repair. It remains a local read-only presentation of existing saved evidence and prepared Python scenario math, not a readiness activation, refresh, new source, new calculation engine, human-accessibility result, hosted operation, or market-validation claim.
+- Company Workbench HTML Research Brief implementation anchors: `b10ebcfbd`, `923fa850e`, `9ce1a6ce4`, `84562a7f6`, and `8218af401` (all later descendants of `6ad7f34310652f1b172525a0b8f00becf874c44c`). On 2026-08-01 the current local matrix passed: 630 focused tests; 5,146 full tests in 448.74s; dashboard and six-route render smoke; 101 HTML-browser tests; six-route/two-viewport automated accessibility; public wording/public-check; and six withheld modal-passive reproductions. Local implementation verified; draft-branch review safety still requires exact-head CI. It remains a local read-only presentation of existing saved evidence and prepared Python scenario math, not a readiness activation, refresh, new source, new calculation engine, human-accessibility result, hosted operation, or market-validation claim.
 - Public UX post-fix outcome-contract implementation anchor: commit `74eb4055e` or a later verified descendant.
 - Prospective field-proof Stage A implementation anchor: commit `2c7398402` or a later verified descendant.
 - Company Workbench answer-first handoff design anchor: commit `1a144c9a1` or a later verified descendant; reverify the implementation, responsive measurements, and current exact-head CI rather than treating the design commit as implementation evidence.
@@ -236,12 +236,12 @@ do not reuse the historical anchor as proof of those narrower assertions.
 This does not pass C01, C02, M01 or complete direct platform,
 assistive-technology, hosted, independent-human, or WCAG review.
 
-Next safe local lane: complete the portable HTML action-policy repair from live
-repository and PR truth, then run the Task 4 full current-head matrix and
-exact-head CI. Keep exact technical evidence under Advanced, preserve the
-read-only research queue and alphabetical cohort identity, and do not convert
-unavailable source, rights, reviewer, hosted, or calibration evidence into
-product copy.
+Next safe lane: keep the verified portable HTML action-policy repair unchanged,
+obtain exact-head CI before treating the draft branch as review-safe, and then
+recheck repository and PR truth. Keep exact technical evidence under Advanced,
+preserve the read-only research queue and alphabetical cohort identity, and do
+not convert unavailable source, rights, reviewer, hosted, or calibration
+evidence into product copy.
 
 Priority 7 manual accessibility evidence remains externally incomplete. Do not
 re-run Priorities 1-3 unless a current regression is directly reproduced.
