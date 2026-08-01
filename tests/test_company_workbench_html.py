@@ -4,6 +4,10 @@ from pathlib import Path
 import pytest
 
 import src.company_workbench_html as html_brief
+import src.data_update as data_update
+import src.loader as input_loader
+import src.readiness_engine as readiness_engine
+import src.stock_report as stock_report
 from src.catalyst_evidence_timeline import CatalystEvent, CatalystTimeline
 from src.company_workbench_html import (
     CompanyWorkbenchHtmlInputs,
@@ -444,5 +448,78 @@ def test_real_snapshot_builder_does_not_call_file_network_or_calculation_collabo
     monkeypatch.setattr("src.valuation.build_sensitivity_table", fail)
 
     snapshot = html_brief.build_company_workbench_html_snapshot(inputs)
+
+    assert snapshot.ticker == "NVDA"
+
+
+def _modified_scenario_result(**changes):
+    raw = _base_dcf(_inputs().report_payload)
+    result = ScenarioLabResult("calculated", "Calculated", "demo", "NVDA", "input-identity", None, ScenarioParameters(0.1, 0.2, 0.09, 0.03, 5), ({"assumption": "wacc"},), None, DCFResult(**raw), SensitivityTable("calculated", "dcf", [0.08], [0.03], [[123.0]], [], [], []), None, None, None, (), ())
+    return replace(result, **changes)
+
+
+@pytest.mark.parametrize("changed", ({"ticker": "AMD"}, {"profile_key": "other"}, {"input_identity": ""}, {"changed_assumptions": ()}))
+def test_scenario_lab_rejects_each_independent_acceptance_gate(changed):
+    snapshot = build_company_workbench_html_snapshot(_inputs(scenario_lab_result=_modified_scenario_result(**changed)))
+
+    assert _base(snapshot).modified is False
+    assert snapshot.sensitivity.value_grid != ((123.0,),)
+
+
+@pytest.mark.parametrize("field, value", (("ticker", "AMD"), ("profile_key", "other")))
+def test_decision_lab_rejects_each_independent_scope_mismatch(field, value):
+    snapshot = build_company_workbench_html_snapshot(_inputs(decision_lab_state=replace(_decision(), **{field: value})))
+
+    assert all(row.state == "withheld" for row in snapshot.decision_lanes)
+
+
+@pytest.mark.parametrize("field, value", (("ticker", "AMD"), ("profile_key", "other")))
+def test_journal_state_rejects_each_independent_scope_mismatch(field, value):
+    snapshot = build_company_workbench_html_snapshot(_inputs(journal_state=_journal(**{field: value})))
+
+    assert not any(row.section == "journal" for row in snapshot.evidence_rows)
+
+
+@pytest.mark.parametrize("field, value", (("ticker", "AMD"), ("profile_key", "other")))
+def test_each_catalyst_event_rejects_each_independent_scope_mismatch(field, value):
+    timeline = _catalysts()
+    event = replace(timeline.upcoming[0], **{field: value})
+    snapshot = build_company_workbench_html_snapshot(_inputs(catalyst_timeline=replace(timeline, upcoming=(event,))))
+
+    assert not any(row.section == "catalyst" for row in snapshot.evidence_rows)
+
+
+def test_invalid_or_empty_profile_keys_never_authorize_decision_journal_catalyst_or_scenario_content():
+    profile = replace(_profile(), profile_key="")
+    journal = _journal(profile_key="")
+    timeline = _catalysts(profile_key="")
+    decision = _decision(profile_key="")
+    scenario = _modified_scenario_result(profile_key="")
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(profile_context=profile, journal_state=journal, catalyst_timeline=timeline, decision_lab_state=decision, scenario_lab_result=scenario))
+
+    assert _base(snapshot).modified is False
+    assert all(row.state == "withheld" for row in snapshot.decision_lanes)
+    assert not any(row.section in {"journal", "catalyst", "scenario"} for row in snapshot.evidence_rows)
+
+
+def test_real_snapshot_builder_does_not_call_available_loader_refresh_readiness_report_or_ledger_collaborators(monkeypatch):
+    inputs = _inputs()
+
+    def fail(*args, **kwargs):
+        raise AssertionError("snapshot builder must remain pure")
+
+    monkeypatch.setattr("builtins.open", fail)
+    monkeypatch.setattr("socket.socket", fail)
+    monkeypatch.setattr(input_loader, "load_inputs", fail)
+    monkeypatch.setattr(data_update, "refresh_price_update_status_output", fail)
+    monkeypatch.setattr(readiness_engine, "build_ticker_readiness_report", fail)
+    monkeypatch.setattr(stock_report, "build_stock_report_markdown", fail)
+    monkeypatch.setattr("src.research_thesis_journal.append_journal_entry", fail)
+    monkeypatch.setattr("src.catalyst_evidence_timeline.append_reviewed_event", fail)
+    monkeypatch.setattr("src.valuation.calculate_dcf", fail)
+    monkeypatch.setattr("src.valuation.build_sensitivity_table", fail)
+
+    snapshot = build_company_workbench_html_snapshot(inputs)
 
     assert snapshot.ticker == "NVDA"

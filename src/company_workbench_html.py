@@ -251,6 +251,12 @@ def _profile_key(value: object) -> str:
     return normalized if normalized and safe_html_brief_text(normalized) else ""
 
 
+def _profile_matches(value: object, profile_key: object) -> bool:
+    scoped = _profile_key(value)
+    expected = _profile_key(profile_key)
+    return bool(scoped and expected and scoped == expected)
+
+
 def _finite(value: object) -> float | None:
     if isinstance(value, bool):
         return None
@@ -344,7 +350,7 @@ def _canonical_scenarios(valuation: Mapping[str, object], currency: str) -> dict
 
 
 def _accepted_scenario(result: ScenarioLabResult | None, ticker: str, profile_key: str) -> bool:
-    return bool(result and ticker and result.status == "calculated" and _ticker_matches(result.ticker, ticker) and _profile_key(result.profile_key) == _profile_key(profile_key) and str(result.input_identity or "").strip() and result.changed_assumptions and result.scenario_result is not None)
+    return bool(result and ticker and result.status == "calculated" and _ticker_matches(result.ticker, ticker) and _profile_matches(result.profile_key, profile_key) and str(result.input_identity or "").strip() and result.changed_assumptions and result.scenario_result is not None)
 
 
 def _sensitivity(table: object, bridge: HtmlBriefDcfBridge) -> HtmlBriefSensitivity:
@@ -450,11 +456,11 @@ def _catalyst_matches(timeline: CatalystTimeline, ticker: str, profile_key: str)
     if not _ticker_matches(timeline.ticker, ticker):
         return False
     events = tuple(timeline.upcoming) + tuple(timeline.recent)
-    return all(_ticker_matches(event.ticker, ticker) and _profile_key(event.profile_key) == _profile_key(profile_key) for event in events)
+    return all(_ticker_matches(event.ticker, ticker) and _profile_matches(event.profile_key, profile_key) for event in events)
 
 
 def _decision_lanes(state: ResearchDecisionLabState, ticker: str, profile_key: str) -> tuple[HtmlBriefSection, ...]:
-    by_key = {lane.key: lane for lane in state.lanes} if _ticker_matches(state.ticker, ticker) and _profile_key(state.profile_key) == _profile_key(profile_key) else {}
+    by_key = {lane.key: lane for lane in state.lanes} if _ticker_matches(state.ticker, ticker) and _profile_matches(state.profile_key, profile_key) else {}
     ordered = (("plan", "Plan"), ("evidence", "Evidence"), ("invalidation", "Invalidation"), ("scenario", "Scenario"), ("review-trigger", "Review trigger"), ("learning", "Learning"))
     output: list[HtmlBriefSection] = []
     for output_key, title in ordered:
@@ -478,9 +484,9 @@ def _evidence_rows(inputs: CompanyWorkbenchHtmlInputs, accepted_scenario: bool) 
         for row in inputs.scenario_lab_result.source_metadata:
             candidates.append(("scenario", row, inputs.scenario_lab_result.input_identity))
     journal = inputs.journal_state
-    if journal and _profile_key(journal.profile_key) == _profile_key(inputs.profile_context.profile_key) and _ticker_matches(journal.ticker, ticker):
+    if journal and _profile_matches(journal.profile_key, inputs.profile_context.profile_key) and _ticker_matches(journal.ticker, ticker):
         for entry in journal.entries:
-            if _profile_key(entry.profile_key) == _profile_key(inputs.profile_context.profile_key) and _ticker_matches(entry.ticker, ticker):
+            if _profile_matches(entry.profile_key, inputs.profile_context.profile_key) and _ticker_matches(entry.ticker, ticker):
                 candidates.append(("journal", entry, ""))
     timeline = inputs.catalyst_timeline
     if _catalyst_matches(timeline, ticker, inputs.profile_context.profile_key):
