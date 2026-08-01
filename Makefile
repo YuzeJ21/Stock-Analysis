@@ -31,6 +31,7 @@ help:
 	@echo "  make pilot-feedback-closeout    Print the reviewer feedback closeout and fix/defer checklist"
 	@echo "  make scheduler-activation-checklist Print the safe scheduler activation checklist"
 	@echo "  make public-check / public-release-handoff Verify sharing and terminal steps"
+	@echo "  make company-workbench-html-browser-check Verify offline research-brief bytes in a real browser"
 	@echo ""
 	@echo "Useful next paths:"
 	@echo "  Review one stock:        make stock-report-md TICKER=NVDA"
@@ -40,7 +41,7 @@ help:
 	@echo ""
 	@echo "For the full local command catalog, run: make help-full"
 
-.PHONY: dashboard-render-smoke research-dashboard-render-smoke commercial-beta-performance-contract commercial-beta-performance-gate research-accessibility-browser-check
+.PHONY: dashboard-render-smoke research-dashboard-render-smoke commercial-beta-performance-contract commercial-beta-performance-gate research-accessibility-browser-check company-workbench-html-browser-check
 .PHONY: price-history-batch-closeout
 
 next-stage:
@@ -457,6 +458,9 @@ commercial-beta-performance-gate:
 
 research-accessibility-browser-check:
 	@python3 -m src.research_accessibility_browser_gate --root . --timeout-seconds $(or $(TIMEOUT_SECONDS),45) $(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
+
+company-workbench-html-browser-check:
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/test_company_workbench_html_browser_gate.py -q
 
 public-ux-review-checklist:
 	@python3 -m src.public_ux_review_checklist

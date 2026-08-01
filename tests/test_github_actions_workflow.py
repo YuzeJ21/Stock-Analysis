@@ -13,7 +13,9 @@ def test_commercial_research_beta_workflow_is_minimal_pr_only_gate():
     assert "permissions:\n  contents: read" in workflow
     assert "runs-on: ubuntu-latest" in workflow
     assert "python-version: \"3.12\"" in workflow
-    assert "python3 -m pip install -e . pytest" in workflow
+    assert "python3 -m pip install -e '.[dev]'" in workflow
+    assert "python3 -m pip install -e . pytest" not in workflow
+    assert "python3 -m playwright install --with-deps chromium" in workflow
     assert "PYTHONDONTWRITEBYTECODE: \"1\"" in workflow
     assert "uses: actions/checkout@v6" in workflow
     assert "uses: actions/setup-python@v6" in workflow
@@ -25,6 +27,7 @@ def test_commercial_research_beta_workflow_is_minimal_pr_only_gate():
     assert "PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}" in workflow
 
     required_commands = (
+        "python3 -m playwright install --with-deps chromium",
         "python3 -m pytest tests -q",
         "make dashboard-smoke",
         "make research-dashboard-render-smoke",
