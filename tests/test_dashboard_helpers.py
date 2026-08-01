@@ -34431,13 +34431,43 @@ def test_scenario_lab_controls_are_bounded_and_stay_inside_detailed_valuation():
     render_end = source.index("\ndef render_data_health(", render_index)
     render_source = source[render_index:render_end]
 
-    assert 'st.slider("Revenue growth", min_value=-0.50, max_value=0.40' in source
-    assert 'st.slider("FCF margin", min_value=-0.50, max_value=0.45' in source
-    assert 'st.slider("WACC", min_value=0.05, max_value=0.20' in source
-    assert 'st.slider("Terminal growth", min_value=-0.02, max_value=0.05' in source
-    assert 'st.slider("Forecast years", min_value=1, max_value=10' in source
+    scenario_start = source.index("def render_scenario_lab(")
+    scenario_end = source.index("\ndef peer_read_through_summary_cards(", scenario_start)
+    scenario_source = source[scenario_start:scenario_end]
+
+    assert 'st.slider("Revenue growth", min_value=-0.50, max_value=0.40' in scenario_source
+    assert 'st.slider("FCF margin", min_value=-0.50, max_value=0.45' in scenario_source
+    assert 'st.slider("WACC", min_value=0.05, max_value=0.20' in scenario_source
+    assert 'st.slider("Terminal growth", min_value=-0.02, max_value=0.05' in scenario_source
+    assert 'st.slider("Forecast years", min_value=1, max_value=10' in scenario_source
+    assert scenario_source.count("key=widget_keys[") == 5
+    assert ", value=" not in scenario_source
+    assert "run_scenario_lab(" not in scenario_source
     assert 'st.expander("Advanced: scenario inputs and sensitivity", expanded=False)' in source
     assert render_source.index("with valuation_tab:") < render_source.index("render_scenario_lab(")
+
+
+def test_scenario_lab_detailed_controls_receive_the_prepared_current_session():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_index)
+    render_source = source[render_index:render_end]
+
+    preparation = render_source.index("scenario_session = run_scenario_lab_from_state(")
+    research_answer = render_source.index('st.markdown("## Research Conclusion")')
+    detailed_controls = render_source.index("render_scenario_lab(scenario_session)")
+
+    assert preparation < research_answer < detailed_controls
+    assert render_source.count("run_scenario_lab_from_state(") == 1
+    assert render_source.count("render_scenario_lab(scenario_session)") == 1
+
+
+def test_scenario_lab_adapter_is_imported_once_and_dashboard_never_calculates_directly():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+
+    assert "from src.scenario_lab_session import (" in source
+    assert "ScenarioLabSessionSnapshot" in source
+    assert source.count("run_scenario_lab(") == 0
 
 
 def test_source_freshness_timeline_summary_keeps_unknown_time_visible():

@@ -1185,11 +1185,27 @@ def test_optional_dashboard_evidence_loaders_enable_commercial_composition():
     valuation_start = source.index("def load_dashboard_valuation_regime(")
     outcome_start = source.index("def load_dashboard_outcome_status(", valuation_start)
     catalyst_start = source.index("def load_dashboard_catalyst_timeline(", outcome_start)
-    scenario_start = source.index("def scenario_lab_input_from_report(", catalyst_start)
+    scenario_start = source.index("def scenario_lab_status_cards(", catalyst_start)
 
     assert "commercial_mode=True" in source[valuation_start:outcome_start]
     assert "commercial_mode=True" in source[outcome_start:catalyst_start]
     assert "commercial_mode=True" in source[catalyst_start:scenario_start]
+
+
+def test_company_workbench_prepares_one_current_scenario_session_before_research_composition():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    report_start = source.index("def render_single_stock_report(")
+    report_end = source.index("\ndef render_data_health(", report_start)
+    report = source[report_start:report_end]
+
+    context = report.index("selected_context =")
+    preparation = report.index("scenario_session = run_scenario_lab_from_state(", context)
+    research_composition = report.index("if research_mode:", preparation)
+    detailed_controls = report.index("render_scenario_lab(scenario_session)", research_composition)
+
+    assert context < preparation < research_composition < detailed_controls
+    assert report.count("run_scenario_lab_from_state(") == 1
+    assert source.count("run_scenario_lab(") == 0
 
 
 def test_company_workbench_uses_one_authoritative_task_arbitration():

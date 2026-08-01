@@ -330,18 +330,17 @@ from src.research_decision_lab import (
     research_discipline_rows,
     unavailable_research_decision_lab_state,
 )
-from src.scenario_lab import (
-    ScenarioLabResult,
-    ScenarioParameters,
-    default_scenario_parameters,
-    run_scenario_lab,
+from src.scenario_lab import ScenarioLabResult
+from src.scenario_lab_session import (
+    ScenarioLabSessionSnapshot,
+    run_scenario_lab_from_state,
+    scenario_lab_input_from_report,
 )
 from src.source_freshness_timeline import (
     FreshnessTimeline,
     build_source_freshness_timeline,
     timeline_rows,
 )
-from src.valuation import ValuationInput
 from src.reviewed_batch_proof import (
     DEFAULT_BATCH_PROOF_LEDGER,
     latest_reviewed_batch_proof,
@@ -6392,36 +6391,6 @@ def load_dashboard_catalyst_timeline(context: ProfileContext, *, ticker: str, as
     )
 
 
-def scenario_lab_input_from_report(report_payload: dict[str, object]) -> ValuationInput:
-    """Build a scenario input from the selected report without inventing fields."""
-
-    price = report_payload.get("price_snapshot", {}) or {}
-    financials = report_payload.get("financial_summary", {}) or {}
-    valuation = report_payload.get("valuation_snapshot", {}) or {}
-    return ValuationInput(
-        ticker=str(report_payload.get("ticker") or "").strip().upper(),
-        current_price=price.get("price"),
-        revenue=financials.get("revenue"),
-        revenue_growth=financials.get("revenue_growth"),
-        free_cash_flow=financials.get("free_cash_flow"),
-        fcf_margin=financials.get("fcf_margin"),
-        operating_margin=financials.get("operating_margin"),
-        profit_margin=financials.get("profit_margin"),
-        eps=financials.get("eps"),
-        ebitda=financials.get("ebitda"),
-        shares_outstanding=financials.get("shares_outstanding"),
-        cash=financials.get("cash"),
-        debt=financials.get("debt"),
-        net_debt=financials.get("net_debt"),
-        market_cap=financials.get("market_cap"),
-        trailing_pe=financials.get("trailing_pe"),
-        forward_pe=financials.get("forward_pe"),
-        price_to_book=financials.get("price_to_book"),
-        source_metadata=[dict(row) for row in (valuation.get("source_metadata") or [])],
-        screener_context=dict(report_payload.get("screener_context", {}) or {}),
-    )
-
-
 def scenario_lab_status_cards(result: ScenarioLabResult) -> list[dict[str, object]]:
     """Return one truthful Scenario Lab answer for the selected ticker."""
 
@@ -6444,14 +6413,17 @@ def scenario_lab_status_cards(result: ScenarioLabResult) -> list[dict[str, objec
     ]
 
 
-def render_scenario_lab(report_payload: dict[str, object], *, profile_key: str) -> None:
-    """Render bounded, session-local DCF assumption controls inside Valuation."""
+def render_scenario_lab(session: ScenarioLabSessionSnapshot) -> ScenarioLabResult | None:
+    """Render one prepared Scenario Lab session without recalculating it."""
 
-    valuation_input = scenario_lab_input_from_report(report_payload)
-    try:
-        defaults = default_scenario_parameters(valuation_input)
-    except ValueError:
-        defaults = ScenarioParameters(0.08, 0.15, 0.09, 0.03, 5)
+    widget_keys = dict(session.widget_keys)
+    for field, key in widget_keys.items():
+        if key not in st.session_state:
+            st.session_state[key] = getattr(session.parameters, field)
+    if session.result is None:
+        st.warning(session.blocker)
+        for field, key in widget_keys.items():
+            st.session_state[key] = getattr(session.parameters, field)
 
     st.markdown("#### Scenario Lab")
     render_context_note(
@@ -6460,23 +6432,19 @@ def render_scenario_lab(report_payload: dict[str, object], *, profile_key: str) 
     )
     control_columns = st.columns(2)
     with control_columns[0]:
-        revenue_growth = st.slider("Revenue growth", min_value=-0.50, max_value=0.40, value=defaults.revenue_growth, step=0.01)
-        fcf_margin = st.slider("FCF margin", min_value=-0.50, max_value=0.45, value=defaults.fcf_margin, step=0.01)
-        forecast_years = st.slider("Forecast years", min_value=1, max_value=10, value=defaults.forecast_years, step=1)
+        st.slider("Revenue growth", min_value=-0.50, max_value=0.40, step=0.01, key=widget_keys["revenue_growth"])
+        st.slider("FCF margin", min_value=-0.50, max_value=0.45, step=0.01, key=widget_keys["fcf_margin"])
+        st.slider("Forecast years", min_value=1, max_value=10, step=1, key=widget_keys["forecast_years"])
     with control_columns[1]:
-        wacc = st.slider("WACC", min_value=0.05, max_value=0.20, value=defaults.wacc, step=0.005)
-        terminal_growth = st.slider("Terminal growth", min_value=-0.02, max_value=0.05, value=defaults.terminal_growth, step=0.005)
+        st.slider("WACC", min_value=0.05, max_value=0.20, step=0.005, key=widget_keys["wacc"])
+        st.slider("Terminal growth", min_value=-0.02, max_value=0.05, step=0.005, key=widget_keys["terminal_growth"])
 
-    result = run_scenario_lab(
-        valuation_input,
-        ScenarioParameters(revenue_growth, fcf_margin, wacc, terminal_growth, forecast_years),
-        profile_key=profile_key,
-        dcf_ready=bool(_stock_report_payload_readiness(report_payload).get("dcf_ready")),
-        asset_type=stock_report_inferred_asset_type(report_payload),
-    )
+    result = session.result
+    if result is None:
+        return None
     render_signal_cards(scenario_lab_status_cards(result), show_commands=False)
     if result.status != "calculated" or result.baseline_result is None or result.scenario_result is None:
-        return
+        return result
 
     metrics = st.columns(4)
     metrics[0].metric("Baseline / Share", report_display_value(result.baseline_result.fair_value_per_share, "currency"))
@@ -6505,6 +6473,7 @@ def render_scenario_lab(report_payload: dict[str, object], *, profile_key: str) 
             st.dataframe(sensitivity_frame, width="stretch")
         for warning in result.warnings:
             st.caption(warning)
+    return result
 
 
 def peer_read_through_summary_cards(read_through: PeerReadThroughMap) -> list[dict[str, object]]:
@@ -31154,6 +31123,13 @@ def render_single_stock_report(
         )
         nowcast_packet = load_dashboard_nowcast_packet(report_payload, ticker=ticker)
         selected_context = profile_context or build_profile_context(project_root=BASE_DIR)
+        scenario_session = run_scenario_lab_from_state(
+            report_payload,
+            st.session_state,
+            profile_key=selected_context.profile_key,
+            dcf_ready=bool(report_readiness.get("dcf_ready")),
+            asset_type=stock_report_inferred_asset_type(report_payload),
+        )
         valuation_regime = load_dashboard_valuation_regime(ticker)
         outcome_status = load_dashboard_outcome_status(selected_context, ticker=ticker)
         catalyst_timeline = load_dashboard_catalyst_timeline(selected_context, ticker=ticker)
@@ -31707,10 +31683,7 @@ def render_single_stock_report(
             st.markdown("#### Bull / Base / Bear Scenarios")
             st.dataframe(pd.DataFrame(scenario_rows), width="stretch", hide_index=True)
 
-        render_scenario_lab(
-            report_payload,
-            profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
-        )
+        render_scenario_lab(scenario_session)
 
         render_peer_read_through_map(
             report_payload,
