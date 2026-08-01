@@ -11,7 +11,7 @@ import unicodedata
 from dataclasses import asdict, dataclass, is_dataclass, replace
 from datetime import datetime, timezone
 from typing import Mapping
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from src.catalyst_evidence_timeline import CatalystTimeline
 from src.forward_view import ForwardViewPacket
@@ -30,9 +30,30 @@ _STALE = frozenset({"stale", "stale_review_only", "stale_or_unknown"})
 _NOT_RECORDED = frozenset({"not_recorded", "not recorded", "not_started", "empty", "missing"})
 _EXCLUDED = frozenset({"excluded", "not_applicable", "candidate_context_only"})
 _WITHHELD = frozenset({"withheld", "blocked", "still_blocked", "commercial_evidence_blocked", "unavailable", "insufficient_data", "insufficient_history", "not_supported", "unverified", "rejected"})
-_ACTION_PATTERN = re.compile(r"\b(buy|sell|short|hold|position\s*size|allocation|stop[-\s]?loss|take[-\s]?profit|order|broker|rank(?:ing)?|target[-\s]?price|expected[-\s]?return|upside|downside|margin[-\s]?of[-\s]?safety)\b", re.I)
-_SECRET_PATTERN = re.compile(r"(?:api[_-]?key|secret|token|cookie|password|authorization|bearer)\s*(?:=|:)|\b(?:sk|ghp|xox)[A-Za-z0-9_-]{8,}\b", re.I)
-_PATH_PATTERN = re.compile(r"(?:^~[/\\]|^/|^[A-Za-z]:[\\/]|(?:^|\s)\.{1,2}(?:[/\\]|$)|(?:^|\s)(?:src|tests|data|outputs|docs|scripts|\.git|\.superpowers)(?:[/\\]|$)|(?:^|\s)[^\s]+[/\\][^\s]+|/Users/|/private/|/tmp/|\\\\)")
+_ACTION_PATTERN = re.compile(
+    r"\b(?:buy|sell|short|hold|recommend(?:ation|s|ed|ing)?|purchase\s+shares?|go\s+long|"
+    r"(?:execute|place|route|submit)\s+(?:an?\s+)?(?:transaction|trade|order)|position\s*size|"
+    r"allocation|stop[-\s]?loss|take[-\s]?profit|order|broker|rank(?:ing)?|target[-\s]?price|"
+    r"expected[-\s]?return|upside|downside|margin[-\s]?of[-\s]?safety)\b",
+    re.I,
+)
+_APPROVED_NEGATED_BOUNDARY_PATTERN = re.compile(
+    r"\b(?:no recommendation|no buy/sell instruction|no broker integration|not investment advice)\b",
+    re.I,
+)
+_SECRET_PATTERN = re.compile(
+    r"(?:\b(?:api[_-]?key|secret|token|cookie|password|authorization)\b\s*(?:=|:|\s+)\s*"
+    r"(?:bearer\s+)?\S+|\bbearer\s+\S+|\b(?:sk|ghp|xox)[A-Za-z0-9_-]{8,}\b)",
+    re.I,
+)
+_PATH_PATTERN = re.compile(
+    r"(?:^|\s)(?:~[/\\]|/[^\s]*|[A-Za-z]:[\\/][^\s]*)|"
+    r"(?:^|[/\\])\.{1,2}(?:[/\\]|$)|"
+    r"(?:^|[\s/\\])(?:src|tests|data|outputs|docs|scripts|\.git|\.superpowers)(?:[/\\]|$)|\\"
+)
+_SENSITIVE_PATH_SEGMENTS = frozenset(
+    {"api-key", "api_key", "apikey", "authorization", "bearer", "cookie", "password", "secret", "token"}
+)
 _TICKER_PATTERN = re.compile(r"^[A-Z0-9.-]+$")
 _WITHHELD_ACTION = "Withheld: reviewer-authored action language is not portable research evidence."
 
@@ -193,7 +214,8 @@ def safe_html_brief_text(value: object) -> str:
     parsed = urlparse(text)
     if parsed.scheme or text.startswith("//"):
         return ""
-    if _ACTION_PATTERN.search(text):
+    action_text = _APPROVED_NEGATED_BOUNDARY_PATTERN.sub("", text)
+    if _ACTION_PATTERN.search(action_text):
         return _WITHHELD_ACTION
     return html.escape(text, quote=True)
 
@@ -208,7 +230,15 @@ def safe_html_brief_reference(value: object) -> HtmlBriefSafeReference:
     href = ""
     if isinstance(candidate, str) and not any(unicodedata.category(char) == "Cc" for char in candidate) and not _SECRET_PATTERN.search(candidate):
         parsed = urlparse(candidate.strip())
-        unsafe_path = parsed.path.startswith(("/Users/", "/private/", "/tmp/")) or ".." in parsed.path or "\\" in parsed.path
+        decoded_path = parsed.path
+        for _ in range(2):
+            decoded_path = unquote(decoded_path)
+        path_segments = tuple(segment.strip().lower() for segment in decoded_path.split("/") if segment.strip())
+        sensitive_pair = any(
+            segment in _SENSITIVE_PATH_SEGMENTS and index + 1 < len(path_segments)
+            for index, segment in enumerate(path_segments)
+        )
+        unsafe_path = decoded_path.startswith(("/Users/", "/private/", "/tmp/")) or ".." in decoded_path or "\\" in decoded_path or sensitive_pair
         if parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment and not unsafe_path:
             href = candidate.strip()
     return HtmlBriefSafeReference(label, href)
@@ -274,17 +304,22 @@ def _finite_tuple(value: object) -> tuple[float, ...]:
     return tuple(item for item in result if item is not None) if len(result) == len(value) else ()
 
 
-def _iso(value: object) -> str:
+def _iso_datetime(value: object) -> datetime | None:
     text = str(value or "").strip()
     if not text:
-        return ""
+        return None
     try:
         parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
     except ValueError:
-        return ""
+        return None
     if parsed.tzinfo is None:
-        return ""
-    return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+        return None
+    return parsed.astimezone(timezone.utc)
+
+
+def _iso(value: object) -> str:
+    parsed = _iso_datetime(value)
+    return parsed.isoformat().replace("+00:00", "Z") if parsed else ""
 
 
 def _date_part(value: str) -> str:
@@ -316,11 +351,16 @@ def _bridge(dcf_result: object, currency: str) -> HtmlBriefDcfBridge:
     eligible_equity = net_debt is not None or (cash is not None and debt is not None)
     equity_state = "available" if eligible_equity and equity is not None else "withheld"
     per_share_state = "available" if equity_state == "available" and shares is not None and shares > 0 and per_share is not None else "withheld"
-    if enterprise_state != "available": blockers.append("Enterprise value is unavailable.")
-    if explicit_state != "available": blockers.append("Authoritative discounted explicit total is unavailable.")
-    if not eligible_equity: blockers.append("Equity bridge requires finite net debt or both finite cash and debt.")
-    elif equity is None: blockers.append("Equity value is unavailable.")
-    if per_share_state != "available": blockers.append("Per-share bridge requires available equity, positive finite shares outstanding, and a supplied per-share value.")
+    if enterprise_state != "available":
+        blockers.append("Enterprise value is unavailable.")
+    if explicit_state != "available":
+        blockers.append("Authoritative discounted explicit total is unavailable.")
+    if not eligible_equity:
+        blockers.append("Equity bridge requires finite net debt or both finite cash and debt.")
+    elif equity is None:
+        blockers.append("Equity value is unavailable.")
+    if per_share_state != "available":
+        blockers.append("Per-share bridge requires available equity, positive finite shares outstanding, and a supplied per-share value.")
     displayed_projected = projected if projected else ()
     displayed_discounted = discounted if discounted else ()
     state = "available" if enterprise_state == equity_state == per_share_state == "available" else ("partial" if "available" in {enterprise_state, equity_state, per_share_state} else "withheld")
@@ -391,9 +431,13 @@ def _nowcast_lanes(packet: Mapping[str, object] | None, report: Mapping[str, obj
     withheld = ("Matching source-backed point-in-time nowcast evidence is unavailable.",)
     if not packet or not _ticker_matches(packet.get("ticker"), ticker) or str(packet.get("fiscal_period") or "") != str(_mapping(report.get("earnings_summary")).get("fiscal_period") or "") or not str(_mapping(report.get("earnings_summary")).get("fiscal_period") or "") or packet.get("evidence_scope") != "source_backed_preview_only":
         return tuple(_section(key, title, "withheld", "No portable nowcast evidence.", blockers=withheld) for key, title in (("consensus", "Consensus"), ("backtesting", "Backtesting"), ("calibration", "Calibration")))  # type: ignore[return-value]
-    packet_at = _iso(packet.get("as_of_timestamp"))
-    boundaries = tuple(_iso(value) for value in (generated_at, review_cutoff) if _iso(value))
-    if not packet_at or any(packet_at > boundary for boundary in boundaries):
+    packet_at = _iso_datetime(packet.get("as_of_timestamp"))
+    boundaries = tuple(
+        parsed
+        for value in (generated_at, review_cutoff)
+        if (parsed := _iso_datetime(value)) is not None
+    )
+    if packet_at is None or any(packet_at > boundary for boundary in boundaries):
         return tuple(_section(key, title, "withheld", "No portable nowcast evidence.", blockers=withheld) for key, title in (("consensus", "Consensus"), ("backtesting", "Backtesting"), ("calibration", "Calibration")))  # type: ignore[return-value]
     readiness = _mapping(packet.get("readiness"))
     consensus_state = "partial" if readiness.get("consensus_ready") is True else "withheld"
@@ -456,7 +500,10 @@ def _catalyst_matches(timeline: CatalystTimeline, ticker: str, profile_key: str)
     if not _ticker_matches(timeline.ticker, ticker):
         return False
     events = tuple(timeline.upcoming) + tuple(timeline.recent)
-    return all(_ticker_matches(event.ticker, ticker) and _profile_matches(event.profile_key, profile_key) for event in events)
+    return bool(events) and all(
+        _ticker_matches(event.ticker, ticker) and _profile_matches(event.profile_key, profile_key)
+        for event in events
+    )
 
 
 def _decision_lanes(state: ResearchDecisionLabState, ticker: str, profile_key: str) -> tuple[HtmlBriefSection, ...]:
@@ -739,18 +786,38 @@ def _html_brief_content(snapshot: CompanyWorkbenchHtmlSnapshot, *, heading_level
         "<tr>"
         f"<th scope=\"row\">{_html_brief_text(scenario.name)}</th>"
         f"<td>{_html_brief_state_markup(scenario.state)}</td>"
+        f"<td>{'Modified Base' if scenario.modified else 'Canonical'}</td>"
         f"<td>{_html_brief_text(scenario.method_name)}</td>"
         f"<td>{format_html_brief_number(scenario.revenue_growth, percent=True)}</td>"
         f"<td>{format_html_brief_number(scenario.fcf_margin, percent=True)}</td>"
         f"<td>{format_html_brief_number(scenario.wacc, percent=True)}</td>"
         f"<td>{format_html_brief_number(scenario.terminal_growth, percent=True)}</td>"
+        f"<td>{format_html_brief_number(scenario.forecast_years)}</td>"
+        f"<td>{format_html_brief_number(scenario.bridge.scenario_value_per_share, currency=scenario.bridge.currency)}"
+        f"{_html_brief_state_markup(scenario.bridge.per_share_state)}</td>"
         "</tr>" for scenario in snapshot.scenarios
     )
     scenarios = (
         '<section class="srcc-section" data-section="scenarios">'
         f"<{heading}>Scenarios</{heading}><div class=\"table-scroll\"><table class=\"srcc-table\"><caption>Supplied scenario assumptions</caption>"
-        "<thead><tr><th>Scenario</th><th>State</th><th>Method</th><th>Revenue growth</th><th>FCF margin</th><th>WACC</th><th>Terminal growth</th></tr></thead>"
+        "<thead><tr><th>Scenario</th><th>State</th><th>Modified state</th><th>Method</th><th>Revenue growth</th><th>FCF margin</th><th>WACC</th><th>Terminal growth</th><th>Forecast years</th><th>Scenario value/share</th></tr></thead>"
         f"<tbody>{scenario_rows}</tbody></table></div></section>"
+    )
+    schedule_rows = ""
+    if base is not None:
+        schedule_length = max(len(base.bridge.projected_fcfs), len(base.bridge.discounted_fcfs))
+        schedule_rows = "".join(
+            "<tr>"
+            f"<th scope=\"row\">{index + 1}</th>"
+            f"<td>{format_html_brief_number(base.bridge.projected_fcfs[index], currency=base.bridge.currency) if index < len(base.bridge.projected_fcfs) else 'not recorded'}</td>"
+            f"<td>{format_html_brief_number(base.bridge.discounted_fcfs[index], currency=base.bridge.currency) if index < len(base.bridge.discounted_fcfs) else 'not recorded'}</td>"
+            "</tr>"
+            for index in range(schedule_length)
+        )
+    schedule = (
+        '<div class="table-scroll"><table class="srcc-table"><caption>Supplied Base projected and discounted FCF schedule</caption>'
+        '<thead><tr><th>Forecast period</th><th>Projected FCF</th><th>Discounted FCF</th></tr></thead>'
+        f"<tbody>{schedule_rows}</tbody></table></div>"
     )
     bridge_values = () if base is None else (
         ("Discounted explicit total", base.bridge.discounted_explicit_total, base.bridge.explicit_total_state),
@@ -771,6 +838,7 @@ def _html_brief_content(snapshot: CompanyWorkbenchHtmlSnapshot, *, heading_level
     bridge = (
         '<section class="srcc-section" data-section="dcf-bridge">'
         f"<{heading}>DCF bridge</{heading}>{_html_brief_state_markup(base.bridge.state if base else 'withheld')}"
+        f"{schedule}"
         '<div class="table-scroll"><table class="srcc-table"><caption>Supplied Base DCF bridge values</caption><thead><tr><th>Field</th><th>Recorded value</th><th>State</th></tr></thead>'
         f"<tbody>{bridge_rows}</tbody></table></div>{_html_brief_blockers(base.bridge.blockers if base else ('Base scenario is not recorded.',))}</section>"
     )
@@ -802,12 +870,14 @@ def _html_brief_content(snapshot: CompanyWorkbenchHtmlSnapshot, *, heading_level
         f"<td>{_html_brief_text(row.source_id)}</td><td>{_html_brief_reference_markup(row.source_ref)}</td>"
         f"<td>{_html_brief_text(row.as_of)}</td><td>{_html_brief_text(row.retrieved_at)}</td>"
         f"<td>{_html_brief_text(row.rights_state)}</td><td>{_html_brief_text(row.field_scope_state)}</td>"
+        f"<td>{_html_brief_text(row.model_identity)}</td><td>{_html_brief_text(row.input_identity)}</td>"
+        f"<td>{_html_brief_blockers(row.blockers) or 'None recorded'}</td>"
         "</tr>" for row in snapshot.evidence_rows
-    ) or "<tr><td colspan=\"8\">No portable evidence recorded.</td></tr>"
+    ) or "<tr><td colspan=\"11\">No portable evidence recorded.</td></tr>"
     evidence = (
         '<section class="srcc-section srcc-advanced-evidence" data-section="advanced-evidence">'
         f"<{heading}>Advanced evidence</{heading}>{_html_brief_state_markup(snapshot.rights_state)}"
-        '<div class="table-scroll"><table class="srcc-table"><caption>Portable evidence provenance</caption><thead><tr><th>Section</th><th>State</th><th>Source ID</th><th>Reference</th><th>As of</th><th>Retrieved</th><th>Rights</th><th>Field scope</th></tr></thead>'
+        '<div class="table-scroll"><table class="srcc-table"><caption>Portable evidence provenance</caption><thead><tr><th>Section</th><th>State</th><th>Source ID</th><th>Reference</th><th>As of</th><th>Retrieved</th><th>Rights</th><th>Field scope</th><th>Model identity</th><th>Input identity</th><th>Row blockers</th></tr></thead>'
         f"<tbody>{evidence_rows}</tbody></table></div></section>"
     )
     return overview + answers + scenarios + bridge + sensitivity + business + decision + evidence

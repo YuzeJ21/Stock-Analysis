@@ -397,6 +397,307 @@ def test_validated_https_reference_remains_usable_while_its_label_is_sanitized()
     assert reference.href == "https://www.sec.gov/Archives/edgar/data/1"
 
 
+@pytest.mark.parametrize(
+    "field_name, unsafe",
+    (
+        ("profile_label", "recommend this security"),
+        ("source_as_of", "execute a trade"),
+        ("model_version", "purchase shares"),
+        ("currency", "go long"),
+        ("use_now", "recommend this security"),
+        ("still_blocked", "execute a trade"),
+        ("task_title", "purchase shares"),
+        ("task_body", "go long"),
+        ("task_badge", "recommend this security"),
+        ("recency_message", "execute a trade"),
+        ("recency_through_date", "purchase shares"),
+        ("quarterly_message", "go long"),
+        ("revenue_reason", "recommend this security"),
+        ("eps_reason", "execute a trade"),
+        ("peer_answer", "purchase shares"),
+        ("thesis_answer", "go long"),
+        ("risk_summary", "recommend this security"),
+        ("catalyst_boundary", "execute a trade"),
+        ("regime_boundary", "purchase shares"),
+        ("decision_answer", "go long"),
+        ("scenario_method", "recommend this security"),
+        ("evidence_source_id", "execute a trade"),
+        ("evidence_model_identity", "purchase shares"),
+        ("evidence_input_identity", "go long"),
+    ),
+)
+def test_each_portable_dynamic_research_text_field_withholds_recommendation_or_transaction_equivalents(
+    field_name, unsafe
+):
+    inputs = _inputs()
+    report = inputs.report_payload
+    changes = {}
+    if field_name == "profile_label":
+        changes["profile_context"] = replace(inputs.profile_context, profile_label=unsafe)
+    elif field_name == "source_as_of":
+        changes["profile_context"] = replace(inputs.profile_context, source_as_of=unsafe)
+        changes["forward_view"] = replace(inputs.forward_view, source_cutoff="")
+        report["generated_at"] = ""
+    elif field_name == "model_version":
+        report["method_version"] = unsafe
+    elif field_name == "currency":
+        report["financial_summary"]["currency"] = unsafe
+    elif field_name in {"use_now", "still_blocked"}:
+        selected = dict(inputs.selected_answer)
+        selected["Use Now" if field_name == "use_now" else "Still Blocked"] = unsafe
+        changes["selected_answer"] = selected
+    elif field_name.startswith("task_"):
+        task = dict(inputs.authoritative_task)
+        if field_name == "task_title":
+            task["title"] = unsafe
+        elif field_name == "task_body":
+            task["body"] = unsafe
+        else:
+            task["badges"] = (unsafe,)
+        changes["authoritative_task"] = task
+    elif field_name.startswith("recency_"):
+        recency = inputs.observation_recency
+        selected = replace(
+            recency.selected_ticker,
+            **({"message": unsafe} if field_name == "recency_message" else {"through_date": unsafe}),
+        )
+        changes["observation_recency"] = replace(recency, selected_ticker=selected)
+    elif field_name in {"quarterly_message", "revenue_reason", "eps_reason"}:
+        quarterly = inputs.quarterly_trend
+        if field_name == "quarterly_message":
+            quarterly = replace(quarterly, message=unsafe)
+        elif field_name == "revenue_reason":
+            quarterly = replace(quarterly, revenue=replace(quarterly.revenue, withheld_reason=unsafe))
+        else:
+            quarterly = replace(quarterly, eps=replace(quarterly.eps, withheld_reason=unsafe))
+        changes["quarterly_trend"] = quarterly
+    elif field_name in {"peer_answer", "thesis_answer"}:
+        forward = inputs.forward_view
+        section_name = "peer_context" if field_name == "peer_answer" else "thesis_context"
+        changes["forward_view"] = replace(
+            forward,
+            **{section_name: replace(getattr(forward, section_name), answer=unsafe)},
+        )
+    elif field_name == "risk_summary":
+        report["risk_summary"] = {"state": "ready", "summary": unsafe}
+    elif field_name == "catalyst_boundary":
+        changes["catalyst_timeline"] = replace(inputs.catalyst_timeline, boundary=unsafe)
+    elif field_name == "regime_boundary":
+        changes["valuation_regime"] = replace(inputs.valuation_regime, boundary=unsafe)
+    elif field_name == "decision_answer":
+        lanes = (replace(inputs.decision_lab_state.lanes[0], answer=unsafe),) + inputs.decision_lab_state.lanes[1:]
+        changes["decision_lab_state"] = replace(inputs.decision_lab_state, lanes=lanes)
+    elif field_name == "scenario_method":
+        report["valuation_snapshot"]["scenarios"][1]["dcf_result"]["method_name"] = unsafe
+    elif field_name in {"evidence_source_id", "evidence_model_identity"}:
+        source = _source_record()
+        source["source_id" if field_name == "evidence_source_id" else "model_identity"] = unsafe
+        report["provenance"]["source_records"] = [source]
+    elif field_name == "evidence_input_identity":
+        changes["scenario_lab_result"] = _modified_scenario_result(
+            input_identity=unsafe,
+            source_metadata=(_source_record(),),
+        )
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(report, **changes))
+
+    assert unsafe not in repr(snapshot)
+    assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
+
+
+@pytest.mark.parametrize(
+    "approved",
+    ("no recommendation", "no buy/sell instruction", "no broker integration", "not investment advice"),
+)
+def test_approved_negated_research_boundaries_remain_visible(approved):
+    inputs = _inputs()
+    selected = dict(inputs.selected_answer)
+    selected["Use Now"] = approved
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(selected_answer=selected))
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert approved in rendered
+
+
+@pytest.mark.parametrize("credential", ("password hunter2", "api_key hunter2", "Authorization Bearer hunter2"))
+def test_portable_document_bytes_reject_whitespace_and_bearer_credentials(credential):
+    inputs = _inputs()
+    selected = dict(inputs.selected_answer)
+    selected["Use Now"] = credential
+
+    data = html_brief.company_workbench_html_bytes(
+        build_company_workbench_html_snapshot(_inputs(selected_answer=selected))
+    )
+
+    assert credential.encode() not in data
+    assert b"hunter2" not in data
+
+
+@pytest.mark.parametrize(
+    "unsafe_url",
+    (
+        "https://example.com/token/hunter2",
+        "https://example.com/api_key/hunter2",
+        "https://example.com/%74%6f%6b%65%6e/hunter2",
+        "https://example.com/api%5Fkey/hunter2",
+    ),
+)
+def test_https_references_reject_sensitive_plain_and_url_decoded_path_pairs(unsafe_url):
+    assert safe_html_brief_reference(unsafe_url).href == ""
+
+
+def test_safe_ordinary_https_reference_remains_clickable_without_fetching(monkeypatch):
+    def fail(*args, **kwargs):
+        raise AssertionError("reference validation must not fetch")
+
+    monkeypatch.setattr("socket.socket", fail)
+
+    assert safe_html_brief_reference("https://example.com/research/filing").href == (
+        "https://example.com/research/filing"
+    )
+
+
+def _complete_nowcast(as_of_timestamp):
+    return {
+        "ticker": "NVDA",
+        "fiscal_period": "2026-Q3",
+        "as_of_timestamp": as_of_timestamp,
+        "evidence_scope": "source_backed_preview_only",
+        "readiness": {"consensus_ready": True},
+        "backtest_verdict": "reviewable",
+        "backtest_count": 4,
+        "calibration_state": "reviewable",
+        "event_count": 4,
+        "gates": (),
+    }
+
+
+def test_nowcast_datetime_comparison_handles_fractional_seconds_and_equivalent_offsets():
+    report = _inputs().report_payload
+    report["generated_at"] = "2026-07-30T12:00:00Z"
+    forward = replace(_forward(), source_cutoff="2026-07-30T08:00:00-04:00")
+
+    at_cutoff = build_company_workbench_html_snapshot(
+        _inputs(report, forward_view=forward, nowcast_packet=_complete_nowcast("2026-07-30T12:00:00.000Z"))
+    )
+    half_second_late = build_company_workbench_html_snapshot(
+        _inputs(report, forward_view=forward, nowcast_packet=_complete_nowcast("2026-07-30T08:00:00.500-04:00"))
+    )
+
+    at_cutoff_lanes = {row.key: row.state for row in at_cutoff.readiness_lanes}
+    late_lanes = {row.key: row.state for row in half_second_late.readiness_lanes}
+    assert [at_cutoff_lanes[key] for key in ("consensus", "backtesting", "calibration")] == [
+        "partial",
+        "partial",
+        "partial",
+    ]
+    assert [late_lanes[key] for key in ("consensus", "backtesting", "calibration")] == [
+        "withheld",
+        "withheld",
+        "withheld",
+    ]
+
+
+def test_empty_supported_catalyst_timeline_is_withheld_in_readiness_and_research_sections():
+    empty = replace(_catalysts(), state="supported", upcoming=(), recent=())
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(catalyst_timeline=empty))
+    readiness = {row.key: row for row in snapshot.readiness_lanes}
+    research = {row.key: row for row in snapshot.research_sections}
+
+    for row in (readiness["catalysts"], research["catalysts"]):
+        assert row.state == "withheld"
+        assert row.answer == "No matching catalyst evidence."
+        assert row.blockers == ("Catalyst event scope does not match report scope.",)
+
+
+def test_renderer_shows_supplied_scenario_assumptions_values_and_modified_base_cue():
+    snapshot = build_company_workbench_html_snapshot(
+        _inputs(scenario_lab_result=_modified_scenario_result())
+    )
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert "<th>Scenario value/share</th>" in rendered
+    assert "<th>Modified state</th>" in rendered
+    assert "Modified Base" in rendered
+    assert "Forecast years" in rendered
+    for scenario in snapshot.scenarios:
+        value = html_brief.format_html_brief_number(
+            scenario.bridge.scenario_value_per_share,
+            currency=scenario.bridge.currency,
+        )
+        assert value in rendered
+
+
+def test_renderer_shows_stored_projected_and_discounted_fcf_schedules_in_order():
+    snapshot = _render_snapshot()
+    base = _base(snapshot)
+
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert "<caption>Supplied Base projected and discounted FCF schedule</caption>" in rendered
+    assert "Projected FCF" in rendered
+    assert "Discounted FCF" in rendered
+    projected = [
+        html_brief.format_html_brief_number(value, currency=base.bridge.currency)
+        for value in base.bridge.projected_fcfs
+    ]
+    discounted = [
+        html_brief.format_html_brief_number(value, currency=base.bridge.currency)
+        for value in base.bridge.discounted_fcfs
+    ]
+    assert [rendered.index(value) for value in projected] == sorted(rendered.index(value) for value in projected)
+    assert [rendered.index(value) for value in discounted] == sorted(rendered.index(value) for value in discounted)
+
+
+def test_advanced_evidence_renders_model_input_identities_and_row_blockers_escaped():
+    snapshot = _render_snapshot()
+    row = replace(
+        snapshot.evidence_rows[0],
+        model_identity="model<identity>",
+        input_identity="input&identity",
+        blockers=("scope <blocked>",),
+    )
+
+    rendered = html_brief.render_company_workbench_html_document(
+        replace(snapshot, evidence_rows=(row,))
+    )
+
+    assert "<th>Model identity</th>" in rendered
+    assert "<th>Input identity</th>" in rendered
+    assert "<th>Row blockers</th>" in rendered
+    assert "model&lt;identity&gt;" in rendered
+    assert "input&amp;identity" in rendered
+    assert "scope &lt;blocked&gt;" in rendered
+    assert "model<identity>" not in rendered
+
+
+@pytest.mark.parametrize("safe", ("Revenue/EPS", "cash/debt", "Q/C Technologies"))
+def test_sanitizer_preserves_safe_slash_delimited_research_phrases(safe):
+    assert safe_html_brief_text(safe) == safe
+
+
+@pytest.mark.parametrize(
+    "unsafe",
+    (
+        "/etc/passwd",
+        "../../escape",
+        "folder/../escape",
+        "~/private.txt",
+        "C:\\private\\secret.txt",
+        "/Users/research/private.txt",
+        "/private/research.txt",
+        "src/company_workbench_html.py",
+        "data/report.csv",
+        "archive/data/report.csv",
+        "outputs/brief.html",
+    ),
+)
+def test_sanitizer_still_rejects_absolute_traversal_private_repository_and_known_output_paths(unsafe):
+    assert safe_html_brief_text(unsafe) == ""
+
+
 def test_empty_or_invalid_report_ticker_never_matches_empty_scoped_objects():
     report = _inputs().report_payload
     report["ticker"] = "BAD/TICKER"
