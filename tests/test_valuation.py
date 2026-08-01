@@ -120,6 +120,22 @@ def test_calculate_dcf_with_direct_fcf_and_shares():
     assert len(result.assumptions["applied_growth_by_year"]) == assumptions.forecast_years
 
 
+def test_calculate_dcf_exposes_authoritative_discounted_explicit_total():
+    valuation_input = ValuationInput(
+        ticker="AAPL",
+        free_cash_flow=100.0,
+        shares_outstanding=10.0,
+        net_debt=0.0,
+    )
+
+    result = calculate_dcf(valuation_input, build_default_scenarios(valuation_input)["base"])
+
+    assert result.discounted_explicit_total == pytest.approx(sum(result.discounted_fcfs))
+    assert result.enterprise_value == pytest.approx(
+        result.discounted_explicit_total + result.discounted_terminal_value
+    )
+
+
 def test_calculate_dcf_with_revenue_and_fcf_margin():
     valuation_input = ValuationInput(
         ticker="MSFT",

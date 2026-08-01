@@ -90,6 +90,7 @@ class DCFResult:
     notes: list[str]
     projected_fcfs: list[float] = field(default_factory=list)
     discounted_fcfs: list[float] = field(default_factory=list)
+    discounted_explicit_total: float | None = None
     terminal_value: float | None = None
     discounted_terminal_value: float | None = None
     enterprise_value: float | None = None
@@ -464,7 +465,8 @@ def calculate_dcf(valuation_input: ValuationInput, assumptions: DCFAssumptions) 
     terminal_fcf = projected_fcfs[-1] * (1 + normalized_assumptions.terminal_growth)
     terminal_value = terminal_fcf / (normalized_assumptions.wacc - normalized_assumptions.terminal_growth)
     discounted_terminal_value = terminal_value / ((1 + normalized_assumptions.wacc) ** normalized_assumptions.forecast_years)
-    enterprise_value = sum(discounted_fcfs) + discounted_terminal_value
+    discounted_explicit_total = sum(discounted_fcfs)
+    enterprise_value = discounted_explicit_total + discounted_terminal_value
 
     equity_value = None
     if normalized_assumptions.cash is not None and normalized_assumptions.debt is not None:
@@ -491,6 +493,7 @@ def calculate_dcf(valuation_input: ValuationInput, assumptions: DCFAssumptions) 
         notes=notes,
         projected_fcfs=projected_fcfs,
         discounted_fcfs=discounted_fcfs,
+        discounted_explicit_total=discounted_explicit_total,
         terminal_value=terminal_value,
         discounted_terminal_value=discounted_terminal_value,
         enterprise_value=enterprise_value,
