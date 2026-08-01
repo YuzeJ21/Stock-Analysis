@@ -756,6 +756,259 @@ def test_portable_fields_preserve_safe_endpoint_terms_without_action_start(safe)
     assert safe in rendered
 
 
+@pytest.mark.parametrize(
+    "field_name, unsafe",
+    (
+        ("use_now", "buy common, voting shares"),
+        ("task_body", "buy common & preferred shares"),
+        ("quarterly_message", "buy 1,000 shares"),
+        ("decision_answer", "buy $500 of stock"),
+        ("evidence_model_identity", "buy 1/2 of stock"),
+        ("use_now", "place a good‑til‑cancelled limit order"),
+        ("task_body", "go net-long"),
+        ("quarterly_message", "BUY common/preferred SHARES"),
+        ("decision_answer", "sell €750.00 of restricted stock"),
+        ("evidence_model_identity", "purchase 2⁄3 of preferred securities"),
+        ("use_now", "execute a same/day block trade"),
+        ("task_body", "place a good—til—cancelled market order"),
+        ("quarterly_message", "go market/neutral short"),
+        ("decision_answer", "ＢＵＹ common／preferred shares"),
+        ("evidence_model_identity", "buy side shares"),
+        ("use_now", "sell side stocks"),
+        ("task_body", "short term stock now"),
+        ("quarterly_message", "short interest securities now"),
+    ),
+)
+def test_portable_fields_withhold_normalized_action_token_variants(field_name, unsafe):
+    snapshot = _snapshot_with_portable_action_text(field_name, unsafe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert unsafe not in repr(snapshot)
+    assert unsafe not in rendered
+    assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
+
+
+@pytest.mark.parametrize(
+    "field_name, unsafe",
+    (
+        ("use_now", "buy shares"),
+        ("task_body", "execute a trade"),
+        ("quarterly_message", "open a position"),
+        ("decision_answer", "hold the position"),
+        ("evidence_model_identity", "size the position"),
+        ("use_now", "cover the short"),
+        ("task_body", "cover common shares"),
+        ("quarterly_message", "go long"),
+    ),
+)
+def test_portable_fields_withhold_direct_actions_from_each_semantic_family(field_name, unsafe):
+    snapshot = _snapshot_with_portable_action_text(field_name, unsafe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert unsafe not in repr(snapshot)
+    assert unsafe not in rendered
+    assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
+
+
+@pytest.mark.parametrize(
+    "field_name, unsafe",
+    (
+        ("use_now", "buy equity"),
+        ("task_body", "sell common equity"),
+        ("quarterly_message", "purchase private equity"),
+        ("decision_answer", "cover equity"),
+        ("evidence_model_identity", "buy the position"),
+        ("use_now", "sell the position"),
+        ("task_body", "short the position"),
+        ("quarterly_message", "cover the position"),
+        ("decision_answer", "open a trade"),
+        ("evidence_model_identity", "close the trade"),
+        ("use_now", "enter a trade"),
+        ("task_body", "exit the trade"),
+        ("quarterly_message", "add shares"),
+        ("decision_answer", "trim common shares"),
+        ("evidence_model_identity", "reduce equity"),
+        ("use_now", "open long"),
+        ("task_body", "close the short"),
+        ("quarterly_message", "The report says the strategy buys shares."),
+        ("decision_answer", "The report says the portfolio opens a position."),
+        ("evidence_model_identity", "The note says the strategy goes long."),
+        ("use_now", "The research says the strategy executes trades."),
+        ("task_body", "place an immediate-or-cancel good-til-cancelled limit order"),
+        ("quarterly_message", "buy $1,000,000,000.00 of common shares"),
+        ("decision_answer", "b\u200buy shares"),
+        ("evidence_model_identity", "buy sh\u2060ares"),
+        ("use_now", "go lo\u200bng"),
+        ("task_body", "open a pos\u200bition"),
+        ("quarterly_message", "Buy shares—report the fill later."),
+        ("decision_answer", "Execute the trade—record the result later."),
+        ("evidence_model_identity", "Open a position—report it later."),
+        ("use_now", "Go long—report the result later."),
+        ("task_body", "Buy shares - report the fill later."),
+        ("quarterly_message", "Execute the trade--record the result later."),
+        ("decision_answer", "The model buys shares."),
+        ("evidence_model_identity", "The analyst sells stock."),
+        ("use_now", "The model opens positions."),
+        ("task_body", "The analysis executes trades."),
+        ("quarterly_message", "The model goes long."),
+        ("decision_answer", "The report holds equities."),
+        ("evidence_model_identity", "bu\ufe0fy shares"),
+        ("use_now", "buy sh\ufe0fares"),
+        ("task_body", "go lo\ufe0fng"),
+        ("quarterly_message", "open a pos\ufe0fition"),
+        ("decision_answer", "Buy stock data for review and shares for the portfolio."),
+        ("evidence_model_identity", "liquidate common shares"),
+        ("use_now", "liquidate the stock"),
+        ("task_body", "liquidate equity"),
+        ("quarterly_message", "size common shares"),
+        ("decision_answer", "close the stock"),
+        ("evidence_model_identity", "exit common shares"),
+        ("use_now", "initiate common shares"),
+        ("task_body", "The model covers the short."),
+        ("quarterly_message", "The model orders trades."),
+        ("decision_answer", "The report orders shares."),
+        ("evidence_model_identity", "The analyst orders transactions."),
+        ("use_now", "bu\u034fy shares"),
+        ("task_body", "buy sh\u034fares"),
+        ("quarterly_message", "go lo\u034fng"),
+        ("decision_answer", "bu\u180by shares"),
+        ("evidence_model_identity", "buy sh\u180cares"),
+        ("use_now", "Buy stock data plus shares for the portfolio."),
+        ("task_body", "Buy stock data & shares for the portfolio."),
+        ("quarterly_message", "Buy stock data, shares for the portfolio."),
+        ("decision_answer", "Buy stock data along with shares for the portfolio."),
+        ("evidence_model_identity", "Buy total equity."),
+        ("use_now", "Purchase tangible equity."),
+        ("task_body", "Sell book equity."),
+        ("quarterly_message", "Buy the shares outstanding."),
+        ("decision_answer", "Buy shares by date 2026-08-05."),
+        ("evidence_model_identity", "The model covers the position with shares."),
+        ("use_now", "Buy stock data as well as shares for the portfolio."),
+        ("task_body", "Buy stock data alongside shares for the portfolio."),
+        ("quarterly_message", "bu\u3164y shares"),
+        ("decision_answer", "buy sh\u115fares"),
+        ("evidence_model_identity", "Order shares by date 2026-08-05."),
+        ("use_now", "Hold the shares outstanding."),
+        ("task_body", "Hold total equity."),
+        ("quarterly_message", "Increase book equity."),
+        ("decision_answer", "The model covers the trade with shares."),
+        ("evidence_model_identity", "The model covers the exposure with shares."),
+        ("use_now", "bu\u2800y shares"),
+        ("task_body", "buy sh\u2800ares"),
+        ("quarterly_message", "The company is stable, so increase equity."),
+        ("decision_answer", "Review the company, then increase equity."),
+        ("evidence_model_identity", "The model covers the risk with shares."),
+        ("use_now", "The model covers market risk with common stock."),
+    ),
+)
+def test_portable_fields_withhold_adversarial_action_state_transitions(field_name, unsafe):
+    snapshot = _snapshot_with_portable_action_text(field_name, unsafe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert unsafe not in repr(snapshot)
+    assert unsafe not in rendered
+    assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
+
+
+@pytest.mark.parametrize(
+    "safe",
+    (
+        "The filing covers the current position disclosure.",
+        "The model builds a current position estimate.",
+        "Hold the current equity method constant.",
+        "The report covers common and preferred share disclosures.",
+        "The valuation model builds a net-long position estimate.",
+        "The analysis orders trade records by date.",
+        "The table routes transaction evidence to the appendix.",
+        "The note covers the short-interest disclosure.",
+        "Hold the historical cost equity method constant.",
+        "Build an equity model for the accounting review.",
+        "Buy-side research covers securities.",
+        "Sell-side analysts cover common stocks.",
+        "Short-term stock performance remains under review.",
+        "Held-to-maturity securities remain unchanged.",
+        "Available-for-sale securities remain unchanged.",
+        "Order transaction records by date.",
+        "Place trade records in chronological order.",
+        "Cover short-interest disclosures in the appendix.",
+        "Build position estimates from reviewed evidence.",
+        "The filing covered common shares outstanding.",
+        "The model built a current position bridge.",
+        "The company increased shareholder equity.",
+        "Add stock-based compensation to the model.",
+        "Reduce stock-based compensation expense in the forecast.",
+        "The analysis ordered trade rows by date.",
+        "Open the trade blotter for review.",
+        "Open long-duration asset schedules.",
+        "The company increased total equity.",
+        "The bank increased tangible common equity.",
+        "Add stock–based compensation to the model.",
+        "Open the trade-ledger for review.",
+        "Open long–duration asset schedules.",
+        "The analyst covers private equity.",
+        "The analyst initiates stock coverage.",
+        "Initiate coverage of the stock.",
+        "The model builds stock coverage.",
+        "Open the equity research workbook.",
+        "Add stock−based compensation to the model.",
+        "The bank increased common equity.",
+        "Add stock⁃based compensation to the model.",
+        "Open long⁃duration asset schedules.",
+    ),
+)
+def test_portable_fields_preserve_safe_reference_research_and_accounting_semantics(safe):
+    snapshot = _snapshot_with_portable_action_text("use_now", safe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert snapshot.answers[0].body == safe
+    assert safe in rendered
+
+
+@pytest.mark.parametrize(
+    "safe",
+    (
+        "buy one two three four five six seven eight nine shares",
+        "execute one two three four five six seven eight nine trades",
+        "open one two three four five six seven eight nine position",
+        "cover one two three four five six seven eight nine shares",
+        "go one two three four five six seven eight nine long",
+        "Buy assumptions are documented. Common shares remain unchanged.",
+        "The instruction says buy; common shares outstanding are unchanged.",
+        "Buy assumptions are documented。 Common shares remain unchanged.",
+        "Buy assumptions are documented\u2028Common shares remain unchanged.",
+        "Buy assumptions are documented؟ Common shares remain unchanged.",
+        "Buy assumptions are documented। Common shares remain unchanged.",
+        "Buy assumptions are documented։ Common shares remain unchanged.",
+        "Buy assumptions are documented۔ Common shares remain unchanged.",
+        "Buy assumptions are documented። Common shares remain unchanged.",
+        "Buy assumptions are documented‽ Common shares remain unchanged.",
+    ),
+)
+def test_portable_action_scanner_stops_at_bounded_window_or_clause_boundary(safe):
+    snapshot = _snapshot_with_portable_action_text("use_now", safe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert snapshot.answers[0].body == safe
+    assert safe in rendered
+
+
+@pytest.mark.parametrize(
+    "approved",
+    (
+        "NO RECOMMENDATION",
+        "No buy—sell instruction",
+        "No broker-integration",
+        "Not investment advice",
+    ),
+)
+def test_portable_fields_preserve_normalized_approved_negated_boundaries(approved):
+    snapshot = _snapshot_with_portable_action_text("use_now", approved)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert snapshot.answers[0].body == approved
+    assert approved in rendered
+
+
 @pytest.mark.parametrize("credential", ("password hunter2", "api_key hunter2", "Authorization Bearer hunter2"))
 def test_portable_document_bytes_reject_whitespace_and_bearer_credentials(credential):
     inputs = _inputs()
