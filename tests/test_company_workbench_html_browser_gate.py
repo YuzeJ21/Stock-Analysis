@@ -283,6 +283,34 @@ def _directional_shadow_clipped_at_edge(
     )
 
 
+def _static_shadow_with_unsupported_focus_addition(
+    document: bytes,
+    *,
+    added_shadow: str,
+) -> bytes:
+    return _append_test_css(
+        document,
+        f"""
+.srcc-skip-link {{
+    outline: none !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    color: #18222e !important;
+    text-decoration: none !important;
+    box-shadow: 10px 0 0 0 #d04a00 !important;
+}}
+.srcc-skip-link:focus-visible {{
+    outline: none !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    color: #18222e !important;
+    text-decoration: none !important;
+    box-shadow: 10px 0 0 0 #d04a00, {added_shadow} !important;
+}}
+""",
+    )
+
+
 def _failed_assertion_names(result) -> set[str]:
     return {assertion.name for assertion in result.assertions if not assertion.passed}
 
@@ -690,6 +718,25 @@ def test_actual_browser_rejects_fully_clipped_directional_focus_shadows():
     results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
 
     assert len(results) == 12
+    assert all("visible_focus" in _failed_assertion_names(result) for result in results)
+
+
+def test_actual_browser_rejects_unchanged_shadow_plus_unsupported_focus_addition():
+    original = _synthetic_brief("complete")
+    cases = {
+        "focus-adds-blurred-shadow": _static_shadow_with_unsupported_focus_addition(
+            original,
+            added_shadow="0 0 4px 3px #177245",
+        ),
+        "focus-adds-transparent-shadow": _static_shadow_with_unsupported_focus_addition(
+            original,
+            added_shadow="0 0 0 3px transparent",
+        ),
+    }
+
+    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+
+    assert len(results) == 6
     assert all("visible_focus" in _failed_assertion_names(result) for result in results)
 
 

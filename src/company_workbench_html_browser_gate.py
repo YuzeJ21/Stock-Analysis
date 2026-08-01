@@ -494,14 +494,37 @@ def _focus_cue_is_visible(
                     const color = part.match(/rgba?\([^\)]+\)/)?.[0] || '';
                     const lengths = (part.replace(color, '').match(/-?\d+(?:\.\d+)?px/g) || [])
                         .map(length => Number.parseFloat(length));
-                    if (!visibleColor(color) || lengths.length < 2 || lengths.length > 4 || lengths.some(length => !Number.isFinite(length))) return null;
+                    if (!color || lengths.length < 2 || lengths.length > 4 || lengths.some(length => !Number.isFinite(length))) return null;
                     const [offsetX, offsetY, blur = 0, spread = 0] = lengths;
                     if (blur < 0 || ![offsetX, offsetY, blur, spread].some(length => Math.abs(length) >= 1)) return null;
-                    return {part, inset: /\binset\b/.test(part), offsetX, offsetY, blur, spread};
+                    return {
+                        inset: /\binset\b/.test(part),
+                        offsetX,
+                        offsetY,
+                        blur,
+                        spread,
+                        color: color.replaceAll(' ', '').toLowerCase(),
+                        visible: visibleColor(color),
+                    };
                 };
-                const parsedShadows = splitShadows(String(after.shadow || 'none')).map(parseShadow).filter(Boolean);
-                const shadowChanged = changed('shadow') && parsedShadows.length > 0;
-                const insetShadowChanged = shadowChanged && parsedShadows.some(shadow => shadow.inset);
+                const beforeShadows = splitShadows(String(before.shadow || 'none')).map(parseShadow).filter(Boolean);
+                const afterShadows = splitShadows(String(after.shadow || 'none')).map(parseShadow).filter(Boolean);
+                const matchedBefore = beforeShadows.map(() => false);
+                const sameShadow = (left, right) => left.inset === right.inset &&
+                    left.offsetX === right.offsetX && left.offsetY === right.offsetY &&
+                    left.blur === right.blur && left.spread === right.spread &&
+                    left.color === right.color;
+                const focusSpecificShadows = afterShadows.filter(shadow => {
+                    const matchIndex = beforeShadows.findIndex(
+                        (candidate, index) => !matchedBefore[index] && sameShadow(candidate, shadow)
+                    );
+                    if (matchIndex >= 0) {
+                        matchedBefore[matchIndex] = true;
+                        return false;
+                    }
+                    return shadow.visible;
+                });
+                const insetShadowChanged = focusSpecificShadows.some(shadow => shadow.inset);
                 const borderChanged = changed('borders') && (after.borders || []).some(border =>
                     Number.parseFloat(border[0] || '0') >= 1 &&
                     !['none', 'hidden'].includes(border[1]) && visibleColor(border[2])
@@ -513,7 +536,7 @@ def _focus_cue_is_visible(
                 const insideCue = borderChanged || backgroundChanged || foregroundChanged || insetShadowChanged || outlineInside;
                 // Outward blurred shadows have renderer-dependent soft bounds. Fail closed
                 // instead of using a symmetric approximation that can invent visible pixels.
-                const outwardShadows = shadowChanged ? parsedShadows.filter(shadow => !shadow.inset && shadow.blur === 0) : [];
+                const outwardShadows = focusSpecificShadows.filter(shadow => !shadow.inset && shadow.blur === 0);
                 const outwardCue = (outlineChanged && !outlineInside) || outwardShadows.length > 0;
                 if (!insideCue && !outwardCue) return false;
                 if (insideCue) return true;
