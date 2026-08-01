@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+import src.company_workbench_html as html_brief
 from src.catalyst_evidence_timeline import CatalystEvent, CatalystTimeline
 from src.company_workbench_html import (
     CompanyWorkbenchHtmlInputs,
@@ -365,3 +366,83 @@ def test_snapshot_isolated_from_source_metadata_mutation_after_construction():
 
     assert snapshot.evidence_rows[0].source_id == "SEC-0000123456-26-000001"
     assert snapshot.identity == identity
+
+
+@pytest.mark.parametrize("field, value", (("profile_key", "other"), ("ticker", "AMD")))
+def test_matching_journal_container_does_not_emit_a_mismatched_entry(field, value):
+    journal = _journal()
+    entry = replace(journal.entries[0], **{field: value})
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(journal_state=replace(journal, entries=(entry,))))
+
+    assert not any(row.section == "journal" for row in snapshot.evidence_rows)
+
+
+@pytest.mark.parametrize("unsafe", ("docs/brief.md", "scripts/tool.py", ".git/config", "folder\\file.txt", "../escape", "control\x7f", "control\x85"))
+def test_sanitizer_rejects_full_control_range_and_repository_relative_paths(unsafe):
+    assert safe_html_brief_text(unsafe) == ""
+
+
+def test_validated_https_reference_remains_usable_while_its_label_is_sanitized():
+    reference = safe_html_brief_reference({"source": "SEC-0000123456-26-000001", "source_ref": "https://www.sec.gov/Archives/edgar/data/1"})
+
+    assert reference.label == "SEC-0000123456-26-000001"
+    assert reference.href == "https://www.sec.gov/Archives/edgar/data/1"
+
+
+def test_empty_or_invalid_report_ticker_never_matches_empty_scoped_objects():
+    report = _inputs().report_payload
+    report["ticker"] = "BAD/TICKER"
+    recency = _inputs().observation_recency
+    empty_recency = replace(recency, selected_ticker=replace(recency.selected_ticker, scope=""))
+    empty_decision = replace(_decision(), ticker="")
+    selected = {"Ticker": "", "Use Now": "leaked answer", "Still Blocked": "leaked blocker", "state": "ready"}
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(report, selected_answer=selected, observation_recency=empty_recency, decision_lab_state=empty_decision))
+
+    assert snapshot.ticker == ""
+    assert snapshot.answers[0].state == "withheld"
+    assert snapshot.answers[0].body == "No portable answer."
+    assert snapshot.recency.state == "withheld"
+    assert all(row.state == "withheld" for row in snapshot.decision_lanes)
+    assert snapshot.evidence_rows == ()
+
+
+@pytest.mark.parametrize(
+    "changed, lane_key",
+    (
+        (lambda inputs: {"observation_recency": replace(inputs.observation_recency, selected_ticker=replace(inputs.observation_recency.selected_ticker, scope="AMD"))}, "recency"),
+        (lambda inputs: {"decision_lab_state": replace(inputs.decision_lab_state, ticker="AMD")}, "decision"),
+        (lambda inputs: {"quarterly_trend": replace(inputs.quarterly_trend, ticker="AMD")}, "actuals"),
+        (lambda inputs: {"forward_view": replace(inputs.forward_view, ticker="AMD")}, "peers"),
+        (lambda inputs: {"valuation_regime": replace(inputs.valuation_regime, ticker="AMD")}, "historical-valuation"),
+        (lambda inputs: {"nowcast_packet": {"ticker": "AMD", "fiscal_period": "2026-Q3", "as_of_timestamp": "2026-07-30T12:00:00Z", "evidence_scope": "source_backed_preview_only", "readiness": {"consensus_ready": True}}}, "consensus"),
+    ),
+)
+def test_each_ticker_scoped_input_is_withheld_independently_on_mismatch(changed, lane_key):
+    base = _inputs()
+    snapshot = build_company_workbench_html_snapshot(_inputs(**changed(base)))
+
+    if lane_key == "recency":
+        assert snapshot.recency.state == "withheld"
+    elif lane_key == "decision":
+        assert all(row.state == "withheld" for row in snapshot.decision_lanes)
+    else:
+        lanes = {row.key: row for row in snapshot.readiness_lanes}
+        assert lanes[lane_key].state == "withheld"
+
+
+def test_real_snapshot_builder_does_not_call_file_network_or_calculation_collaborators(monkeypatch):
+    inputs = _inputs()
+
+    def fail(*args, **kwargs):
+        raise AssertionError("snapshot builder must remain pure")
+
+    monkeypatch.setattr("builtins.open", fail)
+    monkeypatch.setattr("socket.socket", fail)
+    monkeypatch.setattr("src.valuation.calculate_dcf", fail)
+    monkeypatch.setattr("src.valuation.build_sensitivity_table", fail)
+
+    snapshot = html_brief.build_company_workbench_html_snapshot(inputs)
+
+    assert snapshot.ticker == "NVDA"

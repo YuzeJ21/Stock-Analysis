@@ -7,6 +7,7 @@ import html
 import json
 import math
 import re
+import unicodedata
 from dataclasses import asdict, dataclass, is_dataclass, replace
 from datetime import datetime, timezone
 from typing import Mapping
@@ -31,7 +32,7 @@ _EXCLUDED = frozenset({"excluded", "not_applicable", "candidate_context_only"})
 _WITHHELD = frozenset({"withheld", "blocked", "still_blocked", "commercial_evidence_blocked", "unavailable", "insufficient_data", "insufficient_history", "not_supported", "unverified", "rejected"})
 _ACTION_PATTERN = re.compile(r"\b(buy|sell|short|hold|position\s*size|allocation|stop[-\s]?loss|take[-\s]?profit|order|broker|rank(?:ing)?|target[-\s]?price|expected[-\s]?return|upside|downside|margin[-\s]?of[-\s]?safety)\b", re.I)
 _SECRET_PATTERN = re.compile(r"(?:api[_-]?key|secret|token|cookie|password|authorization|bearer)\s*(?:=|:)|\b(?:sk|ghp|xox)[A-Za-z0-9_-]{8,}\b", re.I)
-_PATH_PATTERN = re.compile(r"(?:^~[/\\]|^/|^[A-Za-z]:[\\/]|(?:^|\s)\.{1,2}(?:[/\\]|$)|(?:^|\s)(?:src|tests|data|outputs|\.superpowers)(?:[/\\]|$)|/Users/|/private/|/tmp/|\\\\)")
+_PATH_PATTERN = re.compile(r"(?:^~[/\\]|^/|^[A-Za-z]:[\\/]|(?:^|\s)\.{1,2}(?:[/\\]|$)|(?:^|\s)(?:src|tests|data|outputs|docs|scripts|\.git|\.superpowers)(?:[/\\]|$)|(?:^|\s)[^\s]+[/\\][^\s]+|/Users/|/private/|/tmp/|\\\\)")
 _TICKER_PATTERN = re.compile(r"^[A-Z0-9.-]+$")
 _WITHHELD_ACTION = "Withheld: reviewer-authored action language is not portable research evidence."
 
@@ -183,9 +184,10 @@ def safe_html_brief_text(value: object) -> str:
     """Return escaped portable text, never paths, secrets, or action instructions."""
     if not isinstance(value, (str, int, float, bool)):
         return ""
-    text = str(value).strip()
-    if not text or any(ord(char) < 32 for char in text):
+    text = str(value)
+    if not text or any(unicodedata.category(char) == "Cc" for char in text):
         return ""
+    text = text.strip()
     if _PATH_PATTERN.search(text) or _SECRET_PATTERN.search(text):
         return ""
     parsed = urlparse(text)
@@ -204,7 +206,7 @@ def safe_html_brief_reference(value: object) -> HtmlBriefSafeReference:
         label = safe_html_brief_text(value)
         candidate = value
     href = ""
-    if isinstance(candidate, str) and not any(ord(char) < 32 for char in candidate) and not _SECRET_PATTERN.search(candidate):
+    if isinstance(candidate, str) and not any(unicodedata.category(char) == "Cc" for char in candidate) and not _SECRET_PATTERN.search(candidate):
         parsed = urlparse(candidate.strip())
         unsafe_path = parsed.path.startswith(("/Users/", "/private/", "/tmp/")) or ".." in parsed.path or "\\" in parsed.path
         if parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment and not unsafe_path:
@@ -231,8 +233,22 @@ def _value(value: object, name: str, default: object = None) -> object:
 def _ticker(value: object) -> str:
     if not isinstance(value, str):
         return ""
+    if any(unicodedata.category(char) == "Cc" for char in value):
+        return ""
     ticker = value.strip().upper()
     return ticker if _TICKER_PATTERN.fullmatch(ticker) else ""
+
+
+def _ticker_matches(value: object, ticker: str) -> bool:
+    scoped = _ticker(value)
+    return bool(ticker and scoped and scoped == ticker)
+
+
+def _profile_key(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    normalized = value.strip()
+    return normalized if normalized and safe_html_brief_text(normalized) else ""
 
 
 def _finite(value: object) -> float | None:
@@ -328,7 +344,7 @@ def _canonical_scenarios(valuation: Mapping[str, object], currency: str) -> dict
 
 
 def _accepted_scenario(result: ScenarioLabResult | None, ticker: str, profile_key: str) -> bool:
-    return bool(result and result.status == "calculated" and _ticker(result.ticker) == ticker and result.profile_key == profile_key and str(result.input_identity or "").strip() and result.changed_assumptions and result.scenario_result is not None)
+    return bool(result and ticker and result.status == "calculated" and _ticker_matches(result.ticker, ticker) and _profile_key(result.profile_key) == _profile_key(profile_key) and str(result.input_identity or "").strip() and result.changed_assumptions and result.scenario_result is not None)
 
 
 def _sensitivity(table: object, bridge: HtmlBriefDcfBridge) -> HtmlBriefSensitivity:
@@ -360,14 +376,14 @@ def _section(key: str, title: str, state: object, answer: object, facts: tuple[t
 
 def _recency(inputs: CompanyWorkbenchHtmlInputs, ticker: str) -> HtmlBriefSection:
     record = inputs.observation_recency.selected_ticker if inputs.observation_recency else None
-    if record is None or _ticker(record.scope) != ticker:
+    if record is None or not _ticker_matches(record.scope, ticker):
         return _section("recency", "Recency", "withheld", "No matching selected-ticker observation.", blockers=("Selected-ticker observation is unavailable or mismatched.",))
     return _section("recency", "Recency", record.state, record.message, (("Through date", record.through_date), ("Age days", record.age_days), ("Policy days", inputs.observation_recency.policy_days), ("Evaluation as of", inputs.observation_recency.as_of)))
 
 
 def _nowcast_lanes(packet: Mapping[str, object] | None, report: Mapping[str, object], ticker: str, generated_at: str, review_cutoff: str) -> tuple[HtmlBriefSection, HtmlBriefSection, HtmlBriefSection]:
     withheld = ("Matching source-backed point-in-time nowcast evidence is unavailable.",)
-    if not packet or _ticker(packet.get("ticker")) != ticker or str(packet.get("fiscal_period") or "") != str(_mapping(report.get("earnings_summary")).get("fiscal_period") or "") or not str(_mapping(report.get("earnings_summary")).get("fiscal_period") or "") or packet.get("evidence_scope") != "source_backed_preview_only":
+    if not packet or not _ticker_matches(packet.get("ticker"), ticker) or str(packet.get("fiscal_period") or "") != str(_mapping(report.get("earnings_summary")).get("fiscal_period") or "") or not str(_mapping(report.get("earnings_summary")).get("fiscal_period") or "") or packet.get("evidence_scope") != "source_backed_preview_only":
         return tuple(_section(key, title, "withheld", "No portable nowcast evidence.", blockers=withheld) for key, title in (("consensus", "Consensus"), ("backtesting", "Backtesting"), ("calibration", "Calibration")))  # type: ignore[return-value]
     packet_at = _iso(packet.get("as_of_timestamp"))
     boundaries = tuple(_iso(value) for value in (generated_at, review_cutoff) if _iso(value))
@@ -391,8 +407,8 @@ def _nowcast_lanes(packet: Mapping[str, object] | None, report: Mapping[str, obj
 
 
 def _readiness(inputs: CompanyWorkbenchHtmlInputs, ticker: str, bridge: HtmlBriefDcfBridge, generated_at: str, review_cutoff: str) -> tuple[HtmlBriefSection, ...]:
-    trend = inputs.quarterly_trend if _ticker(inputs.quarterly_trend.ticker) == ticker else None
-    forward = inputs.forward_view if _ticker(inputs.forward_view.ticker) == ticker else None
+    trend = inputs.quarterly_trend if _ticker_matches(inputs.quarterly_trend.ticker, ticker) else None
+    forward = inputs.forward_view if _ticker_matches(inputs.forward_view.ticker, ticker) else None
     quarterly_state = _portable_provenance_state(trend.status) if trend else "withheld"
     actual = _section("actuals", "Actuals", quarterly_state, trend.message if trend else "No matching quarterly evidence.", blockers=("portable provenance incomplete",) if trend else ("Quarterly ticker does not match report ticker.",))
     revenue_state = _portable_provenance_state(trend.revenue.status) if trend else "withheld"
@@ -401,7 +417,7 @@ def _readiness(inputs: CompanyWorkbenchHtmlInputs, ticker: str, bridge: HtmlBrie
     eps = _section("eps", "EPS", eps_state, trend.eps.withheld_reason or "Quarterly EPS context." if trend else "No matching quarterly evidence.", blockers=("portable provenance incomplete", "EPS split-basis proof is required.") if trend else ("Quarterly ticker does not match report ticker.",))
     valuation = _section("valuation", "Valuation", bridge.state, "Authoritative DCF bridge.", blockers=bridge.blockers)
     peers = _section("peers", "Peers", forward.peer_context.state if forward else "withheld", forward.peer_context.answer if forward else "No matching Forward View evidence.", blockers=() if forward else ("Forward View ticker does not match report ticker.",))
-    historical = _section("historical-valuation", "Historical valuation", _portable_provenance_state(inputs.valuation_regime.state) if _ticker(inputs.valuation_regime.ticker) == ticker else "withheld", inputs.valuation_regime.boundary if _ticker(inputs.valuation_regime.ticker) == ticker else "No matching valuation regime.", blockers=("portable provenance incomplete",))
+    historical = _section("historical-valuation", "Historical valuation", _portable_provenance_state(inputs.valuation_regime.state) if _ticker_matches(inputs.valuation_regime.ticker, ticker) else "withheld", inputs.valuation_regime.boundary if _ticker_matches(inputs.valuation_regime.ticker, ticker) else "No matching valuation regime.", blockers=("portable provenance incomplete",))
     catalyst_matches = _catalyst_matches(inputs.catalyst_timeline, ticker, inputs.profile_context.profile_key)
     catalysts = _section("catalysts", "Catalysts", inputs.catalyst_timeline.state if catalyst_matches else "withheld", inputs.catalyst_timeline.boundary if catalyst_matches else "No matching catalyst evidence.", blockers=() if catalyst_matches else ("Catalyst event scope does not match report scope.",))
     consensus, backtesting, calibration = _nowcast_lanes(inputs.nowcast_packet, inputs.report_payload, ticker, generated_at, review_cutoff)
@@ -410,8 +426,8 @@ def _readiness(inputs: CompanyWorkbenchHtmlInputs, ticker: str, bridge: HtmlBrie
 
 
 def _research_sections(inputs: CompanyWorkbenchHtmlInputs, ticker: str) -> tuple[HtmlBriefSection, ...]:
-    trend = inputs.quarterly_trend if _ticker(inputs.quarterly_trend.ticker) == ticker else None
-    forward = inputs.forward_view if _ticker(inputs.forward_view.ticker) == ticker else None
+    trend = inputs.quarterly_trend if _ticker_matches(inputs.quarterly_trend.ticker, ticker) else None
+    forward = inputs.forward_view if _ticker_matches(inputs.forward_view.ticker, ticker) else None
     report = inputs.report_payload
     risks = _mapping(report.get("risk_summary"))
     catalyst_matches = _catalyst_matches(inputs.catalyst_timeline, ticker, inputs.profile_context.profile_key)
@@ -421,7 +437,7 @@ def _research_sections(inputs: CompanyWorkbenchHtmlInputs, ticker: str) -> tuple
         _section("risks", "Risks", risks.get("state", "withheld"), risks.get("summary", "No portable risk evidence.")),
         _section("catalysts", "Catalysts", inputs.catalyst_timeline.state if catalyst_matches else "withheld", inputs.catalyst_timeline.boundary if catalyst_matches else "No matching catalyst evidence.", blockers=() if catalyst_matches else ("Catalyst event scope does not match report scope.",)),
         _section("evidence-gaps", "Evidence gaps", "withheld", "Portable evidence remains incomplete."),
-        _section("valuation-regime", "Valuation regime", _portable_provenance_state(inputs.valuation_regime.state) if _ticker(inputs.valuation_regime.ticker) == ticker else "withheld", inputs.valuation_regime.boundary if _ticker(inputs.valuation_regime.ticker) == ticker else "No matching valuation regime.", blockers=("portable provenance incomplete",)),
+        _section("valuation-regime", "Valuation regime", _portable_provenance_state(inputs.valuation_regime.state) if _ticker_matches(inputs.valuation_regime.ticker, ticker) else "withheld", inputs.valuation_regime.boundary if _ticker_matches(inputs.valuation_regime.ticker, ticker) else "No matching valuation regime.", blockers=("portable provenance incomplete",)),
     )
 
 
@@ -431,14 +447,14 @@ def _portable_provenance_state(value: object) -> str:
 
 
 def _catalyst_matches(timeline: CatalystTimeline, ticker: str, profile_key: str) -> bool:
-    if _ticker(timeline.ticker) != ticker:
+    if not _ticker_matches(timeline.ticker, ticker):
         return False
     events = tuple(timeline.upcoming) + tuple(timeline.recent)
-    return all(_ticker(event.ticker) == ticker and event.profile_key == profile_key for event in events)
+    return all(_ticker_matches(event.ticker, ticker) and _profile_key(event.profile_key) == _profile_key(profile_key) for event in events)
 
 
 def _decision_lanes(state: ResearchDecisionLabState, ticker: str, profile_key: str) -> tuple[HtmlBriefSection, ...]:
-    by_key = {lane.key: lane for lane in state.lanes} if state.ticker.upper() == ticker and state.profile_key == profile_key else {}
+    by_key = {lane.key: lane for lane in state.lanes} if _ticker_matches(state.ticker, ticker) and _profile_key(state.profile_key) == _profile_key(profile_key) else {}
     ordered = (("plan", "Plan"), ("evidence", "Evidence"), ("invalidation", "Invalidation"), ("scenario", "Scenario"), ("review-trigger", "Review trigger"), ("learning", "Learning"))
     output: list[HtmlBriefSection] = []
     for output_key, title in ordered:
@@ -449,6 +465,9 @@ def _decision_lanes(state: ResearchDecisionLabState, ticker: str, profile_key: s
 
 def _evidence_rows(inputs: CompanyWorkbenchHtmlInputs, accepted_scenario: bool) -> tuple[HtmlBriefEvidenceRow, ...]:
     candidates: list[tuple[str, object, str]] = []
+    ticker = _ticker(inputs.report_payload.get("ticker"))
+    if not ticker:
+        return ()
     provenance = _mapping(inputs.report_payload.get("provenance"))
     for row in provenance.get("source_records", ()) if isinstance(provenance.get("source_records"), (list, tuple)) else ():
         candidates.append(("report", row, ""))
@@ -459,11 +478,11 @@ def _evidence_rows(inputs: CompanyWorkbenchHtmlInputs, accepted_scenario: bool) 
         for row in inputs.scenario_lab_result.source_metadata:
             candidates.append(("scenario", row, inputs.scenario_lab_result.input_identity))
     journal = inputs.journal_state
-    if journal and journal.profile_key == inputs.profile_context.profile_key and _ticker(journal.ticker) == _ticker(inputs.report_payload.get("ticker")):
+    if journal and _profile_key(journal.profile_key) == _profile_key(inputs.profile_context.profile_key) and _ticker_matches(journal.ticker, ticker):
         for entry in journal.entries:
-            candidates.append(("journal", entry, ""))
+            if _profile_key(entry.profile_key) == _profile_key(inputs.profile_context.profile_key) and _ticker_matches(entry.ticker, ticker):
+                candidates.append(("journal", entry, ""))
     timeline = inputs.catalyst_timeline
-    ticker = _ticker(inputs.report_payload.get("ticker"))
     if _catalyst_matches(timeline, ticker, inputs.profile_context.profile_key):
         for event in tuple(timeline.upcoming) + tuple(timeline.recent):
             candidates.append(("catalyst", event, ""))
@@ -503,17 +522,17 @@ def build_company_workbench_html_snapshot(inputs: CompanyWorkbenchHtmlInputs) ->
     report = _mapping(inputs.report_payload)
     ticker = _ticker(report.get("ticker"))
     generated_at = _iso(report.get("generated_at")) or "not recorded"
-    forward_cutoff = _iso(inputs.forward_view.source_cutoff) if _ticker(inputs.forward_view.ticker) == ticker else ""
+    forward_cutoff = _iso(inputs.forward_view.source_cutoff) if _ticker_matches(inputs.forward_view.ticker, ticker) else ""
     review_cutoff = forward_cutoff or (_iso(generated_at) if generated_at != "not recorded" else "") or _iso(inputs.profile_context.source_as_of) or "not recorded"
     provenance = _mapping(report.get("provenance"))
     model_version = _clean_text(report.get("method_version") or provenance.get("method_version"), "not recorded")
     financial = _mapping(report.get("financial_summary"))
     currency = _clean_text(financial.get("currency") or _mapping(report.get("price_snapshot")).get("currency"), "not recorded")
     scope_blockers: list[str] = []
-    selected_matches = _ticker(inputs.selected_answer.get("Ticker")) == ticker
+    selected_matches = _ticker_matches(inputs.selected_answer.get("Ticker"), ticker)
     if not selected_matches:
         scope_blockers.append("Selected answer ticker does not match report ticker.")
-    canonical = _canonical_scenarios(_mapping(report.get("valuation_snapshot")), currency)
+    canonical = _canonical_scenarios(_mapping(report.get("valuation_snapshot")) if ticker else {}, currency)
     accepted = _accepted_scenario(inputs.scenario_lab_result, ticker, inputs.profile_context.profile_key)
     if inputs.scenario_lab_result and not accepted:
         scope_blockers.append("Scenario Lab result is not an accepted matching changed calculation.")
@@ -531,7 +550,7 @@ def build_company_workbench_html_snapshot(inputs: CompanyWorkbenchHtmlInputs) ->
         HtmlBriefAnswer("Next research task", _clean_text(inputs.authoritative_task.get("title"), "Next research task"), _clean_text(inputs.authoritative_task.get("body"), "No portable task."), normalize_html_brief_state(inputs.authoritative_task.get("state")), tuple(safe_html_brief_text(item) for item in inputs.authoritative_task.get("badges", ()) if safe_html_brief_text(item)) if isinstance(inputs.authoritative_task.get("badges"), (list, tuple)) else ()),
     )
     evidence = _evidence_rows(inputs, accepted)
-    freshness = normalize_html_brief_state(inputs.observation_recency.selected_ticker.state) if inputs.observation_recency and _ticker(inputs.observation_recency.selected_ticker.scope) == ticker else normalize_html_brief_state(inputs.profile_context.freshness_state)
+    freshness = normalize_html_brief_state(inputs.observation_recency.selected_ticker.state) if inputs.observation_recency and _ticker_matches(inputs.observation_recency.selected_ticker.scope, ticker) else normalize_html_brief_state(inputs.profile_context.freshness_state)
     snapshot = CompanyWorkbenchHtmlSnapshot(ticker, _clean_text(inputs.profile_context.profile_label), review_cutoff, _clean_text(inputs.profile_context.source_as_of), generated_at, model_version, freshness, _rights_state(evidence), "Research-only, fail-closed portable brief; no recommendation, probability, or transaction action.", answers, _recency(inputs, ticker), _readiness(inputs, ticker, canonical["base"].bridge, generated_at, review_cutoff), scenarios, sensitivity, _research_sections(inputs, ticker), _decision_lanes(inputs.decision_lab_state, ticker, inputs.profile_context.profile_key), evidence, tuple(scope_blockers), "")
     payload = json.dumps(asdict(snapshot), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return replace(snapshot, identity=hashlib.sha256(payload.encode("utf-8")).hexdigest())
