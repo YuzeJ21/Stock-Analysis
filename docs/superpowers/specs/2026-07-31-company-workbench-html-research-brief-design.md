@@ -87,9 +87,11 @@ transaction or recommendation language.
 A non-null DCF calculation status alone is not sufficient to expose a per-share
 scenario value. The HTML display gate also requires a complete existing
 enterprise-to-equity bridge and a non-null existing per-share result. If cash
-and debt or net debt, diluted shares, or any other required bridge result is
-unavailable, the corresponding equity or per-share value remains visibly
-withheld.
+and debt or net debt, shares used by the existing model, or any other required
+bridge result is unavailable, the corresponding equity or per-share value
+remains visibly withheld. The renderer must not relabel `shares_outstanding` as
+diluted shares unless explicit source metadata proves that basis; an unverified
+share basis remains visibly disclosed.
 
 ## Snapshot Contract
 
@@ -102,7 +104,8 @@ The immutable snapshot contains only fields required by the approved brief:
 - existing Bear, Base, and Bull scenario assumptions and results;
 - projected free cash flows, discounted explicit cash-flow total, discounted
   terminal value, enterprise value, cash/debt or net-debt bridge state, equity
-  value, diluted-share state, and scenario value/share when supported;
+  value, the shares used by the existing model, their recorded basis state, and
+  scenario value/share when supported;
 - the existing WACC by terminal-growth sensitivity matrix;
 - business-trend, forward-view, catalyst, thesis, evidence, invalidation,
   review-trigger, outcome-learning, and next-task summaries;
