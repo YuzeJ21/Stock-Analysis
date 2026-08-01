@@ -1,5 +1,7 @@
 from dataclasses import replace
+from html.parser import HTMLParser
 from pathlib import Path
+import re
 
 import pytest
 
@@ -700,3 +702,153 @@ def test_real_snapshot_builder_does_not_call_available_loader_refresh_readiness_
     snapshot = build_company_workbench_html_snapshot(inputs)
 
     assert snapshot.ticker == "NVDA"
+
+
+class _BriefHtmlParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags = []
+        self.attrs = []
+        self.headings = []
+        self._heading = None
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.append(tag)
+        self.attrs.extend(attrs)
+        if tag in {"h1", "h2", "h3"}:
+            self._heading = tag
+
+    def handle_endtag(self, tag):
+        if tag == self._heading:
+            self._heading = None
+
+    def handle_data(self, data):
+        if self._heading:
+            self.headings.append((self._heading, data.strip()))
+
+
+def _render_snapshot():
+    report = _inputs().report_payload
+    report["provenance"]["source_records"] = [_source_record()]
+    return build_company_workbench_html_snapshot(_inputs(report))
+
+
+def test_renderer_has_fixed_research_section_order_and_uses_only_snapshot_values():
+    snapshot = _render_snapshot()
+
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    expected = (
+        "Overview",
+        "Answers",
+        "Scenarios",
+        "DCF bridge",
+        "Sensitivity",
+        "Business / forward view",
+        "Decision Lab",
+        "Advanced evidence",
+    )
+    positions = [rendered.index(f'data-section="{title.lower().replace(" / ", "-").replace(" ", "-")}"') for title in expected]
+    assert positions == sorted(positions)
+    assert "net debt" not in rendered.lower() or str(next(row for row in snapshot.scenarios if row.name == "Base").bridge.net_debt) in rendered
+
+
+def test_document_and_fragment_have_distinct_semantic_wrappers():
+    snapshot = _render_snapshot()
+    document = html_brief.render_company_workbench_html_document(snapshot)
+    fragment = html_brief.render_company_workbench_html_fragment(snapshot)
+    full = _BriefHtmlParser()
+    embedded = _BriefHtmlParser()
+    full.feed(document)
+    embedded.feed(fragment)
+
+    assert document.startswith("<!doctype html>")
+    assert full.tags.count("h1") == 1
+    assert {"html", "head", "body", "header", "main", "section", "table", "caption", "footer"} <= set(full.tags)
+    assert ('id', 'research-brief-main') in full.attrs
+    assert ('tabindex', '-1') in full.attrs
+    assert "Skip to research brief" in document
+    assert fragment.count('<article class="srcc-html-brief"') == 1
+    assert ("h2", "NVDA research brief") in embedded.headings
+    assert not {"html", "head", "body", "header", "main", "footer", "script"} & set(embedded.tags)
+    assert "Skip to research brief" not in fragment
+    assert "Content-Security-Policy" not in fragment
+
+
+def test_renderer_escapes_content_allows_only_validated_https_references_and_has_no_active_markup():
+    snapshot = _render_snapshot()
+    unsafe_answer = replace(snapshot.answers[0], body='<img src=x onerror="alert(1)">')
+    unsafe_row = replace(snapshot.evidence_rows[0], source_ref=html_brief.HtmlBriefSafeReference("Unsafe source", "javascript:alert(1)"))
+    rendered = html_brief.render_company_workbench_html_document(replace(snapshot, answers=(unsafe_answer,) + snapshot.answers[1:], evidence_rows=(unsafe_row,)))
+    safe_rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    parser = _BriefHtmlParser()
+    parser.feed(rendered)
+    assert "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;" in rendered
+    assert "javascript:" not in rendered
+    assert not {"script", "form", "iframe", "img"} & set(parser.tags)
+    assert not any(name.lower().startswith("on") for name, _ in parser.attrs)
+    assert 'href="https://sec.example/filing"' in safe_rendered
+    assert 'rel="noreferrer noopener"' in safe_rendered
+    assert "SEC-0000123456-26-000001" in safe_rendered
+    assert "url(" not in rendered.lower()
+    assert "/private/" not in rendered
+
+
+def test_renderer_states_numbers_and_dcf_values_are_explicit_without_recalculation():
+    snapshot = _render_snapshot()
+    base = next(row for row in snapshot.scenarios if row.name == "Base")
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert html_brief.format_html_brief_number(None) == "not recorded"
+    assert html_brief.format_html_brief_number(0, currency="USD") == "USD 0.00"
+    assert html_brief.format_html_brief_number(-2.5, percent=True) == "-250.0%"
+    assert html_brief.format_html_brief_number("") == "not recorded"
+    with pytest.raises(ValueError):
+        html_brief.format_html_brief_number(float("nan"))
+    assert "not recorded" in rendered
+    for state in ("complete", "partial", "withheld", "stale", "not recorded", "excluded"):
+        assert state in rendered
+    assert "State: withheld" in rendered
+    assert html_brief.format_html_brief_number(base.bridge.enterprise_value, currency=base.bridge.currency) in rendered
+    assert html_brief.format_html_brief_number(snapshot.sensitivity.value_grid[0][0], currency=base.bridge.currency) in rendered
+
+
+def test_renderer_css_is_scoped_and_contains_offline_accessibility_and_print_contracts():
+    snapshot = _render_snapshot()
+    fragment = html_brief.render_company_workbench_html_fragment(snapshot)
+    document = html_brief.render_company_workbench_html_document(snapshot)
+
+    fragment_css = fragment.split("<style>", 1)[1].split("</style>", 1)[0]
+    document_css = document.split("<style>", 1)[1].split("</style>", 1)[0]
+    for css, root in ((fragment_css, ".srcc-html-brief"), (document_css, ".srcc-html-document")):
+        selectors = [selector.strip() for selector in re.findall(r"(?m)^\s*(?!@)([^{}]+)\{", css)]
+        assert all(root in selector for selector in selectors)
+        assert not re.search(r"(?m)^\s*(?:table|th|td|\*)\s*\{", css)
+        assert ":focus-visible" in css
+        assert "@media print" in css
+        assert "@media (forced-colors: active)" in css
+        assert "@media (prefers-reduced-motion: reduce)" in css
+        assert "@media (max-width: 700px)" in css
+        assert "table-scroll" in css
+        assert "srcc-boundary" in css
+    assert "Research-only" in document
+    assert "body {" not in fragment_css
+    assert "body {" not in document_css
+
+
+def test_document_bytes_and_download_spec_are_deterministic_and_pathless():
+    snapshot = _render_snapshot()
+
+    first = html_brief.company_workbench_html_bytes(snapshot)
+    second = html_brief.company_workbench_html_bytes(snapshot)
+    spec = html_brief.company_workbench_html_download_spec(snapshot)
+
+    assert first == second
+    assert first == html_brief.render_company_workbench_html_document(snapshot).encode("utf-8")
+    assert spec.data == first
+    assert spec.file_name == "NVDA-2026-07-30-research-brief.html"
+    assert spec.mime == "text/html; charset=utf-8"
+    assert not hasattr(spec, "path")
+    assert "default-src 'none'; script-src 'none'; connect-src 'none'; img-src 'none'; style-src 'unsafe-inline'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" in html_brief.render_company_workbench_html_document(snapshot)
+    assert "frame-ancestors" not in html_brief.render_company_workbench_html_document(snapshot)

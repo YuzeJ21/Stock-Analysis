@@ -566,3 +566,292 @@ def company_workbench_html_filename(snapshot: CompanyWorkbenchHtmlSnapshot) -> s
     ticker = _ticker(snapshot.ticker) or "UNKNOWN"
     date = _date_part(snapshot.review_cutoff) or _date_part(snapshot.generated_at) or "undated"
     return f"{ticker}-{date}-research-brief.html"
+
+
+@dataclass(frozen=True)
+class HtmlBriefDownloadSpec:
+    """Pure download metadata for an already-rendered offline research brief."""
+
+    data: bytes
+    file_name: str
+    mime: str
+
+
+_HTML_BRIEF_STATE_LABELS = {
+    "available": "complete",
+    "partial": "partial",
+    "withheld": "withheld",
+    "stale": "stale",
+    "not_recorded": "not recorded",
+    "excluded": "excluded",
+}
+_HTML_BRIEF_CSP = "default-src 'none'; script-src 'none'; connect-src 'none'; img-src 'none'; style-src 'unsafe-inline'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+
+
+def _html_brief_text(value: object, fallback: str = "not recorded") -> str:
+    """Canonicalize an already-sanitized snapshot value for a markup context."""
+    if not isinstance(value, (str, int, float, bool)):
+        return fallback
+    # Snapshot construction stores escaped text. Unescaping before its final escape
+    # preserves ordinary text while also safely handling a manually-constructed snapshot.
+    return safe_html_brief_text(html.unescape(str(value))) or fallback
+
+
+def _html_brief_state(value: object) -> tuple[str, str]:
+    state = normalize_html_brief_state(value)
+    return state, _HTML_BRIEF_STATE_LABELS[state]
+
+
+def format_html_brief_number(value: object, *, currency: str = "", percent: bool = False) -> str:
+    """Format a recorded finite value without deriving any valuation value."""
+    if value is None or value == "":
+        return "not recorded"
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return "not recorded"
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError("HTML brief values must be finite before rendering")
+    if percent:
+        return f"{number * 100:.1f}%"
+    rendered = f"{number:,.2f}"
+    currency_label = _html_brief_text(currency, "") if currency else ""
+    return f"{currency_label} {rendered}".strip()
+
+
+def _html_brief_css(root: str) -> str:
+    return f"""
+{root} {{ color: #18222e; background: #ffffff; font-family: system-ui, sans-serif; line-height: 1.5; }}
+{root} *, {root} *::before, {root} *::after {{ box-sizing: border-box; }}
+{root} .srcc-brief-shell {{ max-width: 1120px; margin: 0 auto; padding: 1.5rem; }}
+{root} .srcc-brief-title {{ margin: 0; font-size: 1.7rem; }}
+{root} .srcc-brief-subtitle, {root} .srcc-boundary {{ margin: .45rem 0; }}
+{root} .srcc-boundary {{ border-inline-start: .35rem solid #305f83; padding-inline-start: .75rem; font-weight: 650; }}
+{root} .srcc-section {{ border: 1px solid #99a8b7; border-radius: .45rem; margin-top: 1rem; padding: 1rem; }}
+{root} .srcc-section > h2, {root} .srcc-section > h3 {{ margin-top: 0; }}
+{root} .srcc-card-grid {{ display: grid; gap: .75rem; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); }}
+{root} .srcc-card {{ border: 1px solid #99a8b7; border-radius: .35rem; padding: .75rem; }}
+{root} .srcc-state {{ border-inline-start: .35rem solid #495762; font-weight: 700; padding-inline-start: .45rem; text-transform: capitalize; }}
+{root} .srcc-state-available {{ border-color: #176b46; }}
+{root} .srcc-state-partial {{ border-color: #9a6700; }}
+{root} .srcc-state-withheld {{ border-color: #9d2020; }}
+{root} .srcc-state-stale {{ border-color: #6547a5; }}
+{root} .srcc-state-not_recorded {{ border-color: #495762; }}
+{root} .srcc-state-excluded {{ border-color: #396c91; }}
+{root} .srcc-meta {{ display: grid; gap: .35rem; grid-template-columns: max-content 1fr; }}
+{root} .srcc-meta dt {{ font-weight: 700; }}
+{root} .srcc-meta dd {{ margin: 0; overflow-wrap: anywhere; }}
+{root} .table-scroll {{ overflow-x: auto; }}
+{root} .srcc-table {{ border-collapse: collapse; min-width: 38rem; width: 100%; }}
+{root} .srcc-table th, {root} .srcc-table td {{ border: 1px solid #99a8b7; padding: .45rem; text-align: left; vertical-align: top; }}
+{root} .srcc-table caption {{ caption-side: top; font-weight: 700; padding-bottom: .45rem; text-align: left; }}
+{root} a {{ color: #075a9c; overflow-wrap: anywhere; }}
+{root} :focus-visible {{ outline: .2rem solid #d04a00; outline-offset: .15rem; }}
+{root} .srcc-blockers {{ margin-bottom: 0; }}
+{root} .srcc-skip-link {{ background: #ffffff; left: .5rem; padding: .5rem; position: absolute; top: -4rem; }}
+{root} .srcc-skip-link:focus-visible {{ top: .5rem; }}
+@media (max-width: 700px) {{
+  {root} .srcc-brief-shell {{ padding: .75rem; }}
+  {root} .srcc-card-grid {{ grid-template-columns: 1fr; }}
+  {root} .srcc-meta {{ grid-template-columns: 1fr; }}
+  {root} .srcc-table {{ min-width: 32rem; }}
+}}
+@media (forced-colors: active) {{
+  {root} .srcc-section, {root} .srcc-card, {root} .srcc-table th, {root} .srcc-table td {{ border-color: CanvasText; }}
+  {root} .srcc-state, {root} .srcc-boundary {{ border-color: CanvasText; }}
+}}
+@media (prefers-reduced-motion: reduce) {{
+  {root} *, {root} *::before, {root} *::after {{ animation-duration: .01ms !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }}
+}}
+@media print {{
+  {root} {{ background: #ffffff; color: #000000; }}
+  {root} .srcc-skip-link {{ display: none; }}
+  {root} .srcc-section, {root} .srcc-card {{ break-inside: avoid; }}
+  {root} .srcc-advanced-evidence, {root} .srcc-boundary {{ display: block; }}
+}}
+""".strip()
+
+
+def _html_brief_state_markup(state: object) -> str:
+    normalized, label = _html_brief_state(state)
+    return f'<p class="srcc-state srcc-state-{normalized}">State: {label}</p>'
+
+
+def _html_brief_blockers(blockers: tuple[str, ...]) -> str:
+    if not blockers:
+        return ""
+    rows = "".join(f"<li>{_html_brief_text(item)}</li>" for item in blockers)
+    return f'<ul class="srcc-blockers"><li>Blockers</li><li><ul>{rows}</ul></li></ul>'
+
+
+def _html_brief_section_card(section: HtmlBriefSection) -> str:
+    facts = ""
+    if section.facts:
+        facts = '<dl class="srcc-meta">' + "".join(
+            f"<dt>{_html_brief_text(label)}</dt><dd>{_html_brief_text(value)}</dd>" for label, value in section.facts
+        ) + "</dl>"
+    return (
+        '<article class="srcc-card">'
+        f"<h3>{_html_brief_text(section.title)}</h3>"
+        f"{_html_brief_state_markup(section.state)}"
+        f"<p>{_html_brief_text(section.answer, 'No portable evidence recorded.')}</p>"
+        f"{facts}{_html_brief_blockers(section.blockers)}"
+        "</article>"
+    )
+
+
+def _html_brief_section_cards(sections: tuple[HtmlBriefSection, ...]) -> str:
+    return '<div class="srcc-card-grid">' + "".join(_html_brief_section_card(section) for section in sections) + "</div>"
+
+
+def _html_brief_reference_markup(reference: HtmlBriefSafeReference) -> str:
+    safe = safe_html_brief_reference({"label": html.unescape(str(reference.label)), "href": reference.href})
+    label = safe.label or "not recorded"
+    if safe.href:
+        return f'<a href="{html.escape(safe.href, quote=True)}" rel="noreferrer noopener">{label}</a>'
+    return label
+
+
+def _html_brief_content(snapshot: CompanyWorkbenchHtmlSnapshot, *, heading_level: int) -> str:
+    heading = f"h{heading_level}"
+    base = next((scenario for scenario in snapshot.scenarios if scenario.name == "Base"), None)
+    overview = (
+        '<section class="srcc-section" data-section="overview">'
+        f"<{heading}>Overview</{heading}>"
+        f"{_html_brief_state_markup(snapshot.freshness_state)}"
+        '<dl class="srcc-meta">'
+        f"<dt>Ticker</dt><dd>{_html_brief_text(snapshot.ticker, 'not recorded')}</dd>"
+        f"<dt>Profile</dt><dd>{_html_brief_text(snapshot.profile_label)}</dd>"
+        f"<dt>Review cutoff</dt><dd>{_html_brief_text(snapshot.review_cutoff)}</dd>"
+        f"<dt>Source as of</dt><dd>{_html_brief_text(snapshot.source_as_of)}</dd>"
+        f"<dt>Generated at</dt><dd>{_html_brief_text(snapshot.generated_at)}</dd>"
+        f"<dt>Model version</dt><dd>{_html_brief_text(snapshot.model_version)}</dd>"
+        "</dl>"
+        f"{_html_brief_blockers(snapshot.blockers)}"
+        "</section>"
+    )
+    answers = '<section class="srcc-section" data-section="answers">' + f"<{heading}>Answers</{heading}>" + '<div class="srcc-card-grid">' + "".join(
+        '<article class="srcc-card">'
+        f"<h3>{_html_brief_text(answer.title)}</h3>{_html_brief_state_markup(answer.state)}"
+        f"<p>{_html_brief_text(answer.body, 'No portable answer.')}</p>"
+        "</article>" for answer in snapshot.answers
+    ) + "</div></section>"
+    scenario_rows = "".join(
+        "<tr>"
+        f"<th scope=\"row\">{_html_brief_text(scenario.name)}</th>"
+        f"<td>{_html_brief_state_markup(scenario.state)}</td>"
+        f"<td>{_html_brief_text(scenario.method_name)}</td>"
+        f"<td>{format_html_brief_number(scenario.revenue_growth, percent=True)}</td>"
+        f"<td>{format_html_brief_number(scenario.fcf_margin, percent=True)}</td>"
+        f"<td>{format_html_brief_number(scenario.wacc, percent=True)}</td>"
+        f"<td>{format_html_brief_number(scenario.terminal_growth, percent=True)}</td>"
+        "</tr>" for scenario in snapshot.scenarios
+    )
+    scenarios = (
+        '<section class="srcc-section" data-section="scenarios">'
+        f"<{heading}>Scenarios</{heading}><div class=\"table-scroll\"><table class=\"srcc-table\"><caption>Supplied scenario assumptions</caption>"
+        "<thead><tr><th>Scenario</th><th>State</th><th>Method</th><th>Revenue growth</th><th>FCF margin</th><th>WACC</th><th>Terminal growth</th></tr></thead>"
+        f"<tbody>{scenario_rows}</tbody></table></div></section>"
+    )
+    bridge_values = () if base is None else (
+        ("Discounted explicit total", base.bridge.discounted_explicit_total, base.bridge.explicit_total_state),
+        ("Terminal value", base.bridge.terminal_value, base.bridge.enterprise_state),
+        ("Discounted terminal value", base.bridge.discounted_terminal_value, base.bridge.enterprise_state),
+        ("Enterprise value", base.bridge.enterprise_value, base.bridge.enterprise_state),
+        ("Cash", base.bridge.cash, base.bridge.equity_state),
+        ("Debt", base.bridge.debt, base.bridge.equity_state),
+        ("Net debt", base.bridge.net_debt, base.bridge.equity_state),
+        ("Equity value", base.bridge.equity_value, base.bridge.equity_state),
+        (base.bridge.shares_label, base.bridge.shares_outstanding, base.bridge.share_basis_state),
+        ("Supplied value per share", base.bridge.scenario_value_per_share, base.bridge.per_share_state),
+    )
+    bridge_rows = "".join(
+        f"<tr><th scope=\"row\">{_html_brief_text(label)}</th><td>{format_html_brief_number(value, currency=base.bridge.currency if base else '')}</td><td>{_html_brief_state_markup(state)}</td></tr>"
+        for label, value, state in bridge_values
+    )
+    bridge = (
+        '<section class="srcc-section" data-section="dcf-bridge">'
+        f"<{heading}>DCF bridge</{heading}>{_html_brief_state_markup(base.bridge.state if base else 'withheld')}"
+        '<div class="table-scroll"><table class="srcc-table"><caption>Supplied Base DCF bridge values</caption><thead><tr><th>Field</th><th>Recorded value</th><th>State</th></tr></thead>'
+        f"<tbody>{bridge_rows}</tbody></table></div>{_html_brief_blockers(base.bridge.blockers if base else ('Base scenario is not recorded.',))}</section>"
+    )
+    sensitivity_headers = "".join(f"<th>{format_html_brief_number(value, percent=True)}</th>" for value in snapshot.sensitivity.terminal_growth_values)
+    sensitivity_rows = "".join(
+        f"<tr><th scope=\"row\">{format_html_brief_number(wacc, percent=True)}</th>" + "".join(
+            f"<td>{format_html_brief_number(value, currency=base.bridge.currency if base else '')}</td>" for value in row
+        ) + "</tr>" for wacc, row in zip(snapshot.sensitivity.wacc_values, snapshot.sensitivity.value_grid)
+    )
+    sensitivity = (
+        '<section class="srcc-section" data-section="sensitivity">'
+        f"<{heading}>Sensitivity</{heading}>{_html_brief_state_markup(snapshot.sensitivity.state)}"
+        '<div class="table-scroll"><table class="srcc-table"><caption>Supplied sensitivity grid</caption><thead><tr><th>WACC / terminal growth</th>'
+        f"{sensitivity_headers}</tr></thead><tbody>{sensitivity_rows}</tbody></table></div>{_html_brief_blockers(snapshot.sensitivity.blockers)}</section>"
+    )
+    business = (
+        '<section class="srcc-section" data-section="business-forward-view">'
+        f"<{heading}>Business / forward view</{heading}>"
+        f"{_html_brief_section_cards((snapshot.recency,) + snapshot.readiness_lanes + snapshot.research_sections)}"
+        "</section>"
+    )
+    decision = (
+        '<section class="srcc-section" data-section="decision-lab">'
+        f"<{heading}>Decision Lab</{heading}>{_html_brief_section_cards(snapshot.decision_lanes)}</section>"
+    )
+    evidence_rows = "".join(
+        "<tr>"
+        f"<td>{_html_brief_text(row.section)}</td><td>{_html_brief_state_markup(row.state)}</td>"
+        f"<td>{_html_brief_text(row.source_id)}</td><td>{_html_brief_reference_markup(row.source_ref)}</td>"
+        f"<td>{_html_brief_text(row.as_of)}</td><td>{_html_brief_text(row.retrieved_at)}</td>"
+        f"<td>{_html_brief_text(row.rights_state)}</td><td>{_html_brief_text(row.field_scope_state)}</td>"
+        "</tr>" for row in snapshot.evidence_rows
+    ) or "<tr><td colspan=\"8\">No portable evidence recorded.</td></tr>"
+    evidence = (
+        '<section class="srcc-section srcc-advanced-evidence" data-section="advanced-evidence">'
+        f"<{heading}>Advanced evidence</{heading}>{_html_brief_state_markup(snapshot.rights_state)}"
+        '<div class="table-scroll"><table class="srcc-table"><caption>Portable evidence provenance</caption><thead><tr><th>Section</th><th>State</th><th>Source ID</th><th>Reference</th><th>As of</th><th>Retrieved</th><th>Rights</th><th>Field scope</th></tr></thead>'
+        f"<tbody>{evidence_rows}</tbody></table></div></section>"
+    )
+    return overview + answers + scenarios + bridge + sensitivity + business + decision + evidence
+
+
+def render_company_workbench_html_fragment(snapshot: CompanyWorkbenchHtmlSnapshot) -> str:
+    """Render a self-contained, scoped HTML fragment from a frozen snapshot only."""
+    title = f"{_html_brief_text(snapshot.ticker, 'Research')} research brief"
+    return (
+        f"<style>{_html_brief_css('.srcc-html-brief')}</style>"
+        '<article class="srcc-html-brief" aria-labelledby="srcc-brief-title"><div class="srcc-brief-shell">'
+        f'<h2 id="srcc-brief-title" class="srcc-brief-title">{title}</h2>'
+        f'<p class="srcc-boundary">{_html_brief_text(snapshot.boundary)}</p>'
+        f"{_html_brief_content(snapshot, heading_level=3)}"
+        "</div></article>"
+    )
+
+
+def render_company_workbench_html_document(snapshot: CompanyWorkbenchHtmlSnapshot) -> str:
+    """Render a deterministic, offline full document from a frozen snapshot only."""
+    title = f"{_html_brief_text(snapshot.ticker, 'Research')} research brief"
+    return (
+        "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+        f"<meta http-equiv=\"Content-Security-Policy\" content=\"{_HTML_BRIEF_CSP}\">"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
+        f"<title>{title}</title><style>{_html_brief_css('.srcc-html-document')}</style></head>"
+        '<body class="srcc-html-document"><a class="srcc-skip-link" href="#research-brief-main">Skip to research brief</a>'
+        '<header class="srcc-brief-shell"><h1 class="srcc-brief-title">'
+        f"{title}</h1><p class=\"srcc-boundary\">{_html_brief_text(snapshot.boundary)}</p></header>"
+        f'<main id="research-brief-main" tabindex="-1" class="srcc-brief-shell">{_html_brief_content(snapshot, heading_level=2)}</main>'
+        '<footer class="srcc-brief-shell"><p>Portable offline research brief. Review source evidence and stated boundaries.</p></footer>'
+        "</body></html>"
+    )
+
+
+def company_workbench_html_bytes(snapshot: CompanyWorkbenchHtmlSnapshot) -> bytes:
+    """Return deterministic UTF-8 bytes for the full offline document."""
+    return render_company_workbench_html_document(snapshot).encode("utf-8")
+
+
+def company_workbench_html_download_spec(snapshot: CompanyWorkbenchHtmlSnapshot) -> HtmlBriefDownloadSpec:
+    """Return download data only; callers own any user-initiated save operation."""
+    return HtmlBriefDownloadSpec(
+        data=company_workbench_html_bytes(snapshot),
+        file_name=company_workbench_html_filename(snapshot),
+        mime="text/html; charset=utf-8",
+    )
