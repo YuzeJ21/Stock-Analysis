@@ -34462,6 +34462,78 @@ def test_scenario_lab_detailed_controls_receive_the_prepared_current_session():
     assert render_source.count("render_scenario_lab(scenario_session)") == 1
 
 
+def test_company_workbench_html_brief_uses_the_prepared_session_and_loaded_evidence_only():
+    """Catches a duplicate scenario calculation or a newly inferred/loaded brief input."""
+
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_index)
+    render_source = source[render_index:render_end]
+
+    next_task = render_source.index('st.markdown("## Next Research Task")')
+    brief = render_source.index('st.expander("HTML Research Brief", expanded=False)', next_task)
+    detail_gate = render_source.index("if public_mode and report_payload", brief)
+    prepared = render_source.index("scenario_session = run_scenario_lab_from_state(")
+    detailed = render_source.index("render_scenario_lab(scenario_session)")
+
+    assert prepared < next_task < brief < detail_gate < detailed
+    assert "scenario_lab_result=scenario_session.result" in render_source
+    assert 'selected_answer["state"] = report_one_answer_snapshot["status"]' in render_source
+    assert render_source.count("run_scenario_lab_from_state(") == 1
+    assert render_source.count("render_scenario_lab(scenario_session)") == 1
+    assert "company_name" not in render_source[next_task:detail_gate]
+    assert "OutcomeStatus" not in render_source[next_task:detail_gate]
+    assert "analyst_estimates_readiness" not in render_source[next_task:detail_gate]
+
+
+def test_company_workbench_html_brief_passes_observation_recency_without_reloading_it():
+    """Catches dropping the route's existing recency object or copying its source path."""
+
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_index = source.index("def render_single_stock_report(")
+    render_end = source.index("\ndef render_data_health(", render_index)
+    render_source = source[render_index:render_end]
+    workbench_index = source.index("def render_company_workbench(")
+    workbench_end = source.index("\ndef render_personal_research_route(", workbench_index)
+    workbench_source = source[workbench_index:workbench_end]
+
+    assert "observation_recency: ObservationRecencySet | None = None" in render_source
+    assert "observation_recency=observation_recency" in workbench_source
+    brief_start = render_source.index("CompanyWorkbenchHtmlInputs(")
+    brief_end = render_source.index(")", brief_start)
+    brief_inputs = render_source[brief_start:brief_end]
+    assert "observation_recency=observation_recency" in brief_inputs
+    assert "load_observation_recency" not in render_source
+    assert "source_path" not in brief_inputs
+
+
+def test_company_workbench_html_brief_ordinary_source_has_no_writer_or_refresh_surface():
+    """Catches adding a path-backed export or mutation call to the ordinary Workbench brief."""
+
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    report_index = source.index("def render_single_stock_report(")
+    report_end = source.index("\ndef render_data_health(", report_index)
+    report_source = source[report_index:report_end]
+    brief_start = report_source.index("CompanyWorkbenchHtmlInputs(")
+    brief_end = report_source.index("if public_mode and report_payload", brief_start)
+    brief_source = report_source[brief_start:brief_end]
+
+    prohibited = (
+        "outputs/",
+        "data/reports/",
+        ".write_text(",
+        ".write_bytes(",
+        "open(",
+        "refresh_",
+        "build_ticker_readiness_report(",
+        "import_",
+        "apply_",
+        "append_",
+        "record_",
+    )
+    assert not [token for token in prohibited if token in brief_source]
+
+
 def test_scenario_lab_adapter_is_imported_once_and_dashboard_never_calculates_directly():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

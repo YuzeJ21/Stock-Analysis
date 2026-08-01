@@ -371,6 +371,12 @@ from src.company_workbench_cash_generation_preview import (
 from src.company_workbench_cash_generation_preview_loader import (
     load_company_workbench_cash_generation_preview,
 )
+from src.company_workbench_html import (
+    CompanyWorkbenchHtmlInputs,
+    build_company_workbench_html_snapshot,
+    company_workbench_html_download_spec,
+    render_company_workbench_html_fragment,
+)
 from src.research_workspace import (
     advanced_evidence_links_html,
     cash_generation_preview_cards,
@@ -30915,6 +30921,7 @@ def render_single_stock_report(
     research_review_items=(),
     quarterly_trend_packet: QuarterlyTrendPacket | None = None,
     cash_generation_preview: CompanyWorkbenchCashGenerationPreview | None = None,
+    observation_recency: ObservationRecencySet | None = None,
     selected_answer_target=None,
 ) -> None:
     show_card_commands = not public_mode
@@ -31433,6 +31440,45 @@ def render_single_stock_report(
                 show_commands=False,
                 variant="queue",
             )
+            selected_answer = single_answer_frame.iloc[0].to_dict()
+            selected_answer["state"] = report_one_answer_snapshot["status"]
+            html_brief_snapshot = build_company_workbench_html_snapshot(
+                CompanyWorkbenchHtmlInputs(
+                    report_payload=report_payload,
+                    profile_context=selected_context,
+                    observation_recency=observation_recency,
+                    selected_answer=selected_answer,
+                    authoritative_task=authoritative_task,
+                    scenario_lab_result=scenario_session.result,
+                    nowcast_packet=nowcast_packet,
+                    decision_lab_state=decision_lab_state,
+                    quarterly_trend=trend_packet,
+                    forward_view=forward_view_packet,
+                    journal_state=journal_state,
+                    valuation_regime=valuation_regime,
+                    catalyst_timeline=catalyst_timeline,
+                )
+            )
+            html_brief_fragment = render_company_workbench_html_fragment(
+                html_brief_snapshot
+            )
+            html_brief_download = company_workbench_html_download_spec(
+                html_brief_snapshot
+            )
+            with st.expander("HTML Research Brief", expanded=False):
+                st.caption(
+                    "This brief is a snapshot of current saved evidence and Python scenario math; "
+                    "it is not a recommendation or current-market claim."
+                )
+                st.html(html_brief_fragment, unsafe_allow_javascript=False)
+                st.download_button(
+                    "Download HTML Research Brief",
+                    data=html_brief_download.data,
+                    file_name=html_brief_download.file_name,
+                    mime=html_brief_download.mime,
+                    key=f"company-workbench-html:{selected_context.profile_key}:{ticker}",
+                    on_click="ignore",
+                )
     if public_mode and report_payload and not single_stock_detail_sections_visible(ticker):
         render_context_note(
             "Detailed report stays closed.",
@@ -35578,6 +35624,7 @@ def render_company_workbench(
         research_review_items=state.get("queue") or (),
         quarterly_trend_packet=load_dashboard_quarterly_trend(ticker),
         cash_generation_preview=cash_generation_preview,
+        observation_recency=observation_recency,
         selected_answer_target=selected_answer_target,
     )
     st.markdown("## Advanced Evidence")

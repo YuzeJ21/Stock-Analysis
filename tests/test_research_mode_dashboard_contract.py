@@ -1223,6 +1223,27 @@ def test_company_workbench_uses_one_authoritative_task_arbitration():
     assert composition.count('"kicker": "ONE NEXT TASK"') == 1
 
 
+def test_company_workbench_html_brief_is_research_only_and_precedes_the_detail_gate():
+    """Catches exposing the portable brief in public/operator report routes or after early return."""
+
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    report_start = source.index("def render_single_stock_report(")
+    report_end = source.index("\ndef render_data_health(", report_start)
+    report = source[report_start:report_end]
+
+    research_block = report.index("if research_mode:")
+    next_task = report.index('st.markdown("## Next Research Task")', research_block)
+    brief = report.index('st.expander("HTML Research Brief", expanded=False)', next_task)
+    detail_gate = report.index("if public_mode and report_payload", brief)
+
+    assert research_block < next_task < brief < detail_gate
+    assert report.count('st.expander("HTML Research Brief", expanded=False)') == 1
+    assert report.count('"Download HTML Research Brief"') == 1
+    assert 'unsafe_allow_javascript=False' in report[brief:detail_gate]
+    assert 'on_click="ignore"' in report[brief:detail_gate]
+    assert 'key=f"company-workbench-html:{selected_context.profile_key}:{ticker}"' in report[brief:detail_gate]
+
+
 def test_company_workbench_change_badge_uses_explicit_change_context_kind():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     change_start = source.index('change_answer = company_change_answer(ticker, research_review_items)')

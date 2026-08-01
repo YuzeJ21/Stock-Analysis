@@ -2,6 +2,7 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from streamlit.testing.v1 import AppTest
 
 from src.company_workbench_cash_generation_preview import (
@@ -424,6 +425,208 @@ def test_authoring_composer_renders_once_only_in_closed_research_company_workben
 
     assert not operator_report.exception
     assert not any(item.label == "Add a reviewed research record" for item in operator_report.expander)
+
+
+def _html_brief_app(*, mode: str = "research", ticker: str = "NVDA", open_report: bool = True) -> AppTest:
+    app = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    query = {"mode": mode, "page": "company-workbench", "ticker": ticker}
+    if open_report:
+        query["open"] = "1"
+    app.query_params.update(query)
+    return app.run(timeout=120)
+
+
+def test_company_workbench_html_brief_is_one_collapsed_research_only_in_memory_surface():
+    """Catches a missing, duplicated, expanded, or non-research HTML brief surface."""
+
+    workbench = _html_brief_app()
+
+    assert not workbench.exception
+    expanders = [item for item in workbench.expander if item.label == "HTML Research Brief"]
+    buttons = [
+        item
+        for item in workbench.get("download_button")
+        if item.label == "Download HTML Research Brief"
+    ]
+    fragments = [
+        item.proto.body
+        for item in workbench.get("html")
+        if "class=\"srcc-html-brief\"" in item.proto.body
+    ]
+    assert len(expanders) == 1
+    assert expanders[0].proto.expanded is False
+    assert len(buttons) == 1
+    assert len(fragments) == 1
+    assert fragments[0].startswith("<style>")
+    assert '<article class="srcc-html-brief"' in fragments[0]
+    assert "<script" not in fragments[0].lower()
+    assert "file://" not in fragments[0].lower()
+    assert "/Users/" not in fragments[0]
+
+    for mode in ("public", "operator"):
+        other = AppTest.from_file("src/dashboard.py", default_timeout=120)
+        other.query_params.update(
+            {"mode": mode, "page": "single-stock-report", "ticker": "NVDA", "open": "1"}
+        )
+        other.run(timeout=120)
+        assert not other.exception
+        assert not any(item.label == "HTML Research Brief" for item in other.expander)
+        assert not any(
+            item.label == "Download HTML Research Brief"
+            for item in other.get("download_button")
+        )
+
+    closed = _html_brief_app(open_report=False)
+    assert not closed.exception
+    assert not any(item.label == "HTML Research Brief" for item in closed.expander)
+
+
+@pytest.mark.parametrize(
+    ("ticker", "bridge_class", "bridge_text"),
+    (
+        ("NVDA", "srcc-state-available", "State: complete"),
+        ("AAME", "srcc-state-partial", "State: partial"),
+        ("SPY", "srcc-state-withheld", "State: withheld"),
+    ),
+)
+def test_company_workbench_html_brief_renders_complete_partial_and_withheld_bridges(
+    ticker, bridge_class, bridge_text
+):
+    """Catches collapsing an independently gated DCF bridge into a generic state."""
+
+    app = _html_brief_app(ticker=ticker)
+    fragments = [
+        item.proto.body
+        for item in app.get("html")
+        if "class=\"srcc-html-brief\"" in item.proto.body
+    ]
+
+    assert not app.exception
+    assert len(fragments) == 1
+    bridge = fragments[0].split('data-section="dcf-bridge"', 1)[1].split(
+        "</section>", 1
+    )[0]
+    assert bridge_class in bridge
+    assert bridge_text in bridge
+
+
+def test_company_workbench_html_brief_renders_the_prepared_modified_session_result():
+    """Catches ignoring the prepared session result or recalculating from canonical report state."""
+
+    app = AppTest.from_string(
+        """
+from pathlib import Path
+import streamlit as st
+from src.dashboard import (
+    build_profile_context,
+    build_provider,
+    build_stock_report,
+    render_single_stock_report,
+)
+from src.scenario_lab_session import scenario_lab_widget_keys
+
+context = build_profile_context(project_root=Path('.'))
+provider = build_provider('local', base_dir=Path('.'))
+report = build_stock_report('NVDA', provider).to_dict()
+report['asset_type'] = 'company'
+report['valuation_snapshot']['source_metadata'] = [{
+    'source': 'synthetic-test-only-reviewed-source',
+    'source_ref': 'https://example.com/nvda-source',
+    'as_of_date': '2026-06-30',
+}]
+st.session_state['single_stock_report_payload'] = report
+st.session_state['single_stock_report_ticker'] = 'NVDA'
+st.session_state['single_stock_report_provider'] = 'local'
+keys = scenario_lab_widget_keys(context.profile_key, 'NVDA')
+st.session_state[keys['wacc']] = 0.15
+render_single_stock_report(
+    None,
+    False,
+    public_mode=True,
+    profile_context=context,
+    research_mode=True,
+)
+""",
+        default_timeout=120,
+    )
+    app.query_params.update({"ticker": "NVDA", "open": "1"})
+    app.run(timeout=120)
+
+    fragments = [
+        item.proto.body
+        for item in app.get("html")
+        if "class=\"srcc-html-brief\"" in item.proto.body
+    ]
+    assert not app.exception
+    assert len(fragments) == 1
+    base_row = fragments[0].split('<th scope="row">Base</th>', 1)[1].split(
+        "</tr>", 1
+    )[0]
+    assert "15.0%" in base_row
+    assert "9.0%" not in base_row
+
+
+def test_company_workbench_download_button_receives_the_pure_spec_exactly():
+    """Catches changing bytes, MIME, filename, key, or click behavior at the Streamlit boundary."""
+
+    import streamlit as st
+    from src.company_workbench_html import company_workbench_html_download_spec
+
+    captured_snapshots = []
+    captured_downloads = []
+    from src import company_workbench_html as html_brief
+
+    real_builder = html_brief.build_company_workbench_html_snapshot
+    real_download = st.download_button
+
+    def capture_builder(inputs):
+        snapshot = real_builder(inputs)
+        captured_snapshots.append(snapshot)
+        return snapshot
+
+    def capture_download(*args, **kwargs):
+        captured_downloads.append((args, kwargs))
+        return real_download(*args, **kwargs)
+
+    with patch.object(html_brief, "build_company_workbench_html_snapshot", side_effect=capture_builder), patch.object(
+        st, "download_button", side_effect=capture_download
+    ):
+        app = _html_brief_app()
+
+    assert not app.exception
+    assert len(captured_snapshots) == 1
+    assert len(captured_downloads) == 1
+    expected = company_workbench_html_download_spec(captured_snapshots[0])
+    args, kwargs = captured_downloads[0]
+    assert args == ("Download HTML Research Brief",)
+    assert kwargs["data"] == expected.data
+    assert kwargs["file_name"] == expected.file_name
+    assert kwargs["mime"] == expected.mime
+    assert kwargs["key"] == "company-workbench-html:default:NVDA"
+    assert kwargs["on_click"] == "ignore"
+
+
+@pytest.mark.parametrize(
+    "target",
+    (
+        "src.data_update.refresh_price_update_status_output",
+        "src.readiness_engine.build_ticker_readiness_report",
+        "src.stock_report.build_stock_report_markdown",
+        "pathlib.Path.write_text",
+        "src.research_thesis_journal.append_journal_entry",
+        "src.catalyst_evidence_timeline.append_reviewed_event",
+        "requests.sessions.Session.request",
+        "src.providers.yfinance_provider.YFinanceProvider.__init__",
+    ),
+)
+def test_company_workbench_html_brief_does_not_enter_mutating_or_external_paths(target):
+    """Catches an ordinary preview that refreshes, writes, records, or contacts a provider."""
+
+    with patch(target, side_effect=AssertionError(f"ordinary HTML brief called {target}")):
+        app = _html_brief_app()
+
+    assert not app.exception
+    assert any(item.label == "HTML Research Brief" for item in app.expander)
 
 
 def test_monitor_renders_research_discipline_after_weekly_summary_without_ranking():
