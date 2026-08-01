@@ -588,20 +588,20 @@ def test_modal_passive_language_is_withheld_from_every_passive_portable_field_su
 
 def test_modal_passive_nowcast_verdict_is_not_emitted_and_cannot_promote_eligible_lane():
     unsafe = "Shares should be bought now."
-    baseline = _snapshot_with_portable_field_text("nowcast_verdict", "reviewable")
+    absent = _snapshot_with_portable_field_text("nowcast_verdict", "")
     snapshot = _snapshot_with_portable_field_text("nowcast_verdict", unsafe)
     fragment = html_brief.render_company_workbench_html_fragment(snapshot)
     document = html_brief.render_company_workbench_html_document(snapshot)
     download = html_brief.company_workbench_html_bytes(snapshot)
-    baseline_lanes = {row.key: row for row in baseline.readiness_lanes}
+    absent_lanes = {row.key: row for row in absent.readiness_lanes}
     lanes = {row.key: row for row in snapshot.readiness_lanes}
 
     assert unsafe not in repr(snapshot)
     assert unsafe not in fragment
     assert unsafe not in document
     assert unsafe.encode("utf-8") not in download
-    assert lanes["backtesting"].state == baseline_lanes["backtesting"].state == "partial"
-    assert _portable_state_signature(snapshot) == _portable_state_signature(baseline)
+    assert lanes["backtesting"].state == absent_lanes["backtesting"].state == "withheld"
+    assert _portable_state_signature(snapshot) == _portable_state_signature(absent)
 
 
 @pytest.mark.parametrize(

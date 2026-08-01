@@ -83,6 +83,15 @@ _PASSIVE_ATTRIBUTION_VERBS = frozenset(
 )
 _PASSIVE_ATTRIBUTION_ACTORS = frozenset({"companies", "company", "issuer", "issuers"})
 _PASSIVE_ATTRIBUTION_ARTICLES = frozenset({"a", "an", "the"})
+_PASSIVE_ATTRIBUTION_CONTEXTS = frozenset({"historical", "past"})
+_PASSIVE_PAST_AUXILIARIES = frozenset({"was", "were"})
+_PASSIVE_ADVERBS = frozenset(
+    {
+        "already", "also", "carefully", "commonly", "ever", "immediately", "just", "materially",
+        "quietly", "still", "strategically", "then",
+    }
+)
+_PASSIVE_REFERENCE_PHRASES = (("ordered", "by", "market", "capitalization"),)
 _APPROVED_NEGATED_BOUNDARIES = (
     ("no", "recommendation"),
     ("no", "buy", "sell", "instruction"),
@@ -444,6 +453,10 @@ def _is_descriptive_direct_passive_attribution(
     action_index: int,
 ) -> bool:
     lead_in = tokens[:endpoint_index]
+    if tokens[endpoint_index + 1].text not in _PASSIVE_PAST_AUXILIARIES:
+        return False
+    if not any(token.text in _PASSIVE_ATTRIBUTION_CONTEXTS for token in lead_in):
+        return False
     if not any(token.text in _PASSIVE_ATTRIBUTION_SUBJECTS for token in lead_in):
         return False
     if not any(token.text in _PASSIVE_ATTRIBUTION_VERBS for token in lead_in):
@@ -454,6 +467,18 @@ def _is_descriptive_direct_passive_attribution(
     if actor_index < len(tokens) and tokens[actor_index].text in _PASSIVE_ATTRIBUTION_ARTICLES:
         actor_index += 1
     return actor_index < len(tokens) and tokens[actor_index].text in _PASSIVE_ATTRIBUTION_ACTORS
+
+
+def _is_passive_adverb(text: str) -> bool:
+    return text in _PASSIVE_ADVERBS
+
+
+def _is_passive_reference_phrase(tokens: tuple[_ActionToken, ...], action_index: int) -> bool:
+    token_texts = _token_texts(tokens)
+    return any(
+        token_texts[action_index : action_index + len(phrase)] == phrase
+        for phrase in _PASSIVE_REFERENCE_PHRASES
+    )
 
 
 def _contains_modal_passive_action(tokens: tuple[_ActionToken, ...]) -> bool:
@@ -473,6 +498,8 @@ def _contains_modal_passive_action(tokens: tuple[_ActionToken, ...]) -> bool:
                 if text in action_starts:
                     if not has_auxiliary:
                         break
+                    if _is_passive_reference_phrase(tokens, action_index):
+                        break
                     if (
                         not has_modal
                         and _is_descriptive_direct_passive_attribution(tokens, endpoint_index, action_index)
@@ -484,6 +511,9 @@ def _contains_modal_passive_action(tokens: tuple[_ActionToken, ...]) -> bool:
                     continue
                 if text in _PASSIVE_MODALS or text in _PASSIVE_NEGATIONS:
                     continue
+                if _is_passive_adverb(text):
+                    continue
+                break
     return False
 
 

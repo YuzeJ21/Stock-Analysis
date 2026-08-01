@@ -437,7 +437,11 @@ def _nowcast_lanes(packet: Mapping[str, object] | None, report: Mapping[str, obj
     calibration_state = normalize_html_brief_state(packet.get("calibration_state"))
     calibration_count = _finite(packet.get("event_count"))
     calibration_gates = packet.get("gates")
-    backtest_state = "partial" if backtest_verdict and backtest_count is not None else "withheld"
+    backtest_state = (
+        "partial"
+        if backtest_verdict and backtest_verdict != _WITHHELD_ACTION and backtest_count is not None
+        else "withheld"
+    )
     calibration_lane_state = "partial" if calibration_state in {"available", "partial", "stale"} and calibration_count is not None and isinstance(calibration_gates, (tuple, list)) else "withheld"
     return (
         _section("consensus", "Consensus", consensus_state, "Source-backed preview is present; portable provenance remains incomplete.", blockers=(provenance,) if consensus_state == "partial" else ("Consensus readiness is not explicitly true.",)),

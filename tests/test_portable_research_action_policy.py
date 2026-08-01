@@ -103,6 +103,9 @@ def test_modal_passive_policy_handles_supported_chains_and_normalization(text, e
         "The equity method should be held constant.",
         "Securities are held to maturity.",
         "Assets are available for sale.",
+        "Shares are a commonly purchased investment class.",
+        "Shares are family purchased investment units.",
+        "Shares are ordered by market capitalization.",
     ),
 )
 def test_modal_reference_and_classification_prose_remains_portable(text):
@@ -117,6 +120,9 @@ def test_modal_reference_and_classification_prose_remains_portable(text):
         ("Shares were purchased by the issuer.", True),
         ("Historical evidence shows shares were purchased.", True),
         ("Shares should be purchased by the issuer.", True),
+        ("The report shows shares are purchased by the issuer tomorrow.", True),
+        ("Current evidence shows shares are purchased by the issuer.", True),
+        ("Historical evidence shows shares are purchased by the issuer tomorrow.", True),
     ),
 )
 def test_direct_passive_historical_attribution_exception_is_narrow(text, expected):
