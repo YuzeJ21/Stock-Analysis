@@ -15,6 +15,8 @@ Run `make company-workbench-html-browser-check` for the direct actual-byte
 complete/partial/withheld browser, keyboard, responsive, print, media-
 preference, PDF-in-memory, CSP, and repository-fingerprint matrix. No HTML, PDF, screenshot, JSON, timing, readiness, canonical-data, or report artifact is written. This command does not refresh data, acquire a source, activate readiness, or establish human/screen-reader accessibility.
 
+Local engineering evidence does not establish source rights, current-market data, readiness activation, a new or professional line-item model, hosted operation, human or screen-reader conformance, independent validation, market fit, screening alpha, or probability calibration.
+
 ## 2026-07-18 Personal Research Evidence Detour Continuity
 
 Read-only AppTest coverage now verifies six Personal Research surfaces: Research Desk, Discover, Company Workbench, Monitor, Research Data Health, and Research Proof History. Data Health and Proof History stay inside Personal Research mode when opened from Company Workbench Advanced Evidence, preserve the selected ticker, and show **Return to Company Workbench** before existing evidence content.

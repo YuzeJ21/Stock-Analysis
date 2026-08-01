@@ -11,6 +11,50 @@ def _read(path: str) -> str:
     return Path(path).read_text(encoding="utf-8")
 
 
+def _markdown_section(text: str, heading: str) -> str:
+    """Return one exact Markdown heading section through its next peer/parent."""
+    lines = text.splitlines()
+    try:
+        start = lines.index(heading)
+    except ValueError as exc:
+        raise AssertionError(f"missing Markdown section: {heading}") from exc
+    level = len(heading) - len(heading.lstrip("#"))
+    section: list[str] = []
+    for line in lines[start + 1 :]:
+        match = re.match(r"^(#{1,6})\s+", line)
+        if match and len(match.group(1)) <= level:
+            break
+        section.append(line)
+    return "\n".join(section).strip()
+
+
+def _assert_html_brief_section_has_no_affirmative_overclaim(section: str) -> None:
+    normalized = " ".join(section.split()).lower()
+    for misleading_claim in (
+        "source rights are established",
+        "current-market data is verified",
+        "readiness is activated",
+        "new calculation engine is complete",
+        "professional line-item model is complete",
+        "hosted operation is complete",
+        "human accessibility conformance is complete",
+        "screen-reader conformance is complete",
+        "independent validation is complete",
+        "market fit is established",
+        "screening alpha is established",
+        "probability calibration is complete",
+    ):
+        assert misleading_claim not in normalized
+
+
+HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY = (
+    "Local engineering evidence does not establish source rights, current-market "
+    "data, readiness activation, a new or professional line-item model, hosted "
+    "operation, human or screen-reader conformance, independent validation, market "
+    "fit, screening alpha, or probability calibration."
+)
+
+
 def test_streamlit_range_supports_same_document_javascript_transport():
     requirements = Path("requirements.txt").read_text(encoding="utf-8")
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
@@ -1971,14 +2015,21 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
 
 
 def test_html_research_brief_public_and_methodology_docs_keep_the_verified_boundary():
-    readme = _read("README.md")
-    methodology = _read("docs/METHODOLOGY.md")
+    readme = _markdown_section(
+        _read("README.md"), "### Download HTML Research Brief"
+    )
+    methodology = _markdown_section(
+        _read("docs/METHODOLOGY.md"),
+        "## Company Workbench HTML Research Brief Method",
+    )
 
     assert "Download HTML Research Brief" in readme
     assert "existing saved evidence and Python scenario math" in readme
     assert "does not refresh data or acquire a new source" in readme
     assert "No repository HTML or PDF artifact is written" in readme
     assert "research-only" in readme.lower()
+    assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in " ".join(readme.split())
+    _assert_html_brief_section_has_no_affirmative_overclaim(readme)
 
     normalized = " ".join(methodology.split())
     for phrase in (
@@ -1994,10 +2045,15 @@ def test_html_research_brief_public_and_methodology_docs_keep_the_verified_bound
         "zero-write",
     ):
         assert phrase in normalized
+    assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in normalized
+    _assert_html_brief_section_has_no_affirmative_overclaim(methodology)
 
 
 def test_html_research_brief_roadmap_separates_local_completion_from_external_gates():
-    roadmap = " ".join(_read("ROADMAP.md").split())
+    roadmap_section = _markdown_section(
+        _read("ROADMAP.md"), "### Company Workbench HTML Research Brief"
+    )
+    roadmap = " ".join(roadmap_section.split())
 
     assert "Company Workbench HTML Research Brief" in roadmap
     assert "Local feature gate: complete" in roadmap
@@ -2008,16 +2064,26 @@ def test_html_research_brief_roadmap_separates_local_completion_from_external_ga
     ) in roadmap
     assert "does not activate readiness" in roadmap
     assert "does not establish screening alpha" in roadmap
+    assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in roadmap
+    _assert_html_brief_section_has_no_affirmative_overclaim(roadmap_section)
 
 
 def test_html_research_brief_accessibility_and_dashboard_qa_name_actual_evidence():
-    accessibility = " ".join(_read("docs/ACCESSIBILITY_EVIDENCE.md").split())
-    dashboard_qa = " ".join(_read("docs/DASHBOARD_QA.md").split())
+    accessibility_section = _markdown_section(
+        _read("docs/ACCESSIBILITY_EVIDENCE.md"),
+        "## 2026-08-01 Company Workbench HTML Research Brief actual-byte matrix",
+    )
+    dashboard_qa_section = _markdown_section(
+        _read("docs/DASHBOARD_QA.md"),
+        "## 2026-08-01 Company Workbench HTML Research Brief",
+    )
+    accessibility = " ".join(accessibility_section.split())
+    dashboard_qa = " ".join(dashboard_qa_section.split())
 
     for phrase in (
         "actual UTF-8 download bytes",
         "1280x720, 390x844, and 640x900",
-        "physical keyboard Tab and Enter",
+        "browser-automated Tab and Enter input",
         "print media",
         "forced-colors emulation",
         "reduced-motion emulation",
@@ -2026,6 +2092,9 @@ def test_html_research_brief_accessibility_and_dashboard_qa_name_actual_evidence
         "automated engineering evidence only",
     ):
         assert phrase in accessibility
+    assert "physical keyboard Tab and Enter" not in accessibility
+    assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in accessibility
+    _assert_html_brief_section_has_no_affirmative_overclaim(accessibility_section)
 
     for phrase in (
         "?mode=research&page=company&ticker=<ticker>",
@@ -2035,6 +2104,8 @@ def test_html_research_brief_accessibility_and_dashboard_qa_name_actual_evidence
         "No HTML, PDF, screenshot, JSON, timing, readiness, canonical-data, or report artifact is written",
     ):
         assert phrase in dashboard_qa
+    assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in dashboard_qa
+    _assert_html_brief_section_has_no_affirmative_overclaim(dashboard_qa_section)
 
 
 def test_html_research_brief_continuation_contract_preserves_anchor_and_exclusions():

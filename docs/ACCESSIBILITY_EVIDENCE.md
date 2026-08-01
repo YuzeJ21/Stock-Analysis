@@ -881,7 +881,7 @@ synthetic test states at `1280x720, 390x844, and 640x900`.
   bytes, loaded them in Chromium, and checked semantic landmarks, one H1,
   captioned tables, the exact offline CSP, visible research boundaries,
   blockers, provenance, and no active content or network request.
-- The physical keyboard Tab and Enter sequence verified the skip-link focus cue and target.
+- The browser-automated Tab and Enter input verified the skip-link focus cue and target.
   The matrix also checked print media, forced-colors emulation,
   reduced-motion emulation, visible boundaries and provenance, no horizontal
   overflow, no console or page error, and a nonempty `%PDF` in-memory PDF.
@@ -893,3 +893,4 @@ This is automated engineering evidence only. Synthetic states are test-only;
 the matrix does not prove human or screen-reader usability, true zoom/reflow,
 direct operating-system media-preference behavior, hosted operation, WCAG
 conformance, source rights, current data, independent review, or market fit.
+Local engineering evidence does not establish source rights, current-market data, readiness activation, a new or professional line-item model, hosted operation, human or screen-reader conformance, independent validation, market fit, screening alpha, or probability calibration.

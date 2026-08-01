@@ -156,6 +156,8 @@ The authoritative discounted explicit-cash-flow subtotal is the Scenario Lab res
 
 The safe text/reference policy removes repository paths, local paths, secrets, control characters, unsafe or credential-bearing links, and action language from portable content. Only bounded HTTPS references without credentials, query strings, fragments, path traversal, or local paths may become links; an unsafe reference can retain only a sanitized non-link label. The standalone document applies an offline Content Security Policy with no JavaScript, image, font, form, or network access. Rendering, browser verification, print emulation, and in-memory PDF inspection follow a zero-write repository contract.
 
+Local engineering evidence does not establish source rights, current-market data, readiness activation, a new or professional line-item model, hosted operation, human or screen-reader conformance, independent validation, market fit, screening alpha, or probability calibration.
+
 ## Public Workflow Boundary
 
 The public page order is a reading workflow, not an analysis shortcut.
