@@ -122,6 +122,8 @@ def test_html_brief_code_and_evidence_stay_product_candidates_but_saved_html_req
     for path in (
         "outputs/local/example-research-brief.html",
         "data/local/example-research-brief.html",
+        "outputs/demo/example-research-brief.html",
+        "data/demo/example-research-brief.html",
     ):
         assert module.classify_path(path) == "review_manually"
         assert module.is_generated_churn(path) is False

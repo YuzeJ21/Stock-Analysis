@@ -119,6 +119,8 @@ def is_generated_churn(path: str) -> bool:
 
 
 def classify_path(path: str) -> str:
+    if path.startswith(("data/", "outputs/")) and path.casefold().endswith(".html"):
+        return "review_manually"
     if path.startswith(REVIEWED_DEMO_PROFILE_PREFIXES):
         return "product_candidate"
     if is_generated_churn(path):
