@@ -18,6 +18,7 @@ from src.observation_recency import ObservationRecency, ObservationRecencySet
 from src.profile_context import CoverageCounts, ProfileContext
 from src.quarterly_business_trend import QuarterlyMetricTrend, QuarterlyTrendPacket
 from src.research_decision_lab import DecisionLabLane, ResearchDecisionLabState
+from src.research_thesis_journal import JournalEntry, JournalState
 from src.scenario_lab import ScenarioLabResult, ScenarioParameters
 from src.valuation import DCFResult, SensitivityTable, ValuationInput, build_valuation_result
 
@@ -111,10 +112,14 @@ def test_snapshot_copies_authoritative_dcf_values_and_canonical_sensitivity_with
     assert _base(snapshot).bridge.projected_fcfs == tuple(dcf["projected_fcfs"])
     assert _base(snapshot).bridge.discounted_fcfs == tuple(dcf["discounted_fcfs"])
     assert _base(snapshot).bridge.discounted_explicit_total == dcf["discounted_explicit_total"]
+    assert _base(snapshot).bridge.terminal_value == dcf["terminal_value"]
+    assert _base(snapshot).bridge.discounted_terminal_value == dcf["discounted_terminal_value"]
     assert _base(snapshot).bridge.enterprise_value == dcf["enterprise_value"]
     assert _base(snapshot).bridge.equity_value == dcf["equity_value"]
     assert _base(snapshot).bridge.scenario_value_per_share == dcf["fair_value_per_share"]
     assert snapshot.sensitivity.value_grid == tuple(tuple(row) for row in raw["sensitivity_table"]["fair_value_grid"])
+    assert snapshot.sensitivity.wacc_values == tuple(raw["sensitivity_table"]["wacc_values"])
+    assert snapshot.sensitivity.terminal_growth_values == tuple(raw["sensitivity_table"]["terminal_growth_values"])
 
 
 def test_snapshot_keeps_enterprise_visible_when_equity_and_per_share_are_withheld():
@@ -140,7 +145,7 @@ def test_snapshot_withholds_per_share_for_missing_or_nonpositive_or_nonfinite_sh
 
     assert bridge.per_share_state == "withheld"
     assert bridge.scenario_value_per_share is None
-    assert bridge.shares_label == "Shares outstanding"
+    assert bridge.shares_label == "Shares outstanding used by existing model"
     assert bridge.share_basis_state == "unverified"
 
 
@@ -210,3 +215,153 @@ def test_snapshot_is_immutable_sanitized_and_deterministic_with_fixed_section_or
     assert [row.key for row in first.research_sections] == ["business-trend", "key-drivers", "risks", "catalysts", "evidence-gaps", "valuation-regime"]
     assert [row.key for row in first.decision_lanes] == ["plan", "evidence", "invalidation", "scenario", "review-trigger", "learning"]
     assert company_workbench_html_filename(first) == "NVDA-2026-07-30-research-brief.html"
+
+
+def _source_record(**changes):
+    row = {
+        "source_id": "SEC-0000123456-26-000001",
+        "source_ref": "https://sec.example/filing",
+        "as_of": "2026-07-30T12:00:00Z",
+        "retrieved_at": "2026-07-30T12:30:00Z",
+        "rights_state": "permitted",
+        "field_scope_state": "permitted",
+    }
+    row.update(changes)
+    return row
+
+
+def test_mismatched_selected_answer_withholds_both_answer_bodies():
+    selected = {"Ticker": "AMD", "Use Now": "AMD-only research", "Still Blocked": "AMD-only blocker", "state": "ready"}
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(selected_answer=selected))
+
+    assert snapshot.answers[0].state == "withheld"
+    assert snapshot.answers[0].body == "No portable answer."
+    assert snapshot.answers[1].body == "No portable blocker."
+    assert "AMD" not in repr(snapshot.answers[:2])
+
+
+def test_incomplete_evidence_row_withholds_rights_rollup_even_when_another_row_is_permitted():
+    report = _inputs().report_payload
+    report["provenance"]["source_records"] = [_source_record(), _source_record(source_id="SEC-INCOMPLETE", retrieved_at="")]
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(report, catalyst_timeline=replace(_catalysts(), upcoming=())))
+
+    assert snapshot.rights_state == "withheld"
+    report_rows = [row for row in snapshot.evidence_rows if row.section == "report"]
+    assert len(report_rows) == 2
+    assert report_rows[1].state == "withheld"
+
+
+def test_excluded_rights_rollup_requires_both_rights_and_field_scope_to_be_not_applicable():
+    report = _inputs().report_payload
+    report["provenance"]["source_records"] = [_source_record(rights_state="not_applicable", field_scope_state="not_applicable")]
+    empty_catalysts = replace(_catalysts(), upcoming=())
+    assert build_company_workbench_html_snapshot(_inputs(report, catalyst_timeline=empty_catalysts)).rights_state == "excluded"
+
+    report["provenance"]["source_records"] = [_source_record(rights_state="not_applicable", field_scope_state="permitted")]
+    assert build_company_workbench_html_snapshot(_inputs(report, catalyst_timeline=empty_catalysts)).rights_state == "withheld"
+
+
+def test_nowcast_withholds_missing_backtest_and_calibration_diagnostics_independently():
+    packet = {"ticker": "NVDA", "fiscal_period": "2026-Q3", "as_of_timestamp": "2026-07-30T12:00:00Z", "evidence_scope": "source_backed_preview_only", "readiness": {"consensus_ready": True}}
+
+    lanes = {row.key: row for row in build_company_workbench_html_snapshot(_inputs(nowcast_packet=packet)).readiness_lanes}
+
+    assert lanes["consensus"].state == "partial"
+    assert lanes["backtesting"].state == "withheld"
+    assert lanes["calibration"].state == "withheld"
+
+
+def test_nowcast_exposes_backtest_and_calibration_only_when_their_own_diagnostics_exist():
+    packet = {
+        "ticker": "NVDA", "fiscal_period": "2026-Q3", "as_of_timestamp": "2026-07-30T12:00:00Z",
+        "evidence_scope": "source_backed_preview_only", "readiness": {"consensus_ready": True},
+        "backtest_verdict": "reviewable", "backtest_count": 4,
+        "calibration_state": "reviewable", "event_count": 4, "gates": (),
+    }
+
+    lanes = {row.key: row for row in build_company_workbench_html_snapshot(_inputs(nowcast_packet=packet)).readiness_lanes}
+
+    assert lanes["backtesting"].state == "partial"
+    assert lanes["calibration"].state == "partial"
+    assert "portable nowcast provenance incomplete" in lanes["backtesting"].blockers
+    assert "portable nowcast provenance incomplete" in lanes["calibration"].blockers
+
+
+def test_quarterly_and_valuation_regime_available_states_are_capped_without_portable_provenance():
+    trend = _quarterly()
+    regime = replace(_regime(), state="ready")
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(quarterly_trend=trend, valuation_regime=regime))
+    lanes = {row.key: row for row in snapshot.readiness_lanes}
+    sections = {row.key: row for row in snapshot.research_sections}
+
+    assert lanes["actuals"].state == "partial"
+    assert lanes["revenue"].state == "partial"
+    assert lanes["eps"].state == "partial"
+    assert lanes["historical-valuation"].state == "partial"
+    assert sections["valuation-regime"].state == "partial"
+    assert all("portable provenance incomplete" in row.blockers for row in (lanes["actuals"], lanes["revenue"], lanes["eps"], lanes["historical-valuation"], sections["valuation-regime"]))
+
+
+def _journal(profile_key="demo", ticker="NVDA"):
+    entry = JournalEntry("research-thesis-journal-v1", "entry-1", profile_key, ticker, "thesis-1", "evidence", "2026-07-20T12:00:00Z", "2026-07-20T12:00:00Z", "reviewer", "Reviewed evidence", "supporting", "SEC", "https://sec.example/journal", "2026-07-19T12:00:00Z", "", "", "")
+    return JournalState(profile_key, ticker, "2026-07-30T12:00:00Z", "ready", (entry,), None, 0, (), (entry,), (), (), (), (), (), "", "", False)
+
+
+def test_matching_journal_and_catalyst_evidence_rows_are_retained_as_fail_closed_provenance_rows():
+    snapshot = build_company_workbench_html_snapshot(_inputs(journal_state=_journal()))
+
+    sections = [row.section for row in snapshot.evidence_rows]
+    assert "journal" in sections
+    assert "catalyst" in sections
+    assert all(row.state == "withheld" for row in snapshot.evidence_rows if row.section in {"journal", "catalyst"})
+
+
+def test_mismatched_journal_or_catalyst_evidence_is_not_emitted():
+    wrong_event_timeline = _catalysts(profile_key="other")
+    snapshot = build_company_workbench_html_snapshot(_inputs(journal_state=_journal(profile_key="other"), catalyst_timeline=wrong_event_timeline))
+
+    assert not any(row.section in {"journal", "catalyst"} for row in snapshot.evidence_rows)
+
+
+def test_missing_canonical_scenario_is_withheld_instead_of_cloning_top_level_dcf():
+    report = _inputs().report_payload
+    report["valuation_snapshot"]["scenarios"] = report["valuation_snapshot"]["scenarios"][1:]
+
+    bear = next(row for row in build_company_workbench_html_snapshot(_inputs(report)).scenarios if row.name == "Bear")
+
+    assert bear.state == "withheld"
+    assert bear.bridge.enterprise_value is None
+    assert bear.bridge.projected_fcfs == ()
+
+
+@pytest.mark.parametrize("unsafe", ("line one\nline two", "src/valuation.py", "./tests/test_valuation.py", "NVDA\x00AMD"))
+def test_sanitizer_rejects_control_and_repository_relative_paths(unsafe):
+    assert safe_html_brief_text(unsafe) == ""
+
+
+def test_unsafe_ticker_is_withheld_from_snapshot_and_filename():
+    report = _inputs().report_payload
+    report["ticker"] = "NVDA\nAMD"
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(report))
+
+    assert snapshot.ticker == ""
+    assert "NVDA" not in repr(snapshot)
+    assert company_workbench_html_filename(snapshot) == "UNKNOWN-2026-07-31-research-brief.html"
+
+
+def test_snapshot_isolated_from_source_metadata_mutation_after_construction():
+    report = _inputs().report_payload
+    source = _source_record()
+    report["provenance"]["source_records"] = [source]
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(report))
+    identity = snapshot.identity
+    source["source_id"] = "MUTATED"
+    source["source_ref"] = "https://example.invalid/mutated"
+
+    assert snapshot.evidence_rows[0].source_id == "SEC-0000123456-26-000001"
+    assert snapshot.identity == identity

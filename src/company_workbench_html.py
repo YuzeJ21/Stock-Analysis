@@ -7,7 +7,7 @@ import html
 import json
 import math
 import re
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, is_dataclass, replace
 from datetime import datetime, timezone
 from typing import Mapping
 from urllib.parse import urlparse
@@ -31,7 +31,8 @@ _EXCLUDED = frozenset({"excluded", "not_applicable", "candidate_context_only"})
 _WITHHELD = frozenset({"withheld", "blocked", "still_blocked", "commercial_evidence_blocked", "unavailable", "insufficient_data", "insufficient_history", "not_supported", "unverified", "rejected"})
 _ACTION_PATTERN = re.compile(r"\b(buy|sell|short|hold|position\s*size|allocation|stop[-\s]?loss|take[-\s]?profit|order|broker|rank(?:ing)?|target[-\s]?price|expected[-\s]?return|upside|downside|margin[-\s]?of[-\s]?safety)\b", re.I)
 _SECRET_PATTERN = re.compile(r"(?:api[_-]?key|secret|token|cookie|password|authorization|bearer)\s*(?:=|:)|\b(?:sk|ghp|xox)[A-Za-z0-9_-]{8,}\b", re.I)
-_PATH_PATTERN = re.compile(r"(?:^~[/\\]|^/|^[A-Za-z]:[\\/]|(?:^|\s)\.{1,2}(?:[/\\]|$)|/Users/|/private/|/tmp/|\\\\)")
+_PATH_PATTERN = re.compile(r"(?:^~[/\\]|^/|^[A-Za-z]:[\\/]|(?:^|\s)\.{1,2}(?:[/\\]|$)|(?:^|\s)(?:src|tests|data|outputs|\.superpowers)(?:[/\\]|$)|/Users/|/private/|/tmp/|\\\\)")
+_TICKER_PATTERN = re.compile(r"^[A-Z0-9.-]+$")
 _WITHHELD_ACTION = "Withheld: reviewer-authored action language is not portable research evidence."
 
 
@@ -183,7 +184,7 @@ def safe_html_brief_text(value: object) -> str:
     if not isinstance(value, (str, int, float, bool)):
         return ""
     text = str(value).strip()
-    if not text or any(ord(char) < 32 and char not in "\t\n" for char in text):
+    if not text or any(ord(char) < 32 for char in text):
         return ""
     if _PATH_PATTERN.search(text) or _SECRET_PATTERN.search(text):
         return ""
@@ -215,6 +216,12 @@ def _mapping(value: object) -> Mapping[str, object]:
     return value if isinstance(value, Mapping) else {}
 
 
+def _record_mapping(value: object) -> Mapping[str, object]:
+    if isinstance(value, Mapping):
+        return value
+    return asdict(value) if is_dataclass(value) else {}
+
+
 def _value(value: object, name: str, default: object = None) -> object:
     if isinstance(value, Mapping):
         return value.get(name, default)
@@ -222,7 +229,10 @@ def _value(value: object, name: str, default: object = None) -> object:
 
 
 def _ticker(value: object) -> str:
-    return str(value or "").strip().upper()
+    if not isinstance(value, str):
+        return ""
+    ticker = value.strip().upper()
+    return ticker if _TICKER_PATTERN.fullmatch(ticker) else ""
 
 
 def _finite(value: object) -> float | None:
@@ -267,7 +277,7 @@ def _bridge(dcf_result: object, currency: str) -> HtmlBriefDcfBridge:
     status = str(_value(dcf_result, "status", "")).strip().lower()
     blockers: list[str] = []
     if status != "calculated":
-        return HtmlBriefDcfBridge("withheld", "withheld", "withheld", "withheld", "withheld", (), (), None, None, None, None, None, None, None, None, None, "Shares outstanding", "unverified", None, currency, ("DCF result is not calculated.",))
+        return HtmlBriefDcfBridge("withheld", "withheld", "withheld", "withheld", "withheld", (), (), None, None, None, None, None, None, None, None, None, "Shares outstanding used by existing model", "unverified", None, currency, ("DCF result is not calculated.",))
     assumptions = _mapping(_value(dcf_result, "assumptions", {}))
     projected = _finite_tuple(_value(dcf_result, "projected_fcfs", ()))
     discounted = _finite_tuple(_value(dcf_result, "discounted_fcfs", ()))
@@ -292,7 +302,7 @@ def _bridge(dcf_result: object, currency: str) -> HtmlBriefDcfBridge:
     displayed_projected = projected if projected else ()
     displayed_discounted = discounted if discounted else ()
     state = "available" if enterprise_state == equity_state == per_share_state == "available" else ("partial" if "available" in {enterprise_state, equity_state, per_share_state} else "withheld")
-    return HtmlBriefDcfBridge(state, enterprise_state, equity_state, per_share_state, explicit_state, displayed_projected, displayed_discounted, explicit, terminal, discounted_terminal, enterprise, cash, debt, net_debt, equity if equity_state == "available" else None, shares if per_share_state == "available" else None, "Shares outstanding", "unverified", per_share if per_share_state == "available" else None, currency, tuple(blockers))
+    return HtmlBriefDcfBridge(state, enterprise_state, equity_state, per_share_state, explicit_state, displayed_projected, displayed_discounted, explicit, terminal, discounted_terminal, enterprise, cash, debt, net_debt, equity if equity_state == "available" else None, shares if per_share_state == "available" else None, "Shares outstanding used by existing model", "unverified", per_share if per_share_state == "available" else None, currency, tuple(blockers))
 
 
 def _scenario_from_raw(name: str, raw: object, currency: str, *, modified: bool = False, params: object = None) -> HtmlBriefScenario:
@@ -314,8 +324,7 @@ def _canonical_scenarios(valuation: Mapping[str, object], currency: str) -> dict
             label = str(_value(row, "name", "")).strip().lower()
             if label in {"bear", "base", "bull"}:
                 found[label] = _scenario_from_raw(label.title(), row, currency)
-    fallback = _value(valuation, "dcf_result", {})
-    return {key: found.get(key, _scenario_from_raw(key.title(), fallback, currency)) for key in ("bear", "base", "bull")}
+    return {key: found.get(key, _scenario_from_raw(key.title(), {}, currency)) for key in ("bear", "base", "bull")}
 
 
 def _accepted_scenario(result: ScenarioLabResult | None, ticker: str, profile_key: str) -> bool:
@@ -367,22 +376,32 @@ def _nowcast_lanes(packet: Mapping[str, object] | None, report: Mapping[str, obj
     readiness = _mapping(packet.get("readiness"))
     consensus_state = "partial" if readiness.get("consensus_ready") is True else "withheld"
     provenance = "portable nowcast provenance incomplete"
+    backtest_verdict = safe_html_brief_text(packet.get("backtest_verdict"))
+    backtest_count = _finite(packet.get("backtest_count"))
+    calibration_state = normalize_html_brief_state(packet.get("calibration_state"))
+    calibration_count = _finite(packet.get("event_count"))
+    calibration_gates = packet.get("gates")
+    backtest_state = "partial" if backtest_verdict and backtest_count is not None else "withheld"
+    calibration_lane_state = "partial" if calibration_state in {"available", "partial", "stale"} and calibration_count is not None and isinstance(calibration_gates, (tuple, list)) else "withheld"
     return (
         _section("consensus", "Consensus", consensus_state, "Source-backed preview is present; portable provenance remains incomplete.", blockers=(provenance,) if consensus_state == "partial" else ("Consensus readiness is not explicitly true.",)),
-        _section("backtesting", "Backtesting", "partial", "Point-in-time preview verdict is not portable as complete evidence.", blockers=(provenance,)),
-        _section("calibration", "Calibration", "partial", "Point-in-time preview calibration is not portable as complete evidence.", blockers=(provenance,)),
+        _section("backtesting", "Backtesting", backtest_state, "Point-in-time preview verdict is not portable as complete evidence." if backtest_state == "partial" else "No portable backtesting diagnostics.", blockers=(provenance,) if backtest_state == "partial" else ("Backtesting verdict and count are required.",)),
+        _section("calibration", "Calibration", calibration_lane_state, "Point-in-time preview calibration is not portable as complete evidence." if calibration_lane_state == "partial" else "No portable calibration diagnostics.", blockers=(provenance,) if calibration_lane_state == "partial" else ("Calibration state, event count, and gates are required.",)),
     )
 
 
 def _readiness(inputs: CompanyWorkbenchHtmlInputs, ticker: str, bridge: HtmlBriefDcfBridge, generated_at: str, review_cutoff: str) -> tuple[HtmlBriefSection, ...]:
     trend = inputs.quarterly_trend if _ticker(inputs.quarterly_trend.ticker) == ticker else None
     forward = inputs.forward_view if _ticker(inputs.forward_view.ticker) == ticker else None
-    actual = _section("actuals", "Actuals", trend.status if trend else "withheld", trend.message if trend else "No matching quarterly evidence.", blockers=() if trend else ("Quarterly ticker does not match report ticker.",))
-    revenue = _section("revenue", "Revenue", trend.revenue.status if trend else "withheld", trend.revenue.withheld_reason or "Quarterly revenue context.", blockers=("Q4 requires explicit compatible quarterly evidence.",) if trend else ("Quarterly ticker does not match report ticker.",))
-    eps = _section("eps", "EPS", trend.eps.status if trend else "withheld", trend.eps.withheld_reason or "Quarterly EPS context.", blockers=("EPS split-basis proof is required.",) if trend else ("Quarterly ticker does not match report ticker.",))
+    quarterly_state = _portable_provenance_state(trend.status) if trend else "withheld"
+    actual = _section("actuals", "Actuals", quarterly_state, trend.message if trend else "No matching quarterly evidence.", blockers=("portable provenance incomplete",) if trend else ("Quarterly ticker does not match report ticker.",))
+    revenue_state = _portable_provenance_state(trend.revenue.status) if trend else "withheld"
+    revenue = _section("revenue", "Revenue", revenue_state, trend.revenue.withheld_reason or "Quarterly revenue context." if trend else "No matching quarterly evidence.", blockers=("portable provenance incomplete", "Q4 requires explicit compatible quarterly evidence.") if trend else ("Quarterly ticker does not match report ticker.",))
+    eps_state = _portable_provenance_state(trend.eps.status) if trend else "withheld"
+    eps = _section("eps", "EPS", eps_state, trend.eps.withheld_reason or "Quarterly EPS context." if trend else "No matching quarterly evidence.", blockers=("portable provenance incomplete", "EPS split-basis proof is required.") if trend else ("Quarterly ticker does not match report ticker.",))
     valuation = _section("valuation", "Valuation", bridge.state, "Authoritative DCF bridge.", blockers=bridge.blockers)
     peers = _section("peers", "Peers", forward.peer_context.state if forward else "withheld", forward.peer_context.answer if forward else "No matching Forward View evidence.", blockers=() if forward else ("Forward View ticker does not match report ticker.",))
-    historical = _section("historical-valuation", "Historical valuation", inputs.valuation_regime.state if _ticker(inputs.valuation_regime.ticker) == ticker else "withheld", inputs.valuation_regime.boundary if _ticker(inputs.valuation_regime.ticker) == ticker else "No matching valuation regime.", blockers=("portable provenance incomplete",))
+    historical = _section("historical-valuation", "Historical valuation", _portable_provenance_state(inputs.valuation_regime.state) if _ticker(inputs.valuation_regime.ticker) == ticker else "withheld", inputs.valuation_regime.boundary if _ticker(inputs.valuation_regime.ticker) == ticker else "No matching valuation regime.", blockers=("portable provenance incomplete",))
     catalyst_matches = _catalyst_matches(inputs.catalyst_timeline, ticker, inputs.profile_context.profile_key)
     catalysts = _section("catalysts", "Catalysts", inputs.catalyst_timeline.state if catalyst_matches else "withheld", inputs.catalyst_timeline.boundary if catalyst_matches else "No matching catalyst evidence.", blockers=() if catalyst_matches else ("Catalyst event scope does not match report scope.",))
     consensus, backtesting, calibration = _nowcast_lanes(inputs.nowcast_packet, inputs.report_payload, ticker, generated_at, review_cutoff)
@@ -397,13 +416,18 @@ def _research_sections(inputs: CompanyWorkbenchHtmlInputs, ticker: str) -> tuple
     risks = _mapping(report.get("risk_summary"))
     catalyst_matches = _catalyst_matches(inputs.catalyst_timeline, ticker, inputs.profile_context.profile_key)
     return (
-        _section("business-trend", "Business trend", trend.status if trend else "withheld", trend.message if trend else "No matching quarterly business trend.", blockers=("portable provenance incomplete",)),
+        _section("business-trend", "Business trend", _portable_provenance_state(trend.status) if trend else "withheld", trend.message if trend else "No matching quarterly business trend.", blockers=("portable provenance incomplete",)),
         _section("key-drivers", "Key drivers", forward.thesis_context.state if forward else "withheld", forward.thesis_context.answer if forward else "No matching Forward View evidence."),
         _section("risks", "Risks", risks.get("state", "withheld"), risks.get("summary", "No portable risk evidence.")),
         _section("catalysts", "Catalysts", inputs.catalyst_timeline.state if catalyst_matches else "withheld", inputs.catalyst_timeline.boundary if catalyst_matches else "No matching catalyst evidence.", blockers=() if catalyst_matches else ("Catalyst event scope does not match report scope.",)),
         _section("evidence-gaps", "Evidence gaps", "withheld", "Portable evidence remains incomplete."),
-        _section("valuation-regime", "Valuation regime", inputs.valuation_regime.state if _ticker(inputs.valuation_regime.ticker) == ticker else "withheld", inputs.valuation_regime.boundary if _ticker(inputs.valuation_regime.ticker) == ticker else "No matching valuation regime.", blockers=("portable provenance incomplete",)),
+        _section("valuation-regime", "Valuation regime", _portable_provenance_state(inputs.valuation_regime.state) if _ticker(inputs.valuation_regime.ticker) == ticker else "withheld", inputs.valuation_regime.boundary if _ticker(inputs.valuation_regime.ticker) == ticker else "No matching valuation regime.", blockers=("portable provenance incomplete",)),
     )
+
+
+def _portable_provenance_state(value: object) -> str:
+    state = normalize_html_brief_state(value)
+    return "partial" if state in {"available", "partial", "stale"} else "withheld"
 
 
 def _catalyst_matches(timeline: CatalystTimeline, ticker: str, profile_key: str) -> bool:
@@ -434,21 +458,32 @@ def _evidence_rows(inputs: CompanyWorkbenchHtmlInputs, accepted_scenario: bool) 
     if accepted_scenario and inputs.scenario_lab_result:
         for row in inputs.scenario_lab_result.source_metadata:
             candidates.append(("scenario", row, inputs.scenario_lab_result.input_identity))
+    journal = inputs.journal_state
+    if journal and journal.profile_key == inputs.profile_context.profile_key and _ticker(journal.ticker) == _ticker(inputs.report_payload.get("ticker")):
+        for entry in journal.entries:
+            candidates.append(("journal", entry, ""))
+    timeline = inputs.catalyst_timeline
+    ticker = _ticker(inputs.report_payload.get("ticker"))
+    if _catalyst_matches(timeline, ticker, inputs.profile_context.profile_key):
+        for event in tuple(timeline.upcoming) + tuple(timeline.recent):
+            candidates.append(("catalyst", event, ""))
     rows: list[HtmlBriefEvidenceRow] = []
     for section, raw, identity in candidates:
-        item = _mapping(raw)
+        item = _record_mapping(raw)
         source_id = safe_html_brief_text(item.get("source_id") or item.get("source") or "")
         ref = safe_html_brief_reference(item)
-        as_of = _iso(item.get("as_of") or item.get("as_of_date") or item.get("published_at"))
+        as_of = _iso(item.get("as_of") or item.get("as_of_date") or item.get("published_at") or item.get("source_published_at"))
         retrieved = _iso(item.get("retrieved_at"))
         rights = str(item.get("rights_state") or "").strip().lower()
         scope = str(item.get("field_scope_state") or "").strip().lower()
-        if not (source_id and ref.href and as_of and retrieved):
-            continue
         rights_state = "permitted" if rights == "permitted" else ("not_applicable" if rights == "not_applicable" else "unverified")
         scope_state = "permitted" if scope == "permitted" else ("not_applicable" if scope == "not_applicable" else "unverified")
-        state = "available" if rights_state == scope_state == "permitted" else "withheld"
-        blockers = () if state == "available" else ("Portable rights or field-scope provenance is incomplete.",)
+        complete = bool(source_id and ref.href and as_of and retrieved)
+        state = "available" if complete and rights_state == scope_state == "permitted" else "withheld"
+        blockers = () if state == "available" else tuple(item for item in (
+            "Portable source identity, reference, as-of timestamp, or retrieval timestamp is incomplete." if not complete else "",
+            "Portable rights or field-scope provenance is incomplete." if rights_state != "permitted" or scope_state != "permitted" else "",
+        ) if item)
         row = HtmlBriefEvidenceRow(section, state, source_id, ref, as_of, retrieved, rights_state, scope_state, _clean_text(item.get("model_identity"), "not recorded"), _clean_text(identity, "not recorded"), blockers)
         if row not in rows:
             rows.append(row)
@@ -458,9 +493,9 @@ def _evidence_rows(inputs: CompanyWorkbenchHtmlInputs, accepted_scenario: bool) 
 def _rights_state(rows: tuple[HtmlBriefEvidenceRow, ...]) -> str:
     if not rows:
         return "withheld"
-    if all(row.rights_state == "not_applicable" for row in rows):
+    if all(row.rights_state == "not_applicable" and row.field_scope_state == "not_applicable" for row in rows):
         return "excluded"
-    return "available" if all(row.rights_state == "permitted" and row.field_scope_state == "permitted" for row in rows) else "withheld"
+    return "available" if all(row.state == "available" and row.rights_state == "permitted" and row.field_scope_state == "permitted" for row in rows) else "withheld"
 
 
 def build_company_workbench_html_snapshot(inputs: CompanyWorkbenchHtmlInputs) -> CompanyWorkbenchHtmlSnapshot:
@@ -488,9 +523,11 @@ def build_company_workbench_html_snapshot(inputs: CompanyWorkbenchHtmlInputs) ->
     sensitivity_table = inputs.scenario_lab_result.sensitivity_table if accepted and inputs.scenario_lab_result else _mapping(report.get("valuation_snapshot")).get("sensitivity_table")
     sensitivity = _sensitivity(sensitivity_table, canonical["base"].bridge)
     selected_state = inputs.selected_answer.get("state", "withheld") if selected_matches else "withheld"
+    selected_use_now = _clean_text(inputs.selected_answer.get("Use Now"), "No portable answer.") if selected_matches else "No portable answer."
+    selected_blocked = _clean_text(inputs.selected_answer.get("Still Blocked"), "No portable blocker.") if selected_matches else "No portable blocker."
     answers = (
-        HtmlBriefAnswer("Usable now", "Usable now", _clean_text(inputs.selected_answer.get("Use Now"), "No portable answer."), normalize_html_brief_state(selected_state), ()),
-        HtmlBriefAnswer("Still withheld", "Still withheld", _clean_text(inputs.selected_answer.get("Still Blocked"), "No portable blocker."), "withheld", ()),
+        HtmlBriefAnswer("Usable now", "Usable now", selected_use_now, normalize_html_brief_state(selected_state), ()),
+        HtmlBriefAnswer("Still withheld", "Still withheld", selected_blocked, "withheld", ()),
         HtmlBriefAnswer("Next research task", _clean_text(inputs.authoritative_task.get("title"), "Next research task"), _clean_text(inputs.authoritative_task.get("body"), "No portable task."), normalize_html_brief_state(inputs.authoritative_task.get("state")), tuple(safe_html_brief_text(item) for item in inputs.authoritative_task.get("badges", ()) if safe_html_brief_text(item)) if isinstance(inputs.authoritative_task.get("badges"), (list, tuple)) else ()),
     )
     evidence = _evidence_rows(inputs, accepted)
@@ -501,6 +538,6 @@ def build_company_workbench_html_snapshot(inputs: CompanyWorkbenchHtmlInputs) ->
 
 
 def company_workbench_html_filename(snapshot: CompanyWorkbenchHtmlSnapshot) -> str:
-    ticker = re.sub(r"[^A-Z0-9.-]", "", snapshot.ticker.upper()) or "UNKNOWN"
+    ticker = _ticker(snapshot.ticker) or "UNKNOWN"
     date = _date_part(snapshot.review_cutoff) or _date_part(snapshot.generated_at) or "undated"
     return f"{ticker}-{date}-research-brief.html"
