@@ -520,6 +520,46 @@ def test_approved_negated_research_boundaries_remain_visible(approved):
     assert approved in rendered
 
 
+@pytest.mark.parametrize(
+    "field_name, unsafe",
+    (
+        ("use_now", "recommendations are provided"),
+        ("task_body", "executing a transaction"),
+        ("quarterly_message", "executed a trade"),
+        ("decision_answer", "purchased shares"),
+        ("evidence_model_identity", "going long"),
+    ),
+)
+def test_portable_field_values_withhold_common_action_inflections(field_name, unsafe):
+    inputs = _inputs()
+    report = inputs.report_payload
+    changes = {}
+    if field_name == "use_now":
+        selected = dict(inputs.selected_answer)
+        selected["Use Now"] = unsafe
+        changes["selected_answer"] = selected
+    elif field_name == "task_body":
+        task = dict(inputs.authoritative_task)
+        task["body"] = unsafe
+        changes["authoritative_task"] = task
+    elif field_name == "quarterly_message":
+        changes["quarterly_trend"] = replace(inputs.quarterly_trend, message=unsafe)
+    elif field_name == "decision_answer":
+        lanes = (replace(inputs.decision_lab_state.lanes[0], answer=unsafe),) + inputs.decision_lab_state.lanes[1:]
+        changes["decision_lab_state"] = replace(inputs.decision_lab_state, lanes=lanes)
+    else:
+        report["provenance"]["source_records"] = [
+            _source_record(model_identity=unsafe)
+        ]
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(report, **changes))
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert unsafe not in repr(snapshot)
+    assert unsafe not in rendered
+    assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
+
+
 @pytest.mark.parametrize("credential", ("password hunter2", "api_key hunter2", "Authorization Bearer hunter2"))
 def test_portable_document_bytes_reject_whitespace_and_bearer_credentials(credential):
     inputs = _inputs()
@@ -599,6 +639,57 @@ def test_nowcast_datetime_comparison_handles_fractional_seconds_and_equivalent_o
     ]
 
 
+@pytest.mark.parametrize("invalid_cutoff", ("not-a-cutoff", "2026-07-30T12:00:00"))
+def test_nowcast_withholds_when_all_applicable_cutoffs_are_malformed_or_naive(invalid_cutoff):
+    report = _inputs().report_payload
+    report["generated_at"] = invalid_cutoff
+    profile = replace(_profile(), source_as_of=invalid_cutoff)
+    forward = replace(_forward(), source_cutoff=invalid_cutoff)
+
+    snapshot = build_company_workbench_html_snapshot(
+        _inputs(
+            report,
+            profile_context=profile,
+            forward_view=forward,
+            nowcast_packet=_complete_nowcast("2026-07-30T11:59:59Z"),
+        )
+    )
+    lanes = {row.key: row for row in snapshot.readiness_lanes}
+
+    assert snapshot.generated_at == "not recorded"
+    assert snapshot.review_cutoff == "not recorded"
+    assert [lanes[key].state for key in ("consensus", "backtesting", "calibration")] == [
+        "withheld",
+        "withheld",
+        "withheld",
+    ]
+
+
+def test_nowcast_accepts_valid_profile_cutoff_fallback_when_higher_precedence_cutoffs_are_invalid():
+    report = _inputs().report_payload
+    report["generated_at"] = "not-a-cutoff"
+    profile = replace(_profile(), source_as_of="2026-07-30T12:00:00Z")
+    forward = replace(_forward(), source_cutoff="2026-07-30T12:00:00")
+
+    snapshot = build_company_workbench_html_snapshot(
+        _inputs(
+            report,
+            profile_context=profile,
+            forward_view=forward,
+            nowcast_packet=_complete_nowcast("2026-07-30T11:59:59Z"),
+        )
+    )
+    lanes = {row.key: row for row in snapshot.readiness_lanes}
+
+    assert snapshot.generated_at == "not recorded"
+    assert snapshot.review_cutoff == "2026-07-30T12:00:00Z"
+    assert [lanes[key].state for key in ("consensus", "backtesting", "calibration")] == [
+        "partial",
+        "partial",
+        "partial",
+    ]
+
+
 def test_empty_supported_catalyst_timeline_is_withheld_in_readiness_and_research_sections():
     empty = replace(_catalysts(), state="supported", upcoming=(), recent=())
 
@@ -628,6 +719,33 @@ def test_renderer_shows_supplied_scenario_assumptions_values_and_modified_base_c
             currency=scenario.bridge.currency,
         )
         assert value in rendered
+
+
+def test_renderer_keeps_each_scenario_bridge_blockers_with_its_own_row_and_escapes_them():
+    report = _inputs().report_payload
+    report["valuation_snapshot"]["scenarios"][0]["dcf_result"]["status"] = "partial"
+    snapshot = build_company_workbench_html_snapshot(_inputs(report))
+    bear = next(scenario for scenario in snapshot.scenarios if scenario.name == "Bear")
+    escaped_bear = replace(
+        bear,
+        bridge=replace(
+            bear.bridge,
+            blockers=bear.bridge.blockers + ("Bear <bridge> blocker.",),
+        ),
+    )
+    scenarios = (escaped_bear,) + snapshot.scenarios[1:]
+
+    rendered = html_brief.render_company_workbench_html_document(
+        replace(snapshot, scenarios=scenarios)
+    )
+    bear_row = rendered.split('<th scope="row">Bear</th>', 1)[1].split("</tr>", 1)[0]
+    base_row = rendered.split('<th scope="row">Base</th>', 1)[1].split("</tr>", 1)[0]
+
+    assert escaped_bear.state == "withheld"
+    assert "DCF result is not calculated." in bear_row
+    assert "Bear &lt;bridge&gt; blocker." in bear_row
+    assert "Bear <bridge> blocker." not in rendered
+    assert "DCF result is not calculated." not in base_row
 
 
 def test_renderer_shows_stored_projected_and_discounted_fcf_schedules_in_order():
@@ -696,6 +814,35 @@ def test_sanitizer_preserves_safe_slash_delimited_research_phrases(safe):
 )
 def test_sanitizer_still_rejects_absolute_traversal_private_repository_and_known_output_paths(unsafe):
     assert safe_html_brief_text(unsafe) == ""
+
+
+@pytest.mark.parametrize(
+    "field_name, unsafe",
+    (
+        ("use_now", "file=/Users/research/private.txt"),
+        ("task_body", "path=/tmp/secret.txt"),
+        ("quarterly_message", "archive=src/company_workbench_html.py"),
+    ),
+)
+def test_portable_field_values_withhold_paths_preceded_by_punctuation(field_name, unsafe):
+    inputs = _inputs()
+    changes = {}
+    if field_name == "use_now":
+        selected = dict(inputs.selected_answer)
+        selected["Use Now"] = unsafe
+        changes["selected_answer"] = selected
+    elif field_name == "task_body":
+        task = dict(inputs.authoritative_task)
+        task["body"] = unsafe
+        changes["authoritative_task"] = task
+    else:
+        changes["quarterly_trend"] = replace(inputs.quarterly_trend, message=unsafe)
+
+    snapshot = build_company_workbench_html_snapshot(_inputs(**changes))
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert unsafe not in repr(snapshot)
+    assert unsafe not in rendered
 
 
 def test_empty_or_invalid_report_ticker_never_matches_empty_scoped_objects():

@@ -31,8 +31,9 @@ _NOT_RECORDED = frozenset({"not_recorded", "not recorded", "not_started", "empty
 _EXCLUDED = frozenset({"excluded", "not_applicable", "candidate_context_only"})
 _WITHHELD = frozenset({"withheld", "blocked", "still_blocked", "commercial_evidence_blocked", "unavailable", "insufficient_data", "insufficient_history", "not_supported", "unverified", "rejected"})
 _ACTION_PATTERN = re.compile(
-    r"\b(?:buy|sell|short|hold|recommend(?:ation|s|ed|ing)?|purchase\s+shares?|go\s+long|"
-    r"(?:execute|place|route|submit)\s+(?:an?\s+)?(?:transaction|trade|order)|position\s*size|"
+    r"\b(?:buy|sell|short|hold|recommend(?:ation(?:s)?|s|ed|ing)?|"
+    r"purchas(?:e|es|ed|ing)\s+shares?|go(?:es|ing)?\s+long|"
+    r"(?:execut(?:e|es|ed|ing)|place|route|submit)\s+(?:an?\s+)?(?:transaction|trade|order)|position\s*size|"
     r"allocation|stop[-\s]?loss|take[-\s]?profit|order|broker|rank(?:ing)?|target[-\s]?price|"
     r"expected[-\s]?return|upside|downside|margin[-\s]?of[-\s]?safety)\b",
     re.I,
@@ -47,9 +48,9 @@ _SECRET_PATTERN = re.compile(
     re.I,
 )
 _PATH_PATTERN = re.compile(
-    r"(?:^|\s)(?:~[/\\]|/[^\s]*|[A-Za-z]:[\\/][^\s]*)|"
+    r"(?<![A-Za-z0-9/])(?:~[/\\]|/[^\s]*|[A-Za-z]:[\\/][^\s]*)|"
     r"(?:^|[/\\])\.{1,2}(?:[/\\]|$)|"
-    r"(?:^|[\s/\\])(?:src|tests|data|outputs|docs|scripts|\.git|\.superpowers)(?:[/\\]|$)|\\"
+    r"(?<![A-Za-z0-9])(?:src|tests|data|outputs|docs|scripts|\.git|\.superpowers)(?:[/\\]|$)|\\"
 )
 _SENSITIVE_PATH_SEGMENTS = frozenset(
     {"api-key", "api_key", "apikey", "authorization", "bearer", "cookie", "password", "secret", "token"}
@@ -437,7 +438,7 @@ def _nowcast_lanes(packet: Mapping[str, object] | None, report: Mapping[str, obj
         for value in (generated_at, review_cutoff)
         if (parsed := _iso_datetime(value)) is not None
     )
-    if packet_at is None or any(packet_at > boundary for boundary in boundaries):
+    if packet_at is None or not boundaries or any(packet_at > boundary for boundary in boundaries):
         return tuple(_section(key, title, "withheld", "No portable nowcast evidence.", blockers=withheld) for key, title in (("consensus", "Consensus"), ("backtesting", "Backtesting"), ("calibration", "Calibration")))  # type: ignore[return-value]
     readiness = _mapping(packet.get("readiness"))
     consensus_state = "partial" if readiness.get("consensus_ready") is True else "withheld"
@@ -795,12 +796,13 @@ def _html_brief_content(snapshot: CompanyWorkbenchHtmlSnapshot, *, heading_level
         f"<td>{format_html_brief_number(scenario.forecast_years)}</td>"
         f"<td>{format_html_brief_number(scenario.bridge.scenario_value_per_share, currency=scenario.bridge.currency)}"
         f"{_html_brief_state_markup(scenario.bridge.per_share_state)}</td>"
+        f"<td>{_html_brief_blockers(scenario.bridge.blockers) or 'None recorded'}</td>"
         "</tr>" for scenario in snapshot.scenarios
     )
     scenarios = (
         '<section class="srcc-section" data-section="scenarios">'
         f"<{heading}>Scenarios</{heading}><div class=\"table-scroll\"><table class=\"srcc-table\"><caption>Supplied scenario assumptions</caption>"
-        "<thead><tr><th>Scenario</th><th>State</th><th>Modified state</th><th>Method</th><th>Revenue growth</th><th>FCF margin</th><th>WACC</th><th>Terminal growth</th><th>Forecast years</th><th>Scenario value/share</th></tr></thead>"
+        "<thead><tr><th>Scenario</th><th>State</th><th>Modified state</th><th>Method</th><th>Revenue growth</th><th>FCF margin</th><th>WACC</th><th>Terminal growth</th><th>Forecast years</th><th>Scenario value/share</th><th>Bridge blockers</th></tr></thead>"
         f"<tbody>{scenario_rows}</tbody></table></div></section>"
     )
     schedule_rows = ""
