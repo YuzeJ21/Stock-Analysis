@@ -107,6 +107,30 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
     assert module.classify_path("config/provider_keys.env") == "review_manually"
 
 
+def test_html_brief_code_and_evidence_stay_product_candidates_but_saved_html_requires_manual_review():
+    module = load_diff_hygiene_module()
+
+    for path in (
+        "src/company_workbench_html.py",
+        "src/company_workbench_html_browser_gate.py",
+        "tests/test_company_workbench_html.py",
+        "tests/test_company_workbench_html_browser_gate.py",
+        "docs/internal/COMPANY_WORKBENCH_HTML_RESEARCH_BRIEF.md",
+    ):
+        assert module.classify_path(path) == "product_candidate"
+
+    for path in (
+        "outputs/local/example-research-brief.html",
+        "data/local/example-research-brief.html",
+    ):
+        assert module.classify_path(path) == "review_manually"
+        assert module.is_generated_churn(path) is False
+
+    assert not hasattr(module, "GENERATED_HTML_ARTIFACTS")
+    assert not any(str(path).endswith(".html") for path in module.GENERATED_MARKDOWN_ARTIFACTS)
+    assert not Path("src/company_workbench_html_writer.py").exists()
+
+
 def test_diff_hygiene_counts_untracked_and_staged_added_files_as_new():
     module = load_diff_hygiene_module()
 

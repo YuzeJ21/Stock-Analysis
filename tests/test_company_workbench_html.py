@@ -10,6 +10,7 @@ import src.data_update as data_update
 import src.loader as input_loader
 import src.readiness_engine as readiness_engine
 import src.stock_report as stock_report
+from scripts.public_wording_check import find_forbidden_matches
 from src.catalyst_evidence_timeline import CatalystEvent, CatalystTimeline
 from src.company_workbench_html import (
     CompanyWorkbenchHtmlInputs,
@@ -852,3 +853,51 @@ def test_document_bytes_and_download_spec_are_deterministic_and_pathless():
     assert not hasattr(spec, "path")
     assert "default-src 'none'; script-src 'none'; connect-src 'none'; img-src 'none'; style-src 'unsafe-inline'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'" in html_brief.render_company_workbench_html_document(snapshot)
     assert "frame-ancestors" not in html_brief.render_company_workbench_html_document(snapshot)
+
+
+def test_complete_partial_and_withheld_documents_keep_research_only_wording_non_actionable():
+    snapshot = _render_snapshot()
+    approved_boundary = (
+        "Research-only, fail-closed portable brief; no recommendation, "
+        "probability, or transaction action."
+    )
+    affirmative_or_instructional = tuple(
+        re.compile(pattern, re.IGNORECASE)
+        for pattern in (
+            r"\b(?:buy|sell|short|hold)\s+(?:now|today|this\s+(?:stock|ticker)|shares?)\b",
+            r"\b(?:set|use|raise|lower)\s+(?:a\s+)?target[- ]price\b",
+            r"\btarget[- ]price\s+(?:is|of|at|:)\b",
+            r"\b(?:we|the\s+(?:brief|system))\s+recommend(?:s|ed|ing)?\b",
+            r"\brecommendation\s*:\s*(?:buy|sell|short|hold)\b",
+            r"\b(?:rank|ranking)\s+(?:the|this|companies|stocks|securities)\b",
+            r"\b(?:place|execute|route|submit)\s+(?:an?\s+)?(?:transaction|trade|order)\b",
+            r"\b(?:open|close|size|increase|reduce)\s+(?:a\s+|the\s+|your\s+)?position\b",
+            r"\ballocate\s+(?:capital|cash|portfolio)\b",
+            r"\ballocation\s+(?:is|of|at|:)\s*\d",
+            r"\bexpected[- ]return\s+(?:is|of|at|:)\b",
+            r"\b(?:take|execute|recommended)\s+(?:an?\s+)?action\b",
+            r"\baction\s*:\s*(?:buy|sell|short|hold)\b",
+        )
+    )
+
+    for state, visible_label in (
+        ("available", "complete"),
+        ("partial", "partial"),
+        ("withheld", "withheld"),
+    ):
+        state_snapshot = replace(
+            snapshot,
+            freshness_state=state,
+            rights_state=state,
+            answers=tuple(replace(answer, state=state) for answer in snapshot.answers),
+            recency=replace(snapshot.recency, state=state),
+            readiness_lanes=tuple(replace(lane, state=state) for lane in snapshot.readiness_lanes),
+            research_sections=tuple(replace(section, state=state) for section in snapshot.research_sections),
+            decision_lanes=tuple(replace(lane, state=state) for lane in snapshot.decision_lanes),
+        )
+        rendered = html_brief.render_company_workbench_html_document(state_snapshot)
+
+        assert f"State: {visible_label}" in rendered
+        assert approved_boundary in rendered
+        assert find_forbidden_matches(rendered, path=f"{visible_label}-research-brief.html") == []
+        assert not any(pattern.search(rendered) for pattern in affirmative_or_instructional)

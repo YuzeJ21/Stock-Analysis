@@ -22,6 +22,7 @@ PUBLIC_GLOBS = (
 PUBLIC_SOURCE_FILES = (
     "src/dashboard.py",
     "src/stock_report.py",
+    "src/company_workbench_html.py",
 )
 
 SAFE_CONTEXT_PATTERNS = (
