@@ -30,12 +30,30 @@ _STALE = frozenset({"stale", "stale_review_only", "stale_or_unknown"})
 _NOT_RECORDED = frozenset({"not_recorded", "not recorded", "not_started", "empty", "missing"})
 _EXCLUDED = frozenset({"excluded", "not_applicable", "candidate_context_only"})
 _WITHHELD = frozenset({"withheld", "blocked", "still_blocked", "commercial_evidence_blocked", "unavailable", "insufficient_data", "insufficient_history", "not_supported", "unverified", "rejected"})
+_SECURITY_ACTION_VERB = (
+    r"(?:buy|buys|buying|bought|sell|sells|selling|sold|purchas(?:e|es|ed|ing)|"
+    r"short(?:s|ed|ing)?|hold|holds|holding|held)"
+)
+_SECURITY_ACTION_OBJECT = r"(?:shares?|stocks?|securit(?:y|ies)|equit(?:y|ies)|positions?)"
+_SECURITY_ACTION = (
+    rf"{_SECURITY_ACTION_VERB}\s+"
+    rf"(?:(?:a|an|the|this|that|these|those|your|our)\s+)?{_SECURITY_ACTION_OBJECT}"
+)
+_EXECUTION_ACTION_VERB = (
+    r"(?:execut(?:e|es|ed|ing)|plac(?:e|es|ed|ing)|submit|submits|submitted|submitting|rout(?:e|es|ed|ing))"
+)
+_EXECUTION_ACTION = rf"{_EXECUTION_ACTION_VERB}\s+(?:(?:a|an|the)\s+)?(?:trades?|transactions?|orders?)"
+_DIRECTIONAL_ACTION = r"(?:go|goes|going|went)\s+(?:long|short)"
+_POSITION_ACTION_VERB = (
+    r"(?:enter|enters|entered|entering|open|opens|opened|opening|close|closes|closed|closing|"
+    r"exit|exits|exited|exiting)"
+)
+_POSITION_ACTION = rf"{_POSITION_ACTION_VERB}\s+(?:(?:a|an|the|this|that|your|our)\s+)?positions?"
 _ACTION_PATTERN = re.compile(
-    r"\b(?:buy|sell|short|hold|recommend(?:ation(?:s)?|s|ed|ing)?|"
-    r"purchas(?:e|es|ed|ing)\s+shares?|go(?:es|ing)?\s+long|"
-    r"(?:execut(?:e|es|ed|ing)|place|route|submit)\s+(?:an?\s+)?(?:transaction|trade|order)|position\s*size|"
-    r"allocation|stop[-\s]?loss|take[-\s]?profit|order|broker|rank(?:ing)?|target[-\s]?price|"
-    r"expected[-\s]?return|upside|downside|margin[-\s]?of[-\s]?safety)\b",
+    rf"\b(?:recommend(?:ation(?:s)?|s|ed|ing)?|{_SECURITY_ACTION}|{_EXECUTION_ACTION}|"
+    rf"{_DIRECTIONAL_ACTION}|{_POSITION_ACTION}|position\s*size|allocation|stop[-\s]?loss|"
+    r"take[-\s]?profit|order|broker|rank(?:ing)?|target[-\s]?price|expected[-\s]?return|"
+    r"upside|downside|margin[-\s]?of[-\s]?safety)\b",
     re.I,
 )
 _APPROVED_NEGATED_BOUNDARY_PATTERN = re.compile(

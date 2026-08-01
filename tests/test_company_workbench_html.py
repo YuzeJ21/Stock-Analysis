@@ -560,6 +560,80 @@ def test_portable_field_values_withhold_common_action_inflections(field_name, un
     assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
 
 
+def _snapshot_with_portable_action_text(field_name, text):
+    inputs = _inputs()
+    report = inputs.report_payload
+    changes = {}
+    if field_name == "use_now":
+        selected = dict(inputs.selected_answer)
+        selected["Use Now"] = text
+        changes["selected_answer"] = selected
+    elif field_name == "task_body":
+        task = dict(inputs.authoritative_task)
+        task["body"] = text
+        changes["authoritative_task"] = task
+    elif field_name == "quarterly_message":
+        changes["quarterly_trend"] = replace(inputs.quarterly_trend, message=text)
+    elif field_name == "decision_answer":
+        lanes = (replace(inputs.decision_lab_state.lanes[0], answer=text),) + inputs.decision_lab_state.lanes[1:]
+        changes["decision_lab_state"] = replace(inputs.decision_lab_state, lanes=lanes)
+    else:
+        report["provenance"]["source_records"] = [
+            _source_record(model_identity=text)
+        ]
+    return build_company_workbench_html_snapshot(_inputs(report, **changes))
+
+
+@pytest.mark.parametrize(
+    "field_name, unsafe",
+    (
+        ("use_now", "buying shares now"),
+        ("task_body", "bought this stock"),
+        ("quarterly_message", "selling shares now"),
+        ("decision_answer", "sold the security"),
+        ("evidence_model_identity", "purchasing shares"),
+        ("use_now", "shorting shares"),
+        ("task_body", "shorted the stock"),
+        ("quarterly_message", "holding shares"),
+        ("decision_answer", "held a position"),
+        ("evidence_model_identity", "placing a trade"),
+        ("use_now", "placed an order"),
+        ("task_body", "submitting a transaction"),
+        ("quarterly_message", "submitted a trade"),
+        ("decision_answer", "went long"),
+        ("evidence_model_identity", "go short"),
+        ("use_now", "entering a position"),
+        ("task_body", "opened the position"),
+        ("quarterly_message", "closing a position"),
+        ("decision_answer", "exited the position"),
+    ),
+)
+def test_portable_fields_withhold_bounded_semantic_action_families(field_name, unsafe):
+    snapshot = _snapshot_with_portable_action_text(field_name, unsafe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert unsafe not in repr(snapshot)
+    assert unsafe not in rendered
+    assert "Withheld: reviewer-authored action language is not portable research evidence." in repr(snapshot)
+
+
+@pytest.mark.parametrize(
+    "safe",
+    (
+        "Long-term revenue evidence remains under review.",
+        "Short history limits calibration evidence.",
+        "Historical evidence shows shares were purchased by the issuer in 2024.",
+        "Historical evidence records a closed reporting period.",
+    ),
+)
+def test_portable_fields_preserve_safe_non_action_research_language(safe):
+    snapshot = _snapshot_with_portable_action_text("use_now", safe)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert snapshot.answers[0].body == safe
+    assert safe in rendered
+
+
 @pytest.mark.parametrize("credential", ("password hunter2", "api_key hunter2", "Authorization Bearer hunter2"))
 def test_portable_document_bytes_reject_whitespace_and_bearer_credentials(credential):
     inputs = _inputs()
