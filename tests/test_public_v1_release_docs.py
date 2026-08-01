@@ -1552,10 +1552,13 @@ def test_current_handoff_routes_to_local_reliability_work_not_exhausted_price_qu
     next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
 
-    for text in (roadmap, next_stage, prompt):
+    for text in (roadmap, prompt):
         assert "Documentation and routing reconciliation is complete locally" in text
         assert "observation-recency UX repair" in text
         assert "framework reliability" in text
+
+    assert "Documentation and routing reconciliation is historical/completed context" in next_stage
+    assert "Prior accessibility and Discover work is historical/completed context" in next_stage
 
     assert "Finish this documentation/routing reconciliation once" not in prompt
     assert "Complete the documentation/routing reconciliation once" not in next_stage
@@ -2038,6 +2041,7 @@ def test_portable_html_action_repair_docs_route_first_and_remain_release_blocked
     readme = _read("README.md")
     product_spec = _read("PRODUCT_SPEC.md")
     methodology = _read("docs/METHODOLOGY.md")
+    next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
     continuation = _read(
         "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
     )
@@ -2056,12 +2060,14 @@ def test_portable_html_action_repair_docs_route_first_and_remain_release_blocked
     assert active_lane in readme
     assert active_lane in product_spec
     assert active_lane in methodology
+    assert active_lane in next_stage
     assert "historical implementation evidence only" in continuation
     assert (
         "prior synchronization and CI records do not certify the portable HTML repair"
         in continuation
     )
     assert "Priority 7 remains open but is not the active next lane" in roadmap
+    assert "Priority 7 remains open but is not the active next lane" in next_stage
 
     assert "Company Workbench HTML Research Brief" in roadmap
     assert (
