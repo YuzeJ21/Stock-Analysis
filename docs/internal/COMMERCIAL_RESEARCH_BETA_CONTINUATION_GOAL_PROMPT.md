@@ -67,6 +67,7 @@ Expected lineage to verify, never assume:
 - Shared consensus commercial field-scope design/plan anchor: commit `b7013f161` or a later verified descendant.
 - Consensus source-review command implementation anchor: commit `c7e81d667` or a later verified descendant.
 - PR engineering gate hosted-verification anchor: commit `1fdcaaa78` or a later verified descendant; reverify the current revision's check instead of copying the earlier result forward.
+- Company Workbench HTML Research Brief implementation anchor: `6ad7f34310652f1b172525a0b8f00becf874c44c` or a later verified descendant. It is a local read-only presentation of existing saved evidence and prepared Python scenario math, not a readiness activation, refresh, new source, new calculation engine, human-accessibility result, hosted operation, or market-validation claim.
 - Public UX post-fix outcome-contract implementation anchor: commit `74eb4055e` or a later verified descendant.
 - Prospective field-proof Stage A implementation anchor: commit `2c7398402` or a later verified descendant.
 - Company Workbench answer-first handoff design anchor: commit `1a144c9a1` or a later verified descendant; reverify the implementation, responsive measurements, and current exact-head CI rather than treating the design commit as implementation evidence.
@@ -486,6 +487,26 @@ Git and artifact rules:
 - Commit only coherent verified slices.
 - Push only to `codex/personal-research-mode-mvp`.
 - Keep PR #113 draft and update it after each verified implementation slice.
+- Keep PR #113 open and draft; do not merge, deploy, or mark it ready.
+- The same 18 protected generated paths remain excluded, byte-for-byte unchanged, and unstaged unless separately reviewed and explicitly approved:
+  - `data/analyst_estimates_readiness.csv`
+  - `data/dcf_readiness.csv`
+  - `data/earnings_readiness.csv`
+  - `data/price_coverage_report.csv`
+  - `data/reports/analyst_estimates_readiness_report.csv`
+  - `data/reports/data_source_status.csv`
+  - `data/reports/dcf_readiness_report.csv`
+  - `data/reports/earnings_readiness_report.csv`
+  - `data/reports/feature_readiness_summary.csv`
+  - `data/reports/fundamentals_coverage_report.csv`
+  - `data/reports/peer_readiness_report.csv`
+  - `data/reports/peer_unlock_worklist.csv`
+  - `data/reports/price_coverage_report.csv`
+  - `data/reports/ticker_readiness_report.csv`
+  - `data/reports/universe_coverage_report.csv`
+  - `data/universe_master.csv`
+  - `outputs/feature_readiness_summary.csv`
+  - `outputs/peer_unlock_worklist.csv`
 - Do not merge into main or deploy publicly without explicit approval.
 
 Completion audit before any completion claim:

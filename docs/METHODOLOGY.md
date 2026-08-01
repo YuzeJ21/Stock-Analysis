@@ -148,6 +148,14 @@ The six lanes are derived independently: `Plan` reflects only reviewer-authored 
 
 The next process step follows a deterministic documentation order: unresolved conflicting evidence, overdue review, missing thesis, missing invalidation, missing evidence, unscheduled review, DCF-ready but invisible assumptions, then continued monitoring. This order is not company attractiveness, expected return, portfolio priority, or a transaction signal. Monitor preserves the existing focused-cohort order and never reorders companies by process severity or market value.
 
+## Company Workbench HTML Research Brief Method
+
+The HTML Research Brief freezes one immutable prepared snapshot from the selected profile, ticker, saved report evidence, prepared Research Decision Lab state, and the already prepared Scenario Lab result. It is a read-only presentation of existing saved evidence and Python scenario math, not a new calculation engine, refresh, import, source collector, or readiness activator.
+
+The authoritative discounted explicit-cash-flow subtotal is the Scenario Lab result's `discounted_explicit_total`; the brief does not recompute that subtotal from displayed rows. Enterprise value, equity value, per-share value, sensitivity, provenance, source rights, field scope, freshness, and each research lane use independent field gates. A supported sibling may remain visible while an unsupported value is withheld. The label **Shares outstanding used by existing model** identifies the scenario input, while its split basis remains unverified unless explicit proof exists.
+
+The safe text/reference policy removes repository paths, local paths, secrets, control characters, unsafe or credential-bearing links, and action language from portable content. Only bounded HTTPS references without credentials, query strings, fragments, path traversal, or local paths may become links; an unsafe reference can retain only a sanitized non-link label. The standalone document applies an offline Content Security Policy with no JavaScript, image, font, form, or network access. Rendering, browser verification, print emulation, and in-memory PDF inspection follow a zero-write repository contract.
+
 ## Public Workflow Boundary
 
 The public page order is a reading workflow, not an analysis shortcut.

@@ -869,3 +869,27 @@ Evidence boundary:
   assistive-technology, independent-human, hosted, and WCAG evidence remain
   incomplete. Priority 7 and
   `accessibility_manual_review_environment_required` remain open.
+
+## 2026-08-01 Company Workbench HTML Research Brief actual-byte matrix
+
+Direct local browser evidence at implementation anchor
+`6ad7f34310652f1b172525a0b8f00becf874c44c` exercised the production
+renderer's actual UTF-8 download bytes for complete, partial, and withheld
+synthetic test states at `1280x720, 390x844, and 640x900`.
+
+- Each of the nine state-and-viewport cases decoded and re-encoded the exact
+  bytes, loaded them in Chromium, and checked semantic landmarks, one H1,
+  captioned tables, the exact offline CSP, visible research boundaries,
+  blockers, provenance, and no active content or network request.
+- The physical keyboard Tab and Enter sequence verified the skip-link focus cue and target.
+  The matrix also checked print media, forced-colors emulation,
+  reduced-motion emulation, visible boundaries and provenance, no horizontal
+  overflow, no console or page error, and a nonempty `%PDF` in-memory PDF.
+- The repository fingerprint was identical before and after the matrix. No
+  HTML, PDF, screenshot, JSON, timing, readiness, canonical-data, report, or
+  research-ledger artifact was written.
+
+This is automated engineering evidence only. Synthetic states are test-only;
+the matrix does not prove human or screen-reader usability, true zoom/reflow,
+direct operating-system media-preference behavior, hosted operation, WCAG
+conformance, source rights, current data, independent review, or market fit.

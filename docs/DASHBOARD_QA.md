@@ -2,6 +2,19 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-08-01 Company Workbench HTML Research Brief
+
+Open `?mode=research&page=company&ticker=<ticker>` with an explicit selected
+ticker. Company Workbench displays **Download HTML Research Brief** only after
+preparing the same session evidence and Scenario Lab result used by the visible
+research answer. The download preserves complete, partial, and withheld states;
+unsupported fields remain withheld independently and the brief stays
+research-only.
+
+Run `make company-workbench-html-browser-check` for the direct actual-byte
+complete/partial/withheld browser, keyboard, responsive, print, media-
+preference, PDF-in-memory, CSP, and repository-fingerprint matrix. No HTML, PDF, screenshot, JSON, timing, readiness, canonical-data, or report artifact is written. This command does not refresh data, acquire a source, activate readiness, or establish human/screen-reader accessibility.
+
 ## 2026-07-18 Personal Research Evidence Detour Continuity
 
 Read-only AppTest coverage now verifies six Personal Research surfaces: Research Desk, Discover, Company Workbench, Monitor, Research Data Health, and Research Proof History. Data Health and Proof History stay inside Personal Research mode when opened from Company Workbench Advanced Evidence, preserve the selected ticker, and show **Return to Company Workbench** before existing evidence content.

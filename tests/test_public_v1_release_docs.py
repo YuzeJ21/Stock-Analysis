@@ -1968,3 +1968,105 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
     assert budgets in normalized_history
     assert scope_boundary in normalized_history
     assert external_gate in normalized_history
+
+
+def test_html_research_brief_public_and_methodology_docs_keep_the_verified_boundary():
+    readme = _read("README.md")
+    methodology = _read("docs/METHODOLOGY.md")
+
+    assert "Download HTML Research Brief" in readme
+    assert "existing saved evidence and Python scenario math" in readme
+    assert "does not refresh data or acquire a new source" in readme
+    assert "No repository HTML or PDF artifact is written" in readme
+    assert "research-only" in readme.lower()
+
+    normalized = " ".join(methodology.split())
+    for phrase in (
+        "immutable prepared snapshot",
+        "authoritative discounted explicit-cash-flow subtotal",
+        "discounted_explicit_total",
+        "independent field gates",
+        "Shares outstanding used by existing model",
+        "split basis remains unverified",
+        "safe text/reference policy",
+        "offline Content Security Policy",
+        "no JavaScript, image, font, form, or network access",
+        "zero-write",
+    ):
+        assert phrase in normalized
+
+
+def test_html_research_brief_roadmap_separates_local_completion_from_external_gates():
+    roadmap = " ".join(_read("ROADMAP.md").split())
+
+    assert "Company Workbench HTML Research Brief" in roadmap
+    assert "Local feature gate: complete" in roadmap
+    assert (
+        "Source rights, current data, hosted operation, human and screen-reader "
+        "accessibility, independent workflow sessions, screening validation, and "
+        "probability calibration remain open gates."
+    ) in roadmap
+    assert "does not activate readiness" in roadmap
+    assert "does not establish screening alpha" in roadmap
+
+
+def test_html_research_brief_accessibility_and_dashboard_qa_name_actual_evidence():
+    accessibility = " ".join(_read("docs/ACCESSIBILITY_EVIDENCE.md").split())
+    dashboard_qa = " ".join(_read("docs/DASHBOARD_QA.md").split())
+
+    for phrase in (
+        "actual UTF-8 download bytes",
+        "1280x720, 390x844, and 640x900",
+        "physical keyboard Tab and Enter",
+        "print media",
+        "forced-colors emulation",
+        "reduced-motion emulation",
+        "in-memory PDF",
+        "no horizontal overflow",
+        "automated engineering evidence only",
+    ):
+        assert phrase in accessibility
+
+    for phrase in (
+        "?mode=research&page=company&ticker=<ticker>",
+        "Download HTML Research Brief",
+        "complete, partial, and withheld",
+        "make company-workbench-html-browser-check",
+        "No HTML, PDF, screenshot, JSON, timing, readiness, canonical-data, or report artifact is written",
+    ):
+        assert phrase in dashboard_qa
+
+
+def test_html_research_brief_continuation_contract_preserves_anchor_and_exclusions():
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+
+    assert (
+        "Company Workbench HTML Research Brief implementation anchor: "
+        "`6ad7f34310652f1b172525a0b8f00becf874c44c` or a later verified descendant."
+        in continuation
+    )
+    assert "Keep PR #113 open and draft" in continuation
+    assert "The same 18 protected generated paths remain excluded" in continuation
+    for path in (
+        "data/analyst_estimates_readiness.csv",
+        "data/dcf_readiness.csv",
+        "data/earnings_readiness.csv",
+        "data/price_coverage_report.csv",
+        "data/reports/analyst_estimates_readiness_report.csv",
+        "data/reports/data_source_status.csv",
+        "data/reports/dcf_readiness_report.csv",
+        "data/reports/earnings_readiness_report.csv",
+        "data/reports/feature_readiness_summary.csv",
+        "data/reports/fundamentals_coverage_report.csv",
+        "data/reports/peer_readiness_report.csv",
+        "data/reports/peer_unlock_worklist.csv",
+        "data/reports/price_coverage_report.csv",
+        "data/reports/ticker_readiness_report.csv",
+        "data/reports/universe_coverage_report.csv",
+        "data/universe_master.csv",
+        "outputs/feature_readiness_summary.csv",
+        "outputs/peer_unlock_worklist.csv",
+    ):
+        assert f"`{path}`" in continuation

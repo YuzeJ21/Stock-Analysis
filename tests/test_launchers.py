@@ -2826,3 +2826,18 @@ def test_consensus_record_requires_the_exact_reviewed_preview_receipt():
     assert '--preview-receipt "$(PREVIEW_RECEIPT)"' in target
     assert target.count("--confirm-reviewed") == 1
     assert "$(if $(JSON),--json,)" in makefile
+
+
+def test_makefile_exposes_direct_html_research_brief_browser_gate():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "company-workbench-html-browser-check" in _makefile_targets()
+    assert (
+        "make company-workbench-html-browser-check Verify offline research-brief bytes in a real browser"
+        in makefile
+    )
+    target = makefile.split("company-workbench-html-browser-check:", 1)[1].split(
+        "\n\n", 1
+    )[0]
+    assert "PYTHONDONTWRITEBYTECODE=1" in target
+    assert "tests/test_company_workbench_html_browser_gate.py" in target
