@@ -7301,7 +7301,14 @@ def render_public_shell_mode_styles() -> None:
           .public-ticker-summary {
             grid-template-columns: 1fr;
             gap: 0.25rem;
+            margin-top: -1rem;
             padding: 0.125rem 0 0.5rem;
+          }
+          .public-ticker-action {
+            gap: 0.2rem;
+          }
+          .public-ticker-action small {
+            margin-top: 0;
           }
           .public-ticker-action .public-primary-action {
             order: -1;

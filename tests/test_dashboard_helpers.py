@@ -29802,6 +29802,38 @@ def test_public_single_stock_phone_keeps_evidence_handoff_in_first_view():
     assert "order: -1;" in action_rule
 
 
+def test_public_single_stock_phone_compacts_stop_rule_spacing(monkeypatch):
+    rendered: list[str] = []
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda body, **_kwargs: rendered.append(str(body)),
+    )
+
+    dashboard.render_public_shell_mode_styles()
+
+    assert len(rendered) == 1
+    style = rendered[0]
+    mobile_start = style.index("@media (max-width: 640px)")
+    mobile_end = style.index("</style>", mobile_start)
+    mobile_css = style[mobile_start:mobile_end]
+
+    assert ".public-ticker-summary {" in mobile_css
+    summary_start = mobile_css.index(".public-ticker-summary {")
+    summary_rule = mobile_css[summary_start : mobile_css.index("}", summary_start)]
+    assert "margin-top: -1rem;" in summary_rule
+
+    assert ".public-ticker-action {" in mobile_css
+    action_start = mobile_css.index(".public-ticker-action {")
+    action_rule = mobile_css[action_start : mobile_css.index("}", action_start)]
+    assert "gap: 0.2rem;" in action_rule
+
+    assert ".public-ticker-action small {" in mobile_css
+    stop_start = mobile_css.index(".public-ticker-action small {")
+    stop_rule = mobile_css[stop_start : mobile_css.index("}", stop_start)]
+    assert "margin-top: 0;" in stop_rule
+
+
 def test_public_workflow_controls_reserve_accessible_touch_targets():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
