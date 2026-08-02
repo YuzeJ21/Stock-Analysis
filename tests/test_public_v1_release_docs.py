@@ -1807,13 +1807,13 @@ def test_priority_four_local_validator_is_documented_without_claiming_real_data_
     assert "Start from current repository truth, not chat memory." in prompt
     assert (
         "Verify authoritative remote commit "
-        "`69c49968e77bfd55fa259695089e1f34ac2fddfb` or a later descendant "
+        "`b69badfc80424d3a97fae5f77706aa6ed1533167` or a later descendant "
         "before relying on this implementation evidence."
     ) in prompt
     assert "exact-head GitHub Actions run `30185232040` passed" in prompt
     assert (
-        "compare the actual product tree and remote PR head instead of recommitting "
-        "an already synchronized package"
+        "At that exact head the branch and draft PR were synchronized and GitHub "
+        "Actions run `30726301045` passed"
     ) in prompt
     assert (
         "Point-in-time universe production-validator lineage anchor: commit "
@@ -2046,7 +2046,7 @@ def test_html_research_brief_public_and_methodology_docs_keep_the_verified_bound
     _assert_html_brief_section_has_no_affirmative_overclaim(methodology)
 
 
-def test_portable_html_action_repair_docs_preserve_recorded_matrix_without_claiming_current_release():
+def test_portable_html_action_repair_docs_preserve_history_and_name_current_release():
     methodology = _read("docs/METHODOLOGY.md")
     dashboard_qa = _read("docs/DASHBOARD_QA.md")
     continuation = _read(
@@ -2069,7 +2069,25 @@ def test_portable_html_action_repair_docs_preserve_recorded_matrix_without_claim
     assert "It is not current-head evidence" in dashboard_qa
     assert "On 2026-08-01 the historical pre-fix local matrix for this anchor passed" in continuation
     assert "On 2026-08-01 the current local matrix passed" not in continuation
-    assert "Local implementation verified; draft-branch review safety still requires exact-head CI." not in dashboard_qa
+
+    current_release_evidence = (
+        "Exact-head repair evidence: commit "
+        "`b69badfc80424d3a97fae5f77706aa6ed1533167` passed the 5,828-test "
+        "full suite, the required dashboard, render, HTML, accessibility, public, "
+        "and hygiene gates, branch/PR synchronization, and exact-head GitHub "
+        "Actions run `30726301045`."
+    )
+    for document in (roadmap, dashboard_qa, continuation):
+        assert current_release_evidence in " ".join(document.split())
+
+    for stale_release_route in (
+        "The current branch requires a fresh exact-head local matrix, branch/PR "
+        "synchronization, and exact-head CI before review-safety claims.",
+        "exact-head CI still requires the intentional push",
+        "push and exact-head CI remain open",
+    ):
+        assert stale_release_route not in roadmap
+
     assert "Pilot packaging remains blocked on readiness freshness and source proof." in roadmap
 
     assert "Company Workbench HTML Research Brief" in roadmap
