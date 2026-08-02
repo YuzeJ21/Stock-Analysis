@@ -102,6 +102,27 @@ workspace and remain unstaged. They prove local layout and route composition
 only; they do not prove current data, source rights, hosted behavior, or
 predictive validity.
 
+## 2026-08-01 Personal Research Workflow Peer-Readiness Review
+
+The live local workflow was reviewed in order through Research Desk, Discover,
+AVGO Company Workbench, and Monitor. Research Desk exposed one next action;
+Discover kept the empty strict Momentum & Valuation queue separate from its
+alphabetical readiness-backed review rows; Monitor preserved process timing as
+non-ranking context. The first AVGO Workbench load exposed a contradictory peer
+projection: broad peer trend readiness briefly unlocked peer-input wording even
+though `peer_valuation_comparison_ready` was false and the settled report
+withheld peer-relative valuation.
+
+The selected answer, next-step routing, reader guide, quick read, methodology,
+and source audit now use peer-valuation readiness for valuation claims while
+retaining independently ready peer-trend context. A fresh server session showed
+the same fail-closed AVGO answer before and after the saved report settled:
+standalone DCF reviewable, peer trend context separately available, and
+peer-relative valuation still withheld. Audit screenshots remain under
+`/tmp/stock-research-workflow-audit-2026-08-01` and are not repository evidence.
+This local review does not prove source rights, current data, hosted behavior,
+human accessibility, independent understanding, or predictive validity.
+
 ## 2026-07-18 Discover Answer-First Live Review
 
 The live demo-profile Discover route was reviewed from the selected worktree at

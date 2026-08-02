@@ -293,6 +293,19 @@ def test_single_stock_next_command_preserves_readiness_first_routes():
             "analyst_estimates_ready": False,
         }
     ) == "make optional-context-worklist TOP_N=25"
+    assert single_stock_next_command(
+        {
+            "ticker": "AVGO",
+            "price_ready": True,
+            "dcf_status": "ready",
+            "peer_ready": True,
+            "peer_trend_comparison_ready": True,
+            "peer_valuation_comparison_ready": False,
+            "missing_data": "peer trend comparison ready; peer valuation inputs remain blocked",
+            "earnings_ready": False,
+            "analyst_estimates_ready": False,
+        }
+    ) == "make focus-peers TICKER=AVGO"
 
 
 def test_single_stock_report_data_health_route_covers_readiness_gates():

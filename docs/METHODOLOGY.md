@@ -180,6 +180,8 @@ The product separates source inputs from analysis rules so the report is not a b
 | Earnings and analyst estimates | Trusted optional local imports. | Displays optional context only when rows pass schema and source-readiness checks. |
 | Report wording | Project code under `src/`. | Converts readiness, calculations, source state, and blockers into plain-language sections without inventing conclusions. |
 
+Company Workbench answer and routing surfaces apply that peer separation directly: broad `peer_ready` or `peer_trend_comparison_ready` may support mapped-price trend context, but cannot unlock peer-relative valuation, premium/discount, or peer DCF comparison when `peer_valuation_comparison_ready` is explicitly false. An absent explicit field falls back only for legacy loaded-report compatibility; a loaded report may narrow readiness further, but it cannot widen an independently blocked peer-valuation state.
+
 Third-party or optional provider data can supply rows, but it does not decide the research conclusion. The project code decides whether each local row is usable, which calculation is allowed, and which section must stay blocked or excluded.
 
 ## Daily Momentum And Valuation Research Queue Method

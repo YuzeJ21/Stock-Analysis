@@ -39,6 +39,15 @@ def _format_missing(value: object, fallback: str = "Not available") -> str:
     return text
 
 
+def single_stock_peer_valuation_ready(snapshot: dict[str, object]) -> bool:
+    """Keep peer-valuation readiness independent from broader peer uses."""
+
+    explicit = _format_missing(snapshot.get("peer_valuation_comparison_ready"), "").lower()
+    if explicit:
+        return explicit in {"true", "1", "yes", "y", "ready"}
+    return bool(snapshot.get("peer_ready"))
+
+
 def _normalize_operator_command(command: object) -> str:
     command_text = _format_missing(command, "")
     if command_text == "make status":
@@ -120,7 +129,7 @@ def single_stock_next_command(snapshot: dict[str, object]) -> str:
         return f"make focus-price TICKER={ticker}"
     if dcf_status == "blocked":
         return f"make focus-fundamentals TICKER={ticker}"
-    if dcf_status == "ready" and not snapshot.get("peer_ready") and "peer" in _format_missing(snapshot.get("missing_data"), "").lower():
+    if dcf_status == "ready" and not single_stock_peer_valuation_ready(snapshot) and "peer" in _format_missing(snapshot.get("missing_data"), "").lower():
         return f"make focus-peers TICKER={ticker}"
     if not snapshot.get("earnings_ready") or not snapshot.get("analyst_estimates_ready"):
         return "make optional-context-worklist TOP_N=25"
@@ -189,6 +198,7 @@ def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[s
     dcf_status = _format_missing(snapshot.get("dcf_status"), "blocked").lower()
     asset_type = _format_missing(snapshot.get("asset_type"), "").lower()
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+    peer_valuation_ready = single_stock_peer_valuation_ready(snapshot)
     command = single_stock_next_command(snapshot)
 
     if not snapshot or snapshot.get("status") == "missing":
@@ -207,7 +217,7 @@ def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[s
         next_step = "Route fundamentals, shares, market-cap, or DCF blockers to Data Health source review."
         stop_rule = "Stop if valuation inputs would be inferred or placeholder-backed."
         badges = ["fundamentals gate", "source proof"]
-    elif dcf_status == "ready" and not snapshot.get("peer_ready"):
+    elif dcf_status == "ready" and not peer_valuation_ready:
         next_step = "Review standalone DCF now; route peer-relative context to the peers lane."
         stop_rule = "Stop if peer mappings or peer inputs lack source-backed rows."
         badges = ["DCF reviewable", "peer gated"]
@@ -255,7 +265,7 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
     asset_type = _format_missing(snapshot.get("asset_type"), "").lower()
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     command = single_stock_next_command(snapshot)
@@ -368,7 +378,7 @@ def single_stock_one_answer_frame(snapshot: dict[str, object]) -> pd.DataFrame:
     dcf_status = _format_missing(snapshot.get("dcf_status"), "blocked").lower()
     asset_type = _format_missing(snapshot.get("asset_type"), "").lower()
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
@@ -448,7 +458,7 @@ def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[
     dcf_status = _format_missing(snapshot.get("dcf_status"), "blocked").lower()
     asset_type = _format_missing(snapshot.get("asset_type"), "").lower()
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}

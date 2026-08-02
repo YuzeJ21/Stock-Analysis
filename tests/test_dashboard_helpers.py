@@ -26830,6 +26830,43 @@ def test_single_stock_one_answer_frame_hides_commands_and_routes_one_next_action
     assert "sell" not in rendered
 
 
+def test_single_stock_answer_preserves_independent_peer_trend_and_valuation_readiness():
+    snapshot = {
+        "ticker": "AVGO",
+        "status": "partial",
+        "asset_type": "company",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": True,
+        "peer_trend_comparison_ready": True,
+        "peer_valuation_comparison_ready": False,
+        "peer_dcf_comparison_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "missing_data": "peer trend comparison ready; peer valuation still requires peer_valuation_ready",
+    }
+
+    answer = dashboard.single_stock_one_answer_frame(snapshot).iloc[0]
+    reader = " ".join(dashboard.single_stock_reader_guide_frame(snapshot).astype(str).to_numpy().ravel()).lower()
+    quick = " ".join(str(value) for card in dashboard.single_stock_quick_read_cards(snapshot) for value in card.values()).lower()
+    methodology = " ".join(
+        str(value) for card in dashboard.single_stock_methodology_bridge_cards(snapshot) for value in card.values()
+    ).lower()
+
+    assert answer["Use Now"] == "Standalone DCF assumptions and source readiness can be reviewed from trusted local inputs."
+    assert answer["Still Blocked"] == (
+        "Peer-relative valuation remains locked until source-backed peer mappings and peer inputs are ready."
+    )
+    assert answer["Next Safe Action"] == "Open Data Health peer lane before treating peer-relative context as available."
+    assert "peer trend context from mapped peer price history can be reviewed" in reader
+    assert "peer trend context from mapped peer price history can be reviewed" in quick
+    assert "peer-relative valuation" in reader + quick + methodology
+    assert "remain locked" in reader
+    assert "wait for source-backed peer valuation inputs" in quick
+    assert "remains blocked until trusted peer mappings and peer valuation inputs are ready" in methodology
+    assert "core company review is available from trusted price, fundamentals, dcf, and peer inputs" not in str(answer).lower()
+
+
 def test_single_stock_public_answer_cards_make_one_answer_mobile_safe():
     frame = pd.DataFrame(
         [

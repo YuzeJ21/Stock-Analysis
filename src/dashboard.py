@@ -406,6 +406,7 @@ from src.single_stock_workflow import (
     single_stock_data_health_handoff_cards,
     single_stock_loading_contract_cards,
     single_stock_one_answer_frame,
+    single_stock_peer_valuation_ready,
     single_stock_report_data_health_route,
     single_stock_next_command,
     single_stock_pre_report_contract_cards,
@@ -22019,7 +22020,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     candidate_peer_count = _peer_candidate_count_from_obj(snapshot)
     peer_blocker = format_missing(snapshot.get("peer_blocker_type"), "Not available")
     sec_present = bool(os.environ.get("SEC_USER_AGENT", "").strip())
@@ -22137,7 +22138,7 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     peer_trend_ready = str(snapshot.get("peer_trend_comparison_ready", "")).strip().lower() in {"true", "1", "yes", "y", "ready"}
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
@@ -22279,7 +22280,7 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     peer_trend_ready = str(snapshot.get("peer_trend_comparison_ready", "")).strip().lower() in {"true", "1", "yes", "y", "ready"}
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
@@ -22394,7 +22395,7 @@ def single_stock_methodology_bridge_cards(snapshot: dict[str, object]) -> list[d
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
@@ -22537,7 +22538,7 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
     ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "").lower()
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     candidate_peer_count = _peer_candidate_count_from_obj(snapshot)
     peer_title = "Peer ready" if peer_ready else format_missing(snapshot.get("peer_blocker_type"), "missing_peer_mapping")
     peer_body = (
