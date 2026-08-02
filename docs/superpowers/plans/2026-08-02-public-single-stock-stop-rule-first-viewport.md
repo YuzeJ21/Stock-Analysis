@@ -8,6 +8,20 @@
 
 **Tech Stack:** Python 3.12, Streamlit, HTML/CSS, pytest, the existing dashboard and browser gates, GitHub CLI.
 
+## Execution Evidence Adjustment
+
+The initial two-declaration implementation did not satisfy the authoritative
+live criterion: at `390x844`, the complete stop rule still ended at
+`871.90625px`. Execution stopped and remeasured as required. The remaining
+cause was the phone summary inheriting the desktop `margin-top: 0.78rem`, not a
+data, markup, or action-order change. A second red-green and mutation cycle
+added `margin-top: -1rem` to the existing phone `.public-ticker-summary` rule.
+Final live evidence reports `stop_bottom=843.4296875`,
+`stop_clearance=0.5703125`, and a positive 2.2265625px gap after the trust
+strip. This addendum supersedes steps that describe the two declarations as
+the complete implementation; all other constraints and release steps remain
+unchanged.
+
 ## Global Constraints
 
 - Preserve the order `Selected ticker -> Use now -> Still withheld -> Open Data Health -> explanation -> stop rule`.
@@ -29,7 +43,7 @@
 
 **Interfaces:**
 - Consumes: `dashboard.render_public_shell_mode_styles()`, the emitted Public CSS, `.public-ticker-action`, and `.public-ticker-action small`.
-- Produces: phone-only `gap: 0.2rem` and `margin-top: 0` declarations; no Python API or markup change.
+- Produces: phone-only summary `margin-top: -1rem`, action `gap: 0.2rem`, and stop-rule `margin-top: 0` declarations; no Python API or markup change.
 - Produces for Task 2: `phone_measurement` with `viewport_width`, `viewport_height`, `scroll_width`, `action_height`, `stop_top`, `stop_bottom`, `stop_clearance`, `dom_order`, `advanced_open_count`, and `traceback_visible`; `desktop_measurement` with `summary_columns`, `action_height`, `scroll_width`, and `traceback_visible`.
 
 - [ ] **Step 1: Add the failing rendered-CSS contract**
@@ -52,6 +66,11 @@ def test_public_single_stock_phone_compacts_stop_rule_spacing(monkeypatch):
     mobile_start = style.index("@media (max-width: 640px)")
     mobile_end = style.index("</style>", mobile_start)
     mobile_css = style[mobile_start:mobile_end]
+
+    assert ".public-ticker-summary {" in mobile_css
+    summary_start = mobile_css.index(".public-ticker-summary {")
+    summary_rule = mobile_css[summary_start : mobile_css.index("}", summary_start)]
+    assert "margin-top: -1rem;" in summary_rule
 
     assert ".public-ticker-action {" in mobile_css
     action_start = mobile_css.index(".public-ticker-action {")
@@ -79,9 +98,12 @@ Expected: one assertion failure at `assert ".public-ticker-action {" in mobile_c
 
 - [ ] **Step 3: Add the minimal phone-only implementation**
 
-Inside the existing `@media (max-width: 640px)` block in `render_public_shell_mode_styles()`, immediately before `.public-ticker-action .public-primary-action`, add exactly:
+Inside the existing `@media (max-width: 640px)` block in `render_public_shell_mode_styles()`, add the measured summary override to the existing summary rule and place the action overrides immediately before `.public-ticker-action .public-primary-action`:
 
 ```css
+.public-ticker-summary {
+  margin-top: -1rem;
+}
 .public-ticker-action {
   gap: 0.2rem;
 }
@@ -110,7 +132,7 @@ Expected: six passed tests and no new warnings or generated files.
 
 - [ ] **Step 5: Run the mutation check**
 
-Temporarily revert each new declaration one at a time in the working tree and rerun only the new test. Confirm removing `gap: 0.2rem` fails its gap assertion and removing `margin-top: 0` fails its margin assertion. Restore both approved declarations and rerun the test to green before continuing.
+Temporarily revert each new declaration one at a time in the working tree and rerun only the new test. Confirm removing summary `margin-top: -1rem`, action `gap: 0.2rem`, or stop-rule `margin-top: 0` fails its matching assertion. Restore all three declarations and rerun the test to green before continuing.
 
 - [ ] **Step 6: Verify live phone and desktop geometry without writing an artifact**
 

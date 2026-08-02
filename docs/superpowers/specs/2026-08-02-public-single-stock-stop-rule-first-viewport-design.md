@@ -41,6 +41,23 @@ approximately 11.2 pixels relative to the inherited gap, and removing the
 stop-rule top margin saves approximately 6.7 pixels. The exact acceptance
 criterion is measured browser behavior, not the arithmetic estimate.
 
+### Implementation Evidence Addendum
+
+The first live `390x844` recapture after those two declarations correctly
+stopped the implementation because the complete two-line stop rule still ended
+at `871.90625px`, leaving `-27.90625px` of bottom clearance. The original
+hypothesis explained only the action-block spacing and did not account for the
+phone summary retaining the desktop `margin-top: 0.78rem`.
+
+Direct geometry showed 30.703125px between the trust strip and summary. A
+second red-green cycle therefore added one selector-local phone override,
+`margin-top: -1rem`, to `.public-ticker-summary`. This supersedes the original
+two-declaration implementation detail while preserving the approved objective
+and every product boundary: the resulting trust-strip-to-summary gap remains
+positive at 2.2265625px, the complete stop rule ends at `843.4296875px`, and
+desktop is unchanged. No additional layout change was stacked without first
+stopping, remeasuring, and protecting the measured cause with a failing test.
+
 ## Alternatives Rejected
 
 - **Shorten or merge the explanation and stop-rule copy:** saves height by
@@ -57,16 +74,17 @@ criterion is measured browser behavior, not the arithmetic estimate.
 ### Public phone CSS
 
 `src/dashboard.py` owns the existing Public shell and selected-ticker styles.
-The implementation changes only the phone media-query declarations for
-`.public-ticker-action` and its `small` child. No Python interface, renderer,
-route, or data contract changes.
+The implementation changes only phone media-query spacing for
+`.public-ticker-summary`, `.public-ticker-action`, and its `small` child. No
+Python interface, renderer, route, or data contract changes.
 
 ### Regression contract
 
-`tests/test_dashboard_helpers.py` will add one focused source-level contract
-that extracts the Public phone media query and requires the selector-local
-action spacing declarations. The test must fail against the current CSS before
-the production change and pass only after the phone-scoped rules exist.
+`tests/test_dashboard_helpers.py` adds one focused rendered-CSS contract that
+captures the actual style emitted by `render_public_shell_mode_styles()`,
+extracts the Public phone media query, and requires all three selector-local
+spacing declarations. The test failed before each production correction and
+passes only while the phone-scoped rules exist.
 
 The test protects the production break being fixed: removing either compact
 phone declaration would restore the accumulated vertical spacing. Browser
@@ -87,7 +105,10 @@ required or created.
 ## Error And Boundary Handling
 
 - If the stop rule still ends below `844px`, the hypothesis is not confirmed;
-  stop and remeasure rather than stacking another spacing change.
+  stop and remeasure rather than stacking another spacing change. This branch
+  followed that rule: the first recapture failed, a separate measurement found
+  the inherited summary margin, and the additional override received its own
+  red-green and mutation evidence before the final recapture.
 - If the action target becomes shorter than 44 pixels, reject the fix.
 - If the DOM order changes, copy disappears, Advanced content opens, a
   traceback appears, or horizontal overflow appears, reject the fix.
@@ -102,7 +123,9 @@ Use a strict red-green cycle:
 
 1. Add the focused phone-action spacing test.
 2. Run it and confirm the expected failure against current CSS.
-3. Add only the two approved phone declarations.
+3. Add the two initially approved phone declarations; if live acceptance still
+   fails, stop and add no further change until direct measurement identifies a
+   bounded phone-only cause and a new failing contract protects it.
 4. Run the focused helper and Public workflow tests.
 5. Verify the live `390x844` and `1280x720` route behavior.
 6. Run the complete pytest, dashboard, render, accessibility, wording, Public,
