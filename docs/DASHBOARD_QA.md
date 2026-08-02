@@ -214,6 +214,31 @@ withheld` -> `Open Data Health`. Browser measurement at `390x844` verified the
 no horizontal overflow, and no traceback. Desktop remains a four-column layout
 with the same handoff visible.
 
+### 2026-08-02 Complete Stop-Rule Follow-Up
+
+A current-head recapture found a narrower follow-up regression: the 44px
+handoff still fit, but the complete two-line research-only stop rule ended
+27.9px below the `390x844` first viewport. The phone action block inherited
+both its desktop grid gap and stop-rule top margin, and the selected-ticker
+summary still inherited its desktop top margin. Commit
+`34b08ea867316ae3683a9a769d1ed37bd62d61ce` removes that duplicate phone-only
+spacing without changing copy, reading order, research state, or desktop
+layout.
+
+Fresh live phone geometry reported `stop_top=811.4609375`,
+`stop_bottom=843.4296875`, `stop_clearance=0.5703125`,
+`action_height=44`, `action_clearance=78.8203125`, and `scroll_width=390`.
+The viewport was exactly `390x844`; Advanced details open count was zero and
+no traceback was visible.
+The summary began 2.2265625px after the trust strip, so the correction did not
+overlap the preceding evidence. At `1280x720`, the summary retained four
+computed columns (`128px 378.859px 378.859px 303.094px`), the action remained
+44px high, `scroll_width=1280`, and no traceback was visible. The live screen
+was inspected, but no screenshot file was created. This is local
+product-layout evidence only; it does not prove data freshness, source rights,
+hosted behavior, accessibility conformance, external review, demand, or market
+validation.
+
 Data Health and Proof History remain answer/evidence destinations. This review
 adds no invented calls to action, does not turn either route into a readiness
 unlock, and does not change readiness, source, research, or generated-artifact
