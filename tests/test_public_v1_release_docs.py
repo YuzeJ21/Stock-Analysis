@@ -87,6 +87,21 @@ def test_proof_readiness_reconciliation_docs_keep_historical_proof_separate_from
     assert "future" in roadmap.lower()
 
 
+def test_calibration_bundle_preview_docs_preserve_the_priority_9_boundary():
+    roadmap = _read("ROADMAP.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    prompt = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    for text in (roadmap, operator, prompt):
+        assert "make calibration-evidence-bundle-preview BUNDLE=<path>" in text
+        assert "contract_consistent_review_required" in text
+        assert "probability remains withheld" in text.lower()
+        assert "does not activate readiness" in text.lower()
+    assert "Valid real leakage-safe calibration events: zero" in roadmap
+    assert "Synthetic fixtures remain test-only" in prompt
+
+
 def test_provider_neutral_workspace_authorization_is_documented_without_hosted_claims():
     architecture = _read("docs/PRIVATE_BETA_ARCHITECTURE.md")
     roadmap = _read("ROADMAP.md")

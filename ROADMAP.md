@@ -181,7 +181,7 @@ The local invitation, scorecard, log schema, runbook, and closeout checklist are
 
 Accumulate at least 100 valid leakage-safe out-of-sample events from permitted point-in-time inputs with immutable cutoffs, comparable actuals, revision lineage, exclusions, missingness, and reproducible cohort membership.
 
-Evaluate predeclared Brier score, calibration bins, constant-benchmark improvement, sample sufficiency, missingness, stability, and temporal/cohort leakage. Recalculate those metrics from retained observations and require exact observation-to-backtest identity and declared-outcome agreement; an unrelated same-size cohort is not evidence. Actuals, consensus, Revenue, EPS, valuation, catalysts, outcomes, backtesting, and calibration remain independent. Probability stays withheld unless every applicable gate passes.
+Evaluate predeclared Brier score, calibration bins, constant-benchmark improvement, sample sufficiency, missingness, stability, and temporal/cohort leakage. The local `make calibration-evidence-bundle-preview BUNDLE=<path>` contract reads one supplied immutable bundle, reports `invalid`, `blocked`, or `contract_consistent_review_required`, and writes no artifact. It recomputes retained observations against the exact backtest package; an unrelated same-size cohort is not evidence. It does not activate readiness, establish source rights or authenticity, persist evidence, or validate real events. Actuals, consensus, Revenue, EPS, valuation, catalysts, outcomes, backtesting, and calibration remain independent; probability remains withheld unless every applicable external and calibration gate passes.
 
 ### Priority 10 — Separately approved hypothetical paper-position laboratory
 
