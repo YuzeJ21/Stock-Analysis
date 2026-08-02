@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import math
 import re
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
@@ -891,3 +893,131 @@ def preview_calibration_evidence_bundle(
             status.backtest_evidence_digest if status is not None else None
         ),
     )
+
+
+def calibration_evidence_bundle_payload(
+    preview: CalibrationEvidenceBundlePreview,
+) -> dict[str, object]:
+    return {
+        "schema_version": preview.schema_version,
+        "state": preview.state,
+        "bundle_id": preview.bundle_id,
+        "bundle_sha256": preview.bundle_sha256,
+        "outcome_definition": preview.outcome_definition,
+        "expected_event_count": preview.expected_event_count,
+        "observation_count": preview.observation_count,
+        "backtest_event_count": preview.backtest_event_count,
+        "excluded_event_count": preview.excluded_event_count,
+        "brier_score": preview.brier_score,
+        "benchmark_brier_score": preview.benchmark_brier_score,
+        "calibration_error": preview.calibration_error,
+        "calibration_bins": [
+            {
+                "lower_bound": item.lower_bound,
+                "upper_bound": item.upper_bound,
+                "event_count": item.event_count,
+                "mean_probability": item.mean_probability,
+                "outcome_rate": item.outcome_rate,
+                "meets_minimum_size": item.meets_minimum_size,
+            }
+            for item in preview.calibration_bins
+        ],
+        "passed_gates": list(preview.passed_gates),
+        "blocked_gates": [
+            {"gate": item.gate, "detail": item.detail} for item in preview.blocked_gates
+        ],
+        "evidence_digest": preview.evidence_digest,
+        "backtest_evidence_digest": preview.backtest_evidence_digest,
+        "probability_state": preview.probability_state,
+        "probability_exposure": preview.probability_exposure,
+        "readiness_promotions": list(preview.readiness_promotions),
+        "persistence": preview.persistence,
+        "preview_receipt_persisted": preview.preview_receipt_persisted,
+        "external_source_review_required": preview.external_source_review_required,
+        "independent_review_required": preview.independent_review_required,
+        "boundary": preview.boundary,
+    }
+
+
+def _percent(value: float | None) -> str:
+    return "withheld" if value is None else f"{value * 100:.2f}%"
+
+
+def render_calibration_evidence_bundle_preview(
+    preview: CalibrationEvidenceBundlePreview,
+) -> str:
+    lines = [
+        "Calibration Evidence-Bundle Preview",
+        (
+            "Read-only: validates one supplied immutable evidence bundle; it "
+            "does not write files, activate readiness, persist evidence, or "
+            "expose a Beat/Miss probability."
+        ),
+        (
+            "Research-only: this is internal consistency evidence, not source "
+            "attestation, investment advice, ranking, or a transaction instruction."
+        ),
+        "",
+        f"State: {preview.state}",
+        f"Bundle: {preview.bundle_id}",
+        f"Bundle SHA-256: {preview.bundle_sha256}",
+        f"Outcome definition: {preview.outcome_definition}",
+        (
+            "Counts: "
+            f"expected={preview.expected_event_count}, "
+            f"observations={preview.observation_count}, "
+            f"backtest={preview.backtest_event_count}, "
+            f"excluded={preview.excluded_event_count}"
+        ),
+        f"Brier score: {_percent(preview.brier_score)}",
+        f"Constant-rate benchmark: {_percent(preview.benchmark_brier_score)}",
+        f"Calibration error: {_percent(preview.calibration_error)}",
+        f"Calibration bins: {len(preview.calibration_bins)} aggregate bins",
+        f"Probability state: {preview.probability_state}",
+        "Readiness promotions: none",
+        "",
+        "Passed gates:",
+    ]
+    lines.extend(f"- {gate}" for gate in preview.passed_gates)
+    lines.append("Blocked gates:")
+    if preview.blocked_gates:
+        lines.extend(f"- {item.gate}: {item.detail}" for item in preview.blocked_gates)
+    else:
+        lines.append("- none; external and independent review are still required")
+    lines.extend(("", f"Boundary: {preview.boundary}"))
+    return "\n".join(lines)
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Preview one calibration evidence bundle."
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    preview_parser = subparsers.add_parser("preview")
+    preview_parser.add_argument("--bundle", required=True)
+    preview_parser.add_argument("--format", choices=("text", "json"), default="text")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _build_parser().parse_args(argv)
+    try:
+        preview = preview_calibration_evidence_bundle(args.bundle)
+    except CalibrationEvidenceBundleError as exc:
+        print(f"invalid calibration evidence bundle: {exc}", file=sys.stderr)
+        return 2
+    if args.format == "json":
+        print(
+            json.dumps(
+                calibration_evidence_bundle_payload(preview),
+                indent=2,
+                sort_keys=False,
+            )
+        )
+    else:
+        print(render_calibration_evidence_bundle_preview(preview))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

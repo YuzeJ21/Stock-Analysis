@@ -9,8 +9,11 @@ import pytest
 
 from src.calibration_evidence_bundle import (
     CalibrationEvidenceBundleError,
+    calibration_evidence_bundle_payload,
     load_calibration_evidence_bundle,
+    main,
     preview_calibration_evidence_bundle,
+    render_calibration_evidence_bundle_preview,
 )
 from src.earnings_nowcast_backtest import BacktestEvent, BacktestReport
 
@@ -423,3 +426,52 @@ def test_small_new_probability_bin_and_below_minimum_cohort_are_blocked(
 
     assert "minimum_calibration_bin_size" in gates
     assert "minimum_100_events" in gates
+
+
+def test_public_payload_and_text_are_aggregate_only(tmp_path: Path):
+    path = tmp_path / "bundle.json"
+    path.write_text(json.dumps(_bundle_payload()), encoding="utf-8")
+    preview = preview_calibration_evidence_bundle(path)
+
+    payload = calibration_evidence_bundle_payload(preview)
+    text = render_calibration_evidence_bundle_preview(preview)
+    serialized = json.dumps(payload, sort_keys=True)
+
+    assert "observations" not in payload
+    assert "events" not in payload
+    assert "forecast" not in serialized.lower()
+    assert "0.9" not in text
+    assert "0.1" not in text
+    assert payload["probability_state"] == "withheld"
+    assert payload["probability_exposure"] is False
+    assert payload["readiness_promotions"] == []
+    assert "Read-only" in text
+    assert "no readiness activation" in text
+
+
+def test_cli_json_is_stdout_only_and_invalid_input_exits_two(
+    tmp_path: Path,
+    capsys,
+):
+    path = tmp_path / "bundle.json"
+    path.write_text(json.dumps(_bundle_payload()), encoding="utf-8")
+    before = {
+        item.relative_to(tmp_path): item.read_bytes()
+        for item in tmp_path.rglob("*")
+        if item.is_file()
+    }
+
+    assert main(["preview", "--bundle", str(path), "--format", "json"]) == 0
+    output = json.loads(capsys.readouterr().out)
+    assert output["state"] == "contract_consistent_review_required"
+    assert {
+        item.relative_to(tmp_path): item.read_bytes()
+        for item in tmp_path.rglob("*")
+        if item.is_file()
+    } == before
+
+    invalid = tmp_path / "invalid.json"
+    invalid.write_text("{}", encoding="utf-8")
+    assert main(["preview", "--bundle", str(invalid)]) == 2
+    captured = capsys.readouterr()
+    assert "invalid calibration evidence bundle" in captured.err.lower()

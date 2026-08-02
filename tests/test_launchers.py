@@ -71,6 +71,30 @@ def test_makefile_exposes_research_dashboard_render_smoke():
     assert "python3 -m src.dashboard_render_smoke --routes research" in target
 
 
+def test_calibration_evidence_bundle_preview_is_explicit_and_read_only():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    assert "calibration-evidence-bundle-preview" in _makefile_targets()
+    block = makefile.split("calibration-evidence-bundle-preview:", 1)[1].split("\n\n", 1)[0]
+    assert "BUNDLE is required" in block
+    assert "python3 -m src.calibration_evidence_bundle preview" in block
+    assert '--bundle "$${CALIBRATION_EVIDENCE_BUNDLE}"' in block
+    assert "record" not in block
+    assert "apply" not in block
+
+
+def test_calibration_evidence_bundle_preview_rejects_an_implicit_input():
+    result = subprocess.run(
+        ["make", "calibration-evidence-bundle-preview"],
+        cwd=Path.cwd(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "BUNDLE is required" in result.stderr
+
+
 def test_dashboard_smoke_uses_an_isolated_fresh_server():
     smoke = Path("scripts/smoke_dashboard.sh").read_text(encoding="utf-8")
 

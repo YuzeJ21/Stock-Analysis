@@ -9,6 +9,7 @@ EARNINGS_NOWCAST_COHORT ?= NVDA,AMD,AVGO,MU,QCOM
 .PHONY: commercial-source-rights commercial-beta-check commercial-beta-release-check
 .PHONY: private-beta-readiness
 .PHONY: point-in-time-universe-status point-in-time-universe-preview
+.PHONY: calibration-evidence-bundle-preview
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
@@ -139,6 +140,8 @@ help-full:
 	@echo "                        Print deterministic validation truth for one immutable universe package"
 	@echo "  make point-in-time-universe-preview MANIFEST=<path> [REGISTRY=<path>] [TOP_N=20]"
 	@echo "                        Preview reproduction digests and capped canonical exclusions without writing"
+	@echo "  make calibration-evidence-bundle-preview BUNDLE=<path>"
+	@echo "                        Preview aggregate calibration evidence consistency without writing"
 	@echo "  make session-source-preflight [SEC_USER_AGENT='Name email@example.com']"
 	@echo "                        Check one session's SEC/yfinance/local-fundamentals path before retrying source-backed coverage work"
 	@echo "  make source-activation-guide"
@@ -1423,6 +1426,12 @@ earnings-nowcast-readiness:
 
 earnings-nowcast-cohort-readiness:
 	@python3 -m src.earnings_nowcast_cohort --input-dir $(if $(FIXTURE),tests/fixtures/earnings_nowcast_onboarding,$(or $(INPUT_DIR),data/imports/earnings_nowcast)) --tickers "$(or $(TICKERS),$(EARNINGS_NOWCAST_COHORT))" --as-of "$(or $(AS_OF),2026-01-31T23:59:59Z)" $(if $(JSON),--json,)
+
+calibration-evidence-bundle-preview: export CALIBRATION_EVIDENCE_BUNDLE := $(value BUNDLE)
+calibration-evidence-bundle-preview:
+	@case "$${CALIBRATION_EVIDENCE_BUNDLE}" in *[![:space:]]*) ;; *) echo "BUNDLE is required" >&2; exit 2;; esac
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.calibration_evidence_bundle preview \
+		--bundle "$${CALIBRATION_EVIDENCE_BUNDLE}"
 
 earnings-consensus-source-status:
 	@python3 -m src.earnings_consensus_sources $(if $(REVIEWED_CSV),--reviewed-csv "$(REVIEWED_CSV)",) $(if $(JSON),--json,)
