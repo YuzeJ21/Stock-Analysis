@@ -2,8 +2,9 @@
 
 ## Status
 
-The A+C direction was approved on 2026-08-02. This written specification is
-awaiting user review before an implementation plan is created.
+The A+C direction and this written specification were approved on 2026-08-02.
+Implementation remains incomplete until every delivery slice has direct
+current-head evidence.
 
 ## Decision
 
@@ -385,6 +386,10 @@ explicit confirmation flag, and writes one non-duplicated set only under an
 ignored app/operator directory: `outputs/local/derived/<profile>/`.
 Materialization cannot repair or rewrite canonical inputs. Compatibility copies
 in tracked `data/` and duplicate copies in tracked `outputs/` are not produced.
+Before composing a materialized or proof snapshot, the boundary validates the
+lexical named-profile source path and every named readiness input without
+following symlinks. A symlinked, non-regular, or repository-escaping source
+path fails closed before any read or write.
 
 Slice 1 replaces the current command boundary as follows:
 
@@ -392,9 +397,36 @@ Slice 1 replaces the current command boundary as follows:
 - `make readiness` becomes a non-writing deprecated guard that points to the
   preview or explicit materialization command;
 - `CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=...` is the only
-  readiness snapshot writer; and
+  normal real-data writer of a full current 11-report readiness package; and
 - dashboard, smoke, status, onboarding, daily, pipeline, test, and verification
   targets never call the materialization command.
+
+The explicit `make demo-data-build` fixture/package command is the sole narrow
+exception. It may build its deterministic synthetic demo package only under the
+demo profile's existing data and output directories. It cannot accept or infer
+the default or local real-data profile, and no ordinary, composite, validation,
+dashboard, or release command may invoke it.
+
+The existing `make readiness-snapshot` command remains a temporary, explicitly
+invoked proof-workflow compatibility action. For an explicitly selected
+profile, it composes current readiness in memory and writes only the
+prior-snapshot evidence file, binding that row set to the profile, capture time,
+deterministic readiness-input identity, snapshot schema, and readiness method
+version. An empty baseline is not written. It does not read or rewrite the
+tracked current readiness report, materialize the 11-report package, repair
+canonical inputs, or run from a composite/default command. It remains only
+until the reviewed-batch comparison consumers are migrated to route-native
+evidence.
+
+During Slice 1, reviewed-batch comparison computes the post-apply current
+readiness row set in memory for the same explicitly selected profile and
+compares it with that bound prior snapshot. It rejects missing identity,
+cross-profile snapshots, method-version mismatches, and invalid schema rather
+than mixing evidence. It must not depend on regenerating the tracked current
+readiness CSV. Current UI,
+Make help, and operator copy that still offers the legacy writer must be
+migrated to the no-write preview, the in-memory comparison, or a truthful
+quarantined legacy notice.
 
 The materializer must never mutate `data/universe_master.csv` or any other
 canonical input as a side effect of readiness computation.
@@ -454,8 +486,10 @@ slice begins.
 - introduce the explicit ignored-directory readiness materializer and convert
   `make readiness` into the non-writing guard described above;
 - remove generated writers from composite validation targets; and
-- add protected-path byte-manifest tests for default builder, dashboard, smoke,
-  test, status, onboarding, daily, pipeline, and verification paths.
+- add protected-path byte-manifest tests proving no persistent repository-state
+  mutation from default builder, dashboard, smoke, test, status, onboarding,
+  daily, pipeline, and verification paths. Pure-function and writer-spy tests
+  separately prove that those implementations do not invoke artifact writers.
 
 ### Slice 2 — Route-independent Personal Research workflow
 
@@ -498,8 +532,9 @@ evidence is required; passing local adapter tests is not hosted proof.
 
 Implementation is test-first. Focused tests must prove:
 
-1. route render, filter, recalculation, validation, preview, and HTML display are
-   byte-for-byte no-write operations;
+1. route render, filter, recalculation, validation, preview, and HTML display
+   leave protected repository state byte-for-byte unchanged, while direct
+   writer-spy tests prove no artifact-writing interface is invoked;
 2. all four Personal Research routes render truthful states without legacy
    generated outputs;
 3. missing canonical inputs fail closed and link to in-app Data Health;
