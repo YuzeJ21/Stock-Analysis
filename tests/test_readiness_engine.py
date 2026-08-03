@@ -188,6 +188,29 @@ def test_readiness_module_propagates_profile_validation_as_shell_exit_2_without_
     assert _file_manifest(tmp_path) == before
 
 
+def test_readiness_module_help_describes_deprecated_guard_and_in_memory_snapshot():
+    environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["PYTHONPATH"] = str(Path.cwd())
+
+    result = subprocess.run(
+        ["python3", "-m", "src.readiness_engine", "--help"],
+        cwd=Path.cwd(),
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    normalized = " ".join(result.stdout.split())
+    assert "Deprecated compatibility flag; always fails closed without reading or writing readiness artifacts." in normalized
+    assert "Compose one profile-bound prior snapshot from readiness in memory; never read the tracked current readiness report." in normalized
+    assert "Copy the current ticker readiness report" not in normalized
+    assert "Only save the current ticker readiness report" not in normalized
+    assert "before regenerating" not in normalized
+
+
 def _price_rows(ticker: str, periods: int) -> list[dict[str, object]]:
     return [
         {

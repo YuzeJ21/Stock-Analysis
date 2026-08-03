@@ -1369,12 +1369,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--save-previous",
         action="store_true",
-        help="Copy the current ticker readiness report to data/reports/ticker_readiness_report.previous.csv before regenerating.",
+        help="Deprecated compatibility flag; always fails closed without reading or writing readiness artifacts.",
     )
     parser.add_argument(
         "--snapshot-only",
         action="store_true",
-        help="Only save the current ticker readiness report as the prior snapshot; do not regenerate readiness.",
+        help=(
+            "Compose one profile-bound prior snapshot from readiness in memory; "
+            "never read the tracked current readiness report."
+        ),
     )
     parser.add_argument("--json", action="store_true")
     try:
