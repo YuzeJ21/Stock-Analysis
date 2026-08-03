@@ -474,7 +474,7 @@ def public_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
                 "Then review the local status snapshot and reopen Home so ready and locked counts are current."
             ),
             "badges": ["proof first", "copy-only"],
-            "command": "make readiness && make status-check TOP_N=5",
+            "command": "make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
         },
         {
             "kicker": "PILOT PATH",

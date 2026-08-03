@@ -70,7 +70,7 @@ def test_proof_planner_outcome_summary_uses_loaded_planner_and_freshness_cta():
     assert frame.iloc[0]["Detail Level"] == "planner_loaded"
     assert frame.iloc[1]["Planner State"] == "blocked_by_freshness"
     assert cards[0]["title"] == "Refresh readiness before proof planning"
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
     assert "stale readiness rows are not proof" in rendered
     assert "open operator details" in str(cards[0]["body"]).lower()
     assert "copy-only command" not in str(cards[0]["body"]).lower()

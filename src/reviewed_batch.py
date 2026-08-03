@@ -89,7 +89,7 @@ ACTION_COLUMNS = (
 class FreshnessStatus:
     status: str
     message: str
-    refresh_command: str = "make readiness"
+    refresh_command: str = "make readiness-preview TOP_N=20"
 
 
 @dataclass(frozen=True)
@@ -577,12 +577,16 @@ def _do_not_proceed(lane: ReadinessLane) -> str:
 
 
 def _lane_proof_instructions(lane: str, top_n: int, *, profile: str) -> list[str]:
-    compare = f"make reviewed-batch-compare PROFILE={profile}"
+    def compare(compare_lane: str) -> str:
+        return (
+            f"make reviewed-batch-compare PROFILE={profile} LANE={compare_lane} "
+            "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        )
     if lane == "price_coverage":
         return [
             "Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.",
             "Use dry-run output to cap scope; do not treat provider availability as reviewed data.",
-            f"After execution, run {compare} LANE=prices so changed counts come from the saved baseline and current in-memory row set.",
+            f"After execution, run {compare('prices')} so changed counts come from the saved baseline and current in-memory row set.",
         ]
     if lane == "fundamentals_dcf":
         return [
@@ -591,7 +595,7 @@ def _lane_proof_instructions(lane: str, top_n: int, *, profile: str) -> list[str
             "Use make sec-stage-queue TOP_N=<n> for a dry-run queue; run make sec-stage TICKERS=<scope> only when SEC_USER_AGENT is configured.",
             "If SEC staging is unavailable, place only reviewed trusted manual rows in data/imports/fundamentals.csv.",
             "Run make imports-validate and make imports-preview before imports-apply; rejected-row reports must be clear or explained.",
-            f"After apply, run make dcf-readiness and {compare} LANE=fundamentals before calling any ticker supported.",
+            f"After apply, run make dcf-readiness and {compare('fundamentals')} before calling any ticker supported.",
         ]
     if lane == "share_count_proof":
         return [
@@ -599,7 +603,7 @@ def _lane_proof_instructions(lane: str, top_n: int, *, profile: str) -> list[str
             f"Start from the first-class queue command: make share-count-proof-queue TOP_N={top_n}.",
             "Use SEC/manual source documents only when they explicitly verify shares_outstanding; do not infer it from market cap, price, peers, or placeholders.",
             "Run make imports-validate and make imports-preview before imports-apply; rejected-row reports must be clear or explained.",
-            f"After apply, run make dcf-readiness, {compare} LANE=share_count, and the relevant stock report before calling the lane supported.",
+            f"After apply, run make dcf-readiness, {compare('share_count')}, and the relevant stock report before calling the lane supported.",
         ]
     if lane == "peer_mapping":
         return [
@@ -610,7 +614,7 @@ def _lane_proof_instructions(lane: str, top_n: int, *, profile: str) -> list[str
             "Source proof checklist: source must name the peer relationship or comparable business context, include a durable URL or local document reference, and have a review date; do not use memory, popularity, or row-count convenience as proof.",
             "Treat sector or industry fallback as context only; it is not trusted peer mapping proof.",
             "Run make imports-validate and make imports-preview before imports-apply; data/rejected/peers_import_rejected.csv must be clear or explained.",
-            f"After reviewed mapping rows, run {compare} LANE=peers and make peer-mapping-queue before reading peer valuation dispersion.",
+            f"After reviewed mapping rows, run {compare('peers')} and make peer-mapping-queue before reading peer valuation dispersion.",
         ]
     if lane == "peer_valuation_inputs":
         return [
@@ -619,14 +623,14 @@ def _lane_proof_instructions(lane: str, top_n: int, *, profile: str) -> list[str
             f"Inspect the peer valuation sub-lane with make peer-mapping-queue TOP_N={top_n} and make focus-peers TICKER=<ticker>.",
             "Follow the printed mapped-peer dependency with make focus-fundamentals TICKER=<peer> or verified peer price/market-cap proof.",
             "Do not treat mapped peers as valuation-ready until mapped-peer inputs pass validate, preview, rejected-row review, and rebuilt readiness.",
-            f"After reviewed mapped-peer inputs, run {compare} LANE=peers and make peer-mapping-queue before reading peer valuation dispersion.",
+            f"After reviewed mapped-peer inputs, run {compare('peers')} and make peer-mapping-queue before reading peer valuation dispersion.",
         ]
     if lane == "metric_readiness_review":
         return [
             "Record the SPY/QQQ blocker-family summary before opening row-level proof.",
             "Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.",
             "Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.",
-            f"After any reviewed source-lane change, run {compare} LANE=metrics and make metric-readiness-board before describing the metric as ready.",
+            f"After any reviewed source-lane change, run {compare('metrics')} and make metric-readiness-board before describing the metric as ready.",
         ]
     return [
         "Record pre-run optional context readiness counts.",

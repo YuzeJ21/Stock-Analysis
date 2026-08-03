@@ -88,7 +88,7 @@ def proof_checklist_summary_cards(
                 "title": "Proof checklist summary unavailable",
                 "body": "Refresh readiness before relying on DCF or peer proof checklist status.",
                 "badges": ["readiness first", "blocked visible"],
-                "command": "make readiness",
+                "command": "make readiness-preview TOP_N=20",
             }
         ]
     blocking = frame.loc[~frame["Checklist Status"].astype(str).str.lower().isin({"ready_or_no_current_gap", "supported"})]

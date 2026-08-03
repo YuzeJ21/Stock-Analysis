@@ -194,11 +194,11 @@ def readiness_delta_board_frame(
         delta = row.delta_ready
         if pd.isna(delta):
             delta_label = "not available"
-            action = "make readiness-snapshot"
+            action = "make readiness-snapshot PROFILE=<default|demo|local>"
         else:
             delta_value = int(delta)
             delta_label = f"{'+' if delta_value >= 0 else ''}{delta_value}"
-            action = "make reviewed-batch-compare LANE=<lane>" if delta_value else "keep lane blocked until source proof changes"
+            action = "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>" if delta_value else "keep lane blocked until source proof changes"
         rows.append(
             {
                 "Lane": feature,
@@ -227,7 +227,7 @@ def readiness_delta_board_cards(
                 "title": "Current readiness report missing",
                 "body": "Refresh readiness before comparing prior and current coverage. Open operator details for read-only proof steps.",
                 "badges": ["blocked", "read-only"],
-                "command": "make readiness",
+                "command": "make readiness-preview TOP_N=20",
             }
         ]
     board = readiness_delta_board_frame(current_frame, previous_frame, batch_proof_frame)
@@ -242,7 +242,7 @@ def readiness_delta_board_cards(
                     "Run a snapshot before the next reviewed batch, then rebuild readiness to compare real deltas."
                 ),
                 "badges": ["no prior snapshot", "no fabricated deltas"],
-                "command": "make readiness-snapshot",
+                "command": "make readiness-snapshot PROFILE=<default|demo|local>",
             }
         ]
     deltas = []
@@ -263,6 +263,6 @@ def readiness_delta_board_cards(
                 "Use this board as data-readiness proof only; changed counts are not recommendations."
             ),
             "badges": ["previous vs current", "proof ledger aware"],
-            "command": "make reviewed-batch-compare LANE=<lane>",
+            "command": "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
         }
     ]

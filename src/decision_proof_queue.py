@@ -150,14 +150,14 @@ def _decision_next_action_proof(row: pd.Series) -> str:
     if asset_type in {"etf", "index_proxy", "fund"}:
         return f"Proof after review: run `{report_command}` and confirm operating-company DCF is excluded, not failed."
     if blocker == "price":
-        return f"Proof after data changes: run `make price-coverage TOP_N=25`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE=<default|demo|local>`, complete reviewed price validate/preview/apply, then `make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
     if blocker in {"fundamentals", "dcf"}:
-        return f"Proof after data changes: run `make dcf-readiness`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE=<default|demo|local>`, complete reviewed fundamentals validate/preview/apply, then `make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
     if blocker in {"peer", "peers"}:
-        return f"Proof after data changes: run `make peer-mapping-queue TOP_N=25`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE=<default|demo|local>`, complete reviewed peer validate/preview/apply, then `make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, `make peer-mapping-queue TOP_N=25`, and `{report_command}`."
     if blocker in {"earnings", "analyst_estimates", "optional_context"}:
-        return f"Proof after data changes: run `make optional-context-readiness`, `make readiness`, then `{report_command}`."
-    return f"Proof before interpretation: run `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE=<default|demo|local>`, complete reviewed optional-context validate/preview/apply, then `make reviewed-batch-compare PROFILE=<default|demo|local> LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
+    return f"Proof before interpretation: run `make readiness-snapshot PROFILE=<default|demo|local>`, then `make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
 
 
 def _peer_valuation_blocked(row: pd.Series) -> bool:
@@ -295,7 +295,7 @@ def build_decision_proof_queue_cards(queue_frame: pd.DataFrame | None) -> list[d
             {
                 "kicker": "DECISION PROOF",
                 "title": "No proof queue yet",
-                "body": "Run make research-decisions and make readiness before reading decision proof rows.",
+                "body": "Run make research-decisions and inspect readiness in memory before reading decision proof rows.",
                 "badges": ["refresh first", "copy only"],
                 "command": "make research-decisions",
             }
@@ -330,7 +330,7 @@ def build_decision_proof_queue_cards(queue_frame: pd.DataFrame | None) -> list[d
             "title": f"Peer mentions: {peer_limited} / optional mentions: {optional_limited}",
             "body": "Withheld context remains visible so peer comparison, earnings, estimates, or company-valuation exclusions do not look like hidden conclusions.",
             "badges": ["data-honest", "no fabrication"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
     ]
 
@@ -797,7 +797,7 @@ def _artifact_gate(root: Path) -> tuple[FreshnessStatus, str]:
     if not decision_path.exists():
         return FreshnessStatus("missing", f"Missing {RESEARCH_DECISIONS_CSV}. Run make research-decisions first."), "make research-decisions"
     if not readiness_path.exists():
-        return FreshnessStatus("missing", f"Missing {TICKER_READINESS_CSV}. Run make readiness first."), "make readiness"
+        return FreshnessStatus("missing", f"Missing {TICKER_READINESS_CSV}. Inspect readiness in memory first."), "make readiness-preview TOP_N=20"
     freshness = readiness_freshness_status(root)
     if freshness.status != "current":
         return freshness, freshness.refresh_command

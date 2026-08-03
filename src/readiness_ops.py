@@ -643,7 +643,7 @@ def build_readiness_ops_lanes(
                 if price_ledger_status
                 else "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
             ),
-            proof_command="make readiness && make price-coverage TOP_N=25 && make status-check TOP_N=5",
+            proof_command="make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
             generated_churn_policy="Price refreshes can create broad CSV churn; keep refreshed data local unless intentionally reviewed.",
             stale_proof_warning=stale_warning,
             notes=(
@@ -685,8 +685,9 @@ def build_readiness_ops_lanes(
             ),
             next_safe_command=fundamentals_next_command,
             proof_command=(
-                "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && make readiness && make dcf-readiness"
+                "make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker> && "
+                "make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && "
+                "make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
             ),
             generated_churn_policy="Stage/apply only reviewed trusted fundamentals rows; avoid broad generated report churn by default.",
             stale_proof_warning=stale_warning,
@@ -724,8 +725,9 @@ def build_readiness_ops_lanes(
             ),
             next_safe_command=share_count_next_command,
             proof_command=(
-                "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && make dcf-readiness && make readiness"
+                "make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker> && "
+                "make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && "
+                "make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=share_count BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
             ),
             generated_churn_policy=(
                 "Apply only reviewed trusted share-count rows; broad readiness/report CSV churn stays local unless intentionally reviewed."
@@ -752,8 +754,9 @@ def build_readiness_ops_lanes(
             source_readiness="Peer relationships must be source-backed or clearly labeled fallback context only.",
             next_safe_command="make peer-mapping-queue TOP_N=25",
             proof_command=(
-                "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && make readiness && make peer-mapping-queue TOP_N=25"
+                "make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker> && "
+                "make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && "
+                "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
             ),
             generated_churn_policy="Apply only reviewed peer rows; do not infer trusted peers from sector similarity.",
             stale_proof_warning=stale_warning,
@@ -782,7 +785,7 @@ def build_readiness_ops_lanes(
             source_lane="mapped_peer_inputs",
             source_readiness="Mapped peers need trusted price, fundamentals, market-cap, or valuation inputs before peer valuation appears.",
             next_safe_command="make peer-mapping-queue TOP_N=25",
-            proof_command="make readiness && make peer-mapping-queue TOP_N=25",
+            proof_command="make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
             generated_churn_policy="Keep mapped-peer data changes reviewed; broad readiness/report CSV churn is not staged by default.",
             stale_proof_warning=stale_warning,
             notes=(
@@ -812,8 +815,13 @@ def build_readiness_ops_lanes(
             ),
             next_safe_command=optional_context_next_command,
             proof_command=(
+                "make readiness-snapshot PROFILE=<default|demo|local> && "
                 "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && make optional-context-readiness"
+                "make imports-preview IMPORT_TICKERS=<ticker> && "
+                "make imports-apply IMPORT_TICKERS=<ticker> && "
+                "make optional-context-readiness && "
+                "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=optional_context "
+                "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
             ),
             generated_churn_policy=(
                 "Do not apply or publish earnings rows unless trusted local/provider source rows were reviewed; "
@@ -845,8 +853,13 @@ def build_readiness_ops_lanes(
             ),
             next_safe_command=optional_context_next_command,
             proof_command=(
+                "make readiness-snapshot PROFILE=<default|demo|local> && "
                 "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && make optional-context-readiness"
+                "make imports-preview IMPORT_TICKERS=<ticker> && "
+                "make imports-apply IMPORT_TICKERS=<ticker> && "
+                "make optional-context-readiness && "
+                "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=optional_context "
+                "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
             ),
             generated_churn_policy=(
                 "Do not apply or publish estimates unless trusted local/provider source rows were reviewed; "
@@ -873,7 +886,7 @@ def build_readiness_ops_lanes(
             source_lane="asset_type_scope",
             source_readiness="ETF/index/fund rows can support market monitoring while operating-company DCF is excluded.",
             next_safe_command="make stock-report-md TICKER=QQQ",
-            proof_command="make readiness && make stock-report-md TICKER=QQQ",
+            proof_command="make readiness-snapshot PROFILE=<default|demo|local> && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=excluded BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=QQQ",
             generated_churn_policy="Excluded examples are demo/report artifacts only when intentionally reviewed.",
             stale_proof_warning=stale_warning,
             notes="Excluded means not applicable, not failed; do not force company valuation onto non-company rows.",

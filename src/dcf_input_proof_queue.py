@@ -530,8 +530,8 @@ def _validation_sequence(family: str) -> str:
 
 def _proof_after_update(ticker: str, family: str) -> str:
     if family == "price":
-        return f"make price-coverage TOP_N=25 && make readiness && make stock-report-md TICKER={ticker}"
-    return f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}"
+        return f"make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}"
+    return f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}"
 
 
 def _stop_rule(family: str) -> str:
@@ -587,8 +587,8 @@ def _family_apply_boundary(family: str) -> str:
 def _family_post_run_proof_command(tickers: list[str], family: str) -> str:
     ticker = tickers[0] if tickers else "<reviewed_ticker>"
     if family == "price":
-        return f"make price-coverage TOP_N=25 && make readiness && make stock-report-md TICKER={ticker}"
-    return f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}"
+        return f"make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}"
+    return f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}"
 
 
 def _proof_record_scaffold(*, lane: str, tickers: list[str], command_run: str) -> str:
@@ -919,8 +919,8 @@ def build_dcf_input_proof_handoff(
             validation_command="make imports-validate",
             preview_command="make imports-preview",
             apply_boundary="Reviewed boundary: do not apply rows until source proof, validation, preview, and rejected-row review exist.",
-            post_run_proof_command="make dcf-readiness && make readiness",
-            compare_command="make reviewed-batch-compare LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            post_run_proof_command="make readiness-snapshot PROFILE=<default|demo|local> && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            compare_command="make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             proof_record_scaffold=_proof_record_scaffold(lane="fundamentals", tickers=[], command_run=command_run),
             stop_rule="Stop if the selected DCF input family has no queued blockers or source proof is unavailable.",
             record_boundary="Preview only; do not record proof until required fields replace placeholders and readiness comparison is reviewed.",
@@ -941,7 +941,7 @@ def build_dcf_input_proof_handoff(
         preview_command=_family_preview_command(input_family),
         apply_boundary=_family_apply_boundary(input_family),
         post_run_proof_command=_family_post_run_proof_command(tickers, input_family),
-        compare_command=f"make reviewed-batch-compare LANE={lane} BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+        compare_command=f"make reviewed-batch-compare PROFILE=<default|demo|local> LANE={lane} BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
         proof_record_scaffold=_proof_record_scaffold(lane=lane, tickers=tickers, command_run=command_run),
         stop_rule=stop_rules[0] if stop_rules else _stop_rule(input_family),
         record_boundary="Copy the proof-record command only after packet review, validate/preview/apply decision, rebuilt readiness, comparison, source files, and generated-artifact review.",
@@ -1104,7 +1104,7 @@ def build_dcf_input_source_command_plan(
         DcfInputSourceCommandPlan(
             step="6. Rebuild DCF proof",
             status="copy_only_after_apply_or_skip",
-            command=f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}",
+            command=f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}",
             fields_to_fill="post-run readiness proof",
             review_boundary="A supported outcome needs rebuilt readiness proof; skipped or still-blocked outcomes should stay honest.",
         ),
@@ -1217,7 +1217,7 @@ def build_dcf_input_source_guard(
             if status == "ready_for_validate_preview"
             else "Do not edit or apply data/imports/fundamentals.csv until blocking reasons are resolved."
         ),
-        post_apply_proof=f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker_key or '<ticker>'}",
+        post_apply_proof=f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker_key or '<ticker>'} && make imports-preview IMPORT_TICKERS={ticker_key or '<ticker>'} && make imports-apply IMPORT_TICKERS={ticker_key or '<ticker>'} && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker_key or '<ticker>'}",
         proof_record_boundary=(
             "After rebuilt readiness and comparison are reviewed, use DRY_RUN=1 make reviewed-batch-proof-record with source files and artifact review filled."
         ),

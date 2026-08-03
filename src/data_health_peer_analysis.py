@@ -136,7 +136,7 @@ def peer_analysis_boundary_cards(
             "title": "data/imports/peers.csv",
             "body": (
                 "Add only source-backed peer mappings, then run make imports-validate, make imports-preview, "
-                "and make imports-apply. Rebuild with make readiness and make peer-mapping-queue TOP_N=25 before reading peer valuation. "
+                "and make imports-apply. Compare with make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> and make peer-mapping-queue TOP_N=25 before reading peer valuation. "
                 "Sector or industry fallback is context, not trusted peer valuation data."
             ),
             "badges": ["source-backed only", "preview first"],
@@ -157,8 +157,8 @@ def peer_function_quality_frame(
                     "Current Coverage": "Peer readiness not ready yet",
                     "Supported Today": "Nothing yet; run readiness before interpreting peer context.",
                     "Not Supported Yet": "Peer trend or valuation comparison.",
-                    "Methodology / Provenance": "Project peer readiness checks after make readiness.",
-                    "Next Step": "make readiness",
+                    "Methodology / Provenance": "Project peer readiness checks from the selected profile's in-memory comparison.",
+                    "Next Step": "make readiness-preview TOP_N=20",
                 }
             ]
         )
@@ -191,7 +191,7 @@ def peer_function_quality_frame(
                 "Supported Today": "Relative price or momentum context when mapped peers have enough local price rows.",
                 "Not Supported Yet": "Peer-relative valuation or quality conclusions.",
                 "Methodology / Provenance": "Project price/momentum readiness checks for mapped peers.",
-                "Next Step": "make readiness",
+                "Next Step": "make readiness-preview TOP_N=20",
             },
             {
                 "Peer Area": "Peer valuation comparison",

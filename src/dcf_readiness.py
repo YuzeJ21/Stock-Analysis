@@ -241,7 +241,9 @@ def main(argv: list[str] | None = None) -> int:
         "- Validate/apply/prove: "
         f"make imports-validate IMPORT_TICKERS={first_blocker} -> "
         f"make imports-preview IMPORT_TICKERS={first_blocker} -> "
-        f"make imports-apply IMPORT_TICKERS={first_blocker} -> make dcf-readiness -> make readiness"
+        f"make imports-apply IMPORT_TICKERS={first_blocker} -> make dcf-readiness -> "
+        "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     )
     missing = frame.loc[~frame["is_dcf_ready"].astype(bool), ["ticker", "reason_not_ready"]]
     for _, row in missing.head(max(args.top_n, 0)).iterrows():

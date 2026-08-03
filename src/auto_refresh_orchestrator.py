@@ -89,7 +89,7 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             auto_apply=False,
             dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
             gated_apply_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
-            proof_command="make price-coverage TOP_N=25 && make readiness && make status-check TOP_N=5",
+            proof_command="make readiness-snapshot PROFILE=default && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=default LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
             source_boundary="Provider OHLCV rows only; no fabricated or padded price history.",
         ),
         LanePolicy(
@@ -108,7 +108,7 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
                 "PREVIEW_STATUS=valid REJECTED_ROWS=0 SOURCE_PROVENANCE=present && "
                 "make imports-apply IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv"
             ),
-            proof_command="make dcf-readiness && make readiness && make stock-report-md TICKER=<ticker>",
+            proof_command="make readiness-snapshot PROFILE=default && make imports-validate IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make imports-preview IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make imports-apply IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make dcf-readiness && make reviewed-batch-compare PROFILE=default LANE=share_count BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=<ticker>",
             source_boundary="Only explicit SEC filing document facts with CIK, form, filed date, accession, and entity proof.",
         ),
         LanePolicy(
@@ -126,7 +126,7 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
                 "PREVIEW_STATUS=valid REJECTED_ROWS=0 SOURCE_PROVENANCE=present && "
                 "make imports-apply IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv"
             ),
-            proof_command="make dcf-readiness && make readiness && make stock-report-md TICKER=<ticker>",
+            proof_command="make readiness-snapshot PROFILE=default && make imports-validate IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make imports-preview IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make imports-apply IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make dcf-readiness && make reviewed-batch-compare PROFILE=default LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=<ticker>",
             source_boundary="SEC/provider fundamentals only; no placeholder revenue, cash flow, margin, or share rows.",
         ),
         LanePolicy(
@@ -138,7 +138,7 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             auto_apply=False,
             dry_run_command="make peer-mapping-queue TOP_N=25",
             gated_apply_command="DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=25",
-            proof_command="make readiness && make peer-mapping-queue TOP_N=25",
+            proof_command="make readiness-snapshot PROFILE=default && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
             source_boundary="Candidate peers are context only; trusted peer proof requires reviewed source-backed rows.",
         ),
         LanePolicy(
@@ -156,7 +156,7 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
                 "PREVIEW_STATUS=valid REJECTED_ROWS=0 SOURCE_PROVENANCE=present && "
                 "make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness"
             ),
-            proof_command="make optional-context-readiness && make readiness",
+            proof_command="make readiness-snapshot PROFILE=default && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness && make reviewed-batch-compare PROFILE=default LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             source_boundary=(
                 "Optional provider rows only; earnings timing or price-target-only rows are candidate_context_only "
                 "until earnings metrics or EPS/revenue estimate fields unlock readiness."
@@ -206,7 +206,7 @@ def evaluate_auto_apply_gate(gate: AutoGateInput) -> AutoGateDecision:
         reasons=("validation, preview, provenance, scope, and no-fabrication gates passed",),
         required_next_commands=(
             "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
-            "make readiness && make reviewed-batch-proof-record FINAL_OUTCOME=auto_supported",
+            "make reviewed-batch-compare PROFILE=default LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make reviewed-batch-proof-record FINAL_OUTCOME=auto_supported",
         ),
     )
 

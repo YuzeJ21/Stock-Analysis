@@ -769,7 +769,7 @@ def dcf_source_guard_preview_frame(readiness: pd.DataFrame | None) -> pd.DataFra
                     "Validate": "blocked until evidence intake exists",
                     "Preview": "blocked until evidence intake exists",
                     "Apply Boundary": "Do not apply imports without reviewed source proof.",
-                    "Post-Guard Proof": "make dcf-readiness && make readiness",
+                    "Post-Guard Proof": "make readiness-snapshot PROFILE=<default|demo|local> && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
                 }
             ],
             columns=columns,
@@ -791,7 +791,7 @@ def dcf_source_guard_preview_frame(readiness: pd.DataFrame | None) -> pd.DataFra
                     if ready
                     else "Do not apply imports while evidence fields are missing."
                 ),
-                "Post-Guard Proof": f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}",
+                "Post-Guard Proof": f"make readiness-snapshot PROFILE=<default|demo|local> && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}",
             }
         )
     return pd.DataFrame(rows, columns=columns)

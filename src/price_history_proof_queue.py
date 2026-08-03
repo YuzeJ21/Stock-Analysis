@@ -206,7 +206,7 @@ def build_price_history_proof_queue_from_payload(
                 next_safe_command=next_safe_command,
                 dry_run_batch_command=dry_run_command,
                 validate_preview_apply_gate="make price-validate -> make price-preview -> make price-apply only after reviewed source rows",
-                post_run_proof_command=f"make readiness && make status-check TOP_N={command_top_n} && make focus-price TICKER={ticker}",
+                post_run_proof_command=f"make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N={command_top_n} && make focus-price TICKER={ticker}",
                 stop_rule=(
                     "Stop if the provider/manual source cannot verify enough OHLCV history; keep the short-history "
                     "state visible and do not infer missing dates or prices."
@@ -367,7 +367,7 @@ def render_price_history_proof_queue(
         if "reviewed proof ledger already records" in row.source_note.lower():
             lines.append(f"- Follow-up: {row.next_safe_command}.")
         elif price_rows_complete:
-            lines.append(f"- Targeted provider history check: {targeted_history_command} after make readiness-snapshot.")
+            lines.append(f"- Targeted provider history check: {targeted_history_command} after make readiness-snapshot PROFILE=<default|demo|local>.")
             lines.append("- This is not the missing-price batch loop; inspect the source result before relying on added history.")
             lines.append(f"- Import gate: {row.validate_preview_apply_gate}.")
             lines.append(f"- Rebuild proof: {row.post_run_proof_command}.")

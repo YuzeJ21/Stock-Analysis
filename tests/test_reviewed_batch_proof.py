@@ -58,6 +58,20 @@ def test_reviewed_batch_proof_round_trips_and_renders_guardrails(tmp_path: Path)
     assert "direct buy/sell instructions" in rendered
 
 
+def test_reviewed_batch_proof_renders_command_run_as_non_executable_without_mutating_ledger(tmp_path: Path):
+    ledger = tmp_path / "reviewed_batch_proofs.csv"
+    append_reviewed_batch_proof(_proof(command_run="make imports-apply IMPORT_TICKERS=AAA"), ledger)
+    before = ledger.read_bytes()
+
+    rendered = render_reviewed_batch_proofs(load_reviewed_batch_proofs(ledger))
+
+    assert ledger.read_bytes() == before
+    assert "Historical Command (not executable): make imports-apply IMPORT_TICKERS=AAA" in rendered
+    assert "command_run:" not in rendered
+    assert "copy command" not in rendered.lower()
+    assert "run command" not in rendered.lower()
+
+
 def test_reviewed_batch_proof_record_blocks_duplicate_batch_id(tmp_path: Path, capsys):
     ledger = tmp_path / "reviewed_batch_proofs.csv"
     append_reviewed_batch_proof(_proof(batch_id="RB-DUP-001"), ledger)

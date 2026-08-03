@@ -457,8 +457,8 @@ def test_decision_proof_queue_writer_blocks_stale_readiness(tmp_path):
     result = write_decision_proof_queue(tmp_path)
 
     assert result.status == "stale"
-    assert "Run make readiness" in result.message
-    assert result.refresh_command == "make readiness"
+    assert "In-memory preview only" in result.message
+    assert result.refresh_command == "make readiness-preview TOP_N=20"
     assert not (tmp_path / DEFAULT_QUEUE_CSV).exists()
 
 

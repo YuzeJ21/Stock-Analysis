@@ -570,10 +570,15 @@ def operations_cockpit_cards(
     estimate_total = 0 if analyst_readiness_frame is None else len(analyst_readiness_frame)
     optional_locked = max(earnings_total - earnings_ready, 0) + max(estimate_total - estimate_ready, 0)
     freshness_title = _public_status_label(freshness.status).title()
+    inspection_command, inspection_note = active_readiness_inspection_route()
+    freshness_command = _format_missing(freshness.refresh_command, inspection_command)
+    if freshness.status in {"missing", "stale", "mixed"}:
+        freshness_command = inspection_command
     freshness_body = (
         f"{freshness.message} "
         "Refresh readiness before relying on exact counts when artifacts are missing or stale. "
-        "Treat stale or missing readiness artifacts as a stop sign before relying on final counts."
+        "Treat stale or missing readiness artifacts as a stop sign before relying on final counts. "
+        f"{inspection_note if freshness_command == inspection_command else ''}"
     )
     freshness_badges = [freshness.status, "refresh before counts"] if freshness.status in {"missing", "stale"} else [freshness.status, "counts usable"]
 
@@ -583,7 +588,7 @@ def operations_cockpit_cards(
             "title": freshness_title,
             "body": freshness_body,
             "badges": freshness_badges,
-            "command": freshness.refresh_command,
+            "command": freshness_command,
         },
         lane_answer_card(ops_frame),
         {

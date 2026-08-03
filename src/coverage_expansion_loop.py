@@ -354,7 +354,7 @@ def build_source_proof_gate(
             review_commands=(
                 f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=auto",
                 "make price-validate && make price-preview",
-                "make readiness && make status-check TOP_N=5",
+                "make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
             ),
             proof_ready_when="dry-run scope is reviewed, local price rows validate, readiness is rebuilt, and changed artifacts are classified.",
         )
@@ -401,7 +401,7 @@ def build_source_proof_gate(
             review_commands=(
                 first_review_command,
                 "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
-                "make dcf-readiness && make readiness",
+                "make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             ),
             proof_ready_when="source-backed rows pass validation and preview, rejected rows are reviewed, readiness is rebuilt, and the stock report proves the lane changed.",
         )
@@ -428,7 +428,7 @@ def build_source_proof_gate(
             review_commands=(
                 f"make peer-mapping-queue TOP_N={top_n}",
                 "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
-                "make readiness && make peer-mapping-queue TOP_N=25",
+                "make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
             ),
             proof_ready_when="peer mappings and mapped-peer inputs are source-backed, validation/preview passes, readiness is rebuilt, and peer valuation remains blocked if inputs are still missing.",
         )
@@ -615,7 +615,6 @@ def build_coverage_expansion_loop(
         preflight.dry_run_command,
         preflight.capped_execution_command,
         "Review validation, preview, rejected rows, and apply decision before treating any source-lane change as supported",
-        "make readiness",
         preflight.comparison_command,
         f"DRY_RUN=1 {preflight.proof_record_command}",
         "make diff-hygiene",

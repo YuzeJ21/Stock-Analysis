@@ -248,7 +248,7 @@ def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -
             f"{prefix} Inspect make focus-fundamentals TICKER={ticker}; use make sec-stage TICKERS={ticker} "
             "when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; "
             f"then run make imports-validate IMPORT_TICKERS={ticker}, make imports-preview IMPORT_TICKERS={ticker}, "
-            f"make imports-apply IMPORT_TICKERS={ticker}, make dcf-readiness, and make readiness "
+            f"make imports-apply IMPORT_TICKERS={ticker}, make dcf-readiness, and make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> "
             "before reading DCF output."
         )
     return text

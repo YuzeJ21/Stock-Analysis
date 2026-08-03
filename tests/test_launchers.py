@@ -173,6 +173,33 @@ def test_legacy_readiness_make_boundaries_fail_closed_without_writing(tmp_path: 
     assert _tree_manifest(tmp_path) == before
 
 
+def test_trusted_data_pilot_walkthrough_uses_profile_bound_before_apply_compare_proof():
+    result = subprocess.run(
+        ["make", "trusted-data-pilot", "PROFILE=local", "TICKERS=NVDA"],
+        cwd=Path.cwd(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "make readiness\n" not in result.stdout
+    assert "make readiness &&" not in result.stdout
+    assert result.stdout.count("make readiness-snapshot PROFILE=local") >= 2
+    for lane in ("prices", "fundamentals", "peers"):
+        comparison = (
+            f"make reviewed-batch-compare PROFILE=local LANE={lane} "
+            "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        )
+        assert comparison in result.stdout
+    snapshot_at = result.stdout.index("make readiness-snapshot PROFILE=local")
+    validate_at = result.stdout.index("make imports-validate IMPORT_TICKERS=<ticker>")
+    preview_at = result.stdout.index("make imports-preview IMPORT_TICKERS=<ticker>")
+    apply_at = result.stdout.index("make imports-apply IMPORT_TICKERS=<ticker>")
+    compare_at = result.stdout.index("make reviewed-batch-compare PROFILE=local LANE=fundamentals")
+    assert snapshot_at < validate_at < preview_at < apply_at < compare_at
+
+
 def test_default_and_composite_targets_are_guarded_and_exclude_writer_commands():
     makefile = Path("Makefile").read_text(encoding="utf-8")
     forbidden_fragments = (
@@ -2844,9 +2871,9 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "ifndef IMPORT_TICKERS\nifndef ALLOW_BROAD_IMPORT_APPLY" in makefile
     assert "$(error IMPORT_TICKERS is required for imports-apply; use ALLOW_BROAD_IMPORT_APPLY=1 only after full staged-scope review)" in makefile
     assert "Check the rejected-row report printed by the packet before treating the lane as available." in makefile
-    assert "Run the matching rebuild proof:" in makefile
-    assert "fundamentals lane: make readiness && make dcf-readiness" in makefile
-    assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in makefile
+    assert "Run the matching in-memory comparison proof:" in makefile
+    assert "fundamentals lane: make dcf-readiness && make reviewed-batch-compare PROFILE=$(if $(PROFILE),$(PROFILE),<default|demo|local>) LANE=fundamentals" in makefile
+    assert "peer lane: make reviewed-batch-compare PROFILE=$(if $(PROFILE),$(PROFILE),<default|demo|local>) LANE=peers" in makefile
     assert "If SEC staging is not configured or source rows are not ready, stop at diagnostics and keep the ticker visibly blocked by missing data." in makefile
     assert "Add peers only when you have source-backed relationships; sector/industry fallback is context, not trusted peer valuation." in makefile
     assert "Stage only intentional docs/code/tests or reviewed sample Markdown reports; keep broad CSV/JSON refresh churn local unless it is the reviewed artifact." in makefile

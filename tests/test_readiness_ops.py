@@ -214,8 +214,16 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
     assert by_lane["earnings_locked"].workflow_mode == "optional_source_ladder"
     assert by_lane["analyst_estimates_locked"].workflow_mode == "optional_source_ladder"
     assert by_lane["earnings_locked"].next_safe_command == "make optional-context-source-ladder-queue TOP_N=10"
-    assert "make imports-apply" not in by_lane["earnings_locked"].proof_command
-    assert "make imports-apply" not in by_lane["analyst_estimates_locked"].proof_command
+    for lane_name in ("earnings_locked", "analyst_estimates_locked"):
+        proof_command = by_lane[lane_name].proof_command
+        assert proof_command.startswith("make readiness-snapshot PROFILE=<default|demo|local> && ")
+        assert "make imports-validate IMPORT_TICKERS=<ticker>" in proof_command
+        assert "make imports-preview IMPORT_TICKERS=<ticker>" in proof_command
+        assert "make imports-apply IMPORT_TICKERS=<ticker>" in proof_command
+        assert (
+            "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=optional_context "
+            "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        ) in proof_command
     assert "apply only after validation passes" in by_lane["earnings_locked"].generated_churn_policy
     assert "apply only after validation passes" in by_lane["analyst_estimates_locked"].generated_churn_policy
     assert by_lane["excluded_not_applicable"].readiness_state == "excluded"

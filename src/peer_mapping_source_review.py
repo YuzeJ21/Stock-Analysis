@@ -288,7 +288,7 @@ def peer_mapping_import_preview(row: PeerMappingReviewRow, freshness: FreshnessS
         target_file=row.target_file,
         validation_command=validation_command,
         apply_boundary=apply_boundary,
-        post_apply_proof="make readiness && make peer-mapping-queue TOP_N=25 && make reviewed-batch-compare LANE=peers ...",
+        post_apply_proof="make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
     )
 
 
@@ -306,7 +306,7 @@ def peer_mapping_packet_decision(packet: PeerMappingSourceReviewPacket) -> PeerM
         return PeerMappingPacketDecision(
             status="still_blocked",
             answer="No peer source-review rows are available for the selected scope.",
-            next_safe_action="Run make readiness && make peer-mapping-queue TOP_N=25, then rerun make peer-mapping-source-review.",
+            next_safe_action="Run make readiness-preview TOP_N=20, then rerun make peer-mapping-source-review.",
             candidate_context_state="not_loaded",
             trusted_peer_proof_state="locked",
             boundary="Do not infer peer mappings when the peer source-review packet has no rows.",
@@ -629,7 +629,7 @@ def build_peer_mapping_source_review_packet(
                         f"make imports-validate IMPORT_TICKERS={ticker} -> "
                         f"make imports-preview IMPORT_TICKERS={ticker} -> "
                         f"make imports-apply IMPORT_TICKERS={ticker} -> "
-                        "make readiness -> make peer-mapping-queue TOP_N=25"
+                        "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25"
                     ),
                     do_not_proceed_if=(
                         "source does not name the peer relationship or comparable business context; "
@@ -685,7 +685,7 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
         "- Rejected shortcuts: memory, popularity, sector/theme similarity alone, row-count convenience, or placeholders.",
         "- Candidate context: local classification leads may help source review, but remain `candidate_context_only` and never count as trusted peer proof.",
         "- Validation path: `make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> make imports-apply IMPORT_TICKERS=<ticker>` only after source review.",
-        "- Post-run proof: `make readiness -> make peer-mapping-queue TOP_N=25 -> make reviewed-batch-compare LANE=peers ...`.",
+        "- Post-run proof: `make readiness-snapshot PROFILE=<default|demo|local> -> reviewed validate/preview/apply -> make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25`.",
         "- Import row scaffold appears only after source proof status and required review fields are filled.",
         "",
         "## Review Rows",
@@ -694,7 +694,7 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
     if not packet.rows:
         lines.extend(
             [
-                "No peer mapping source-review rows were generated. Run `make readiness` and `make peer-mapping-queue TOP_N=25`, then retry.",
+                "No peer mapping source-review rows were generated. Run `make readiness-preview TOP_N=20` and `make peer-mapping-queue TOP_N=25`, then retry.",
                 "",
             ]
         )
@@ -863,7 +863,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"make imports-validate IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
                 f"make imports-preview IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
                 f"make imports-apply IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
-                "make readiness -> make peer-mapping-queue TOP_N=25"
+                "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25"
             ),
             do_not_proceed_if=(
                 "source does not name the peer relationship or comparable business context; "

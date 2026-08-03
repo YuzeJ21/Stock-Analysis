@@ -649,7 +649,8 @@ def test_data_health_provider_setup_checklist_cards_use_checklist_without_secret
     assert "provider setup only makes a source executable" in rendered
     assert "do not retry broad_refresh, source_proof, readiness_rebuild" in rendered
     assert "current gate says inspection_only" in rendered
-    assert "next: make readiness-preview top_n=20" in rendered
+    assert "unavailable for local research (local)" in rendered
+    assert "selected profile inputs are" in rendered
     assert "fundamentals_share_count_source_ladder" not in rendered
     assert "coverage_workflow_evidence" not in rendered
     assert "project-status -> provider setup -> reviewed one-ticker smoke command -> validate/preview" in rendered
@@ -1171,7 +1172,12 @@ def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evide
     assert row["Validate Command"] == "make imports-validate"
     assert row["Preview Command"] == "make imports-preview"
     assert "run make imports-apply only after source guard" in row["Apply Boundary"].lower()
-    assert row["Post-Run Proof"] == "make dcf-readiness && make readiness && make stock-report-md TICKER=AACB"
+    assert row["Post-Run Proof"].startswith("make readiness-snapshot PROFILE=<default|demo|local> && make dcf-readiness && ")
+    assert (
+        "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    ) in row["Post-Run Proof"]
+    assert row["Post-Run Proof"].endswith("make stock-report-md TICKER=AACB")
     assert row["Proof Record Dry-Run Boundary"].startswith("DRY_RUN=1 make reviewed-batch-proof-record")
     assert "validation_result" in row["Proof Record Dry-Run Boundary"]
     assert "generated_artifacts_reviewed" in row["Proof Record Dry-Run Boundary"].lower()
@@ -1193,7 +1199,14 @@ def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evide
     assert writer["Validate Command"] == "make imports-validate"
     assert writer["Preview Command"] == "make imports-preview"
     assert "run make imports-apply only after source guard" in writer["Apply Boundary"].lower()
-    assert writer["Post-Run Proof Command"] == "make dcf-readiness && make readiness && make stock-report-md TICKER=AACB"
+    assert writer["Post-Run Proof Command"].startswith(
+        "make readiness-snapshot PROFILE=<default|demo|local> && make dcf-readiness && "
+    )
+    assert (
+        "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    ) in writer["Post-Run Proof Command"]
+    assert writer["Post-Run Proof Command"].endswith("make stock-report-md TICKER=AACB")
     assert writer["Proof Record Dry-Run Command"].startswith("DRY_RUN=1 make reviewed-batch-proof-record")
     assert "preview packet ready" in rendered_writer_cards
     assert "dry-run only" in rendered_writer_cards
@@ -1635,7 +1648,7 @@ def test_data_health_proof_planner_outcome_summary_shows_refresh_cta_when_stale(
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Refresh readiness before proof planning"
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
     assert "freshness: readiness artifacts are stale" in rendered
     assert "stale readiness rows are not proof" in rendered
     assert "blocked by freshness" in rendered
@@ -2789,7 +2802,7 @@ def test_dashboard_page_reader_cards_answer_analyze_locked_and_copy_next():
     assert "missing inputs are a proof checklist, not weak conclusions" in rendered
     assert "dashboard does not run refreshes, imports, or external account actions" in rendered
     assert "proof after data changes:" in rendered
-    assert "run make readiness and reopen home before interpreting changed counts" in rendered
+    assert "run the profile-bound readiness comparison and reopen home before interpreting changed counts" in rendered
     assert "regenerate the markdown report before reading newly available sections" in rendered
     assert "refresh valuation readiness before reading valuation output" in rendered
     assert "run make dcf-readiness" not in rendered
@@ -2881,8 +2894,8 @@ def test_research_loop_strip_mobile_keeps_first_viewport_compact():
 
 
 def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
-    freshness = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness")
-    stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness")
+    freshness = dashboard.FreshnessStatus("current", "Readiness artifacts are current.", "make readiness-preview TOP_N=20")
+    stale = dashboard.FreshnessStatus("stale", "Generated readiness artifacts are stale.", "make readiness-preview TOP_N=20")
     summary = {"price_ready": 3538, "dcf_ready": 59, "peer_ready": 26}
 
     home = dashboard.home_research_loop_context(summary, freshness)
@@ -2898,7 +2911,7 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
     data_health = dashboard.data_health_research_loop_context(
         selected_lane_key="fundamentals",
         readiness_freshness=stale,
-        next_action="make readiness",
+        next_action="make readiness-preview TOP_N=20",
         public_mode=False,
     )
 
@@ -2910,7 +2923,9 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
     assert home["action_href"] == "?mode=public&page=single-stock-report&ticker=NVDA&open=1"
     assert home["stop_href"] == "?mode=public&page=data-health&drawer=proof"
     assert home_stale["previous_proof"] == "Saved readiness snapshot needs refresh"
-    assert home_stale["proof_note"] == "make readiness"
+    assert home_stale["proof_note"] == (
+        "make readiness-preview TOP_N=20. In-memory preview only; it does not refresh or persist saved readiness."
+    )
     assert pre_report["current_step"] == "Single-Stock Report"
     assert "Selected ticker: NVDA" in pre_report["current_note"]
     assert pre_report["current_href"] == "?mode=public&page=single-stock-report&ticker=NVDA&open=1"
@@ -2928,7 +2943,7 @@ def test_research_loop_contexts_match_home_single_stock_and_data_health_flow():
     assert data_health["current_href"] == "?mode=operator&page=data-health&lane=fundamentals"
     assert data_health["proof_href"] == "?mode=operator&page=data-health&lane=proof&drawer=proof"
     assert data_health["previous_proof"] == "Readiness snapshot needs refresh"
-    assert data_health["next_action"] == "make readiness"
+    assert data_health["next_action"] == "make readiness-preview TOP_N=20"
     assert data_health["action_href"] == ""
     assert data_health["stop_href"] == "?mode=operator&page=data-health&lane=proof&drawer=proof"
     rendered = " ".join(" ".join(value.values()) for value in [home, pre_report, loaded_report, data_health]).lower()
@@ -12561,7 +12576,11 @@ def test_valuation_plain_language_cards_explain_ready_locked_and_excluded_states
     assert cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert cards[2]["command"] == "make focus-fundamentals TICKER=META"
     assert cards[3]["command"] == "make stock-report-md TICKER=QQQ"
-    assert cards[4]["command"] == "make dcf-readiness && make readiness"
+    assert cards[4]["command"] == (
+        "make readiness-snapshot PROFILE=default && make dcf-readiness && "
+        "make reviewed-batch-compare PROFILE=default LANE=fundamentals "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    )
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "make stock-report-md ticker=qqq" in rendered
     assert "prove valuation readiness before interpretation" in rendered
@@ -13183,7 +13202,7 @@ def test_data_health_operations_cockpit_cards_summarize_new_lanes_without_overcl
         "PROOF HYGIENE",
     ]
     assert cards[0]["title"] == "Stale"
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
     assert cards[1]["title"] == "What can I use now?"
     assert cards[1]["command"] == "make readiness-ops-center"
     assert cards[2]["title"] == "265 price / 23 DCF / 9 peer-ready"
@@ -13234,7 +13253,7 @@ def test_data_health_source_readiness_guidance_cards_preflight_source_hygiene_wi
         "ARTIFACT HYGIENE",
     ]
     assert cards[0]["title"] == "Freshness: Stale"
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
     assert cards[1]["title"] == "7 partial coverage row(s)"
     assert cards[1]["command"] == "make research-health-check TOP_N=10"
     assert cards[2]["title"] == "2 rejected row(s) / 1 missing report(s)"
@@ -13314,7 +13333,10 @@ def test_data_health_freshness_routine_cards_separate_read_only_from_review_requ
         "PRICE FRESHNESS",
         "REVIEW-REQUIRED LANES",
     ]
-    assert cards[0]["command"] == "make status-check TOP_N=5 && make readiness && make dashboard-smoke && make price-refresh-loop DRY_RUN=1"
+    assert cards[0]["command"] == (
+        "make status-check TOP_N=5 && make readiness-preview TOP_N=20 && "
+        "make dashboard-smoke && make price-refresh-loop DRY_RUN=1"
+    )
     assert cards[1]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3300 TOP_N=100 PROVIDER=auto"
     assert cards[2]["command"] == "make project-status"
     assert "without changing files" in rendered
@@ -13406,7 +13428,10 @@ def test_data_health_trusted_pilot_preview_frame_is_capped_and_ranked():
     assert "fcf_margin" not in rendered
     assert "make trusted-data-pilot-packet ticker=mu" in rendered
     assert "make focus-peers ticker=mu" in rendered
-    assert "make readiness && make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
+    assert "make readiness-snapshot profile=<default|demo|local>" in rendered
+    assert "make reviewed-batch-compare profile=<default|demo|local> lane=peers" in rendered
+    assert "batch_id=<reviewed_batch_id> review_date=<yyyy-mm-dd>" in rendered
+    assert "make peer-mapping-queue top_n=25 && make stock-report-md ticker=mu" in rendered
     assert "evidence required: before report, lane review output" in rendered
     assert "mu | before: run report | after: rerun report" in rendered
     assert "broker" not in rendered
@@ -13708,7 +13733,10 @@ def test_data_health_reviewed_batch_ladder_cards_turn_frontier_into_safe_steps()
     assert cards[0]["command"] == "make readiness-snapshot PROFILE=default"
     assert cards[1]["command"] == "DRY_RUN=1 make reviewed-batch PROFILE=default LANE=prices TOP_N=10"
     assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
-    assert cards[3]["command"] == "make reviewed-batch-compare PROFILE=default LANE=prices && make diff-hygiene"
+    assert cards[3]["command"] == (
+        "make reviewed-batch-compare PROFILE=default LANE=prices "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make diff-hygiene"
+    )
     assert "copy-only reviewed packet" in rendered
     assert "workflow mode: dry-run first" in rendered
     assert "dry-run before execution" in rendered
@@ -14065,7 +14093,7 @@ def test_data_health_reviewed_batch_snapshot_gate_cards_cover_missing_and_ready_
     missing_snapshot_frame = dashboard.data_health_reviewed_batch_snapshot_gate_frame(missing_snapshot)
 
     assert missing_current_cards[0]["title"] == "Build current readiness first"
-    assert missing_current_cards[0]["command"] == "make readiness"
+    assert missing_current_cards[0]["command"] == "make readiness-preview TOP_N=20"
     assert "missing current" in missing_current_cards[0]["badges"]
     assert missing_snapshot_cards[0]["title"] == "Save baseline snapshot first"
     assert missing_snapshot_cards[0]["command"] == "make readiness-snapshot"
@@ -14230,6 +14258,8 @@ def test_data_health_reviewed_batch_proof_frame_and_cards_read_batch_ledger(tmp_
 
     assert frame.iloc[0]["Batch ID"] == "RB-1"
     assert frame.iloc[0]["Final Outcome"] == "skipped"
+    assert frame.iloc[0]["Historical Command (not executable)"] == "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10"
+    assert "Command Run" not in frame.columns
     assert cards[0]["kicker"] == "LATEST BATCH PROOF"
     assert cards[0]["command"] == "make reviewed-batch-proof"
     assert "outcome: skipped" in rendered
@@ -14344,7 +14374,7 @@ def test_data_health_reviewed_batch_proof_loop_cards_warn_when_packet_or_snapsho
     assert cards[0]["title"] == "No reviewed batch packet: No packet"
     assert cards[0]["command"] == "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
     assert cards[1]["title"] == "Comparison blocked"
-    assert cards[1]["command"] == "make readiness-snapshot"
+    assert cards[1]["command"] == "make readiness-snapshot PROFILE=<default|demo|local>"
     assert "keep the proof row open" in rendered
     assert "supported, candidate_context_only, still_blocked, skipped, or excluded" in rendered
     assert "buy" not in rendered
@@ -14884,7 +14914,10 @@ def test_data_health_readiness_comparison_cards_and_frame_show_proof_inputs():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["kicker"] == "BATCH COMPARISON"
-    assert cards[0]["command"] == "make reviewed-batch-compare PROFILE=default LANE=prices"
+    assert cards[0]["command"] == (
+        "make reviewed-batch-compare PROFILE=default LANE=prices "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    )
     assert "1 changed ticker" in cards[0]["title"]
     assert "proof-ledger input" in rendered
     assert "not a recommendation signal" in rendered
@@ -15257,9 +15290,9 @@ def test_data_health_lane_auto_context_cards_show_refresh_before_planning_when_s
     rendered = " ".join(str(value) for card in dcf_cards + peer_cards for value in card.values()).lower()
 
     assert dcf_cards[0]["title"] == "Refresh readiness before DCF proof planning"
-    assert dcf_cards[0]["command"] == "make readiness"
+    assert dcf_cards[0]["command"] == "make readiness-preview TOP_N=20"
     assert peer_cards[0]["title"] == "Refresh readiness before peer proof planning"
-    assert peer_cards[0]["command"] == "make readiness"
+    assert peer_cards[0]["command"] == "make readiness-preview TOP_N=20"
     assert "do not use stale readiness artifacts as dcf proof" in rendered
     assert "do not use stale readiness artifacts as peer proof" in rendered
     assert "dcf proof batch planner" not in rendered
@@ -17395,7 +17428,7 @@ def test_data_health_valuation_unlock_snapshot_handles_missing_readiness_without
 
     assert len(cards) == 1
     assert cards[0]["title"] == "Readiness report not loaded"
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
     assert "missing readiness output means analysis should stay current-only and blocked" in body
     assert "open operator details" in body
     assert "copy-only command" not in body
@@ -22538,7 +22571,7 @@ def test_active_universe_unlock_cards_empty_state_keeps_command_out_of_body():
     body = str(cards[0]["body"]).lower()
 
     assert cards[0]["title"] == "No active rows"
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
     assert "active-universe unlock cockpit" in body
     assert "open operator details" in body
     assert "copy-only command" not in body
@@ -22770,11 +22803,11 @@ def test_readiness_product_cards_use_plain_missing_output_language():
 
     assert feature_cards[0]["title"] == "Feature readiness not ready yet"
     assert peer_cards[0]["title"] == "Peer readiness not ready yet"
-    assert feature_cards[0]["command"] == "make readiness"
-    assert peer_cards[0]["command"] == "make readiness"
-    assert "build feature readiness proof" in rendered
-    assert "build peer readiness proof" in rendered
-    assert "open operator details" in rendered
+    assert feature_cards[0]["command"] == "make readiness-preview TOP_N=20"
+    assert peer_cards[0]["command"] == "make readiness-preview TOP_N=20"
+    assert "inspect feature readiness before reviewing which analysis areas are ready" in rendered
+    assert "inspect peer readiness before reviewing peer trend, peer valuation, or source-backed peer blockers" in rendered
+    assert "in-memory preview only; it does not refresh or persist saved readiness" in rendered
     assert "run readiness to rebuild the feature proof" not in rendered
     assert "run readiness to rebuild the peer proof" not in rendered
     assert "data/reports/feature_readiness_summary.csv" not in rendered
@@ -22952,7 +22985,7 @@ def test_readiness_delta_board_handles_missing_prior_snapshot_without_fake_delta
     assert frame.loc[frame["Lane"].eq("Price"), "Previous Ready"].iloc[0] == "not available"
     assert frame.loc[frame["Lane"].eq("Price"), "Delta Ready"].iloc[0] == "not available"
     assert cards[0]["title"] == "Current-only baseline"
-    assert cards[0]["command"] == "make readiness-snapshot"
+    assert cards[0]["command"] == "make readiness-snapshot PROFILE=<default|demo|local>"
     assert "will not invent before/after changes" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -23007,7 +23040,10 @@ def test_readiness_delta_board_summarizes_lane_changes_and_artifact_review():
     assert dcf["Latest Batch Outcome"] == "supported"
     assert dcf["Generated Artifacts Reviewed"] == "excluded broad generated churn"
     assert int(peer["Still Blocked"]) == 3
-    assert cards[0]["command"] == "make reviewed-batch-compare LANE=<lane>"
+    assert cards[0]["command"] == (
+        "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    )
     assert "price +1" in rendered
     assert "dcf +1" in rendered
     assert "generated-artifact review recorded" in rendered
@@ -23268,7 +23304,7 @@ def test_first_peer_mapping_unlock_frame_prioritizes_source_backed_mapping_workf
     assert "sector or industry fallback is not trusted peer data" in rendered
     assert "schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date" in rendered
     assert "make imports-validate import_tickers=<ticker-or-reviewed-batch> && make imports-preview import_tickers=<ticker-or-reviewed-batch> && make imports-apply import_tickers=<ticker-or-reviewed-batch>" in rendered
-    assert "make reviewed-batch-compare profile=default lane=peers && make peer-mapping-queue top_n=25" in rendered
+    assert "make reviewed-batch-compare profile=default lane=peers batch_id=<reviewed_batch_id> review_date=<yyyy-mm-dd> && make peer-mapping-queue top_n=25" in rendered
     assert "peer readiness should improve only after mapped rows pass validation" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -23280,7 +23316,7 @@ def test_first_peer_mapping_unlock_cards_keep_peer_valuation_gated():
 
     assert cards[0]["command"] == "make focus-peers TICKER=COHR"
     assert cards[1]["command"] == "make templates"
-    assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers && make peer-mapping-queue TOP_N=25"
+    assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
     assert "no guessed peers" in rendered
     assert "fallback is not input" in rendered
     assert "do not show peer-relative valuation until source-backed mappings" in rendered
@@ -23636,7 +23672,7 @@ def test_peer_input_ladder_empty_card_uses_active_profile_proof_step(monkeypatch
 
     cards = dashboard.peer_input_ladder_cards(pd.DataFrame())
 
-    assert cards[0]["command"] == "make reviewed-batch-compare PROFILE=local LANE=peers"
+    assert cards[0]["command"] == "make reviewed-batch-compare PROFILE=local LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     assert cards[0]["command"] != "make readiness"
 
 
@@ -23645,7 +23681,7 @@ def test_peer_unlock_empty_card_uses_active_profile_proof_step(monkeypatch):
 
     cards = dashboard.data_health_peer_unlock_cards(None)
 
-    assert cards[0]["command"] == "make reviewed-batch-compare PROFILE=local LANE=peers"
+    assert cards[0]["command"] == "make reviewed-batch-compare PROFILE=local LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     assert cards[0]["command"] != "make readiness"
 
 
@@ -23983,7 +24019,9 @@ def test_data_health_fundamentals_unlock_frame_explains_missing_inputs_before_ra
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
     assert "make dcf-readiness" in rendered
-    assert "run `make dcf-readiness` and `make readiness`, then reopen data health or the single-stock report" in rendered
+    assert "run `make readiness-snapshot profile=<default|demo|local>` before reviewed validate/preview/apply" in rendered
+    assert "make reviewed-batch-compare profile=<default|demo|local> lane=fundamentals" in rendered
+    assert "batch_id=<reviewed_batch_id> review_date=<yyyy-mm-dd>` before reading dcf output" in rendered
     assert "make imports-validate import_tickers=meta -> make imports-preview import_tickers=meta -> make imports-apply import_tickers=meta -> make dcf-readiness" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -24049,7 +24087,7 @@ def test_data_health_fundamentals_unlock_cards_handle_empty_queue_without_fake_c
     assert len(cards) == 1
     assert "no fundamentals unlock rows" in rendered
     assert "regenerate readiness before assuming coverage improved" in rendered
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
 
 
 def test_next_fundamentals_unlock_ticker_prefers_active_price_ready_rows():
@@ -24166,7 +24204,9 @@ def test_data_health_peer_unlock_frame_explains_source_backed_peer_requirements(
     assert "make imports-apply" in rendered
     assert "make readiness" in rendered
     assert "make peer-mapping-queue top_n=25" in rendered
-    assert "run `make readiness` and `make peer-mapping-queue top_n=25`, then reopen data health or the single-stock report" in rendered
+    assert "run `make readiness-snapshot profile=default` before reviewed validate/preview/apply" in rendered
+    assert "make reviewed-batch-compare profile=default lane=peers" in rendered
+    assert "batch_id=<reviewed_batch_id> review_date=<yyyy-mm-dd>` and `make peer-mapping-queue top_n=25`" in rendered
     assert "make focus-fundamentals ticker=<peer> -> make imports-validate" in rendered
     assert "fill data/imports/peers.csv" in rendered
     assert "broker" not in rendered
@@ -24225,7 +24265,7 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "before reading peer-relative valuation" in rendered
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "make focus-peers ticker=a" in rendered
-    assert cards[2]["command"] == "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers && make peer-mapping-queue TOP_N=25"
+    assert cards[2]["command"] == "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
     assert "fallback valuation" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -24241,7 +24281,7 @@ def test_data_health_peer_unlock_cards_handle_empty_queue_without_fake_counts():
     assert len(cards) == 1
     assert "no peer unlock rows" in rendered
     assert "active profile's in-memory peer comparison" in rendered
-    assert cards[0]["command"] == "make reviewed-batch-compare PROFILE=default LANE=peers"
+    assert cards[0]["command"] == "make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
 
 
 def _peer_source_review_root(tmp_path: Path) -> Path:
@@ -24307,7 +24347,7 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
     assert "candidate context for this slot" in cards[1]["body"]
     assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
     assert cards[3]["command"].startswith("make peer-mapping-writeback-guard")
-    assert cards[4]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers && make peer-mapping-queue TOP_N=25"
+    assert cards[4]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
     assert frame.iloc[0]["Review Gate"] == "source proof required"
     assert frame.iloc[0]["Completion Status"] == "needs field fills"
     assert frame.iloc[0]["Import Preview Status"] == "needs field fills"
@@ -25084,7 +25124,7 @@ def test_fundamentals_dcf_diagnostic_cards_empty_state_keeps_command_out_of_body
     body = str(cards[0]["body"]).lower()
 
     assert cards[0]["title"] == "Readiness not ready yet"
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
     assert "open operator details" in body
     assert "copy-only command" not in body
     assert "make " not in body
@@ -25105,10 +25145,10 @@ def test_peer_unlock_operator_cards_empty_state_uses_readiness_proof_copy():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Peer unlock queue not ready yet"
-    assert "build the peer unlock queue" in rendered
+    assert "inspect the missing peer unlock queue" in rendered
     assert "refresh the peer unlock queue" not in rendered
     assert "outputs/peer_unlock_worklist.csv" not in rendered
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
 
 
 def test_peer_mapping_studio_summary_cards_and_scope_toggles_are_actionable():
@@ -25258,7 +25298,8 @@ def test_peer_analysis_boundary_cards_separate_trend_valuation_and_input_path():
     assert "make imports-validate" in rendered
     assert "make imports-preview" in rendered
     assert "make imports-apply" in rendered
-    assert "make readiness and make peer-mapping-queue top_n=25 before reading peer valuation" in rendered
+    assert "make reviewed-batch-compare profile=<default|demo|local> lane=peers" in rendered
+    assert "batch_id=<reviewed_batch_id> review_date=<yyyy-mm-dd> and make peer-mapping-queue top_n=25 before reading peer valuation" in rendered
     assert "sector or industry fallback is context, not trusted peer valuation data" in rendered
     assert "make focus-peers ticker=meta" in rendered
     assert "broker" not in rendered
@@ -25274,9 +25315,9 @@ def test_peer_analysis_boundary_cards_handle_missing_report_without_fake_peer_co
 
     assert len(cards) == 1
     assert cards[0]["title"] == "Peer readiness not loaded"
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
     assert "missing peer output means peer analysis stays locked" in body
-    assert "open operator details" in body
+    assert "inspect peer readiness before interpreting peer trend or peer valuation context" in body
     assert "make " not in body
 
 
@@ -25513,7 +25554,10 @@ def test_decision_workflow_summary_cards_explain_buckets_without_trade_language(
     assert "make research-health top_n=10" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "data/imports/peers.csv" in rendered
-    assert "proof after data changes: run `make peer-mapping-queue top_n=25`, `make readiness`, then `make stock-report-md ticker=a`" in rendered
+    assert "proof after data changes: run `make readiness-snapshot profile=<default|demo|local>`" in rendered
+    assert "make reviewed-batch-compare profile=<default|demo|local> lane=peers" in rendered
+    assert "batch_id=<reviewed_batch_id> review_date=<yyyy-mm-dd>`" in rendered
+    assert "`make peer-mapping-queue top_n=25`, and `make stock-report-md ticker=a`" in rendered
     assert "peer mappings and peer metrics" not in rendered
     assert "trade" not in rendered
     assert "broker" not in rendered
@@ -25799,7 +25843,10 @@ def test_decision_proof_queue_translates_rows_without_overclaiming():
     assert "peer-relative valuation" in queue.iloc[0]["what_stays_locked"].lower()
     assert "make peer-mapping-queue top_n=25" in queue.iloc[0]["proof_after_unlock"].lower()
     assert queue.iloc[1]["copy_only_command"] == "make focus-price TICKER=APLD"
-    assert "make price-coverage top_n=25" in queue.iloc[1]["proof_after_unlock"].lower()
+    price_proof = queue.iloc[1]["proof_after_unlock"].lower()
+    assert "make readiness-snapshot profile=<default|demo|local>" in price_proof
+    assert "make reviewed-batch-compare profile=<default|demo|local> lane=prices" in price_proof
+    assert "batch_id=<reviewed_batch_id> review_date=<yyyy-mm-dd>" in price_proof
     assert queue.iloc[2]["copy_only_command"] == "make stock-report-md TICKER=QQQ"
     assert "operating-company dcf and peer-relative company valuation are excluded" in rendered
     assert "decision labels are review states" in rendered
@@ -26009,7 +26056,9 @@ def test_decision_workflow_summary_cards_route_price_blocker_to_refresh_loop_dry
     assert next_card["command"] == "make focus-price TICKER=APLD"
     assert "make price-refresh-loop dry_run=1" in rendered
     assert "review the planned batches" in rendered
-    assert "proof after data changes: run `make price-coverage top_n=25`, `make readiness`, then `make stock-report-md ticker=apld`" in rendered
+    assert "proof after data changes: run `make readiness-snapshot profile=<default|demo|local>`" in rendered
+    assert "make reviewed-batch-compare profile=<default|demo|local> lane=prices" in rendered
+    assert "batch_id=<reviewed_batch_id> review_date=<yyyy-mm-dd>` and `make stock-report-md ticker=apld`" in rendered
     assert "manually run 25" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -26060,7 +26109,10 @@ def test_decision_workflow_summary_cards_prioritize_active_peer_unlocks():
     assert "data/imports/peers.csv" in str(next_card["body"])
     assert "make imports-validate" in str(next_card["body"])
     assert "make focus-peers ticker=cohr" in rendered
-    assert "proof after data changes: run `make peer-mapping-queue top_n=25`, `make readiness`, then `make stock-report-md ticker=cohr`" in rendered
+    assert "proof after data changes: run `make readiness-snapshot profile=<default|demo|local>`" in rendered
+    assert "make reviewed-batch-compare profile=<default|demo|local> lane=peers" in rendered
+    assert "batch_id=<reviewed_batch_id> review_date=<yyyy-mm-dd>`" in rendered
+    assert "`make peer-mapping-queue top_n=25`, and `make stock-report-md ticker=cohr`" in rendered
     assert "optional context missing for cohr" not in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -26157,7 +26209,8 @@ def test_decision_workflow_summary_cards_surface_research_now_optional_context_l
     assert "supported core or dcf context" in rendered
     assert "earnings or analyst-estimate context remains unavailable" in rendered
     assert "trusted local csv rows" in rendered
-    assert "proof after data changes: run `make optional-context-readiness`, `make readiness`, then reopen the relevant single-stock report" in rendered
+    assert "profile-bound snapshot before reviewed validate/preview/apply" in rendered
+    assert "matching optional-context comparison before reopening the relevant single-stock report" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "buy" not in rendered
@@ -26784,14 +26837,15 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
     assert "trusted input needed:" in rendered
     assert "trusted peer mappings in data/imports/peers.csv plus peer inputs when needed" in rendered
     assert "proof command:" in rendered
-    assert "after peer rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a, run make readiness and make peer-mapping-queue top_n=25" in rendered
+    assert "after peer rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a" in rendered
+    assert "run the profile-bound peer comparison and make peer-mapping-queue top_n=25" in rendered
     assert "use only current local/provider rows that already passed readiness" in rendered
     assert "data/imports/peers.csv" in rendered
     assert "make focus-peers ticker=a" in rendered
     assert "make stock-report-md ticker=a" in rendered
     assert "how to prove the next unlocked state" in rendered
     assert "read this single-stock page in sequence" in rendered
-    assert "proof command: after peer rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a, run make readiness and make peer-mapping-queue top_n=25" in rendered
+    assert "proof command: after peer rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a" in rendered
     assert "exact next command is copyable from this card" in rendered
     assert "do not treat the lane as unlocked until the proof command passes and the report is reopened" in rendered
     assert "broker" not in rendered
@@ -26837,11 +26891,11 @@ def test_single_stock_reader_guide_handles_etf_and_price_blocked_states():
     assert "market, theme, liquidity, or risk monitor context" in etf_rendered
     assert "operating-company dcf and peer valuation are excluded" in etf_rendered
     assert "trusted input needed: no company dcf input is required" in etf_rendered
-    assert "run make readiness, then open the markdown report to confirm monitor context stays dcf-excluded" in etf_rendered
+    assert "run the profile-bound readiness comparison, then open the markdown report to confirm monitor context stays dcf-excluded" in etf_rendered
     assert "make stock-report-md ticker=qqq" in etf_rendered
     assert "trusted price rows exist" in blocked_rendered
     assert "trusted input needed: trusted local price history" in blocked_rendered
-    assert "after trusted price rows pass make price-validate, make price-preview, and make price-apply, run make price-coverage top_n=25 and make readiness" in blocked_rendered
+    assert "after trusted price rows pass make price-validate, make price-preview, and make price-apply, run the profile-bound price comparison" in blocked_rendered
     assert "prices, momentum, dcf, peer context" in blocked_rendered
     assert "make focus-price ticker=apld" in blocked_rendered
     assert "how to prove the next unlocked state" in etf_rendered
@@ -27296,7 +27350,8 @@ def test_single_stock_quick_read_cards_cover_monitor_blocked_and_optional_states
     assert "start with trusted price history" in blocked_rendered
     assert "make focus-price ticker=apld" in blocked_rendered
     assert "core analysis is reviewable; optional context is locked" in optional_rendered
-    assert "after optional rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a, run make optional-context-readiness and make readiness" in optional_rendered
+    assert "after optional rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a" in optional_rendered
+    assert "run the profile-bound optional-context comparison" in optional_rendered
     assert "make optional-context-worklist top_n=25" in optional_rendered
     rendered = etf_rendered + blocked_rendered + optional_rendered
     assert "broker" not in rendered
@@ -28910,7 +28965,7 @@ def test_metric_detail_load_status_keeps_details_progressive_and_snapshot_gated(
     assert needs_request["status"] == "needs_request"
     assert "lightweight" in needs_request["body"].lower()
     assert blocked["status"] == "blocked_by_snapshot_gate"
-    assert blocked["next_action"] == "make readiness"
+    assert blocked["next_action"] == "make readiness-preview TOP_N=20"
     assert loaded["status"] == "ready_to_load"
 
 
@@ -28991,7 +29046,7 @@ def test_proof_detail_load_status_tracks_deferred_loading_loaded_and_stale_state
     assert loading["status"] == "loading"
     assert "building reviewed proof ledgers" in loading["body"].lower()
     assert blocked["status"] == "blocked_by_snapshot_gate"
-    assert blocked["next_action"] == "make readiness"
+    assert blocked["next_action"] == "make readiness-preview TOP_N=20"
     assert loaded["status"] == "loaded"
     assert "collapsed proof drawers" in loaded["body"].lower()
 
@@ -29786,7 +29841,7 @@ def test_dashboard_generated_artifact_stale_warning_uses_broad_status_sources(tm
 
     assert "Generated status artifacts may be stale" in warning
     assert "data/prices.csv" in warning
-    assert "make readiness or make status" in warning
+    assert "make readiness-preview TOP_N=20 or make status" in warning
     assert "last saved readiness view" in warning
     assert "generated report" not in warning.lower()
 
@@ -29835,7 +29890,7 @@ def test_data_health_freshness_status_marks_current_readiness_stale_when_status_
     assert freshness.status == "stale"
     assert "Generated status artifacts may be stale" in freshness.message
     assert "generated report" not in freshness.message.lower()
-    assert freshness.refresh_command == "make readiness"
+    assert freshness.refresh_command == "make readiness-preview TOP_N=20"
 
 
 def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
@@ -34165,10 +34220,10 @@ def test_peer_mapping_studio_summary_cards_empty_state_uses_readiness_proof_copy
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Peer readiness not ready yet"
-    assert "build peer readiness proof" in rendered
+    assert "inspect peer readiness before using the mapping studio" in rendered
     assert "refresh peer readiness proof" not in rendered
     assert "generate peer readiness" not in rendered
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
 
 
 def test_purpose_evaluation_summary_cards_empty_state_uses_proof_copy():

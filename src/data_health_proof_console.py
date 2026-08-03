@@ -81,7 +81,7 @@ def latest_batch_packet_summary(packet_frame: pd.DataFrame | None) -> dict[str, 
             "freshness": "unknown",
             "row_count": "0",
             "dry_run_command": "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
-            "comparison_command": "make reviewed-batch-compare LANE=prices",
+            "comparison_command": "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             "proof_record_command": "make reviewed-batch-proof-record",
             "source_files": "not available",
             "generated_artifacts_reviewed": "not available",
@@ -99,7 +99,7 @@ def latest_batch_packet_summary(packet_frame: pd.DataFrame | None) -> dict[str, 
         "row_count": str(len(packet_frame)),
         "ticker_count": str(len(unique_tickers)),
         "dry_run_command": _format_missing(first.get("Dry Run Command"), "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"),
-        "comparison_command": _format_missing(first.get("Comparison Command"), "make reviewed-batch-compare LANE=prices"),
+        "comparison_command": _format_missing(first.get("Comparison Command"), "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"),
         "proof_record_command": _format_missing(first.get("Proof Record Scaffold"), "make reviewed-batch-proof-record"),
         "source_files": _compact_fragment(_format_missing(first.get("Source Files"), "review source files"), max_chars=170),
         "generated_artifacts_reviewed": _compact_fragment(
@@ -370,7 +370,7 @@ def reviewed_batch_proof_loop_cards(packet_frame: pd.DataFrame | None, compariso
         comparison_body = (
             f"{comparison.blocking_message} Keep the proof row open until saved before/after readiness snapshots exist."
         )
-        comparison_command = "make readiness-snapshot"
+        comparison_command = "make readiness-snapshot PROFILE=<default|demo|local>"
         comparison_badges = [comparison.status, "snapshot first"]
     return [
         {
@@ -423,7 +423,7 @@ def reviewed_batch_proof_loop_frame(packet_frame: pd.DataFrame | None, compariso
                     if comparison.status == "ok"
                     else comparison.blocking_message
                 ),
-                "Copy Command": summary["comparison_command"] if comparison.status == "ok" else "make readiness-snapshot",
+                "Copy Command": summary["comparison_command"] if comparison.status == "ok" else "make readiness-snapshot PROFILE=<default|demo|local>",
                 "Stop If": "saved readiness snapshots are missing or source files changed without refresh",
             },
             {

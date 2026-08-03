@@ -140,7 +140,11 @@ def test_public_home_next_step_cards_are_copyable_and_readiness_gated():
     assert price_gap_cards[1]["command"] == "make stock-report-md TICKER=NVDA"
     assert price_gap_cards[2]["command"] == "make data-wizard TOP_N=10"
     assert price_gap_cards[3]["command"] == "make optional-context-worklist TOP_N=25"
-    assert price_gap_cards[4]["command"] == "make readiness && make status-check TOP_N=5"
+    proof = price_gap_cards[4]["command"]
+    assert proof.startswith("make readiness-snapshot PROFILE=<default|demo|local>")
+    assert "make price-validate && make price-preview && make price-apply" in proof
+    assert "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices" in proof
+    assert proof.endswith("make status-check TOP_N=5")
     assert price_gap_cards[5]["command"] == "make project-status"
     assert price_gap_cards[5]["title"] == "Improve 5-10 companies first"
     assert "Run project status first" in price_gap_cards[5]["body"]

@@ -44,6 +44,7 @@ BATCH_PROOF_COLUMNS = (
     "final_outcome",
     "notes",
 )
+READINESS_PROFILES = {"default", "demo", "local", "<default|demo|local>"}
 
 REQUIRED_BATCH_PROOF_FIELDS = (
     "batch_id",
@@ -85,6 +86,33 @@ class ReviewedBatchProof:
 
 class DuplicateBatchProofError(ValueError):
     """Raised when a ledger append would create an ambiguous batch id."""
+
+
+def profile_bound_readiness_proof_sequence(
+    *,
+    profile: str,
+    lane: str,
+    batch_id: str,
+    review_date: str,
+    reviewed_steps: Iterable[str] = (),
+) -> str:
+    """Return the one snapshot-before/reviewed-change/in-memory-compare proof sequence."""
+
+    selected_profile = str(profile or "").strip()
+    if selected_profile not in READINESS_PROFILES:
+        raise ValueError("an explicit readiness profile is required: default, demo, or local")
+    selected_lane = str(lane or "").strip()
+    selected_batch = str(batch_id or "").strip()
+    selected_date = str(review_date or "").strip()
+    if not selected_lane or not selected_batch or not selected_date:
+        raise ValueError("lane, batch_id, and review_date are required for readiness proof")
+    commands = [f"make readiness-snapshot PROFILE={selected_profile}"]
+    commands.extend(str(step).strip() for step in reviewed_steps if str(step).strip())
+    commands.append(
+        f"make reviewed-batch-compare PROFILE={selected_profile} LANE={selected_lane} "
+        f"BATCH_ID={selected_batch} REVIEW_DATE={selected_date}"
+    )
+    return " && ".join(commands)
 
 
 def _clean(value: object, fallback: str = "-") -> str:
@@ -232,7 +260,7 @@ def render_reviewed_batch_proofs(rows: list[ReviewedBatchProof]) -> str:
             [
                 f"- {row.batch_id} | {row.review_date} | {row.lane} | {row.final_outcome}",
                 f"  scope: {row.scope}; tickers: {row.tickers}",
-                f"  command_run: {row.command_run}",
+                f"  Historical Command (not executable): {row.command_run}",
                 f"  validate/preview/apply: {row.validation_result} / {row.preview_result} / {row.apply_result}",
                 f"  readiness before -> after: {row.pre_run_readiness_snapshot} -> {row.post_run_readiness_snapshot}",
                 f"  changed_readiness_counts: {row.changed_readiness_counts}",
