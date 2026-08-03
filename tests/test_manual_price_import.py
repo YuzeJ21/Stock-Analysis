@@ -2,12 +2,20 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.manual_price_import import build_price_coverage_report, import_staged_prices
+from src.manual_price_import import build_price_coverage_report, import_staged_prices, main
 
 
 def _write_universe(data_dir: Path, tickers: list[str]) -> None:
     data_dir.mkdir(parents=True, exist_ok=True)
     pd.DataFrame({"ticker": tickers}).to_csv(data_dir / "universe.csv", index=False)
+
+
+def _file_manifest(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
 
 
 def test_import_staged_prices_merges_valid_alias_columns_and_preserves_existing_rows(tmp_path: Path):
@@ -119,3 +127,52 @@ def test_price_coverage_report_lists_rows_per_ticker_and_missing_key_status(tmp_
     assert "import draft" not in by_ticker.loc["AMD", "remote_price_refresh_status"].lower()
     assert "data/staged/prices" in by_ticker.loc["AMD", "manual_staged_price_import"]
     assert (data_dir / "price_coverage_report.csv").exists()
+
+
+def test_price_coverage_report_read_only_never_reaches_csv_writer(tmp_path: Path, monkeypatch):
+    data_dir = tmp_path / "data"
+    _write_universe(data_dir, ["AMD"])
+    pd.DataFrame([{"date": "2026-01-01", "ticker": "AMD", "close": 100}]).to_csv(
+        data_dir / "prices.csv",
+        index=False,
+    )
+    before = _file_manifest(tmp_path)
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("read-only price coverage reached DataFrame.to_csv")
+
+    monkeypatch.setattr(pd.DataFrame, "to_csv", fail_if_called)
+
+    coverage = build_price_coverage_report(tmp_path, write_output=False)
+
+    assert coverage["ticker"].tolist() == ["AMD"]
+    assert _file_manifest(tmp_path) == before
+
+
+def test_price_coverage_cli_read_only_prints_counts_without_writing(tmp_path: Path, capsys):
+    data_dir = tmp_path / "data"
+    _write_universe(data_dir, ["AMD", "NVDA"])
+    pd.DataFrame([{"date": "2026-01-01", "ticker": "NVDA", "close": 100}]).to_csv(
+        data_dir / "prices.csv",
+        index=False,
+    )
+    before = _file_manifest(tmp_path)
+
+    exit_code = main(
+        [
+            "--project-root",
+            str(tmp_path),
+            "--coverage-only",
+            "--read-only",
+            "--top-n",
+            "2",
+        ]
+    )
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "status: coverage_preview" in output
+    assert "No files written." in output
+    assert "missing_price_tickers: 1" in output
+    assert "covered_price_tickers: 1" in output
+    assert _file_manifest(tmp_path) == before

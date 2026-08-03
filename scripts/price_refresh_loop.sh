@@ -94,10 +94,10 @@ fi
 echo "Research-only capped price refresh loop."
 echo "Batches: $BATCHES; tickers per batch: $TOP_N; provider: $PROVIDER; sleep seconds: $SLEEP_SECONDS"
 echo "This updates local CSV files only. It does not connect to brokers, place orders, or make recommendations."
-echo "Plan: review missing-price candidates across capped batches, then rebuild price coverage, readiness, and project status."
+echo "Plan: review missing-price candidates across capped batches, then inspect an in-memory readiness preview and saved status without rebuilding derived artifacts."
 echo "Provider boundary: this can add research-grade price rows only; it does not create fundamentals, peers, earnings, estimates, DCF inputs, or conclusions."
 echo "Auto provider behavior: PROVIDER=auto tries Stooq, Yahoo, optional IBKR read-only, then configured FMP/Alpha Vantage/Finnhub before classifying the ticker as still missing."
-echo "Non-blocking behavior: if a provider batch fails, the loop records the source-path outcome, stops retrying that path, and rebuilds proof outputs."
+echo "Non-blocking behavior: if a provider batch fails, the loop records the source-path outcome, stops retrying that path, and runs read-only inspection."
 if [ "$PROVIDER" = "auto" ]; then
   echo "Provider credential visibility: STOOQ_API_KEY=$STOOQ_KEY_STATUS; FMP_API_KEY=$FMP_KEY_STATUS; ALPHA_VANTAGE_API_KEY=$ALPHA_KEY_STATUS; FINNHUB_API_KEY=$FINNHUB_KEY_STATUS."
 fi
@@ -107,8 +107,9 @@ echo "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker ref
 echo "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time."
 echo "Resume behavior: each batch uses the missing-price worklist, so reruns continue from the current local CSV state rather than requiring hand-counted batches."
 echo "Start with DRY_RUN=1 so you can review the batch size before any local CSV changes."
-echo "Before a real run, copy make readiness-snapshot so you can compare readiness before and after the refresh."
-echo "What changes on a real run: local price CSVs and generated readiness/report outputs may update."
+echo "Before a real run, use make readiness-preview TOP_N=20 and retain the terminal output externally if you need a baseline."
+echo "What changes on a real run: local price CSVs may update."
+echo "The post-refresh readiness preview and status check do not persist derived artifacts."
 echo "What stays manual: staging, validation, commit selection, and any generated CSV review remain under your control."
 echo "Plain planning knob: set MAX_CANDIDATES=3500 to let the loop calculate capped batches from TOP_N."
 echo "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override."
@@ -126,7 +127,7 @@ if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
   echo "Manual 25-ticker commands avoided: about $MANUAL_25_BATCHES."
   echo "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time."
   echo "No provider call, import, validation apply, or external account action runs during this dry run."
-  echo "If a real provider batch fails, CONTINUE_ON_PROVIDER_FAILURE=$CONTINUE_ON_PROVIDER_FAILURE controls whether the loop records still_blocked and rebuilds proof outputs instead of exiting."
+  echo "If a real provider batch fails, CONTINUE_ON_PROVIDER_FAILURE=$CONTINUE_ON_PROVIDER_FAILURE controls whether the loop records still_blocked and runs read-only inspection instead of exiting."
   echo "If interrupted or provider-limited, rerun the dry run; missing-only batches recalculate from current local prices."
   if [ -n "$MAX_CANDIDATES" ]; then
     echo "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS"
@@ -134,18 +135,18 @@ if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then
     echo "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS"
   fi
   echo "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER"
-  echo "Post-loop commands would be: make price-coverage TOP_N=25; make readiness; make project-status"
-  echo "Snapshot command before a real run: make readiness-snapshot"
+  echo "Post-loop commands would be: make readiness-preview TOP_N=20; make status-check TOP_N=5"
+  echo "Baseline inspection command before a real run: make readiness-preview TOP_N=20"
   echo "Hygiene command after a real run: make diff-hygiene"
   echo "Recommended next sequence:"
-  echo "  1. make readiness-snapshot"
+  echo "  1. make readiness-preview TOP_N=20"
   if [ -n "$MAX_CANDIDATES" ]; then
     echo "  2. make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS"
   else
     echo "  2. make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS"
   fi
-  echo "  3. make diff-hygiene"
-  echo "  4. make stock-report-md TICKER=NVDA or reopen the dashboard to review the local result"
+  echo "  3. make status-check TOP_N=5"
+  echo "  4. make diff-hygiene"
   echo "If you want broader coverage, set MAX_CANDIDATES first while keeping TOP_N capped, then dry-run again."
   echo "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER"
   echo "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER"
@@ -192,9 +193,8 @@ if [ "$STOPPED_AFTER_PROVIDER_FAILURE" = "1" ]; then
   echo "Source path outcome: price provider ladder still_blocked for this session after batch $FAILED_BATCH failed."
   echo "Exact next command after provider access is fixed: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=$REQUESTED_TARGET TOP_N=$TOP_N PROVIDER=$PROVIDER"
 fi
-echo "Rebuilding coverage, readiness, and project status after capped refresh loop..."
-make price-coverage TOP_N=25
-make readiness
-make project-status
-echo "Done. Review data/reports/ticker_readiness_report.csv and outputs/project_status_next_steps.csv for the actual readiness change."
+echo "Inspecting readiness and status without persisting derived artifacts after capped refresh loop..."
+make readiness-preview TOP_N=20
+make status-check TOP_N=5
+echo "Done. Review the terminal preview and status output for the current local readiness state."
 echo "Next: run make diff-hygiene before staging so refreshed generated CSV churn stays local unless intentionally reviewed."

@@ -28,7 +28,7 @@ def test_commercial_research_beta_workflow_is_minimal_pr_only_gate():
 
     required_commands = (
         "python3 -m playwright install --with-deps chromium",
-        "python3 -m pytest tests -q",
+        "make test",
         "make dashboard-smoke",
         "make research-dashboard-render-smoke",
         "make public-wording-check",
@@ -37,6 +37,7 @@ def test_commercial_research_beta_workflow_is_minimal_pr_only_gate():
     )
     positions = [workflow.index(command) for command in required_commands]
     assert positions == sorted(positions)
+    assert "python3 -m pytest tests -q" not in workflow
 
     prohibited_fragments = (
         "schedule:",

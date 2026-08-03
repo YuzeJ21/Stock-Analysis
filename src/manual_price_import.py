@@ -250,6 +250,7 @@ def build_price_coverage_report(
     *,
     data_dir: Path | str | None = None,
     output_path: Path | str | None = None,
+    write_output: bool = True,
 ) -> pd.DataFrame:
     root = resolve_project_root(base_dir)
     data_path = resolve_data_dir(data_dir, root)
@@ -293,8 +294,9 @@ def build_price_coverage_report(
             }
         )
     frame = pd.DataFrame(rows, columns=PRICE_COVERAGE_COLUMNS)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    frame.to_csv(output, index=False)
+    if write_output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        frame.to_csv(output, index=False)
     return frame
 
 
@@ -420,15 +422,19 @@ def _format_ticker_summary(tickers: list[str], *, label: str, limit: int) -> str
     return f"{label}: {len(tickers)}{suffix}"
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Import verified local price files and report price coverage.")
     parser.add_argument("--project-root", help="Project root. Defaults to this repository.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--staged-dir", default="data/staged/prices", help="Directory containing verified local price CSV files.")
     parser.add_argument("--coverage-only", action="store_true", help="Only regenerate data/price_coverage_report.csv.")
+    parser.add_argument("--read-only", action="store_true", help="Preview price coverage without writing a report.")
     parser.add_argument("--top-n", type=int, default=25, help="Number of covered/missing tickers to sample in terminal output.")
     parser.add_argument("--json", action="store_true", help="Print JSON output.")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+
+    if args.read_only and not args.coverage_only:
+        parser.error("--read-only requires --coverage-only")
 
     root = resolve_project_root(args.project_root)
     data_path = resolve_data_dir(args.data_dir, root)
@@ -436,10 +442,10 @@ def main() -> None:
     if not staged_path.is_absolute():
         staged_path = root / staged_path
     if args.coverage_only:
-        coverage = build_price_coverage_report(root, data_dir=data_path)
+        coverage = build_price_coverage_report(root, data_dir=data_path, write_output=not args.read_only)
         payload = {
-            "status": "coverage_written",
-            "coverage_path": str(data_path / "price_coverage_report.csv"),
+            "status": "coverage_preview" if args.read_only else "coverage_written",
+            "coverage_path": "not written (read-only preview)" if args.read_only else str(data_path / "price_coverage_report.csv"),
             "missing_price_tickers": sorted(coverage.loc[~coverage["has_price_coverage"].astype(bool), "ticker"].astype(str).tolist()),
             "covered_price_tickers": sorted(coverage.loc[coverage["has_price_coverage"].astype(bool), "ticker"].astype(str).tolist()),
             "remote_price_refresh_status": _remote_status(),
@@ -450,18 +456,21 @@ def main() -> None:
             print(format_path_context(root, data_path, root / "outputs"))
             print(f"status: {payload['status']}")
             print(f"coverage_path: {payload['coverage_path']}")
+            if args.read_only:
+                print("No files written.")
             print(_format_ticker_summary(payload["missing_price_tickers"], label="missing_price_tickers", limit=max(args.top_n, 0)))
             print(_format_ticker_summary(payload["covered_price_tickers"], label="covered_price_tickers", limit=max(args.top_n, 0)))
             print(f"remote_price_refresh_status: {payload['remote_price_refresh_status']}")
-        return
+        return 0
 
     result = import_staged_prices(root, data_dir=data_path, staged_dir=staged_path)
     if args.json:
         print(json.dumps(result.to_dict(), indent=2))
-        return
+        return 0
     print(format_path_context(root, data_path, root / "outputs"))
     _print_result(result)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

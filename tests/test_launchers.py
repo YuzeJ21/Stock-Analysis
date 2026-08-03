@@ -101,11 +101,25 @@ def test_legacy_readiness_make_boundaries_fail_closed_without_writing(tmp_path: 
     assert _tree_manifest(tmp_path) == before
 
 
-def test_default_and_composite_targets_never_reach_readiness_writers():
+def test_default_and_composite_targets_are_guarded_and_exclude_writer_commands():
     makefile = Path("Makefile").read_text(encoding="utf-8")
-    forbidden = {"readiness-materialize", "readiness-snapshot"}
+    forbidden_fragments = (
+        "--write-output",
+        "--refresh-artifacts",
+        "src.readiness_engine",
+        "readiness-materialize",
+        "price-refresh",
+        "monthly",
+        "track-record",
+        "research-decisions",
+        "project-status --write-output",
+    )
 
-    for initial in (
+    assert (
+        "NO_WRITE_GUARD = PYTHONDONTWRITEBYTECODE=1 python3 -m "
+        "src.no_write_artifact_guard --project-root . --"
+    ) in makefile
+    for target in (
         "status",
         "pipeline",
         "onboarding",
@@ -114,14 +128,20 @@ def test_default_and_composite_targets_never_reach_readiness_writers():
         "test",
         "verify",
         "validate-all",
-        "public-check",
     ):
-        reachable = _reachable_make_targets(makefile, initial)
-        assert forbidden.isdisjoint(reachable), (initial, reachable & forbidden)
-        for target in reachable:
-            block = _make_target_block(makefile, target)
-            assert "src.readiness_materializer" not in block
-            assert "src.readiness_engine --" not in block or "--snapshot-only" not in block
+        block = _make_target_block(makefile, target)
+        assert "$(NO_WRITE_GUARD)" in block, target
+        assert not [fragment for fragment in forbidden_fragments if fragment in block], target
+
+
+def test_onboarding_uses_read_only_price_coverage_while_price_coverage_target_writes():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    onboarding = _make_target_block(makefile, "onboarding")
+    writer = _make_target_block(makefile, "price-coverage")
+
+    assert "src.manual_price_import --coverage-only --read-only" in onboarding
+    assert "src.manual_price_import --coverage-only" in writer
+    assert "--read-only" not in writer
 
 
 def test_reviewed_batch_compare_requires_and_forwards_one_profile():
@@ -240,6 +260,8 @@ def test_dashboard_smoke_uses_an_isolated_fresh_server():
     assert "--server.fileWatcherType none" in smoke
     assert "Dashboard import check passed" in smoke
     assert "Path(dashboard.__file__).resolve()" in smoke
+    assert 'PYTHONDONTWRITEBYTECODE=1 REPO_ROOT="${REPO_ROOT}" python3' in smoke
+    assert "PYTHONDONTWRITEBYTECODE=1 streamlit run" in smoke
 
 
 def test_price_mutation_targets_use_the_ignored_local_profile():
@@ -482,7 +504,7 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-batch-proof",
         "Print durable reviewed batch proof rows",
         "make reviewed-batch-compare",
-        "Compare prior/current readiness snapshots for proof-ledger fields",
+        "Compare a profile-bound prior snapshot with in-memory current readiness",
         "make reviewed-batch-preflight",
         "Check snapshot, dry-run, compare, proof, and artifact gates",
         "make lane-outcome-history",
@@ -536,7 +558,7 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-batch-proof [LEDGER=data/reviewed_batch_proofs.csv] Print durable reviewed batch proof rows",
         "make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<auto_supported|human_reviewed_supported|candidate_context_only|still_blocked|skipped|excluded> Record a reviewed or auto-gated batch outcome",
         "make auto-refresh-plan       Print scheduler-ready source-backed auto-refresh lanes and auto gates",
-        "make reviewed-batch-compare [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare prior/current readiness snapshots for proof-ledger fields",
+        "make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot with in-memory current readiness",
         "make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates",
         "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] Print reviewed capped price-run execution, diff, and rollback plan",
         "make public-demo-readiness-pack Print the small shareable public demo proof set",
@@ -758,7 +780,7 @@ def test_price_refresh_defaults_to_capped_broad_universe_batch():
     assert "STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --universe-file data/local/universe.csv --missing-only --max-tickers $(or $(TOP_N),25)" in makefile
 
 
-def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
+def test_price_refresh_loop_uses_capped_defaults_and_ends_with_read_only_inspection():
     makefile = Path("Makefile").read_text(encoding="utf-8")
     script = Path("scripts/price_refresh_loop.sh").read_text(encoding="utf-8")
 
@@ -792,8 +814,9 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)." in script
     assert "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time." in script
     assert "Resume behavior: each batch uses the missing-price worklist" in script
-    assert "Before a real run, copy make readiness-snapshot" in script
-    assert "What changes on a real run: local price CSVs and generated readiness/report outputs may update." in script
+    assert "Before a real run, use make readiness-preview TOP_N=20" in script
+    assert "What changes on a real run: local price CSVs may update." in script
+    assert "The post-refresh readiness preview and status check do not persist derived artifacts." in script
     assert "What stays manual: staging, validation, commit selection, and any generated CSV review remain under your control." in script
     assert "Plain planning knob: set MAX_CANDIDATES=3500" in script
     assert "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override." in script
@@ -812,14 +835,14 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
-    assert "Snapshot command before a real run: make readiness-snapshot" in script
+    assert "Baseline inspection command before a real run: make readiness-preview TOP_N=20" in script
     assert "Hygiene command after a real run: make diff-hygiene" in script
     assert "Recommended next sequence:" in script
-    assert "1. make readiness-snapshot" in script
+    assert "1. make readiness-preview TOP_N=20" in script
     assert "2. make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "2. make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
-    assert "3. make diff-hygiene" in script
-    assert "4. make stock-report-md TICKER=NVDA or reopen the dashboard to review the local result" in script
+    assert "3. make status-check TOP_N=5" in script
+    assert "4. make diff-hygiene" in script
     assert "If you want broader coverage, set MAX_CANDIDATES first while keeping TOP_N capped, then dry-run again." in script
     assert "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER" in script
     assert "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER" in script
@@ -834,9 +857,12 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Non-blocking provider failure recorded for price batch $i." in script
     assert "Source path outcome: price provider ladder still_blocked for this session after batch $FAILED_BATCH failed." in script
     assert "This replaces repeating 25-ticker refreshes manually" in script
-    assert "make price-coverage TOP_N=25" in script
-    assert "make readiness" in script
-    assert "make project-status" in script
+    real_branch = script.split('if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then', 1)[1].split("fi\n\ni=1", 1)[1]
+    assert "make price-coverage" not in real_branch
+    assert "make readiness\n" not in real_branch
+    assert "make project-status" not in real_branch
+    real_make_commands = [line.strip() for line in real_branch.splitlines() if line.startswith("make ")]
+    assert real_make_commands[-2:] == ["make readiness-preview TOP_N=20", "make status-check TOP_N=5"]
     assert "run make diff-hygiene before staging" in script
 
 
@@ -1047,7 +1073,7 @@ def test_price_refresh_loop_can_record_provider_failure_without_blocking(tmp_pat
         "echo \"$*\" >> \"$CALLS_LOG\"\n"
         "case \"$1\" in\n"
         "  price-refresh) exit 1 ;;\n"
-        "  price-coverage|readiness|project-status) exit 0 ;;\n"
+        "  readiness-preview|status-check) exit 0 ;;\n"
         "  *) exit 0 ;;\n"
         "esac\n",
         encoding="utf-8",
@@ -1079,9 +1105,7 @@ def test_price_refresh_loop_can_record_provider_failure_without_blocking(tmp_pat
     assert "skipping remaining price batches in this session" in output
     assert "source path outcome: price provider ladder still_blocked for this session" in output
     assert recorded_calls.count("price-refresh TOP_N=2 PROVIDER=auto") == 1
-    assert "price-coverage TOP_N=25" in recorded_calls
-    assert "readiness" in recorded_calls
-    assert "project-status" in recorded_calls
+    assert recorded_calls[-2:] == ["readiness-preview TOP_N=20", "status-check TOP_N=5"]
 
 
 def test_readme_public_landing_page_is_short_visual_and_command_focused():
@@ -2613,9 +2637,11 @@ def test_validate_all_reuses_current_verification_targets():
 
     assert "make verify" in script
     assert "make data-sources-check" in script
-    assert "make monthly" in script
-    assert "make track-record" in script
     assert "make dashboard-smoke" in script
+    assert "make monthly" not in script
+    assert "make track-record" not in script
+    assert "--write-output" not in script
+    assert "price-refresh" not in script
     assert "python3 -m pytest tests -q" not in script
     assert "python3 -m src.data_sources --check" not in script
 
@@ -2623,16 +2649,8 @@ def test_validate_all_reuses_current_verification_targets():
 def test_daily_launcher_reuses_current_make_targets():
     script = Path("scripts/daily.sh").read_text(encoding="utf-8")
 
-    for command in (
-        "make price-refresh",
-        "make pipeline",
-        "make monthly",
-        "make track-record",
-        "make validate-data",
-        "make onboarding",
-    ):
-        assert command in script
-
+    make_commands = [line.strip() for line in script.splitlines() if line.startswith("make ")]
+    assert make_commands == ["make daily"]
     assert "python3 -m src.data_update --universe-file data/universe.csv" not in script
     assert "python3 -m src.report_generator" not in script
 
@@ -2659,7 +2677,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "git add" not in monitor
     assert "git push" not in monitor
 
-    assert "status:\n\tpython3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)" in makefile
+    assert "status:\n\t$(NO_WRITE_GUARD) python3 -m src.project_status --check --top-n $(or $(TOP_N),5)" in makefile
     assert "status-check:\n\tpython3 -m src.project_status --check --top-n $(or $(TOP_N),5) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "coverage:\n\tpython3 -m src.data_onboarding --coverage $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "data-wizard:\n\tpython3 -m src.data_onboarding --wizard $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
@@ -2708,9 +2726,10 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "data-coverage-planner:\n\t@python3 -m src.readiness_ops --root . --expansion-plan --top-n $(or $(TOP_N),10)" in makefile
     assert "coverage-expansion-loop:\n\t@python3 -m src.coverage_expansion_loop --root . --lane $(or $(LANE),auto) --top-n $(or $(TOP_N),10)" in makefile
     assert "readiness-ops-evidence:\n\t@python3 -m src.readiness_ops --root . --evidence --top-n $(or $(TOP_N),10)" in makefile
-    assert "reviewed-batch:\n\t@python3 -m src.reviewed_batch --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10)" in makefile
+    assert "reviewed-batch:\n\t@python3 -m src.reviewed_batch --root . --profile $(or $(PROFILE),default) --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10)" in makefile
     assert "reviewed-batch-proof:\n\t@python3 -m src.reviewed_batch_proof --ledger $(or $(LEDGER),data/reviewed_batch_proofs.csv)" in makefile
-    assert "reviewed-batch-compare:\n\t@python3 -m src.readiness_comparison --root ." in makefile
+    assert "reviewed-batch-compare:\nifndef PROFILE\n\t$(error PROFILE is required: default, demo, or local)\nendif" in makefile
+    assert 'src.readiness_comparison --root . --profile "$(PROFILE)"' in makefile
     assert "reviewed-batch-preflight:\n\t@python3 -m src.reviewed_batch_preflight --root ." in makefile
     assert "reviewed-batch-proof-record:\nifndef BATCH_ID" in makefile
     assert "$(error FINAL_OUTCOME is required: supported, auto_supported, human_reviewed_supported, candidate_context_only, still_blocked, skipped, or excluded)" in makefile
@@ -2855,8 +2874,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     ):
         assert phrase in makefile
     assert "@git status --short --branch --untracked-files=no | sed -n '1p'" in makefile
-    assert "verify:\n\t$(MAKE) test\n\t$(MAKE) pipeline\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
-    assert "daily:\n\t$(MAKE) price-refresh\n\t$(MAKE) pipeline\n\t$(MAKE) monthly\n\t$(MAKE) track-record\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
+    assert "verify:\n\t$(NO_WRITE_GUARD) $(MAKE) test pipeline validate-data onboarding" in makefile
+    assert "daily:\n\t$(NO_WRITE_GUARD) $(MAKE) pipeline validate-data onboarding status-check TOP_N=$(or $(TOP_N),5)" in makefile
     public_check_body = makefile.split("public-check:", 1)[1].split("\n\ntest:", 1)[0]
     assert "price-refresh" not in public_check_body
     assert "imports-apply" not in public_check_body

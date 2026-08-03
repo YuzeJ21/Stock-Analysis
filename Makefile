@@ -14,6 +14,7 @@ EARNINGS_NOWCAST_COHORT ?= NVDA,AMD,AVGO,MU,QCOM
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
 DEFAULT_METRIC_BENCHMARKS := SPY,QQQ
+NO_WRITE_GUARD = PYTHONDONTWRITEBYTECODE=1 python3 -m src.no_write_artifact_guard --project-root . --
 
 help:
 	@echo "Stock Research Command Center"
@@ -877,7 +878,7 @@ public-check:
 	@$(MAKE) --silent demo
 
 test:
-	python3 -m pytest tests -q
+	$(NO_WRITE_GUARD) python3 -m pytest tests -q
 
 COMMERCIAL_SOURCE_RIGHTS_REPO_ROOT := $(strip $(shell dirname "$(MAKEFILE_LIST)"))
 
@@ -897,13 +898,13 @@ commercial-source-rights:
 	python3 -m src.commercial_source_rights "$$@"
 
 status:
-	python3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)
+	$(NO_WRITE_GUARD) python3 -m src.project_status --check --top-n $(or $(TOP_N),5)
 
 status-check:
 	python3 -m src.project_status --check --top-n $(or $(TOP_N),5) $(if $(TICKERS),--tickers $(TICKERS),)
 
 pipeline:
-	python3 -m src.report_generator
+	$(NO_WRITE_GUARD) python3 -m src.report_generator
 
 stock-report:
 ifndef TICKER
@@ -972,13 +973,10 @@ license-status:
 	@python3 -m src.license_status --root .
 
 verify:
-	$(MAKE) test
-	$(MAKE) pipeline
-	$(MAKE) validate-data
-	$(MAKE) onboarding
+	$(NO_WRITE_GUARD) $(MAKE) test pipeline validate-data onboarding
 
 validate-all:
-	scripts/validate_all.sh
+	$(NO_WRITE_GUARD) scripts/validate_all.sh
 
 coverage:
 	python3 -m src.data_onboarding --coverage $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
@@ -1074,16 +1072,15 @@ endif
 	python3 -m src.data_onboarding --peer-mapping-queue --top-n 1 --tickers $(TICKER)
 
 onboarding:
-	python3 -m src.manual_price_import --coverage-only --top-n $(or $(TOP_N),20)
-	python3 -m src.dcf_readiness --top-n $(or $(TOP_N),20)
-	python3 -m src.optional_context_readiness
-	python3 -m src.readiness_engine
-	python3 -m src.data_sources --write-output
-	python3 -m src.data_onboarding --write-output --top-n $(or $(TOP_N),20)
-	python3 -m src.research_health --write-output
-	python3 -m src.action_queue --write-output
-	python3 -m src.research_decisions
-	python3 -m src.project_status --write-output
+	$(NO_WRITE_GUARD) python3 -m src.manual_price_import --coverage-only --read-only --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.dcf_readiness --read-only --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.optional_context_readiness --read-only --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.readiness_preview --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.data_sources --check --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.data_onboarding --coverage --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.research_health --check --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.action_queue --check --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.project_status --check --top-n $(or $(TOP_N),20)
 
 templates:
 	python3 -m src.data_onboarding --write-templates
@@ -1174,14 +1171,7 @@ else
 endif
 
 daily:
-	$(MAKE) price-refresh
-	$(MAKE) pipeline
-	$(MAKE) monthly
-	$(MAKE) track-record
-	$(MAKE) validate-data
-	$(MAKE) onboarding
-	python3 -m src.action_queue --write-output
-	python3 -m src.project_status --write-output
+	$(NO_WRITE_GUARD) $(MAKE) pipeline validate-data onboarding status-check TOP_N=$(or $(TOP_N),5)
 
 dashboard:
 	PYTHONPATH="$(CURDIR):$${PYTHONPATH:-}" streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
@@ -1190,7 +1180,7 @@ demo-dashboard:
 	STOCK_RESEARCH_DATA_PROFILE=demo PYTHONPATH="$(CURDIR):$${PYTHONPATH:-}" streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
 
 dashboard-smoke:
-	scripts/smoke_dashboard.sh
+	$(NO_WRITE_GUARD) scripts/smoke_dashboard.sh
 
 demo-dashboard-smoke:
 	STOCK_RESEARCH_DATA_PROFILE=demo scripts/smoke_dashboard.sh
