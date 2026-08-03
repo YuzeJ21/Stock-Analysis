@@ -5,8 +5,9 @@ import subprocess
 from pathlib import Path
 
 
-def _makefile_targets() -> set[str]:
-    makefile = Path("Makefile").read_text(encoding="utf-8")
+def _makefile_targets(makefile: str | None = None) -> set[str]:
+    if makefile is None:
+        makefile = Path("Makefile").read_text(encoding="utf-8")
     return set(re.findall(r"^([A-Za-z0-9_.-]+):(?:\s|$)", makefile, flags=re.MULTILINE))
 
 
@@ -36,7 +37,7 @@ def _make_target_block(makefile: str, target: str) -> str:
 def _reachable_make_targets(makefile: str, initial: str) -> set[str]:
     reachable: set[str] = set()
     pending = [initial]
-    known = _makefile_targets()
+    known = _makefile_targets(makefile)
     while pending:
         target = pending.pop()
         if target in reachable:
@@ -45,14 +46,85 @@ def _reachable_make_targets(makefile: str, initial: str) -> set[str]:
         block = _make_target_block(makefile, target)
         header = block.splitlines()[0].split(":", 1)[1]
         referenced = {token for token in header.split() if token in known}
-        referenced.update(
-            re.findall(r"\$\(MAKE\)(?:\s+--[A-Za-z-]+)*\s+([A-Za-z0-9_.-]+)", block)
-        )
+        for invocation in re.findall(r"\$\(MAKE\)([^\n]*)", block):
+            referenced.update(
+                token
+                for token in re.findall(r"[A-Za-z0-9_.-]+", invocation)
+                if token in known
+            )
         for script_name in re.findall(r"\b(scripts/[A-Za-z0-9_.-]+)", block):
             script = Path(script_name).read_text(encoding="utf-8")
-            referenced.update(re.findall(r"\bmake\s+([A-Za-z0-9_.-]+)", script))
+            for invocation in re.findall(r"\bmake\s+([^\n]+)", script):
+                referenced.update(
+                    token
+                    for token in re.findall(r"[A-Za-z0-9_.-]+", invocation)
+                    if token in known
+                )
         pending.extend(sorted(referenced & known))
     return reachable
+
+
+def test_make_reachability_tracks_every_target_on_recursive_multi_target_lines():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert {
+        "verify",
+        "test",
+        "pipeline",
+        "validate-data",
+        "onboarding",
+    } <= _reachable_make_targets(makefile, "verify")
+    assert {
+        "daily",
+        "pipeline",
+        "validate-data",
+        "onboarding",
+        "status-check",
+    } <= _reachable_make_targets(makefile, "daily")
+
+
+def test_default_and_public_workflow_graphs_cannot_reach_writer_targets():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    public_dependencies = {
+        "diff-hygiene-summary",
+        "staged-hygiene-check",
+        "public-wording-check",
+        "test",
+        "demo-dashboard-smoke",
+        "demo-dashboard-render-smoke",
+        "browser-qa-evidence",
+        "linkedin-share-check",
+        "license-status",
+        "demo",
+    }
+    forbidden_writer_targets = {
+        "readiness-materialize",
+        "readiness-snapshot",
+        "price-refresh",
+        "monthly",
+        "track-record",
+        "research-decisions",
+        "project-status",
+    }
+
+    public_reachable = _reachable_make_targets(makefile, "public-check")
+    assert public_dependencies <= public_reachable
+    for initial in (
+        "status",
+        "pipeline",
+        "onboarding",
+        "daily",
+        "dashboard-smoke",
+        "test",
+        "verify",
+        "validate-all",
+        "public-check",
+    ):
+        reachable = _reachable_make_targets(makefile, initial)
+        assert not (reachable & forbidden_writer_targets), (
+            initial,
+            sorted(reachable & forbidden_writer_targets),
+        )
 
 
 def test_legacy_readiness_make_boundaries_fail_closed_without_writing(tmp_path: Path):

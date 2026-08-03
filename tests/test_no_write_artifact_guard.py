@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 import os
 from pathlib import Path
+import socket
 import subprocess
 import sys
 
@@ -173,6 +174,67 @@ def test_all_protected_subtrees_reject_new_files(tmp_path: Path, capsys, relativ
     assert capsys.readouterr().err.splitlines()[-1] == f"- {relative_path}"
 
 
+@pytest.mark.parametrize(
+    ("relative_path", "mutation"),
+    (
+        (
+            "data/created.fifo",
+            "import os,sys; os.mkfifo(sys.argv[1])",
+        ),
+        pytest.param(
+            "outputs/created.socket",
+            "import os,socket,sys; os.chdir(os.path.dirname(sys.argv[1])); sock=socket.socket(socket.AF_UNIX); sock.bind(os.path.basename(sys.argv[1])); sock.close()",
+            marks=pytest.mark.skipif(not hasattr(socket, "AF_UNIX"), reason="Unix sockets unavailable"),
+        ),
+    ),
+    ids=("fifo", "unix-socket"),
+)
+def test_unsupported_type_created_by_child_fails_closed_with_exact_path(
+    tmp_path: Path,
+    capsys,
+    relative_path: str,
+    mutation: str,
+):
+    root = _protected_root(tmp_path)
+
+    result = _guard_module().run_guarded_command(
+        root,
+        _python(mutation, root / relative_path),
+    )
+
+    stderr = capsys.readouterr().err
+    assert result == 3
+    assert stderr.splitlines() == [
+        "Protected artifact mutation detected:",
+        f"- {relative_path}",
+    ]
+    assert "Traceback" not in stderr
+
+
+def test_unsupported_type_in_baseline_fails_closed_without_running_child(tmp_path: Path, capsys):
+    root = _protected_root(tmp_path)
+    unsupported = root / "docs" / "assets" / "baseline.fifo"
+    os.mkfifo(unsupported)
+    unsafe_marker = root / "unsafe-child-ran"
+
+    result = _guard_module().run_guarded_command(
+        root,
+        _python(
+            "from pathlib import Path; Path(__import__('sys').argv[1]).write_text('ran')",
+            unsafe_marker,
+        ),
+    )
+
+    stderr = capsys.readouterr().err
+    assert result == 3
+    assert not unsafe_marker.exists()
+    assert stderr.splitlines() == [
+        "Protected artifact mutation detected:",
+        "- docs/assets/baseline.fifo",
+    ]
+    assert "Traceback" not in stderr
+
+
 def test_manifest_is_an_in_memory_tuple_and_creates_no_manifest_file(tmp_path: Path):
     root = _protected_root(tmp_path)
     before = {path.relative_to(root).as_posix() for path in root.rglob("*")}
@@ -227,6 +289,34 @@ def test_module_cli_returns_three_for_persistent_mutation(tmp_path: Path):
 
     assert result.returncode == 3
     assert result.stderr.splitlines()[-1] == "- data/created.csv"
+
+
+def test_module_cli_returns_three_without_traceback_for_created_fifo(tmp_path: Path):
+    root = _protected_root(tmp_path)
+    target = root / "data" / "created.fifo"
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "src.no_write_artifact_guard",
+            "--project-root",
+            str(root),
+            "--",
+            *_python("import os,sys; os.mkfifo(sys.argv[1])", target),
+        ],
+        cwd=Path.cwd(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 3
+    assert result.stderr.splitlines() == [
+        "Protected artifact mutation detected:",
+        "- data/created.fifo",
+    ]
+    assert "Traceback" not in result.stderr
 
 
 def test_module_cli_preserves_stable_child_failure(tmp_path: Path):

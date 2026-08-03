@@ -21,6 +21,12 @@ class ArtifactState:
     digest_or_target: str
 
 
+class _UnsupportedArtifactType(RuntimeError):
+    def __init__(self, relative_path: str):
+        super().__init__(f"Unsupported protected artifact type: {relative_path}")
+        self.relative_path = relative_path
+
+
 def _file_digest(path: Path) -> str:
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     descriptor = os.open(path, flags)
@@ -49,7 +55,7 @@ def _capture_path(path: Path, project_root: Path, states: list[ArtifactState]) -
     if stat.S_ISREG(mode):
         states.append(ArtifactState(relative_path, "file", _file_digest(path)))
         return
-    raise RuntimeError(f"Unsupported protected artifact type: {relative_path}")
+    raise _UnsupportedArtifactType(relative_path)
 
 
 def capture_artifact_manifest(project_root: Path) -> tuple[ArtifactState, ...]:
@@ -78,6 +84,12 @@ def _changed_paths(
     )
 
 
+def _report_protected_mutations(relative_paths: Sequence[str]) -> None:
+    print("Protected artifact mutation detected:", file=sys.stderr)
+    for relative_path in relative_paths:
+        print(f"- {relative_path}", file=sys.stderr)
+
+
 def run_guarded_command(project_root: Path, command: Sequence[str]) -> int:
     if isinstance(command, (str, bytes)) or not command:
         raise ValueError("command must be a non-empty argv sequence")
@@ -86,7 +98,11 @@ def run_guarded_command(project_root: Path, command: Sequence[str]) -> int:
         raise TypeError("every command argument must be a string")
 
     root = Path(project_root).resolve()
-    before = capture_artifact_manifest(root)
+    try:
+        before = capture_artifact_manifest(root)
+    except _UnsupportedArtifactType as error:
+        _report_protected_mutations([error.relative_path])
+        return 3
     child_error: OSError | None = None
     try:
         child_exit_code = subprocess.run(
@@ -98,13 +114,15 @@ def run_guarded_command(project_root: Path, command: Sequence[str]) -> int:
     except OSError as error:
         child_error = error
         child_exit_code = 127
-    after = capture_artifact_manifest(root)
+    try:
+        after = capture_artifact_manifest(root)
+    except _UnsupportedArtifactType as error:
+        _report_protected_mutations([error.relative_path])
+        return 3
 
     changed_paths = _changed_paths(before, after)
     if changed_paths:
-        print("Protected artifact mutation detected:", file=sys.stderr)
-        for relative_path in changed_paths:
-            print(f"- {relative_path}", file=sys.stderr)
+        _report_protected_mutations(changed_paths)
         return 3
     if child_error is not None:
         print(f"Unable to run guarded command: {child_error}", file=sys.stderr)
