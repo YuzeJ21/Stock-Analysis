@@ -29,6 +29,7 @@ from src.readiness_ops import build_data_coverage_proof_queues
 from src.browser_qa_evidence import browser_qa_evidence_payload
 from src.license_status import CONTROLLED_DEMO_SHARE_BOUNDARY, NO_LICENSE_SHARE_BOUNDARY, build_license_status
 from src.reviewed_batch import readiness_freshness_status
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
 from src.session_source_preflight import load_session_source_preflight
 from src.source_activation_guide import build_provider_setup_checklist
 from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
@@ -374,8 +375,19 @@ def _preflight_routes_source_gate_to_workflow(preflight: dict[str, object] | Non
     )
 
 
-def _source_gate_check(root: Path, *, top_n: int, source_queues: list[object] | None = None) -> PilotReadinessCheck:
-    rows = source_queues if source_queues is not None else build_data_coverage_proof_queues(root, top_n=top_n)
+def _source_gate_check(
+    root: Path,
+    *,
+    profile: str,
+    top_n: int,
+    source_queues: list[object] | None = None,
+) -> PilotReadinessCheck:
+    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
+    rows = (
+        source_queues
+        if source_queues is not None
+        else build_data_coverage_proof_queues(root, profile=selected_profile, top_n=top_n)
+    )
     if not rows:
         return PilotReadinessCheck(
             area="Source proof gates",
@@ -629,15 +641,17 @@ def _guardrail_check() -> PilotReadinessCheck:
 def build_pilot_readiness_checks(
     root: Path | str = ".",
     *,
+    profile: str,
     top_n: int = 10,
     source_queues: list[object] | None = None,
 ) -> list[PilotReadinessCheck]:
     root = Path(root)
+    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
     checks = [
         _sync_check(root),
         _hygiene_check(root),
         _freshness_check(root),
-        _source_gate_check(root, top_n=top_n, source_queues=source_queues),
+        _source_gate_check(root, profile=selected_profile, top_n=top_n, source_queues=source_queues),
         _proof_ledger_check(root),
         _browser_qa_evidence_check(root),
         _public_check_gate(),
@@ -1421,13 +1435,20 @@ def render_pilot_share_brief(
 def write_pilot_readiness_packet(
     root: Path | str = ".",
     *,
+    profile: str,
     top_n: int = 10,
     output: Path | str = DEFAULT_PACKET_PATH,
 ) -> Path:
     root = Path(root)
+    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
     output_path = root / Path(output)
-    source_queues = build_data_coverage_proof_queues(root, top_n=top_n)
-    checks = build_pilot_readiness_checks(root, top_n=top_n, source_queues=source_queues)
+    source_queues = build_data_coverage_proof_queues(root, profile=selected_profile, top_n=top_n)
+    checks = build_pilot_readiness_checks(
+        root,
+        profile=selected_profile,
+        top_n=top_n,
+        source_queues=source_queues,
+    )
     packet = render_pilot_readiness_packet(
         root=root,
         checks=checks,
@@ -1445,13 +1466,20 @@ def write_pilot_readiness_packet(
 def write_pilot_share_brief(
     root: Path | str = ".",
     *,
+    profile: str,
     top_n: int = 10,
     output: Path | str = DEFAULT_SHARE_BRIEF_PATH,
 ) -> Path:
     root = Path(root)
+    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
     output_path = root / Path(output)
-    source_queues = build_data_coverage_proof_queues(root, top_n=top_n)
-    checks = build_pilot_readiness_checks(root, top_n=top_n, source_queues=source_queues)
+    source_queues = build_data_coverage_proof_queues(root, profile=selected_profile, top_n=top_n)
+    checks = build_pilot_readiness_checks(
+        root,
+        profile=selected_profile,
+        top_n=top_n,
+        source_queues=source_queues,
+    )
     brief = render_pilot_share_brief(
         checks=checks,
         snapshot=build_readiness_snapshot(root),
@@ -1467,6 +1495,7 @@ def write_pilot_share_brief(
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Print a read-only pilot readiness checklist.")
     parser.add_argument("--root", default=".", help="Project root.")
+    parser.add_argument("--profile", choices=("default", "demo", "local"), help="Concrete data profile.")
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--packet", action="store_true", help="Write the reviewer-ready pilot packet.")
     parser.add_argument("--share-brief", action="store_true", help="Write the concise public/demo pilot share brief.")
@@ -1476,18 +1505,38 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    selected_profile = resolve_readiness_proof_profile(args.profile, project_root=args.root)
     if args.share_brief:
-        output = write_pilot_share_brief(args.root, top_n=args.top_n, output=args.output)
+        output = write_pilot_share_brief(
+            args.root,
+            profile=selected_profile,
+            top_n=args.top_n,
+            output=args.output,
+        )
         print(f"Wrote pilot share brief: {output}")
     elif args.packet:
-        output = write_pilot_readiness_packet(args.root, top_n=args.top_n, output=args.output)
+        output = write_pilot_readiness_packet(
+            args.root,
+            profile=selected_profile,
+            top_n=args.top_n,
+            output=args.output,
+        )
         print(f"Wrote pilot readiness packet: {output}")
     else:
         root = Path(args.root)
-        source_queues = build_data_coverage_proof_queues(root, top_n=args.top_n)
+        source_queues = build_data_coverage_proof_queues(
+            root,
+            profile=selected_profile,
+            top_n=args.top_n,
+        )
         print(
             render_pilot_readiness_checks(
-                build_pilot_readiness_checks(root, top_n=args.top_n, source_queues=source_queues),
+                build_pilot_readiness_checks(
+                    root,
+                    profile=selected_profile,
+                    top_n=args.top_n,
+                    source_queues=source_queues,
+                ),
                 source_queues=source_queues,
                 excluded_artifacts=_excluded_generated_artifacts(root),
                 commit_handoff=build_pilot_commit_package_handoff(root),

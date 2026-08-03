@@ -4,6 +4,8 @@ import re
 import subprocess
 from pathlib import Path
 
+import pytest
+
 
 def _makefile_targets(makefile: str | None = None) -> set[str]:
     if makefile is None:
@@ -198,6 +200,28 @@ def test_trusted_data_pilot_walkthrough_uses_profile_bound_before_apply_compare_
     apply_at = result.stdout.index("make imports-apply IMPORT_TICKERS=<ticker>")
     compare_at = result.stdout.index("make reviewed-batch-compare PROFILE=local LANE=fundamentals")
     assert snapshot_at < validate_at < preview_at < apply_at < compare_at
+
+
+@pytest.mark.parametrize("profile", [None, "", "unknown", "<default|demo|local>"])
+def test_trusted_data_pilot_walkthrough_fails_closed_without_concrete_profile(profile: str | None):
+    command = ["make", "trusted-data-pilot", "TICKERS=NVDA"]
+    if profile is not None:
+        command.append(f"PROFILE={profile}")
+
+    result = subprocess.run(
+        command,
+        cwd=Path.cwd(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    rendered = result.stdout + result.stderr
+
+    assert result.returncode == 2
+    assert "PROFILE must be exactly one of: default, demo, local" in rendered
+    assert "make readiness-snapshot" not in rendered
+    assert "make imports-apply" not in rendered
+    assert "make reviewed-batch-compare" not in rendered
 
 
 def test_default_and_composite_targets_are_guarded_and_exclude_writer_commands():
@@ -2807,9 +2831,11 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "optional-context-worklist:\n\tpython3 -m src.data_onboarding --optional-context-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "sec-stage-queue:\n\tpython3 -m src.data_onboarding --sec-stage-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "trusted-data-pilot:\n\t@echo \"Trusted Data Pilot\"" in makefile
+    trusted_data_pilot = _make_target_block(makefile, "trusted-data-pilot")
+    assert 'case "$(PROFILE)" in default|demo|local)' in trusted_data_pilot
+    assert '@echo "Trusted Data Pilot"' in trusted_data_pilot
     assert "trusted-data-pilot-candidates:\n\t@python3 -m src.trusted_data_pilot --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),) $(if $(filter 1 true TRUE yes YES,$(VERBOSE)),--verbose,)" in makefile
-    assert "pilot-share-brief:\n\t@python3 -m src.pilot_readiness --share-brief --top-n $(or $(TOP_N),10) --output \"$(or $(OUTPUT),outputs/pilot_share_brief.md)\"" in makefile
+    assert "pilot-share-brief:\n\t@python3 -m src.pilot_readiness --profile \"$(or $(PROFILE),default)\" --share-brief --top-n $(or $(TOP_N),10) --output \"$(or $(OUTPUT),outputs/pilot_share_brief.md)\"" in makefile
     assert "trusted-data-pilot-packet:\nifndef TICKER\n\t$(error TICKER is required, for example: make trusted-data-pilot-packet TICKER=CRDO)\nendif\n\t@python3 -m src.trusted_data_pilot --packet $(TICKER)" in makefile
     assert "DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD" in makefile
     assert "DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO" in makefile
@@ -2872,8 +2898,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "$(error IMPORT_TICKERS is required for imports-apply; use ALLOW_BROAD_IMPORT_APPLY=1 only after full staged-scope review)" in makefile
     assert "Check the rejected-row report printed by the packet before treating the lane as available." in makefile
     assert "Run the matching in-memory comparison proof:" in makefile
-    assert "fundamentals lane: make dcf-readiness && make reviewed-batch-compare PROFILE=$(if $(PROFILE),$(PROFILE),<default|demo|local>) LANE=fundamentals" in makefile
-    assert "peer lane: make reviewed-batch-compare PROFILE=$(if $(PROFILE),$(PROFILE),<default|demo|local>) LANE=peers" in makefile
+    assert "fundamentals lane: make dcf-readiness && make reviewed-batch-compare PROFILE=$(PROFILE) LANE=fundamentals" in makefile
+    assert "peer lane: make reviewed-batch-compare PROFILE=$(PROFILE) LANE=peers" in makefile
     assert "If SEC staging is not configured or source rows are not ready, stop at diagnostics and keep the ticker visibly blocked by missing data." in makefile
     assert "Add peers only when you have source-backed relationships; sector/industry fallback is context, not trusted peer valuation." in makefile
     assert "Stage only intentional docs/code/tests or reviewed sample Markdown reports; keep broad CSV/JSON refresh churn local unless it is the reviewed artifact." in makefile

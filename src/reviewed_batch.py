@@ -748,6 +748,7 @@ def build_reviewed_batch_packet(
         lane_row
         for lane_row in build_readiness_ops_lanes(
             root,
+            profile=profile,
             data_dir=selected_profile.data_dir,
             output_dir=selected_profile.outputs_dir,
         )

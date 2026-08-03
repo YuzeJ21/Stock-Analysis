@@ -7,6 +7,8 @@ source-proof boundaries, and still-blocked/skip wording.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 from pathlib import Path
 
 import pandas as pd
@@ -293,7 +295,7 @@ def trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, *, limit: in
         review_path = _compact_fragment(row.get("Review Path"), max_chars=165)
         proof = _compact_fragment(
             row.get("Proof After Data Changes") or row.get("Proof After Unlock"),
-            "make readiness-snapshot PROFILE=<default|demo|local> && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=<ticker>",
+            f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=<ticker>",
             max_chars=175,
         )
         lane_command = _format_missing(row.get("Next Command"), "make trusted-data-pilot-candidates TOP_N=10")

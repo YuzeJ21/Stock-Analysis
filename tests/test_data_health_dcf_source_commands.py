@@ -385,8 +385,8 @@ def test_dcf_source_guard_preview_shows_validate_preview_apply_boundary_when_rea
     assert preview.iloc[0]["Preview"] == "make imports-preview"
     assert "make imports-apply only after source guard" in preview.iloc[0]["Apply Boundary"]
     proof = preview.iloc[0]["Post-Guard Proof"]
-    assert proof.startswith("make readiness-snapshot PROFILE=<default|demo|local> && make dcf-readiness")
-    assert "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals" in proof
+    assert proof.startswith("make readiness-snapshot PROFILE=default && make dcf-readiness")
+    assert "make reviewed-batch-compare PROFILE=default LANE=fundamentals" in proof
     assert proof.endswith("make stock-report-md TICKER=META")
     assert cards[0]["command"].startswith("make dcf-input-source-guard")
     assert "validate then preview" in lowered

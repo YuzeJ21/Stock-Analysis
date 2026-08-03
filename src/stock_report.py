@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import json
 import math
@@ -2100,28 +2102,28 @@ def _stock_report_data_health_handoff_line(
     if not bool(price_ready):
         lane = "Price Coverage Batch"
         command = f"make focus-price TICKER={ticker}"
-        proof = "make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        proof = f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     elif monitor_context:
         lane = "Single-Stock Review"
         command = f"make stock-report-md TICKER={ticker}"
-        proof = "make readiness-snapshot PROFILE=<default|demo|local> && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=excluded BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        proof = f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=excluded BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     elif dcf_status_text == "blocked":
         lane = "Fundamentals / DCF Proof"
         command = f"make focus-fundamentals TICKER={ticker}"
-        proof = "make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        proof = f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     elif not bool(peer_ready):
         peer_lane = _stock_report_peer_lane(peer, peer_ready)
         lane = "Peer Valuation Inputs Proof" if peer_lane == "peer_valuation_inputs" else "Peer Mapping Proof"
         command = f"make focus-peers TICKER={ticker}"
-        proof = f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TICKERS={ticker} TOP_N=10"
+        proof = f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TICKERS={ticker} TOP_N=10"
     elif not bool(earnings_ready) or not bool(estimates_ready):
         lane = "Optional Context Proof"
         command = f"make optional-context-worklist TICKERS={ticker} TOP_N=10"
-        proof = "make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        proof = f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     else:
         lane = "Single-Stock Review"
         command = f"make stock-report-md TICKER={ticker}"
-        proof = "make readiness-snapshot PROFILE=<default|demo|local> && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        proof = f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     return f"- Data Health lane: {lane}. Suggested local check: `{command}`. Confirm with `{proof}` before treating the lane as available."
 
 
@@ -2702,13 +2704,13 @@ def _stock_report_peer_evidence_ladder_lines(
             "- Trusted peer path: add verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals; "
             f"use `data/imports/peers.csv` only if mappings change. Then run `make imports-validate IMPORT_TICKERS={ticker}`, "
             f"`make imports-preview IMPORT_TICKERS={ticker}`, `make imports-apply IMPORT_TICKERS={ticker}`, "
-            "`make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, and `make peer-mapping-queue TOP_N=25`."
+            f"`make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, and `make peer-mapping-queue TOP_N=25`."
         )
     else:
         trusted_peer_path = (
             f"- Trusted peer path: add source-backed rows in `data/imports/peers.csv`, then run `make imports-validate IMPORT_TICKERS={ticker}`, "
             f"`make imports-preview IMPORT_TICKERS={ticker}`, `make imports-apply IMPORT_TICKERS={ticker}`, "
-            "`make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, and `make peer-mapping-queue TOP_N=25`."
+            f"`make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, and `make peer-mapping-queue TOP_N=25`."
         )
     return [
         "- Peer ladder: standalone DCF can be reviewed before peer valuation is ready.",
@@ -2803,7 +2805,7 @@ def _stock_report_unlock_command_lines(
                 f"- Price first: `make focus-price TICKER={ticker}`.",
                 f"- Price coverage refresh: `make price-refresh TICKERS={ticker} PROVIDER=auto` so Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub are tried before the last manual import path.",
                 "- Price import safety: `make price-validate && make price-preview && make price-apply`.",
-                "- Price proof: `make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before interpreting setup, trend, or valuation context.",
+                f"- Price proof: `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before interpreting setup, trend, or valuation context.",
             ]
         )
     else:
@@ -2817,7 +2819,7 @@ def _stock_report_unlock_command_lines(
                 f"- Fundamentals / DCF: `make focus-fundamentals TICKER={ticker}`.",
                 f"- SEC/manual import checklist: `make sec-stage-queue TICKERS={ticker} TOP_N=10`.",
                 f"- Fundamentals import safety: `make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker}` after source review.",
-                "- DCF proof: `make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before reading standalone DCF output.",
+                f"- DCF proof: `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before reading standalone DCF output.",
             ]
         )
     else:
@@ -2831,7 +2833,7 @@ def _stock_report_unlock_command_lines(
                 f"- Peer mapping: `make focus-peers TICKER={ticker}`.",
                 f"- Peer mapping checklist: `make peer-mapping-queue TICKERS={ticker} TOP_N=10`.",
                 f"- Peer import safety: `make templates && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker}` after source review.",
-                f"- Peer proof: `make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TICKERS={ticker} TOP_N=10` before reading peer-relative valuation.",
+                f"- Peer proof: `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TICKERS={ticker} TOP_N=10` before reading peer-relative valuation.",
             ]
         )
     else:
@@ -2845,7 +2847,7 @@ def _stock_report_unlock_command_lines(
                 "- Earnings import: `make import-earnings`.",
                 "- Analyst-estimates import: `make import-analyst-estimates`.",
                 f"- Optional import safety: `make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker}` after source review.",
-                "- Optional-context proof: `make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before treating earnings or estimates as available context.",
+                f"- Optional-context proof: `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before treating earnings or estimates as available context.",
             ]
         )
     return lines

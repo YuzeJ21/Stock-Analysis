@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import pandas as pd
 from src.profile_context import active_readiness_inspection_route
 
@@ -136,7 +138,7 @@ def peer_analysis_boundary_cards(
             "title": "data/imports/peers.csv",
             "body": (
                 "Add only source-backed peer mappings, then run make imports-validate, make imports-preview, "
-                "and make imports-apply. Compare with make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> and make peer-mapping-queue TOP_N=25 before reading peer valuation. "
+                f"and make imports-apply. Compare with make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> and make peer-mapping-queue TOP_N=25 before reading peer valuation. "
                 "Sector or industry fallback is context, not trusted peer valuation data."
             ),
             "badges": ["source-backed only", "preview first"],

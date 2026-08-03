@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import pandas as pd
 
 from src.data_health_proof_ctas import card_sentence, compact_card_fragment, format_missing
@@ -40,7 +42,7 @@ def trusted_fundamentals_evidence_writer_frame(frame: pd.DataFrame | None) -> pd
                     "Validate Command": "make imports-validate",
                     "Preview Command": "make imports-preview",
                     "Apply Boundary": "Do not apply imports without reviewed source proof.",
-                    "Post-Run Proof Command": "make readiness-snapshot PROFILE=<default|demo|local> && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+                    "Post-Run Proof Command": f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
                     "Proof Record Dry-Run Command": "Finish source review before proof-record dry run.",
                     "Stop Rule": "Run the trusted fundamentals source-review drawer before building an evidence writer packet.",
                 }
@@ -73,7 +75,7 @@ def trusted_fundamentals_evidence_writer_frame(frame: pd.DataFrame | None) -> pd
                 "Validate Command": "make imports-validate",
                 "Preview Command": "make imports-preview",
                 "Apply Boundary": format_missing(row.get("Apply Boundary"), "Do not apply rows without reviewed source proof."),
-                "Post-Run Proof Command": format_missing(row.get("Post-Run Proof"), "make readiness-snapshot PROFILE=<default|demo|local> && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"),
+                "Post-Run Proof Command": format_missing(row.get("Post-Run Proof"), f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"),
                 "Proof Record Dry-Run Command": format_missing(
                     row.get("Proof Record Dry-Run Boundary"),
                     "Finish source review before proof-record dry run.",

@@ -6,6 +6,8 @@ imports, route orders, or turn decision buckets into investment advice.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import json
 from dataclasses import dataclass
@@ -150,14 +152,14 @@ def _decision_next_action_proof(row: pd.Series) -> str:
     if asset_type in {"etf", "index_proxy", "fund"}:
         return f"Proof after review: run `{report_command}` and confirm operating-company DCF is excluded, not failed."
     if blocker == "price":
-        return f"Proof after data changes: run `make readiness-snapshot PROFILE=<default|demo|local>`, complete reviewed price validate/preview/apply, then `make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}`, complete reviewed price validate/preview/apply, then `make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
     if blocker in {"fundamentals", "dcf"}:
-        return f"Proof after data changes: run `make readiness-snapshot PROFILE=<default|demo|local>`, complete reviewed fundamentals validate/preview/apply, then `make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}`, complete reviewed fundamentals validate/preview/apply, then `make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
     if blocker in {"peer", "peers"}:
-        return f"Proof after data changes: run `make readiness-snapshot PROFILE=<default|demo|local>`, complete reviewed peer validate/preview/apply, then `make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, `make peer-mapping-queue TOP_N=25`, and `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}`, complete reviewed peer validate/preview/apply, then `make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, `make peer-mapping-queue TOP_N=25`, and `{report_command}`."
     if blocker in {"earnings", "analyst_estimates", "optional_context"}:
-        return f"Proof after data changes: run `make readiness-snapshot PROFILE=<default|demo|local>`, complete reviewed optional-context validate/preview/apply, then `make reviewed-batch-compare PROFILE=<default|demo|local> LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
-    return f"Proof before interpretation: run `make readiness-snapshot PROFILE=<default|demo|local>`, then `make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}`, complete reviewed optional-context validate/preview/apply, then `make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
+    return f"Proof before interpretation: run `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}`, then `make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
 
 
 def _peer_valuation_blocked(row: pd.Series) -> bool:

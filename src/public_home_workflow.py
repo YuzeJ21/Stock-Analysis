@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 
 def _format_optional_text(value: object, fallback: str) -> str:
     if value is None:
@@ -474,7 +476,7 @@ def public_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
                 "Then review the local status snapshot and reopen Home so ready and locked counts are current."
             ),
             "badges": ["proof first", "copy-only"],
-            "command": "make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
+            "command": f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
         },
         {
             "kicker": "PILOT PATH",

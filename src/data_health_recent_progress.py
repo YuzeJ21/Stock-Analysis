@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 from src.profile_context import active_readiness_inspection_route
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
 
 from src.data_health_coverage_delta import build_readiness_change_frame
 
@@ -47,8 +48,15 @@ def readiness_recent_progress_cards(
     previous_frame: pd.DataFrame | None = None,
     feature_summary_frame: pd.DataFrame | None = None,
     previous_snapshot_label: str = "",
+    *,
+    profile: str,
 ) -> list[dict[str, object]]:
+    selected_profile = resolve_readiness_proof_profile(profile)
     inspection_command, inspection_note = active_readiness_inspection_route()
+    proof_unavailable = (
+        "Proof unavailable: choose a reviewed lane, batch ID, review date, and validated update scope "
+        f"before copying a snapshot/apply/compare sequence for PROFILE={selected_profile}."
+    )
     if current_frame is None or current_frame.empty:
         return [
             {
@@ -132,7 +140,7 @@ def readiness_recent_progress_cards(
                     "Save a baseline snapshot before the next targeted refresh or import, then refresh readiness to compare real before/after counts."
                 ),
                 "badges": ["no prior snapshot", "data-honest"],
-                "command": "make readiness-snapshot",
+                "command": f"make readiness-snapshot PROFILE={selected_profile}",
             }
         )
 
@@ -145,7 +153,7 @@ def readiness_recent_progress_cards(
                 "The dashboard compares only saved local snapshots and never invents progress."
             ),
             "badges": ["review workflow", "copy only"],
-            "command": "make readiness-snapshot",
+            "command": proof_unavailable,
         }
     )
 

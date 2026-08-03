@@ -45,6 +45,16 @@ def _stable_browser_qa_payload(monkeypatch):
     )
 
 
+@pytest.mark.parametrize("profile", ["", "unknown", "<default|demo|local>"])
+def test_pilot_readiness_checks_reject_non_concrete_profile_even_with_prebuilt_queues(tmp_path, profile):
+    with pytest.raises(ValueError, match="concrete readiness profile"):
+        build_pilot_readiness_checks(
+            tmp_path,
+            profile=profile,
+            source_queues=[],
+        )
+
+
 def _write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -98,7 +108,7 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main")
     monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [StatusEntry("M", "data/prices.csv")])
 
-    checks = build_pilot_readiness_checks(root, top_n=2)
+    checks = build_pilot_readiness_checks(root, profile="default", top_n=2)
     by_area = {check.area: check for check in checks}
     rendered = render_pilot_readiness_checks(
         checks,
@@ -172,7 +182,7 @@ def test_pilot_readiness_keeps_broad_sample_report_churn_manual_not_blocking(tmp
         ],
     )
 
-    checks = build_pilot_readiness_checks(root, top_n=2)
+    checks = build_pilot_readiness_checks(root, profile="default", top_n=2)
     by_area = {check.area: check for check in checks}
     handoff = build_pilot_commit_package_handoff(root)
     rendered = render_pilot_readiness_checks(
@@ -244,7 +254,7 @@ def test_pilot_handoff_summary_surfaces_reviewer_next_steps(tmp_path: Path, monk
         "load_status",
         lambda _root: [StatusEntry("M", "data/prices.csv")],
     )
-    checks = build_pilot_readiness_checks(root, top_n=2)
+    checks = build_pilot_readiness_checks(root, profile="default", top_n=2)
     handoff = build_pilot_handoff_summary(
         checks,
         source_queues=[
@@ -388,7 +398,7 @@ def test_pilot_readiness_checks_reuse_prebuilt_source_queues(monkeypatch, tmp_pa
         )
     ]
 
-    checks = build_pilot_readiness_checks(root, top_n=10, source_queues=source_queues)
+    checks = build_pilot_readiness_checks(root, profile="default", top_n=10, source_queues=source_queues)
     source_check = next(check for check in checks if check.area == "Source proof gates")
 
     assert calls["count"] == 0
@@ -439,7 +449,7 @@ def test_pilot_readiness_source_gate_pivots_when_queues_are_reviewed_non_actiona
         )
     ]
 
-    checks = build_pilot_readiness_checks(root, top_n=10, source_queues=source_queues)
+    checks = build_pilot_readiness_checks(root, profile="default", top_n=10, source_queues=source_queues)
     source_check = next(check for check in checks if check.area == "Source proof gates")
 
     assert source_check.status == "manual"
@@ -468,7 +478,7 @@ def test_pilot_readiness_blocks_product_dirty_and_stale_readiness(tmp_path: Path
     os.utime(root / "data" / "reports" / "feature_readiness_summary.csv", (old_time, old_time))
     os.utime(source_path, (new_time, new_time))
 
-    checks = build_pilot_readiness_checks(root, top_n=2)
+    checks = build_pilot_readiness_checks(root, profile="default", top_n=2)
     by_area = {check.area: check for check in checks}
 
     assert by_area["Generated artifact hygiene"].status == "blocked"
@@ -485,7 +495,7 @@ def test_pilot_readiness_blocks_unsynced_remote(tmp_path: Path, monkeypatch):
     monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main [behind 1]")
     monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [])
 
-    checks = build_pilot_readiness_checks(root, top_n=2)
+    checks = build_pilot_readiness_checks(root, profile="default", top_n=2)
     by_area = {check.area: check for check in checks}
 
     assert by_area["GitHub sync"].status == "blocked"
@@ -537,7 +547,7 @@ def test_pilot_readiness_treats_pending_packet_as_manual_reviewed_evidence(tmp_p
         lambda _root: [StatusEntry("??", "outputs/pilot_readiness_packet.md")],
     )
 
-    checks = build_pilot_readiness_checks(root, top_n=2)
+    checks = build_pilot_readiness_checks(root, profile="default", top_n=2)
     by_area = {check.area: check for check in checks}
 
     assert by_area["Generated artifact hygiene"].status == "manual"
@@ -554,7 +564,7 @@ def test_pilot_readiness_treats_pending_share_brief_as_manual_reviewed_evidence(
         lambda _root: [StatusEntry("??", "outputs/pilot_share_brief.md")],
     )
 
-    checks = build_pilot_readiness_checks(root, top_n=2)
+    checks = build_pilot_readiness_checks(root, profile="default", top_n=2)
     by_area = {check.area: check for check in checks}
 
     assert by_area["Generated artifact hygiene"].status == "manual"
@@ -568,7 +578,7 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main [ahead 1]")
     monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [StatusEntry("M", "data/prices.csv")])
 
-    packet_path = write_pilot_readiness_packet(root, top_n=2, output=output)
+    packet_path = write_pilot_readiness_packet(root, profile="default", top_n=2, output=output)
     body = packet_path.read_text(encoding="utf-8")
     snapshot = build_readiness_snapshot(root)
 
@@ -638,7 +648,7 @@ def test_pilot_share_brief_writes_concise_markdown_without_data_writes(tmp_path:
     monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main [ahead 1]")
     monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [StatusEntry("M", "data/prices.csv")])
 
-    brief_path = pilot_readiness.write_pilot_share_brief(root, top_n=2, output=output)
+    brief_path = pilot_readiness.write_pilot_share_brief(root, profile="default", top_n=2, output=output)
     body = brief_path.read_text(encoding="utf-8")
 
     assert brief_path == root / output
@@ -669,7 +679,7 @@ def test_pilot_share_brief_summarizes_usable_blocked_and_share_boundary(tmp_path
             next_safe_command="make dcf-input-proof-queue TOP_N=10",
         )
     ]
-    checks = build_pilot_readiness_checks(root, top_n=2, source_queues=source_queues)
+    checks = build_pilot_readiness_checks(root, profile="default", top_n=2, source_queues=source_queues)
 
     brief = render_pilot_share_brief(
         checks=checks,
@@ -738,7 +748,7 @@ def test_pilot_share_brief_routes_reviewed_source_queues_through_project_status(
     ]
 
     brief = render_pilot_share_brief(
-        checks=build_pilot_readiness_checks(root, top_n=2, source_queues=source_queues),
+        checks=build_pilot_readiness_checks(root, profile="default", top_n=2, source_queues=source_queues),
         snapshot=build_readiness_snapshot(root),
         source_queues=source_queues,
         excluded_artifacts=[],
@@ -782,7 +792,7 @@ def test_pilot_share_brief_names_provider_setup_path_without_secrets(tmp_path: P
     )
 
     brief = render_pilot_share_brief(
-        checks=build_pilot_readiness_checks(root, top_n=2),
+        checks=build_pilot_readiness_checks(root, profile="default", top_n=2),
         snapshot=build_readiness_snapshot(root),
         source_queues=[],
         excluded_artifacts=["data/prices.csv"],

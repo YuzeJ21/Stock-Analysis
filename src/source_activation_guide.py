@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import json
 import os
@@ -325,11 +327,11 @@ def build_source_activation_guide() -> dict[str, Any]:
         "providers": providers,
         "one_ticker_smoke_handoff": ONE_TICKER_SMOKE_HANDOFF,
         "apply_gate": [
-            "make readiness-snapshot PROFILE=<default|demo|local>",
+            f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}",
             "make imports-validate IMPORT_TICKERS=<ticker>",
             "make imports-preview IMPORT_TICKERS=<ticker>",
             "make imports-apply IMPORT_TICKERS=<ticker> only when validation passes, preview scope is intended, rejected rows are zero, and source provenance exists",
-            "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            f"make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
         ],
         "next_commands": [
             "make session-source-preflight",

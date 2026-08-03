@@ -7,6 +7,8 @@ operator evidence and final outcomes.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import csv
 import os
@@ -263,7 +265,7 @@ def render_price_reviewed_run_plan(
             "",
             "Before the run:",
             "1. make status-check TOP_N=5",
-            "2. make readiness-snapshot PROFILE=<default|demo|local>",
+            f"2. make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}",
             f"3. {dry_run}",
             "4. Review provider boundary notes and expected generated CSV churn.",
             "",
@@ -272,7 +274,7 @@ def render_price_reviewed_run_plan(
             "",
             "After the run:",
             "6. make price-coverage TOP_N=25",
-            "7. make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            f"7. make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             "8. make status-check TOP_N=5",
             "9. make diff-hygiene",
             "10. Record a reviewed proof row with final outcome supported/candidate_context_only/still_blocked/skipped/excluded.",

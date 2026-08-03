@@ -129,7 +129,7 @@ def test_research_decisions_block_company_when_fundamentals_or_dcf_are_missing()
     assert "make focus-fundamentals TICKER=AMD" in row["next_best_action"]
     assert "make sec-stage TICKERS=AMD" in row["next_best_action"]
     assert "data/imports/fundamentals.csv" in row["next_best_action"]
-    assert "make imports-validate IMPORT_TICKERS=AMD, make imports-preview IMPORT_TICKERS=AMD, make imports-apply IMPORT_TICKERS=AMD, make dcf-readiness, and make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals" in row["next_best_action"]
+    assert "make imports-validate IMPORT_TICKERS=AMD, make imports-preview IMPORT_TICKERS=AMD, make imports-apply IMPORT_TICKERS=AMD, make dcf-readiness, and make reviewed-batch-compare PROFILE=default LANE=fundamentals" in row["next_best_action"]
     assert "before reading DCF output" in row["next_best_action"]
     assert row["next_research_question"] == (
         "Which trusted fundamentals or DCF fields are missing, and can SEC staging or manual import fill them?"

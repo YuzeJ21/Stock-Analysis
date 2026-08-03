@@ -7,6 +7,8 @@ stage imports, apply rows, or create research recommendations.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 from dataclasses import dataclass
 from pathlib import Path
@@ -328,9 +330,11 @@ def build_coverage_expansion_lane_board(
 def build_source_proof_gate(
     lane: str,
     *,
+    profile: str,
     top_n: int = 10,
     session_preflight: dict[str, Any] | None = None,
 ) -> CoverageExpansionSourceProofGate:
+    selected_profile = resolve_readiness_proof_profile(profile)
     normalized = _normalize_planner_lane(lane)
     if normalized == "price_coverage":
         return CoverageExpansionSourceProofGate(
@@ -354,7 +358,7 @@ def build_source_proof_gate(
             review_commands=(
                 f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=auto",
                 "make price-validate && make price-preview",
-                "make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
+                f"make readiness-snapshot PROFILE={selected_profile} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
             ),
             proof_ready_when="dry-run scope is reviewed, local price rows validate, readiness is rebuilt, and changed artifacts are classified.",
         )
@@ -401,7 +405,7 @@ def build_source_proof_gate(
             review_commands=(
                 first_review_command,
                 "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
-                "make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+                f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             ),
             proof_ready_when="source-backed rows pass validation and preview, rejected rows are reviewed, readiness is rebuilt, and the stock report proves the lane changed.",
         )
@@ -428,7 +432,7 @@ def build_source_proof_gate(
             review_commands=(
                 f"make peer-mapping-queue TOP_N={top_n}",
                 "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
-                "make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
+                f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
             ),
             proof_ready_when="peer mappings and mapped-peer inputs are source-backed, validation/preview passes, readiness is rebuilt, and peer valuation remains blocked if inputs are still missing.",
         )
@@ -463,6 +467,7 @@ def build_source_proof_gate(
 def build_coverage_expansion_loop(
     root: Path | str = ".",
     *,
+    profile: str,
     lane: str = "auto",
     top_n: int = 10,
     max_candidates: int = 3500,
@@ -470,7 +475,8 @@ def build_coverage_expansion_loop(
     session_preflight: dict[str, Any] | None = None,
 ) -> CoverageExpansionLoop:
     root = Path(root)
-    lanes = build_readiness_ops_lanes(root)
+    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
+    lanes = build_readiness_ops_lanes(root, profile=selected_profile)
     steps = build_data_coverage_expansion_plan(lanes, top_n=top_n)
     normalized_requested_lane = _normalize_planner_lane(lane)
     if session_preflight is None and normalized_requested_lane == "auto":
@@ -573,7 +579,12 @@ def build_coverage_expansion_loop(
         selected = _select_step(steps, lane)
     selected_lane = selected.lane if selected is not None else _normalize_planner_lane(lane)
     lane_board = build_coverage_expansion_lane_board(lanes, selected_lane=selected_lane, top_n=top_n)
-    source_gate = build_source_proof_gate(selected_lane, top_n=top_n, session_preflight=session_preflight)
+    source_gate = build_source_proof_gate(
+        selected_lane,
+        profile=selected_profile,
+        top_n=top_n,
+        session_preflight=session_preflight,
+    )
     if selected is None:
         return CoverageExpansionLoop(
             status="blocked_missing_lane",
@@ -598,6 +609,7 @@ def build_coverage_expansion_loop(
         max_candidates=max_candidates,
         provider=provider,
         session_preflight=session_preflight,
+        profile=selected_profile,
     )
     status = "ready_for_reviewed_dry_run" if preflight.status == "ready_for_dry_run" else "blocked_by_preflight"
     if preflight.status != "ready_for_dry_run":
@@ -824,8 +836,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    from src.paths import resolve_data_profile
+
+    profile = resolve_data_profile(project_root=args.root).name
     loop = build_coverage_expansion_loop(
         args.root,
+        profile=profile,
         lane=args.lane,
         top_n=args.top_n,
         max_candidates=args.max_candidates,

@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 from src.coverage_expansion_loop import (
@@ -113,7 +114,7 @@ def _write_peer_valuation_inputs_ledger(root: Path) -> None:
 
 
 def test_coverage_expansion_loop_blocks_until_preflight_snapshot_exists(tmp_path: Path):
-    loop = build_coverage_expansion_loop(_sample_root(tmp_path), lane="auto", top_n=10)
+    loop = build_coverage_expansion_loop(_sample_root(tmp_path), profile="default", lane="auto", top_n=10)
     rendered = render_coverage_expansion_loop(loop)
 
     assert loop.status == "blocked_by_preflight"
@@ -132,6 +133,7 @@ def test_coverage_expansion_loop_blocks_until_preflight_snapshot_exists(tmp_path
 def test_coverage_expansion_loop_prints_ready_copy_only_sequence(tmp_path: Path):
     loop = build_coverage_expansion_loop(
         _sample_root(tmp_path, prior_snapshot=True),
+        profile="default",
         lane="fundamentals",
         top_n=5,
     )
@@ -158,6 +160,37 @@ def test_coverage_expansion_loop_prints_ready_copy_only_sequence(tmp_path: Path)
     assert "generated-artifact" in rendered
 
 
+def test_coverage_expansion_loop_threads_selected_local_profile_to_every_proof_producer(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    local_data = root / "data" / "local"
+    local_data.mkdir()
+    for source in tuple((root / "data").iterdir()):
+        if source == local_data:
+            continue
+        destination = local_data / source.name
+        if source.is_dir():
+            shutil.copytree(source, destination)
+        else:
+            shutil.copy2(source, destination)
+
+    loop = build_coverage_expansion_loop(
+        root,
+        profile="local",
+        lane="fundamentals",
+        top_n=5,
+    )
+
+    assert loop.preflight is not None
+    assert loop.source_proof_gate is not None
+    source_proof = loop.source_proof_gate.review_commands[-1]
+    assert "make readiness-snapshot PROFILE=local" in source_proof
+    assert "make reviewed-batch-compare PROFILE=local LANE=fundamentals" in source_proof
+    assert loop.preflight.snapshot_command == "make readiness-snapshot PROFILE=local"
+    assert "make reviewed-batch-compare PROFILE=local LANE=fundamentals" in loop.preflight.comparison_command
+    assert "PROFILE=default" not in source_proof
+    assert "PROFILE=default" not in loop.preflight.comparison_command
+
+
 def test_coverage_expansion_loop_uses_local_fundamentals_gate_when_sec_unavailable(tmp_path: Path):
     session_preflight = {
         "session_flags": ["session_sec_unavailable"],
@@ -174,6 +207,7 @@ def test_coverage_expansion_loop_uses_local_fundamentals_gate_when_sec_unavailab
 
     loop = build_coverage_expansion_loop(
         _sample_root(tmp_path, prior_snapshot=True),
+        profile="default",
         lane="fundamentals",
         top_n=5,
         session_preflight=session_preflight,
@@ -189,7 +223,12 @@ def test_coverage_expansion_loop_uses_local_fundamentals_gate_when_sec_unavailab
 
 
 def test_coverage_expansion_loop_reports_unknown_lane_without_fake_plan(tmp_path: Path):
-    loop = build_coverage_expansion_loop(_sample_root(tmp_path), lane="not_a_lane", top_n=10)
+    loop = build_coverage_expansion_loop(
+        _sample_root(tmp_path),
+        profile="default",
+        lane="not_a_lane",
+        top_n=10,
+    )
     rendered = render_coverage_expansion_loop(loop)
 
     assert loop.status == "blocked_missing_lane"
@@ -202,7 +241,7 @@ def test_coverage_expansion_loop_reports_unknown_lane_without_fake_plan(tmp_path
 
 
 def test_coverage_expansion_lane_board_keeps_locked_and_excluded_boundaries_visible(tmp_path: Path):
-    lanes = build_readiness_ops_lanes(_sample_root(tmp_path))
+    lanes = build_readiness_ops_lanes(_sample_root(tmp_path), profile="default")
     board = build_coverage_expansion_lane_board(lanes, selected_lane="earnings_locked", top_n=10)
     rendered = "\n".join(
         f"{row.label} {row.selected} {row.workflow_mode} {row.proceed_boundary} {row.next_safe_command}"
@@ -219,7 +258,7 @@ def test_coverage_expansion_lane_board_keeps_locked_and_excluded_boundaries_visi
 
 
 def test_source_proof_gate_for_peer_valuation_rejects_sector_shortcuts():
-    gate = build_source_proof_gate("peer_valuation_inputs", top_n=7)
+    gate = build_source_proof_gate("peer_valuation_inputs", profile="default", top_n=7)
     rendered = " ".join(gate.evidence_to_collect + gate.accepted_sources + gate.rejected_shortcuts + gate.review_commands).lower()
 
     assert gate.status == "source_required"
@@ -234,7 +273,7 @@ def test_source_proof_gate_for_peer_valuation_rejects_sector_shortcuts():
 
 
 def test_source_proof_gate_for_share_count_blocks_inference_shortcuts():
-    gate = build_source_proof_gate("share_count", top_n=4)
+    gate = build_source_proof_gate("share_count", profile="default", top_n=4)
     rendered = " ".join(gate.evidence_to_collect + gate.accepted_sources + gate.rejected_shortcuts + gate.review_commands).lower()
 
     assert gate.status == "source_required"
@@ -246,7 +285,7 @@ def test_source_proof_gate_for_share_count_blocks_inference_shortcuts():
 
 
 def test_source_proof_gate_for_optional_context_keeps_locked_outcome_valid():
-    gate = build_source_proof_gate("optional_context", top_n=6)
+    gate = build_source_proof_gate("optional_context", profile="default", top_n=6)
     rendered = " ".join(gate.evidence_to_collect + gate.accepted_sources + gate.rejected_shortcuts + gate.review_commands).lower()
 
     assert gate.status == "locked_or_excluded"
@@ -270,6 +309,7 @@ def test_coverage_expansion_loop_auto_lane_can_follow_session_preflight(tmp_path
 
     loop = build_coverage_expansion_loop(
         _sample_root(tmp_path, prior_snapshot=True),
+        profile="default",
         lane="auto",
         top_n=10,
         session_preflight=session_preflight,
@@ -315,6 +355,7 @@ def test_coverage_expansion_loop_requires_source_activation_when_no_executable_s
 
     loop = build_coverage_expansion_loop(
         _sample_root(tmp_path, prior_snapshot=True),
+        profile="default",
         lane="auto",
         top_n=10,
         session_preflight=session_preflight,
@@ -370,6 +411,7 @@ def test_coverage_expansion_loop_pivots_to_workflow_evidence_when_preflight_exha
 
     loop = build_coverage_expansion_loop(
         _sample_root(tmp_path, prior_snapshot=True),
+        profile="default",
         lane="auto",
         top_n=5,
         session_preflight=session_preflight,
@@ -415,7 +457,13 @@ def test_coverage_expansion_loop_does_not_repeat_optional_worklist_when_ledger_c
     root = _sample_root(tmp_path, prior_snapshot=True)
     _write_optional_context_ledger(root)
 
-    loop = build_coverage_expansion_loop(root, lane="auto", top_n=10, session_preflight=session_preflight)
+    loop = build_coverage_expansion_loop(
+        root,
+        profile="default",
+        lane="auto",
+        top_n=10,
+        session_preflight=session_preflight,
+    )
     rendered = render_coverage_expansion_loop(loop)
 
     assert "optional context already has reviewed proof ledger coverage" in rendered
@@ -450,7 +498,13 @@ def test_coverage_expansion_loop_does_not_repeat_peer_source_review_when_ledger_
     root = _sample_root(tmp_path, prior_snapshot=True)
     _write_peer_mapping_ledger(root)
 
-    loop = build_coverage_expansion_loop(root, lane="auto", top_n=10, session_preflight=session_preflight)
+    loop = build_coverage_expansion_loop(
+        root,
+        profile="default",
+        lane="auto",
+        top_n=10,
+        session_preflight=session_preflight,
+    )
     rendered = render_coverage_expansion_loop(loop)
 
     assert "peer mapping already has reviewed proof ledger coverage" in rendered
@@ -485,7 +539,13 @@ def test_coverage_expansion_loop_does_not_repeat_peer_valuation_focus_when_ledge
     root = _sample_root(tmp_path, prior_snapshot=True)
     _write_peer_valuation_inputs_ledger(root)
 
-    loop = build_coverage_expansion_loop(root, lane="auto", top_n=10, session_preflight=session_preflight)
+    loop = build_coverage_expansion_loop(
+        root,
+        profile="default",
+        lane="auto",
+        top_n=10,
+        session_preflight=session_preflight,
+    )
     rendered = render_coverage_expansion_loop(loop)
 
     assert "peer valuation inputs already have reviewed proof ledger coverage" in rendered
@@ -511,6 +571,7 @@ def test_coverage_expansion_loop_prefers_fundamentals_before_share_count_when_lo
 
     loop = build_coverage_expansion_loop(
         _sample_root(tmp_path, prior_snapshot=True),
+        profile="default",
         lane="auto",
         top_n=10,
         session_preflight=session_preflight,

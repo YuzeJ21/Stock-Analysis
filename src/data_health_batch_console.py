@@ -7,6 +7,8 @@ guards, execution cards, and checklist rows.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import re
 from typing import Any
 
@@ -158,7 +160,7 @@ def reviewed_batch_snapshot_gate_frame(preflight: Any) -> pd.DataFrame:
         stop_if = "current readiness report is unavailable"
     elif not preflight.prior_snapshot_exists:
         status = "missing_prior_snapshot"
-        next_step = "Run make readiness-snapshot PROFILE=<default|demo|local> before the packet or dry-run command."
+        next_step = f"Run make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} before the packet or dry-run command."
         command = preflight.snapshot_command
         stop_if = "baseline snapshot is missing"
     else:

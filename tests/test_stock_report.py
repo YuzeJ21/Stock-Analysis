@@ -720,8 +720,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Still locked:" in markdown
     assert "- Trusted input: Source-backed peer mappings and peer valuation inputs." in markdown
     assert "- Data Health lane: Peer Mapping Proof. Suggested local check: `make focus-peers TICKER=MSFT`" in markdown
-    assert "Confirm with `make readiness-snapshot PROFILE=<default|demo|local>" in markdown
-    assert "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers" in markdown
+    assert "Confirm with `make readiness-snapshot PROFILE=default" in markdown
+    assert "make reviewed-batch-compare PROFILE=default LANE=peers" in markdown
     assert "make peer-mapping-queue TICKERS=MSFT TOP_N=10" in markdown
     assert "- First read: Start with DCF Calculation Path and Valuation Boundary Checklist" in markdown
     assert "- Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check." in markdown
@@ -852,8 +852,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "`make focus-peers TICKER=MSFT`" in markdown
     assert "`make optional-context-worklist TICKERS=MSFT TOP_N=10`" in markdown
     assert "`make imports-validate IMPORT_TICKERS=MSFT && make imports-preview IMPORT_TICKERS=MSFT && make imports-apply IMPORT_TICKERS=MSFT`" in markdown
-    assert "Peer proof: `make readiness-snapshot PROFILE=<default|demo|local>" in markdown
-    assert "Optional-context proof: `make readiness-snapshot PROFILE=<default|demo|local>" in markdown
+    assert "Peer proof: `make readiness-snapshot PROFILE=default" in markdown
+    assert "Optional-context proof: `make readiness-snapshot PROFILE=default" in markdown
     assert "Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below." in markdown
     assert "import file path `data/staged/prices/` or `data/imports/prices.csv`" in markdown
     assert "import target `data/imports/peers.csv`" in markdown
@@ -1458,8 +1458,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "- Still locked: Blocked features: price, momentum, DCF." in markdown
     assert "- Trusted input: Trusted local price history." in markdown
     assert "- Data Health lane: Price Coverage Batch. Suggested local check: `make focus-price TICKER=APLD`" in markdown
-    assert "Confirm with `make readiness-snapshot PROFILE=<default|demo|local>" in markdown
-    assert "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices" in markdown
+    assert "Confirm with `make readiness-snapshot PROFILE=default" in markdown
+    assert "make reviewed-batch-compare PROFILE=default LANE=prices" in markdown
     assert "- Supported evaluation: Use available price or setup context only." in markdown
     assert "- Valuation boundary: Company valuation is blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs pass readiness." in markdown
     assert "- Data-confidence cue: low: price history is still the first required input." in markdown
@@ -1567,9 +1567,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "`make price-refresh TICKERS=APLD PROVIDER=auto`" in markdown
     assert "Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub" in markdown
     assert "`make price-validate && make price-preview && make price-apply`" in markdown
-    assert "Price proof: `make readiness-snapshot PROFILE=<default|demo|local>" in markdown
+    assert "Price proof: `make readiness-snapshot PROFILE=default" in markdown
     assert "`make focus-fundamentals TICKER=APLD`" in markdown
-    assert "DCF proof: `make readiness-snapshot PROFILE=<default|demo|local>" in markdown
+    assert "DCF proof: `make readiness-snapshot PROFILE=default" in markdown
     assert "`make peer-mapping-queue TICKERS=APLD TOP_N=10`" in markdown
     assert "`make optional-context-worklist TICKERS=APLD TOP_N=10`" in markdown
     assert "the report does not run imports or refreshes and does not connect to external accounts" in markdown

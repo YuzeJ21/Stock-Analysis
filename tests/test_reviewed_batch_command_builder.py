@@ -323,8 +323,8 @@ def test_proof_completion_rows_prioritize_snapshot_and_invalid_outcome_actions()
     assert rows[0]["Next Safest Action"] == "Set FINAL_OUTCOME exactly to supported, candidate_context_only, still_blocked, skipped, or excluded."
     assert rows[1]["Field"] == "changed_tickers"
     assert "make readiness-snapshot" in rows[1]["Next Safest Action"]
-    assert "PROFILE=<default|demo|local>" in rows[1]["Next Safest Action"]
-    assert "make reviewed-batch-compare PROFILE=<default|demo|local>" in rows[1]["Next Safest Action"]
+    assert "PROFILE=default" in rows[1]["Next Safest Action"]
+    assert "make reviewed-batch-compare PROFILE=default" in rows[1]["Next Safest Action"]
     assert "make readiness " not in rows[1]["Next Safest Action"]
 
 

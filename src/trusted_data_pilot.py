@@ -7,6 +7,8 @@ outputs.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import csv
 import json
@@ -300,7 +302,7 @@ def _readiness_row(root: Path, ticker: str, *, previous: bool = False) -> dict[s
 
 def _readiness_mode(row: dict[str, str] | None) -> str:
     if not row:
-        return "baseline snapshot missing; run make readiness-snapshot PROFILE=<default|demo|local> first"
+        return f"baseline snapshot missing; run make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} first"
     if _truthy(row.get("dcf_ready")) and _truthy(row.get("peer_ready")):
         return "DCF-ready review"
     if _truthy(row.get("dcf_ready")):
@@ -1095,7 +1097,7 @@ def build_trusted_data_pilot_candidates(
                     "make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER="
                     f"{ticker} -> make imports-validate IMPORT_TICKERS={ticker} -> make imports-preview IMPORT_TICKERS={ticker} -> make imports-apply IMPORT_TICKERS={ticker}"
                 ),
-                proof_after_unlock=f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}",
+                proof_after_unlock=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}",
                 source_boundary="Use SEC staging or trusted manual rows only; leave blank fields blocked.",
                 active_universe=_truthy((readiness_row or {}).get("in_active_universe")),
                 demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
@@ -1125,7 +1127,7 @@ def build_trusted_data_pilot_candidates(
                 missing_input=missing_peer_relative,
                 next_command=peer_review_command,
                 validation_path=validation_path,
-                proof_after_unlock=f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
+                proof_after_unlock=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
                 source_boundary="Peer rows must be source-backed; sector or industry fallback is context only.",
                 active_universe=_truthy((readiness_row or {}).get("in_active_universe")),
                 demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
@@ -1162,7 +1164,7 @@ def build_trusted_data_pilot_candidates(
             missing_input=missing_input,
             next_command=next_command,
             validation_path=validation_path,
-            proof_after_unlock=f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
+            proof_after_unlock=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
             source_boundary="Peer rows must be source-backed; sector or industry fallback is context only.",
             active_universe=_truthy((readiness_row or {}).get("in_active_universe")),
             demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
@@ -1193,7 +1195,7 @@ def build_trusted_data_pilot_candidates(
                 "make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER="
                 f"{ticker} -> make imports-validate IMPORT_TICKERS={ticker} -> make imports-preview IMPORT_TICKERS={ticker} -> make imports-apply IMPORT_TICKERS={ticker}"
             ),
-            proof_after_unlock=f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
+            proof_after_unlock=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
             source_boundary="Peer rows must be source-backed; do not treat sector or industry fallback as trusted peer valuation.",
             active_universe=_truthy(row.get("in_active_universe")),
             demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
@@ -1273,7 +1275,7 @@ def load_trusted_data_pilot_evidence_candidates(
                         f"make peer-mapping-queue TOP_N=25 -> make focus-peers TICKER={ticker} "
                         f"-> make imports-validate IMPORT_TICKERS={ticker} -> make imports-preview IMPORT_TICKERS={ticker} -> make imports-apply IMPORT_TICKERS={ticker}"
                     ),
-                    proof_after_unlock=f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
+                    proof_after_unlock=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER={ticker}",
                     source_boundary="Peer rows must be source-backed; sector or industry fallback is context only.",
                     active_universe=_truthy((current_row or {}).get("in_active_universe")),
                     demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
@@ -1290,7 +1292,7 @@ def load_trusted_data_pilot_evidence_candidates(
                 f"make sec-stage-queue TOP_N=25 -> make focus-fundamentals TICKER={ticker} "
                 f"-> make imports-validate IMPORT_TICKERS={ticker} -> make imports-preview IMPORT_TICKERS={ticker} -> make imports-apply IMPORT_TICKERS={ticker}"
             ),
-            proof_after_unlock=f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}",
+            proof_after_unlock=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}",
             source_boundary="Use SEC staging or trusted manual rows only; leave blank fields blocked.",
             active_universe=_truthy((current_row or {}).get("in_active_universe")),
             demo_rank=DEMO_COMPANY_ORDER.get(ticker, 999),
@@ -1418,7 +1420,7 @@ def render_trusted_data_pilot_candidates(
     lines.extend(
         [
             "Suggested safe loop:",
-            "1. make readiness-snapshot PROFILE=<default|demo|local>",
+            f"1. make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}",
             f"2. make trusted-data-pilot-packet TICKER={first}",
             f"3. Review the lane blocker: {pilot_session_review_path(candidates[0], preflight=preflight)}",
             f"4. Prepare trusted rows only if the source review passes: {pilot_trusted_row_path(candidates[0])}",
@@ -1494,7 +1496,7 @@ def render_trusted_data_pilot_packet(
             "How to read the outcome:",
             *[f"- {line}" for line in pilot_outcome_checklist_lines(candidate)],
             f"- {pilot_outcome_state_guide(candidate)}",
-            "1. Baseline readiness: make readiness-snapshot PROFILE=<default|demo|local>",
+            f"1. Baseline readiness: make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}",
             f"2. Before report: make stock-report-md TICKER={candidate.ticker}",
             f"3. Focused blocker check: {candidate.next_command}",
             f"4. Prepare or stage trusted rows only if source review passes: {pilot_trusted_row_path(candidate)}",
@@ -1729,7 +1731,7 @@ def pilot_lane_runbook(lane: str) -> PilotLaneRunbook:
             what_proves_lane="Rebuilt readiness shows fundamentals_ready and dcf_ready, then the regenerated stock report exposes DCF review instead of a missing-field gate.",
             needed_rows_files="SEC-staged or reviewed manual rows in data/staged/fundamentals/ or data/imports/fundamentals.csv with required DCF fields and source.",
             rejected_row_reports="data/rejected/fundamentals_import_rejected.csv",
-            readiness_proof_command="make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=<ticker>",
+            readiness_proof_command=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=<ticker>",
             remains_blocked_when="trusted revenue, free-cash-flow margin or free cash flow, shares outstanding, cash, debt, date, or source rows are missing or rejected.",
             ordered_steps=(
                 "Run make trusted-data-pilot-candidates TOP_N=10 and choose the fundamentals/DCF lane group only if source proof exists.",
@@ -1749,7 +1751,7 @@ def pilot_lane_runbook(lane: str) -> PilotLaneRunbook:
             what_proves_lane="Rebuilt readiness and the peer queue show source-backed peer context; sector or industry fallback alone does not prove peer valuation.",
             needed_rows_files="source-backed peer mappings in data/imports/peers.csv, plus peer price/fundamental inputs only when the queue asks for them.",
             rejected_row_reports="data/rejected/peers_import_rejected.csv",
-            readiness_proof_command="make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=<ticker>",
+            readiness_proof_command=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=<ticker>",
             remains_blocked_when="peer relationships cannot be supported by source notes or mapped peers still lack the required valuation inputs.",
             ordered_steps=(
                 "Run make trusted-data-pilot-candidates TOP_N=10 and choose the peer mapping lane group only when peer relationship proof exists.",
@@ -1769,7 +1771,7 @@ def pilot_lane_runbook(lane: str) -> PilotLaneRunbook:
             what_proves_lane="Mapped peers have verified valuation inputs, such as trusted fundamentals or verified peer price/market-cap context, and the rebuilt report no longer withholds peer valuation.",
             needed_rows_files="reviewed mapped-peer fundamentals in data/imports/fundamentals.csv or verified peer price history; data/imports/peers.csv only if mappings change.",
             rejected_row_reports="data/rejected/fundamentals_import_rejected.csv and data/rejected/price_import_rejected.csv when peer price rows change",
-            readiness_proof_command="make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=<ticker>",
+            readiness_proof_command=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=<ticker>",
             remains_blocked_when="mapped peers lack trusted fundamentals, price history, market-cap context, or the rebuilt peer readiness report still withholds valuation comparison.",
             ordered_steps=(
                 "Run make trusted-data-pilot-board TICKERS=MU,CRDO,HOOD,TSLA,META,A,APLD and choose the peer valuation inputs lane group, not a single name first.",
@@ -1809,7 +1811,7 @@ def pilot_lane_runbook(lane: str) -> PilotLaneRunbook:
             what_proves_lane="Dry-run planning proves which price rows would be attempted; only reviewed applied price imports and rebuilt readiness prove coverage changed.",
             needed_rows_files="verified OHLCV rows staged through provider refresh or normalized into data/imports/prices.csv after review.",
             rejected_row_reports="data/rejected/price_import_rejected.csv",
-            readiness_proof_command="make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
+            readiness_proof_command=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
             remains_blocked_when="the dry run finds no safe provider path, downloaded rows cannot be verified, rejected rows appear, or readiness still shows missing price coverage.",
             ordered_steps=(
                 "Run make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto.",

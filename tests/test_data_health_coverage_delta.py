@@ -35,7 +35,7 @@ def test_readiness_delta_board_handles_missing_prior_snapshot_without_fake_delta
     assert frame.loc[frame["Lane"].eq("Price"), "Previous Ready"].iloc[0] == "not available"
     assert frame.loc[frame["Lane"].eq("Price"), "Delta Ready"].iloc[0] == "not available"
     assert cards[0]["title"] == "Current-only baseline"
-    assert cards[0]["command"] == "make readiness-snapshot PROFILE=<default|demo|local>"
+    assert cards[0]["command"] == "make readiness-snapshot PROFILE=default"
     assert "will not invent before/after changes" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -91,7 +91,7 @@ def test_readiness_delta_board_summarizes_lane_changes_and_artifact_review():
     assert dcf["Generated Artifacts Reviewed"] == "excluded broad generated churn"
     assert int(peer["Still Blocked"]) == 3
     assert cards[0]["command"] == (
-        "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> "
+        "make reviewed-batch-compare PROFILE=default LANE=<lane> "
         "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     )
     assert "price +1" in rendered

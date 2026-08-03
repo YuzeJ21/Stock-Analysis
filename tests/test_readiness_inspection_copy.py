@@ -224,7 +224,11 @@ POPULATED_INSPECTION_CARD_RENDERERS = (
     ("data_health_peer_readiness", lambda: peer_readiness_product_cards(_populated_peer_frame())),
     (
         "data_health_recent_progress",
-        lambda: readiness_recent_progress_cards(_populated_readiness_frame(), _previous_readiness_frame()),
+        lambda: readiness_recent_progress_cards(
+            _populated_readiness_frame(),
+            _previous_readiness_frame(),
+            profile="default",
+        ),
     ),
     ("single_stock_workflow_loop", lambda: single_stock_workflow_loop_cards(_populated_single_stock_snapshot())),
     ("single_stock_workflow_fit", lambda: single_stock_workflow_fit_cards(_populated_single_stock_snapshot())),
@@ -257,10 +261,14 @@ PROFILE_AWARE_INSPECTION_CARD_RENDERERS = (
     ),
     ("freshness_routine_populated", lambda: freshness_routine_cards({"master_universe": 2, "price_ready": 1})),
     ("current_mode_strip_stale", _stale_current_mode_strip_cards),
-    ("recent_progress_empty", lambda: readiness_recent_progress_cards(None)),
+    ("recent_progress_empty", lambda: readiness_recent_progress_cards(None, profile="default")),
     (
         "recent_progress_populated",
-        lambda: readiness_recent_progress_cards(_populated_readiness_frame(), _previous_readiness_frame()),
+        lambda: readiness_recent_progress_cards(
+            _populated_readiness_frame(),
+            _previous_readiness_frame(),
+            profile="default",
+        ),
     ),
     ("single_stock_loop_missing", lambda: single_stock_workflow_loop_cards({"ticker": "NVDA", "status": "missing"})),
     ("single_stock_loop_populated", lambda: single_stock_workflow_loop_cards(_populated_single_stock_snapshot())),
@@ -326,7 +334,7 @@ def test_real_nondefault_profile_card_renderers_are_truthfully_unavailable(
         ("data_health_peer_mapping_studio", lambda: peer_mapping_studio_summary_cards(None)),
         ("data_health_peer_readiness", lambda: peer_readiness_product_cards(None)),
         ("data_health_peer_unlock", lambda: peer_unlock_operator_cards(None)),
-        ("data_health_recent_progress", lambda: readiness_recent_progress_cards(None)),
+        ("data_health_recent_progress", lambda: readiness_recent_progress_cards(None, profile="default")),
         (
             "data_health_peer_operator_summary",
             lambda: peer_operator_summary_cards(peer_operator_summary_frame(None, None, None)),

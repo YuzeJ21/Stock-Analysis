@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import os
 from pathlib import Path
@@ -242,7 +244,7 @@ def main(argv: list[str] | None = None) -> int:
         f"make imports-validate IMPORT_TICKERS={first_blocker} -> "
         f"make imports-preview IMPORT_TICKERS={first_blocker} -> "
         f"make imports-apply IMPORT_TICKERS={first_blocker} -> make dcf-readiness -> "
-        "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals "
+        f"make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals "
         "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     )
     missing = frame.loc[~frame["is_dcf_ready"].astype(bool), ["ticker", "reason_not_ready"]]

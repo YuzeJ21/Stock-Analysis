@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import pandas as pd
 
 from src.data_health_dcf_input_family import dcf_input_family_key, filter_dcf_input_queue_by_family
@@ -173,7 +175,7 @@ def fundamentals_batch_review_queue_frame(
             preview_gate = "make price-preview"
             rejected_check = "review price rejected-row report if generated"
             apply_boundary = "Apply/import price rows only after dry-run scope, validation, preview, and artifact review."
-            post_run = f"make readiness-snapshot PROFILE=<default|demo|local> && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={selected[0]}"
+            post_run = f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={selected[0]}"
         elif route == "SEC-stageable":
             source_files = "data/staged/fundamentals/ plus data/imports/fundamentals.csv after review"
             stage_command = f"make sec-stage TICKERS={selected_arg}"
@@ -181,7 +183,7 @@ def fundamentals_batch_review_queue_frame(
             preview_gate = f"make imports-preview IMPORT_TICKERS={selected_arg}"
             rejected_check = "review data/rejected/fundamentals_import_rejected.csv"
             apply_boundary = "Apply only reviewed SEC/manual fundamentals rows after preview and rejected-row review."
-            post_run = f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={selected[0]} && make imports-preview IMPORT_TICKERS={selected[0]} && make imports-apply IMPORT_TICKERS={selected[0]} && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={selected[0]}"
+            post_run = f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS={selected[0]} && make imports-preview IMPORT_TICKERS={selected[0]} && make imports-apply IMPORT_TICKERS={selected[0]} && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={selected[0]}"
         else:
             source_files = "data/imports/fundamentals.csv with reviewer-provided filing/report source"
             stage_command = f"make dcf-input-source-review FAMILY={family} TOP_N={cap}"
@@ -189,7 +191,7 @@ def fundamentals_batch_review_queue_frame(
             preview_gate = f"make imports-preview IMPORT_TICKERS={selected_arg}"
             rejected_check = "review data/rejected/fundamentals_import_rejected.csv"
             apply_boundary = "Apply only source-backed trusted-local rows after preview and rejected-row review."
-            post_run = f"make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS={selected[0]} && make imports-preview IMPORT_TICKERS={selected[0]} && make imports-apply IMPORT_TICKERS={selected[0]} && make dcf-readiness && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={selected[0]}"
+            post_run = f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS={selected[0]} && make imports-preview IMPORT_TICKERS={selected[0]} && make imports-apply IMPORT_TICKERS={selected[0]} && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={selected[0]}"
         proof_scaffold = batch_proof_record_scaffold(
             lane=lane,
             tickers=selected,

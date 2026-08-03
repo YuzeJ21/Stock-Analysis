@@ -6,6 +6,8 @@ apply CSV changes, connect to brokers, or provide investment advice.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import csv
 import shlex
@@ -288,7 +290,7 @@ def peer_mapping_import_preview(row: PeerMappingReviewRow, freshness: FreshnessS
         target_file=row.target_file,
         validation_command=validation_command,
         apply_boundary=apply_boundary,
-        post_apply_proof="make readiness-snapshot PROFILE=<default|demo|local> && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
+        post_apply_proof=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
     )
 
 
@@ -629,7 +631,7 @@ def build_peer_mapping_source_review_packet(
                         f"make imports-validate IMPORT_TICKERS={ticker} -> "
                         f"make imports-preview IMPORT_TICKERS={ticker} -> "
                         f"make imports-apply IMPORT_TICKERS={ticker} -> "
-                        "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25"
+                        f"make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25"
                     ),
                     do_not_proceed_if=(
                         "source does not name the peer relationship or comparable business context; "
@@ -685,7 +687,7 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
         "- Rejected shortcuts: memory, popularity, sector/theme similarity alone, row-count convenience, or placeholders.",
         "- Candidate context: local classification leads may help source review, but remain `candidate_context_only` and never count as trusted peer proof.",
         "- Validation path: `make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> make imports-apply IMPORT_TICKERS=<ticker>` only after source review.",
-        "- Post-run proof: `make readiness-snapshot PROFILE=<default|demo|local> -> reviewed validate/preview/apply -> make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25`.",
+        f"- Post-run proof: `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} -> reviewed validate/preview/apply -> make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25`.",
         "- Import row scaffold appears only after source proof status and required review fields are filled.",
         "",
         "## Review Rows",
@@ -863,7 +865,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"make imports-validate IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
                 f"make imports-preview IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
                 f"make imports-apply IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
-                "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25"
+                f"make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25"
             ),
             do_not_proceed_if=(
                 "source does not name the peer relationship or comparable business context; "

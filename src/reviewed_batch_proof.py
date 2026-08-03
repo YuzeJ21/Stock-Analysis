@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+
+from src.paths import DATA_PROFILE_ENV, resolve_data_profile
 
 
 DEFAULT_BATCH_PROOF_LEDGER = Path("data/reviewed_batch_proofs.csv")
@@ -44,7 +47,7 @@ BATCH_PROOF_COLUMNS = (
     "final_outcome",
     "notes",
 )
-READINESS_PROFILES = {"default", "demo", "local", "<default|demo|local>"}
+READINESS_PROFILES = {"default", "demo", "local"}
 
 REQUIRED_BATCH_PROOF_FIELDS = (
     "batch_id",
@@ -88,6 +91,26 @@ class DuplicateBatchProofError(ValueError):
     """Raised when a ledger append would create an ambiguous batch id."""
 
 
+def resolve_readiness_proof_profile(
+    profile: str | None = None,
+    *,
+    project_root: Path | str | None = None,
+) -> str:
+    """Resolve the active profile and reject every non-concrete value."""
+
+    raw_profile = os.getenv(DATA_PROFILE_ENV) if profile is None else str(profile)
+    selected_profile = "default" if raw_profile is None else raw_profile.strip()
+    if selected_profile not in READINESS_PROFILES:
+        raise ValueError("a concrete readiness profile is required: default, demo, or local")
+    try:
+        selected = resolve_data_profile(selected_profile, project_root=project_root).name
+    except ValueError as exc:
+        raise ValueError("a concrete readiness profile is required: default, demo, or local") from exc
+    if selected not in READINESS_PROFILES:
+        raise ValueError("a concrete readiness profile is required: default, demo, or local")
+    return selected
+
+
 def profile_bound_readiness_proof_sequence(
     *,
     profile: str,
@@ -100,12 +123,16 @@ def profile_bound_readiness_proof_sequence(
 
     selected_profile = str(profile or "").strip()
     if selected_profile not in READINESS_PROFILES:
-        raise ValueError("an explicit readiness profile is required: default, demo, or local")
+        raise ValueError("a concrete readiness profile is required: default, demo, or local")
     selected_lane = str(lane or "").strip()
     selected_batch = str(batch_id or "").strip()
     selected_date = str(review_date or "").strip()
-    if not selected_lane or not selected_batch or not selected_date:
-        raise ValueError("lane, batch_id, and review_date are required for readiness proof")
+    if not selected_lane or "<" in selected_lane or ">" in selected_lane:
+        raise ValueError("lane is required and must not contain a placeholder")
+    if not selected_batch or "<" in selected_batch or ">" in selected_batch:
+        raise ValueError("batch_id is required and must not contain a placeholder")
+    if not selected_date or "<" in selected_date or ">" in selected_date:
+        raise ValueError("review_date is required and must not contain a placeholder")
     commands = [f"make readiness-snapshot PROFILE={selected_profile}"]
     commands.extend(str(step).strip() for step in reviewed_steps if str(step).strip())
     commands.append(

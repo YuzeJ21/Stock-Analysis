@@ -103,14 +103,14 @@ def test_source_activation_guide_prints_exact_next_commands(monkeypatch):
     ]
     assert "make session-source-preflight" in guide["next_commands"]
     assert "make coverage-frontier TOP_N=10" in guide["next_commands"]
-    assert guide["apply_gate"][0] == "make readiness-snapshot PROFILE=<default|demo|local>"
+    assert guide["apply_gate"][0] == "make readiness-snapshot PROFILE=default"
     assert guide["apply_gate"][1:4] == [
         "make imports-validate IMPORT_TICKERS=<ticker>",
         "make imports-preview IMPORT_TICKERS=<ticker>",
         "make imports-apply IMPORT_TICKERS=<ticker> only when validation passes, preview scope is intended, rejected rows are zero, and source provenance exists",
     ]
     assert guide["apply_gate"][-1] == (
-        "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> "
+        "make reviewed-batch-compare PROFILE=default LANE=<lane> "
         "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     )
     assert guide["non_retry_rule"] == (

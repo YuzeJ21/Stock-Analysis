@@ -563,15 +563,16 @@ linkedin-share-check:
 	@echo "   make diff-hygiene-summary"
 
 pilot-readiness-check:
-	@python3 -m src.pilot_readiness --top-n $(or $(TOP_N),10)
+	@python3 -m src.pilot_readiness --profile "$(or $(PROFILE),default)" --top-n $(or $(TOP_N),10)
 
 pilot-readiness-packet:
-	@python3 -m src.pilot_readiness --packet --top-n $(or $(TOP_N),10) --output "$(or $(OUTPUT),outputs/pilot_readiness_packet.md)"
+	@python3 -m src.pilot_readiness --profile "$(or $(PROFILE),default)" --packet --top-n $(or $(TOP_N),10) --output "$(or $(OUTPUT),outputs/pilot_readiness_packet.md)"
 
 pilot-share-brief:
-	@python3 -m src.pilot_readiness --share-brief --top-n $(or $(TOP_N),10) --output "$(or $(OUTPUT),outputs/pilot_share_brief.md)"
+	@python3 -m src.pilot_readiness --profile "$(or $(PROFILE),default)" --share-brief --top-n $(or $(TOP_N),10) --output "$(or $(OUTPUT),outputs/pilot_share_brief.md)"
 
 trusted-data-pilot:
+	@case "$(PROFILE)" in default|demo|local) ;; *) echo "PROFILE must be exactly one of: default, demo, local" >&2; exit 2;; esac
 	@echo "Trusted Data Pilot"
 	@echo "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs."
 	@echo ""
@@ -591,7 +592,7 @@ trusted-data-pilot:
 	@echo "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker visibly blocked by missing data and record the missing input."
 	@echo "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview gate, apply boundary, rejected-row check, rebuild proof, and still-blocked evidence row."
 	@echo "One-company packet example:"
-	@echo "   make readiness-snapshot PROFILE=$(if $(PROFILE),$(PROFILE),<default|demo|local>)"
+	@echo "   make readiness-snapshot PROFILE=$(PROFILE)"
 	@echo "   make project-status-check"
 	@echo "   make trusted-data-pilot-candidates TOP_N=10  # only when project-status-check shows executable company candidates"
 	@echo "   make trusted-data-pilot-packet TICKER=<ticker>"
@@ -604,12 +605,12 @@ trusted-data-pilot:
 	@echo "   Use the broad imports-apply sequence only after every staged row is source-reviewed and intended."
 	@echo "   Check the rejected-row report printed by the packet before treating the lane as available."
 	@echo "   Run the matching in-memory comparison proof:"
-	@echo "      fundamentals lane: make dcf-readiness && make reviewed-batch-compare PROFILE=$(if $(PROFILE),$(PROFILE),<default|demo|local>) LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
-	@echo "      peer lane: make reviewed-batch-compare PROFILE=$(if $(PROFILE),$(PROFILE),<default|demo|local>) LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
+	@echo "      fundamentals lane: make dcf-readiness && make reviewed-batch-compare PROFILE=$(PROFILE) LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+	@echo "      peer lane: make reviewed-batch-compare PROFILE=$(PROFILE) LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
 	@echo "   make stock-report-md TICKER=<ticker>"
 	@echo ""
 	@echo "1. Save the current baseline:"
-	@echo "   make readiness-snapshot PROFILE=$(if $(PROFILE),$(PROFILE),<default|demo|local>)"
+	@echo "   make readiness-snapshot PROFILE=$(PROFILE)"
 	@echo ""
 	@echo "2. Confirm current blockers:"
 	@echo "   make status-check $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=$(or $(TOP_N),10)"
@@ -636,9 +637,9 @@ trusted-data-pilot:
 	@echo "   make imports-apply IMPORT_TICKERS=<ticker>"
 	@echo ""
 	@echo "7. Prove the lane is available before reading valuation with the same profile used for the baseline:"
-	@echo "   make reviewed-batch-compare PROFILE=$(if $(PROFILE),$(PROFILE),<default|demo|local>) LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
-	@echo "   make dcf-readiness && make reviewed-batch-compare PROFILE=$(if $(PROFILE),$(PROFILE),<default|demo|local>) LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
-	@echo "   make reviewed-batch-compare PROFILE=$(if $(PROFILE),$(PROFILE),<default|demo|local>) LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=25"
+	@echo "   make reviewed-batch-compare PROFILE=$(PROFILE) LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+	@echo "   make dcf-readiness && make reviewed-batch-compare PROFILE=$(PROFILE) LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+	@echo "   make reviewed-batch-compare PROFILE=$(PROFILE) LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=25"
 	@echo "   make stock-report-md TICKER=<ticker>"
 	@echo ""
 	@echo "8. Keep the public branch clean:"
