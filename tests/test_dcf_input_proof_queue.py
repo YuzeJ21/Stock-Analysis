@@ -771,6 +771,9 @@ def test_dcf_input_handoff_keeps_missing_family_blocked():
 
     assert handoff.selected_rows == 0
     assert handoff.tickers == "<reviewed_tickers>"
+    assert handoff.post_run_proof_command == (
+        "blocked until the selected DCF input family has queued rows and reviewed source proof"
+    )
     assert "do not record proof until required fields replace placeholders" in handoff.record_boundary
     assert "stop if the selected dcf input family has no queued blockers" in rendered
 

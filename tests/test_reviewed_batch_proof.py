@@ -8,10 +8,63 @@ from src.reviewed_batch_proof import (
     build_batch_proof_from_args,
     load_reviewed_batch_proofs,
     main,
+    profile_bound_reviewed_write_proof_sequence,
     render_reviewed_batch_proofs,
     reviewed_batch_proof_validation_rows,
     reviewed_batch_proof_validation_status,
 )
+
+
+def test_reviewed_write_proof_scopes_every_write_step_to_selected_profile(monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+
+    proof = profile_bound_reviewed_write_proof_sequence(
+        profile="local",
+        lane="fundamentals",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=AAA",
+            "make imports-preview IMPORT_TICKERS=AAA",
+            "make imports-apply IMPORT_TICKERS=AAA",
+            "make dcf-readiness",
+        ),
+        after_compare_steps=("make stock-report-md TICKER=AAA",),
+    )
+    steps = proof.split(" && ")
+
+    assert steps[0] == "make readiness-snapshot PROFILE=local"
+    assert steps[1:5] == [
+        "STOCK_RESEARCH_DATA_PROFILE=local make imports-validate IMPORT_TICKERS=AAA",
+        "STOCK_RESEARCH_DATA_PROFILE=local make imports-preview IMPORT_TICKERS=AAA",
+        "STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=AAA",
+        "STOCK_RESEARCH_DATA_PROFILE=local make dcf-readiness",
+    ]
+    assert steps[5].startswith("make reviewed-batch-compare PROFILE=local LANE=fundamentals ")
+    assert steps[6] == "STOCK_RESEARCH_DATA_PROFILE=local make stock-report-md TICKER=AAA"
+
+
+@pytest.mark.parametrize(
+    "reviewed_steps",
+    [
+        (
+            "make imports-validate IMPORT_TICKERS=AAA",
+            "make imports-preview IMPORT_TICKERS=AAA",
+            "make imports-apply IMPORT_TICKERS=AAA",
+        ),
+        (
+            "make imports-validate IMPORT_TICKERS=AAA",
+            "make imports-preview IMPORT_TICKERS=AAA",
+            "make dcf-readiness",
+            "make imports-apply IMPORT_TICKERS=AAA",
+        ),
+    ],
+)
+def test_fundamentals_write_proof_requires_post_apply_readiness_rebuild(reviewed_steps):
+    with pytest.raises(ValueError, match="post-apply readiness rebuild"):
+        profile_bound_reviewed_write_proof_sequence(
+            profile="default",
+            lane="fundamentals",
+            reviewed_steps=reviewed_steps,
+        )
 
 
 def _proof(**overrides) -> ReviewedBatchProof:

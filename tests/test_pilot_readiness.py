@@ -233,6 +233,105 @@ def test_local_profile_controls_freshness_source_queue_preflight_and_proof_ledge
     assert "RB-LOCAL-2" in by_area["Proof ledger"].detail
 
 
+def test_local_profile_stale_freshness_does_not_offer_default_preview(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    _write_local_profile_fixture(root)
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+    monkeypatch.setattr(
+        pilot_readiness,
+        "readiness_freshness_status",
+        lambda *_args, **_kwargs: SimpleNamespace(status="stale", message="local profile stale"),
+    )
+
+    selected = pilot_readiness._selected_pilot_profile(root, "local")
+    check = pilot_readiness._freshness_check(root, selected)
+
+    assert check.command != "make readiness-preview TOP_N=20"
+    assert check.command.startswith("Unavailable for Local Research (local):")
+    assert (root / "data" / "local").as_posix() in check.command
+
+
+def test_local_profile_source_gate_cta_preserves_selected_profile(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    _write_local_profile_fixture(root)
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+    monkeypatch.setattr(pilot_readiness, "load_session_source_preflight", lambda *_args, **_kwargs: None)
+
+    selected = pilot_readiness._selected_pilot_profile(root, "local")
+    check = pilot_readiness._source_gate_check(
+        root,
+        selected=selected,
+        top_n=7,
+        source_queues=[_local_queue_row()],
+    )
+
+    assert check.command == (
+        "STOCK_RESEARCH_DATA_PROFILE=local make data-coverage-proof-queues TOP_N=7"
+    )
+
+
+@pytest.mark.parametrize(
+    ("profile", "label", "data_path"),
+    [
+        ("demo", "Demo", "data/demo"),
+        ("local", "Local Research", "data/local"),
+    ],
+)
+def test_nondefault_pilot_freshness_uses_truthful_inspection_route(
+    tmp_path: Path,
+    monkeypatch,
+    profile: str,
+    label: str,
+    data_path: str,
+):
+    monkeypatch.setattr(
+        pilot_readiness,
+        "readiness_freshness_status",
+        lambda *_args, **_kwargs: SimpleNamespace(status="missing", message="selected profile missing"),
+    )
+    selected = DataProfile(
+        name=profile,
+        data_dir=(tmp_path / data_path).resolve(),
+        outputs_dir=(tmp_path / "outputs" / profile).resolve(),
+    )
+
+    check = pilot_readiness._freshness_check(tmp_path, selected)
+
+    assert check.command == (
+        f"Unavailable for {label} ({profile}): Slice 1 readiness preview inspects only "
+        f"Default (default) inputs in data; selected profile inputs are {(tmp_path / data_path).resolve().as_posix()}."
+    )
+
+
+def test_local_profile_current_and_exhausted_status_ctas_preserve_selected_profile(
+    tmp_path: Path,
+    monkeypatch,
+):
+    root = _sample_root(tmp_path)
+    _write_local_profile_fixture(root)
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+    monkeypatch.setattr(
+        pilot_readiness,
+        "readiness_freshness_status",
+        lambda *_args, **_kwargs: SimpleNamespace(status="current", message="local profile current"),
+    )
+    monkeypatch.setattr(pilot_readiness, "load_session_source_preflight", lambda *_args, **_kwargs: None)
+    selected = pilot_readiness._selected_pilot_profile(root, "local")
+    reviewed_queue = _local_queue_row()
+    reviewed_queue.reviewed_proof_status = "reviewed proof already recorded"
+
+    freshness = pilot_readiness._freshness_check(root, selected)
+    source_gate = pilot_readiness._source_gate_check(
+        root,
+        selected=selected,
+        top_n=7,
+        source_queues=[reviewed_queue],
+    )
+
+    assert freshness.command == "STOCK_RESEARCH_DATA_PROFILE=local make status-check TOP_N=5"
+    assert source_gate.command == "STOCK_RESEARCH_DATA_PROFILE=local make project-status-check"
+
+
 def test_local_profile_packet_and_share_defaults_stay_in_local_outputs(tmp_path: Path, monkeypatch):
     root = _sample_root(tmp_path)
     _write_local_profile_fixture(root)
@@ -250,7 +349,9 @@ def test_local_profile_packet_and_share_defaults_stay_in_local_outputs(tmp_path:
         "readiness_freshness_status",
         lambda *_args, **_kwargs: SimpleNamespace(status="current", message="local profile current"),
     )
-    monkeypatch.setattr(pilot_readiness, "build_data_coverage_proof_queues", lambda *_args, **_kwargs: [_local_queue_row()])
+    local_queue = _local_queue_row()
+    local_queue.next_safe_command = "make dcf-input-proof-queue TOP_N=7"
+    monkeypatch.setattr(pilot_readiness, "build_data_coverage_proof_queues", lambda *_args, **_kwargs: [local_queue])
     monkeypatch.setattr(pilot_readiness, "load_session_source_preflight", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main")
     monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [])
@@ -265,9 +366,64 @@ def test_local_profile_packet_and_share_defaults_stay_in_local_outputs(tmp_path:
     assert "| Tracked tickers | 2 |" in packet
     assert "RB-LOCAL-2 / fundamentals / supported / local latest" in packet
     assert "make pilot-readiness-packet PROFILE=local OUTPUT=outputs/local/pilot_readiness_packet.md" in packet
+    assert "STOCK_RESEARCH_DATA_PROFILE=local make dcf-input-proof-queue TOP_N=7" in packet
     assert "Price-ready setup coverage: 2/2" in share
+    assert "Next source-proof command: `STOCK_RESEARCH_DATA_PROFILE=local make dcf-input-proof-queue TOP_N=7`" in share
     assert not (root / "outputs" / "pilot_readiness_packet.md").exists()
     assert not (root / "outputs" / "pilot_share_brief.md").exists()
+
+
+@pytest.mark.parametrize(
+    ("source_queues", "expected_command"),
+    [
+        (
+            [
+                SimpleNamespace(
+                    label="DCF Input Proof Batches",
+                    readiness_state="partial",
+                    blocked_count=1,
+                    top_blockers="fundamentals: 1",
+                    next_safe_command="make dcf-input-proof-queue TOP_N=7",
+                )
+            ],
+            "STOCK_RESEARCH_DATA_PROFILE=local make dcf-input-proof-queue TOP_N=7",
+        ),
+        ([], "STOCK_RESEARCH_DATA_PROFILE=local make project-status-check"),
+    ],
+)
+def test_local_profile_handoff_scopes_source_project_ctas(source_queues, expected_command):
+    handoff = build_pilot_handoff_summary(
+        [],
+        source_queues=source_queues,
+        profile="local",
+        packet_path="outputs/local/pilot_readiness_packet.md",
+    )
+
+    proof_item = next(item for item in handoff if item.question == "What blocks deeper analysis?")
+
+    assert proof_item.next_safe_command == expected_command
+
+
+def test_local_profile_share_renderer_scopes_source_queue_cta(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _write_local_profile_fixture(root)
+    queue = _local_queue_row()
+    queue.next_safe_command = "make dcf-input-proof-queue TOP_N=7"
+
+    brief = render_pilot_share_brief(
+        checks=[],
+        snapshot=build_readiness_snapshot(root, profile="local"),
+        source_queues=[queue],
+        excluded_artifacts=[],
+        root=root,
+        output_dir=root / "outputs" / "local",
+        profile="local",
+    )
+
+    assert (
+        "Next source-proof command: `STOCK_RESEARCH_DATA_PROFILE=local "
+        "make dcf-input-proof-queue TOP_N=7`"
+    ) in brief
 
 
 def test_pilot_cli_and_make_leave_implicit_output_profile_scoped():

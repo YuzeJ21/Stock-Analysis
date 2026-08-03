@@ -30,11 +30,11 @@ from src.browser_qa_evidence import browser_qa_evidence_payload
 from src.license_status import CONTROLLED_DEMO_SHARE_BOUNDARY, NO_LICENSE_SHARE_BOUNDARY, build_license_status
 from src.reviewed_batch import readiness_freshness_status
 from src.reviewed_batch_proof import resolve_readiness_proof_profile
-from src.paths import DataProfile
+from src.paths import DATA_PROFILE_ENV, DataProfile, profile_display_label
 from src.readiness_source_boundary import validate_readiness_source_boundary
 from src.session_source_preflight import load_session_source_preflight
 from src.source_activation_guide import build_provider_setup_checklist
-from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE, readiness_inspection_route
 
 
 VALID_STATUSES = {"green", "manual", "blocked"}
@@ -145,6 +145,43 @@ def _profile_relative_path(root: Path, path: Path) -> str:
         return path.relative_to(root.resolve()).as_posix()
     except ValueError:
         return path.as_posix()
+
+
+def _profile_scoped_make_command(selected: DataProfile | str, command: str) -> str:
+    selected_name = (
+        selected.name
+        if isinstance(selected, DataProfile)
+        else resolve_readiness_proof_profile(selected)
+    )
+    text = str(command or "").strip()
+    if not text:
+        return text
+    prefix = f"{DATA_PROFILE_ENV}={selected_name} "
+    words = text.split()
+    if "make" not in words:
+        return text
+    make_index = words.index("make")
+    if any("=" not in word for word in words[:make_index]):
+        return text
+    for word in words[:make_index]:
+        if word.startswith(f"{DATA_PROFILE_ENV}=") and word != prefix.strip():
+            raise ValueError("pilot command profile must match the selected profile")
+    if selected_name == "default" or text.startswith(prefix):
+        return text
+    return f"{prefix}{text}"
+
+
+def _profile_scoped_check_command(selected: DataProfile | str, check: PilotReadinessCheck) -> str:
+    if check.area not in {"Readiness freshness", "Source proof gates"}:
+        return check.command
+    return _profile_scoped_make_command(selected, check.command)
+
+
+def _profile_scope_embedded_source_commands(selected: DataProfile | str, text: object) -> str:
+    rendered = str(text or "")
+    for command in ("make project-status-check", "make session-source-preflight"):
+        rendered = rendered.replace(command, _profile_scoped_make_command(selected, command))
+    return rendered
 
 
 def _pilot_output_path(
@@ -356,7 +393,18 @@ def _freshness_check(root: Path, selected: DataProfile) -> PilotReadinessCheck:
         output_dir=selected.outputs_dir,
     )
     status = "green" if freshness.status == "current" else "blocked"
-    command = "make status-check TOP_N=5" if freshness.status == "current" else READINESS_PREVIEW_COMMAND
+    inspection_command, inspection_note = readiness_inspection_route(
+        selected.name,
+        profile_display_label(selected.name),
+        selected.data_dir,
+    )
+    if freshness.status == "current":
+        command = _profile_scoped_make_command(selected, "make status-check TOP_N=5")
+    else:
+        command = str(getattr(freshness, "refresh_command", "") or inspection_command)
+        if selected.name != "default" and command == READINESS_PREVIEW_COMMAND:
+            command = inspection_command
+        command = _profile_scoped_make_command(selected, command)
     return PilotReadinessCheck(
         area="Readiness freshness",
         status=status,
@@ -365,7 +413,7 @@ def _freshness_check(root: Path, selected: DataProfile) -> PilotReadinessCheck:
         command=command,
         stop_rule=(
             "Stop before quoting final counts or proof deltas if readiness artifacts are stale or missing. "
-            + READINESS_PREVIEW_NOTE
+            + inspection_note
         ),
     )
 
@@ -449,7 +497,10 @@ def _source_gate_check(
             status="blocked",
             title="Proof queues unavailable",
             detail="No DCF, fundamentals, share-count, peer, or mapped-peer proof queues could be built.",
-            command="make data-coverage-proof-queues TOP_N=10",
+            command=_profile_scoped_make_command(
+                selected,
+                "make data-coverage-proof-queues TOP_N=10",
+            ),
             stop_rule="Stop until proof queues can show what is ready, blocked, or manual.",
         )
     blocked = sum(row.blocked_count for row in rows)
@@ -467,7 +518,7 @@ def _source_gate_check(
                 "queues are already reviewed or non-actionable. Use project-status-check and provider setup before "
                 "reopening broad proof queues."
             ),
-            command="make project-status-check",
+            command=_profile_scoped_make_command(selected, "make project-status-check"),
             stop_rule=(
                 "Do not reopen broad proof queues until project-status-check shows executable company candidates, "
                 "new source-backed rows, keyed providers, reviewed manual rows, or changed blockers."
@@ -482,7 +533,10 @@ def _source_gate_check(
             "DCF inputs, trusted fundamentals, share count, peer mapping, and peer valuation inputs. "
             "That is acceptable for pilot review only if missing inputs stay visible."
         ),
-        command=f"make data-coverage-proof-queues TOP_N={top_n}",
+        command=_profile_scoped_make_command(
+            selected,
+            f"make data-coverage-proof-queues TOP_N={top_n}",
+        ),
         stop_rule="Do not call a lane supported until source proof, validate, preview, rejected-row review, apply/skip decision, rebuilt readiness, and proof record pass.",
     )
 
@@ -745,6 +799,7 @@ def build_pilot_handoff_summary(
 ) -> list[PilotHandoffItem]:
     """Build the compact reviewer handoff before detailed pilot tables."""
 
+    selected_profile = resolve_readiness_proof_profile(profile)
     verdict = pilot_readiness_verdict(checks)
     priority = _priority_check(checks)
     leading_queue = _leading_source_queue(source_queues)
@@ -753,7 +808,11 @@ def build_pilot_handoff_summary(
 
     gate_status = priority.status if priority is not None else "blocked"
     gate_answer = priority.area if priority is not None else "Run pilot readiness check"
-    gate_command = priority.command if priority is not None else "make pilot-readiness-check TOP_N=10"
+    gate_command = (
+        _profile_scoped_check_command(selected_profile, priority)
+        if priority is not None
+        else f"make pilot-readiness-check PROFILE={selected_profile} TOP_N=10"
+    )
     gate_boundary = priority.stop_rule if priority is not None else "Stop before sharing until the pilot gate has been run."
     license_check = next((check for check in checks if check.area == "License status"), None)
     license_status = license_check.status if license_check is not None else "manual"
@@ -768,12 +827,12 @@ def build_pilot_handoff_summary(
     if source_gate_check is not None and source_gate_check.title == "Source-proof queues reviewed or exhausted":
         proof_answer = "Check source-proof gate"
         proof_status = source_gate_check.status
-        proof_command = source_gate_check.command
+        proof_command = _profile_scoped_make_command(selected_profile, source_gate_check.command)
         proof_boundary = source_gate_check.detail
     elif leading_queue is None:
         proof_answer = "Check source-proof gate"
         proof_status = "manual"
-        proof_command = "make project-status-check"
+        proof_command = _profile_scoped_make_command(selected_profile, "make project-status-check")
         proof_boundary = "Run project-status-check first; use provider setup when source-proof queues are exhausted before reopening proof tables."
     else:
         proof_answer = str(_queue_value(leading_queue, "label", "queue", fallback="Source-proof queue"))
@@ -786,6 +845,7 @@ def build_pilot_handoff_summary(
                 fallback="make data-coverage-proof-queues TOP_N=10",
             )
         )
+        proof_command = _profile_scoped_make_command(selected_profile, proof_command)
         proof_boundary = (
             f"{_int_value(_queue_value(leading_queue, 'blocked_count', 'blocked')):,} blocked item(s); "
             f"top blockers: {_queue_value(leading_queue, 'top_blockers', 'top blockers', fallback='-')}"
@@ -855,7 +915,7 @@ def build_pilot_handoff_summary(
             question="What should the reviewer run next?",
             status="copy-only",
             answer=packet_path,
-            next_safe_command=f"make pilot-readiness-packet PROFILE={profile} OUTPUT={packet_path}",
+            next_safe_command=f"make pilot-readiness-packet PROFILE={selected_profile} OUTPUT={packet_path}",
             boundary="The packet is read-only; it does not refresh data, apply imports, record proof, stage files, commit, or push.",
         ),
     ]
@@ -940,12 +1000,13 @@ def render_pilot_readiness_checks(
     profile: str = "default",
     packet_path: str = REVIEWED_PACKET_PATH,
 ) -> str:
+    selected_profile = resolve_readiness_proof_profile(profile)
     verdict = pilot_readiness_verdict(checks)
     handoff = build_pilot_handoff_summary(
         checks,
         source_queues=source_queues,
         excluded_artifacts=excluded_artifacts,
-        profile=profile,
+        profile=selected_profile,
         packet_path=packet_path,
     )
     lines = [
@@ -990,7 +1051,15 @@ def render_pilot_readiness_checks(
     ]
     for check in checks:
         lines.append(
-            " | ".join([check.area, check.status, check.title, check.detail, check.command])
+            " | ".join(
+                [
+                    check.area,
+                    check.status,
+                    check.title,
+                    check.detail,
+                    _profile_scoped_check_command(selected_profile, check),
+                ]
+            )
         )
     lines.append("")
     lines.append("Stop rules:")
@@ -1028,7 +1097,7 @@ def _sentence(value: object) -> str:
     return text if text.endswith((".", "!", "?")) else f"{text}."
 
 
-def _provider_setup_checklist_rows() -> list[list[object]]:
+def _provider_setup_checklist_rows(profile: str = "default") -> list[list[object]]:
     checklist = build_provider_setup_checklist()
     rows = []
     for row in checklist["rows"]:
@@ -1038,23 +1107,30 @@ def _provider_setup_checklist_rows() -> list[list[object]]:
                 row["setup_state"],
                 row["unlock_lanes"],
                 row["usage"],
-                row.get("post_setup_smoke_command", "") or "not_applicable",
+                _profile_scoped_make_command(
+                    profile,
+                    row.get("post_setup_smoke_command", "") or "not_applicable",
+                ),
                 row["cannot_unlock"],
-                row["safe_next_step"],
+                _profile_scope_embedded_source_commands(profile, row["safe_next_step"]),
             ]
         )
     return rows
 
 
-def _provider_activation_plan_lines() -> list[str]:
+def _provider_activation_plan_lines(profile: str = "default") -> list[str]:
     checklist = build_provider_setup_checklist()
     steps = checklist.get("activation_plan", [])
     if not isinstance(steps, list) or not steps:
-        return ["- Run `make project-status-check` before reopening broad proof loops."]
-    return [f"- {step}" for step in steps]
+        command = _profile_scoped_make_command(profile, "make project-status-check")
+        return [f"- Run `{command}` before reopening broad proof loops."]
+    return [
+        f"- {_profile_scope_embedded_source_commands(profile, step)}"
+        for step in steps
+    ]
 
 
-def _provider_one_setup_lines() -> list[str]:
+def _provider_one_setup_lines(profile: str = "default") -> list[str]:
     checklist = build_provider_setup_checklist()
     setup_order = checklist.get("one_provider_setup_order", [])
     if not isinstance(setup_order, list):
@@ -1065,7 +1141,10 @@ def _provider_one_setup_lines() -> list[str]:
     provider = str(first.get("provider") or "-")
     reason = str(first.get("why_first") or "Configure one provider before retrying broader source paths.")
     setup_env = str(first.get("setup_env") or "-")
-    smoke_command = str(first.get("smoke_command") or "make session-source-preflight")
+    smoke_command = _profile_scoped_make_command(
+        profile,
+        str(first.get("smoke_command") or "make session-source-preflight"),
+    )
     return [
         f"- Configure first: {provider}.",
         f"- Why first: {reason}",
@@ -1101,6 +1180,7 @@ def _share_brief_provider_setup_lines(
     root: Path | str = ".",
     *,
     output_dir: Path | str | None = None,
+    profile: str = "default",
 ) -> list[str]:
     checklist = build_provider_setup_checklist(
         load_session_source_preflight(Path(root), output_dir=output_dir)
@@ -1109,7 +1189,7 @@ def _share_brief_provider_setup_lines(
     source_answer = checklist.get("source_answer", {})
     source_answer = source_answer if isinstance(source_answer, dict) else {}
     lines = [
-        "- Next setup view: `make provider-setup-checklist`.",
+        f"- Next setup view: `{_profile_scoped_make_command(profile, 'make provider-setup-checklist')}`.",
         "- Real key values are never printed.",
     ]
     if source_answer:
@@ -1136,7 +1216,7 @@ def _share_brief_provider_setup_lines(
                 f"  - {unlock_decision.get('proof_boundary', 'Provider setup only makes a source executable; readiness changes still require proof gates.')}",
             ]
         )
-    lines.extend(_provider_one_setup_lines())
+    lines.extend(_provider_one_setup_lines(profile))
     for row in checklist["rows"]:
         provider = str(row.get("provider") or "").strip()
         if provider not in {"FMP free tier", "Alpha Vantage free tier", "Finnhub free tier", "IBKR read-only"}:
@@ -1144,7 +1224,10 @@ def _share_brief_provider_setup_lines(
         setup_state = str(row.get("setup_state") or "").strip()
         unlock_lanes = str(row.get("unlock_lanes") or "").strip()
         cannot_unlock = str(row.get("cannot_unlock") or "").strip()
-        smoke_command = str(row.get("post_setup_smoke_command") or "").strip()
+        smoke_command = _profile_scoped_make_command(
+            profile,
+            str(row.get("post_setup_smoke_command") or "").strip(),
+        )
         smoke_fragment = f"; reviewed smoke: `{smoke_command}`" if smoke_command else ""
         lines.append(f"- {provider}: {setup_state} -> {unlock_lanes}{smoke_fragment}; cannot unlock {cannot_unlock}")
     return lines
@@ -1183,15 +1266,22 @@ def render_pilot_readiness_packet(
     output_dir: Path | str | None = None,
 ) -> str:
     root_path = Path(root)
+    selected_profile = resolve_readiness_proof_profile(profile, project_root=root_path)
     verdict = pilot_readiness_verdict(checks)
     manual_gates = [check for check in checks if check.status == "manual"]
     blocked_gates = [check for check in checks if check.status == "blocked"]
-    next_commands = list(dict.fromkeys(check.command for check in checks if check.command))
+    next_commands = list(
+        dict.fromkeys(
+            _profile_scoped_check_command(selected_profile, check)
+            for check in checks
+            if check.command
+        )
+    )
     handoff = build_pilot_handoff_summary(
         checks,
         source_queues=source_queues,
         excluded_artifacts=excluded_artifacts,
-        profile=profile,
+        profile=selected_profile,
         packet_path=packet_path,
     )
     lines = [
@@ -1255,7 +1345,16 @@ def render_pilot_readiness_packet(
         "",
         *_markdown_table(
             ["Area", "Status", "Gate", "Detail", "Command"],
-            [[check.area, check.status, check.title, check.detail, check.command] for check in checks],
+            [
+                [
+                    check.area,
+                    check.status,
+                    check.title,
+                    check.detail,
+                    _profile_scoped_check_command(selected_profile, check),
+                ]
+                for check in checks
+            ],
         ),
         "",
         "## Source-Proof Queue Summary",
@@ -1270,7 +1369,10 @@ def render_pilot_readiness_packet(
                     getattr(row, "partial_count", "-"),
                     getattr(row, "blocked_count", "-"),
                     getattr(row, "top_blockers", "-"),
-                    getattr(row, "next_safe_command", "-"),
+                    _profile_scoped_make_command(
+                        selected_profile,
+                        getattr(row, "next_safe_command", "-"),
+                    ),
                 ]
                 for row in source_queues
             ],
@@ -1286,15 +1388,15 @@ def render_pilot_readiness_packet(
         "",
         "### Provider Activation Plan",
         "",
-        *_provider_activation_plan_lines(),
+        *_provider_activation_plan_lines(selected_profile),
         "",
         "### One-Provider Setup Decision",
         "",
-        *_provider_one_setup_lines(),
+        *_provider_one_setup_lines(selected_profile),
         "",
         *_markdown_table(
             ["Provider", "Setup state", "Unlock lanes", "Usage", "Smoke command", "Cannot unlock", "Safe next step"],
-            _provider_setup_checklist_rows(),
+            _provider_setup_checklist_rows(selected_profile),
         ),
         "",
         "## Latest Reviewed Batch Proof",
@@ -1362,9 +1464,11 @@ def render_pilot_share_brief(
     excluded_artifacts: list[str],
     root: Path | str = ".",
     output_dir: Path | str | None = None,
+    profile: str = "default",
 ) -> str:
     """Render a concise public/demo pilot brief from the same readiness gates."""
 
+    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
     verdict = pilot_readiness_verdict(checks)
     leading_queue = _leading_source_queue(source_queues)
     license_check = next((check for check in checks if check.area == "License status"), None)
@@ -1415,6 +1519,7 @@ def render_pilot_share_brief(
         queue_state = source_gate_check.status
         queue_top_blockers = source_gate_check.detail
         queue_command = source_gate_check.command
+    queue_command = _profile_scoped_make_command(selected_profile, queue_command)
     artifacts = excluded_artifacts or []
 
     lines = [
@@ -1452,7 +1557,11 @@ def render_pilot_share_brief(
         "",
         "## How coverage expands next",
         "",
-        *_share_brief_provider_setup_lines(root, output_dir=output_dir),
+        *_share_brief_provider_setup_lines(
+            root,
+            output_dir=output_dir,
+            profile=selected_profile,
+        ),
         "",
         "## How to demo or review next",
         "",
@@ -1567,6 +1676,7 @@ def write_pilot_share_brief(
         excluded_artifacts=_excluded_generated_artifacts(root),
         root=root,
         output_dir=selected.outputs_dir,
+        profile=selected.name,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(brief, encoding="utf-8")

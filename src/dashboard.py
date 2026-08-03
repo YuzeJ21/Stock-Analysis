@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from src.reviewed_batch_proof import resolve_readiness_proof_profile
+from src.reviewed_batch_proof import (
+    profile_bound_reviewed_write_proof_sequence,
+    resolve_readiness_proof_profile,
+)
 
 import html
 import json
@@ -13420,7 +13423,6 @@ def data_health_trusted_fundamentals_source_review_frame(
     top_n: int = 5,
     evidence_intake_frame: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    selected_profile = resolve_readiness_proof_profile()
     columns = [
         "Top Blocker Family",
         "Selected Tickers",
@@ -13455,7 +13457,7 @@ def data_health_trusted_fundamentals_source_review_frame(
                     "Validate Command": "blocked until source-review scope exists",
                     "Preview Command": "blocked until validation is reviewed",
                     "Apply Boundary": "Do not apply fundamentals rows without reviewed source proof.",
-                    "Post-Run Proof": f"make readiness-snapshot PROFILE={selected_profile} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+                    "Post-Run Proof": "blocked until DCF input proof queue and reviewed source scope exist",
                     "Proof Record Dry-Run Boundary": "blocked until reviewed source scope exists",
                     "Stop Rule": "Run make dcf-input-proof-queue TOP_N=10 before reviewing trusted fundamentals source rows.",
                 }
@@ -13479,7 +13481,7 @@ def data_health_trusted_fundamentals_source_review_frame(
                     "Validate Command": "blocked until source-review scope exists",
                     "Preview Command": "blocked until validation is reviewed",
                     "Apply Boundary": "Do not apply fundamentals rows without reviewed source proof.",
-                    "Post-Run Proof": f"make readiness-snapshot PROFILE={selected_profile} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+                    "Post-Run Proof": "blocked until the selected family has reviewed proof rows",
                     "Proof Record Dry-Run Boundary": "blocked until reviewed source scope exists",
                     "Stop Rule": "Keep the lane blocked when the selected family has no current proof rows.",
                 }
@@ -13537,7 +13539,7 @@ def data_health_trusted_fundamentals_source_review_frame(
                 "Apply Boundary": format_missing(first_preview.get("Apply Boundary"), "Do not apply rows without reviewed source proof."),
                 "Post-Run Proof": format_missing(
                     first_preview.get("Post-Guard Proof"),
-                    format_missing(first_filtered.get("Proof After Update"), f"make readiness-snapshot PROFILE={selected_profile} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"),
+                    "blocked until guard readiness is ready_for_guard",
                 ),
                 "Proof Record Dry-Run Boundary": format_missing(
                     first_handoff.get("Proof Record Dry Run"),
@@ -13567,7 +13569,6 @@ def data_health_trusted_fundamentals_source_review_command_frame(frame: pd.DataF
             ],
             columns=columns,
         )
-    selected_profile = resolve_readiness_proof_profile()
     row = frame.iloc[0]
     readiness = format_missing(row.get("Command Readiness"), "blocked")
     ready = readiness == "ready_for_guard_review"
@@ -13611,10 +13612,17 @@ def data_health_trusted_fundamentals_source_review_command_frame(frame: pd.DataF
                 "Review Boundary": "Apply is an explicit reviewed decision, not an automatic command from this drawer.",
             },
             {
-                "Step": "Post-run readiness proof",
-                "Status": "after_reviewed_apply_or_skip",
-                "Copy Command": format_missing(row.get("Post-Run Proof"), f"make readiness-snapshot PROFILE={selected_profile} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"),
-                "Review Boundary": "Run after a reviewed apply or skip decision to prove the lane is supported or still blocked.",
+                "Step": "Begin reviewed write proof",
+                "Status": "ready_before_reviewed_apply" if ready else "blocked_by_placeholders",
+                "Copy Command": format_missing(
+                    row.get("Post-Run Proof"),
+                    "blocked until guard readiness is ready_for_guard",
+                ),
+                "Review Boundary": (
+                    "Begin this one sequence before apply: it snapshots first, then validates, previews, applies the reviewed row, rebuilds readiness, and compares. If the operator skips, do not run the write sequence; keep the lane blocked."
+                    if ready
+                    else "Do not run a write proof while reviewed source fields or guard readiness are blocked."
+                ),
             },
             {
                 "Step": "Proof-record dry run",
@@ -28411,6 +28419,17 @@ def valuation_plain_language_cards(
     ready_ticker = first_ticker(ready_companies, "NVDA")
     blocked_ticker = first_ticker(blocked_companies, "TICKER")
     excluded_ticker = first_ticker(excluded_rows, "QQQ")
+    selected_profile = _active_data_profile_name()
+    fundamentals_write_proof = profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="fundamentals",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make dcf-readiness",
+        ),
+    )
     return [
         {
             "kicker": "WHAT THIS MEANS",
@@ -28454,11 +28473,11 @@ def valuation_plain_language_cards(
             "kicker": "PROOF PATH",
             "title": "Prove valuation readiness before interpretation",
             "body": (
-                "After fundamentals change, refresh valuation readiness before reading Value / Re-rating again. "
+                "Begin this sequence before any fundamentals apply: snapshot first, then validate, preview, apply the reviewed scope, rebuild valuation readiness, and compare. "
                 "Ready means DCF assumptions can be reviewed; it does not create a price target or peer-relative conclusion."
             ),
             "badges": ["proof first", "no overclaim"],
-            "command": f"make readiness-snapshot PROFILE={_active_data_profile_name()} && make dcf-readiness && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "command": fundamentals_write_proof,
         },
     ]
 

@@ -55,6 +55,28 @@ TASK_8_RUNTIME_FILES = (
     "src/trusted_data_pilot.py",
 )
 SOURCE_PROFILE_TOKEN = re.compile(r"\bPROFILE=(\{[^}\n]+\}|[^\s&`.,;]+)")
+SOURCE_LANE_TOKEN = re.compile(r"\bLANE=(\{[^}\n]+\}|[^\s&`.,;]+)")
+WRITE_PROOF_LANES = {
+    "fundamentals",
+    "fundamentals_dcf",
+    "optional_context",
+    "optional_context_locked",
+    "peer_mapping",
+    "peer_valuation_inputs",
+    "peers",
+    "price_history",
+    "prices",
+    "share_count",
+    "shares_outstanding",
+}
+POST_APPLY_READINESS_TOKENS = {
+    "fundamentals": ("make dcf-readiness",),
+    "fundamentals_dcf": ("make dcf-readiness",),
+    "share_count": ("make dcf-readiness",),
+    "shares_outstanding": ("make dcf-readiness",),
+    "optional_context": ("make optional-context-readiness",),
+    "optional_context_locked": ("make optional-context-readiness",),
+}
 PROFILE_VALUE_PROVIDERS = {
     "_active_data_profile_name",
     "resolve_readiness_proof_profile",
@@ -353,12 +375,22 @@ def _profile_expression_is_explicitly_bound(expression: str, bound: set[str]) ->
 
 
 def _is_actionable_proof_object(item: RuntimeStringObject, command: str) -> bool:
-    context = {token.lower() for token in item.context}
-    if any(token in " ".join(context) for token in ("proof_command", "proof_sequence", "st.code")):
+    context = {
+        re.sub(r"[^a-z0-9]+", "_", token.lower()).strip("_")
+        for token in item.context
+    }
+    proof_context = " ".join(context)
+    if any(token in proof_context for token in ("proof_command", "proof_sequence", "st_code")):
+        return True
+    if context.intersection({"post_guard_proof", "post_run_proof", "proof_after_update"}):
         return True
     has_snapshot = "make readiness-snapshot PROFILE=" in command
     has_comparison = "make reviewed-batch-compare PROFILE=" in command
     return "command" in context and ((has_snapshot and has_comparison) or "-apply" in command)
+
+
+def _is_write_lane_proof(command: str) -> bool:
+    return any(lane in WRITE_PROOF_LANES for lane in SOURCE_LANE_TOKEN.findall(command))
 
 
 def profile_bound_proof_source_issues(source: str) -> tuple[str, ...]:
@@ -412,7 +444,7 @@ def profile_bound_proof_source_issues(source: str) -> tuple[str, ...]:
                 validate_index = command.find("-validate")
                 preview_index = command.find("-preview")
                 apply_index = command.find("-apply")
-                if apply_index >= 0:
+                if apply_index >= 0 or _is_write_lane_proof(command):
                     if validate_index < 0 or preview_index < 0:
                         issues.append(
                             f"line {item.line_number}: incomplete reviewed write proof sequence"
@@ -427,6 +459,25 @@ def profile_bound_proof_source_issues(source: str) -> tuple[str, ...]:
                         issues.append(
                             f"line {item.line_number}: reviewed write proof sequence is out of order"
                         )
+                    lanes = set(SOURCE_LANE_TOKEN.findall(command))
+                    required_readiness_tokens = tuple(
+                        token
+                        for lane in lanes
+                        for token in POST_APPLY_READINESS_TOKENS.get(lane, ())
+                    )
+                    if required_readiness_tokens:
+                        readiness_indices = [
+                            command.find(token)
+                            for token in required_readiness_tokens
+                            if command.find(token) >= 0
+                        ]
+                        if not any(
+                            apply_index < readiness_index < compare_index
+                            for readiness_index in readiness_indices
+                        ):
+                            issues.append(
+                                f"line {item.line_number}: missing required post-apply readiness rebuild"
+                            )
 
     return tuple(dict.fromkeys(issues))
 
@@ -677,7 +728,7 @@ def test_structural_inventory_accepts_one_explicitly_bound_profile_per_complete_
 selected_profile = resolve_readiness_proof_profile(profile)
 proof_command = (
     f"make readiness-snapshot PROFILE={selected_profile} && "
-    "make imports-validate && make imports-preview && make imports-apply && "
+    "make imports-validate && make imports-preview && make imports-apply && make dcf-readiness && "
     f"make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=RB-1 REVIEW_DATE=2026-08-03"
 )
 """
@@ -773,6 +824,56 @@ baseline_command = (
 """
 
     assert profile_bound_proof_source_issues(source) == ()
+
+
+@pytest.mark.parametrize(
+    "lane",
+    [
+        "prices",
+        "price_history",
+        "fundamentals",
+        "fundamentals_dcf",
+        "peers",
+        "peer_mapping",
+        "peer_valuation_inputs",
+        "share_count",
+        "shares_outstanding",
+        "optional_context",
+        "optional_context_locked",
+    ],
+)
+def test_structural_inventory_rejects_write_lane_proof_with_no_reviewed_steps(lane):
+    source = f'''\
+proof_command = (
+    "make readiness-snapshot PROFILE=local && "
+    "make reviewed-batch-compare PROFILE=local LANE={lane} BATCH_ID=RB-1 REVIEW_DATE=2026-08-03"
+)
+'''
+
+    issues = profile_bound_proof_source_issues(source)
+
+    assert "incomplete reviewed write proof sequence" in "\n".join(issues)
+
+
+@pytest.mark.parametrize(
+    "middle_steps",
+    [
+        "make imports-validate && make imports-preview && make imports-apply && ",
+        "make imports-validate && make imports-preview && make dcf-readiness && make imports-apply && ",
+    ],
+)
+def test_structural_inventory_requires_post_apply_fundamentals_readiness(middle_steps):
+    source = f'''\
+proof_command = (
+    "make readiness-snapshot PROFILE=local && "
+    "{middle_steps}"
+    "make reviewed-batch-compare PROFILE=local LANE=fundamentals BATCH_ID=RB-1 REVIEW_DATE=2026-08-03"
+)
+'''
+
+    issues = profile_bound_proof_source_issues(source)
+
+    assert "missing required post-apply readiness rebuild" in "\n".join(issues)
 
 
 def test_task_8_structural_inventory_has_no_composed_profile_or_sequence_gaps():

@@ -48,6 +48,14 @@ BATCH_PROOF_COLUMNS = (
     "notes",
 )
 READINESS_PROFILES = {"default", "demo", "local"}
+POST_APPLY_READINESS_TOKENS = {
+    "fundamentals": ("make dcf-readiness",),
+    "fundamentals_dcf": ("make dcf-readiness",),
+    "share_count": ("make dcf-readiness",),
+    "shares_outstanding": ("make dcf-readiness",),
+    "optional_context": ("make optional-context-readiness",),
+    "optional_context_locked": ("make optional-context-readiness",),
+}
 
 REQUIRED_BATCH_PROOF_FIELDS = (
     "batch_id",
@@ -138,6 +146,56 @@ def profile_bound_readiness_proof_sequence(
     commands.append(
         f"make reviewed-batch-compare PROFILE={selected_profile} LANE={selected_lane} "
         f"BATCH_ID={selected_batch} REVIEW_DATE={selected_date}"
+    )
+    return " && ".join(commands)
+
+
+def profile_bound_reviewed_write_proof_sequence(
+    *,
+    profile: str,
+    lane: str,
+    reviewed_steps: Iterable[str],
+    after_compare_steps: Iterable[str] = (),
+) -> str:
+    """Return one copy-ready snapshot-before-write proof template."""
+
+    selected_profile = resolve_readiness_proof_profile(profile)
+    selected_lane = str(lane or "").strip()
+    if not selected_lane or "<" in selected_lane or ">" in selected_lane:
+        raise ValueError("lane is required and must not contain a placeholder")
+    steps = [str(step).strip() for step in reviewed_steps if str(step).strip()]
+    validate_index = next((index for index, step in enumerate(steps) if "-validate" in step), -1)
+    preview_index = next((index for index, step in enumerate(steps) if "-preview" in step), -1)
+    apply_index = next((index for index, step in enumerate(steps) if "-apply" in step), -1)
+    if not (0 <= validate_index < preview_index < apply_index):
+        raise ValueError("reviewed write steps must contain validate, preview, and apply in order")
+    required_readiness_tokens = POST_APPLY_READINESS_TOKENS.get(selected_lane, ())
+    if required_readiness_tokens and not any(
+        index > apply_index and any(token in step for token in required_readiness_tokens)
+        for index, step in enumerate(steps)
+    ):
+        raise ValueError(f"lane {selected_lane} requires a post-apply readiness rebuild")
+    profile_prefix = f"{DATA_PROFILE_ENV}={selected_profile} "
+
+    def profile_scoped_step(step: str) -> str:
+        if step.startswith(f"{DATA_PROFILE_ENV}="):
+            if not step.startswith(profile_prefix):
+                raise ValueError("reviewed write step profile must match the selected proof profile")
+            return step
+        return f"{profile_prefix}{step}"
+
+    commands = [
+        f"make readiness-snapshot PROFILE={selected_profile}",
+        *(profile_scoped_step(step) for step in steps),
+    ]
+    commands.append(
+        f"make reviewed-batch-compare PROFILE={selected_profile} LANE={selected_lane} "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    )
+    commands.extend(
+        profile_scoped_step(str(step).strip())
+        for step in after_compare_steps
+        if str(step).strip()
     )
     return " && ".join(commands)
 

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-from src.reviewed_batch_proof import resolve_readiness_proof_profile
+from src.reviewed_batch_proof import (
+    profile_bound_reviewed_write_proof_sequence,
+    resolve_readiness_proof_profile,
+)
 
 import pandas as pd
 
@@ -772,7 +775,7 @@ def dcf_source_guard_preview_frame(readiness: pd.DataFrame | None) -> pd.DataFra
                     "Validate": "blocked until evidence intake exists",
                     "Preview": "blocked until evidence intake exists",
                     "Apply Boundary": "Do not apply imports without reviewed source proof.",
-                    "Post-Guard Proof": f"make readiness-snapshot PROFILE={selected_profile} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+                    "Post-Guard Proof": "blocked until evidence intake and guard readiness exist",
                 }
             ],
             columns=columns,
@@ -794,7 +797,21 @@ def dcf_source_guard_preview_frame(readiness: pd.DataFrame | None) -> pd.DataFra
                     if ready
                     else "Do not apply imports while evidence fields are missing."
                 ),
-                "Post-Guard Proof": f"make readiness-snapshot PROFILE={selected_profile} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}",
+                "Post-Guard Proof": (
+                    profile_bound_reviewed_write_proof_sequence(
+                        profile=selected_profile,
+                        lane="fundamentals",
+                        reviewed_steps=(
+                            f"make imports-validate IMPORT_TICKERS={ticker}",
+                            f"make imports-preview IMPORT_TICKERS={ticker}",
+                            f"make imports-apply IMPORT_TICKERS={ticker}",
+                            "make dcf-readiness",
+                        ),
+                        after_compare_steps=(f"make stock-report-md TICKER={ticker}",),
+                    )
+                    if ready
+                    else "blocked until guard readiness is ready_for_guard"
+                ),
             }
         )
     return pd.DataFrame(rows, columns=columns)

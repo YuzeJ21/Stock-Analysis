@@ -927,7 +927,9 @@ def build_dcf_input_proof_handoff(
             validation_command="make imports-validate",
             preview_command="make imports-preview",
             apply_boundary="Reviewed boundary: do not apply rows until source proof, validation, preview, and rejected-row review exist.",
-            post_run_proof_command=f"make readiness-snapshot PROFILE={selected_profile} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            post_run_proof_command=(
+                "blocked until the selected DCF input family has queued rows and reviewed source proof"
+            ),
             compare_command=f"make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             proof_record_scaffold=_proof_record_scaffold(lane="fundamentals", tickers=[], command_run=command_run),
             stop_rule="Stop if the selected DCF input family has no queued blockers or source proof is unavailable.",

@@ -385,13 +385,47 @@ def test_dcf_source_guard_preview_shows_validate_preview_apply_boundary_when_rea
     assert preview.iloc[0]["Preview"] == "make imports-preview"
     assert "make imports-apply only after source guard" in preview.iloc[0]["Apply Boundary"]
     proof = preview.iloc[0]["Post-Guard Proof"]
-    assert proof.startswith("make readiness-snapshot PROFILE=default && make dcf-readiness")
+    assert proof.startswith(
+        "make readiness-snapshot PROFILE=default && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-validate IMPORT_TICKERS=META && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-preview IMPORT_TICKERS=META && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-apply IMPORT_TICKERS=META && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make dcf-readiness"
+    )
     assert "make reviewed-batch-compare PROFILE=default LANE=fundamentals" in proof
     assert proof.endswith("make stock-report-md TICKER=META")
     assert cards[0]["command"].startswith("make dcf-input-source-guard")
     assert "validate then preview" in lowered
     assert "buy now" not in lowered
     assert "sell now" not in lowered
+
+
+def test_ready_guard_proof_snapshots_before_validate_preview_apply():
+    intake = dcf_source_evidence_intake_frame([_row("META")], family="shares_outstanding", top_n=1)
+    replacements = {
+        "source_file_or_url": "https://www.sec.gov/example",
+        "source_as_of_date": "2026-06-01",
+        "reviewer": "local_reviewer",
+        "review_date": "2026-06-18",
+        "source_proof_status": "reviewed",
+        "shares_outstanding": "123456789",
+    }
+    intake["Reviewer Fill"] = intake["Evidence Field"].map(replacements).fillna(intake["Reviewer Fill"])
+
+    proof = dcf_source_guard_preview_frame(
+        dcf_source_guard_readiness_frame(intake)
+    ).iloc[0]["Post-Guard Proof"]
+    steps = proof.split(" && ")
+
+    assert steps[:4] == [
+        "make readiness-snapshot PROFILE=default",
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-validate IMPORT_TICKERS=META",
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-preview IMPORT_TICKERS=META",
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-apply IMPORT_TICKERS=META",
+    ]
+    assert steps.index("STOCK_RESEARCH_DATA_PROFILE=default make dcf-readiness") < next(
+        index for index, step in enumerate(steps) if step.startswith("make reviewed-batch-compare ")
+    )
 
 
 def test_dcf_source_proof_handoff_blocks_until_guard_ready():

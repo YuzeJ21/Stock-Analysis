@@ -1095,7 +1095,7 @@ def test_trusted_fundamentals_source_review_summary_starts_from_top_proof_queue_
         "Validate import rows",
         "Preview import rows",
         "Apply boundary",
-        "Post-run readiness proof",
+        "Begin reviewed write proof",
         "Proof-record dry run",
     ]
     assert "blocked_by_placeholders" in set(command_frame["Status"])
@@ -1188,7 +1188,13 @@ def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evide
     assert row["Validate Command"] == "make imports-validate"
     assert row["Preview Command"] == "make imports-preview"
     assert "run make imports-apply only after source guard" in row["Apply Boundary"].lower()
-    assert row["Post-Run Proof"].startswith("make readiness-snapshot PROFILE=default && make dcf-readiness && ")
+    assert row["Post-Run Proof"].startswith(
+        "make readiness-snapshot PROFILE=default && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-validate IMPORT_TICKERS=AACB && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-preview IMPORT_TICKERS=AACB && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-apply IMPORT_TICKERS=AACB && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make dcf-readiness && "
+    )
     assert (
         "make reviewed-batch-compare PROFILE=default LANE=fundamentals "
         "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
@@ -1198,6 +1204,9 @@ def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evide
     assert "validation_result" in row["Proof Record Dry-Run Boundary"]
     assert "generated_artifacts_reviewed" in row["Proof Record Dry-Run Boundary"].lower()
     assert "ready_after_review" in set(command_frame["Status"])
+    write_proof_step = command_frame.loc[command_frame["Step"] == "Begin reviewed write proof"].iloc[0]
+    assert write_proof_step["Status"] == "ready_before_reviewed_apply"
+    assert "begin this one sequence before apply" in write_proof_step["Review Boundary"].lower()
     assert "make dcf-input-source-guard ticker=aacb" in rendered_commands
     assert "make imports-validate" in rendered_commands
     assert "make imports-preview" in rendered_commands
@@ -1216,7 +1225,11 @@ def test_trusted_fundamentals_source_review_summary_shows_ready_guard_when_evide
     assert writer["Preview Command"] == "make imports-preview"
     assert "run make imports-apply only after source guard" in writer["Apply Boundary"].lower()
     assert writer["Post-Run Proof Command"].startswith(
-        "make readiness-snapshot PROFILE=default && make dcf-readiness && "
+        "make readiness-snapshot PROFILE=default && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-validate IMPORT_TICKERS=AACB && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-preview IMPORT_TICKERS=AACB && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-apply IMPORT_TICKERS=AACB && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make dcf-readiness && "
     )
     assert (
         "make reviewed-batch-compare PROFILE=default LANE=fundamentals "
@@ -12612,14 +12625,18 @@ def test_valuation_plain_language_cards_explain_ready_locked_and_excluded_states
     assert cards[2]["command"] == "make focus-fundamentals TICKER=META"
     assert cards[3]["command"] == "make stock-report-md TICKER=QQQ"
     assert cards[4]["command"] == (
-        "make readiness-snapshot PROFILE=default && make dcf-readiness && "
+        "make readiness-snapshot PROFILE=default && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+        "STOCK_RESEARCH_DATA_PROFILE=default make dcf-readiness && "
         "make reviewed-batch-compare PROFILE=default LANE=fundamentals "
         "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     )
     assert "make focus-fundamentals ticker=meta" in rendered
     assert "make stock-report-md ticker=qqq" in rendered
     assert "prove valuation readiness before interpretation" in rendered
-    assert "refresh valuation readiness before reading value / re-rating again" in rendered
+    assert "begin this sequence before any fundamentals apply" in rendered
     assert "run make dcf-readiness" not in rendered
     assert "ready means dcf assumptions can be reviewed" in rendered
     assert "does not create a price target or peer-relative conclusion" in rendered
@@ -12628,6 +12645,24 @@ def test_valuation_plain_language_cards_explain_ready_locked_and_excluded_states
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_valuation_proof_path_snapshots_before_reviewed_fundamentals_write():
+    cards = dashboard.valuation_plain_language_cards(
+        pd.DataFrame({"ticker": ["NVDA"]}),
+        pd.DataFrame({"ticker": ["META"]}),
+        pd.DataFrame({"ticker": ["QQQ"]}),
+    )
+    proof_card = next(card for card in cards if card["kicker"] == "PROOF PATH")
+    steps = proof_card["command"].split(" && ")
+
+    assert steps[:4] == [
+        "make readiness-snapshot PROFILE=default",
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+    ]
+    assert "Begin this sequence before any fundamentals apply" in proof_card["body"]
 
 
 def test_value_re_rating_page_uses_context_not_ready_conclusion_language():
@@ -27808,7 +27843,10 @@ def test_value_re_rating_detail_tables_are_collapsed_by_default():
     assert blocked_detail_index < excluded_detail_index < full_table_index
     assert "render_signal_cards(valuation_quick_read_cards(ready_companies, not_ready_companies, excluded), show_commands=False)" in source
     assert "Plain-English valuation states before rankings or deeper valuation tables." in source
-    assert "After fundamentals change, refresh valuation readiness before reading Value / Re-rating again." in source
+    assert (
+        "Begin this sequence before any fundamentals apply: snapshot first, then validate, preview, apply the reviewed scope, "
+        "rebuild valuation readiness, and compare."
+    ) in source
     assert "After fundamentals change, run make dcf-readiness" not in source
     assert "detailed output columns" not in source
     assert 'st.expander("More valuation context, boundaries, and method", expanded=False)' in source
