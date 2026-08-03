@@ -139,6 +139,13 @@ def test_reviewed_batch_compare_requires_and_forwards_one_profile():
     assert "in-memory current readiness" in help_line
 
 
+def test_reviewed_batch_packet_targets_forward_one_named_profile():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    for target in ("reviewed-batch", "fundamentals-batch-proof", "peer-batch-proof"):
+        block = _make_target_block(makefile, target)
+        assert '--profile $(or $(PROFILE),default)' in block
+
+
 def test_tracked_holdings_file_is_sanitized_demo_data():
     holdings_path = Path("data/holdings.csv")
     rows = list(csv.DictReader(holdings_path.read_text(encoding="utf-8").splitlines()))

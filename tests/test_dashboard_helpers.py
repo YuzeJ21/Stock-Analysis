@@ -1358,7 +1358,7 @@ def test_data_health_readiness_queue_drilldown_combines_examples_packet_and_proo
 
     assert list(frame["Lane"]) == ["Fundamentals / DCF Proof", "Metrics Readiness"]
     assert "aaa: dcf: revenue and free cash flow" in frame.iloc[0]["Top Blocker Examples"].lower()
-    assert frame.iloc[0]["Proof Packet Command"] == "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10"
+    assert frame.iloc[0]["Proof Packet Command"] == "DRY_RUN=1 make reviewed-batch PROFILE=default LANE=fundamentals TOP_N=10"
     assert "still_blocked on 2026-06-15" in frame.iloc[0]["Proof Record Status"]
     assert "aaa vs spy: benchmark / risk - benchmark_relative_return" in frame.iloc[1]["Top Blocker Examples"].lower()
     assert "source mode: sec-stageable or trusted-local" in frame.iloc[0]["Stale / Source Warning"].lower()
@@ -1395,8 +1395,9 @@ def test_data_health_readiness_queue_lane_action_frame_keeps_proof_loop_local():
         "4. Proof-record command",
         "5. Artifact hygiene",
     ]
-    assert "dry_run=1 make reviewed-batch lane=peers top_n=10" in rendered
-    assert "make reviewed-batch-compare profile=<default|demo|local> lane=peers" in rendered
+    assert "make readiness-snapshot profile=default" in rendered
+    assert "dry_run=1 make reviewed-batch profile=default lane=peers top_n=10" in rendered
+    assert "make reviewed-batch-compare profile=default lane=peers" in rendered
     assert "dry_run=1 make reviewed-batch-proof-record" in rendered
     assert "make diff-hygiene" in rendered
     assert "?mode=operator&page=data-health&lane=peers&drawer=queue" in rendered
@@ -13645,10 +13646,10 @@ def test_data_health_reviewed_batch_ladder_cards_turn_frontier_into_safe_steps()
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == ["BATCH STEP 1", "BATCH STEP 2", "BATCH STEP 3", "BATCH STEP 4"]
-    assert cards[0]["command"] == "make readiness"
-    assert cards[1]["command"] == "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
+    assert cards[0]["command"] == "make readiness-snapshot PROFILE=default"
+    assert cards[1]["command"] == "DRY_RUN=1 make reviewed-batch PROFILE=default LANE=prices TOP_N=10"
     assert cards[2]["command"] == "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
-    assert cards[3]["command"] == "make readiness && make price-coverage TOP_N=100 && make diff-hygiene"
+    assert cards[3]["command"] == "make reviewed-batch-compare PROFILE=default LANE=prices && make diff-hygiene"
     assert "copy-only reviewed packet" in rendered
     assert "workflow mode: dry-run first" in rendered
     assert "dry-run before execution" in rendered
@@ -14824,7 +14825,7 @@ def test_data_health_readiness_comparison_cards_and_frame_show_proof_inputs():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["kicker"] == "BATCH COMPARISON"
-    assert cards[0]["command"] == "make reviewed-batch-compare LANE=prices"
+    assert cards[0]["command"] == "make reviewed-batch-compare PROFILE=default LANE=prices"
     assert "1 changed ticker" in cards[0]["title"]
     assert "proof-ledger input" in rendered
     assert "not a recommendation signal" in rendered
@@ -14851,7 +14852,7 @@ def test_data_health_readiness_comparison_cards_warn_when_snapshot_missing():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Snapshot comparison is blocked"
-    assert cards[0]["command"] == "make readiness-snapshot"
+    assert cards[0]["command"] == "make readiness-snapshot PROFILE=default"
     assert "run make readiness-snapshot before a reviewed batch" in rendered
 
 
@@ -15975,7 +15976,7 @@ def test_dcf_input_proof_handoff_all_families_uses_top_family_scope():
 
     assert cards[0]["title"] == "shares_outstanding top family: packet to proof record"
     assert cards[0]["command"] == "make dcf-input-proof-handoff FAMILY=shares_outstanding TOP_N=10"
-    assert "Packet preview: DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS=META" in cards[0]["body"]
+    assert "Packet preview: DRY_RUN=1 make reviewed-batch PROFILE=default LANE=share_count TICKERS=META" in cards[0]["body"]
     assert "TICKERS=META" in table_text
     assert "TICKERS=META,ACHV" not in table_text
 
@@ -24193,7 +24194,7 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
     assert "candidate context for this slot" in cards[1]["body"]
     assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
     assert cards[3]["command"].startswith("make peer-mapping-writeback-guard")
-    assert cards[4]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+    assert cards[4]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers && make peer-mapping-queue TOP_N=25"
     assert frame.iloc[0]["Review Gate"] == "source proof required"
     assert frame.iloc[0]["Completion Status"] == "needs field fills"
     assert frame.iloc[0]["Import Preview Status"] == "needs field fills"
@@ -24261,7 +24262,7 @@ def test_peer_proof_batch_planner_summarizes_packet_guard_and_stop_rule(tmp_path
     assert planner.iloc[0]["Copy-Ready Action"] == "DRY_RUN=1 make peer-mapping-source-review TOP_N=1"
     assert planner.iloc[1]["Status"] == "needs_field_fills"
     assert "proposed_peer_ticker" in planner.iloc[1]["Review Boundary"]
-    assert planner.iloc[2]["Copy-Ready Action"] == "DRY_RUN=1 make reviewed-batch LANE=peers TICKERS=META"
+    assert planner.iloc[2]["Copy-Ready Action"] == "DRY_RUN=1 make reviewed-batch PROFILE=default LANE=peers TICKERS=META"
     assert "peer valuation remains locked" in planner.iloc[2]["Review Boundary"]
     assert planner.iloc[3]["Copy-Ready Action"].startswith("make peer-mapping-writeback-guard")
     assert "placeholders, stale readiness, self-peers" in rendered
@@ -24271,7 +24272,7 @@ def test_peer_proof_batch_planner_summarizes_packet_guard_and_stop_rule(tmp_path
     assert "source does not name the peer relationship" in rendered
     assert cards[0]["title"] == "2 source-review slot(s); tickers: META"
     assert cards[0]["command"] == "DRY_RUN=1 make peer-mapping-source-review TOP_N=1"
-    assert "packet: dry_run=1 make reviewed-batch lane=peers tickers=meta" in rendered
+    assert "packet: dry_run=1 make reviewed-batch profile=default lane=peers tickers=meta" in rendered
     assert "does not infer comparable companies" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -24291,12 +24292,12 @@ def test_data_health_peer_source_review_blocks_stale_readiness(tmp_path: Path):
 
     assert packet.freshness.status == "stale"
     assert cards[0]["title"] == "Refresh readiness before peer review"
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-snapshot PROFILE=default"
     assert frame.iloc[0]["Review Gate"] == "blocked by freshness"
     assert frame.iloc[0]["Completion Status"] == "blocked by freshness"
     assert frame.iloc[0]["Import Preview Status"] == "blocked by freshness"
     assert planner.iloc[0]["Status"] == "blocked_by_stale"
-    assert planner.iloc[0]["Copy-Ready Action"] == "make readiness"
+    assert planner.iloc[0]["Copy-Ready Action"] == "make readiness-snapshot PROFILE=default"
     assert "do not use stale or missing peer readiness artifacts as proof" in planner.iloc[0]["Review Boundary"].lower()
     assert "do not use stale peer rows as proof" in rendered
 
@@ -24522,9 +24523,9 @@ def test_peer_proof_loop_outcome_blocks_stale_readiness(tmp_path: Path):
 
     assert outcome.iloc[0]["Status"] == "blocked_by_freshness"
     assert outcome.iloc[1]["Status"] == "blocked_by_freshness"
-    assert outcome.iloc[1]["Next Safe Action"] == "make readiness"
+    assert outcome.iloc[1]["Next Safe Action"] == "make readiness-snapshot PROFILE=default"
     assert outcome.iloc[3]["Status"] == "blocked_by_freshness"
-    assert outcome.iloc[3]["Next Safe Action"] == "make readiness"
+    assert outcome.iloc[3]["Next Safe Action"] == "make readiness-snapshot PROFILE=default"
     assert cards[0]["title"] == "Latest ledger outcome: not_recorded"
     assert "no inferred peers" in rendered
 
@@ -27936,6 +27937,56 @@ def test_data_health_comparison_proof_uses_profile_bound_in_memory_commands():
     assert "make readiness " not in comparison_row["Next Safe Action"]
     assert frame.iloc[0]["After Row Set"] == "in-memory readiness profile=local"
     assert frame.iloc[0]["Profile"] == "local"
+
+
+def test_dashboard_implicit_comparison_and_queue_commands_use_active_named_profile(monkeypatch):
+    comparison = dashboard.ReadinessComparison(
+        status="missing_before",
+        before_path=Path("data/local/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("in-memory readiness profile=local"),
+        before_rows=0,
+        after_rows=0,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="not available",
+        freshness_status="not_applicable",
+        freshness_message="Saved-artifact freshness is not used.",
+        blocking_message="Capture a profile-bound baseline.",
+        profile="local",
+        after_source="in-memory readiness profile=local",
+    )
+    calls = []
+
+    def fake_compare(root, **kwargs):
+        calls.append((root, kwargs))
+        return comparison
+
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+    monkeypatch.setattr(dashboard, "compare_readiness_snapshots", fake_compare)
+
+    frame = dashboard.data_health_readiness_comparison_frame()
+    queue = dashboard.data_health_readiness_queue_lane_action_frame(
+        {
+            "Lane": "Peer Mapping Proof",
+            "Proof Packet Command": "",
+            "Stale / Source Warning": "source review required",
+            "Proof Record Status": "not recorded",
+        }
+    )
+
+    assert calls == [(dashboard.BASE_DIR, {"profile": "local", "top_n": 10})]
+    assert frame.iloc[0]["Profile"] == "local"
+    commands = " ".join(queue["Copy-Only Command"].astype(str))
+    assert "make readiness-snapshot PROFILE=local" in commands
+    assert "make reviewed-batch-compare PROFILE=local LANE=peers" in commands
+
+
+def test_every_dashboard_snapshot_comparison_call_names_a_profile():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    calls = [line.strip() for line in source.splitlines() if "compare_readiness_snapshots(" in line]
+
+    assert calls
+    assert all("profile=" in line for line in calls)
 
 
 def test_data_health_current_mode_strip_summarizes_lane_detail_freshness_and_next_action():

@@ -13849,12 +13849,13 @@ def data_health_dcf_input_proof_handoff_cards(frame: pd.DataFrame | None, select
         handoff_command = f"make dcf-input-proof-handoff FAMILY={family} TOP_N=10"
     tickers = ",".join(str(ticker).strip() for ticker in work["Ticker"].head(10).tolist() if str(ticker).strip())
     family_for_packet = family_label.replace(" top family", "")
+    profile = _active_data_profile_name()
     if family_for_packet == "shares_outstanding":
-        packet = f"DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS={tickers}"
+        packet = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=share_count TICKERS={tickers}"
     elif family_for_packet == "price":
-        packet = f"DRY_RUN=1 make reviewed-batch LANE=prices TICKERS={tickers}"
+        packet = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=prices TICKERS={tickers}"
     else:
-        packet = f"DRY_RUN=1 make fundamentals-batch-proof TICKERS={tickers}"
+        packet = f"DRY_RUN=1 make fundamentals-batch-proof PROFILE={profile} TICKERS={tickers}"
     return [
         {
             "kicker": "DCF PROOF HANDOFF",
@@ -14454,6 +14455,7 @@ def data_health_readiness_queue_drilldown_frame(
         metric_queue_frame=metric_queue_frame,
         batch_proof_frame=batch_proof_frame,
         freshness_status=freshness_status,
+        profile=_active_data_profile_name(),
     )
 
 
@@ -14515,19 +14517,19 @@ def data_health_readiness_queue_drilldown_cards(row: pd.Series | dict[str, objec
 
 
 def data_health_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) -> pd.DataFrame:
-    return build_readiness_queue_lane_action_frame(row)
+    return build_readiness_queue_lane_action_frame(row, profile=_active_data_profile_name())
 
 
 def data_health_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
-    return build_readiness_queue_route_cards(row)
+    return build_readiness_queue_route_cards(row, profile=_active_data_profile_name())
 
 
 def data_health_readiness_queue_route_overview_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
-    return build_readiness_queue_route_overview_cards(frame)
+    return build_readiness_queue_route_overview_cards(frame, profile=_active_data_profile_name())
 
 
 def data_health_readiness_queue_route_strip_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
-    return build_readiness_queue_route_strip_cards(row)
+    return build_readiness_queue_route_strip_cards(row, profile=_active_data_profile_name())
 
 
 def data_health_readiness_queue_lane_action_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
@@ -14639,7 +14641,7 @@ def data_health_peer_readiness_v2_cards(ops_frame: pd.DataFrame | None) -> list[
                 "title": "Peer sub-states need readiness rows",
                 "body": "Refresh readiness, then reopen Data Health to separate peer mapping, peer price, peer fundamentals, and peer valuation readiness. Open operator details for read-only proof steps.",
                 "badges": ["read-only", "peer gates"],
-                "command": "make readiness && make peer-mapping-queue TOP_N=25",
+                "command": f"make readiness-snapshot PROFILE={_active_data_profile_name()} && make peer-mapping-queue TOP_N=25",
             }
         ]
     peer_rows = ops_frame.loc[
@@ -14679,6 +14681,8 @@ def data_health_peer_readiness_v2_cards(ops_frame: pd.DataFrame | None) -> list[
 def data_health_peer_readiness_v2_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
     """Return explicit peer sub-state rows for the Data Health drilldown."""
 
+    profile = _active_data_profile_name()
+    compare = f"make reviewed-batch-compare PROFILE={profile} LANE=peers"
     sub_states = [
         {
             "Sub-State": "Peer mapping",
@@ -14688,22 +14692,22 @@ def data_health_peer_readiness_v2_frame(ops_frame: pd.DataFrame | None) -> pd.Da
         {
             "Sub-State": "Peer price",
             "Meaning": "Mapped peers have local trusted price history for context.",
-            "Proof Command": "make price-coverage TOP_N=25 && make readiness",
+            "Proof Command": f"make price-coverage TOP_N=25 && {compare}",
         },
         {
             "Sub-State": "Peer momentum",
             "Meaning": "Mapped peers have enough price history for trend context.",
-            "Proof Command": "make readiness && make metric-readiness BENCHMARK=SPY",
+            "Proof Command": f"{compare} && make metric-readiness BENCHMARK=SPY",
         },
         {
             "Sub-State": "Peer fundamentals",
             "Meaning": "Mapped peers have trusted fundamentals rows.",
-            "Proof Command": "make dcf-readiness && make readiness",
+            "Proof Command": f"make dcf-readiness && {compare}",
         },
         {
             "Sub-State": "Peer valuation",
             "Meaning": "Mapped peers have trusted valuation inputs such as fundamentals plus market-cap context.",
-            "Proof Command": "make readiness && make peer-mapping-queue TOP_N=25",
+            "Proof Command": f"{compare} && make peer-mapping-queue TOP_N=25",
         },
         {
             "Sub-State": "Peer valuation comparison",
@@ -14741,6 +14745,8 @@ def data_health_reviewed_batch_ladder_cards(
     freshness: FreshnessStatus | None = None,
 ) -> list[dict[str, object]]:
     freshness = freshness or readiness_freshness_status(BASE_DIR)
+    profile = _active_data_profile_name()
+    snapshot_command = f"make readiness-snapshot PROFILE={profile}"
     if frontier_frame is None or frontier_frame.empty:
         return [
             {
@@ -14758,15 +14764,15 @@ def data_health_reviewed_batch_ladder_cards(
     top = frontier_frame.iloc[0]
     lane = format_missing(top.get("Lane"), "Coverage lane")
     next_safe_command = format_missing(top.get("Next Safe Command"), "make coverage-frontier TOP_N=10")
-    proof_command = format_missing(top.get("Proof Command"), "make readiness")
+    proof_command = f"make reviewed-batch-compare PROFILE={profile} LANE=prices"
     workflow = normalize_operator_copy(format_missing(top.get("Workflow Mode"), "review"))
-    reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
+    reviewed_batch_command = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=prices TOP_N=10"
     if "fundamental" in lane.lower() or "dcf" in lane.lower():
-        reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10"
+        reviewed_batch_command = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=fundamentals TOP_N=10"
     elif "peer" in lane.lower():
-        reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10"
+        reviewed_batch_command = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=peers TOP_N=10"
     elif "earning" in lane.lower() or "estimate" in lane.lower() or "optional" in lane.lower():
-        reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=optional_context TOP_N=10"
+        reviewed_batch_command = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=optional_context TOP_N=10"
 
     freshness_badges = [freshness.status, "stop if stale"] if freshness.status in {"missing", "stale"} else [freshness.status, "snapshot checked"]
     return [
@@ -14774,10 +14780,10 @@ def data_health_reviewed_batch_ladder_cards(
             "kicker": "BATCH STEP 1",
             "title": "Confirm readiness snapshot",
             "body": (
-                f"{freshness.message} Run {freshness.refresh_command} before relying on final counts when artifacts are missing or stale."
+                f"{freshness.message} Capture the named baseline before any reviewed changes; tracked-current report freshness is context only."
             ),
             "badges": freshness_badges,
-            "command": freshness.refresh_command,
+            "command": snapshot_command,
         },
         {
             "kicker": "BATCH STEP 2",
@@ -15457,6 +15463,10 @@ def _data_health_packet_tickers(packet_frame: pd.DataFrame | None) -> list[str]:
     return proof_console.packet_tickers(packet_frame)
 
 
+def _active_data_profile_name() -> str:
+    return resolve_data_profile(project_root=BASE_DIR).name
+
+
 def data_health_reviewed_batch_outcome_recorder_frame(
     packet_frame: pd.DataFrame | None = None,
     comparison: ReadinessComparison | None = None,
@@ -15464,7 +15474,7 @@ def data_health_reviewed_batch_outcome_recorder_frame(
     """Show which proof-row fields are still missing before a batch outcome can be recorded."""
 
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
 
 
@@ -15475,7 +15485,7 @@ def data_health_reviewed_batch_outcome_recorder_cards(
     """Compact card for missing proof-row fields before outcome recording."""
 
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_outcome_recorder_cards(packet_frame, comparison)
 
 
@@ -15494,7 +15504,7 @@ def data_health_reviewed_batch_proof_record_command_frame(
     """Return copy-ready proof-record command arguments with missing fields visible."""
 
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_record_command_frame(packet_frame, comparison)
 
 
@@ -15503,7 +15513,7 @@ def data_health_reviewed_batch_proof_record_command_arguments_frame(
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_record_command_arguments_frame(packet_frame, comparison)
 
 
@@ -15512,7 +15522,7 @@ def data_health_reviewed_batch_proof_record_validation_frame(
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_record_validation_frame(packet_frame, comparison)
 
 
@@ -15521,7 +15531,7 @@ def data_health_reviewed_batch_proof_completion_frame(
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_completion_frame(packet_frame, comparison)
 
 
@@ -15530,7 +15540,7 @@ def data_health_reviewed_batch_proof_ledger_preview_frame(
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_ledger_preview_frame(packet_frame, comparison)
 
 
@@ -15539,7 +15549,7 @@ def data_health_reviewed_batch_proof_ledger_preview_cards(
     comparison: ReadinessComparison | None = None,
 ) -> list[dict[str, object]]:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_ledger_preview_cards(packet_frame, comparison)
 
 
@@ -15552,7 +15562,7 @@ def data_health_reviewed_batch_proof_record_command_cards(
     comparison: ReadinessComparison | None = None,
 ) -> list[dict[str, object]]:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_record_command_cards(packet_frame, comparison)
 
 
@@ -15561,7 +15571,7 @@ def data_health_reviewed_batch_proof_completion_cards(
     comparison: ReadinessComparison | None = None,
 ) -> list[dict[str, object]]:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_completion_cards(packet_frame, comparison)
 
 
@@ -15576,7 +15586,7 @@ def data_health_reviewed_batch_proof_loop_cards(
     """Compact proof drawer cards that connect packet, comparison, and ledger scaffold."""
 
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_loop_cards(packet_frame, comparison)
 
 
@@ -15585,12 +15595,12 @@ def data_health_reviewed_batch_proof_loop_frame(
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_loop_frame(packet_frame, comparison)
 
 
 def data_health_readiness_comparison_frame(comparison: ReadinessComparison | None = None) -> pd.DataFrame:
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return pd.DataFrame(
         [
             {
@@ -15615,7 +15625,8 @@ def data_health_readiness_comparison_frame(comparison: ReadinessComparison | Non
 
 
 def data_health_readiness_comparison_cards(comparison: ReadinessComparison | None = None) -> list[dict[str, object]]:
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
+    profile = comparison.profile or _active_data_profile_name()
     if comparison.status != "ok":
         return [
             {
@@ -15626,7 +15637,7 @@ def data_health_readiness_comparison_cards(comparison: ReadinessComparison | Non
                     "changed readiness counts in the proof ledger."
                 ),
                 "badges": [comparison.status, "read-only"],
-                "command": "make readiness-snapshot",
+                "command": f"make readiness-snapshot PROFILE={profile}",
             }
         ]
     changed_tickers = ", ".join(comparison.changed_tickers) if comparison.changed_tickers else "none"
@@ -15640,18 +15651,28 @@ def data_health_readiness_comparison_cards(comparison: ReadinessComparison | Non
                 "Use this as proof-ledger input after source review; it is not a recommendation signal."
             ),
             "badges": [comparison.freshness_status, "proof input"],
-            "command": "make reviewed-batch-compare LANE=prices",
+            "command": f"make reviewed-batch-compare PROFILE={profile} LANE=prices",
         }
     ]
 
 
 def data_health_reviewed_batch_preflight_cards(preflight: ReviewedBatchPreflight | None = None) -> list[dict[str, object]]:
-    preflight = preflight or build_reviewed_batch_preflight(BASE_DIR, lane="prices", top_n=100)
+    preflight = preflight or build_reviewed_batch_preflight(
+        BASE_DIR,
+        lane="prices",
+        top_n=100,
+        profile=_active_data_profile_name(),
+    )
     return batch_console.reviewed_batch_preflight_cards(preflight)
 
 
 def data_health_reviewed_batch_preflight_frame(preflight: ReviewedBatchPreflight | None = None) -> pd.DataFrame:
-    preflight = preflight or build_reviewed_batch_preflight(BASE_DIR, lane="prices", top_n=100)
+    preflight = preflight or build_reviewed_batch_preflight(
+        BASE_DIR,
+        lane="prices",
+        top_n=100,
+        profile=_active_data_profile_name(),
+    )
     return batch_console.reviewed_batch_preflight_frame(preflight)
 
 
@@ -17037,7 +17058,7 @@ def peer_input_ladder_frame(
             "locked": "No peer premium/discount or peer DCF comparison before readiness passes.",
             "path": "Saved peer readiness proof after rebuilding readiness",
             "validation": "make readiness -> make peer-mapping-queue TOP_N=25 -> make stock-report-md TICKER=<ticker>",
-            "command": "make readiness && make peer-mapping-queue TOP_N=25",
+            "command": f"make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers && make peer-mapping-queue TOP_N=25",
         },
     ]
 
@@ -17181,7 +17202,7 @@ def first_peer_mapping_unlock_frame(peer_unlock_worklist_frame: pd.DataFrame | N
         {
             "Step": "4. Rebuild peer readiness",
             "Why It Matters": "Confirm peer_ready changed from real source-backed mappings before showing peer-relative valuation context.",
-            "Copy Command": "make readiness && make peer-mapping-queue TOP_N=25",
+            "Copy Command": f"make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers && make peer-mapping-queue TOP_N=25",
             "Trusted Input": "Peer readiness and peer unlock worklist",
         },
     ]
@@ -17215,7 +17236,7 @@ def first_peer_mapping_unlock_cards(peer_unlock_worklist_frame: pd.DataFrame | N
             "command": (
                 "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                 "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers && make peer-mapping-queue TOP_N=25"
             ),
         },
     ]
@@ -17844,7 +17865,7 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
             "command": (
                 "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                 "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers && make peer-mapping-queue TOP_N=25"
             ),
         },
     ]
@@ -17923,7 +17944,7 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
                 "title": "Build peer readiness first",
                 "body": "No peer source-review packet is loaded. Rebuild readiness and the peer queue before editing peer import rows.",
                 "badges": ["readiness first", "no guessed peers"],
-                "command": "make readiness && make peer-mapping-queue TOP_N=25",
+                "command": f"make readiness-snapshot PROFILE={_active_data_profile_name()} && make peer-mapping-queue TOP_N=25",
             }
         ]
     if packet.freshness.status in {"missing", "stale"}:
@@ -17936,7 +17957,7 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
                     "then regenerate the peer mapping source-review packet."
                 ),
                 "badges": ["freshness gate", "blocked"],
-                "command": packet.freshness.refresh_command,
+                "command": f"make readiness-snapshot PROFILE={_active_data_profile_name()}",
             }
         ]
     if not packet.rows:
@@ -18019,7 +18040,7 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
             "command": (
                 "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                 "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers && make peer-mapping-queue TOP_N=25"
             ),
         },
     ]
@@ -18037,7 +18058,7 @@ def data_health_peer_proof_batch_planner_frame(
                     "Step": "1. Confirm peer proof scope",
                     "Status": "missing_packet",
                     "Scope": "no peer source-review packet",
-                    "Copy-Ready Action": "make readiness && make peer-mapping-source-review TOP_N=10",
+                    "Copy-Ready Action": f"make readiness-snapshot PROFILE={_active_data_profile_name()} && make peer-mapping-source-review TOP_N=10",
                     "Review Boundary": "Rebuild readiness and peer source-review rows before planning peer proof.",
                 }
             ],
@@ -18050,7 +18071,7 @@ def data_health_peer_proof_batch_planner_frame(
                     "Step": "1. Confirm peer proof scope",
                     "Status": f"blocked_by_{packet.freshness.status}",
                     "Scope": packet.freshness.message,
-                    "Copy-Ready Action": packet.freshness.refresh_command,
+                    "Copy-Ready Action": f"make readiness-snapshot PROFILE={_active_data_profile_name()}",
                     "Review Boundary": "Do not use stale or missing peer readiness artifacts as proof.",
                 }
             ],
@@ -18077,7 +18098,7 @@ def data_health_peer_proof_batch_planner_frame(
     proof_record_command = peer_mapping_proof_record_command(first, guard_status)
     tickers = ",".join(packet.tickers[: max(packet.top_n, 1)]) or first.ticker
     source_packet_command = f"DRY_RUN=1 make peer-mapping-source-review TOP_N={packet.top_n}"
-    reviewed_batch_packet = f"DRY_RUN=1 make reviewed-batch LANE=peers TICKERS={tickers}"
+    reviewed_batch_packet = f"DRY_RUN=1 make reviewed-batch PROFILE={_active_data_profile_name()} LANE=peers TICKERS={tickers}"
     latest = data_health_peer_latest_proof_row(batch_proof_frame)
     latest_status = "not_recorded"
     if not latest.empty:
@@ -18128,7 +18149,7 @@ def data_health_peer_proof_batch_planner_frame(
                 "Copy-Ready Action": (
                     "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                     "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                    f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers && make peer-mapping-queue TOP_N=25"
                 ),
                 "Review Boundary": "Apply only reviewed rows after validate, preview, rejected-row review, and an explicit apply decision.",
             },
@@ -18199,6 +18220,9 @@ def data_health_peer_proof_loop_outcome_frame(
     batch_proof_frame: pd.DataFrame | None,
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
+    profile = comparison.profile if comparison is not None else _active_data_profile_name()
+    snapshot_command = f"make readiness-snapshot PROFILE={profile}"
+    comparison_command = f"make reviewed-batch-compare PROFILE={profile} LANE=peers"
     source_status = "not_loaded"
     source_detail = "Run make peer-mapping-source-review TOP_N=10."
     source_action = "DRY_RUN=1 make peer-mapping-source-review TOP_N=10"
@@ -18213,15 +18237,15 @@ def data_health_peer_proof_loop_outcome_frame(
         source_status = "missing_packet"
         source_detail = "Rebuild readiness and the peer source-review packet before recording peer proof."
     elif packet.freshness.status in {"missing", "stale"}:
-        source_action = packet.freshness.refresh_command
+        source_action = snapshot_command
         source_status = "blocked_by_freshness"
         source_detail = f"{packet.freshness.status}: {packet.freshness.message}"
         guard_status = "blocked_by_freshness"
         guard_detail = "Refresh readiness before peer write-back or proof-record review."
-        guard_command = packet.freshness.refresh_command
+        guard_command = snapshot_command
         proof_record_status = "blocked_by_freshness"
         proof_record_detail = "Do not record peer proof from stale readiness artifacts."
-        proof_record_command = packet.freshness.refresh_command
+        proof_record_command = snapshot_command
     elif not packet.rows:
         source_action = f"DRY_RUN=1 make peer-mapping-source-review TOP_N={packet.top_n}"
         source_status = "no_source_rows"
@@ -18275,11 +18299,11 @@ def data_health_peer_proof_loop_outcome_frame(
     comparison_detail = "Open Proof review details before using changed counts in a peer proof row."
     comparison_command = "Open Proof review details."
     if comparison is not None:
-        comparison_command = "make reviewed-batch-compare LANE=peers"
+        comparison_command = f"make reviewed-batch-compare PROFILE={profile} LANE=peers"
         if comparison.status != "ok":
             comparison_status = comparison.status
             comparison_detail = comparison.blocking_message or "Snapshot comparison is blocked until before/after readiness reports exist."
-            comparison_command = "make readiness-snapshot" if comparison.status == "missing_before" else "make readiness"
+            comparison_command = snapshot_command if comparison.status == "missing_before" else comparison_command
         elif comparison.blocking_message:
             comparison_status = "stale_snapshot_warning"
             comparison_detail = (
@@ -18316,7 +18340,8 @@ def data_health_peer_proof_loop_outcome_frame(
                 "Next Safe Action": (
                     "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                     "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                    f"make reviewed-batch-compare PROFILE={profile} LANE=peers && make peer-mapping-queue TOP_N=25"
                 ),
             },
             {
@@ -18414,7 +18439,7 @@ def data_health_peer_proof_completion_checklist_frame(
                     "Checklist Item": "1. Build peer source-review packet",
                     "Status": "missing_packet",
                     "Need Before Proceeding": "Rebuild readiness and generate the peer source-review packet before source proof.",
-                    "Next Safest Action": "make readiness && make peer-mapping-source-review TOP_N=10",
+                    "Next Safest Action": f"make readiness-snapshot PROFILE={_active_data_profile_name()} && make peer-mapping-source-review TOP_N=10",
                     "Stop Rule": "Stop if peer readiness artifacts are missing; do not infer peer rows.",
                 }
             ],
@@ -18464,7 +18489,11 @@ def data_health_peer_proof_completion_checklist_frame(
                 "Checklist Item": "1. Confirm freshness and packet scope",
                 "Status": freshness_status,
                 "Need Before Proceeding": f"{freshness_need}; tickers: {tickers}",
-                "Next Safest Action": packet.freshness.refresh_command if freshness_status in {"missing", "stale"} else packet_command,
+                "Next Safest Action": (
+                    f"make readiness-snapshot PROFILE={_active_data_profile_name()}"
+                    if freshness_status in {"missing", "stale"}
+                    else packet_command
+                ),
                 "Stop Rule": "Stop if readiness is stale or missing; do not use stale peer rows as proof.",
             },
             {
@@ -18488,7 +18517,7 @@ def data_health_peer_proof_completion_checklist_frame(
                 "Next Safest Action": (
                     "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                     "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                    f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers && make peer-mapping-queue TOP_N=25"
                 ),
                 "Stop Rule": "Stop if validate, preview, apply decision, or rebuilt readiness proof is missing.",
             },
@@ -18631,7 +18660,7 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
         {
             "Step": "5. Rebuild readiness",
             "Why It Matters": "Confirm fundamentals_ready and dcf_ready changed from real imported rows before reading valuation output.",
-            "Copy Command": "make readiness && make dcf-readiness",
+            "Copy Command": f"make readiness-snapshot PROFILE={_active_data_profile_name()} && make dcf-readiness",
             "Trusted Input": preferred_path,
         },
     ]
@@ -23768,7 +23797,7 @@ def data_health_proof_history_operator_console_frame(
 ) -> pd.DataFrame:
     proof_count = 0 if proof_timeline is None else len(proof_timeline)
     batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     comparison_next_proof = comparison.blocking_message or "Use changed counts as proof-ledger input after source review."
     if comparison.status != "ok" and "make readiness-snapshot" in comparison_next_proof:
         comparison_next_proof = "Capture a prior readiness snapshot before a reviewed batch, then compare real before/after counts."
@@ -23806,7 +23835,7 @@ def data_health_proof_history_operator_console_html(
 ) -> str:
     proof_count = 0 if proof_timeline is None else len(proof_timeline)
     batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     next_title = "Proof ledger review"
     next_body = "Open evidence only when you need durable supported, candidate-context-only, still-blocked, skipped, or excluded outcomes."
     if comparison.status != "ok":
@@ -30137,7 +30166,7 @@ def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) 
                 "Rebuild price coverage, readiness, and project status, then inspect local CSV changes before staging anything."
             ),
             "badges": ["prove readiness", "review changes"],
-            "command": "make price-coverage TOP_N=25 && make readiness && make project-status && make diff-hygiene",
+            "command": f"make price-coverage TOP_N=25 && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=prices && make project-status && make diff-hygiene",
         },
     ]
 
@@ -30359,7 +30388,7 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
                 "Current Status": "Implemented, proof-first",
                 "Evidence": "Data Health now starts with guided lane answers, then keeps coverage frontier, reviewed proof timeline, and reviewed-batch packet paths behind proof-first details.",
                 "Next Safe Step": "Inspect the lane frontier, then create a copy-only reviewed batch packet before any capped execution.",
-                "Copy Command": "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
+                "Copy Command": f"DRY_RUN=1 make reviewed-batch PROFILE={_active_data_profile_name()} LANE=prices TOP_N=10",
             },
             {
                 "Roadmap Area": "Fundamentals / DCF data proof",
@@ -32667,7 +32696,12 @@ def render_data_health(
         return
     selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
     batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
-    batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane=batch_lane, top_n=10)
+    batch_preflight = build_reviewed_batch_preflight(
+        BASE_DIR,
+        lane=batch_lane,
+        top_n=10,
+        profile=_active_data_profile_name(),
+    )
     operator_snapshot_cards = data_health_operator_snapshot_cards(
         readiness_summary,
         ops_center,
@@ -32806,7 +32840,7 @@ def render_data_health(
     batch_proof_frame = data_health_reviewed_batch_proof_frame() if should_load_proof_details else pd.DataFrame()
     batch_proof_summary_frame = batch_proof_frame if not batch_proof_frame.empty else data_health_reviewed_batch_proof_frame()
     batch_packet_frame = data_health_latest_reviewed_batch_packet_frame() if should_load_proof_details else pd.DataFrame()
-    readiness_comparison = compare_readiness_snapshots(BASE_DIR, top_n=10) if should_load_proof_details else None
+    readiness_comparison = compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10) if should_load_proof_details else None
     prior_ticker_readiness_frame, _prior_ticker_readiness_message = load_prior_ticker_readiness_report()
     peer_v2_frame = data_health_peer_readiness_v2_frame(ops_center)
     lane_board = (

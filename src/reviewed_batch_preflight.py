@@ -14,7 +14,7 @@ from pathlib import Path
 
 from src.readiness_engine import READINESS_SNAPSHOT_FILENAME
 from src.readiness_source_boundary import validate_readiness_source_boundary
-from src.reviewed_batch import normalize_batch_lane, readiness_freshness_status
+from src.reviewed_batch import normalize_batch_lane
 from src.session_source_preflight import load_session_source_preflight
 
 
@@ -171,11 +171,6 @@ def build_reviewed_batch_preflight(
     primary_lane = lane_codes[0]
     batch_id = batch_id or _batch_id()
     review_date = review_date or _today_utc()
-    freshness = readiness_freshness_status(
-        root,
-        data_dir=selected.data_dir,
-        output_dir=selected.outputs_dir,
-    )
     current_report_exists = (selected.data_dir / "reports" / "ticker_readiness_report.csv").exists()
     prior_snapshot_exists = (selected.data_dir / "reports" / READINESS_SNAPSHOT_FILENAME).exists()
     blockers: list[str] = []
@@ -184,8 +179,6 @@ def build_reviewed_batch_preflight(
             "prior readiness snapshot is missing; run "
             f"make readiness-snapshot PROFILE={selected.name} before a reviewed batch"
         )
-    if freshness.status in {"missing", "stale"}:
-        blockers.append(f"readiness freshness is {freshness.status}; run {freshness.refresh_command}")
     blockers.extend(
         [
             "dry-run scope is not reviewed",
@@ -202,7 +195,7 @@ def build_reviewed_batch_preflight(
         provider=provider,
         session_preflight=session_preflight,
     )
-    status = "ready_for_dry_run" if prior_snapshot_exists and freshness.status == "current" else "needs_preflight_fix"
+    status = "ready_for_dry_run" if prior_snapshot_exists else "needs_preflight_fix"
     lane_scope = ", ".join(LANE_LABELS.get(code, code) for code in lane_codes)
     return ReviewedBatchPreflight(
         lane=lane,
@@ -212,9 +205,11 @@ def build_reviewed_batch_preflight(
         status=status,
         current_report_exists=current_report_exists,
         prior_snapshot_exists=prior_snapshot_exists,
-        freshness_status=freshness.status,
-        freshness_message=freshness.message,
-        packet_command=f"DRY_RUN=1 make reviewed-batch LANE={lane} TOP_N={top_n}",
+        freshness_status="not_used",
+        freshness_message=(
+            "Tracked-current saved-artifact freshness is not used; the named baseline and current in-memory comparison are authoritative."
+        ),
+        packet_command=f"DRY_RUN=1 make reviewed-batch PROFILE={selected.name} LANE={lane} TOP_N={top_n}",
         snapshot_command=f"make readiness-snapshot PROFILE={selected.name}",
         dry_run_command=dry_run,
         capped_execution_command=capped_execution,
@@ -240,7 +235,7 @@ def build_reviewed_batch_preflight(
 def render_reviewed_batch_preflight(preflight: ReviewedBatchPreflight) -> str:
     lines = [
         "Reviewed Batch Preflight",
-        "Read-only: checks whether a reviewed batch has the required snapshot, freshness, dry-run, comparison, and proof-ledger steps.",
+        "Read-only: checks whether a reviewed batch has the required profile-bound snapshot, dry-run, comparison, and proof-ledger steps.",
         "Research-only: this does not refresh data, apply imports, connect to brokers, route orders, or provide direct buy/sell instructions.",
         "",
         f"Status: {preflight.status}",
@@ -252,8 +247,8 @@ def render_reviewed_batch_preflight(preflight: ReviewedBatchPreflight) -> str:
         f"Freshness: {preflight.freshness_status} - {preflight.freshness_message}",
         "",
         "Copyable sequence:",
-        f"1. {preflight.packet_command}",
-        f"2. {preflight.snapshot_command}",
+        f"1. {preflight.snapshot_command}",
+        f"2. {preflight.packet_command}",
         f"3. {preflight.dry_run_command}",
         f"4. {preflight.capped_execution_command}",
         f"5. {preflight.comparison_command}",

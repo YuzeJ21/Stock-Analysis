@@ -312,3 +312,91 @@ def test_main_returns_nonzero_for_comparison_blocker(tmp_path: Path, capsys):
 
     assert exit_code == 2
     assert "make readiness-snapshot PROFILE=default" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("unsafe_kind", ["reports_symlink", "snapshot_symlink", "reports_file"])
+def test_default_prior_snapshot_read_rejects_unsafe_physical_paths(
+    tmp_path: Path,
+    monkeypatch,
+    unsafe_kind: str,
+):
+    data_dir, _ = _profile_dirs(tmp_path)
+    external = tmp_path / "external"
+    external.mkdir()
+    external_snapshot = external / "ticker_readiness_report.previous.csv"
+    _snapshot_frame(
+        _readiness_rows(),
+        profile="default",
+        input_identity=readiness_input_identity(tmp_path, "default"),
+    ).to_csv(external_snapshot, index=False)
+    reports = data_dir / "reports"
+    if unsafe_kind == "reports_symlink":
+        reports.symlink_to(external, target_is_directory=True)
+    elif unsafe_kind == "snapshot_symlink":
+        reports.mkdir()
+        (reports / "ticker_readiness_report.previous.csv").symlink_to(external_snapshot)
+    else:
+        reports.write_text("not a directory", encoding="utf-8")
+    monkeypatch.setattr(
+        comparison_module,
+        "build_ticker_readiness_report",
+        lambda *args, **kwargs: pytest.fail("unsafe prior paths must fail before current composition"),
+        raising=False,
+    )
+
+    comparison = compare_readiness_snapshots(tmp_path, profile="default")
+
+    assert comparison.status == "invalid_before"
+    assert any(term in comparison.blocking_message.lower() for term in ("symbolic link", "regular file", "directory"))
+
+
+def test_invalid_utf8_and_malformed_csv_fail_closed_for_before_and_after(tmp_path: Path):
+    data_dir, _ = _profile_dirs(tmp_path)
+    before = data_dir / "reports" / "ticker_readiness_report.previous.csv"
+    before.parent.mkdir()
+    before.write_bytes(b"ticker,snapshot_profile\nAAA,\xff\n")
+
+    invalid_before = compare_readiness_snapshots(tmp_path)
+
+    assert invalid_before.status == "invalid_before"
+    assert "utf-8" in invalid_before.blocking_message.lower()
+
+    _write_snapshot(tmp_path, _readiness_rows())
+    malformed_after = tmp_path / "fixtures" / "after.csv"
+    malformed_after.parent.mkdir()
+    malformed_after.write_text('ticker,snapshot_profile\n"unterminated', encoding="utf-8")
+
+    invalid_after = compare_readiness_snapshots(tmp_path, after=malformed_after)
+
+    assert invalid_after.status == "invalid_after"
+    assert "csv" in invalid_after.blocking_message.lower()
+
+
+def test_default_prior_snapshot_open_race_fails_closed(tmp_path: Path, monkeypatch):
+    _profile_dirs(tmp_path)
+    before = _write_snapshot(tmp_path, _readiness_rows())
+    real_open = comparison_module.os.open
+
+    def racing_open(path, flags):
+        if Path(path) == before:
+            raise OSError("replaced during open")
+        return real_open(path, flags)
+
+    monkeypatch.setattr(comparison_module.os, "open", racing_open)
+
+    comparison = compare_readiness_snapshots(tmp_path)
+
+    assert comparison.status == "invalid_before"
+    assert "changed before it could be read safely" in comparison.blocking_message.lower()
+
+
+def test_main_returns_two_for_invalid_utf8_snapshot(tmp_path: Path, capsys):
+    data_dir, _ = _profile_dirs(tmp_path)
+    snapshot = data_dir / "reports" / "ticker_readiness_report.previous.csv"
+    snapshot.parent.mkdir()
+    snapshot.write_bytes(b"ticker,snapshot_profile\nAAA,\xff\n")
+
+    exit_code = main(["--root", str(tmp_path), "--profile", "default"])
+
+    assert exit_code == 2
+    assert "invalid_before" in capsys.readouterr().out

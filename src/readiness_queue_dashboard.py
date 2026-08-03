@@ -120,16 +120,19 @@ def _queue_metric_examples(metric_queue_frame: pd.DataFrame | None, *, limit: in
     return "; ".join(examples) if examples else "No metric blockers in the capped rows."
 
 
-def queue_proof_packet_command(lane_key: str) -> str:
+def queue_proof_packet_command(lane_key: str, *, profile: str = "default") -> str:
+    if profile not in {"default", "demo", "local"}:
+        raise ValueError("Unknown readiness queue profile. Use default, demo, or local.")
+    prefix = f"DRY_RUN=1 make reviewed-batch PROFILE={profile}"
     command_by_lane = {
-        "fundamentals": "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10",
-        "peer_mapping": "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10",
-        "peer_valuation_inputs": "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10",
-        "metrics": "DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10",
-        "earnings": "DRY_RUN=1 make reviewed-batch LANE=optional_context TOP_N=10",
-        "analyst_estimates": "DRY_RUN=1 make reviewed-batch LANE=optional_context TOP_N=10",
+        "fundamentals": f"{prefix} LANE=fundamentals TOP_N=10",
+        "peer_mapping": f"{prefix} LANE=peers TOP_N=10",
+        "peer_valuation_inputs": f"{prefix} LANE=peers TOP_N=10",
+        "metrics": f"{prefix} LANE=metrics TOP_N=10",
+        "earnings": f"{prefix} LANE=optional_context TOP_N=10",
+        "analyst_estimates": f"{prefix} LANE=optional_context TOP_N=10",
     }
-    return command_by_lane.get(lane_key, "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10")
+    return command_by_lane.get(lane_key, f"{prefix} LANE=prices TOP_N=10")
 
 
 def _queue_latest_proof_status(batch_proof_frame: pd.DataFrame | None, lane_key: str) -> str:
@@ -346,6 +349,7 @@ def build_readiness_queue_drilldown_frame(
     metric_queue_frame: pd.DataFrame | None = None,
     batch_proof_frame: pd.DataFrame | None = None,
     freshness_status: object | None = None,
+    profile: str = "default",
 ) -> pd.DataFrame:
     """Build compact per-lane drawer rows for the post-price readiness queue."""
 
@@ -383,10 +387,10 @@ def build_readiness_queue_drilldown_frame(
                     peer_readiness_frame=peer_readiness_frame,
                     metric_queue_frame=metric_queue_frame,
                 ),
-                "Proof Packet Command": queue_proof_packet_command(lane_key),
+                "Proof Packet Command": queue_proof_packet_command(lane_key, profile=profile),
                 "Stale / Source Warning": source_warning,
                 "Proof Record Status": _queue_latest_proof_status(batch_proof_frame, lane_key),
-                "Next Safe Action": _format_missing(row.get("Next Safe Command"), queue_proof_packet_command(lane_key)),
+                "Next Safe Action": _format_missing(row.get("Next Safe Command"), queue_proof_packet_command(lane_key, profile=profile)),
             }
         )
     return pd.DataFrame(rows)
@@ -454,21 +458,22 @@ def _queue_lane_gate_action(lane: object) -> tuple[str, str, str]:
     )
 
 
-def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) -> pd.DataFrame:
+def build_readiness_queue_lane_action_frame(
+    row: pd.Series | dict[str, object],
+    *,
+    profile: str = "default",
+) -> pd.DataFrame:
     """Return the compact lane-local packet -> proof-record checklist."""
 
     get_value = row.get if isinstance(row, dict) else row.get
     lane = _format_missing(get_value("Lane"), "Readiness lane")
     batch_lane = _queue_lane_batch_lane(lane)
-    packet_command = _format_missing(
-        get_value("Proof Packet Command"),
-        queue_proof_packet_command(readiness_queue_lane_key(lane)),
-    )
+    packet_command = queue_proof_packet_command(readiness_queue_lane_key(lane), profile=profile)
     source_warning = _format_missing(get_value("Stale / Source Warning"), "Review source readiness before proceeding.")
     proof_status = _format_missing(get_value("Proof Record Status"), "No reviewed batch proof row recorded yet.")
     gate_status, gate_decision, gate_command = _queue_lane_gate_action(lane)
     compare_command = (
-        f"make reviewed-batch-compare PROFILE=<default|demo|local> LANE={batch_lane} "
+        f"make reviewed-batch-compare PROFILE={profile} LANE={batch_lane} "
         "BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     )
     proof_command = (
@@ -486,7 +491,7 @@ def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) 
                 "Operator Decision": f"Preview the capped {lane} scope before any row-level review.",
                 "Drawer Route": _queue_lane_drawer_route(lane, "queue"),
                 "Route Boundary": "navigation-only; dashboard does not run commands or write data",
-                "Copy-Only Command": packet_command,
+                "Copy-Only Command": f"make readiness-snapshot PROFILE={profile}\n{packet_command}",
                 "Stop If": source_warning,
             },
             {
@@ -529,14 +534,18 @@ def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) 
     )
 
 
-def build_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
+def build_readiness_queue_route_cards(
+    row: pd.Series | dict[str, object],
+    *,
+    profile: str = "default",
+) -> list[dict[str, object]]:
     """Return readable queue -> proof routing cards before the detailed action table."""
 
     get_value = row.get if isinstance(row, dict) else row.get
     lane = _format_missing(get_value("Lane"), "Readiness lane")
     lane_key = readiness_queue_lane_key(lane)
     batch_lane = _queue_lane_batch_lane(lane)
-    packet_command = _format_missing(get_value("Proof Packet Command"), queue_proof_packet_command(lane_key))
+    packet_command = queue_proof_packet_command(lane_key, profile=profile)
     source_warning = _compact_fragment(
         get_value("Stale / Source Warning"),
         fallback="Review source readiness before proceeding.",
@@ -558,7 +567,7 @@ def build_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> lis
                 "This route is navigation-only; it does not run commands or write rows."
             ),
             "badges": ["queue first", "navigation-only"],
-            "command": packet_command,
+            "command": f"make readiness-snapshot PROFILE={profile}\n{packet_command}",
         },
         {
             "kicker": "ROUTE 2",
@@ -579,7 +588,7 @@ def build_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> lis
             ),
             "badges": ["compare first", "dry-run proof"],
             "command": (
-                f"make reviewed-batch-compare PROFILE=<default|demo|local> LANE={batch_lane} "
+                f"make reviewed-batch-compare PROFILE={profile} LANE={batch_lane} "
                 "BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
             ),
         },
@@ -607,7 +616,11 @@ def build_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> lis
     ]
 
 
-def build_readiness_queue_route_overview_cards(drilldown_frame: pd.DataFrame | None) -> list[dict[str, object]]:
+def build_readiness_queue_route_overview_cards(
+    drilldown_frame: pd.DataFrame | None,
+    *,
+    profile: str = "default",
+) -> list[dict[str, object]]:
     """Return a compact queue routing overview before per-lane drawers."""
 
     if drilldown_frame is None or drilldown_frame.empty:
@@ -634,7 +647,7 @@ def build_readiness_queue_route_overview_cards(drilldown_frame: pd.DataFrame | N
     lane = _format_missing(leading.get("Lane"), "Readiness lane")
     lane_key = readiness_queue_lane_key(lane)
     state = _label(leading.get("State"))
-    next_action = _format_missing(leading.get("Next Safe Action"), queue_proof_packet_command(lane_key))
+    next_action = _format_missing(leading.get("Next Safe Action"), queue_proof_packet_command(lane_key, profile=profile))
     proof_status = _compact_fragment(
         leading.get("Proof Record Status"),
         fallback="No reviewed batch proof row recorded yet.",
@@ -656,6 +669,7 @@ def build_readiness_queue_route_overview_cards(drilldown_frame: pd.DataFrame | N
                 "and use the proof lane only after source review and snapshot comparison."
             ),
             "badges": ["one loop", "navigation-only"],
+            "command": f"make readiness-snapshot PROFILE={profile}",
         },
         {
             "kicker": "LEADING LANE",
@@ -673,7 +687,7 @@ def build_readiness_queue_route_overview_cards(drilldown_frame: pd.DataFrame | N
             ),
             "badges": ["compare first", "dry-run proof"],
             "command": (
-                f"make reviewed-batch-compare PROFILE=<default|demo|local> LANE={_queue_lane_batch_lane(lane)} "
+                f"make reviewed-batch-compare PROFILE={profile} LANE={_queue_lane_batch_lane(lane)} "
                 "BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
             ),
         },
@@ -690,7 +704,11 @@ def build_readiness_queue_route_overview_cards(drilldown_frame: pd.DataFrame | N
     ]
 
 
-def build_readiness_queue_route_strip_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
+def build_readiness_queue_route_strip_cards(
+    row: pd.Series | dict[str, object],
+    *,
+    profile: str = "default",
+) -> list[dict[str, object]]:
     """Return a compact selected-lane workflow strip before queue drawer details."""
 
     get_value = row.get if isinstance(row, dict) else row.get
@@ -702,7 +720,7 @@ def build_readiness_queue_route_strip_cards(row: pd.Series | dict[str, object]) 
         fallback="No reviewed batch proof row recorded yet.",
         max_chars=110,
     )
-    next_action = _format_missing(get_value("Next Safe Action"), queue_proof_packet_command(lane_key))
+    next_action = _format_missing(get_value("Next Safe Action"), queue_proof_packet_command(lane_key, profile=profile))
     source_warning = _compact_fragment(
         get_value("Stale / Source Warning"),
         fallback="Review source readiness before proceeding.",

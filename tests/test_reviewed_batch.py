@@ -110,8 +110,9 @@ def test_reviewed_batch_reports_missing_readiness_artifacts(tmp_path: Path):
     rendered = render_packet_markdown(packet)
 
     assert status.status == "missing"
-    assert "Missing readiness artifact" in rendered
-    assert "Run make readiness" in rendered
+    assert packet.freshness.status == "not_used"
+    assert "Missing readiness artifact" not in rendered
+    assert "Run make readiness" not in rendered
     assert "Do not proceed if" in rendered
 
 
@@ -178,13 +179,14 @@ def test_reviewed_batch_blocks_uncommitted_default_readiness_evidence(tmp_path: 
     packet = build_reviewed_batch_packet(root, lane="prices", top_n=2)
     rendered = render_packet_markdown(packet)
 
-    assert packet.freshness.status == "working_artifact_uncommitted"
-    assert reviewed_batch_packet_status(packet) == "blocked_by_freshness"
-    assert reviewed_batch_next_safe_action(packet) == "make readiness-preview TOP_N=20"
-    assert "not tracked release evidence" in packet.freshness.message.lower()
-    assert "Packet status: `blocked_by_freshness`" in rendered
-    assert "## Blocked Preflight" in rendered
-    assert "ready_for_review" not in rendered
+    assert packet.freshness.status == "not_used"
+    assert reviewed_batch_packet_status(packet) == "ready_for_review"
+    assert reviewed_batch_next_safe_action(packet) == "make readiness-snapshot PROFILE=default"
+    assert "tracked-current saved-artifact freshness is not used" in packet.freshness.message.lower()
+    assert "Packet status: `ready_for_review`" in rendered
+    assert "## Blocked Preflight" not in rendered
+    assert "`make readiness`" not in rendered
+    assert "make readiness &&" not in rendered
 
 
 def test_readiness_freshness_blocks_newer_declared_source_date_when_file_mtimes_are_current(tmp_path: Path):
@@ -228,7 +230,7 @@ def test_reviewed_batch_lane_selection_and_top_n_cap(tmp_path: Path):
 
     assert packet.selected_scope == "fundamentals_dcf"
     assert reviewed_batch_packet_status(packet) == "ready_for_review"
-    assert reviewed_batch_next_safe_action(packet) == "make sec-stage-queue TOP_N=1"
+    assert reviewed_batch_next_safe_action(packet) == "make readiness-snapshot PROFILE=default"
     assert "Packet status: `ready_for_review`" in rendered
     assert len(packet.actions) == 1
     assert packet.actions[0].proposed_ticker == "AAA"
@@ -238,7 +240,7 @@ def test_reviewed_batch_lane_selection_and_top_n_cap(tmp_path: Path):
     assert "make imports-apply only after reviewed trusted fundamentals rows pass preview" == packet.actions[0].apply_command
     assert "data/rejected/fundamentals_import_rejected.csv" in packet.actions[0].expected_artifacts
     assert "SEC_USER_AGENT is not configured" in packet.actions[0].do_not_proceed_if
-    assert "make fundamentals-batch-proof TOP_N=<n>" in rendered
+    assert "make fundamentals-batch-proof PROFILE=default TOP_N=<n>" in rendered
     assert "make sec-stage TICKERS=<scope> only when SEC_USER_AGENT is configured" in rendered
     assert "rejected-row reports must be clear or explained" in rendered
 
@@ -252,7 +254,7 @@ def test_reviewed_batch_share_count_lane_uses_first_class_proof_queue(tmp_path: 
 
     assert packet.selected_scope == "share_count_proof"
     assert reviewed_batch_packet_status(packet) == "ready_for_review"
-    assert reviewed_batch_next_safe_action(packet) == "make share-count-proof-queue TOP_N=1"
+    assert reviewed_batch_next_safe_action(packet) == "make readiness-snapshot PROFILE=default"
     assert len(packet.actions) == 1
     action = packet.actions[0]
     assert action.lane == "share_count_proof"
@@ -284,7 +286,7 @@ def test_reviewed_batch_fundamentals_lane_prefers_local_dcf_queue_when_session_s
     packet = build_reviewed_batch_packet(root, lane="fundamentals", top_n=1)
     action = packet.actions[0]
 
-    assert reviewed_batch_next_safe_action(packet) == "make dcf-input-proof-queue TOP_N=1"
+    assert reviewed_batch_next_safe_action(packet) == "make readiness-snapshot PROFILE=default"
     assert action.dry_run_command == "make dcf-input-proof-queue TOP_N=1"
     assert "place only reviewed trusted fundamentals rows in data/imports/fundamentals.csv" in action.capped_execution_command
 
@@ -371,7 +373,7 @@ def test_reviewed_batch_packet_includes_v2_proof_ledger_fields_and_peer_sub_lane
     assert "Peer mapping import schema: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date" in rendered
     assert "source must name the peer relationship or comparable business context" in rendered
     assert "do not use memory, popularity, or row-count convenience as proof" in rendered
-    assert "make peer-batch-proof TOP_N=<n>" in rendered
+    assert "make peer-batch-proof PROFILE=default TOP_N=<n>" in rendered
     assert set(actions_by_lane) == {"peer_mapping", "peer_valuation_inputs"}
     assert "source-backed peer mapping rows" in actions_by_lane["peer_mapping"].apply_command
     assert "reviewed mapped-peer fundamentals, price, market-cap, or valuation-input rows" in actions_by_lane["peer_valuation_inputs"].apply_command
@@ -508,8 +510,8 @@ def test_reviewed_batch_cli_prints_packet_status_and_next_safe_action(tmp_path: 
     output = capsys.readouterr().out
 
     assert rc == 0
-    assert "Packet status: blocked_by_freshness" in output
-    assert "Next safe action: make readiness" in output
+    assert "Packet status: ready_for_review" in output
+    assert "Next safe action: make readiness-snapshot PROFILE=default" in output
 
 
 def test_reviewed_batch_cli_dry_run_does_not_write_packet_artifacts(tmp_path: Path, capsys):

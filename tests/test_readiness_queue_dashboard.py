@@ -28,9 +28,9 @@ def test_readiness_queue_lane_keys_and_packet_commands_keep_lanes_separate():
     assert readiness_queue_lane_key("Peer Mapping Proof") == "peer_mapping"
     assert readiness_queue_lane_key("Peer Valuation Inputs") == "peer_valuation_inputs"
     assert readiness_queue_lane_key("Metrics Readiness") == "metrics"
-    assert queue_proof_packet_command("fundamentals") == "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10"
-    assert queue_proof_packet_command("peer_mapping") == "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10"
-    assert queue_proof_packet_command("metrics") == "DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10"
+    assert queue_proof_packet_command("fundamentals", profile="local") == "DRY_RUN=1 make reviewed-batch PROFILE=local LANE=fundamentals TOP_N=10"
+    assert queue_proof_packet_command("peer_mapping", profile="local") == "DRY_RUN=1 make reviewed-batch PROFILE=local LANE=peers TOP_N=10"
+    assert queue_proof_packet_command("metrics", profile="local") == "DRY_RUN=1 make reviewed-batch PROFILE=local LANE=metrics TOP_N=10"
 
 
 def test_readiness_queue_drilldown_builds_examples_and_stale_warning():
@@ -71,12 +71,13 @@ def test_readiness_queue_drilldown_builds_examples_and_stale_warning():
         ticker_readiness_frame=ticker_readiness,
         batch_proof_frame=batch_proofs,
         freshness_status=FreshnessStub("stale", "Source CSVs changed after readiness.", "make readiness"),
+        profile="local",
     )
 
     row = frame.iloc[0]
     assert row["State"] == "Partial"
     assert "AAA: dcf: revenue and free cash flow" in row["Top Blocker Examples"]
-    assert row["Proof Packet Command"] == "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10"
+    assert row["Proof Packet Command"] == "DRY_RUN=1 make reviewed-batch PROFILE=local LANE=fundamentals TOP_N=10"
     assert "Stale: Source CSVs changed after readiness." in row["Stale / Source Warning"]
     assert "still_blocked on 2026-06-15" in row["Proof Record Status"]
 
@@ -109,7 +110,7 @@ def test_readiness_queue_drilldown_keeps_metric_examples_read_only():
     row = frame.iloc[0]
 
     assert "AAA vs SPY: benchmark / risk - benchmark_relative_return" in row["Top Blocker Examples"]
-    assert row["Proof Packet Command"] == "DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10"
+    assert row["Proof Packet Command"] == "DRY_RUN=1 make reviewed-batch PROFILE=default LANE=metrics TOP_N=10"
     assert "Source mode: local_readiness" in row["Stale / Source Warning"]
 
 
@@ -120,7 +121,8 @@ def test_readiness_queue_lane_action_routes_mutating_and_read_only_lanes():
             "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=metrics TOP_N=10",
             "Stale / Source Warning": "Source mode: local_readiness. Metrics stay gated.",
             "Proof Record Status": "No reviewed batch proof row recorded for this lane yet.",
-        }
+        },
+        profile="local",
     )
     peer = build_readiness_queue_lane_action_frame(
         {
@@ -128,7 +130,8 @@ def test_readiness_queue_lane_action_routes_mutating_and_read_only_lanes():
             "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10",
             "Stale / Source Warning": "Source mode: manual/source-reviewed.",
             "Proof Record Status": "No reviewed batch proof row recorded for this lane yet.",
-        }
+        },
+        profile="local",
     )
 
     metric_gate = metrics.loc[metrics["Step"].eq("2. Validate / preview gate")].iloc[0]
@@ -138,7 +141,8 @@ def test_readiness_queue_lane_action_routes_mutating_and_read_only_lanes():
     assert metric_gate["Status"] == "read_only_metric_review"
     assert "do not run import/apply commands" in metric_gate["Operator Decision"].lower()
     assert peer_gate["Status"] == "validate_preview_apply"
-    assert "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers" in " ".join(str(value) for value in peer.to_numpy().ravel())
+    assert "make readiness-snapshot PROFILE=local" in " ".join(str(value) for value in peer.to_numpy().ravel())
+    assert "make reviewed-batch-compare PROFILE=local LANE=peers" in " ".join(str(value) for value in peer.to_numpy().ravel())
     assert "?mode=operator&page=data-health&lane=metrics&drawer=queue" in rendered
     assert "?mode=operator&page=data-health&lane=metrics&drawer=source-proof" in rendered
     assert "?mode=operator&page=data-health&lane=proof&drawer=comparison" in rendered
@@ -155,7 +159,8 @@ def test_readiness_queue_route_cards_summarize_navigation_without_unlocking_data
             "Proof Packet Command": "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10",
             "Stale / Source Warning": "Source mode: SEC-stageable. Validate before preview.",
             "Proof Record Status": "No reviewed batch proof row recorded for this lane yet.",
-        }
+        },
+        profile="local",
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
@@ -175,7 +180,8 @@ def test_readiness_queue_route_cards_summarize_navigation_without_unlocking_data
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
-    assert "make reviewed-batch-compare profile=<default|demo|local> lane=fundamentals" in rendered
+    assert "make readiness-snapshot profile=local" in rendered
+    assert "make reviewed-batch-compare profile=local lane=fundamentals" in rendered
 
 
 def test_readiness_queue_route_strip_cards_show_lane_context_before_detail():
@@ -230,7 +236,7 @@ def test_readiness_queue_route_overview_cards_connect_lane_to_proof_and_artifact
         ]
     )
 
-    cards = build_readiness_queue_route_overview_cards(frame)
+    cards = build_readiness_queue_route_overview_cards(frame, profile="local")
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert [card["kicker"] for card in cards] == [
@@ -251,7 +257,8 @@ def test_readiness_queue_route_overview_cards_connect_lane_to_proof_and_artifact
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
-    assert "make reviewed-batch-compare profile=<default|demo|local> lane=fundamentals" in rendered
+    assert "make readiness-snapshot profile=local" in rendered
+    assert "make reviewed-batch-compare profile=local lane=fundamentals" in rendered
 
 
 def test_readiness_queue_route_overview_cards_block_when_queue_rows_missing():

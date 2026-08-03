@@ -701,13 +701,13 @@ readiness-ops-evidence:
 	@python3 -m src.readiness_ops --root . --evidence --top-n $(or $(TOP_N),10)
 
 reviewed-batch:
-	@python3 -m src.reviewed_batch --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/reviewed_batch_packet.md) --csv-output $(or $(CSV_OUTPUT),outputs/reviewed_batch_packet.csv) $(if $(DRY_RUN),--dry-run,)
+	@python3 -m src.reviewed_batch --root . --profile $(or $(PROFILE),default) --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/reviewed_batch_packet.md) --csv-output $(or $(CSV_OUTPUT),outputs/reviewed_batch_packet.csv) $(if $(DRY_RUN),--dry-run,)
 
 fundamentals-batch-proof:
-	@python3 -m src.reviewed_batch --root . --lane fundamentals --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/fundamentals_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/fundamentals_batch_proof.csv) $(if $(DRY_RUN),--dry-run,)
+	@python3 -m src.reviewed_batch --root . --profile $(or $(PROFILE),default) --lane fundamentals --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/fundamentals_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/fundamentals_batch_proof.csv) $(if $(DRY_RUN),--dry-run,)
 
 peer-batch-proof:
-	@python3 -m src.reviewed_batch --root . --lane peers --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/peer_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/peer_batch_proof.csv) $(if $(DRY_RUN),--dry-run,)
+	@python3 -m src.reviewed_batch --root . --profile $(or $(PROFILE),default) --lane peers --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/peer_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/peer_batch_proof.csv) $(if $(DRY_RUN),--dry-run,)
 
 peer-mapping-source-review:
 	@python3 -m src.peer_mapping_source_review --root . --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/peer_mapping_source_review.md) --csv-output $(or $(CSV_OUTPUT),outputs/peer_mapping_source_review.csv) $(if $(DRY_RUN),--dry-run,)

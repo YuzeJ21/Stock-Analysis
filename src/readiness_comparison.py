@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import io
+import os
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping
@@ -83,11 +86,62 @@ class ReadinessComparison:
     after_source: str = ""
 
 
-def _read_csv(path: Path) -> list[dict[str, str]]:
-    if not path.exists():
-        return []
-    with path.open(newline="", encoding="utf-8") as handle:
-        return [dict(row) for row in csv.DictReader(handle)]
+def _lstat(path: Path):
+    try:
+        return path.lstat()
+    except FileNotFoundError:
+        return None
+
+
+def _read_csv(path: Path, *, guarded_parent: Path | None = None) -> list[dict[str, str]]:
+    if guarded_parent is not None:
+        if path.parent != guarded_parent:
+            raise ValueError("Default prior snapshot path crosses its profile reports boundary.")
+        parent_metadata = _lstat(guarded_parent)
+        if parent_metadata is None:
+            raise FileNotFoundError(f"Snapshot reports directory is missing: {guarded_parent}")
+        if stat.S_ISLNK(parent_metadata.st_mode):
+            raise ValueError(f"Snapshot reports directory must not be a symbolic link: {guarded_parent}")
+        if not stat.S_ISDIR(parent_metadata.st_mode):
+            raise ValueError(f"Snapshot reports path must be a directory: {guarded_parent}")
+
+    metadata = _lstat(path)
+    if metadata is None:
+        raise FileNotFoundError(f"Snapshot file is missing: {path}")
+    if stat.S_ISLNK(metadata.st_mode):
+        raise ValueError(f"Snapshot path must not be a symbolic link: {path}")
+    if not stat.S_ISREG(metadata.st_mode):
+        raise ValueError(f"Snapshot path must be a regular file: {path}")
+
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as error:
+        raise ValueError(f"Snapshot changed before it could be read safely: {path}") from error
+    try:
+        opened = os.fstat(descriptor)
+        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
+            metadata.st_dev,
+            metadata.st_ino,
+        ):
+            raise ValueError(f"Snapshot changed before it could be read safely: {path}")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                break
+            chunks.append(chunk)
+    finally:
+        os.close(descriptor)
+
+    try:
+        text = b"".join(chunks).decode("utf-8", errors="strict")
+    except UnicodeDecodeError as error:
+        raise ValueError(f"Snapshot is not valid UTF-8: {path}") from error
+    try:
+        return [dict(row) for row in csv.DictReader(io.StringIO(text, newline=""), strict=True)]
+    except csv.Error as error:
+        raise ValueError(f"Snapshot CSV could not be parsed: {error}") from error
 
 
 def _clean(value: object) -> str:
@@ -272,7 +326,12 @@ def compare_readiness_snapshots(
         after_path = _path_from_root(lexical_root, after)
         after_source = str(after_path)
 
-    if not before_path.is_file():
+    try:
+        before_rows = _read_csv(
+            before_path,
+            guarded_parent=selected.data_dir / "reports" if before is None else None,
+        )
+    except FileNotFoundError:
         return _blocked_comparison(
             status="missing_before",
             profile=selected.name,
@@ -285,7 +344,15 @@ def compare_readiness_snapshots(
             ),
         )
 
-    before_rows = _read_csv(before_path)
+    except (OSError, ValueError) as error:
+        return _blocked_comparison(
+            status="invalid_before",
+            profile=selected.name,
+            before_path=before_path,
+            after_path=after_path,
+            after_source=after_source,
+            message=f"Prior readiness snapshot is invalid: {error}",
+        )
     try:
         before_metadata = _snapshot_metadata(
             before_rows,
@@ -305,7 +372,9 @@ def compare_readiness_snapshots(
     before_identity = before_metadata["snapshot_input_identity"]
 
     if after is not None:
-        if not after_path.is_file():
+        try:
+            after_rows = _read_csv(after_path)
+        except FileNotFoundError:
             return _blocked_comparison(
                 status="missing_after",
                 profile=selected.name,
@@ -316,7 +385,17 @@ def compare_readiness_snapshots(
                 before_rows=len(before_rows),
                 before_input_identity=before_identity,
             )
-        after_rows = _read_csv(after_path)
+        except (OSError, ValueError) as error:
+            return _blocked_comparison(
+                status="invalid_after",
+                profile=selected.name,
+                before_path=before_path,
+                after_path=after_path,
+                after_source=after_source,
+                message=f"Explicit current readiness fixture is invalid: {error}",
+                before_rows=len(before_rows),
+                before_input_identity=before_identity,
+            )
         try:
             after_metadata = _snapshot_metadata(
                 after_rows,
