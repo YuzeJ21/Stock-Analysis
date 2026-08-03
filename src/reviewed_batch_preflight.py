@@ -12,7 +12,8 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from src.readiness_comparison import DEFAULT_AFTER, DEFAULT_BEFORE
+from src.readiness_engine import READINESS_SNAPSHOT_FILENAME
+from src.readiness_source_boundary import validate_readiness_source_boundary
 from src.reviewed_batch import normalize_batch_lane, readiness_freshness_status
 from src.session_source_preflight import load_session_source_preflight
 
@@ -162,20 +163,27 @@ def build_reviewed_batch_preflight(
     batch_id: str | None = None,
     review_date: str | None = None,
     session_preflight: dict[str, object] | None = None,
+    profile: str = "default",
 ) -> ReviewedBatchPreflight:
     root = Path(root)
+    selected = validate_readiness_source_boundary(root, profile)
     lane_codes = normalize_batch_lane(lane)
     primary_lane = lane_codes[0]
     batch_id = batch_id or _batch_id()
     review_date = review_date or _today_utc()
-    freshness = readiness_freshness_status(root)
-    current_report_exists = (root / DEFAULT_AFTER).exists()
-    prior_snapshot_exists = (root / DEFAULT_BEFORE).exists()
+    freshness = readiness_freshness_status(
+        root,
+        data_dir=selected.data_dir,
+        output_dir=selected.outputs_dir,
+    )
+    current_report_exists = (selected.data_dir / "reports" / "ticker_readiness_report.csv").exists()
+    prior_snapshot_exists = (selected.data_dir / "reports" / READINESS_SNAPSHOT_FILENAME).exists()
     blockers: list[str] = []
-    if not current_report_exists:
-        blockers.append("current readiness report is missing; run make readiness")
     if not prior_snapshot_exists:
-        blockers.append("prior readiness snapshot is missing; run make readiness-snapshot before a reviewed batch")
+        blockers.append(
+            "prior readiness snapshot is missing; run "
+            f"make readiness-snapshot PROFILE={selected.name} before a reviewed batch"
+        )
     if freshness.status in {"missing", "stale"}:
         blockers.append(f"readiness freshness is {freshness.status}; run {freshness.refresh_command}")
     blockers.extend(
@@ -194,7 +202,7 @@ def build_reviewed_batch_preflight(
         provider=provider,
         session_preflight=session_preflight,
     )
-    status = "ready_for_dry_run" if current_report_exists and prior_snapshot_exists and freshness.status == "current" else "needs_preflight_fix"
+    status = "ready_for_dry_run" if prior_snapshot_exists and freshness.status == "current" else "needs_preflight_fix"
     lane_scope = ", ".join(LANE_LABELS.get(code, code) for code in lane_codes)
     return ReviewedBatchPreflight(
         lane=lane,
@@ -207,10 +215,13 @@ def build_reviewed_batch_preflight(
         freshness_status=freshness.status,
         freshness_message=freshness.message,
         packet_command=f"DRY_RUN=1 make reviewed-batch LANE={lane} TOP_N={top_n}",
-        snapshot_command="make readiness-snapshot",
+        snapshot_command=f"make readiness-snapshot PROFILE={selected.name}",
         dry_run_command=dry_run,
         capped_execution_command=capped_execution,
-        comparison_command=f"make reviewed-batch-compare LANE={lane} BATCH_ID={batch_id} REVIEW_DATE={review_date} TOP_N={top_n}",
+        comparison_command=(
+            f"make reviewed-batch-compare PROFILE={selected.name} LANE={lane} "
+            f"BATCH_ID={batch_id} REVIEW_DATE={review_date} TOP_N={top_n}"
+        ),
         proof_record_command=(
             f'make reviewed-batch-proof-record BATCH_ID="{batch_id}" LANE="{lane}" REVIEW_DATE="{review_date}" '
             'FINAL_OUTCOME="<supported|candidate_context_only|still_blocked|skipped|excluded>" '
@@ -245,9 +256,8 @@ def render_reviewed_batch_preflight(preflight: ReviewedBatchPreflight) -> str:
         f"2. {preflight.snapshot_command}",
         f"3. {preflight.dry_run_command}",
         f"4. {preflight.capped_execution_command}",
-        f"5. make readiness",
-        f"6. {preflight.comparison_command}",
-        f"7. {preflight.proof_record_command}",
+        f"5. {preflight.comparison_command}",
+        f"6. {preflight.proof_record_command}",
         "",
         "Expected artifacts to review:",
         *[f"- {artifact}" for artifact in preflight.expected_artifacts],
@@ -259,7 +269,7 @@ def render_reviewed_batch_preflight(preflight: ReviewedBatchPreflight) -> str:
         "Do not proceed if:",
         *[f"- {blocker}" for blocker in preflight.do_not_proceed_if],
         "",
-        "Use supported only when source proof, validation, preview/apply decision, rebuilt readiness, and artifact review all support it.",
+        "Use supported only when source proof, validation, preview/apply decision, in-memory readiness comparison, and artifact review all support it.",
     ]
     return "\n".join(lines)
 
@@ -273,6 +283,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--provider", default="auto")
     parser.add_argument("--batch-id", default="")
     parser.add_argument("--review-date", default="")
+    parser.add_argument("--profile", choices=("default", "demo", "local"), default="default")
     return parser.parse_args(argv)
 
 
@@ -286,6 +297,7 @@ def main(argv: list[str] | None = None) -> int:
         provider=args.provider,
         batch_id=args.batch_id or None,
         review_date=args.review_date or None,
+        profile=args.profile,
     )
     print(render_reviewed_batch_preflight(preflight))
     return 0

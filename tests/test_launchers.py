@@ -124,6 +124,21 @@ def test_default_and_composite_targets_never_reach_readiness_writers():
             assert "src.readiness_engine --" not in block or "--snapshot-only" not in block
 
 
+def test_reviewed_batch_compare_requires_and_forwards_one_profile():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    block = _make_target_block(makefile, "reviewed-batch-compare")
+
+    assert "PROFILE is required: default, demo, or local" in block
+    assert '--profile "$(PROFILE)"' in block
+    assert "make readiness" not in block
+
+    help_line = next(
+        line for line in makefile.splitlines() if "make reviewed-batch-compare" in line and "Compare" in line
+    )
+    assert "PROFILE=<default|demo|local>" in help_line
+    assert "in-memory current readiness" in help_line
+
+
 def test_tracked_holdings_file_is_sanitized_demo_data():
     holdings_path = Path("data/holdings.csv")
     rows = list(csv.DictReader(holdings_path.read_text(encoding="utf-8").splitlines()))

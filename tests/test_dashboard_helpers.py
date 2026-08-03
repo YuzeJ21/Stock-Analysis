@@ -1396,7 +1396,7 @@ def test_data_health_readiness_queue_lane_action_frame_keeps_proof_loop_local():
         "5. Artifact hygiene",
     ]
     assert "dry_run=1 make reviewed-batch lane=peers top_n=10" in rendered
-    assert "make reviewed-batch-compare lane=peers" in rendered
+    assert "make reviewed-batch-compare profile=<default|demo|local> lane=peers" in rendered
     assert "dry_run=1 make reviewed-batch-proof-record" in rendered
     assert "make diff-hygiene" in rendered
     assert "?mode=operator&page=data-health&lane=peers&drawer=queue" in rendered
@@ -27894,14 +27894,48 @@ def _reviewed_batch_preflight_fixture(
         freshness_status="current",
         freshness_message="Readiness artifacts are current.",
         packet_command=packet_command,
-        snapshot_command="make readiness-snapshot",
+        snapshot_command="make readiness-snapshot PROFILE=default",
         dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=auto",
         capped_execution_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=10 PROVIDER=auto SLEEP_SECONDS=30",
-        comparison_command="make reviewed-batch-compare LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-16 TOP_N=10",
+        comparison_command="make reviewed-batch-compare PROFILE=default LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-16 TOP_N=10",
         proof_record_command='make reviewed-batch-proof-record BATCH_ID="RB-TEST"',
         do_not_proceed_if=("dry-run scope is not reviewed",),
         expected_artifacts=("data/prices.csv", "data/reports/price_coverage_report.csv"),
     )
+
+
+def test_data_health_comparison_proof_uses_profile_bound_in_memory_commands():
+    comparison = dashboard.ReadinessComparison(
+        status="missing_before",
+        before_path=Path("data/local/reports/ticker_readiness_report.previous.csv"),
+        after_path=Path("data/local/reports/ticker_readiness_report.csv"),
+        before_rows=0,
+        after_rows=0,
+        changed_tickers=(),
+        changed_count=0,
+        changed_readiness_counts="not available",
+        freshness_status="not_applicable",
+        freshness_message="Current row set is composed in memory.",
+        blocking_message="Missing prior readiness snapshot. Run make readiness-snapshot PROFILE=local.",
+        profile="local",
+        after_source="in-memory readiness profile=local",
+    )
+
+    outcome = dashboard.data_health_dcf_proof_loop_outcome_frame(
+        pd.DataFrame(),
+        "shares_outstanding",
+        pd.DataFrame(),
+        comparison,
+    )
+    comparison_row = outcome.loc[
+        outcome["Proof Loop Step"].eq("Before / after readiness comparison")
+    ].iloc[0]
+    frame = dashboard.data_health_readiness_comparison_frame(comparison)
+
+    assert comparison_row["Next Safe Action"] == "make readiness-snapshot PROFILE=local"
+    assert "make readiness " not in comparison_row["Next Safe Action"]
+    assert frame.iloc[0]["After Row Set"] == "in-memory readiness profile=local"
+    assert frame.iloc[0]["Profile"] == "local"
 
 
 def test_data_health_current_mode_strip_summarizes_lane_detail_freshness_and_next_action():

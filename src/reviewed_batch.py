@@ -17,8 +17,12 @@ from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.readiness_ops import ReadinessLane, build_readiness_ops_lanes
 from src.session_source_preflight import load_session_source_preflight
 from src.share_count_proof_queue import build_share_count_proof_queue_from_files
-from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.paths import DataProfile, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.profile_context import build_profile_context
+from src.readiness_source_boundary import (
+    ReadinessSourceBoundaryError,
+    validate_readiness_source_boundary,
+)
 
 
 DEFAULT_PACKET_MD = Path("outputs/reviewed_batch_packet.md")
@@ -128,6 +132,7 @@ class ReviewedBatchAction:
 @dataclass(frozen=True)
 class ReviewedBatchPacket:
     batch_id: str
+    profile: str
     selected_lane: str
     selected_scope: str
     top_n: int
@@ -209,6 +214,28 @@ def normalize_batch_lane(value: str) -> tuple[str, ...]:
     raise ValueError("Unknown reviewed batch lane. Use prices, fundamentals, share_count, peers, metrics, or optional_context.")
 
 
+def _reviewed_batch_profile(root: Path, profile: str) -> DataProfile:
+    """Resolve an existing profile safely, while preserving missing-data preflight output."""
+
+    try:
+        return validate_readiness_source_boundary(root, profile)
+    except ReadinessSourceBoundaryError:
+        data_relative, outputs_relative = {
+            "default": (Path("data"), Path("outputs")),
+            "demo": (Path("data/demo"), Path("outputs/demo")),
+            "local": (Path("data/local"), Path("outputs/local")),
+        }[profile]
+        lexical_root = root.expanduser().absolute()
+        lexical_data = lexical_root / data_relative
+        if lexical_data.exists() or lexical_data.is_symlink():
+            raise
+        return DataProfile(
+            name=profile,
+            data_dir=lexical_data.resolve(strict=False),
+            outputs_dir=(lexical_root / outputs_relative).resolve(strict=False),
+        )
+
+
 def readiness_freshness_status(
     root: Path | str = ".",
     *,
@@ -272,10 +299,17 @@ def _peer_worklist_rows_for_lane(rows: list[dict[str, str]], lane: str) -> list[
     return rows
 
 
-def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tuple[str, ...]) -> tuple[str, ...]:
+def _candidate_tickers(
+    root: Path,
+    lane: str,
+    top_n: int,
+    selected_tickers: tuple[str, ...],
+    *,
+    data_dir: Path,
+) -> tuple[str, ...]:
     if selected_tickers:
         return selected_tickers[: max(top_n, 0)]
-    reports = root / "data" / "reports"
+    reports = data_dir / "reports"
     rows: list[dict[str, str]]
     if lane == "price_coverage":
         rows = [
@@ -287,7 +321,11 @@ def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tupl
         session_state = _session_source_state(root)
         if not session_state["sec_available"] and int(session_state["local_fundamentals_fixable"]) > 0:
             queue_limit = max(top_n * 5, top_n + 25, 0)
-            local_queue = build_dcf_input_proof_queue_from_files(root, top_n=queue_limit)
+            local_queue = build_dcf_input_proof_queue_from_files(
+                root,
+                data_dir=data_dir,
+                top_n=queue_limit,
+            )
             local_tickers = [
                 row.ticker
                 for row in local_queue
@@ -305,6 +343,7 @@ def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tupl
             row.ticker
             for row in build_share_count_proof_queue_from_files(
                 root,
+                data_dir=data_dir,
                 top_n=max(top_n, 0),
             )
         )
@@ -371,12 +410,31 @@ def _session_source_state(root: Path) -> dict[str, object]:
     }
 
 
-def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Path) -> dict[str, str]:
+def _lane_commands(
+    lane: str,
+    tickers: tuple[str, ...],
+    top_n: int,
+    *,
+    root: Path,
+    profile: str,
+) -> dict[str, str]:
     ticker_arg = _join_ticker_arg(tickers)
     session_state = _session_source_state(root)
     sec_available = bool(session_state["sec_available"])
     local_fundamentals_fixable = int(session_state["local_fundamentals_fixable"])
     local_share_fixable = int(session_state["local_share_fixable"])
+    compare_lane = {
+        "price_coverage": "prices",
+        "fundamentals_dcf": "fundamentals",
+        "share_count_proof": "share_count",
+        "peer_mapping": "peers",
+        "peer_valuation_inputs": "peers",
+        "metric_readiness_review": "metrics",
+    }.get(lane, "optional_context")
+    compare = (
+        f"make reviewed-batch-compare PROFILE={profile} LANE={compare_lane} "
+        "BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    )
     if lane == "price_coverage":
         return {
             "dry_run": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=auto",
@@ -384,8 +442,8 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "make price-validate",
             "preview": "make price-preview",
             "apply": "make price-apply only for reviewed trusted rows",
-            "post": f"make readiness && make price-coverage TOP_N={top_n} && make status-check TOP_N=5",
-            "compare": "make reviewed-batch-compare LANE=prices BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": compare,
+            "compare": compare,
             "artifacts": "data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv",
             "rollback": "If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.",
         }
@@ -405,8 +463,8 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after reviewed trusted fundamentals rows pass preview",
-            "post": "make readiness && make dcf-readiness && make status-check TOP_N=5",
-            "compare": "make reviewed-batch-compare LANE=fundamentals BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": compare,
+            "compare": compare,
             "artifacts": "data/imports/fundamentals.csv; data/fundamentals.csv; data/rejected/fundamentals_import_rejected.csv; data/reports/dcf_readiness_report.csv",
             "rollback": "If preview/rejected rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun make readiness.",
         }
@@ -424,8 +482,8 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after reviewed trusted shares_outstanding rows pass preview",
-            "post": "make dcf-readiness && make readiness && make status-check TOP_N=5",
-            "compare": "make reviewed-batch-compare LANE=share_count BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": compare,
+            "compare": compare,
             "artifacts": "data/imports/fundamentals.csv; data/fundamentals.csv; data/rejected/fundamentals_import_rejected.csv; data/reports/dcf_readiness_report.csv; outputs/reviewed_batch_packet.csv",
             "rollback": "If share-count rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun dcf-readiness plus readiness.",
         }
@@ -436,8 +494,8 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after source-backed peer mapping rows are reviewed",
-            "post": f"make readiness && make peer-mapping-queue TOP_N={top_n} && make status-check TOP_N=5",
-            "compare": "make reviewed-batch-compare LANE=peers BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": compare,
+            "compare": compare,
             "artifacts": "data/imports/peers.csv; data/peers.csv; data/rejected/peers_import_rejected.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv",
             "rollback": "If peer mapping rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv from git/backups and rerun readiness.",
         }
@@ -448,8 +506,8 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after reviewed mapped-peer fundamentals, price, market-cap, or valuation-input rows pass preview",
-            "post": f"make readiness && make peer-mapping-queue TOP_N={top_n} && make metric-readiness TICKERS={ticker_arg} BENCHMARK=SPY",
-            "compare": "make reviewed-batch-compare LANE=peers BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": f"{compare} && make metric-readiness TICKERS={ticker_arg} BENCHMARK=SPY",
+            "compare": compare,
             "artifacts": "data/imports/fundamentals.csv; data/imports/prices.csv; data/imports/peers.csv if mappings change; data/rejected/fundamentals_import_rejected.csv; data/rejected/price_import_rejected.csv; data/rejected/peers_import_rejected.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv",
             "rollback": "If mapped-peer input rows are wrong, do not apply. If applied rows are wrong, restore the touched canonical fundamentals, prices, or peers CSVs, then rerun readiness.",
         }
@@ -460,8 +518,8 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "not_applicable_read_only_metric_review",
             "preview": "review metric blocker families, source gates, and row-level missing inputs before any data work",
             "apply": "not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane",
-            "post": f"make readiness && make metric-readiness-board TOP_N={top_n} TICKERS={ticker_arg} BENCHMARKS=SPY,QQQ",
-            "compare": "make reviewed-batch-compare LANE=metrics BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": compare,
+            "compare": compare,
             "artifacts": "metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv",
             "rollback": "No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.",
         }
@@ -471,8 +529,8 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
         "validate": "make imports-validate",
         "preview": "make imports-preview",
         "apply": "make imports-apply only after trusted local earnings/estimate rows pass preview",
-        "post": "make optional-context-readiness && make readiness",
-        "compare": "make reviewed-batch-compare LANE=optional_context BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+        "post": compare,
+        "compare": compare,
         "artifacts": "data/imports/earnings.csv; data/imports/analyst_estimates.csv; data/reports/earnings_readiness_report.csv; data/reports/analyst_estimates_readiness_report.csv",
         "rollback": "If optional rows are wrong, do not apply. If applied rows are wrong, restore earnings/analyst-estimates CSVs and rerun optional-context readiness.",
     }
@@ -586,6 +644,14 @@ def _lane_proof_instructions(lane: str, top_n: int) -> list[str]:
 
 
 def _proof_template_csv_row(packet: ReviewedBatchPacket) -> str:
+    comparison_command = (
+        packet.actions[0].readiness_comparison_command
+        if packet.actions
+        else (
+            f"make reviewed-batch-compare PROFILE={packet.profile} LANE={packet.selected_lane} "
+            "BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        )
+    )
     values = {
         "batch_id": packet.batch_id,
         "lane": packet.selected_scope,
@@ -596,7 +662,7 @@ def _proof_template_csv_row(packet: ReviewedBatchPacket) -> str:
         "validation_result": "<pass/fail/not_applicable>",
         "preview_result": "<reviewed rows / no unexpected rows / not_applicable>",
         "apply_result": "<not_run/applied/skipped>",
-        "post_run_readiness_snapshot": "make readiness && lane proof command",
+        "post_run_readiness_snapshot": comparison_command,
         "changed_readiness_counts": "<before -> after counts, or none>",
         "changed_tickers": "<tickers changed, or none>",
         "reviewer": "<name>",
@@ -625,8 +691,22 @@ def _proof_record_scaffold(batch_id: str, lane: str) -> str:
     )
 
 
-def _metric_readiness_lane(root: Path, top_n: int, tickers: tuple[str, ...]) -> ReadinessLane:
-    candidate_count = len(_candidate_tickers(root, "metric_readiness_review", top_n, tickers))
+def _metric_readiness_lane(
+    root: Path,
+    top_n: int,
+    tickers: tuple[str, ...],
+    *,
+    data_dir: Path,
+) -> ReadinessLane:
+    candidate_count = len(
+        _candidate_tickers(
+            root,
+            "metric_readiness_review",
+            top_n,
+            tickers,
+            data_dir=data_dir,
+        )
+    )
     return ReadinessLane(
         lane="metric_readiness_review",
         label="Metric Readiness Review",
@@ -654,14 +734,37 @@ def build_reviewed_batch_packet(
     lane: str = "prices",
     top_n: int = 10,
     tickers: str | Iterable[str] | None = None,
+    profile: str = "default",
 ) -> ReviewedBatchPacket:
     root = Path(root)
+    if profile not in {"default", "demo", "local"}:
+        raise ValueError("Unknown reviewed batch profile. Use default, demo, or local.")
+    selected_profile = _reviewed_batch_profile(root, profile)
     selected_lane_codes = normalize_batch_lane(lane)
     selected_tickers = _split_tickers(tickers)
-    freshness = readiness_freshness_status(root)
-    lanes = [lane_row for lane_row in build_readiness_ops_lanes(root) if lane_row.lane in selected_lane_codes]
+    freshness = readiness_freshness_status(
+        root,
+        data_dir=selected_profile.data_dir,
+        output_dir=selected_profile.outputs_dir,
+    )
+    lanes = [
+        lane_row
+        for lane_row in build_readiness_ops_lanes(
+            root,
+            data_dir=selected_profile.data_dir,
+            output_dir=selected_profile.outputs_dir,
+        )
+        if lane_row.lane in selected_lane_codes
+    ]
     if "metric_readiness_review" in selected_lane_codes and not any(lane_row.lane == "metric_readiness_review" for lane_row in lanes):
-        lanes.append(_metric_readiness_lane(root, top_n, selected_tickers))
+        lanes.append(
+            _metric_readiness_lane(
+                root,
+                top_n,
+                selected_tickers,
+                data_dir=selected_profile.data_dir,
+            )
+        )
     lane_lookup = {lane_row.lane: lane_row for lane_row in lanes}
     batch_id = datetime.now(timezone.utc).strftime("RB-%Y%m%dT%H%M%SZ")
     actions: list[ReviewedBatchAction] = []
@@ -669,8 +772,14 @@ def build_reviewed_batch_packet(
         lane_row = lane_lookup.get(lane_code)
         if lane_row is None:
             continue
-        action_tickers = _candidate_tickers(root, lane_code, top_n, selected_tickers)
-        commands = _lane_commands(lane_code, action_tickers, top_n, root=root)
+        action_tickers = _candidate_tickers(
+            root,
+            lane_code,
+            top_n,
+            selected_tickers,
+            data_dir=selected_profile.data_dir,
+        )
+        commands = _lane_commands(lane_code, action_tickers, top_n, root=root, profile=profile)
         action_scope = _join_ticker_arg(action_tickers)
         for proposed in action_tickers or ("<lane_scope>",):
             actions.append(
@@ -694,7 +803,7 @@ def build_reviewed_batch_packet(
                     expected_artifacts=commands["artifacts"],
                     rollback=commands["rollback"],
                     do_not_proceed_if=_do_not_proceed(lane_row, freshness),
-                    pre_run_readiness_snapshot="record saved counts before command; run make readiness-snapshot if needed",
+                    pre_run_readiness_snapshot=f"make readiness-snapshot PROFILE={profile}",
                     command_run="<copy exact command actually run>",
                     validation_result="<pass/fail/not_applicable>",
                     preview_result="<reviewed rows / no unexpected rows / not_applicable>",
@@ -712,6 +821,7 @@ def build_reviewed_batch_packet(
             )
     return ReviewedBatchPacket(
         batch_id=batch_id,
+        profile=profile,
         selected_lane=lane,
         selected_scope=", ".join(selected_lane_codes),
         top_n=top_n,
@@ -743,8 +853,8 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
         "",
         "## Readiness Snapshot",
         "",
-        "- Pre-run snapshot command: `make readiness-snapshot`",
-        "- Refresh saved readiness reports before relying on final counts: `make readiness`",
+        f"- Pre-run snapshot command: `make readiness-snapshot PROFILE={packet.profile}`",
+        f"- Post-apply proof: `make reviewed-batch-compare PROFILE={packet.profile} LANE=<lane> BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>`",
         "- Current operations view: `make readiness-ops-center`",
         "- Current frontier view: `make coverage-frontier TOP_N=10`",
         "",
@@ -907,6 +1017,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lane", default="prices", help="prices, fundamentals, share_count, peers, metrics, optional_context.")
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--tickers", default="", help="Optional comma-separated ticker scope.")
+    parser.add_argument("--profile", choices=("default", "demo", "local"), default="default")
     parser.add_argument("--md-output", default=str(DEFAULT_PACKET_MD))
     parser.add_argument("--csv-output", default=str(DEFAULT_PACKET_CSV))
     parser.add_argument("--dry-run", action="store_true", help="Preview the packet without writing Markdown or CSV artifacts.")
@@ -921,6 +1032,7 @@ def main(argv: list[str] | None = None) -> int:
         lane=args.lane,
         top_n=args.top_n,
         tickers=args.tickers,
+        profile=args.profile,
     )
     if args.dry_run:
         print(render_packet_markdown(packet) if args.print else render_packet_preview(packet))

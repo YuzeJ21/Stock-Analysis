@@ -467,7 +467,10 @@ def build_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) 
     source_warning = _format_missing(get_value("Stale / Source Warning"), "Review source readiness before proceeding.")
     proof_status = _format_missing(get_value("Proof Record Status"), "No reviewed batch proof row recorded yet.")
     gate_status, gate_decision, gate_command = _queue_lane_gate_action(lane)
-    compare_command = f"make reviewed-batch-compare LANE={batch_lane} BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    compare_command = (
+        f"make reviewed-batch-compare PROFILE=<default|demo|local> LANE={batch_lane} "
+        "BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    )
     proof_command = (
         "DRY_RUN=1 make reviewed-batch-proof-record "
         "BATCH_ID=<batch_id> "
@@ -575,7 +578,10 @@ def build_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> lis
                 f"{_proof_lane_drawer_route('proof-record')} for the dry-run proof record. Current proof status: {proof_status}."
             ),
             "badges": ["compare first", "dry-run proof"],
-            "command": f"make reviewed-batch-compare LANE={batch_lane} BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "command": (
+                f"make reviewed-batch-compare PROFILE=<default|demo|local> LANE={batch_lane} "
+                "BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+            ),
         },
         {
             "kicker": "ROUTE 4",
@@ -666,7 +672,10 @@ def build_readiness_queue_route_overview_cards(drilldown_frame: pd.DataFrame | N
                 "Record supported, candidate_context_only, still_blocked, skipped, or excluded only after reviewed fields are complete."
             ),
             "badges": ["compare first", "dry-run proof"],
-            "command": f"make reviewed-batch-compare LANE={_queue_lane_batch_lane(lane)} BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "command": (
+                f"make reviewed-batch-compare PROFILE=<default|demo|local> LANE={_queue_lane_batch_lane(lane)} "
+                "BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+            ),
         },
         {
             "kicker": "ARTIFACT BOUNDARY",

@@ -260,7 +260,7 @@ def test_reviewed_batch_share_count_lane_uses_first_class_proof_queue(tmp_path: 
     assert action.proposed_ticker == "AAA"
     assert action.dry_run_command == "make share-count-proof-queue TOP_N=1"
     assert "shares_outstanding rows pass preview" in action.apply_command
-    assert "make reviewed-batch-compare LANE=share_count" in action.readiness_comparison_command
+    assert "make reviewed-batch-compare PROFILE=default LANE=share_count" in action.readiness_comparison_command
     assert "SEC/manual source proof does not explicitly verify shares_outstanding" in action.do_not_proceed_if
     assert "do not infer it from market cap, price, peers, or placeholders" in rendered
     assert "make dcf-readiness" in rendered
@@ -361,7 +361,7 @@ def test_reviewed_batch_packet_includes_v2_proof_ledger_fields_and_peer_sub_lane
     assert "final_outcome" in rendered
     assert "supported, still_blocked, skipped, excluded" in rendered
     assert "data/reviewed_batch_proofs.csv" in rendered
-    assert "make reviewed-batch-compare LANE=peers" in rendered
+    assert "make reviewed-batch-compare PROFILE=default LANE=peers" in rendered
     assert "make reviewed-batch-proof-record" in rendered
     assert "CHANGED_READINESS_COUNTS" in rendered
     assert "CHANGED_TICKERS" in rendered
@@ -438,9 +438,9 @@ def test_reviewed_batch_writes_markdown_and_csv_without_advice(tmp_path: Path):
     assert rows
     assert rows[0]["batch_id"] == packet.batch_id
     assert rows[0]["dry_run_command"] == "make peer-mapping-queue TOP_N=2"
-    assert rows[0]["readiness_comparison_command"].startswith("make reviewed-batch-compare LANE=peers")
+    assert rows[0]["readiness_comparison_command"].startswith("make reviewed-batch-compare PROFILE=default LANE=peers")
     assert rows[0]["proof_record_command"].startswith("make reviewed-batch-proof-record")
-    assert rows[0]["pre_run_readiness_snapshot"].startswith("record saved counts")
+    assert rows[0]["pre_run_readiness_snapshot"] == "make readiness-snapshot PROFILE=default"
     assert rows[0]["changed_readiness_counts"] == "<before -> after counts, or none>"
     assert rows[0]["generated_artifacts_reviewed"] == "<kept evidence or excluded local churn>"
     assert rows[0]["final_outcome"] == "supported|candidate_context_only|still_blocked|skipped|excluded"
@@ -544,3 +544,24 @@ def test_reviewed_batch_cli_dry_run_does_not_write_packet_artifacts(tmp_path: Pa
     assert not csv_output.exists()
     assert "buy" not in lowered
     assert "sell" not in lowered
+
+
+def test_reviewed_batch_current_proof_commands_bind_one_profile_and_skip_legacy_writer(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _mark_readiness_current(root)
+
+    packet = build_reviewed_batch_packet(root, lane="share_count", top_n=1, profile="default")
+    action = packet.actions[0]
+    rendered = render_packet_markdown(packet)
+
+    assert action.pre_run_readiness_snapshot == "make readiness-snapshot PROFILE=default"
+    assert action.readiness_comparison_command.startswith(
+        "make reviewed-batch-compare PROFILE=default LANE=share_count"
+    )
+    assert action.post_run_verification.startswith(
+        "make reviewed-batch-compare PROFILE=default LANE=share_count"
+    )
+    assert "make readiness &&" not in action.post_run_verification
+    assert "make readiness &&" not in rendered
+    assert "make readiness-snapshot PROFILE=default" in rendered
+    assert "make reviewed-batch-compare PROFILE=default" in rendered

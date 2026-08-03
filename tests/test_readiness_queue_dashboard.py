@@ -138,7 +138,7 @@ def test_readiness_queue_lane_action_routes_mutating_and_read_only_lanes():
     assert metric_gate["Status"] == "read_only_metric_review"
     assert "do not run import/apply commands" in metric_gate["Operator Decision"].lower()
     assert peer_gate["Status"] == "validate_preview_apply"
-    assert "make reviewed-batch-compare LANE=peers" in " ".join(str(value) for value in peer.to_numpy().ravel())
+    assert "make reviewed-batch-compare PROFILE=<default|demo|local> LANE=peers" in " ".join(str(value) for value in peer.to_numpy().ravel())
     assert "?mode=operator&page=data-health&lane=metrics&drawer=queue" in rendered
     assert "?mode=operator&page=data-health&lane=metrics&drawer=source-proof" in rendered
     assert "?mode=operator&page=data-health&lane=proof&drawer=comparison" in rendered
@@ -175,6 +175,7 @@ def test_readiness_queue_route_cards_summarize_navigation_without_unlocking_data
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
+    assert "make reviewed-batch-compare profile=<default|demo|local> lane=fundamentals" in rendered
 
 
 def test_readiness_queue_route_strip_cards_show_lane_context_before_detail():
@@ -250,6 +251,7 @@ def test_readiness_queue_route_overview_cards_connect_lane_to_proof_and_artifact
     assert "buy" not in rendered
     assert "sell" not in rendered
     assert "broker" not in rendered
+    assert "make reviewed-batch-compare profile=<default|demo|local> lane=fundamentals" in rendered
 
 
 def test_readiness_queue_route_overview_cards_block_when_queue_rows_missing():

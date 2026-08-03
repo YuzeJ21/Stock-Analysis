@@ -14129,11 +14129,14 @@ def data_health_dcf_proof_loop_outcome_frame(
     comparison_detail = "Open Proof review details before using changed counts in a DCF proof row."
     comparison_command = "Open Proof review details."
     if comparison is not None:
-        comparison_command = f"make reviewed-batch-compare LANE={compare_lane}"
+        comparison_command = (
+            f"make reviewed-batch-compare PROFILE={comparison.profile} LANE={compare_lane}"
+        )
         if comparison.status != "ok":
             comparison_status = comparison.status
             comparison_detail = comparison.blocking_message or "Snapshot comparison is blocked until before/after readiness reports exist."
-            comparison_command = "make readiness-snapshot" if comparison.status == "missing_before" else "make readiness"
+            if comparison.status == "missing_before":
+                comparison_command = f"make readiness-snapshot PROFILE={comparison.profile}"
         elif comparison.blocking_message:
             comparison_status = "stale_snapshot_warning"
             comparison_detail = (
@@ -15592,10 +15595,15 @@ def data_health_readiness_comparison_frame(comparison: ReadinessComparison | Non
         [
             {
                 "Status": comparison.status,
+                "Profile": comparison.profile,
                 "Before Snapshot": str(comparison.before_path),
                 "After Snapshot": str(comparison.after_path),
+                "After Row Set": comparison.after_source or str(comparison.after_path),
                 "Rows Before": comparison.before_rows,
                 "Rows After": comparison.after_rows,
+                "Before Input Identity": comparison.before_input_identity,
+                "After Input Identity": comparison.after_input_identity,
+                "Readiness Method Version": comparison.readiness_method_version,
                 "Changed Readiness Counts": comparison.changed_readiness_counts,
                 "Changed Tickers": ", ".join(comparison.changed_tickers) if comparison.changed_tickers else "none",
                 "Changed Ticker Count": comparison.changed_count,

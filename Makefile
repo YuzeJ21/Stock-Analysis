@@ -220,7 +220,7 @@ help-full:
 	@echo "  make reviewed-batch-proof [LEDGER=data/reviewed_batch_proofs.csv] Print durable reviewed batch proof rows"
 	@echo "  make proof-readiness-reconciliation [TOP_N=20] [TICKERS=ARCT] [JSON=1] Compare historical proof with current saved readiness"
 	@echo "  make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<auto_supported|human_reviewed_supported|candidate_context_only|still_blocked|skipped|excluded> Record a reviewed or auto-gated batch outcome"
-	@echo "  make reviewed-batch-compare [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare prior/current readiness snapshots for proof-ledger fields"
+	@echo "  make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot with in-memory current readiness"
 	@echo "  make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates"
 	@echo "  make auto-refresh-plan       Print scheduler-ready source-backed auto-refresh lanes and auto gates"
 	@echo "  make auto-refresh-daily      Print daily price, SEC filing/share-count, and fundamentals refresh commands"
@@ -722,10 +722,13 @@ proof-readiness-reconciliation:
 	@python3 -m src.proof_readiness_reconciliation --root . --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers "$(TICKERS)",) $(if $(filter 1,$(JSON)),--json,)
 
 reviewed-batch-compare:
-	@python3 -m src.readiness_comparison --root . --top-n $(or $(TOP_N),25) --batch-id "$(or $(BATCH_ID),<batch_id>)" --lane "$(or $(LANE),prices)" --review-date "$(or $(REVIEW_DATE),<yyyy-mm-dd>)"
+ifndef PROFILE
+	$(error PROFILE is required: default, demo, or local)
+endif
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.readiness_comparison --root . --profile "$(PROFILE)" --top-n $(or $(TOP_N),25) --batch-id "$(or $(BATCH_ID),<batch_id>)" --lane "$(or $(LANE),prices)" --review-date "$(or $(REVIEW_DATE),<yyyy-mm-dd>)"
 
 reviewed-batch-preflight:
-	@python3 -m src.reviewed_batch_preflight --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),100) --max-candidates $(or $(MAX_CANDIDATES),3500) --provider $(or $(PROVIDER),auto) $(if $(BATCH_ID),--batch-id "$(BATCH_ID)",) $(if $(REVIEW_DATE),--review-date "$(REVIEW_DATE)",)
+	@python3 -m src.reviewed_batch_preflight --root . --profile $(or $(PROFILE),default) --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),100) --max-candidates $(or $(MAX_CANDIDATES),3500) --provider $(or $(PROVIDER),auto) $(if $(BATCH_ID),--batch-id "$(BATCH_ID)",) $(if $(REVIEW_DATE),--review-date "$(REVIEW_DATE)",)
 
 auto-refresh-plan:
 	@python3 -m src.auto_refresh_orchestrator --root . --schedule all

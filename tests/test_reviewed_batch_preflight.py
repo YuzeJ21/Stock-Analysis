@@ -35,8 +35,10 @@ def test_reviewed_batch_preflight_blocks_when_prior_snapshot_missing(tmp_path: P
     assert preflight.prior_snapshot_exists is False
     assert "prior readiness snapshot is missing" in " ".join(preflight.do_not_proceed_if)
     assert "make readiness-snapshot" in rendered
+    assert "make readiness-snapshot PROFILE=default" in rendered
     assert "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto" in rendered
-    assert "make reviewed-batch-compare LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-12 TOP_N=100" in rendered
+    assert "make reviewed-batch-compare PROFILE=default LANE=prices BATCH_ID=RB-TEST REVIEW_DATE=2026-06-12 TOP_N=100" in rendered
+    assert "5. make readiness" not in rendered
     assert "Post-run hygiene before any public commit" in rendered
     assert "make diff-hygiene" in rendered
     assert "Keep broad generated CSV/JSON churn unstaged" in rendered
@@ -89,7 +91,36 @@ def test_reviewed_batch_preflight_handles_share_count_lane_scope(tmp_path: Path)
     assert "reviewed trusted shares_outstanding rows" in preflight.capped_execution_command
     assert "data/rejected/fundamentals_import_rejected.csv" in preflight.expected_artifacts
     assert "DRY_RUN=1 make reviewed-batch LANE=share_count TOP_N=10" in rendered
-    assert "make reviewed-batch-compare LANE=share_count" in rendered
+    assert "make reviewed-batch-compare PROFILE=default LANE=share_count" in rendered
+
+
+def test_reviewed_batch_preflight_uses_one_selected_profile_for_snapshot_and_comparison(tmp_path: Path):
+    local_root = tmp_path / "data" / "local"
+    _write(local_root / "prices.csv", "ticker,date,close\n")
+    _write(local_root / "fundamentals.csv", "ticker,source\n")
+    _write(local_root / "peers.csv", "ticker,peer_ticker\n")
+    _write(local_root / "earnings.csv", "ticker,source\n")
+    _write(local_root / "analyst_estimates.csv", "ticker,source\n")
+    _write(
+        local_root / "reports" / "ticker_readiness_report.previous.csv",
+        "ticker,overall_readiness_state\nAAA,blocked\n",
+    )
+
+    preflight = build_reviewed_batch_preflight(
+        tmp_path,
+        lane="prices",
+        top_n=10,
+        batch_id="RB-LOCAL",
+        review_date="2026-08-03",
+        profile="local",
+    )
+    rendered = render_reviewed_batch_preflight(preflight)
+
+    assert preflight.snapshot_command == "make readiness-snapshot PROFILE=local"
+    assert preflight.comparison_command.startswith("make reviewed-batch-compare PROFILE=local LANE=prices")
+    sequence = [line.strip() for line in rendered.splitlines() if line[:1].isdigit()]
+    assert "5. make readiness" not in sequence
+    assert all("make readiness &&" not in line for line in sequence)
 
 
 def test_reviewed_batch_preflight_handles_peer_lane_scope(tmp_path: Path):
