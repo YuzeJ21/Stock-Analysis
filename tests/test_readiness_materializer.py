@@ -82,7 +82,7 @@ def _snapshot_values(destination: Path) -> set[str]:
         return set()
     return {
         str(pd.read_csv(path).loc[0, "marker"])
-        for path in destination.iterdir()
+        for path in destination.glob("*.csv")
         if path.is_file()
     }
 
@@ -276,6 +276,291 @@ def test_builder_report_contract_must_equal_all_eleven_names(tmp_path: Path, mon
         materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
 
     assert not (tmp_path / "outputs").exists()
+
+
+def test_staging_residue_appearing_during_composition_fails_before_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    _write_fixture(tmp_path)
+    staging = tmp_path / "outputs/local/derived/.default.readiness-staging"
+    operator_file = staging / "operator-recovery.txt"
+
+    def build(*_args, **_kwargs):
+        staging.mkdir(parents=True)
+        operator_file.write_text("do not remove", encoding="utf-8")
+        return _frames("new")
+
+    serialize_calls = []
+    original_serialize = readiness_materializer._serialize_staging
+
+    def track_serialize(*args, **kwargs):
+        serialize_calls.append((args, kwargs))
+        return original_serialize(*args, **kwargs)
+
+    monkeypatch.setattr(readiness_materializer, "build_ticker_readiness_report", build)
+    monkeypatch.setattr(readiness_materializer, "_serialize_staging", track_serialize)
+
+    with pytest.raises(ReadinessMaterializationError, match="operator recovery"):
+        materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+    assert operator_file.read_text(encoding="utf-8") == "do not remove"
+    assert serialize_calls == []
+    assert not (staging.parent / "default").exists()
+
+
+def test_operator_destination_entry_appearing_during_composition_fails_before_mutation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    _write_fixture(tmp_path)
+    destination = tmp_path / "outputs/local/derived/default"
+    operator_file = destination / "operator-notes.txt"
+
+    def build(*_args, **_kwargs):
+        destination.mkdir(parents=True)
+        operator_file.write_text("keep me", encoding="utf-8")
+        return _frames("new")
+
+    serialize_calls = []
+    original_serialize = readiness_materializer._serialize_staging
+
+    def track_serialize(*args, **kwargs):
+        serialize_calls.append((args, kwargs))
+        return original_serialize(*args, **kwargs)
+
+    monkeypatch.setattr(readiness_materializer, "build_ticker_readiness_report", build)
+    monkeypatch.setattr(readiness_materializer, "_serialize_staging", track_serialize)
+
+    with pytest.raises(ReadinessMaterializationError, match="unexpected entry"):
+        materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+    assert operator_file.read_text(encoding="utf-8") == "keep me"
+    assert serialize_calls == []
+    assert not (destination.parent / ".default.readiness-staging").exists()
+
+
+def test_complete_backup_cleanup_failure_rolls_back_to_prior_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    _write_fixture(tmp_path)
+    _install_builder(monkeypatch, _frames("old"))
+    first = materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+    monkeypatch.setattr(readiness_materializer, "build_ticker_readiness_report", lambda *_args, **_kwargs: _frames("new"))
+    original_remove = readiness_materializer.shutil.rmtree
+
+    def fail_complete_backup_cleanup(path, *args, **kwargs):
+        if Path(path).name == ".default.readiness-backup":
+            raise OSError("backup cleanup failed before removal")
+        return original_remove(path, *args, **kwargs)
+
+    monkeypatch.setattr(readiness_materializer.shutil, "rmtree", fail_complete_backup_cleanup)
+
+    with pytest.raises(ReadinessMaterializationError, match="restored prior snapshot"):
+        materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+    assert _snapshot_values(first.output_dir) == {"old"}
+    assert set(path.name for path in first.output_dir.iterdir()) == set(EXPECTED_FILENAMES)
+    assert not (first.output_dir.parent / ".default.readiness-staging").exists()
+    assert not (first.output_dir.parent / ".default.readiness-backup").exists()
+
+
+def test_partial_backup_cleanup_failure_preserves_complete_new_snapshot_and_residue(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    _write_fixture(tmp_path)
+    _install_builder(monkeypatch, _frames("old"))
+    first = materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+    monkeypatch.setattr(readiness_materializer, "build_ticker_readiness_report", lambda *_args, **_kwargs: _frames("new"))
+    original_remove = readiness_materializer.shutil.rmtree
+
+    def partially_remove_backup(path, *args, **kwargs):
+        candidate = Path(path)
+        if candidate.name == ".default.readiness-backup":
+            (candidate / EXPECTED_FILENAMES[0]).unlink()
+            raise OSError("backup cleanup failed after partial removal")
+        return original_remove(path, *args, **kwargs)
+
+    monkeypatch.setattr(readiness_materializer.shutil, "rmtree", partially_remove_backup)
+
+    with pytest.raises(ReadinessMaterializationError, match="operator recovery"):
+        materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+    backup = first.output_dir.parent / ".default.readiness-backup"
+    assert set(path.name for path in first.output_dir.iterdir()) == set(EXPECTED_FILENAMES)
+    assert _snapshot_values(first.output_dir) == {"new"}
+    assert backup.exists()
+    assert set(path.name for path in backup.iterdir()) == set(EXPECTED_FILENAMES[1:])
+    assert not (first.output_dir.parent / ".default.readiness-staging").exists()
+    with pytest.raises(ReadinessMaterializationError, match="operator recovery"):
+        materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+
+def test_destination_change_immediately_before_backup_rename_is_preserved_and_not_published(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    _write_fixture(tmp_path)
+    _install_builder(monkeypatch, _frames("old"))
+    first = materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+    monkeypatch.setattr(readiness_materializer, "build_ticker_readiness_report", lambda *_args, **_kwargs: _frames("new"))
+    operator_file = first.output_dir / "operator-race.txt"
+
+    def inject_operator_entry(name: str) -> None:
+        if name == "before_backup_rename":
+            operator_file.write_text("preserve me", encoding="utf-8")
+
+    monkeypatch.setattr(readiness_materializer, "_publication_checkpoint", inject_operator_entry)
+
+    with pytest.raises(ReadinessMaterializationError, match="operator recovery"):
+        materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+    assert operator_file.read_text(encoding="utf-8") == "preserve me"
+    assert _snapshot_values(first.output_dir) == {"old"}
+    assert not (first.output_dir.parent / ".default.readiness-backup").exists()
+
+
+@pytest.mark.parametrize("raced_path", ["destination", "backup"])
+def test_operator_path_appearing_immediately_before_publish_is_preserved_without_publish_rename(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raced_path: str
+):
+    _write_fixture(tmp_path)
+    destination = tmp_path / "outputs/local/derived/default"
+    derived = destination.parent
+    staging = derived / ".default.readiness-staging"
+    backup = derived / ".default.readiness-backup"
+    operator_root = destination if raced_path == "destination" else backup
+    operator_file = operator_root / "operator-race.txt"
+    _install_builder(monkeypatch, _frames("new"))
+    publish_renames = []
+    original_replace = readiness_materializer.os.replace
+
+    def inject_operator_path(name: str) -> None:
+        if name == "before_publish":
+            operator_root.mkdir()
+            operator_file.write_text("preserve me", encoding="utf-8")
+
+    def track_replace(source, target):
+        if Path(source) == staging and Path(target) == destination:
+            publish_renames.append((Path(source), Path(target)))
+        return original_replace(source, target)
+
+    monkeypatch.setattr(readiness_materializer, "_publication_checkpoint", inject_operator_path)
+    monkeypatch.setattr(readiness_materializer.os, "replace", track_replace)
+
+    with pytest.raises(ReadinessMaterializationError, match="operator recovery"):
+        materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+    assert operator_file.read_text(encoding="utf-8") == "preserve me"
+    assert publish_renames == []
+    assert not staging.exists()
+
+
+def test_staging_swap_immediately_before_publish_is_never_followed_or_deleted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    _write_fixture(tmp_path)
+    destination = tmp_path / "outputs/local/derived/default"
+    staging = destination.parent / ".default.readiness-staging"
+    displaced = destination.parent / "operator-displaced-complete-staging"
+    replacement_file = staging / "operator-race.txt"
+    _install_builder(monkeypatch, _frames("new"))
+
+    def swap_staging(name: str) -> None:
+        if name == "before_publish":
+            staging.rename(displaced)
+            staging.mkdir()
+            replacement_file.write_text("preserve replacement", encoding="utf-8")
+
+    monkeypatch.setattr(readiness_materializer, "_publication_checkpoint", swap_staging)
+
+    with pytest.raises(ReadinessMaterializationError, match="operator recovery"):
+        materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+    assert replacement_file.read_text(encoding="utf-8") == "preserve replacement"
+    assert set(path.name for path in displaced.iterdir()) == set(EXPECTED_FILENAMES)
+    assert not destination.exists()
+
+
+def test_staging_swap_after_atomic_mkdir_is_not_written_or_removed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    _write_fixture(tmp_path)
+    destination = tmp_path / "outputs/local/derived/default"
+    staging = destination.parent / ".default.readiness-staging"
+    displaced = destination.parent / "operator-displaced-empty-staging"
+    replacement_file = staging / "operator-race.txt"
+    _install_builder(monkeypatch, _frames("new"))
+
+    def swap_after_create(name: str) -> None:
+        if name == "after_staging_create":
+            staging.rename(displaced)
+            staging.mkdir()
+            replacement_file.write_text("preserve replacement", encoding="utf-8")
+
+    monkeypatch.setattr(readiness_materializer, "_publication_checkpoint", swap_after_create)
+
+    with pytest.raises(ReadinessMaterializationError, match="operator recovery"):
+        materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+    assert replacement_file.read_text(encoding="utf-8") == "preserve replacement"
+    assert list(displaced.iterdir()) == []
+    assert not destination.exists()
+
+
+def test_staging_replacement_appearing_at_serialization_cleanup_is_not_deleted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    _write_fixture(tmp_path)
+    destination = tmp_path / "outputs/local/derived/default"
+    staging = destination.parent / ".default.readiness-staging"
+    displaced = destination.parent / "operator-displaced-partial-staging"
+    replacement_file = staging / "operator-race.txt"
+    _install_builder(monkeypatch, _frames("new"))
+
+    def fail_serialization(*_args, **_kwargs):
+        raise OSError("serialize failure")
+
+    def swap_before_cleanup(name: str) -> None:
+        if name == "before_staging_cleanup":
+            staging.rename(displaced)
+            staging.mkdir()
+            replacement_file.write_text("preserve replacement", encoding="utf-8")
+
+    monkeypatch.setattr(pd.DataFrame, "to_csv", fail_serialization)
+    monkeypatch.setattr(readiness_materializer, "_publication_checkpoint", swap_before_cleanup)
+
+    with pytest.raises(ReadinessMaterializationError, match="operator recovery"):
+        materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+    assert replacement_file.read_text(encoding="utf-8") == "preserve replacement"
+    assert displaced.exists()
+    assert not destination.exists()
+
+
+def test_backup_replacement_appearing_at_cleanup_is_not_deleted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    _write_fixture(tmp_path)
+    _install_builder(monkeypatch, _frames("old"))
+    first = materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+    monkeypatch.setattr(readiness_materializer, "build_ticker_readiness_report", lambda *_args, **_kwargs: _frames("new"))
+    backup = first.output_dir.parent / ".default.readiness-backup"
+    displaced = first.output_dir.parent / "operator-displaced-complete-backup"
+    replacement_file = backup / "operator-race.txt"
+
+    def swap_before_cleanup(name: str) -> None:
+        if name == "before_backup_cleanup":
+            backup.rename(displaced)
+            backup.mkdir()
+            replacement_file.write_text("preserve replacement", encoding="utf-8")
+
+    monkeypatch.setattr(readiness_materializer, "_publication_checkpoint", swap_before_cleanup)
+
+    with pytest.raises(ReadinessMaterializationError, match="operator recovery"):
+        materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+    assert replacement_file.read_text(encoding="utf-8") == "preserve replacement"
+    assert set(path.name for path in displaced.iterdir()) == set(EXPECTED_FILENAMES)
+    assert _snapshot_values(first.output_dir) == {"new"}
+    assert not (first.output_dir.parent / ".default.readiness-staging").exists()
 
 
 @pytest.mark.parametrize(

@@ -1774,6 +1774,9 @@ def test_project_status_human_refresh_artifacts_keeps_cli_clean_and_readiness_fa
     assert "wrote:" not in output
     assert (tmp_path / "outputs" / "project_status.json").exists()
     assert not (tmp_path / "data/reports/ticker_readiness_report.csv").exists()
+    assert not (tmp_path / "data/dcf_readiness.csv").exists()
+    assert not (tmp_path / "data/earnings_readiness.csv").exists()
+    assert not (tmp_path / "data/analyst_estimates_readiness.csv").exists()
     assert not (tmp_path / "outputs/local/derived").exists()
 
 

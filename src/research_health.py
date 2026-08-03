@@ -9,10 +9,7 @@ from typing import Any
 import pandas as pd
 
 from src.data_onboarding import build_ticker_coverage, focus_command_for_ticker
-from src.dcf_readiness import build_dcf_readiness_report
 from src.loader import load_inputs
-from src.optional_context_readiness import build_optional_context_readiness_reports
-from src.readiness_engine import build_ticker_readiness_report
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.providers.csv_provider import CSVDataFetcher
 
@@ -814,9 +811,6 @@ def run(
         output_path.mkdir(parents=True, exist_ok=True)
         for name, frame in outputs.items():
             frame.to_csv(files[name], index=False)
-        build_dcf_readiness_report(root, data_dir=data_path)
-        build_optional_context_readiness_reports(root, data_dir=data_path)
-        build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path, write_outputs=False)
     return {
         "files": files,
         "row_counts": {name: len(frame) for name, frame in outputs.items()},
