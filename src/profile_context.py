@@ -304,19 +304,25 @@ def _freshness(data_dir: Path, *, profile_key: str, profile_label: str) -> tuple
 def build_profile_context(
     project_root: Path | str | None = None,
     *,
+    profile: str | None = None,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
     now: datetime | None = None,
 ) -> ProfileContext:
     root = resolve_project_root(project_root)
-    profile = resolve_data_profile(project_root=root)
-    data_path = resolve_data_dir(data_dir, root)
-    output_path = resolve_outputs_dir(output_dir, root)
+    selected_profile = resolve_data_profile(profile, project_root=root)
+    data_path = selected_profile.data_dir if data_dir is None else resolve_data_dir(data_dir, root)
+    output_path = selected_profile.outputs_dir if output_dir is None else resolve_outputs_dir(output_dir, root)
+    if profile is not None and (
+        data_path != selected_profile.data_dir
+        or output_path != selected_profile.outputs_dir
+    ):
+        raise ValueError("explicit overrides must match the selected profile paths")
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     lanes = _lane_source_dates(data_path, today=current.date())
     source_as_of = max((value for _, value in lanes), default="")
 
-    if profile.name == "demo" and data_dir is None:
+    if selected_profile.name == "demo" and data_dir is None:
         identity, manifest_date = _manifest_identity(data_path / "manifest.json")
         if manifest_date:
             source_as_of = manifest_date
@@ -327,13 +333,13 @@ def build_profile_context(
     readiness_built_at = _readiness_built_at(data_path)
     freshness_state, freshness_message, refresh_command = _freshness(
         data_path,
-        profile_key=profile.name,
-        profile_label=profile_display_label(profile.name),
+        profile_key=selected_profile.name,
+        profile_label=profile_display_label(selected_profile.name),
     )
     readiness_evidence_state, readiness_evidence_message = _readiness_evidence(
         root,
         data_path,
-        profile_key=profile.name,
+        profile_key=selected_profile.name,
     )
     source_date = _parse_date(source_as_of)
     readiness_time = _parse_datetime(readiness_built_at)
@@ -345,16 +351,16 @@ def build_profile_context(
     ):
         freshness_state = "stale"
         refresh_command, inspection_note = readiness_inspection_route(
-            profile.name, profile_display_label(profile.name), data_path
+            selected_profile.name, profile_display_label(selected_profile.name), data_path
         )
         freshness_message = f"Selected-profile source dates are newer than the saved readiness snapshot. {inspection_note}"
-    if profile.name == "demo" and data_dir is None and not identity:
+    if selected_profile.name == "demo" and data_dir is None and not identity:
         freshness_state = "mixed" if (data_path / READINESS_FILES[0]).exists() else "missing"
         freshness_message = "The selected demo manifest is missing or invalid."
 
     return ProfileContext(
-        profile_key=profile.name,
-        profile_label=profile_display_label(profile.name),
+        profile_key=selected_profile.name,
+        profile_label=profile_display_label(selected_profile.name),
         data_dir=data_path,
         outputs_dir=output_path,
         source_as_of=source_as_of,

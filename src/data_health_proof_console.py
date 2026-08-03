@@ -73,7 +73,12 @@ def humanize_proof_fields(fields_to_fill: str) -> str:
     return ", ".join(fields[:8]) + (f" +{len(fields) - 8} more" if len(fields) > 8 else "")
 
 
-def latest_batch_packet_summary(packet_frame: pd.DataFrame | None) -> dict[str, str]:
+def latest_batch_packet_summary(
+    packet_frame: pd.DataFrame | None,
+    *,
+    profile: str | None = None,
+) -> dict[str, str]:
+    selected_profile = resolve_readiness_proof_profile(profile)
     if packet_frame is None or packet_frame.empty:
         return {
             "state": "missing",
@@ -83,7 +88,7 @@ def latest_batch_packet_summary(packet_frame: pd.DataFrame | None) -> dict[str, 
             "freshness": "unknown",
             "row_count": "0",
             "dry_run_command": "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
-            "comparison_command": f"make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "comparison_command": f"make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             "proof_record_command": "make reviewed-batch-proof-record",
             "source_files": "not available",
             "generated_artifacts_reviewed": "not available",
@@ -101,7 +106,7 @@ def latest_batch_packet_summary(packet_frame: pd.DataFrame | None) -> dict[str, 
         "row_count": str(len(packet_frame)),
         "ticker_count": str(len(unique_tickers)),
         "dry_run_command": _format_missing(first.get("Dry Run Command"), "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"),
-        "comparison_command": _format_missing(first.get("Comparison Command"), f"make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"),
+        "comparison_command": _format_missing(first.get("Comparison Command"), f"make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"),
         "proof_record_command": _format_missing(first.get("Proof Record Scaffold"), "make reviewed-batch-proof-record"),
         "source_files": _compact_fragment(_format_missing(first.get("Source Files"), "review source files"), max_chars=170),
         "generated_artifacts_reviewed": _compact_fragment(
@@ -116,8 +121,10 @@ def latest_batch_packet_summary(packet_frame: pd.DataFrame | None) -> dict[str, 
 
 
 def reviewed_batch_outcome_recorder_frame(packet_frame: pd.DataFrame | None, comparison: Any) -> pd.DataFrame:
+    selected_profile = resolve_readiness_proof_profile(getattr(comparison, "profile", None))
     rows = build_outcome_recorder_rows(
         packet_values(packet_frame),
+        profile=selected_profile,
         packet_missing=packet_frame is None or packet_frame.empty,
         comparison_status=comparison.status,
         comparison_changed_counts=comparison.changed_readiness_counts,
@@ -134,7 +141,7 @@ def reviewed_batch_outcome_recorder_cards(packet_frame: pd.DataFrame | None, com
     frame = reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
     missing_frame = frame[frame["Status"].astype(str).str.contains("missing|blocked", case=False, na=False)]
     missing_fields = [str(field) for field in missing_frame["Field"].tolist() if field != "reviewed_batch_packet"]
-    summary = latest_batch_packet_summary(packet_frame)
+    summary = latest_batch_packet_summary(packet_frame, profile=getattr(comparison, "profile", None))
     if packet_frame is None or packet_frame.empty:
         return [
             {
@@ -223,7 +230,11 @@ def reviewed_batch_proof_completion_frame(packet_frame: pd.DataFrame | None, com
         if not command_frame.empty
         else "needs_field_fills"
     )
-    rows = build_proof_completion_rows(validation_frame.to_dict(orient="records"), command_status=status)
+    rows = build_proof_completion_rows(
+        validation_frame.to_dict(orient="records"),
+        command_status=status,
+        profile=getattr(comparison, "profile", None),
+    )
     for row in rows:
         row["Current Value"] = _compact_fragment(row["Current Value"], max_chars=180)
         row["Next Safest Action"] = _compact_fragment(row["Next Safest Action"], max_chars=220)
@@ -358,7 +369,8 @@ def reviewed_batch_proof_completion_cards(packet_frame: pd.DataFrame | None, com
 
 
 def reviewed_batch_proof_loop_cards(packet_frame: pd.DataFrame | None, comparison: Any) -> list[dict[str, object]]:
-    summary = latest_batch_packet_summary(packet_frame)
+    selected_profile = resolve_readiness_proof_profile(getattr(comparison, "profile", None))
+    summary = latest_batch_packet_summary(packet_frame, profile=selected_profile)
     if comparison.status == "ok":
         comparison_title = f"{comparison.changed_count:,} changed ticker(s)"
         comparison_body = (
@@ -372,7 +384,7 @@ def reviewed_batch_proof_loop_cards(packet_frame: pd.DataFrame | None, compariso
         comparison_body = (
             f"{comparison.blocking_message} Keep the proof row open until saved before/after readiness snapshots exist."
         )
-        comparison_command = f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}"
+        comparison_command = f"make readiness-snapshot PROFILE={selected_profile}"
         comparison_badges = [comparison.status, "snapshot first"]
     return [
         {
@@ -407,7 +419,8 @@ def reviewed_batch_proof_loop_cards(packet_frame: pd.DataFrame | None, compariso
 
 
 def reviewed_batch_proof_loop_frame(packet_frame: pd.DataFrame | None, comparison: Any) -> pd.DataFrame:
-    summary = latest_batch_packet_summary(packet_frame)
+    selected_profile = resolve_readiness_proof_profile(getattr(comparison, "profile", None))
+    summary = latest_batch_packet_summary(packet_frame, profile=selected_profile)
     return pd.DataFrame(
         [
             {
@@ -425,7 +438,7 @@ def reviewed_batch_proof_loop_frame(packet_frame: pd.DataFrame | None, compariso
                     if comparison.status == "ok"
                     else comparison.blocking_message
                 ),
-                "Copy Command": summary["comparison_command"] if comparison.status == "ok" else f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}",
+                "Copy Command": summary["comparison_command"] if comparison.status == "ok" else f"make readiness-snapshot PROFILE={selected_profile}",
                 "Stop If": "saved readiness snapshots are missing or source files changed without refresh",
             },
             {

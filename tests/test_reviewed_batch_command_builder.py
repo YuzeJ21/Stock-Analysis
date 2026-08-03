@@ -1,4 +1,7 @@
+import importlib
 from pathlib import Path
+
+from src import reviewed_batch_command_builder as command_builder
 
 from src.reviewed_batch_command_builder import (
     build_proof_ledger_preview_row,
@@ -13,6 +16,60 @@ from src.reviewed_batch_command_builder import (
     validate_proof_record_command_parts,
 )
 from src.reviewed_batch_proof import BATCH_PROOF_COLUMNS
+
+
+def test_profile_bound_sources_are_resolved_at_render_time_not_module_import(monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+    importlib.reload(command_builder)
+
+    for selected_profile in ("local", "demo"):
+        monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", selected_profile)
+        outcome_rows = command_builder.build_outcome_recorder_rows(
+            {
+                "Validation Result": "passed",
+                "Preview Result": "reviewed rows",
+                "Apply Result": "skipped",
+                "Changed Readiness Counts": "none; reviewed comparison",
+                "Changed Tickers": "none; reviewed comparison",
+                "Source Files": "reviewed fixture",
+                "Generated Artifacts Review": "excluded churn",
+            },
+            profile=selected_profile,
+            packet_missing=False,
+            comparison_status="ok",
+            comparison_changed_counts="none",
+            comparison_changed_tickers=(),
+            comparison_blocking_message="",
+        )
+        completion_rows = command_builder.build_proof_completion_rows(
+            [
+                {
+                    "Field": "changed_readiness_counts",
+                    "Validation Status": "missing_required",
+                    "Command Value": "<from reviewed-batch-compare>",
+                    "Reason": "missing",
+                },
+                {
+                    "Field": "changed_tickers",
+                    "Validation Status": "blocked_by_snapshot_gate",
+                    "Command Value": "<from reviewed-batch-compare>",
+                    "Reason": "missing",
+                },
+            ],
+            profile=selected_profile,
+            command_status="blocked_by_snapshot_gate",
+        )
+
+        rendered_sources = "\n".join(
+            row["Copy From"]
+            for row in outcome_rows
+            if row["Field"] in {"changed_readiness_counts", "changed_tickers"}
+        )
+        rendered_actions = "\n".join(row["Next Safest Action"] for row in completion_rows)
+        rendered = rendered_sources + "\n" + rendered_actions
+
+        assert f"PROFILE={selected_profile}" in rendered
+        assert "PROFILE=default" not in rendered
 
 
 def test_outcome_recorder_rows_keep_placeholders_missing_and_source_ready():

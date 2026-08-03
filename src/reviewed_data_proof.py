@@ -253,6 +253,7 @@ def render_price_reviewed_run_plan(
     fmp_status = _env_status("FMP_API_KEY")
     alpha_status = _env_status("ALPHA_VANTAGE_API_KEY")
     finnhub_status = _env_status("FINNHUB_API_KEY")
+    selected_profile = resolve_readiness_proof_profile()
     return "\n".join(
         [
             "Reviewed Price Coverage Run",
@@ -265,7 +266,7 @@ def render_price_reviewed_run_plan(
             "",
             "Before the run:",
             "1. make status-check TOP_N=5",
-            f"2. make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}",
+            f"2. make readiness-snapshot PROFILE={selected_profile}",
             f"3. {dry_run}",
             "4. Review provider boundary notes and expected generated CSV churn.",
             "",
@@ -274,7 +275,7 @@ def render_price_reviewed_run_plan(
             "",
             "After the run:",
             "6. make price-coverage TOP_N=25",
-            f"7. make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            f"7. make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             "8. make status-check TOP_N=5",
             "9. make diff-hygiene",
             "10. Record a reviewed proof row with final outcome supported/candidate_context_only/still_blocked/skipped/excluded.",

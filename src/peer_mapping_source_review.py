@@ -273,6 +273,7 @@ def peer_mapping_source_review_completion(row: PeerMappingReviewRow, freshness: 
 
 
 def peer_mapping_import_preview(row: PeerMappingReviewRow, freshness: FreshnessStatus) -> PeerMappingImportPreview:
+    selected_profile = resolve_readiness_proof_profile()
     completion = peer_mapping_source_review_completion(row, freshness)
     ready = completion.status == "ready_for_import_row_scaffold"
     csv_row = completion.import_row_scaffold if ready else ""
@@ -290,7 +291,7 @@ def peer_mapping_import_preview(row: PeerMappingReviewRow, freshness: FreshnessS
         target_file=row.target_file,
         validation_command=validation_command,
         apply_boundary=apply_boundary,
-        post_apply_proof=f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
+        post_apply_proof=f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
     )
 
 
@@ -655,6 +656,7 @@ def build_peer_mapping_source_review_packet(
 
 
 def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPacket) -> str:
+    selected_profile = resolve_readiness_proof_profile()
     status = "blocked_by_freshness" if packet.freshness.status in {"missing", "stale"} else "ready_for_review"
     decision = peer_mapping_packet_decision(packet)
     lines = [
@@ -687,7 +689,7 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
         "- Rejected shortcuts: memory, popularity, sector/theme similarity alone, row-count convenience, or placeholders.",
         "- Candidate context: local classification leads may help source review, but remain `candidate_context_only` and never count as trusted peer proof.",
         "- Validation path: `make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> make imports-apply IMPORT_TICKERS=<ticker>` only after source review.",
-        f"- Post-run proof: `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} -> reviewed validate/preview/apply -> make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25`.",
+        f"- Post-run proof: `make readiness-snapshot PROFILE={selected_profile} -> reviewed validate/preview/apply -> make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25`.",
         "- Import row scaffold appears only after source proof status and required review fields are filled.",
         "",
         "## Review Rows",

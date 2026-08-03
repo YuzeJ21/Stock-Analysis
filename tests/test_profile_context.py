@@ -103,6 +103,29 @@ def test_profile_context_uses_only_selected_profile(tmp_path, monkeypatch):
     assert all("data/local" in item or item.startswith("missing:") for item in context.snapshot_inputs)
 
 
+def test_explicit_profile_controls_paths_even_when_environment_selects_default(tmp_path, monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+    _write_minimum_profile(tmp_path / "data/local", ticker="LOCAL")
+    _write_minimum_profile(tmp_path / "data", ticker="DEFAULT")
+
+    context = build_profile_context(project_root=tmp_path, profile="local")
+
+    assert context.profile_key == "local"
+    assert context.data_dir == (tmp_path / "data/local").resolve()
+    assert context.outputs_dir == (tmp_path / "outputs/local").resolve()
+    assert all("data/local" in item or item.startswith("missing:") for item in context.snapshot_inputs)
+
+
+def test_explicit_profile_rejects_mismatched_override_paths(tmp_path):
+    with pytest.raises(ValueError, match="selected profile paths"):
+        build_profile_context(
+            project_root=tmp_path,
+            profile="local",
+            data_dir=tmp_path / "data",
+            output_dir=tmp_path / "outputs",
+        )
+
+
 def test_missing_local_profile_does_not_fall_back_to_default(tmp_path, monkeypatch):
     monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
     _write_minimum_profile(tmp_path / "data", ticker="DEFAULT")

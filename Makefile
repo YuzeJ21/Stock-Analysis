@@ -566,10 +566,10 @@ pilot-readiness-check:
 	@python3 -m src.pilot_readiness --profile "$(or $(PROFILE),default)" --top-n $(or $(TOP_N),10)
 
 pilot-readiness-packet:
-	@python3 -m src.pilot_readiness --profile "$(or $(PROFILE),default)" --packet --top-n $(or $(TOP_N),10) --output "$(or $(OUTPUT),outputs/pilot_readiness_packet.md)"
+	@python3 -m src.pilot_readiness --profile "$(or $(PROFILE),default)" --packet --top-n $(or $(TOP_N),10) $(if $(OUTPUT),--output "$(OUTPUT)",)
 
 pilot-share-brief:
-	@python3 -m src.pilot_readiness --profile "$(or $(PROFILE),default)" --share-brief --top-n $(or $(TOP_N),10) --output "$(or $(OUTPUT),outputs/pilot_share_brief.md)"
+	@python3 -m src.pilot_readiness --profile "$(or $(PROFILE),default)" --share-brief --top-n $(or $(TOP_N),10) $(if $(OUTPUT),--output "$(OUTPUT)",)
 
 trusted-data-pilot:
 	@case "$(PROFILE)" in default|demo|local) ;; *) echo "PROFILE must be exactly one of: default, demo, local" >&2; exit 2;; esac

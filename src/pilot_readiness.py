@@ -30,6 +30,8 @@ from src.browser_qa_evidence import browser_qa_evidence_payload
 from src.license_status import CONTROLLED_DEMO_SHARE_BOUNDARY, NO_LICENSE_SHARE_BOUNDARY, build_license_status
 from src.reviewed_batch import readiness_freshness_status
 from src.reviewed_batch_proof import resolve_readiness_proof_profile
+from src.paths import DataProfile
+from src.readiness_source_boundary import validate_readiness_source_boundary
 from src.session_source_preflight import load_session_source_preflight
 from src.source_activation_guide import build_provider_setup_checklist
 from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
@@ -40,6 +42,16 @@ DEFAULT_PACKET_PATH = Path("outputs/pilot_readiness_packet.md")
 DEFAULT_SHARE_BRIEF_PATH = Path("outputs/pilot_share_brief.md")
 REVIEWED_PACKET_PATH = DEFAULT_PACKET_PATH.as_posix()
 REVIEWED_SHARE_BRIEF_PATH = DEFAULT_SHARE_BRIEF_PATH.as_posix()
+REVIEWED_PACKET_PATHS = {
+    "outputs/pilot_readiness_packet.md",
+    "outputs/demo/pilot_readiness_packet.md",
+    "outputs/local/pilot_readiness_packet.md",
+}
+REVIEWED_SHARE_BRIEF_PATHS = {
+    "outputs/pilot_share_brief.md",
+    "outputs/demo/pilot_share_brief.md",
+    "outputs/local/pilot_share_brief.md",
+}
 GENERATED_ARTIFACT_EXCLUSION_PATTERNS = (
     "data/*.csv",
     "data/reports/*.csv",
@@ -113,6 +125,39 @@ def _int_value(value: object, fallback: int = 0) -> int:
         return int(float(str(value or "").replace(",", "").strip()))
     except (TypeError, ValueError):
         return fallback
+
+
+def _selected_pilot_profile(root: Path, profile: str | DataProfile | None) -> DataProfile:
+    if isinstance(profile, DataProfile):
+        validated = validate_readiness_source_boundary(root, profile.name)
+        if (
+            Path(profile.data_dir).resolve() != validated.data_dir
+            or Path(profile.outputs_dir).resolve() != validated.outputs_dir
+        ):
+            raise ValueError("pilot builders require validated selected profile paths")
+        return validated
+    selected_name = resolve_readiness_proof_profile(profile, project_root=root)
+    return validate_readiness_source_boundary(root, selected_name)
+
+
+def _profile_relative_path(root: Path, path: Path) -> str:
+    try:
+        return path.relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return path.as_posix()
+
+
+def _pilot_output_path(
+    root: Path,
+    selected: DataProfile,
+    output: Path | str | None,
+    *,
+    filename: str,
+) -> Path:
+    if output is None:
+        return selected.outputs_dir / filename
+    requested = Path(output).expanduser()
+    return requested if requested.is_absolute() else root / requested
 
 
 def _git_status_line(root: Path) -> str:
@@ -256,13 +301,13 @@ def _hygiene_check(root: Path) -> PilotReadinessCheck:
             stop_rule="Stop until dirty files are classified.",
         )
 
-    packet_count = sum(1 for entry in groups["product_candidate"] if entry.path == REVIEWED_PACKET_PATH)
-    share_brief_count = sum(1 for entry in groups["product_candidate"] if entry.path == REVIEWED_SHARE_BRIEF_PATH)
+    packet_count = sum(1 for entry in groups["product_candidate"] if entry.path in REVIEWED_PACKET_PATHS)
+    share_brief_count = sum(1 for entry in groups["product_candidate"] if entry.path in REVIEWED_SHARE_BRIEF_PATHS)
     product_count = len(
         [
             entry
             for entry in groups["product_candidate"]
-            if entry.path not in {REVIEWED_PACKET_PATH, REVIEWED_SHARE_BRIEF_PATH}
+            if entry.path not in REVIEWED_PACKET_PATHS | REVIEWED_SHARE_BRIEF_PATHS
         ]
     )
     report_count = len(groups["sample_report_candidate"])
@@ -303,8 +348,13 @@ def _hygiene_check(root: Path) -> PilotReadinessCheck:
     )
 
 
-def _freshness_check(root: Path) -> PilotReadinessCheck:
-    freshness = readiness_freshness_status(root)
+def _freshness_check(root: Path, selected: DataProfile) -> PilotReadinessCheck:
+    freshness = readiness_freshness_status(
+        root,
+        profile=selected.name,
+        data_dir=selected.data_dir,
+        output_dir=selected.outputs_dir,
+    )
     status = "green" if freshness.status == "current" else "blocked"
     command = "make status-check TOP_N=5" if freshness.status == "current" else READINESS_PREVIEW_COMMAND
     return PilotReadinessCheck(
@@ -378,15 +428,20 @@ def _preflight_routes_source_gate_to_workflow(preflight: dict[str, object] | Non
 def _source_gate_check(
     root: Path,
     *,
-    profile: str,
+    selected: DataProfile,
     top_n: int,
     source_queues: list[object] | None = None,
 ) -> PilotReadinessCheck:
-    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
     rows = (
         source_queues
         if source_queues is not None
-        else build_data_coverage_proof_queues(root, profile=selected_profile, top_n=top_n)
+        else build_data_coverage_proof_queues(
+            root,
+            profile=selected.name,
+            top_n=top_n,
+            data_dir=selected.data_dir,
+            output_dir=selected.outputs_dir,
+        )
     )
     if not rows:
         return PilotReadinessCheck(
@@ -401,7 +456,7 @@ def _source_gate_check(
     partial = sum(row.partial_count for row in rows)
     leading = rows[0]
     if _source_queues_reviewed_or_exhausted(rows) or _preflight_routes_source_gate_to_workflow(
-        load_session_source_preflight(root)
+        load_session_source_preflight(root, output_dir=selected.outputs_dir)
     ):
         return PilotReadinessCheck(
             area="Source proof gates",
@@ -432,31 +487,16 @@ def _source_gate_check(
     )
 
 
-def build_readiness_snapshot(root: Path | str = ".") -> ReadinessSnapshot:
+def build_readiness_snapshot(
+    root: Path | str = ".",
+    *,
+    profile: str | DataProfile | None = None,
+) -> ReadinessSnapshot:
     root = Path(root)
-    readiness_rows = _read_csv(root / "data" / "reports" / "ticker_readiness_report.csv")
-    try:
-        from src.project_status import build_project_status_payload
-
-        summary = build_project_status_payload(root, top_n=5)["summary"]
-        total = len(readiness_rows) or _int_value(summary.get("tickers_total"))
-        if total:
-            return ReadinessSnapshot(
-                total_tickers=total,
-                price_ready=sum(1 for row in readiness_rows if _truthy(row.get("price_ready"))),
-                momentum_ready=sum(1 for row in readiness_rows if _truthy(row.get("momentum_ready"))),
-                dcf_ready=sum(1 for row in readiness_rows if _truthy(row.get("dcf_ready"))),
-                peer_ready=sum(1 for row in readiness_rows if _truthy(row.get("peer_ready"))),
-                data_sources_available=_int_value(summary.get("data_sources_available")),
-                data_sources_total=_int_value(summary.get("data_sources_total")),
-                optional_manual_lanes_locked=_int_value(summary.get("data_sources_optional_locked")),
-                missing_data_steps=_int_value(summary.get("onboarding_actions")),
-                urgent_missing_data_steps=_int_value(summary.get("critical_actions")),
-            )
-    except Exception:
-        pass
-    source_rows = _read_csv(root / "data" / "reports" / "data_source_status.csv")
-    action_rows = _read_csv(root / "outputs" / "research_action_queue.csv")
+    selected = _selected_pilot_profile(root, profile)
+    readiness_rows = _read_csv(selected.data_dir / "reports" / "ticker_readiness_report.csv")
+    source_rows = _read_csv(selected.data_dir / "reports" / "data_source_status.csv")
+    action_rows = _read_csv(selected.outputs_dir / "research_action_queue.csv")
     total = len(readiness_rows)
     available_sources = sum(1 for row in source_rows if str(row.get("status") or "").strip().lower() == "available")
     optional_locked = sum(
@@ -484,8 +524,8 @@ def build_readiness_snapshot(root: Path | str = ".") -> ReadinessSnapshot:
     )
 
 
-def _proof_ledger_check(root: Path) -> PilotReadinessCheck:
-    rows = _read_csv(root / "data" / "reviewed_batch_proofs.csv")
+def _proof_ledger_check(selected: DataProfile) -> PilotReadinessCheck:
+    rows = _read_csv(selected.data_dir / "reviewed_batch_proofs.csv")
     if not rows:
         status = "manual"
         title = "No reviewed batch proof rows yet"
@@ -508,8 +548,8 @@ def _proof_ledger_check(root: Path) -> PilotReadinessCheck:
     )
 
 
-def _latest_proof_summary(root: Path) -> str:
-    rows = _read_csv(root / "data" / "reviewed_batch_proofs.csv")
+def _latest_proof_summary(selected: DataProfile) -> str:
+    rows = _read_csv(selected.data_dir / "reviewed_batch_proofs.csv")
     if not rows:
         return "No reviewed batch proof rows yet."
     latest = rows[-1]
@@ -641,18 +681,18 @@ def _guardrail_check() -> PilotReadinessCheck:
 def build_pilot_readiness_checks(
     root: Path | str = ".",
     *,
-    profile: str,
+    profile: str | DataProfile,
     top_n: int = 10,
     source_queues: list[object] | None = None,
 ) -> list[PilotReadinessCheck]:
     root = Path(root)
-    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
+    selected = _selected_pilot_profile(root, profile)
     checks = [
         _sync_check(root),
         _hygiene_check(root),
-        _freshness_check(root),
-        _source_gate_check(root, profile=selected_profile, top_n=top_n, source_queues=source_queues),
-        _proof_ledger_check(root),
+        _freshness_check(root, selected),
+        _source_gate_check(root, selected=selected, top_n=top_n, source_queues=source_queues),
+        _proof_ledger_check(selected),
         _browser_qa_evidence_check(root),
         _public_check_gate(),
         _license_status_check(root),
@@ -700,6 +740,8 @@ def build_pilot_handoff_summary(
     *,
     source_queues: list[object] | None = None,
     excluded_artifacts: list[str] | None = None,
+    profile: str = "default",
+    packet_path: str = REVIEWED_PACKET_PATH,
 ) -> list[PilotHandoffItem]:
     """Build the compact reviewer handoff before detailed pilot tables."""
 
@@ -812,8 +854,8 @@ def build_pilot_handoff_summary(
         PilotHandoffItem(
             question="What should the reviewer run next?",
             status="copy-only",
-            answer=REVIEWED_PACKET_PATH,
-            next_safe_command=f"make pilot-readiness-packet OUTPUT={REVIEWED_PACKET_PATH}",
+            answer=packet_path,
+            next_safe_command=f"make pilot-readiness-packet PROFILE={profile} OUTPUT={packet_path}",
             boundary="The packet is read-only; it does not refresh data, apply imports, record proof, stage files, commit, or push.",
         ),
     ]
@@ -895,12 +937,16 @@ def render_pilot_readiness_checks(
     source_queues: list[object] | None = None,
     excluded_artifacts: list[str] | None = None,
     commit_handoff: list[PilotCommitPackageItem] | None = None,
+    profile: str = "default",
+    packet_path: str = REVIEWED_PACKET_PATH,
 ) -> str:
     verdict = pilot_readiness_verdict(checks)
     handoff = build_pilot_handoff_summary(
         checks,
         source_queues=source_queues,
         excluded_artifacts=excluded_artifacts,
+        profile=profile,
+        packet_path=packet_path,
     )
     lines = [
         "Pilot Readiness Checklist",
@@ -1029,8 +1075,14 @@ def _provider_one_setup_lines() -> list[str]:
     ]
 
 
-def _provider_source_bucket_lines(root: Path | str = ".") -> list[str]:
-    checklist = build_provider_setup_checklist(load_session_source_preflight(Path(root)))
+def _provider_source_bucket_lines(
+    root: Path | str = ".",
+    *,
+    output_dir: Path | str | None = None,
+) -> list[str]:
+    checklist = build_provider_setup_checklist(
+        load_session_source_preflight(Path(root), output_dir=output_dir)
+    )
     source_answer = checklist.get("source_answer", {})
     if not isinstance(source_answer, dict) or not source_answer:
         return []
@@ -1045,8 +1097,14 @@ def _provider_source_bucket_lines(root: Path | str = ".") -> list[str]:
     ]
 
 
-def _share_brief_provider_setup_lines(root: Path | str = ".") -> list[str]:
-    checklist = build_provider_setup_checklist(load_session_source_preflight(Path(root)))
+def _share_brief_provider_setup_lines(
+    root: Path | str = ".",
+    *,
+    output_dir: Path | str | None = None,
+) -> list[str]:
+    checklist = build_provider_setup_checklist(
+        load_session_source_preflight(Path(root), output_dir=output_dir)
+    )
     unlock_decision = checklist.get("coverage_unlock_decision", {})
     source_answer = checklist.get("source_answer", {})
     source_answer = source_answer if isinstance(source_answer, dict) else {}
@@ -1120,6 +1178,9 @@ def render_pilot_readiness_packet(
     latest_proof: str,
     excluded_artifacts: list[str],
     commit_handoff: list[PilotCommitPackageItem] | None = None,
+    profile: str = "default",
+    packet_path: str = REVIEWED_PACKET_PATH,
+    output_dir: Path | str | None = None,
 ) -> str:
     root_path = Path(root)
     verdict = pilot_readiness_verdict(checks)
@@ -1130,6 +1191,8 @@ def render_pilot_readiness_packet(
         checks,
         source_queues=source_queues,
         excluded_artifacts=excluded_artifacts,
+        profile=profile,
+        packet_path=packet_path,
     )
     lines = [
         "# Pilot Readiness Packet",
@@ -1219,7 +1282,7 @@ def render_pilot_readiness_packet(
         "",
         "### Source Buckets",
         "",
-        *_provider_source_bucket_lines(root_path),
+        *_provider_source_bucket_lines(root_path, output_dir=output_dir),
         "",
         "### Provider Activation Plan",
         "",
@@ -1298,6 +1361,7 @@ def render_pilot_share_brief(
     source_queues: list[object],
     excluded_artifacts: list[str],
     root: Path | str = ".",
+    output_dir: Path | str | None = None,
 ) -> str:
     """Render a concise public/demo pilot brief from the same readiness gates."""
 
@@ -1388,7 +1452,7 @@ def render_pilot_share_brief(
         "",
         "## How coverage expands next",
         "",
-        *_share_brief_provider_setup_lines(root),
+        *_share_brief_provider_setup_lines(root, output_dir=output_dir),
         "",
         "## How to demo or review next",
         "",
@@ -1435,28 +1499,38 @@ def render_pilot_share_brief(
 def write_pilot_readiness_packet(
     root: Path | str = ".",
     *,
-    profile: str,
+    profile: str | DataProfile,
     top_n: int = 10,
-    output: Path | str = DEFAULT_PACKET_PATH,
+    output: Path | str | None = None,
 ) -> Path:
     root = Path(root)
-    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
-    output_path = root / Path(output)
-    source_queues = build_data_coverage_proof_queues(root, profile=selected_profile, top_n=top_n)
+    selected = _selected_pilot_profile(root, profile)
+    output_path = _pilot_output_path(root, selected, output, filename=DEFAULT_PACKET_PATH.name)
+    source_queues = build_data_coverage_proof_queues(
+        root,
+        profile=selected.name,
+        top_n=top_n,
+        data_dir=selected.data_dir,
+        output_dir=selected.outputs_dir,
+    )
     checks = build_pilot_readiness_checks(
         root,
-        profile=selected_profile,
+        profile=selected,
         top_n=top_n,
         source_queues=source_queues,
     )
+    packet_path = _profile_relative_path(root, output_path)
     packet = render_pilot_readiness_packet(
         root=root,
         checks=checks,
-        snapshot=build_readiness_snapshot(root),
+        snapshot=build_readiness_snapshot(root, profile=selected),
         source_queues=source_queues,
-        latest_proof=_latest_proof_summary(root),
+        latest_proof=_latest_proof_summary(selected),
         excluded_artifacts=_excluded_generated_artifacts(root),
         commit_handoff=build_pilot_commit_package_handoff(root),
+        profile=selected.name,
+        packet_path=packet_path,
+        output_dir=selected.outputs_dir,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(packet, encoding="utf-8")
@@ -1466,26 +1540,33 @@ def write_pilot_readiness_packet(
 def write_pilot_share_brief(
     root: Path | str = ".",
     *,
-    profile: str,
+    profile: str | DataProfile,
     top_n: int = 10,
-    output: Path | str = DEFAULT_SHARE_BRIEF_PATH,
+    output: Path | str | None = None,
 ) -> Path:
     root = Path(root)
-    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
-    output_path = root / Path(output)
-    source_queues = build_data_coverage_proof_queues(root, profile=selected_profile, top_n=top_n)
+    selected = _selected_pilot_profile(root, profile)
+    output_path = _pilot_output_path(root, selected, output, filename=DEFAULT_SHARE_BRIEF_PATH.name)
+    source_queues = build_data_coverage_proof_queues(
+        root,
+        profile=selected.name,
+        top_n=top_n,
+        data_dir=selected.data_dir,
+        output_dir=selected.outputs_dir,
+    )
     checks = build_pilot_readiness_checks(
         root,
-        profile=selected_profile,
+        profile=selected,
         top_n=top_n,
         source_queues=source_queues,
     )
     brief = render_pilot_share_brief(
         checks=checks,
-        snapshot=build_readiness_snapshot(root),
+        snapshot=build_readiness_snapshot(root, profile=selected),
         source_queues=source_queues,
         excluded_artifacts=_excluded_generated_artifacts(root),
         root=root,
+        output_dir=selected.outputs_dir,
     )
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(brief, encoding="utf-8")
@@ -1499,47 +1580,54 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--packet", action="store_true", help="Write the reviewer-ready pilot packet.")
     parser.add_argument("--share-brief", action="store_true", help="Write the concise public/demo pilot share brief.")
-    parser.add_argument("--output", default=str(DEFAULT_PACKET_PATH), help="Packet output path.")
+    parser.add_argument("--output", help="Optional packet/share output path. Defaults inside the selected profile outputs directory.")
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
-    selected_profile = resolve_readiness_proof_profile(args.profile, project_root=args.root)
+    root = Path(args.root)
+    selected = _selected_pilot_profile(root, args.profile)
     if args.share_brief:
         output = write_pilot_share_brief(
-            args.root,
-            profile=selected_profile,
+            root,
+            profile=selected,
             top_n=args.top_n,
             output=args.output,
         )
         print(f"Wrote pilot share brief: {output}")
     elif args.packet:
         output = write_pilot_readiness_packet(
-            args.root,
-            profile=selected_profile,
+            root,
+            profile=selected,
             top_n=args.top_n,
             output=args.output,
         )
         print(f"Wrote pilot readiness packet: {output}")
     else:
-        root = Path(args.root)
         source_queues = build_data_coverage_proof_queues(
             root,
-            profile=selected_profile,
+            profile=selected.name,
             top_n=args.top_n,
+            data_dir=selected.data_dir,
+            output_dir=selected.outputs_dir,
         )
         print(
             render_pilot_readiness_checks(
                 build_pilot_readiness_checks(
                     root,
-                    profile=selected_profile,
+                    profile=selected,
                     top_n=args.top_n,
                     source_queues=source_queues,
                 ),
                 source_queues=source_queues,
                 excluded_artifacts=_excluded_generated_artifacts(root),
                 commit_handoff=build_pilot_commit_package_handoff(root),
+                profile=selected.name,
+                packet_path=_profile_relative_path(
+                    root,
+                    selected.outputs_dir / DEFAULT_PACKET_PATH.name,
+                ),
             )
         )
     return 0

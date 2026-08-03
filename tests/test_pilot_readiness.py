@@ -1,11 +1,13 @@
 import json
 import os
 from pathlib import Path
+import subprocess
 from types import SimpleNamespace
 
 import pytest
 
 from scripts.diff_hygiene import StatusEntry
+from src.paths import DataProfile
 
 from src import pilot_readiness
 from src.pilot_readiness import (
@@ -101,6 +103,204 @@ def _sample_root(tmp_path: Path) -> Path:
     )
     _write(root / "data" / "reviewed_batch_proofs.csv", "batch_id,lane,final_outcome\nRB-1,fundamentals,still_blocked\n")
     return root
+
+
+def _write_local_profile_fixture(root: Path) -> None:
+    local_data = root / "data" / "local"
+    local_outputs = root / "outputs" / "local"
+    _write(local_data / "prices.csv", "ticker,date,close\nLOCAL1,2026-01-01,10\nLOCAL2,2026-01-01,20\n")
+    _write(
+        local_data / "fundamentals.csv",
+        "ticker,revenue,free_cash_flow,fcf_margin,shares_outstanding\nLOCAL1,100,10,0.10,10\nLOCAL2,200,20,0.10,20\n",
+    )
+    _write(local_data / "peers.csv", "ticker,peer_ticker,source\n")
+    _write(local_data / "earnings.csv", "ticker,source\n")
+    _write(local_data / "analyst_estimates.csv", "ticker,source\n")
+    _write(
+        local_data / "reports" / "ticker_readiness_report.csv",
+        (
+            "ticker,asset_type,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready,earnings_ready,"
+            "analyst_estimates_ready,overall_readiness_state,blocked_features,excluded_features,missing_data\n"
+            "LOCAL1,company,true,true,true,true,false,false,false,partial,peer,,,\n"
+            "LOCAL2,company,true,false,true,false,true,false,false,partial,dcf,,,\n"
+        ),
+    )
+    _write(
+        local_data / "reports" / "data_source_status.csv",
+        "source,status,manual_fallback_available\nlocal-one,available,false\nlocal-two,manual_only,true\n",
+    )
+    _write(
+        local_outputs / "research_action_queue.csv",
+        "priority,ticker,action\nP0,LOCAL1,review\nP2,LOCAL2,review\n",
+    )
+    _write(
+        local_data / "reviewed_batch_proofs.csv",
+        (
+            "batch_id,lane,final_outcome,notes\n"
+            "RB-LOCAL-1,prices,still_blocked,local first\n"
+            "RB-LOCAL-2,fundamentals,supported,local latest\n"
+        ),
+    )
+
+
+def _local_queue_row() -> SimpleNamespace:
+    return SimpleNamespace(
+        label="Local Profile Proof Queue",
+        readiness_state="partial",
+        ready_count=2,
+        partial_count=1,
+        blocked_count=1,
+        top_blockers="local-only blocker: 1",
+        next_safe_command="make project-status-check",
+        reviewed_proof_status="unreviewed local fixture",
+    )
+
+
+def test_local_profile_snapshot_reads_local_counts_sources_and_actions_only(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    _write_local_profile_fixture(root)
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+
+    from src import project_status
+
+    monkeypatch.setattr(
+        project_status,
+        "build_project_status_payload",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("exercise CSV fallback")),
+    )
+
+    snapshot = build_readiness_snapshot(root, profile="local")
+
+    assert snapshot.total_tickers == 2
+    assert snapshot.price_ready == 2
+    assert snapshot.momentum_ready == 1
+    assert snapshot.dcf_ready == 1
+    assert snapshot.peer_ready == 1
+    assert snapshot.data_sources_available == 1
+    assert snapshot.data_sources_total == 2
+    assert snapshot.optional_manual_lanes_locked == 1
+    assert snapshot.missing_data_steps == 2
+    assert snapshot.urgent_missing_data_steps == 1
+
+
+def test_pilot_rejects_forged_data_profile_paths(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _write_local_profile_fixture(root)
+    forged = DataProfile(
+        name="local",
+        data_dir=(root / "data").resolve(),
+        outputs_dir=(root / "outputs").resolve(),
+    )
+
+    with pytest.raises(ValueError, match="validated selected profile paths"):
+        build_readiness_snapshot(root, profile=forged)
+
+
+def test_local_profile_controls_freshness_source_queue_preflight_and_proof_ledger(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    _write_local_profile_fixture(root)
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+    seen: dict[str, object] = {}
+
+    def _freshness(_root, *, profile=None, data_dir=None, output_dir=None):
+        seen["freshness"] = (profile, Path(data_dir), Path(output_dir))
+        return SimpleNamespace(status="current", message="local profile current")
+
+    def _queues(_root, *, profile, top_n, data_dir=None, output_dir=None):
+        seen["queues"] = (profile, top_n, Path(data_dir), Path(output_dir))
+        return [_local_queue_row()]
+
+    def _preflight(_root, *, output_dir=None):
+        seen["preflight"] = Path(output_dir)
+        return None
+
+    monkeypatch.setattr(pilot_readiness, "readiness_freshness_status", _freshness)
+    monkeypatch.setattr(pilot_readiness, "build_data_coverage_proof_queues", _queues)
+    monkeypatch.setattr(pilot_readiness, "load_session_source_preflight", _preflight)
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main")
+    monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [])
+
+    checks = build_pilot_readiness_checks(root, profile="local", top_n=7)
+    by_area = {check.area: check for check in checks}
+
+    assert seen == {
+        "freshness": ("local", root / "data" / "local", root / "outputs" / "local"),
+        "queues": ("local", 7, root / "data" / "local", root / "outputs" / "local"),
+        "preflight": root / "outputs" / "local",
+    }
+    assert by_area["Readiness freshness"].detail == "local profile current"
+    assert by_area["Proof ledger"].title == "2 reviewed batch proof row(s)"
+    assert "RB-LOCAL-2" in by_area["Proof ledger"].detail
+
+
+def test_local_profile_packet_and_share_defaults_stay_in_local_outputs(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    _write_local_profile_fixture(root)
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+
+    from src import project_status
+
+    monkeypatch.setattr(
+        project_status,
+        "build_project_status_payload",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("exercise CSV fallback")),
+    )
+    monkeypatch.setattr(
+        pilot_readiness,
+        "readiness_freshness_status",
+        lambda *_args, **_kwargs: SimpleNamespace(status="current", message="local profile current"),
+    )
+    monkeypatch.setattr(pilot_readiness, "build_data_coverage_proof_queues", lambda *_args, **_kwargs: [_local_queue_row()])
+    monkeypatch.setattr(pilot_readiness, "load_session_source_preflight", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main")
+    monkeypatch.setattr(pilot_readiness, "load_status", lambda _root: [])
+
+    packet_path = write_pilot_readiness_packet(root, profile="local", top_n=2)
+    share_path = pilot_readiness.write_pilot_share_brief(root, profile="local", top_n=2)
+    packet = packet_path.read_text(encoding="utf-8")
+    share = share_path.read_text(encoding="utf-8")
+
+    assert packet_path == root / "outputs" / "local" / "pilot_readiness_packet.md"
+    assert share_path == root / "outputs" / "local" / "pilot_share_brief.md"
+    assert "| Tracked tickers | 2 |" in packet
+    assert "RB-LOCAL-2 / fundamentals / supported / local latest" in packet
+    assert "make pilot-readiness-packet PROFILE=local OUTPUT=outputs/local/pilot_readiness_packet.md" in packet
+    assert "Price-ready setup coverage: 2/2" in share
+    assert not (root / "outputs" / "pilot_readiness_packet.md").exists()
+    assert not (root / "outputs" / "pilot_share_brief.md").exists()
+
+
+def test_pilot_cli_and_make_leave_implicit_output_profile_scoped():
+    packet_args = pilot_readiness.parse_args(["--profile", "local", "--packet"])
+    share_args = pilot_readiness.parse_args(["--profile", "demo", "--share-brief"])
+
+    assert packet_args.output is None
+    assert share_args.output is None
+
+    for target, profile in (("pilot-readiness-packet", "local"), ("pilot-share-brief", "demo")):
+        result = subprocess.run(
+            ["make", "-n", target, f"PROFILE={profile}"],
+            cwd=Path(__file__).resolve().parents[1],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        assert f'--profile "{profile}"' in result.stdout
+        assert "--output" not in result.stdout
+
+
+def test_pilot_check_renderer_keeps_selected_profile_in_reviewer_handoff():
+    rendered = render_pilot_readiness_checks(
+        [],
+        profile="local",
+        packet_path="outputs/local/pilot_readiness_packet.md",
+    )
+
+    assert (
+        "make pilot-readiness-packet PROFILE=local "
+        "OUTPUT=outputs/local/pilot_readiness_packet.md"
+    ) in rendered
+    assert "make pilot-readiness-packet PROFILE=default" not in rendered
 
 
 def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_path: Path, monkeypatch):
@@ -305,7 +505,7 @@ def test_pilot_handoff_summary_surfaces_reviewer_next_steps(tmp_path: Path, monk
     assert "ticker_readiness_report.previous.csv" in rendered
     assert "no root license file found" in rendered
     assert "make license-status" in rendered
-    assert "make pilot-readiness-packet output=outputs/pilot_readiness_packet.md" in rendered
+    assert "make pilot-readiness-packet profile=default output=outputs/pilot_readiness_packet.md" in rendered
     assert "not an analysis or recommendation unlock" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -591,7 +791,7 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "Commit Package Handoff" in body
     assert "Can this be shared as a pilot?" in body
     assert "What stays out of staging?" in body
-    assert "make pilot-readiness-packet OUTPUT=outputs/pilot_readiness_packet.md" in body
+    assert "make pilot-readiness-packet PROFILE=default OUTPUT=outputs/pilot_readiness_packet.md" in body
     assert "GitHub sync" in body
     assert "Generated artifact hygiene" in body
     assert "Browser QA evidence" in body

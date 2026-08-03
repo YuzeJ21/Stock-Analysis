@@ -2,6 +2,8 @@ import json
 import os
 from pathlib import Path
 
+import pytest
+
 from src import readiness_ops as readiness_ops_module
 from src.readiness_ops import (
     build_fundamentals_peer_metrics_queue,
@@ -701,6 +703,20 @@ def test_data_coverage_proof_queues_connect_next_batches_without_applying_data(t
     assert "missing inputs remain blocked" in rendered
     assert "trade instructions" in rendered
     assert "recommendations" in rendered
+
+
+def test_readiness_ops_rejects_profile_mismatched_override_paths(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    mismatched = {
+        "profile": "local",
+        "data_dir": root / "data",
+        "output_dir": root / "outputs",
+    }
+
+    with pytest.raises(ValueError, match="selected profile paths"):
+        build_readiness_ops_lanes(root, **mismatched)
+    with pytest.raises(ValueError, match="selected profile paths"):
+        build_data_coverage_proof_queues(root, top_n=3, **mismatched)
 
 
 def test_data_coverage_proof_queues_surface_reviewed_status_for_peer_mapping(tmp_path: Path):

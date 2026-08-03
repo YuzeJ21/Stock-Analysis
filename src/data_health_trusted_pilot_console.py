@@ -282,8 +282,12 @@ def trusted_pilot_selection_note(
 def trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, *, limit: int = 3) -> list[dict[str, object]]:
     if preview_frame is None or preview_frame.empty:
         return []
+    visible = preview_frame.head(max(limit, 0))
+    if visible.empty:
+        return []
+    selected_profile = resolve_readiness_proof_profile()
     cards: list[dict[str, object]] = []
-    for _, row in preview_frame.head(max(limit, 0)).iterrows():
+    for _, row in visible.iterrows():
         ticker = _format_missing(row.get("Ticker"), "Ticker")
         lane = _format_missing(row.get("Pilot Lane"), "Trusted-data proof path")
         scope = _format_missing(row.get("Scope"), "Current queue")
@@ -295,7 +299,7 @@ def trusted_pilot_preview_cards(preview_frame: pd.DataFrame | None, *, limit: in
         review_path = _compact_fragment(row.get("Review Path"), max_chars=165)
         proof = _compact_fragment(
             row.get("Proof After Data Changes") or row.get("Proof After Unlock"),
-            f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=<ticker>",
+            f"make readiness-snapshot PROFILE={selected_profile} && make reviewed-batch-compare PROFILE={selected_profile} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=<ticker>",
             max_chars=175,
         )
         lane_command = _format_missing(row.get("Next Command"), "make trusted-data-pilot-candidates TOP_N=10")

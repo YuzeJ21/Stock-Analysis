@@ -17,7 +17,7 @@ from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.readiness_ops import ReadinessLane, build_readiness_ops_lanes
 from src.session_source_preflight import load_session_source_preflight
 from src.share_count_proof_queue import build_share_count_proof_queue_from_files
-from src.paths import DataProfile, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.paths import DataProfile, resolve_project_root
 from src.profile_context import build_profile_context
 from src.readiness_source_boundary import (
     ReadinessSourceBoundaryError,
@@ -239,16 +239,16 @@ def _reviewed_batch_profile(root: Path, profile: str) -> DataProfile:
 def readiness_freshness_status(
     root: Path | str = ".",
     *,
+    profile: str | None = None,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
 ) -> FreshnessStatus:
     project_root = resolve_project_root(root)
-    data_path = resolve_data_dir(data_dir, project_root)
-    output_path = resolve_outputs_dir(output_dir, project_root)
     profile_context = build_profile_context(
         project_root=project_root,
-        data_dir=data_path,
-        output_dir=output_path,
+        profile=profile,
+        data_dir=data_dir,
+        output_dir=output_dir,
     )
     if profile_context.freshness_state != "current":
         message = profile_context.freshness_message

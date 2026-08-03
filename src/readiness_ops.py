@@ -363,8 +363,12 @@ def _source_status(sources: dict[str, object], key: str) -> dict[str, object]:
     return value if isinstance(value, dict) else {}
 
 
-def _fundamentals_source_ladder_context(root: Path) -> tuple[str, bool]:
-    preflight = load_session_source_preflight(root)
+def _fundamentals_source_ladder_context(
+    root: Path,
+    *,
+    output_dir: Path | str | None = None,
+) -> tuple[str, bool]:
+    preflight = load_session_source_preflight(root, output_dir=output_dir)
     if not preflight:
         return (
             "Session source availability is not recorded; run make session-source-preflight before retrying source-backed coverage work.",
@@ -431,8 +435,12 @@ def _fundamentals_source_ladder_context(root: Path) -> tuple[str, bool]:
     return "Session source availability: " + "; ".join(pieces) + ".", ladder_available
 
 
-def _source_activation_context(root: Path) -> tuple[bool, str]:
-    preflight = load_session_source_preflight(root)
+def _source_activation_context(
+    root: Path,
+    *,
+    output_dir: Path | str | None = None,
+) -> tuple[bool, str]:
+    preflight = load_session_source_preflight(root, output_dir=output_dir)
     if not isinstance(preflight, dict):
         return False, ""
     activation = preflight.get("source_activation", {})
@@ -497,6 +505,22 @@ def build_peer_readiness_summary(
     )
 
 
+def _selected_profile_paths(
+    root: Path,
+    profile: str,
+    *,
+    data_dir: Path | str | None,
+    output_dir: Path | str | None,
+) -> tuple[str, Path, Path]:
+    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
+    profile_context = resolve_data_profile(selected_profile, project_root=root)
+    data = resolve_data_dir(data_dir, root) if data_dir is not None else profile_context.data_dir
+    output = resolve_outputs_dir(output_dir, root) if output_dir is not None else profile_context.outputs_dir
+    if data != profile_context.data_dir or output != profile_context.outputs_dir:
+        raise ValueError("explicit overrides must match the selected profile paths")
+    return selected_profile, data, output
+
+
 def build_readiness_ops_lanes(
     root: Path | str = ".",
     *,
@@ -508,10 +532,12 @@ def build_readiness_ops_lanes(
     peer_summary: PeerReadinessSummary | None = None,
 ) -> list[ReadinessLane]:
     root = Path(root)
-    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
-    profile_context = resolve_data_profile(selected_profile, project_root=root)
-    data = resolve_data_dir(data_dir, root) if data_dir is not None else profile_context.data_dir
-    output = resolve_outputs_dir(output_dir, root) if output_dir is not None else profile_context.outputs_dir
+    selected_profile, data, output = _selected_profile_paths(
+        root,
+        profile,
+        data_dir=data_dir,
+        output_dir=output_dir,
+    )
     reports = data / "reports"
     readiness_rows = _read_csv(reports / "ticker_readiness_report.csv")
     feature_rows = _read_csv(reports / "feature_readiness_summary.csv")
@@ -558,8 +584,14 @@ def build_readiness_ops_lanes(
     analyst_ready = _count_true(readiness_rows, "analyst_estimates_ready")
     earnings_blocked = max(total - earnings_ready, 0)
     analyst_blocked = max(total - analyst_ready, 0)
-    fundamentals_source_context, source_ladder_available = _fundamentals_source_ladder_context(root)
-    source_activation_required, source_activation_context = _source_activation_context(root)
+    fundamentals_source_context, source_ladder_available = _fundamentals_source_ladder_context(
+        root,
+        output_dir=output,
+    )
+    source_activation_required, source_activation_context = _source_activation_context(
+        root,
+        output_dir=output,
+    )
     batch_ledger_summaries = build_reviewed_batch_ledger_summaries(root, data_dir=data)
     price_ledger_note = _reviewed_batch_ledger_note(
         batch_ledger_summaries.get("prices"),
@@ -1334,7 +1366,12 @@ def build_data_coverage_proof_queues(
     """Build the post-price proof queues without refreshing or applying local data."""
 
     root = Path(root)
-    data = resolve_data_dir(data_dir, root)
+    selected_profile, data, output = _selected_profile_paths(
+        root,
+        profile,
+        data_dir=data_dir,
+        output_dir=output_dir,
+    )
     dcf_rows = build_dcf_input_proof_queue_from_files(root, data_dir=data, top_n=100000)
     share_count_rows = _share_count_dcf_rows(dcf_rows)
     fundamentals_rows = _fundamentals_dcf_rows(dcf_rows)
@@ -1342,9 +1379,9 @@ def build_data_coverage_proof_queues(
     peer_summary = build_peer_readiness_summary(root, data_dir=data)
     lanes = build_readiness_ops_lanes(
         root,
-        profile=profile,
+        profile=selected_profile,
         data_dir=data,
-        output_dir=output_dir,
+        output_dir=output,
         dcf_input_rows=dcf_rows,
         share_count_rows=share_count_rows,
         peer_summary=peer_summary,

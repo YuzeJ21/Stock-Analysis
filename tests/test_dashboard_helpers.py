@@ -78,6 +78,22 @@ def test_profile_strip_labels_saved_readiness_not_generic_freshness():
     assert "<small>Freshness</small>" not in rendered
 
 
+def test_empty_source_review_command_frame_does_not_require_a_proof_profile(monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "<profile>")
+
+    frame = dashboard.data_health_trusted_fundamentals_source_review_command_frame(None)
+
+    assert frame.iloc[0]["Status"] == "blocked_no_scope"
+
+
+def test_empty_fundamentals_unlock_frame_does_not_require_a_proof_profile(monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "<profile>")
+
+    frame = dashboard.data_health_fundamentals_unlock_frame(None)
+
+    assert frame.empty
+
+
 def test_stale_observation_evidence_exposes_date_without_current_market_claim(stale_recency):
     rendered = dashboard.observation_recency_evidence_html(stale_recency)
 
@@ -3894,6 +3910,25 @@ def test_home_real_workflow_cards_delegate_to_public_home_workflow_helper():
     assert [card["kicker"] for card in cards] == ["WORKFLOW 1", "WORKFLOW 2", "WORKFLOW 3", "WORKFLOW 4"]
     assert cards[2]["title"] == "Route locked sections to Data Health"
     assert cards[3]["title"] == "Record proof before trusting a changed state"
+
+
+def test_home_capped_refresh_block_is_truthful_when_reviewed_proof_scope_is_unavailable():
+    commands = dashboard._plain_home_operator_command_sequence(profile="local")
+    rendered = "\n".join(commands)
+
+    assert "make status-check TOP_N=5" in commands
+    assert "make readiness-preview TOP_N=20" in commands
+    assert "make project-status" in commands
+    assert all("DRY_RUN=1" in command for command in commands if "price-refresh-loop" in command)
+    assert "make readiness-snapshot" not in rendered
+    assert "make reviewed-batch-compare" not in rendered
+    assert "Readiness proof unavailable" in rendered
+    assert "PROFILE=local" in rendered
+
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    render_home_index = source.index("def render_home_page(")
+    render_home_source = source[render_home_index : source.index("\ndef ", render_home_index + 1)]
+    assert "_plain_home_operator_command_sequence(profile=_active_data_profile_name())" in render_home_source
 
 
 def test_public_home_computes_freshness_before_loop_strip():
@@ -23328,7 +23363,7 @@ def test_first_peer_mapping_unlock_cards_keep_peer_valuation_gated():
 
     assert cards[0]["command"] == "make focus-peers TICKER=COHR"
     assert cards[1]["command"] == "make templates"
-    assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
+    assert cards[2]["command"] == "make readiness-snapshot PROFILE=default && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
     assert "no guessed peers" in rendered
     assert "fallback is not input" in rendered
     assert "do not show peer-relative valuation until source-backed mappings" in rendered
@@ -24277,7 +24312,7 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "before reading peer-relative valuation" in rendered
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "make focus-peers ticker=a" in rendered
-    assert cards[2]["command"] == "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
+    assert cards[2]["command"] == "make readiness-snapshot PROFILE=default && make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
     assert "fallback valuation" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -24359,7 +24394,7 @@ def test_data_health_peer_source_review_cards_put_source_proof_before_import(tmp
     assert "candidate context for this slot" in cards[1]["body"]
     assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>"
     assert cards[3]["command"].startswith("make peer-mapping-writeback-guard")
-    assert cards[4]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
+    assert cards[4]["command"] == "make readiness-snapshot PROFILE=default && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
     assert frame.iloc[0]["Review Gate"] == "source proof required"
     assert frame.iloc[0]["Completion Status"] == "needs field fills"
     assert frame.iloc[0]["Import Preview Status"] == "needs field fills"

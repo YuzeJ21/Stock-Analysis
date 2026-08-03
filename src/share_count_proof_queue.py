@@ -231,8 +231,11 @@ def build_share_count_proof_queue(
     scope_lookup = _universe_scope_lookup(universe)
     ranked = sorted((row for _, row in queue.iterrows()), key=lambda row: _rank(row, scope_lookup))
     reviewed_non_actionable_tickers = reviewed_non_actionable_tickers or set()
+    selected_profile: str | None = None
     rows: list[ShareCountProofRow] = []
     for row in ranked[: max(top_n, 0)]:
+        if selected_profile is None:
+            selected_profile = resolve_readiness_proof_profile()
         ticker = str(row.get("ticker", "")).upper().strip()
         missing = _missing_fields(row.get("missing_dcf_fields"))
         row_status = _dcf_input_status(row)
@@ -243,7 +246,7 @@ def build_share_count_proof_queue(
             f"make imports-preview IMPORT_TICKERS={ticker} -> "
             f"make imports-apply IMPORT_TICKERS={ticker}"
         )
-        proof_after_update = f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=share_count BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}"
+        proof_after_update = f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=share_count BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}"
         if ticker in reviewed_non_actionable_tickers:
             source_command = "wait for new SEC facts, keyed provider data, or reviewed manual source rows"
             manual_source_path = "no executable source path until new evidence"

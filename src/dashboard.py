@@ -13420,6 +13420,7 @@ def data_health_trusted_fundamentals_source_review_frame(
     top_n: int = 5,
     evidence_intake_frame: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
+    selected_profile = resolve_readiness_proof_profile()
     columns = [
         "Top Blocker Family",
         "Selected Tickers",
@@ -13454,7 +13455,7 @@ def data_health_trusted_fundamentals_source_review_frame(
                     "Validate Command": "blocked until source-review scope exists",
                     "Preview Command": "blocked until validation is reviewed",
                     "Apply Boundary": "Do not apply fundamentals rows without reviewed source proof.",
-                    "Post-Run Proof": f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+                    "Post-Run Proof": f"make readiness-snapshot PROFILE={selected_profile} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
                     "Proof Record Dry-Run Boundary": "blocked until reviewed source scope exists",
                     "Stop Rule": "Run make dcf-input-proof-queue TOP_N=10 before reviewing trusted fundamentals source rows.",
                 }
@@ -13478,7 +13479,7 @@ def data_health_trusted_fundamentals_source_review_frame(
                     "Validate Command": "blocked until source-review scope exists",
                     "Preview Command": "blocked until validation is reviewed",
                     "Apply Boundary": "Do not apply fundamentals rows without reviewed source proof.",
-                    "Post-Run Proof": f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+                    "Post-Run Proof": f"make readiness-snapshot PROFILE={selected_profile} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
                     "Proof Record Dry-Run Boundary": "blocked until reviewed source scope exists",
                     "Stop Rule": "Keep the lane blocked when the selected family has no current proof rows.",
                 }
@@ -13536,7 +13537,7 @@ def data_health_trusted_fundamentals_source_review_frame(
                 "Apply Boundary": format_missing(first_preview.get("Apply Boundary"), "Do not apply rows without reviewed source proof."),
                 "Post-Run Proof": format_missing(
                     first_preview.get("Post-Guard Proof"),
-                    format_missing(first_filtered.get("Proof After Update"), f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"),
+                    format_missing(first_filtered.get("Proof After Update"), f"make readiness-snapshot PROFILE={selected_profile} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"),
                 ),
                 "Proof Record Dry-Run Boundary": format_missing(
                     first_handoff.get("Proof Record Dry Run"),
@@ -13566,6 +13567,7 @@ def data_health_trusted_fundamentals_source_review_command_frame(frame: pd.DataF
             ],
             columns=columns,
         )
+    selected_profile = resolve_readiness_proof_profile()
     row = frame.iloc[0]
     readiness = format_missing(row.get("Command Readiness"), "blocked")
     ready = readiness == "ready_for_guard_review"
@@ -13611,7 +13613,7 @@ def data_health_trusted_fundamentals_source_review_command_frame(frame: pd.DataF
             {
                 "Step": "Post-run readiness proof",
                 "Status": "after_reviewed_apply_or_skip",
-                "Copy Command": format_missing(row.get("Post-Run Proof"), f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} && make dcf-readiness && make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"),
+                "Copy Command": format_missing(row.get("Post-Run Proof"), f"make readiness-snapshot PROFILE={selected_profile} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"),
                 "Review Boundary": "Run after a reviewed apply or skip decision to prove the lane is supported or still blocked.",
             },
             {
@@ -14785,7 +14787,7 @@ def data_health_reviewed_batch_ladder_cards(
     top = frontier_frame.iloc[0]
     lane = format_missing(top.get("Lane"), "Coverage lane")
     next_safe_command = format_missing(top.get("Next Safe Command"), "make coverage-frontier TOP_N=10")
-    proof_command = f"make reviewed-batch-compare PROFILE={profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    comparison_command = f"make reviewed-batch-compare PROFILE={profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     workflow = normalize_operator_copy(format_missing(top.get("Workflow Mode"), "review"))
     reviewed_batch_command = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=prices TOP_N=10"
     if "fundamental" in lane.lower() or "dcf" in lane.lower():
@@ -14834,7 +14836,7 @@ def data_health_reviewed_batch_ladder_cards(
                 "and keep generated CSV/JSON churn out unless intentionally selected as evidence."
             ),
             "badges": ["prove after", "clean diff"],
-            "command": f"{proof_command} && make diff-hygiene",
+            "command": f"{comparison_command} && make diff-hygiene",
         },
     ]
 
@@ -15647,7 +15649,10 @@ def data_health_readiness_comparison_frame(comparison: ReadinessComparison | Non
 
 def data_health_readiness_comparison_cards(comparison: ReadinessComparison | None = None) -> list[dict[str, object]]:
     comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
-    profile = comparison.profile or _active_data_profile_name()
+    profile = resolve_readiness_proof_profile(
+        comparison.profile or _active_data_profile_name(),
+        project_root=BASE_DIR,
+    )
     if comparison.status != "ok":
         return [
             {
@@ -17257,6 +17262,7 @@ def first_peer_mapping_unlock_cards(peer_unlock_worklist_frame: pd.DataFrame | N
     frame = first_peer_mapping_unlock_frame(peer_unlock_worklist_frame, next_ticker)
     first = frame.iloc[0]
     mapping = frame.iloc[1]
+    selected_profile = _active_data_profile_name()
     return [
         {
             "kicker": "FIRST PEER UNLOCK",
@@ -17278,9 +17284,10 @@ def first_peer_mapping_unlock_cards(peer_unlock_worklist_frame: pd.DataFrame | N
             "body": "Do not show peer-relative valuation until source-backed mappings and required peer inputs pass readiness after a rebuild.",
             "badges": ["peer valuation gated", "copy-only"],
             "command": (
+                f"make readiness-snapshot PROFILE={selected_profile} && "
                 "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                 "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
+                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
             ),
         },
     ]
@@ -17579,6 +17586,7 @@ def data_health_fundamentals_unlock_frame(
     unlock_rows = frame.loc[missing_fundamentals | missing_dcf].copy()
     if unlock_rows.empty:
         return pd.DataFrame(columns=columns)
+    selected_profile = resolve_readiness_proof_profile()
     active_rank = (
         ~bool_series(unlock_rows, "in_active_universe")
         if "in_active_universe" in unlock_rows.columns
@@ -17632,7 +17640,7 @@ def data_health_fundamentals_unlock_frame(
                     "or fill `data/imports/fundamentals.csv` with trusted manual rows. "
                     f"3. Run `{scoped_import_sequence(ticker, separator='`, `')}`, then `make dcf-readiness`."
                 ),
-                "Readiness Proof": f"Run `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}` before reviewed validate/preview/apply, then `make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before reading DCF output.",
+                "Readiness Proof": f"Run `make readiness-snapshot PROFILE={selected_profile}` before reviewed validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before reading DCF output.",
                 "Copy-Only Command": command,
                 "Validation Path": f"{scoped_import_sequence(ticker)} -> make dcf-readiness",
             }
@@ -17659,6 +17667,7 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
             }
         ]
 
+    selected_profile = resolve_readiness_proof_profile()
     frame = fundamentals_unlock_frame.copy()
     first = frame.iloc[0]
     ticker = format_missing(first.get("Ticker"), "Ticker")
@@ -17668,7 +17677,7 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
     price_gate = compact_reason(first.get("Price Readiness Gate"), max_sentences=1, max_chars=160)
     priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, stage trusted fundamentals only, then validate, preview, apply, and rerun DCF readiness.")
-    proof = format_missing(first.get("Readiness Proof"), f"Run make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} before reviewed validate/preview/apply, then make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> before reading DCF output.")
+    proof = format_missing(first.get("Readiness Proof"), f"Run make readiness-snapshot PROFILE={selected_profile} before reviewed validate/preview/apply, then make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> before reading DCF output.")
     sequence_summary = validation_sequence_summary(sequence)
     validation_summary = validation_sequence_summary(first.get("Validation Path"))
     command = format_missing(first.get("Copy-Only Command"), f"make focus-fundamentals TICKER={ticker}")
@@ -17863,6 +17872,7 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
             }
         ]
 
+    selected_profile = _active_data_profile_name()
     frame = peer_unlock_frame.copy()
     first = frame.iloc[0]
     ticker = format_missing(first.get("Ticker"), "Ticker")
@@ -17874,7 +17884,7 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
     dcf_gate = compact_reason(first.get("DCF Readiness Gate"), max_sentences=1, max_chars=160)
     priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, add source-backed peer rows, then validate, preview, and apply before reading peer valuation.")
-    proof = format_missing(first.get("Readiness Proof"), f"Run make readiness-snapshot PROFILE={_active_data_profile_name()} before reviewed validate/preview/apply, then make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> and make peer-mapping-queue TOP_N=25 before reading peer-relative valuation.")
+    proof = format_missing(first.get("Readiness Proof"), f"Run make readiness-snapshot PROFILE={selected_profile} before reviewed validate/preview/apply, then make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> and make peer-mapping-queue TOP_N=25 before reading peer-relative valuation.")
     sequence_summary = validation_sequence_summary(sequence)
     validation_summary = validation_sequence_summary(first.get("Validation Path"))
     command = format_missing(first.get("Copy-Only Command"), f"make focus-peers TICKER={ticker}")
@@ -17908,9 +17918,10 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
             ),
             "badges": ["validate", "preview before apply", "proof before valuation"],
             "command": (
-                "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                f"make readiness-snapshot PROFILE={selected_profile} && make templates && "
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                 "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
+                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
             ),
         },
     ]
@@ -18016,6 +18027,7 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
             }
         ]
 
+    selected_profile = _active_data_profile_name()
     first = packet.rows[0]
     first_completion = peer_mapping_source_review_completion(first, packet.freshness)
     first_import_preview = peer_mapping_import_preview(first, packet.freshness)
@@ -18083,9 +18095,10 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
             ),
             "badges": ["validate", "preview", "proof after apply"],
             "command": (
+                f"make readiness-snapshot PROFILE={selected_profile} && "
                 "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                 "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
+                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
             ),
         },
     ]
@@ -19296,15 +19309,16 @@ def decision_next_action_proof(row: pd.Series) -> str:
     report_command = stock_report_md_command(ticker) if ticker else "make project-status"
     if asset_type in {"etf", "index_proxy", "fund"}:
         return f"Proof after review: run `{report_command}` and confirm operating-company DCF is excluded, not failed."
+    selected_profile = resolve_readiness_proof_profile()
     if blocker == "price":
-        return f"Proof after data changes: run `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}` before reviewed price validate/preview/apply, then `make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}` before reviewed price validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
     if blocker in {"fundamentals", "dcf"}:
-        return f"Proof after data changes: run `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}` before reviewed fundamentals validate/preview/apply, then `make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}` before reviewed fundamentals validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
     if blocker in {"peer", "peers"}:
-        return f"Proof after data changes: run `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}` before reviewed peer validate/preview/apply, then `make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, `make peer-mapping-queue TOP_N=25`, and `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}` before reviewed peer validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, `make peer-mapping-queue TOP_N=25`, and `{report_command}`."
     if blocker in {"earnings", "analyst_estimates", "optional_context"}:
-        return f"Proof after data changes: run `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}` before reviewed optional-context validate/preview/apply, then `make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
-    return f"Proof before interpretation: run `make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}`, then `make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}` before reviewed optional-context validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
+    return f"Proof before interpretation: run `make readiness-snapshot PROFILE={selected_profile}`, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
 
 
 def decision_next_action_title(row: pd.Series) -> str:
@@ -30581,6 +30595,26 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
     )
 
 
+def _plain_home_operator_command_sequence(*, profile: str | None = None) -> list[str]:
+    """Return inspection-only home commands when reviewed proof scope is unknown."""
+
+    selected_profile = resolve_readiness_proof_profile(profile, project_root=BASE_DIR)
+    return [
+        "make status-check TOP_N=5",
+        "make price-refresh-loop DRY_RUN=1",
+        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
+        (
+            "# Readiness proof unavailable: choose a reviewed lane, batch id, review date, and approved "
+            f"validate/preview/apply sequence before changing PROFILE={selected_profile}."
+        ),
+        "make diff-hygiene",
+        "make readiness-preview TOP_N=20",
+        "make project-status",
+        "make stock-report-md TICKER=NVDA",
+        "make dashboard-smoke",
+    ]
+
+
 def render_home_page(
     catalog: LocalDataCatalog,
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
@@ -30719,20 +30753,7 @@ def render_home_page(
 
                 st.write("Preview capped refreshes first. Use update commands only when you intentionally want to change local files.")
                 st.code(
-                    "\n".join(
-                        [
-                            "make status-check TOP_N=5",
-                            "make price-refresh-loop DRY_RUN=1",
-                            "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
-                            f"make readiness-snapshot PROFILE={_active_data_profile_name()}",
-                            "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
-                            "make diff-hygiene",
-                            "make readiness-preview TOP_N=20",
-                            "make project-status",
-                            "make stock-report-md TICKER=NVDA",
-                            "make dashboard-smoke",
-                        ]
-                    ),
+                    "\n".join(_plain_home_operator_command_sequence(profile=_active_data_profile_name())),
                     language="bash",
                 )
                 st.caption("Broad refresh changes should be inspected before they are committed or shared publicly.")

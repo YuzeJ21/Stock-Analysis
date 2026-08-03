@@ -86,6 +86,24 @@ def _write_sec_filing_document_cache(root, cik: str = "0001045810") -> None:
     )
 
 
+def test_empty_candidate_builders_do_not_require_a_proof_profile(monkeypatch, tmp_path):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+
+    def _unexpected_resolver():
+        raise AssertionError("empty candidate builders must not resolve a proof profile")
+
+    monkeypatch.setattr(
+        "src.trusted_data_pilot.resolve_readiness_proof_profile",
+        _unexpected_resolver,
+    )
+
+    candidates = build_trusted_data_pilot_candidates([], [], [], top_n=0)
+    evidence_candidates = load_trusted_data_pilot_evidence_candidates(root=tmp_path, top_n=0)
+
+    assert candidates == []
+    assert evidence_candidates == []
+
+
 def test_trusted_data_pilot_candidates_prioritize_active_company_blockers():
     readiness_rows = [
         {"ticker": "META", "asset_type": "company", "in_active_universe": "True"},
