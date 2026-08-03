@@ -21777,7 +21777,7 @@ def test_roadmap_milestone_status_frame_keeps_trusted_data_gaps_honest():
     assert "reviewed-batch packet paths" in rendered
     assert "counts should improve only after SEC staging workflow or trusted manual CSV imports" in rendered
     assert "empty optional context is intentional" in rendered
-    assert "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10" in rendered
+    assert "DRY_RUN=1 make reviewed-batch PROFILE=default LANE=prices TOP_N=10" in rendered
     assert "make optional-context-summary TOP_N=10" in rendered
     assert "make sec-stage-queue TOP_N=25" in rendered
     assert "make peer-mapping-queue TOP_N=25" in rendered
@@ -21800,7 +21800,7 @@ def test_roadmap_milestone_status_cards_surface_safe_commands():
 
     assert len(cards) == 7
     assert cards[0]["command"] == "make dashboard-smoke"
-    assert any(card["command"] == "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10" for card in cards)
+    assert any(card["command"] == "DRY_RUN=1 make reviewed-batch PROFILE=default LANE=prices TOP_N=10" for card in cards)
     assert any(card["command"] == "make optional-context-summary TOP_N=10" for card in cards)
     assert any(card["command"] == "make verify" for card in cards)
     assert "data-honest" in rendered
@@ -23209,7 +23209,7 @@ def test_first_peer_mapping_unlock_frame_prioritizes_source_backed_mapping_workf
     assert "sector or industry fallback is not trusted peer data" in rendered
     assert "schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date" in rendered
     assert "make imports-validate import_tickers=<ticker-or-reviewed-batch> && make imports-preview import_tickers=<ticker-or-reviewed-batch> && make imports-apply import_tickers=<ticker-or-reviewed-batch>" in rendered
-    assert "make readiness && make peer-mapping-queue top_n=25" in rendered
+    assert "make reviewed-batch-compare profile=default lane=peers && make peer-mapping-queue top_n=25" in rendered
     assert "peer readiness should improve only after mapped rows pass validation" in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
@@ -23221,7 +23221,7 @@ def test_first_peer_mapping_unlock_cards_keep_peer_valuation_gated():
 
     assert cards[0]["command"] == "make focus-peers TICKER=COHR"
     assert cards[1]["command"] == "make templates"
-    assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+    assert cards[2]["command"] == "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers && make peer-mapping-queue TOP_N=25"
     assert "no guessed peers" in rendered
     assert "fallback is not input" in rendered
     assert "do not show peer-relative valuation until source-backed mappings" in rendered
@@ -23534,6 +23534,60 @@ def test_peer_input_ladder_prioritizes_active_dcf_ready_rows_and_separates_trend
     assert "trading" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered
+
+
+def test_peer_input_ladder_validation_uses_active_profile_snapshot_and_post_apply_comparison(monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+    worklist = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "priority": 1,
+                "peer_blocker_type": "missing_peer_mapping",
+                "workflow_group": "dcf_ready_peer_mapping",
+                "workflow_scope": "active_universe",
+                "peer_valuation_status": "peer_valuation_blocked",
+                "focus_command": "make focus-peers TICKER=META",
+            }
+        ]
+    )
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "META",
+                "asset_type": "company",
+                "dcf_ready": True,
+                "peer_ready": False,
+                "in_active_universe": True,
+            }
+        ]
+    )
+
+    frame = dashboard.peer_input_ladder_frame(worklist, readiness)
+    validation = " ".join(frame["Validation Path"].astype(str))
+
+    assert "make readiness-snapshot PROFILE=local" in validation
+    assert "make reviewed-batch-compare PROFILE=local LANE=peers" in validation
+    assert "-> make readiness" not in validation.replace("make readiness-snapshot", "make snapshot")
+    assert "PROFILE=<default|demo|local>" not in validation
+
+
+def test_peer_input_ladder_empty_card_uses_active_profile_proof_step(monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+
+    cards = dashboard.peer_input_ladder_cards(pd.DataFrame())
+
+    assert cards[0]["command"] == "make reviewed-batch-compare PROFILE=local LANE=peers"
+    assert cards[0]["command"] != "make readiness"
+
+
+def test_peer_unlock_empty_card_uses_active_profile_proof_step(monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+
+    cards = dashboard.data_health_peer_unlock_cards(None)
+
+    assert cards[0]["command"] == "make reviewed-batch-compare PROFILE=local LANE=peers"
+    assert cards[0]["command"] != "make readiness"
 
 
 def test_peer_mapping_studio_keeps_etf_missing_mappings_in_monitor_context():
@@ -24112,7 +24166,7 @@ def test_data_health_peer_unlock_cards_summarize_next_row_before_table():
     assert "before reading peer-relative valuation" in rendered
     assert "data/imports/peers.csv with source-backed peer mappings" in rendered
     assert "make focus-peers ticker=a" in rendered
-    assert cards[2]["command"] == "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+    assert cards[2]["command"] == "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=default LANE=peers && make peer-mapping-queue TOP_N=25"
     assert "fallback valuation" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
@@ -24127,8 +24181,8 @@ def test_data_health_peer_unlock_cards_handle_empty_queue_without_fake_counts():
 
     assert len(cards) == 1
     assert "no peer unlock rows" in rendered
-    assert "regenerate readiness before assuming peer valuation is available" in rendered
-    assert cards[0]["command"] == "make readiness"
+    assert "active profile's in-memory peer comparison" in rendered
+    assert cards[0]["command"] == "make reviewed-batch-compare PROFILE=default LANE=peers"
 
 
 def _peer_source_review_root(tmp_path: Path) -> Path:

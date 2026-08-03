@@ -17019,6 +17019,9 @@ def peer_input_ladder_frame(
     if frame.empty:
         return pd.DataFrame(columns=columns)
 
+    profile = _active_data_profile_name()
+    snapshot_command = f"make readiness-snapshot PROFILE={profile}"
+    comparison_command = f"make reviewed-batch-compare PROFILE={profile} LANE=peers"
     step_definitions = [
         {
             "label": "1. Add source-backed peer mappings",
@@ -17027,7 +17030,10 @@ def peer_input_ladder_frame(
             "unlocks": "A trusted peer set for the subject company; peer trend can be checked after mapped peer price history is ready.",
             "locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked.",
             "path": "data/imports/peers.csv",
-            "validation": f"make templates -> fill source-backed peers -> {scoped_import_sequence()} -> make readiness",
+            "validation": (
+                f"{snapshot_command} -> make templates -> fill source-backed peers -> "
+                f"{scoped_import_sequence()} -> {comparison_command}"
+            ),
             "command": "make peer-mapping-queue TOP_N=25",
         },
         {
@@ -17037,7 +17043,10 @@ def peer_input_ladder_frame(
             "unlocks": "Peer trend context from mapped peer price history.",
             "locked": "Peer valuation remains locked until peer fundamentals and valuation inputs pass readiness.",
             "path": "data/imports/prices.csv or data/staged/prices/",
-            "validation": "make focus-price TICKER=<peer> -> make price-validate -> make price-preview -> make price-apply -> make readiness",
+            "validation": (
+                f"{snapshot_command} -> make focus-price TICKER=<peer> -> make price-validate -> "
+                f"make price-preview -> make price-apply -> {comparison_command}"
+            ),
             "command": "make price-history-proof-queue TOP_N=25",
         },
         {
@@ -17047,7 +17056,10 @@ def peer_input_ladder_frame(
             "unlocks": "Peer valuation input readiness for mapped peers.",
             "locked": "Peer-relative valuation stays withheld until all mapped peer valuation inputs pass readiness.",
             "path": "data/imports/fundamentals.csv or data/staged/fundamentals/",
-            "validation": f"make focus-fundamentals TICKER=<peer> -> {scoped_import_sequence('<peer>')} -> make readiness",
+            "validation": (
+                f"{snapshot_command} -> make focus-fundamentals TICKER=<peer> -> "
+                f"{scoped_import_sequence('<peer>')} -> {comparison_command}"
+            ),
             "command": "make peer-mapping-queue TOP_N=25",
         },
         {
@@ -17057,7 +17069,7 @@ def peer_input_ladder_frame(
             "unlocks": "Peer-relative valuation only when mappings, peer prices, and peer fundamentals are all ready.",
             "locked": "No peer premium/discount or peer DCF comparison before readiness passes.",
             "path": "Saved peer readiness proof after rebuilding readiness",
-            "validation": "make readiness -> make peer-mapping-queue TOP_N=25 -> make stock-report-md TICKER=<ticker>",
+            "validation": f"{comparison_command} -> make peer-mapping-queue TOP_N=25 -> make stock-report-md TICKER=<ticker>",
             "command": f"make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers && make peer-mapping-queue TOP_N=25",
         },
     ]
@@ -17091,13 +17103,14 @@ def peer_input_ladder_frame(
 
 def peer_input_ladder_cards(peer_input_ladder: pd.DataFrame | None) -> list[dict[str, object]]:
     if peer_input_ladder is None or peer_input_ladder.empty:
+        comparison_command = f"make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers"
         return [
             {
                 "kicker": "PEER INPUT LADDER",
                 "title": "No peer input ladder rows",
-                "body": "Run readiness and peer-mapping queue outputs before assuming peer valuation is ready.",
+                "body": "Run the active profile's in-memory peer comparison before assuming peer valuation is ready.",
                 "badges": ["readiness first", "no guessed peers"],
-                "command": "make readiness",
+                "command": comparison_command,
             }
         ]
     frame = peer_input_ladder.copy()
@@ -17808,13 +17821,14 @@ def data_health_peer_unlock_frame(
 
 def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> list[dict[str, object]]:
     if peer_unlock_frame is None or peer_unlock_frame.empty:
+        comparison_command = f"make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers"
         return [
             {
                 "kicker": "PEER QUEUE",
                 "title": "No peer unlock rows",
-                "body": "No peer-locked rows are visible in the current queue. Regenerate readiness before assuming peer valuation is available.",
+                "body": "No peer-locked rows are visible in the current queue. Run the active profile's in-memory peer comparison before assuming peer valuation is available.",
                 "badges": ["current output", "no guessed peers"],
-                "command": "make readiness",
+                "command": comparison_command,
             }
         ]
 
