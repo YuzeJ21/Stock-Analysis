@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 
 def _format_missing(value: object, fallback: str = "Not available") -> str:
@@ -49,9 +50,9 @@ def peer_readiness_product_cards(
             {
                 "kicker": "PEER READINESS",
                 "title": "Peer readiness not ready yet",
-                "body": "Build peer readiness proof before reviewing peer trend, peer valuation, or source-backed peer blockers. Open operator details for read-only proof steps.",
+                "body": f"Inspect peer readiness before reviewing peer trend, peer valuation, or source-backed peer blockers. {READINESS_PREVIEW_NOTE}",
                 "badges": ["blocked"],
-                "command": "make readiness",
+                "command": READINESS_PREVIEW_COMMAND,
             }
         ]
 
@@ -114,7 +115,7 @@ def peer_readiness_product_cards(
             "title": f"{int(peer_ready.sum())}/{len(frame)} ready",
             "body": f"Trend-ready peers: {int(trend_ready.sum())}. Valuation comparison ready: {int(valuation_ready.sum())}. DCF peer comparison ready: {int(dcf_ready.sum())}.",
             "badges": ["peer workflow", "data-honest"],
-            "command": "make readiness",
+            "command": READINESS_PREVIEW_COMMAND,
         },
         {
             "kicker": "TOP PEER BLOCKER",

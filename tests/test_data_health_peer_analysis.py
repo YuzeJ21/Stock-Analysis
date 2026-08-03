@@ -84,9 +84,10 @@ def test_peer_analysis_boundary_cards_handle_missing_report_without_fake_peer_co
 
     assert len(cards) == 1
     assert cards[0]["title"] == "Peer readiness not loaded"
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
+    assert "does not refresh or persist saved readiness" in body
     assert "missing peer output means peer analysis stays locked" in body
-    assert "open operator details" in body
+    assert "inspect peer readiness" in body
     assert "copy-only command" not in body
     assert "make " not in body
 

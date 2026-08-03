@@ -31,6 +31,7 @@ from src.license_status import CONTROLLED_DEMO_SHARE_BOUNDARY, NO_LICENSE_SHARE_
 from src.reviewed_batch import readiness_freshness_status
 from src.session_source_preflight import load_session_source_preflight
 from src.source_activation_guide import build_provider_setup_checklist
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 
 VALID_STATUSES = {"green", "manual", "blocked"}
@@ -304,7 +305,7 @@ def _hygiene_check(root: Path) -> PilotReadinessCheck:
 def _freshness_check(root: Path) -> PilotReadinessCheck:
     freshness = readiness_freshness_status(root)
     status = "green" if freshness.status == "current" else "blocked"
-    command = "make status-check TOP_N=5" if freshness.status == "current" else "make readiness-preview TOP_N=20"
+    command = "make status-check TOP_N=5" if freshness.status == "current" else READINESS_PREVIEW_COMMAND
     return PilotReadinessCheck(
         area="Readiness freshness",
         status=status,
@@ -313,7 +314,7 @@ def _freshness_check(root: Path) -> PilotReadinessCheck:
         command=command,
         stop_rule=(
             "Stop before quoting final counts or proof deltas if readiness artifacts are stale or missing. "
-            "The preview is inspection evidence only; an intentional reviewed make readiness run remains the separate rebuild boundary."
+            + READINESS_PREVIEW_NOTE
         ),
     )
 

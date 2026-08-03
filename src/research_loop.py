@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 from urllib.parse import quote
 
 import pandas as pd
@@ -98,7 +99,7 @@ def home_research_loop_context(summary: dict[str, object], freshness: object) ->
     current_state = f"{int(summary.get('price_ready') or 0):,} price-ready / {dcf_ready:,} DCF-ready / {peer_ready:,} peer-ready"
     freshness_status = getattr(freshness, "status", "")
     proof_state = "Saved readiness snapshot is current" if freshness_status == "current" else "Saved readiness snapshot needs refresh"
-    proof_note = "Use this snapshot before opening ticker pages." if freshness_status == "current" else str(getattr(freshness, "refresh_command", "make readiness"))
+    proof_note = "Use this snapshot before opening ticker pages." if freshness_status == "current" else f"{getattr(freshness, 'refresh_command', '') or READINESS_PREVIEW_COMMAND}. {READINESS_PREVIEW_NOTE}"
     next_action = "Open a Single-Stock Report"
     if dcf_ready <= 0:
         next_action = "Open Data Health lane answers"

@@ -119,7 +119,7 @@ def test_peer_unlock_operator_cards_empty_state_uses_readiness_proof_copy():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Peer unlock queue not ready yet"
-    assert "build the peer unlock queue" in rendered
+    assert "inspect the missing peer unlock queue" in rendered
     assert "refresh the peer unlock queue" not in rendered
     assert "outputs/peer_unlock_worklist.csv" not in rendered
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"

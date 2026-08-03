@@ -608,7 +608,8 @@ def test_coverage_frontier_marks_ranked_rows_planning_only_when_readiness_is_sta
     assert "Stale readiness continuation gate: inspection_only" in rendered
     assert "Next safe preview: make readiness-preview TOP_N=20" in rendered
     assert "Ranked rows below are planning context only" in rendered
-    assert "make readiness is a separate intentional reviewed write" in rendered
+    assert "Inspection boundary: make readiness-preview TOP_N=20" in rendered
+    assert "does not refresh or persist saved readiness" in rendered
     assert rendered.index("Stale readiness continuation gate") < rendered.index("1.")
 
 

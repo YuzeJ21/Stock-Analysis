@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
-from src.profile_context import ProfileContext
-
-
-READINESS_PREVIEW_COMMAND = "make readiness-preview TOP_N=20"
+from src.profile_context import (
+    READINESS_PREVIEW_COMMAND,
+    READINESS_PREVIEW_NOTE,
+    ProfileContext,
+    readiness_inspection_route,
+)
 
 
 @dataclass(frozen=True)
@@ -23,7 +26,12 @@ class ContinuationGate:
 def build_continuation_gate(context: ProfileContext) -> ContinuationGate:
     """Return the one safe continuation action for the selected profile."""
 
-    rebuild_command = context.refresh_command or "make readiness"
+    inspection_action, inspection_note = readiness_inspection_route(
+        getattr(context, "profile_key", "default"),
+        getattr(context, "profile_label", "Default"),
+        getattr(context, "data_dir", Path("data")),
+    )
+    rebuild_command = inspection_action
     evidence_state = getattr(context, "readiness_evidence_state", "not_applicable")
     evidence_is_uncommitted = evidence_state == "working_artifact_uncommitted"
     evidence_is_unverified = evidence_state == "unverified"
@@ -50,8 +58,8 @@ def build_continuation_gate(context: ProfileContext) -> ContinuationGate:
     )
     return ContinuationGate(
         state=state,
-        next_safe_command=READINESS_PREVIEW_COMMAND,
-        reason=reason,
+        next_safe_command=inspection_action,
+        reason=f"{reason} {inspection_note}" if READINESS_PREVIEW_NOTE not in reason else reason,
         rebuild_command=rebuild_command,
         stop_rule=(
             "Do not start broad refresh, source-proof, apply, or readiness-rebuild work from stale, "

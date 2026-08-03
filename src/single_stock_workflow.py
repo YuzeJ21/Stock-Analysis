@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 import pandas as pd
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 
 PUBLIC_STATUS_LABELS = {
@@ -248,9 +249,9 @@ def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[s
         {
             "kicker": "STOP RULE",
             "title": "No trusted input, no conclusion",
-            "body": f"{stop_rule} Locked, partial, and excluded sections stay visible until proof changes the state.",
+            "body": f"{stop_rule} Locked, partial, and excluded sections stay visible until proof changes the state. {READINESS_PREVIEW_NOTE}",
             "badges": ["research-only", "blocked stays blocked"],
-            "command": "make readiness",
+            "command": READINESS_PREVIEW_COMMAND,
         },
     ]
 
@@ -293,9 +294,9 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
             {
                 "kicker": "STOP RULE",
                 "title": "No local row, no interpretation",
-                "body": "Do not use a typed ticker as proof. Keep the page blocked until local readiness outputs include the ticker.",
+                "body": f"Do not use a typed ticker as proof. Keep the page blocked until local readiness outputs include the ticker. {READINESS_PREVIEW_NOTE}",
                 "badges": ["blocked visible", "no inference"],
-                "command": "make readiness",
+                "command": READINESS_PREVIEW_COMMAND,
             },
         ]
 
@@ -364,9 +365,9 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
         {
             "kicker": "STOP RULE",
             "title": "Stop before interpretation",
-            "body": "Do not treat locked, partial, or excluded sections as conclusions. Reopen this report only after the matching source-proof gate passes.",
+            "body": f"Do not treat locked, partial, or excluded sections as conclusions. Reopen this report only after the matching source-proof gate passes. {READINESS_PREVIEW_NOTE}",
             "badges": ["research only", "proof first"],
-            "command": "make readiness",
+            "command": READINESS_PREVIEW_COMMAND,
         },
     ]
 
@@ -548,9 +549,9 @@ def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[
         {
             "kicker": "STOP RULE",
             "title": "Return only after proof changes",
-            "body": f"{stop_rule} Do not turn missing, partial, locked, or excluded inputs into conclusions.",
+            "body": f"{stop_rule} Do not turn missing, partial, locked, or excluded inputs into conclusions. {READINESS_PREVIEW_NOTE}",
             "badges": ["research only", "proof first"],
-            "command": "make readiness",
+            "command": READINESS_PREVIEW_COMMAND,
         },
     ]
 

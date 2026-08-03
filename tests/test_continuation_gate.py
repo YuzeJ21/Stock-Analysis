@@ -36,7 +36,7 @@ def test_stale_readiness_routes_to_no_write_preview():
 
     assert gate.state == "inspection_only"
     assert gate.next_safe_command == "make readiness-preview TOP_N=20"
-    assert gate.rebuild_command == "make readiness"
+    assert gate.rebuild_command == "make readiness-preview TOP_N=20"
     assert gate.suppress_execution is True
     assert "broad refresh" in gate.stop_rule
 
@@ -46,7 +46,7 @@ def test_current_readiness_does_not_override_source_routing():
 
     assert gate.state == "current"
     assert gate.next_safe_command == ""
-    assert gate.rebuild_command == "make readiness"
+    assert gate.rebuild_command == "make readiness-preview TOP_N=20"
     assert gate.suppress_execution is False
     assert gate.stop_rule == ""
 

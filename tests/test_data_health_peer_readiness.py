@@ -10,8 +10,9 @@ def test_peer_readiness_product_cards_empty_state_keeps_command_out_of_body():
     body = str(cards[0]["body"]).lower()
 
     assert cards[0]["title"] == "Peer readiness not ready yet"
-    assert cards[0]["command"] == "make readiness"
-    assert "open operator details" in body
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
+    assert "does not refresh or persist saved readiness" in body
+    assert "inspect peer readiness" in body
     assert "copy-only command" not in body
     assert "make " not in body
 

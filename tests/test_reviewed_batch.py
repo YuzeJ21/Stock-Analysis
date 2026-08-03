@@ -218,7 +218,8 @@ def test_readiness_freshness_blocks_newer_declared_source_date_when_file_mtimes_
 
     assert status.status == "stale"
     assert "source dates are newer" in status.message.lower()
-    assert status.refresh_command == "make readiness"
+    assert status.refresh_command == "make readiness-preview TOP_N=20"
+    assert "does not refresh or persist saved readiness" in status.message
 
 
 def test_reviewed_batch_lane_selection_and_top_n_cap(tmp_path: Path):

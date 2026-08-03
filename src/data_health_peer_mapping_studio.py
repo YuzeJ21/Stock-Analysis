@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 from src.data_health_summary import bool_series
 
@@ -14,9 +15,9 @@ def peer_mapping_studio_summary_cards(
             {
                 "kicker": "PEER STUDIO",
                 "title": "Peer readiness not ready yet",
-                "body": "Build peer readiness proof before using the mapping studio.",
+                "body": f"Inspect peer readiness before using the mapping studio. {READINESS_PREVIEW_NOTE}",
                 "badges": ["blocked"],
-                "command": "make readiness",
+                "command": READINESS_PREVIEW_COMMAND,
             }
         ]
 
@@ -77,7 +78,7 @@ def peer_mapping_studio_summary_cards(
             "title": f"{int(trend_ready.sum())} tickers",
             "body": "Peer trend comparison can be reviewed before peer valuation is fully unlocked.",
             "badges": ["trend ready", "not valuation"],
-            "command": "make readiness",
+            "command": READINESS_PREVIEW_COMMAND,
         },
         {
             "kicker": "VALUATION BLOCKED",

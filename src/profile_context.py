@@ -36,6 +36,18 @@ SOURCE_DATE_COLUMNS: dict[Path, tuple[str, tuple[str, ...]]] = {
     ),
 }
 IDENTITY_FILES = (*READINESS_FILES, *SOURCE_DATE_COLUMNS.keys())
+READINESS_PREVIEW_COMMAND = "make readiness-preview TOP_N=20"
+READINESS_PREVIEW_NOTE = "In-memory preview only; it does not refresh or persist saved readiness."
+
+
+def readiness_inspection_route(profile_key: str, profile_label: str, data_dir: Path) -> tuple[str, str]:
+    if profile_key == "default":
+        return READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+    unavailable = (
+        f"Unavailable for {profile_label} ({profile_key}): Slice 1 readiness preview inspects only "
+        f"Default (default) inputs in data; selected profile inputs are {data_dir.as_posix()}."
+    )
+    return unavailable, f"{unavailable} {READINESS_PREVIEW_NOTE}"
 
 
 @dataclass(frozen=True)
@@ -261,17 +273,18 @@ def _readiness_evidence(
     return "tracked", "Readiness artifacts match tracked HEAD evidence."
 
 
-def _freshness(data_dir: Path) -> tuple[str, str, str]:
+def _freshness(data_dir: Path, *, profile_key: str, profile_label: str) -> tuple[str, str, str]:
+    inspection_action, inspection_note = readiness_inspection_route(profile_key, profile_label, data_dir)
     readiness_paths = [data_dir / path for path in READINESS_FILES]
     readiness_present = [path for path in readiness_paths if path.exists()]
     if not readiness_present:
-        return "missing", "Selected-profile readiness artifacts are missing.", "make readiness"
+        return "missing", f"Selected-profile readiness artifacts are missing. {inspection_note}", inspection_action
     if len(readiness_present) != len(readiness_paths):
-        return "mixed", "Only some selected-profile readiness artifacts are available.", "make readiness"
+        return "mixed", f"Only some selected-profile readiness artifacts are available. {inspection_note}", inspection_action
 
     source_paths = [data_dir / path for path in SOURCE_DATE_COLUMNS if (data_dir / path).exists()]
     if not source_paths:
-        return "mixed", "Readiness exists but selected-profile canonical source files are missing.", "make readiness"
+        return "mixed", f"Readiness exists but selected-profile canonical source files are missing. {inspection_note}", inspection_action
     return "current", "Selected-profile readiness is current for the saved source files.", ""
 
 
@@ -299,7 +312,11 @@ def build_profile_context(
         identity, snapshot_inputs = _local_identity(data_path)
 
     readiness_built_at = _readiness_built_at(data_path)
-    freshness_state, freshness_message, refresh_command = _freshness(data_path)
+    freshness_state, freshness_message, refresh_command = _freshness(
+        data_path,
+        profile_key=profile.name,
+        profile_label=profile_display_label(profile.name),
+    )
     readiness_evidence_state, readiness_evidence_message = _readiness_evidence(
         root,
         data_path,
@@ -314,8 +331,10 @@ def build_profile_context(
         and source_date > readiness_time.date()
     ):
         freshness_state = "stale"
-        freshness_message = "Selected-profile source dates are newer than the saved readiness snapshot."
-        refresh_command = "make readiness"
+        refresh_command, inspection_note = readiness_inspection_route(
+            profile.name, profile_display_label(profile.name), data_path
+        )
+        freshness_message = f"Selected-profile source dates are newer than the saved readiness snapshot. {inspection_note}"
     if profile.name == "demo" and data_dir is None and not identity:
         freshness_state = "mixed" if (data_path / READINESS_FILES[0]).exists() else "missing"
         freshness_message = "The selected demo manifest is missing or invalid."

@@ -336,7 +336,8 @@ def test_preview_builds_in_memory_and_renders_non_unlock_boundary(tmp_path: Path
     assert "DCF price-source provenance is outside this fundamentals review" in rendered
     assert "Read-only: no files were created, modified, or deleted." in rendered
     assert "This preview does not make saved readiness current." in rendered
-    assert "An intentional reviewed make readiness run remains the separate rebuild boundary." in rendered
+    assert "Inspection command: make readiness-preview TOP_N=20" in rendered
+    assert "does not refresh or persist saved readiness" in rendered
     assert _file_manifest(tmp_path) == before
 
 

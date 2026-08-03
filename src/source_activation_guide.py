@@ -10,6 +10,7 @@ from typing import Any
 from src.continuation_gate import build_continuation_gate
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.profile_context import build_profile_context
+from src.profile_context import READINESS_PREVIEW_NOTE
 from src.provider_env import load_provider_environment
 from src.session_source_preflight import load_session_source_preflight
 
@@ -671,7 +672,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
                 f"- Next safe preview: {continuation_gate.get('next_safe_command', '-')}",
                 f"- Reason: {continuation_gate.get('reason', '-')}",
                 "- Planning context only: provider rows and setup classifications below do not authorize source execution.",
-                f"- Rebuild boundary: {continuation_gate.get('rebuild_command', 'make readiness')} is a separate intentional reviewed write.",
+                f"- Inspection boundary: {continuation_gate.get('next_safe_command', '-')}. {READINESS_PREVIEW_NOTE}",
                 f"- Stop rule: {continuation_gate.get('stop_rule', '-')}",
             ]
         )

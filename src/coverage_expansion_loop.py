@@ -20,6 +20,7 @@ from src.readiness_ops import (
     build_reviewed_batch_ledger_summaries,
 )
 from src.reviewed_batch_preflight import ReviewedBatchPreflight, build_reviewed_batch_preflight
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 from src.session_source_preflight import load_session_source_preflight
 
 
@@ -581,9 +582,9 @@ def build_coverage_expansion_loop(
             reviewed_batch_lane="-",
             planner_step=None,
             preflight=None,
-            next_safe_action="Run make readiness and make data-coverage-planner TOP_N=10, then choose a listed lane.",
+            next_safe_action=f"Run {READINESS_PREVIEW_COMMAND}, then choose a listed lane. {READINESS_PREVIEW_NOTE}",
             lane_board=lane_board,
-            copy_only_sequence=("make readiness", f"make data-coverage-planner TOP_N={top_n}", "make coverage-frontier TOP_N=10"),
+            copy_only_sequence=(READINESS_PREVIEW_COMMAND, f"make data-coverage-planner TOP_N={top_n}", "make coverage-frontier TOP_N=10"),
             do_not_proceed_if=("no planner lane exists for the requested scope",),
             source_proof_gate=source_gate,
             session_source_preflight=session_preflight,
@@ -645,6 +646,7 @@ def render_coverage_expansion_loop(loop: CoverageExpansionLoop) -> str:
         f"Selected lane: {loop.selected_label} ({loop.selected_lane})",
         f"Reviewed batch lane: {loop.reviewed_batch_lane}",
         f"Next safe action: {loop.next_safe_action}",
+        f"Inspection boundary: {READINESS_PREVIEW_COMMAND}. {READINESS_PREVIEW_NOTE}" if loop.status == "blocked_missing_lane" else "",
         "",
     ]
     if loop.session_source_preflight is not None:

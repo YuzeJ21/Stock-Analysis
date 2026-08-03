@@ -56,7 +56,9 @@ def test_research_loop_contexts_keep_home_single_stock_and_data_health_connected
     assert home["current_step"] == "Home workflow start"
     assert home["current_note"] == "3,538 price-ready / 59 DCF-ready / 26 peer-ready"
     assert home["next_action"] == "Open a Single-Stock Report"
-    assert home_stale["proof_note"] == "make readiness"
+    assert home_stale["proof_note"] == (
+        "make readiness. In-memory preview only; it does not refresh or persist saved readiness."
+    )
     assert pre_report["current_step"] == "Single-Stock Report"
     assert pre_report["next_action"] == "Open Review"
     assert loaded_report["current_step"] == "NVDA report review"

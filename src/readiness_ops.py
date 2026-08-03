@@ -12,7 +12,7 @@ from typing import Iterable
 from src.continuation_gate import ContinuationGate, build_continuation_gate
 from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_proof_queue_from_files, summarize_missing_input_families
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
-from src.profile_context import build_profile_context, render_profile_context_text
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE, build_profile_context, render_profile_context_text
 from src.reviewed_batch_proof import ReviewedBatchProof, load_reviewed_batch_proofs
 from src.session_source_preflight import load_session_source_preflight
 
@@ -478,7 +478,7 @@ def build_peer_readiness_summary(
             missing_peer_momentum=0,
             missing_peer_fundamentals=0,
             peer_valuation_blocked=0,
-            source_context="data/reports/peer_readiness_report.csv missing; run make readiness before using peer sub-state counts.",
+            source_context=f"data/reports/peer_readiness_report.csv missing; inspect with {READINESS_PREVIEW_COMMAND} before using peer sub-state counts. {READINESS_PREVIEW_NOTE}",
         )
     return PeerReadinessSummary(
         total_count=total,
@@ -1250,7 +1250,7 @@ def render_data_coverage_expansion_plan(steps: list[DataCoverageExpansionStep]) 
         "",
     ]
     if not steps:
-        lines.append("No expansion steps are available. Run make readiness before using the planner if saved reports are missing.")
+        lines.append(f"No expansion steps are available. Inspect saved readiness with {READINESS_PREVIEW_COMMAND}. {READINESS_PREVIEW_NOTE}")
         return "\n".join(lines)
     for step in steps:
         lines.extend(
@@ -1463,7 +1463,7 @@ def render_data_coverage_proof_queues(rows: list[DataCoverageProofQueueRow]) -> 
         "",
     ]
     if not rows:
-        lines.append("No proof queues are available. Run make readiness before relying on data-coverage queue counts.")
+        lines.append(f"No proof queues are available. Inspect with {READINESS_PREVIEW_COMMAND} before relying on data-coverage queue counts. {READINESS_PREVIEW_NOTE}")
         return "\n".join(lines)
     lines.append(
         "Queue | State | Queued | Ready | Partial | Blocked | Top blockers | Next safe command | Proof packet"
@@ -1516,7 +1516,7 @@ def render_fundamentals_peer_metrics_queue(rows: list[ReadinessQueueRow]) -> str
         "",
     ]
     if not rows:
-        lines.append("No queue rows are available. Run make readiness before relying on exact counts.")
+        lines.append(f"No queue rows are available. Inspect with {READINESS_PREVIEW_COMMAND} before relying on exact counts. {READINESS_PREVIEW_NOTE}")
         return "\n".join(lines)
     lines.append(
         "Lane | State | Ready | Partial | Blocked | Excluded | Missing input families | Source mode | Next proof"
@@ -1593,13 +1593,13 @@ def render_coverage_frontier(
                 f"- Next safe preview: {continuation_gate.next_safe_command}",
                 f"- Reason: {continuation_gate.reason}",
                 "- Ranked rows below are planning context only; do not execute their source or coverage commands from stale readiness.",
-                f"- Rebuild boundary: {continuation_gate.rebuild_command} is a separate intentional reviewed write.",
+                f"- Inspection boundary: {continuation_gate.next_safe_command}. {READINESS_PREVIEW_NOTE}",
                 f"- Stop rule: {continuation_gate.stop_rule}",
                 "",
             ]
         )
     if not frontier:
-        lines.append("No coverage frontier rows are available. Run make readiness first if saved reports are missing.")
+        lines.append(f"No coverage frontier rows are available. Inspect with {READINESS_PREVIEW_COMMAND} if saved reports are missing. {READINESS_PREVIEW_NOTE}")
         return "\n".join(lines)
     for row in frontier:
         lines.extend(

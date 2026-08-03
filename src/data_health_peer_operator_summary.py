@@ -4,6 +4,7 @@ import pandas as pd
 
 from src.data_health_proof_ctas import card_sentence, compact_card_fragment
 from src.peer_mapping_source_review import PeerMappingSourceReviewPacket
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 
 SUMMARY_COLUMNS = ["Question", "Status", "Answer", "Next Safe Action", "Boundary"]
@@ -21,8 +22,8 @@ def peer_operator_summary_frame(
                     "Question": "Where am I?",
                     "Status": "missing_packet",
                     "Answer": "Peer source-review packet is not loaded.",
-                    "Next Safe Action": "make readiness && make peer-mapping-source-review TOP_N=10",
-                    "Boundary": "Rebuild readiness and source-review rows before planning peer proof.",
+                    "Next Safe Action": READINESS_PREVIEW_COMMAND,
+                    "Boundary": f"Inspect missing readiness before planning peer proof. {READINESS_PREVIEW_NOTE}",
                 }
             ],
             columns=SUMMARY_COLUMNS,
@@ -129,7 +130,7 @@ def peer_operator_summary_cards(summary: pd.DataFrame | None) -> list[dict[str, 
             "body": (
                 f"{card_sentence('Need', compact_card_fragment(current.get('Answer'), max_chars=210))} "
                 f"{card_sentence('Boundary', compact_card_fragment(current.get('Boundary'), max_chars=190))} "
-                "Use this first-read summary before lower peer source tables."
+                f"Use this first-read summary before lower peer source tables. {READINESS_PREVIEW_NOTE}"
             ),
             "badges": ["first read", "source-backed only"],
             "command": _text(current.get("Next Safe Action"), "make peer-mapping-source-review TOP_N=10"),

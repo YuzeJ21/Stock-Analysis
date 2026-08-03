@@ -164,8 +164,9 @@ def test_peer_operator_summary_missing_packet_blocks_first():
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert summary.iloc[0]["Status"] == "missing_packet"
-    assert summary.iloc[0]["Next Safe Action"] == "make readiness && make peer-mapping-source-review TOP_N=10"
-    assert cards[0]["command"] == "make readiness && make peer-mapping-source-review TOP_N=10"
-    assert "rebuild readiness" in rendered
+    assert summary.iloc[0]["Next Safe Action"] == "make readiness-preview TOP_N=20"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
+    assert "does not refresh or persist saved readiness" in rendered
+    assert "inspect missing readiness" in rendered
     assert "buy now" not in rendered
     assert "sell now" not in rendered

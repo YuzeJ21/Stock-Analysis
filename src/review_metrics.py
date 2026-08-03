@@ -16,6 +16,7 @@ from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.market_data import FinancialSnapshot, MarketDataProvider
 from src.quant_interpretation_eligibility import QuantEvidenceAssessment
 from src.reviewed_batch import readiness_freshness_status
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 
 READY = "ready"
@@ -1073,7 +1074,7 @@ def build_metric_readiness_board(
                     next_action=row.next_action,
                     freshness=freshness.get("status", "unknown"),
                     freshness_message=freshness.get("message", ""),
-                    refresh_command=freshness.get("refresh_command", "make readiness"),
+                    refresh_command=freshness.get("refresh_command", READINESS_PREVIEW_COMMAND),
                 )
             )
     return rows
@@ -1098,7 +1099,7 @@ def metric_readiness_board_next_safe_action(rows: list[MetricReadinessBoardRow])
         for row in rows:
             if row.freshness in {"missing", "stale"} and row.refresh_command:
                 return row.refresh_command
-        return "make readiness"
+        return READINESS_PREVIEW_COMMAND
     if status == "blocked_no_rows":
         return "make metric-readiness-board TOP_N=10 BENCHMARKS=SPY,QQQ"
     for row in rows:
@@ -1140,7 +1141,7 @@ def format_metric_readiness_summary_text(rows: list[MetricReadinessRow], freshne
         f"Freshness: {freshness.get('status', 'unknown')} - {freshness.get('message', 'No freshness context available.')}",
     ]
     if freshness.get("status") in {"missing", "stale"}:
-        lines.append(f"Refresh before relying on final counts: {freshness.get('refresh_command', 'make readiness')}")
+        lines.append(f"Inspect before relying on final counts: {freshness.get('refresh_command', READINESS_PREVIEW_COMMAND)}. {READINESS_PREVIEW_NOTE}")
     if not rows:
         lines.append("No tickers were available for metric-readiness review.")
         return "\n".join(lines)
@@ -1185,7 +1186,7 @@ def format_metric_readiness_board_text(rows: list[MetricReadinessBoardRow]) -> s
     refresh_commands = list(dict.fromkeys(row.refresh_command for row in rows if row.refresh_command))
     lines.append(f"Freshness: {freshness}")
     if any(row.freshness in {"missing", "stale"} for row in rows):
-        lines.append(f"Refresh before relying on final counts: {refresh_commands[0] if refresh_commands else 'make readiness'}")
+        lines.append(f"Inspect before relying on final counts: {refresh_commands[0] if refresh_commands else READINESS_PREVIEW_COMMAND}. {READINESS_PREVIEW_NOTE}")
         lines.append("Blocked preflight: refresh readiness before treating metric-readiness rows as current coverage proof.")
 
     family_counts: dict[str, int] = {}

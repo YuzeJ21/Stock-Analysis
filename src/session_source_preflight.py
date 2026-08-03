@@ -19,6 +19,7 @@ import pandas as pd
 from src.continuation_gate import ContinuationGate, build_continuation_gate
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.profile_context import build_profile_context
+from src.profile_context import READINESS_PREVIEW_NOTE
 from src.provider_env import load_provider_environment
 from src.providers.alternative_fundamentals import ALPHA_VANTAGE_API_KEY_ENV, FMP_API_KEY_ENV, FINNHUB_API_KEY_ENV
 from src.data_update import DEFAULT_IBKR_CLIENT_ID, DEFAULT_IBKR_HOST, DEFAULT_IBKR_PORT, IBKR_CLIENT_ID_ENV, IBKR_HOST_ENV, IBKR_PORT_ENV
@@ -1192,7 +1193,7 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
             f"- Next safe preview: {continuation_gate.get('next_safe_command', '-')}",
             f"- Reason: {continuation_gate.get('reason', '-')}",
             "- Source availability and lane details below are planning context only; they do not authorize execution.",
-            f"- Rebuild boundary: {continuation_gate.get('rebuild_command', 'make readiness')} is a separate intentional reviewed write.",
+            f"- Inspection boundary: {continuation_gate.get('next_safe_command', '-')}. {READINESS_PREVIEW_NOTE}",
             f"- Stop rule: {continuation_gate.get('stop_rule', '-')}",
         ]
     for source_name in (

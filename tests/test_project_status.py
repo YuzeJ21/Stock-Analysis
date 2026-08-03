@@ -1625,7 +1625,8 @@ def test_project_status_cli_check_labels_stale_generated_snapshot_before_counts(
     assert freshness_index < warning_index < summary_index < ready_index
     assert "Ready now: 1 price-ready" not in output
     assert "generated report" not in output.lower()
-    assert "Refresh needed: run make readiness or make status before using exact readiness counts." in output
+    assert "Inspection needed: run make readiness-preview TOP_N=20 before using exact saved counts." in output
+    assert "does not refresh or persist saved readiness" in output
 
 
 def test_project_status_human_write_output_reports_written_files(tmp_path: Path, capsys: pytest.CaptureFixture[str]):

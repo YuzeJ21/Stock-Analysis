@@ -8,6 +8,7 @@ from typing import Iterable
 
 from src.continuation_gate import ContinuationGate, build_continuation_gate
 from src.profile_context import build_profile_context
+from src.profile_context import READINESS_PREVIEW_NOTE
 from src.refresh_operations import (
     ProviderAttempt,
     RefreshOperationPlan,
@@ -402,7 +403,7 @@ def render_scheduler_runbook(
                 f"Stale readiness continuation gate: {continuation_gate.state}",
                 f"- Reason: {continuation_gate.reason}",
                 "- Lane policies below are planning context only.",
-                f"- Rebuild boundary: {continuation_gate.rebuild_command} is a separate intentional reviewed write.",
+                f"- Inspection boundary: {continuation_gate.next_safe_command}. {READINESS_PREVIEW_NOTE}",
                 f"- Stop rule: {continuation_gate.stop_rule}",
                 "",
                 "Start:",
@@ -505,7 +506,7 @@ def render_auto_refresh_status(
                 f"- Next safe preview: {continuation_gate.next_safe_command}",
                 f"- Reason: {continuation_gate.reason}",
                 "- refresh_operations below are planning context only; they are not executable routing.",
-                f"- Rebuild boundary: {continuation_gate.rebuild_command} is a separate intentional reviewed write.",
+                f"- Inspection boundary: {continuation_gate.next_safe_command}. {READINESS_PREVIEW_NOTE}",
                 f"- Stop rule: {continuation_gate.stop_rule}",
             ]
         )

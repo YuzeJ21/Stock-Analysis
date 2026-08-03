@@ -4,6 +4,7 @@ import pandas as pd
 
 from src.dashboard_navigation import dashboard_page_slug
 from src.data_health_proof_ctas import card_sentence, compact_card_fragment, format_missing
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 
 def metric_readiness_blocker_family(blocker: object) -> str:
@@ -117,14 +118,14 @@ def metric_detail_load_status(
         freshness_status = type("FreshnessFallback", (), {
             "status": "unknown",
             "message": "Readiness freshness has not been checked.",
-            "refresh_command": "make readiness",
+            "refresh_command": READINESS_PREVIEW_COMMAND,
         })()
     if getattr(freshness_status, "status", "") in {"missing", "stale"}:
         return {
             "status": "blocked_by_snapshot_gate",
             "title": "Refresh readiness before metric details",
-            "body": getattr(freshness_status, "message", "") or "Readiness artifacts are not current enough for row-level metric counts.",
-            "next_action": getattr(freshness_status, "refresh_command", "") or "make readiness",
+            "body": f"{getattr(freshness_status, 'message', '') or 'Readiness artifacts are not current enough for row-level metric counts.'} {READINESS_PREVIEW_NOTE}",
+            "next_action": getattr(freshness_status, "refresh_command", "") or READINESS_PREVIEW_COMMAND,
         }
     if not requested:
         return {
@@ -156,7 +157,7 @@ def metric_detail_load_cards(load_status: dict[str, str]) -> list[dict[str, obje
                     "Metric details stay blocked so stale row counts do not look current."
                 ),
                 "badges": ["snapshot gate", "no stale counts"],
-                "command": load_status.get("next_action", "make readiness"),
+                "command": load_status.get("next_action", READINESS_PREVIEW_COMMAND),
             }
         ]
     if status == "ready_to_load":
@@ -205,14 +206,14 @@ def proof_detail_load_status(
         freshness_status = type("FreshnessFallback", (), {
             "status": "unknown",
             "message": "Readiness freshness has not been checked.",
-            "refresh_command": "make readiness",
+            "refresh_command": READINESS_PREVIEW_COMMAND,
         })()
     if getattr(freshness_status, "status", "") in {"missing", "stale"}:
         return {
             "status": "blocked_by_snapshot_gate",
             "title": "Refresh readiness before proof details",
-            "body": getattr(freshness_status, "message", "") or "Readiness artifacts are not current enough for proof-ledger review.",
-            "next_action": getattr(freshness_status, "refresh_command", "") or "make readiness",
+            "body": f"{getattr(freshness_status, 'message', '') or 'Readiness artifacts are not current enough for proof-ledger review.'} {READINESS_PREVIEW_NOTE}",
+            "next_action": getattr(freshness_status, "refresh_command", "") or READINESS_PREVIEW_COMMAND,
         }
     if not requested:
         return {
@@ -265,7 +266,7 @@ def proof_detail_load_cards(load_status: dict[str, str]) -> list[dict[str, objec
                     "Proof details stay blocked so stale snapshot counts do not look reviewed."
                 ),
                 "badges": ["snapshot gate", "no stale proof"],
-                "command": load_status.get("next_action", "make readiness"),
+                "command": load_status.get("next_action", READINESS_PREVIEW_COMMAND),
             }
         ]
     if status == "loading":

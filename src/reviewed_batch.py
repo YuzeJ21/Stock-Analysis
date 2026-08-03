@@ -253,13 +253,11 @@ def readiness_freshness_status(
     if profile_context.freshness_state != "current":
         message = profile_context.freshness_message
         if profile_context.freshness_state == "missing":
-            message = "Missing readiness artifact(s). Run make readiness before using this packet for execution."
-        elif profile_context.freshness_state == "stale":
-            message = f"{message} Run make readiness before relying on final counts."
+            message = f"Missing readiness artifact(s). {profile_context.freshness_message}"
         return FreshnessStatus(
             profile_context.freshness_state,
             message,
-            profile_context.refresh_command or "make readiness",
+            profile_context.refresh_command,
         )
     if profile_context.readiness_evidence_state in {"working_artifact_uncommitted", "unverified"}:
         return FreshnessStatus(

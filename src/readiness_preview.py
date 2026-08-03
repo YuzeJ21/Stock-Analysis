@@ -19,6 +19,7 @@ from src.dcf_price_lineage import DcfPriceLineageReview, review_dcf_price_lineag
 from src.loader import normalize_columns
 from src.paths import resolve_data_dir, resolve_project_root
 from src.readiness_engine import build_ticker_readiness_report
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 
 STABLE_READINESS_FIELDS = (
@@ -672,9 +673,10 @@ def render_readiness_impact_preview(preview: ReadinessImpactPreview) -> str:
     lines.extend(
         [
             "",
+            f"Inspection command: {READINESS_PREVIEW_COMMAND}",
             "Read-only: no files were created, modified, or deleted.",
             "This preview does not make saved readiness current.",
-            "An intentional reviewed make readiness run remains the separate rebuild boundary.",
+            READINESS_PREVIEW_NOTE,
             "Research workflow evidence only; not investment advice or a recommendation.",
         ]
     )

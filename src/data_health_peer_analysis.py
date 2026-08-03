@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 from src.data_health_summary import bool_series
 
@@ -28,9 +29,9 @@ def peer_analysis_boundary_cards(
             {
                 "kicker": "PEER ANALYSIS",
                 "title": "Peer readiness not loaded",
-                "body": "Refresh peer readiness before interpreting peer trend or peer valuation context. Missing peer output means peer analysis stays locked. Open operator details for read-only proof steps.",
+                "body": f"Inspect peer readiness before interpreting peer trend or peer valuation context. Missing peer output means peer analysis stays locked. {READINESS_PREVIEW_NOTE}",
                 "badges": ["readiness first", "no inferred peers"],
-                "command": "make readiness",
+                "command": READINESS_PREVIEW_COMMAND,
             }
         ]
 
@@ -84,7 +85,7 @@ def peer_analysis_boundary_cards(
                 "Peer valuation is separate and needs source-backed mappings plus peer valuation inputs."
             ),
             "badges": ["trend before valuation", "module-gated"],
-            "command": "make readiness",
+            "command": READINESS_PREVIEW_COMMAND,
         },
         {
             "kicker": "WHAT IS STILL LOCKED",

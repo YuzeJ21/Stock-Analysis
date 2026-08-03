@@ -197,7 +197,8 @@ def test_coverage_expansion_loop_reports_unknown_lane_without_fake_plan(tmp_path
     assert loop.lane_board
     assert not any(row.selected for row in loop.lane_board)
     assert "No matching planner lane" in rendered
-    assert "Run make readiness and make data-coverage-planner TOP_N=10" in rendered
+    assert "Run make readiness-preview TOP_N=20" in rendered
+    assert "does not refresh or persist saved readiness" in rendered
 
 
 def test_coverage_expansion_lane_board_keeps_locked_and_excluded_boundaries_visible(tmp_path: Path):

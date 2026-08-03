@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 from src.data_health_coverage_delta import build_readiness_change_frame
 
@@ -52,9 +53,9 @@ def readiness_recent_progress_cards(
             {
                 "kicker": "WHAT CHANGED",
                 "title": "Readiness report missing",
-                "body": "Refresh readiness before comparing current and prior product status. Open operator details for read-only proof steps.",
+                "body": f"Inspect readiness before comparing current and prior product status. {READINESS_PREVIEW_NOTE}",
                 "badges": ["blocked"],
-                "command": "make readiness",
+                "command": READINESS_PREVIEW_COMMAND,
             }
         ]
 
@@ -85,7 +86,7 @@ def readiness_recent_progress_cards(
                 f"Latest refresh timestamp: {_format_missing(latest)}."
             ),
             "badges": ["current counts", "readiness first"],
-            "command": "make readiness",
+            "command": READINESS_PREVIEW_COMMAND,
         }
     ]
 
@@ -117,7 +118,7 @@ def readiness_recent_progress_cards(
                     "This is a count comparison only; review source readiness before interpreting analysis."
                 ),
                 "badges": ["previous vs current", "no fabricated deltas"],
-                "command": "make readiness",
+                "command": READINESS_PREVIEW_COMMAND,
             }
         )
     else:

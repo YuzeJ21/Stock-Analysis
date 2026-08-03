@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 from src.data_health_summary import bool_series
 
@@ -46,9 +47,9 @@ def peer_unlock_operator_cards(
             {
                 "kicker": "PEER UNLOCK QUEUE",
                 "title": "Peer unlock queue not ready yet",
-                "body": "Build the peer unlock queue before editing trusted peer rows.",
+                "body": f"Inspect the missing peer unlock queue before editing trusted peer rows. {READINESS_PREVIEW_NOTE}",
                 "badges": ["blocked"],
-                "command": "make readiness",
+                "command": READINESS_PREVIEW_COMMAND,
             }
         ]
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 
 def _format_missing(value: object, fallback: str = "Not available") -> str:
@@ -23,9 +24,9 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
             {
                 "kicker": "FEATURE READINESS",
                 "title": "Feature readiness not ready yet",
-                "body": "Build feature readiness proof before reviewing which analysis areas are ready, partial, blocked, or excluded. Open operator details for read-only proof steps.",
+                "body": f"Inspect feature readiness before reviewing which analysis areas are ready, partial, blocked, or excluded. {READINESS_PREVIEW_NOTE}",
                 "badges": ["blocked"],
-                "command": "make readiness",
+                "command": READINESS_PREVIEW_COMMAND,
             }
         ]
     frame = feature_summary_frame.copy()
@@ -45,7 +46,7 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
         total = int(row.get("total_count") or 0)
         blocker = _format_missing(row.get("top_blocker"), "No dominant blocker")
         section = _format_missing(row.get("dashboard_section"), "Dashboard")
-        command = str(row.get("next_action") or "make readiness")
+        command = str(row.get("next_action") or READINESS_PREVIEW_COMMAND)
         body = f"Partial: {partial}. Blocked: {blocked}. Excluded: {excluded}. Top blocker: {blocker}."
         if feature_key == "earnings":
             body = (

@@ -9,6 +9,7 @@ import pandas as pd
 
 from src.loader import normalize_columns
 from src.paths import resolve_data_dir, resolve_project_root
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 
 UNIVERSE_SCOPE_REVIEW_COLUMNS = [
@@ -320,7 +321,7 @@ def _print_plan(plan: pd.DataFrame) -> None:
     print("Universe Scope Runbook")
     print("Read-only: this command does not refresh, import, apply, stage, or infer data.")
     if plan.empty:
-        print("No scope rows available. Run make readiness before relying on counts.")
+        print(f"No scope rows available. Inspect with {READINESS_PREVIEW_COMMAND} before relying on counts. {READINESS_PREVIEW_NOTE}")
         return
     active_rows = plan[plan["scope"].eq("active_universe")]
     recommended = active_rows.iloc[0] if not active_rows.empty and _safe_int(active_rows.iloc[0]["matching_rows"]) else plan.iloc[0]

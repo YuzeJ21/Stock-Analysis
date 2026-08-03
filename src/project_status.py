@@ -355,7 +355,7 @@ def _stale_generated_artifact_warnings(data_path: Path, output_path: Path) -> li
         generated_paths=generated_paths,
         source_paths=source_paths,
         display_root=root,
-        refresh_command="make readiness or make status",
+        refresh_command="make readiness-preview TOP_N=20",
     )
     if not warning:
         return []
@@ -2006,7 +2006,7 @@ def _print_human(
         f"{summary['tickers_peer_ready']} peer-ready."
     )
     if has_stale_snapshot_warning:
-        print("- Refresh needed: run make readiness or make status before using exact readiness counts.")
+        print("- Inspection needed: run make readiness-preview TOP_N=20 before using exact saved counts. In-memory preview only; it does not refresh or persist saved readiness.")
     print(
         "- Still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates "
         "stay locked where source-backed rows are missing."

@@ -62,7 +62,7 @@ def test_peer_mapping_studio_summary_cards_empty_state_uses_readiness_proof_copy
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "Peer readiness not ready yet"
-    assert "build peer readiness proof" in rendered
+    assert "inspect peer readiness" in rendered
     assert "refresh peer readiness proof" not in rendered
     assert "generate peer readiness" not in rendered
-    assert cards[0]["command"] == "make readiness"
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
