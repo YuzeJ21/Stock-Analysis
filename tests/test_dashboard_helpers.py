@@ -4851,10 +4851,18 @@ def test_ticker_coverage_display_frame_hides_noisy_paths():
     assert display.iloc[0]["Latest"] == "2026-03-14"
 
 
-def _fake_pipeline_outputs(_root, *, output_dir):
-    output_path = Path(output_dir)
-    for filename in dashboard.PIPELINE_FILES:
-        pd.DataFrame([{"ticker": "NVDA", "status": "fixture"}]).to_csv(output_path / filename, index=False)
+def _fake_pipeline_outputs(_root):
+    frames = {
+        filename.removesuffix(".csv"): pd.DataFrame(
+            [{"Ticker": "NVDA", "SetupStatus": "Avoid", "Reason": "fixture"}]
+        )
+        for filename in dashboard.PIPELINE_FILES
+    }
+    return {
+        "frames": frames,
+        "row_counts": {name: len(frame) for name, frame in frames.items()},
+        "warnings": [],
+    }
 
 
 def _fake_monthly_research_picks(_root, *, output_dir, top_n):
@@ -4946,14 +4954,22 @@ def test_data_source_status_tables_handle_missing_outputs(tmp_path, monkeypatch)
     assert dashboard.friendly_data_source_status("optional_unofficial") == "Optional unofficial"
 
 
-def test_pipeline_outputs_loader_regenerates_missing_core_outputs(tmp_path, monkeypatch):
+def test_pipeline_outputs_loader_refreshes_missing_core_outputs_in_memory(tmp_path, monkeypatch):
+    load_calls = []
+    outputs_dir = tmp_path / "outputs"
+
+    def missing_output(path):
+        load_calls.append(path)
+        return None, f"{path.name} is missing"
+
     monkeypatch.setattr(dashboard, "run_report_generator", _fake_pipeline_outputs)
+    monkeypatch.setattr(dashboard, "load_output", missing_output)
     old_base = dashboard.BASE_DIR
     old_outputs = dashboard.OUTPUTS_DIR
     try:
         dashboard.BASE_DIR = tmp_path
-        dashboard.OUTPUTS_DIR = tmp_path
-        tables = dashboard.load_pipeline_outputs(tmp_path, allow_refresh=True)
+        dashboard.OUTPUTS_DIR = outputs_dir
+        tables = dashboard.load_pipeline_outputs(outputs_dir, allow_refresh=True)
     finally:
         dashboard.BASE_DIR = old_base
         dashboard.OUTPUTS_DIR = old_outputs
@@ -4962,10 +4978,10 @@ def test_pipeline_outputs_loader_regenerates_missing_core_outputs(tmp_path, monk
         frame, message = tables[filename]
         assert frame is not None
         assert message is None
+        assert frame.iloc[0]["SetupStatus"] == "No Setup"
 
-    assert (tmp_path / "purpose_classification.csv").exists()
-    assert (tmp_path / "market_direction.csv").exists()
-    assert (tmp_path / "final_watchlist.csv").exists()
+    assert len(load_calls) == len(dashboard.PIPELINE_FILES)
+    assert not outputs_dir.exists()
 
 
 def test_monthly_outputs_loader_regenerates_missing_monthly_outputs(tmp_path, monkeypatch):

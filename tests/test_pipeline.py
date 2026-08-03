@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
+import src.report_generator as report_generator
 from src.config import AppConfig
 from src.indicators import build_indicator_snapshot
 from src.report_generator import printable_warnings, run
@@ -9,9 +10,7 @@ from src.report_generator import printable_warnings, run
 
 def _write_compact_pipeline_project(base_dir: Path) -> None:
     data_dir = base_dir / "data"
-    outputs_dir = base_dir / "outputs"
     data_dir.mkdir()
-    outputs_dir.mkdir()
     (base_dir / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
     (data_dir / "universe.csv").write_text(
         "ticker,theme,sector_etf,default_purpose,market_cap_bucket,notes,is_etf\n"
@@ -106,8 +105,35 @@ def test_indicator_snapshot_labels_volatility_proxy_as_approximation_when_atr_mi
     assert any("close-to-close volatility proxy as an approximation" in warning for warning in warnings)
 
 
-def test_report_generator_creates_outputs(tmp_path: Path):
+def _file_manifest(root: Path) -> dict[str, tuple[str, bytes]]:
+    manifest: dict[str, tuple[str, bytes]] = {}
+    for path in sorted(root.rglob("*")):
+        relative_path = path.relative_to(root).as_posix()
+        if path.is_dir():
+            manifest[relative_path] = ("directory", b"")
+        elif path.is_file():
+            manifest[relative_path] = ("file", path.read_bytes())
+    return manifest
+
+
+def test_report_generator_returns_complete_frames_without_writing(tmp_path: Path, monkeypatch):
     _write_compact_pipeline_project(tmp_path)
+    before = _file_manifest(tmp_path)
+
+    original_readiness_builder = report_generator.build_ticker_readiness_report
+
+    def build_readiness_without_writing(*args, **kwargs):
+        assert kwargs.get("write_outputs") is False
+        return original_readiness_builder(*args, **kwargs)
+
+    def fail_writer(*_args, **_kwargs):
+        raise AssertionError("the in-memory pipeline must not invoke an artifact writer")
+
+    monkeypatch.setattr(report_generator, "build_ticker_readiness_report", build_readiness_without_writing)
+    monkeypatch.setattr(report_generator, "write_research_decisions", fail_writer)
+    monkeypatch.setattr(report_generator, "write_purpose_evaluation_summary", fail_writer)
+    monkeypatch.setattr(pd.DataFrame, "to_csv", fail_writer)
+
     result = run(tmp_path)
     config = AppConfig.load(Path("config.yaml"))
     banned_phrases = ("buy now", "sell now", "strong buy", "guaranteed")
@@ -160,17 +186,39 @@ def test_report_generator_creates_outputs(tmp_path: Path):
         "portfolio_review",
         "undervalued_candidates",
         "final_watchlist",
+        "research_decisions",
+        "purpose_evaluation_summary",
+        "data_quality_wizard",
+        "liquidity_risk",
+        "correlation_risk",
+        "dcf_readiness",
+        "earnings_readiness",
+        "analyst_estimates_readiness",
+        "universe_coverage_report",
+        "price_coverage_report",
+        "fundamentals_coverage_report",
+        "dcf_readiness_report",
+        "peer_readiness_report",
+        "earnings_readiness_report",
+        "analyst_estimates_readiness_report",
+        "ticker_readiness_report",
+        "feature_readiness_summary",
+        "peer_unlock_worklist",
+        "data_source_status",
     }
-    assert expected.issubset(result["files"].keys())
-    for path in result["files"].values():
-        assert path.exists()
+    assert set(result["frames"]) == expected
+    assert set(result["row_counts"]) == expected
+    assert set(result["path_labels"]) == expected
+    assert all(result["row_counts"][name] == len(frame) for name, frame in result["frames"].items())
+    assert _file_manifest(tmp_path) == before
+    assert not (tmp_path / "outputs").exists()
 
-    purpose = pd.read_csv(result["files"]["purpose_classification"])
-    market = pd.read_csv(result["files"]["market_direction"])
-    momentum = pd.read_csv(result["files"]["momentum_leaders"])
-    portfolio = pd.read_csv(result["files"]["portfolio_review"])
-    value = pd.read_csv(result["files"]["undervalued_candidates"])
-    final_watchlist = pd.read_csv(result["files"]["final_watchlist"])
+    purpose = result["frames"]["purpose_classification"]
+    market = result["frames"]["market_direction"]
+    momentum = result["frames"]["momentum_leaders"]
+    portfolio = result["frames"]["portfolio_review"]
+    value = result["frames"]["undervalued_candidates"]
+    final_watchlist = result["frames"]["final_watchlist"]
     assert "SPY" not in purpose["Ticker"].tolist()
     assert "SPY" not in final_watchlist["Ticker"].tolist()
     assert purpose["Reason"].fillna("").str.len().gt(0).all()
@@ -203,8 +251,21 @@ def test_report_generator_creates_outputs(tmp_path: Path):
         assert ranked_rows["WatchlistScore"].notna().all()
         assert ranked_rows["RankReason"].fillna("").str.len().gt(0).all()
 
-    for output_name, output_path in result["files"].items():
-        frame = pd.read_csv(output_path)
+    reason_frame_names = {
+        "purpose_classification",
+        "market_direction",
+        "momentum_leaders",
+        "portfolio_review",
+        "undervalued_candidates",
+        "final_watchlist",
+        "research_decisions",
+        "purpose_evaluation_summary",
+        "data_quality_wizard",
+        "liquidity_risk",
+        "correlation_risk",
+    }
+    for output_name in reason_frame_names:
+        frame = result["frames"][output_name]
         assert "Reason" in frame.columns, f"{output_name} is missing a Reason column"
         assert frame["Reason"].fillna("").str.len().gt(0).all(), f"{output_name} contains blank reasons"
         string_columns = frame.select_dtypes(include=["object", "string"]).fillna("")
@@ -298,9 +359,20 @@ def test_report_generator_handles_missing_price_file_gracefully(tmp_path: Path):
 
     assert any("Price file not found" in warning for warning in result["warnings"])
     assert any("No price data loaded." in warning for warning in result["warnings"])
-    for output_name, output_path in result["files"].items():
-        assert output_path.exists(), f"{output_name} should still be written even without prices"
-        frame = pd.read_csv(output_path)
+    for output_name in (
+        "purpose_classification",
+        "market_direction",
+        "momentum_leaders",
+        "portfolio_review",
+        "undervalued_candidates",
+        "final_watchlist",
+        "research_decisions",
+        "purpose_evaluation_summary",
+        "data_quality_wizard",
+        "liquidity_risk",
+        "correlation_risk",
+    ):
+        frame = result["frames"][output_name]
         assert "Reason" in frame.columns
 
 
@@ -311,9 +383,7 @@ def test_report_generator_handles_missing_fundamentals_file_gracefully(tmp_path:
     result = run(tmp_path)
 
     assert any("Missing file: fundamentals.csv" in warning for warning in result["warnings"])
-    assert result["files"]["undervalued_candidates"].exists()
-
-    value_frame = pd.read_csv(result["files"]["undervalued_candidates"])
+    value_frame = result["frames"]["undervalued_candidates"]
     assert "Reason" in value_frame.columns
     assert "MissingDataFields" in value_frame.columns
     assert value_frame["Reason"].fillna("").str.len().gt(0).all()
@@ -328,9 +398,20 @@ def test_report_generator_handles_missing_theme_map_file_gracefully(tmp_path: Pa
     result = run(tmp_path)
 
     assert any("Missing file: theme_map.csv" in warning for warning in result["warnings"])
-    for output_name, output_path in result["files"].items():
-        assert output_path.exists(), f"{output_name} should still be written without theme_map.csv"
-        frame = pd.read_csv(output_path)
+    for output_name in (
+        "purpose_classification",
+        "market_direction",
+        "momentum_leaders",
+        "portfolio_review",
+        "undervalued_candidates",
+        "final_watchlist",
+        "research_decisions",
+        "purpose_evaluation_summary",
+        "data_quality_wizard",
+        "liquidity_risk",
+        "correlation_risk",
+    ):
+        frame = result["frames"][output_name]
         assert "Reason" in frame.columns
         assert frame["Reason"].fillna("").str.len().gt(0).all()
 
@@ -351,8 +432,8 @@ def test_report_generator_keeps_holdings_only_tickers_without_price_history(tmp_
     assert any("Missing OHLCV data for ZZZ" in warning for warning in result["warnings"])
     assert any("ZZZ: no daily price history was available." in warning for warning in result["warnings"])
 
-    purpose_frame = pd.read_csv(result["files"]["purpose_classification"])
-    final_watchlist_frame = pd.read_csv(result["files"]["final_watchlist"])
+    purpose_frame = result["frames"]["purpose_classification"]
+    final_watchlist_frame = result["frames"]["final_watchlist"]
 
     assert "ZZZ" in purpose_frame["Ticker"].tolist()
     assert "ZZZ" in final_watchlist_frame["Ticker"].tolist()

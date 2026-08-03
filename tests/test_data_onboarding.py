@@ -185,6 +185,53 @@ def test_build_ticker_coverage_surfaces_operator_commands(tmp_path: Path):
     assert "prepare trusted manual fundamentals import file rows" in nvda["next_best_action"]
 
 
+def test_build_ticker_coverage_analysis_output_tickers_ignore_legacy_outputs(tmp_path: Path, monkeypatch):
+    _write_fixture(tmp_path)
+    outputs_dir = tmp_path / "outputs"
+    (outputs_dir / "final_watchlist.csv").unlink()
+    (outputs_dir / "momentum_leaders.csv").unlink()
+
+    without_legacy = {
+        row.ticker: row.usable_for_monthly_picks
+        for row in build_ticker_coverage(tmp_path, analysis_output_tickers={" nvda "})
+    }
+
+    (outputs_dir / "final_watchlist.csv").write_text("Ticker,FinalState\nAMD,Watch\n", encoding="utf-8")
+    (outputs_dir / "momentum_leaders.csv").write_text("Ticker,SetupStatus\nAMD,Watch\n", encoding="utf-8")
+    original_load_frame = data_onboarding._load_frame
+
+    def reject_legacy_reads(catalog, dataset):
+        if dataset in {"final_watchlist", "momentum_leaders"}:
+            raise AssertionError(f"must not read stale {dataset}")
+        return original_load_frame(catalog, dataset)
+
+    monkeypatch.setattr(data_onboarding, "_load_frame", reject_legacy_reads)
+    with_contradictory_legacy = {
+        row.ticker: row.usable_for_monthly_picks
+        for row in build_ticker_coverage(tmp_path, analysis_output_tickers={"NVDA"})
+    }
+
+    assert without_legacy == with_contradictory_legacy
+    assert with_contradictory_legacy["NVDA"] is True
+    assert with_contradictory_legacy["AMD"] is False
+
+
+def test_build_ticker_coverage_omitted_analysis_outputs_retains_saved_csv_behavior(tmp_path: Path):
+    _write_fixture(tmp_path)
+
+    with_saved_outputs = {
+        row.ticker: row.usable_for_monthly_picks for row in build_ticker_coverage(tmp_path)
+    }
+    (tmp_path / "outputs" / "final_watchlist.csv").unlink()
+    (tmp_path / "outputs" / "momentum_leaders.csv").unlink()
+    without_saved_outputs = {
+        row.ticker: row.usable_for_monthly_picks for row in build_ticker_coverage(tmp_path)
+    }
+
+    assert with_saved_outputs["NVDA"] is True
+    assert without_saved_outputs["NVDA"] is False
+
+
 def test_staged_peer_imports_surface_validate_flow_in_coverage_and_wizard(tmp_path: Path):
     _write_fixture(tmp_path)
     (tmp_path / "data" / "peers.csv").unlink()

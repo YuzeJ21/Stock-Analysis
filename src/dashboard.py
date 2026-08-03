@@ -431,6 +431,10 @@ PIPELINE_FILES = {
     "research_decisions.csv": "Research Decisions",
     PURPOSE_EVALUATION_SUMMARY_CSV: "Purpose Evaluation Summary",
 }
+PIPELINE_FRAME_KEYS = {
+    filename: filename.removesuffix(".csv")
+    for filename in PIPELINE_FILES
+}
 MONTHLY_FILES = {
     "monthly_research_picks.csv": "Monthly Research Picks",
     "monthly_picks_track_record.csv": "Monthly Picks Track Record",
@@ -1130,8 +1134,15 @@ def load_pipeline_outputs(
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in PIPELINE_FILES}
     if allow_refresh and any(frame is None for frame, _ in tables.values()):
-        run_report_generator(BASE_DIR, output_dir=outputs_dir)
-        tables = {filename: load_output(outputs_dir / filename) for filename in PIPELINE_FILES}
+        result = run_report_generator(BASE_DIR)
+        frames = result.get("frames", {})
+        tables = {}
+        for filename, frame_key in PIPELINE_FRAME_KEYS.items():
+            frame = frames.get(frame_key)
+            if not isinstance(frame, pd.DataFrame):
+                tables[filename] = (None, f"In-memory pipeline result did not include `{frame_key}`.")
+                continue
+            tables[filename] = (normalize_public_labels(frame.copy(deep=True)), None)
     return tables
 
 
