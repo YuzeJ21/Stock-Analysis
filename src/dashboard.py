@@ -1133,7 +1133,7 @@ def load_pipeline_outputs(
     allow_refresh: bool = False,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in PIPELINE_FILES}
-    if allow_refresh and any(frame is None for frame, _ in tables.values()):
+    if allow_refresh:
         result = run_report_generator(BASE_DIR)
         frames = result.get("frames", {})
         tables = {}

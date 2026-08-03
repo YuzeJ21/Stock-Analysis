@@ -4984,6 +4984,49 @@ def test_pipeline_outputs_loader_refreshes_missing_core_outputs_in_memory(tmp_pa
     assert not outputs_dir.exists()
 
 
+def test_pipeline_outputs_explicit_refresh_replaces_complete_stale_disk_views_in_memory(tmp_path, monkeypatch):
+    outputs_dir = tmp_path / "outputs"
+    outputs_dir.mkdir()
+    for filename in dashboard.PIPELINE_FILES:
+        pd.DataFrame(
+            [{"Ticker": "STALE", "SetupStatus": "Research Ready", "Reason": "stale disk fixture"}]
+        ).to_csv(outputs_dir / filename, index=False)
+    before = {path.name: path.read_bytes() for path in outputs_dir.iterdir()}
+    pipeline_calls = []
+    load_calls = []
+
+    def run_in_memory_once(root):
+        pipeline_calls.append(root)
+        return _fake_pipeline_outputs(root)
+
+    def load_stale_output(path):
+        load_calls.append(path)
+        return pd.read_csv(path), None
+
+    def fail_writer(*_args, **_kwargs):
+        raise AssertionError("explicit dashboard refresh must not write an artifact")
+
+    monkeypatch.setattr(dashboard, "run_report_generator", run_in_memory_once)
+    monkeypatch.setattr(dashboard, "load_output", load_stale_output)
+    monkeypatch.setattr(pd.DataFrame, "to_csv", fail_writer)
+    old_base = dashboard.BASE_DIR
+    try:
+        dashboard.BASE_DIR = tmp_path
+        tables = dashboard.load_pipeline_outputs(outputs_dir, allow_refresh=True)
+    finally:
+        dashboard.BASE_DIR = old_base
+
+    assert pipeline_calls == [tmp_path]
+    assert len(load_calls) == len(dashboard.PIPELINE_FILES)
+    for filename in dashboard.PIPELINE_FILES:
+        frame, message = tables[filename]
+        assert message is None
+        assert frame is not None
+        assert frame.iloc[0]["Ticker"] == "NVDA"
+        assert frame.iloc[0]["SetupStatus"] == "No Setup"
+    assert {path.name: path.read_bytes() for path in outputs_dir.iterdir()} == before
+
+
 def test_monthly_outputs_loader_regenerates_missing_monthly_outputs(tmp_path, monkeypatch):
     monkeypatch.setattr(dashboard, "build_monthly_research_picks", _fake_monthly_research_picks)
     monkeypatch.setattr(dashboard, "calculate_monthly_track_record", _fake_monthly_track_record)
