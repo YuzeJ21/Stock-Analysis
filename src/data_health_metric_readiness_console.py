@@ -4,7 +4,7 @@ import pandas as pd
 
 from src.dashboard_navigation import dashboard_page_slug
 from src.data_health_proof_ctas import card_sentence, compact_card_fragment, format_missing
-from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+from src.profile_context import active_readiness_inspection_route
 
 
 def metric_readiness_blocker_family(blocker: object) -> str:
@@ -114,18 +114,19 @@ def metric_detail_load_status(
             "body": "Metric-readiness details stay unloaded until the operator opens the Metrics lane.",
             "next_action": "Open the Metrics lane.",
         }
+    inspection_command, inspection_note = active_readiness_inspection_route()
     if freshness_status is None:
         freshness_status = type("FreshnessFallback", (), {
             "status": "unknown",
             "message": "Readiness freshness has not been checked.",
-            "refresh_command": READINESS_PREVIEW_COMMAND,
+            "refresh_command": inspection_command,
         })()
     if getattr(freshness_status, "status", "") in {"missing", "stale"}:
         return {
             "status": "blocked_by_snapshot_gate",
             "title": "Refresh readiness before metric details",
-            "body": f"{getattr(freshness_status, 'message', '') or 'Readiness artifacts are not current enough for row-level metric counts.'} {READINESS_PREVIEW_NOTE}",
-            "next_action": getattr(freshness_status, "refresh_command", "") or READINESS_PREVIEW_COMMAND,
+            "body": f"{getattr(freshness_status, 'message', '') or 'Readiness artifacts are not current enough for row-level metric counts.'} {inspection_note}",
+            "next_action": inspection_command,
         }
     if not requested:
         return {
@@ -148,16 +149,17 @@ def metric_detail_load_status(
 def metric_detail_load_cards(load_status: dict[str, str]) -> list[dict[str, object]]:
     status = load_status.get("status", "needs_request")
     if status == "blocked_by_snapshot_gate":
+        inspection_command, inspection_note = active_readiness_inspection_route()
         return [
             {
                 "kicker": "METRIC DETAIL GATE",
                 "title": load_status.get("title", "Refresh readiness first"),
                 "body": (
                     f"{load_status.get('body', 'Readiness artifacts need refresh.')} "
-                    "Metric details stay blocked so stale row counts do not look current."
+                    f"Metric details stay blocked so stale row counts do not look current. {inspection_note}"
                 ),
                 "badges": ["snapshot gate", "no stale counts"],
-                "command": load_status.get("next_action", READINESS_PREVIEW_COMMAND),
+                "command": inspection_command,
             }
         ]
     if status == "ready_to_load":
@@ -202,18 +204,19 @@ def proof_detail_load_status(
             "body": "Proof ledgers, packet scaffolds, and snapshot comparison stay unloaded until the operator opens Proof History.",
             "next_action": "Open the Proof History lane.",
         }
+    inspection_command, inspection_note = active_readiness_inspection_route()
     if freshness_status is None:
         freshness_status = type("FreshnessFallback", (), {
             "status": "unknown",
             "message": "Readiness freshness has not been checked.",
-            "refresh_command": READINESS_PREVIEW_COMMAND,
+            "refresh_command": inspection_command,
         })()
     if getattr(freshness_status, "status", "") in {"missing", "stale"}:
         return {
             "status": "blocked_by_snapshot_gate",
             "title": "Refresh readiness before proof details",
-            "body": f"{getattr(freshness_status, 'message', '') or 'Readiness artifacts are not current enough for proof-ledger review.'} {READINESS_PREVIEW_NOTE}",
-            "next_action": getattr(freshness_status, "refresh_command", "") or READINESS_PREVIEW_COMMAND,
+            "body": f"{getattr(freshness_status, 'message', '') or 'Readiness artifacts are not current enough for proof-ledger review.'} {inspection_note}",
+            "next_action": inspection_command,
         }
     if not requested:
         return {
@@ -257,16 +260,17 @@ def proof_detail_load_status(
 def proof_detail_load_cards(load_status: dict[str, str]) -> list[dict[str, object]]:
     status = load_status.get("status", "deferred")
     if status == "blocked_by_snapshot_gate":
+        inspection_command, inspection_note = active_readiness_inspection_route()
         return [
             {
                 "kicker": "PROOF DETAIL GATE",
                 "title": load_status.get("title", "Refresh readiness first"),
                 "body": (
                     f"{load_status.get('body', 'Readiness artifacts need refresh.')} "
-                    "Proof details stay blocked so stale snapshot counts do not look reviewed."
+                    f"Proof details stay blocked so stale snapshot counts do not look reviewed. {inspection_note}"
                 ),
                 "badges": ["snapshot gate", "no stale proof"],
-                "command": load_status.get("next_action", READINESS_PREVIEW_COMMAND),
+                "command": inspection_command,
             }
         ]
     if status == "loading":

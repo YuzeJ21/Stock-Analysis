@@ -50,6 +50,19 @@ def readiness_inspection_route(profile_key: str, profile_label: str, data_dir: P
     return unavailable, f"{unavailable} {READINESS_PREVIEW_NOTE}"
 
 
+def active_readiness_inspection_route(
+    project_root: Path | str | None = None,
+) -> tuple[str, str]:
+    """Return inspection guidance for the profile selected by the environment."""
+
+    profile = resolve_data_profile(project_root=project_root)
+    return readiness_inspection_route(
+        profile.name,
+        profile_display_label(profile.name),
+        profile.data_dir,
+    )
+
+
 @dataclass(frozen=True)
 class CoverageCounts:
     total: int = 0

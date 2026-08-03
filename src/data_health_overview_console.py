@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
-from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+from src.profile_context import active_readiness_inspection_route
 
 
 def _format_missing(value: object, fallback: str = "Not available") -> str:
@@ -1208,13 +1208,16 @@ def source_readiness_guidance_cards(
 ) -> list[dict[str, object]]:
     """Return the compact source-readiness strip shown before interpretation."""
 
+    inspection_command, inspection_note = active_readiness_inspection_route()
     import_summary = import_summary or {}
     research_health_summary = research_health_summary or {}
     freshness_status = _public_status_label(getattr(freshness, "status", ""), fallback="Unknown")
     freshness_message = _compact_fragment(getattr(freshness, "message", ""), "No freshness message available.", max_chars=190)
-    freshness_command = _format_missing(getattr(freshness, "refresh_command", ""), READINESS_PREVIEW_COMMAND)
-    if freshness_status.lower() in {"missing", "stale", "mixed"} and READINESS_PREVIEW_NOTE not in freshness_message:
-        freshness_message = f"{freshness_message} {READINESS_PREVIEW_NOTE}"
+    freshness_command = _format_missing(getattr(freshness, "refresh_command", ""), inspection_command)
+    if freshness_status.lower() in {"missing", "stale", "mixed"}:
+        freshness_command = inspection_command
+    if freshness_command == inspection_command and inspection_note not in freshness_message:
+        freshness_message = f"{freshness_message} {inspection_note}"
     rejected_rows = int(import_summary.get("rejected_rows") or 0)
     missing_reports = int(import_summary.get("missing_reports") or 0)
     staged_files = int(import_summary.get("staged_files") or 0)
@@ -1271,6 +1274,7 @@ def source_readiness_guidance_cards(
 
 
 def freshness_routine_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    inspection_command, inspection_note = active_readiness_inspection_route()
     master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
     price_ready = int(readiness_summary.get("price_ready") or 0)
     missing_prices = max(master - price_ready, 0) if master else 0
@@ -1280,12 +1284,12 @@ def freshness_routine_cards(readiness_summary: dict[str, object]) -> list[dict[s
             "kicker": "READ-ONLY ROUTINE",
             "title": "Start without changing files",
             "body": (
-                f"Use status, {READINESS_PREVIEW_COMMAND}, dashboard smoke, and a price-loop dry run as the normal freshness check. "
-                f"{READINESS_PREVIEW_NOTE} "
+                f"Use status, {inspection_command}, dashboard smoke, and a price-loop dry run as the normal freshness check. "
+                f"{inspection_note} "
                 "This keeps the app useful without hand-refreshing every ticker every day."
             ),
             "badges": ["safe default", "no file changes"],
-            "command": f"make status-check TOP_N=5 && {READINESS_PREVIEW_COMMAND} && make dashboard-smoke && make price-refresh-loop DRY_RUN=1",
+            "command": f"make status-check TOP_N=5 && {inspection_command} && make dashboard-smoke && make price-refresh-loop DRY_RUN=1",
         },
         {
             "kicker": "PRICE FRESHNESS",

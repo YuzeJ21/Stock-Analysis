@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+from src.profile_context import active_readiness_inspection_route
 
 from src.data_health_coverage_delta import build_readiness_change_frame
 
@@ -48,14 +48,15 @@ def readiness_recent_progress_cards(
     feature_summary_frame: pd.DataFrame | None = None,
     previous_snapshot_label: str = "",
 ) -> list[dict[str, object]]:
+    inspection_command, inspection_note = active_readiness_inspection_route()
     if current_frame is None or current_frame.empty:
         return [
             {
                 "kicker": "WHAT CHANGED",
                 "title": "Readiness report missing",
-                "body": f"Inspect readiness before comparing current and prior product status. {READINESS_PREVIEW_NOTE}",
+                "body": f"Inspect readiness before comparing current and prior product status. {inspection_note}",
                 "badges": ["blocked"],
-                "command": READINESS_PREVIEW_COMMAND,
+                "command": inspection_command,
             }
         ]
 
@@ -83,10 +84,10 @@ def readiness_recent_progress_cards(
             "body": (
                 f"Active universe: {active}. DCF-ready: {dcf_ready}. Peer-ready: {peer_ready}. "
                 f"Blocked: {int(state_counts.get('blocked', 0))}. Partial: {int(state_counts.get('partial', 0))}. "
-                f"Latest refresh timestamp: {_format_missing(latest)}."
+                f"Latest refresh timestamp: {_format_missing(latest)}. {inspection_note}"
             ),
             "badges": ["current counts", "readiness first"],
-            "command": READINESS_PREVIEW_COMMAND,
+            "command": inspection_command,
         }
     ]
 
@@ -115,10 +116,10 @@ def readiness_recent_progress_cards(
                 "body": (
                     f"Compared with {prior_label}; prior refresh timestamp: {_format_missing(prior_latest)}. "
                     f"Newly ready tickers: {newly_ready or 'none detected'}. "
-                    "This is a count comparison only; review source readiness before interpreting analysis."
+                    f"This is a count comparison only; review source readiness before interpreting analysis. {inspection_note}"
                 ),
                 "badges": ["previous vs current", "no fabricated deltas"],
-                "command": READINESS_PREVIEW_COMMAND,
+                "command": inspection_command,
             }
         )
     else:

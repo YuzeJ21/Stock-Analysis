@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+from src.profile_context import active_readiness_inspection_route
 
 from src.data_health_summary import bool_series
 
@@ -24,14 +24,15 @@ def peer_analysis_boundary_cards(
     peer_readiness_frame: pd.DataFrame | None,
     ticker_readiness_frame: pd.DataFrame | None = None,
 ) -> list[dict[str, object]]:
+    inspection_command, inspection_note = active_readiness_inspection_route()
     if peer_readiness_frame is None or peer_readiness_frame.empty:
         return [
             {
                 "kicker": "PEER ANALYSIS",
                 "title": "Peer readiness not loaded",
-                "body": f"Inspect peer readiness before interpreting peer trend or peer valuation context. Missing peer output means peer analysis stays locked. {READINESS_PREVIEW_NOTE}",
+                "body": f"Inspect peer readiness before interpreting peer trend or peer valuation context. Missing peer output means peer analysis stays locked. {inspection_note}",
                 "badges": ["readiness first", "no inferred peers"],
-                "command": READINESS_PREVIEW_COMMAND,
+                "command": inspection_command,
             }
         ]
 
@@ -82,10 +83,11 @@ def peer_analysis_boundary_cards(
             "title": f"{int(trend_ready.sum())} trend-ready / {int(valuation_ready.sum())} valuation-ready",
             "body": (
                 "Peer trend context can be reviewed when mapped peers have enough price history. "
-                "Peer valuation is separate and needs source-backed mappings plus peer valuation inputs."
+                "Peer valuation is separate and needs source-backed mappings plus peer valuation inputs. "
+                f"{inspection_note}"
             ),
             "badges": ["trend before valuation", "module-gated"],
-            "command": READINESS_PREVIEW_COMMAND,
+            "command": inspection_command,
         },
         {
             "kicker": "WHAT IS STILL LOCKED",

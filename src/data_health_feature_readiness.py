@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+from src.profile_context import active_readiness_inspection_route
 
 
 def _format_missing(value: object, fallback: str = "Not available") -> str:
@@ -19,14 +19,15 @@ def _format_missing(value: object, fallback: str = "Not available") -> str:
 
 
 def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit: int = 6) -> list[dict[str, object]]:
+    inspection_command, inspection_note = active_readiness_inspection_route()
     if feature_summary_frame is None or feature_summary_frame.empty:
         return [
             {
                 "kicker": "FEATURE READINESS",
                 "title": "Feature readiness not ready yet",
-                "body": f"Inspect feature readiness before reviewing which analysis areas are ready, partial, blocked, or excluded. {READINESS_PREVIEW_NOTE}",
+                "body": f"Inspect feature readiness before reviewing which analysis areas are ready, partial, blocked, or excluded. {inspection_note}",
                 "badges": ["blocked"],
-                "command": READINESS_PREVIEW_COMMAND,
+                "command": inspection_command,
             }
         ]
     frame = feature_summary_frame.copy()
@@ -46,7 +47,7 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
         total = int(row.get("total_count") or 0)
         blocker = _format_missing(row.get("top_blocker"), "No dominant blocker")
         section = _format_missing(row.get("dashboard_section"), "Dashboard")
-        command = str(row.get("next_action") or READINESS_PREVIEW_COMMAND)
+        command = str(row.get("next_action") or inspection_command)
         body = f"Partial: {partial}. Blocked: {blocked}. Excluded: {excluded}. Top blocker: {blocker}."
         if feature_key == "earnings":
             body = (
@@ -68,6 +69,8 @@ def feature_readiness_cards(feature_summary_frame: pd.DataFrame | None, *, limit
                 "worklists manually and previews local CSV churn before any provider-backed update."
             )
             command = "make price-refresh-loop DRY_RUN=1"
+        if command == inspection_command:
+            body = f"{body} {inspection_note}"
         cards.append(
             {
                 "kicker": section.upper(),

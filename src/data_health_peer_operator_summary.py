@@ -4,7 +4,7 @@ import pandas as pd
 
 from src.data_health_proof_ctas import card_sentence, compact_card_fragment
 from src.peer_mapping_source_review import PeerMappingSourceReviewPacket
-from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+from src.profile_context import READINESS_PREVIEW_NOTE, active_readiness_inspection_route
 
 
 SUMMARY_COLUMNS = ["Question", "Status", "Answer", "Next Safe Action", "Boundary"]
@@ -16,14 +16,15 @@ def peer_operator_summary_frame(
     outcome: pd.DataFrame | None,
 ) -> pd.DataFrame:
     if packet is None:
+        inspection_command, inspection_note = active_readiness_inspection_route()
         return pd.DataFrame(
             [
                 {
                     "Question": "Where am I?",
                     "Status": "missing_packet",
                     "Answer": "Peer source-review packet is not loaded.",
-                    "Next Safe Action": READINESS_PREVIEW_COMMAND,
-                    "Boundary": f"Inspect missing readiness before planning peer proof. {READINESS_PREVIEW_NOTE}",
+                    "Next Safe Action": inspection_command,
+                    "Boundary": f"Inspect missing readiness before planning peer proof. {inspection_note}",
                 }
             ],
             columns=SUMMARY_COLUMNS,

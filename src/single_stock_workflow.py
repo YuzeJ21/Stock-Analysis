@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 
 import pandas as pd
-from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+from src.profile_context import active_readiness_inspection_route
 
 
 PUBLIC_STATUS_LABELS = {
@@ -193,6 +193,7 @@ def single_stock_report_data_health_route(
 def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     """Return a compact loop summary before single-stock details."""
 
+    inspection_command, inspection_note = active_readiness_inspection_route()
     ticker = _format_missing(snapshot.get("ticker"), "TICKER").upper()
     state = _public_status_label(snapshot.get("status"))
     decision = _format_missing(snapshot.get("decision_subtype") or snapshot.get("decision_bucket"), "Not classified")
@@ -249,9 +250,9 @@ def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[s
         {
             "kicker": "STOP RULE",
             "title": "No trusted input, no conclusion",
-            "body": f"{stop_rule} Locked, partial, and excluded sections stay visible until proof changes the state. {READINESS_PREVIEW_NOTE}",
+            "body": f"{stop_rule} Locked, partial, and excluded sections stay visible until proof changes the state. {inspection_note}",
             "badges": ["research-only", "blocked stays blocked"],
-            "command": READINESS_PREVIEW_COMMAND,
+            "command": inspection_command,
         },
     ]
 
@@ -259,6 +260,7 @@ def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[s
 def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     """Return ticker workflow cards for the Single-Stock page before raw detail."""
 
+    inspection_command, inspection_note = active_readiness_inspection_route()
     ticker = _format_missing(snapshot.get("ticker"), "TICKER").upper()
     state = _public_status_label(snapshot.get("status"))
     decision = _format_missing(snapshot.get("decision_subtype") or snapshot.get("decision_bucket"), "Not classified")
@@ -294,9 +296,9 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
             {
                 "kicker": "STOP RULE",
                 "title": "No local row, no interpretation",
-                "body": f"Do not use a typed ticker as proof. Keep the page blocked until local readiness outputs include the ticker. {READINESS_PREVIEW_NOTE}",
+                "body": f"Do not use a typed ticker as proof. Keep the page blocked until local readiness outputs include the ticker. {inspection_note}",
                 "badges": ["blocked visible", "no inference"],
-                "command": READINESS_PREVIEW_COMMAND,
+                "command": inspection_command,
             },
         ]
 
@@ -365,9 +367,9 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
         {
             "kicker": "STOP RULE",
             "title": "Stop before interpretation",
-            "body": f"Do not treat locked, partial, or excluded sections as conclusions. Reopen this report only after the matching source-proof gate passes. {READINESS_PREVIEW_NOTE}",
+            "body": f"Do not treat locked, partial, or excluded sections as conclusions. Reopen this report only after the matching source-proof gate passes. {inspection_note}",
             "badges": ["research only", "proof first"],
-            "command": READINESS_PREVIEW_COMMAND,
+            "command": inspection_command,
         },
     ]
 
@@ -454,6 +456,7 @@ def single_stock_one_answer_frame(snapshot: dict[str, object]) -> pd.DataFrame:
 def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     """Return a compact route-focused handoff from one ticker back to Data Health."""
 
+    inspection_command, inspection_note = active_readiness_inspection_route()
     ticker = _format_missing(snapshot.get("ticker"), "TICKER").upper()
     state = _public_status_label(snapshot.get("status"))
     dcf_status = _format_missing(snapshot.get("dcf_status"), "blocked").lower()
@@ -549,9 +552,9 @@ def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[
         {
             "kicker": "STOP RULE",
             "title": "Return only after proof changes",
-            "body": f"{stop_rule} Do not turn missing, partial, locked, or excluded inputs into conclusions. {READINESS_PREVIEW_NOTE}",
+            "body": f"{stop_rule} Do not turn missing, partial, locked, or excluded inputs into conclusions. {inspection_note}",
             "badges": ["research only", "proof first"],
-            "command": READINESS_PREVIEW_COMMAND,
+            "command": inspection_command,
         },
     ]
 

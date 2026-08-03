@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+from src.profile_context import active_readiness_inspection_route
 
 from src.data_health_summary import bool_series
 
@@ -42,14 +42,15 @@ def peer_unlock_operator_cards(
     peer_unlock_worklist_frame: pd.DataFrame | None,
     ticker_readiness_frame: pd.DataFrame | None = None,
 ) -> list[dict[str, object]]:
+    inspection_command, inspection_note = active_readiness_inspection_route()
     if peer_unlock_worklist_frame is None or peer_unlock_worklist_frame.empty:
         return [
             {
                 "kicker": "PEER UNLOCK QUEUE",
                 "title": "Peer unlock queue not ready yet",
-                "body": f"Inspect the missing peer unlock queue before editing trusted peer rows. {READINESS_PREVIEW_NOTE}",
+                "body": f"Inspect the missing peer unlock queue before editing trusted peer rows. {inspection_note}",
                 "badges": ["blocked"],
-                "command": READINESS_PREVIEW_COMMAND,
+                "command": inspection_command,
             }
         ]
 

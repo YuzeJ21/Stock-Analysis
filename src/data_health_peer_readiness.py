@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
-from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+from src.profile_context import active_readiness_inspection_route
 
 
 def _format_missing(value: object, fallback: str = "Not available") -> str:
@@ -45,14 +45,15 @@ def peer_readiness_product_cards(
     peer_mapping_queue_frame: pd.DataFrame | None = None,
     peer_unlock_worklist_frame: pd.DataFrame | None = None,
 ) -> list[dict[str, object]]:
+    inspection_command, inspection_note = active_readiness_inspection_route()
     if peer_readiness_frame is None or peer_readiness_frame.empty:
         return [
             {
                 "kicker": "PEER READINESS",
                 "title": "Peer readiness not ready yet",
-                "body": f"Inspect peer readiness before reviewing peer trend, peer valuation, or source-backed peer blockers. {READINESS_PREVIEW_NOTE}",
+                "body": f"Inspect peer readiness before reviewing peer trend, peer valuation, or source-backed peer blockers. {inspection_note}",
                 "badges": ["blocked"],
-                "command": READINESS_PREVIEW_COMMAND,
+                "command": inspection_command,
             }
         ]
 
@@ -113,9 +114,12 @@ def peer_readiness_product_cards(
         {
             "kicker": "PEER READY",
             "title": f"{int(peer_ready.sum())}/{len(frame)} ready",
-            "body": f"Trend-ready peers: {int(trend_ready.sum())}. Valuation comparison ready: {int(valuation_ready.sum())}. DCF peer comparison ready: {int(dcf_ready.sum())}.",
+            "body": (
+                f"Trend-ready peers: {int(trend_ready.sum())}. Valuation comparison ready: {int(valuation_ready.sum())}. "
+                f"DCF peer comparison ready: {int(dcf_ready.sum())}. {inspection_note}"
+            ),
             "badges": ["peer workflow", "data-honest"],
-            "command": READINESS_PREVIEW_COMMAND,
+            "command": inspection_command,
         },
         {
             "kicker": "TOP PEER BLOCKER",
