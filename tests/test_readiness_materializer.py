@@ -1,5 +1,6 @@
 import inspect
 import os
+import subprocess
 from pathlib import Path
 
 import pandas as pd
@@ -8,6 +9,7 @@ import pytest
 import src.readiness_materializer as readiness_materializer
 from src.readiness_materializer import (
     ReadinessMaterializationError,
+    main,
     materialize_readiness_snapshot,
 )
 
@@ -641,3 +643,91 @@ def test_unhandled_interruption_leaves_explicit_residue_and_never_a_mixed_snapsh
     monkeypatch.setattr(readiness_materializer, "_publication_checkpoint", lambda _name: None)
     with pytest.raises(ReadinessMaterializationError, match="operator recovery"):
         materialize_readiness_snapshot(tmp_path, profile="default", confirm_materialize=True)
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        [],
+        ["--profile", "default"],
+        ["--profile", "unknown", "--confirm-materialize"],
+    ],
+)
+def test_materializer_cli_validation_returns_2_without_mutating_tree(
+    tmp_path: Path, arguments: list[str], capsys
+):
+    _write_fixture(tmp_path)
+    before = _manifest(tmp_path)
+
+    exit_code = main(["--project-root", str(tmp_path), *arguments])
+
+    assert exit_code == 2
+    assert capsys.readouterr().err
+    assert _manifest(tmp_path) == before
+
+
+def test_materializer_module_propagates_missing_confirmation_as_shell_exit_2(tmp_path: Path):
+    _write_fixture(tmp_path)
+    before = _manifest(tmp_path)
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(Path.cwd())
+
+    result = subprocess.run(
+        [
+            "python3",
+            "-m",
+            "src.readiness_materializer",
+            "--project-root",
+            str(tmp_path),
+            "--profile",
+            "default",
+        ],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "confirm" in result.stderr.lower()
+    assert _manifest(tmp_path) == before
+
+
+def test_confirmed_materializer_module_writes_only_fixed_ignored_package(tmp_path: Path):
+    _write_fixture(tmp_path)
+    before = _manifest(tmp_path)
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(Path.cwd())
+
+    result = subprocess.run(
+        [
+            "python3",
+            "-m",
+            "src.readiness_materializer",
+            "--project-root",
+            str(tmp_path),
+            "--profile",
+            "default",
+            "--confirm-materialize",
+        ],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    destination = tmp_path / "outputs/local/derived/default"
+    after = _manifest(tmp_path)
+    changed = set(after) - set(before)
+    assert result.returncode == 0, result.stderr
+    assert set(path.name for path in destination.iterdir()) == set(EXPECTED_FILENAMES)
+    assert changed == {
+        "outputs",
+        "outputs/local",
+        "outputs/local/derived",
+        "outputs/local/derived/default",
+        *(f"outputs/local/derived/default/{name}" for name in EXPECTED_FILENAMES),
+    }
+    assert all(after[path] == before[path] for path in before)

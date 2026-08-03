@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import argparse
+import json
 import os
 import shutil
 import stat
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -530,3 +533,46 @@ def materialize_readiness_snapshot(
         files=files,
         row_counts=row_counts,
     )
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Materialize one confirmed readiness package to its fixed ignored profile path."
+    )
+    parser.add_argument("--project-root", help="Project root. Defaults to this repository.")
+    parser.add_argument("--profile", choices=("default", "demo", "local"), required=True)
+    parser.add_argument("--confirm-materialize", action="store_true")
+    parser.add_argument("--json", action="store_true")
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as error:
+        return int(error.code)
+    if not args.confirm_materialize:
+        print("Readiness materialization requires --confirm-materialize.", file=sys.stderr)
+        return 2
+    try:
+        result = materialize_readiness_snapshot(
+            args.project_root,
+            profile=args.profile,
+            confirm_materialize=True,
+        )
+    except (ReadinessMaterializationError, OSError, ValueError) as error:
+        print(f"Readiness materialization refused: {error}", file=sys.stderr)
+        return 2
+    payload = {
+        "status": "materialized",
+        "profile": result.profile,
+        "output_dir": str(result.output_dir),
+        "files": [str(path) for path in result.files],
+        "row_counts": dict(result.row_counts),
+    }
+    if args.json:
+        print(json.dumps(payload, indent=2))
+    else:
+        for key, value in payload.items():
+            print(f"{key}: {value}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

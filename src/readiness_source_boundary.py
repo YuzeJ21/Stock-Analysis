@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import os
 import stat
 from pathlib import Path
@@ -17,18 +18,21 @@ _PROFILE_PATHS: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = {
     "local": (("data", "local"), ("outputs", "local")),
 }
 
-READINESS_SOURCE_FILE_NAMES: tuple[str, ...] = (
-    "universe.csv",
+READINESS_SOURCE_FILENAMES: tuple[str, ...] = (
+    "config/readiness.yml",
     "universe_master.csv",
     "universe_active.csv",
+    "universe.csv",
     "holdings.csv",
     "prices.csv",
     "fundamentals.csv",
-    "earnings.csv",
-    "analyst_estimates.csv",
     "peers.csv",
     "peer_candidates.csv",
+    "earnings.csv",
+    "analyst_estimates.csv",
 )
+
+READINESS_SOURCE_FILE_NAMES: tuple[str, ...] = READINESS_SOURCE_FILENAMES[1:]
 
 _STAGED_SOURCE_DIRS: tuple[tuple[str, ...], ...] = (
     ("staged",),
@@ -116,3 +120,75 @@ def validate_readiness_source_boundary(project_root: Path, profile_name: str) ->
         data_dir=resolved_data_dir,
         outputs_dir=resolved_outputs_dir,
     )
+
+
+def _update_identity_field(digest, label: bytes, payload: bytes) -> None:
+    digest.update(len(label).to_bytes(8, "big"))
+    digest.update(label)
+    digest.update(len(payload).to_bytes(8, "big"))
+    digest.update(payload)
+
+
+def _read_exact_regular_file(path: Path) -> bytes | None:
+    metadata = _lstat(path)
+    if metadata is None:
+        return None
+    if stat.S_ISLNK(metadata.st_mode):
+        raise ReadinessSourceBoundaryError(f"Readiness source path must not be a symbolic link: {path}")
+    if not stat.S_ISREG(metadata.st_mode):
+        raise ReadinessSourceBoundaryError(f"Readiness source path must be a regular file: {path}")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as error:
+        raise ReadinessSourceBoundaryError(
+            f"Readiness source changed before it could be read safely: {path}"
+        ) from error
+    try:
+        opened = os.fstat(descriptor)
+        if not stat.S_ISREG(opened.st_mode) or (opened.st_dev, opened.st_ino) != (
+            metadata.st_dev,
+            metadata.st_ino,
+        ):
+            raise ReadinessSourceBoundaryError(
+                f"Readiness source changed before it could be read safely: {path}"
+            )
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                return b"".join(chunks)
+            chunks.append(chunk)
+    finally:
+        os.close(descriptor)
+
+
+def readiness_input_identity(project_root: Path, profile_name: str) -> str:
+    """Hash the selected profile and only its exact named readiness inputs.
+
+    Adding, removing, reordering, or changing any input that can affect readiness
+    comparison fields requires a deliberate readiness method-version review.
+    """
+
+    lexical_root = _lexical_absolute(Path(project_root) if project_root is not None else PROJECT_ROOT)
+    selected = validate_readiness_source_boundary(lexical_root, profile_name)
+    inputs: list[tuple[str, Path]] = []
+    for name in READINESS_SOURCE_FILENAMES:
+        if name == "config/readiness.yml":
+            path = lexical_root / "config/readiness.yml"
+        else:
+            path = selected.data_dir / name
+        relative = path.relative_to(lexical_root).as_posix()
+        inputs.append((relative, path))
+
+    digest = hashlib.sha256()
+    _update_identity_field(digest, b"profile", selected.name.encode("utf-8"))
+    for relative, path in sorted(inputs, key=lambda item: item[0]):
+        payload = _read_exact_regular_file(path)
+        _update_identity_field(digest, b"path", relative.encode("utf-8"))
+        if payload is None:
+            _update_identity_field(digest, b"state", b"absent")
+        else:
+            _update_identity_field(digest, b"state", b"present")
+            _update_identity_field(digest, b"bytes", payload)
+    return digest.hexdigest()

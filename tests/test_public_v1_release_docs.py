@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import subprocess
 
 
 PUBLIC_V1_ROUTE = (
@@ -1179,6 +1180,22 @@ def test_release_docs_distinguish_tracked_and_excluded_readiness_snapshots():
         re.IGNORECASE,
     )
     assert not volatile_observation.search(roadmap)
+
+
+def test_public_make_help_marks_legacy_readiness_guard_and_profile_bound_writers():
+    result = subprocess.run(
+        ["make", "help-full"], capture_output=True, text=True, check=False
+    )
+    help_text = result.stdout
+
+    assert result.returncode == 0
+    assert "make readiness        Deprecated no-write guard; exits 2" in help_text
+    assert "make readiness-preview [TOP_N=20]" in help_text
+    assert "make readiness-materialize PROFILE=<default|demo|local>" in help_text
+    assert "CONFIRM_MATERIALIZE=1" in help_text
+    assert "make readiness-snapshot PROFILE=<default|demo|local>" in help_text
+    assert "one profile-specific prior snapshot" in help_text
+    assert "Write central data/reports/ticker_readiness_report.csv" not in help_text
 
 
 def test_public_mobile_handoff_docs_cover_direct_open_loading_and_remove_stale_measurement():

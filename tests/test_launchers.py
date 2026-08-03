@@ -10,6 +10,120 @@ def _makefile_targets() -> set[str]:
     return set(re.findall(r"^([A-Za-z0-9_.-]+):(?:\s|$)", makefile, flags=re.MULTILINE))
 
 
+def _tree_manifest(root: Path) -> dict[str, tuple[str, bytes | None]]:
+    manifest = {".": ("directory", None)}
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            manifest[relative] = ("symlink", os.readlink(path).encode())
+        elif path.is_dir():
+            manifest[relative] = ("directory", None)
+        else:
+            manifest[relative] = ("file", path.read_bytes())
+    return manifest
+
+
+def _make_target_block(makefile: str, target: str) -> str:
+    match = re.search(
+        rf"^{re.escape(target)}:(?P<body>.*?)(?=^[A-Za-z0-9_.-]+:(?:\s|$)|\Z)",
+        makefile,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None, f"missing Make target {target}"
+    return match.group(0)
+
+
+def _reachable_make_targets(makefile: str, initial: str) -> set[str]:
+    reachable: set[str] = set()
+    pending = [initial]
+    known = _makefile_targets()
+    while pending:
+        target = pending.pop()
+        if target in reachable:
+            continue
+        reachable.add(target)
+        block = _make_target_block(makefile, target)
+        header = block.splitlines()[0].split(":", 1)[1]
+        referenced = {token for token in header.split() if token in known}
+        referenced.update(
+            re.findall(r"\$\(MAKE\)(?:\s+--[A-Za-z-]+)*\s+([A-Za-z0-9_.-]+)", block)
+        )
+        for script_name in re.findall(r"\b(scripts/[A-Za-z0-9_.-]+)", block):
+            script = Path(script_name).read_text(encoding="utf-8")
+            referenced.update(re.findall(r"\bmake\s+([A-Za-z0-9_.-]+)", script))
+        pending.extend(sorted(referenced & known))
+    return reachable
+
+
+def test_legacy_readiness_make_boundaries_fail_closed_without_writing(tmp_path: Path):
+    makefile = Path("Makefile").resolve()
+    before = _tree_manifest(tmp_path)
+
+    guard = subprocess.run(
+        ["make", "-f", str(makefile), "readiness"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    missing_profile = subprocess.run(
+        ["make", "-f", str(makefile), "readiness-materialize"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    missing_confirmation = subprocess.run(
+        ["make", "-f", str(makefile), "readiness-materialize", "PROFILE=default"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    missing_snapshot_profile = subprocess.run(
+        ["make", "-f", str(makefile), "readiness-snapshot"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert guard.returncode == 2
+    assert "deprecated" in guard.stderr.lower()
+    assert "make readiness-preview TOP_N=20" in guard.stderr
+    assert "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=" in guard.stderr
+    assert missing_profile.returncode == 2
+    assert "PROFILE is required" in missing_profile.stderr
+    assert missing_confirmation.returncode == 2
+    assert "CONFIRM_MATERIALIZE=1 is required" in missing_confirmation.stderr
+    assert missing_snapshot_profile.returncode == 2
+    assert "PROFILE is required" in missing_snapshot_profile.stderr
+    assert _tree_manifest(tmp_path) == before
+
+
+def test_default_and_composite_targets_never_reach_readiness_writers():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    forbidden = {"readiness-materialize", "readiness-snapshot"}
+
+    for initial in (
+        "status",
+        "pipeline",
+        "onboarding",
+        "daily",
+        "dashboard-smoke",
+        "test",
+        "verify",
+        "validate-all",
+        "public-check",
+    ):
+        reachable = _reachable_make_targets(makefile, initial)
+        assert forbidden.isdisjoint(reachable), (initial, reachable & forbidden)
+        for target in reachable:
+            block = _make_target_block(makefile, target)
+            assert "src.readiness_materializer" not in block
+            assert "src.readiness_engine --" not in block or "--snapshot-only" not in block
+
+
 def test_tracked_holdings_file_is_sanitized_demo_data():
     holdings_path = Path("data/holdings.csv")
     rows = list(csv.DictReader(holdings_path.read_text(encoding="utf-8").splitlines()))
