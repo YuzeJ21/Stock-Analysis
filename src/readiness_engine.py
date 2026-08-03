@@ -22,6 +22,20 @@ from src.universe_model import ASSET_TYPES, build_universe_coverage_report, ensu
 ALLOWED_CANDIDATE_STATES = {"candidate", "fallback_context", "research_only"}
 COMPANY_PEER_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
 
+READINESS_REPORT_NAMES: tuple[str, ...] = (
+    "universe_coverage_report",
+    "price_coverage_report",
+    "fundamentals_coverage_report",
+    "dcf_readiness_report",
+    "peer_readiness_report",
+    "earnings_readiness_report",
+    "analyst_estimates_readiness_report",
+    "ticker_readiness_report",
+    "feature_readiness_summary",
+    "peer_unlock_worklist",
+    "data_source_status",
+)
+
 
 TICKER_READINESS_COLUMNS = [
     "ticker",
@@ -1147,19 +1161,25 @@ def build_ticker_readiness_report(
     feature_summary = build_feature_readiness_summary(ticker_readiness)
     peer_unlock_worklist = build_peer_unlock_worklist(peer_report, ticker_readiness)
 
-    reports = {
-        "universe_coverage_report": universe_report,
-        "price_coverage_report": price_report,
-        "fundamentals_coverage_report": fundamentals_report,
-        "dcf_readiness_report": dcf_report.rename(columns={"is_dcf_ready": "dcf_ready"}),
-        "peer_readiness_report": peer_report,
-        "earnings_readiness_report": earnings_report,
-        "analyst_estimates_readiness_report": estimates_report,
-        "ticker_readiness_report": ticker_readiness,
-        "feature_readiness_summary": feature_summary,
-        "peer_unlock_worklist": peer_unlock_worklist,
-        "data_source_status": source_status,
-    }
+    reports = dict(
+        zip(
+            READINESS_REPORT_NAMES,
+            (
+                universe_report,
+                price_report,
+                fundamentals_report,
+                dcf_report.rename(columns={"is_dcf_ready": "dcf_ready"}),
+                peer_report,
+                earnings_report,
+                estimates_report,
+                ticker_readiness,
+                feature_summary,
+                peer_unlock_worklist,
+                source_status,
+            ),
+            strict=True,
+        )
+    )
     if write_outputs:
         for name, frame in reports.items():
             _write(frame, reports_path / f"{name}.csv")
@@ -1175,7 +1195,7 @@ def build_ticker_readiness_report(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate central per-feature ticker readiness reports.")
+    parser = argparse.ArgumentParser(description="Preview central per-feature ticker readiness reports in memory.")
     parser.add_argument("--project-root", help="Project root. Defaults to this repository.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
@@ -1205,11 +1225,10 @@ def main() -> None:
             for key, value in snapshot_payload.items():
                 print(f"{key}: {value}")
             return
-    reports = build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path, write_outputs=True)
+    reports = build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path, write_outputs=False)
     readiness = reports["ticker_readiness_report"]
     payload = {
-        "status": "written",
-        "report_path": str(data_path / "reports" / "ticker_readiness_report.csv"),
+        "status": "previewed_not_written",
         "previous_snapshot_path": str(data_path / "reports" / READINESS_SNAPSHOT_FILENAME),
         "rows": len(readiness),
         "ready": int(readiness["overall_readiness_state"].eq("ready").sum()) if not readiness.empty else 0,

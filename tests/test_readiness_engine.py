@@ -1,9 +1,11 @@
 from pathlib import Path
+import sys
 
 import pandas as pd
 
 import src.readiness_engine as readiness_engine
 from src.readiness_engine import (
+    READINESS_REPORT_NAMES,
     build_peer_readiness_report,
     build_ticker_readiness_report,
     save_previous_ticker_readiness_snapshot,
@@ -65,6 +67,20 @@ def test_ticker_readiness_no_write_returns_reports_without_mutating_files(tmp_pa
 
     assert "ticker_readiness_report" in reports
     assert "data_source_status" in reports
+    assert READINESS_REPORT_NAMES == (
+        "universe_coverage_report",
+        "price_coverage_report",
+        "fundamentals_coverage_report",
+        "dcf_readiness_report",
+        "peer_readiness_report",
+        "earnings_readiness_report",
+        "analyst_estimates_readiness_report",
+        "ticker_readiness_report",
+        "feature_readiness_summary",
+        "peer_unlock_worklist",
+        "data_source_status",
+    )
+    assert tuple(reports) == READINESS_REPORT_NAMES
     assert set(reports["ticker_readiness_report"]["ticker"]) == {"NVDA"}
     assert _file_manifest(tmp_path) == before
     assert not (tmp_path / "outputs").exists()
@@ -91,6 +107,38 @@ def test_explicit_readiness_write_does_not_repair_canonical_universe(tmp_path: P
     assert "ticker_readiness_report" in reports
     assert (tmp_path / "outputs" / "feature_readiness_summary.csv").exists()
     assert (data_dir / "universe_master.csv").read_bytes() == canonical_before
+
+
+def test_readiness_cli_previews_in_memory_without_using_full_package_writer(
+    tmp_path: Path, monkeypatch, capsys
+):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    calls = []
+
+    def build(root, **kwargs):
+        calls.append({"root": root, **kwargs})
+        return {
+            "ticker_readiness_report": pd.DataFrame(
+                [{"ticker": "AAA", "overall_readiness_state": "blocked"}]
+            )
+        }
+
+    monkeypatch.setattr(readiness_engine, "build_ticker_readiness_report", build)
+    monkeypatch.setattr(sys, "argv", ["readiness_engine", "--project-root", str(tmp_path), "--json"])
+
+    readiness_engine.main()
+
+    assert calls == [
+        {
+            "root": tmp_path.resolve(),
+            "data_dir": data_dir.resolve(),
+            "output_dir": (tmp_path / "outputs").resolve(),
+            "write_outputs": False,
+        }
+    ]
+    assert '"status": "previewed_not_written"' in capsys.readouterr().out
+    assert not (tmp_path / "outputs").exists()
 
 
 def _price_rows(ticker: str, periods: int) -> list[dict[str, object]]:

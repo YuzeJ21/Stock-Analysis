@@ -596,7 +596,7 @@ def test_research_health_run_defaults_to_no_write(tmp_path: Path, monkeypatch):
     assert _file_manifest(tmp_path) == before
 
 
-def test_research_health_run_writes_csv_outputs_when_explicit(tmp_path: Path):
+def test_research_health_run_writes_only_its_own_csv_outputs_when_explicit(tmp_path: Path, monkeypatch):
     data_dir = tmp_path / "data"
     output_dir = tmp_path / "outputs"
     data_dir.mkdir()
@@ -616,6 +616,14 @@ def test_research_health_run_writes_csv_outputs_when_explicit(tmp_path: Path):
     (data_dir / "theme_map.csv").write_text("Theme,ETF,Description\nAI,SMH,Semiconductors\nSoftware,QQQ,Software\n", encoding="utf-8")
     (data_dir / "fundamentals.csv").write_text("ticker,free_cash_flow,shares_outstanding\nNVDA,1000000,100000\n", encoding="utf-8")
 
+    readiness_calls = []
+
+    def compose_readiness(root, **kwargs):
+        readiness_calls.append({"root": root, **kwargs})
+        return {}
+
+    monkeypatch.setattr(research_health, "build_ticker_readiness_report", compose_readiness)
+
     result = run(tmp_path, data_dir=data_dir, output_dir=output_dir, write_output=True)
 
     assert set(result["files"]) == {"data_quality_wizard", "liquidity_risk", "correlation_risk"}
@@ -624,6 +632,14 @@ def test_research_health_run_writes_csv_outputs_when_explicit(tmp_path: Path):
         frame = pd.read_csv(path)
         assert "Reason" in frame.columns
         assert frame["Reason"].fillna("").str.len().gt(0).all()
+    assert readiness_calls == [
+        {
+            "root": tmp_path.resolve(),
+            "data_dir": data_dir.resolve(),
+            "output_dir": output_dir.resolve(),
+            "write_outputs": False,
+        }
+    ]
 
 
 def test_research_health_outputs_current_uses_canonical_csv_mtimes(tmp_path: Path):

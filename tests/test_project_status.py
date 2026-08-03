@@ -1756,7 +1756,9 @@ def test_project_status_refresh_rebuilds_stale_research_health_outputs(tmp_path:
     assert payload["summary"]["tickers_total"] == 1
 
 
-def test_project_status_human_refresh_artifacts_keeps_cli_clean(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
+def test_project_status_human_refresh_artifacts_keeps_cli_clean_and_readiness_fail_closed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
     _write_minimal_local_data(tmp_path)
 
     argv_before = sys.argv[:]
@@ -1768,9 +1770,11 @@ def test_project_status_human_refresh_artifacts_keeps_cli_clean(tmp_path: Path, 
         sys.argv = argv_before
 
     assert "project status summary" in output
-    assert "review short price-history blocker (nvda): make focus-price ticker=nvda" in output
+    assert "readiness built: unavailable" in output
     assert "wrote:" not in output
     assert (tmp_path / "outputs" / "project_status.json").exists()
+    assert not (tmp_path / "data/reports/ticker_readiness_report.csv").exists()
+    assert not (tmp_path / "outputs/local/derived").exists()
 
 
 def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Path):

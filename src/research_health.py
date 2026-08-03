@@ -816,7 +816,7 @@ def run(
             frame.to_csv(files[name], index=False)
         build_dcf_readiness_report(root, data_dir=data_path)
         build_optional_context_readiness_reports(root, data_dir=data_path)
-        build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path, write_outputs=True)
+        build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path, write_outputs=False)
     return {
         "files": files,
         "row_counts": {name: len(frame) for name, frame in outputs.items()},
