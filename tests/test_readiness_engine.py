@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pandas as pd
 
+import src.readiness_engine as readiness_engine
 from src.readiness_engine import (
     build_peer_readiness_report,
     build_ticker_readiness_report,
@@ -39,11 +40,27 @@ def test_ticker_readiness_no_write_returns_reports_without_mutating_files(tmp_pa
     ).to_csv(data_dir / "universe_active.csv", index=False)
     before = _file_manifest(tmp_path)
 
+    original_ensure = readiness_engine.ensure_universe_files
+    original_coverage = readiness_engine.build_universe_coverage_report
+
+    def assert_no_write_ensure(*args, **kwargs):
+        assert kwargs["write_outputs"] is False
+        return original_ensure(*args, **kwargs)
+
+    def assert_no_write_coverage(*args, **kwargs):
+        assert kwargs["write_output"] is False
+        return original_coverage(*args, **kwargs)
+
+    def fail_write(*_args, **_kwargs):
+        raise AssertionError("default readiness composition must not write")
+
+    monkeypatch.setattr(readiness_engine, "ensure_universe_files", assert_no_write_ensure)
+    monkeypatch.setattr(readiness_engine, "build_universe_coverage_report", assert_no_write_coverage)
+    monkeypatch.setattr(readiness_engine, "_write", fail_write)
     reports = build_ticker_readiness_report(
         tmp_path,
         data_dir=data_dir,
         output_dir=tmp_path / "outputs",
-        write_outputs=False,
     )
 
     assert "ticker_readiness_report" in reports
@@ -51,6 +68,29 @@ def test_ticker_readiness_no_write_returns_reports_without_mutating_files(tmp_pa
     assert set(reports["ticker_readiness_report"]["ticker"]) == {"NVDA"}
     assert _file_manifest(tmp_path) == before
     assert not (tmp_path / "outputs").exists()
+
+
+def test_explicit_readiness_write_does_not_repair_canonical_universe(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame([{"ticker": "A", "name": "Agilent", "asset_type": "etf"}]).to_csv(
+        data_dir / "universe_master.csv", index=False
+    )
+    pd.DataFrame([{"ticker": "A", "company_name": "Agilent", "default_purpose": "Core Compounder"}]).to_csv(
+        data_dir / "universe.csv", index=False
+    )
+    canonical_before = (data_dir / "universe_master.csv").read_bytes()
+
+    reports = build_ticker_readiness_report(
+        tmp_path,
+        data_dir=data_dir,
+        output_dir=tmp_path / "outputs",
+        write_outputs=True,
+    )
+
+    assert "ticker_readiness_report" in reports
+    assert (tmp_path / "outputs" / "feature_readiness_summary.csv").exists()
+    assert (data_dir / "universe_master.csv").read_bytes() == canonical_before
 
 
 def _price_rows(ticker: str, periods: int) -> list[dict[str, object]]:
@@ -138,7 +178,7 @@ def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_pa
     pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "analyst_estimates.csv", index=False)
     pd.DataFrame(columns=["ticker", "shares"]).to_csv(data_dir / "holdings.csv", index=False)
 
-    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir, write_outputs=True)
     readiness = reports["ticker_readiness_report"].set_index("ticker")
     feature_summary = reports["feature_readiness_summary"].set_index("feature")
     source_status = reports["data_source_status"].set_index("source_name")

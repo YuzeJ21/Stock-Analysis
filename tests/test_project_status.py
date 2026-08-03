@@ -1739,10 +1739,10 @@ def test_project_status_refresh_rebuilds_stale_research_health_outputs(tmp_path:
         os.utime(output_dir / filename, (100, 100))
     for path in (tmp_path / "data").glob("*.csv"):
         os.utime(path, (200, 200))
-    calls: list[str] = []
+    calls: list[bool] = []
 
-    def fake_research_health(_root, *, data_dir=None, output_dir=None):
-        calls.append("research_health")
+    def fake_research_health(_root, *, data_dir=None, output_dir=None, write_output=False):
+        calls.append(write_output)
         target = Path(output_dir)
         for filename in ["data_quality_wizard.csv", "liquidity_risk.csv", "correlation_risk.csv"]:
             (target / filename).write_text("Ticker,Reason\nNVDA,rebuild\n", encoding="utf-8")
@@ -1752,7 +1752,7 @@ def test_project_status_refresh_rebuilds_stale_research_health_outputs(tmp_path:
 
     payload = write_project_status_output(tmp_path, top_n=2, refresh_supporting_outputs=True)
 
-    assert calls == ["research_health"]
+    assert calls == [True]
     assert payload["summary"]["tickers_total"] == 1
 
 

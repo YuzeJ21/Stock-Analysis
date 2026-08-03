@@ -558,13 +558,64 @@ def test_action_queue_payload_reuses_supplied_source_and_onboarding_payloads(tmp
         tmp_path,
         data_dir=data_dir,
         output_dir=outputs_dir,
-        refresh_research_health=False,
         source_payload=source_payload,
         onboarding_payload=onboarding_payload,
     )
 
     assert payload["action_count"] >= 1
     assert any(row["ticker"] == "NVDA" for row in payload["action_queue"])
+
+
+def test_action_queue_builder_never_refreshes_research_health(tmp_path: Path, monkeypatch):
+    data_dir = tmp_path / "data"
+    outputs_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    outputs_dir.mkdir()
+    pd.DataFrame(columns=["ticker", "status"]).to_csv(outputs_dir / "price_update_status.csv", index=False)
+    pd.DataFrame(columns=["Ticker", "ReadinessStatus", "NextBestAction"]).to_csv(
+        outputs_dir / "data_quality_wizard.csv", index=False
+    )
+    source_payload = {"data_gaps": []}
+    onboarding_payload = {"onboarding_actions": [], "price_import_worklist": [], "command_bundles": []}
+
+    def fail_refresh(*_args, **_kwargs):
+        raise AssertionError("action-queue composition must not refresh research health")
+
+    monkeypatch.setattr(action_queue, "run_research_health", fail_refresh)
+    payload = build_action_queue_payload(
+        tmp_path,
+        data_dir=data_dir,
+        output_dir=outputs_dir,
+        source_payload=source_payload,
+        onboarding_payload=onboarding_payload,
+    )
+
+    assert payload["action_count"] == 0
+
+
+def test_action_queue_writer_refreshes_research_health_explicitly_before_building(tmp_path: Path, monkeypatch):
+    calls: list[tuple[str, object]] = []
+
+    def record_refresh(*_args, **kwargs):
+        calls.append(("refresh", kwargs["write_output"]))
+        return {"files": {}, "row_counts": {}, "warnings": []}
+
+    def pure_builder(_root, *, data_dir, output_dir, source_payload=None, onboarding_payload=None):
+        calls.append(("build", {"data_dir": data_dir, "output_dir": output_dir}))
+        return {"action_queue": [], "action_count": 0}
+
+    monkeypatch.setattr(action_queue, "run_research_health", record_refresh)
+    monkeypatch.setattr(action_queue, "build_action_queue_payload", pure_builder)
+
+    payload = write_action_queue_output(
+        tmp_path,
+        data_dir=tmp_path / "data",
+        output_dir=tmp_path / "outputs",
+        refresh_research_health=True,
+    )
+
+    assert calls == [("refresh", True), ("build", {"data_dir": tmp_path / "data", "output_dir": tmp_path / "outputs"})]
+    assert Path(payload["queue_path"]).exists()
 
 
 def test_action_queue_payload_refreshes_stale_staged_fundamentals_gap_reason(tmp_path: Path):

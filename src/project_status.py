@@ -1882,7 +1882,7 @@ def write_project_status_output(
         source_payload = write_data_source_outputs(root, data_dir=data_path, output_dir=output_path)
         onboarding_payload = write_onboarding_outputs(root, data_dir=data_path, output_dir=output_path)
         if not research_health_outputs_current(root, data_dir=data_path, output_dir=output_path):
-            run_research_health(root, data_dir=data_path, output_dir=output_path)
+            run_research_health(root, data_dir=data_path, output_dir=output_path, write_output=True)
         write_action_queue_output(
             root,
             data_dir=data_path,

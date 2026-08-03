@@ -990,13 +990,13 @@ def build_ticker_readiness_report(
     *,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
-    write_outputs: bool = True,
+    write_outputs: bool = False,
 ) -> dict[str, pd.DataFrame]:
     root = resolve_project_root(base_dir)
     data_path = resolve_data_dir(data_dir, root)
     outputs_path = resolve_outputs_dir(output_dir, root)
     reports_path = data_path / "reports"
-    master, active = ensure_universe_files(root, data_dir=data_path, write_outputs=write_outputs)
+    master, active = ensure_universe_files(root, data_dir=data_path, write_outputs=False)
     thresholds = _load_thresholds(root)
     legacy = _read_csv(data_path / "universe.csv")
     holdings = _read_csv(data_path / "holdings.csv")
@@ -1005,7 +1005,7 @@ def build_ticker_readiness_report(
     earnings = _read_csv(data_path / "earnings.csv")
     estimates = _read_csv(data_path / "analyst_estimates.csv")
 
-    universe_report = build_universe_coverage_report(root, data_dir=data_path, write_output=write_outputs)
+    universe_report = build_universe_coverage_report(root, data_dir=data_path, write_output=False)
     price_report = build_price_coverage_report(root, data_path, master, active, thresholds)
     fundamentals_report = build_fundamentals_coverage_report(root, data_path, master)
     peer_report = build_peer_readiness_report(root, data_path, master, thresholds)
@@ -1205,7 +1205,7 @@ def main() -> None:
             for key, value in snapshot_payload.items():
                 print(f"{key}: {value}")
             return
-    reports = build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path)
+    reports = build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path, write_outputs=True)
     readiness = reports["ticker_readiness_report"]
     payload = {
         "status": "written",

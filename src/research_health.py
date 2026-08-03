@@ -789,7 +789,7 @@ def run(
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
     tickers: list[str] | None = None,
-    write_output: bool = True,
+    write_output: bool = False,
 ) -> dict[str, Any]:
     root = resolve_project_root(base_dir)
     data_path = resolve_data_dir(data_dir, root)
@@ -816,7 +816,7 @@ def run(
             frame.to_csv(files[name], index=False)
         build_dcf_readiness_report(root, data_dir=data_path)
         build_optional_context_readiness_reports(root, data_dir=data_path)
-        build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path)
+        build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path, write_outputs=True)
     return {
         "files": files,
         "row_counts": {name: len(frame) for name, frame in outputs.items()},
