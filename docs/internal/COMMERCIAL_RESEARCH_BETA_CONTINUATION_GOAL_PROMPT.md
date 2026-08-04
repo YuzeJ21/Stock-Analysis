@@ -246,6 +246,16 @@ slice. Keep exact technical evidence under Advanced, preserve the read-only
 research queue and alphabetical cohort identity, and do not convert unavailable
 source, rights, reviewer, hosted, or calibration evidence into product copy.
 
+Evidence Monitor Brief implementation anchor: `78c5ff9dc96f2d676b31ce4819053bb3f4eb555e`.
+The Monitor route reuses the fixed seven-day summary and existing discipline
+precedence, filters only exact `Monitor` rows from the primary table, and keeps
+the complete rows and identities under Advanced. Ordinary route use remains
+in-memory and read-only: it does not refresh, persist, rebuild readiness, write
+generated artifacts, create a market or trade claim, or change independent
+readiness, observation, research-attention, source-change, or calibration state.
+External source, hosted-operation, human-accessibility, independent-session,
+and calibration gates remain incomplete.
+
 Priority 7 manual accessibility evidence remains externally incomplete. Do not
 re-run Priorities 1-3 unless a current regression is directly reproduced.
 Priority 6 provider-neutral retention/deletion or audit-event work is not the active next lane and requires a separate reviewed design; provider-specific

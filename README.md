@@ -8,7 +8,7 @@ An **Evidence-First Research Workbench** for serious individual equity researche
 
 This repository is ready to review as a controlled GitHub/LinkedIn portfolio demo. It is not currently published as a hosted Streamlit app.
 
-**Primary product workflow:** Research Desk -> Discover -> Company Workbench -> Monitor. Run `make dashboard`, then open `http://localhost:8501/`. The Workbench answers what can be used now and keeps a six-lane Research Decision Lab below `What Changed`; Monitor adds a no-ranking Research Discipline Review while source-change state remains independent. Data Health and Proof History stay under **Advanced Evidence**. See [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md) for workflow states and truth boundaries.
+**Primary product workflow:** Research Desk -> Discover -> Company Workbench -> Monitor. Run `make dashboard`, then open `http://localhost:8501/`. The Workbench answers what can be used now and keeps a six-lane Research Decision Lab below `What Changed`; Monitor adds a no-ranking Research Discipline Review while source-change state remains independent. Monitor begins with a read-only Evidence Monitor Brief covering the saved weekly summary, research follow-up, scheduled process context, and independent readiness/observation freshness; non-actionable Monitor rows stay available under Advanced instead of filling the primary page. Data Health and Proof History stay under **Advanced Evidence**. See [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md) for workflow states and truth boundaries.
 
 **Secondary controlled demo:** Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. This is the shorter public-review path for visitors who do not need the complete company-research workspace.
 

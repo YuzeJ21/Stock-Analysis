@@ -1399,7 +1399,7 @@ def test_research_decision_lab_release_docs_bind_local_completion_to_current_evi
     assert "A valid lane cannot promote, repair, or clear another lane" in provenance
 
     assert "What Changed -> Research Decision Lab -> Business Trend" in personal
-    assert "Weekly Research Summary -> Research Discipline Review -> Research change monitor" in personal
+    assert "Evidence Monitor Brief -> Research Discipline Review -> Research change monitor" in personal
     assert "No process item is currently due from saved reviewer-authored evidence" in personal
 
     assert "Implemented locally — Research Decision Lab" in roadmap
@@ -2257,3 +2257,23 @@ def test_html_research_brief_continuation_contract_preserves_anchor_and_exclusio
         "outputs/peer_unlock_worklist.csv",
     ):
         assert f"`{path}`" in continuation
+
+
+def test_release_docs_describe_the_evidence_monitor_brief_without_market_or_trade_claims():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    roadmap = Path("ROADMAP.md").read_text(encoding="utf-8")
+    personal = Path("docs/PERSONAL_RESEARCH_MODE.md").read_text(encoding="utf-8")
+    qa = Path("docs/DASHBOARD_QA.md").read_text(encoding="utf-8")
+    combined = "\n".join((readme, roadmap, personal, qa)).lower()
+
+    assert "evidence monitor brief" in readme.lower()
+    assert "weekly research summary" in personal.lower()
+    assert "research follow-up" in personal.lower()
+    assert "scheduled context" in personal.lower()
+    assert "evidence freshness" in personal.lower()
+    assert "monitor rows remain under advanced" in personal.lower()
+    assert "evidence monitor brief" in roadmap.lower()
+    assert "evidence monitor brief" in qa.lower()
+    assert "confidence percentage" not in combined
+    assert "risk budget" not in combined
+    assert "trade trigger" not in combined

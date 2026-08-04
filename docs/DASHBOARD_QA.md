@@ -2,6 +2,25 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-08-04 Evidence Monitor Brief
+
+Exact implementation commit `78c5ff9dc96f2d676b31ce4819053bb3f4eb555e`
+passed the automated local direct-browser gate at `1280x720` and `390x844`.
+The Monitor brief exposed all four visible labels — **WEEKLY RESEARCH SUMMARY**,
+**RESEARCH FOLLOW-UP**, **SCHEDULED CONTEXT**, and **EVIDENCE FRESHNESS** — in
+a desktop two-by-two grid and a phone one-column layout. The primary discipline
+surface contained only filtered attention rows or its truthful neutral state;
+the complete stable-order rows and full identities remained available in
+**Advanced: Research Discipline evidence**. Neither viewport had horizontal
+overflow, a rendered traceback, console/page errors, or server runtime errors.
+The same 18 protected generated working-tree paths remained byte-for-byte
+unchanged and unstaged after the gate.
+
+This is automated local engineering evidence only. It does not establish human
+or screen-reader accessibility, source rights, current-market validity, hosted
+operation, independent workflow validation, probability calibration, or market
+validation.
+
 ## 2026-08-01 Company Workbench HTML Research Brief
 
 Open `?mode=research&page=company&ticker=<ticker>` with an explicit selected

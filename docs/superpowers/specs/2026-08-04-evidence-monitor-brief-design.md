@@ -2,8 +2,13 @@
 
 ## Status
 
-The layout direction was approved on 2026-08-04. This written specification is
-the review gate before an implementation plan is created.
+Verified implementation on 2026-08-04. Exact implementation anchor
+`78c5ff9dc96f2d676b31ce4819053bb3f4eb555e` passed the required local focused,
+full-suite, browser, responsive, performance, public, commercial-beta, hygiene,
+whitespace, and protected-artifact gates. Pilot readiness remained blocked on
+pre-commit hygiene and current readiness/source evidence. External source,
+hosted, human-accessibility, independent-session, and calibration gates remain
+separate and incomplete.
 
 ## Decision
 
@@ -331,7 +336,7 @@ Commercial Research Beta foundation. It does not replace or complete the
 external point-in-time universe, consensus/peer, hosted-control,
 accessibility-human-review, independent-session, or calibration priorities.
 
-After implementation passes direct evidence, `ROADMAP.md`, Personal Research
-documentation, Dashboard QA, release contracts, and draft PR #113 should record
-the exact verified presentation change. Until then, this document records an
-approved design only.
+`ROADMAP.md`, Personal Research documentation, Dashboard QA, and the release
+contract record the verified local presentation change. Draft PR #113 remains
+open and draft; the implementation does not complete any external gate named
+above.
