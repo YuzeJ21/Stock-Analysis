@@ -70,6 +70,7 @@ PRIMARY_REVIEWED_WRITE_SEQUENCES = {
     ("imports-validate", "imports-preview", "imports-apply"),
     ("price-validate", "price-preview", "price-apply"),
 }
+PRIMARY_IMPORT_LANES = {"fundamentals", "share_count", "peers", "optional_context"}
 PRIMARY_REVIEWED_ARGUMENT_KEYS = {
     "imports-validate": {"IMPORT_TICKERS", "IMPORT_FILES"},
     "imports-preview": {"IMPORT_TICKERS", "IMPORT_FILES"},
@@ -229,7 +230,10 @@ def _primary_reviewed_step_target(*, profile: str, step: str, allow_apply: bool 
     """Validate one primary proof command and return its single make target."""
 
     selected_profile = resolve_readiness_proof_profile(profile)
-    original = str(step or "").strip()
+    raw_step = str(step or "")
+    if any(token in raw_step for token in ("&", "\r", "\n")):
+        raise ValueError("primary proof steps must be one shell-free make command")
+    original = raw_step.strip()
     normalized = PRIMARY_PRODUCT_PLACEHOLDER.sub("placeholder", original)
     if not normalized or any(token in normalized for token in ("&&", ";", "|", ">", "<", "`", "$")):
         raise ValueError("primary proof steps must be one shell-free make command")
@@ -284,9 +288,12 @@ def primary_profile_bound_reviewed_write_proof_sequence(
     """Compose the strict, primary-only reviewed-write proof sequence."""
 
     selected_profile = resolve_readiness_proof_profile(profile)
-    selected_lane = str(lane or "").strip()
-    if not selected_lane or "<" in selected_lane or ">" in selected_lane:
-        raise ValueError("lane is required and must not contain a placeholder")
+    raw_lane = str(lane or "")
+    if any(token in raw_lane for token in ("&", ";", "|", ">", "<", "`", "$", "\r", "\n")):
+        raise ValueError("primary proof lane must be one approved shell-free identifier")
+    selected_lane = raw_lane.strip()
+    if selected_lane not in PRIMARY_IMPORT_LANES | PRIMARY_PRICE_LANES:
+        raise ValueError("primary proof lane is not approved")
     steps = [str(step).strip() for step in reviewed_steps if str(step).strip()]
     targets = tuple(
         _primary_reviewed_step_target(profile=selected_profile, step=step, allow_apply=True) for step in steps
@@ -295,10 +302,10 @@ def primary_profile_bound_reviewed_write_proof_sequence(
         raise ValueError("primary reviewed write steps must be exactly validate, preview, and apply in order")
     is_price_sequence = targets == ("price-validate", "price-preview", "price-apply")
     is_price_lane = selected_lane.casefold() in PRIMARY_PRICE_LANES
-    if is_price_sequence and selected_profile != "local":
-        return PRIMARY_PRICE_UNAVAILABLE
     if is_price_sequence != is_price_lane:
         raise ValueError("primary price proof targets must match a price lane")
+    if is_price_sequence and selected_profile != "local":
+        return PRIMARY_PRICE_UNAVAILABLE
     scoped_steps = [_primary_profile_scoped_step(profile=selected_profile, step=step) for step in steps]
     scoped_tails: list[str] = []
     for step in after_compare_steps:

@@ -89,6 +89,19 @@ def test_primary_profile_scoped_reviewed_step_rejects_apply_writers_and_shell_co
 
 
 @pytest.mark.parametrize(
+    "unsafe_step",
+    (
+        "make status-check TOP_N=5&whoami",
+        "make status-check TOP_N=5\r",
+        "make status-check TOP_N=5\n",
+    ),
+)
+def test_primary_profile_scoped_reviewed_step_rejects_single_ampersand_and_line_breaks(unsafe_step):
+    with pytest.raises(ValueError):
+        primary_profile_scoped_reviewed_step(profile="local", step=unsafe_step)
+
+
+@pytest.mark.parametrize(
     "writer_step",
     (
         "make readiness",
@@ -269,14 +282,36 @@ def test_primary_reviewed_write_proof_rejects_extra_make_target_after_compare():
         )
 
 
-def test_primary_price_sequence_is_unavailable_for_non_local_profile_even_with_a_non_price_lane():
-    proof = primary_profile_bound_reviewed_write_proof_sequence(
-        profile="default",
-        lane="fundamentals",
-        reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
-    )
+def test_primary_price_sequence_rejects_a_non_price_lane_before_rendering_unavailable_copy():
+    with pytest.raises(ValueError):
+        primary_profile_bound_reviewed_write_proof_sequence(
+            profile="default",
+            lane="fundamentals",
+            reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+        )
 
-    assert proof == "Price writes are unavailable outside local profile; rerun with PROFILE=local."
+
+@pytest.mark.parametrize(
+    "lane",
+    (
+        "fundamentals; whoami",
+        "fundamentals&whoami",
+        "fundamentals\r",
+        "fundamentals\n",
+        "unsupported_lane",
+    ),
+)
+def test_primary_reviewed_write_proof_rejects_shell_control_and_unsupported_lanes(lane):
+    with pytest.raises(ValueError):
+        primary_profile_bound_reviewed_write_proof_sequence(
+            profile="local",
+            lane=lane,
+            reviewed_steps=(
+                "make imports-validate IMPORT_TICKERS=AAA",
+                "make imports-preview IMPORT_TICKERS=AAA",
+                "make imports-apply IMPORT_TICKERS=AAA",
+            ),
+        )
 
 
 @pytest.mark.parametrize(

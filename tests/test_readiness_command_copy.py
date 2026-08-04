@@ -7,7 +7,7 @@ PERMITTED_LEGACY_READINESS_HELP_LINE = (
     '\t@echo "  make readiness        Deprecated no-write guard; exits 2"'
 )
 LEGACY_READINESS_COMMAND = re.compile(
-    r"(?<![A-Za-z0-9_-])(?:make|\$\(MAKE\)) readiness(?![A-Za-z0-9_-])"
+    r"(?<![A-Za-z0-9_-])(?:make|\$\(MAKE\))[ \t]+readiness(?![A-Za-z0-9_-])"
 )
 
 
@@ -36,11 +36,14 @@ def _legacy_readiness_occurrences(
             occurrences.append((occurrence, False))
 
     permitted_count = sum(is_permitted for _, is_permitted in occurrences)
-    return [
+    offenders = [
         occurrence
         for occurrence, is_permitted in occurrences
         if permitted_count != 1 or not is_permitted
     ]
+    if permitted_count == 0:
+        offenders.append(f"Makefile:0: {PERMITTED_LEGACY_READINESS_HELP_LINE}")
+    return offenders
 
 
 def test_legacy_readiness_command_is_limited_to_its_deprecated_guard_help_line():
@@ -50,6 +53,7 @@ def test_legacy_readiness_command_is_limited_to_its_deprecated_guard_help_line()
 def test_legacy_readiness_scanner_reports_both_command_forms_but_not_hyphenated_targets():
     occurrences = _legacy_readiness_occurrences(
         [
+            (Path("Makefile"), [PERMITTED_LEGACY_READINESS_HELP_LINE]),
             (
                 Path("src/example.py"),
                 [
@@ -65,6 +69,38 @@ def test_legacy_readiness_scanner_reports_both_command_forms_but_not_hyphenated_
     assert occurrences == [
         'src/example.py:1: literal = "make readiness"',
         'src/example.py:2: recursive = "$(MAKE) readiness"',
+    ]
+
+
+def test_legacy_readiness_scanner_accepts_shell_spaces_and_tabs_between_command_tokens():
+    occurrences = _legacy_readiness_occurrences(
+        [
+            (Path("Makefile"), [PERMITTED_LEGACY_READINESS_HELP_LINE]),
+            (
+                Path("src/example.py"),
+                [
+                    'double_space = "make  readiness"',
+                    'tab = "make\treadiness"',
+                    'recursive_double_space = "$(MAKE)  readiness"',
+                    'recursive_tab = "$(MAKE)\treadiness"',
+                    'preview = "make\treadiness-preview"',
+                    'snapshot = "$(MAKE)  readiness-snapshot"',
+                ],
+            )
+        ]
+    )
+
+    assert occurrences == [
+        'src/example.py:1: double_space = "make  readiness"',
+        'src/example.py:2: tab = "make\treadiness"',
+        'src/example.py:3: recursive_double_space = "$(MAKE)  readiness"',
+        'src/example.py:4: recursive_tab = "$(MAKE)\treadiness"',
+    ]
+
+
+def test_legacy_readiness_scanner_rejects_a_missing_exact_help_exception():
+    assert _legacy_readiness_occurrences([(Path("Makefile"), [])]) == [
+        f"Makefile:0: {PERMITTED_LEGACY_READINESS_HELP_LINE}"
     ]
 
 

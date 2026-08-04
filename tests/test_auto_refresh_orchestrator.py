@@ -1,3 +1,5 @@
+import ast
+import inspect
 import json
 import subprocess
 from pathlib import Path
@@ -18,6 +20,23 @@ from src.auto_refresh_orchestrator import (
 )
 from src.refresh_operations import ProviderAttempt
 from src.continuation_gate import ContinuationGate
+
+
+def test_primary_auto_orchestrator_logic_stays_inside_the_three_approved_functions():
+    source_path = Path(__file__).resolve().parents[1] / "src" / "auto_refresh_orchestrator.py"
+    tree = ast.parse(source_path.read_text(encoding="utf-8"))
+    top_level_function_names = {
+        node.name
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+    assert "_profile_scoped_read_only_command" not in top_level_function_names
+    assert "_primary_lane_proof" not in top_level_function_names
+
+
+def test_auto_apply_gate_profile_is_keyword_only():
+    assert inspect.signature(evaluate_auto_apply_gate).parameters["profile"].kind is inspect.Parameter.KEYWORD_ONLY
 
 
 def test_auto_refresh_status_routes_stale_readiness_to_inspection_only():

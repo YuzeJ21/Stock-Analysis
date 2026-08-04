@@ -82,45 +82,54 @@ class SchedulerPlan:
     provider_availability_proven: bool
 
 
-def _profile_scoped_read_only_command(*, profile: str, command: str) -> str:
-    return f"STOCK_RESEARCH_DATA_PROFILE={profile} {command}"
-
-
-def _primary_lane_proof(*, profile: str, lane: str) -> str:
-    proof_lane = {
-        "daily_sec_filing_share_count": "share_count",
-        "daily_fundamentals_dcf": "fundamentals",
-        "weekly_peer_candidates": "peers",
-        "optional_earnings_estimates": "optional_context",
-        "fundamentals_dcf": "fundamentals",
-    }.get(lane, lane)
-    if lane == "daily_price_refresh":
-        return primary_profile_bound_reviewed_write_proof_sequence(
-            profile=profile,
-            lane=proof_lane,
-            reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
-        )
-    import_files = " IMPORT_FILES=fundamentals.csv" if proof_lane in {"fundamentals", "share_count"} else ""
-    return primary_profile_bound_reviewed_write_proof_sequence(
-        profile=profile,
-        lane=proof_lane,
-        reviewed_steps=(
-            f"make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
-            f"make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
-            f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
-        ),
-    )
-
-
 def build_default_lane_policies(profile: str | None = None) -> tuple[LanePolicy, ...]:
     selected_profile = resolve_readiness_proof_profile(profile)
+    price_proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="daily_price_refresh",
+        reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+    )
+    share_count_proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="share_count",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+        ),
+    )
+    fundamentals_proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="fundamentals",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+        ),
+    )
+    peer_proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="peers",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+        ),
+    )
+    optional_proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="optional_context",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+        ),
+    )
     price_dry_run = (
-        _profile_scoped_read_only_command(
-            profile=selected_profile,
-            command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
-        )
+        f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} "
+        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
         if selected_profile == "local"
-        else _primary_lane_proof(profile=selected_profile, lane="daily_price_refresh")
+        else price_proof
     )
     return (
         LanePolicy(
@@ -131,8 +140,8 @@ def build_default_lane_policies(profile: str | None = None) -> tuple[LanePolicy,
             max_batch_size=3500,
             auto_apply=False,
             dry_run_command=price_dry_run,
-            gated_apply_command=_primary_lane_proof(profile=selected_profile, lane="daily_price_refresh"),
-            proof_command=_primary_lane_proof(profile=selected_profile, lane="daily_price_refresh"),
+            gated_apply_command=price_proof,
+            proof_command=price_proof,
             source_boundary="Provider OHLCV rows only; no fabricated or padded price history.",
         ),
         LanePolicy(
@@ -142,9 +151,9 @@ def build_default_lane_policies(profile: str | None = None) -> tuple[LanePolicy,
             provider_order=("sec_submissions", "sec_filing_document", "sec_companyfacts"),
             max_batch_size=25,
             auto_apply=False,
-            dry_run_command=_profile_scoped_read_only_command(profile=selected_profile, command="make share-count-proof-queue TOP_N=25"),
-            gated_apply_command=_primary_lane_proof(profile=selected_profile, lane="daily_sec_filing_share_count"),
-            proof_command=_primary_lane_proof(profile=selected_profile, lane="daily_sec_filing_share_count"),
+            dry_run_command=f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make share-count-proof-queue TOP_N=25",
+            gated_apply_command=share_count_proof,
+            proof_command=share_count_proof,
             source_boundary="Only explicit SEC filing document facts with CIK, form, filed date, accession, and entity proof.",
         ),
         LanePolicy(
@@ -154,9 +163,9 @@ def build_default_lane_policies(profile: str | None = None) -> tuple[LanePolicy,
             provider_order=("sec_companyfacts", "yfinance", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=25,
             auto_apply=False,
-            dry_run_command=_profile_scoped_read_only_command(profile=selected_profile, command="make fundamentals-source-ladder-queue TOP_N=25"),
-            gated_apply_command=_primary_lane_proof(profile=selected_profile, lane="daily_fundamentals_dcf"),
-            proof_command=_primary_lane_proof(profile=selected_profile, lane="daily_fundamentals_dcf"),
+            dry_run_command=f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make fundamentals-source-ladder-queue TOP_N=25",
+            gated_apply_command=fundamentals_proof,
+            proof_command=fundamentals_proof,
             source_boundary="SEC/provider fundamentals only; no placeholder revenue, cash flow, margin, or share rows.",
         ),
         LanePolicy(
@@ -166,9 +175,9 @@ def build_default_lane_policies(profile: str | None = None) -> tuple[LanePolicy,
             provider_order=("local_industry", "sic", "sector", "reviewed_peer_sources"),
             max_batch_size=100,
             auto_apply=False,
-            dry_run_command=_profile_scoped_read_only_command(profile=selected_profile, command="make peer-mapping-queue TOP_N=25"),
-            gated_apply_command=_primary_lane_proof(profile=selected_profile, lane="weekly_peer_candidates"),
-            proof_command=_primary_lane_proof(profile=selected_profile, lane="weekly_peer_candidates"),
+            dry_run_command=f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make peer-mapping-queue TOP_N=25",
+            gated_apply_command=peer_proof,
+            proof_command=peer_proof,
             source_boundary="Candidate peers are context only; trusted peer proof requires reviewed source-backed rows.",
         ),
         LanePolicy(
@@ -178,9 +187,9 @@ def build_default_lane_policies(profile: str | None = None) -> tuple[LanePolicy,
             provider_order=("yfinance", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=25,
             auto_apply=False,
-            dry_run_command=_profile_scoped_read_only_command(profile=selected_profile, command="make optional-context-source-ladder-queue TOP_N=10"),
-            gated_apply_command=_primary_lane_proof(profile=selected_profile, lane="optional_earnings_estimates"),
-            proof_command=_primary_lane_proof(profile=selected_profile, lane="optional_earnings_estimates"),
+            dry_run_command=f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make optional-context-source-ladder-queue TOP_N=10",
+            gated_apply_command=optional_proof,
+            proof_command=optional_proof,
             source_boundary=(
                 "Optional provider rows only; earnings timing or price-target-only rows are candidate_context_only "
                 "until earnings metrics or EPS/revenue estimate fields unlock readiness."
@@ -189,7 +198,7 @@ def build_default_lane_policies(profile: str | None = None) -> tuple[LanePolicy,
     )
 
 
-def evaluate_auto_apply_gate(gate: AutoGateInput, profile: str | None = None) -> AutoGateDecision:
+def evaluate_auto_apply_gate(gate: AutoGateInput, *, profile: str | None = None) -> AutoGateDecision:
     selected_profile = resolve_readiness_proof_profile(profile)
     reasons: list[str] = []
     validation = gate.validation_status.strip().lower()
@@ -219,25 +228,55 @@ def evaluate_auto_apply_gate(gate: AutoGateInput, profile: str | None = None) ->
         reasons.append("price writes require the local profile")
 
     if reasons:
+        if non_local_price:
+            required_next_commands = (
+                primary_profile_bound_reviewed_write_proof_sequence(
+                    profile=selected_profile,
+                    lane="daily_price_refresh",
+                    reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+                ),
+            )
+        else:
+            required_next_commands = (
+                "record auto-refresh proof with FINAL_OUTCOME=still_blocked",
+                "pivot to the next executable lane",
+            )
         return AutoGateDecision(
             status="blocked",
             outcome="still_blocked",
             reasons=tuple(reasons),
-            required_next_commands=(
-                (_primary_lane_proof(profile=selected_profile, lane=gate.lane),)
-                if non_local_price
-                else (
-                    "record auto-refresh proof with FINAL_OUTCOME=still_blocked",
-                    "pivot to the next executable lane",
-                )
-            ),
+            required_next_commands=required_next_commands,
         )
 
+    proof_lane = {
+        "daily_sec_filing_share_count": "share_count",
+        "daily_fundamentals_dcf": "fundamentals",
+        "weekly_peer_candidates": "peers",
+        "optional_earnings_estimates": "optional_context",
+        "fundamentals_dcf": "fundamentals",
+    }.get(gate.lane, gate.lane)
+    if gate.lane == "daily_price_refresh":
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane=proof_lane,
+            reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+        )
+    else:
+        import_files = " IMPORT_FILES=fundamentals.csv" if proof_lane in {"fundamentals", "share_count"} else ""
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane=proof_lane,
+            reviewed_steps=(
+                f"make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
+                f"make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
+                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
+            ),
+        )
     return AutoGateDecision(
         status="auto_apply_ready",
         outcome="auto_supported",
         reasons=("validation, preview, provenance, scope, and no-fabrication gates passed",),
-        required_next_commands=(_primary_lane_proof(profile=selected_profile, lane=gate.lane),),
+        required_next_commands=(proof_command,),
     )
 
 

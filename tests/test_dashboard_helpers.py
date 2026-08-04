@@ -1,5 +1,6 @@
 from dataclasses import replace
 from datetime import date
+import ast
 import json
 import os
 import re
@@ -23,6 +24,24 @@ from src.proof_readiness_reconciliation import (
     ProofReadinessReconciliationSummary,
 )
 import pandas as pd
+
+
+def test_primary_company_workbench_builders_do_not_add_production_helpers():
+    tree = ast.parse(Path(dashboard.__file__).read_text(encoding="utf-8"))
+    top_level_functions = {
+        node.name: node
+        for node in tree.body
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+    assert "_primary_company_workbench_inherited_copy" not in top_level_functions
+    for name in ("single_stock_reader_guide_frame", "single_stock_quick_read_cards"):
+        nested_functions = [
+            node.name
+            for node in ast.walk(top_level_functions[name])
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node is not top_level_functions[name]
+        ]
+        assert nested_functions == []
 
 
 def _profile_context_fixture(**overrides):
