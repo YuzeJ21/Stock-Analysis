@@ -12,6 +12,10 @@ from src.company_workbench_cash_generation_preview import (
 from src.observation_recency import load_observation_recency
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DASHBOARD_APP = PROJECT_ROOT / "src/dashboard.py"
+
+
 def test_public_routes_render_without_exceptions_and_keep_core_markers():
     from src.dashboard_render_smoke import PUBLIC_RENDER_ROUTES, render_public_routes
 
@@ -227,10 +231,14 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     )
 
 
-def test_fixed_semantic_main_bridge_html_renders_once_across_all_workspaces():
+def test_fixed_semantic_main_bridge_html_renders_once_across_all_workspaces(
+    tmp_path,
+    monkeypatch,
+):
     from src.accessibility_bridge import SEMANTIC_MAIN_BRIDGE_HTML
     from src.dashboard_render_smoke import RESEARCH_RENDER_ROUTES
 
+    monkeypatch.chdir(tmp_path)
     cases = [
         ("Public Home", {"mode": "public"}),
         ("Operator Home", {"mode": "operator"}),
@@ -241,7 +249,7 @@ def test_fixed_semantic_main_bridge_html_renders_once_across_all_workspaces():
     ]
 
     for name, query_params in cases:
-        app = AppTest.from_file("src/dashboard.py", default_timeout=120)
+        app = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
         app.query_params.update(query_params)
         app.run(timeout=120)
 
@@ -279,7 +287,7 @@ def test_research_route_renders_one_fragment_skip_link_and_one_existing_answer_t
 
 
 def test_research_skip_link_is_first_in_streamlit_sidebar_dom_bucket():
-    app = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    app = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
     app.query_params.update({"mode": "research", "page": "research-desk"})
     app.run(timeout=120)
 
@@ -292,7 +300,7 @@ def test_research_skip_link_is_first_in_streamlit_sidebar_dom_bucket():
 
 
 def test_public_skip_link_stays_in_first_sidebar_dom_bucket_and_renders_once():
-    app = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    app = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
     app.query_params.update({"mode": "public"})
     app.run(timeout=120)
 
@@ -392,7 +400,7 @@ def test_focused_skip_link_is_a_visible_horizontal_banner_in_public_and_research
 
 
 def test_authoring_composer_renders_once_only_in_closed_research_company_workbench():
-    workbench = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    workbench = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
     workbench.query_params.update(
         {"mode": "research", "page": "company-workbench", "ticker": "NVDA", "open": "1"}
     )
@@ -408,7 +416,7 @@ def test_authoring_composer_renders_once_only_in_closed_research_company_workben
         item.proto.expanded for item in workbench.expander if item.label.startswith("Advanced:")
     )
 
-    public_report = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    public_report = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
     public_report.query_params.update(
         {"mode": "public", "page": "single-stock-report", "ticker": "NVDA", "open": "1"}
     )
@@ -417,7 +425,7 @@ def test_authoring_composer_renders_once_only_in_closed_research_company_workben
     assert not public_report.exception
     assert not any(item.label == "Add a reviewed research record" for item in public_report.expander)
 
-    operator_report = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    operator_report = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
     operator_report.query_params.update(
         {"mode": "operator", "page": "single-stock-report", "ticker": "NVDA", "open": "1"}
     )
@@ -428,7 +436,7 @@ def test_authoring_composer_renders_once_only_in_closed_research_company_workben
 
 
 def _html_brief_app(*, mode: str = "research", ticker: str = "NVDA", open_report: bool = True) -> AppTest:
-    app = AppTest.from_file("src/dashboard.py", default_timeout=120)
+    app = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
     query = {"mode": mode, "page": "company-workbench", "ticker": ticker}
     if open_report:
         query["open"] = "1"
@@ -464,7 +472,7 @@ def test_company_workbench_html_brief_is_one_collapsed_research_only_in_memory_s
     assert "/Users/" not in fragments[0]
 
     for mode in ("public", "operator"):
-        other = AppTest.from_file("src/dashboard.py", default_timeout=120)
+        other = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
         other.query_params.update(
             {"mode": mode, "page": "single-stock-report", "ticker": "NVDA", "open": "1"}
         )

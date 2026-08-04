@@ -25,6 +25,9 @@ from src.research_thesis_journal import (
 )
 
 
+AUTHORING_APP = Path(__file__).resolve().parent / "fixtures/research_record_authoring_app.py"
+
+
 def _paths(tmp_path: Path) -> AuthoringPaths:
     return AuthoringPaths(tmp_path / "journal.csv", tmp_path / "catalysts.csv", tmp_path / "outcomes.csv")
 
@@ -39,7 +42,7 @@ def _thesis_entry() -> JournalEntry:
 
 def _app(tmp_path: Path, monkeypatch) -> AppTest:
     monkeypatch.setenv("RESEARCH_AUTHORING_FIXTURE_DIR", str(tmp_path))
-    return AppTest.from_file("tests/fixtures/research_record_authoring_app.py").run(timeout=20)
+    return AppTest.from_file(AUTHORING_APP).run(timeout=20)
 
 
 def _field_key(kind: str, name: str) -> str:

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 from streamlit.testing.v1 import AppTest
 
@@ -6,6 +8,9 @@ from src.research_state_accessibility import (
     research_state_message_html,
     research_state_transition_key,
 )
+
+
+STATE_ACCESSIBILITY_APP = Path(__file__).resolve().parent / "fixtures/research_state_accessibility_app.py"
 
 
 @pytest.mark.parametrize(
@@ -125,9 +130,7 @@ def test_state_message_rejects_unknown_or_unscoped_inputs(field, value):
 
 
 def test_synthetic_state_harness_exposes_static_states_without_live_noise():
-    app = AppTest.from_file(
-        "tests/fixtures/research_state_accessibility_app.py"
-    ).run(timeout=20)
+    app = AppTest.from_file(STATE_ACCESSIBILITY_APP).run(timeout=20)
 
     assert not app.exception
     assert [button.key for button in app.button] == [
@@ -173,9 +176,7 @@ def test_synthetic_state_harness_exposes_static_states_without_live_noise():
 def test_synthetic_state_harness_uses_production_transition_semantics(
     button_key, role, live, title
 ):
-    app = AppTest.from_file(
-        "tests/fixtures/research_state_accessibility_app.py"
-    ).run(timeout=20)
+    app = AppTest.from_file(STATE_ACCESSIBILITY_APP).run(timeout=20)
 
     app.button(key=button_key).click().run()
 

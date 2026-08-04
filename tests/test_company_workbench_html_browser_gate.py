@@ -400,8 +400,16 @@ html body #srcc-media-settlement-probe {
     --srcc-media-type: stale !important;
 }
 @media print {
-    .srcc-boundary { opacity: 0 !important; }
-    .srcc-advanced-evidence { visibility: hidden !important; }
+    .srcc-boundary {
+        opacity: 0 !important;
+        transition: none !important;
+        animation: none !important;
+    }
+    .srcc-advanced-evidence {
+        visibility: hidden !important;
+        transition: none !important;
+        animation: none !important;
+    }
 }
 """,
     )
