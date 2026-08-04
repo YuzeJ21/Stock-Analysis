@@ -148,7 +148,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "/?mode=research&page=monitor",
         "WEEKLY RESEARCH SUMMARY",
         "Monitor",
-        "table.research-discipline-table",
+        ".signal-grid.evidence-monitor-grid",
         ".research-workspace-action",
     ),
     ResearchRoute(
@@ -408,20 +408,24 @@ def evaluate_monitor_rows(
     *,
     primary_columns: Iterable[str],
     advanced_identity_count: int,
+    neutral_visible: bool,
 ) -> dict[str, object]:
-    """Require a process-only Monitor table in saved cohort order."""
+    """Require a filtered process-only Monitor view in saved cohort order."""
 
     observed = tuple(rows)
     columns = tuple(str(column or "").strip() for column in primary_columns)
     failures: list[str] = []
-    if not observed:
-        failures.append("no Monitor discipline rows were rendered")
+    if not observed and not neutral_visible:
+        failures.append("no Monitor discipline rows or neutral state were rendered")
+    if observed and neutral_visible:
+        failures.append("Monitor rows and the all-monitor neutral state cannot both be visible")
     orders: list[int] = []
     for index, row in enumerate(observed, start=1):
         try:
             order = int(row.get("cohort_order", 0))
         except (TypeError, ValueError):
             order = 0
+            failures.append(f"Monitor row {index} has an invalid cohort order")
         orders.append(order)
         if (
             not str(row.get("ticker") or "").strip()
@@ -431,17 +435,14 @@ def evaluate_monitor_rows(
             failures.append(
                 f"Monitor row {index} must expose ticker, process attention, and reason"
             )
-    expected_orders = (
-        list(range(orders[0], orders[0] + len(observed)))
-        if orders and orders[0] in {0, 1}
-        else []
-    )
-    if orders != expected_orders:
+        if str(row.get("attention") or "").strip().casefold() == "monitor":
+            failures.append(f"Monitor row {index} must not contain a Monitor label")
+    if any(current <= previous for previous, current in zip(orders, orders[1:])):
         failures.append(
             f"Monitor rows do not preserve saved cohort order: {orders}"
         )
     lowered_columns = tuple(column.casefold() for column in columns)
-    if lowered_columns != ("ticker", "process attention", "why"):
+    if observed and lowered_columns != ("ticker", "process attention", "why"):
         failures.append(f"unexpected primary Monitor columns: {columns}")
     if any(
         forbidden in column
@@ -451,7 +452,7 @@ def evaluate_monitor_rows(
         failures.append("rank/score/return fields are forbidden in Monitor")
     if (
         type(advanced_identity_count) is not int
-        or advanced_identity_count != len(observed)
+        or advanced_identity_count < max(1, len(observed))
     ):
         failures.append(
             "Advanced identity evidence must remain separate and complete"
@@ -461,6 +462,64 @@ def evaluate_monitor_rows(
         "actual_count": len(observed),
         "detail": (
             f"{len(observed)} Monitor rows preserve process-only cohort order"
+            if not failures
+            else "; ".join(failures)
+        ),
+    }
+
+
+def evaluate_monitor_brief(
+    *,
+    kickers: Iterable[str],
+    boxes: Iterable[tuple[object, object]],
+    viewport_width: int,
+) -> dict[str, object]:
+    """Require the exact Monitor brief sequence and responsive card geometry."""
+
+    expected_kickers = (
+        "WEEKLY RESEARCH SUMMARY",
+        "RESEARCH FOLLOW-UP",
+        "SCHEDULED CONTEXT",
+        "EVIDENCE FRESHNESS",
+    )
+    observed_kickers = tuple(str(kicker or "").strip() for kicker in kickers)
+    observed_boxes = tuple(boxes)
+    failures: list[str] = []
+    if observed_kickers != expected_kickers:
+        failures.append(f"unexpected Monitor brief kickers: {observed_kickers}")
+    if len(observed_boxes) != 4:
+        failures.append(f"expected four Monitor brief card boxes, found {len(observed_boxes)}")
+
+    def clustered(values: Iterable[float]) -> tuple[float, ...]:
+        positions: list[float] = []
+        for value in values:
+            if not any(abs(value - position) <= 2 for position in positions):
+                positions.append(value)
+        return tuple(positions)
+
+    try:
+        x_positions = clustered(float(box[0]) for box in observed_boxes)
+        y_positions = clustered(float(box[1]) for box in observed_boxes)
+    except (IndexError, TypeError, ValueError):
+        x_positions = ()
+        y_positions = ()
+        failures.append("Monitor brief card coordinates must be numeric x/y pairs")
+
+    if viewport_width > 760:
+        if len(x_positions) != 2 or len(y_positions) != 2:
+            failures.append(
+                "desktop Monitor brief must use two columns and two rows"
+            )
+    elif len(x_positions) != 1 or len(y_positions) != 4 or tuple(y_positions) != tuple(sorted(y_positions)):
+        failures.append(
+            "phone Monitor brief must use one column and four increasing rows"
+        )
+
+    return {
+        "passed": not failures,
+        "actual_count": len(observed_kickers),
+        "detail": (
+            "four Monitor brief cards use the expected responsive geometry"
             if not failures
             else "; ".join(failures)
         ),
@@ -2067,20 +2126,70 @@ def _discover_rows_assertion(page: Any) -> dict[str, object]:
     )
 
 
+def _monitor_brief_assertion(
+    page: Any,
+    viewport_width: int,
+) -> dict[str, object]:
+    grid = page.locator(".signal-grid.evidence-monitor-grid")
+    if grid.count() != 1:
+        return _assertion(
+            "monitor_brief_geometry",
+            False,
+            f"expected one Evidence Monitor Brief grid, found {grid.count()}",
+        )
+    cards = grid.locator(".signal-card:visible")
+    kickers: list[str] = []
+    boxes: list[tuple[object, object]] = []
+    content_failures: list[str] = []
+    for index in range(cards.count()):
+        card = cards.nth(index)
+        kicker = card.locator(".signal-kicker").inner_text().strip()
+        title = card.locator(".signal-title").inner_text().strip()
+        body = card.locator(".signal-body").inner_text().strip()
+        badges = tuple(
+            text.strip() for text in card.locator(".tiny-badge").all_inner_texts()
+        )
+        geometry = card.bounding_box() or {}
+        kickers.append(kicker)
+        boxes.append((geometry.get("x"), geometry.get("y")))
+        if not title or not body or not badges or any(not badge for badge in badges):
+            content_failures.append(
+                f"Monitor brief card {index + 1} must expose a title, body, and badges"
+            )
+    evaluated = evaluate_monitor_brief(
+        kickers=kickers,
+        boxes=boxes,
+        viewport_width=viewport_width,
+    )
+    details = tuple(content_failures) + (() if evaluated["passed"] else (str(evaluated["detail"]),))
+    return _assertion(
+        "monitor_brief_geometry",
+        not details,
+        (
+            str(evaluated["detail"])
+            if not details
+            else "; ".join(details)
+        ),
+    )
+
+
 def _monitor_rows_assertion(page: Any) -> dict[str, object]:
     table = page.locator("table.research-discipline-table")
-    if table.count() != 1:
+    if table.count() > 1:
         return _assertion(
             "monitor_process_rows",
             False,
-            f"expected one primary Research Discipline table, found {table.count()}",
+            f"expected zero or one primary Research Discipline table, found {table.count()}",
         )
-    columns = tuple(
-        text.strip() for text in table.locator("thead th").all_inner_texts()
+    columns = (
+        tuple(text.strip() for text in table.locator("thead th").all_inner_texts())
+        if table.count() == 1
+        else ()
     )
-    rows = table.locator("tbody tr.research-discipline-row")
+    rows = table.locator("tbody tr.research-discipline-row") if table.count() == 1 else None
     observed: list[dict[str, object]] = []
-    for index in range(rows.count()):
+    for index in range(rows.count() if rows is not None else 0):
+        assert rows is not None
         row = rows.nth(index)
         cells = tuple(text.strip() for text in row.locator("td").all_inner_texts())
         observed.append(
@@ -2090,6 +2199,13 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
                 "attention": cells[0] if len(cells) > 0 else "",
                 "reason": cells[1] if len(cells) > 1 else "",
             }
+        )
+    neutral = page.locator(".research-monitor-neutral:visible")
+    if neutral.count() > 1:
+        return _assertion(
+            "monitor_process_rows",
+            False,
+            f"expected at most one Monitor neutral state, found {neutral.count()}",
         )
     advanced = page.locator("details").filter(
         has=page.get_by_text(
@@ -2103,12 +2219,21 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
         identity_rows = advanced.locator(
             "tr.research-discipline-identity-row"
         )
-        identity_rows.first.wait_for(state="visible", timeout=10_000)
-        advanced_count = identity_rows.count()
+        if identity_rows.count():
+            identity_rows.first.wait_for(state="visible", timeout=10_000)
+        for index in range(identity_rows.count()):
+            identity_row = identity_rows.nth(index)
+            ticker = identity_row.locator("th[scope='row']").inner_text().strip()
+            cells = tuple(
+                text.strip() for text in identity_row.locator("td").all_inner_texts()
+            )
+            if ticker and len(cells) >= 2 and all(cells):
+                advanced_count += 1
     evaluated = evaluate_monitor_rows(
         observed,
         primary_columns=columns,
         advanced_identity_count=advanced_count,
+        neutral_visible=neutral.count() == 1,
     )
     return _assertion(
         "monitor_process_rows",
@@ -2565,6 +2690,7 @@ def _measure_route(
             assertions.append(_discover_action_assertion(page))
             assertions.append(_discover_rows_assertion(page))
         if route.name == "Monitor":
+            assertions.append(_monitor_brief_assertion(page, viewport[0]))
             assertions.append(_monitor_rows_assertion(page))
         if route.name == "Company Workbench":
             assertions.extend(_authoring_error_assertions(page))

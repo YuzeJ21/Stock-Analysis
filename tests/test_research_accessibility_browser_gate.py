@@ -1367,50 +1367,76 @@ def test_discover_row_contract_requires_three_visible_answers_and_ticker_action(
     assert "three visible non-empty answers" in str(missing_answer["detail"])
 
 
-def test_monitor_row_contract_preserves_cohort_order_and_rejects_rank_fields():
+def test_monitor_row_contract_accepts_filtered_order_and_rejects_monitor_or_rank_fields():
     from src.research_accessibility_browser_gate import evaluate_monitor_rows
 
     passed = evaluate_monitor_rows(
         (
             {
-                "cohort_order": 0,
+                "cohort_order": 1,
                 "ticker": "BBB",
-                "attention": "Scheduled",
-                "reason": "Reviewed catalyst is scheduled for 2026-08-20.",
+                "attention": "Needs review",
+                "reason": "Conflicting saved evidence needs review.",
             },
             {
-                "cohort_order": 1,
-                "ticker": "AAA",
-                "attention": "Monitor",
-                "reason": "No saved research-process transition is due.",
+                "cohort_order": 4,
+                "ticker": "EEE",
+                "attention": "Scheduled",
+                "reason": "Reviewer-authored review is scheduled.",
             },
         ),
         primary_columns=("TICKER", "PROCESS ATTENTION", "WHY"),
-        advanced_identity_count=2,
+        advanced_identity_count=5,
+        neutral_visible=False,
+    )
+    all_monitor = evaluate_monitor_rows(
+        (),
+        primary_columns=(),
+        advanced_identity_count=5,
+        neutral_visible=True,
+    )
+    leaked_monitor = evaluate_monitor_rows(
+        ({"cohort_order": 0, "ticker": "AAA", "attention": "Monitor", "reason": "Wait."},),
+        primary_columns=("Ticker", "Process attention", "Why"),
+        advanced_identity_count=5,
+        neutral_visible=False,
     )
     ranked = evaluate_monitor_rows(
-        (
-            {
-                "cohort_order": 2,
-                "ticker": "AAA",
-                "attention": "Monitor",
-                "reason": "No saved research-process transition is due.",
-            },
-            {
-                "cohort_order": 1,
-                "ticker": "BBB",
-                "attention": "Scheduled",
-                "reason": "Reviewed catalyst is scheduled for 2026-08-20.",
-            },
-        ),
+        ({"cohort_order": 2, "ticker": "CCC", "attention": "Scheduled", "reason": "Saved review."},),
         primary_columns=("Ticker", "Process attention", "Return score"),
-        advanced_identity_count=2,
+        advanced_identity_count=5,
+        neutral_visible=False,
     )
 
     assert passed["passed"] is True
+    assert all_monitor["passed"] is True
+    assert leaked_monitor["passed"] is False
+    assert "monitor row" in str(leaked_monitor["detail"]).lower()
     assert ranked["passed"] is False
-    assert "saved cohort order" in str(ranked["detail"])
     assert "rank/score/return" in str(ranked["detail"])
+
+
+def test_monitor_brief_geometry_requires_two_columns_on_desktop_and_one_on_phone():
+    from src.research_accessibility_browser_gate import evaluate_monitor_brief
+
+    desktop = evaluate_monitor_brief(
+        kickers=("WEEKLY RESEARCH SUMMARY", "RESEARCH FOLLOW-UP", "SCHEDULED CONTEXT", "EVIDENCE FRESHNESS"),
+        boxes=((0, 0), (500, 0), (0, 180), (500, 180)),
+        viewport_width=1280,
+    )
+    phone = evaluate_monitor_brief(
+        kickers=("WEEKLY RESEARCH SUMMARY", "RESEARCH FOLLOW-UP", "SCHEDULED CONTEXT", "EVIDENCE FRESHNESS"),
+        boxes=((0, 0), (0, 180), (0, 360), (0, 540)),
+        viewport_width=390,
+    )
+    wrong_phone = evaluate_monitor_brief(
+        kickers=("WEEKLY RESEARCH SUMMARY", "RESEARCH FOLLOW-UP", "SCHEDULED CONTEXT", "EVIDENCE FRESHNESS"),
+        boxes=((0, 0), (180, 0), (0, 180), (180, 180)),
+        viewport_width=390,
+    )
+    assert desktop["passed"] is True
+    assert phone["passed"] is True
+    assert wrong_phone["passed"] is False
 
 
 def test_state_harness_snapshot_rejects_hidden_duplicate_or_wrong_live_semantics():
