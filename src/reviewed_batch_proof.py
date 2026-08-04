@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import csv
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -56,6 +57,20 @@ POST_APPLY_READINESS_TOKENS = {
     "optional_context": ("make optional-context-readiness",),
     "optional_context_locked": ("make optional-context-readiness",),
 }
+PRIMARY_PRODUCT_PLACEHOLDER = re.compile(r"<[A-Za-z0-9][A-Za-z0-9_-]*>")
+PRIMARY_REVIEWED_READ_ONLY_TARGETS = {
+    "imports-validate",
+    "imports-preview",
+    "price-validate",
+    "price-preview",
+    "status-check",
+}
+PRIMARY_REVIEWED_APPLY_TARGETS = {"imports-apply", "price-apply"}
+PRIMARY_REVIEWED_WRITE_SEQUENCES = {
+    ("imports-validate", "imports-preview", "imports-apply"),
+    ("price-validate", "price-preview", "price-apply"),
+}
+PRIMARY_PRICE_UNAVAILABLE = "Price writes are unavailable outside local profile; rerun with PROFILE=local."
 
 REQUIRED_BATCH_PROOF_FIELDS = (
     "batch_id",
@@ -197,6 +212,92 @@ def profile_bound_reviewed_write_proof_sequence(
         for step in after_compare_steps
         if str(step).strip()
     )
+    return " && ".join(commands)
+
+
+def _primary_reviewed_step_target(*, profile: str, step: str, allow_apply: bool = False) -> str:
+    """Validate one primary proof command and return its single make target."""
+
+    selected_profile = resolve_readiness_proof_profile(profile)
+    original = str(step or "").strip()
+    normalized = PRIMARY_PRODUCT_PLACEHOLDER.sub("placeholder", original)
+    if not normalized or any(token in normalized for token in ("&&", ";", "|", ">", "<", "`", "$")):
+        raise ValueError("primary proof steps must be one shell-free make command")
+    parts = normalized.split()
+    profile_prefix = f"{DATA_PROFILE_ENV}="
+    if parts and parts[0].startswith(profile_prefix):
+        if parts[0] != f"{profile_prefix}{selected_profile}":
+            raise ValueError("primary proof step profile must match the selected proof profile")
+        parts = parts[1:]
+    if len(parts) < 2 or parts[0] != "make" or "make" in parts[2:]:
+        raise ValueError("primary proof steps must contain exactly one make target")
+    target = parts[1]
+    output_keys = {"output", "output_dir", "output_file", "report", "report_path", "ledger"}
+    for argument in parts[2:]:
+        key, separator, _ = argument.partition("=")
+        if separator and (key.lower() in output_keys or key.lower().startswith("output_")):
+            raise ValueError("primary proof steps must not set output arguments")
+    allowed_targets = PRIMARY_REVIEWED_READ_ONLY_TARGETS | (PRIMARY_REVIEWED_APPLY_TARGETS if allow_apply else set())
+    if target not in allowed_targets:
+        raise ValueError(f"primary proof target is not approved: {target}")
+    return target
+
+
+def _primary_profile_scoped_step(*, profile: str, step: str) -> str:
+    selected_profile = resolve_readiness_proof_profile(profile)
+    command = str(step).strip()
+    prefix = f"{DATA_PROFILE_ENV}={selected_profile} "
+    return command if command.startswith(prefix) else f"{prefix}{command}"
+
+
+def primary_profile_scoped_reviewed_step(*, profile: str, step: str) -> str:
+    """Return one approved, read-only primary proof command bound to ``profile``."""
+
+    selected_profile = resolve_readiness_proof_profile(profile)
+    _primary_reviewed_step_target(profile=selected_profile, step=step)
+    return _primary_profile_scoped_step(profile=selected_profile, step=step)
+
+
+def primary_profile_bound_reviewed_write_proof_sequence(
+    *,
+    profile: str,
+    lane: str,
+    reviewed_steps: Iterable[str],
+    after_compare_steps: Iterable[str] = (),
+) -> str:
+    """Compose the strict, primary-only reviewed-write proof sequence."""
+
+    selected_profile = resolve_readiness_proof_profile(profile)
+    selected_lane = str(lane or "").strip()
+    if not selected_lane or "<" in selected_lane or ">" in selected_lane:
+        raise ValueError("lane is required and must not contain a placeholder")
+    if "price" in selected_lane and selected_profile != "local":
+        return PRIMARY_PRICE_UNAVAILABLE
+
+    steps = [str(step).strip() for step in reviewed_steps if str(step).strip()]
+    targets = tuple(
+        _primary_reviewed_step_target(profile=selected_profile, step=step, allow_apply=True) for step in steps
+    )
+    if targets not in PRIMARY_REVIEWED_WRITE_SEQUENCES:
+        raise ValueError("primary reviewed write steps must be exactly validate, preview, and apply in order")
+    scoped_steps = [_primary_profile_scoped_step(profile=selected_profile, step=step) for step in steps]
+    scoped_tails: list[str] = []
+    for step in after_compare_steps:
+        if not str(step).strip():
+            continue
+        target = _primary_reviewed_step_target(profile=selected_profile, step=str(step))
+        if target != "status-check":
+            raise ValueError("primary proof after-compare steps must be approved read-only status checks")
+        scoped_tails.append(primary_profile_scoped_reviewed_step(profile=selected_profile, step=str(step)))
+    commands = [
+        f"make readiness-snapshot PROFILE={selected_profile}",
+        *scoped_steps,
+        (
+            f"make reviewed-batch-compare PROFILE={selected_profile} LANE={selected_lane} "
+            "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        ),
+        *scoped_tails,
+    ]
     return " && ".join(commands)
 
 

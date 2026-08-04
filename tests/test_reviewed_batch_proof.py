@@ -8,6 +8,8 @@ from src.reviewed_batch_proof import (
     build_batch_proof_from_args,
     load_reviewed_batch_proofs,
     main,
+    primary_profile_bound_reviewed_write_proof_sequence,
+    primary_profile_scoped_reviewed_step,
     profile_bound_reviewed_write_proof_sequence,
     render_reviewed_batch_proofs,
     reviewed_batch_proof_validation_rows,
@@ -65,6 +67,148 @@ def test_fundamentals_write_proof_requires_post_apply_readiness_rebuild(reviewed
             lane="fundamentals",
             reviewed_steps=reviewed_steps,
         )
+
+
+@pytest.mark.parametrize(
+    "unsafe_step",
+    (
+        "make status-check && make pipeline",
+        "make status-check; make pipeline",
+        "make status-check | tee /tmp/x",
+        "make status-check>/tmp/x",
+        "make status-check > /tmp/x",
+        "make status-check OUTPUT=/tmp/x",
+        "make imports-apply IMPORT_TICKERS=AAA",
+        "make stock-report-md TICKER=AAA",
+        "make readiness-materialize PROFILE=local",
+    ),
+)
+def test_primary_profile_scoped_reviewed_step_rejects_apply_writers_and_shell_composition(unsafe_step):
+    with pytest.raises(ValueError):
+        primary_profile_scoped_reviewed_step(profile="local", step=unsafe_step)
+
+
+@pytest.mark.parametrize(
+    "writer_step",
+    (
+        "make readiness",
+        "make dcf-readiness",
+        "make optional-context-readiness",
+        "make stock-report-md TICKER=AAA",
+        "make pipeline",
+        "make reviewed-batch-proof-record BATCH_ID=RB-1",
+    ),
+)
+def test_primary_profile_scoped_reviewed_step_rejects_primary_writer_targets(writer_step):
+    with pytest.raises(ValueError):
+        primary_profile_scoped_reviewed_step(profile="local", step=writer_step)
+
+
+def test_primary_profile_scoped_reviewed_step_binds_an_approved_read_only_target():
+    assert primary_profile_scoped_reviewed_step(
+        profile="local", step="make status-check TOP_N=<top-n>"
+    ) == "STOCK_RESEARCH_DATA_PROFILE=local make status-check TOP_N=<top-n>"
+
+
+def test_reviewed_write_proof_is_same_profile_and_apply_immediately_precedes_compare():
+    proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile="local",
+        lane="fundamentals",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=AAA",
+            "make imports-preview IMPORT_TICKERS=AAA",
+            "make imports-apply IMPORT_TICKERS=AAA",
+        ),
+        after_compare_steps=("make status-check TOP_N=5",),
+    )
+    assert proof.split(" && ") == [
+        "make readiness-snapshot PROFILE=local",
+        "STOCK_RESEARCH_DATA_PROFILE=local make imports-validate IMPORT_TICKERS=AAA",
+        "STOCK_RESEARCH_DATA_PROFILE=local make imports-preview IMPORT_TICKERS=AAA",
+        "STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=AAA",
+        "make reviewed-batch-compare PROFILE=local LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+        "STOCK_RESEARCH_DATA_PROFILE=local make status-check TOP_N=5",
+    ]
+
+
+@pytest.mark.parametrize(
+    "reviewed_steps, after_compare_steps",
+    (
+        (
+            (
+                "make status-check TOP_N=5",
+                "make imports-validate IMPORT_TICKERS=AAA",
+                "make imports-preview IMPORT_TICKERS=AAA",
+                "make imports-apply IMPORT_TICKERS=AAA",
+            ),
+            (),
+        ),
+        (
+            (
+                "make imports-validate IMPORT_TICKERS=AAA",
+                "make imports-preview IMPORT_TICKERS=AAA",
+                "make imports-apply IMPORT_TICKERS=AAA",
+                "make status-check TOP_N=5",
+            ),
+            (),
+        ),
+        (
+            (
+                "STOCK_RESEARCH_DATA_PROFILE=demo make imports-validate IMPORT_TICKERS=AAA",
+                "make imports-preview IMPORT_TICKERS=AAA",
+                "make imports-apply IMPORT_TICKERS=AAA",
+            ),
+            (),
+        ),
+        (
+            (
+                "make imports-validate IMPORT_TICKERS=AAA",
+                "make imports-preview IMPORT_TICKERS=AAA",
+                "make imports-apply IMPORT_TICKERS=AAA",
+            ),
+            ("make stock-report-md TICKER=AAA",),
+        ),
+    ),
+)
+def test_primary_reviewed_write_proof_rejects_non_adjacent_apply_or_writer_tail(
+    reviewed_steps, after_compare_steps
+):
+    with pytest.raises(ValueError):
+        primary_profile_bound_reviewed_write_proof_sequence(
+            profile="local",
+            lane="fundamentals",
+            reviewed_steps=reviewed_steps,
+            after_compare_steps=after_compare_steps,
+        )
+
+
+@pytest.mark.parametrize("profile", ("default", "demo"))
+def test_primary_price_proof_is_unavailable_outside_local_profile(profile):
+    proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile=profile,
+        lane="prices",
+        reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+    )
+
+    assert proof == "Price writes are unavailable outside local profile; rerun with PROFILE=local."
+    assert "price-validate" not in proof
+    assert "price-preview" not in proof
+    assert "price-apply" not in proof
+
+
+def test_primary_price_proof_is_executable_for_local_profile():
+    proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile="local",
+        lane="prices",
+        reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+    )
+
+    assert proof.split(" && ")[1:5] == [
+        "STOCK_RESEARCH_DATA_PROFILE=local make price-validate",
+        "STOCK_RESEARCH_DATA_PROFILE=local make price-preview",
+        "STOCK_RESEARCH_DATA_PROFILE=local make price-apply",
+        "make reviewed-batch-compare PROFILE=local LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+    ]
 
 
 def _proof(**overrides) -> ReviewedBatchProof:
