@@ -70,6 +70,16 @@ PRIMARY_REVIEWED_WRITE_SEQUENCES = {
     ("imports-validate", "imports-preview", "imports-apply"),
     ("price-validate", "price-preview", "price-apply"),
 }
+PRIMARY_REVIEWED_ARGUMENT_KEYS = {
+    "imports-validate": {"IMPORT_TICKERS", "IMPORT_FILES"},
+    "imports-preview": {"IMPORT_TICKERS", "IMPORT_FILES"},
+    "imports-apply": {"IMPORT_TICKERS", "IMPORT_FILES"},
+    "price-validate": set(),
+    "price-preview": set(),
+    "price-apply": set(),
+    "status-check": {"TOP_N"},
+}
+PRIMARY_PRICE_LANES = {"price", "prices", "daily_price_refresh"}
 PRIMARY_PRICE_UNAVAILABLE = "Price writes are unavailable outside local profile; rerun with PROFILE=local."
 
 REQUIRED_BATCH_PROOF_FIELDS = (
@@ -229,14 +239,20 @@ def _primary_reviewed_step_target(*, profile: str, step: str, allow_apply: bool 
         if parts[0] != f"{profile_prefix}{selected_profile}":
             raise ValueError("primary proof step profile must match the selected proof profile")
         parts = parts[1:]
-    if len(parts) < 2 or parts[0] != "make" or "make" in parts[2:]:
+    if len(parts) < 2 or parts[0] != "make":
         raise ValueError("primary proof steps must contain exactly one make target")
     target = parts[1]
-    output_keys = {"output", "output_dir", "output_file", "report", "report_path", "ledger"}
+    if any(part.startswith(profile_prefix) for part in parts):
+        raise ValueError("primary proof step profile must be the sole selected leading prefix")
+    allowed_argument_keys = PRIMARY_REVIEWED_ARGUMENT_KEYS.get(target)
+    if allowed_argument_keys is None:
+        raise ValueError(f"primary proof target is not approved: {target}")
+    seen_argument_keys: set[str] = set()
     for argument in parts[2:]:
-        key, separator, _ = argument.partition("=")
-        if separator and (key.lower() in output_keys or key.lower().startswith("output_")):
-            raise ValueError("primary proof steps must not set output arguments")
+        key, separator, value = argument.partition("=")
+        if not separator or not key or not value or key not in allowed_argument_keys or key in seen_argument_keys:
+            raise ValueError("primary proof step arguments must be approved KEY=VALUE inputs")
+        seen_argument_keys.add(key)
     allowed_targets = PRIMARY_REVIEWED_READ_ONLY_TARGETS | (PRIMARY_REVIEWED_APPLY_TARGETS if allow_apply else set())
     if target not in allowed_targets:
         raise ValueError(f"primary proof target is not approved: {target}")
@@ -271,15 +287,18 @@ def primary_profile_bound_reviewed_write_proof_sequence(
     selected_lane = str(lane or "").strip()
     if not selected_lane or "<" in selected_lane or ">" in selected_lane:
         raise ValueError("lane is required and must not contain a placeholder")
-    if "price" in selected_lane and selected_profile != "local":
-        return PRIMARY_PRICE_UNAVAILABLE
-
     steps = [str(step).strip() for step in reviewed_steps if str(step).strip()]
     targets = tuple(
         _primary_reviewed_step_target(profile=selected_profile, step=step, allow_apply=True) for step in steps
     )
     if targets not in PRIMARY_REVIEWED_WRITE_SEQUENCES:
         raise ValueError("primary reviewed write steps must be exactly validate, preview, and apply in order")
+    is_price_sequence = targets == ("price-validate", "price-preview", "price-apply")
+    is_price_lane = selected_lane.casefold() in PRIMARY_PRICE_LANES
+    if is_price_sequence and selected_profile != "local":
+        return PRIMARY_PRICE_UNAVAILABLE
+    if is_price_sequence != is_price_lane:
+        raise ValueError("primary price proof targets must match a price lane")
     scoped_steps = [_primary_profile_scoped_step(profile=selected_profile, step=step) for step in steps]
     scoped_tails: list[str] = []
     for step in after_compare_steps:

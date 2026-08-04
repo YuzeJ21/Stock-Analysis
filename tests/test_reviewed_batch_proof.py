@@ -211,6 +211,98 @@ def test_primary_price_proof_is_executable_for_local_profile():
     ]
 
 
+@pytest.mark.parametrize(
+    "unsafe_step",
+    (
+        "make imports-validate imports-apply",
+        "make status-check pipeline",
+        "make status-check STOCK_RESEARCH_DATA_PROFILE=demo",
+        "make status-check -n",
+        "make status-check UNRELATED=1",
+    ),
+)
+def test_primary_profile_scoped_reviewed_step_rejects_extra_targets_profile_overrides_and_unapproved_arguments(
+    unsafe_step,
+):
+    with pytest.raises(ValueError):
+        primary_profile_scoped_reviewed_step(profile="local", step=unsafe_step)
+
+
+@pytest.mark.parametrize(
+    "reviewed_steps",
+    (
+        (
+            "make imports-validate IMPORT_TICKERS=AAA",
+            "make imports-preview IMPORT_TICKERS=AAA",
+            "make imports-preview IMPORT_TICKERS=AAA",
+            "make imports-apply IMPORT_TICKERS=AAA",
+        ),
+        (
+            "make imports-validate IMPORT_TICKERS=AAA",
+            "make imports-apply IMPORT_TICKERS=AAA",
+        ),
+        (
+            "make imports-preview IMPORT_TICKERS=AAA",
+            "make imports-validate IMPORT_TICKERS=AAA",
+            "make imports-apply IMPORT_TICKERS=AAA",
+        ),
+    ),
+)
+def test_primary_reviewed_write_proof_rejects_duplicate_missing_and_reordered_steps(reviewed_steps):
+    with pytest.raises(ValueError):
+        primary_profile_bound_reviewed_write_proof_sequence(
+            profile="local", lane="fundamentals", reviewed_steps=reviewed_steps
+        )
+
+
+def test_primary_reviewed_write_proof_rejects_extra_make_target_after_compare():
+    with pytest.raises(ValueError):
+        primary_profile_bound_reviewed_write_proof_sequence(
+            profile="local",
+            lane="fundamentals",
+            reviewed_steps=(
+                "make imports-validate IMPORT_TICKERS=AAA",
+                "make imports-preview IMPORT_TICKERS=AAA",
+                "make imports-apply IMPORT_TICKERS=AAA",
+            ),
+            after_compare_steps=("make status-check pipeline",),
+        )
+
+
+def test_primary_price_sequence_is_unavailable_for_non_local_profile_even_with_a_non_price_lane():
+    proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile="default",
+        lane="fundamentals",
+        reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+    )
+
+    assert proof == "Price writes are unavailable outside local profile; rerun with PROFILE=local."
+
+
+@pytest.mark.parametrize(
+    "lane, reviewed_steps",
+    (
+        (
+            "fundamentals",
+            ("make price-validate", "make price-preview", "make price-apply"),
+        ),
+        (
+            "PRICES",
+            (
+                "make imports-validate IMPORT_TICKERS=AAA",
+                "make imports-preview IMPORT_TICKERS=AAA",
+                "make imports-apply IMPORT_TICKERS=AAA",
+            ),
+        ),
+    ),
+)
+def test_primary_reviewed_write_proof_rejects_price_sequence_and_lane_mismatches(lane, reviewed_steps):
+    with pytest.raises(ValueError):
+        primary_profile_bound_reviewed_write_proof_sequence(
+            profile="local", lane=lane, reviewed_steps=reviewed_steps
+        )
+
+
 def _proof(**overrides) -> ReviewedBatchProof:
     values = {
         "batch_id": "RB-TEST-001",
