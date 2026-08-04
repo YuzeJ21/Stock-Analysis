@@ -3,10 +3,12 @@ from types import SimpleNamespace
 import pytest
 
 from src import research_workspace
+from src.research_decision_lab import ResearchDisciplineRow
 from src.research_workspace import (
     RESEARCH_ROUTING_STATES,
     advanced_evidence_links,
     advanced_evidence_links_html,
+    build_evidence_monitor_brief,
     cash_generation_preview_cards,
     cash_generation_preview_rows,
     company_workbench_section_contract,
@@ -35,7 +37,106 @@ from src.focused_research_cohort import FocusedCohort, FocusedCohortMember
 from src.earnings_nowcast_contract import QuarterlyActual
 from src.quarterly_business_trend import build_quarterly_trend_packet
 from src.quarterly_cash_generation import QuarterlyBusinessObservation
-from src.weekly_research_summary import WeeklyResearchSummary
+from src.weekly_research_summary import WeeklyResearchSummary, WeeklySummaryItem
+
+
+def _discipline_row(order: int, ticker: str, state: str, label: str, reason: str):
+    return ResearchDisciplineRow(
+        cohort_order=order,
+        ticker=ticker,
+        status="ready",
+        due_lanes=(),
+        next_process_step=reason,
+        identity=f"identity-{ticker}",
+        attention_state=state,
+        attention_label=label,
+        attention_reason=reason,
+        attention_source="research_process",
+    )
+
+
+def _weekly_summary(*items: WeeklySummaryItem) -> WeeklyResearchSummary:
+    return WeeklyResearchSummary(
+        status="review_required" if items else "no_changes",
+        as_of="2026-08-04T00:00:00+00:00",
+        cohort_size=4,
+        unique_event_count=len(items),
+        items=tuple(items),
+        message=(
+            f"{len(items)} traceable cohort research item(s) require review or monitoring."
+            if items
+            else "No traceable cohort evidence change requires review this week."
+        ),
+    )
+
+
+def test_evidence_monitor_brief_composes_four_questions_without_ranking():
+    rows = (
+        _discipline_row(0, "AAA", "monitor", "Monitor", "No saved process item is due."),
+        _discipline_row(1, "BBB", "conflict_review_needed", "Needs review", "Conflicting saved evidence needs review."),
+        _discipline_row(2, "CCC", "scheduled_review", "Scheduled", "Reviewer-authored review is scheduled for 2026-08-20."),
+        _discipline_row(3, "DDD", "unavailable", "Unavailable", "Catalyst evidence could not be verified."),
+    )
+    result = build_evidence_monitor_brief(
+        _weekly_summary(),
+        rows,
+        readiness_state="current",
+        readiness_message="Saved readiness is current.",
+        observation_state="stale",
+        observation_message="Market observations are historical context only.",
+    )
+
+    assert [card.key for card in result.cards] == ["weekly", "follow_up", "scheduled", "freshness"]
+    assert result.cards[0].kicker == "WEEKLY RESEARCH SUMMARY"
+    assert "0 traceable" in result.cards[0].title
+    assert "1 needs review" in result.cards[1].title
+    assert "1 unavailable" in result.cards[1].title
+    assert "1 scheduled" in result.cards[2].title
+    assert result.cards[3].badges == ("saved readiness: current", "market observation: stale")
+    assert [row.ticker for row in result.primary_rows] == ["BBB", "CCC", "DDD"]
+    assert result.monitor_count == 1
+
+
+def test_evidence_monitor_brief_keeps_candidate_and_freshness_states_truthful():
+    candidate = _discipline_row(
+        0,
+        "AAA",
+        "scheduled_catalyst",
+        "Scheduled",
+        "Candidate-only catalyst context is scheduled for review.",
+    )
+    result = build_evidence_monitor_brief(
+        _weekly_summary(),
+        (candidate,),
+        readiness_state="working_artifact_uncommitted",
+        readiness_message="Saved readiness is not release evidence.",
+        observation_state="unavailable",
+        observation_message="No current market observation is available.",
+    )
+    rendered = " ".join(
+        " ".join((card.kicker, card.title, card.body, *card.badges)) for card in result.cards
+    )
+    assert "candidate-only" in rendered.lower()
+    assert "verified catalyst" not in rendered.lower()
+    assert "source-backed catalyst" not in rendered.lower()
+    assert "working_artifact_uncommitted" in rendered
+    assert "market observation: unavailable" in rendered.lower()
+
+
+def test_evidence_monitor_brief_empty_rows_do_not_invent_monitoring_evidence():
+    result = build_evidence_monitor_brief(
+        _weekly_summary(),
+        (),
+        readiness_state="unavailable",
+        readiness_message="Saved readiness is unavailable.",
+        observation_state="unavailable",
+        observation_message="Market observation is unavailable.",
+    )
+    assert result.primary_rows == ()
+    assert result.monitor_count == 0
+    assert "0 needs review" in result.cards[1].title
+    assert "0 scheduled" in result.cards[2].title
+    assert "no saved" in result.cards[1].body.lower()
 
 
 def test_research_accessibility_media_preferences_css_declares_bounded_fallbacks():

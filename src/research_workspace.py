@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 import html
 import pandas as pd
 from urllib.parse import quote
@@ -13,10 +14,100 @@ from src.company_workbench_cash_generation_preview import (
 from src.focused_cohort_coverage import FocusedCohortCoverage
 from src.focused_research_cohort import FocusedCohort
 from src.quarterly_business_trend import QuarterlyTrendPacket
+from src.research_decision_lab import ResearchDisciplineRow
 from src.weekly_research_summary import WeeklyResearchSummary
 
 
 RESEARCH_ROUTING_STATES = {"review_now", "monitor", "wait_for_evidence", "excluded"}
+
+
+@dataclass(frozen=True)
+class EvidenceMonitorCard:
+    key: str
+    kicker: str
+    title: str
+    body: str
+    badges: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class EvidenceMonitorBrief:
+    cards: tuple[EvidenceMonitorCard, ...]
+    primary_rows: tuple[ResearchDisciplineRow, ...]
+    monitor_count: int
+
+
+def build_evidence_monitor_brief(
+    summary: WeeklyResearchSummary,
+    rows: Iterable[ResearchDisciplineRow],
+    *,
+    readiness_state: str,
+    readiness_message: str,
+    observation_state: str,
+    observation_message: str,
+) -> EvidenceMonitorBrief:
+    ordered = tuple(rows)
+    primary_rows = tuple(row for row in ordered if row.attention_state != "monitor")
+    monitor_count = sum(row.attention_state == "monitor" for row in ordered)
+    needs_review = tuple(row for row in ordered if row.attention_label == "Needs review")
+    unavailable = tuple(row for row in ordered if row.attention_state == "unavailable")
+    scheduled = tuple(row for row in ordered if row.attention_label == "Scheduled")
+
+    follow_up_body = (
+        needs_review[0].attention_reason
+        if needs_review
+        else unavailable[0].attention_reason
+        if unavailable
+        else "No saved research-process follow-up is currently due."
+    )
+    scheduled_body = (
+        scheduled[0].attention_reason
+        if scheduled
+        else "No saved research-process context is currently scheduled."
+    )
+    normalized_readiness = str(readiness_state or "unavailable").strip()
+    normalized_observation = str(observation_state or "unavailable").strip()
+    readiness_body = str(readiness_message or "Saved readiness is unavailable.").strip()
+    observation_body = str(observation_message or "Market observation is unavailable.").strip()
+
+    cards = (
+        EvidenceMonitorCard(
+            "weekly",
+            "WEEKLY RESEARCH SUMMARY",
+            f"{len(summary.items)} traceable item{'s' if len(summary.items) != 1 else ''}",
+            summary.message,
+            (
+                summary.status.replace("_", " "),
+                "7-day saved window",
+                f"{summary.cohort_size} companies",
+            ),
+        ),
+        EvidenceMonitorCard(
+            "follow_up",
+            "RESEARCH FOLLOW-UP",
+            f"{len(needs_review)} needs review; {len(unavailable)} unavailable",
+            follow_up_body,
+            ("process timing", "not a company score", f"{monitor_count} monitor"),
+        ),
+        EvidenceMonitorCard(
+            "scheduled",
+            "SCHEDULED CONTEXT",
+            f"{len(scheduled)} scheduled",
+            scheduled_body,
+            ("saved process context", "not urgency"),
+        ),
+        EvidenceMonitorCard(
+            "freshness",
+            "EVIDENCE FRESHNESS",
+            f"Readiness {normalized_readiness}; observation {normalized_observation}",
+            f"Saved readiness: {readiness_body} Market observation: {observation_body}",
+            (
+                f"saved readiness: {normalized_readiness}",
+                f"market observation: {normalized_observation}",
+            ),
+        ),
+    )
+    return EvidenceMonitorBrief(cards, primary_rows, monitor_count)
 
 
 def research_desk_cards(*, change_status: str, review_items, readiness_summary: dict[str, object]):
