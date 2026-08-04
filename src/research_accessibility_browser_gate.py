@@ -408,7 +408,9 @@ def evaluate_monitor_rows(
     *,
     primary_columns: Iterable[str],
     primary_table_present: bool,
+    advanced_present: bool,
     advanced_identity_count: int,
+    expected_discipline_count: int,
     neutral_visible: bool,
 ) -> dict[str, object]:
     """Require a filtered process-only Monitor view in saved cohort order."""
@@ -453,12 +455,23 @@ def evaluate_monitor_rows(
         for forbidden in ("rank", "score", "return")
     ):
         failures.append("rank/score/return fields are forbidden in Monitor")
+    if advanced_present is not True:
+        failures.append(
+            "exactly one Advanced discipline evidence container must remain available"
+        )
+    if type(expected_discipline_count) is not int or expected_discipline_count < 0:
+        failures.append("expected saved discipline row count is invalid")
+    elif expected_discipline_count < len(observed):
+        failures.append(
+            "expected saved discipline row count cannot be smaller than the primary rows"
+        )
     if (
         type(advanced_identity_count) is not int
-        or advanced_identity_count < max(1, len(observed))
+        or advanced_identity_count != expected_discipline_count
     ):
         failures.append(
-            "Advanced identity evidence must remain separate and complete"
+            "Advanced identity evidence must remain separate and complete: "
+            f"found {advanced_identity_count!r}, expected {expected_discipline_count!r}"
         )
     return {
         "passed": not failures,
@@ -2245,6 +2258,26 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
             False,
             f"expected at most one Monitor neutral state, found {neutral.count()}",
         )
+    monitor_badges = page.locator(
+        ".signal-grid.evidence-monitor-grid .tiny-badge"
+    ).all_inner_texts()
+    collapsed_monitor_counts: list[int] = []
+    for badge in monitor_badges:
+        parts = str(badge or "").strip().casefold().split()
+        if len(parts) != 2 or parts[1] != "monitor":
+            continue
+        try:
+            collapsed_monitor_counts.append(int(parts[0]))
+        except ValueError:
+            continue
+    if len(collapsed_monitor_counts) != 1:
+        return _assertion(
+            "monitor_process_rows",
+            False,
+            "expected one rendered collapsed-Monitor count in the Evidence Monitor Brief, "
+            f"found {len(collapsed_monitor_counts)}",
+        )
+    expected_discipline_count = len(observed) + collapsed_monitor_counts[0]
     advanced = page.locator("details").filter(
         has=page.get_by_text(
             "Advanced: Research Discipline evidence",
@@ -2271,7 +2304,9 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
         observed,
         primary_columns=columns,
         primary_table_present=table.count() == 1,
+        advanced_present=advanced.count() == 1,
         advanced_identity_count=advanced_count,
+        expected_discipline_count=expected_discipline_count,
         neutral_visible=neutral.count() == 1,
     )
     return _assertion(

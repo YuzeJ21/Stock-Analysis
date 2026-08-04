@@ -97,6 +97,64 @@ def test_evidence_monitor_brief_composes_four_questions_without_ranking():
     assert result.monitor_count == 1
 
 
+@pytest.mark.parametrize(
+    ("rows", "expected_reason"),
+    (
+        (
+            (
+                _discipline_row(
+                    0,
+                    "AAA",
+                    "unavailable",
+                    "Unavailable",
+                    "AAA evidence is unavailable.",
+                ),
+                _discipline_row(
+                    1,
+                    "BBB",
+                    "conflicting_evidence",
+                    "Needs review",
+                    "BBB evidence needs review.",
+                ),
+            ),
+            "AAA evidence is unavailable.",
+        ),
+        (
+            (
+                _discipline_row(
+                    0,
+                    "AAA",
+                    "conflicting_evidence",
+                    "Needs review",
+                    "AAA evidence needs review.",
+                ),
+                _discipline_row(
+                    1,
+                    "BBB",
+                    "unavailable",
+                    "Unavailable",
+                    "BBB evidence is unavailable.",
+                ),
+            ),
+            "AAA evidence needs review.",
+        ),
+    ),
+)
+def test_evidence_monitor_follow_up_example_preserves_saved_cohort_order(
+    rows, expected_reason
+):
+    result = build_evidence_monitor_brief(
+        _weekly_summary(),
+        rows,
+        readiness_state="current",
+        readiness_message="Saved readiness is current.",
+        observation_state="current",
+        observation_message="Market observation is current.",
+    )
+
+    assert result.cards[1].body == expected_reason
+
+
 def test_evidence_monitor_brief_keeps_candidate_and_freshness_states_truthful():
     candidate = _discipline_row(
         0,
@@ -121,6 +179,29 @@ def test_evidence_monitor_brief_keeps_candidate_and_freshness_states_truthful():
     assert "source-backed catalyst" not in rendered.lower()
     assert "working_artifact_uncommitted" in rendered
     assert "market observation: unavailable" in rendered.lower()
+
+
+@pytest.mark.parametrize("blank", ("", " \t\n"))
+def test_evidence_monitor_brief_blank_freshness_inputs_fail_closed(blank):
+    result = build_evidence_monitor_brief(
+        _weekly_summary(),
+        (),
+        readiness_state=blank,
+        readiness_message=blank,
+        observation_state=blank,
+        observation_message=blank,
+    )
+
+    freshness = result.cards[3]
+    assert freshness.title == "Readiness unavailable; observation unavailable"
+    assert freshness.body == (
+        "Saved readiness: Saved readiness is unavailable. "
+        "Market observation: Market observation is unavailable."
+    )
+    assert freshness.badges == (
+        "saved readiness: unavailable",
+        "market observation: unavailable",
+    )
 
 
 def test_evidence_monitor_brief_empty_rows_do_not_invent_monitoring_evidence():

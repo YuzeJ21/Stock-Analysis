@@ -601,11 +601,16 @@ def derive_research_process_attention(
                     "Upcoming catalyst evidence does not match the selected ticker."
                 )
             else:
+                context_label = (
+                    "Candidate-only catalyst context"
+                    if first_event.evidence_state == "candidate_context_only"
+                    else "Reviewed catalyst context"
+                )
                 return ResearchProcessAttention(
                     "scheduled_catalyst",
                     "Scheduled",
                     (
-                        "Reviewed catalyst context is scheduled for "
+                        f"{context_label} is scheduled for "
                         f"{first_event.effective_at}."
                     ),
                     "catalyst",

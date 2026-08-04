@@ -457,6 +457,46 @@ def test_discipline_rows_add_attention_without_changing_cohort_order_or_identity
     ]
 
 
+def test_candidate_catalyst_state_survives_discipline_row_and_monitor_composition():
+    from src.research_workspace import build_evidence_monitor_brief
+    from src.weekly_research_summary import WeeklyResearchSummary
+
+    rows = build_research_discipline_rows(
+        {"ALFA": _state_with_lane_states(review_trigger="unscheduled")},
+        focused_tickers=("ALFA",),
+        catalyst_timelines_by_ticker={"ALFA": _upcoming_catalyst()},
+    )
+    brief = build_evidence_monitor_brief(
+        WeeklyResearchSummary(
+            status="no_changes",
+            as_of="2026-08-04T00:00:00+00:00",
+            cohort_size=1,
+            unique_event_count=0,
+            items=(),
+            message="No traceable saved cohort item requires review.",
+        ),
+        rows,
+        readiness_state="current",
+        readiness_message="Saved readiness is current.",
+        observation_state="unavailable",
+        observation_message="Market observation is unavailable.",
+    )
+    rendered = " ".join(
+        " ".join((card.kicker, card.title, card.body, *card.badges))
+        for card in brief.cards
+    ).lower()
+
+    assert rows[0].attention_state == "scheduled_catalyst"
+    assert rows[0].attention_label == "Scheduled"
+    assert rows[0].attention_reason == (
+        "Candidate-only catalyst context is scheduled for 2026-08-20T21:00:00Z."
+    )
+    assert "candidate-only catalyst context" in rendered
+    assert "verified catalyst" not in rendered
+    assert "trusted catalyst" not in rendered
+    assert "source-backed catalyst" not in rendered
+
+
 def test_primary_display_copy_contains_no_transaction_or_allocation_language():
     state = _state(outcome_state="reviewed")
     display = str(decision_lab_cards(state)).lower()

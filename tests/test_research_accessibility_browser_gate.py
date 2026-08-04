@@ -1387,28 +1387,36 @@ def test_monitor_row_contract_accepts_filtered_order_and_rejects_monitor_or_rank
         ),
         primary_columns=("TICKER", "PROCESS ATTENTION", "WHY"),
         primary_table_present=True,
+        advanced_present=True,
         advanced_identity_count=5,
+        expected_discipline_count=5,
         neutral_visible=False,
     )
     all_monitor = evaluate_monitor_rows(
         (),
         primary_columns=(),
         primary_table_present=False,
+        advanced_present=True,
         advanced_identity_count=5,
+        expected_discipline_count=5,
         neutral_visible=True,
     )
     leaked_monitor = evaluate_monitor_rows(
         ({"cohort_order": 0, "ticker": "AAA", "attention": "Monitor", "reason": "Wait."},),
         primary_columns=("Ticker", "Process attention", "Why"),
         primary_table_present=True,
+        advanced_present=True,
         advanced_identity_count=5,
+        expected_discipline_count=5,
         neutral_visible=False,
     )
     ranked = evaluate_monitor_rows(
         ({"cohort_order": 2, "ticker": "CCC", "attention": "Scheduled", "reason": "Saved review."},),
         primary_columns=("Ticker", "Process attention", "Return score"),
         primary_table_present=True,
+        advanced_present=True,
         advanced_identity_count=5,
+        expected_discipline_count=5,
         neutral_visible=False,
     )
 
@@ -1420,6 +1428,76 @@ def test_monitor_row_contract_accepts_filtered_order_and_rejects_monitor_or_rank
     assert "rank/score/return" in str(ranked["detail"])
 
 
+def test_monitor_row_contract_rejects_incomplete_advanced_identities_for_hidden_rows():
+    from src.research_accessibility_browser_gate import evaluate_monitor_rows
+
+    mixed = evaluate_monitor_rows(
+        (
+            {
+                "cohort_order": 1,
+                "ticker": "BBB",
+                "attention": "Needs review",
+                "reason": "Conflicting saved evidence needs review.",
+            },
+            {
+                "cohort_order": 4,
+                "ticker": "EEE",
+                "attention": "Scheduled",
+                "reason": "Reviewer-authored review is scheduled.",
+            },
+        ),
+        primary_columns=("Ticker", "Process attention", "Why"),
+        primary_table_present=True,
+        advanced_present=True,
+        advanced_identity_count=2,
+        expected_discipline_count=5,
+        neutral_visible=False,
+    )
+    all_monitor = evaluate_monitor_rows(
+        (),
+        primary_columns=(),
+        primary_table_present=False,
+        advanced_present=True,
+        advanced_identity_count=4,
+        expected_discipline_count=5,
+        neutral_visible=True,
+    )
+
+    assert mixed["passed"] is False
+    assert "expected 5" in str(mixed["detail"])
+    assert all_monitor["passed"] is False
+    assert "expected 5" in str(all_monitor["detail"])
+
+
+def test_monitor_row_contract_requires_advanced_container_for_true_empty_state():
+    from src.research_accessibility_browser_gate import evaluate_monitor_rows
+
+    valid_empty = evaluate_monitor_rows(
+        (),
+        primary_columns=(),
+        primary_table_present=False,
+        advanced_present=True,
+        advanced_identity_count=0,
+        expected_discipline_count=0,
+        neutral_visible=True,
+    )
+    missing_advanced = evaluate_monitor_rows(
+        (),
+        primary_columns=(),
+        primary_table_present=False,
+        advanced_present=False,
+        advanced_identity_count=0,
+        expected_discipline_count=0,
+        neutral_visible=True,
+    )
+
+    assert valid_empty["passed"] is True
+    assert missing_advanced["passed"] is False
+    assert "Advanced discipline evidence container" in str(
+        missing_advanced["detail"]
+    )
+
+
 def test_monitor_row_contract_rejects_wrong_columns_on_empty_primary_table():
     from src.research_accessibility_browser_gate import evaluate_monitor_rows
 
@@ -1427,14 +1505,18 @@ def test_monitor_row_contract_rejects_wrong_columns_on_empty_primary_table():
         (),
         primary_columns=("Ticker", "Process attention", "Why"),
         primary_table_present=True,
+        advanced_present=True,
         advanced_identity_count=5,
+        expected_discipline_count=5,
         neutral_visible=True,
     )
     wrong_empty_table = evaluate_monitor_rows(
         (),
         primary_columns=("Ticker", "Process attention", "Confidence"),
         primary_table_present=True,
+        advanced_present=True,
         advanced_identity_count=5,
+        expected_discipline_count=5,
         neutral_visible=True,
     )
 

@@ -52,12 +52,19 @@ def build_evidence_monitor_brief(
     needs_review = tuple(row for row in ordered if row.attention_label == "Needs review")
     unavailable = tuple(row for row in ordered if row.attention_state == "unavailable")
     scheduled = tuple(row for row in ordered if row.attention_label == "Scheduled")
+    first_follow_up = next(
+        (
+            row
+            for row in ordered
+            if row.attention_label == "Needs review"
+            or row.attention_state == "unavailable"
+        ),
+        None,
+    )
 
     follow_up_body = (
-        needs_review[0].attention_reason
-        if needs_review
-        else unavailable[0].attention_reason
-        if unavailable
+        first_follow_up.attention_reason
+        if first_follow_up is not None
         else "No saved research-process follow-up is currently due."
     )
     scheduled_body = (
@@ -65,10 +72,14 @@ def build_evidence_monitor_brief(
         if scheduled
         else "No saved research-process context is currently scheduled."
     )
-    normalized_readiness = str(readiness_state or "unavailable").strip()
-    normalized_observation = str(observation_state or "unavailable").strip()
-    readiness_body = str(readiness_message or "Saved readiness is unavailable.").strip()
-    observation_body = str(observation_message or "Market observation is unavailable.").strip()
+    normalized_readiness = str(readiness_state or "").strip() or "unavailable"
+    normalized_observation = str(observation_state or "").strip() or "unavailable"
+    readiness_body = (
+        str(readiness_message or "").strip() or "Saved readiness is unavailable."
+    )
+    observation_body = (
+        str(observation_message or "").strip() or "Market observation is unavailable."
+    )
 
     cards = (
         EvidenceMonitorCard(
