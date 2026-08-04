@@ -504,6 +504,12 @@ def evaluate_monitor_brief(
         coordinates = tuple(
             (float(box[0]), float(box[1])) for box in observed_boxes
         )
+        if any(
+            not math.isfinite(value)
+            for coordinate in coordinates
+            for value in coordinate
+        ):
+            raise ValueError("non-finite Monitor brief card coordinate")
         x_positions = clustered(x for x, _ in coordinates)
         y_positions = clustered(y for _, y in coordinates)
         normalized_cells = tuple(
@@ -525,7 +531,9 @@ def evaluate_monitor_brief(
         x_positions = ()
         y_positions = ()
         normalized_cells = ()
-        failures.append("Monitor brief card coordinates must be numeric x/y pairs")
+        failures.append(
+            "Monitor brief card coordinates must be finite numeric x/y pairs"
+        )
 
     if viewport_width > 760:
         if (

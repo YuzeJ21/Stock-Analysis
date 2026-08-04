@@ -1490,6 +1490,25 @@ def test_monitor_brief_geometry_rejects_overlapping_or_missing_desktop_cells():
     assert missing_cell["passed"] is False
 
 
+def test_monitor_brief_geometry_rejects_non_finite_coordinates():
+    from src.research_accessibility_browser_gate import evaluate_monitor_brief
+
+    for coordinate in (float("nan"), float("inf"), float("-inf")):
+        evaluated = evaluate_monitor_brief(
+            kickers=(
+                "WEEKLY RESEARCH SUMMARY",
+                "RESEARCH FOLLOW-UP",
+                "SCHEDULED CONTEXT",
+                "EVIDENCE FRESHNESS",
+            ),
+            boxes=((coordinate, 0), (500, 0), (0, 180), (500, 180)),
+            viewport_width=1280,
+        )
+
+        assert evaluated["passed"] is False
+        assert "finite" in str(evaluated["detail"]).lower()
+
+
 def test_state_harness_snapshot_rejects_hidden_duplicate_or_wrong_live_semantics():
     from src.research_accessibility_browser_gate import (
         evaluate_research_state_snapshot,
