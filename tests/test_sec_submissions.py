@@ -11,6 +11,7 @@ from src.providers.sec_submissions import (
     extract_share_count_from_inline_xbrl,
     fetch_sec_submission,
     latest_filing_document,
+    read_cached_sec_submission,
     sec_filing_index_url,
     sec_filing_document_url,
     sec_submission_url,
@@ -131,6 +132,13 @@ def test_fetch_sec_submission_requires_user_agent(monkeypatch):
 
     with pytest.raises(ValueError, match="SEC requests require"):
         fetch_sec_submission("1045810", user_agent=None)
+
+
+def test_read_cached_sec_submission_does_not_create_missing_cache_directory(tmp_path: Path):
+    cache_dir = tmp_path / "cache"
+
+    assert read_cached_sec_submission("1045810", cache_dir=cache_dir) is None
+    assert not cache_dir.exists()
 
 
 def test_build_sec_submission_metadata_packet_uses_cached_submission_without_network(tmp_path: Path):

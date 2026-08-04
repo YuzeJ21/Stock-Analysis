@@ -870,6 +870,14 @@ def test_linkedin_share_check_prints_read_only_final_checklist():
 def test_make_help_output_stays_visitor_friendly():
     result = subprocess.run(["make", "help"], check=True, capture_output=True, text=True)
     output = result.stdout
+    visitor_lines = [
+        line
+        for line in output.splitlines()
+        if not (
+            line.startswith("make[")
+            and ("Entering directory" in line or "Leaving directory" in line)
+        )
+    ]
 
     assert "Stock Research Command Center" in output
     assert "Start here:" in output
@@ -885,7 +893,7 @@ def test_make_help_output_stays_visitor_friendly():
     assert "fundamentals-source-ladder-queue" not in output
     assert "Data onboarding:" not in output
     assert "Preview-first fundamentals and universe imports:" not in output
-    assert len(output.splitlines()) <= 25
+    assert len(visitor_lines) <= 25
 
 
 def test_make_next_stage_prints_current_stage_ladder_without_running_broad_work():

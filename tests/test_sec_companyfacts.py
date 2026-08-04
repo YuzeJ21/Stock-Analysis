@@ -220,8 +220,13 @@ def _sample_companyfacts_payload():
     }
 
 
-def test_resolve_ticker_to_cik():
-    ticker_map = load_sec_ticker_map(fetcher=lambda *_: _sample_ticker_map_payload(), user_agent="Test test@example.com", refresh=True)
+def test_resolve_ticker_to_cik(tmp_path: Path):
+    ticker_map = load_sec_ticker_map(
+        cache_dir=tmp_path / "cache",
+        fetcher=lambda *_: _sample_ticker_map_payload(),
+        user_agent="Test test@example.com",
+        refresh=True,
+    )
 
     assert resolve_ticker_to_cik("NVDA", ticker_map) == "0001045810"
     assert resolve_ticker_to_cik("BRK.B", {"BRK-B": {"ticker": "BRK-B", "cik": "0001067983"}}) == "0001067983"
@@ -337,6 +342,7 @@ def test_build_sec_fundamentals_rows_and_write_import_file(tmp_path: Path):
     result = build_sec_fundamentals_rows(
         ["NVDA"],
         user_agent="Test test@example.com",
+        cache_dir=tmp_path / "cache",
         ticker_map={"NVDA": {"ticker": "NVDA", "cik": "0001045810"}},
         companyfacts_fetcher=lambda *_: _sample_companyfacts_payload(),
     )
@@ -353,10 +359,11 @@ def test_build_sec_fundamentals_rows_and_write_import_file(tmp_path: Path):
     assert preview["preview"][0]["new_rows"] == 1
 
 
-def test_build_sec_fundamentals_rows_resolves_dot_class_alias_but_preserves_requested_ticker():
+def test_build_sec_fundamentals_rows_resolves_dot_class_alias_but_preserves_requested_ticker(tmp_path: Path):
     result = build_sec_fundamentals_rows(
         ["BRK.B"],
         user_agent="Test test@example.com",
+        cache_dir=tmp_path / "cache",
         ticker_map={"BRK-B": {"ticker": "BRK-B", "cik": "0001067983"}},
         companyfacts_fetcher=lambda *_: _sample_companyfacts_payload(),
     )

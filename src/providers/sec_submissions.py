@@ -155,9 +155,7 @@ def _require_user_agent(user_agent: str | None = None) -> str:
 
 
 def _submissions_cache_path(cache_dir: Path, cik: str) -> Path:
-    path = cache_dir / "submissions"
-    path.mkdir(parents=True, exist_ok=True)
-    return path / f"CIK{cik}.json"
+    return cache_dir / "submissions" / f"CIK{cik}.json"
 
 
 def _filing_document_cache_path(cache_dir: Path, cik: str, accession: str, primary_document: str) -> Path:
@@ -220,6 +218,7 @@ def fetch_sec_submission(
     if not isinstance(payload, dict):
         raise RuntimeError(f"SEC submissions metadata for CIK {normalized_cik} was not a JSON object.")
     if cache:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return payload
 
