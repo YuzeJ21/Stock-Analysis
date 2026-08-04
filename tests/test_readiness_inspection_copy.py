@@ -390,9 +390,18 @@ def test_shared_stale_renderers_route_default_profile_to_nonpersistent_preview(
     scheduler = SchedulerPlan((), "daily", (), (), (), (), (), 1, "inspection", True)
     scheduler_text = render_scheduler_runbook(scheduler, continuation_gate=gate)
 
-    pilot_status = SimpleNamespace(status="stale", message="Saved readiness is stale.", refresh_command="make readiness")
-    monkeypatch.setattr(pilot_readiness, "readiness_freshness_status", lambda _root: pilot_status)
-    pilot_check = pilot_readiness._freshness_check(tmp_path)
+    pilot_status = SimpleNamespace(
+        status="stale",
+        message="Saved readiness is stale.",
+        refresh_command=PREVIEW_COMMAND,
+    )
+    monkeypatch.setattr(
+        pilot_readiness,
+        "readiness_freshness_status",
+        lambda *_args, **_kwargs: pilot_status,
+    )
+    selected = pilot_readiness._selected_pilot_profile(tmp_path, "default")
+    pilot_check = pilot_readiness._freshness_check(tmp_path, selected)
 
     for module_name, rendered in [
         ("artifact_freshness", warning),
