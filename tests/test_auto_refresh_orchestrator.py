@@ -2,6 +2,8 @@ import json
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from src.auto_refresh_orchestrator import (
     AutoGateInput,
     available_refresh_providers,
@@ -72,6 +74,64 @@ def test_auto_gate_allows_source_backed_narrow_valid_preview():
     assert "make imports-apply" in " ".join(decision.required_next_commands)
 
 
+def test_auto_gate_ready_fundamentals_returns_one_complete_selected_profile_proof():
+    decision = evaluate_auto_apply_gate(
+        AutoGateInput(
+            lane="fundamentals_dcf", changed_rows=3, max_batch_size=25, validation_status="valid", preview_status="valid",
+            rejected_rows=0, source_provenance_present=True, fabricated_values_detected=False,
+            unexpected_scope_change=False, provider_available=True,
+        ),
+        profile="local",
+    )
+
+    assert decision.required_next_commands == (
+        "make readiness-snapshot PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=local make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && STOCK_RESEARCH_DATA_PROFILE=local make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=local LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+    )
+
+
+@pytest.mark.parametrize("profile", ("default", "demo"))
+def test_auto_gate_blocks_non_local_price_writes_with_local_profile_unblock(profile):
+    decision = evaluate_auto_apply_gate(
+        AutoGateInput(
+            lane="daily_price_refresh", changed_rows=1, max_batch_size=25, validation_status="valid", preview_status="valid",
+            rejected_rows=0, source_provenance_present=True, fabricated_values_detected=False,
+            unexpected_scope_change=False, provider_available=True,
+        ),
+        profile=profile,
+    )
+
+    assert decision.status == "blocked"
+    assert decision.required_next_commands == ("Price writes are unavailable outside local profile; rerun with PROFILE=local.",)
+
+
+def test_auto_gate_returns_complete_local_price_proof():
+    decision = evaluate_auto_apply_gate(
+        AutoGateInput(
+            lane="daily_price_refresh", changed_rows=1, max_batch_size=25, validation_status="valid", preview_status="valid",
+            rejected_rows=0, source_provenance_present=True, fabricated_values_detected=False,
+            unexpected_scope_change=False, provider_available=True,
+        ),
+        profile="local",
+    )
+
+    assert decision.required_next_commands == (
+        "make readiness-snapshot PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=local make price-validate && STOCK_RESEARCH_DATA_PROFILE=local make price-preview && STOCK_RESEARCH_DATA_PROFILE=local make price-apply && make reviewed-batch-compare PROFILE=local LANE=daily_price_refresh BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+    )
+
+
+def test_scheduler_plan_builds_demo_policies_without_ambient_profile_fallback(monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+
+    plan = build_scheduler_plan(profile="demo")
+
+    assert all("PROFILE=demo" in policy.proof_command or policy.proof_command.startswith("Price writes are unavailable") for policy in plan.policies)
+    assert all(
+        "STOCK_RESEARCH_DATA_PROFILE=demo" in policy.dry_run_command
+        or policy.dry_run_command.startswith("Price writes are unavailable")
+        for policy in plan.policies
+    )
+
+
 def test_auto_gate_blocks_rejected_rows_and_missing_provenance():
     decision = evaluate_auto_apply_gate(
         AutoGateInput(
@@ -100,8 +160,11 @@ def test_scheduler_plan_separates_daily_weekly_and_optional_lanes():
     rendered = render_scheduler_plan(plan)
 
     assert policies[0].lane == "daily_price_refresh"
-    assert plan.daily_commands[0].startswith("make price-refresh-loop")
-    assert all("DRY_RUN=1" in command or "queue" in command for command in plan.daily_commands)
+    assert plan.daily_commands[0] == "Price writes are unavailable outside local profile; rerun with PROFILE=local."
+    assert all(
+        "DRY_RUN=1" in command or "queue" in command or command.startswith("Price writes are unavailable")
+        for command in plan.daily_commands
+    )
     assert "sec-filing-share-stage" not in rendered
     assert "imports-apply" not in rendered
     assert "make auto-apply-gate" not in rendered

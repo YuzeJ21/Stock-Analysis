@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from src.reviewed_batch_proof import (
+    primary_profile_bound_reviewed_write_proof_sequence,
+    primary_profile_scoped_reviewed_step,
     profile_bound_reviewed_write_proof_sequence,
     resolve_readiness_proof_profile,
 )
@@ -22245,6 +22247,7 @@ def single_stock_source_audit_cards(snapshot: dict[str, object]) -> list[dict[st
 
 
 def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame:
+    selected_profile = resolve_readiness_proof_profile()
     ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
@@ -22255,30 +22258,49 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
 
+    def focus(command: str) -> str:
+        return f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} {command}"
+
+    def import_proof(lane: str) -> str:
+        return primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane=lane,
+            reviewed_steps=(
+                f"make imports-validate IMPORT_TICKERS={ticker}",
+                f"make imports-preview IMPORT_TICKERS={ticker}",
+                f"make imports-apply IMPORT_TICKERS={ticker}",
+            ),
+        )
+
+    def price_proof() -> str:
+        return primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane="prices",
+            reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+        )
+
+    status_command = primary_profile_scoped_reviewed_step(
+        profile=selected_profile, step="make status-check TOP_N=5"
+    )
+
     if not price_ready:
         can_analyze = "Ticker is known, but setup, valuation, and trend review are locked until trusted price rows exist."
         locked = "Prices, momentum, DCF, peer context, earnings, and analyst estimates."
         next_input = "Trusted local price history."
-        command = f"make focus-price TICKER={ticker}"
-        proof_command = (
-            "After trusted price rows pass make price-validate, make price-preview, and make price-apply, "
-            "run the profile-bound price comparison."
-        )
+        command = focus(f"make focus-price TICKER={ticker}")
+        proof_command = price_proof()
     elif monitor_context:
         can_analyze = "Market, theme, liquidity, or risk monitor context when local price rows are ready."
         locked = "Operating-company DCF and peer valuation are excluded for ETF/index/fund monitor context."
-        next_input = "No company DCF input is required; refresh readiness or open the Markdown report for monitor context."
-        command = stock_report_md_command(ticker)
-        proof_command = "Run the profile-bound readiness comparison, then open the Markdown report to confirm monitor context stays DCF-excluded."
+        next_input = "No company DCF input is required; inspect the profile-scoped readiness status for monitor context."
+        command = status_command
+        proof_command = status_command
     elif dcf_status == "blocked":
         can_analyze = "Price/setup context can be reviewed; company valuation remains locked."
         locked = f"DCF is blocked by missing trusted inputs: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=140)}"
         next_input = "Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding."
-        command = f"make focus-fundamentals TICKER={ticker}"
-        proof_command = (
-            f"After fundamentals pass {scoped_import_sequence(ticker)}, "
-            "run the profile-bound fundamentals comparison."
-        )
+        command = focus(f"make focus-fundamentals TICKER={ticker}")
+        proof_command = import_proof("fundamentals")
     elif dcf_status == "ready" and not peer_ready:
         if peer_trend_ready:
             can_analyze = (
@@ -22290,34 +22312,28 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
             can_analyze = "Standalone DCF assumptions, scenario math, sensitivity, and source readiness can be reviewed."
             locked = "Peer-relative valuation remains locked until source-backed peer mappings and peer valuation inputs pass readiness."
         next_input = "Trusted peer mappings in data/imports/peers.csv plus peer inputs when needed."
-        command = f"make focus-peers TICKER={ticker}"
-        proof_command = (
-            f"After peer rows pass {scoped_import_sequence(ticker)}, "
-            "run the profile-bound peer comparison and make peer-mapping-queue TOP_N=25."
-        )
+        command = focus(f"make focus-peers TICKER={ticker}")
+        proof_command = import_proof("peers")
     elif not earnings_ready or not estimates_ready:
         can_analyze = "Price, fundamentals, standalone DCF, and peer context can be reviewed from trusted local inputs."
         locked = "Earnings and analyst-estimate context stays unavailable until trusted optional CSV rows exist."
         next_input = "Trusted local earnings or analyst estimate rows, only if you have a source you trust."
-        command = "make optional-context-worklist TOP_N=25"
-        proof_command = (
-            f"After optional rows pass {scoped_import_sequence(ticker)}, "
-            "run the profile-bound optional-context comparison."
-        )
+        command = focus("make optional-context-worklist TOP_N=25")
+        proof_command = import_proof("optional_context")
     else:
         can_analyze = "Supported single-stock review is available from current trusted local inputs."
         locked = "No core analysis lock detected; continue to source readiness and assumption review."
-        next_input = "Review the Markdown report and source readiness notes before interpreting the result."
-        command = stock_report_md_command(ticker)
-        proof_command = "Run the Markdown report again after any import or refresh to confirm the ready state still holds."
+        next_input = "Inspect the profile-scoped readiness status and source readiness notes before interpreting the result."
+        command = status_command
+        proof_command = status_command
 
     rows = [
         {
             "Question": "What can I analyze now?",
             "Answer": can_analyze,
             "Trusted Input Needed": "Use only current local/provider rows that already passed readiness.",
-            "Proof Command": "Use the current readiness outputs as the proof state before interpreting analysis.",
-            "Copy-Only Command": stock_report_md_command(ticker) if price_ready else command,
+            "Proof Command": status_command,
+            "Copy-Only Command": command,
         },
         {
             "Question": "What is still locked or excluded?",
@@ -22368,7 +22384,7 @@ def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[st
         proof_row = locked_row.iloc[0] if not locked_row.empty else frame.iloc[-1]
         command_row = next_row.iloc[0] if not next_row.empty else proof_row
         proof_command = format_missing(proof_row.get("Proof Command"), "Run the profile-bound readiness comparison before interpreting changed output.")
-        copy_command = format_missing(command_row.get("Copy-Only Command"), "make stock-report-md TICKER=NVDA")
+        copy_command = format_missing(command_row.get("Copy-Only Command"), "make status-check TOP_N=5")
         cards.append(
             {
                 "kicker": "PROOF PATH",
@@ -22377,7 +22393,7 @@ def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[st
                     "Read this single-stock page in sequence: what can be analyzed now, what stays locked or excluded, "
                     f"which trusted input is needed, then proof command: {proof_command}. "
                     "Exact next command is copyable from this card. "
-                    "Do not treat the lane as unlocked until the proof command passes and the report is reopened."
+                    "Do not treat the lane as unlocked until the proof command passes and the page is reopened."
                 ),
                 "badges": ["readiness proof", "copy only"],
                 "command": copy_command,
@@ -22387,6 +22403,7 @@ def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[st
 
 
 def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
+    selected_profile = resolve_readiness_proof_profile()
     ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
@@ -22397,39 +22414,58 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
 
+    def focus(command: str) -> str:
+        return f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} {command}"
+
+    def import_proof(lane: str) -> str:
+        return primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane=lane,
+            reviewed_steps=(
+                f"make imports-validate IMPORT_TICKERS={ticker}",
+                f"make imports-preview IMPORT_TICKERS={ticker}",
+                f"make imports-apply IMPORT_TICKERS={ticker}",
+            ),
+        )
+
+    def price_proof() -> str:
+        return primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane="prices",
+            reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+        )
+
+    status_command = primary_profile_scoped_reviewed_step(
+        profile=selected_profile, step="make status-check TOP_N=5"
+    )
+
     if not snapshot or snapshot.get("status") == "missing":
         first_read = "Ticker is not available in the current readiness outputs."
         analyze_now = "No single-stock analysis is shown until the ticker appears in local readiness files."
         still_locked = "Universe metadata, prices, fundamentals, DCF, peers, earnings, and analyst estimates."
-        command = format_missing(snapshot.get("next_action") if snapshot else "", "make universe-report")
-        proof_command = "Run make universe-report and the profile-bound readiness comparison before reopening the single-stock report."
+        command = status_command
+        proof_command = status_command
         badges = ["missing ticker", "readiness first"]
     elif not price_ready:
         first_read = "Start with trusted price history."
         analyze_now = "The app can identify the ticker, but it withholds setup, trend, valuation, and peer context until price rows exist."
         still_locked = "Prices, momentum, DCF, peers, earnings, and analyst estimates."
-        command = f"make focus-price TICKER={ticker}"
-        proof_command = (
-            "After trusted price rows pass make price-validate, make price-preview, and make price-apply, "
-            "run the profile-bound price comparison."
-        )
+        command = focus(f"make focus-price TICKER={ticker}")
+        proof_command = price_proof()
         badges = ["price first", "no inference"]
     elif monitor_context:
         first_read = "Use this as monitor context."
         analyze_now = "Local price rows can support market, theme, liquidity, and risk context."
         still_locked = "Operating-company DCF and peer valuation are excluded, not failed, for ETF/index/fund context."
-        command = stock_report_md_command(ticker)
-        proof_command = "Run the profile-bound readiness comparison, then open the Markdown report to confirm monitor context stays DCF-excluded."
+        command = status_command
+        proof_command = status_command
         badges = ["monitor context", "DCF excluded"]
     elif dcf_status == "blocked":
         first_read = "Review setup first; valuation is still locked."
         analyze_now = "Price and setup context can be reviewed from trusted local rows."
         still_locked = f"DCF is blocked by missing trusted fundamentals: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=130)}"
-        command = f"make focus-fundamentals TICKER={ticker}"
-        proof_command = (
-            f"After fundamentals pass {scoped_import_sequence(ticker)}, "
-            "run the profile-bound fundamentals comparison."
-        )
+        command = focus(f"make focus-fundamentals TICKER={ticker}")
+        proof_command = import_proof("fundamentals")
         badges = ["fundamentals needed", "no valuation conclusion"]
     elif dcf_status == "ready" and not peer_ready:
         first_read = "Standalone DCF is reviewable; peers are still locked."
@@ -22442,28 +22478,22 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
         else:
             analyze_now = "DCF assumptions, sensitivity, source readiness, and company setup can be reviewed from trusted local inputs."
             still_locked = "Peer-relative valuation waits for source-backed peer mappings and peer valuation inputs."
-        command = f"make focus-peers TICKER={ticker}"
-        proof_command = (
-            f"After peer rows pass {scoped_import_sequence(ticker)}, "
-            "run the profile-bound peer comparison and make peer-mapping-queue TOP_N=25."
-        )
+        command = focus(f"make focus-peers TICKER={ticker}")
+        proof_command = import_proof("peers")
         badges = ["DCF ready", "peer gated"]
     elif not earnings_ready or not estimates_ready:
         first_read = "Core analysis is reviewable; optional context is locked."
         analyze_now = "Prices, fundamentals, standalone DCF, and peer context are available from trusted local inputs."
         still_locked = "Earnings and analyst-estimate sections remain unavailable until trusted optional CSV rows pass validation."
-        command = "make optional-context-worklist TOP_N=25"
-        proof_command = (
-            f"After optional rows pass {scoped_import_sequence(ticker)}, "
-            "run the profile-bound optional-context comparison."
-        )
+        command = focus("make optional-context-worklist TOP_N=25")
+        proof_command = import_proof("optional_context")
         badges = ["core ready", "optional locked"]
     else:
         first_read = "Supported single-stock review is available."
         analyze_now = "Price, fundamentals, DCF, peer context, earnings, estimates, source readiness, and assumptions can be reviewed."
         still_locked = "No core lock detected; still review source readiness and methodology notes before interpreting outputs."
-        command = stock_report_md_command(ticker)
-        proof_command = "Run the Markdown report again after any import or refresh to confirm the ready state still holds."
+        command = status_command
+        proof_command = status_command
         badges = ["review ready", "source check"]
 
     return [
@@ -22479,7 +22509,7 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
             "title": "What this page can support",
             "body": analyze_now,
             "badges": ["plain English", "local rules"],
-            "command": stock_report_md_command(ticker) if price_ready else command,
+            "command": command,
         },
         {
             "kicker": "STILL LOCKED",

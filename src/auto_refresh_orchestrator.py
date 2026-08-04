@@ -9,6 +9,10 @@ from typing import Iterable
 from src.continuation_gate import ContinuationGate, build_continuation_gate
 from src.profile_context import build_profile_context
 from src.profile_context import READINESS_PREVIEW_NOTE
+from src.reviewed_batch_proof import (
+    primary_profile_bound_reviewed_write_proof_sequence,
+    resolve_readiness_proof_profile,
+)
 from src.refresh_operations import (
     ProviderAttempt,
     RefreshOperationPlan,
@@ -78,7 +82,45 @@ class SchedulerPlan:
     provider_availability_proven: bool
 
 
-def build_default_lane_policies() -> tuple[LanePolicy, ...]:
+def _profile_scoped_read_only_command(*, profile: str, command: str) -> str:
+    return f"STOCK_RESEARCH_DATA_PROFILE={profile} {command}"
+
+
+def _primary_lane_proof(*, profile: str, lane: str) -> str:
+    proof_lane = {
+        "daily_sec_filing_share_count": "share_count",
+        "daily_fundamentals_dcf": "fundamentals",
+        "weekly_peer_candidates": "peers",
+        "optional_earnings_estimates": "optional_context",
+        "fundamentals_dcf": "fundamentals",
+    }.get(lane, lane)
+    if lane == "daily_price_refresh":
+        return primary_profile_bound_reviewed_write_proof_sequence(
+            profile=profile,
+            lane=proof_lane,
+            reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+        )
+    return primary_profile_bound_reviewed_write_proof_sequence(
+        profile=profile,
+        lane=proof_lane,
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+        ),
+    )
+
+
+def build_default_lane_policies(profile: str | None = None) -> tuple[LanePolicy, ...]:
+    selected_profile = resolve_readiness_proof_profile(profile)
+    price_dry_run = (
+        _profile_scoped_read_only_command(
+            profile=selected_profile,
+            command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
+        )
+        if selected_profile == "local"
+        else _primary_lane_proof(profile=selected_profile, lane="daily_price_refresh")
+    )
     return (
         LanePolicy(
             lane="daily_price_refresh",
@@ -87,9 +129,9 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             provider_order=("stooq", "yahoo", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=3500,
             auto_apply=False,
-            dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
-            gated_apply_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
-            proof_command="make readiness-snapshot PROFILE=default && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE=default LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
+            dry_run_command=price_dry_run,
+            gated_apply_command=_primary_lane_proof(profile=selected_profile, lane="daily_price_refresh"),
+            proof_command=_primary_lane_proof(profile=selected_profile, lane="daily_price_refresh"),
             source_boundary="Provider OHLCV rows only; no fabricated or padded price history.",
         ),
         LanePolicy(
@@ -99,16 +141,9 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             provider_order=("sec_submissions", "sec_filing_document", "sec_companyfacts"),
             max_batch_size=25,
             auto_apply=False,
-            dry_run_command="make share-count-proof-queue TOP_N=25",
-            gated_apply_command=(
-                "make sec-filing-share-stage TICKERS=<ticker> && "
-                "make imports-validate IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && "
-                "make imports-preview IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && "
-                "make auto-apply-gate LANE=share_count CHANGED_ROWS=<rows> VALIDATION_STATUS=valid "
-                "PREVIEW_STATUS=valid REJECTED_ROWS=0 SOURCE_PROVENANCE=present && "
-                "make imports-apply IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv"
-            ),
-            proof_command="make readiness-snapshot PROFILE=default && make imports-validate IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make imports-preview IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make imports-apply IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make dcf-readiness && make reviewed-batch-compare PROFILE=default LANE=share_count BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=<ticker>",
+            dry_run_command=_profile_scoped_read_only_command(profile=selected_profile, command="make share-count-proof-queue TOP_N=25"),
+            gated_apply_command=_primary_lane_proof(profile=selected_profile, lane="daily_sec_filing_share_count"),
+            proof_command=_primary_lane_proof(profile=selected_profile, lane="daily_sec_filing_share_count"),
             source_boundary="Only explicit SEC filing document facts with CIK, form, filed date, accession, and entity proof.",
         ),
         LanePolicy(
@@ -118,15 +153,9 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             provider_order=("sec_companyfacts", "yfinance", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=25,
             auto_apply=False,
-            dry_run_command="make fundamentals-source-ladder-queue TOP_N=25",
-            gated_apply_command=(
-                "make imports-validate IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && "
-                "make imports-preview IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && "
-                "make auto-apply-gate LANE=fundamentals_dcf CHANGED_ROWS=<rows> VALIDATION_STATUS=valid "
-                "PREVIEW_STATUS=valid REJECTED_ROWS=0 SOURCE_PROVENANCE=present && "
-                "make imports-apply IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv"
-            ),
-            proof_command="make readiness-snapshot PROFILE=default && make imports-validate IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make imports-preview IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make imports-apply IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && make dcf-readiness && make reviewed-batch-compare PROFILE=default LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=<ticker>",
+            dry_run_command=_profile_scoped_read_only_command(profile=selected_profile, command="make fundamentals-source-ladder-queue TOP_N=25"),
+            gated_apply_command=_primary_lane_proof(profile=selected_profile, lane="daily_fundamentals_dcf"),
+            proof_command=_primary_lane_proof(profile=selected_profile, lane="daily_fundamentals_dcf"),
             source_boundary="SEC/provider fundamentals only; no placeholder revenue, cash flow, margin, or share rows.",
         ),
         LanePolicy(
@@ -136,9 +165,9 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             provider_order=("local_industry", "sic", "sector", "reviewed_peer_sources"),
             max_batch_size=100,
             auto_apply=False,
-            dry_run_command="make peer-mapping-queue TOP_N=25",
-            gated_apply_command="DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=25",
-            proof_command="make readiness-snapshot PROFILE=default && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make reviewed-batch-compare PROFILE=default LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
+            dry_run_command=_profile_scoped_read_only_command(profile=selected_profile, command="make peer-mapping-queue TOP_N=25"),
+            gated_apply_command=_primary_lane_proof(profile=selected_profile, lane="weekly_peer_candidates"),
+            proof_command=_primary_lane_proof(profile=selected_profile, lane="weekly_peer_candidates"),
             source_boundary="Candidate peers are context only; trusted peer proof requires reviewed source-backed rows.",
         ),
         LanePolicy(
@@ -148,15 +177,9 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             provider_order=("yfinance", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=25,
             auto_apply=False,
-            dry_run_command="make optional-context-source-ladder-queue TOP_N=10",
-            gated_apply_command=(
-                "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && "
-                "make auto-apply-gate LANE=optional_context CHANGED_ROWS=<rows> VALIDATION_STATUS=valid "
-                "PREVIEW_STATUS=valid REJECTED_ROWS=0 SOURCE_PROVENANCE=present && "
-                "make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness"
-            ),
-            proof_command="make readiness-snapshot PROFILE=default && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness && make reviewed-batch-compare PROFILE=default LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            dry_run_command=_profile_scoped_read_only_command(profile=selected_profile, command="make optional-context-source-ladder-queue TOP_N=10"),
+            gated_apply_command=_primary_lane_proof(profile=selected_profile, lane="optional_earnings_estimates"),
+            proof_command=_primary_lane_proof(profile=selected_profile, lane="optional_earnings_estimates"),
             source_boundary=(
                 "Optional provider rows only; earnings timing or price-target-only rows are candidate_context_only "
                 "until earnings metrics or EPS/revenue estimate fields unlock readiness."
@@ -165,7 +188,8 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
     )
 
 
-def evaluate_auto_apply_gate(gate: AutoGateInput) -> AutoGateDecision:
+def evaluate_auto_apply_gate(gate: AutoGateInput, profile: str | None = None) -> AutoGateDecision:
+    selected_profile = resolve_readiness_proof_profile(profile)
     reasons: list[str] = []
     validation = gate.validation_status.strip().lower()
     preview = gate.preview_status.strip().lower()
@@ -189,6 +213,14 @@ def evaluate_auto_apply_gate(gate: AutoGateInput) -> AutoGateDecision:
     if gate.changed_rows > gate.max_batch_size:
         reasons.append("changed row count exceeds lane max batch size")
 
+    if gate.lane == "daily_price_refresh" and selected_profile != "local":
+        return AutoGateDecision(
+            status="blocked",
+            outcome="still_blocked",
+            reasons=("price writes require the local profile",),
+            required_next_commands=(_primary_lane_proof(profile=selected_profile, lane=gate.lane),),
+        )
+
     if reasons:
         return AutoGateDecision(
             status="blocked",
@@ -204,10 +236,7 @@ def evaluate_auto_apply_gate(gate: AutoGateInput) -> AutoGateDecision:
         status="auto_apply_ready",
         outcome="auto_supported",
         reasons=("validation, preview, provenance, scope, and no-fabrication gates passed",),
-        required_next_commands=(
-            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
-            "make reviewed-batch-compare PROFILE=default LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make reviewed-batch-proof-record FINAL_OUTCOME=auto_supported",
-        ),
+        required_next_commands=(_primary_lane_proof(profile=selected_profile, lane=gate.lane),),
     )
 
 
@@ -219,8 +248,10 @@ def build_scheduler_plan(
     attempts: Iterable[ProviderAttempt] = (),
     retry_cap: int = 1,
     session_id: str = "scheduler-session",
+    profile: str | None = None,
 ) -> SchedulerPlan:
-    all_policies = tuple(policies or build_default_lane_policies())
+    selected_profile = resolve_readiness_proof_profile(profile)
+    all_policies = tuple(policies or build_default_lane_policies(profile=selected_profile))
     if retry_cap < 1:
         raise ValueError("retry_cap must be positive")
 

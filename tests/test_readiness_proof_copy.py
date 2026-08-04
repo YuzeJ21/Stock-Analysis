@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from src import dashboard
+from src.auto_refresh_orchestrator import AutoGateInput, build_default_lane_policies, evaluate_auto_apply_gate
 from src import reviewed_batch_proof
 from src.readiness_ops import PeerReadinessSummary, build_readiness_ops_lanes
 
@@ -982,3 +983,71 @@ def test_task_8_complete_runtime_literals_never_present_preview_as_proof():
                 offenders.append(f"{relative_path}:{line_number}: {rendered}")
 
     assert offenders == []
+
+
+def _returned_strings(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [text for item in value.values() for text in _returned_strings(item)]
+    if isinstance(value, (list, tuple)):
+        return [text for item in value for text in _returned_strings(item)]
+    if hasattr(value, "__dict__"):
+        return _returned_strings(vars(value))
+    return []
+
+
+@pytest.mark.parametrize("profile", ("default", "demo", "local"))
+def test_primary_company_workbench_and_automatic_objects_keep_one_complete_no_write_proof(monkeypatch, profile):
+    """Catches a primary proof that loses its profile, ordering, or no-write boundary."""
+
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", profile)
+    states = (
+        {"ticker": "PRICE", "asset_type": "company", "price_ready": False, "dcf_status": "blocked"},
+        {"ticker": "FUND", "asset_type": "company", "price_ready": True, "dcf_status": "blocked"},
+        {"ticker": "PEER", "asset_type": "company", "price_ready": True, "dcf_status": "ready", "peer_ready": False},
+        {"ticker": "OPT", "asset_type": "company", "price_ready": True, "dcf_status": "ready", "peer_ready": True, "earnings_ready": False, "analyst_estimates_ready": False},
+        {"ticker": "QQQ", "asset_type": "etf", "price_ready": True, "dcf_status": "excluded"},
+    )
+    gate = AutoGateInput(
+        lane="fundamentals_dcf", changed_rows=1, max_batch_size=25, validation_status="valid", preview_status="valid",
+        rejected_rows=0, source_provenance_present=True, fabricated_values_detected=False,
+        unexpected_scope_change=False, provider_available=True,
+    )
+    dashboard_strings = _returned_strings(
+        [
+            dashboard.single_stock_reader_guide_frame(state).to_dict("records")
+            for state in states
+        ] + [dashboard.single_stock_quick_read_cards(state) for state in states]
+    )
+    policies = build_default_lane_policies(profile=profile)
+    decision = evaluate_auto_apply_gate(gate, profile=profile)
+    policy_strings = [policy.dry_run_command for policy in policies] + [policy.proof_command for policy in policies] + [policy.gated_apply_command for policy in policies]
+    proof_strings = [policy.proof_command for policy in policies] + [policy.gated_apply_command for policy in policies] + list(decision.required_next_commands)
+
+    assert "stock-report-md" not in " ".join(dashboard_strings).lower()
+    for proof in proof_strings:
+        if "apply" not in proof:
+            continue
+        if proof.startswith("Price writes are unavailable"):
+            continue
+        assert f"make readiness-snapshot PROFILE={profile}" in proof
+        assert f"STOCK_RESEARCH_DATA_PROFILE={profile} make" in proof
+        assert f"make reviewed-batch-compare PROFILE={profile}" in proof
+        assert proof.index("-validate") < proof.index("-preview") < proof.index("-apply") < proof.index("reviewed-batch-compare")
+    if profile in {"default", "demo"}:
+        assert all(
+            "price-validate" not in text and "price-preview" not in text and "price-apply" not in text and "price-refresh" not in text
+            for text in dashboard_strings + policy_strings + list(decision.required_next_commands)
+        )
+    for proof in proof_strings + dashboard_strings:
+        if "proof" in proof.lower() or "apply" in proof.lower():
+            lowered = proof.lower()
+            assert "make readiness" not in lowered.replace("make readiness-snapshot", "")
+            assert "dcf-readiness" not in lowered
+            assert "optional-context-readiness" not in lowered
+            assert "price-coverage" not in lowered
+            assert "stock-report-md" not in lowered
+            assert "pipeline" not in lowered
+            assert "materialization" not in lowered
+            assert "proof-record" not in lowered

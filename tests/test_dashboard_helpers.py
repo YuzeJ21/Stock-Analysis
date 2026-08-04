@@ -26919,17 +26919,17 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
     assert "trusted input needed:" in rendered
     assert "trusted peer mappings in data/imports/peers.csv plus peer inputs when needed" in rendered
     assert "proof command:" in rendered
-    assert "after peer rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a" in rendered
-    assert "run the profile-bound peer comparison and make peer-mapping-queue top_n=25" in rendered
+    assert "stock_research_data_profile=default make imports-validate import_tickers=a" in rendered
+    assert "make reviewed-batch-compare profile=default lane=peers" in rendered
     assert "use only current local/provider rows that already passed readiness" in rendered
     assert "data/imports/peers.csv" in rendered
     assert "make focus-peers ticker=a" in rendered
-    assert "make stock-report-md ticker=a" in rendered
+    assert "stock-report-md" not in rendered
     assert "how to prove the next unlocked state" in rendered
     assert "read this single-stock page in sequence" in rendered
-    assert "proof command: after peer rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a" in rendered
+    assert "proof command: make readiness-snapshot profile=default" in rendered
     assert "exact next command is copyable from this card" in rendered
-    assert "do not treat the lane as unlocked until the proof command passes and the report is reopened" in rendered
+    assert "do not treat the lane as unlocked until the proof command passes and the page is reopened" in rendered
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -26973,11 +26973,11 @@ def test_single_stock_reader_guide_handles_etf_and_price_blocked_states():
     assert "market, theme, liquidity, or risk monitor context" in etf_rendered
     assert "operating-company dcf and peer valuation are excluded" in etf_rendered
     assert "trusted input needed: no company dcf input is required" in etf_rendered
-    assert "run the profile-bound readiness comparison, then open the markdown report to confirm monitor context stays dcf-excluded" in etf_rendered
-    assert "make stock-report-md ticker=qqq" in etf_rendered
+    assert "stock_research_data_profile=default make status-check top_n=5" in etf_rendered
+    assert "stock-report-md" not in etf_rendered
     assert "trusted price rows exist" in blocked_rendered
     assert "trusted input needed: trusted local price history" in blocked_rendered
-    assert "after trusted price rows pass make price-validate, make price-preview, and make price-apply, run the profile-bound price comparison" in blocked_rendered
+    assert "price writes are unavailable outside local profile; rerun with profile=local" in blocked_rendered
     assert "prices, momentum, dcf, peer context" in blocked_rendered
     assert "make focus-price ticker=apld" in blocked_rendered
     assert "how to prove the next unlocked state" in etf_rendered
@@ -27378,7 +27378,7 @@ def test_single_stock_quick_read_cards_route_dcf_ready_peer_locked():
 
     assert [card["kicker"] for card in cards] == ["FIRST READ", "ANALYZE NOW", "STILL LOCKED", "COPY ONLY"]
     assert cards[0]["title"] == "Standalone DCF is reviewable; peers are still locked."
-    assert cards[0]["command"] == "make focus-peers TICKER=NVDA"
+    assert cards[0]["command"] == "STOCK_RESEARCH_DATA_PROFILE=default make focus-peers TICKER=NVDA"
     assert "dcf assumptions, sensitivity, source readiness, company setup, and peer trend context" in rendered
     assert "mapped peer price history" in rendered
     assert "peer-relative valuation, premium/discount, and peer dcf comparison wait" in rendered
@@ -27428,13 +27428,12 @@ def test_single_stock_quick_read_cards_cover_monitor_blocked_and_optional_states
 
     assert "use this as monitor context" in etf_rendered
     assert "operating-company dcf and peer valuation are excluded, not failed" in etf_rendered
-    assert "make stock-report-md ticker=qqq" in etf_rendered
+    assert "stock-report-md" not in etf_rendered
     assert "start with trusted price history" in blocked_rendered
     assert "make focus-price ticker=apld" in blocked_rendered
     assert "core analysis is reviewable; optional context is locked" in optional_rendered
-    assert "after optional rows pass make imports-validate import_tickers=a -> make imports-preview import_tickers=a -> make imports-apply import_tickers=a" in optional_rendered
-    assert "run the profile-bound optional-context comparison" in optional_rendered
-    assert "make optional-context-worklist top_n=25" in optional_rendered
+    assert "stock_research_data_profile=default make imports-validate import_tickers=a" in optional_rendered
+    assert "make reviewed-batch-compare profile=default lane=optional_context" in optional_rendered
     rendered = etf_rendered + blocked_rendered + optional_rendered
     assert "broker" not in rendered
     assert "order" not in rendered
