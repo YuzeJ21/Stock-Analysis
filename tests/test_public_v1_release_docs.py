@@ -183,7 +183,7 @@ def test_makefile_exposes_stdout_only_readiness_preview_contract():
 
     assert "readiness-preview" in makefile.splitlines()[0]
     assert (
-        "make readiness-preview [TOP_N=20] Preview stable readiness impact, change causes, and promotion evidence in memory without writing files"
+        "make readiness-preview [TOP_N=20] In-memory preview: stable readiness impact, change causes, and promotion evidence without writing files"
         in makefile
     )
     assert (
@@ -1189,14 +1189,18 @@ def test_public_make_help_marks_legacy_readiness_guard_and_profile_bound_writers
     help_text = result.stdout
 
     assert result.returncode == 0
-    assert "make readiness        Deprecated no-write guard; exits 2" in help_text
-    assert "make readiness-preview [TOP_N=20]" in help_text
-    assert "make readiness-materialize PROFILE=<default|demo|local>" in help_text
-    assert "CONFIRM_MATERIALIZE=1" in help_text
-    assert "make readiness-snapshot PROFILE=<default|demo|local>" in help_text
-    assert "one profile-specific prior snapshot" in help_text
-    assert "make reviewed-batch-compare PROFILE=<default|demo|local>" in help_text
-    assert "current readiness is composed in memory and no current report is written" in help_text
+    advanced_readiness = help_text.split("Advanced readiness boundaries:\n", 1)[1].split(
+        "\n\n", 1
+    )[0]
+    for boundary in (
+        "make readiness-preview [TOP_N=20] In-memory preview",
+        "without writing files",
+        "make readiness-snapshot PROFILE=<default|demo|local> Required profile",
+        "make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot; current readiness is composed in memory and no current report is written; Required profile",
+        "make readiness        Deprecated no-write guard; exits 2",
+        "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local> Confirmed ignored local materialization",
+    ):
+        assert boundary in advanced_readiness
     assert "Write central data/reports/ticker_readiness_report.csv" not in help_text
 
 

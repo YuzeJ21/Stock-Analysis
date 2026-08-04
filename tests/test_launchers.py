@@ -289,15 +289,17 @@ def test_full_help_keeps_the_five_primary_readiness_boundaries_separate():
 
     assert result.returncode == 0
     help_text = result.stdout
-    assert "make readiness-preview [TOP_N=20]" in help_text
-    assert "in memory without writing files" in help_text
-    assert "make readiness-snapshot PROFILE=<default|demo|local>" in help_text
-    assert "one profile-specific prior snapshot" in help_text
-    assert "make reviewed-batch-compare PROFILE=<default|demo|local>" in help_text
-    assert "current readiness is composed in memory and no current report is written" in help_text
-    assert "make readiness        Deprecated no-write guard; exits 2" in help_text
-    assert "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local>" in help_text
-    assert "Write one ignored full readiness package" in help_text
+    advanced_readiness = help_text.split("Advanced readiness boundaries:\n", 1)[1].split(
+        "\n\n", 1
+    )[0]
+    for boundary in (
+        "make readiness-preview [TOP_N=20] In-memory preview",
+        "make readiness-snapshot PROFILE=<default|demo|local> Required profile",
+        "make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot; current readiness is composed in memory and no current report is written; Required profile",
+        "make readiness        Deprecated no-write guard; exits 2",
+        "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local> Confirmed ignored local materialization",
+    ):
+        assert boundary in advanced_readiness
 
 
 def test_reviewed_batch_packet_targets_forward_one_named_profile():
