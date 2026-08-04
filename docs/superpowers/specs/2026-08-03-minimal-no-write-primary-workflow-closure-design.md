@@ -1,6 +1,6 @@
 # Minimal No-Write Primary Workflow Closure Design
 
-**Status:** Owner-approved direction; written specification pending final owner review.
+**Status:** Owner-approved scope; primary-only helper amendment pending final owner review.
 
 **Decision date:** 2026-08-03
 
@@ -15,7 +15,7 @@ The product still needs a small, enforceable boundary: ordinary Research Desk, D
 Use a **minimal primary-workflow closure**.
 
 1. Retain the already committed no-write composition, explicit materializer, profile-bound snapshot/comparison, and protected-artifact guard work.
-2. Harden one central proof-command boundary against compound commands, redirection, arbitrary output arguments, readiness/report/materialization writers, mixed profiles, and non-adjacent apply/comparison sequences.
+2. Add one strict primary-only proof-command boundary against compound commands, redirection, arbitrary output arguments, readiness/report/materialization writers, mixed profiles, and non-adjacent apply/comparison sequences.
 3. Migrate only copyable actions rendered in the primary Dashboard workflow and the default automatic-policy surface.
 4. Add one complete runtime scanner for the deprecated standalone `make readiness` action.
 5. Keep secondary operator queues, explicit import/apply tools, Markdown export, proof-ledger recording, and other Advanced surfaces outside this closure. They remain explicit operations and may not be called by default/composite commands.
@@ -29,7 +29,7 @@ The discarded alternatives are:
 
 The implementation may modify at most these production files:
 
-- `src/reviewed_batch_proof.py` — central construction and validation of profile-bound proof commands.
+- `src/reviewed_batch_proof.py` — strict primary-workflow construction and validation of profile-bound proof commands. The existing legacy helper remains unchanged for out-of-scope Advanced callers.
 - `src/dashboard.py` — only `single_stock_reader_guide_frame()` and `single_stock_quick_read_cards()`, the primary Company Workbench builders currently capable of rendering reviewed mutation commands. Research Desk, Discover, and Monitor are verification-only unless a test proves they expose the same primary action.
 - `src/auto_refresh_orchestrator.py` — default policy and ready-gate commands only.
 - `src/readiness_engine.py` — remove the final actionable standalone legacy readiness command.
@@ -49,7 +49,7 @@ This is a 12-file ceiling. Requiring a thirteenth file is a scope failure: recor
 
 Within the named production files, the permitted behavior surface is also capped:
 
-- `resolve_readiness_proof_profile()`, `profile_scoped_reviewed_step(*, profile: str, step: str) -> str`, and `profile_bound_reviewed_write_proof_sequence()` in `src/reviewed_batch_proof.py`;
+- `resolve_readiness_proof_profile()`, `primary_profile_scoped_reviewed_step(*, profile: str, step: str) -> str`, and `primary_profile_bound_reviewed_write_proof_sequence()` in `src/reviewed_batch_proof.py`;
 - `single_stock_reader_guide_frame()` and `single_stock_quick_read_cards()` in `src/dashboard.py`;
 - `build_default_lane_policies(profile: str | None = None)`, `evaluate_auto_apply_gate(gate, *, profile: str | None = None)`, and selected-profile forwarding through `build_scheduler_plan(..., profile: str | None = None)` in `src/auto_refresh_orchestrator.py`;
 - the peer-unlock next-action copy in `src/readiness_engine.py`;
@@ -77,6 +77,8 @@ No readiness rebuild or report/export writer may appear before or after the comp
 
 Standalone validate or preview actions may remain copyable when they are bound to the selected profile and proven non-writing. An isolated apply action is never permitted.
 
+The pre-existing `profile_bound_reviewed_write_proof_sequence()` remains a legacy Advanced interface during this closure. Primary Dashboard and automatic-policy code must not call it. Replacing its remaining Advanced callers is explicitly deferred so the strict boundary does not force another broad migration.
+
 ### Price profile boundary
 
 Price mutation targets are local-profile only. Primary Dashboard and automatic-policy surfaces render default/demo price writes as unavailable; they never silently switch to local.
@@ -92,7 +94,7 @@ Secondary queues and operator tools are not migrated in this closure. They may d
 ## Error handling and fail-closed rules
 
 - Missing, placeholder, mixed, or unsupported profiles render unavailable.
-- Compound commands, shell separators, redirection, output arguments, writer targets, and arbitrary post-comparison tails are rejected by the central boundary.
+- Compound commands, shell separators, redirection, output arguments, writer targets, and arbitrary post-comparison tails are rejected by the strict primary boundary.
 - Historical command evidence stays non-executable and is not treated as a current instruction.
 - Default/demo price writes render the exact local-profile unblock condition.
 - A scanner finding outside the hard-capped primary/default path is recorded for the Advanced-surface backlog; it does not expand this slice.
@@ -101,7 +103,7 @@ Secondary queues and operator tools are not migrated in this closure. They may d
 
 The slice is complete only when current evidence proves all of the following:
 
-1. Central mutation tests reject compound commands, attached or spaced redirection, output arguments, mixed profiles, readiness/report/materialization writers, isolated apply, and writer tails.
+1. Primary-boundary mutation tests reject compound commands, attached or spaced redirection, output arguments, mixed profiles, readiness/report/materialization writers, isolated apply, and writer tails; legacy Advanced helper behavior is unchanged.
 2. Rendered primary Dashboard objects under default, demo, and local contain no isolated apply, mixed-profile proof, non-local price write, legacy standalone readiness action, or proof/report combination.
 3. Default automatic policies and ready-gate decisions obey the same contract.
 4. The runtime scanner finds no actionable standalone `make readiness`; the sole permitted occurrence is the deprecated no-write guard's own help line.
