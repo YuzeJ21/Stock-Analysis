@@ -1011,10 +1011,14 @@ def _assert_primary_dashboard_proof(proof: str, profile: str) -> None:
     if "-apply" not in proof:
         assert proof == f"STOCK_RESEARCH_DATA_PROFILE={profile} make status-check TOP_N=5"
         return
-    expected_prefix = f"make readiness-snapshot PROFILE={profile} && STOCK_RESEARCH_DATA_PROFILE={profile} make"
-    assert proof.startswith(expected_prefix)
-    assert f"make reviewed-batch-compare PROFILE={profile}" in proof
-    assert proof.index("-validate") < proof.index("-preview") < proof.index("-apply") < proof.index("reviewed-batch-compare")
+    steps = proof.split(" && ")
+    profile_prefix = f"STOCK_RESEARCH_DATA_PROFILE={profile} make "
+    assert len(steps) == 5
+    assert steps[0] == f"make readiness-snapshot PROFILE={profile}"
+    assert steps[1].startswith(profile_prefix) and "-validate" in steps[1]
+    assert steps[2].startswith(profile_prefix) and "-preview" in steps[2]
+    assert steps[3].startswith(profile_prefix) and "-apply" in steps[3]
+    assert steps[4].startswith(f"make reviewed-batch-compare PROFILE={profile}")
 
 
 @pytest.mark.parametrize(
@@ -1023,6 +1027,8 @@ def _assert_primary_dashboard_proof(proof: str, profile: str) -> None:
         "make readiness PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=A",
         "STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=A",
         "make readiness-snapshot PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=demo make imports-validate IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=local make imports-preview IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=A && make reviewed-batch-compare PROFILE=local LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+        "make readiness-snapshot PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=local make imports-validate IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=demo make imports-preview IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=A && make reviewed-batch-compare PROFILE=local LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+        "make readiness-snapshot PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=local make imports-validate IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=local make imports-preview IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=demo make imports-apply IMPORT_TICKERS=A && make reviewed-batch-compare PROFILE=local LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
         "make readiness-snapshot PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=local make imports-validate IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=local make imports-preview IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=A && make reviewed-batch-compare PROFILE=local LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make reviewed-batch-proof-record",
     ),
 )
