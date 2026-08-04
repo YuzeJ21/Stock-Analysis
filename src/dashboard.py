@@ -22246,6 +22246,13 @@ def single_stock_source_audit_cards(snapshot: dict[str, object]) -> list[dict[st
     return cards
 
 
+def _primary_company_workbench_inherited_copy(value: object, fallback: str) -> str:
+    text = compact_reason(value, max_sentences=1, max_chars=180)
+    if "stock-report-md" in text.casefold():
+        return fallback
+    return text
+
+
 def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame:
     selected_profile = resolve_readiness_proof_profile()
     ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
@@ -22344,7 +22351,10 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
         },
         {
             "Question": "What should I do next?",
-            "Answer": compact_reason(snapshot.get("next_action"), max_sentences=1, max_chars=180),
+            "Answer": _primary_company_workbench_inherited_copy(
+                snapshot.get("next_action"),
+                "Use the profile-scoped status check shown here before taking another primary action.",
+            ),
             "Trusted Input Needed": next_input,
             "Proof Command": proof_command,
             "Copy-Only Command": command,
@@ -22500,7 +22510,10 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
         {
             "kicker": "FIRST READ",
             "title": first_read,
-            "body": format_missing(snapshot.get("one_minute_summary"), analyze_now),
+            "body": _primary_company_workbench_inherited_copy(
+                snapshot.get("one_minute_summary"),
+                "Use the profile-scoped status check shown here before taking another primary action.",
+            ) if snapshot.get("one_minute_summary") else analyze_now,
             "badges": badges,
             "command": command,
         },

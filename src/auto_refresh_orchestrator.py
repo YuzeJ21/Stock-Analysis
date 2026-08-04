@@ -100,13 +100,14 @@ def _primary_lane_proof(*, profile: str, lane: str) -> str:
             lane=proof_lane,
             reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
         )
+    import_files = " IMPORT_FILES=fundamentals.csv" if proof_lane in {"fundamentals", "share_count"} else ""
     return primary_profile_bound_reviewed_write_proof_sequence(
         profile=profile,
         lane=proof_lane,
         reviewed_steps=(
-            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>",
-            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
-            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            f"make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
+            f"make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
+            f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
         ),
     )
 
@@ -213,13 +214,9 @@ def evaluate_auto_apply_gate(gate: AutoGateInput, profile: str | None = None) ->
     if gate.changed_rows > gate.max_batch_size:
         reasons.append("changed row count exceeds lane max batch size")
 
-    if gate.lane == "daily_price_refresh" and selected_profile != "local":
-        return AutoGateDecision(
-            status="blocked",
-            outcome="still_blocked",
-            reasons=("price writes require the local profile",),
-            required_next_commands=(_primary_lane_proof(profile=selected_profile, lane=gate.lane),),
-        )
+    non_local_price = gate.lane == "daily_price_refresh" and selected_profile != "local"
+    if non_local_price:
+        reasons.append("price writes require the local profile")
 
     if reasons:
         return AutoGateDecision(
@@ -227,8 +224,12 @@ def evaluate_auto_apply_gate(gate: AutoGateInput, profile: str | None = None) ->
             outcome="still_blocked",
             reasons=tuple(reasons),
             required_next_commands=(
-                "record auto-refresh proof with FINAL_OUTCOME=still_blocked",
-                "pivot to the next executable lane",
+                (_primary_lane_proof(profile=selected_profile, lane=gate.lane),)
+                if non_local_price
+                else (
+                    "record auto-refresh proof with FINAL_OUTCOME=still_blocked",
+                    "pivot to the next executable lane",
+                )
             ),
         )
 

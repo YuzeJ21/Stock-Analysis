@@ -26937,6 +26937,26 @@ def test_single_stock_reader_guide_frame_separates_ready_locked_and_next_step():
     assert "sell" not in rendered
 
 
+def test_primary_company_workbench_replaces_inherited_markdown_report_actions():
+    snapshot = {
+        "ticker": "A",
+        "asset_type": "company",
+        "price_ready": True,
+        "dcf_status": "ready",
+        "peer_ready": False,
+        "next_action": "Then run make stock-report-md TICKER=A.",
+        "one_minute_summary": "Then run make stock-report-md TICKER=A.",
+    }
+
+    reader = " ".join(dashboard.single_stock_reader_guide_frame(snapshot).astype(str).to_numpy().ravel()).lower()
+    quick = " ".join(str(value) for card in dashboard.single_stock_quick_read_cards(snapshot) for value in card.values()).lower()
+
+    assert "stock-report-md" not in reader
+    assert "stock-report-md" not in quick
+    assert "profile-scoped status check" in reader
+    assert "profile-scoped status check" in quick
+
+
 def test_single_stock_reader_guide_handles_etf_and_price_blocked_states():
     etf = {
         "ticker": "QQQ",

@@ -997,6 +997,40 @@ def _returned_strings(value: object) -> list[str]:
     return []
 
 
+def _assert_primary_dashboard_proof(proof: str, profile: str) -> None:
+    """Reject a mutation that weakens a rendered primary proof field."""
+
+    assert "make readiness" not in proof.replace("make readiness-snapshot", "")
+    assert not any(token in proof for token in (
+        "dcf-readiness", "optional-context-readiness", "price-coverage", "stock-report-md",
+        "pipeline", "materialization", "proof-record",
+    ))
+    if proof == "Price writes are unavailable outside local profile; rerun with PROFILE=local.":
+        assert profile in {"default", "demo"}
+        return
+    if "-apply" not in proof:
+        assert proof == f"STOCK_RESEARCH_DATA_PROFILE={profile} make status-check TOP_N=5"
+        return
+    expected_prefix = f"make readiness-snapshot PROFILE={profile} && STOCK_RESEARCH_DATA_PROFILE={profile} make"
+    assert proof.startswith(expected_prefix)
+    assert f"make reviewed-batch-compare PROFILE={profile}" in proof
+    assert proof.index("-validate") < proof.index("-preview") < proof.index("-apply") < proof.index("reviewed-batch-compare")
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "make readiness PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=A",
+        "STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=A",
+        "make readiness-snapshot PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=demo make imports-validate IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=local make imports-preview IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=A && make reviewed-batch-compare PROFILE=local LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+        "make readiness-snapshot PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=local make imports-validate IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=local make imports-preview IMPORT_TICKERS=A && STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=A && make reviewed-batch-compare PROFILE=local LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make reviewed-batch-proof-record",
+    ),
+)
+def test_primary_dashboard_proof_guard_rejects_incomplete_or_writer_mutations(mutation):
+    with pytest.raises(AssertionError):
+        _assert_primary_dashboard_proof(mutation, "local")
+
+
 @pytest.mark.parametrize("profile", ("default", "demo", "local"))
 def test_primary_company_workbench_and_automatic_objects_keep_one_complete_no_write_proof(monkeypatch, profile):
     """Catches a primary proof that loses its profile, ordering, or no-write boundary."""
@@ -1014,18 +1048,27 @@ def test_primary_company_workbench_and_automatic_objects_keep_one_complete_no_wr
         rejected_rows=0, source_provenance_present=True, fabricated_values_detected=False,
         unexpected_scope_change=False, provider_available=True,
     )
-    dashboard_strings = _returned_strings(
-        [
-            dashboard.single_stock_reader_guide_frame(state).to_dict("records")
-            for state in states
-        ] + [dashboard.single_stock_quick_read_cards(state) for state in states]
-    )
+    dashboard_objects = []
+    dashboard_proofs: list[str] = []
+    for state in states:
+        frame = dashboard.single_stock_reader_guide_frame(state)
+        cards = dashboard.single_stock_quick_read_cards(state)
+        dashboard_objects.extend((frame.to_dict("records"), cards))
+        dashboard_proofs.extend(str(proof) for proof in frame["Proof Command"].tolist())
+        dashboard_proofs.extend(
+            str(card["body"]).split("Proof command: ", 1)[1]
+            for card in cards
+            if "Proof command: " in str(card["body"])
+        )
+    dashboard_strings = _returned_strings(dashboard_objects)
     policies = build_default_lane_policies(profile=profile)
     decision = evaluate_auto_apply_gate(gate, profile=profile)
     policy_strings = [policy.dry_run_command for policy in policies] + [policy.proof_command for policy in policies] + [policy.gated_apply_command for policy in policies]
     proof_strings = [policy.proof_command for policy in policies] + [policy.gated_apply_command for policy in policies] + list(decision.required_next_commands)
 
     assert "stock-report-md" not in " ".join(dashboard_strings).lower()
+    for proof in dashboard_proofs:
+        _assert_primary_dashboard_proof(proof, profile)
     for proof in proof_strings:
         if "apply" not in proof:
             continue

@@ -85,8 +85,16 @@ def test_auto_gate_ready_fundamentals_returns_one_complete_selected_profile_proo
     )
 
     assert decision.required_next_commands == (
-        "make readiness-snapshot PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=local make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && STOCK_RESEARCH_DATA_PROFILE=local make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE=local LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+        "make readiness-snapshot PROFILE=local && STOCK_RESEARCH_DATA_PROFILE=local make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv && STOCK_RESEARCH_DATA_PROFILE=local make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv && STOCK_RESEARCH_DATA_PROFILE=local make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv && make reviewed-batch-compare PROFILE=local LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
     )
+
+
+@pytest.mark.parametrize("lane", ("daily_sec_filing_share_count", "daily_fundamentals_dcf"))
+def test_default_fundamentals_and_share_count_proofs_scope_imports_to_fundamentals_csv(lane):
+    policy = next(policy for policy in build_default_lane_policies(profile="local") if policy.lane == lane)
+
+    assert policy.gated_apply_command.count("IMPORT_FILES=fundamentals.csv") == 3
+    assert policy.proof_command.count("IMPORT_FILES=fundamentals.csv") == 3
 
 
 @pytest.mark.parametrize("profile", ("default", "demo"))
@@ -102,6 +110,31 @@ def test_auto_gate_blocks_non_local_price_writes_with_local_profile_unblock(prof
 
     assert decision.status == "blocked"
     assert decision.required_next_commands == ("Price writes are unavailable outside local profile; rerun with PROFILE=local.",)
+
+
+def test_non_local_price_gate_keeps_existing_blocker_reasons():
+    decision = evaluate_auto_apply_gate(
+        AutoGateInput(
+            lane="daily_price_refresh", changed_rows=0, max_batch_size=25, validation_status="invalid", preview_status="invalid",
+            rejected_rows=1, source_provenance_present=False, fabricated_values_detected=True,
+            unexpected_scope_change=True, provider_available=False,
+        ),
+        profile="demo",
+    )
+
+    assert decision.status == "blocked"
+    assert decision.required_next_commands == ("Price writes are unavailable outside local profile; rerun with PROFILE=local.",)
+    assert decision.reasons == (
+        "provider or source path is unavailable",
+        "validation did not pass",
+        "preview did not pass",
+        "rejected rows are present",
+        "source provenance is missing",
+        "fabricated values were detected",
+        "preview changed an unexpected scope",
+        "no changed rows to apply",
+        "price writes require the local profile",
+    )
 
 
 def test_auto_gate_returns_complete_local_price_proof():
