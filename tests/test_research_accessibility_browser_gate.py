@@ -1386,24 +1386,28 @@ def test_monitor_row_contract_accepts_filtered_order_and_rejects_monitor_or_rank
             },
         ),
         primary_columns=("TICKER", "PROCESS ATTENTION", "WHY"),
+        primary_table_present=True,
         advanced_identity_count=5,
         neutral_visible=False,
     )
     all_monitor = evaluate_monitor_rows(
         (),
         primary_columns=(),
+        primary_table_present=False,
         advanced_identity_count=5,
         neutral_visible=True,
     )
     leaked_monitor = evaluate_monitor_rows(
         ({"cohort_order": 0, "ticker": "AAA", "attention": "Monitor", "reason": "Wait."},),
         primary_columns=("Ticker", "Process attention", "Why"),
+        primary_table_present=True,
         advanced_identity_count=5,
         neutral_visible=False,
     )
     ranked = evaluate_monitor_rows(
         ({"cohort_order": 2, "ticker": "CCC", "attention": "Scheduled", "reason": "Saved review."},),
         primary_columns=("Ticker", "Process attention", "Return score"),
+        primary_table_present=True,
         advanced_identity_count=5,
         neutral_visible=False,
     )
@@ -1414,6 +1418,29 @@ def test_monitor_row_contract_accepts_filtered_order_and_rejects_monitor_or_rank
     assert "monitor row" in str(leaked_monitor["detail"]).lower()
     assert ranked["passed"] is False
     assert "rank/score/return" in str(ranked["detail"])
+
+
+def test_monitor_row_contract_rejects_wrong_columns_on_empty_primary_table():
+    from src.research_accessibility_browser_gate import evaluate_monitor_rows
+
+    valid_empty_table = evaluate_monitor_rows(
+        (),
+        primary_columns=("Ticker", "Process attention", "Why"),
+        primary_table_present=True,
+        advanced_identity_count=5,
+        neutral_visible=True,
+    )
+    wrong_empty_table = evaluate_monitor_rows(
+        (),
+        primary_columns=("Ticker", "Process attention", "Confidence"),
+        primary_table_present=True,
+        advanced_identity_count=5,
+        neutral_visible=True,
+    )
+
+    assert valid_empty_table["passed"] is True
+    assert wrong_empty_table["passed"] is False
+    assert "unexpected primary Monitor columns" in str(wrong_empty_table["detail"])
 
 
 def test_monitor_brief_geometry_requires_two_columns_on_desktop_and_one_on_phone():
@@ -1437,6 +1464,30 @@ def test_monitor_brief_geometry_requires_two_columns_on_desktop_and_one_on_phone
     assert desktop["passed"] is True
     assert phone["passed"] is True
     assert wrong_phone["passed"] is False
+
+
+def test_monitor_brief_geometry_rejects_overlapping_or_missing_desktop_cells():
+    from src.research_accessibility_browser_gate import evaluate_monitor_brief
+
+    kickers = (
+        "WEEKLY RESEARCH SUMMARY",
+        "RESEARCH FOLLOW-UP",
+        "SCHEDULED CONTEXT",
+        "EVIDENCE FRESHNESS",
+    )
+    overlapping_pairs = evaluate_monitor_brief(
+        kickers=kickers,
+        boxes=((0, 0), (0, 0), (500, 180), (500, 180)),
+        viewport_width=1280,
+    )
+    missing_cell = evaluate_monitor_brief(
+        kickers=kickers,
+        boxes=((0, 0), (500, 0), (0, 180), (0, 180)),
+        viewport_width=1280,
+    )
+
+    assert overlapping_pairs["passed"] is False
+    assert missing_cell["passed"] is False
 
 
 def test_state_harness_snapshot_rejects_hidden_duplicate_or_wrong_live_semantics():

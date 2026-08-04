@@ -407,6 +407,7 @@ def evaluate_monitor_rows(
     rows: Iterable[dict[str, object]],
     *,
     primary_columns: Iterable[str],
+    primary_table_present: bool,
     advanced_identity_count: int,
     neutral_visible: bool,
 ) -> dict[str, object]:
@@ -417,6 +418,8 @@ def evaluate_monitor_rows(
     failures: list[str] = []
     if not observed and not neutral_visible:
         failures.append("no Monitor discipline rows or neutral state were rendered")
+    if observed and not primary_table_present:
+        failures.append("Monitor rows require one primary discipline table")
     if observed and neutral_visible:
         failures.append("Monitor rows and the all-monitor neutral state cannot both be visible")
     orders: list[int] = []
@@ -442,7 +445,7 @@ def evaluate_monitor_rows(
             f"Monitor rows do not preserve saved cohort order: {orders}"
         )
     lowered_columns = tuple(column.casefold() for column in columns)
-    if observed and lowered_columns != ("ticker", "process attention", "why"):
+    if primary_table_present and lowered_columns != ("ticker", "process attention", "why"):
         failures.append(f"unexpected primary Monitor columns: {columns}")
     if any(
         forbidden in column
@@ -492,25 +495,52 @@ def evaluate_monitor_brief(
 
     def clustered(values: Iterable[float]) -> tuple[float, ...]:
         positions: list[float] = []
-        for value in values:
+        for value in sorted(values):
             if not any(abs(value - position) <= 2 for position in positions):
                 positions.append(value)
         return tuple(positions)
 
     try:
-        x_positions = clustered(float(box[0]) for box in observed_boxes)
-        y_positions = clustered(float(box[1]) for box in observed_boxes)
+        coordinates = tuple(
+            (float(box[0]), float(box[1])) for box in observed_boxes
+        )
+        x_positions = clustered(x for x, _ in coordinates)
+        y_positions = clustered(y for _, y in coordinates)
+        normalized_cells = tuple(
+            (
+                next(
+                    index
+                    for index, position in enumerate(x_positions)
+                    if abs(x - position) <= 2
+                ),
+                next(
+                    index
+                    for index, position in enumerate(y_positions)
+                    if abs(y - position) <= 2
+                ),
+            )
+            for x, y in coordinates
+        )
     except (IndexError, TypeError, ValueError):
         x_positions = ()
         y_positions = ()
+        normalized_cells = ()
         failures.append("Monitor brief card coordinates must be numeric x/y pairs")
 
     if viewport_width > 760:
-        if len(x_positions) != 2 or len(y_positions) != 2:
+        if (
+            len(x_positions) != 2
+            or len(y_positions) != 2
+            or normalized_cells != ((0, 0), (1, 0), (0, 1), (1, 1))
+        ):
             failures.append(
-                "desktop Monitor brief must use two columns and two rows"
+                "desktop Monitor brief must use four unique row-major cells in a two-column, two-row grid"
             )
-    elif len(x_positions) != 1 or len(y_positions) != 4 or tuple(y_positions) != tuple(sorted(y_positions)):
+    elif (
+        len(x_positions) != 1
+        or len(y_positions) != 4
+        or normalized_cells != ((0, 0), (0, 1), (0, 2), (0, 3))
+    ):
         failures.append(
             "phone Monitor brief must use one column and four increasing rows"
         )
@@ -2232,6 +2262,7 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
     evaluated = evaluate_monitor_rows(
         observed,
         primary_columns=columns,
+        primary_table_present=table.count() == 1,
         advanced_identity_count=advanced_count,
         neutral_visible=neutral.count() == 1,
     )
