@@ -813,31 +813,45 @@ def test_monitor_and_workbench_integrate_new_evidence_layers_without_new_routes(
     assert dashboard.workspace_path_options("Research Desk", nav.RESEARCH_MODE) == nav.RESEARCH_PATH_PAGE_TITLES
 
 
-def test_monitor_renders_change_answer_before_advanced_readiness():
+def test_monitor_recomposes_existing_answers_before_advanced_readiness():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     monitor_start = source.index("def render_research_monitor(")
     monitor_end = source.index("def render_company_workbench(", monitor_start)
     monitor = source[monitor_start:monitor_end]
 
-    weekly = monitor.index("weekly_summary_cards(weekly_summary)")
-    discipline = monitor.index('st.markdown("## Research Discipline Review")', weekly)
-    answer = monitor.index('st.markdown("## Research change monitor")', discipline)
-    frame = monitor.index("research_monitor_frame(state.get", answer)
-    empty = monitor.index("if frame.empty:", frame)
-    note = monitor.index("render_context_note(", empty)
-    discover = monitor.index('st.link_button("Open Discover"', note)
-    cohort = monitor.index("nowcast_cohort = load_dashboard_nowcast_cohort()", discover)
-    advanced = monitor.index(
-        'with st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False):',
-        cohort,
+    brief_heading = monitor.index('st.markdown("## Evidence Monitor Brief")')
+    brief_build = monitor.index("build_evidence_monitor_brief(", brief_heading)
+    brief_render = monitor.index('variant="evidence-monitor"', brief_build)
+    discipline = monitor.index('st.markdown("## Research Discipline Review")', brief_render)
+    primary_rows = monitor.index("brief.primary_rows", discipline)
+    change = monitor.index('st.markdown("## Research change monitor")', primary_rows)
+    advanced_discipline = monitor.index(
+        'with st.expander("Advanced: Research Discipline evidence", expanded=False):',
+        change,
     )
-    readiness_heading = monitor.index('st.markdown("### Earnings evidence readiness")', advanced)
-    readiness_cards = monitor.index("cohort_readiness_cards(nowcast_cohort)", readiness_heading)
-    readiness_frame = monitor.index("pd.DataFrame([asdict(row) for row in nowcast_cohort])", readiness_cards)
+    complete_frame = monitor.index("st.dataframe(discipline_frame", advanced_discipline)
+    identity_table = monitor.index("research_discipline_identity_table_html(discipline)", complete_frame)
+    advanced_nowcast = monitor.index(
+        'with st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False):',
+        identity_table,
+    )
 
-    assert weekly < discipline < answer < frame < empty < note < discover < cohort < advanced
-    assert advanced < readiness_heading < readiness_cards < readiness_frame
-    assert 'tone="success"' not in monitor[empty:discover]
+    assert brief_heading < brief_build < brief_render < discipline < primary_rows
+    assert primary_rows < change < advanced_discipline < complete_frame < identity_table < advanced_nowcast
+    assert "weekly_summary_cards(weekly_summary)" not in monitor
+    removed_helper = "research_discipline_" + "summary_cards"
+    assert f"{removed_helper}(discipline)" not in monitor
+    assert "research_discipline_table_html(discipline)" not in monitor[:change]
+
+
+def test_evidence_monitor_grid_is_two_by_two_then_one_column_on_phone():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    assert '"evidence-monitor": "signal-grid evidence-monitor-grid"' in source
+    assert ".signal-grid.evidence-monitor-grid {" in source
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in source
+    phone = source[source.index("@media (max-width: 760px)") :]
+    assert ".signal-grid.evidence-monitor-grid" in phone
+    assert "grid-template-columns: 1fr;" in phone
 
 
 def test_monitor_discipline_rows_preserve_focused_cohort_order_without_rank(tmp_path, monkeypatch):
@@ -1029,24 +1043,6 @@ def test_malformed_shared_catalyst_ledger_fails_attention_closed(tmp_path, monke
     assert rows[0].attention_source == "catalyst"
 
 
-def test_research_discipline_summary_counts_process_labels_without_ranking():
-    cards = dashboard.research_discipline_summary_cards(
-        (
-            SimpleNamespace(attention_label="Needs review"),
-            SimpleNamespace(attention_label="Scheduled"),
-            SimpleNamespace(attention_label="Monitor"),
-            SimpleNamespace(attention_label="Needs review"),
-        )
-    )
-
-    assert [card["title"] for card in cards] == [
-        "2 needs review",
-        "1 scheduled",
-        "1 monitor",
-    ]
-    assert "rank" not in str(cards).lower()
-
-
 def test_research_discipline_table_is_semantic_ordered_and_primary_answer_only():
     rows = (
         SimpleNamespace(
@@ -1118,9 +1114,12 @@ def test_monitor_discipline_empty_state_is_process_only():
     monitor_end = source.index("def render_company_workbench(", monitor_start)
     monitor = source[monitor_start:monitor_end]
 
-    assert "No process item is currently due from saved reviewer-authored evidence." in monitor
+    assert "remain in saved monitoring state" in monitor
+    assert "no saved process transition is currently due" in monitor
     assert "This does not claim that no market event, risk, or external research need exists." in monitor
-    assert "research_discipline_summary_cards(discipline)" in monitor
+    assert "research-monitor-neutral" in monitor
+    removed_helper = "research_discipline_" + "summary_cards"
+    assert removed_helper not in monitor
     assert '"Process attention"' in Path("src/research_decision_lab.py").read_text(encoding="utf-8")
 
 

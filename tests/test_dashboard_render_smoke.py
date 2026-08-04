@@ -629,14 +629,18 @@ def test_company_workbench_html_brief_does_not_enter_mutating_or_external_paths(
     assert any(item.label == "HTML Research Brief" for item in app.expander)
 
 
-def test_monitor_renders_research_discipline_after_weekly_summary_without_ranking():
+def test_monitor_renders_evidence_brief_before_filtered_discipline_without_ranking():
     from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
 
     route = DashboardRenderRoute(
         name="Monitor Research Discipline Review",
         query_params=(("mode", "research"), ("page", "monitor")),
         required_markers=(
+            "Evidence Monitor Brief",
             "WEEKLY RESEARCH SUMMARY",
+            "RESEARCH FOLLOW-UP",
+            "SCHEDULED CONTEXT",
+            "EVIDENCE FRESHNESS",
             "Research Discipline Review",
             "Research change monitor",
             "Advanced: Research Discipline evidence",
@@ -648,7 +652,11 @@ def test_monitor_renders_research_discipline_after_weekly_summary_without_rankin
     rendered = "\n".join(result.rendered_blocks)
 
     assert result.exceptions == ()
-    assert rendered.index("WEEKLY RESEARCH SUMMARY") < rendered.index("Research Discipline Review")
+    assert rendered.index("Evidence Monitor Brief") < rendered.index("WEEKLY RESEARCH SUMMARY")
+    assert rendered.index("WEEKLY RESEARCH SUMMARY") < rendered.index("RESEARCH FOLLOW-UP")
+    assert rendered.index("RESEARCH FOLLOW-UP") < rendered.index("SCHEDULED CONTEXT")
+    assert rendered.index("SCHEDULED CONTEXT") < rendered.index("EVIDENCE FRESHNESS")
+    assert rendered.index("EVIDENCE FRESHNESS") < rendered.index("Research Discipline Review")
     assert rendered.index("Research Discipline Review") < rendered.index("Research change monitor")
     assert "company rank" not in rendered.lower()
     assert "expected return" not in rendered.lower()

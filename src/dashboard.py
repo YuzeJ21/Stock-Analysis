@@ -386,6 +386,7 @@ from src.company_workbench_html import (
 )
 from src.research_workspace import (
     advanced_evidence_links_html,
+    build_evidence_monitor_brief,
     cash_generation_preview_cards,
     cash_generation_preview_rows,
     company_change_answer,
@@ -3415,6 +3416,9 @@ def apply_dashboard_theme() -> None:
           gap: 0.46rem;
           margin: 0.52rem 0 0.72rem 0;
         }
+        .signal-grid.evidence-monitor-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
         .signal-card {
           background: #ffffff;
           border: 1px solid rgba(148, 163, 184, 0.22);
@@ -3639,6 +3643,7 @@ def apply_dashboard_theme() -> None:
           .public-loading-preview,
           .signal-grid,
           .signal-grid.queue-grid,
+          .signal-grid.evidence-monitor-grid,
           .metric-card-grid {
             grid-template-columns: 1fr;
             gap: 0.42rem;
@@ -6015,41 +6020,6 @@ def load_dashboard_research_discipline_rows(
     )
 
 
-def research_discipline_summary_cards(
-    rows: Iterable[ResearchDisciplineRow],
-) -> list[dict[str, object]]:
-    """Summarize process timing without sorting or rating companies."""
-
-    labels = [row.attention_label for row in rows]
-    specifications = (
-        (
-            "Needs review",
-            "needs review",
-            "Saved research-process evidence identifies a review follow-up.",
-        ),
-        (
-            "Scheduled",
-            "scheduled",
-            "A saved review date or reviewed catalyst context is scheduled.",
-        ),
-        (
-            "Monitor",
-            "monitor",
-            "No saved research-process transition is currently due.",
-        ),
-    )
-    return [
-        {
-            "kicker": label.upper(),
-            "title": f"{labels.count(label)} {title}",
-            "body": body,
-            "badges": ["process timing", "not a company score"],
-            "command": "",
-        }
-        for label, title, body in specifications
-    ]
-
-
 def research_discipline_table_html(
     rows: Iterable[ResearchDisciplineRow],
 ) -> str:
@@ -7855,7 +7825,10 @@ def signal_card_html(
 
 
 def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool = True, variant: str = "") -> None:
-    grid_class = "signal-grid queue-grid" if variant == "queue" else "signal-grid"
+    grid_class = {
+        "queue": "signal-grid queue-grid",
+        "evidence-monitor": "signal-grid evidence-monitor-grid",
+    }.get(variant, "signal-grid")
     st.markdown(
         f"<div class='{grid_class}'>"
         + "".join(
@@ -35720,42 +35693,62 @@ def render_research_monitor(
         primary_action="Review unresolved evidence changes; otherwise wait for new source evidence",
         observation_recency=observation_recency,
     )
-    render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
     discipline = load_dashboard_research_discipline_rows(
         context,
         cohort,
         state.get("queue") or (),
     )
-    st.markdown("## Research Discipline Review")
-    render_signal_cards(
-        research_discipline_summary_cards(discipline),
-        show_commands=False,
-        variant="queue",
+    profile_observation = (
+        observation_recency.profile_price_lane
+        if observation_recency is not None
+        else None
     )
+    st.markdown("## Evidence Monitor Brief")
+    brief = build_evidence_monitor_brief(
+        weekly_summary,
+        discipline,
+        readiness_state=context.freshness_state,
+        readiness_message=context.freshness_message,
+        observation_state=(profile_observation.state if profile_observation else "unavailable"),
+        observation_message=(
+            _observation_recency_message(profile_observation)
+            if profile_observation is not None
+            else "Market observation is unavailable."
+        ),
+    )
+    render_signal_cards(
+        [asdict(card) for card in brief.cards],
+        show_commands=False,
+        variant="evidence-monitor",
+    )
+    st.markdown("## Research Discipline Review")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
-    if discipline_frame.empty or all(
-        row.attention_state == "monitor" for row in discipline
-    ):
-        render_context_note(
-            "No process item is currently due from saved reviewer-authored evidence.",
-            "This does not claim that no market event, risk, or external research need exists.",
-        )
-    if not discipline_frame.empty:
+    if brief.primary_rows:
         st.markdown(
-            research_discipline_table_html(discipline),
+            research_discipline_table_html(brief.primary_rows),
             unsafe_allow_html=True,
         )
-    with st.expander("Advanced: Research Discipline evidence", expanded=False):
-        if discipline:
-            st.markdown(
-                research_discipline_identity_table_html(discipline),
-                unsafe_allow_html=True,
+    elif discipline:
+        company_word = "company" if brief.monitor_count == 1 else "companies"
+        st.markdown(
+            "<div class='research-monitor-neutral'>"
+            + context_note_html(
+                f"{brief.monitor_count} {company_word} remain in saved monitoring state; "
+                "no saved process transition is currently due.",
+                "This does not claim that no market event, risk, or external research need exists.",
             )
-        else:
-            st.caption("No focused-cohort process identity is available from saved evidence.")
-        st.caption(
-            "Rows preserve saved focused-cohort order. Process state does not rank companies, "
-            "estimate returns, or replace source-change review."
+            + "</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            "<div class='research-monitor-neutral'>"
+            + context_note_html(
+                "Saved research-process evidence is unavailable.",
+                "No company state is inferred from missing evidence.",
+            )
+            + "</div>",
+            unsafe_allow_html=True,
         )
     st.markdown("## Research change monitor")
     frame = research_monitor_frame(state.get("queue") or ())
@@ -35767,6 +35760,20 @@ def render_research_monitor(
         st.link_button("Open Discover", "?mode=research&page=discover", type="primary")
     else:
         st.dataframe(frame, width="stretch", hide_index=True)
+    with st.expander("Advanced: Research Discipline evidence", expanded=False):
+        if not discipline_frame.empty:
+            st.dataframe(discipline_frame, width="stretch", hide_index=True)
+        if discipline:
+            st.markdown(
+                research_discipline_identity_table_html(discipline),
+                unsafe_allow_html=True,
+            )
+        else:
+            st.caption("No focused-cohort process identity is available from saved evidence.")
+        st.caption(
+            "Rows preserve saved focused-cohort order. Process state does not rank companies, "
+            "estimate returns, or replace source-change review."
+        )
     nowcast_cohort = load_dashboard_nowcast_cohort()
     with st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False):
         st.markdown("### Earnings evidence readiness")
