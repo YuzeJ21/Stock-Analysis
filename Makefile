@@ -221,7 +221,7 @@ help-full:
 	@echo "  make reviewed-batch-proof [LEDGER=data/reviewed_batch_proofs.csv] Print durable reviewed batch proof rows"
 	@echo "  make proof-readiness-reconciliation [TOP_N=20] [TICKERS=ARCT] [JSON=1] Compare historical proof with current saved readiness"
 	@echo "  make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<auto_supported|human_reviewed_supported|candidate_context_only|still_blocked|skipped|excluded> Record a reviewed or auto-gated batch outcome"
-	@echo "  make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot with in-memory current readiness"
+	@echo "  make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot; current readiness is composed in memory and no current report is written"
 	@echo "  make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates"
 	@echo "  make auto-refresh-plan       Print scheduler-ready source-backed auto-refresh lanes and auto gates"
 	@echo "  make auto-refresh-daily      Print daily price, SEC filing/share-count, and fundamentals refresh commands"

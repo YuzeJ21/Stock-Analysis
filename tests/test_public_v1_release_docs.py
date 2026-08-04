@@ -1195,6 +1195,8 @@ def test_public_make_help_marks_legacy_readiness_guard_and_profile_bound_writers
     assert "CONFIRM_MATERIALIZE=1" in help_text
     assert "make readiness-snapshot PROFILE=<default|demo|local>" in help_text
     assert "one profile-specific prior snapshot" in help_text
+    assert "make reviewed-batch-compare PROFILE=<default|demo|local>" in help_text
+    assert "current readiness is composed in memory and no current report is written" in help_text
     assert "Write central data/reports/ticker_readiness_report.csv" not in help_text
 
 

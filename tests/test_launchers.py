@@ -279,7 +279,25 @@ def test_reviewed_batch_compare_requires_and_forwards_one_profile():
         line for line in makefile.splitlines() if "make reviewed-batch-compare" in line and "Compare" in line
     )
     assert "PROFILE=<default|demo|local>" in help_line
-    assert "in-memory current readiness" in help_line
+    assert "current readiness is composed in memory and no current report is written" in help_line
+
+
+def test_full_help_keeps_the_five_primary_readiness_boundaries_separate():
+    result = subprocess.run(
+        ["make", "help-full"], capture_output=True, text=True, check=False
+    )
+
+    assert result.returncode == 0
+    help_text = result.stdout
+    assert "make readiness-preview [TOP_N=20]" in help_text
+    assert "in memory without writing files" in help_text
+    assert "make readiness-snapshot PROFILE=<default|demo|local>" in help_text
+    assert "one profile-specific prior snapshot" in help_text
+    assert "make reviewed-batch-compare PROFILE=<default|demo|local>" in help_text
+    assert "current readiness is composed in memory and no current report is written" in help_text
+    assert "make readiness        Deprecated no-write guard; exits 2" in help_text
+    assert "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local>" in help_text
+    assert "Write one ignored full readiness package" in help_text
 
 
 def test_reviewed_batch_packet_targets_forward_one_named_profile():
@@ -627,7 +645,7 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-batch-proof",
         "Print durable reviewed batch proof rows",
         "make reviewed-batch-compare",
-        "Compare a profile-bound prior snapshot with in-memory current readiness",
+        "Compare a profile-bound prior snapshot; current readiness is composed in memory and no current report is written",
         "make reviewed-batch-preflight",
         "Check snapshot, dry-run, compare, proof, and artifact gates",
         "make lane-outcome-history",
@@ -681,7 +699,7 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-batch-proof [LEDGER=data/reviewed_batch_proofs.csv] Print durable reviewed batch proof rows",
         "make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<auto_supported|human_reviewed_supported|candidate_context_only|still_blocked|skipped|excluded> Record a reviewed or auto-gated batch outcome",
         "make auto-refresh-plan       Print scheduler-ready source-backed auto-refresh lanes and auto gates",
-        "make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot with in-memory current readiness",
+        "make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot; current readiness is composed in memory and no current report is written",
         "make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates",
         "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] Print reviewed capped price-run execution, diff, and rollback plan",
         "make public-demo-readiness-pack Print the small shareable public demo proof set",
@@ -2433,9 +2451,9 @@ def test_readiness_model_documents_peer_layers_and_snapshot_history():
 def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     dashboard = Path("src/dashboard.py").read_text(encoding="utf-8")
     dry_run_index = dashboard.index("make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto")
-    refresh_index = dashboard.index("make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30")
 
-    assert dry_run_index < refresh_index
+    assert dry_run_index >= 0
+    assert "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30" not in dashboard
     assert "Inspect broad refresh changes before committing or sharing them publicly" in dashboard
     assert "broad refresh churn should be inspected before it is committed or shared publicly" not in dashboard
     assert "Open Review" in dashboard
@@ -2835,7 +2853,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert 'case "$(PROFILE)" in default|demo|local)' in trusted_data_pilot
     assert '@echo "Trusted Data Pilot"' in trusted_data_pilot
     assert "trusted-data-pilot-candidates:\n\t@python3 -m src.trusted_data_pilot --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),) $(if $(filter 1 true TRUE yes YES,$(VERBOSE)),--verbose,)" in makefile
-    assert "pilot-share-brief:\n\t@python3 -m src.pilot_readiness --profile \"$(or $(PROFILE),default)\" --share-brief --top-n $(or $(TOP_N),10) --output \"$(or $(OUTPUT),outputs/pilot_share_brief.md)\"" in makefile
+    assert "pilot-share-brief:\n\t@python3 -m src.pilot_readiness --profile \"$(or $(PROFILE),default)\" --share-brief --top-n $(or $(TOP_N),10) $(if $(OUTPUT),--output \"$(OUTPUT)\",)" in makefile
     assert "trusted-data-pilot-packet:\nifndef TICKER\n\t$(error TICKER is required, for example: make trusted-data-pilot-packet TICKER=CRDO)\nendif\n\t@python3 -m src.trusted_data_pilot --packet $(TICKER)" in makefile
     assert "DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD" in makefile
     assert "DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO" in makefile
