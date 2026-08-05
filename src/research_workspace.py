@@ -62,6 +62,87 @@ class MonitorFollowUpQueue:
     next_action_url: str
 
 
+@dataclass(frozen=True)
+class ResearchDeskBrief:
+    question: str
+    attention_count: int
+    answer: str
+    reason: str
+    freshness_warning: str
+    next_action_label: str
+    next_action_url: str
+    stop_rule: str
+
+
+def build_research_desk_brief(
+    summary: WeeklyResearchSummary,
+    *,
+    change_status: str,
+    review_items: Iterable[object],
+    freshness_state: str,
+    freshness_message: str,
+) -> ResearchDeskBrief:
+    """Compose one read-only answer from already-saved workspace evidence."""
+
+    saved_review_items = tuple(review_items or ())
+    attention_count = max(
+        max(int(summary.unique_event_count), 0),
+        len(saved_review_items),
+    )
+    if attention_count:
+        noun = "item" if attention_count == 1 else "items"
+        answer = f"{attention_count} saved research {noun} need attention."
+        reason = (
+            summary.items[0].answer
+            if summary.items
+            else "Saved source-change evidence requires review."
+        )
+        next_action_label = "Open Monitor"
+        next_action_url = "?mode=research&page=monitor"
+    else:
+        answer = (
+            "No saved research item is currently due from the evidence loaded in "
+            "this workspace."
+        )
+        comparable = str(change_status or "").strip() in {
+            "changes_detected",
+            "no_changes",
+        }
+        reason = (
+            "No unresolved saved source-change item is available."
+            if comparable
+            else "A comparable saved before-and-after research snapshot is not available yet."
+        )
+        next_action_label = "Open Discover"
+        next_action_url = "?mode=research&page=discover"
+
+    normalized_freshness = str(freshness_state or "").strip().casefold() or "unavailable"
+    freshness_body = str(freshness_message or "").strip()
+    if normalized_freshness in {"current", "fresh", "ready"}:
+        freshness_warning = freshness_body or "Saved readiness is current."
+    elif normalized_freshness == "unavailable" and not freshness_body:
+        freshness_warning = "Saved readiness is unavailable."
+    else:
+        freshness_warning = (
+            f"Saved readiness is {normalized_freshness}: "
+            f"{freshness_body or 'No current saved readiness evidence is available.'}"
+        )
+
+    return ResearchDeskBrief(
+        question="What needs my attention today?",
+        attention_count=attention_count,
+        answer=answer,
+        reason=reason,
+        freshness_warning=freshness_warning,
+        next_action_label=next_action_label,
+        next_action_url=next_action_url,
+        stop_rule=(
+            "This brief summarizes saved workspace evidence only. It is not a "
+            "market-complete event feed, recommendation, or trade instruction."
+        ),
+    )
+
+
 def build_monitor_follow_up_queue(
     summary: WeeklyResearchSummary,
     rows: Iterable[ResearchDisciplineRow],
@@ -1174,6 +1255,28 @@ def research_desk_cards_html(cards) -> str:
         for card in cards
     )
     return f"<section class='research-desk-grid' aria-label='Research Desk answers'>{rendered}</section>"
+
+
+def research_desk_brief_html(brief: ResearchDeskBrief) -> str:
+    """Render the Desk contract as one answer-first, keyboard-accessible block."""
+
+    return (
+        "<section class='research-desk-brief' aria-label=\"Today's Research Brief\">"
+        "<div class='research-desk-brief-heading'>"
+        "<span>Today's Research Brief</span>"
+        f"<h2>{html.escape(brief.question)}</h2>"
+        "</div>"
+        f"<p class='research-desk-brief-answer'>{html.escape(brief.answer)}</p>"
+        "<dl class='research-desk-brief-context'>"
+        f"<div><dt>Why</dt><dd>{html.escape(brief.reason)}</dd></div>"
+        f"<div><dt>Freshness</dt><dd>{html.escape(brief.freshness_warning)}</dd></div>"
+        "</dl>"
+        "<a class='public-primary-action' "
+        f"href='{html.escape(brief.next_action_url, quote=True)}' target='_self'>"
+        f"{html.escape(brief.next_action_label)}</a>"
+        f"<p class='research-desk-brief-stop'>{html.escape(brief.stop_rule)}</p>"
+        "</section>"
+    )
 
 
 def advanced_evidence_links_html(ticker: str) -> str:

@@ -6,9 +6,9 @@ import pytest
 from src import research_workspace
 from src.research_decision_lab import ResearchDisciplineRow
 from src.research_workspace import (
-    RESEARCH_ROUTING_STATES,
     advanced_evidence_links,
     advanced_evidence_links_html,
+    build_research_desk_brief,
     build_monitor_follow_up_queue,
     cash_generation_preview_cards,
     cash_generation_preview_rows,
@@ -21,8 +21,7 @@ from src.research_workspace import (
     focused_cohort_coverage_cards,
     focused_ticker_coverage_cards,
     quarterly_trend_cards,
-    research_desk_cards,
-    research_desk_cards_html,
+    research_desk_brief_html,
     research_accessibility_media_preferences_css,
     research_evidence_return_link,
     research_monitor_frame,
@@ -777,31 +776,78 @@ def test_withheld_cash_preview_shows_no_numeric_or_component_evidence():
     )
 
 
-def test_research_desk_answers_changes_attention_blockers_and_next_action_without_recommendations():
-    cards = research_desk_cards(
-        change_status="changes_detected",
-        review_items=[object(), object()],
-        readiness_summary={
-            "master_universe": 25,
-            "price_ready": 24,
-            "dcf_ready": 12,
-            "peer_ready": 5,
-        },
+def test_research_desk_brief_deduplicates_saved_attention_and_routes_to_monitor():
+    summary = _weekly_summary(
+        WeeklySummaryItem(
+            "requires_review",
+            "AAA",
+            "AAA has one traceable saved evidence change to review.",
+            "review_now",
+            "source:aaa",
+            "2026-08-04T00:00:00+00:00",
+        ),
+        WeeklySummaryItem(
+            "new_evidence",
+            "BBB",
+            "BBB has one traceable saved evidence change to review.",
+            "review_now",
+            "source:bbb",
+            "2026-08-04T00:00:00+00:00",
+        ),
     )
 
-    assert [card["question"] for card in cards] == [
-        "What changed?",
-        "Which companies need attention?",
-        "What is blocked or stale?",
-        "What should I review next?",
-    ]
-    assert all(card["routing_state"] in RESEARCH_ROUTING_STATES for card in cards)
-    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
-    assert "2 unresolved evidence changes" in rendered
-    assert "discover" in rendered
-    assert "buy" not in rendered
-    assert "sell" not in rendered
-    assert "recommend" not in rendered
+    brief = build_research_desk_brief(
+        summary,
+        change_status="changes_detected",
+        review_items=[object(), object()],
+        freshness_state="stale",
+        freshness_message="Saved readiness was built before the latest declared source date.",
+    )
+
+    assert brief.attention_count == 2
+    assert brief.answer == "2 saved research items need attention."
+    assert brief.reason == "AAA has one traceable saved evidence change to review."
+    assert brief.next_action_label == "Open Monitor"
+    assert brief.next_action_url == "?mode=research&page=monitor"
+    assert "stale" in brief.freshness_warning.lower()
+
+
+def test_research_desk_brief_no_item_state_routes_to_discover_without_claiming_market_completeness():
+    brief = build_research_desk_brief(
+        _weekly_summary(),
+        change_status="no_changes",
+        review_items=[],
+        freshness_state="current",
+        freshness_message="Saved readiness is current through 2026-08-04.",
+    )
+
+    assert brief.attention_count == 0
+    assert brief.answer == "No saved research item is currently due from the evidence loaded in this workspace."
+    assert brief.reason == "No unresolved saved source-change item is available."
+    assert brief.next_action_label == "Open Discover"
+    assert brief.next_action_url == "?mode=research&page=discover"
+    assert "not a market-complete event feed" in brief.stop_rule
+    assert "recommendation" in brief.stop_rule
+
+
+@pytest.mark.parametrize(
+    ("freshness_state", "freshness_message", "expected"),
+    (
+        ("", "", "Saved readiness is unavailable."),
+        ("current", "Saved readiness is current.", "Saved readiness is current."),
+        ("stale", "Saved readiness needs review.", "Saved readiness is stale: Saved readiness needs review."),
+    ),
+)
+def test_research_desk_brief_freshness_fails_closed(freshness_state, freshness_message, expected):
+    brief = build_research_desk_brief(
+        _weekly_summary(),
+        change_status="unavailable",
+        review_items=[],
+        freshness_state=freshness_state,
+        freshness_message=freshness_message,
+    )
+
+    assert brief.freshness_warning == expected
 
 
 def test_company_workbench_contract_keeps_evidence_last():
@@ -1137,18 +1183,21 @@ def test_compact_research_workspace_header_keeps_identity_scope_and_boundary_wit
     assert "research-workspace-meta" not in rendered
 
 
-def test_research_desk_and_advanced_evidence_html_stay_answer_first_and_command_free():
-    cards = research_desk_cards(
+def test_research_desk_brief_and_advanced_evidence_html_stay_answer_first_and_command_free():
+    brief = build_research_desk_brief(
+        _weekly_summary(),
         change_status="no_changes",
         review_items=[],
-        readiness_summary={"master_universe": 25, "price_ready": 24, "dcf_ready": 12, "peer_ready": 5},
+        freshness_state="current",
+        freshness_message="Saved readiness is current.",
     )
-    desk_html = research_desk_cards_html(cards)
+    desk_html = research_desk_brief_html(brief)
     evidence_html = advanced_evidence_links_html("NVDA")
 
-    assert desk_html.count("research-desk-answer") == 4
-    assert "What changed?" in desk_html
+    assert desk_html.count("research-desk-brief") >= 1
+    assert "What needs my attention today?" in desk_html
     assert "Open Discover" in desk_html
+    assert "market-complete event feed" in desk_html
     assert "Open Data Health" in evidence_html
     assert "Open Proof History" in evidence_html
     assert "make " not in (desk_html + evidence_html).lower()
