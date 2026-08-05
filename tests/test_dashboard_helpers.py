@@ -2140,6 +2140,75 @@ def test_stock_selector_queue_sorts_ready_research_candidates_before_alphabetica
     assert frame.loc[0, "Sector / Theme"] == "SMH / AI Semiconductors"
 
 
+def test_discover_saved_company_browse_frame_uses_readiness_only_and_sorts_alphabetically():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "ZZZ",
+                "asset_type": "company",
+                "overall_readiness_state": "partial",
+                "price_ready": True,
+                "fundamentals_ready": False,
+                "dcf_ready": False,
+                "peer_ready": False,
+                "ready_features": "price history and trend context",
+                "missing_data": "fundamentals need trusted source proof",
+                "next_action": "Review fundamentals proof.",
+                "updated_at": "2026-07-31T00:00:00+00:00",
+                "review_priority_reason": "High review priority: must never render.",
+                "decision_score": 99,
+            },
+            {
+                "ticker": "AAA",
+                "asset_type": "company",
+                "overall_readiness_state": "ready",
+                "price_ready": True,
+                "fundamentals_ready": True,
+                "dcf_ready": True,
+                "peer_ready": False,
+                "ready_features": "price, fundamentals, and DCF evidence",
+                "missing_data": "peer evidence remains unavailable",
+                "next_action": "Review peer evidence requirements.",
+                "updated_at": "2026-07-30T00:00:00+00:00",
+                "review_priority_reason": "High review priority: must never render.",
+                "decision_score": 1,
+            },
+            {
+                "ticker": "QQQ",
+                "asset_type": "etf",
+                "overall_readiness_state": "monitor",
+                "price_ready": True,
+            },
+        ]
+    )
+
+    frame = dashboard.discover_saved_company_browse_frame(
+        readiness,
+        allowed_tickers=("ZZZ", "AAA", "QQQ"),
+    )
+
+    assert frame["Ticker"].tolist() == ["AAA", "ZZZ"]
+    assert frame.loc[0, "Why Inspectable"] == (
+        "Saved evidence is available for price, fundamentals, and DCF review."
+    )
+    assert frame.loc[1, "Why Inspectable"] == "Saved evidence is available for price review."
+    assert frame.loc[0, "Blocked / Missing"] == "peer evidence remains unavailable"
+    assert "Why Included" not in frame.columns
+    assert not any(
+        "high review priority" in str(value).lower()
+        for value in frame.to_numpy().flat
+    )
+    assert "decision_score" not in frame.columns
+
+
+def test_discover_saved_company_browse_frame_fails_closed_without_saved_readiness():
+    assert dashboard.discover_saved_company_browse_frame(None).empty
+    assert dashboard.discover_saved_company_browse_frame(pd.DataFrame()).empty
+    assert dashboard.discover_saved_company_browse_frame(
+        pd.DataFrame([{"asset_type": "company"}])
+    ).empty
+
+
 def test_stock_selector_queue_uses_active_readiness_rows_when_saved_queue_is_absent():
     readiness = pd.DataFrame(
         [

@@ -29503,6 +29503,149 @@ def single_stock_detail_sections_visible(ticker: object) -> bool:
     return bool(st.session_state.get(single_stock_detail_sections_key(ticker), False))
 
 
+def discover_saved_company_browse_frame(
+    ticker_readiness_frame: pd.DataFrame | None,
+    *,
+    allowed_tickers: tuple[str, ...] | None = None,
+    limit: int = 120,
+) -> pd.DataFrame:
+    """Build alphabetical saved-company browsing from readiness only."""
+
+    if ticker_readiness_frame is None or ticker_readiness_frame.empty:
+        return pd.DataFrame()
+    ticker_col = _selector_column(ticker_readiness_frame, "ticker", "Ticker")
+    if not ticker_col:
+        return pd.DataFrame()
+
+    frame = ticker_readiness_frame.copy()
+    asset_col = _selector_column(frame, "asset_type", "Asset Type")
+    if asset_col:
+        frame = frame.loc[
+            frame[asset_col]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.lower()
+            .eq("company")
+        ].copy()
+    if allowed_tickers is not None:
+        allowed = {
+            str(value).strip().upper()
+            for value in allowed_tickers
+            if str(value).strip()
+        }
+        frame = frame.loc[
+            frame[ticker_col]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.upper()
+            .isin(allowed)
+        ].copy()
+    if frame.empty:
+        return pd.DataFrame()
+
+    readiness_col = _selector_column(frame, "overall_readiness_state", "Readiness")
+    supported_col = _selector_column(frame, "ready_features", "supported_analysis")
+    blocker_col = _selector_column(frame, "missing_data", "missing_data_summary")
+    next_col = _selector_column(frame, "next_action", "next_research_step")
+    freshness_col = _selector_column(
+        frame,
+        "updated_at",
+        "source_freshness_summary",
+    )
+    sector_col = _selector_column(frame, "sector", "SectorETF")
+    theme_col = _selector_column(frame, "theme", "industry")
+    lane_fields = (
+        ("price_ready", "price"),
+        ("fundamentals_ready", "fundamentals"),
+        ("dcf_ready", "DCF"),
+        ("peer_ready", "peer"),
+    )
+
+    rows: list[dict[str, object]] = []
+    for _, row in frame.iterrows():
+        ticker = str(row.get(ticker_col, "")).strip().upper()
+        if not ticker:
+            continue
+        lanes = [
+            label
+            for column, label in lane_fields
+            if str(row.get(column, "")).strip().lower()
+            in {"true", "1", "yes", "y"}
+        ]
+        if lanes:
+            if len(lanes) == 1:
+                lane_copy = lanes[0]
+            else:
+                lane_copy = ", ".join(lanes[:-1]) + f", and {lanes[-1]}"
+            why_inspectable = (
+                f"Saved evidence is available for {lane_copy} review."
+            )
+        else:
+            why_inspectable = (
+                "This saved company can be opened for evidence inspection; "
+                "no usable research lane is currently recorded."
+            )
+        sector = _selector_text(row, sector_col, fallback="")
+        theme = _selector_text(row, theme_col, fallback="")
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Asset Type": _selector_text(row, asset_col, fallback="company"),
+                "Research State": "Saved company",
+                "Readiness": _selector_text(
+                    row,
+                    readiness_col,
+                    fallback="Needs readiness check",
+                ),
+                "Price Ready": "price" in lanes,
+                "Fundamentals Ready": "fundamentals" in lanes,
+                "DCF Ready": "DCF" in lanes,
+                "Trusted Peer Ready": "peer" in lanes,
+                "Review Detail": "Evidence inspection",
+                "Sector / Theme": " / ".join(
+                    value for value in (sector, theme) if value
+                )
+                or "Not available",
+                "Why Inspectable": why_inspectable,
+                "Supported Now": _selector_text(
+                    row,
+                    supported_col,
+                    fallback="No usable research lane is recorded.",
+                ),
+                "Blocked / Missing": _selector_text(
+                    row,
+                    blocker_col,
+                    fallback=(
+                        "No principal evidence gap is recorded; this does not mean "
+                        "no external research need exists."
+                    ),
+                ),
+                "Next Proof Step": _selector_text(
+                    row,
+                    next_col,
+                    fallback="Review saved readiness before deeper research.",
+                ),
+                "Proof Freshness": _selector_text(
+                    row,
+                    freshness_col,
+                    fallback="Saved readiness freshness is unavailable.",
+                ),
+            }
+        )
+
+    result = pd.DataFrame(rows)
+    if result.empty:
+        return result
+    result = result.sort_values(
+        "Ticker",
+        key=lambda values: values.str.upper(),
+        kind="mergesort",
+    )
+    return result.head(max(limit, 1)).reset_index(drop=True)
+
+
 def stock_selector_queue_frame(
     decisions_frame: pd.DataFrame | None,
     final_frame: pd.DataFrame | None,
