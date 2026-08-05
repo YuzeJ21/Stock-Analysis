@@ -36462,17 +36462,22 @@ def main() -> None:
     else:
         if research_mode:
             render_research_workflow_navigation(selected_page, ticker=ticker)
-        render_app_header(
-            catalog,
-            output_frames,
-            compact=True,
-            current_page=selected_page,
-            current_mode=mode,
-        )
-        render_profile_trust_strip(profile_context, compact=True, include_advanced=operator_mode)
-        render_public_workflow_skip_target()
-        if research_mode:
+            render_public_workflow_skip_target()
             render_research_workspace_styles()
+        else:
+            render_app_header(
+                catalog,
+                output_frames,
+                compact=True,
+                current_page=selected_page,
+                current_mode=mode,
+            )
+            render_profile_trust_strip(
+                profile_context,
+                compact=True,
+                include_advanced=operator_mode,
+            )
+            render_public_workflow_skip_target()
 
     if selected_page in PUBLIC_PATH_PAGE_TITLES and operator_mode:
         render_research_change_route_summary(

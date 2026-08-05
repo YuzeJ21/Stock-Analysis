@@ -82,6 +82,34 @@ def test_research_sidebar_uses_route_state_without_a_duplicate_page_radio():
     assert "Choose your path" in selector
 
 
+def test_research_main_shell_keeps_one_workflow_nav_without_operator_readiness_chrome():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    main_start = source.index("def main()")
+    output_frames = source.index(
+        "output_frames = dashboard_output_frames_for_page(content_page)",
+        main_start,
+    )
+    public_branch = source.index("if public_demo_mode:", output_frames)
+    shared_else = source.index("    else:", public_branch)
+    dispatch = source.index(
+        "if selected_page in PUBLIC_PATH_PAGE_TITLES and operator_mode:",
+        shared_else,
+    )
+    shell = source[shared_else:dispatch]
+    research_branch = shell.index("if research_mode:")
+    operator_else = shell.index("else:", research_branch)
+    research_shell = shell[research_branch:operator_else]
+    operator_shell = shell[operator_else:]
+
+    assert "render_research_workflow_navigation(selected_page, ticker=ticker)" in research_shell
+    assert "render_public_workflow_skip_target()" in research_shell
+    assert "render_research_workspace_styles()" in research_shell
+    assert "render_app_header(" not in research_shell
+    assert "render_profile_trust_strip(" not in research_shell
+    assert "render_app_header(" in operator_shell
+    assert "render_profile_trust_strip(" in operator_shell
+
+
 def test_personal_research_route_loads_once_from_selected_profile_and_passes_one_result(
     monkeypatch,
 ):

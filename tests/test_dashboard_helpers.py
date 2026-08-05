@@ -30169,7 +30169,7 @@ def test_public_pages_use_compact_shell_before_page_content():
     shell_style_index = source.index("render_public_shell_mode_styles()")
     shell_index = source.index("render_public_app_shell(selected_page)", shell_style_index)
     dispatch_index = source.index("if research_mode and render_personal_research_route(", shell_index)
-    operator_header_index = source.index("render_app_header(\n            catalog,\n            output_frames,", shell_index)
+    operator_header_index = source.index("render_app_header(", shell_index)
     assert shell_style_index < shell_index < operator_header_index < dispatch_index
     assert "public-app-shell" in source
     assert "public-app-nav" in source
