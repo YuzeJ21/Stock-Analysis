@@ -2,6 +2,27 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-08-05 Personal Research Shared Shell
+
+Personal Research now has one visible top workflow navigation for Research Desk,
+Discover, Company Workbench, and Monitor. The sidebar still selects Personal,
+Public, or Operator workspace mode and shows the selected data profile, but no
+longer repeats the Research page choices. The Research main column no longer
+renders the Operator command/readiness header or the broad profile strip before
+the route-specific answer. Public and Operator shells, direct route URLs, ticker
+parameters, and the secondary Data Health and Proof History evidence routes are
+unchanged.
+
+At implementation anchor `2bc374ab8`, the clean read-only accessibility browser
+gate passed all six routes at `1280x720` and `390x844`. It verified the labelled
+top navigation on the four primary routes, exact route/H1/main identity, skip
+focus, same-document rerun and away/return route preservation, forced-colors and
+reduced-motion signals, route-owned primary answer markers, no horizontal
+overflow, no browser or runtime errors, and unchanged repository state. The
+same 18 generated data/output modifications were excluded. This is automated
+local engineering evidence only, not independent-human, screen-reader, WCAG,
+hosted, or market validation.
+
 ## 2026-08-05 Research Desk Today's Brief
 
 Research Desk now renders one primary **Today's Research Brief** instead of a
