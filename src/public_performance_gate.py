@@ -10,6 +10,7 @@ import platform
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 from dataclasses import asdict, dataclass
@@ -465,38 +466,51 @@ def _local_demo_server(root: Path, *, port: int | None = None, timeout_seconds: 
     base_url = f"http://127.0.0.1:{selected_port}"
     env = os.environ.copy()
     env["STOCK_RESEARCH_DATA_PROFILE"] = "demo"
-    process = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "streamlit",
-            "run",
-            "src/dashboard.py",
-            "--server.headless",
-            "true",
-            "--server.fileWatcherType",
-            "none",
-            "--client.toolbarMode",
-            "viewer",
-            "--server.port",
-            str(selected_port),
-        ],
-        cwd=root,
-        env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.STDOUT,
-        start_new_session=True,
-    )
-    try:
-        _wait_for_health(base_url, timeout_seconds=timeout_seconds)
-        yield base_url
-    finally:
-        process.terminate()
+    with tempfile.SpooledTemporaryFile(max_size=1_000_000, mode="w+b") as server_log:
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "streamlit",
+                "run",
+                "src/dashboard.py",
+                "--server.headless",
+                "true",
+                "--server.fileWatcherType",
+                "none",
+                "--client.toolbarMode",
+                "viewer",
+                "--server.port",
+                str(selected_port),
+            ],
+            cwd=root,
+            env=env,
+            stdout=server_log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        raised: BaseException | None = None
         try:
-            process.wait(timeout=8)
-        except subprocess.TimeoutExpired:  # pragma: no cover - defensive process cleanup
-            process.kill()
-            process.wait(timeout=5)
+            _wait_for_health(base_url, timeout_seconds=timeout_seconds)
+            yield base_url
+        except BaseException as exc:
+            raised = exc
+            raise
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=8)
+            except subprocess.TimeoutExpired:  # pragma: no cover - defensive process cleanup
+                process.kill()
+                process.wait(timeout=5)
+            if raised is not None:
+                server_log.flush()
+                server_log.seek(0)
+                log_tail = server_log.read().decode("utf-8", errors="replace")[-4_000:].strip()
+                raised.add_note(
+                    "Local Streamlit server log:\n"
+                    + (log_tail or "No server output was captured.")
+                )
 
 
 def _wait_for_dom_stability(page, *, timeout_seconds: float, stable_checks: int = 3) -> None:

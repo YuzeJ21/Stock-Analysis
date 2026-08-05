@@ -399,6 +399,43 @@ def test_visible_text_wait_names_the_missing_marker_on_timeout():
     assert "Connection error: the application did not render." in message
 
 
+def test_local_demo_server_attaches_captured_server_log_to_route_failure(
+    monkeypatch,
+    tmp_path,
+):
+    from src import public_performance_gate as gate
+
+    class FakeProcess:
+        def __init__(self):
+            self.returncode = None
+
+        def terminate(self):
+            self.returncode = 0
+
+        def wait(self, timeout):
+            return 0
+
+        def kill(self):
+            self.returncode = -9
+
+    def fake_popen(*args, stdout, **kwargs):
+        if hasattr(stdout, "write"):
+            stdout.write(b"Traceback: websocket session failed\n")
+            stdout.flush()
+        return FakeProcess()
+
+    monkeypatch.setattr(gate.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(gate, "_wait_for_health", lambda *args, **kwargs: None)
+
+    with pytest.raises(RuntimeError, match="route failed") as captured:
+        with gate._local_demo_server(tmp_path):
+            raise RuntimeError("route failed")
+
+    notes = getattr(captured.value, "__notes__", ())
+    assert any("Local Streamlit server log" in note for note in notes)
+    assert any("websocket session failed" in note for note in notes)
+
+
 def test_horizontal_overflow_check_uses_document_widths():
     from src.public_performance_gate import _horizontal_overflow_pixels
 
