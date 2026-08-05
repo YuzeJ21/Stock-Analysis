@@ -146,7 +146,11 @@ def build_monitor_follow_up_queue(
             "NEEDS VERIFICATION",
             f"{len(verification_rows)} needs verification",
             verification_body,
-            ("saved process evidence", "not a company score"),
+            (
+                "saved process evidence",
+                "not a company score",
+                f"{monitor_count} monitoring",
+            ),
         ),
         MonitorFollowUpPanel(
             "waiting_on_evidence",

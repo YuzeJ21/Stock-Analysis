@@ -101,6 +101,7 @@ def test_monitor_follow_up_queue_composes_five_distinct_questions_without_rankin
     assert "0 recent" in result.panels[0].title
     assert "2 unresolved saved changes" in result.panels[0].title
     assert "1 needs verification" in result.panels[1].title
+    assert "1 monitoring" in result.panels[1].badges
     assert "1 waiting on evidence" in result.panels[2].title
     assert "1 scheduled" in result.panels[3].title
     assert result.panels[4].badges == ("saved readiness: current", "market observation: stale")

@@ -146,7 +146,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
     ResearchRoute(
         "Monitor",
         "/?mode=research&page=monitor",
-        "WEEKLY RESEARCH SUMMARY",
+        "Follow-up Queue",
         "Monitor",
         ".signal-grid.evidence-monitor-grid",
         ".research-workspace-action",
@@ -590,11 +590,12 @@ def evaluate_monitor_brief(
     boxes: Iterable[tuple[object, object]],
     viewport_width: int,
 ) -> dict[str, object]:
-    """Require the exact Monitor brief sequence and responsive card geometry."""
+    """Require the exact Follow-up Queue sequence and responsive card geometry."""
 
     expected_kickers = (
-        "WEEKLY RESEARCH SUMMARY",
-        "RESEARCH FOLLOW-UP",
+        "SINCE LAST REVIEW",
+        "NEEDS VERIFICATION",
+        "WAITING ON EVIDENCE",
         "SCHEDULED CONTEXT",
         "EVIDENCE FRESHNESS",
     )
@@ -603,8 +604,8 @@ def evaluate_monitor_brief(
     failures: list[str] = []
     if observed_kickers != expected_kickers:
         failures.append(f"unexpected Monitor brief kickers: {observed_kickers}")
-    if len(observed_boxes) != 4:
-        failures.append(f"expected four Monitor brief card boxes, found {len(observed_boxes)}")
+    if len(observed_boxes) != 5:
+        failures.append(f"expected five Follow-up Queue card boxes, found {len(observed_boxes)}")
 
     def clustered(values: Iterable[float]) -> tuple[float, ...]:
         positions: list[float] = []
@@ -651,26 +652,27 @@ def evaluate_monitor_brief(
     if viewport_width > 760:
         if (
             len(x_positions) != 2
-            or len(y_positions) != 2
-            or normalized_cells != ((0, 0), (1, 0), (0, 1), (1, 1))
+            or len(y_positions) != 3
+            or normalized_cells
+            != ((0, 0), (1, 0), (0, 1), (1, 1), (0, 2))
         ):
             failures.append(
-                "desktop Monitor brief must use four unique row-major cells in a two-column, two-row grid"
+                "desktop Follow-up Queue must use five unique row-major cells in a two-column grid"
             )
     elif (
         len(x_positions) != 1
-        or len(y_positions) != 4
-        or normalized_cells != ((0, 0), (0, 1), (0, 2), (0, 3))
+        or len(y_positions) != 5
+        or normalized_cells != ((0, 0), (0, 1), (0, 2), (0, 3), (0, 4))
     ):
         failures.append(
-            "phone Monitor brief must use one column and four increasing rows"
+            "phone Follow-up Queue must use one column and five increasing rows"
         )
 
     return {
         "passed": not failures,
         "actual_count": len(observed_kickers),
         "detail": (
-            "four Monitor brief cards use the expected responsive geometry"
+            "five Follow-up Queue cards use the expected responsive geometry"
             if not failures
             else "; ".join(failures)
         ),
@@ -2282,11 +2284,32 @@ def _monitor_brief_assertion(
     viewport_width: int,
 ) -> dict[str, object]:
     grid = page.locator(".signal-grid.evidence-monitor-grid")
+    neutral = page.locator(".follow-up-queue-empty:visible")
+    if grid.count() == 0 and neutral.count() == 1:
+        boundary = "does not prove that no external event, risk, or research need exists"
+        actions = page.get_by_role("link", name="Open Discover", exact=True)
+        neutral_text = neutral.inner_text().casefold()
+        action_box = actions.first.bounding_box() if actions.count() == 1 else None
+        passed = (
+            boundary in neutral_text
+            and actions.count() == 1
+            and action_box is not None
+            and float(action_box.get("height") or 0) >= 44
+        )
+        return _assertion(
+            "monitor_brief_geometry",
+            passed,
+            (
+                "one fail-closed Follow-up Queue empty state exposes one usable Discover action"
+                if passed
+                else "Follow-up Queue empty state must expose the external-event boundary and one 44px Discover action"
+            ),
+        )
     if grid.count() != 1:
         return _assertion(
             "monitor_brief_geometry",
             False,
-            f"expected one Evidence Monitor Brief grid, found {grid.count()}",
+            f"expected one Follow-up Queue grid or one empty state, found {grid.count()} grids",
         )
     cards = grid.locator(".signal-card:visible")
     kickers: list[str] = []
@@ -2305,7 +2328,7 @@ def _monitor_brief_assertion(
         boxes.append((geometry.get("x"), geometry.get("y")))
         if not title or not body or not badges or any(not badge for badge in badges):
             content_failures.append(
-                f"Monitor brief card {index + 1} must expose a title, body, and badges"
+                f"Follow-up Queue card {index + 1} must expose a title, body, and badges"
             )
     evaluated = evaluate_monitor_brief(
         kickers=kickers,
@@ -2364,23 +2387,30 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
     collapsed_monitor_counts: list[int] = []
     for badge in monitor_badges:
         parts = str(badge or "").strip().casefold().split()
-        if len(parts) != 2 or parts[1] != "monitor":
+        if len(parts) != 2 or parts[1] != "monitoring":
             continue
         try:
             collapsed_monitor_counts.append(int(parts[0]))
         except ValueError:
             continue
+    if not collapsed_monitor_counts and neutral.count() == 1:
+        try:
+            collapsed_monitor_counts.append(
+                int(neutral.get_attribute("data-monitor-count") or "")
+            )
+        except ValueError:
+            pass
     if len(collapsed_monitor_counts) != 1:
         return _assertion(
             "monitor_process_rows",
             False,
-            "expected one rendered collapsed-Monitor count in the Evidence Monitor Brief, "
+            "expected one rendered monitoring count in the Follow-up Queue, "
             f"found {len(collapsed_monitor_counts)}",
         )
     expected_discipline_count = len(observed) + collapsed_monitor_counts[0]
     advanced = page.locator("details").filter(
         has=page.get_by_text(
-            "Advanced: Research Discipline evidence",
+            "Advanced: Monitor evidence",
             exact=True,
         )
     )

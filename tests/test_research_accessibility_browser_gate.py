@@ -266,7 +266,7 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
         ),
         (
             "/?mode=research&page=monitor",
-            "WEEKLY RESEARCH SUMMARY",
+            "Follow-up Queue",
             "Monitor",
             True,
         ),
@@ -1627,22 +1627,40 @@ def test_monitor_row_contract_rejects_wrong_columns_on_empty_primary_table():
     assert "unexpected primary Monitor columns" in str(wrong_empty_table["detail"])
 
 
-def test_monitor_brief_geometry_requires_two_columns_on_desktop_and_one_on_phone():
+def test_monitor_follow_up_geometry_requires_two_columns_on_desktop_and_one_on_phone():
     from src.research_accessibility_browser_gate import evaluate_monitor_brief
 
     desktop = evaluate_monitor_brief(
-        kickers=("WEEKLY RESEARCH SUMMARY", "RESEARCH FOLLOW-UP", "SCHEDULED CONTEXT", "EVIDENCE FRESHNESS"),
-        boxes=((0, 0), (500, 0), (0, 180), (500, 180)),
+        kickers=(
+            "SINCE LAST REVIEW",
+            "NEEDS VERIFICATION",
+            "WAITING ON EVIDENCE",
+            "SCHEDULED CONTEXT",
+            "EVIDENCE FRESHNESS",
+        ),
+        boxes=((0, 0), (500, 0), (0, 180), (500, 180), (0, 360)),
         viewport_width=1280,
     )
     phone = evaluate_monitor_brief(
-        kickers=("WEEKLY RESEARCH SUMMARY", "RESEARCH FOLLOW-UP", "SCHEDULED CONTEXT", "EVIDENCE FRESHNESS"),
-        boxes=((0, 0), (0, 180), (0, 360), (0, 540)),
+        kickers=(
+            "SINCE LAST REVIEW",
+            "NEEDS VERIFICATION",
+            "WAITING ON EVIDENCE",
+            "SCHEDULED CONTEXT",
+            "EVIDENCE FRESHNESS",
+        ),
+        boxes=((0, 0), (0, 180), (0, 360), (0, 540), (0, 720)),
         viewport_width=390,
     )
     wrong_phone = evaluate_monitor_brief(
-        kickers=("WEEKLY RESEARCH SUMMARY", "RESEARCH FOLLOW-UP", "SCHEDULED CONTEXT", "EVIDENCE FRESHNESS"),
-        boxes=((0, 0), (180, 0), (0, 180), (180, 180)),
+        kickers=(
+            "SINCE LAST REVIEW",
+            "NEEDS VERIFICATION",
+            "WAITING ON EVIDENCE",
+            "SCHEDULED CONTEXT",
+            "EVIDENCE FRESHNESS",
+        ),
+        boxes=((0, 0), (180, 0), (0, 180), (180, 180), (0, 360)),
         viewport_width=390,
     )
     assert desktop["passed"] is True
@@ -1654,19 +1672,20 @@ def test_monitor_brief_geometry_rejects_overlapping_or_missing_desktop_cells():
     from src.research_accessibility_browser_gate import evaluate_monitor_brief
 
     kickers = (
-        "WEEKLY RESEARCH SUMMARY",
-        "RESEARCH FOLLOW-UP",
+        "SINCE LAST REVIEW",
+        "NEEDS VERIFICATION",
+        "WAITING ON EVIDENCE",
         "SCHEDULED CONTEXT",
         "EVIDENCE FRESHNESS",
     )
     overlapping_pairs = evaluate_monitor_brief(
         kickers=kickers,
-        boxes=((0, 0), (0, 0), (500, 180), (500, 180)),
+        boxes=((0, 0), (0, 0), (500, 180), (500, 180), (0, 360)),
         viewport_width=1280,
     )
     missing_cell = evaluate_monitor_brief(
         kickers=kickers,
-        boxes=((0, 0), (500, 0), (0, 180), (0, 180)),
+        boxes=((0, 0), (500, 0), (0, 180), (0, 180), (0, 360)),
         viewport_width=1280,
     )
 
@@ -1680,12 +1699,13 @@ def test_monitor_brief_geometry_rejects_non_finite_coordinates():
     for coordinate in (float("nan"), float("inf"), float("-inf")):
         evaluated = evaluate_monitor_brief(
             kickers=(
-                "WEEKLY RESEARCH SUMMARY",
-                "RESEARCH FOLLOW-UP",
+                "SINCE LAST REVIEW",
+                "NEEDS VERIFICATION",
+                "WAITING ON EVIDENCE",
                 "SCHEDULED CONTEXT",
                 "EVIDENCE FRESHNESS",
             ),
-            boxes=((coordinate, 0), (500, 0), (0, 180), (500, 180)),
+            boxes=((coordinate, 0), (500, 0), (0, 180), (500, 180), (0, 360)),
             viewport_width=1280,
         )
 

@@ -36070,7 +36070,8 @@ def render_research_monitor(
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
     if queue.is_empty:
         st.markdown(
-            "<div class='research-monitor-neutral follow-up-queue-empty'>"
+            "<div class='research-monitor-neutral follow-up-queue-empty' "
+            f"data-monitor-count='{queue.monitor_count}'>"
             + context_note_html(queue.empty_title, queue.empty_boundary)
             + "</div>",
             unsafe_allow_html=True,
