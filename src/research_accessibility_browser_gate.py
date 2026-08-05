@@ -2538,27 +2538,41 @@ def _open_company_workbench_modules(
         )
     button.first.scroll_into_view_if_needed()
     button.first.click()
+    activation_attempts = 1
+    pointer_wait_seconds = min(12.0, max(2.0, timeout_seconds / 4))
     try:
         _wait_for_visible_text(
             page,
             "Research Decision Lab",
-            timeout_seconds=timeout_seconds,
+            timeout_seconds=pointer_wait_seconds,
         )
     except TimeoutError:
-        body_text = page.locator("body").inner_text(timeout=2_000)
-        script_state = page.locator('[data-testid="stApp"]').get_attribute(
-            "data-test-script-state"
-        )
-        return _assertion(
-            "company_workbench_module_open",
-            False,
-            (
-                "module-open click did not restore Research Decision Lab; "
-                f"button_remaining={button.count()}; "
-                f"script_state={script_state!r}; "
-                f"body_has_company_brief={'Company Brief' in body_text}"
-            ),
-        )
+        if button.count() == 1 and button.first.is_visible():
+            activation_attempts += 1
+            button.first.focus()
+            button.first.press("Enter")
+        try:
+            _wait_for_visible_text(
+                page,
+                "Research Decision Lab",
+                timeout_seconds=max(2.0, timeout_seconds - pointer_wait_seconds),
+            )
+        except TimeoutError:
+            body_text = page.locator("body").inner_text(timeout=2_000)
+            script_state = page.locator('[data-testid="stApp"]').get_attribute(
+                "data-test-script-state"
+            )
+            return _assertion(
+                "company_workbench_module_open",
+                False,
+                (
+                    "module-open actions did not restore Research Decision Lab; "
+                    f"activation_attempts={activation_attempts}; "
+                    f"button_remaining={button.count()}; "
+                    f"script_state={script_state!r}; "
+                    f"body_has_company_brief={'Company Brief' in body_text}"
+                ),
+            )
     _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
     decision_lab = page.get_by_role(
         "heading",
@@ -2574,7 +2588,8 @@ def _open_company_workbench_modules(
         "company_workbench_module_open",
         passed,
         (
-            "explicit action restored secondary analysis and authoring"
+            "explicit action restored secondary analysis and authoring; "
+            f"activation_attempts={activation_attempts}"
             if passed
             else (
                 f"decision_lab_count={decision_lab.count()}; "

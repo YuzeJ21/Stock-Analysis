@@ -362,6 +362,19 @@ def test_company_workbench_primary_brief_contract_fails_closed_per_requirement()
         assert result["detail"]
 
 
+def test_company_workbench_module_open_browser_check_supports_pointer_and_keyboard_activation():
+    from src import research_accessibility_browser_gate as browser_gate
+
+    source = browser_gate.Path(browser_gate.__file__).read_text(encoding="utf-8")
+    helper_start = source.index("def _open_company_workbench_modules(")
+    helper_end = source.index("\n\ndef ", helper_start + 1)
+    helper = source[helper_start:helper_end]
+
+    assert "button.first.click()" in helper
+    assert 'button.first.press("Enter")' in helper
+    assert "activation_attempts" in helper
+
+
 def test_proof_history_media_marker_selects_the_rendered_public_timeline():
     from src.dashboard import proof_history_public_timeline_html
     from src.research_accessibility_browser_gate import RESEARCH_ROUTES
