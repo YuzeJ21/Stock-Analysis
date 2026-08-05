@@ -65,6 +65,14 @@ def test_streamlit_range_supports_same_document_javascript_transport():
     assert "streamlit>=1.44" not in requirements + pyproject
 
 
+def test_streamlit_runtime_rejects_incompatible_starlette_gzip_signature():
+    requirements = Path("requirements.txt").read_text(encoding="utf-8")
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+
+    assert "starlette>=0.46,<1.4" in requirements
+    assert '"starlette>=0.46,<1.4"' in pyproject
+
+
 def test_proof_readiness_reconciliation_docs_keep_historical_proof_separate_from_current_state():
     roadmap = _read("ROADMAP.md")
     operator = _read("docs/OPERATOR_GUIDE.md")
