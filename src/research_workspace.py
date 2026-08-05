@@ -37,6 +37,177 @@ class EvidenceMonitorBrief:
     monitor_count: int
 
 
+@dataclass(frozen=True)
+class MonitorFollowUpPanel:
+    key: str
+    kicker: str
+    title: str
+    body: str
+    badges: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class MonitorFollowUpQueue:
+    panels: tuple[MonitorFollowUpPanel, ...]
+    primary_rows: tuple[ResearchDisciplineRow, ...]
+    verification_rows: tuple[ResearchDisciplineRow, ...]
+    waiting_rows: tuple[ResearchDisciplineRow, ...]
+    scheduled_rows: tuple[ResearchDisciplineRow, ...]
+    monitor_count: int
+    actionable_count: int
+    is_empty: bool
+    empty_title: str
+    empty_boundary: str
+    next_action_label: str
+    next_action_url: str
+
+
+def build_monitor_follow_up_queue(
+    summary: WeeklyResearchSummary,
+    rows: Iterable[ResearchDisciplineRow],
+    *,
+    source_change_count: int = 0,
+    readiness_state: str,
+    readiness_message: str,
+    observation_state: str,
+    observation_message: str,
+) -> MonitorFollowUpQueue:
+    """Compose one fail-closed Monitor answer without changing saved evidence."""
+
+    ordered = tuple(rows)
+    verification_rows = tuple(
+        row for row in ordered if row.attention_label == "Needs review"
+    )
+    waiting_rows = tuple(
+        row
+        for row in ordered
+        if row.attention_state == "unavailable"
+        and row.attention_label != "Needs review"
+    )
+    scheduled_rows = tuple(
+        row for row in ordered if row.attention_label == "Scheduled"
+    )
+    primary_rows = tuple(row for row in ordered if row.attention_state != "monitor")
+    monitor_count = sum(row.attention_state == "monitor" for row in ordered)
+    normalized_change_count = max(int(source_change_count), 0)
+
+    normalized_readiness = str(readiness_state or "").strip() or "unavailable"
+    normalized_observation = str(observation_state or "").strip() or "unavailable"
+    readiness_body = (
+        str(readiness_message or "").strip() or "Saved readiness is unavailable."
+    )
+    observation_body = (
+        str(observation_message or "").strip()
+        or "Market observation is unavailable."
+    )
+
+    recent_title = (
+        f"{len(summary.items)} recent item{'s' if len(summary.items) != 1 else ''}; "
+        f"{normalized_change_count} unresolved saved "
+        f"change{'s' if normalized_change_count != 1 else ''}"
+    )
+    recent_body = summary.message
+    if normalized_change_count:
+        recent_body = (
+            f"{recent_body} {normalized_change_count} unresolved saved source-change "
+            f"item{'s remain' if normalized_change_count != 1 else ' remains'} for review."
+        )
+
+    verification_body = (
+        verification_rows[0].attention_reason
+        if verification_rows
+        else "No saved verification task is currently due."
+    )
+    waiting_body = (
+        waiting_rows[0].attention_reason
+        if waiting_rows
+        else "No saved research-process item is waiting on evidence."
+    )
+    scheduled_body = (
+        scheduled_rows[0].attention_reason
+        if scheduled_rows
+        else "No saved research-process context is currently scheduled."
+    )
+
+    panels = (
+        MonitorFollowUpPanel(
+            "since_last_review",
+            "SINCE LAST REVIEW",
+            recent_title,
+            recent_body,
+            (
+                summary.status.replace("_", " "),
+                "7-day saved window",
+                f"{summary.cohort_size} companies",
+            ),
+        ),
+        MonitorFollowUpPanel(
+            "needs_verification",
+            "NEEDS VERIFICATION",
+            f"{len(verification_rows)} needs verification",
+            verification_body,
+            ("saved process evidence", "not a company score"),
+        ),
+        MonitorFollowUpPanel(
+            "waiting_on_evidence",
+            "WAITING ON EVIDENCE",
+            f"{len(waiting_rows)} waiting on evidence",
+            waiting_body,
+            ("fail closed", "no inferred evidence"),
+        ),
+        MonitorFollowUpPanel(
+            "scheduled_context",
+            "SCHEDULED CONTEXT",
+            f"{len(scheduled_rows)} scheduled",
+            scheduled_body,
+            ("saved process context", "not urgency"),
+        ),
+        MonitorFollowUpPanel(
+            "evidence_freshness",
+            "EVIDENCE FRESHNESS",
+            f"Readiness {normalized_readiness}; observation {normalized_observation}",
+            f"Saved readiness: {readiness_body} Market observation: {observation_body}",
+            (
+                f"saved readiness: {normalized_readiness}",
+                f"market observation: {normalized_observation}",
+            ),
+        ),
+    )
+
+    current_states = {"current", "fresh", "ready"}
+    freshness_attention_count = sum(
+        state.casefold() not in current_states
+        for state in (normalized_readiness, normalized_observation)
+    )
+    actionable_count = (
+        len(summary.items)
+        + normalized_change_count
+        + len(verification_rows)
+        + len(waiting_rows)
+        + len(scheduled_rows)
+        + freshness_attention_count
+    )
+    return MonitorFollowUpQueue(
+        panels=panels,
+        primary_rows=primary_rows,
+        verification_rows=verification_rows,
+        waiting_rows=waiting_rows,
+        scheduled_rows=scheduled_rows,
+        monitor_count=monitor_count,
+        actionable_count=actionable_count,
+        is_empty=actionable_count == 0,
+        empty_title=(
+            "No saved verification, evidence-wait, scheduled, or source-change item "
+            "is currently due."
+        ),
+        empty_boundary=(
+            "This does not prove that no external event, risk, or research need exists."
+        ),
+        next_action_label="Open Discover",
+        next_action_url="?mode=research&page=discover",
+    )
+
+
 def build_evidence_monitor_brief(
     summary: WeeklyResearchSummary,
     rows: Iterable[ResearchDisciplineRow],

@@ -9,7 +9,7 @@ from src.research_workspace import (
     RESEARCH_ROUTING_STATES,
     advanced_evidence_links,
     advanced_evidence_links_html,
-    build_evidence_monitor_brief,
+    build_monitor_follow_up_queue,
     cash_generation_preview_cards,
     cash_generation_preview_rows,
     company_workbench_section_contract,
@@ -73,31 +73,43 @@ def _weekly_summary(*items: WeeklySummaryItem) -> WeeklyResearchSummary:
     )
 
 
-def test_evidence_monitor_brief_composes_four_questions_without_ranking():
+def test_monitor_follow_up_queue_composes_five_distinct_questions_without_ranking():
     rows = (
         _discipline_row(0, "AAA", "monitor", "Monitor", "No saved process item is due."),
         _discipline_row(1, "BBB", "conflict_review_needed", "Needs review", "Conflicting saved evidence needs review."),
         _discipline_row(2, "CCC", "scheduled_review", "Scheduled", "Reviewer-authored review is scheduled for 2026-08-20."),
         _discipline_row(3, "DDD", "unavailable", "Unavailable", "Catalyst evidence could not be verified."),
     )
-    result = build_evidence_monitor_brief(
+    result = build_monitor_follow_up_queue(
         _weekly_summary(),
         rows,
+        source_change_count=2,
         readiness_state="current",
         readiness_message="Saved readiness is current.",
         observation_state="stale",
         observation_message="Market observations are historical context only.",
     )
 
-    assert [card.key for card in result.cards] == ["weekly", "follow_up", "scheduled", "freshness"]
-    assert result.cards[0].kicker == "WEEKLY RESEARCH SUMMARY"
-    assert "0 traceable" in result.cards[0].title
-    assert "1 needs review" in result.cards[1].title
-    assert "1 unavailable" in result.cards[1].title
-    assert "1 scheduled" in result.cards[2].title
-    assert result.cards[3].badges == ("saved readiness: current", "market observation: stale")
+    assert [panel.key for panel in result.panels] == [
+        "since_last_review",
+        "needs_verification",
+        "waiting_on_evidence",
+        "scheduled_context",
+        "evidence_freshness",
+    ]
+    assert result.panels[0].kicker == "SINCE LAST REVIEW"
+    assert "0 recent" in result.panels[0].title
+    assert "2 unresolved saved changes" in result.panels[0].title
+    assert "1 needs verification" in result.panels[1].title
+    assert "1 waiting on evidence" in result.panels[2].title
+    assert "1 scheduled" in result.panels[3].title
+    assert result.panels[4].badges == ("saved readiness: current", "market observation: stale")
+    assert [row.ticker for row in result.verification_rows] == ["BBB"]
+    assert [row.ticker for row in result.waiting_rows] == ["DDD"]
+    assert [row.ticker for row in result.scheduled_rows] == ["CCC"]
     assert [row.ticker for row in result.primary_rows] == ["BBB", "CCC", "DDD"]
     assert result.monitor_count == 1
+    assert result.is_empty is False
 
 
 @pytest.mark.parametrize(
@@ -143,10 +155,10 @@ def test_evidence_monitor_brief_composes_four_questions_without_ranking():
         ),
     ),
 )
-def test_evidence_monitor_follow_up_example_preserves_saved_cohort_order(
+def test_monitor_follow_up_queue_preserves_saved_cohort_order_with_separate_waiting_lane(
     rows, expected_reason
 ):
-    result = build_evidence_monitor_brief(
+    result = build_monitor_follow_up_queue(
         _weekly_summary(),
         rows,
         readiness_state="current",
@@ -155,10 +167,20 @@ def test_evidence_monitor_follow_up_example_preserves_saved_cohort_order(
         observation_message="Market observation is current.",
     )
 
-    assert result.cards[1].body == expected_reason
+    assert [row.ticker for row in result.primary_rows] == ["AAA", "BBB"]
+    assert result.panels[1].body == (
+        "BBB evidence needs review."
+        if rows[0].attention_state == "unavailable"
+        else "AAA evidence needs review."
+    )
+    assert result.panels[2].body == (
+        "AAA evidence is unavailable."
+        if rows[0].attention_state == "unavailable"
+        else "BBB evidence is unavailable."
+    )
 
 
-def test_evidence_monitor_brief_keeps_candidate_and_freshness_states_truthful():
+def test_monitor_follow_up_queue_keeps_candidate_and_freshness_states_truthful():
     candidate = _discipline_row(
         0,
         "AAA",
@@ -166,7 +188,7 @@ def test_evidence_monitor_brief_keeps_candidate_and_freshness_states_truthful():
         "Scheduled",
         "Candidate-only catalyst context is scheduled for review.",
     )
-    result = build_evidence_monitor_brief(
+    result = build_monitor_follow_up_queue(
         _weekly_summary(),
         (candidate,),
         readiness_state="working_artifact_uncommitted",
@@ -175,7 +197,7 @@ def test_evidence_monitor_brief_keeps_candidate_and_freshness_states_truthful():
         observation_message="No current market observation is available.",
     )
     rendered = " ".join(
-        " ".join((card.kicker, card.title, card.body, *card.badges)) for card in result.cards
+        " ".join((panel.kicker, panel.title, panel.body, *panel.badges)) for panel in result.panels
     )
     assert "candidate-only" in rendered.lower()
     assert "verified catalyst" not in rendered.lower()
@@ -185,8 +207,8 @@ def test_evidence_monitor_brief_keeps_candidate_and_freshness_states_truthful():
 
 
 @pytest.mark.parametrize("blank", ("", " \t\n"))
-def test_evidence_monitor_brief_blank_freshness_inputs_fail_closed(blank):
-    result = build_evidence_monitor_brief(
+def test_monitor_follow_up_queue_blank_freshness_inputs_fail_closed(blank):
+    result = build_monitor_follow_up_queue(
         _weekly_summary(),
         (),
         readiness_state=blank,
@@ -195,7 +217,7 @@ def test_evidence_monitor_brief_blank_freshness_inputs_fail_closed(blank):
         observation_message=blank,
     )
 
-    freshness = result.cards[3]
+    freshness = result.panels[4]
     assert freshness.title == "Readiness unavailable; observation unavailable"
     assert freshness.body == (
         "Saved readiness: Saved readiness is unavailable. "
@@ -205,22 +227,81 @@ def test_evidence_monitor_brief_blank_freshness_inputs_fail_closed(blank):
         "saved readiness: unavailable",
         "market observation: unavailable",
     )
+    assert result.is_empty is False
 
 
-def test_evidence_monitor_brief_empty_rows_do_not_invent_monitoring_evidence():
-    result = build_evidence_monitor_brief(
+def test_monitor_follow_up_queue_empty_state_is_single_fail_closed_return_contract():
+    result = build_monitor_follow_up_queue(
         _weekly_summary(),
         (),
-        readiness_state="unavailable",
-        readiness_message="Saved readiness is unavailable.",
-        observation_state="unavailable",
-        observation_message="Market observation is unavailable.",
+        readiness_state="current",
+        readiness_message="Saved readiness is current.",
+        observation_state="current",
+        observation_message="Market observation is current.",
     )
     assert result.primary_rows == ()
     assert result.monitor_count == 0
-    assert "0 needs review" in result.cards[1].title
-    assert "0 scheduled" in result.cards[2].title
-    assert "no saved" in result.cards[1].body.lower()
+    assert result.is_empty is True
+    assert result.actionable_count == 0
+    assert result.empty_title == (
+        "No saved verification, evidence-wait, scheduled, or source-change item is currently due."
+    )
+    assert result.empty_boundary == (
+        "This does not prove that no external event, risk, or research need exists."
+    )
+    assert result.next_action_label == "Open Discover"
+    assert result.next_action_url == "?mode=research&page=discover"
+
+
+def test_monitor_follow_up_queue_monitor_only_rows_do_not_create_actionable_work():
+    result = build_monitor_follow_up_queue(
+        _weekly_summary(),
+        (_discipline_row(0, "AAA", "monitor", "Monitor", "Keep monitoring."),),
+        readiness_state="current",
+        readiness_message="Saved readiness is current.",
+        observation_state="current",
+        observation_message="Market observation is current.",
+    )
+
+    assert result.is_empty is True
+    assert result.monitor_count == 1
+    assert result.primary_rows == ()
+
+
+@pytest.mark.parametrize(
+    ("summary", "source_change_count"),
+    (
+        (
+            _weekly_summary(
+                WeeklySummaryItem(
+                    "new_evidence",
+                    "AAA",
+                    "AAA has one traceable changed source.",
+                    "review_now",
+                    "source:aaa",
+                    "2026-08-04T00:00:00+00:00",
+                )
+            ),
+            0,
+        ),
+        (_weekly_summary(), 1),
+    ),
+)
+def test_monitor_follow_up_queue_recent_or_unresolved_change_prevents_false_empty_state(
+    summary, source_change_count
+):
+    result = build_monitor_follow_up_queue(
+        summary,
+        (),
+        source_change_count=source_change_count,
+        readiness_state="current",
+        readiness_message="Saved readiness is current.",
+        observation_state="current",
+        observation_message="Market observation is current.",
+    )
+
+    assert result.is_empty is False
+    assert result.actionable_count > 0
 
 
 def test_research_accessibility_media_preferences_css_declares_bounded_fallbacks():
