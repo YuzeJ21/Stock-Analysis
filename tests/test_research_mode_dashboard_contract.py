@@ -2,6 +2,8 @@ from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from src import dashboard
 from src import dashboard_navigation as nav
 from src.catalyst_evidence_timeline import CatalystEvent, append_reviewed_event
@@ -292,10 +294,11 @@ def test_research_discover_can_limit_selector_rows_to_the_focused_cohort():
     assert dashboard.filter_selector_to_tickers(frame, ()).empty
 
 
-def test_research_discover_renders_daily_queue_before_selector_and_advanced_context(
+def test_research_discover_separates_strict_eligibility_from_saved_company_browsing(
     monkeypatch,
 ):
     calls: list[str] = []
+    headings: list[str] = []
     context = SimpleNamespace(data_dir=Path("/selected-profile/data"))
 
     class Expander:
@@ -317,19 +320,29 @@ def test_research_discover_renders_daily_queue_before_selector_and_advanced_cont
     monkeypatch.setattr(
         dashboard,
         "render_daily_research_queue",
-        lambda status: calls.append("daily queue"),
+        lambda status: calls.append("strict eligibility"),
         raising=False,
     )
     monkeypatch.setattr(
         dashboard,
         "render_stock_selector",
-        lambda *args, **kwargs: calls.append("selector"),
+        lambda *args, **kwargs: calls.append("saved browsing"),
     )
-    monkeypatch.setattr(dashboard, "dashboard_output_frames_for_page", lambda page: {})
+    monkeypatch.setattr(
+        dashboard,
+        "dashboard_output_frames_for_page",
+        lambda page: pytest.fail(
+            "Research Discover must not load legacy selector outputs"
+        ),
+    )
     monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard, "focused_cohort_cards", lambda cohort: [])
     monkeypatch.setattr(dashboard, "focused_cohort_coverage_cards", lambda coverage: [])
-    monkeypatch.setattr(dashboard.st, "markdown", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda value, **kwargs: headings.append(value),
+    )
     monkeypatch.setattr(dashboard.st, "caption", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
 
@@ -345,7 +358,8 @@ def test_research_discover_renders_daily_queue_before_selector_and_advanced_cont
         review_date=date(2026, 7, 31),
     )
 
-    assert calls[:2] == ["daily queue", "selector"]
+    assert "## Find a Company" in headings
+    assert calls[:2] == ["strict eligibility", "saved browsing"]
     assert calls[2:] == ["advanced"]
 
 
@@ -421,10 +435,10 @@ def test_daily_queue_renderer_is_ticker_bound_and_keeps_blockers_in_advanced(
     dashboard.render_daily_research_queue(status)
 
     combined = " ".join(rendered).lower()
-    assert "daily momentum & valuation research queue" in combined
+    assert "screen eligibility — when supported" in combined
     assert links == [
         (
-            "Open ALFA Company Workbench",
+            "Open ALFA Company Brief",
             "?mode=research&page=company-workbench&ticker=ALFA",
         )
     ]
@@ -433,6 +447,57 @@ def test_daily_queue_renderer_is_ticker_bound_and_keeps_blockers_in_advanced(
     assert "advanced opened" in rendered
     for prohibited in ("buy", "sell", "target price", "expected return", "position size"):
         assert prohibited not in combined
+
+
+def test_empty_strict_screen_preserves_saved_browsing_boundary(monkeypatch):
+    rendered: list[str] = []
+
+    class Expander:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    status = DailyQueueBuildStatus(
+        result=evaluate_daily_queue(()),
+        considered_count=0,
+        readiness_row_count=0,
+        price_row_count=0,
+        valuation_observation_count=0,
+        blocker_counts=(("current_market_evidence", 1),),
+        message="No eligible records.",
+    )
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda value, **kwargs: rendered.append(value),
+    )
+    monkeypatch.setattr(
+        dashboard.st,
+        "caption",
+        lambda value, **kwargs: rendered.append(value),
+    )
+    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "render_notice_card",
+        lambda title, body, *args, **kwargs: rendered.extend([title, body]),
+    )
+    monkeypatch.setattr(
+        dashboard.st,
+        "expander",
+        lambda *args, **kwargs: Expander(),
+    )
+    monkeypatch.setattr(dashboard.st, "dataframe", lambda *args, **kwargs: None)
+
+    dashboard.render_daily_research_queue(status)
+
+    copy = " ".join(rendered)
+    assert "Screen eligibility — when supported" in copy
+    assert "No company currently has complete evidence for the strict screen" in copy
+    assert "This does not prevent browsing saved companies" in copy
+    assert "thresholds were not relaxed" in copy.lower()
 
 
 def test_company_workbench_anchors_answer_before_collapsed_navigation_and_passes_target_to_report():
@@ -1343,7 +1408,7 @@ def test_research_primary_sections_follow_route_h1_with_level_two_headings():
         "Weekly research summary",
         "Research Discipline Review",
         "Research change monitor",
-        "Which stock can I review?",
+        "Find a Company",
         "What Changed",
         "Research Decision Lab",
         "Business Trend",

@@ -2209,6 +2209,39 @@ def test_discover_saved_company_browse_frame_fails_closed_without_saved_readines
     ).empty
 
 
+def test_stock_selector_source_frames_skip_legacy_outputs_for_research_discover(
+    monkeypatch,
+):
+    calls: list[Path] = []
+    decisions = pd.DataFrame([{"ticker": "RANKED"}])
+    final = pd.DataFrame([{"Ticker": "FINAL"}])
+
+    def load_saved(path):
+        calls.append(path)
+        return decisions, "saved decisions"
+
+    monkeypatch.setattr(dashboard, "load_output", load_saved)
+
+    research = dashboard.stock_selector_source_frames(
+        {"final_watchlist.csv": (final, "saved final")},
+        research_discover=True,
+    )
+
+    assert research == (None, None, None, None)
+    assert calls == []
+
+    public = dashboard.stock_selector_source_frames(
+        {"final_watchlist.csv": (final, "saved final")},
+        research_discover=False,
+    )
+
+    assert calls == [dashboard.OUTPUTS_DIR / "research_decisions.csv"]
+    assert public[0] is decisions
+    assert public[1] == "saved decisions"
+    assert public[2] is final
+    assert public[3] == "saved final"
+
+
 def test_stock_selector_queue_uses_active_readiness_rows_when_saved_queue_is_absent():
     readiness = pd.DataFrame(
         [

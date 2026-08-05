@@ -427,6 +427,7 @@ git commit -m "Clarify saved-company evidence answers"
 **Interfaces:**
 - Consumes: existing `DailyQueueBuildStatus`, Task 1 browse frame, current Research route parameters.
 - Produces: Discover order `Find a Company` -> `Screen eligibility — when supported` -> `Browse saved companies` -> cohort evidence under Advanced.
+- Produces: `stock_selector_source_frames(output_frames, *, research_discover)` so the no-legacy-read branch is behavior-testable without inspecting source text.
 - Invariant: the research path never calls `load_output(OUTPUTS_DIR / "research_decisions.csv")` and never consumes `final_watchlist.csv`; public mode still does.
 
 - [ ] **Step 1: Write failing route and renderer contract tests**
@@ -518,19 +519,34 @@ def test_empty_strict_screen_preserves_browsing_boundary(monkeypatch):
     assert "thresholds were not relaxed" in copy.lower()
 ```
 
-Add a source-selection test:
+Add a source-selection behavior test:
 
 ```python
-def test_research_discover_selector_does_not_read_legacy_ranking_outputs():
-    source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    start = source.index("def render_stock_selector(")
-    end = source.index("\ndef price_refresh_operator_plan_cards", start)
-    selector = source[start:end]
+def test_stock_selector_source_frames_skip_legacy_outputs_for_research_discover(monkeypatch):
+    calls: list[Path] = []
+    decisions = pd.DataFrame([{"ticker": "RANKED"}])
+    final = pd.DataFrame([{"Ticker": "FINAL"}])
 
-    research_branch = selector.index("if research_discover:")
-    legacy_load = selector.index('load_output(OUTPUTS_DIR / "research_decisions.csv")')
-    assert research_branch < legacy_load
-    assert "discover_saved_company_browse_frame(" in selector[research_branch:legacy_load]
+    def load_saved(path):
+        calls.append(path)
+        return decisions, "saved decisions"
+
+    monkeypatch.setattr(dashboard, "load_output", load_saved)
+
+    research = dashboard.stock_selector_source_frames(
+        {"final_watchlist.csv": (final, "saved final")},
+        research_discover=True,
+    )
+    assert research == (None, None, None, None)
+    assert calls == []
+
+    public = dashboard.stock_selector_source_frames(
+        {"final_watchlist.csv": (final, "saved final")},
+        research_discover=False,
+    )
+    assert calls == [dashboard.OUTPUTS_DIR / "research_decisions.csv"]
+    assert public[0] is decisions
+    assert public[2] is final
 ```
 
 - [ ] **Step 2: Run the focused route tests and verify RED**
@@ -540,7 +556,7 @@ python3 -m pytest \
   tests/test_research_mode_dashboard_contract.py::test_research_discover_separates_strict_eligibility_from_saved_company_browsing \
   tests/test_research_mode_dashboard_contract.py::test_daily_queue_renderer_is_ticker_bound_and_keeps_blockers_in_advanced \
   tests/test_research_mode_dashboard_contract.py::test_empty_strict_screen_preserves_browsing_boundary \
-  tests/test_dashboard_helpers.py::test_research_discover_selector_does_not_read_legacy_ranking_outputs -q
+  tests/test_dashboard_helpers.py::test_stock_selector_source_frames_skip_legacy_outputs_for_research_discover -q
 ```
 
 Expected: failures show the old page title, old strict-queue title/copy, output-frame loader call, and missing mode branch.
@@ -574,14 +590,40 @@ research_discover = (
 )
 ```
 
-5. Load `ticker_readiness_frame` for both modes, then branch:
+5. Add the tested source helper:
 
 ```python
+def stock_selector_source_frames(
+    output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
+    *,
+    research_discover: bool,
+) -> tuple[
+    pd.DataFrame | None,
+    str | None,
+    pd.DataFrame | None,
+    str | None,
+]:
+    if research_discover:
+        return None, None, None, None
+    decisions_frame, decisions_message = load_output(
+        OUTPUTS_DIR / "research_decisions.csv"
+    )
+    final_frame, final_message = output_frames.get(
+        "final_watchlist.csv", (None, None)
+    )
+    return decisions_frame, decisions_message, final_frame, final_message
+```
+
+6. Load `ticker_readiness_frame` for both modes, call the source helper, then branch:
+
+```python
+decisions_frame, decisions_message, final_frame, final_message = (
+    stock_selector_source_frames(
+        output_frames,
+        research_discover=research_discover,
+    )
+)
 if research_discover:
-    decisions_frame = None
-    decisions_message = None
-    final_frame = None
-    final_message = None
     selector_frame = discover_saved_company_browse_frame(
         ticker_readiness_frame,
         allowed_tickers=allowed_tickers,
@@ -596,7 +638,7 @@ else:
     selector_frame = filter_selector_to_tickers(selector_frame, allowed_tickers)
 ```
 
-6. For the research branch, render `### Browse saved companies`, search label `Search saved companies`, empty title `No saved companies are available to browse`, and this boundary before the rows:
+7. For the research branch, render `### Browse saved companies`, search label `Search saved companies`, empty title `No saved companies are available to browse`, and this boundary before the rows:
 
 ```python
 render_context_note(
@@ -608,8 +650,8 @@ render_context_note(
 )
 ```
 
-7. Add `discover_browse_result_summary_html(filtered_count, total_count)` with copy `<strong>N</strong> of M saved companies match the current search and filters.` and use it only for `research_discover`.
-8. In `render_personal_research_route`, change the H2 to `## Find a Company` and pass `{}` to `render_stock_selector` instead of calling `dashboard_output_frames_for_page`.
+8. Add `discover_browse_result_summary_html(filtered_count, total_count)` with copy `<strong>N</strong> of M saved companies match the current search and filters.` and use it only for `research_discover`.
+9. In `render_personal_research_route`, change the H2 to `## Find a Company` and pass `{}` to `render_stock_selector` instead of calling `dashboard_output_frames_for_page`.
 
 - [ ] **Step 4: Run focused Discover tests and verify GREEN**
 

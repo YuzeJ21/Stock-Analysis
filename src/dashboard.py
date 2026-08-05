@@ -6296,7 +6296,7 @@ def render_daily_research_queue(status: DailyQueueBuildStatus) -> None:
     """Render current research candidates while keeping gate detail secondary."""
 
     comparison = compare_daily_queues(status.result, None)
-    st.markdown("### Daily Momentum & Valuation Research Queue")
+    st.markdown("### Screen eligibility — when supported")
     render_signal_cards(
         daily_queue_summary_cards(comparison),
         show_commands=False,
@@ -6311,16 +6311,16 @@ def render_daily_research_queue(status: DailyQueueBuildStatus) -> None:
         )
         for item in comparison.current_eligible:
             st.link_button(
-                f"Open {item.ticker} Company Workbench",
+                f"Open {item.ticker} Company Brief",
                 item.workbench_url,
             )
     else:
         render_notice_card(
-            "No company passes every required gate",
+            "No company currently has complete evidence for the strict screen",
             (
-                "The queue stays empty when current-market, momentum, historical "
-                "valuation, fundamental, provenance, or source-rights evidence is "
-                "missing. Thresholds were not relaxed."
+                "Current-market, momentum, historical valuation, fundamental, provenance, "
+                "or source-rights evidence is incomplete. Thresholds were not relaxed. "
+                "This does not prevent browsing saved companies for evidence inspection."
             ),
             tone="warning",
         )
@@ -30174,6 +30174,42 @@ def filter_selector_to_tickers(
     return frame.loc[frame["Ticker"].astype(str).str.upper().isin(allowed)].copy()
 
 
+def stock_selector_source_frames(
+    output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
+    *,
+    research_discover: bool,
+) -> tuple[
+    pd.DataFrame | None,
+    str | None,
+    pd.DataFrame | None,
+    str | None,
+]:
+    """Load legacy selector outputs only outside Personal Research Discover."""
+
+    if research_discover:
+        return None, None, None, None
+    decisions_frame, decisions_message = load_output(
+        OUTPUTS_DIR / "research_decisions.csv"
+    )
+    final_frame, final_message = output_frames.get(
+        "final_watchlist.csv",
+        (None, None),
+    )
+    return decisions_frame, decisions_message, final_frame, final_message
+
+
+def discover_browse_result_summary_html(
+    filtered_count: int,
+    total_count: int,
+) -> str:
+    return (
+        "<div class='public-selector-result-summary research-discover-summary'>"
+        f"<strong>{filtered_count:,}</strong> of {total_count:,} saved companies "
+        "match the current search and filters."
+        "</div>"
+    )
+
+
 def render_stock_selector(
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
     *,
@@ -30182,13 +30218,21 @@ def render_stock_selector(
     target_page: str = "single-stock-report",
     allowed_tickers: tuple[str, ...] | None = None,
 ) -> None:
+    research_discover = (
+        str(target_mode).strip().lower() == RESEARCH_MODE
+        and str(target_page).strip().lower() == "company-workbench"
+    )
     ticker_readiness_frame, ticker_readiness_message = load_ticker_readiness_report()
     dcf_readiness_frame, _ = load_dcf_readiness()
     optional_tables = load_optional_context_readiness()
     earnings_readiness_frame, _ = optional_tables["earnings_readiness"]
     analyst_readiness_frame, _ = optional_tables["analyst_estimates_readiness"]
-    decisions_frame, decisions_message = load_output(OUTPUTS_DIR / "research_decisions.csv")
-    final_frame, final_message = output_frames.get("final_watchlist.csv", (None, None))
+    decisions_frame, decisions_message, final_frame, final_message = (
+        stock_selector_source_frames(
+            output_frames,
+            research_discover=research_discover,
+        )
+    )
     coverage_frame, _ = load_output(OUTPUTS_DIR / "ticker_data_coverage.csv")
     summary = dashboard_readiness_summary(
         coverage_frame,
@@ -30197,13 +30241,38 @@ def render_stock_selector(
         analyst_readiness_frame,
         ticker_readiness_frame,
     )
-    selector_frame = stock_selector_queue_frame(decisions_frame, final_frame, ticker_readiness_frame, limit=120)
-    selector_frame = filter_selector_to_tickers(selector_frame, allowed_tickers)
+    if research_discover:
+        selector_frame = discover_saved_company_browse_frame(
+            ticker_readiness_frame,
+            allowed_tickers=allowed_tickers,
+            limit=120,
+        )
+    else:
+        selector_frame = stock_selector_queue_frame(
+            decisions_frame,
+            final_frame,
+            ticker_readiness_frame,
+            limit=120,
+        )
+        selector_frame = filter_selector_to_tickers(
+            selector_frame,
+            allowed_tickers,
+        )
 
     if not public_mode:
         render_section_header(
             STOCK_SELECTOR_PATH_TITLE,
             "Choose one readiness-backed ticker first; use filters only when you need a narrower queue.",
+        )
+    if research_discover:
+        st.markdown("### Browse saved companies")
+        render_context_note(
+            "Saved-company browsing is not strict screen eligibility.",
+            (
+                "Rows are alphabetical evidence-access paths. Availability does not mean "
+                "the company passed momentum and valuation screening, has attractive "
+                "valuation, or is a recommendation."
+            ),
         )
     if stock_selector_saved_queue_notice_visible(
         public_mode=public_mode,
@@ -30222,8 +30291,16 @@ def render_stock_selector(
 
     if selector_frame.empty:
         render_notice_card(
-            "Selector queue is empty",
-            "Build saved research decisions or the final watchlist before using the selector surface.",
+            (
+                "No saved companies are available to browse"
+                if research_discover
+                else "Selector queue is empty"
+            ),
+            (
+                "Saved readiness contains no company rows in the focused cohort."
+                if research_discover
+                else "Build saved research decisions or the final watchlist before using the selector surface."
+            ),
             "make status-check TOP_N=5",
             tone="warning",
             public=public_mode,
@@ -30233,10 +30310,14 @@ def render_stock_selector(
     saved_presets = stock_selector_saved_filter_presets()
     current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
     search = st.text_input(
-        "Search this review queue",
+        "Search saved companies" if research_discover else "Search this review queue",
         value=str(current_filter_values.get("search") or ""),
         placeholder="Search ticker, theme, blocker, or proof step",
-        help="Search readiness-backed rows before opening one saved report.",
+        help=(
+            "Search alphabetical saved-company evidence paths. This does not rank companies."
+            if research_discover
+            else "Search readiness-backed rows before opening one saved report."
+        ),
         key="stock-selector-search",
     ).strip()
     open_change_counts: dict[str, int] = {}
@@ -30310,7 +30391,15 @@ def render_stock_selector(
     if needs_review_only:
         filtered = filter_selector_needs_review(filtered, open_event_ids_by_ticker=open_change_counts)
 
-    if public_mode:
+    if research_discover:
+        st.markdown(
+            discover_browse_result_summary_html(
+                len(filtered),
+                len(selector_frame),
+            ),
+            unsafe_allow_html=True,
+        )
+    elif public_mode:
         st.markdown(public_selector_result_summary_html(len(filtered), len(selector_frame)), unsafe_allow_html=True)
     else:
         count_label = f"{len(filtered):,} of {len(selector_frame):,} readiness-backed rows"
@@ -36022,15 +36111,15 @@ def render_personal_research_route(
         render_research_workspace_header(
             "Discover",
             context,
-            primary_action="Choose one readiness-backed company and open its workbench",
+            primary_action="Check strict eligibility or browse one saved company",
             observation_recency=observation_recency,
         )
-        st.markdown("## Which stock can I review?")
+        st.markdown("## Find a Company")
         render_daily_research_queue(
             load_dashboard_daily_research_queue(context, as_of=review_date)
         )
         render_stock_selector(
-            dashboard_output_frames_for_page(STOCK_SELECTOR_PATH_TITLE),
+            {},
             public_mode=True,
             target_mode=RESEARCH_MODE,
             target_page="company-workbench",
