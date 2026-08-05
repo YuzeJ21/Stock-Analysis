@@ -16,6 +16,7 @@ from src.research_workspace import (
     company_change_answer,
     company_next_research_task,
     company_workbench_primary_brief,
+    company_workbench_primary_brief_html,
     focused_cohort_cards,
     focused_cohort_coverage_cards,
     focused_ticker_coverage_cards,
@@ -518,6 +519,49 @@ def test_company_workbench_primary_brief_fails_closed_for_missing_inputs():
         "sell",
     ):
         assert prohibited not in brief
+
+
+def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_region():
+    brief = company_workbench_primary_brief(
+        pd.DataFrame(
+            [
+                {
+                    "Ticker": "NVDA<script>",
+                    "Use Now": "Revenue <verified>",
+                    "Still Blocked": "EPS & consensus",
+                    "Context Only": "Peer candidate",
+                }
+            ]
+        ),
+        {
+            "state": "monitor",
+            "answer": "No source-backed change <queued>.",
+            "change_context_kind": "none",
+        },
+        {
+            "title": "Review valuation > evidence",
+            "body": "Wait for permitted history.",
+            "state": "wait_for_evidence",
+            "badges": ["valuation", "research-only"],
+        },
+    )
+
+    rendered = company_workbench_primary_brief_html(brief)
+
+    assert rendered.count("aria-label='Company Brief'") == 1
+    for label in ("Use now", "Still withheld", "What changed", "Next research task"):
+        assert rendered.count(f"<span>{label}</span>") == 1
+    assert rendered.count("Research-only:") == 1
+    assert rendered.count("Open Data Health") == 1
+    assert rendered.count("class='public-primary-action'") == 1
+    assert "company-workbench-primary-brief" in rendered
+    assert "company-workbench-primary-grid" in rendered
+    assert "NVDA&lt;SCRIPT&gt;" in rendered
+    assert "Revenue &lt;verified&gt;" in rendered
+    assert "EPS &amp; consensus" in rendered
+    assert "No source-backed change &lt;queued&gt;." in rendered
+    assert "Review valuation &gt; evidence" in rendered
+    assert "<script>" not in rendered
 
 
 def _cash_preview() -> CompanyWorkbenchCashGenerationPreview:

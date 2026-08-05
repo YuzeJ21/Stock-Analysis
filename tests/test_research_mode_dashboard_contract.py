@@ -1277,17 +1277,18 @@ def test_company_workbench_prepares_one_current_scenario_session_before_research
 
 def test_company_workbench_uses_one_authoritative_task_arbitration():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    workbench_start = source.index('st.markdown("## Research Conclusion")')
-    workbench_end = source.index("\n    if public_mode and report_payload", workbench_start)
-    composition = source[workbench_start:workbench_end]
+    report_start = source.index("def render_single_stock_report(")
+    report_end = source.index("\ndef render_data_health(", report_start)
+    report = source[report_start:report_end]
 
-    assert "company_next_research_task(" in composition
-    assert 'st.markdown("## Next Research Task")' in composition
-    assert '"title": str(authoritative_task["title"])' in composition
-    assert '"body": str(authoritative_task["body"])' in composition
-    assert '"badges": list(authoritative_task["badges"])' in composition
-    assert '"state": str(authoritative_task["state"])' in composition
-    assert composition.count('"kicker": "ONE NEXT TASK"') == 1
+    arbitration = report.index("authoritative_task = company_next_research_task(")
+    brief = report.index("primary_brief = company_workbench_primary_brief(", arbitration)
+    final_summary = report.index("primary_brief=primary_brief", brief)
+    html_snapshot = report.index("authoritative_task=authoritative_task", final_summary)
+
+    assert arbitration < brief < final_summary < html_snapshot
+    assert report.count("company_next_research_task(") == 1
+    assert report.count("company_workbench_primary_brief(") == 1
 
 
 def test_company_workbench_html_brief_is_research_only_and_precedes_the_detail_gate():

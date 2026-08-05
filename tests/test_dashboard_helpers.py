@@ -31129,6 +31129,56 @@ def test_single_stock_public_summary_uses_selected_target_when_supplied(monkeypa
     assert "mode=research&amp;page=data-health&amp;ticker=NVDA" in calls[0][1]
 
 
+def test_single_stock_summary_uses_company_brief_only_for_research_mode(monkeypatch):
+    calls = []
+    target = SimpleNamespace(markdown=lambda body, **kwargs: calls.append((body, kwargs)))
+    frame = dashboard.single_stock_one_answer_frame(
+        {
+            "ticker": "NVDA",
+            "status": "partial",
+            "asset_type": "company",
+            "price_ready": True,
+            "dcf_status": "blocked",
+            "peer_ready": False,
+            "earnings_ready": False,
+            "analyst_estimates_ready": False,
+        }
+    )
+    brief = {
+        "ticker": "NVDA",
+        "use_now": "Price evidence.",
+        "still_withheld": "Consensus evidence.",
+        "what_changed": "No source-backed change is queued.",
+        "change_context_kind": "none",
+        "change_state": "monitor",
+        "next_task_title": "Review consensus evidence",
+        "next_task_body": "Wait for a permitted source.",
+        "next_task_state": "wait_for_evidence",
+        "data_health_href": "?mode=research&page=data-health&ticker=NVDA",
+        "stop_rule": "Research-only: no recommendation.",
+    }
+
+    dashboard.render_single_stock_public_summary(
+        frame,
+        research_mode=True,
+        selected_answer_target=target,
+        primary_brief=brief,
+    )
+    research_html = calls.pop()[0]
+    dashboard.render_single_stock_public_summary(
+        frame,
+        research_mode=False,
+        selected_answer_target=target,
+        primary_brief=brief,
+    )
+    public_html = calls.pop()[0]
+
+    assert "aria-label='Company Brief'" in research_html
+    assert "Review consensus evidence" in research_html
+    assert "aria-label='Selected ticker answer'" in public_html
+    assert "Review consensus evidence" not in public_html
+
+
 def test_single_stock_report_routes_fast_and_final_answers_through_optional_target():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_single_stock_report(")

@@ -391,6 +391,8 @@ from src.research_workspace import (
     cash_generation_preview_rows,
     company_change_answer,
     company_next_research_task,
+    company_workbench_primary_brief,
+    company_workbench_primary_brief_html,
     company_workbench_section_contract,
     focused_cohort_cards,
     focused_cohort_coverage_cards,
@@ -7939,12 +7941,17 @@ def render_single_stock_public_summary(
     *,
     research_mode: bool,
     selected_answer_target=None,
+    primary_brief: Mapping[str, object] | None = None,
 ) -> None:
     """Render one selected-ticker answer at its route-selected target."""
 
-    rendered = single_stock_public_summary_html(
-        frame,
-        target_mode=RESEARCH_MODE if research_mode else "public",
+    rendered = (
+        company_workbench_primary_brief_html(primary_brief)
+        if research_mode and primary_brief is not None
+        else single_stock_public_summary_html(
+            frame,
+            target_mode=RESEARCH_MODE if research_mode else "public",
+        )
     )
     target = selected_answer_target if selected_answer_target is not None else st
     target.markdown(rendered, unsafe_allow_html=True)
@@ -31583,11 +31590,32 @@ def render_single_stock_report(
             nowcast_packet=nowcast_packet,
             freshness_state=(profile_context or build_profile_context(project_root=BASE_DIR)).freshness_state,
         )
+        change_answer = None
+        conclusion_cards = None
+        authoritative_task = None
+        primary_brief = None
+        if research_mode:
+            change_answer = company_change_answer(ticker, research_review_items)
+            conclusion_cards = stock_report_next_step_cards(
+                report_payload,
+                coverage if provider is not None and ticker else None,
+                peer_summary if provider is not None and ticker else None,
+            )
+            authoritative_task = company_next_research_task(
+                change_answer,
+                conclusion_cards,
+            )
+            primary_brief = company_workbench_primary_brief(
+                single_answer_frame,
+                change_answer,
+                authoritative_task,
+            )
         if public_mode:
             render_single_stock_public_summary(
                 single_answer_frame,
                 research_mode=research_mode,
                 selected_answer_target=selected_answer_target,
+                primary_brief=primary_brief,
             )
             quant_interpretation_cards = stock_report_quant_interpretation_cards(report_payload)
             quant_interpretation_evidence = stock_report_quant_interpretation_evidence_frame(
@@ -31611,7 +31639,6 @@ def render_single_stock_report(
                         hide_index=True,
                     )
             if research_mode:
-                change_answer = company_change_answer(ticker, research_review_items)
                 change_context_badge = {
                     "none": "no queued change",
                     "snapshot_only": "snapshot evidence only",
@@ -31818,18 +31845,11 @@ def render_single_stock_report(
                     st.caption(decision_process_scorecard.boundary)
         if research_mode:
             st.markdown("## Research Conclusion")
-            conclusion_cards = stock_report_next_step_cards(
-                report_payload,
-                coverage if provider is not None and ticker else None,
-                peer_summary if provider is not None and ticker else None,
-            )
             render_signal_cards(
                 conclusion_cards,
                 show_commands=False,
                 variant="queue",
             )
-            change_answer = company_change_answer(ticker, research_review_items)
-            authoritative_task = company_next_research_task(change_answer, conclusion_cards)
             st.markdown("## Next Research Task")
             render_signal_cards(
                 [
@@ -35778,6 +35798,71 @@ def render_research_workspace_styles() -> None:
             font-weight: 760;
             text-decoration: none !important;
         }
+        .company-workbench-primary-brief {
+            border: 1px solid #d9e0dc;
+            border-radius: 8px;
+            margin-top: .45rem;
+            padding: .85rem;
+        }
+        .company-workbench-primary-heading {
+            align-items: baseline;
+            display: flex;
+            gap: .5rem;
+            margin-bottom: .75rem;
+        }
+        .company-workbench-primary-heading span,
+        .company-workbench-primary-answer span {
+            color: #667085;
+            font-size: .68rem;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+        .company-workbench-primary-heading strong {
+            color: #102a43;
+            font-size: 1.25rem;
+        }
+        .company-workbench-primary-grid {
+            display: grid;
+            gap: .75rem;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .company-workbench-primary-answer {
+            border-left: 3px solid #9aa7a2;
+            min-width: 0;
+            padding-left: .7rem;
+        }
+        .company-workbench-primary-answer.use-now { border-left-color: #0f766e; }
+        .company-workbench-primary-answer.withheld { border-left-color: #c27c1b; }
+        .company-workbench-primary-answer.changed { border-left-color: #4f6f92; }
+        .company-workbench-primary-answer.next-task { border-left-color: #0f4c3a; }
+        .company-workbench-primary-answer p,
+        .company-workbench-primary-answer strong,
+        .company-workbench-primary-answer small {
+            display: block;
+            margin: .28rem 0 0;
+        }
+        .company-workbench-primary-answer p {
+            color: #253746;
+            font-size: .84rem;
+            line-height: 1.4;
+        }
+        .company-workbench-primary-answer small {
+            color: #667085;
+            font-size: .72rem;
+        }
+        .company-workbench-primary-answer .public-primary-action {
+            margin-top: .5rem;
+            min-height: 2.75rem;
+        }
+        .company-workbench-primary-stop {
+            border-top: 1px solid #e5e9e7;
+            color: #52615c;
+            font-size: .78rem;
+            line-height: 1.4;
+            margin: .75rem 0 0;
+            padding-top: .65rem;
+        }
         @media (max-width: 640px) {
             .observation-recency-summary {
                 grid-template-columns: auto 1fr;
@@ -35847,6 +35932,21 @@ def render_research_workspace_styles() -> None:
                 background: transparent;
                 color: #0f766e !important;
                 text-decoration: underline !important;
+            }
+            .company-workbench-primary-brief {
+                margin-top: .15rem;
+                padding: .7rem;
+            }
+            .company-workbench-primary-grid { grid-template-columns: 1fr; }
+            .company-workbench-primary-answer {
+                border-left: 0;
+                border-top: 1px solid #e5e9e7;
+                padding: .55rem 0 0;
+            }
+            .company-workbench-primary-answer .public-primary-action {
+                align-items: center;
+                display: inline-flex;
+                min-height: 2.75rem;
             }
         }
         </style>

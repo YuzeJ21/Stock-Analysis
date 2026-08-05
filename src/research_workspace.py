@@ -485,6 +485,56 @@ def company_workbench_primary_brief(
     }
 
 
+def company_workbench_primary_brief_html(brief: Mapping[str, object]) -> str:
+    """Render one escaped Company Brief region from the pure composition contract."""
+
+    safe = brief if isinstance(brief, Mapping) else {}
+
+    def escaped(key: str, fallback: str) -> str:
+        return html.escape(_brief_text(safe.get(key), fallback))
+
+    href = html.escape(
+        _brief_text(safe.get("data_health_href"), "?mode=research&page=data-health"),
+        quote=True,
+    )
+    change_kind = escaped("change_context_kind", "none").replace("_", " ")
+    change_state = escaped("change_state", "monitor").replace("_", " ")
+    task_state = escaped("next_task_state", "wait for evidence").replace("_", " ")
+    return (
+        "<section class='company-workbench-primary-brief' aria-label='Company Brief'>"
+        "<div class='company-workbench-primary-heading'>"
+        "<span>Company Brief</span>"
+        f"<strong>{escaped('ticker', 'Selected company')}</strong>"
+        "</div>"
+        "<div class='company-workbench-primary-grid'>"
+        "<article class='company-workbench-primary-answer use-now'>"
+        "<span>Use now</span>"
+        f"<p>{escaped('use_now', 'No supported evidence lane is available.')}</p>"
+        "</article>"
+        "<article class='company-workbench-primary-answer withheld'>"
+        "<span>Still withheld</span>"
+        f"<p>{escaped('still_withheld', 'Evidence availability is unverified.')}</p>"
+        "</article>"
+        "<article class='company-workbench-primary-answer changed'>"
+        "<span>What changed</span>"
+        f"<p>{escaped('what_changed', 'No unresolved source-backed change is queued for this company.')}</p>"
+        f"<small>{change_kind} · {change_state}</small>"
+        "</article>"
+        "<article class='company-workbench-primary-answer next-task'>"
+        "<span>Next research task</span>"
+        f"<strong>{escaped('next_task_title', 'Wait for reviewed evidence or choose another company')}</strong>"
+        f"<p>{escaped('next_task_body', 'No executable company task is available.')}</p>"
+        f"<small>{task_state}</small>"
+        f"<a class='public-primary-action' href='{href}'>Open Data Health</a>"
+        "</article>"
+        "</div>"
+        "<p class='company-workbench-primary-stop'>"
+        f"{escaped('stop_rule', 'Research-only: do not infer a recommendation or unsupported conclusion.')}"
+        "</p>"
+        "</section>"
+    )
+
+
 def focused_cohort_cards(cohort: FocusedCohort) -> list[dict[str, object]]:
     return [
         {
