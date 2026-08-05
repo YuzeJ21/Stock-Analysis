@@ -115,10 +115,10 @@ RESEARCH_ROUTE_SPECS: tuple[PublicRouteSpec, ...] = (
     PublicRouteSpec(
         "Research Desk",
         "/?mode=research&page=research-desk",
-        "Today's Research Brief",
+        "What needs my attention today?",
         (
-            "Today's Research Brief",
             "What needs my attention today?",
+            "Freshness",
             "Open Discover",
             "market-complete event feed",
             "Research-only",

@@ -248,7 +248,7 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
     ] == [
         (
             "/?mode=research&page=research-desk",
-            "Today's Research Brief",
+            "What needs my attention today?",
             "Research Desk",
             True,
         ),

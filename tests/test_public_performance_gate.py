@@ -35,10 +35,10 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
         "Monitor",
     ]
     assert all(route.critical for route in RESEARCH_ROUTE_SPECS)
-    assert RESEARCH_ROUTE_SPECS[0].first_useful_marker == "Today's Research Brief"
+    assert RESEARCH_ROUTE_SPECS[0].first_useful_marker == "What needs my attention today?"
     assert RESEARCH_ROUTE_SPECS[0].full_markers == (
-        "Today's Research Brief",
         "What needs my attention today?",
+        "Freshness",
         "Open Discover",
         "market-complete event feed",
         "Research-only",
