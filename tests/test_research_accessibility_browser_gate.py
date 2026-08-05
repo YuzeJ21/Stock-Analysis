@@ -1295,11 +1295,15 @@ def test_discover_action_contract_uses_every_actual_row_and_fails_when_empty():
     )
 
     passed = evaluate_discover_action_names(
-        ["Open NVDA review", "Open AVGO review", "Open BRK.B review"]
+        [
+            "Open NVDA Company Brief",
+            "Open AVGO Company Brief",
+            "Open BRK.B Company Brief",
+        ]
     )
     empty = evaluate_discover_action_names([])
     duplicate = evaluate_discover_action_names(
-        ["Open NVDA review", "Open NVDA review"]
+        ["Open NVDA Company Brief", "Open NVDA Company Brief"]
     )
 
     assert passed == {
@@ -1321,26 +1325,34 @@ def test_discover_row_contract_requires_three_visible_answers_and_ticker_action(
         (
             {
                 "ticker": "NVDA",
-                "labels": ("WHY REVIEWABLE", "USABLE NOW", "PRINCIPAL BLOCKER"),
+                "labels": (
+                    "WHY INSPECTABLE",
+                    "USABLE EVIDENCE",
+                    "MAIN EVIDENCE GAP",
+                ),
                 "values": (
                     "Saved readiness supports review.",
                     "SEC quarterly actuals.",
                     "Point-in-time consensus is missing.",
                 ),
-                "action_name": "Open NVDA review",
+                "action_name": "Open NVDA Company Brief",
                 "action_ticker": "NVDA",
                 "action_height": 44.0,
                 "visible": True,
             },
             {
                 "ticker": "AVGO",
-                "labels": ("Why reviewable", "Usable now", "Principal blocker"),
+                "labels": (
+                    "Why inspectable",
+                    "Usable evidence",
+                    "Main evidence gap",
+                ),
                 "values": (
                     "Saved readiness supports review.",
                     "Historical valuation context.",
                     "No principal blocker is recorded.",
                 ),
-                "action_name": "Open AVGO review",
+                "action_name": "Open AVGO Company Brief",
                 "action_ticker": "AVGO",
                 "action_height": 48.0,
                 "visible": True,
@@ -1351,9 +1363,9 @@ def test_discover_row_contract_requires_three_visible_answers_and_ticker_action(
         (
             {
                 "ticker": "NVDA",
-                "labels": ("Why reviewable", "Usable now"),
+                "labels": ("Why inspectable", "Usable evidence"),
                 "values": ("Saved readiness supports review.", ""),
-                "action_name": "Open NVDA review",
+                "action_name": "Open NVDA Company Brief",
                 "action_ticker": "NVDA",
                 "action_height": 44.0,
                 "visible": True,

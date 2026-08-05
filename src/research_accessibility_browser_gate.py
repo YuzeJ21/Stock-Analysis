@@ -315,18 +315,22 @@ def evaluate_discover_action_names(names: Iterable[str]) -> dict[str, object]:
             "actual_count": 0,
             "detail": "no eligible Discover actions were rendered",
         }
+    suffix = " Company Brief"
     ticker_names = [
-        name[len("Open ") : -len(" review")]
+        name[len("Open ") : -len(suffix)]
         for name in actual
         if name.startswith("Open ")
-        and name.endswith(" review")
-        and name[len("Open ") : -len(" review")].strip()
+        and name.endswith(suffix)
+        and name[len("Open ") : -len(suffix)].strip()
     ]
     if len(ticker_names) != len(actual):
         return {
             "passed": False,
             "actual_count": len(actual),
-            "detail": "every eligible Discover action must use Open {TICKER} review",
+            "detail": (
+                "every eligible Discover action must use "
+                "Open {TICKER} Company Brief"
+            ),
         }
     if len(set(ticker_names)) != len(ticker_names):
         return {
@@ -349,7 +353,11 @@ def evaluate_discover_rows(
 ) -> dict[str, object]:
     """Require each visible Discover result to answer the three research questions."""
 
-    expected_labels = ("Why reviewable", "Usable now", "Principal blocker")
+    expected_labels = (
+        "Why inspectable",
+        "Usable evidence",
+        "Main evidence gap",
+    )
     expected_label_keys = tuple(label.casefold() for label in expected_labels)
     observed = tuple(rows)
     failures: list[str] = []
@@ -381,7 +389,7 @@ def evaluate_discover_rows(
             not ticker
             or ticker in seen_tickers
             or action_ticker != ticker
-            or action_name != f"Open {ticker} review"
+            or action_name != f"Open {ticker} Company Brief"
         ):
             failures.append(
                 f"row {index} must expose one unique ticker-bound review action"
@@ -2119,7 +2127,7 @@ def _discover_action_assertion(page: Any) -> dict[str, object]:
     for index, name in enumerate(names):
         href = links.nth(index).get_attribute("href") or ""
         ticker = parse_qs(urlparse(href).query).get("ticker", [""])[0].strip().upper()
-        if not ticker or name != f"Open {ticker} review":
+        if not ticker or name != f"Open {ticker} Company Brief":
             href_matches = False
             break
     passed = bool(evaluated["passed"]) and href_matches
