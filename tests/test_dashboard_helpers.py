@@ -2411,15 +2411,16 @@ def test_stock_selector_result_rows_keep_only_the_compact_review_summary():
     assert "Review peer proof" not in rendered
 
 
-def test_discover_row_answers_three_saved_research_questions():
+def test_discover_row_answers_three_saved_evidence_questions_without_ranking_copy():
     rendered = dashboard.stock_selector_result_table_html(
         pd.DataFrame(
             [
                 {
                     "Ticker": "NVDA",
                     "Readiness": "partial",
-                    "Why Included": "Core company data is ready.",
-                    "Supported Now": "Price and DCF review.",
+                    "Why Inspectable": "Saved evidence is available for price and DCF review.",
+                    "Why Included": "High review priority: should never appear.",
+                    "Supported Now": "Price and DCF evidence.",
                     "Blocked / Missing": "Peer evidence remains unavailable.",
                 }
             ]
@@ -2429,29 +2430,30 @@ def test_discover_row_answers_three_saved_research_questions():
         target_page="company-workbench",
     )
 
-    assert "Why reviewable" in rendered
-    assert "Core company data is ready." in rendered
-    assert "Usable now" in rendered
-    assert "Price and DCF review." in rendered
-    assert "Principal blocker" in rendered
+    assert "Why inspectable" in rendered
+    assert "Saved evidence is available for price and DCF review." in rendered
+    assert "Usable evidence" in rendered
+    assert "Price and DCF evidence." in rendered
+    assert "Main evidence gap" in rendered
     assert "Peer evidence remains unavailable." in rendered
-    assert rendered.count("Open NVDA review") == 1
+    assert "High review priority" not in rendered
+    assert rendered.count("Open NVDA Company Brief") == 1
 
 
-def test_discover_research_answer_fails_closed_for_blank_nan_and_no_blocker():
+def test_discover_research_answer_fails_closed_for_missing_saved_fields():
     answers = dashboard.discover_research_answer(
         {
-            "Why Included": float("nan"),
+            "Why Inspectable": float("nan"),
             "Supported Now": " ",
             "Blocked / Missing": "no blocker",
         }
     )
 
     assert answers == {
-        "why_reviewable": "Saved readiness does not record why this company is reviewable.",
-        "usable_now": "No usable research lane is recorded in saved readiness.",
-        "principal_blocker": (
-            "No principal blocker is recorded in saved readiness; this does not mean "
+        "why_inspectable": "Saved readiness does not record why this company is inspectable.",
+        "usable_evidence": "No usable research lane is recorded in saved readiness.",
+        "main_evidence_gap": (
+            "No principal evidence gap is recorded in saved readiness; this does not mean "
             "no risk or external research need exists."
         ),
     }

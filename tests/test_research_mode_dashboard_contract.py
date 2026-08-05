@@ -247,6 +247,9 @@ def test_research_selector_links_open_company_workbench_without_changing_public_
 
     assert "?mode=public&amp;page=single-stock-report&amp;ticker=NVDA&amp;open=1" in public_html
     assert "?mode=research&amp;page=company-workbench&amp;ticker=NVDA&amp;open=1" in research_html
+    assert "Open NVDA review" in public_html
+    assert "Open NVDA Company Brief" in research_html
+    assert "High review priority" not in research_html
 
 
 def test_research_header_keeps_data_health_inside_the_same_workspace():

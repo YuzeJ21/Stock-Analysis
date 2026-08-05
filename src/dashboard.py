@@ -29912,19 +29912,31 @@ def research_comparison_frame(comparison: ResearchComparison) -> pd.DataFrame:
     return pd.DataFrame(comparison_matrix_rows(comparison))
 
 
-def discover_review_action_label(ticker: str) -> str:
+def discover_review_action_label(
+    ticker: str,
+    *,
+    company_brief: bool = False,
+) -> str:
     symbol = str(ticker or "").strip().upper()
-    return f"Open {symbol} review" if symbol else "Open review"
+    if not symbol:
+        return "Open Company Brief" if company_brief else "Open review"
+    return (
+        f"Open {symbol} Company Brief"
+        if company_brief
+        else f"Open {symbol} review"
+    )
 
 
 def discover_research_answer(row: Mapping[str, object]) -> dict[str, str]:
-    """Answer three saved-evidence questions without inferring missing support."""
+    """Answer saved-company evidence questions without ranking semantics."""
 
     fallbacks = {
-        "why_reviewable": "Saved readiness does not record why this company is reviewable.",
-        "usable_now": "No usable research lane is recorded in saved readiness.",
-        "principal_blocker": (
-            "No principal blocker is recorded in saved readiness; this does not mean "
+        "why_inspectable": (
+            "Saved readiness does not record why this company is inspectable."
+        ),
+        "usable_evidence": "No usable research lane is recorded in saved readiness.",
+        "main_evidence_gap": (
+            "No principal evidence gap is recorded in saved readiness; this does not mean "
             "no risk or external research need exists."
         ),
     }
@@ -29933,14 +29945,17 @@ def discover_research_answer(row: Mapping[str, object]) -> dict[str, str]:
         text = format_missing(row.get(field), "").strip()
         if not text:
             return fallbacks[fallback_key]
-        if fallback_key == "principal_blocker" and text.lower() == "no blocker":
+        if fallback_key == "main_evidence_gap" and text.lower() == "no blocker":
             return fallbacks[fallback_key]
         return text
 
     return {
-        "why_reviewable": saved_text("Why Included", "why_reviewable"),
-        "usable_now": saved_text("Supported Now", "usable_now"),
-        "principal_blocker": saved_text("Blocked / Missing", "principal_blocker"),
+        "why_inspectable": saved_text("Why Inspectable", "why_inspectable"),
+        "usable_evidence": saved_text("Supported Now", "usable_evidence"),
+        "main_evidence_gap": saved_text(
+            "Blocked / Missing",
+            "main_evidence_gap",
+        ),
     }
 
 
@@ -29988,16 +30003,16 @@ def stock_selector_result_table_html(
             answer_html = (
                 "<div class='selector-result-summary research-discover-answers'>"
                 "<div class='research-discover-answer'>"
-                "<span class='research-discover-answer-label'>Why reviewable</span>"
-                f"<span class='research-discover-answer-value'>{html.escape(answers['why_reviewable'])}</span>"
+                "<span class='research-discover-answer-label'>Why inspectable</span>"
+                f"<span class='research-discover-answer-value'>{html.escape(answers['why_inspectable'])}</span>"
                 "</div>"
                 "<div class='research-discover-answer'>"
-                "<span class='research-discover-answer-label'>Usable now</span>"
-                f"<span class='research-discover-answer-value'>{html.escape(answers['usable_now'])}</span>"
+                "<span class='research-discover-answer-label'>Usable evidence</span>"
+                f"<span class='research-discover-answer-value'>{html.escape(answers['usable_evidence'])}</span>"
                 "</div>"
                 "<div class='research-discover-answer'>"
-                "<span class='research-discover-answer-label'>Principal blocker</span>"
-                f"<span class='research-discover-answer-value'>{html.escape(answers['principal_blocker'])}</span>"
+                "<span class='research-discover-answer-label'>Main evidence gap</span>"
+                f"<span class='research-discover-answer-value'>{html.escape(answers['main_evidence_gap'])}</span>"
                 "</div>"
                 "</div>"
             )
@@ -30013,7 +30028,7 @@ def stock_selector_result_table_html(
             + identity_html
             + answer_html
             + "<div class='selector-actions'>"
-            f"<a class='selector-action-link' href='{report_href}' target='_self'>{html.escape(discover_review_action_label(ticker))}</a>"
+            f"<a class='selector-action-link' href='{report_href}' target='_self'>{html.escape(discover_review_action_label(ticker, company_brief=research_discover))}</a>"
             "</div>"
             "</div>"
         )
