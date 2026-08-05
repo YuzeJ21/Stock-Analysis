@@ -386,7 +386,7 @@ from src.company_workbench_html import (
 )
 from src.research_workspace import (
     advanced_evidence_links_html,
-    build_evidence_monitor_brief,
+    build_monitor_follow_up_queue,
     cash_generation_preview_cards,
     cash_generation_preview_rows,
     company_change_answer,
@@ -36052,10 +36052,11 @@ def render_research_monitor(
         if observation_recency is not None
         else None
     )
-    st.markdown("## Evidence Monitor Brief")
-    brief = build_evidence_monitor_brief(
+    change_frame = research_monitor_frame(state.get("queue") or ())
+    queue = build_monitor_follow_up_queue(
         weekly_summary,
         discipline,
+        source_change_count=len(change_frame),
         readiness_state=context.freshness_state,
         readiness_message=context.freshness_message,
         observation_state=(profile_observation.state if profile_observation else "unavailable"),
@@ -36065,51 +36066,33 @@ def render_research_monitor(
             else "Market observation is unavailable."
         ),
     )
-    render_signal_cards(
-        [asdict(card) for card in brief.cards],
-        show_commands=False,
-        variant="evidence-monitor",
-    )
-    st.markdown("## Research Discipline Review")
+    st.markdown("## Follow-up Queue")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
-    if brief.primary_rows:
+    if queue.is_empty:
         st.markdown(
-            research_discipline_table_html(brief.primary_rows),
-            unsafe_allow_html=True,
-        )
-    elif discipline:
-        company_word = "company" if brief.monitor_count == 1 else "companies"
-        st.markdown(
-            "<div class='research-monitor-neutral'>"
-            + context_note_html(
-                f"{brief.monitor_count} {company_word} remain in saved monitoring state; "
-                "no saved process transition is currently due.",
-                "This does not claim that no market event, risk, or external research need exists.",
-            )
+            "<div class='research-monitor-neutral follow-up-queue-empty'>"
+            + context_note_html(queue.empty_title, queue.empty_boundary)
             + "</div>",
             unsafe_allow_html=True,
         )
+        st.link_button(
+            queue.next_action_label,
+            queue.next_action_url,
+            type="primary",
+        )
     else:
+        render_signal_cards(
+            [asdict(panel) for panel in queue.panels],
+            show_commands=False,
+            variant="evidence-monitor",
+        )
+    if queue.primary_rows:
         st.markdown(
-            "<div class='research-monitor-neutral'>"
-            + context_note_html(
-                "Saved research-process evidence is unavailable.",
-                "No company state is inferred from missing evidence.",
-            )
-            + "</div>",
+            research_discipline_table_html(queue.primary_rows),
             unsafe_allow_html=True,
         )
-    st.markdown("## Research change monitor")
-    frame = research_monitor_frame(state.get("queue") or ())
-    if frame.empty:
-        render_context_note(
-            "No unresolved evidence change is queued.",
-            "This is a monitoring state, not a stock ranking. Continue with Discover or wait for a comparable source-backed change.",
-        )
-        st.link_button("Open Discover", "?mode=research&page=discover", type="primary")
-    else:
-        st.dataframe(frame, width="stretch", hide_index=True)
-    with st.expander("Advanced: Research Discipline evidence", expanded=False):
+
+    with st.expander("Advanced: Monitor evidence", expanded=False):
         if not discipline_frame.empty:
             st.dataframe(discipline_frame, width="stretch", hide_index=True)
         if discipline:
@@ -36123,6 +36106,21 @@ def render_research_monitor(
             "Rows preserve saved focused-cohort order. Process state does not rank companies, "
             "estimate returns, or replace source-change review."
         )
+        if not change_frame.empty:
+            st.dataframe(change_frame, width="stretch", hide_index=True)
+        else:
+            st.caption("No unresolved saved source-change row is available.")
+        events = tuple(state.get("events") or ())
+        if events:
+            st.dataframe(
+                pd.DataFrame([event.__dict__ for event in events]),
+                width="stretch",
+                hide_index=True,
+            )
+        else:
+            st.caption(
+                str(state.get("message") or "No comparable research change evidence is available.")
+            )
     nowcast_cohort = load_dashboard_nowcast_cohort()
     with st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False):
         st.markdown("### Earnings evidence readiness")
@@ -36131,7 +36129,6 @@ def render_research_monitor(
         st.caption("This board creates no forecast. Missing consensus, Q4, split, backtest, and calibration evidence remain separate blockers.")
     with st.expander("Advanced Evidence", expanded=False):
         st.caption("Source identifiers and raw change rows remain in the separate evidence drawer below.")
-    render_research_change_route_summary("Monitor", state)
 
 
 def render_company_workbench(

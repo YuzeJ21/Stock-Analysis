@@ -124,7 +124,7 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     DashboardRenderRoute(
         name="Monitor",
         query_params=(("mode", "research"), ("page", "monitor")),
-        required_markers=("Monitor", "Research change monitor", "Research-only"),
+        required_markers=("Monitor", "Follow-up Queue", "Research-only"),
     ),
     DashboardRenderRoute(
         name="Research Data Health",

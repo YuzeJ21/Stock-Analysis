@@ -119,7 +119,7 @@ def test_research_routes_keep_observation_summary_and_advanced_evidence_responsi
         ),
         (
             "/?mode=research&page=monitor",
-            "Research Discipline Review",
+            "Follow-up Queue",
             "selected_ticker",
         ),
     )
@@ -726,21 +726,20 @@ def test_company_workbench_html_brief_does_not_enter_mutating_or_external_paths(
     assert any(item.label == "HTML Research Brief" for item in app.expander)
 
 
-def test_monitor_renders_evidence_brief_before_filtered_discipline_without_ranking():
+def test_monitor_renders_one_follow_up_queue_without_competing_primary_summaries():
     from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
 
     route = DashboardRenderRoute(
-        name="Monitor Research Discipline Review",
+        name="Monitor Follow-up Queue",
         query_params=(("mode", "research"), ("page", "monitor")),
         required_markers=(
-            "Evidence Monitor Brief",
-            "WEEKLY RESEARCH SUMMARY",
-            "RESEARCH FOLLOW-UP",
+            "Follow-up Queue",
+            "SINCE LAST REVIEW",
+            "NEEDS VERIFICATION",
+            "WAITING ON EVIDENCE",
             "SCHEDULED CONTEXT",
             "EVIDENCE FRESHNESS",
-            "Research Discipline Review",
-            "Research change monitor",
-            "Advanced: Research Discipline evidence",
+            "Advanced: Monitor evidence",
             "Research-only",
         ),
     )
@@ -749,12 +748,14 @@ def test_monitor_renders_evidence_brief_before_filtered_discipline_without_ranki
     rendered = "\n".join(result.rendered_blocks)
 
     assert result.exceptions == ()
-    assert rendered.index("Evidence Monitor Brief") < rendered.index("WEEKLY RESEARCH SUMMARY")
-    assert rendered.index("WEEKLY RESEARCH SUMMARY") < rendered.index("RESEARCH FOLLOW-UP")
-    assert rendered.index("RESEARCH FOLLOW-UP") < rendered.index("SCHEDULED CONTEXT")
+    assert rendered.index("Follow-up Queue") < rendered.index("SINCE LAST REVIEW")
+    assert rendered.index("SINCE LAST REVIEW") < rendered.index("NEEDS VERIFICATION")
+    assert rendered.index("NEEDS VERIFICATION") < rendered.index("WAITING ON EVIDENCE")
+    assert rendered.index("WAITING ON EVIDENCE") < rendered.index("SCHEDULED CONTEXT")
     assert rendered.index("SCHEDULED CONTEXT") < rendered.index("EVIDENCE FRESHNESS")
-    assert rendered.index("EVIDENCE FRESHNESS") < rendered.index("Research Discipline Review")
-    assert rendered.index("Research Discipline Review") < rendered.index("Research change monitor")
+    assert "Evidence Monitor Brief" not in rendered
+    assert "Research Discipline Review" not in rendered
+    assert "Research change monitor" not in rendered
     assert "company rank" not in rendered.lower()
     assert "expected return" not in rendered.lower()
 

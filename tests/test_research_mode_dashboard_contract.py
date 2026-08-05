@@ -14,6 +14,8 @@ from src.daily_research_queue import (
 )
 from src.daily_research_queue_adapter import DailyQueueBuildStatus
 from src.focused_research_cohort import FocusedCohort, FocusedCohortMember, build_focused_cohort
+from src.research_decision_lab import ResearchDisciplineRow
+from src.weekly_research_summary import WeeklyResearchSummary
 
 
 def test_dashboard_defaults_local_use_to_research_desk_and_preserves_explicit_modes():
@@ -881,38 +883,148 @@ def test_monitor_and_workbench_integrate_new_evidence_layers_without_new_routes(
     assert dashboard.workspace_path_options("Research Desk", nav.RESEARCH_MODE) == nav.RESEARCH_PATH_PAGE_TITLES
 
 
-def test_monitor_recomposes_existing_answers_before_advanced_readiness():
-    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
-    monitor_start = source.index("def render_research_monitor(")
-    monitor_end = source.index("def render_company_workbench(", monitor_start)
-    monitor = source[monitor_start:monitor_end]
+def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeypatch):
+    rendered: list[str] = []
+    actions: list[tuple[str, str]] = []
+    cards: list[tuple[list[dict[str, object]], str]] = []
+    expanders: list[str] = []
 
-    brief_heading = monitor.index('st.markdown("## Evidence Monitor Brief")')
-    brief_build = monitor.index("build_evidence_monitor_brief(", brief_heading)
-    brief_render = monitor.index('variant="evidence-monitor"', brief_build)
-    discipline = monitor.index('st.markdown("## Research Discipline Review")', brief_render)
-    primary_rows = monitor.index("brief.primary_rows", discipline)
-    change = monitor.index('st.markdown("## Research change monitor")', primary_rows)
-    advanced_discipline = monitor.index(
-        'with st.expander("Advanced: Research Discipline evidence", expanded=False):',
-        change,
+    class Expander:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "load_dashboard_research_discipline_rows", lambda *args, **kwargs: ())
+    monkeypatch.setattr(dashboard, "load_dashboard_nowcast_cohort", lambda: ())
+    monkeypatch.setattr(dashboard, "cohort_readiness_cards", lambda rows: [])
+    monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "render_signal_cards",
+        lambda values, **kwargs: cards.append((values, str(kwargs.get("variant") or ""))),
     )
-    complete_frame = monitor.index("st.dataframe(discipline_frame", advanced_discipline)
-    identity_table = monitor.index("research_discipline_identity_table_html(discipline)", complete_frame)
-    advanced_nowcast = monitor.index(
-        'with st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False):',
-        identity_table,
+    monkeypatch.setattr(dashboard.st, "markdown", lambda value, **kwargs: rendered.append(value))
+    monkeypatch.setattr(dashboard.st, "caption", lambda value, **kwargs: rendered.append(value))
+    monkeypatch.setattr(dashboard.st, "dataframe", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard.st,
+        "link_button",
+        lambda label, url, **kwargs: actions.append((label, url)),
+    )
+    monkeypatch.setattr(
+        dashboard.st,
+        "expander",
+        lambda label, **kwargs: expanders.append(label) or Expander(),
     )
 
-    assert brief_heading < brief_build < brief_render < discipline < primary_rows
-    assert primary_rows < change < advanced_discipline < complete_frame < identity_table < advanced_nowcast
-    assert "weekly_summary_cards(weekly_summary)" not in monitor
-    removed_helper = "research_discipline_" + "summary_cards"
-    assert f"{removed_helper}(discipline)" not in monitor
-    assert "research_discipline_table_html(discipline)" not in monitor[:change]
+    dashboard.render_research_monitor(
+        {"queue": ()},
+        SimpleNamespace(
+            freshness_state="current",
+            freshness_message="Saved readiness is current.",
+        ),
+        WeeklyResearchSummary(
+            status="no_changes",
+            as_of="2026-08-04T00:00:00+00:00",
+            cohort_size=0,
+            unique_event_count=0,
+            items=(),
+            message="No traceable cohort evidence change requires review this week.",
+        ),
+        object(),
+        SimpleNamespace(
+            profile_price_lane=SimpleNamespace(
+                state="current",
+                message="Market observation is current.",
+            )
+        ),
+    )
+
+    headings = [value for value in rendered if value.startswith("## ")]
+    assert headings == ["## Follow-up Queue"]
+    assert all(variant != "evidence-monitor" for _, variant in cards)
+    assert actions == [("Open Discover", "?mode=research&page=discover")]
+    copy = " ".join(rendered)
+    assert "does not prove that no external event" in copy
+    assert "Evidence Monitor Brief" not in copy
+    assert "Research Discipline Review" not in copy
+    assert "Research change monitor" not in copy
+    assert "Advanced: Monitor evidence" in expanders
 
 
-def test_evidence_monitor_grid_is_two_by_two_then_one_column_on_phone():
+def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_action(
+    monkeypatch,
+):
+    cards: list[tuple[list[dict[str, object]], str]] = []
+    actions: list[tuple[str, str]] = []
+    row = ResearchDisciplineRow(
+        cohort_order=0,
+        ticker="AAA",
+        status="ready",
+        due_lanes=("Evidence",),
+        next_process_step="Verify conflicting evidence.",
+        identity="identity-aaa",
+        attention_state="conflicting_evidence",
+        attention_label="Needs review",
+        attention_reason="Conflicting saved evidence needs review.",
+        attention_source="evidence",
+    )
+
+    class Expander:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "load_dashboard_research_discipline_rows", lambda *args, **kwargs: (row,))
+    monkeypatch.setattr(dashboard, "load_dashboard_nowcast_cohort", lambda: ())
+    monkeypatch.setattr(dashboard, "cohort_readiness_cards", lambda rows: [])
+    monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "render_signal_cards",
+        lambda values, **kwargs: cards.append((values, str(kwargs.get("variant") or ""))),
+    )
+    monkeypatch.setattr(dashboard.st, "markdown", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "caption", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "dataframe", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "link_button", lambda label, url, **kwargs: actions.append((label, url)))
+    monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+
+    dashboard.render_research_monitor(
+        {"queue": ()},
+        SimpleNamespace(
+            freshness_state="current",
+            freshness_message="Saved readiness is current.",
+        ),
+        WeeklyResearchSummary(
+            status="no_changes",
+            as_of="2026-08-04T00:00:00+00:00",
+            cohort_size=1,
+            unique_event_count=0,
+            items=(),
+            message="No traceable cohort evidence change requires review this week.",
+        ),
+        object(),
+    )
+
+    primary_cards = next(values for values, variant in cards if variant == "evidence-monitor")
+    assert [card["key"] for card in primary_cards] == [
+        "since_last_review",
+        "needs_verification",
+        "waiting_on_evidence",
+        "scheduled_context",
+        "evidence_freshness",
+    ]
+    assert actions == []
+
+
+def test_monitor_follow_up_grid_is_two_columns_then_one_column_on_phone():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     assert '"evidence-monitor": "signal-grid evidence-monitor-grid"' in source
     assert ".signal-grid.evidence-monitor-grid {" in source
@@ -1182,9 +1294,8 @@ def test_monitor_discipline_empty_state_is_process_only():
     monitor_end = source.index("def render_company_workbench(", monitor_start)
     monitor = source[monitor_start:monitor_end]
 
-    assert "remain in saved monitoring state" in monitor
-    assert "no saved process transition is currently due" in monitor
-    assert "This does not claim that no market event, risk, or external research need exists." in monitor
+    assert "queue.empty_title" in monitor
+    assert "queue.empty_boundary" in monitor
     assert "research-monitor-neutral" in monitor
     removed_helper = "research_discipline_" + "summary_cards"
     assert removed_helper not in monitor
@@ -1411,8 +1522,7 @@ def test_research_primary_sections_follow_route_h1_with_level_two_headings():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     expected_level_two = (
         "Weekly research summary",
-        "Research Discipline Review",
-        "Research change monitor",
+        "Follow-up Queue",
         "Find a Company",
         "What Changed",
         "Research Decision Lab",
