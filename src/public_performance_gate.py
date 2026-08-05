@@ -526,7 +526,16 @@ def _wait_for_visible_text(page, marker: str, *, timeout_seconds: float) -> None
             timeout=int(timeout_seconds * 1000),
         )
     except Exception as exc:
-        raise TimeoutError(f"visible marker not found before timeout: {marker}") from exc
+        url = str(getattr(page, "url", "unavailable") or "unavailable")
+        try:
+            body = page.locator("body").inner_text(timeout=2_000)
+        except Exception:
+            body = "visible body unavailable"
+        body_snapshot = " ".join(str(body or "").split())[:1_000] or "visible body empty"
+        raise TimeoutError(
+            f"visible marker not found before timeout: {marker}; "
+            f"url={url}; visible_body={body_snapshot!r}"
+        ) from exc
 
 
 def _horizontal_overflow_pixels(page) -> int:

@@ -375,12 +375,28 @@ def test_visible_text_wait_uses_rendered_body_text_instead_of_hidden_duplicate_l
 def test_visible_text_wait_names_the_missing_marker_on_timeout():
     from src.public_performance_gate import _wait_for_visible_text
 
+    class Body:
+        def inner_text(self, *, timeout):
+            assert timeout == 2000
+            return "Connection error: the application did not render."
+
     class FailingPage:
+        url = "http://127.0.0.1:8501/?mode=research&page=research-desk"
+
         def wait_for_function(self, expression, *, arg, timeout):
             raise RuntimeError("browser timeout")
 
-    with pytest.raises(TimeoutError, match="USE NOW"):
+        def locator(self, selector):
+            assert selector == "body"
+            return Body()
+
+    with pytest.raises(TimeoutError) as captured:
         _wait_for_visible_text(FailingPage(), "USE NOW", timeout_seconds=3)
+
+    message = str(captured.value)
+    assert "USE NOW" in message
+    assert "mode=research&page=research-desk" in message
+    assert "Connection error: the application did not render." in message
 
 
 def test_horizontal_overflow_check_uses_document_widths():
