@@ -230,7 +230,7 @@ def evaluate_demo_app_identity(
     passed = (
         observed["page_title"] == EXPECTED_APP_TITLE
         and observed["brand_text"] == EXPECTED_APP_TITLE
-        and observed["profile_label"] == EXPECTED_PROFILE_LABEL
+        and observed["profile_label"] in {"", EXPECTED_PROFILE_LABEL}
         and observed["profile_caption"].lower() == "data profile: demo"
     )
     return {

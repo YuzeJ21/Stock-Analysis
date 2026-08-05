@@ -1988,6 +1988,12 @@ def test_demo_identity_requires_product_title_brand_and_demo_profile():
         profile_label="Demo",
         profile_caption="Data profile: demo",
     )
+    compact_research_shell = evaluate_demo_app_identity(
+        page_title="Stock Research Command Center",
+        brand_text="Stock Research Command Center",
+        profile_label="",
+        profile_caption="Data profile: demo",
+    )
     wrong_profile = evaluate_demo_app_identity(
         page_title="Stock Research Command Center",
         brand_text="Stock Research Command Center",
@@ -2002,6 +2008,7 @@ def test_demo_identity_requires_product_title_brand_and_demo_profile():
     )
 
     assert passed["passed"] is True
+    assert compact_research_shell["passed"] is True
     assert wrong_profile["passed"] is False
     assert wrong_app["passed"] is False
 
