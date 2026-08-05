@@ -2,6 +2,26 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-08-05 Research Desk Today's Brief
+
+Research Desk now renders one primary **Today's Research Brief** instead of a
+weekly-card row plus four overlapping question cards. The brief asks **What
+needs my attention today?**, gives one saved-evidence answer and reason, exposes
+the saved-readiness warning, and provides one Monitor-or-Discover action. Its
+stop rule says the answer is saved-workspace evidence rather than a
+market-complete event feed, recommendation, or trade instruction. Weekly,
+cohort, observation, coverage, and source-change detail remains available under
+collapsed **Advanced Evidence**.
+
+At implementation anchor `5a2aaf2a44dc7ae371161bb8642ab7f0755ad019`, the
+read-only accessibility browser gate passed all six Research routes at
+`1280x720` and `390x844`. The Desk brief and action were visible in normal,
+forced-colors, and reduced-motion observations; the route had no horizontal
+overflow, browser error, rendered traceback, or repository write. The gate
+classified and excluded the same 18 generated data/output modifications. This
+is local automated engineering evidence only, not independent-human,
+screen-reader, WCAG, hosted, or market validation.
+
 ## 2026-08-05 Monitor Follow-up Queue
 
 Exact local runtime anchor `199fa94b266a8bb325bfc4a4df1742158282d47a`
