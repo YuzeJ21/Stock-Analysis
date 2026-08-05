@@ -154,7 +154,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
     ResearchRoute(
         "Research Data Health",
         "/?mode=research&page=data-health&ticker=NVDA",
-        "Data Health",
+        "Use now for market setup",
         "Data Health",
         ".public-lane-list[aria-label='Coverage by analysis lane']",
         ".research-workspace-action",
@@ -163,7 +163,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
     ResearchRoute(
         "Research Proof History",
         "/?mode=research&page=proof-history&ticker=NVDA",
-        "Proof History",
+        "Latest evidence",
         "Proof History",
         ".public-proof-timeline",
         ".research-workspace-action",

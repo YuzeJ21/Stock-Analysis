@@ -272,13 +272,13 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
         ),
         (
             "/?mode=research&page=data-health&ticker=NVDA",
-            "Data Health",
+            "Use now for market setup",
             "Data Health",
             False,
         ),
         (
             "/?mode=research&page=proof-history&ticker=NVDA",
-            "Proof History",
+            "Latest evidence",
             "Proof History",
             False,
         ),
