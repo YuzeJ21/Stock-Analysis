@@ -84,7 +84,7 @@
 
 - Modify: `ROADMAP.md`
 - Modify: `docs/PERSONAL_RESEARCH_MODE.md`
-- Modify: `docs/internal/ANSWER_FIRST_RESEARCH_WORKFLOW_CONTINUATION_GOAL_PROMPT.md`
+- Modify: `docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md`
 - Modify: `docs/superpowers/plans/2026-08-05-monitor-follow-up-queue.md`
 
 1. Record the exact implemented Monitor question, zero-state boundary, Advanced evidence location, and unchanged research/readiness contracts.
@@ -104,3 +104,11 @@
 5. Stage only the named documentation files, run staged hygiene, and commit.
 6. Push only `codex/personal-research-mode-mvp`, update draft PR #113, keep it draft, and require exact-head CI.
 7. Continue automatically to Research Desk simplification only after the Monitor slice has local and exact-head evidence.
+
+## Current Execution Evidence
+
+- Tasks 0-3 are implemented and committed through `199fa94b266a8bb325bfc4a4df1742158282d47a`.
+- Focused composition, dashboard, render, and browser-evaluator tests pass.
+- The clean direct-browser gate passed all 12 six-route/two-viewport cases at `1280x720` and `390x844`; Monitor had no horizontal overflow, rendered the expected five-panel responsive grid, and preserved complete Advanced identities.
+- Exactly 18 pre-existing generated CSV/output modifications remained unstaged and were classified as excluded.
+- Task 4 full release verification, push, draft-PR update, and exact-head CI remain pending; the answer-first program is not complete.

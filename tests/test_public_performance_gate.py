@@ -65,16 +65,15 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
         "Next Research Task",
         "Research-only",
     )
-    assert RESEARCH_ROUTE_SPECS[3].first_useful_marker == "WEEKLY RESEARCH SUMMARY"
+    assert RESEARCH_ROUTE_SPECS[3].first_useful_marker == "Follow-up Queue"
     assert RESEARCH_ROUTE_SPECS[3].full_markers == (
-        "WEEKLY RESEARCH SUMMARY",
-        "RESEARCH FOLLOW-UP",
+        "Follow-up Queue",
+        "SINCE LAST REVIEW",
+        "NEEDS VERIFICATION",
+        "WAITING ON EVIDENCE",
         "SCHEDULED CONTEXT",
         "EVIDENCE FRESHNESS",
-        "Research Discipline Review",
-        "Research change monitor",
-        "No unresolved evidence change is queued.",
-        "Open Discover",
+        "Advanced: Monitor evidence",
         "Advanced: five-company Earnings Nowcast readiness",
         "Research-only",
     )
@@ -83,7 +82,7 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
     assert "Selected Company" not in RESEARCH_ROUTE_SPECS[2].full_markers
     assert "Forward View" in RESEARCH_ROUTE_SPECS[2].full_markers
     assert "What Remains Withheld" in RESEARCH_ROUTE_SPECS[2].full_markers
-    assert RESEARCH_ROUTE_SPECS[3].full_markers[0] == "WEEKLY RESEARCH SUMMARY"
+    assert RESEARCH_ROUTE_SPECS[3].full_markers[0] == "Follow-up Queue"
 
 
 def test_nearest_rank_percentile_does_not_select_the_best_run():

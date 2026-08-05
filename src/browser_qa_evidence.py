@@ -307,10 +307,10 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
     BrowserQaRouteCheck(
         name="Research Monitor",
         route="http://localhost:8501/?mode=research&page=monitor",
-        first_view_markers=("Saved readiness", "MONITOR", "WEEKLY RESEARCH SUMMARY", "Research Discipline Review", "Research change monitor", "Research-only"),
-        details_boundary="Research Discipline identity and change evidence stay under separate Advanced sections; an empty monitor remains a truthful wait state rather than a ranking.",
-        qa_focus="Reviewer can distinguish process work from source changes, no verified change from no data, and knows when to continue or wait.",
-        stop_rule="Stop if Monitor invents changes, recommends stocks, or exposes raw evidence before the change summary.",
+        first_view_markers=("Saved readiness", "MONITOR", "Follow-up Queue", "SINCE LAST REVIEW", "NEEDS VERIFICATION", "WAITING ON EVIDENCE", "SCHEDULED CONTEXT", "EVIDENCE FRESHNESS", "Research-only"),
+        details_boundary="Full Research Discipline identities and source-change evidence stay under Advanced: Monitor evidence; an empty monitor remains one truthful wait state rather than a ranking.",
+        qa_focus="Reviewer can distinguish verification work, evidence waits, scheduled context, freshness, and no saved task without treating the queue as external-event completeness.",
+        stop_rule="Stop if Monitor repeats competing primary summaries, invents changes, recommends stocks, or exposes raw evidence before the Follow-up Queue.",
     ),
 )
 
@@ -393,7 +393,7 @@ DEFAULT_BROWSER_QA_RESPONSIVE_ROUTE_CHECKS: tuple[BrowserQaResponsiveRouteCheck,
         route="http://localhost:8501/?mode=research&page=monitor",
         desktop_viewport="1280x720",
         phone_viewport="390x844",
-        first_view_must_keep="Saved readiness, Monitor, weekly summary, Research Discipline Review, change state, one next action, Research-only",
+        first_view_must_keep="Saved readiness, Monitor, Follow-up Queue, five question panels or one fail-closed empty state, one next action, Research-only",
         mobile_risk="An empty evidence queue looks broken instead of a truthful wait state.",
         stop_rule="Stop if the phone view invents changes, exposes raw evidence first, or forces horizontal scrolling.",
     ),

@@ -2,19 +2,21 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
-## 2026-08-04 Evidence Monitor Brief
+## 2026-08-05 Monitor Follow-up Queue
 
-Exact implementation commit `78c5ff9dc96f2d676b31ce4819053bb3f4eb555e`
-passed the automated local direct-browser gate at `1280x720` and `390x844`.
-The Monitor brief exposed all four visible labels — **WEEKLY RESEARCH SUMMARY**,
-**RESEARCH FOLLOW-UP**, **SCHEDULED CONTEXT**, and **EVIDENCE FRESHNESS** — in
-a desktop two-by-two grid and a phone one-column layout. The primary discipline
-surface contained only filtered attention rows or its truthful neutral state;
-the complete stable-order rows and full identities remained available in
-**Advanced: Research Discipline evidence**. Neither viewport had horizontal
-overflow, a rendered traceback, console/page errors, or server runtime errors.
-The same 18 protected generated working-tree paths remained byte-for-byte
-unchanged and unstaged after the gate.
+Exact local runtime anchor `199fa94b266a8bb325bfc4a4df1742158282d47a`
+passed the automated direct-browser gate at `1280x720` and `390x844` across all
+six Personal Research routes. Monitor exposed five visible labels — **SINCE LAST
+REVIEW**, **NEEDS VERIFICATION**, **WAITING ON EVIDENCE**, **SCHEDULED CONTEXT**,
+and **EVIDENCE FRESHNESS** — in a desktop two-column grid and a phone one-column
+layout. The old Evidence Monitor Brief, Research Discipline Review, and Research
+change monitor no longer compete as separate primary summaries. A controlled
+empty state appears once, preserves the external-event boundary, and exposes
+one Open Discover action. Complete stable-order process rows, identities, and
+source-change evidence remain available in **Advanced: Monitor evidence**.
+Neither viewport had horizontal overflow, a rendered traceback, console/page
+errors, or server runtime errors. The same 18 protected generated working-tree
+paths remained unchanged and unstaged after the gate.
 
 This is automated local engineering evidence only. It does not establish human
 or screen-reader accessibility, source rights, current-market validity, hosted
