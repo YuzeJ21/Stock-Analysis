@@ -86,10 +86,10 @@
 
 - [x] Document the one-brief workflow, its no-external-event boundary, Advanced detail location, and unchanged readiness/evidence contracts.
 - [x] Name shared-shell/navigation cleanup as the next separate local slice; do not claim the full answer-first program or external maturity gates complete.
-- [ ] Run focused tests and `python3 -m pytest tests -q`.
-- [ ] Run dashboard startup/render, accessibility-browser, public wording/performance/check, pilot-readiness, diff-hygiene, and whitespace checks.
-- [ ] Recompute protected-artifact hashes and require byte identity for the same 18 excluded generated paths.
-- [ ] Stage only named documentation files, run staged hygiene, and commit.
+- [x] Run focused tests and `python3 -m pytest tests -q`.
+- [x] Run dashboard startup/render, accessibility-browser, public wording/performance/check, pilot-readiness, diff-hygiene, and whitespace checks.
+- [x] Recompute protected-artifact hashes and require byte identity for the same 18 excluded generated paths.
+- [x] Stage only named documentation files, run staged hygiene, and commit.
 - [ ] Push only `codex/personal-research-mode-mvp`, update draft PR #113, keep it draft, and require exact-head CI before continuing.
 
 ## Plan Self-Review
