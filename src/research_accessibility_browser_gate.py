@@ -512,13 +512,14 @@ def evaluate_monitor_rows(
     advanced_identity_count: int,
     expected_discipline_count: int,
     neutral_visible: bool,
+    queue_visible: bool = False,
 ) -> dict[str, object]:
     """Require a filtered process-only Monitor view in saved cohort order."""
 
     observed = tuple(rows)
     columns = tuple(str(column or "").strip() for column in primary_columns)
     failures: list[str] = []
-    if not observed and not neutral_visible:
+    if not observed and not neutral_visible and not queue_visible:
         failures.append("no Monitor discipline rows or neutral state were rendered")
     if observed and not primary_table_present:
         failures.append("Monitor rows require one primary discipline table")
@@ -2438,6 +2439,8 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
         advanced_identity_count=advanced_count,
         expected_discipline_count=expected_discipline_count,
         neutral_visible=neutral.count() == 1,
+        queue_visible=page.locator(".signal-grid.evidence-monitor-grid:visible").count()
+        == 1,
     )
     return _assertion(
         "monitor_process_rows",

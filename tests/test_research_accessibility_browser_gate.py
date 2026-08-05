@@ -1600,6 +1600,23 @@ def test_monitor_row_contract_requires_advanced_container_for_true_empty_state()
     )
 
 
+def test_monitor_row_contract_allows_actionable_queue_without_process_rows():
+    from src.research_accessibility_browser_gate import evaluate_monitor_rows
+
+    freshness_only = evaluate_monitor_rows(
+        (),
+        primary_columns=(),
+        primary_table_present=False,
+        advanced_present=True,
+        advanced_identity_count=5,
+        expected_discipline_count=5,
+        neutral_visible=False,
+        queue_visible=True,
+    )
+
+    assert freshness_only["passed"] is True
+
+
 def test_monitor_row_contract_rejects_wrong_columns_on_empty_primary_table():
     from src.research_accessibility_browser_gate import evaluate_monitor_rows
 
