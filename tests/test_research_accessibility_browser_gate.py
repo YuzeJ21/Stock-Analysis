@@ -248,7 +248,7 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
     ] == [
         (
             "/?mode=research&page=research-desk",
-            "Weekly research summary",
+            "Today's Research Brief",
             "Research Desk",
             True,
         ),
@@ -283,6 +283,12 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
             False,
         ),
     ]
+    assert RESEARCH_ROUTES[0].media_marker_selector == (
+        '.research-desk-brief[aria-label="Today\'s Research Brief"]'
+    )
+    assert RESEARCH_ROUTES[0].media_next_action_selector == (
+        ".research-desk-brief .public-primary-action"
+    )
 
 
 def test_company_workbench_primary_brief_contract_fails_closed_per_requirement():

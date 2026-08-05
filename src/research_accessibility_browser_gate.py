@@ -122,10 +122,10 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
     ResearchRoute(
         "Research Desk",
         "/?mode=research&page=research-desk",
-        "Weekly research summary",
+        "Today's Research Brief",
         "Research Desk",
-        ".research-desk-grid[aria-label='Research Desk answers']",
-        ".research-workspace-action",
+        '.research-desk-brief[aria-label="Today\'s Research Brief"]',
+        ".research-desk-brief .public-primary-action",
     ),
     ResearchRoute(
         "Discover",
