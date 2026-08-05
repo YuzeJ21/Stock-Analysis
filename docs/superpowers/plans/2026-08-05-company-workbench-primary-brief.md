@@ -172,7 +172,7 @@ git commit -m "Gate secondary Workbench modules"
 - Modify: `docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md`
 - Modify: this plan
 
-- [x] Add behavior-first browser assertions for one primary brief, five visible answers, two 44px actions, visible stop rule, closed detailed modules by default, no overflow, no traceback, and exact ticker preservation at `1280x720` and `390x844`.
+- [x] Add behavior-first browser assertions for one primary brief, four visible answers, two 44px actions, visible stop rule, closed detailed modules by default, no overflow, no traceback, and exact ticker preservation at `1280x720` and `390x844`.
 - [x] Update docs to say Discover is complete and Company Workbench primary-brief composition is current, without claiming source, hosted, human-accessibility, demand, calibration, or market validation.
 - [x] Keep Monitor consolidation as the next separate local slice, followed by Research Desk simplification and shared-shell cleanup.
 - [ ] Run:
@@ -189,10 +189,10 @@ make diff-hygiene-summary
 git diff --check
 ```
 
-- [ ] Compare all 18 protected hashes byte-for-byte with Task 0.
-- [ ] Stage exact intentional product/code/docs/test files only; never use `git add -A`.
-- [ ] Run `make staged-hygiene-check` and `git diff --cached --check`.
-- [ ] Commit the closure package, then run `make research-accessibility-browser-check` on the clean product tree.
+- [x] Compare all 18 protected hashes byte-for-byte with Task 0.
+- [x] Stage exact intentional product/code/docs/test files only; never use `git add -A`.
+- [x] Run `make staged-hygiene-check` and `git diff --cached --check`.
+- [x] Commit the browser closure package and run `make research-accessibility-browser-check` on the clean product tree. Exact local runtime anchor `ad431eadbd00df71419f91e3a18408b0afeb94e4` passed all six routes at `1280x720` and `390x844`, including the closed Company Brief and explicit detail restoration.
 - [ ] Push only `codex/personal-research-mode-mvp`.
 - [ ] Update PR #113, keep it draft, and require exact-head `local-engineering-gate` success.
 
