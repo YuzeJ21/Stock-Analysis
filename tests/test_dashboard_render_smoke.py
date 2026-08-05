@@ -110,7 +110,7 @@ def test_research_routes_keep_observation_summary_and_advanced_evidence_responsi
     playwright = pytest.importorskip("playwright.sync_api")
     routes = (
         ("/?mode=research&page=research-desk", "Weekly research summary", "selected_ticker"),
-        ("/?mode=research&page=discover", "Which stock can I review?", "selected_ticker"),
+        ("/?mode=research&page=discover", "Find a Company", "selected_ticker"),
         (
             "/?mode=research&page=company-workbench&ticker=AVGO&open=1",
             "Company Workbench",
@@ -211,7 +211,9 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     discover_route = next(
         route for route in RESEARCH_RENDER_ROUTES if route.name == "Discover"
     )
-    assert "Daily Momentum & Valuation Research Queue" in discover_route.required_markers
+    assert "Find a Company" in discover_route.required_markers
+    assert "Screen eligibility — when supported" in discover_route.required_markers
+    assert "Browse saved companies" in discover_route.required_markers
     results = render_public_routes(Path("."), routes=RESEARCH_RENDER_ROUTES)
 
     assert all(result.exceptions == () for result in results)

@@ -95,8 +95,9 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         required_markers=(
             "Discover",
             "Focused cohort",
-            "Which stock can I review?",
-            "Daily Momentum & Valuation Research Queue",
+            "Find a Company",
+            "Screen eligibility — when supported",
+            "Browse saved companies",
             "Research-only",
         ),
     ),

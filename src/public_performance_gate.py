@@ -127,10 +127,12 @@ RESEARCH_ROUTE_SPECS: tuple[PublicRouteSpec, ...] = (
     PublicRouteSpec(
         "Discover",
         "/?mode=research&page=discover",
-        "Which stock can I review?",
+        "Find a Company",
         (
             "Discover",
-            "Search this review queue",
+            "Screen eligibility — when supported",
+            "Browse saved companies",
+            "Search saved companies",
             "Advanced: cohort readiness context",
             "Research-only",
         ),

@@ -1297,7 +1297,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         assert stale_preview_phrase not in preview
     assert "## Quick Start" in readme
     assert "flowchart LR" in readme
-    assert 'Desk["Research Desk: changed evidence"] --> Discover["Discover: readiness-backed company"]' in readme
+    assert 'Desk["Research Desk: changed evidence"] --> Discover["Discover: strict eligibility or saved evidence"]' in readme
     assert 'Discover --> Workbench["Company Workbench: trend, valuation, forward view"]' in readme
     assert 'Workbench --> Monitor["Monitor: unresolved research changes"]' in readme
     assert 'Workbench -. advanced evidence .-> Health["Data Health and Proof History"]' in readme

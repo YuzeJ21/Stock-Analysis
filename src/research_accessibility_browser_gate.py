@@ -130,7 +130,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
     ResearchRoute(
         "Discover",
         "/?mode=research&page=discover",
-        "Which stock can I review?",
+        "Find a Company",
         "Discover",
         ".selector-result-table.research-discover-result",
         ".research-workspace-action",

@@ -41,7 +41,7 @@ Stage A-G labels are continuation maturity lanes only; they do not replace the n
 
 **What works locally**
 
-- Research Desk frames the saved cohort and change state; Discover adds a read-only Daily Momentum & Valuation Research Queue before general selection; Company Workbench composes trends, valuation, forward scenarios, evidence, and authoring; Monitor reviews verified change and research discipline. The daily queue uses the strict approved momentum, own-history valuation, and fundamental-safeguard intersection, stays alphabetical, writes nothing, and never reads legacy rankings. Completed locally, the read-only Evidence Monitor Brief recomposes the saved weekly summary, research follow-up, scheduled process context, and independent readiness/observation freshness while keeping exact `Monitor` rows under Advanced.
+- Research Desk frames the saved cohort and change state. Discover now separates the unchanged strict **Screen eligibility — when supported** contract from alphabetical **Browse saved companies** evidence access. Saved rows explain inspectability, usable evidence, and the main gap; they are not screened opportunities, rankings, expected-return claims, or recommendations. The research browse path reads focused-cohort ticker readiness and never reads legacy decision, ranking, or watchlist outputs. Company Workbench composes trends, valuation, forward scenarios, evidence, and authoring; Monitor reviews verified change and research discipline. Completed locally, the read-only Evidence Monitor Brief recomposes the saved weekly summary, research follow-up, scheduled process context, and independent readiness/observation freshness while keeping exact `Monitor` rows under Advanced.
 - Research Decision Lab supports read-only composition plus append-only thesis, counter-thesis, evidence, catalyst, invalidation, scenario-assumption, and outcome records through validate -> preview -> explicit confirm.
 - SEC quarterly actuals preserve source lineage. EPS split basis remains unverified without explicit proof. Q4 actuals require an explicit SEC-filed Q4 table; Q4 is never derived.
 - Historical Valuation Regime, Source Freshness Timeline - Implemented, Research Comparison View - Implemented, Peer Read-Through Map, Scenario Lab, Research Outcome Review, and Catalyst Evidence Timeline stay fail-closed when their ledgers or source inputs are empty. Historical-valuation numeric loading also rejects blank or malformed numerator/denominator evidence per row instead of coercing it to zero or discarding valid sibling rows.
@@ -68,14 +68,9 @@ If the current branch head lacks direct local matrix, branch synchronization, dr
 
 Documentation and routing reconciliation is complete locally. Reopen it only when current repository evidence reproduces contract drift.
 
-The bounded observation-recency UX repair is complete locally. Research Desk,
-Discover, and Monitor now show one profile-lane interpretation; Company
-Workbench shows one selected-ticker interpretation. Exact selected/profile/SPY/
-QQQ dates, machine states, policy, path, and excluded-date diagnostics remain
-inside responsive Advanced evidence. A direct four-route browser matrix at
-`1280x720` and `390x844` verifies one summary, four independently labelled
-cards, phone single-column layout, and no evidence-container horizontal
-overflow without writing screenshots or other artifacts.
+Current answer-first UX program: the Discover truth-separation slice is implemented locally and awaiting current-head release evidence. The next executable local slice is **Company Workbench primary brief**: compose Use now, Still withheld, What changed, one authoritative Next research task, the research-only stop rule, and a consolidated Evidence Gaps summary before secondary modules. Monitor consolidation and Research Desk simplification follow as separate tested slices. These presentation changes must not alter calculations, authoring persistence, readiness, evidence identities, thresholds, or source-rights decisions.
+
+The bounded observation-recency UX repair is complete locally. Research Desk, Discover, and Monitor show one profile-lane interpretation; Company Workbench shows one selected-ticker interpretation. Exact selected/profile/SPY/QQQ dates, machine states, policy, path, and excluded-date diagnostics remain inside responsive Advanced evidence. A direct four-route browser matrix at `1280x720` and `390x844` verifies one summary, four independently labelled cards, phone single-column layout, and no evidence-container horizontal overflow without writing screenshots or other artifacts.
 
 Completed local reliability item: default-profile readiness now separates temporal freshness from tracked release-evidence eligibility. Dirty or untracked required readiness reports are labelled `working_artifact_uncommitted`, and Git comparison failures are `unverified`; project status, continuation routing, pilot readiness, and reviewed-batch preflight fail closed to the no-write preview without staging or rewriting generated artifacts. Reviewed-batch temporal routing now uses the same declared-date profile context instead of a separate mtime rule.
 

@@ -43,10 +43,12 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
         "Advanced Evidence",
         "Research-only",
     )
-    assert RESEARCH_ROUTE_SPECS[1].first_useful_marker == "Which stock can I review?"
+    assert RESEARCH_ROUTE_SPECS[1].first_useful_marker == "Find a Company"
     assert RESEARCH_ROUTE_SPECS[1].full_markers == (
         "Discover",
-        "Search this review queue",
+        "Screen eligibility — when supported",
+        "Browse saved companies",
+        "Search saved companies",
         "Advanced: cohort readiness context",
         "Research-only",
     )

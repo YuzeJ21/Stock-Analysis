@@ -254,7 +254,7 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
         ),
         (
             "/?mode=research&page=discover",
-            "Which stock can I review?",
+            "Find a Company",
             "Discover",
             True,
         ),

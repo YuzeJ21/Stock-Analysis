@@ -46,7 +46,7 @@
 - Produces: `discover_saved_company_browse_frame(ticker_readiness_frame, *, allowed_tickers=None, limit=120) -> pd.DataFrame` with the selector-compatible columns `Ticker`, `Asset Type`, `Research State`, `Readiness`, four independent readiness booleans, `Review Detail`, `Sector / Theme`, `Why Inspectable`, `Supported Now`, `Blocked / Missing`, `Next Proof Step`, and `Proof Freshness`.
 - Invariant: output order is case-insensitive alphabetical ticker order and does not contain `Why Included`, rank, score, priority, or recommendation fields.
 
-- [ ] **Step 1: Write the failing readiness-only browse tests**
+- [x] **Step 1: Write the failing readiness-only browse tests**
 
 Add these tests near the existing selector-frame tests:
 
@@ -117,7 +117,7 @@ def test_discover_saved_company_browse_frame_fails_closed_without_saved_readines
     ).empty
 ```
 
-- [ ] **Step 2: Run the focused tests and verify RED**
+- [x] **Step 2: Run the focused tests and verify RED**
 
 Run:
 
@@ -129,7 +129,7 @@ python3 -m pytest \
 
 Expected: both tests fail because `discover_saved_company_browse_frame` does not exist.
 
-- [ ] **Step 3: Implement the pure adapter**
+- [x] **Step 3: Implement the pure adapter**
 
 Add the helper before `stock_selector_queue_frame`:
 
@@ -242,13 +242,13 @@ def discover_saved_company_browse_frame(
     ).reset_index(drop=True)
 ```
 
-- [ ] **Step 4: Run the focused tests and verify GREEN**
+- [x] **Step 4: Run the focused tests and verify GREEN**
 
 Run the Step 2 command again.
 
 Expected: both tests pass and no file is written.
 
-- [ ] **Step 5: Commit Task 1 exactly**
+- [x] **Step 5: Commit Task 1 exactly**
 
 ```bash
 git add -- src/dashboard.py tests/test_dashboard_helpers.py
@@ -271,7 +271,7 @@ git commit -m "Build readiness-only Discover browsing"
 - Produces: `discover_research_answer(row) -> dict[str, str]` with `why_inspectable`, `usable_evidence`, and `main_evidence_gap`; research-only HTML labels; `Open <TICKER> Company Brief` action.
 - Public selector output keeps `Open <TICKER> review`, current state pills, and current URLs.
 
-- [ ] **Step 1: Replace the existing tests with the answer-first contract**
+- [x] **Step 1: Replace the existing tests with the answer-first contract**
 
 Update the research-mode HTML tests and add the explicit legacy-copy mutation:
 
@@ -332,7 +332,7 @@ assert "Open NVDA Company Brief" in research_html
 assert "High review priority" not in research_html
 ```
 
-- [ ] **Step 2: Run the focused HTML tests and verify RED**
+- [x] **Step 2: Run the focused HTML tests and verify RED**
 
 ```bash
 python3 -m pytest \
@@ -343,7 +343,7 @@ python3 -m pytest \
 
 Expected: failures show the old `Why reviewable`, `Usable now`, `Principal blocker`, and `Open NVDA review` research copy.
 
-- [ ] **Step 3: Implement the research-only answer and action copy**
+- [x] **Step 3: Implement the research-only answer and action copy**
 
 Change `discover_review_action_label` to accept a mode-specific keyword while retaining the public default:
 
@@ -398,13 +398,13 @@ f"<span class='research-discover-answer-value'>{html.escape(answers['main_eviden
 
 Pass `company_brief=research_discover` to `discover_review_action_label`.
 
-- [ ] **Step 4: Run the focused tests and verify GREEN**
+- [x] **Step 4: Run the focused tests and verify GREEN**
 
 Run the Step 2 command again.
 
 Expected: all three tests pass; public and research actions remain distinct.
 
-- [ ] **Step 5: Commit Task 2 exactly**
+- [x] **Step 5: Commit Task 2 exactly**
 
 ```bash
 git add -- src/dashboard.py tests/test_dashboard_helpers.py tests/test_research_mode_dashboard_contract.py
@@ -430,7 +430,7 @@ git commit -m "Clarify saved-company evidence answers"
 - Produces: `stock_selector_source_frames(output_frames, *, research_discover)` so the no-legacy-read branch is behavior-testable without inspecting source text.
 - Invariant: the research path never calls `load_output(OUTPUTS_DIR / "research_decisions.csv")` and never consumes `final_watchlist.csv`; public mode still does.
 
-- [ ] **Step 1: Write failing route and renderer contract tests**
+- [x] **Step 1: Write failing route and renderer contract tests**
 
 Update the route-order test to capture visible headings and ensure no output-frame loader is used:
 
@@ -549,7 +549,7 @@ def test_stock_selector_source_frames_skip_legacy_outputs_for_research_discover(
     assert public[2] is final
 ```
 
-- [ ] **Step 2: Run the focused route tests and verify RED**
+- [x] **Step 2: Run the focused route tests and verify RED**
 
 ```bash
 python3 -m pytest \
@@ -561,7 +561,7 @@ python3 -m pytest \
 
 Expected: failures show the old page title, old strict-queue title/copy, output-frame loader call, and missing mode branch.
 
-- [ ] **Step 3: Implement strict eligibility copy and mode-specific source selection**
+- [x] **Step 3: Implement strict eligibility copy and mode-specific source selection**
 
 Make these exact composition changes:
 
@@ -653,7 +653,7 @@ render_context_note(
 8. Add `discover_browse_result_summary_html(filtered_count, total_count)` with copy `<strong>N</strong> of M saved companies match the current search and filters.` and use it only for `research_discover`.
 9. In `render_personal_research_route`, change the H2 to `## Find a Company` and pass `{}` to `render_stock_selector` instead of calling `dashboard_output_frames_for_page`.
 
-- [ ] **Step 4: Run focused Discover tests and verify GREEN**
+- [x] **Step 4: Run focused Discover tests and verify GREEN**
 
 Run:
 
@@ -667,7 +667,7 @@ python3 -m pytest \
 
 Expected: all tests pass; public selector compatibility tests remain green.
 
-- [ ] **Step 5: Commit Task 3 exactly**
+- [x] **Step 5: Commit Task 3 exactly**
 
 ```bash
 git add -- src/dashboard.py tests/test_dashboard_helpers.py tests/test_research_mode_dashboard_contract.py
@@ -692,7 +692,7 @@ git commit -m "Separate Discover eligibility from browsing"
 - Produces: responsive contract evidence, current product documentation, current roadmap truth, and the exact next Workbench slice.
 - Invariant: documentation states Discover completion only after direct browser and release gates pass.
 
-- [ ] **Step 1: Update responsive and heading tests first**
+- [x] **Step 1: Update responsive and heading tests first**
 
 Change the expected Research H2 from `Which stock can I review?` to `Find a Company`. Extend the phone-row test:
 
@@ -704,36 +704,26 @@ assert "Open {symbol} Company Brief" in source
 assert "min-height: 2.75rem" in source
 ```
 
-Add a copy guard:
+Use the rendered-row behavior test as the copy guard. Its input contains a
+`Why Included` ranking-adjacent mutation and the assertion proves that value
+cannot reach the research answer:
 
 ```python
-def test_research_discover_source_contains_no_ranking_adjacent_primary_copy():
-    source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    start = source.index("def discover_saved_company_browse_frame(")
-    end = source.index("\ndef price_refresh_operator_plan_cards", start)
-    discover = source[start:end].lower()
-
-    for prohibited in (
-        "high review priority",
-        "best stocks",
-        "expected return",
-        "opportunity ranking",
-    ):
-        assert prohibited not in discover
+assert "High review priority: should never appear." not in rendered
 ```
 
-- [ ] **Step 2: Run the focused source tests and verify their current result**
+- [x] **Step 2: Run the focused behavior tests and verify their current result**
 
 ```bash
 python3 -m pytest \
   tests/test_dashboard_helpers.py::test_research_discover_rows_keep_all_answers_on_phone_and_one_large_action \
-  tests/test_dashboard_helpers.py::test_research_discover_source_contains_no_ranking_adjacent_primary_copy \
+  tests/test_dashboard_helpers.py::test_discover_row_answers_three_saved_evidence_questions_without_ranking_copy \
   tests/test_research_mode_dashboard_contract.py::test_research_primary_sections_follow_route_h1_with_level_two_headings -q
 ```
 
 Expected: pass after Tasks 1–3; if any fail, repair the Discover source before documentation.
 
-- [ ] **Step 3: Reconcile Discover documentation truthfully**
+- [x] **Step 3: Reconcile Discover documentation truthfully**
 
 Update the three documents with these exact facts:
 
