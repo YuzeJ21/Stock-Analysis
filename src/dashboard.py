@@ -36351,15 +36351,18 @@ def main() -> None:
         route_signature = f"{mode}:{initial_page}"
         path_state_key = "dashboard-path-selection"
         path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"
-        path_selection = st.radio(
-            "Choose your path",
-            path_options,
-            index=path_options.index(default_path) if default_path in path_options else 0,
-            format_func=lambda page: workspace_path_label(page, mode),
-            help="Choose the next research step. Evidence and maintenance remain secondary to the company review path.",
-            key=path_widget_key,
-            label_visibility="collapsed",
-        )
+        if research_mode:
+            path_selection = default_path
+        else:
+            path_selection = st.radio(
+                "Choose your path",
+                path_options,
+                index=path_options.index(default_path) if default_path in path_options else 0,
+                format_func=lambda page: workspace_path_label(page, mode),
+                help="Choose the next research step. Evidence and maintenance remain secondary to the company review path.",
+                key=path_widget_key,
+                label_visibility="collapsed",
+            )
         selected_page = selected_page_from_route_rail(
             initial_page=initial_page,
             default_path=default_path,

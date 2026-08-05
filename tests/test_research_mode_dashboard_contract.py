@@ -62,6 +62,26 @@ def test_research_workflow_navigation_rendering_scopes_primary_and_secondary_rou
     assert rendered == []
 
 
+def test_research_sidebar_uses_route_state_without_a_duplicate_page_radio():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    main_start = source.index("def main()")
+    selector_start = source.index(
+        "path_options = workspace_path_options(initial_page, mode)",
+        main_start,
+    )
+    selector_end = source.index(
+        "selected_page = selected_page_from_route_rail(",
+        selector_start,
+    )
+    selector = source[selector_start:selector_end]
+
+    assert "if research_mode:" in selector
+    assert "path_selection = default_path" in selector
+    assert "else:" in selector
+    assert selector.index("if research_mode:") < selector.index("st.radio(")
+    assert "Choose your path" in selector
+
+
 def test_personal_research_route_loads_once_from_selected_profile_and_passes_one_result(
     monkeypatch,
 ):
