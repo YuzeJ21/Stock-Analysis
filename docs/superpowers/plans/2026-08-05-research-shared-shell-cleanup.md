@@ -37,7 +37,7 @@
 - [x] Run focused tests and `python3 -m pytest tests -q`.
 - [x] Run dashboard startup/render, public wording/performance/check, pilot-readiness, accessibility-browser, diff-hygiene, and whitespace checks.
 - [x] Recompute protected-artifact hashes and require byte identity.
-- [ ] Commit exact documentation, push only `codex/personal-research-mode-mvp`, keep PR #113 draft, and require exact-head CI.
+- [x] Commit exact documentation, push only `codex/personal-research-mode-mvp`, keep PR #113 draft, and require exact-head CI.
 
 ## Acceptance
 
