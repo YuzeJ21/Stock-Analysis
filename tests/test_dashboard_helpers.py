@@ -35069,20 +35069,26 @@ def test_company_workbench_html_brief_uses_the_prepared_session_and_loaded_evide
     render_end = source.index("\ndef render_data_health(", render_index)
     render_source = source[render_index:render_end]
 
-    next_task = render_source.index('st.markdown("## Next Research Task")')
-    brief = render_source.index('st.expander("HTML Research Brief", expanded=False)', next_task)
+    task_arbitration = render_source.index(
+        "authoritative_task = company_next_research_task("
+    )
+    module_gate = render_source.index(
+        "if research_mode and not single_stock_detail_sections_visible(ticker):",
+        task_arbitration,
+    )
+    brief = render_source.index('st.expander("HTML Research Brief", expanded=False)', module_gate)
     detail_gate = render_source.index("if public_mode and report_payload", brief)
     prepared = render_source.index("scenario_session = run_scenario_lab_from_state(")
     detailed = render_source.index("render_scenario_lab(scenario_session)")
 
-    assert prepared < next_task < brief < detail_gate < detailed
+    assert prepared < task_arbitration < module_gate < brief < detail_gate < detailed
     assert "scenario_lab_result=scenario_session.result" in render_source
     assert 'selected_answer["state"] = report_one_answer_snapshot["status"]' in render_source
     assert render_source.count("run_scenario_lab_from_state(") == 1
     assert render_source.count("render_scenario_lab(scenario_session)") == 1
-    assert "company_name" not in render_source[next_task:detail_gate]
-    assert "OutcomeStatus" not in render_source[next_task:detail_gate]
-    assert "analyst_estimates_readiness" not in render_source[next_task:detail_gate]
+    assert "company_name" not in render_source[task_arbitration:detail_gate]
+    assert "OutcomeStatus" not in render_source[task_arbitration:detail_gate]
+    assert "analyst_estimates_readiness" not in render_source[task_arbitration:detail_gate]
 
 
 def test_company_workbench_html_brief_passes_observation_recency_without_reloading_it():

@@ -111,13 +111,12 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         ),
         required_markers=(
             "Company Workbench",
-            "What Changed",
-            "Business Trend",
-            "Valuation",
-            "Forward View",
-            "What Remains Withheld",
-            "Research Conclusion",
-            "Next Research Task",
+            "Company Brief",
+            "Use now",
+            "Still withheld",
+            "What changed",
+            "Next research task",
+            "Open evidence and analysis modules",
             "Advanced Evidence",
             "Research-only",
         ),
@@ -165,6 +164,10 @@ def _rendered_blocks(app: AppTest) -> tuple[str, ...]:
             value = getattr(item, "value", "")
             if value:
                 values.append(str(value))
+    for item in app.button:
+        label = getattr(item, "label", "")
+        if label:
+            values.append(str(label))
     return tuple(values)
 
 

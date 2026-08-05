@@ -31617,6 +31617,18 @@ def render_single_stock_report(
                 selected_answer_target=selected_answer_target,
                 primary_brief=primary_brief,
             )
+            if research_mode and not single_stock_detail_sections_visible(ticker):
+                render_context_note(
+                    "Detailed company modules stay closed.",
+                    "Open them only when you need trend, valuation, scenarios, authoring, methodology, or raw evidence behind the Company Brief.",
+                )
+                if st.button(
+                    "Open evidence and analysis modules",
+                    key=f"{single_stock_detail_sections_key(ticker)}:research-open",
+                ):
+                    st.session_state[single_stock_detail_sections_key(ticker)] = True
+                    st.rerun()
+                return
             quant_interpretation_cards = stock_report_quant_interpretation_cards(report_payload)
             quant_interpretation_evidence = stock_report_quant_interpretation_evidence_frame(
                 report_payload
@@ -31847,21 +31859,6 @@ def render_single_stock_report(
             st.markdown("## Research Conclusion")
             render_signal_cards(
                 conclusion_cards,
-                show_commands=False,
-                variant="queue",
-            )
-            st.markdown("## Next Research Task")
-            render_signal_cards(
-                [
-                    {
-                        "kicker": "ONE NEXT TASK",
-                        "title": str(authoritative_task["title"]),
-                        "body": str(authoritative_task["body"]),
-                        "badges": list(authoritative_task["badges"]),
-                        "state": str(authoritative_task["state"]),
-                        "command": "",
-                    }
-                ],
                 show_commands=False,
                 variant="queue",
             )

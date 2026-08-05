@@ -57,7 +57,8 @@ def test_company_workbench_renders_independent_observation_states_for_avgo_spy_a
             "AVGO",
             "SPY",
             "QQQ",
-            "Quant interpretation boundary",
+            "Company Brief",
+            "Open evidence and analysis modules",
             "Research-only",
         ),
     )
@@ -214,6 +215,18 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     assert "Find a Company" in discover_route.required_markers
     assert "Screen eligibility — when supported" in discover_route.required_markers
     assert "Browse saved companies" in discover_route.required_markers
+    workbench_route = next(
+        route for route in RESEARCH_RENDER_ROUTES if route.name == "Company Workbench"
+    )
+    for marker in (
+        "Company Brief",
+        "Use now",
+        "Still withheld",
+        "What changed",
+        "Next research task",
+        "Open evidence and analysis modules",
+    ):
+        assert marker in workbench_route.required_markers
     results = render_public_routes(Path("."), routes=RESEARCH_RENDER_ROUTES)
 
     assert all(result.exceptions == () for result in results)
@@ -231,6 +244,51 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         for result in results
         if result.name in primary_routes
     )
+    workbench = next(result for result in results if result.name == "Company Workbench")
+    workbench_blocks = "\n".join(workbench.rendered_blocks)
+    assert "Open evidence and analysis modules" in workbench_blocks
+    for secondary in (
+        "## Research Decision Lab",
+        "## Business Trend",
+        "## Forward View",
+        "This brief is a snapshot of current saved evidence",
+    ):
+        assert secondary not in workbench_blocks
+
+
+def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
+    app = AppTest.from_file(str(DASHBOARD_APP), default_timeout=120)
+    app.query_params.update(
+        {
+            "mode": "research",
+            "page": "company-workbench",
+            "ticker": "NVDA",
+            "open": "1",
+        }
+    )
+    app.run(timeout=120)
+
+    assert not app.exception
+    assert [button.label for button in app.button] == [
+        "Open evidence and analysis modules"
+    ]
+
+    app.button[0].click().run(timeout=120)
+
+    rendered = "\n".join(
+        str(getattr(item, "value", ""))
+        for collection in ("markdown", "caption", "header", "subheader")
+        for item in getattr(app, collection)
+    )
+    assert not app.exception
+    assert "## Research Decision Lab" in rendered
+    assert "## Business Trend" in rendered
+    assert "## Forward View" in rendered
+    assert "This brief is a snapshot of current saved evidence" in rendered
+    assert rendered.count("aria-label='Company Brief'") == 1
+    assert "Open evidence and analysis modules" not in [
+        button.label for button in app.button
+    ]
 
 
 def test_fixed_semantic_main_bridge_html_renders_once_across_all_workspaces(
@@ -401,12 +459,23 @@ def test_focused_skip_link_is_a_visible_horizontal_banner_in_public_and_research
                 browser.close()
 
 
-def test_authoring_composer_renders_once_only_in_closed_research_company_workbench():
+def test_authoring_composer_renders_once_only_after_workbench_modules_open():
     workbench = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
     workbench.query_params.update(
         {"mode": "research", "page": "company-workbench", "ticker": "NVDA", "open": "1"}
     )
     workbench.run(timeout=120)
+
+    assert not workbench.exception
+    assert not any(
+        item.label == "Add a reviewed research record" for item in workbench.expander
+    )
+    open_button = next(
+        item
+        for item in workbench.button
+        if item.label == "Open evidence and analysis modules"
+    )
+    open_button.click().run(timeout=120)
 
     assert not workbench.exception
     composer_expanders = [
@@ -443,7 +512,15 @@ def _html_brief_app(*, mode: str = "research", ticker: str = "NVDA", open_report
     if open_report:
         query["open"] = "1"
     app.query_params.update(query)
-    return app.run(timeout=120)
+    app.run(timeout=120)
+    if mode == "research" and open_report:
+        open_button = next(
+            item
+            for item in app.button
+            if item.label == "Open evidence and analysis modules"
+        )
+        open_button.click().run(timeout=120)
+    return app
 
 
 def test_company_workbench_html_brief_is_one_collapsed_research_only_in_memory_surface():
@@ -561,6 +638,11 @@ render_single_stock_report(
     )
     app.query_params.update({"ticker": "NVDA", "open": "1"})
     app.run(timeout=120)
+    next(
+        item
+        for item in app.button
+        if item.label == "Open evidence and analysis modules"
+    ).click().run(timeout=120)
 
     fragments = [
         item.proto.body
@@ -605,9 +687,14 @@ def test_company_workbench_download_button_receives_the_pure_spec_exactly():
 
     assert not app.exception
     assert len(captured_snapshots) == 1
-    assert len(captured_downloads) == 1
+    html_downloads = [
+        item
+        for item in captured_downloads
+        if item[0] == ("Download HTML Research Brief",)
+    ]
+    assert len(html_downloads) == 1
     expected = company_workbench_html_download_spec(captured_snapshots[0])
-    args, kwargs = captured_downloads[0]
+    args, kwargs = html_downloads[0]
     assert args == ("Download HTML Research Brief",)
     assert kwargs["data"] == expected.data
     assert kwargs["file_name"] == expected.file_name
@@ -673,91 +760,64 @@ def test_monitor_renders_evidence_brief_before_filtered_discipline_without_ranki
 
 
 def test_avgo_company_workbench_renders_one_authoritative_peer_task():
-    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+    from src.dashboard_render_smoke import _rendered_blocks
 
-    route = DashboardRenderRoute(
-        name="AVGO Company Workbench task arbitration",
-        query_params=(
-            ("mode", "research"),
-            ("page", "company-workbench"),
-            ("ticker", "AVGO"),
-            ("open", "1"),
-        ),
-        required_markers=("Company Workbench", "Research-only"),
-    )
+    app = _html_brief_app(ticker="AVGO")
+    blocks = _rendered_blocks(app)
+    rendered = "\n".join(blocks)
+    primary_briefs = tuple(block for block in blocks if "aria-label='Company Brief'" in block)
+    change_blocks = tuple(block for block in blocks if "EVIDENCE CHANGE" in block)
 
-    result = render_public_routes(Path("."), routes=(route,))[0]
-    rendered = "\n".join(result.rendered_blocks)
-    task_blocks = tuple(block for block in result.rendered_blocks if "ONE NEXT TASK" in block)
-    change_blocks = tuple(block for block in result.rendered_blocks if "EVIDENCE CHANGE" in block)
-
-    assert result.exceptions == ()
+    assert not app.exception
     assert len(change_blocks) == 1
     assert "No unresolved source-backed change is queued for this company." in change_blocks[0]
     assert "no queued change" in change_blocks[0]
     assert "snapshot evidence only" not in change_blocks[0]
-    assert len(task_blocks) == 1
-    assert task_blocks[0].count("ONE NEXT TASK") == 1
-    assert "<div class='signal-title'>Add peer mappings</div>" in task_blocks[0]
+    assert len(primary_briefs) == 1
+    assert primary_briefs[0].count("<strong>Add peer mappings</strong>") == 1
     assert rendered.count("FORWARD-VIEW LANE UNBLOCK") == 1
+    assert "ONE NEXT TASK" not in rendered
     assert "NEXT RESEARCH TASK" not in rendered
 
 
 def test_avgo_company_workbench_renders_one_selected_answer_with_ticker_handoff():
-    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+    from src.dashboard_render_smoke import _rendered_blocks
 
-    route = DashboardRenderRoute(
-        name="AVGO Company Workbench answer handoff",
-        query_params=(
-            ("mode", "research"),
-            ("page", "company-workbench"),
-            ("ticker", "AVGO"),
-            ("open", "1"),
-        ),
-        required_markers=("Company Workbench", "Open Data Health", "Research-only"),
-    )
+    app = _html_brief_app(ticker="AVGO")
+    rendered = "\n".join(_rendered_blocks(app))
 
-    result = render_public_routes(Path("."), routes=(route,))[0]
-    rendered = "\n".join(result.rendered_blocks)
-
-    assert result.exceptions == ()
-    assert rendered.count("aria-label='Selected ticker answer'") == 1
+    assert not app.exception
+    assert rendered.count("aria-label='Company Brief'") == 1
     assert "?mode=research&amp;page=data-health&amp;ticker=AVGO" in rendered
 
 
 def test_avgo_company_workbench_renders_one_six_lane_decision_lab_after_selected_answer():
-    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+    from src.dashboard_render_smoke import _rendered_blocks
 
-    route = DashboardRenderRoute(
-        name="AVGO Company Workbench Decision Lab",
-        query_params=(
-            ("mode", "research"),
-            ("page", "company-workbench"),
-            ("ticker", "AVGO"),
-            ("open", "1"),
-        ),
-        required_markers=(
-            "Use now",
-            "What Changed",
-            "Research Decision Lab",
-            "PLAN",
-            "EVIDENCE",
-            "INVALIDATION",
-            "SCENARIO",
-            "REVIEW TRIGGER",
-            "LEARNING",
-            "NEXT PROCESS STEP",
-            "Research Conclusion",
-            "Next Research Task",
-        ),
+    app = _html_brief_app(ticker="AVGO")
+    rendered = "\n".join(_rendered_blocks(app))
+
+    assert not app.exception
+    for marker in (
+        "Use now",
+        "What Changed",
+        "Research Decision Lab",
+        "PLAN",
+        "EVIDENCE",
+        "INVALIDATION",
+        "SCENARIO",
+        "REVIEW TRIGGER",
+        "LEARNING",
+        "NEXT PROCESS STEP",
+        "Research Conclusion",
+        "Next research task",
+    ):
+        assert marker in rendered
+    assert not any(
+        item.proto.expanded
+        for item in app.expander
+        if item.label.startswith("Advanced")
     )
-
-    result = render_public_routes(Path("."), routes=(route,))[0]
-    rendered = "\n".join(result.rendered_blocks)
-
-    assert result.exceptions == ()
-    assert result.missing_markers == ()
-    assert result.expanded_advanced == ()
     assert rendered.count("Research Decision Lab") == 1
     assert rendered.count("NEXT PROCESS STEP") == 1
     assert rendered.index("Use now") < rendered.index("Research Decision Lab")
@@ -836,12 +896,28 @@ def test_explicit_amd_cash_preview_route_renders_accepted_answer_without_network
         "load_company_workbench_cash_generation_preview",
         return_value=preview,
     ):
-        result = render_public_routes(Path("."), routes=(route,))[0]
+        app = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
+        app.query_params.update(dict(route.query_params))
+        app.run(timeout=120)
+        next(
+            item
+            for item in app.button
+            if item.label == "Open evidence and analysis modules"
+        ).click().run(timeout=120)
 
-    assert result.exceptions == ()
-    assert result.missing_markers == ()
-    assert result.forbidden_markers == ()
-    assert result.expanded_advanced == ()
+    rendered = "\n".join(
+        str(getattr(item, "value", ""))
+        for collection in ("markdown", "caption", "header", "subheader")
+        for item in getattr(app, collection)
+    )
+    assert not app.exception
+    for marker in route.required_markers:
+        assert marker in rendered
+    assert not any(
+        item.proto.expanded
+        for item in app.expander
+        if item.label.startswith("Advanced")
+    )
 
 
 def test_normal_company_workbench_route_never_loads_cash_preview():
@@ -855,7 +931,12 @@ def test_normal_company_workbench_route_never_loads_cash_preview():
             ("ticker", "NVDA"),
             ("open", "1"),
         ),
-        required_markers=("Company Workbench", "Business Trend", "Research-only"),
+        required_markers=(
+            "Company Workbench",
+            "Company Brief",
+            "Open evidence and analysis modules",
+            "Research-only",
+        ),
     )
 
     with patch(

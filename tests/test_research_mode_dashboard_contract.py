@@ -1291,8 +1291,8 @@ def test_company_workbench_uses_one_authoritative_task_arbitration():
     assert report.count("company_workbench_primary_brief(") == 1
 
 
-def test_company_workbench_html_brief_is_research_only_and_precedes_the_detail_gate():
-    """Catches exposing the portable brief in public/operator report routes or after early return."""
+def test_company_workbench_html_brief_is_research_only_and_follows_the_module_gate():
+    """Catches exposing the portable brief before the user opens detailed modules."""
 
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     report_start = source.index("def render_single_stock_report(")
@@ -1300,11 +1300,15 @@ def test_company_workbench_html_brief_is_research_only_and_precedes_the_detail_g
     report = source[report_start:report_end]
 
     research_block = report.index("if research_mode:")
-    next_task = report.index('st.markdown("## Next Research Task")', research_block)
-    brief = report.index('st.expander("HTML Research Brief", expanded=False)', next_task)
+    primary_brief = report.index("primary_brief = company_workbench_primary_brief(", research_block)
+    module_gate = report.index(
+        "if research_mode and not single_stock_detail_sections_visible(ticker):",
+        primary_brief,
+    )
+    brief = report.index('st.expander("HTML Research Brief", expanded=False)', module_gate)
     detail_gate = report.index("if public_mode and report_payload", brief)
 
-    assert research_block < next_task < brief < detail_gate
+    assert research_block < primary_brief < module_gate < brief < detail_gate
     assert report.count('st.expander("HTML Research Brief", expanded=False)') == 1
     assert report.count('"Download HTML Research Brief"') == 1
     assert 'unsafe_allow_javascript=False' in report[brief:detail_gate]
@@ -1336,10 +1340,10 @@ def test_company_workbench_places_one_decision_lab_after_what_changed_before_bus
     decision_lab = report.index('st.markdown("## Research Decision Lab")', what_changed)
     business_trend = report.index('st.markdown("## Business Trend")', decision_lab)
     conclusion = report.index('st.markdown("## Research Conclusion")', business_trend)
-    next_task = report.index('st.markdown("## Next Research Task")', conclusion)
 
-    assert selected_answer < what_changed < decision_lab < business_trend < conclusion < next_task
+    assert selected_answer < what_changed < decision_lab < business_trend < conclusion
     assert report.count('st.markdown("## Research Decision Lab")') == 1
+    assert report.count('st.markdown("## Next Research Task")') == 0
     assert 'st.expander("Advanced: Decision Lab evidence", expanded=False)' in report
     assert "decision_lab_state.identity" in report
 
@@ -1417,7 +1421,6 @@ def test_research_primary_sections_follow_route_h1_with_level_two_headings():
         "Forward View",
         "What Remains Withheld",
         "Research Conclusion",
-        "Next Research Task",
         "Advanced Evidence",
     )
 
