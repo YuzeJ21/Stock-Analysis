@@ -149,13 +149,18 @@ def test_research_routes_keep_observation_summary_and_advanced_evidence_responsi
                             summaries = page.locator(
                                 "section.observation-recency-summary"
                             )
-                            advanced = page.locator("details").filter(
+                            if "research-desk" in route:
+                                page.locator("details > summary").filter(
+                                    has_text="Advanced Evidence"
+                                ).click()
+                            advanced_summary = page.locator("details > summary").filter(
                                 has_text="Advanced: market observation recency"
                             )
+                            advanced = advanced_summary.locator("..")
                             assert summaries.count() == 1
-                            assert advanced.count() == 1
+                            assert advanced_summary.count() == 1
 
-                            advanced.locator("summary").click()
+                            advanced_summary.click()
                             evidence = advanced.locator(
                                 "section.observation-recency-evidence"
                             )
