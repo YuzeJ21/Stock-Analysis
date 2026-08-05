@@ -1,5 +1,6 @@
 from types import SimpleNamespace
 
+import pandas as pd
 import pytest
 
 from src import research_workspace
@@ -14,6 +15,7 @@ from src.research_workspace import (
     company_workbench_section_contract,
     company_change_answer,
     company_next_research_task,
+    company_workbench_primary_brief,
     focused_cohort_cards,
     focused_cohort_coverage_cards,
     focused_ticker_coverage_cards,
@@ -439,6 +441,83 @@ def test_company_next_research_task_fails_closed_to_neutral_wait():
     assert task["title"] == "Wait for reviewed evidence or choose another company"
     assert task["state"] == "wait_for_evidence"
     assert task["badges"] == ["monitor", "research-only"]
+
+
+def test_company_workbench_primary_brief_preserves_independent_answers():
+    brief = company_workbench_primary_brief(
+        pd.DataFrame(
+            [
+                {
+                    "Ticker": "nvda",
+                    "Use Now": "Price trend and reviewed DCF context.",
+                    "Still Blocked": "Point-in-time consensus.",
+                    "Context Only": "Candidate peers remain untrusted.",
+                    "Review Boundary": "Do not infer a recommendation.",
+                }
+            ]
+        ),
+        {
+            "state": "monitor",
+            "answer": "No unresolved source-backed change is queued.",
+            "change_context_kind": "none",
+            "source_backed_eligible": False,
+        },
+        {
+            "title": "Review the historical valuation evidence gap",
+            "body": "Wait for a permitted observation ledger.",
+            "state": "wait_for_evidence",
+            "badges": ["valuation", "research-only"],
+        },
+    )
+
+    assert brief == {
+        "ticker": "NVDA",
+        "use_now": "Price trend and reviewed DCF context.",
+        "still_withheld": (
+            "Blocked: Point-in-time consensus. "
+            "Context only: Candidate peers remain untrusted."
+        ),
+        "what_changed": "No unresolved source-backed change is queued.",
+        "change_context_kind": "none",
+        "change_state": "monitor",
+        "next_task_title": "Review the historical valuation evidence gap",
+        "next_task_body": "Wait for a permitted observation ledger.",
+        "next_task_state": "wait_for_evidence",
+        "next_task_badges": ("valuation", "research-only"),
+        "data_health_href": "?mode=research&page=data-health&ticker=NVDA",
+        "stop_rule": (
+            "Research-only: this brief is not a recommendation, probability, transaction "
+            "instruction, or unsupported current-market conclusion."
+        ),
+    }
+    assert "Candidate peers" not in brief["use_now"]
+
+
+def test_company_workbench_primary_brief_fails_closed_for_missing_inputs():
+    brief = company_workbench_primary_brief(pd.DataFrame(), {}, {})
+
+    assert brief["ticker"] == "Selected company"
+    assert brief["use_now"] == "No supported evidence lane is available."
+    assert brief["still_withheld"] == (
+        "Blocked: Evidence availability is unverified. Context only: No trusted context is available."
+    )
+    assert brief["what_changed"] == (
+        "No unresolved source-backed change is queued for this company."
+    )
+    assert brief["change_context_kind"] == "none"
+    assert brief["change_state"] == "monitor"
+    assert brief["next_task_state"] == "wait_for_evidence"
+    assert brief["next_task_badges"] == ("monitor", "research-only")
+    assert brief["data_health_href"] == "?mode=research&page=data-health"
+    for prohibited in (
+        "rank",
+        "expected_return",
+        "probability",
+        "position_size",
+        "buy",
+        "sell",
+    ):
+        assert prohibited not in brief
 
 
 def _cash_preview() -> CompanyWorkbenchCashGenerationPreview:

@@ -387,6 +387,104 @@ def company_next_research_task(
     return _neutral_company_next_research_task()
 
 
+def _brief_text(value: object, fallback: str) -> str:
+    if value is None or (not isinstance(value, str) and pd.isna(value)):
+        return fallback
+    cleaned = " ".join(str(value).split())
+    return cleaned or fallback
+
+
+def company_workbench_primary_brief(
+    selected_answer_frame: pd.DataFrame,
+    change_answer: Mapping[str, object] | None,
+    authoritative_task: Mapping[str, object] | None,
+) -> dict[str, object]:
+    """Compose one fail-closed selected-company answer without changing evidence state."""
+
+    row: Mapping[str, object] = {}
+    if isinstance(selected_answer_frame, pd.DataFrame) and not selected_answer_frame.empty:
+        row = selected_answer_frame.iloc[0].to_dict()
+
+    raw_ticker = _brief_text(row.get("Ticker"), "")
+    ticker = raw_ticker.upper() if raw_ticker else "Selected company"
+    use_now = _brief_text(
+        row.get("Use Now"),
+        "No supported evidence lane is available.",
+    )
+    blocked = _brief_text(
+        row.get("Still Blocked"),
+        "Evidence availability is unverified.",
+    )
+    context_only = _brief_text(
+        row.get("Context Only"),
+        "No trusted context is available.",
+    )
+
+    change = change_answer if isinstance(change_answer, Mapping) else {}
+    change_kind = _brief_text(change.get("change_context_kind"), "none")
+    if change_kind not in {"none", "snapshot_only", "source_backed"}:
+        change_kind = "none"
+    change_state = _brief_text(change.get("state"), "monitor")
+    if change_state not in RESEARCH_ROUTING_STATES:
+        change_state = "monitor"
+    what_changed = _brief_text(
+        change.get("answer"),
+        "No unresolved source-backed change is queued for this company.",
+    )
+
+    task = (
+        authoritative_task
+        if isinstance(authoritative_task, Mapping)
+        else _neutral_company_next_research_task()
+    )
+    task_title = _brief_text(
+        task.get("title"),
+        _neutral_company_next_research_task()["title"],
+    )
+    task_body = _brief_text(
+        task.get("body"),
+        _neutral_company_next_research_task()["body"],
+    )
+    task_state = _brief_text(task.get("state"), "wait_for_evidence")
+    if task_state not in RESEARCH_ROUTING_STATES:
+        task_state = "wait_for_evidence"
+    raw_badges = task.get("badges", ())
+    if not isinstance(raw_badges, Iterable) or isinstance(
+        raw_badges, (str, bytes, Mapping)
+    ):
+        raw_badges = ()
+    task_badges = tuple(
+        dict.fromkeys(
+            _brief_text(value, "")
+            for value in raw_badges
+            if _brief_text(value, "")
+        )
+    )
+    if not task_badges:
+        task_badges = ("monitor", "research-only")
+
+    href = "?mode=research&page=data-health"
+    if raw_ticker:
+        href += f"&ticker={quote(raw_ticker.upper())}"
+    return {
+        "ticker": ticker,
+        "use_now": use_now,
+        "still_withheld": f"Blocked: {blocked} Context only: {context_only}",
+        "what_changed": what_changed,
+        "change_context_kind": change_kind,
+        "change_state": change_state,
+        "next_task_title": task_title,
+        "next_task_body": task_body,
+        "next_task_state": task_state,
+        "next_task_badges": task_badges,
+        "data_health_href": href,
+        "stop_rule": (
+            "Research-only: this brief is not a recommendation, probability, transaction "
+            "instruction, or unsupported current-market conclusion."
+        ),
+    }
+
+
 def focused_cohort_cards(cohort: FocusedCohort) -> list[dict[str, object]]:
     return [
         {
