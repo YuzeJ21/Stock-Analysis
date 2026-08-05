@@ -175,7 +175,7 @@ git commit -m "Gate secondary Workbench modules"
 - [x] Add behavior-first browser assertions for one primary brief, four visible answers, two 44px actions, visible stop rule, closed detailed modules by default, no overflow, no traceback, and exact ticker preservation at `1280x720` and `390x844`.
 - [x] Update docs to say Discover is complete and Company Workbench primary-brief composition is current, without claiming source, hosted, human-accessibility, demand, calibration, or market validation.
 - [x] Keep Monitor consolidation as the next separate local slice, followed by Research Desk simplification and shared-shell cleanup.
-- [ ] Run:
+- [x] Run the full local matrix at `35b355a5921bd7d7e9f3c46ab28a799f9e42818e`: 6,323 tests passed; dashboard, six-route research render, public wording, public share, and 60/60 performance checks passed; pilot readiness remained truthfully blocked on working readiness and external source proof:
 
 ```bash
 python3 -m pytest tests -q
