@@ -1427,3 +1427,23 @@ def test_research_primary_sections_follow_route_h1_with_level_two_headings():
     for heading in expected_level_two:
         assert f'st.markdown("## {heading}")' in source
         assert f'st.markdown("### {heading}")' not in source
+
+
+def test_company_workbench_primary_actions_use_explicit_44px_browser_targets():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    styles_start = source.index("def render_research_workspace_styles()")
+    styles_end = source.index("\ndef render_research_workspace_header(", styles_start)
+    styles = source[styles_start:styles_end]
+
+    data_health_start = styles.index(
+        ".company-workbench-primary-answer .public-primary-action {"
+    )
+    data_health_end = styles.index("}", data_health_start)
+    data_health_rule = styles[data_health_start:data_health_end]
+
+    assert "min-height: 44px;" in data_health_rule
+    assert (
+        'div[data-testid="stButton"] > button {\n'
+        "            min-height: 44px;\n"
+        "        }"
+    ) in styles

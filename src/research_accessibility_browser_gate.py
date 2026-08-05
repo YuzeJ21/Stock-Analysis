@@ -2436,6 +2436,18 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
         if open_modules.count() == 1
         else None
     )
+    answer_labels: list[str] = []
+    answer_texts: list[str] = []
+    for index in range(answer_nodes.count()):
+        answer = answer_nodes.nth(index)
+        label = answer.locator("span").first
+        body = answer.locator("p").first
+        answer_labels.append(
+            label.inner_text().strip() if label.count() == 1 else ""
+        )
+        answer_texts.append(
+            body.inner_text().strip() if body.count() == 1 else ""
+        )
     secondary_module_count = sum(
         page.get_by_role("heading", level=2, name=heading, exact=True).count()
         for heading in (
@@ -2466,14 +2478,8 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
                 == 1
                 else ""
             ),
-            "answer_labels": tuple(
-                text.strip()
-                for text in answer_nodes.locator(":scope > span").all_inner_texts()
-            ),
-            "answer_texts": tuple(
-                text.strip()
-                for text in answer_nodes.locator(":scope > p").all_inner_texts()
-            ),
+            "answer_labels": tuple(answer_labels),
+            "answer_texts": tuple(answer_texts),
             "stop_count": stop.count(),
             "stop_visible": stop.count() == 1 and stop.first.is_visible(),
             "stop_text": stop.first.inner_text().strip() if stop.count() == 1 else "",
@@ -2496,10 +2502,17 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
             "secondary_module_count": secondary_module_count,
         }
     )
+    detail = str(evaluated["detail"])
+    if not evaluated["passed"]:
+        detail += (
+            f"; observed labels={answer_labels!r}; "
+            f"data_health_height={(data_health_box or {}).get('height', 0)!r}; "
+            f"module_open_height={(open_modules_box or {}).get('height', 0)!r}"
+        )
     return _assertion(
         "company_workbench_primary_brief",
         bool(evaluated["passed"]),
-        str(evaluated["detail"]),
+        detail,
     )
 
 
@@ -2519,12 +2532,29 @@ def _open_company_workbench_modules(
             False,
             f"expected one visible module-open action, found {button.count()}",
         )
+    button.first.scroll_into_view_if_needed()
     button.first.click()
-    _wait_for_visible_text(
-        page,
-        "Research Decision Lab",
-        timeout_seconds=timeout_seconds,
-    )
+    try:
+        _wait_for_visible_text(
+            page,
+            "Research Decision Lab",
+            timeout_seconds=timeout_seconds,
+        )
+    except TimeoutError:
+        body_text = page.locator("body").inner_text(timeout=2_000)
+        script_state = page.locator('[data-testid="stApp"]').get_attribute(
+            "data-test-script-state"
+        )
+        return _assertion(
+            "company_workbench_module_open",
+            False,
+            (
+                "module-open click did not restore Research Decision Lab; "
+                f"button_remaining={button.count()}; "
+                f"script_state={script_state!r}; "
+                f"body_has_company_brief={'Company Brief' in body_text}"
+            ),
+        )
     _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
     decision_lab = page.get_by_role(
         "heading",
@@ -3025,13 +3055,13 @@ def _measure_route(
             )
         if route.name == "Company Workbench":
             assertions.append(_company_workbench_primary_brief_assertion(page))
-            assertions.append(
-                _open_company_workbench_modules(
-                    page,
-                    timeout_seconds=timeout_seconds,
-                )
+            module_open = _open_company_workbench_modules(
+                page,
+                timeout_seconds=timeout_seconds,
             )
-            assertions.extend(_authoring_error_assertions(page))
+            assertions.append(module_open)
+            if module_open["passed"]:
+                assertions.extend(_authoring_error_assertions(page))
 
         away_route = _route_transition_target(route)
         assertions.extend(

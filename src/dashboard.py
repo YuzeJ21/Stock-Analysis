@@ -35850,7 +35850,10 @@ def render_research_workspace_styles() -> None:
         }
         .company-workbench-primary-answer .public-primary-action {
             margin-top: .5rem;
-            min-height: 2.75rem;
+            min-height: 44px;
+        }
+        div[data-testid="stButton"] > button {
+            min-height: 44px;
         }
         .company-workbench-primary-stop {
             border-top: 1px solid #e5e9e7;
@@ -35943,7 +35946,7 @@ def render_research_workspace_styles() -> None:
             .company-workbench-primary-answer .public-primary-action {
                 align-items: center;
                 display: inline-flex;
-                min-height: 2.75rem;
+                min-height: 44px;
             }
         }
         </style>
