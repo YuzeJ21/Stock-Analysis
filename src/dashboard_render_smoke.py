@@ -87,7 +87,14 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     DashboardRenderRoute(
         name="Research Desk",
         query_params=(("mode", "research"),),
-        required_markers=("Research Desk", "Focused cohort", "Weekly research summary", "What changed?", "What should I review next?", "Research-only"),
+        required_markers=(
+            "Research Desk",
+            "Today's Research Brief",
+            "What needs my attention today?",
+            "Open Discover",
+            "market-complete event feed",
+            "Research-only",
+        ),
     ),
     DashboardRenderRoute(
         name="Discover",

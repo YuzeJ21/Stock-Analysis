@@ -110,7 +110,7 @@ def test_research_routes_keep_observation_summary_and_advanced_evidence_responsi
         pytest.skip("Chrome-compatible browser is unavailable")
     playwright = pytest.importorskip("playwright.sync_api")
     routes = (
-        ("/?mode=research&page=research-desk", "Weekly research summary", "selected_ticker"),
+        ("/?mode=research&page=research-desk", "Today's Research Brief", "selected_ticker"),
         ("/?mode=research&page=discover", "Find a Company", "selected_ticker"),
         (
             "/?mode=research&page=company-workbench&ticker=AVGO&open=1",
@@ -209,6 +209,13 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         "Research Data Health",
         "Research Proof History",
     ]
+    desk_route = next(
+        route for route in RESEARCH_RENDER_ROUTES if route.name == "Research Desk"
+    )
+    assert "Today's Research Brief" in desk_route.required_markers
+    assert "What needs my attention today?" in desk_route.required_markers
+    assert "Weekly research summary" not in desk_route.required_markers
+    assert "What should I review next?" not in desk_route.required_markers
     discover_route = next(
         route for route in RESEARCH_RENDER_ROUTES if route.name == "Discover"
     )
@@ -390,7 +397,7 @@ def test_focused_skip_link_is_a_visible_horizontal_banner_in_public_and_research
     playwright = pytest.importorskip("playwright.sync_api")
     cases = (
         ("/?mode=public", "What is this product and where do I start?"),
-        ("/?mode=research&page=research-desk", "Weekly research summary"),
+        ("/?mode=research&page=research-desk", "Today's Research Brief"),
     )
 
     with _local_demo_server(Path("."), timeout_seconds=60) as base_url:

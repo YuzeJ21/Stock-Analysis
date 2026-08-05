@@ -749,25 +749,27 @@ def test_dashboard_blocks_partially_rejected_canonical_quarterly_ledger(tmp_path
     assert states["quarterly_eps"] == "blocked"
 
 
-def test_research_desk_renders_answers_before_advanced_cohort_context():
+def test_research_desk_renders_one_brief_before_advanced_supporting_evidence():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     desk_start = source.index("def render_research_desk(")
     desk_end = source.index("def render_research_monitor(", desk_start)
     desk = source[desk_start:desk_end]
 
-    weekly = desk.index('st.markdown("## Weekly research summary")')
-    weekly_cards = desk.index("weekly_summary_cards(weekly_summary)", weekly)
-    answers = desk.index("cards = research_desk_cards(", weekly_cards)
-    answers_html = desk.index("research_desk_cards_html(cards)", answers)
-    discover = desk.index('st.link_button("Open Discover"', answers_html)
-    advanced = desk.index('with st.expander("Advanced Evidence", expanded=False):', discover)
-    cohort = desk.index("focused_cohort_cards(cohort)", advanced)
+    brief = desk.index("brief = build_research_desk_brief(")
+    brief_html = desk.index("research_desk_brief_html(brief)", brief)
+    advanced = desk.index('with st.expander("Advanced Evidence", expanded=False):', brief_html)
+    weekly_cards = desk.index("weekly_summary_cards(weekly_summary)", advanced)
+    cohort = desk.index("focused_cohort_cards(cohort)", weekly_cards)
     coverage = desk.index("focused_cohort_coverage_cards(coverage)", cohort)
     cohort_frame = desk.index("focused_cohort_frame(cohort)", coverage)
     coverage_frame = desk.index("focused_cohort_coverage_frame(coverage)", cohort_frame)
+    change_detail = desk.index('render_research_change_route_summary("Research Desk", state)', coverage_frame)
 
-    assert weekly < weekly_cards < answers < answers_html < discover < advanced
-    assert advanced < cohort < coverage < cohort_frame < coverage_frame
+    assert brief < brief_html < advanced < weekly_cards
+    assert weekly_cards < cohort < coverage < cohort_frame < coverage_frame < change_detail
+    assert "research_desk_cards(" not in desk
+    assert "research_desk_cards_html(" not in desk
+    assert 'st.link_button("Open Discover"' not in desk
 
 
 def test_research_workspace_phone_styles_compact_profile_and_hide_only_duplicate_freshness():
@@ -1521,7 +1523,6 @@ def test_semantic_main_bridge_runs_once_immediately_after_theme_before_route_con
 def test_research_primary_sections_follow_route_h1_with_level_two_headings():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     expected_level_two = (
-        "Weekly research summary",
         "Follow-up Queue",
         "Find a Company",
         "What Changed",

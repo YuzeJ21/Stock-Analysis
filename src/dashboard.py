@@ -387,6 +387,7 @@ from src.company_workbench_html import (
 from src.research_workspace import (
     advanced_evidence_links_html,
     build_monitor_follow_up_queue,
+    build_research_desk_brief,
     cash_generation_preview_cards,
     cash_generation_preview_rows,
     company_change_answer,
@@ -398,8 +399,7 @@ from src.research_workspace import (
     focused_cohort_coverage_cards,
     focused_ticker_coverage_cards,
     quarterly_trend_cards,
-    research_desk_cards,
-    research_desk_cards_html,
+    research_desk_brief_html,
     research_accessibility_media_preferences_css,
     research_evidence_return_link,
     research_monitor_frame,
@@ -35661,7 +35661,7 @@ def render_research_workspace_styles() -> None:
             overflow-wrap: anywhere;
         }
         .research-workspace-heading span,
-        .research-desk-answer > span {
+        .research-desk-brief-heading > span {
             color: #52615c;
             font-size: .78rem;
             font-weight: 700;
@@ -35679,20 +35679,53 @@ def render_research_workspace_styles() -> None:
         .research-workspace-meta div { border-top: 1px solid #e5e9e7; padding-top: .55rem; }
         .research-workspace-meta dt { color: #66736f; font-size: .78rem; }
         .research-workspace-meta dd { margin: .1rem 0 0; font-weight: 650; }
-        .research-desk-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: .75rem;
+        .research-desk-brief {
+            border: 1px solid #cbd8d2;
+            border-left: 4px solid #153f34;
+            border-radius: 10px;
+            padding: 1rem 1.1rem;
+            background: #fff;
             margin-bottom: 1rem;
         }
-        .research-desk-answer {
-            border: 1px solid #dfe4e1;
-            border-radius: 8px;
-            padding: .9rem;
-            background: #fff;
+        .research-desk-brief-heading h2 {
+            font-size: 1.2rem;
+            line-height: 1.3;
+            margin: .3rem 0 .55rem;
         }
-        .research-desk-answer h2 { font-size: 1rem; margin: .3rem 0; }
-        .research-desk-answer p { margin: 0; color: #394640; }
+        .research-desk-brief-answer {
+            color: #153f34;
+            font-size: 1.35rem;
+            font-weight: 720;
+            line-height: 1.3;
+            margin: 0 0 .8rem;
+        }
+        .research-desk-brief-context {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .65rem;
+            margin: 0 0 .9rem;
+        }
+        .research-desk-brief-context div {
+            border-top: 1px solid #e5e9e7;
+            min-width: 0;
+            padding-top: .55rem;
+        }
+        .research-desk-brief-context dt {
+            color: #66736f;
+            font-size: .78rem;
+        }
+        .research-desk-brief-context dd {
+            margin: .15rem 0 0;
+            overflow-wrap: anywhere;
+        }
+        .research-desk-brief-stop {
+            border-top: 1px solid #e5e9e7;
+            color: #52615c;
+            font-size: .78rem;
+            line-height: 1.4;
+            margin: .85rem 0 0;
+            padding-top: .65rem;
+        }
         .research-evidence-links { display: grid; gap: .55rem; }
         .research-evidence-link {
             border: 1px solid #dfe4e1;
@@ -35879,7 +35912,9 @@ def render_research_workspace_styles() -> None:
             }
             .research-workflow-navigation { gap: .35rem; margin: .35rem 0 .65rem; }
             .research-workflow-link { flex: 1 1 10rem; justify-content: center; min-width: 0; }
-            .research-desk-grid { grid-template-columns: 1fr; }
+            .research-desk-brief { padding: .85rem; }
+            .research-desk-brief-answer { font-size: 1.15rem; }
+            .research-desk-brief-context { grid-template-columns: 1fr; }
             .research-workspace-header {
                 padding: .72rem .78rem;
                 margin-bottom: .65rem;
@@ -36000,19 +36035,24 @@ def render_research_desk(
     render_research_workspace_header(
         "Research Desk",
         context,
-        primary_action="Open Discover and choose one readiness-backed company",
-        observation_recency=observation_recency,
+        primary_action="Review the brief below",
+        compact=True,
     )
-    st.markdown("## Weekly research summary")
-    render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
-    cards = research_desk_cards(
+    brief = build_research_desk_brief(
+        weekly_summary,
         change_status=str(state.get("status") or "unavailable"),
         review_items=state.get("queue") or (),
-        readiness_summary=_header_readiness_summary(),
+        freshness_state=context.freshness_state,
+        freshness_message=context.freshness_message,
     )
-    st.markdown(research_desk_cards_html(cards), unsafe_allow_html=True)
-    st.link_button("Open Discover", "?mode=research&page=discover", type="primary")
+    st.markdown(research_desk_brief_html(brief), unsafe_allow_html=True)
     with st.expander("Advanced Evidence", expanded=False):
+        if observation_recency is not None:
+            render_observation_recency(
+                observation_recency,
+                include_selected=False,
+            )
+        render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
         render_signal_cards(focused_cohort_cards(cohort), show_commands=False, variant="queue")
         render_signal_cards(focused_cohort_coverage_cards(coverage), show_commands=False, variant="queue")
         cohort_frame = focused_cohort_frame(cohort)
@@ -36025,8 +36065,7 @@ def render_research_desk(
         if weekly_rows:
             st.dataframe(pd.DataFrame(weekly_rows), width="stretch", hide_index=True)
         st.markdown(advanced_evidence_links_html(""), unsafe_allow_html=True)
-        st.caption("Detailed change events remain in the separate research change evidence drawer below.")
-    render_research_change_route_summary("Research Desk", state)
+        render_research_change_route_summary("Research Desk", state)
 
 
 def render_research_monitor(
