@@ -1441,6 +1441,8 @@ def test_company_workbench_primary_actions_use_explicit_44px_browser_targets():
     data_health_end = styles.index("}", data_health_start)
     data_health_rule = styles[data_health_start:data_health_end]
 
+    assert "display: inline-flex;" in data_health_rule
+    assert "align-items: center;" in data_health_rule
     assert "min-height: 44px;" in data_health_rule
     assert (
         'div[data-testid="stButton"] > button {\n'

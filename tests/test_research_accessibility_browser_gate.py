@@ -326,6 +326,17 @@ def test_company_workbench_primary_brief_contract_fails_closed_per_requirement()
 
     assert evaluate_company_workbench_primary_brief(passing)["passed"] is True
 
+    rendered_uppercase = {
+        **passing,
+        "answer_labels": tuple(
+            label.upper() for label in passing["answer_labels"]
+        ),
+    }
+    assert (
+        evaluate_company_workbench_primary_brief(rendered_uppercase)["passed"]
+        is True
+    )
+
     mutations = (
         {"brief_count": 2},
         {"brief_visible": False},

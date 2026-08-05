@@ -35849,6 +35849,8 @@ def render_research_workspace_styles() -> None:
             font-size: .72rem;
         }
         .company-workbench-primary-answer .public-primary-action {
+            display: inline-flex;
+            align-items: center;
             margin-top: .5rem;
             min-height: 44px;
         }

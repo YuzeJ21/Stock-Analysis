@@ -463,8 +463,12 @@ def evaluate_company_workbench_primary_brief(
         failures.append(
             f"expected ticker {expected_ticker.strip().upper()}, found {ticker or 'missing'}"
         )
-    if answer_labels != expected_labels or len(answer_texts) != 4 or any(
-        not value for value in answer_texts
+    normalized_answer_labels = tuple(label.casefold() for label in answer_labels)
+    normalized_expected_labels = tuple(label.casefold() for label in expected_labels)
+    if (
+        normalized_answer_labels != normalized_expected_labels
+        or len(answer_texts) != 4
+        or any(not value for value in answer_texts)
     ):
         failures.append("expected four labelled non-empty primary answers")
     if number("stop_count") != 1 or observation.get("stop_visible") is not True:
