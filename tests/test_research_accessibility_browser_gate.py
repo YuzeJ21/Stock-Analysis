@@ -260,7 +260,7 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
         ),
         (
             "/?mode=research&page=company-workbench&ticker=NVDA&open=1",
-            "Company Workbench",
+            "Company Brief",
             "Company Workbench",
             True,
         ),
@@ -283,6 +283,72 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
             False,
         ),
     ]
+
+
+def test_company_workbench_primary_brief_contract_fails_closed_per_requirement():
+    from src.research_accessibility_browser_gate import (
+        evaluate_company_workbench_primary_brief,
+    )
+
+    passing = {
+        "brief_count": 1,
+        "brief_visible": True,
+        "ticker": "NVDA",
+        "answer_labels": (
+            "Use now",
+            "Still withheld",
+            "What changed",
+            "Next research task",
+        ),
+        "answer_texts": (
+            "Saved evidence can be reviewed.",
+            "Consensus remains withheld.",
+            "No queued change.",
+            "Review source gaps.",
+        ),
+        "stop_count": 1,
+        "stop_visible": True,
+        "stop_text": (
+            "Research-only: this brief is not a recommendation, probability, "
+            "transaction instruction, or unsupported current-market conclusion."
+        ),
+        "data_health_action_count": 1,
+        "data_health_action_visible": True,
+        "data_health_action_height": 44.0,
+        "data_health_action_href": (
+            "?mode=research&page=data-health&ticker=NVDA"
+        ),
+        "open_modules_count": 1,
+        "open_modules_visible": True,
+        "open_modules_height": 44.0,
+        "secondary_module_count": 0,
+    }
+
+    assert evaluate_company_workbench_primary_brief(passing)["passed"] is True
+
+    mutations = (
+        {"brief_count": 2},
+        {"brief_visible": False},
+        {"ticker": ""},
+        {"ticker": "AVGO"},
+        {"answer_labels": ("Use now", "Still withheld")},
+        {"answer_texts": ("Saved evidence can be reviewed.", "", "No queued change.", "Review source gaps.")},
+        {"stop_count": 0},
+        {"stop_text": "Research-only."},
+        {"data_health_action_count": 0},
+        {"data_health_action_height": 43.9},
+        {"data_health_action_href": "?mode=research&page=data-health&ticker=AVGO"},
+        {"open_modules_count": 0},
+        {"open_modules_visible": False},
+        {"open_modules_height": 43.9},
+        {"secondary_module_count": 1},
+    )
+    for mutation in mutations:
+        result = evaluate_company_workbench_primary_brief(
+            {**passing, **mutation}
+        )
+        assert result["passed"] is False
+        assert result["detail"]
 
 
 def test_proof_history_media_marker_selects_the_rendered_public_timeline():

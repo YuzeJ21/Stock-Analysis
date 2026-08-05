@@ -35,10 +35,10 @@ The implementation must not:
 
 **Files:** none.
 
-- [ ] Verify the Discover slice exact-head GitHub check passed on `0e718d117`.
-- [ ] Record current branch/upstream divergence and PR #113 draft state.
-- [ ] Confirm the same 18 protected generated paths are the only generated working-data modifications and re-capture their hashes.
-- [ ] Run the focused Workbench baseline before changing tests:
+- [x] Verify the Discover slice exact-head GitHub check passed on `0e718d117`.
+- [x] Record current branch/upstream divergence and PR #113 draft state.
+- [x] Confirm the same 18 protected generated paths are the only generated working-data modifications and re-capture their hashes.
+- [x] Run the focused Workbench baseline before changing tests:
 
 ```bash
 python3 -m pytest \
@@ -53,8 +53,8 @@ python3 -m pytest \
 
 **Files:**
 
-- Modify: `src/dashboard.py`
-- Modify: `tests/test_dashboard_helpers.py`
+- Modify: `src/research_workspace.py`
+- Modify: `tests/test_research_workspace.py`
 
 **Contract:**
 
@@ -71,17 +71,17 @@ def company_workbench_primary_brief(
 
 It returns immutable presentation data for ticker, use-now answer, withheld/context answer, change answer and explicit change-context badge, authoritative task, Data Health route, and the fixed research-only stop rule.
 
-- [ ] Write behavior tests first for:
+- [x] Write behavior tests first for:
   - normal independent values;
   - empty selected answer fails closed without inventing a ticker or usable lane;
   - missing/blank change values become a truthful no-queued-change state;
   - authoritative task identity and badges pass through unchanged;
   - candidate/context text remains withheld and never enters Use now;
   - no recommendation, rank, expected return, probability, sizing, or transaction field exists.
-- [ ] Run the new tests and observe the correct RED because the helper is absent.
-- [ ] Implement the smallest pure helper that makes the tests pass.
-- [ ] Run the focused helper tests and the existing authoritative-task tests.
-- [ ] Verify protected hashes, stage only the exact source/test files, run staged hygiene, and commit:
+- [x] Run the new tests and observe the correct RED because the helper is absent.
+- [x] Implement the smallest pure helper that makes the tests pass.
+- [x] Run the focused helper tests and the existing authoritative-task tests.
+- [x] Verify protected hashes, stage only the exact source/test files, run staged hygiene, and commit:
 
 ```bash
 git commit -m "Compose Company Workbench primary brief"
@@ -93,15 +93,16 @@ git commit -m "Compose Company Workbench primary brief"
 
 **Files:**
 
+- Modify: `src/research_workspace.py`
 - Modify: `src/dashboard.py`
-- Modify: `tests/test_dashboard_helpers.py`
+- Modify: `tests/test_research_workspace.py`
 - Modify: `tests/test_research_mode_dashboard_contract.py`
 
 **Contract:**
 
 Add a pure HTML renderer for the Task 1 brief and route it through the existing `selected_answer_target`. The section must use one labelled region, keep all five answers visible without opening Advanced, provide one ticker-preserving Data Health action, and keep the stop rule visible.
 
-- [ ] Write behavior tests first for:
+- [x] Write behavior tests first for:
   - the exact five answer labels;
   - HTML escaping of ticker and evidence text;
   - one Data Health link with the selected ticker;
@@ -109,11 +110,11 @@ Add a pure HTML renderer for the Task 1 brief and route it through the existing 
   - no duplicated primary action;
   - phone-safe classes and a 44px minimum action contract;
   - public summary HTML remains byte-for-byte contract-compatible.
-- [ ] Observe RED before implementation.
-- [ ] Implement the renderer and select it only for `research_mode=True`.
-- [ ] Keep the existing public summary renderer unchanged for Public mode.
-- [ ] Run focused helper and research-route contract tests.
-- [ ] Verify protected hashes and commit:
+- [x] Observe RED before implementation.
+- [x] Implement the renderer and select it only for `research_mode=True`.
+- [x] Keep the existing public summary renderer unchanged for Public mode.
+- [x] Run focused helper and research-route contract tests.
+- [x] Verify protected hashes and commit:
 
 ```bash
 git commit -m "Render answer-first Company Brief"
@@ -139,19 +140,19 @@ Before the first research-only module is rendered, compute the existing change a
 - closing/reloading cannot change canonical data or readiness;
 - the primary brief remains exactly once in either state.
 
-- [ ] Write behavior/route tests first for:
+- [x] Write behavior/route tests first for:
   - default Workbench does not render Research Decision Lab, Business Trend, Valuation, Forward View, authoring forms, HTML brief, raw evidence, or conclusion modules before the explicit action;
   - the primary brief and stop rule remain visible in the default state;
   - opening details restores the existing modules and HTML download contract;
   - authoritative task arbitration runs once and is reused;
   - public report detail behavior is unchanged;
   - no file writes occur during either render state.
-- [ ] Observe RED against the currently always-rendered research modules.
-- [ ] Implement the early research-only detail gate using the existing session-state detail key or one Workbench-specific compatibility-safe wrapper.
-- [ ] Remove duplicated primary Next Research Task rendering from the opened detail layer while retaining the same task object for the HTML brief snapshot.
-- [ ] Keep detailed change, conclusion, methodology, authoring, and evidence identities available only after the explicit action or under existing Advanced drawers.
-- [ ] Run focused Workbench, HTML-brief, authoring, route-render, and public compatibility tests.
-- [ ] Verify protected hashes and commit:
+- [x] Observe RED against the currently always-rendered research modules.
+- [x] Implement the early research-only detail gate using the existing session-state detail key or one Workbench-specific compatibility-safe wrapper.
+- [x] Remove duplicated primary Next Research Task rendering from the opened detail layer while retaining the same task object for the HTML brief snapshot.
+- [x] Keep detailed change, conclusion, methodology, authoring, and evidence identities available only after the explicit action or under existing Advanced drawers.
+- [x] Run focused Workbench, HTML-brief, authoring, route-render, and public compatibility tests.
+- [x] Verify protected hashes and commit:
 
 ```bash
 git commit -m "Gate secondary Workbench modules"
@@ -171,9 +172,9 @@ git commit -m "Gate secondary Workbench modules"
 - Modify: `docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md`
 - Modify: this plan
 
-- [ ] Add behavior-first browser assertions for one primary brief, five visible answers, one 44px action, visible stop rule, closed detailed modules by default, no overflow, no traceback, and exact ticker preservation at `1280x720` and `390x844`.
-- [ ] Update docs to say Discover is complete and Company Workbench primary-brief composition is current, without claiming source, hosted, human-accessibility, demand, calibration, or market validation.
-- [ ] Keep Monitor consolidation as the next separate local slice, followed by Research Desk simplification and shared-shell cleanup.
+- [x] Add behavior-first browser assertions for one primary brief, five visible answers, two 44px actions, visible stop rule, closed detailed modules by default, no overflow, no traceback, and exact ticker preservation at `1280x720` and `390x844`.
+- [x] Update docs to say Discover is complete and Company Workbench primary-brief composition is current, without claiming source, hosted, human-accessibility, demand, calibration, or market validation.
+- [x] Keep Monitor consolidation as the next separate local slice, followed by Research Desk simplification and shared-shell cleanup.
 - [ ] Run:
 
 ```bash

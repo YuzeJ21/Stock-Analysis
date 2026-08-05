@@ -1408,7 +1408,8 @@ def test_research_decision_lab_release_docs_bind_local_completion_to_current_evi
     assert "Local Decision Lab implementation is complete" in commercial_prompt
     assert "Status:** Implemented locally; external maturity gates remain separate" in design
 
-    assert '"Research Decision Lab"' in browser_contract
+    assert "Research Decision Lab" in browser_contract
+    assert "Open evidence and analysis modules" in browser_contract
     assert '"Research Discipline Review"' in browser_contract
     assert "Research Decision Lab" in readme
     assert "Research Discipline Review" in readme

@@ -572,7 +572,11 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "direct review-queue search" in str(stock_selector["Details Boundary"])
     workbench = next(row for row in rows if row["Route Check"] == "Research Company Workbench")
     assert "Company Workbench" in str(workbench["First View Markers"])
+    assert "Company Brief" in str(workbench["First View Markers"])
+    assert "Next research task" in str(workbench["First View Markers"])
+    assert "Open evidence and analysis modules" in str(workbench["First View Markers"])
     assert "Open Data Health" in str(workbench["First View Markers"])
+    assert "Research Decision Lab" not in str(workbench["First View Markers"])
     assert "Selected Company" not in str(workbench["First View Markers"])
     assert "choose a reviewable ticker" in str(stock_selector["QA Focus"])
     single_stock = next(row for row in rows if row["Route Check"] == "Single-stock workflow fit")
@@ -715,7 +719,7 @@ def test_browser_qa_capture_plan_cli_prints_only_capture_sequence(capsys):
     assert "sell" not in output
 
 
-def test_company_workbench_browser_qa_requires_preview_before_confirmation_and_keeps_authoring_below_answer():
+def test_company_workbench_browser_qa_keeps_secondary_modules_behind_explicit_open():
     route = next(
         item
         for item in DEFAULT_BROWSER_QA_ROUTE_CHECKS
@@ -729,11 +733,11 @@ def test_company_workbench_browser_qa_requires_preview_before_confirmation_and_k
 
     assert "Add a reviewed research record" not in route.first_view_markers
     assert (
-        "The `Add a reviewed research record` composer stays below the selected-company and journal/outcome answers; Advanced evidence remains collapsed."
+        "Trend, valuation, scenarios, Research Decision Lab, authoring, methodology, conclusion detail, and the HTML brief stay closed until `Open evidence and analysis modules`; Advanced evidence remains collapsed."
         == route.details_boundary
     )
     assert (
-        "Stop if the workbench shows traceback text, synthetic evidence as real, an unavailable forecast, an Arrow-incompatible evidence table, a visible confirmation appears before an exact preview, or a route-marker screenshot is presented as validation, confirmation, or persistence evidence."
+        "Stop if the workbench shows traceback text, synthetic evidence as real, an unavailable forecast, a secondary module before the explicit action, an Arrow-incompatible evidence table, a visible confirmation before an exact preview, or a route-marker screenshot presented as validation, confirmation, or persistence evidence."
         == route.stop_rule
     )
     assert (
@@ -742,8 +746,8 @@ def test_company_workbench_browser_qa_requires_preview_before_confirmation_and_k
     )
     assert "Add a reviewed research record" not in responsive.first_view_must_keep
     assert "collapsed composer" not in responsive.first_view_must_keep
-    assert "below-answer composer" in responsive.mobile_risk
+    assert "module-open action" in responsive.mobile_risk
     assert (
-        "Stop if the phone view overflows, shows traceback text, renders technical evidence before the selected-company answer, or shows a visible confirmation before an exact preview."
+        "Stop if the phone view overflows, shows traceback text, loses a primary answer or stop rule, or renders a secondary module before the explicit action."
         == responsive.stop_rule
     )

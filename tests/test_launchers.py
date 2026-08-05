@@ -1298,7 +1298,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "## Quick Start" in readme
     assert "flowchart LR" in readme
     assert 'Desk["Research Desk: changed evidence"] --> Discover["Discover: strict eligibility or saved evidence"]' in readme
-    assert 'Discover --> Workbench["Company Workbench: trend, valuation, forward view"]' in readme
+    assert 'Discover --> Workbench["Company Workbench: Company Brief first"]' in readme
     assert 'Workbench --> Monitor["Monitor: unresolved research changes"]' in readme
     assert 'Workbench -. advanced evidence .-> Health["Data Health and Proof History"]' in readme
     assert "Open the product before proof packets or report commands" in readme

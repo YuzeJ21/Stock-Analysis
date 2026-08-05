@@ -138,10 +138,10 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
     ResearchRoute(
         "Company Workbench",
         "/?mode=research&page=company-workbench&ticker=NVDA&open=1",
+        "Company Brief",
         "Company Workbench",
-        "Company Workbench",
-        ".public-ticker-summary.research[aria-label='Selected ticker answer']",
-        ".public-ticker-summary.research .public-ticker-action",
+        ".company-workbench-primary-brief[aria-label='Company Brief']",
+        ".company-workbench-primary-brief .public-primary-action",
     ),
     ResearchRoute(
         "Monitor",
@@ -405,6 +405,94 @@ def evaluate_discover_rows(
         "actual_count": len(observed),
         "detail": (
             f"{len(observed)} Discover rows expose three answers and usable actions"
+            if not failures
+            else "; ".join(failures)
+        ),
+    }
+
+
+def evaluate_company_workbench_primary_brief(
+    observation: dict[str, object],
+    *,
+    expected_ticker: str = "NVDA",
+) -> dict[str, object]:
+    """Require the default Workbench to expose one truthful primary brief only."""
+
+    expected_labels = (
+        "Use now",
+        "Still withheld",
+        "What changed",
+        "Next research task",
+    )
+    failures: list[str] = []
+
+    def number(key: str) -> float:
+        try:
+            return float(observation.get(key, 0))
+        except (TypeError, ValueError):
+            return 0.0
+
+    ticker = str(observation.get("ticker") or "").strip().upper()
+    answer_labels = tuple(
+        str(value or "").strip()
+        for value in observation.get("answer_labels", ())
+    )
+    answer_texts = tuple(
+        str(value or "").strip()
+        for value in observation.get("answer_texts", ())
+    )
+    stop_text = str(observation.get("stop_text") or "").strip()
+    stop_tokens = (
+        "research-only",
+        "not a recommendation",
+        "probability",
+        "transaction instruction",
+        "unsupported current-market conclusion",
+    )
+    action_href = str(
+        observation.get("data_health_action_href") or ""
+    ).strip()
+    action_query = parse_qs(urlparse(action_href).query)
+    action_ticker = str(action_query.get("ticker", [""])[0]).strip().upper()
+    action_page = str(action_query.get("page", [""])[0]).strip()
+    action_mode = str(action_query.get("mode", [""])[0]).strip()
+
+    if number("brief_count") != 1 or observation.get("brief_visible") is not True:
+        failures.append("expected exactly one visible Company Brief")
+    if ticker != expected_ticker.strip().upper():
+        failures.append(
+            f"expected ticker {expected_ticker.strip().upper()}, found {ticker or 'missing'}"
+        )
+    if answer_labels != expected_labels or len(answer_texts) != 4 or any(
+        not value for value in answer_texts
+    ):
+        failures.append("expected four labelled non-empty primary answers")
+    if number("stop_count") != 1 or observation.get("stop_visible") is not True:
+        failures.append("expected one visible research-only stop rule")
+    if any(token not in stop_text.casefold() for token in stop_tokens):
+        failures.append("research-only stop rule is incomplete")
+    if (
+        number("data_health_action_count") != 1
+        or observation.get("data_health_action_visible") is not True
+        or number("data_health_action_height") < 44
+        or action_mode != "research"
+        or action_page != "data-health"
+        or action_ticker != ticker
+    ):
+        failures.append("expected one visible 44px ticker-bound Data Health action")
+    if (
+        number("open_modules_count") != 1
+        or observation.get("open_modules_visible") is not True
+        or number("open_modules_height") < 44
+    ):
+        failures.append("expected one visible 44px module-open action")
+    if number("secondary_module_count") != 0:
+        failures.append("secondary Workbench modules rendered before explicit open")
+
+    return {
+        "passed": not failures,
+        "detail": (
+            "one Company Brief exposes four answers, the stop rule, and two usable actions"
             if not failures
             else "; ".join(failures)
         ),
@@ -2324,6 +2412,144 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
     )
 
 
+def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
+    brief = page.locator(
+        ".company-workbench-primary-brief[aria-label='Company Brief']"
+    )
+    brief_count = brief.count()
+    primary = brief.first if brief_count else brief
+    answer_nodes = primary.locator(".company-workbench-primary-answer")
+    stop = primary.locator(".company-workbench-primary-stop")
+    data_health_action = primary.locator("a.public-primary-action")
+    open_modules = page.get_by_role(
+        "button",
+        name="Open evidence and analysis modules",
+        exact=True,
+    )
+    data_health_box = (
+        data_health_action.first.bounding_box()
+        if data_health_action.count() == 1
+        else None
+    )
+    open_modules_box = (
+        open_modules.first.bounding_box()
+        if open_modules.count() == 1
+        else None
+    )
+    secondary_module_count = sum(
+        page.get_by_role("heading", level=2, name=heading, exact=True).count()
+        for heading in (
+            "Research Decision Lab",
+            "Business Trend",
+            "Forward View",
+            "Research Conclusion",
+        )
+    )
+    secondary_module_count += page.locator("details").filter(
+        has=page.get_by_text("Add a reviewed research record", exact=True)
+    ).count()
+    secondary_module_count += page.locator("details").filter(
+        has=page.get_by_text("HTML Research Brief", exact=True)
+    ).count()
+    evaluated = evaluate_company_workbench_primary_brief(
+        {
+            "brief_count": brief_count,
+            "brief_visible": brief_count == 1 and primary.is_visible(),
+            "ticker": (
+                primary.locator(".company-workbench-primary-heading strong")
+                .first.inner_text()
+                .strip()
+                if brief_count == 1
+                and primary.locator(
+                    ".company-workbench-primary-heading strong"
+                ).count()
+                == 1
+                else ""
+            ),
+            "answer_labels": tuple(
+                text.strip()
+                for text in answer_nodes.locator(":scope > span").all_inner_texts()
+            ),
+            "answer_texts": tuple(
+                text.strip()
+                for text in answer_nodes.locator(":scope > p").all_inner_texts()
+            ),
+            "stop_count": stop.count(),
+            "stop_visible": stop.count() == 1 and stop.first.is_visible(),
+            "stop_text": stop.first.inner_text().strip() if stop.count() == 1 else "",
+            "data_health_action_count": data_health_action.count(),
+            "data_health_action_visible": (
+                data_health_action.count() == 1
+                and data_health_action.first.is_visible()
+            ),
+            "data_health_action_height": (data_health_box or {}).get("height", 0),
+            "data_health_action_href": (
+                data_health_action.first.get_attribute("href") or ""
+                if data_health_action.count() == 1
+                else ""
+            ),
+            "open_modules_count": open_modules.count(),
+            "open_modules_visible": (
+                open_modules.count() == 1 and open_modules.first.is_visible()
+            ),
+            "open_modules_height": (open_modules_box or {}).get("height", 0),
+            "secondary_module_count": secondary_module_count,
+        }
+    )
+    return _assertion(
+        "company_workbench_primary_brief",
+        bool(evaluated["passed"]),
+        str(evaluated["detail"]),
+    )
+
+
+def _open_company_workbench_modules(
+    page: Any,
+    *,
+    timeout_seconds: float,
+) -> dict[str, object]:
+    button = page.get_by_role(
+        "button",
+        name="Open evidence and analysis modules",
+        exact=True,
+    )
+    if button.count() != 1 or not button.first.is_visible():
+        return _assertion(
+            "company_workbench_module_open",
+            False,
+            f"expected one visible module-open action, found {button.count()}",
+        )
+    button.first.click()
+    _wait_for_visible_text(
+        page,
+        "Research Decision Lab",
+        timeout_seconds=timeout_seconds,
+    )
+    _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+    decision_lab = page.get_by_role(
+        "heading",
+        level=2,
+        name="Research Decision Lab",
+        exact=True,
+    )
+    composer = page.locator("details").filter(
+        has=page.get_by_text("Add a reviewed research record", exact=True)
+    )
+    passed = decision_lab.count() == 1 and composer.count() == 1
+    return _assertion(
+        "company_workbench_module_open",
+        passed,
+        (
+            "explicit action restored secondary analysis and authoring"
+            if passed
+            else (
+                f"decision_lab_count={decision_lab.count()}; "
+                f"authoring_count={composer.count()}"
+            )
+        ),
+    )
+
+
 def _summary_focus_assertion(page: Any) -> dict[str, object]:
     summaries = page.locator("summary:visible")
     count = summaries.count()
@@ -2775,7 +3001,7 @@ def _measure_route(
             assertions.append(_monitor_brief_assertion(page, viewport[0]))
             assertions.append(_monitor_rows_assertion(page))
         if route.name == "Company Workbench":
-            assertions.extend(_authoring_error_assertions(page))
+            assertions.append(_company_workbench_primary_brief_assertion(page))
 
         assertions.extend(_media_preference_assertions(page, route))
         assertions.extend(
@@ -2797,6 +3023,15 @@ def _measure_route(
             assertions.append(
                 _secondary_navigation_absence_assertion(page, phase="streamlit_rerun")
             )
+        if route.name == "Company Workbench":
+            assertions.append(_company_workbench_primary_brief_assertion(page))
+            assertions.append(
+                _open_company_workbench_modules(
+                    page,
+                    timeout_seconds=timeout_seconds,
+                )
+            )
+            assertions.extend(_authoring_error_assertions(page))
 
         away_route = _route_transition_target(route)
         assertions.extend(
