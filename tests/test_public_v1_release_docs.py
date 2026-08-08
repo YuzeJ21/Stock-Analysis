@@ -1212,7 +1212,7 @@ def test_public_make_help_marks_legacy_readiness_guard_and_profile_bound_writers
     assert "Write central data/reports/ticker_readiness_report.csv" not in help_text
 
 
-def test_public_mobile_handoff_docs_record_zero_scroll_supersession():
+def test_public_mobile_handoff_docs_record_zero_scroll_post_fix_evidence():
     roadmap = _read("ROADMAP.md")
     dashboard_qa = _read("docs/DASHBOARD_QA.md")
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
@@ -1223,27 +1223,26 @@ def test_public_mobile_handoff_docs_record_zero_scroll_supersession():
         assert "Selected ticker -> `Use now` -> `Still withheld` -> `Open Data Health`" in normalized
         assert "44px" in normalized
         assert "zero-scroll" in normalized.lower()
-        assert "stop_bottom=886.3125" in normalized
-        assert "stop_clearance=-42.3125" in normalized
-        assert "action_clearance=35.9375" in normalized
-        assert "blocked_with_evidence" in normalized
+        assert "Home `stop_bottom=843.609375`" in normalized
+        assert "Single-Stock Report `stop_bottom=836.421875`" in normalized
+        assert "`trust_gap=2.21875`" in normalized
+        assert "`visible_stops=1`" in normalized
+        assert "`scroll_width=390`" in normalized
+        assert "all four measured scroll offsets were zero" in normalized
+        assert "`resolved_post_fix`" in normalized
         assert "no horizontal overflow" in normalized
         assert "no traceback" in normalized
-        assert "836.53125px" not in text
-        assert "7.46875px" not in text
+        assert "desktop retained two Home grid tracks and four Single-Stock Report grid tracks" in normalized
 
     normalized_roadmap = " ".join(roadmap.split())
     normalized_qa = " ".join(dashboard_qa.split())
     normalized_prompt = " ".join(prompt.split())
-    assert "stop_bottom=843.4296875" in normalized_roadmap
-    assert "is not valid top-of-page completion evidence" in normalized_roadmap
-    assert "cannot prove that the complete stop rule was inside the initial viewport" in normalized_qa
-    assert "is not top-of-page completion evidence" in normalized_prompt
-    assert "action_clearance=78.8203125" not in normalized_roadmap
-    assert "action_clearance=78.8203125" not in normalized_prompt
+    assert "Home phone order is primary -> stop -> metrics" in normalized_roadmap
+    assert "one visible stop rule" in normalized_qa
+    assert "Home and Single-Stock Report are `resolved_post_fix`" in normalized_prompt
     assert "does not change readiness, source, research, or generated-artifact state" in normalized_roadmap
     assert "does not prove hosted behavior, accessibility conformance" in normalized_roadmap
-    assert "does not change readiness, source, research, or generated-artifact state" in normalized_qa
+    assert "changed no readiness, source, research, or generated-artifact state" in normalized_qa
     assert "Neither form of local presentation evidence proves data freshness, source rights, hosted behavior, accessibility compliance, external reviewer behavior, or predictive validity" in normalized_qa
     assert "not hosted, accessibility-conformance, external-reviewer, freshness, demand, or market evidence" in normalized_prompt
     assert "changes no readiness, source, research, or generated-artifact state" in normalized_prompt

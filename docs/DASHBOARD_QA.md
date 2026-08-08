@@ -330,6 +330,32 @@ an owner-approved responsive repair is implemented and remeasured with an
 explicit zero-scroll assertion. No product code, readiness, source, research,
 or generated artifact changed during this reconciliation.
 
+### 2026-08-08 Owner-Approved Zero-Scroll Repair
+
+The owner-approved implementation at anchor
+`18417d90766e9aeb629eef6bb1ef4fc40805773c` keeps Home's direct answer and the
+Single-Stock Report direct-open loading state inside the initial phone
+viewport without changing copy or the shared Public shell. The selected answer
+still reads Selected ticker -> `Use now` -> `Still withheld` -> `Open Data
+Health`, and both primary actions remain 44px high.
+
+Fresh zero-scroll `resolved_post_fix` evidence at `390x844` recorded Home
+`stop_bottom=843.609375`, `action_height=44`, and `visible_stops=1`; the one
+visible stop rule follows the primary action and precedes metrics in both DOM
+and visual order. Single-Stock Report `stop_bottom=836.421875`,
+`action_height=44`, and `trust_gap=2.21875`. Both routes recorded
+`scroll_width=390`; all four measured scroll offsets were zero, Advanced open
+count was zero, and there was no horizontal overflow, no traceback, console
+warning, or page error.
+
+At `1280x720`, desktop retained two Home grid tracks and four Single-Stock
+Report grid tracks. Home showed only the desktop stop across the second row;
+Single Stock preserved its four-column answer; both actions remained 44px and
+both routes had zero scroll offsets, matching client/document widths, and no
+runtime error. The repair changed no readiness, source, research, or
+generated-artifact state and wrote no screenshot, timing, report, or data
+artifact.
+
 Data Health and Proof History remain answer/evidence destinations. This review
 adds no invented calls to action, does not turn either route into a readiness
 unlock, and does not change readiness, source, research, or generated-artifact
@@ -344,7 +370,7 @@ validity.
 The review-note gate preserves the corrective history without understating the
 finished audit. `resolved` is a direct successful review;
 `resolved_post_fix` is a successful fresh recapture after a correction. The
-current raw counts remain nine `resolved` rows and one `resolved_post_fix` row,
+current raw counts are eight `resolved` rows and two `resolved_post_fix` rows,
 while the aggregate gate reports `10/10` and `share_review_ready`. Only those
 two explicit labels are successful. Unknown labels—including values that merely
 start with `resolved`—and deferred, environment-limited, skipped, blocked, or
