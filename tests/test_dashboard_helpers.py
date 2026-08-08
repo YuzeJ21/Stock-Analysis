@@ -30329,24 +30329,58 @@ def test_public_app_shell_has_compact_mobile_rules():
     assert "flex-wrap: wrap" in mobile_chunk
 
 
-def test_public_single_stock_phone_keeps_evidence_handoff_in_first_view():
-    source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    shell_start = source.index("def render_public_shell_mode_styles")
-    mobile_start = source.index("@media (max-width: 640px)", shell_start)
-    mobile_end = source.index("</style>", mobile_start)
-    mobile_css = source[mobile_start:mobile_end]
+def test_public_single_stock_phone_uses_selector_local_scheme_a(monkeypatch):
+    rendered: list[str] = []
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda body, **_kwargs: rendered.append(str(body)),
+    )
+
+    dashboard.render_public_shell_mode_styles()
+
+    style = rendered[0]
+    mobile_start = style.index("@media (max-width: 640px)")
+    mobile_css = style[mobile_start : style.index("</style>", mobile_start)]
 
     summary_start = mobile_css.index(".public-ticker-summary {")
-    summary_end = mobile_css.index("}", summary_start)
-    summary_rule = mobile_css[summary_start:summary_end]
-    action_start = mobile_css.index(".public-ticker-action .public-primary-action {")
-    action_end = mobile_css.index("}", action_start)
-    action_rule = mobile_css[action_start:action_end]
-
+    summary_rule = mobile_css[summary_start : mobile_css.index("}", summary_start)]
     assert "grid-template-columns: 1fr;" in summary_rule
-    assert "gap: 0.25rem;" in summary_rule
-    assert "padding: 0.125rem 0 0.5rem;" in summary_rule
-    assert "order: -1;" in action_rule
+    assert "gap: 0.2rem;" in summary_rule
+    assert "margin-top: -1rem;" in summary_rule
+    assert "padding: 0 0 0.25rem;" in summary_rule
+
+    name_start = mobile_css.index(".public-ticker-name {")
+    name_rule = mobile_css[name_start : mobile_css.index("}", name_start)]
+    assert "display: flex;" in name_rule
+    assert "align-items: baseline;" in name_rule
+
+    answer_p_start = mobile_css.index(".public-ticker-answer p {")
+    answer_p_rule = mobile_css[
+        answer_p_start : mobile_css.index("}", answer_p_start)
+    ]
+    assert "margin-top: 0.12rem;" in answer_p_rule
+    assert "line-height: 1.35;" in answer_p_rule
+
+    answer_small_start = mobile_css.index(".public-ticker-answer small {")
+    answer_small_rule = mobile_css[
+        answer_small_start : mobile_css.index("}", answer_small_start)
+    ]
+    assert "margin-top: 0.12rem;" in answer_small_rule
+    assert "line-height: 1.25;" in answer_small_rule
+
+    action_start = mobile_css.index(".public-ticker-action {")
+    action_rule = mobile_css[action_start : mobile_css.index("}", action_start)]
+    assert "gap: 0.2rem;" in action_rule
+
+    action_p_start = mobile_css.index(".public-ticker-action p {")
+    action_p_rule = mobile_css[action_p_start : mobile_css.index("}", action_p_start)]
+    assert "line-height: 1.35;" in action_p_rule
+
+    stop_start = mobile_css.index(".public-ticker-action small {")
+    stop_rule = mobile_css[stop_start : mobile_css.index("}", stop_start)]
+    assert "margin-top: 0;" in stop_rule
+    assert "line-height: 1.25;" in stop_rule
 
 
 def test_public_single_stock_phone_compacts_stop_rule_spacing(monkeypatch):

@@ -7309,15 +7309,32 @@ def render_public_shell_mode_styles() -> None:
           }
           .public-ticker-summary {
             grid-template-columns: 1fr;
-            gap: 0.25rem;
+            gap: 0.2rem;
             margin-top: -1rem;
-            padding: 0.125rem 0 0.5rem;
+            padding: 0 0 0.25rem;
+          }
+          .public-ticker-name {
+            display: flex;
+            align-items: baseline;
+            gap: 0.35rem;
+          }
+          .public-ticker-answer p {
+            margin-top: 0.12rem;
+            line-height: 1.35;
+          }
+          .public-ticker-answer small {
+            margin-top: 0.12rem;
+            line-height: 1.25;
           }
           .public-ticker-action {
             gap: 0.2rem;
           }
+          .public-ticker-action p {
+            line-height: 1.35;
+          }
           .public-ticker-action small {
             margin-top: 0;
+            line-height: 1.25;
           }
           .public-ticker-action .public-primary-action {
             order: -1;
