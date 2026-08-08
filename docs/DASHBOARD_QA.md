@@ -301,6 +301,35 @@ product-layout evidence only; it does not prove data freshness, source rights,
 hosted behavior, accessibility conformance, external review, demand, or market
 validation.
 
+### 2026-08-08 Zero-Scroll Supersession
+
+A fresh top-of-page audit supersedes the 2026-08-02 first-viewport conclusion.
+The earlier evidence did not record the scroll position, so its
+`stop_bottom=843.4296875` result cannot prove that the complete stop rule was
+inside the initial viewport. The new audit explicitly recorded
+`window.scrollY=0`, document and body scroll offsets of zero, and
+`stMain.scrollTop=0`.
+
+At `390x844`, both the archived evidence tree
+`60492ffa5475fc00cebbc2d4c2dff0c2b140c467` and audited product head
+`2e58e00bb6ddff6791299a514b562c96ce911196` rendered pixel-identical
+first-answer geometry in both controlled browser surfaces. The primary action
+remained fully visible with `action_top=764.0625`, `action_bottom=808.0625`,
+`action_height=44`, and `action_clearance=35.9375`; the complete stop rule
+reported `stop_top=854.34375`, `stop_bottom=886.3125`, and
+`stop_clearance=-42.3125`. Document width remained `390` with no horizontal
+overflow or traceback. The `42.8828125px` difference from the earlier recorded
+stop bottom is consistent with an unrecorded scroll offset, but the prior run
+did not capture that value and its exact cause is therefore not asserted.
+
+This proves that no later tracked product change introduced the current
+failure and that the existing selector-local spacing rules still render as
+implemented. It does not prove that the complete safety boundary is visible at
+the top of the phone route. The phone result is `blocked_with_evidence` until
+an owner-approved responsive repair is implemented and remeasured with an
+explicit zero-scroll assertion. No product code, readiness, source, research,
+or generated artifact changed during this reconciliation.
+
 Data Health and Proof History remain answer/evidence destinations. This review
 adds no invented calls to action, does not turn either route into a readiness
 unlock, and does not change readiness, source, research, or generated-artifact

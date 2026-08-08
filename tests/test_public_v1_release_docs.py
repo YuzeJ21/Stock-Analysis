@@ -1212,7 +1212,7 @@ def test_public_make_help_marks_legacy_readiness_guard_and_profile_bound_writers
     assert "Write central data/reports/ticker_readiness_report.csv" not in help_text
 
 
-def test_public_mobile_handoff_docs_cover_direct_open_loading_and_remove_stale_measurement():
+def test_public_mobile_handoff_docs_record_zero_scroll_supersession():
     roadmap = _read("ROADMAP.md")
     dashboard_qa = _read("docs/DASHBOARD_QA.md")
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
@@ -1222,16 +1222,25 @@ def test_public_mobile_handoff_docs_cover_direct_open_loading_and_remove_stale_m
         assert "direct-open loading state" in normalized
         assert "Selected ticker -> `Use now` -> `Still withheld` -> `Open Data Health`" in normalized
         assert "44px" in normalized
-        assert "at least 50px" in normalized
+        assert "zero-scroll" in normalized.lower()
+        assert "stop_bottom=886.3125" in normalized
+        assert "stop_clearance=-42.3125" in normalized
+        assert "action_clearance=35.9375" in normalized
+        assert "blocked_with_evidence" in normalized
         assert "no horizontal overflow" in normalized
         assert "no traceback" in normalized
-        assert "four-column layout" in normalized
         assert "836.53125px" not in text
         assert "7.46875px" not in text
 
     normalized_roadmap = " ".join(roadmap.split())
     normalized_qa = " ".join(dashboard_qa.split())
     normalized_prompt = " ".join(prompt.split())
+    assert "stop_bottom=843.4296875" in normalized_roadmap
+    assert "is not valid top-of-page completion evidence" in normalized_roadmap
+    assert "cannot prove that the complete stop rule was inside the initial viewport" in normalized_qa
+    assert "is not top-of-page completion evidence" in normalized_prompt
+    assert "action_clearance=78.8203125" not in normalized_roadmap
+    assert "action_clearance=78.8203125" not in normalized_prompt
     assert "does not change readiness, source, research, or generated-artifact state" in normalized_roadmap
     assert "does not prove hosted behavior, accessibility conformance" in normalized_roadmap
     assert "does not change readiness, source, research, or generated-artifact state" in normalized_qa
