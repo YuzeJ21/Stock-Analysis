@@ -9,6 +9,16 @@ This document is the historical completion log for Stock Research Command Center
 - ETF and index-proxy exclusion from operating-company DCF, with blocked inputs withheld rather than inferred.
 - Master-universe, active-universe, and analysis-ready scopes separated in reports and dashboard flows.
 
+## Personal Research And Commercial Beta Foundation
+
+- The primary local research flow is Research Desk -> Discover -> Company Workbench -> Monitor. Public and Operator routes remain separate, and Data Health and Proof History stay available as Advanced Evidence without changing readiness.
+- Research Desk, Discover, Company Workbench, and Monitor provide answer-first, fail-closed views over saved evidence. The shared shell, responsive route matrix, observation-recency interpretation, and downloadable offline Company Workbench brief are complete as local engineering work.
+- Research Decision Lab and the collapsed Company Workbench authoring flow support append-only thesis, counter-thesis, evidence, catalyst, invalidation, scenario-assumption, and outcome records through validation, exact preview, and explicit confirmation. Saving a research record cannot change readiness, forecasts, probabilities, recommendations, or another ledger.
+- Priority 1 quarantines legacy portfolio, ranking, position, picks, entry-zone, and transaction-like surfaces behind an Operator-only compatibility boundary. They cannot feed Personal Research, readiness, recommendations, sizing, or transaction behavior.
+- Priority 2 provides a prospective-only field-proof audit with independent technical-write and commercial-evidence eligibility, receipt revalidation, and no readiness mapping. It does not upgrade legacy narrative proof or check in sample proof rows.
+- Priority 3 completes in-app research-record authoring with receipt-bound confirmation, append locking, and active-thesis lineage checks. Production verification uses temporary ledgers and does not append repository research records.
+- These milestones establish a local Commercial Research Beta release candidate and controlled demo package only. They do not establish hosted operation, current-market data, source rights, independent-human or assistive-technology validation, demand, screening performance, probability calibration, or commercial launch.
+
 ## Public Workflow And Reports
 
 - Visitor-first public workflow: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
