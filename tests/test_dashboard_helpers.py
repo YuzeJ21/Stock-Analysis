@@ -30248,6 +30248,73 @@ def test_public_home_overview_keeps_one_start_action_and_compact_readiness_snaps
     assert "No data, no conclusion" in html
 
 
+def test_public_home_overview_exposes_breakpoint_stop_positions_from_identical_copy():
+    rendered = dashboard.public_home_overview_html(
+        {
+            "master_universe": 3541,
+            "price_ready": 3540,
+            "dcf_ready": 2693,
+            "peer_ready": 29,
+        }
+    )
+
+    primary_index = rendered.index("class='public-home-primary'")
+    phone_stop_index = rendered.index(
+        "class='public-home-stop public-home-stop-phone'"
+    )
+    metrics_index = rendered.index("class='public-home-metrics'")
+    desktop_stop_index = rendered.index(
+        "class='public-home-stop public-home-stop-desktop'"
+    )
+
+    assert primary_index < phone_stop_index < metrics_index < desktop_stop_index
+    assert rendered.count("No data, no conclusion.") == 2
+    assert rendered.count("Missing inputs stay blocked instead of being inferred.") == 2
+    assert rendered.count("Start with Stock Selector") == 1
+    assert rendered.count("<dt>") == 4
+
+
+def test_public_home_stop_uses_mutually_exclusive_breakpoint_placement(monkeypatch):
+    rendered: list[str] = []
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda body, **_kwargs: rendered.append(str(body)),
+    )
+
+    dashboard.render_public_shell_mode_styles()
+
+    assert len(rendered) == 1
+    style = rendered[0]
+    mobile_start = style.index("@media (max-width: 640px)")
+    base_css = style[:mobile_start]
+    mobile_css = style[mobile_start : style.index("</style>", mobile_start)]
+
+    base_phone_start = base_css.index(".public-home-stop-phone {")
+    base_phone_rule = base_css[base_phone_start : base_css.index("}", base_phone_start)]
+    assert "display: none;" in base_phone_rule
+
+    mobile_phone_start = mobile_css.index(".public-home-stop-phone {")
+    mobile_phone_rule = mobile_css[
+        mobile_phone_start : mobile_css.index("}", mobile_phone_start)
+    ]
+    assert "display: block;" in mobile_phone_rule
+
+    mobile_desktop_start = mobile_css.index(".public-home-stop-desktop {")
+    mobile_desktop_rule = mobile_css[
+        mobile_desktop_start : mobile_css.index("}", mobile_desktop_start)
+    ]
+    assert "display: none;" in mobile_desktop_rule
+
+    overview_start = mobile_css.index(".public-home-overview {")
+    overview_rule = mobile_css[overview_start : mobile_css.index("}", overview_start)]
+    assert "gap: 0;" in overview_rule
+
+    metrics_start = mobile_css.index(".public-home-metrics {")
+    metrics_rule = mobile_css[metrics_start : mobile_css.index("}", metrics_start)]
+    assert "margin-top: 0.75rem;" in metrics_rule
+
+
 def test_public_app_shell_has_compact_mobile_rules():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 

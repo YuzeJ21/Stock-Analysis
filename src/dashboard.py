@@ -6627,6 +6627,10 @@ def public_home_overview_html(summary: dict[str, object]) -> str:
     dcf_ready = int(summary.get("dcf_ready") or 0)
     peer_ready = int(summary.get("peer_ready") or 0)
     selector_href = html.escape(public_page_href(STOCK_SELECTOR_PATH_TITLE), quote=True)
+    stop_copy = (
+        "<strong>No data, no conclusion.</strong> "
+        "Missing inputs stay blocked instead of being inferred."
+    )
     return (
         "<section class='public-home-overview' aria-label='Start your research review'>"
         "<div class='public-home-primary'>"
@@ -6635,13 +6639,14 @@ def public_home_overview_html(summary: dict[str, object]) -> str:
         "<p>Start with a readiness-backed name. The report will show what is usable, what stays withheld, and where evidence belongs.</p>"
         f"<a class='public-primary-action' href='{selector_href}'>Start with Stock Selector</a>"
         "</div>"
+        f"<div class='public-home-stop public-home-stop-phone'>{stop_copy}</div>"
         "<dl class='public-home-metrics'>"
         f"<div><dt>Tracked names</dt><dd>{master:,}</dd></div>"
         f"<div><dt>Price-ready</dt><dd>{price_ready:,}</dd></div>"
         f"<div><dt>DCF-ready</dt><dd>{dcf_ready:,}</dd></div>"
         f"<div><dt>Trusted peers</dt><dd>{peer_ready:,}</dd></div>"
         "</dl>"
-        "<div class='public-home-stop'><strong>No data, no conclusion.</strong> Missing inputs stay blocked instead of being inferred.</div>"
+        f"<div class='public-home-stop public-home-stop-desktop'>{stop_copy}</div>"
         "</section>"
     )
 
@@ -6948,6 +6953,9 @@ def render_public_shell_mode_styles() -> None:
           font-size: 0.84rem;
           line-height: 1.45;
         }
+        .public-home-stop-phone {
+          display: none;
+        }
         .public-home-stop strong { color: #8a4b08; }
         .public-selector-start {
           display: flex;
@@ -7252,12 +7260,23 @@ def render_public_shell_mode_styles() -> None:
           }
           .public-home-overview {
             grid-template-columns: 1fr;
-            gap: 1rem;
+            gap: 0;
             padding-top: 1rem;
           }
           .public-home-primary h2 { font-size: 1.1rem; }
-          .public-home-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .public-home-stop { grid-column: auto; }
+          .public-home-stop-phone {
+            display: block;
+            grid-column: auto;
+            padding: 0.35rem 0;
+            line-height: 1.25;
+          }
+          .public-home-stop-desktop {
+            display: none;
+          }
+          .public-home-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin-top: 0.75rem;
+          }
           .public-selector-start {
             align-items: flex-start;
             padding: 0.8rem 0;
