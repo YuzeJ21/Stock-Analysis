@@ -7267,7 +7267,7 @@ def render_public_shell_mode_styles() -> None:
           .public-home-stop-phone {
             display: block;
             grid-column: auto;
-            padding: 0.35rem 0;
+            padding: 0.3rem 0;
             line-height: 1.25;
           }
           .public-home-stop-desktop {

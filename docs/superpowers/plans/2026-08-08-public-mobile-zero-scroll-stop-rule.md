@@ -24,6 +24,18 @@
 - Never use `git add -A`; stage only exact intentional paths.
 - Reject the implementation if either complete stop rule ends below `844px`, an action is shorter than `44px`, horizontal overflow appears, Home visual/DOM order differs, the trust-strip gap becomes negative, desktop layout changes, Advanced opens unexpectedly, or a traceback/console error appears.
 
+## Execution Evidence Adjustment
+
+The first direct zero-scroll Home measurement after Tasks 1-2 returned
+`stop_bottom=845.203125` at `390x844`, while all four scroll offsets were zero,
+the action remained exactly `44px`, one stop was visible before metrics,
+`scroll_width=390`, and no browser error appeared. The initial `0.35rem`
+phone stop padding therefore missed the authoritative criterion by
+`1.203125px`. The already-approved selector-local stop-padding compaction is
+refined to `0.3rem 0`; no negative margin, copy, font size, line height,
+component order, or shared shell changes. A rendered-CSS RED/GREEN assertion
+must protect the exact refined padding before final browser remeasurement.
+
 ---
 
 ### Task 1: Home Responsive Semantic Stop Placement
@@ -139,6 +151,7 @@ def test_public_home_stop_uses_mutually_exclusive_breakpoint_placement(monkeypat
         mobile_phone_start : mobile_css.index("}", mobile_phone_start)
     ]
     assert "display: block;" in mobile_phone_rule
+    assert "padding: 0.3rem 0;" in mobile_phone_rule
 
     mobile_desktop_start = mobile_css.index(".public-home-stop-desktop {")
     mobile_desktop_rule = mobile_css[
@@ -189,7 +202,7 @@ Inside the existing `@media (max-width: 640px)` block, replace the current Home 
 .public-home-stop-phone {
   display: block;
   grid-column: auto;
-  padding: 0.35rem 0;
+  padding: 0.3rem 0;
   line-height: 1.25;
 }
 .public-home-stop-desktop {

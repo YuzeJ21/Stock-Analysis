@@ -30299,6 +30299,7 @@ def test_public_home_stop_uses_mutually_exclusive_breakpoint_placement(monkeypat
         mobile_phone_start : mobile_css.index("}", mobile_phone_start)
     ]
     assert "display: block;" in mobile_phone_rule
+    assert "padding: 0.3rem 0;" in mobile_phone_rule
 
     mobile_desktop_start = mobile_css.index(".public-home-stop-desktop {")
     mobile_desktop_rule = mobile_css[
