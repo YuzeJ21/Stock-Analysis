@@ -10,7 +10,7 @@ It is research-only: no investment advice, recommendation, company ranking, brok
 - Active research rows: use `make project-status` or the dashboard Home page.
 - Lane readiness: use `make readiness-ops-center`.
 - Historical proof versus current readiness: use `make proof-readiness-reconciliation TOP_N=20`. It is a current-snapshot audit; historical proof cannot promote current readiness.
-- Stale-readiness impact: use `make readiness-preview TOP_N=20`. It computes future proposed states in memory, writes no files, and does not authorize staging or a readiness rebuild.
+- Readiness evidence impact: use `make readiness-preview TOP_N=20`. It computes future proposed states in memory, writes no files, and does not authorize staging or a readiness rebuild.
 - Source/provider state: use `make session-source-preflight` and `make provider-setup-checklist`.
 - Package/share state: use `make pilot-readiness-check TOP_N=10`, `make public-check`, and `make browser-qa-evidence`.
 - Commercial-beta state: use `make commercial-beta-check`, `make commercial-beta-performance-gate`, and `make commercial-beta-release-check`. Commit `6328c8cea` passed the category-separated 48-sample browser gate, the aggregate release check, and exact-head CI. Shell and first-useful evidence keep warm p90 separate from cold maximum at the unchanged one-second and three-second limits. These are local evidence only; they do not refresh data and do not prove market validation.
@@ -22,7 +22,7 @@ The tracked June 7 readiness snapshot remains stale under this roadmap's declare
 
 `historical_supported_currently_blocked`, `explicit_ticker_change`, and `current_canonical_row_missing` are distinct reconciliation outcomes. Current saved readiness remains authoritative, and reconciliation does not establish the historical cause of a transition, restore canonical data, or report current readiness totals.
 
-The stale readiness continuation gate follows declared source dates, never file mtimes, and keeps date freshness independent from tracked evidence eligibility. A date-current but uncommitted default-profile readiness snapshot routes to inspection-only; it cannot become PR evidence through local generated files. `make readiness-preview TOP_N=20` does not make saved readiness current or reviewable, does not refresh data, and is not current readiness counts or rebuild approval; provider ordering and ranking output remain planning context only until a separate intentional reviewed write runs `make readiness` and its exact artifacts are reviewed.
+The readiness continuation gate follows declared source dates, never file mtimes, and keeps date freshness independent from tracked evidence eligibility. It routes stale, incomplete, unverified, or current but untracked readiness to inspection-only. A date-current but uncommitted default-profile readiness snapshot cannot become PR evidence through local generated files. `make readiness-preview TOP_N=20` does not make saved readiness current or reviewable, does not refresh data, and is not current readiness counts or rebuild approval; provider ordering and ranking output remain planning context only until a separate intentional reviewed write runs `make readiness` and its exact artifacts are reviewed.
 
 Primary research flow: **Research Desk -> Discover -> Company Workbench -> Monitor**.
 

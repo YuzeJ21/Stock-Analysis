@@ -928,7 +928,7 @@ def test_pilot_freshness_docs_fail_closed_on_declared_source_dates():
     assert "make readiness" in prompt
 
 
-def test_stale_readiness_continuation_gate_docs_keep_rankings_non_executable():
+def test_readiness_continuation_gate_docs_keep_rankings_non_executable():
     roadmap = _read("ROADMAP.md")
     data_strategy = _read("docs/DATA_STRATEGY.md")
     dashboard_qa = _read("docs/DASHBOARD_QA.md")
@@ -936,10 +936,16 @@ def test_stale_readiness_continuation_gate_docs_keep_rankings_non_executable():
 
     for text in (roadmap, data_strategy, dashboard_qa, prompt):
         lowered = text.lower()
-        assert "stale readiness continuation gate" in lowered
+        assert "readiness continuation gate" in lowered
+        assert "current but untracked" in lowered
         assert "make readiness-preview TOP_N=20" in text
         assert "planning context only" in lowered
         assert "separate intentional reviewed write" in lowered
+    assert "The stale readiness continuation gate" not in roadmap
+    assert "The stale readiness continuation gate applies" not in data_strategy
+    assert "## Stale Readiness Continuation Gate" not in dashboard_qa
+    assert "- Stale readiness continuation gate across" not in prompt
+    assert "The stale readiness continuation gate follows" not in prompt
     assert "does not refresh data" in roadmap.lower()
     assert "does not prove market validation" in roadmap.lower()
     assert "auto-refresh status" in roadmap.lower()
