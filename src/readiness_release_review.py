@@ -6,9 +6,13 @@ import hashlib
 import csv
 import io
 import json
+import os
+import re
 import stat
 import subprocess
+import tempfile
 from dataclasses import asdict, dataclass, replace
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -23,6 +27,7 @@ from src.readiness_preview import (
     review_readiness_changes,
     review_readiness_promotions,
 )
+from src.research_ledger_lock import ledger_write_lock
 
 
 MAX_EVIDENCE_FILE_BYTES = 64 * 1024 * 1024
@@ -81,6 +86,34 @@ class ReleaseEvidenceReview:
             if axis.name == name:
                 return axis
         raise KeyError(name)
+
+
+@dataclass(frozen=True)
+class RecordedDecision:
+    record_id: str
+    preview_receipt: str
+    git_head: str
+    candidate_manifest_digest: str
+    canonical_source_digest: str
+    rights_registry_digest: str
+    proof_ledger_digest: str
+    technical_transition_summary: str
+    candidate_integrity: str
+    technical_transition_review: str
+    provenance_review: str
+    commercial_rights_review: str
+    registered_field_scope_review: str
+    price_lineage_review: str
+    historical_proof_binding_review: str
+    distribution_review: str
+    staging_hygiene_review: str
+    technical_decision: str
+    distribution_decision: str
+    reviewer: str
+    review_date: str
+    blocker_codes: str
+    research_only_boundary: str
+    recorded_at: str
 
 
 @dataclass(frozen=True)
@@ -147,6 +180,37 @@ PROOF_LEDGER_PATHS = (
     "data/reviewed_data_proofs.csv",
 )
 REVIEW_RECORD_PATH = "data/readiness_release_reviews.csv"
+
+REVIEW_RECORD_COLUMNS = (
+    "record_id",
+    "preview_receipt",
+    "git_head",
+    "candidate_manifest_digest",
+    "canonical_source_digest",
+    "rights_registry_digest",
+    "proof_ledger_digest",
+    "technical_transition_summary",
+    "candidate_integrity",
+    "technical_transition_review",
+    "provenance_review",
+    "commercial_rights_review",
+    "registered_field_scope_review",
+    "price_lineage_review",
+    "historical_proof_binding_review",
+    "distribution_review",
+    "staging_hygiene_review",
+    "technical_decision",
+    "distribution_decision",
+    "reviewer",
+    "review_date",
+    "blocker_codes",
+    "research_only_boundary",
+    "recorded_at",
+)
+
+TECHNICAL_DECISIONS = {"approved", "rejected"}
+DISTRIBUTION_DECISIONS = {"approved", "rejected", "external_review_required"}
+RESEARCH_ONLY_BOUNDARY = "research_only_no_investment_or_execution_action"
 
 AXIS_NAMES = (
     "candidate_integrity",
@@ -568,6 +632,190 @@ def _read_csv_rows(root: Path, relative: str) -> tuple[dict[str, str], ...]:
         return tuple({str(key): str(value or "") for key, value in row.items()} for row in reader)
     except (UnicodeDecodeError, csv.Error) as exc:
         raise ReleaseReviewError(f"csv_malformed:{relative}") from exc
+
+
+def load_review_records(path: Path | str) -> tuple[RecordedDecision, ...]:
+    destination = Path(path)
+    if not destination.exists():
+        return ()
+    payload = _read_regular_file(destination, str(destination))
+    try:
+        reader = csv.DictReader(io.StringIO(payload.decode("utf-8-sig"), newline=""))
+        if tuple(reader.fieldnames or ()) != REVIEW_RECORD_COLUMNS:
+            raise ReleaseReviewError("review_ledger_header_mismatch")
+        records: list[RecordedDecision] = []
+        seen_ids: set[str] = set()
+        seen_receipts: set[str] = set()
+        for row_number, row in enumerate(reader, start=2):
+            values = {column: str(row.get(column) or "") for column in REVIEW_RECORD_COLUMNS}
+            record_id = values["record_id"]
+            receipt = values["preview_receipt"]
+            if record_id in seen_ids:
+                raise ReleaseReviewError(f"duplicate_record_id:{record_id}:row_{row_number}")
+            if receipt in seen_receipts:
+                raise ReleaseReviewError(f"duplicate_preview_receipt:{receipt}:row_{row_number}")
+            seen_ids.add(record_id)
+            seen_receipts.add(receipt)
+            records.append(RecordedDecision(**values))
+        return tuple(records)
+    except UnicodeDecodeError as exc:
+        raise ReleaseReviewError("review_ledger_not_utf8") from exc
+    except csv.Error as exc:
+        raise ReleaseReviewError("review_ledger_malformed") from exc
+
+
+def _validate_reviewer(value: object) -> str:
+    reviewer = str(value or "").strip()
+    lowered = reviewer.casefold()
+    placeholder = (
+        not reviewer
+        or lowered in {"-", "unknown", "n/a", "na", "reviewer", "local reviewer"}
+        or ("<" in reviewer and ">" in reviewer)
+    )
+    if placeholder or any(ord(character) < 32 for character in reviewer):
+        raise ReleaseReviewError("invalid_reviewer")
+    return reviewer
+
+
+def _validate_review_date(value: object) -> str:
+    review_date = str(value or "").strip()
+    try:
+        parsed = date.fromisoformat(review_date)
+    except ValueError as exc:
+        raise ReleaseReviewError("invalid_review_date") from exc
+    if parsed.isoformat() != review_date:
+        raise ReleaseReviewError("invalid_review_date")
+    return review_date
+
+
+def _validate_receipt(value: object) -> str:
+    receipt = str(value or "").strip()
+    if re.fullmatch(r"[0-9a-f]{64}", receipt) is None:
+        raise ReleaseReviewError("invalid_preview_receipt")
+    return receipt
+
+
+def _atomic_write_records(destination: Path, records: Sequence[RecordedDecision]) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    descriptor, temporary_name = tempfile.mkstemp(
+        prefix=f".{destination.name}.",
+        suffix=".tmp",
+        dir=destination.parent,
+    )
+    temporary = Path(temporary_name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=REVIEW_RECORD_COLUMNS, lineterminator="\n")
+            writer.writeheader()
+            for record in records:
+                writer.writerow({column: getattr(record, column) for column in REVIEW_RECORD_COLUMNS})
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, destination)
+        directory_descriptor = os.open(destination.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory_descriptor)
+        finally:
+            os.close(directory_descriptor)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def record_review(
+    project_root: Path | str,
+    *,
+    preview_receipt: str,
+    reviewer: str,
+    review_date: str,
+    technical_decision: str,
+    distribution_decision: str,
+    confirm_reviewed: bool,
+    ledger_path: Path | str | None = None,
+    proposed_readiness: pd.DataFrame | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
+    review_cutoff: str | None = None,
+) -> RecordedDecision:
+    if not confirm_reviewed:
+        raise ReleaseReviewError("confirm_reviewed_required")
+    receipt = _validate_receipt(preview_receipt)
+    reviewer_name = _validate_reviewer(reviewer)
+    reviewed_on = _validate_review_date(review_date)
+    technical = str(technical_decision or "").strip().lower()
+    if technical not in TECHNICAL_DECISIONS:
+        raise ReleaseReviewError("invalid_technical_decision")
+    distribution = str(distribution_decision or "").strip().lower()
+    if distribution not in DISTRIBUTION_DECISIONS:
+        raise ReleaseReviewError("invalid_distribution_decision")
+
+    root = Path(project_root).expanduser().resolve()
+    destination = (
+        Path(ledger_path).expanduser().resolve()
+        if ledger_path is not None
+        else root / REVIEW_RECORD_PATH
+    )
+    with ledger_write_lock(destination):
+        packet = build_release_review(
+            root,
+            allow_record_path_change=True,
+            proposed_readiness=proposed_readiness,
+            rights_registry=rights_registry,
+            review_cutoff=review_cutoff,
+        )
+        if packet.preview_receipt != receipt:
+            raise ReleaseReviewError(
+                f"preview_receipt_mismatch:expected_{receipt}:current_{packet.preview_receipt}"
+            )
+        existing = load_review_records(destination)
+        if any(record.preview_receipt == receipt for record in existing):
+            raise ReleaseReviewError(f"duplicate_preview_receipt:{receipt}")
+        record_id = f"RRR-{reviewed_on.replace('-', '')}-{receipt[:12]}"
+        if any(record.record_id == record_id for record in existing):
+            raise ReleaseReviewError(f"duplicate_record_id:{record_id}")
+        axes = {axis.name: axis.status for axis in packet.axes}
+        record = RecordedDecision(
+            record_id=record_id,
+            preview_receipt=receipt,
+            git_head=packet.git_head,
+            candidate_manifest_digest=packet.candidate_manifest_digest,
+            canonical_source_digest=packet.canonical_source_digest,
+            rights_registry_digest=packet.rights_registry_digest,
+            proof_ledger_digest=packet.proof_ledger_digest,
+            technical_transition_summary=(
+                f"head_to_working={packet.head_to_working.changed_ticker_count};"
+                f"working_to_proposed={packet.working_to_proposed.changed_ticker_count};"
+                f"transitions={len(packet.transitions)}"
+            ),
+            candidate_integrity=axes["candidate_integrity"],
+            technical_transition_review=axes["technical_transition_review"],
+            provenance_review=axes["provenance_review"],
+            commercial_rights_review=axes["commercial_rights_review"],
+            registered_field_scope_review=axes["registered_field_scope_review"],
+            price_lineage_review=axes["price_lineage_review"],
+            historical_proof_binding_review=axes["historical_proof_binding_review"],
+            distribution_review=axes["distribution_review"],
+            staging_hygiene_review=axes["staging_hygiene_review"],
+            technical_decision=technical,
+            distribution_decision=distribution,
+            reviewer=reviewer_name,
+            review_date=reviewed_on,
+            blocker_codes=";".join(packet.blockers),
+            research_only_boundary=RESEARCH_ONLY_BOUNDARY,
+            recorded_at=datetime.now(timezone.utc).isoformat(),
+        )
+        _atomic_write_records(destination, (*existing, record))
+        try:
+            reloaded = load_review_records(destination)
+        except Exception as exc:
+            raise ReleaseReviewError(
+                f"record_write_outcome_uncertain:{record_id}:reload_by_record_id"
+            ) from exc
+        confirmed = next((row for row in reloaded if row.record_id == record_id), None)
+        if confirmed != record:
+            raise ReleaseReviewError(
+                f"record_write_outcome_uncertain:{record_id}:reload_by_record_id"
+            )
+        return record
 
 
 def build_release_review(

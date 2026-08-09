@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 
 import pandas as pd
@@ -92,6 +94,22 @@ def _build_review(root: Path, **kwargs: object):
         rights_registry=_rights_registry(),
         **kwargs,
     )
+
+
+def _record_review(root: Path, receipt: str, **overrides: object):
+    proposed = pd.read_csv(root / "data/reports/ticker_readiness_report.csv")
+    values: dict[str, object] = {
+        "preview_receipt": receipt,
+        "reviewer": "Y. Jian",
+        "review_date": "2026-08-09",
+        "technical_decision": "approved",
+        "distribution_decision": "external_review_required",
+        "confirm_reviewed": True,
+        "proposed_readiness": proposed,
+        "rights_registry": _rights_registry(),
+    }
+    values.update(overrides)
+    return release.record_review(root, **values)
 
 
 def test_candidate_manifest_is_exact_ordered_and_digest_is_deterministic(tmp_path: Path):
@@ -400,3 +418,164 @@ def test_build_release_review_binds_three_way_axes_and_transitions(tmp_path: Pat
     assert tuple(axis.name for axis in packet.axes) == release.AXIS_NAMES
     assert packet.axis("technical_transition_review").status == "passed"
     assert packet.axis("candidate_integrity").status == "passed"
+
+
+def test_record_requires_exact_receipt_and_appends_one_immutable_row(tmp_path: Path):
+    root = _release_repo(tmp_path)
+    packet = _build_review(root)
+
+    record = _record_review(root, packet.preview_receipt)
+
+    rows = release.load_review_records(root / release.REVIEW_RECORD_PATH)
+    assert rows == (record,)
+    assert record.record_id == f"RRR-20260809-{packet.preview_receipt[:12]}"
+    assert record.preview_receipt == packet.preview_receipt
+    assert record.distribution_decision == "external_review_required"
+    assert record.research_only_boundary == "research_only_no_investment_or_execution_action"
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "error"),
+    [
+        ("reviewer", "<reviewer>", "invalid_reviewer"),
+        ("reviewer", "name\nsecond", "invalid_reviewer"),
+        ("review_date", "08/09/2026", "invalid_review_date"),
+        ("technical_decision", "maybe", "invalid_technical_decision"),
+        ("distribution_decision", "assumed", "invalid_distribution_decision"),
+        ("confirm_reviewed", False, "confirm_reviewed_required"),
+    ],
+)
+def test_record_validation_failure_writes_nothing(
+    tmp_path: Path,
+    field: str,
+    value: object,
+    error: str,
+):
+    root = _release_repo(tmp_path)
+    receipt = _build_review(root).preview_receipt
+
+    with pytest.raises(release.ReleaseReviewError, match=error):
+        _record_review(root, receipt, **{field: value})
+
+    assert not (root / release.REVIEW_RECORD_PATH).exists()
+
+
+def test_record_revalidates_inside_lock_and_refuses_stale_receipt(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    root = _release_repo(tmp_path)
+    receipt = _build_review(root).preview_receipt
+    original_lock = release.ledger_write_lock
+
+    @contextmanager
+    def mutate_after_lock(path: Path):
+        with original_lock(path) as locked:
+            _write(root, EXPECTED_CANDIDATE_PATHS[0], "ticker,status\nAAA,changed-after-preview\n")
+            yield locked
+
+    monkeypatch.setattr(release, "ledger_write_lock", mutate_after_lock)
+
+    with pytest.raises(release.ReleaseReviewError, match="preview_receipt_mismatch"):
+        _record_review(root, receipt)
+
+    assert not (root / release.REVIEW_RECORD_PATH).exists()
+
+
+def test_record_rejects_duplicate_receipt_without_appending(tmp_path: Path):
+    root = _release_repo(tmp_path)
+    receipt = _build_review(root).preview_receipt
+    first = _record_review(root, receipt)
+    before = (root / release.REVIEW_RECORD_PATH).read_bytes()
+
+    with pytest.raises(release.ReleaseReviewError, match="duplicate_preview_receipt"):
+        _record_review(root, receipt, reviewer="Second Reviewer")
+
+    assert (root / release.REVIEW_RECORD_PATH).read_bytes() == before
+    assert release.load_review_records(root / release.REVIEW_RECORD_PATH) == (first,)
+
+
+def test_record_replace_failure_preserves_the_prior_ledger(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    root = _release_repo(tmp_path)
+    receipt = _build_review(root).preview_receipt
+    destination = root / release.REVIEW_RECORD_PATH
+
+    def fail_replace(_source: Path, _destination: Path) -> None:
+        raise OSError("replace unavailable")
+
+    monkeypatch.setattr(release.os, "replace", fail_replace)
+
+    with pytest.raises(OSError, match="replace unavailable"):
+        _record_review(root, receipt)
+
+    assert not destination.exists()
+
+
+def test_load_review_records_rejects_duplicate_record_id_and_receipt(tmp_path: Path):
+    path = tmp_path / "reviews.csv"
+    row = {column: "value" for column in release.REVIEW_RECORD_COLUMNS}
+    row.update(
+        {
+            "record_id": "RRR-20260809-aaaaaaaaaaaa",
+            "preview_receipt": "a" * 64,
+            "review_date": "2026-08-09",
+            "technical_decision": "approved",
+            "distribution_decision": "approved",
+        }
+    )
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=release.REVIEW_RECORD_COLUMNS, lineterminator="\n")
+        writer.writeheader()
+        writer.writerow(row)
+        writer.writerow(row)
+
+    with pytest.raises(release.ReleaseReviewError, match="duplicate_record_id"):
+        release.load_review_records(path)
+
+
+def test_post_write_reload_error_reports_uncertain_outcome_by_record_id(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    root = _release_repo(tmp_path)
+    receipt = _build_review(root).preview_receipt
+    original_load = release.load_review_records
+    calls = 0
+
+    def fail_post_write_reload(path: Path):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise release.ReleaseReviewError("simulated_reload_failure")
+        return original_load(path)
+
+    monkeypatch.setattr(release, "load_review_records", fail_post_write_reload)
+
+    with pytest.raises(
+        release.ReleaseReviewError,
+        match=f"record_write_outcome_uncertain:RRR-20260809-{receipt[:12]}:reload_by_record_id",
+    ):
+        _record_review(root, receipt)
+
+    assert original_load(root / release.REVIEW_RECORD_PATH)[0].preview_receipt == receipt
+
+
+def test_record_appends_a_new_receipt_without_rewriting_the_prior_row(tmp_path: Path):
+    root = _release_repo(tmp_path)
+    first_packet = _build_review(root)
+    first = _record_review(root, first_packet.preview_receipt)
+    _write(root, "data/fundamentals.csv", "ticker,source\nAAA,changed_source\n")
+    proposed = pd.read_csv(root / "data/reports/ticker_readiness_report.csv")
+    second_packet = release.build_release_review(
+        root,
+        allow_record_path_change=True,
+        proposed_readiness=proposed,
+        rights_registry=_rights_registry(),
+    )
+
+    second = _record_review(root, second_packet.preview_receipt, review_date="2026-08-10")
+
+    assert release.load_review_records(root / release.REVIEW_RECORD_PATH) == (first, second)
