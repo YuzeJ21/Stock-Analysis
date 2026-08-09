@@ -1988,7 +1988,7 @@ def _print_human(
     if suppress_execution:
         command_rows = [
             {
-                "Step": "Inspect stale readiness impact",
+                "Step": "Inspect readiness evidence impact",
                 "Command": continuation_gate.next_safe_command,
                 "Reason": "Compare saved and proposed stable readiness states in memory before any reviewed rebuild decision.",
                 "FreshnessContext": "Inspection only; this does not make saved readiness current.",
@@ -2014,7 +2014,8 @@ def _print_human(
     if suppress_execution:
         print(
             f"- Best next proof: {continuation_gate.next_safe_command} for no-write readiness impact inspection; "
-            "source and coverage execution stays paused until readiness is current or a separate reviewed rebuild is authorized."
+            "source and coverage execution stays paused until readiness is current and tracked, or a separate "
+            "reviewed readiness decision is authorized."
         )
     elif first_command == "make provider-setup-checklist":
         print(

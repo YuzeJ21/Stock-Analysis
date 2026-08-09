@@ -295,6 +295,20 @@ def test_session_source_preflight_pivots_to_peer_lane_when_no_source_path_is_ava
     assert "do not run broad coverage batches" in rendered
     assert "Run the price dry run first" not in rendered
 
+    gate = ContinuationGate(
+        state="inspection_only",
+        next_safe_command="make readiness-preview TOP_N=20",
+        reason="Readiness artifacts differ from HEAD and are not tracked release evidence.",
+        rebuild_command="make readiness-preview TOP_N=20",
+        stop_rule="Do not start broad source-proof work from uncommitted readiness evidence.",
+        suppress_execution=True,
+    )
+    gated_rendered = render_session_source_preflight(
+        session_source_preflight.apply_continuation_gate(preflight, gate)
+    )
+    assert "Readiness continuation gate: inspection_only" in gated_rendered
+    assert "Stale readiness continuation gate" not in gated_rendered
+
 
 def test_session_source_preflight_reports_sec_submissions_as_metadata_only(tmp_path: Path, monkeypatch):
     _clear_provider_env(monkeypatch)

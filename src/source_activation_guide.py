@@ -9,7 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from src.continuation_gate import build_continuation_gate
+from src.continuation_gate import READINESS_CONTINUATION_GATE_HEADING, build_continuation_gate
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.profile_context import build_profile_context
 from src.profile_context import READINESS_PREVIEW_NOTE
@@ -671,7 +671,7 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
         lines.extend(
             [
                 "",
-                f"Stale readiness continuation gate: {continuation_gate.get('state', '-')}",
+                f"{READINESS_CONTINUATION_GATE_HEADING}: {continuation_gate.get('state', '-')}",
                 f"- Next safe preview: {continuation_gate.get('next_safe_command', '-')}",
                 f"- Reason: {continuation_gate.get('reason', '-')}",
                 "- Planning context only: provider rows and setup classifications below do not authorize source execution.",

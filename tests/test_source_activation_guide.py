@@ -42,7 +42,8 @@ def test_provider_setup_checklist_routes_stale_readiness_to_inspection_only(monk
     )
     assert checklist["current_gate"]["next_step"] == "make readiness-preview TOP_N=20"
     assert checklist["continuation_gate"]["state"] == "inspection_only"
-    assert "Stale readiness continuation gate: inspection_only" in rendered
+    assert "Readiness continuation gate: inspection_only" in rendered
+    assert "Stale readiness continuation gate" not in rendered
     assert "Planning context only" in rendered
     assert "next_step: make readiness-preview TOP_N=20" in rendered
     assert "next_step: make coverage-frontier TOP_N=10" not in rendered

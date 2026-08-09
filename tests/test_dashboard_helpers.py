@@ -601,6 +601,7 @@ def test_data_health_auto_refresh_status_cards_read_cached_preflight(tmp_path: P
     assert "coverage_workflow_evidence" not in rendered
     assert "fundamentals_share_count_source_ladder" not in rendered
     assert "generated csv/json/report churn stays excluded" in rendered
+    assert "until readiness is current and tracked" in rendered
 
 
 def test_data_health_source_activation_setup_cards_use_guide_without_secrets(monkeypatch):

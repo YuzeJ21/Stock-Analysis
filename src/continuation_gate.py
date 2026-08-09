@@ -13,6 +13,9 @@ from src.profile_context import (
 )
 
 
+READINESS_CONTINUATION_GATE_HEADING = "Readiness continuation gate"
+
+
 @dataclass(frozen=True)
 class ContinuationGate:
     state: str

@@ -9,7 +9,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from src.continuation_gate import ContinuationGate, build_continuation_gate
+from src.continuation_gate import (
+    READINESS_CONTINUATION_GATE_HEADING,
+    ContinuationGate,
+    build_continuation_gate,
+)
 from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_proof_queue_from_files, summarize_missing_input_families
 from src.paths import resolve_data_dir, resolve_data_profile, resolve_outputs_dir, resolve_project_root
 from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE, build_profile_context, render_profile_context_text
@@ -1645,7 +1649,7 @@ def render_coverage_frontier(
     if continuation_gate is not None and continuation_gate.suppress_execution:
         lines.extend(
             [
-                f"Stale readiness continuation gate: {continuation_gate.state}",
+                f"{READINESS_CONTINUATION_GATE_HEADING}: {continuation_gate.state}",
                 f"- Next safe preview: {continuation_gate.next_safe_command}",
                 f"- Reason: {continuation_gate.reason}",
                 "- Ranked rows below are planning context only; do not execute their source or coverage commands from stale readiness.",

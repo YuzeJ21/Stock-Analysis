@@ -65,7 +65,8 @@ def test_auto_refresh_status_routes_stale_readiness_to_inspection_only():
     assert payload["can_run_now"] == "inspection_only"
     assert payload["next_executable_command"] == "make readiness-preview TOP_N=20"
     assert payload["continuation_gate"]["suppress_execution"] is True
-    assert "Stale readiness continuation gate: inspection_only" in status
+    assert "Readiness continuation gate: inspection_only" in status
+    assert "Stale readiness continuation gate" not in status
     assert "refresh_operations below are planning context only" in status
     assert "next_executable_command: make coverage-frontier TOP_N=10" not in status
     assert "Start:\n- make readiness-preview TOP_N=20" in runbook

@@ -657,7 +657,7 @@ def auto_refresh_status_cards(status_payload: dict[str, object] | None) -> list[
     next_card_command = next_command if inspection_only else next_runbook
     next_card_body = (
         "Inspect the saved-versus-proposed readiness impact without writing files. Scheduled operations remain "
-        "planning context until readiness is current or a separate reviewed rebuild is authorized."
+        "planning context until readiness is current and tracked, or a separate reviewed readiness decision is authorized."
         if inspection_only
         else (
             "Use the compact runbook for the selected schedule. It keeps validation, preview, apply boundary, "

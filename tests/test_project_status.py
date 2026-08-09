@@ -803,7 +803,8 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
     assert "Read-only operator snapshot." not in output
     assert "Commands below are copy-only local research helpers" in output
     assert "Recommended next local steps:" in output
-    assert "inspect stale readiness impact: make readiness-preview top_n=20" in output.lower()
+    assert "inspect readiness evidence impact: make readiness-preview top_n=20" in output.lower()
+    assert "inspect stale readiness impact" not in output.lower()
     assert "make trusted-data-pilot-candidates" not in output
     assert "Local folders:" in output
     assert "data: data" in output

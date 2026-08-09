@@ -6,7 +6,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
-from src.continuation_gate import ContinuationGate, build_continuation_gate
+from src.continuation_gate import (
+    READINESS_CONTINUATION_GATE_HEADING,
+    ContinuationGate,
+    build_continuation_gate,
+)
 from src.profile_context import build_profile_context
 from src.profile_context import READINESS_PREVIEW_NOTE
 from src.reviewed_batch_proof import (
@@ -471,7 +475,7 @@ def render_scheduler_runbook(
     if continuation_gate is not None and continuation_gate.suppress_execution:
         lines.extend(
             [
-                f"Stale readiness continuation gate: {continuation_gate.state}",
+                f"{READINESS_CONTINUATION_GATE_HEADING}: {continuation_gate.state}",
                 f"- Reason: {continuation_gate.reason}",
                 "- Lane policies below are planning context only.",
                 f"- Inspection boundary: {continuation_gate.next_safe_command}. {READINESS_PREVIEW_NOTE}",
@@ -573,7 +577,7 @@ def render_auto_refresh_status(
         lines.extend(
             [
                 "",
-                f"Stale readiness continuation gate: {continuation_gate.state}",
+                f"{READINESS_CONTINUATION_GATE_HEADING}: {continuation_gate.state}",
                 f"- Next safe preview: {continuation_gate.next_safe_command}",
                 f"- Reason: {continuation_gate.reason}",
                 "- refresh_operations below are planning context only; they are not executable routing.",

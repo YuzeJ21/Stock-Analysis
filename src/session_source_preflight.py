@@ -16,7 +16,11 @@ from urllib.request import Request, urlopen
 
 import pandas as pd
 
-from src.continuation_gate import ContinuationGate, build_continuation_gate
+from src.continuation_gate import (
+    READINESS_CONTINUATION_GATE_HEADING,
+    ContinuationGate,
+    build_continuation_gate,
+)
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.profile_context import build_profile_context
 from src.profile_context import READINESS_PREVIEW_NOTE
@@ -1189,7 +1193,7 @@ def render_session_source_preflight(preflight: dict[str, Any]) -> str:
     continuation_gate = preflight.get("continuation_gate", {})
     if isinstance(continuation_gate, dict) and continuation_gate.get("suppress_execution"):
         lines[1:1] = [
-            f"Stale readiness continuation gate: {continuation_gate.get('state', '-')}",
+            f"{READINESS_CONTINUATION_GATE_HEADING}: {continuation_gate.get('state', '-')}",
             f"- Next safe preview: {continuation_gate.get('next_safe_command', '-')}",
             f"- Reason: {continuation_gate.get('reason', '-')}",
             "- Source availability and lane details below are planning context only; they do not authorize execution.",
