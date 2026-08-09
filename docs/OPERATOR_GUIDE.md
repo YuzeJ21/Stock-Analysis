@@ -267,3 +267,19 @@ See `docs/analysis_capability_audit.md` for the deeper function-quality and prov
 The shipped analysis comes from project code under `src/` plus trusted local CSV inputs. Standard Python libraries support data handling, UI, and tests; optional `yfinance` is only a research-grade adapter.
 
 Support tools and libraries are not the stock-analysis rules. The shipped readiness gates, valuation gates, decision buckets, and research-only guardrails come from project code under `src/` plus trusted local CSV inputs.
+
+## Review A Readiness Release Candidate
+
+Run the exact default-profile sequence:
+
+```bash
+make readiness-release-review TOP_N=20
+make readiness-release-record PREVIEW_RECEIPT=<exact_receipt> REVIEWER=<named_reviewer> REVIEW_DATE=<yyyy-mm-dd> TECHNICAL_DECISION=<approved|rejected> DISTRIBUTION_DECISION=<approved|rejected|external_review_required> CONFIRM_REVIEWED=1
+make readiness-release-guard RECORD_ID=<record_id>
+```
+
+Review and guard are read-only. Record is the only writer and appends one exact-receipt-bound row to `data/readiness_release_reviews.csv`. Use `rejected` or `external_review_required` when that is the evidence; those decisions remain blocked. Never rerun record blindly after an uncertain write result—reload the printed record ID first.
+
+Stop and rerun review if any candidate byte, source input, rights registry, proof ledger, Git head, path set, review axis, decision, or staged state changes. A passing guard prints the exact named candidate and record paths; inspect those paths before staging.
+
+This workflow does not change readiness and does not grant source rights. It does not replace independent review, legal or distribution approval, source-owner evidence, current-market data, accessibility review, hosted validation, calibration, or pilot evidence.

@@ -2301,3 +2301,22 @@ def test_release_docs_describe_the_monitor_follow_up_queue_without_market_or_tra
     assert "confidence percentage" not in combined
     assert "risk budget" not in combined
     assert "trade trigger" not in combined
+
+
+def test_readiness_release_docs_keep_technical_and_distribution_review_separate():
+    for path in (
+        "ROADMAP.md",
+        "docs/NEXT_STAGE_ROADMAP.md",
+        "docs/DATA_STRATEGY.md",
+        "docs/OPERATOR_GUIDE.md",
+    ):
+        text = _read(path)
+        lowered = text.lower()
+        assert "make readiness-release-review TOP_N=20" in text
+        assert "make readiness-release-record" in text
+        assert "make readiness-release-guard RECORD_ID=<record_id>" in text
+        assert "does not grant source rights" in lowered
+        assert "does not change readiness" in lowered
+        assert "independent review" in lowered
+        assert "external_review_required" in text
+        assert "git add -A" not in text

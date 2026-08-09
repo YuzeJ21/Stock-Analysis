@@ -313,3 +313,7 @@ A narrow intended scope, exact-source rights/provenance, validation, preview, re
 - Model-generated sizing, allocation, stop-loss, take-profit, or post-earnings price prediction.
 - Fabricated data, forecasts, probabilities, peers, events, sources, timestamps, rights, reviewers, demand, or recommendations.
 - Promoting candidate context, stale rows, synthetic fixtures, screenshots, provider setup, or empty ledgers into trusted evidence.
+
+## Readiness Release Evidence Contract
+
+Run `make readiness-release-review TOP_N=20`; record the exact receipt with `make readiness-release-record PREVIEW_RECEIPT=<exact_receipt> REVIEWER=<named_reviewer> REVIEW_DATE=<yyyy-mm-dd> TECHNICAL_DECISION=<approved|rejected> DISTRIBUTION_DECISION=<approved|rejected|external_review_required> CONFIRM_REVIEWED=1`; then run `make readiness-release-guard RECORD_ID=<record_id>`. Review and guard are read-only; record may preserve a blocked outcome. Guard requires approved decisions, matching axes/head/bytes/digests, and unstaged state before printing named paths. This workflow does not change readiness and does not grant source rights; it cannot replace independent review, external evidence, legal/distribution/accessibility approval, hosted validation, calibration, or pilot evidence. Restart review after any relevant change.

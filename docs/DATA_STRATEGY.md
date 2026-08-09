@@ -329,3 +329,17 @@ Operator mode also shows a compact SPY/QQQ metric-readiness queue in Data Health
 - Broad generated CSV churn in the public branch.
 
 The product should get more useful by improving trusted coverage and proof paths, not by filling missing fields with guesses.
+
+## Readiness Release Evidence Contract
+
+Technical readiness and release eligibility are reviewed separately:
+
+```bash
+make readiness-release-review TOP_N=20
+make readiness-release-record PREVIEW_RECEIPT=<exact_receipt> REVIEWER=<named_reviewer> REVIEW_DATE=<yyyy-mm-dd> TECHNICAL_DECISION=<approved|rejected> DISTRIBUTION_DECISION=<approved|rejected|external_review_required> CONFIRM_REVIEWED=1
+make readiness-release-guard RECORD_ID=<record_id>
+```
+
+Review compares tracked Head, the exact working candidate, and fresh in-memory readiness. It keeps provenance, commercial rights, registered field scope, DCF price lineage, historical proof binding, distribution review, and staging hygiene as independent axes. A record can preserve a rejected or `external_review_required` decision without promoting the candidate. Guard stops on any receipt, digest, Git head, path, axis, decision, candidate-byte, or staged-state mismatch.
+
+This workflow does not change readiness and does not grant source rights. SEC commercial approval does not expand registered fields, a supported field does not create commercial permission, and composite source strings never borrow component rights. It cannot replace independent review, source-owner or legal approval, current external data, accessibility evidence, hosted validation, or calibration.

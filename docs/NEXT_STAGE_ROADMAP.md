@@ -25,3 +25,17 @@ Historical pre-fix evidence: Task 4 local matrix completed at `c8c313b9c`. If th
 Priority 7 remains open. Preserve its external manual-accessibility boundary: point-in-time data, consensus, peer review, hosted controls, independent sessions, assistive-technology review, and calibration remain incomplete and must be classified once rather than retried without changed evidence.
 
 The observation-recency UX repair and framework reliability slices must remain write-free with respect to readiness, canonical data, research ledgers, CSV, JSON, reports, screenshots, and timing artifacts. Preserve the product boundary: data readiness first, analysis second, research decision last; no investment advice, broker integration, order routing, auto-trading, direct buy/sell instructions, or fabricated data.
+
+## Readiness Release Evidence Contract
+
+Use this sequence for the named default-profile readiness candidate:
+
+```bash
+make readiness-release-review TOP_N=20
+make readiness-release-record PREVIEW_RECEIPT=<exact_receipt> REVIEWER=<named_reviewer> REVIEW_DATE=<yyyy-mm-dd> TECHNICAL_DECISION=<approved|rejected> DISTRIBUTION_DECISION=<approved|rejected|external_review_required> CONFIRM_REVIEWED=1
+make readiness-release-guard RECORD_ID=<record_id>
+```
+
+The first and third commands are read-only. The record may truthfully preserve `rejected` or `external_review_required`; neither can pass guard. Stop and restart from review after any candidate byte, source, rights registry, proof ledger, Git head, path set, axis, decision, or staged-state change. A passing guard prints only exact named staging paths and never stages them.
+
+This local contract does not change readiness and does not grant source rights. It does not substitute for independent review, external data, legal or distribution approval, hosted operation, accessibility review, calibration, or pilot evidence. The current package remains commercially withheld while those direct proofs are absent.
