@@ -95,9 +95,13 @@ def test_dcf_source_command_triage_summarizes_blocked_and_review_gates():
     ]
     assert triage.iloc[0]["Count"] == 2
     assert "source_file_or_url" in triage.iloc[0]["Review Boundary"]
-    assert triage.iloc[0]["Next Safe Action"] == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
+    assert triage.iloc[0]["Next Safe Action"] == (
+        "make dcf-input-source-review FAMILY=shares_outstanding TICKERS=META TOP_N=10"
+    )
     assert cards[0]["title"].startswith("shares_outstanding: needs source fields: 2")
-    assert cards[0]["command"] == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
+    assert cards[0]["command"] == (
+        "make dcf-input-source-review FAMILY=shares_outstanding TICKERS=META TOP_N=10"
+    )
     assert "next safest action" in lowered
     assert "fill fields, run the guard, validate/preview, or stop" in lowered
     assert "no fabricated unlocks" in lowered

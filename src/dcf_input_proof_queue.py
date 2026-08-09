@@ -1076,6 +1076,7 @@ def build_dcf_input_source_command_plan(
     first = review_rows[0]
     family_key = first.input_family
     ticker = first.ticker
+    ticker_scope = ",".join(dict.fromkeys(row.ticker for row in review_rows if row.ticker))
     selected_profile = resolve_readiness_proof_profile()
     guard_command = f"make dcf-input-source-guard {_make_assignments(_reviewed_value_assignments(first))}"
     handoff = build_dcf_input_proof_handoff(
@@ -1089,7 +1090,10 @@ def build_dcf_input_source_command_plan(
         DcfInputSourceCommandPlan(
             step="1. Open source-review intake",
             status=first.completion_status,
-            command=f"make dcf-input-source-review FAMILY={family_key} TOP_N={max(limit, 0) or 10}",
+            command=(
+                f"make dcf-input-source-review FAMILY={family_key} "
+                f"TICKERS={ticker_scope} TOP_N={max(limit, 0) or 10}"
+            ),
             fields_to_fill=missing_fields,
             review_boundary="Use this first to see source fields before editing import rows or proof records.",
         ),
@@ -1131,7 +1135,10 @@ def build_dcf_input_source_command_plan(
         DcfInputSourceCommandPlan(
             step="7. Proof handoff",
             status="dry_run_first",
-            command=f"make dcf-input-proof-handoff FAMILY={family_key} TOP_N={max(limit, 0) or 10}",
+            command=(
+                f"make dcf-input-proof-handoff FAMILY={family_key} "
+                f"TICKERS={ticker_scope} TOP_N={max(limit, 0) or 10}"
+            ),
             fields_to_fill="changed counts, changed tickers, source files, generated artifact review",
             review_boundary=handoff.record_boundary,
         ),

@@ -845,7 +845,7 @@ def test_dcf_input_source_command_plan_builds_copy_only_guard_sequence(monkeypat
         "6. Rebuild DCF proof",
         "7. Proof handoff",
     ]
-    assert plan[0].command == "make dcf-input-source-review FAMILY=shares_outstanding TOP_N=10"
+    assert plan[0].command == "make dcf-input-source-review FAMILY=shares_outstanding TICKERS=AMD TOP_N=10"
     assert plan[1].status == "blocked_until_reviewed_fields_filled"
     assert "make dcf-input-source-guard" in plan[1].command
     assert "TICKER=AMD" in plan[1].command
@@ -854,7 +854,7 @@ def test_dcf_input_source_command_plan_builds_copy_only_guard_sequence(monkeypat
     assert plan[3].command == "make imports-preview"
     assert plan[4].command == "make imports-apply"
     assert "do not run apply unless source proof" in plan[4].review_boundary.lower()
-    assert plan[6].command == "make dcf-input-proof-handoff FAMILY=shares_outstanding TOP_N=10"
+    assert plan[6].command == "make dcf-input-proof-handoff FAMILY=shares_outstanding TICKERS=AMD TOP_N=10"
     assert "read-only" in rendered
     assert "research-only" in rendered
     assert "buy now" not in rendered

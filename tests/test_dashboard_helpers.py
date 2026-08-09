@@ -1097,7 +1097,9 @@ def test_trusted_fundamentals_source_review_summary_starts_from_top_proof_queue_
     row = frame.iloc[0]
     assert row["Top Blocker Family"] == "fundamentals_bundle_plus_shares"
     assert row["Selected Tickers"] == "AACB"
-    assert row["Source Command Plan"] == "make dcf-input-source-review FAMILY=fundamentals_bundle_plus_shares TOP_N=10"
+    assert row["Source Command Plan"] == (
+        "make dcf-input-source-review FAMILY=fundamentals_bundle_plus_shares TICKERS=AACB TOP_N=10"
+    )
     assert row["Command Readiness"] == "blocked_by_placeholders"
     assert "Fill reviewed source fields" in row["Finish Source Review Checklist"]
     assert row["Source Guard Status"] == "needs_field_fills"
@@ -1118,7 +1120,10 @@ def test_trusted_fundamentals_source_review_summary_starts_from_top_proof_queue_
         "Proof-record dry run",
     ]
     assert "blocked_by_placeholders" in set(command_frame["Status"])
-    assert "make dcf-input-source-review family=fundamentals_bundle_plus_shares top_n=10" in rendered_commands
+    assert (
+        "make dcf-input-source-review family=fundamentals_bundle_plus_shares tickers=aacb top_n=10"
+        in rendered_commands
+    )
     assert "blocked until reviewed fields are filled" in rendered_commands
     assert "make imports-validate" in rendered_commands
     assert "make imports-preview" in rendered_commands
