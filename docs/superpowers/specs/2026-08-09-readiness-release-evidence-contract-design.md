@@ -1,7 +1,7 @@
 # Readiness Release Evidence Contract
 
 **Date:** 2026-08-09
-**Status:** Option A approved by the owner; written-spec review pending
+**Status:** Approved by the owner for implementation
 **Scope:** Default-profile readiness release evidence only
 
 ## Problem
