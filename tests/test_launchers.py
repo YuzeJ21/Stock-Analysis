@@ -1,4 +1,5 @@
 import csv
+import json
 import os
 import re
 import subprocess
@@ -64,6 +65,69 @@ def _reachable_make_targets(makefile: str, initial: str) -> set[str]:
                 )
         pending.extend(sorted(referenced & known))
     return reachable
+
+
+def test_readiness_release_make_requires_record_and_guard_inputs_without_writing(tmp_path: Path):
+    makefile = Path("Makefile").resolve()
+    before = _tree_manifest(tmp_path)
+
+    record = subprocess.run(
+        ["make", "--no-print-directory", "-f", str(makefile), "readiness-release-record"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    guard = subprocess.run(
+        ["make", "--no-print-directory", "-f", str(makefile), "readiness-release-guard"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert record.returncode != 0
+    assert "PREVIEW_RECEIPT is required" in record.stderr
+    assert guard.returncode != 0
+    assert "RECORD_ID is required" in guard.stderr
+    assert _tree_manifest(tmp_path) == before
+
+
+def test_readiness_release_review_make_is_json_and_write_free():
+    from src.readiness_release_review import AXIS_NAMES, CANDIDATE_PATHS
+
+    root = Path.cwd()
+    before_files = {item.path: (root / item.path).read_bytes() for item in CANDIDATE_PATHS}
+    before_status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        cwd=root,
+        capture_output=True,
+        check=True,
+    ).stdout
+
+    result = subprocess.run(
+        ["make", "--no-print-directory", "readiness-release-review", "TOP_N=1", "JSON=1"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+
+    after_files = {item.path: (root / item.path).read_bytes() for item in CANDIDATE_PATHS}
+    after_status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        cwd=root,
+        capture_output=True,
+        check=True,
+    ).stdout
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0, result.stderr
+    assert len(payload["preview_receipt"]) == 64
+    assert payload["working_to_proposed"]["changed_ticker_count"] == 0
+    assert [axis["name"] for axis in payload["axes"]] == list(AXIS_NAMES)
+    assert after_files == before_files
+    assert after_status == before_status
 
 
 def test_make_reachability_tracks_every_target_on_recursive_multi_target_lines():

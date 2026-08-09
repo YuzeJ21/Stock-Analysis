@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import csv
+import json
+import shlex
 import subprocess
 from contextlib import contextmanager
 from pathlib import Path
@@ -579,3 +581,139 @@ def test_record_appends_a_new_receipt_without_rewriting_the_prior_row(tmp_path: 
     second = _record_review(root, second_packet.preview_receipt, review_date="2026-08-10")
 
     assert release.load_review_records(root / release.REVIEW_RECORD_PATH) == (first, second)
+
+
+def _tree_snapshot(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file() and ".git" not in path.relative_to(root).parts
+    }
+
+
+def _evaluate_guard(root: Path, record_id: str):
+    proposed = pd.read_csv(root / "data/reports/ticker_readiness_report.csv")
+    return release.evaluate_guard(
+        root,
+        record_id=record_id,
+        proposed_readiness=proposed,
+        rights_registry=_rights_registry(),
+    )
+
+
+def test_guard_refuses_external_review_required_and_is_write_free(tmp_path: Path):
+    root = _release_repo(tmp_path)
+    receipt = _build_review(root).preview_receipt
+    record = _record_review(root, receipt, distribution_decision="external_review_required")
+    before = _tree_snapshot(root)
+
+    result = _evaluate_guard(root, record.record_id)
+
+    assert result.status == "blocked"
+    assert result.blockers == ("distribution_decision_not_approved",)
+    assert _tree_snapshot(root) == before
+
+
+def test_guard_passes_only_exact_approved_record_and_prints_named_paths(tmp_path: Path):
+    root = _release_repo(tmp_path)
+    receipt = _build_review(root).preview_receipt
+    record = _record_review(root, receipt, distribution_decision="approved")
+
+    result = _evaluate_guard(root, record.record_id)
+    rendered = release.render_guard(result)
+
+    assert result.status == "passed"
+    assert result.stage_paths == (release.REVIEW_RECORD_PATH, *EXPECTED_CANDIDATE_PATHS)
+    assert rendered.endswith(
+        "git add -- " + " ".join(shlex.quote(path) for path in result.stage_paths)
+    )
+    assert "git add -A" not in rendered
+    assert _run_git(root, "diff", "--cached", "--name-only").stdout == ""
+
+
+def test_guard_reports_exact_stale_dependency_without_writing(tmp_path: Path):
+    root = _release_repo(tmp_path)
+    receipt = _build_review(root).preview_receipt
+    record = _record_review(root, receipt, distribution_decision="approved")
+    _write(root, "data/prices.csv", "ticker,date,close\nAAA,2026-08-09,22\n")
+    before = _tree_snapshot(root)
+
+    result = _evaluate_guard(root, record.record_id)
+
+    assert result.status == "blocked"
+    assert "record_receipt_mismatch" in result.blockers
+    assert "canonical_source_digest_mismatch" in result.blockers
+    assert _tree_snapshot(root) == before
+
+
+def test_review_json_renderer_exposes_every_axis_and_receipt(tmp_path: Path):
+    packet = _build_review(_release_repo(tmp_path))
+
+    payload = json.loads(release.render_release_review_json(packet))
+
+    assert payload["preview_receipt"] == packet.preview_receipt
+    assert [axis["name"] for axis in payload["axes"]] == list(release.AXIS_NAMES)
+    assert payload["research_only_boundary"] == release.RESEARCH_ONLY_BOUNDARY
+
+
+def test_main_review_json_returns_zero_and_machine_readable_packet(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    packet = _build_review(_release_repo(tmp_path))
+    monkeypatch.setattr(release, "build_release_review", lambda *args, **kwargs: packet)
+
+    status = release.main(["review", "--project-root", str(tmp_path), "--json"])
+    captured = capsys.readouterr()
+
+    assert status == 0
+    assert json.loads(captured.out)["preview_receipt"] == packet.preview_receipt
+    assert captured.err == ""
+
+
+def test_main_record_validation_error_is_stable_and_traceback_free(capsys: pytest.CaptureFixture[str]):
+    status = release.main(
+        [
+            "record",
+            "--project-root",
+            ".",
+            "--preview-receipt",
+            "invalid",
+            "--reviewer",
+            "Y. Jian",
+            "--review-date",
+            "2026-08-09",
+            "--technical-decision",
+            "approved",
+            "--distribution-decision",
+            "approved",
+            "--confirm-reviewed",
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert status == 2
+    assert captured.err.strip() == "readiness_release_error: invalid_preview_receipt"
+    assert "Traceback" not in captured.err
+
+
+def test_main_blocked_guard_returns_two(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    result = release.GuardResult(
+        status="blocked",
+        record_id="RRR-1",
+        blockers=("distribution_decision_not_approved",),
+        stage_paths=(),
+        resume_command="make readiness-release-review TOP_N=20",
+    )
+    monkeypatch.setattr(release, "evaluate_guard", lambda *args, **kwargs: result)
+
+    status = release.main(["guard", "--project-root", ".", "--record-id", "RRR-1"])
+    captured = capsys.readouterr()
+
+    assert status == 2
+    assert "distribution_decision_not_approved" in captured.out
+    assert captured.err == ""

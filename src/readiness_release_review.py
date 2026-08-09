@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import csv
 import io
 import json
 import os
 import re
+import shlex
 import stat
 import subprocess
+import sys
 import tempfile
 from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timezone
@@ -114,6 +117,15 @@ class RecordedDecision:
     blocker_codes: str
     research_only_boundary: str
     recorded_at: str
+
+
+@dataclass(frozen=True)
+class GuardResult:
+    status: str
+    record_id: str
+    blockers: tuple[str, ...]
+    stage_paths: tuple[str, ...]
+    resume_command: str
 
 
 @dataclass(frozen=True)
@@ -818,6 +830,188 @@ def record_review(
         return record
 
 
+def evaluate_guard(
+    project_root: Path | str,
+    *,
+    record_id: str,
+    ledger_path: Path | str | None = None,
+    proposed_readiness: pd.DataFrame | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
+    review_cutoff: str | None = None,
+) -> GuardResult:
+    selected_id = str(record_id or "").strip()
+    if not selected_id:
+        raise ReleaseReviewError("record_id_required")
+    root = Path(project_root).expanduser().resolve()
+    destination = (
+        Path(ledger_path).expanduser().resolve()
+        if ledger_path is not None
+        else root / REVIEW_RECORD_PATH
+    )
+    records = load_review_records(destination)
+    matches = tuple(record for record in records if record.record_id == selected_id)
+    if not matches:
+        raise ReleaseReviewError(f"record_id_not_found:{selected_id}")
+    if len(matches) != 1:
+        raise ReleaseReviewError(f"duplicate_record_id:{selected_id}")
+    record = matches[0]
+    expected_id = f"RRR-{record.review_date.replace('-', '')}-{record.preview_receipt[:12]}"
+    if record.record_id != expected_id:
+        raise ReleaseReviewError(f"record_id_binding_invalid:{record.record_id}")
+
+    packet = build_release_review(
+        root,
+        allow_record_path_change=True,
+        proposed_readiness=proposed_readiness,
+        rights_registry=rights_registry,
+        review_cutoff=review_cutoff,
+    )
+    blockers: list[str] = []
+    if record.technical_decision != "approved":
+        blockers.append("technical_decision_not_approved")
+    if record.distribution_decision != "approved":
+        blockers.append("distribution_decision_not_approved")
+    if record.preview_receipt != packet.preview_receipt:
+        blockers.append("record_receipt_mismatch")
+    for name, recorded, current in (
+        ("git_head", record.git_head, packet.git_head),
+        ("candidate_manifest_digest", record.candidate_manifest_digest, packet.candidate_manifest_digest),
+        ("canonical_source_digest", record.canonical_source_digest, packet.canonical_source_digest),
+        ("rights_registry_digest", record.rights_registry_digest, packet.rights_registry_digest),
+        ("proof_ledger_digest", record.proof_ledger_digest, packet.proof_ledger_digest),
+    ):
+        if recorded != current:
+            blockers.append(f"{name}_mismatch")
+    mandatory_axes = tuple(name for name in AXIS_NAMES if name != "distribution_review")
+    for name in mandatory_axes:
+        current = packet.axis(name).status
+        recorded = str(getattr(record, name))
+        if recorded != current:
+            blockers.append(f"axis_status_mismatch:{name}")
+        if current != "passed":
+            blockers.append(f"axis_not_passed:{name}:{current}")
+    stable_blockers = tuple(sorted(set(blockers)))
+    return GuardResult(
+        status="blocked" if stable_blockers else "passed",
+        record_id=selected_id,
+        blockers=stable_blockers,
+        stage_paths=(REVIEW_RECORD_PATH, *(spec.path for spec in CANDIDATE_PATHS)) if not stable_blockers else (),
+        resume_command="make readiness-release-review TOP_N=20",
+    )
+
+
+def render_guard(result: GuardResult) -> str:
+    lines = [
+        "Readiness Release Guard",
+        f"Status: {result.status}",
+        f"Record ID: {result.record_id}",
+    ]
+    if result.blockers:
+        lines.append("Blockers:")
+        lines.extend(f"- {blocker}" for blocker in result.blockers)
+        lines.append(f"Safe resume: {result.resume_command}")
+    else:
+        command = "git add -- " + " ".join(shlex.quote(path) for path in result.stage_paths)
+        lines.extend(
+            [
+                "Guard passed. Review the named paths, then stage only this exact package:",
+                command,
+            ]
+        )
+    return "\n".join(lines)
+
+
+def _packet_payload(packet: ReleaseReviewPacket) -> dict[str, object]:
+    return {
+        **asdict(packet),
+        "research_only_boundary": RESEARCH_ONLY_BOUNDARY,
+    }
+
+
+def render_release_review_json(packet: ReleaseReviewPacket) -> str:
+    return json.dumps(_packet_payload(packet), sort_keys=True, ensure_ascii=False)
+
+
+def render_release_review(packet: ReleaseReviewPacket) -> str:
+    lines = [
+        "Readiness Release Review",
+        f"Overall status: {packet.overall_status}",
+        f"Preview receipt: {packet.preview_receipt}",
+        f"Git head: {packet.git_head}",
+        f"Branch: {packet.branch}",
+        f"Candidate paths: {len(packet.candidate_paths)}",
+        f"Head to working changed tickers: {packet.head_to_working.changed_ticker_count}",
+        f"Working to in-memory changed tickers: {packet.working_to_proposed.changed_ticker_count}",
+        "Review axes:",
+    ]
+    lines.extend(
+        f"- {axis.name}: {axis.status} ({len(axis.blockers)} blocker(s))"
+        for axis in packet.axes
+    )
+    if packet.blockers:
+        lines.append("Top blockers:")
+        lines.extend(f"- {blocker}" for blocker in packet.blockers[: packet.top_n])
+        hidden = len(packet.blockers) - min(len(packet.blockers), packet.top_n)
+        if hidden:
+            lines.append(f"- ... {hidden} additional blocker(s) hidden by TOP_N={packet.top_n}")
+    lines.append(f"Boundary: {RESEARCH_ONLY_BOUNDARY}")
+    return "\n".join(lines)
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Review exact readiness release evidence without changing readiness.")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    review = subparsers.add_parser("review", help="Build one deterministic read-only review packet.")
+    review.add_argument("--project-root", default=".")
+    review.add_argument("--top-n", type=int, default=20)
+    review.add_argument("--json", action="store_true")
+
+    record = subparsers.add_parser("record", help="Record a named review bound to one exact receipt.")
+    record.add_argument("--project-root", default=".")
+    record.add_argument("--preview-receipt", required=True)
+    record.add_argument("--reviewer", required=True)
+    record.add_argument("--review-date", required=True)
+    record.add_argument("--technical-decision", required=True)
+    record.add_argument("--distribution-decision", required=True)
+    record.add_argument("--confirm-reviewed", action="store_true")
+
+    guard = subparsers.add_parser("guard", help="Verify one record and print exact named staging paths.")
+    guard.add_argument("--project-root", default=".")
+    guard.add_argument("--record-id", required=True)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    try:
+        if args.command == "review":
+            packet = build_release_review(args.project_root, top_n=args.top_n)
+            print(render_release_review_json(packet) if args.json else render_release_review(packet))
+            return 0
+        if args.command == "record":
+            record = record_review(
+                args.project_root,
+                preview_receipt=args.preview_receipt,
+                reviewer=args.reviewer,
+                review_date=args.review_date,
+                technical_decision=args.technical_decision,
+                distribution_decision=args.distribution_decision,
+                confirm_reviewed=args.confirm_reviewed,
+            )
+            print(f"record_id: {record.record_id}")
+            print(f"preview_receipt: {record.preview_receipt}")
+            print(f"technical_decision: {record.technical_decision}")
+            print(f"distribution_decision: {record.distribution_decision}")
+            return 0
+        result = evaluate_guard(args.project_root, record_id=args.record_id)
+        print(render_guard(result))
+        return 0 if result.status == "passed" else 2
+    except (ReleaseReviewError, ValueError) as exc:
+        print(f"readiness_release_error: {exc}", file=sys.stderr)
+        return 2
+
+
 def build_release_review(
     project_root: Path | str,
     *,
@@ -971,3 +1165,7 @@ def build_release_review(
         blockers=blockers,
         top_n=top_n,
     )
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
