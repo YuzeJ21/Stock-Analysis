@@ -92,6 +92,16 @@ The blocker is derived only from current saved readiness inputs.
 
 Share-count diagnosis reports `shares_outstanding` only. It does not turn other missing DCF fields into share-count blockers.
 
+### Company-Analysis Exclusions
+
+The reconciliation reads exclusion context only from the current ticker-readiness row. An exact `dcf` token in `excluded_features` makes only the DCF lane `not_applicable` for `asset_type=company`. The canonical `etf`, `index_proxy`, and `fund` non-operating asset types make fundamentals, DCF, and share-count lanes `not_applicable`.
+
+An excluded row retains its saved readiness value; reconciliation never promotes it to true. It reports `current_blocker_code=excluded_not_applicable`, no canonical blocker fields, and a deterministic no-action review. Excluded lanes do not parse `missing_dcf_fields`, contribute unavailable-input diagnostics, or create historical-support/current-readiness conflicts. Price, peer-mapping, and peer-valuation-input lanes remain independent.
+
+`excluded_features` uses the generated comma-delimited feature-token contract (`dcf`, `peer`, and `portfolio`). Every nonblank token must be recognized before reconciliation applies any exclusion from that row; a mixed valid/malformed or unrecognized list cannot selectively establish `dcf` scope. Missing, malformed, or unrecognized `asset_type` or `excluded_features` context cannot establish an exclusion. The ordinary fail-closed diagnosis remains in force, and no name, proof narrative, or missing-field text is used to infer scope.
+
+Historical proof metadata remains visible on excluded rows, but scope-only or missing-ticker-change proof never rewrites the deterministic excluded no-action review.
+
 ### Price
 
 - `current_price_missing` when `price_ready=false`.

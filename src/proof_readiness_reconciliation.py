@@ -17,6 +17,7 @@ from typing import Sequence
 
 import pandas as pd
 
+from src.company_analysis_scope import COMPANY_DCF_EXCLUDED_ASSET_TYPES
 from src.reviewed_batch_proof import ReviewedBatchProof, load_reviewed_batch_proofs
 
 
@@ -34,6 +35,10 @@ HISTORICAL_EVIDENCE_LIMIT = (
     "Historical batch proof cannot distinguish payload removal, readiness-contract change, "
     "source-rights change, field-scope change, or another historical cause."
 )
+EXCLUDED_NOT_APPLICABLE_REASON = (
+    "The authoritative current exclusion context makes this company-analysis lane not applicable."
+)
+EXCLUDED_FEATURE_TOKENS = frozenset({"dcf", "peer", "portfolio"})
 
 NEXT_SAFE_REVIEW = {
     "current_canonical_row_missing": (
@@ -53,6 +58,9 @@ NEXT_SAFE_REVIEW = {
     ),
     "current_readiness_input_unavailable": (
         "Restore or inspect the current saved input before drawing a conclusion."
+    ),
+    "excluded_not_applicable": (
+        "No action is required for this intentionally excluded company-analysis lane."
     ),
     "none": "No current blocker is reported for this lane.",
 }
@@ -264,6 +272,42 @@ def _missing_dcf_lookup(frame: pd.DataFrame) -> dict[str, _MissingDcfFields]:
     }
 
 
+def _excluded_feature_tokens(value: object) -> tuple[frozenset[str], bool]:
+    if value is None or (not isinstance(value, str) and pd.isna(value)):
+        return frozenset(), True
+    text = str(value).strip()
+    if not text:
+        return frozenset(), True
+    tokens = tuple(token.strip().lower() for token in text.split(","))
+    if any(not token or not re.fullmatch(r"[a-z_]+", token) for token in tokens):
+        return frozenset(), False
+    normalized = frozenset(tokens)
+    return normalized, normalized <= EXCLUDED_FEATURE_TOKENS
+
+
+def _company_analysis_exclusions(
+    frame: pd.DataFrame,
+) -> tuple[dict[str, frozenset[str]], frozenset[str]]:
+    if not _frame_has_columns(frame, "ticker", "asset_type", "excluded_features"):
+        return {}, frozenset()
+    exclusions: dict[str, frozenset[str]] = {}
+    malformed_tickers: set[str] = set()
+    for _, row in frame.iterrows():
+        ticker = str(row["ticker"]).strip().upper()
+        asset_type = str(row["asset_type"]).strip().lower()
+        if not ticker:
+            continue
+        excluded_features, valid = _excluded_feature_tokens(row["excluded_features"])
+        if not valid:
+            malformed_tickers.add(ticker)
+            continue
+        if asset_type in COMPANY_DCF_EXCLUDED_ASSET_TYPES:
+            exclusions[ticker] = frozenset({"fundamentals", "dcf", "share_count"})
+        elif asset_type == "company" and "dcf" in excluded_features:
+            exclusions[ticker] = frozenset({"dcf"})
+    return exclusions, frozenset(malformed_tickers)
+
+
 def _schema_issues(frames: dict[str, pd.DataFrame]) -> tuple[list[str], dict[str, bool]]:
     issues: list[str] = []
     schema_valid: dict[str, bool] = {}
@@ -329,6 +373,7 @@ def _missing_field_parse_issues(
     current_lookups: dict[tuple[str, str], dict[str, bool | None]],
     missing_dcf: dict[str, _MissingDcfFields],
     dcf_schema_valid: bool,
+    company_analysis_exclusions: dict[str, frozenset[str]],
 ) -> list[str]:
     if not dcf_schema_valid:
         return []
@@ -353,7 +398,9 @@ def _missing_field_parse_issues(
                 ("shares_outstanding",),
             ),
         )
-        for _, current_ready, required_fields in required_by_lane:
+        for lane, current_ready, required_fields in required_by_lane:
+            if lane in company_analysis_exclusions.get(ticker, frozenset()):
+                continue
             if current_ready is not False:
                 continue
             if parse is None or not parse.valid or not any(field in parse.fields for field in required_fields):
@@ -401,11 +448,17 @@ def _current_blocker(
     dcf_schema_valid: bool,
     canonical_tickers: set[str],
     fundamentals_schema_valid: bool,
+    company_analysis_exclusions: dict[str, frozenset[str]],
 ) -> _CurrentBlocker:
     if current_ready is None:
         return _blocker(
             "current_readiness_input_unavailable",
             detail="The authoritative current readiness input is unavailable or malformed.",
+        )
+    if lane in company_analysis_exclusions.get(ticker, frozenset()):
+        return _blocker(
+            "excluded_not_applicable",
+            detail=EXCLUDED_NOT_APPLICABLE_REASON,
         )
     if current_ready:
         return _blocker("none", detail="No current blocker is reported for this lane.")
@@ -560,12 +613,19 @@ def build_proof_readiness_reconciliation(
         )
     )
     missing_dcf = _missing_dcf_lookup(frames["dcf"])
+    company_analysis_exclusions, malformed_exclusion_tickers = _company_analysis_exclusions(frames["ticker"])
+    if malformed_exclusion_tickers:
+        input_issues.append(
+            "Ticker readiness has malformed excluded_features value(s) for "
+            f"{len(malformed_exclusion_tickers)} ticker(s)"
+        )
     input_issues.extend(
         _missing_field_parse_issues(
             valid_tickers=valid_set,
             current_lookups=current_lookups,
             missing_dcf=missing_dcf,
             dcf_schema_valid=schema_valid["dcf"],
+            company_analysis_exclusions=company_analysis_exclusions,
         )
     )
     canonical_tickers = set(_valid_tickers(frames["fundamentals"]))
@@ -599,10 +659,14 @@ def build_proof_readiness_reconciliation(
                 valid_tickers=valid_set,
             )
             supporting = proof_applicability == "explicit_ticker_change"
-            state = _reconciliation_state(
-                current_ready=current_ready,
-                proof_exists=proof_exists,
-                supporting=supporting,
+            state = (
+                "not_applicable"
+                if lane in company_analysis_exclusions.get(ticker, frozenset()) and current_ready is not None
+                else _reconciliation_state(
+                    current_ready=current_ready,
+                    proof_exists=proof_exists,
+                    supporting=supporting,
+                )
             )
             blocker = _current_blocker(
                 ticker=ticker,
@@ -612,9 +676,13 @@ def build_proof_readiness_reconciliation(
                 dcf_schema_valid=schema_valid["dcf"],
                 canonical_tickers=canonical_tickers,
                 fundamentals_schema_valid=schema_valid["fundamentals"],
+                company_analysis_exclusions=company_analysis_exclusions,
             )
             next_safe_review = blocker.next_safe_review
-            if proof_applicability in {"scope_only_not_supported", "missing_ticker_change_detail"}:
+            if (
+                blocker.code != "excluded_not_applicable"
+                and proof_applicability in {"scope_only_not_supported", "missing_ticker_change_detail"}
+            ):
                 next_safe_review = "Review the proof row; do not reuse it as ticker-level support. " + next_safe_review
             rows.append(
                 ProofReadinessReconciliationRow(
@@ -627,7 +695,11 @@ def build_proof_readiness_reconciliation(
                     latest_outcome=latest_outcome,
                     review_date_valid=latest_proof.review_date_valid if latest_proof is not None else False,
                     state=state,
-                    reason=_state_reason(state),
+                    reason=(
+                        EXCLUDED_NOT_APPLICABLE_REASON
+                        if lane in company_analysis_exclusions.get(ticker, frozenset()) and current_ready is not None
+                        else _state_reason(state)
+                    ),
                     proof_applicability=proof_applicability,
                     current_blocker_code=blocker.code,
                     current_blocker_fields=blocker.fields,

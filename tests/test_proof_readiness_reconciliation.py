@@ -55,6 +55,8 @@ def _proof(
 
 def _ticker_readiness(**rows: dict[str, str]) -> pd.DataFrame:
     defaults = {
+        "asset_type": "company",
+        "excluded_features": "",
         "fundamentals_ready": "False",
         "dcf_ready": "False",
         "price_ready": "False",
@@ -352,6 +354,179 @@ def test_blank_missing_dcf_fields_fail_closed_to_unavailable():
     assert row.current_blocker_code == "current_readiness_input_unavailable"
     assert row.current_blocker_fields == ()
     assert summary.input_status == "partial"
+
+
+def test_explicit_dcf_exclusion_only_makes_the_dcf_lane_not_applicable():
+    summary = _summary(
+        proofs=[_proof(lane="fundamentals_dcf")],
+        ticker=_ticker_readiness(
+            ARCT={
+                "excluded_features": "dcf",
+                "fundamentals_ready": "True",
+                "dcf_ready": "False",
+                "price_ready": "False",
+                "peer_ready": "False",
+            }
+        ),
+        dcf=_dcf_readiness(ARCT={"has_shares_outstanding": "True", "missing_dcf_fields": ""}),
+        peer=_peer_readiness(ARCT={}),
+        fundamentals=_fundamentals(ARCT={"source": "sec_companyfacts"}),
+    )
+
+    dcf = _row(summary, "ARCT", "dcf")
+
+    assert dcf.current_ready is False
+    assert dcf.state == "not_applicable"
+    assert dcf.current_blocker_code == "excluded_not_applicable"
+    assert dcf.current_blocker_fields == ()
+    assert dcf.reason == "The authoritative current exclusion context makes this company-analysis lane not applicable."
+    assert "restoration" not in dcf.next_safe_review.lower()
+    assert _row(summary, "ARCT", "fundamentals").current_blocker_code == "none"
+    assert _row(summary, "ARCT", "share_count").current_blocker_code == "none"
+    assert _row(summary, "ARCT", "price").current_blocker_code == "current_price_missing"
+    assert _row(summary, "ARCT", "peer_mapping").current_blocker_code == "current_peer_mapping_missing"
+    assert dict(summary.conflict_counts_by_lane) == {}
+    assert summary.input_status == "ready"
+
+
+@pytest.mark.parametrize("asset_type", ["etf", "index_proxy", "fund"])
+def test_non_operating_asset_types_exclude_only_company_analysis_lanes(asset_type):
+    summary = _summary(
+        proofs=[
+            _proof(lane="fundamentals", batch_id="RB-FUND"),
+            _proof(lane="fundamentals_dcf", batch_id="RB-DCF"),
+            _proof(lane="share_count", batch_id="RB-SHARES"),
+        ],
+        ticker=_ticker_readiness(
+            ARCT={
+                "asset_type": asset_type,
+                "fundamentals_ready": "False",
+                "dcf_ready": "False",
+                "price_ready": "False",
+                "peer_ready": "False",
+            }
+        ),
+        dcf=_dcf_readiness(ARCT={"missing_dcf_fields": ""}),
+        peer=_peer_readiness(ARCT={}),
+        fundamentals=_fundamentals(ARCT={}),
+    )
+
+    for lane in ("fundamentals", "dcf", "share_count"):
+        row = _row(summary, "ARCT", lane)
+        assert row.current_ready is False
+        assert row.state == "not_applicable"
+        assert row.current_blocker_code == "excluded_not_applicable"
+        assert row.current_blocker_fields == ()
+        assert row.reason == "The authoritative current exclusion context makes this company-analysis lane not applicable."
+        assert "import" not in row.next_safe_review.lower()
+
+    assert _row(summary, "ARCT", "price").current_blocker_code == "current_price_missing"
+    assert _row(summary, "ARCT", "peer_mapping").current_blocker_code == "current_peer_mapping_missing"
+    assert _row(summary, "ARCT", "peer_valuation_inputs").current_blocker_code == "current_peer_valuation_inputs_missing"
+    assert dict(summary.conflict_counts_by_lane) == {}
+    assert summary.input_status == "ready"
+
+
+@pytest.mark.parametrize(
+    ("asset_type", "excluded_features"),
+    [
+        ("company", "dcf?"),
+        ("etf?", ""),
+    ],
+)
+def test_malformed_exclusion_context_keeps_blank_dcf_diagnosis_fail_closed(
+    asset_type,
+    excluded_features,
+):
+    summary = _summary(
+        proofs=[],
+        ticker=_ticker_readiness(
+            ARCT={
+                "asset_type": asset_type,
+                "excluded_features": excluded_features,
+                "dcf_ready": "False",
+            }
+        ),
+        dcf=_dcf_readiness(ARCT={"missing_dcf_fields": ""}),
+        peer=_peer_readiness(ARCT={}),
+        fundamentals=_fundamentals(ARCT={"source": "sec_companyfacts"}),
+    )
+
+    row = _row(summary, "ARCT", "dcf")
+
+    assert row.state == "no_proof_record"
+    assert row.current_blocker_code == "current_readiness_input_unavailable"
+    assert summary.input_status == "partial"
+
+
+def test_mixed_valid_and_malformed_exclusion_tokens_fail_closed_as_one_authoritative_context():
+    summary = _summary(
+        proofs=[],
+        ticker=_ticker_readiness(
+            ARCT={
+                "asset_type": "company",
+                "excluded_features": "dcf, broken?",
+                "dcf_ready": "False",
+            }
+        ),
+        dcf=_dcf_readiness(ARCT={"missing_dcf_fields": ""}),
+        peer=_peer_readiness(ARCT={}),
+        fundamentals=_fundamentals(ARCT={"source": "sec_companyfacts"}),
+    )
+
+    row = _row(summary, "ARCT", "dcf")
+
+    assert row.state == "no_proof_record"
+    assert row.current_blocker_code == "current_readiness_input_unavailable"
+    assert summary.input_status == "partial"
+    assert "excluded_features" in summary.input_message
+
+
+@pytest.mark.parametrize(
+    ("proof_tickers", "changed_tickers", "expected_applicability"),
+    [
+        ("ARCT,ARDX", "ARDX", "scope_only_not_supported"),
+        ("ARCT", "-", "missing_ticker_change_detail"),
+    ],
+)
+def test_excluded_lane_keeps_no_action_review_when_proof_is_not_ticker_specific(
+    proof_tickers,
+    changed_tickers,
+    expected_applicability,
+):
+    summary = _summary(
+        proofs=[
+            _proof(
+                lane="fundamentals_dcf",
+                tickers=proof_tickers,
+                changed_tickers=changed_tickers,
+                batch_id="RB-EXCLUDED",
+            )
+        ],
+        ticker=_ticker_readiness(
+            ARCT={"excluded_features": "dcf", "dcf_ready": "False"},
+            ARDX={
+                "fundamentals_ready": "True",
+                "dcf_ready": "True",
+                "price_ready": "True",
+                "peer_ready": "True",
+            },
+        ),
+        dcf=_dcf_readiness(
+            ARCT={"missing_dcf_fields": ""},
+            ARDX={"has_shares_outstanding": "True", "missing_dcf_fields": ""},
+        ),
+        peer=_peer_readiness(ARCT={}, ARDX={"peer_valuation_ready": "True"}),
+        fundamentals=_fundamentals(ARCT={"source": "sec_companyfacts"}, ARDX={"source": "sec_companyfacts"}),
+    )
+
+    row = _row(summary, "ARCT", "dcf")
+
+    assert row.proof_applicability == expected_applicability
+    assert row.latest_batch_id == "RB-EXCLUDED"
+    assert row.historical_payload_status == "structured_payload_not_recorded"
+    assert row.current_blocker_code == "excluded_not_applicable"
+    assert row.next_safe_review == "No action is required for this intentionally excluded company-analysis lane."
 
 
 def test_unknown_only_missing_dcf_fields_fail_closed_and_surface_token_only_in_detail():
