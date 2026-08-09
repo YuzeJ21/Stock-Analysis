@@ -1058,6 +1058,27 @@ def test_pilot_readiness_packet_writes_review_ready_markdown_without_data_writes
     assert "refresh data, apply imports, record proof, stage files, commit, push" in body
 
 
+def test_pilot_readiness_packet_is_stable_after_its_first_write(tmp_path: Path, monkeypatch):
+    root = _sample_root(tmp_path)
+    output = Path("outputs/pilot_readiness_packet.md")
+    output_path = root / output
+    monkeypatch.setattr(pilot_readiness, "_git_status_line", lambda _root: "## main...origin/main")
+    monkeypatch.setattr(
+        pilot_readiness,
+        "load_status",
+        lambda _root: [StatusEntry("M", output.as_posix())] if output_path.exists() else [],
+    )
+
+    first_path = write_pilot_readiness_packet(root, profile="default", top_n=2, output=output)
+    first_body = first_path.read_text(encoding="utf-8")
+    second_path = write_pilot_readiness_packet(root, profile="default", top_n=2, output=output)
+    second_body = second_path.read_text(encoding="utf-8")
+
+    assert first_body == second_body
+    assert "| Stage reviewed product package | ready_to_stage |" in first_body
+    assert "git add -- outputs/pilot_readiness_packet.md" in first_body
+
+
 def test_pilot_share_brief_writes_concise_markdown_without_data_writes(tmp_path: Path, monkeypatch):
     root = _sample_root(tmp_path)
     output = Path("outputs/pilot_share_brief.md")

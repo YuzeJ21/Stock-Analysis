@@ -1669,27 +1669,37 @@ def write_pilot_readiness_packet(
         data_dir=selected.data_dir,
         output_dir=selected.outputs_dir,
     )
-    checks = build_pilot_readiness_checks(
-        root,
-        profile=selected,
-        top_n=top_n,
-        source_queues=source_queues,
-    )
     packet_path = _profile_relative_path(root, output_path)
-    packet = render_pilot_readiness_packet(
-        root=root,
-        checks=checks,
-        snapshot=build_readiness_snapshot(root, profile=selected),
-        source_queues=source_queues,
-        latest_proof=_latest_proof_summary(selected),
-        excluded_artifacts=_excluded_generated_artifacts(root),
-        commit_handoff=build_pilot_commit_package_handoff(root),
-        profile=selected.name,
-        packet_path=packet_path,
-        output_dir=selected.outputs_dir,
-    )
+    snapshot = build_readiness_snapshot(root, profile=selected)
+    latest_proof = _latest_proof_summary(selected)
+    excluded_artifacts = _excluded_generated_artifacts(root)
+
+    def render_current_packet() -> str:
+        checks = build_pilot_readiness_checks(
+            root,
+            profile=selected,
+            top_n=top_n,
+            source_queues=source_queues,
+        )
+        return render_pilot_readiness_packet(
+            root=root,
+            checks=checks,
+            snapshot=snapshot,
+            source_queues=source_queues,
+            latest_proof=latest_proof,
+            excluded_artifacts=excluded_artifacts,
+            commit_handoff=build_pilot_commit_package_handoff(root),
+            profile=selected.name,
+            packet_path=packet_path,
+            output_dir=selected.outputs_dir,
+        )
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    packet = render_current_packet()
     output_path.write_text(packet, encoding="utf-8")
+    settled_packet = render_current_packet()
+    if settled_packet != packet:
+        output_path.write_text(settled_packet, encoding="utf-8")
     return output_path
 
 
