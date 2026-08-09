@@ -146,7 +146,7 @@ git commit -m "Add deterministic readiness release review core"
 
 **Interfaces:**
 - Extends `ReleaseReviewPacket` with `head_to_working: ReadinessImpactPreview`, `working_to_proposed: ReadinessImpactPreview`, and `transitions: tuple[TransitionEvidence, ...]`; receipt serialization includes the complete, untruncated transition rows but excludes `top_n`.
-- Produces: `TransitionEvidence(ticker: str, fields: tuple[str, ...], source_id: str, source_reference: str, as_of_date: str, changed_input_identity: str, before_snapshot_identity: str, after_snapshot_identity: str)`.
+- Produces: `TransitionEvidence(ticker: str, fields: tuple[str, ...], source_id: str, source_reference: str, as_of_date: str, changed_input_identity: str, review_cutoff: str, before_snapshot_identity: str, after_snapshot_identity: str)`.
 - Produces: `review_historical_binding(transitions: Sequence[TransitionEvidence], batch_rows: Sequence[Mapping[str, str]], data_rows: Sequence[Mapping[str, str]]) -> ReviewAxis`.
 - Uses: `compare_readiness_frames`, `review_readiness_promotions`, `review_dcf_price_lineage`, `load_source_rights_registry`, and `build_ticker_readiness_report(..., write_outputs=False)`.
 

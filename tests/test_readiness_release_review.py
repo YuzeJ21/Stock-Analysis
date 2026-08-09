@@ -3,9 +3,11 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from src import readiness_release_review as release
+from src.commercial_source_rights import SourceRights
 
 
 EXPECTED_CANDIDATE_PATHS = (
@@ -46,7 +48,12 @@ def _write(root: Path, relative: str, payload: str) -> None:
     path.write_text(payload, encoding="utf-8")
 
 
-def _release_repo(tmp_path: Path) -> Path:
+def _release_repo(
+    tmp_path: Path,
+    *,
+    head_ticker_readiness: dict[str, object] | None = None,
+    working_ticker_readiness: dict[str, object] | None = None,
+) -> Path:
     root = tmp_path / "repo"
     root.mkdir(parents=True)
     _run_git(root, "init", "-q")
@@ -59,18 +66,39 @@ def _release_repo(tmp_path: Path) -> Path:
     _write(root, release.RIGHTS_REGISTRY_PATH, "sources: []\n")
     for relative in release.PROOF_LEDGER_PATHS:
         _write(root, relative, "id,status\nproof-1,reviewed\n")
+    _fundamentals().to_csv(root / "data/fundamentals.csv", index=False)
+    if head_ticker_readiness is not None:
+        pd.DataFrame([head_ticker_readiness]).to_csv(
+            root / "data/reports/ticker_readiness_report.csv",
+            index=False,
+        )
     _run_git(root, "add", "--", ".")
     _run_git(root, "commit", "-qm", "seed release fixture")
     for relative in EXPECTED_CANDIDATE_PATHS:
         _write(root, relative, "ticker,status\nAAA,working\n")
+    if working_ticker_readiness is not None:
+        pd.DataFrame([working_ticker_readiness]).to_csv(
+            root / "data/reports/ticker_readiness_report.csv",
+            index=False,
+        )
     return root
+
+
+def _build_review(root: Path, **kwargs: object):
+    proposed = pd.read_csv(root / "data/reports/ticker_readiness_report.csv")
+    return release.build_release_review(
+        root,
+        proposed_readiness=proposed,
+        rights_registry=_rights_registry(),
+        **kwargs,
+    )
 
 
 def test_candidate_manifest_is_exact_ordered_and_digest_is_deterministic(tmp_path: Path):
     root = _release_repo(tmp_path)
 
-    first = release.build_release_review(root, top_n=1)
-    second = release.build_release_review(root, top_n=50)
+    first = _build_review(root, top_n=1)
+    second = _build_review(root, top_n=50)
 
     assert tuple(item.path for item in first.candidate_paths) == EXPECTED_CANDIDATE_PATHS
     assert first.candidate_manifest_digest == second.candidate_manifest_digest
@@ -83,7 +111,7 @@ def test_review_rejects_unexpected_modified_and_staged_paths(tmp_path: Path):
     _write(root, "data/reports/unexpected.csv", "value\n1\n")
     _run_git(root, "add", "--", "data/reports/unexpected.csv")
 
-    packet = release.build_release_review(root)
+    packet = _build_review(root)
 
     assert "unexpected_changed_path:data/reports/unexpected.csv" in packet.blockers
     assert "staged_path:data/reports/unexpected.csv" in packet.blockers
@@ -93,10 +121,10 @@ def test_review_rejects_unexpected_modified_and_staged_paths(tmp_path: Path):
 def test_review_rejects_a_staged_candidate_without_changing_its_digest(tmp_path: Path):
     root = _release_repo(tmp_path)
     path = EXPECTED_CANDIDATE_PATHS[0]
-    before = release.build_release_review(root).candidate_paths[0].working_sha256
+    before = _build_review(root).candidate_paths[0].working_sha256
     _run_git(root, "add", "--", path)
 
-    packet = release.build_release_review(root)
+    packet = _build_review(root)
 
     assert f"staged_path:{path}" in packet.blockers
     assert packet.candidate_paths[0].working_sha256 == before
@@ -120,7 +148,7 @@ def test_review_rejects_candidate_symlink(tmp_path: Path):
     (root / relative).symlink_to(target)
 
     with pytest.raises(release.ReleaseReviewError, match=f"symlink_rejected:{relative}"):
-        release.build_release_review(root)
+        _build_review(root)
 
 
 def test_review_rejects_oversized_candidate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -130,7 +158,7 @@ def test_review_rejects_oversized_candidate(tmp_path: Path, monkeypatch: pytest.
     _write(root, relative, "ticker,status\nAAA," + ("x" * 80) + "\n")
 
     with pytest.raises(release.ReleaseReviewError, match=f"file_too_large:{relative}"):
-        release.build_release_review(root)
+        _build_review(root)
 
 
 def test_review_rejects_candidate_over_row_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
@@ -140,7 +168,7 @@ def test_review_rejects_candidate_over_row_limit(tmp_path: Path, monkeypatch: py
     _write(root, relative, "ticker,status\nAAA,one\nBBB,two\nCCC,three\n")
 
     with pytest.raises(release.ReleaseReviewError, match=f"csv_row_limit_exceeded:{relative}"):
-        release.build_release_review(root)
+        _build_review(root)
 
 
 def test_review_rejects_duplicate_columns_and_duplicate_tickers(tmp_path: Path):
@@ -149,10 +177,226 @@ def test_review_rejects_duplicate_columns_and_duplicate_tickers(tmp_path: Path):
     _write(duplicate_columns, relative, "ticker,ticker\nAAA,AAA\n")
 
     with pytest.raises(release.ReleaseReviewError, match=f"duplicate_csv_column:{relative}:ticker"):
-        release.build_release_review(duplicate_columns)
+        _build_review(duplicate_columns)
 
     duplicate_tickers = _release_repo(tmp_path / "tickers")
     _write(duplicate_tickers, relative, "ticker,status\nAAA,one\nAAA,two\n")
 
     with pytest.raises(release.ReleaseReviewError, match=f"duplicate_ticker:{relative}:AAA"):
-        release.build_release_review(duplicate_tickers)
+        _build_review(duplicate_tickers)
+
+
+def _readiness_row(ticker: str, **overrides: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "ticker": ticker,
+        "overall_readiness_state": "blocked",
+        "price_ready": False,
+        "momentum_ready": False,
+        "fundamentals_ready": False,
+        "dcf_ready": False,
+        "peer_ready": False,
+        "earnings_ready": False,
+        "analyst_estimates_ready": False,
+        "ready_features": "",
+        "partial_features": "",
+        "blocked_features": "fundamentals, dcf",
+        "excluded_features": "",
+    }
+    row.update(overrides)
+    return row
+
+
+def _rights_registry() -> dict[str, SourceRights]:
+    common = {
+        "permitted_use": "source_backed_facts",
+        "redistribution": "derived_data_only",
+        "storage_limits": "reviewed local facts",
+        "attribution": "required",
+        "rate_limits": "provider terms",
+        "authentication": "provider specific",
+        "expected_freshness": "source driven",
+        "fallback_priority": 1,
+    }
+    return {
+        "sec_companyfacts": SourceRights(
+            source_id="sec_companyfacts",
+            display_name="SEC Companyfacts",
+            commercial_use="approved",
+            supported_fields=("revenue", "free_cash_flow", "fcf_margin", "shares_outstanding"),
+            **common,
+        ),
+        "approved_prices": SourceRights(
+            source_id="approved_prices",
+            display_name="Approved prices",
+            commercial_use="approved",
+            supported_fields=("prices",),
+            **common,
+        ),
+        "yfinance": SourceRights(
+            source_id="yfinance",
+            display_name="yfinance",
+            commercial_use="unverified",
+            supported_fields=("prices",),
+            **common,
+        ),
+    }
+
+
+def _fundamentals(source: str = "sec_companyfacts") -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "source": source,
+                "as_of_date": "2025-12-31",
+                "source_ref": "filing-1",
+                "revenue": 100,
+                "free_cash_flow": 10,
+                "fcf_margin": 0.1,
+                "shares_outstanding": 5,
+            }
+        ]
+    )
+
+
+def test_three_way_review_uses_head_working_and_proposed_as_distinct_frames():
+    head = pd.DataFrame([_readiness_row("AAA")])
+    working = pd.DataFrame(
+        [_readiness_row("AAA", fundamentals_ready=True, ready_features="fundamentals", blocked_features="dcf")]
+    )
+
+    review = release.review_release_axes(
+        head,
+        working,
+        working.copy(),
+        _fundamentals(),
+        pd.DataFrame(),
+        rights_registry=_rights_registry(),
+        before_snapshot_identity="sha256:before",
+        after_snapshot_identity="sha256:after",
+    )
+
+    assert review.head_to_working.changed_ticker_count == 1
+    assert review.working_to_proposed.changed_ticker_count == 0
+    assert review.axis("technical_transition_review").status == "passed"
+    assert review.axis("provenance_review").status == "passed"
+    assert review.axis("commercial_rights_review").status == "passed"
+    assert review.axis("registered_field_scope_review").status == "passed"
+
+
+def test_composite_source_and_registered_scope_fail_as_independent_axes():
+    head = pd.DataFrame([_readiness_row("AAA")])
+    working = pd.DataFrame([_readiness_row("AAA", fundamentals_ready=True)])
+
+    review = release.review_release_axes(
+        head,
+        working,
+        working.copy(),
+        _fundamentals("sec_companyfacts + yfinance"),
+        pd.DataFrame(),
+        rights_registry=_rights_registry(),
+        before_snapshot_identity="sha256:before",
+        after_snapshot_identity="sha256:after",
+    )
+
+    assert review.axis("provenance_review").status == "passed"
+    assert review.axis("commercial_rights_review").status == "blocked"
+    assert review.axis("registered_field_scope_review").status == "blocked"
+    assert "commercial_rights:unknown_source:AAA" in review.blockers
+    assert "registered_field_scope_incomplete:AAA" in review.blockers
+
+
+def test_dcf_price_lineage_stays_independent_from_fundamentals_evidence():
+    head = pd.DataFrame([_readiness_row("AAA")])
+    working = pd.DataFrame([_readiness_row("AAA", fundamentals_ready=True, dcf_ready=True)])
+    prices = pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "date": "2026-08-08",
+                "close": 20,
+                "source": "yfinance",
+                "source_ref": "quote-1",
+                "retrieved_at": "2026-08-08T21:00:00Z",
+            }
+        ]
+    )
+
+    review = release.review_release_axes(
+        head,
+        working,
+        working.copy(),
+        _fundamentals(),
+        prices,
+        rights_registry=_rights_registry(),
+        review_cutoff="2026-08-09T00:00:00Z",
+        before_snapshot_identity="sha256:before",
+        after_snapshot_identity="sha256:after",
+    )
+
+    assert review.axis("provenance_review").status == "passed"
+    assert review.axis("price_lineage_review").status == "blocked"
+    assert "price_lineage_review_required" in review.blockers
+
+
+def test_historical_binding_requires_exact_lane_source_input_cutoff_and_snapshots():
+    transition = release.TransitionEvidence(
+        ticker="AAA",
+        fields=("fundamentals_ready",),
+        source_id="sec_companyfacts",
+        source_reference="filing-1",
+        as_of_date="2025-12-31",
+        changed_input_identity="sha256:input",
+        review_cutoff="2026-08-09",
+        before_snapshot_identity="sha256:before",
+        after_snapshot_identity="sha256:after",
+    )
+    exact = {
+        "lane": "fundamentals",
+        "tickers": "AAA",
+        "source_id": "sec_companyfacts",
+        "changed_input_identity": "sha256:input",
+        "review_cutoff": "2026-08-09",
+        "pre_run_readiness_snapshot": "sha256:before",
+        "post_run_readiness_snapshot": "sha256:after",
+    }
+    ticker_only = {**exact, "post_run_readiness_snapshot": "sha256:different"}
+
+    assert release.review_historical_binding((transition,), (exact,), ()).status == "passed"
+    blocked = release.review_historical_binding((transition,), (ticker_only,), ())
+    assert blocked.status == "blocked"
+    assert blocked.blockers == ("historical_proof_binding_missing:AAA",)
+
+
+def test_mirror_review_reports_the_exact_broken_pair():
+    payloads = {relative: b"same\n" for relative in EXPECTED_CANDIDATE_PATHS}
+    payloads["outputs/feature_readiness_summary.csv"] = b"different\n"
+
+    axis = release.review_candidate_mirrors(payloads)
+
+    assert axis.status == "blocked"
+    assert axis.blockers == ("mirror_mismatch:feature_readiness_summary",)
+
+
+def test_build_release_review_binds_three_way_axes_and_transitions(tmp_path: Path):
+    head = _readiness_row("AAA")
+    working = _readiness_row(
+        "AAA",
+        fundamentals_ready=True,
+        ready_features="fundamentals",
+        blocked_features="dcf",
+    )
+    root = _release_repo(
+        tmp_path,
+        head_ticker_readiness=head,
+        working_ticker_readiness=working,
+    )
+
+    packet = _build_review(root, top_n=1)
+
+    assert packet.head_to_working.changed_ticker_count == 1
+    assert packet.working_to_proposed.changed_ticker_count == 0
+    assert packet.transitions[0].ticker == "AAA"
+    assert tuple(axis.name for axis in packet.axes) == release.AXIS_NAMES
+    assert packet.axis("technical_transition_review").status == "passed"
+    assert packet.axis("candidate_integrity").status == "passed"

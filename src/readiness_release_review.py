@@ -8,9 +8,21 @@ import io
 import json
 import stat
 import subprocess
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Mapping
+from typing import Mapping, Sequence
+
+import pandas as pd
+
+from src.commercial_source_rights import SourceRights, load_source_rights_registry
+from src.dcf_price_lineage import review_dcf_price_lineage
+from src.readiness_engine import build_ticker_readiness_report
+from src.readiness_preview import (
+    ReadinessImpactPreview,
+    compare_readiness_frames,
+    review_readiness_changes,
+    review_readiness_promotions,
+)
 
 
 MAX_EVIDENCE_FILE_BYTES = 64 * 1024 * 1024
@@ -44,6 +56,34 @@ class ReviewAxis:
 
 
 @dataclass(frozen=True)
+class TransitionEvidence:
+    ticker: str
+    fields: tuple[str, ...]
+    source_id: str
+    source_reference: str
+    as_of_date: str
+    changed_input_identity: str
+    review_cutoff: str
+    before_snapshot_identity: str
+    after_snapshot_identity: str
+
+
+@dataclass(frozen=True)
+class ReleaseEvidenceReview:
+    head_to_working: ReadinessImpactPreview
+    working_to_proposed: ReadinessImpactPreview
+    transitions: tuple[TransitionEvidence, ...]
+    axes: tuple[ReviewAxis, ...]
+    blockers: tuple[str, ...]
+
+    def axis(self, name: str) -> ReviewAxis:
+        for axis in self.axes:
+            if axis.name == name:
+                return axis
+        raise KeyError(name)
+
+
+@dataclass(frozen=True)
 class ReleaseReviewPacket:
     overall_status: str
     preview_receipt: str
@@ -54,6 +94,9 @@ class ReleaseReviewPacket:
     rights_registry_digest: str
     proof_ledger_digest: str
     candidate_paths: tuple[FileEvidence, ...]
+    head_to_working: ReadinessImpactPreview
+    working_to_proposed: ReadinessImpactPreview
+    transitions: tuple[TransitionEvidence, ...]
     axes: tuple[ReviewAxis, ...]
     blockers: tuple[str, ...]
     top_n: int
@@ -117,6 +160,34 @@ AXIS_NAMES = (
     "staging_hygiene_review",
 )
 
+MIRROR_PAIRS = (
+    (
+        "analyst_estimates_readiness",
+        "data/analyst_estimates_readiness.csv",
+        "data/reports/analyst_estimates_readiness_report.csv",
+    ),
+    (
+        "earnings_readiness",
+        "data/earnings_readiness.csv",
+        "data/reports/earnings_readiness_report.csv",
+    ),
+    (
+        "price_coverage_report",
+        "data/price_coverage_report.csv",
+        "data/reports/price_coverage_report.csv",
+    ),
+    (
+        "feature_readiness_summary",
+        "data/reports/feature_readiness_summary.csv",
+        "outputs/feature_readiness_summary.csv",
+    ),
+    (
+        "peer_unlock_worklist",
+        "data/reports/peer_unlock_worklist.csv",
+        "outputs/peer_unlock_worklist.csv",
+    ),
+)
+
 
 def canonical_receipt(payload: Mapping[str, object] | list[object]) -> str:
     encoded = json.dumps(
@@ -126,6 +197,236 @@ def canonical_receipt(payload: Mapping[str, object] | list[object]) -> str:
         ensure_ascii=False,
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+def review_candidate_mirrors(payloads: Mapping[str, bytes]) -> ReviewAxis:
+    blockers = tuple(
+        f"mirror_mismatch:{name}"
+        for name, first, second in MIRROR_PAIRS
+        if payloads.get(first) != payloads.get(second)
+    )
+    dcf_compat = payloads.get("data/dcf_readiness.csv")
+    dcf_report = payloads.get("data/reports/dcf_readiness_report.csv")
+    if dcf_compat is None or dcf_report is None:
+        blockers += ("mirror_mismatch:dcf_readiness",)
+    elif _normalized_dcf_rows(dcf_compat) != _normalized_dcf_rows(dcf_report):
+        blockers += ("mirror_mismatch:dcf_readiness",)
+    return ReviewAxis(
+        name="candidate_integrity",
+        status="blocked" if blockers else "passed",
+        blockers=blockers,
+    )
+
+
+def _normalized_dcf_rows(payload: bytes) -> tuple[tuple[tuple[str, str], ...], ...]:
+    try:
+        reader = csv.DictReader(io.StringIO(payload.decode("utf-8-sig"), newline=""))
+        rows: list[tuple[tuple[str, str], ...]] = []
+        for row in reader:
+            normalized = {
+                ("dcf_ready" if key == "is_dcf_ready" else str(key)): str(value or "")
+                for key, value in row.items()
+            }
+            rows.append(tuple(sorted(normalized.items())))
+        return tuple(rows)
+    except (UnicodeDecodeError, csv.Error):
+        return (("<invalid>", "<invalid>"),)
+
+
+def _text(value: object) -> str:
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        return ""
+    return str(value).strip()
+
+
+def _fundamentals_by_ticker(frame: pd.DataFrame) -> dict[str, list[pd.Series]]:
+    rows: dict[str, list[pd.Series]] = {}
+    if frame.empty or "ticker" not in frame.columns:
+        return rows
+    for _, row in frame.iterrows():
+        ticker = _text(row.get("ticker")).upper()
+        if ticker:
+            rows.setdefault(ticker, []).append(row)
+    return rows
+
+
+def _transition_identity(row: pd.Series) -> str:
+    payload = {
+        str(key): _text(value)
+        for key, value in sorted(row.to_dict().items(), key=lambda item: str(item[0]))
+    }
+    return canonical_receipt(payload)
+
+
+def _proof_tickers(row: Mapping[str, str]) -> set[str]:
+    raw = str(row.get("tickers") or row.get("tickers_or_dependencies") or "")
+    normalized = raw.replace(";", ",")
+    return {part.strip().upper() for part in normalized.split(",") if part.strip()}
+
+
+def _lane_matches(transition: TransitionEvidence, lane: str) -> bool:
+    normalized = str(lane or "").strip().lower()
+    if "dcf_ready" in transition.fields:
+        return normalized in {"dcf", "fundamentals_dcf"}
+    return normalized == "fundamentals"
+
+
+def review_historical_binding(
+    transitions: Sequence[TransitionEvidence],
+    batch_rows: Sequence[Mapping[str, str]],
+    data_rows: Sequence[Mapping[str, str]],
+) -> ReviewAxis:
+    blockers: list[str] = []
+    proof_rows = tuple(batch_rows) + tuple(data_rows)
+    for transition in transitions:
+        matched = any(
+            _lane_matches(transition, str(row.get("lane") or ""))
+            and transition.ticker in _proof_tickers(row)
+            and str(row.get("source_id") or "").strip() == transition.source_id
+            and str(row.get("changed_input_identity") or "").strip() == transition.changed_input_identity
+            and str(row.get("review_cutoff") or "").strip() == transition.review_cutoff
+            and str(row.get("pre_run_readiness_snapshot") or row.get("readiness_before") or "").strip()
+            == transition.before_snapshot_identity
+            and str(row.get("post_run_readiness_snapshot") or row.get("readiness_after") or "").strip()
+            == transition.after_snapshot_identity
+            for row in proof_rows
+        )
+        if not matched:
+            blockers.append(f"historical_proof_binding_missing:{transition.ticker}")
+    return ReviewAxis(
+        name="historical_proof_binding_review",
+        status="blocked" if blockers else "passed",
+        blockers=tuple(blockers),
+    )
+
+
+def _axis(name: str, blockers: Sequence[str]) -> ReviewAxis:
+    stable = tuple(sorted(set(blockers)))
+    return ReviewAxis(name=name, status="blocked" if stable else "passed", blockers=stable)
+
+
+def review_release_axes(
+    head: pd.DataFrame,
+    working: pd.DataFrame,
+    proposed: pd.DataFrame,
+    fundamentals: pd.DataFrame,
+    prices: pd.DataFrame,
+    *,
+    rights_registry: Mapping[str, SourceRights],
+    batch_rows: Sequence[Mapping[str, str]] = (),
+    data_rows: Sequence[Mapping[str, str]] = (),
+    review_cutoff: str | None = None,
+    before_snapshot_identity: str,
+    after_snapshot_identity: str,
+    top_n: int = 20,
+) -> ReleaseEvidenceReview:
+    if top_n < 1:
+        raise ValueError("top_n must be at least 1")
+    full_detail_limit = max(len(head), len(working), len(proposed), 1)
+    head_to_working = compare_readiness_frames(head, working, top_n=top_n, saved_path="HEAD")
+    head_to_working = replace(
+        head_to_working,
+        change_review=review_readiness_changes(head, working, fundamentals),
+    )
+    working_to_proposed = compare_readiness_frames(
+        working,
+        proposed,
+        top_n=top_n,
+        saved_path="working_candidate",
+    )
+    promotion = review_readiness_promotions(
+        head,
+        working,
+        fundamentals,
+        rights_registry=rights_registry,
+        top_n=full_detail_limit,
+    )
+    price_lineage = review_dcf_price_lineage(
+        head,
+        working,
+        prices,
+        rights_registry=rights_registry,
+        review_cutoff=review_cutoff,
+        top_n=full_detail_limit,
+    )
+
+    fundamentals_rows = _fundamentals_by_ticker(fundamentals)
+    transitions: list[TransitionEvidence] = []
+    for evidence in promotion.evidence_rows:
+        candidates = fundamentals_rows.get(evidence.ticker, [])
+        changed_identity = _transition_identity(candidates[0]) if len(candidates) == 1 else "<unavailable>"
+        transitions.append(
+            TransitionEvidence(
+                ticker=evidence.ticker,
+                fields=evidence.promoted_fields,
+                source_id=evidence.source_id,
+                source_reference=evidence.source_reference,
+                as_of_date=evidence.as_of_date,
+                changed_input_identity=changed_identity,
+                review_cutoff=str(review_cutoff or ""),
+                before_snapshot_identity=before_snapshot_identity,
+                after_snapshot_identity=after_snapshot_identity,
+            )
+        )
+
+    technical_blockers: list[str] = []
+    if working_to_proposed.changed_ticker_count:
+        technical_blockers.append("working_candidate_differs_from_in_memory_readiness")
+    if head_to_working.change_review and head_to_working.change_review.status == "unexplained_changes":
+        technical_blockers.append("unexplained_technical_transition")
+
+    provenance_blockers: list[str] = []
+    commercial_blockers: list[str] = []
+    scope_blockers: list[str] = []
+    for evidence in promotion.evidence_rows:
+        provenance_blockers.extend(
+            f"missing_provenance:{field}:{evidence.ticker}"
+            for field in evidence.missing_provenance_fields
+        )
+        if evidence.rights_status != "approved":
+            commercial_blockers.append(f"commercial_rights:{evidence.rights_status}:{evidence.ticker}")
+        if evidence.missing_supported_fields:
+            scope_blockers.append(f"registered_field_scope_incomplete:{evidence.ticker}")
+    for evidence in price_lineage.evidence_rows:
+        if evidence.rights_status != "approved":
+            commercial_blockers.append(f"commercial_rights:{evidence.rights_status}:{evidence.ticker}:price")
+        if evidence.missing_supported_fields:
+            scope_blockers.append(f"registered_price_scope_incomplete:{evidence.ticker}")
+
+    price_blockers = (
+        []
+        if price_lineage.status in {"no_dcf_promotions", "price_lineage_review_complete"}
+        else ["price_lineage_review_required"]
+    )
+    history_axis = review_historical_binding(tuple(transitions), batch_rows, data_rows)
+    axes = (
+        _axis("technical_transition_review", technical_blockers),
+        _axis("provenance_review", provenance_blockers),
+        _axis("commercial_rights_review", commercial_blockers),
+        _axis("registered_field_scope_review", scope_blockers),
+        _axis("price_lineage_review", price_blockers),
+        history_axis,
+        ReviewAxis("distribution_review", "review_required", ("distribution_review_required",)),
+    )
+    blockers = tuple(
+        sorted(
+            {
+                blocker
+                for axis in axes
+                for blocker in axis.blockers
+            }
+        )
+    )
+    return ReleaseEvidenceReview(
+        head_to_working=head_to_working,
+        working_to_proposed=working_to_proposed,
+        transitions=tuple(transitions),
+        axes=axes,
+        blockers=blockers,
+    )
 
 
 def _git(root: Path, *args: str, text: bool = True) -> str | bytes:
@@ -249,11 +550,34 @@ def _single_file_digest(root: Path, relative: str) -> str:
     return _sha256(_read_regular_file(path, relative))
 
 
+def _read_csv_payload(payload: bytes, relative: str) -> pd.DataFrame:
+    try:
+        return pd.read_csv(io.BytesIO(payload))
+    except (pd.errors.ParserError, UnicodeDecodeError, ValueError) as exc:
+        raise ReleaseReviewError(f"csv_malformed:{relative}") from exc
+
+
+def _read_csv_rows(root: Path, relative: str) -> tuple[dict[str, str], ...]:
+    path = root / relative
+    if not path.exists():
+        return ()
+    payload = _read_regular_file(path, relative)
+    _validate_csv_payload(payload, relative)
+    try:
+        reader = csv.DictReader(io.StringIO(payload.decode("utf-8-sig"), newline=""))
+        return tuple({str(key): str(value or "") for key, value in row.items()} for row in reader)
+    except (UnicodeDecodeError, csv.Error) as exc:
+        raise ReleaseReviewError(f"csv_malformed:{relative}") from exc
+
+
 def build_release_review(
     project_root: Path | str,
     *,
     top_n: int = 20,
     allow_record_path_change: bool = False,
+    proposed_readiness: pd.DataFrame | None = None,
+    rights_registry: Mapping[str, SourceRights] | None = None,
+    review_cutoff: str | None = None,
 ) -> ReleaseReviewPacket:
     if top_n < 1:
         raise ValueError("top_n must be at least 1")
@@ -267,11 +591,13 @@ def build_release_review(
         allowed_changed.add(REVIEW_RECORD_PATH)
 
     candidate_evidence: list[FileEvidence] = []
+    candidate_payloads: dict[str, bytes] = {}
     integrity_blockers: list[str] = []
     staging_blockers: list[str] = []
     for spec in CANDIDATE_PATHS:
         working = _read_regular_file(root / spec.path, spec.path)
         _validate_csv_payload(working, spec.path)
+        candidate_payloads[spec.path] = working
         head = _head_bytes(root, spec.path)
         status = statuses.get(spec.path, "  ")
         if status == "  ":
@@ -294,28 +620,59 @@ def build_release_review(
         if status[0] not in {" ", "?"}:
             staging_blockers.append(f"staged_path:{relative}")
 
+    mirror_axis = review_candidate_mirrors(candidate_payloads)
+    integrity_blockers.extend(mirror_axis.blockers)
     integrity_blockers = sorted(set(integrity_blockers))
     staging_blockers = sorted(set(staging_blockers))
-    blockers = tuple(sorted(set(integrity_blockers + staging_blockers)))
-    axes = (
-        ReviewAxis(
+    ticker_relative = "data/reports/ticker_readiness_report.csv"
+    head_ticker_payload = _head_bytes(root, ticker_relative)
+    working_ticker_payload = candidate_payloads[ticker_relative]
+    head_ticker = _read_csv_payload(head_ticker_payload, f"HEAD:{ticker_relative}")
+    working_ticker = _read_csv_payload(working_ticker_payload, ticker_relative)
+    if proposed_readiness is None:
+        reports = build_ticker_readiness_report(root, write_outputs=False)
+        proposed = reports["ticker_readiness_report"]
+    else:
+        proposed = proposed_readiness.copy()
+    fundamentals_payload = _read_regular_file(root / "data/fundamentals.csv", "data/fundamentals.csv")
+    prices_payload = _read_regular_file(root / "data/prices.csv", "data/prices.csv")
+    fundamentals = _read_csv_payload(fundamentals_payload, "data/fundamentals.csv")
+    prices = _read_csv_payload(prices_payload, "data/prices.csv")
+    registry = (
+        rights_registry
+        if rights_registry is not None
+        else load_source_rights_registry(root / RIGHTS_REGISTRY_PATH)
+    )
+    evidence_review = review_release_axes(
+        head_ticker,
+        working_ticker,
+        proposed,
+        fundamentals,
+        prices,
+        rights_registry=registry,
+        batch_rows=_read_csv_rows(root, PROOF_LEDGER_PATHS[0]),
+        data_rows=_read_csv_rows(root, PROOF_LEDGER_PATHS[1]),
+        review_cutoff=review_cutoff,
+        before_snapshot_identity=_sha256(head_ticker_payload),
+        after_snapshot_identity=_sha256(working_ticker_payload),
+        top_n=max(len(head_ticker), len(working_ticker), len(proposed), 1),
+    )
+    evidence_axes = {axis.name: axis for axis in evidence_review.axes}
+    axes_by_name = {
+        "candidate_integrity": ReviewAxis(
             "candidate_integrity",
             "blocked" if integrity_blockers else "passed",
             tuple(integrity_blockers),
         ),
-        ReviewAxis("technical_transition_review", "not_evaluated"),
-        ReviewAxis("provenance_review", "not_evaluated"),
-        ReviewAxis("commercial_rights_review", "not_evaluated"),
-        ReviewAxis("registered_field_scope_review", "not_evaluated"),
-        ReviewAxis("price_lineage_review", "not_evaluated"),
-        ReviewAxis("historical_proof_binding_review", "not_evaluated"),
-        ReviewAxis("distribution_review", "review_required", ("distribution_review_required",)),
-        ReviewAxis(
+        **evidence_axes,
+        "staging_hygiene_review": ReviewAxis(
             "staging_hygiene_review",
             "blocked" if staging_blockers else "passed",
             tuple(staging_blockers),
         ),
-    )
+    }
+    axes = tuple(axes_by_name[name] for name in AXIS_NAMES)
+    blockers = tuple(sorted({blocker for axis in axes for blocker in axis.blockers}))
     candidate_manifest_digest = canonical_receipt([asdict(item) for item in CANDIDATE_PATHS])
     canonical_source_digest = _named_digest(root, READINESS_SOURCE_PATHS)
     rights_registry_digest = _single_file_digest(root, RIGHTS_REGISTRY_PATH)
@@ -328,11 +685,29 @@ def build_release_review(
         "rights_registry_digest": rights_registry_digest,
         "proof_ledger_digest": proof_ledger_digest,
         "candidate_paths": [asdict(item) for item in candidate_evidence],
+        "head_to_working": asdict(evidence_review.head_to_working),
+        "working_to_proposed": asdict(evidence_review.working_to_proposed),
+        "transitions": [asdict(item) for item in evidence_review.transitions],
         "axes": [asdict(item) for item in axes],
         "blockers": blockers,
     }
+    technical_axes = {
+        "candidate_integrity",
+        "technical_transition_review",
+        "staging_hygiene_review",
+    }
+    if any(axes_by_name[name].status == "blocked" for name in technical_axes):
+        overall_status = "invalid" if axes_by_name["candidate_integrity"].status == "blocked" else "blocked"
+    elif all(
+        axis.status == "passed"
+        for axis in axes
+        if axis.name != "distribution_review"
+    ):
+        overall_status = "release_reviewable"
+    else:
+        overall_status = "technical_snapshot_reviewable_commercial_claims_withheld"
     return ReleaseReviewPacket(
-        overall_status="blocked" if blockers else "technical_snapshot_reviewable_commercial_claims_withheld",
+        overall_status=overall_status,
         preview_receipt=canonical_receipt(receipt_payload),
         git_head=git_head,
         branch=branch,
@@ -341,6 +716,9 @@ def build_release_review(
         rights_registry_digest=rights_registry_digest,
         proof_ledger_digest=proof_ledger_digest,
         candidate_paths=tuple(candidate_evidence),
+        head_to_working=evidence_review.head_to_working,
+        working_to_proposed=evidence_review.working_to_proposed,
+        transitions=evidence_review.transitions,
         axes=axes,
         blockers=blockers,
         top_n=top_n,
