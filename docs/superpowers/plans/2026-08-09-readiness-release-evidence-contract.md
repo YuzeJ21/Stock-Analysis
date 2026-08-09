@@ -41,7 +41,7 @@
 - Produces: `CandidatePathSpec(path: str, category: str)`, `FileEvidence(path: str, category: str, head_sha256: str, working_sha256: str, status: str)`, and `ReviewAxis(name: str, status: str, blockers: tuple[str, ...])`.
 - Produces initially: `ReleaseReviewPacket(overall_status: str, preview_receipt: str, git_head: str, branch: str, candidate_manifest_digest: str, canonical_source_digest: str, rights_registry_digest: str, proof_ledger_digest: str, candidate_paths: tuple[FileEvidence, ...], axes: tuple[ReviewAxis, ...], blockers: tuple[str, ...], top_n: int)`.
 - `ReleaseReviewPacket.axis(name: str) -> ReviewAxis` returns exactly one named axis and raises `KeyError` for an unknown axis.
-- Produces: `build_release_review(project_root: Path | str, *, top_n: int = 20, allow_record_path_change: bool = False) -> ReleaseReviewPacket`.
+- Produces: `build_release_review(project_root: Path | str, *, top_n: int = 20) -> ReleaseReviewPacket`; the append-only review ledger is validated when present but remains outside the candidate package and receipt.
 - Produces: `canonical_receipt(payload: Mapping[str, object]) -> str` using sorted-key, compact UTF-8 JSON and SHA-256.
 - Consumes later: `ReleaseReviewPacket.preview_receipt`, `candidate_manifest_digest`, `canonical_source_digest`, `rights_registry_digest`, `proof_ledger_digest`, `axes`, and `blockers`.
 

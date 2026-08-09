@@ -659,6 +659,10 @@ def load_review_records(path: Path | str) -> tuple[RecordedDecision, ...]:
         seen_ids: set[str] = set()
         seen_receipts: set[str] = set()
         for row_number, row in enumerate(reader, start=2):
+            if None in row or any(row.get(column) is None for column in REVIEW_RECORD_COLUMNS):
+                raise ReleaseReviewError(
+                    f"review_ledger_column_count_mismatch:row_{row_number}"
+                )
             values = {column: str(row.get(column) or "") for column in REVIEW_RECORD_COLUMNS}
             record_id = values["record_id"]
             receipt = values["preview_receipt"]
@@ -707,15 +711,23 @@ def _validate_receipt(value: object) -> str:
     return receipt
 
 
-def _atomic_write_records(destination: Path, records: Sequence[RecordedDecision]) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    descriptor, temporary_name = tempfile.mkstemp(
-        prefix=f".{destination.name}.",
-        suffix=".tmp",
-        dir=destination.parent,
-    )
-    temporary = Path(temporary_name)
+def _atomic_write_records(
+    destination: Path,
+    records: Sequence[RecordedDecision],
+    *,
+    record_id: str,
+) -> None:
+    temporary: Path | None = None
+    published = False
+    failure: OSError | None = None
     try:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=f".{destination.name}.",
+            suffix=".tmp",
+            dir=destination.parent,
+        )
+        temporary = Path(temporary_name)
         with os.fdopen(descriptor, "w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=REVIEW_RECORD_COLUMNS, lineterminator="\n")
             writer.writeheader()
@@ -724,14 +736,33 @@ def _atomic_write_records(destination: Path, records: Sequence[RecordedDecision]
             handle.flush()
             os.fsync(handle.fileno())
         os.replace(temporary, destination)
+        published = True
         directory_descriptor = os.open(destination.parent, os.O_RDONLY)
         try:
             os.fsync(directory_descriptor)
         finally:
             os.close(directory_descriptor)
+    except OSError as exc:
+        failure = exc
     finally:
-        if temporary.exists():
-            temporary.unlink()
+        if temporary is not None:
+            try:
+                if temporary.exists():
+                    temporary.unlink()
+            except OSError as exc:
+                if failure is None:
+                    failure = exc
+    if failure is None:
+        return
+    if published:
+        try:
+            load_review_records(destination)
+        except Exception:
+            pass
+        raise ReleaseReviewError(
+            f"record_write_outcome_uncertain:{record_id}:reload_by_record_id"
+        ) from failure
+    raise ReleaseReviewError(f"record_write_failed:{record_id}") from failure
 
 
 def record_review(
@@ -769,7 +800,6 @@ def record_review(
     with ledger_write_lock(destination):
         packet = build_release_review(
             root,
-            allow_record_path_change=True,
             proposed_readiness=proposed_readiness,
             rights_registry=rights_registry,
             review_cutoff=review_cutoff,
@@ -815,7 +845,7 @@ def record_review(
             research_only_boundary=RESEARCH_ONLY_BOUNDARY,
             recorded_at=datetime.now(timezone.utc).isoformat(),
         )
-        _atomic_write_records(destination, (*existing, record))
+        _atomic_write_records(destination, (*existing, record), record_id=record_id)
         try:
             reloaded = load_review_records(destination)
         except Exception as exc:
@@ -861,7 +891,6 @@ def evaluate_guard(
 
     packet = build_release_review(
         root,
-        allow_record_path_change=True,
         proposed_readiness=proposed_readiness,
         rights_registry=rights_registry,
         review_cutoff=review_cutoff,
@@ -1016,7 +1045,6 @@ def build_release_review(
     project_root: Path | str,
     *,
     top_n: int = 20,
-    allow_record_path_change: bool = False,
     proposed_readiness: pd.DataFrame | None = None,
     rights_registry: Mapping[str, SourceRights] | None = None,
     review_cutoff: str | None = None,
@@ -1024,13 +1052,14 @@ def build_release_review(
     if top_n < 1:
         raise ValueError("top_n must be at least 1")
     root = Path(project_root).expanduser().resolve()
+    review_ledger = root / REVIEW_RECORD_PATH
+    if review_ledger.exists():
+        load_review_records(review_ledger)
     git_head = str(_git(root, "rev-parse", "HEAD")).strip()
     branch = str(_git(root, "branch", "--show-current")).strip()
     statuses = _git_status(root)
     candidate_names = {item.path for item in CANDIDATE_PATHS}
-    allowed_changed = set(candidate_names)
-    if allow_record_path_change:
-        allowed_changed.add(REVIEW_RECORD_PATH)
+    allowed_changed = {*candidate_names, REVIEW_RECORD_PATH}
 
     candidate_evidence: list[FileEvidence] = []
     candidate_payloads: dict[str, bytes] = {}

@@ -510,7 +510,10 @@ def test_record_replace_failure_preserves_the_prior_ledger(
 
     monkeypatch.setattr(release.os, "replace", fail_replace)
 
-    with pytest.raises(OSError, match="replace unavailable"):
+    with pytest.raises(
+        release.ReleaseReviewError,
+        match=f"record_write_failed:RRR-20260809-{receipt[:12]}",
+    ):
         _record_review(root, receipt)
 
     assert not destination.exists()
@@ -535,6 +538,19 @@ def test_load_review_records_rejects_duplicate_record_id_and_receipt(tmp_path: P
         writer.writerow(row)
 
     with pytest.raises(release.ReleaseReviewError, match="duplicate_record_id"):
+        release.load_review_records(path)
+
+
+def test_load_review_records_rejects_a_row_with_surplus_columns(tmp_path: Path):
+    path = tmp_path / "reviews.csv"
+    header = ",".join(release.REVIEW_RECORD_COLUMNS)
+    row = ",".join("value" for _ in release.REVIEW_RECORD_COLUMNS)
+    path.write_text(f"{header}\n{row},unexpected\n", encoding="utf-8")
+
+    with pytest.raises(
+        release.ReleaseReviewError,
+        match="review_ledger_column_count_mismatch:row_2",
+    ):
         release.load_review_records(path)
 
 
@@ -570,13 +586,7 @@ def test_record_appends_a_new_receipt_without_rewriting_the_prior_row(tmp_path: 
     first_packet = _build_review(root)
     first = _record_review(root, first_packet.preview_receipt)
     _write(root, "data/fundamentals.csv", "ticker,source\nAAA,changed_source\n")
-    proposed = pd.read_csv(root / "data/reports/ticker_readiness_report.csv")
-    second_packet = release.build_release_review(
-        root,
-        allow_record_path_change=True,
-        proposed_readiness=proposed,
-        rights_registry=_rights_registry(),
-    )
+    second_packet = _build_review(root)
 
     second = _record_review(root, second_packet.preview_receipt, review_date="2026-08-10")
 
@@ -696,6 +706,119 @@ def test_main_record_validation_error_is_stable_and_traceback_free(capsys: pytes
     assert status == 2
     assert captured.err.strip() == "readiness_release_error: invalid_preview_receipt"
     assert "Traceback" not in captured.err
+
+
+def test_main_replace_failure_is_stable_and_traceback_free(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    root = _release_repo(tmp_path)
+    receipt = _build_review(root).preview_receipt
+    proposed = pd.read_csv(root / "data/reports/ticker_readiness_report.csv")
+    original_record = release.record_review
+
+    def record_fixture(project_root: Path | str, **kwargs: object):
+        return original_record(
+            root,
+            proposed_readiness=proposed,
+            rights_registry=_rights_registry(),
+            **kwargs,
+        )
+
+    monkeypatch.setattr(release, "record_review", record_fixture)
+    monkeypatch.setattr(
+        release.os,
+        "replace",
+        lambda _source, _destination: (_ for _ in ()).throw(OSError("replace unavailable")),
+    )
+
+    status = release.main(
+        [
+            "record",
+            "--project-root",
+            str(root),
+            "--preview-receipt",
+            receipt,
+            "--reviewer",
+            "Y. Jian",
+            "--review-date",
+            "2026-08-09",
+            "--technical-decision",
+            "approved",
+            "--distribution-decision",
+            "external_review_required",
+            "--confirm-reviewed",
+        ]
+    )
+    captured = capsys.readouterr()
+
+    assert status == 2
+    assert captured.err.strip() == (
+        f"readiness_release_error: record_write_failed:RRR-20260809-{receipt[:12]}"
+    )
+    assert "Traceback" not in captured.err
+    assert not (root / release.REVIEW_RECORD_PATH).exists()
+
+
+def test_main_post_replace_fsync_failure_reports_uncertain_outcome(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    root = _release_repo(tmp_path)
+    receipt = _build_review(root).preview_receipt
+    proposed = pd.read_csv(root / "data/reports/ticker_readiness_report.csv")
+    original_record = release.record_review
+    original_fsync = release.os.fsync
+    fsync_calls = 0
+
+    def record_fixture(project_root: Path | str, **kwargs: object):
+        return original_record(
+            root,
+            proposed_readiness=proposed,
+            rights_registry=_rights_registry(),
+            **kwargs,
+        )
+
+    def fail_directory_fsync(descriptor: int) -> None:
+        nonlocal fsync_calls
+        fsync_calls += 1
+        if fsync_calls == 2:
+            raise OSError("directory fsync unavailable")
+        original_fsync(descriptor)
+
+    monkeypatch.setattr(release, "record_review", record_fixture)
+    monkeypatch.setattr(release.os, "fsync", fail_directory_fsync)
+
+    status = release.main(
+        [
+            "record",
+            "--project-root",
+            str(root),
+            "--preview-receipt",
+            receipt,
+            "--reviewer",
+            "Y. Jian",
+            "--review-date",
+            "2026-08-09",
+            "--technical-decision",
+            "approved",
+            "--distribution-decision",
+            "external_review_required",
+            "--confirm-reviewed",
+        ]
+    )
+    captured = capsys.readouterr()
+    record_id = f"RRR-20260809-{receipt[:12]}"
+
+    assert status == 2
+    assert captured.err.strip() == (
+        f"readiness_release_error: record_write_outcome_uncertain:{record_id}:"
+        "reload_by_record_id"
+    )
+    assert "Traceback" not in captured.err
+    assert release.load_review_records(root / release.REVIEW_RECORD_PATH)[0].record_id == record_id
 
 
 def test_main_blocked_guard_returns_two(
