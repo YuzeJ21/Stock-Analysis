@@ -202,8 +202,20 @@ def test_local_profile_controls_freshness_source_queue_preflight_and_proof_ledge
     monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
     seen: dict[str, object] = {}
 
-    def _freshness(_root, *, profile=None, data_dir=None, output_dir=None):
-        seen["freshness"] = (profile, Path(data_dir), Path(output_dir))
+    def _freshness(
+        _root,
+        *,
+        profile=None,
+        data_dir=None,
+        output_dir=None,
+        include_evidence=True,
+    ):
+        seen["freshness"] = (
+            profile,
+            Path(data_dir),
+            Path(output_dir),
+            include_evidence,
+        )
         return SimpleNamespace(status="current", message="local profile current")
 
     def _queues(_root, *, profile, top_n, data_dir=None, output_dir=None):
@@ -224,7 +236,12 @@ def test_local_profile_controls_freshness_source_queue_preflight_and_proof_ledge
     by_area = {check.area: check for check in checks}
 
     assert seen == {
-        "freshness": ("local", root / "data" / "local", root / "outputs" / "local"),
+        "freshness": (
+            "local",
+            root / "data" / "local",
+            root / "outputs" / "local",
+            False,
+        ),
         "queues": ("local", 7, root / "data" / "local", root / "outputs" / "local"),
         "preflight": root / "outputs" / "local",
     }
@@ -523,6 +540,49 @@ def test_pilot_readiness_check_keeps_generated_churn_manual_not_blocking(tmp_pat
     assert "not investment advice" in rendered
     assert "missing fundamentals" in rendered
     assert "trade instruction" in rendered
+
+
+def test_pilot_separates_current_source_freshness_from_uncommitted_release_evidence(
+    tmp_path: Path,
+):
+    root = _sample_root(tmp_path)
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "add", "data"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=Codex Test",
+            "-c",
+            "user.email=codex@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+        check=True,
+    )
+    with (root / "data" / "reports" / "ticker_readiness_report.csv").open(
+        "a",
+        encoding="utf-8",
+    ) as handle:
+        handle.write("BBB,company,false,false,false,false,false,false,blocked,price,,,,\n")
+
+    checks = build_pilot_readiness_checks(
+        root,
+        profile="default",
+        top_n=2,
+        source_queues=[],
+    )
+    by_area = {check.area: check for check in checks}
+
+    assert by_area["Readiness freshness"].status == "green"
+    assert "current" in by_area["Readiness freshness"].detail.lower()
+    assert by_area["Readiness evidence"].status == "blocked"
+    assert "not tracked release evidence" in by_area["Readiness evidence"].detail.lower()
+    assert by_area["Readiness evidence"].command == "make readiness-preview TOP_N=20"
+    assert pilot_readiness_verdict(checks) == "blocked"
 
 
 def test_pilot_readiness_keeps_broad_sample_report_churn_manual_not_blocking(tmp_path: Path, monkeypatch):

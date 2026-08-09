@@ -242,6 +242,7 @@ def readiness_freshness_status(
     profile: str | None = None,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
+    include_evidence: bool = True,
 ) -> FreshnessStatus:
     project_root = resolve_project_root(root)
     profile_context = build_profile_context(
@@ -259,7 +260,10 @@ def readiness_freshness_status(
             message,
             profile_context.refresh_command,
         )
-    if profile_context.readiness_evidence_state in {"working_artifact_uncommitted", "unverified"}:
+    if include_evidence and profile_context.readiness_evidence_state in {
+        "working_artifact_uncommitted",
+        "unverified",
+    }:
         return FreshnessStatus(
             profile_context.readiness_evidence_state,
             profile_context.readiness_evidence_message,

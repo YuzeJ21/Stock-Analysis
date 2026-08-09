@@ -34,7 +34,12 @@ from src.paths import DATA_PROFILE_ENV, DataProfile, profile_display_label
 from src.readiness_source_boundary import validate_readiness_source_boundary
 from src.session_source_preflight import load_session_source_preflight
 from src.source_activation_guide import build_provider_setup_checklist
-from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE, readiness_inspection_route
+from src.profile_context import (
+    READINESS_PREVIEW_COMMAND,
+    READINESS_PREVIEW_NOTE,
+    build_profile_context,
+    readiness_inspection_route,
+)
 
 
 VALID_STATUSES = {"green", "manual", "blocked"}
@@ -172,7 +177,7 @@ def _profile_scoped_make_command(selected: DataProfile | str, command: str) -> s
 
 
 def _profile_scoped_check_command(selected: DataProfile | str, check: PilotReadinessCheck) -> str:
-    if check.area not in {"Readiness freshness", "Source proof gates"}:
+    if check.area not in {"Readiness freshness", "Readiness evidence", "Source proof gates"}:
         return check.command
     return _profile_scoped_make_command(selected, check.command)
 
@@ -391,6 +396,7 @@ def _freshness_check(root: Path, selected: DataProfile) -> PilotReadinessCheck:
         profile=selected.name,
         data_dir=selected.data_dir,
         output_dir=selected.outputs_dir,
+        include_evidence=False,
     )
     status = "green" if freshness.status == "current" else "blocked"
     inspection_command, inspection_note = readiness_inspection_route(
@@ -415,6 +421,46 @@ def _freshness_check(root: Path, selected: DataProfile) -> PilotReadinessCheck:
             "Stop before quoting final counts or proof deltas if readiness artifacts are stale or missing. "
             + inspection_note
         ),
+    )
+
+
+def _readiness_evidence_check(root: Path, selected: DataProfile) -> PilotReadinessCheck:
+    context = build_profile_context(
+        project_root=root,
+        profile=selected.name,
+        data_dir=selected.data_dir,
+        output_dir=selected.outputs_dir,
+    )
+    state = context.readiness_evidence_state
+    inspection_command, inspection_note = readiness_inspection_route(
+        selected.name,
+        profile_display_label(selected.name),
+        selected.data_dir,
+    )
+    if state == "tracked":
+        status = "green"
+        command = _profile_scoped_make_command(selected, "make status-check TOP_N=5")
+        stop_rule = "Stop if readiness artifacts later diverge from tracked HEAD evidence."
+    elif state in {"working_artifact_uncommitted", "unverified"}:
+        status = "blocked"
+        command = _profile_scoped_make_command(selected, inspection_command)
+        stop_rule = (
+            "Stop before treating working readiness as tracked release evidence. "
+            f"{inspection_note}"
+        )
+    else:
+        status = "green"
+        command = _profile_scoped_make_command(selected, "make status-check TOP_N=5")
+        stop_rule = (
+            "Do not describe non-default profile artifacts as tracked default-profile release evidence."
+        )
+    return PilotReadinessCheck(
+        area="Readiness evidence",
+        status=status,
+        title=f"Readiness release evidence is {state}",
+        detail=context.readiness_evidence_message,
+        command=command,
+        stop_rule=stop_rule,
     )
 
 
@@ -745,6 +791,7 @@ def build_pilot_readiness_checks(
         _sync_check(root),
         _hygiene_check(root),
         _freshness_check(root, selected),
+        _readiness_evidence_check(root, selected),
         _source_gate_check(root, selected=selected, top_n=top_n, source_queues=source_queues),
         _proof_ledger_check(selected),
         _browser_qa_evidence_check(root),
