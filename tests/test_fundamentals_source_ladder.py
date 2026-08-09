@@ -63,6 +63,45 @@ def test_fundamentals_source_ladder_uses_fmp_after_sec_and_yfinance_fail(monkeyp
     assert result["provider_attempts"][4]["reason_code"] == "provider_key_missing"
 
 
+def test_fundamentals_source_ladder_preserves_row_source_when_provider_summary_omits_it(monkeypatch):
+    monkeypatch.delenv("FMP_API_KEY", raising=False)
+    monkeypatch.delenv("ALPHA_VANTAGE_API_KEY", raising=False)
+    monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+
+    def sec_builder(tickers, **_kwargs):
+        return {
+            "requested_tickers": list(tickers),
+            "resolved_tickers": ["ARCT"],
+            "unresolved_tickers": [],
+            "rows": [{"ticker": "ARCT", "revenue": 82_031_000, "source": "sec_companyfacts"}],
+            "row_summaries": [
+                {
+                    "ticker": "ARCT",
+                    "populated_fields": ["revenue"],
+                    "missing_fields": [],
+                    "warnings": [],
+                }
+            ],
+            "warnings": [],
+        }
+
+    result = build_fundamentals_source_ladder_rows(
+        ["ARCT"],
+        sec_user_agent="Analyst analyst@example.com",
+        sec_builder=sec_builder,
+    )
+
+    assert result["row_summaries"] == [
+        {
+            "ticker": "ARCT",
+            "source": "sec_companyfacts",
+            "populated_fields": ["revenue"],
+            "missing_fields": [],
+            "warnings": [],
+        }
+    ]
+
+
 def test_fundamentals_source_ladder_skips_session_blocked_sec_and_yfinance_before_fmp():
     called_providers = []
 
