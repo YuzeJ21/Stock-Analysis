@@ -38,6 +38,7 @@ class PublicRouteSpec:
     first_useful_marker: str
     full_markers: tuple[str, ...]
     critical: bool
+    full_reveal_action: str = ""
 
 
 @dataclass(frozen=True)
@@ -146,17 +147,18 @@ RESEARCH_ROUTE_SPECS: tuple[PublicRouteSpec, ...] = (
         (
             "Company Workbench",
             "Advanced: selected-company lane coverage",
-            "What Changed",
+            "WHAT CHANGED",
             "Research Decision Lab",
             "Business Trend",
             "Valuation",
             "Forward View",
             "What Remains Withheld",
             "Research Conclusion",
-            "Next Research Task",
+            "NEXT RESEARCH TASK",
             "Research-only",
         ),
         True,
+        "Open evidence and analysis modules",
     ),
     PublicRouteSpec(
         "Monitor",
@@ -587,6 +589,12 @@ def _measure_route(
         shell_seconds = time.perf_counter() - started
         _wait_for_visible_text(page, route.first_useful_marker, timeout_seconds=timeout_seconds)
         first_useful_seconds = time.perf_counter() - started
+        if route.full_reveal_action:
+            page.get_by_role(
+                "button",
+                name=route.full_reveal_action,
+                exact=True,
+            ).click(timeout=int(timeout_seconds * 1000))
         for marker in route.full_markers:
             _wait_for_visible_text(page, marker, timeout_seconds=timeout_seconds)
         _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)

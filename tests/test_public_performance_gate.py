@@ -55,14 +55,14 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
     assert RESEARCH_ROUTE_SPECS[2].full_markers == (
         "Company Workbench",
         "Advanced: selected-company lane coverage",
-        "What Changed",
+        "WHAT CHANGED",
         "Research Decision Lab",
         "Business Trend",
         "Valuation",
         "Forward View",
         "What Remains Withheld",
         "Research Conclusion",
-        "Next Research Task",
+        "NEXT RESEARCH TASK",
         "Research-only",
     )
     assert RESEARCH_ROUTE_SPECS[3].first_useful_marker == "Follow-up Queue"
@@ -79,10 +79,136 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
     )
     assert RESEARCH_ROUTE_SPECS[2].route == "/?mode=research&page=company-workbench&ticker=NVDA&open=1"
     assert RESEARCH_ROUTE_SPECS[2].first_useful_marker == "USE NOW"
+    assert RESEARCH_ROUTE_SPECS[2].full_reveal_action == "Open evidence and analysis modules"
     assert "Selected Company" not in RESEARCH_ROUTE_SPECS[2].full_markers
     assert "Forward View" in RESEARCH_ROUTE_SPECS[2].full_markers
     assert "What Remains Withheld" in RESEARCH_ROUTE_SPECS[2].full_markers
     assert RESEARCH_ROUTE_SPECS[3].full_markers[0] == "Follow-up Queue"
+
+
+@pytest.mark.parametrize("run_kind", ("cold", "warm"))
+@pytest.mark.parametrize("viewport_index", (0, 1))
+def test_company_workbench_route_measurement_accepts_its_rendered_answer_markers(
+    run_kind,
+    viewport_index,
+):
+    from src.public_performance_gate import (
+        DEFAULT_VIEWPORTS,
+        RESEARCH_ROUTE_SPECS,
+        _measure_route,
+    )
+
+    initial_body = " ".join(
+        (
+            "Company Workbench",
+            "USE NOW",
+            "Advanced: selected-company lane coverage",
+            "WHAT CHANGED",
+            "Open evidence and analysis modules",
+            "Research-only",
+        )
+    )
+    revealed_body = " ".join(
+        (
+            initial_body,
+            "Research Decision Lab",
+            "Business Trend",
+            "Valuation",
+            "Forward View",
+            "What Remains Withheld",
+            "Research Conclusion",
+            "NEXT RESEARCH TASK",
+        )
+    )
+
+    class Locator:
+        def __init__(self, *, body=False):
+            self.body = body
+
+        def wait_for(self, *, state, timeout):
+            assert state == "visible"
+            assert timeout == 1000
+
+        def inner_text(self, *, timeout):
+            assert self.body
+            assert timeout in {1000, 2000}
+            return self.page.rendered_body
+
+        def count(self):
+            return 0
+
+    class Button:
+        def __init__(self, page):
+            self.page = page
+
+        def click(self, *, timeout):
+            assert timeout == 1000
+            self.page.rendered_body = revealed_body
+
+    class Page:
+        def __init__(self):
+            self.url = "http://127.0.0.1:8501/?mode=research&page=company-workbench&ticker=NVDA&open=1"
+            self.rendered_body = initial_body
+
+        def goto(self, url, *, wait_until, timeout):
+            self.url = url
+            assert wait_until == "domcontentloaded"
+            assert timeout == 1000
+
+        def locator(self, selector):
+            locator = Locator(body=selector == "body")
+            locator.page = self
+            return locator
+
+        def get_by_role(self, role, *, name, exact):
+            assert role == "button"
+            assert name == "Open evidence and analysis modules"
+            assert exact is True
+            return Button(self)
+
+        def wait_for_function(self, expression, *, arg, timeout):
+            assert "document.body.innerText.includes(marker)" in expression
+            assert timeout == 1000
+            if arg not in self.rendered_body:
+                raise TimeoutError(f"missing rendered marker: {arg}")
+
+        def wait_for_timeout(self, milliseconds):
+            assert milliseconds == 250
+
+        def evaluate(self, expression):
+            assert "scrollWidth" in expression
+            return 0
+
+    class Context:
+        def __init__(self):
+            self.page = Page()
+
+        def new_page(self):
+            return self.page
+
+        def close(self):
+            pass
+
+    class Browser:
+        def new_context(self, *, viewport):
+            selected = DEFAULT_VIEWPORTS[viewport_index]
+            assert viewport == {"width": selected.width, "height": selected.height}
+            return Context()
+
+    route = next(route for route in RESEARCH_ROUTE_SPECS if route.name == "Company Workbench")
+    sample = _measure_route(
+        Browser(),
+        base_url="http://127.0.0.1:8501",
+        route=route,
+        viewport=DEFAULT_VIEWPORTS[viewport_index],
+        run_kind=run_kind,
+        timeout_seconds=1,
+    )
+
+    assert sample.success is True
+    assert sample.failure == ""
+    assert sample.viewport == DEFAULT_VIEWPORTS[viewport_index].label
+    assert sample.run_kind == run_kind
 
 
 def test_nearest_rank_percentile_does_not_select_the_best_run():
