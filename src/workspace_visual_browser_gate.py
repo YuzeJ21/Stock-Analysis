@@ -322,12 +322,19 @@ def evaluate_forced_colors_styles(
     state_border_width: float,
     state_outline_width: float,
 ) -> BrowserEvaluation:
+    state_affordance_passed = (
+        state_count == 0
+        or (
+            state_count >= 1
+            and state_border_width >= 1
+            and state_outline_width >= 1
+        )
+    )
     passed = (
         active
         and str(focus_outline_style).casefold() not in {"", "none"}
         and focus_outline_width >= 3
-        and state_count >= 1
-        and max(state_border_width, state_outline_width) >= 1
+        and state_affordance_passed
     )
     return BrowserEvaluation(
         passed,
@@ -415,6 +422,81 @@ def evaluate_focus_sequence(
     )
 
 
+def evaluate_task4_focus_sequence(
+    *,
+    slug: str,
+    focused_roles: tuple[str, ...],
+    region_order: tuple[str, ...],
+    outline_widths: tuple[float, ...],
+    positive_tabindex_count: int,
+) -> BrowserEvaluation:
+    """Require natural focus order and visible focus across every Task 4 route."""
+
+    supported = {
+        "public-home",
+        "stock-selector",
+        "single-stock-report",
+        "public-data-health",
+        "public-proof-history",
+        "personal-data-health",
+        "personal-proof-history",
+    }
+    if slug not in supported:
+        return BrowserEvaluation(False, f"unsupported Task 4 route {slug!r}")
+    leading = (
+        ("workflow-nav", "context")
+        if slug.startswith("personal-")
+        else ("context", "workflow-nav")
+    )
+    required_regions = leading + (
+        "page-title",
+        "primary-answer",
+        "primary-action",
+        "stop-rule",
+        "supporting-evidence",
+        "advanced-detail",
+    )
+    try:
+        region_indexes = tuple(region_order.index(name) for name in required_regions)
+        region_order_passed = all(
+            left < right for left, right in zip(region_indexes, region_indexes[1:])
+        )
+    except ValueError:
+        region_order_passed = False
+    try:
+        action_index = focused_roles.index("primary-action")
+        advanced_index = focused_roles.index("advanced-detail", action_index + 1)
+    except ValueError:
+        action_index = -1
+        advanced_index = -1
+    navigation_before_action = (
+        action_index > 1 and "navigation" in focused_roles[1:action_index]
+    )
+    navigation_after_action = (
+        "navigation" in focused_roles[action_index + 1 : advanced_index]
+        if action_index >= 0 and advanced_index >= 0
+        else True
+    )
+    passed = (
+        positive_tabindex_count == 0
+        and bool(focused_roles)
+        and focused_roles[0] == "skip"
+        and navigation_before_action
+        and not navigation_after_action
+        and advanced_index > action_index
+        and region_order_passed
+        and len(outline_widths) >= len(focused_roles)
+        and all(width >= 3 for width in outline_widths[: len(focused_roles)])
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            f"route={slug}; positive_tabindex={positive_tabindex_count}; "
+            f"focused={focused_roles!r}; regions={region_order!r}; outlines={outline_widths!r}"
+        ),
+    )
+
+
 def evaluate_personal_route_hierarchy(
     *,
     slug: str,
@@ -469,6 +551,186 @@ def evaluate_personal_route_hierarchy(
             f"supporting_count={supporting_count}; "
             f"primary_action_focusable_count={primary_action_focusable_count}; "
             f"legacy_pre_answer_action_count={legacy_pre_answer_action_count}"
+        ),
+    )
+
+
+def evaluate_task4_route_hierarchy(
+    *,
+    slug: str,
+    region_counts: dict[str, int],
+    region_order: tuple[str, ...],
+    visible_region_counts: dict[str, int],
+    visible_region_order: tuple[str, ...],
+    primary_action_focusable_count: int,
+    legacy_pre_answer_action_count: int,
+) -> BrowserEvaluation:
+    """Require one ordered shared-region contract on Task 4 routes."""
+
+    supported = {
+        "public-home",
+        "stock-selector",
+        "single-stock-report",
+        "public-data-health",
+        "public-proof-history",
+        "personal-data-health",
+        "personal-proof-history",
+    }
+    if slug not in supported:
+        return BrowserEvaluation(False, f"unsupported Task 4 route {slug!r}")
+    leading = (
+        ("workflow-nav", "context")
+        if slug.startswith("personal-")
+        else ("context", "workflow-nav")
+    )
+    required = leading + (
+        "page-title",
+        "primary-answer",
+        "primary-action",
+        "stop-rule",
+        "supporting-evidence",
+        "advanced-detail",
+    )
+    exact_counts = all(int(region_counts.get(name, 0)) == 1 for name in required)
+    visible_exact_counts = all(
+        int(visible_region_counts.get(name, 0)) == 1 for name in required
+    )
+
+    def ordered(sequence: tuple[str, ...]) -> bool:
+        try:
+            indexes = tuple(sequence.index(name) for name in required)
+        except ValueError:
+            return False
+        return all(left < right for left, right in zip(indexes, indexes[1:]))
+
+    raw_ordered = ordered(region_order)
+    visible_ordered = ordered(visible_region_order)
+    passed = (
+        exact_counts
+        and visible_exact_counts
+        and raw_ordered
+        and visible_ordered
+        and primary_action_focusable_count == 1
+        and legacy_pre_answer_action_count == 0
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            f"route={slug}; counts={region_counts!r}; order={region_order!r}; "
+            f"visible_counts={visible_region_counts!r}; visible_order={visible_region_order!r}; "
+            f"primary_action_focusable_count={primary_action_focusable_count}; "
+            f"legacy_pre_answer_action_count={legacy_pre_answer_action_count}"
+        ),
+    )
+
+
+def evaluate_initial_scroll(
+    *,
+    window_scroll_x: float,
+    window_scroll_y: float,
+    document_scroll_left: float,
+    document_scroll_top: float,
+    main_scroll_left: float,
+    main_scroll_top: float,
+    public_app_nav_scroll_left: float,
+    research_workflow_nav_scroll_left: float,
+    research_workflow_nav_scroll_top: float,
+) -> BrowserEvaluation:
+    """Require an unscrolled initial viewport before geometry and screenshot proof."""
+
+    values = {
+        "window": (window_scroll_x, window_scroll_y),
+        "document": (document_scroll_left, document_scroll_top),
+        "main": (main_scroll_left, main_scroll_top),
+        "public-app-nav": (public_app_nav_scroll_left,),
+        "research-workflow-nav": (
+            research_workflow_nav_scroll_left,
+            research_workflow_nav_scroll_top,
+        ),
+    }
+    passed = all(abs(value) <= 1 for pair in values.values() for value in pair)
+    return BrowserEvaluation(passed, f"scroll origins={values!r}")
+
+
+def evaluate_initial_viewport_hierarchy(
+    *,
+    region_boxes: dict[str, dict[str, object]],
+    viewport_height: float,
+    require_complete: bool,
+) -> BrowserEvaluation:
+    """Require critical route regions to begin on-screen at the true scroll origin."""
+
+    required = ("primary-answer", "primary-action", "stop-rule")
+    missing = tuple(name for name in required if name not in region_boxes)
+    if missing:
+        return BrowserEvaluation(False, f"missing critical regions={missing!r}")
+    tops = {
+        name: float(region_boxes[name].get("top") or 0)
+        for name in required
+    }
+    bottoms = {
+        name: float(region_boxes[name].get("bottom") or 0)
+        for name in required
+    }
+    starts_visible = all(-1 <= top <= viewport_height + 1 for top in tops.values())
+    complete = (
+        all(bottom <= viewport_height + 1 for bottom in bottoms.values())
+        if require_complete
+        else True
+    )
+    return BrowserEvaluation(
+        starts_visible and complete,
+        (
+            f"viewport_height={viewport_height:.0f}; require_complete={require_complete}; "
+            f"tops={tops!r}; bottoms={bottoms!r}"
+        ),
+    )
+
+
+def evaluate_public_home_geometry(
+    *,
+    viewport_width: float,
+    viewport_height: float,
+    zoom: int,
+    phone_layout: bool,
+    action_left: float,
+    action_right: float,
+    action_top: float,
+    action_bottom: float,
+    stop_top: float,
+    stop_bottom: float,
+    metrics_top: float,
+    metrics_bottom: float,
+    metrics_left: float,
+    metrics_right: float,
+) -> BrowserEvaluation:
+    """Verify the desktop grid exception without changing phone source order."""
+
+    if not phone_layout:
+        columns_separate = (
+            action_right <= metrics_left + 1
+            or metrics_right <= action_left + 1
+        )
+        passed = (
+            abs(action_top - metrics_top) <= 8
+            and max(action_bottom, metrics_bottom) <= stop_top + 1
+            and columns_separate
+        )
+        expected = "desktop separate action/metrics columns before stop"
+    else:
+        passed = (
+            action_bottom <= stop_top + 1
+            and stop_bottom <= metrics_top + 1
+            and (zoom != 1 or stop_bottom <= viewport_height + 1)
+        )
+        expected = "phone action before complete stop before metrics"
+    return BrowserEvaluation(
+        passed,
+        (
+            f"{expected}; viewport={viewport_width:.0f}x{viewport_height:.0f}; zoom={zoom}; "
+            f"phone_layout={phone_layout}; action={action_left:.1f}..{action_right:.1f} x "
+            f"{action_top:.1f}..{action_bottom:.1f}; stop_top={stop_top:.1f}; "
+            f"metrics={metrics_left:.1f}..{metrics_right:.1f} x {metrics_top:.1f}..{metrics_bottom:.1f}"
         ),
     )
 
@@ -556,9 +818,13 @@ def _browser_observation(page: Any) -> dict[str, object]:
         height: box.height,
       };
     });
-  const discoverAction = [...document.querySelectorAll("[data-testid='stTextInput']")]
-    .find((node) => node.innerText.includes("Search saved companies"))
+  const nativePrimaryAction = [...document.querySelectorAll("[data-testid='stTextInput']")]
+    .find((node) =>
+      node.innerText.includes("Search saved companies") ||
+      node.innerText.includes("Search this review queue")
+    )
     ?.querySelector("input") || null;
+  const homeActionArea = document.querySelector(".public-home-primary");
   const boxFor = (node, name) => {
     const box = node.getBoundingClientRect();
     return {
@@ -587,15 +853,17 @@ def _browser_observation(page: Any) -> dict[str, object]:
     "nav a, [data-sr-region='primary-action'], [data-testid='stLinkButton'] a[kind='primary'], " +
     "[data-testid='stButton'] button[kind='primary']"
   );
-  if (discoverAction && visible(discoverAction)) {
-    controls.push(boxFor(discoverAction, "primary-action"));
+  if (nativePrimaryAction && visible(nativePrimaryAction)) {
+    controls.push(boxFor(nativePrimaryAction, "primary-action"));
   }
-  const main = document.querySelector("[role='main']") || document.querySelector("[data-testid='stMain']");
+  const main = document.querySelector("[data-testid='stMain']") || document.querySelector("[role='main']");
+  const publicAppNav = document.querySelector(".public-app-nav");
+  const researchWorkflowNav = document.querySelector(".research-workflow-navigation");
   const doc = document.documentElement;
   const body = document.body;
   const regions = boxes("[data-sr-region]");
-  if (discoverAction && visible(discoverAction)) {
-    regions.push(boxFor(discoverAction, "primary-action"));
+  if (nativePrimaryAction && visible(nativePrimaryAction)) {
+    regions.push(boxFor(nativePrimaryAction, "primary-action"));
   }
   const publicNavs = [...document.querySelectorAll("nav[aria-label='Public workflow']")];
   const researchNavs = [...document.querySelectorAll("nav[aria-label='Personal research workflow']")];
@@ -604,17 +872,24 @@ def _browser_observation(page: Any) -> dict[str, object]:
     ...document.querySelectorAll(".research-workspace-action")
   ].filter(visible);
   const regionCounts = {};
+  const visibleRegionCounts = {};
   for (const region of document.querySelectorAll("[data-sr-region]")) {
     const name = region.getAttribute("data-sr-region");
     regionCounts[name] = (regionCounts[name] || 0) + 1;
+    if (visible(region)) {
+      visibleRegionCounts[name] = (visibleRegionCounts[name] || 0) + 1;
+    }
   }
-  if (discoverAction && visible(discoverAction)) {
+  if (nativePrimaryAction) {
     regionCounts["primary-action"] = (regionCounts["primary-action"] || 0) + 1;
+  }
+  if (nativePrimaryAction && visible(nativePrimaryAction)) {
+    visibleRegionCounts["primary-action"] = (visibleRegionCounts["primary-action"] || 0) + 1;
   }
   const regionNodes = [...document.querySelectorAll("[data-sr-region]")]
     .map((node) => ({node, name: node.getAttribute("data-sr-region")}));
-  if (discoverAction && visible(discoverAction)) {
-    regionNodes.push({node: discoverAction, name: "primary-action"});
+  if (nativePrimaryAction) {
+    regionNodes.push({node: nativePrimaryAction, name: "primary-action"});
   }
   regionNodes.sort((left, right) => {
     if (left.node === right.node) return 0;
@@ -622,9 +897,10 @@ def _browser_observation(page: Any) -> dict[str, object]:
       ? -1
       : 1;
   });
+  const visibleRegionNodes = regionNodes.filter((entry) => visible(entry.node));
   const primaryActionNodes = [
     ...document.querySelectorAll("[data-sr-region='primary-action']"),
-    ...(discoverAction && visible(discoverAction) ? [discoverAction] : []),
+    ...(nativePrimaryAction && visible(nativePrimaryAction) ? [nativePrimaryAction] : []),
   ];
   const primaryActionFocusableCount = primaryActionNodes.filter((node) => {
     if (!visible(node) || node.matches("[disabled], [aria-disabled='true']")) return false;
@@ -667,6 +943,19 @@ def _browser_observation(page: Any) -> dict[str, object]:
     visual_viewport_scale: window.visualViewport ? window.visualViewport.scale : null,
     visual_viewport_width: window.visualViewport ? window.visualViewport.width : null,
     visual_viewport_height: window.visualViewport ? window.visualViewport.height : null,
+    scroll_x: window.scrollX,
+    scroll_y: window.scrollY,
+    document_scroll_left: document.scrollingElement ? document.scrollingElement.scrollLeft : 0,
+    document_scroll_top: document.scrollingElement ? document.scrollingElement.scrollTop : 0,
+    main_scroll_left: main ? main.scrollLeft : 0,
+    main_scroll_top: main ? main.scrollTop : 0,
+    public_app_nav_scroll_left: publicAppNav ? publicAppNav.scrollLeft : 0,
+    research_workflow_nav_scroll_left: researchWorkflowNav ? researchWorkflowNav.scrollLeft : 0,
+    research_workflow_nav_scroll_top: researchWorkflowNav ? researchWorkflowNav.scrollTop : 0,
+    home_action_area: homeActionArea && visible(homeActionArea)
+      ? boxFor(homeActionArea, "home-action-area")
+      : null,
+    phone_media_matches: matchMedia("(max-width: 640px)").matches,
     h1_count: document.querySelectorAll("[role='main'] h1").length,
     h1_text: [...document.querySelectorAll("[role='main'] h1")].map((node) => node.textContent.trim()),
     public_nav_count: publicNavs.length,
@@ -684,12 +973,32 @@ def _browser_observation(page: Any) -> dict[str, object]:
     positive_tabindex_count: [...document.querySelectorAll("[tabindex]")]
       .filter((node) => node.tabIndex > 0).length,
     region_order: regionNodes.map((entry) => entry.name),
+    visible_region_counts: visibleRegionCounts,
+    visible_region_order: visibleRegionNodes.map((entry) => entry.name),
     primary_action_focusable_count: primaryActionFocusableCount,
     legacy_pre_answer_action_count: legacyPreAnswerActions.length,
     overflow_nodes: overflowNodes,
   };
 }
 """
+    )
+
+
+def _reset_initial_scroll(page: Any) -> None:
+    page.evaluate(
+        """async () => {
+          window.scrollTo({left: 0, top: 0, behavior: "auto"});
+          if (document.scrollingElement) {
+            document.scrollingElement.scrollTo({left: 0, top: 0, behavior: "auto"});
+          }
+          const main = document.querySelector("[data-testid='stMain']") || document.querySelector("[role='main']");
+          if (main) main.scrollTo({left: 0, top: 0, behavior: "auto"});
+          const publicAppNav = document.querySelector(".public-app-nav");
+          if (publicAppNav) publicAppNav.scrollTo({left: 0, top: 0, behavior: "auto"});
+          const researchWorkflowNav = document.querySelector(".research-workflow-navigation");
+          if (researchWorkflowNav) researchWorkflowNav.scrollTo({left: 0, top: 0, behavior: "auto"});
+          await new Promise((resolve) => window.requestAnimationFrame(() => resolve()));
+        }"""
     )
 
 
@@ -705,10 +1014,20 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
             """
 () => {
   const element = document.activeElement;
+  const selectorSearch = element.matches("[data-testid='stTextInput'] input") &&
+    (() => {
+      const wrapper = element.closest("[data-testid='stTextInput']");
+      const label = wrapper ? wrapper.innerText : "";
+      return label.includes("Search saved companies") || label.includes("Search this review queue");
+    })();
   let role = "other";
   if (element.matches("a.public-skip-link")) role = "skip";
-  else if (element.closest("nav[aria-label='Personal research workflow']")) role = "navigation";
   else if (element.matches("[data-sr-region='primary-action']")) role = "primary-action";
+  else if (selectorSearch) role = "primary-action";
+  else if (
+    element.closest("nav[aria-label='Personal research workflow']") ||
+    element.closest(".public-app-shell")
+  ) role = "navigation";
   else if (element.matches("summary")) role = "advanced-detail";
   const style = getComputedStyle(element);
   return {
@@ -862,6 +1181,26 @@ def _evaluate_observation(
     def add(name: str, result: BrowserEvaluation) -> None:
         checks.append({"name": name, "passed": result.passed, "detail": result.detail})
 
+    add(
+        "initial_scroll_origin",
+        evaluate_initial_scroll(
+            window_scroll_x=float(observation.get("scroll_x") or 0),
+            window_scroll_y=float(observation.get("scroll_y") or 0),
+            document_scroll_left=float(observation.get("document_scroll_left") or 0),
+            document_scroll_top=float(observation.get("document_scroll_top") or 0),
+            main_scroll_left=float(observation.get("main_scroll_left") or 0),
+            main_scroll_top=float(observation.get("main_scroll_top") or 0),
+            public_app_nav_scroll_left=float(
+                observation.get("public_app_nav_scroll_left") or 0
+            ),
+            research_workflow_nav_scroll_left=float(
+                observation.get("research_workflow_nav_scroll_left") or 0
+            ),
+            research_workflow_nav_scroll_top=float(
+                observation.get("research_workflow_nav_scroll_top") or 0
+            ),
+        ),
+    )
     client_width = float(observation.get("client_width") or 0)
     for index, region in enumerate(observation.get("regions") or (), start=1):
         add(
@@ -979,8 +1318,20 @@ def _evaluate_observation(
                 "detail": f"current core item count={observation.get('research_current_count')}",
             }
         )
-    if route.slug in {"research-desk", "discover", "company-workbench", "monitor"}:
-        required = ("primary-answer", "primary-action", "stop-rule")
+    first_view_routes = {
+        "research-desk",
+        "discover",
+        "company-workbench",
+        "monitor",
+        "public-home",
+        "stock-selector",
+        "single-stock-report",
+        "public-data-health",
+        "public-proof-history",
+        "personal-data-health",
+        "personal-proof-history",
+    }
+    if route.slug in first_view_routes:
         boxes = {
             str(row.get("name")): row for row in observation.get("regions") or ()
         }
@@ -995,29 +1346,13 @@ def _evaluate_observation(
                 or observation.get("client_height")
                 or 0
             )
-            if observed_width >= 1280:
-                hierarchy_passed = all(
-                    name in boxes
-                    and float(boxes[name].get("bottom") or 0) <= observed_height + 1
-                    for name in required
-                )
-                detail = (
-                    "answer, action, and stop rule fully inside the observed desktop viewport "
-                    f"{observed_width:.0f}x{observed_height:.0f}"
-                )
-            else:
-                hierarchy_passed = all(
-                    name in boxes
-                    and float(boxes[name].get("top") or observed_height + 2)
-                    <= observed_height + 1
-                    for name in required
-                )
-                detail = (
-                    "answer, action, and stop-rule starts inside the observed phone viewport "
-                    f"{observed_width:.0f}x{observed_height:.0f}"
-                )
-            checks.append(
-                {"name": "initial_viewport_hierarchy", "passed": hierarchy_passed, "detail": detail}
+            add(
+                "initial_viewport_hierarchy",
+                evaluate_initial_viewport_hierarchy(
+                    region_boxes=boxes,
+                    viewport_height=observed_height,
+                    require_complete=observed_width >= 1280,
+                ),
             )
     if route.slug in {"research-desk", "discover", "company-workbench", "monitor"}:
         checks.append(
@@ -1044,6 +1379,85 @@ def _evaluate_observation(
                 ),
             ),
         )
+    if route.slug in {
+        "public-home",
+        "stock-selector",
+        "single-stock-report",
+        "public-data-health",
+        "public-proof-history",
+        "personal-data-health",
+        "personal-proof-history",
+    }:
+        add(
+            "task4_route_answer_hierarchy",
+            evaluate_task4_route_hierarchy(
+                slug=route.slug,
+                region_counts={str(name): int(count) for name, count in region_counts.items()},
+                region_order=tuple(
+                    str(value) for value in observation.get("region_order") or ()
+                ),
+                visible_region_counts={
+                    str(name): int(count)
+                    for name, count in dict(
+                        observation.get("visible_region_counts") or {}
+                    ).items()
+                },
+                visible_region_order=tuple(
+                    str(value)
+                    for value in observation.get("visible_region_order") or ()
+                ),
+                primary_action_focusable_count=int(
+                    observation.get("primary_action_focusable_count") or 0
+                ),
+                legacy_pre_answer_action_count=int(
+                    observation.get("legacy_pre_answer_action_count") or 0
+                ),
+            ),
+        )
+    if route.slug == "public-home":
+        boxes = {
+            str(row.get("name")): row for row in observation.get("regions") or ()
+        }
+        home_action_area = dict(observation.get("home_action_area") or {})
+        if home_action_area and all(
+            name in boxes
+            for name in ("primary-action", "stop-rule", "supporting-evidence")
+        ):
+            add(
+                "public_home_responsive_geometry",
+                evaluate_public_home_geometry(
+                    viewport_width=float(
+                        observation.get("visual_viewport_width")
+                        or observation.get("client_width")
+                        or 0
+                    ),
+                    viewport_height=float(
+                        observation.get("visual_viewport_height")
+                        or observation.get("client_height")
+                        or 0
+                    ),
+                    zoom=zoom,
+                    phone_layout=observation.get("phone_media_matches") is True,
+                    action_left=float(home_action_area.get("left") or 0),
+                    action_right=float(home_action_area.get("right") or 0),
+                    action_top=float(home_action_area.get("top") or 0),
+                    action_bottom=float(home_action_area.get("bottom") or 0),
+                    stop_top=float(boxes["stop-rule"].get("top") or 0),
+                    stop_bottom=float(boxes["stop-rule"].get("bottom") or 0),
+                    metrics_top=float(boxes["supporting-evidence"].get("top") or 0),
+                    metrics_bottom=float(boxes["supporting-evidence"].get("bottom") or 0),
+                    metrics_left=float(boxes["supporting-evidence"].get("left") or 0),
+                    metrics_right=float(boxes["supporting-evidence"].get("right") or 0),
+                ),
+            )
+        else:
+            checks.append(
+                {
+                    "name": "public_home_responsive_geometry",
+                    "passed": False,
+                    "detail": f"missing Home geometry regions: {tuple(boxes)!r}",
+                }
+            )
     if route.slug == "research-desk":
         for media_mode in ("normal", "forced-colors"):
             sequence = focus_sequences.get(media_mode) or {}
@@ -1058,6 +1472,37 @@ def _evaluate_observation(
                     ),
                     outline_widths=tuple(
                         float(value) for value in sequence.get("outline_widths") or ()
+                    ),
+                    positive_tabindex_count=int(
+                        observation.get("positive_tabindex_count") or 0
+                    ),
+                ),
+            )
+    elif route.slug in {
+        "public-home",
+        "stock-selector",
+        "single-stock-report",
+        "public-data-health",
+        "public-proof-history",
+        "personal-data-health",
+        "personal-proof-history",
+    }:
+        for media_mode in ("normal", "forced-colors"):
+            sequence = focus_sequences.get(media_mode) or {}
+            add(
+                f"task4_natural_focus_sequence_{media_mode}",
+                evaluate_task4_focus_sequence(
+                    slug=route.slug,
+                    focused_roles=tuple(
+                        str(value) for value in sequence.get("focused_roles") or ()
+                    ),
+                    region_order=tuple(
+                        str(value)
+                        for value in observation.get("visible_region_order") or ()
+                    ),
+                    outline_widths=tuple(
+                        float(value)
+                        for value in sequence.get("outline_widths") or ()
                     ),
                     positive_tabindex_count=int(
                         observation.get("positive_tabindex_count") or 0
@@ -1252,6 +1697,7 @@ def _run_matrix_cell(
                             forced_colors="none",
                         )
                         load_route()
+                        _reset_initial_scroll(page)
                         observation = _browser_observation(page)
                         screenshot_bytes = page.screenshot(
                             path=output_dir / screenshot_name,
@@ -1267,8 +1713,20 @@ def _run_matrix_cell(
                             screenshot_bytes[20:24], "big"
                         )
                         focus_sequences: dict[str, dict[str, object]] = {}
-                        if route.slug == "research-desk":
+                        focus_route_slugs = {
+                            "research-desk",
+                            "public-home",
+                            "stock-selector",
+                            "single-stock-report",
+                            "public-data-health",
+                            "public-proof-history",
+                            "personal-data-health",
+                            "personal-proof-history",
+                        }
+                        if route.slug in focus_route_slugs:
                             focus_sequences["normal"] = _focus_sequence_observation(page)
+                            load_route()
+                            _reset_initial_scroll(page)
                         skip_focus = _skip_focus_observation(page)
 
                         page.emulate_media(
@@ -1284,7 +1742,7 @@ def _run_matrix_cell(
                         )
                         load_route()
                         forced_colors = _forced_colors_observation(page)
-                        if route.slug == "research-desk":
+                        if route.slug in focus_route_slugs:
                             load_route()
                             focus_sequences["forced-colors"] = _focus_sequence_observation(page)
                         checks = _evaluate_observation(

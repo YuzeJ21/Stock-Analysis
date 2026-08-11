@@ -186,6 +186,22 @@ def test_media_style_evaluators_require_computed_affordances_not_only_active_med
         state_border_width=2,
         state_outline_width=1,
     ).passed
+    assert evaluate_forced_colors_styles(
+        active=True,
+        focus_outline_style="solid",
+        focus_outline_width=3,
+        state_count=0,
+        state_border_width=0,
+        state_outline_width=0,
+    ).passed
+    assert not evaluate_forced_colors_styles(
+        active=True,
+        focus_outline_style="solid",
+        focus_outline_width=3,
+        state_count=1,
+        state_border_width=2,
+        state_outline_width=0,
+    ).passed
     assert not evaluate_forced_colors_styles(
         active=True,
         focus_outline_style="none",
@@ -432,3 +448,360 @@ def test_make_target_requires_and_forwards_all_visual_gate_arguments():
     assert '--viewports "390x844"' in command
     assert '--zooms "1,2"' in command
     assert '--output-dir "/tmp/workspace-visual-browser-gate-make"' in command
+
+
+@pytest.mark.parametrize(
+    "slug",
+    (
+        "public-home",
+        "stock-selector",
+        "single-stock-report",
+        "public-data-health",
+        "public-proof-history",
+        "personal-data-health",
+        "personal-proof-history",
+    ),
+)
+def test_task4_route_hierarchy_rejects_duplicate_reordered_or_nonfocusable_regions(slug):
+    from src.workspace_visual_browser_gate import evaluate_task4_route_hierarchy
+
+    leading = (
+        ("workflow-nav", "context")
+        if slug.startswith("personal-")
+        else ("context", "workflow-nav")
+    )
+    order = leading + (
+        "page-title",
+        "primary-answer",
+        "primary-action",
+        "stop-rule",
+        "supporting-evidence",
+        "advanced-detail",
+    )
+    counts = {name: 1 for name in order}
+
+    assert evaluate_task4_route_hierarchy(
+        slug=slug,
+        region_counts=counts,
+        region_order=order,
+        visible_region_counts=counts,
+        visible_region_order=order,
+        primary_action_focusable_count=1,
+        legacy_pre_answer_action_count=0,
+    ).passed
+    assert not evaluate_task4_route_hierarchy(
+        slug=slug,
+        region_counts={**counts, "stop-rule": 2},
+        region_order=order + ("stop-rule",),
+        visible_region_counts=counts,
+        visible_region_order=order,
+        primary_action_focusable_count=1,
+        legacy_pre_answer_action_count=0,
+    ).passed
+    assert not evaluate_task4_route_hierarchy(
+        slug=slug,
+        region_counts=counts,
+        region_order=leading + (
+            "page-title",
+            "primary-answer",
+            "primary-action",
+            "supporting-evidence",
+            "stop-rule",
+            "advanced-detail",
+        ),
+        visible_region_counts=counts,
+        visible_region_order=order,
+        primary_action_focusable_count=1,
+        legacy_pre_answer_action_count=0,
+    ).passed
+    assert not evaluate_task4_route_hierarchy(
+        slug=slug,
+        region_counts=counts,
+        region_order=order,
+        visible_region_counts=counts,
+        visible_region_order=order,
+        primary_action_focusable_count=0,
+        legacy_pre_answer_action_count=0,
+    ).passed
+    assert not evaluate_task4_route_hierarchy(
+        slug=slug,
+        region_counts=counts,
+        region_order=order,
+        visible_region_counts=counts,
+        visible_region_order=order,
+        primary_action_focusable_count=1,
+        legacy_pre_answer_action_count=1,
+    ).passed
+    assert not evaluate_task4_route_hierarchy(
+        slug=slug,
+        region_counts=counts,
+        region_order=order,
+        visible_region_counts={**counts, "stop-rule": 0},
+        visible_region_order=tuple(name for name in order if name != "stop-rule"),
+        primary_action_focusable_count=1,
+        legacy_pre_answer_action_count=0,
+    ).passed
+
+
+def test_browser_gate_resets_and_rejects_nonzero_initial_scroll_before_capture():
+    from src.workspace_visual_browser_gate import evaluate_initial_scroll
+
+    zero = {
+        "window_scroll_x": 0,
+        "window_scroll_y": 0,
+        "document_scroll_left": 0,
+        "document_scroll_top": 0,
+        "main_scroll_left": 0,
+        "main_scroll_top": 0,
+        "public_app_nav_scroll_left": 0,
+        "research_workflow_nav_scroll_left": 0,
+        "research_workflow_nav_scroll_top": 0,
+    }
+    assert evaluate_initial_scroll(**zero).passed
+    for carrier in zero:
+        assert not evaluate_initial_scroll(**{**zero, carrier: 24}).passed
+
+    source = Path("src/workspace_visual_browser_gate.py").read_text(encoding="utf-8")
+    load_index = source.index("load_route()", source.index("def _run_matrix_cell("))
+    reset_index = source.index("_reset_initial_scroll(page)", load_index)
+    observation_index = source.index("observation = _browser_observation(page)", reset_index)
+    screenshot_index = source.index("screenshot_bytes = page.screenshot(", observation_index)
+    assert load_index < reset_index < observation_index < screenshot_index
+    assert "scroll_x: window.scrollX" in source
+    assert "scroll_y: window.scrollY" in source
+    assert "document_scroll_left: document.scrollingElement" in source
+    assert "document_scroll_top: document.scrollingElement" in source
+    assert "main_scroll_left: main ? main.scrollLeft" in source
+    assert "main_scroll_top: main ? main.scrollTop" in source
+    assert "public_app_nav_scroll_left: publicAppNav ? publicAppNav.scrollLeft" in source
+    assert "research_workflow_nav_scroll_left: researchWorkflowNav ? researchWorkflowNav.scrollLeft" in source
+    assert "research_workflow_nav_scroll_top: researchWorkflowNav ? researchWorkflowNav.scrollTop" in source
+    assert "document.scrollingElement.scrollTo" in source
+    assert "main.scrollTo" in source
+    assert "publicAppNav.scrollTo" in source
+    assert "researchWorkflowNav.scrollTo" in source
+
+    runner = source[source.index("def _run_matrix_cell(") : source.index("def run_workspace_visual_browser_gate(")]
+    focus_index = runner.index('focus_sequences["normal"] = _focus_sequence_observation(page)')
+    reload_index = runner.index("load_route()", focus_index)
+    focus_reset_index = runner.index("_reset_initial_scroll(page)", reload_index)
+    skip_index = runner.index("skip_focus = _skip_focus_observation(page)", focus_reset_index)
+    assert focus_index < reload_index < focus_reset_index < skip_index
+
+
+def test_initial_viewport_hierarchy_rejects_regions_above_or_below_the_viewport():
+    from src.workspace_visual_browser_gate import evaluate_initial_viewport_hierarchy
+
+    visible = {
+        "primary-answer": {"top": 180, "bottom": 340},
+        "primary-action": {"top": 360, "bottom": 404},
+        "stop-rule": {"top": 420, "bottom": 480},
+    }
+    assert evaluate_initial_viewport_hierarchy(
+        region_boxes=visible,
+        viewport_height=844,
+        require_complete=False,
+    ).passed
+    assert not evaluate_initial_viewport_hierarchy(
+        region_boxes={**visible, "primary-answer": {"top": -24, "bottom": 140}},
+        viewport_height=844,
+        require_complete=False,
+    ).passed
+    assert not evaluate_initial_viewport_hierarchy(
+        region_boxes={**visible, "stop-rule": {"top": 780, "bottom": 880}},
+        viewport_height=844,
+        require_complete=True,
+    ).passed
+
+
+@pytest.mark.parametrize(
+    "slug",
+    (
+        "public-home",
+        "stock-selector",
+        "single-stock-report",
+        "public-data-health",
+        "public-proof-history",
+        "personal-data-health",
+        "personal-proof-history",
+    ),
+)
+def test_task4_focus_sequence_requires_primary_action_order_and_visible_outline(slug):
+    from src.workspace_visual_browser_gate import evaluate_task4_focus_sequence
+
+    leading = (
+        ("workflow-nav", "context")
+        if slug.startswith("personal-")
+        else ("context", "workflow-nav")
+    )
+    regions = leading + (
+        "page-title",
+        "primary-answer",
+        "primary-action",
+        "stop-rule",
+        "supporting-evidence",
+        "advanced-detail",
+    )
+    valid = {
+        "slug": slug,
+        "focused_roles": ("skip", "navigation", "navigation", "primary-action", "advanced-detail"),
+        "region_order": regions,
+        "outline_widths": (3, 3, 3, 3, 3),
+        "positive_tabindex_count": 0,
+    }
+    assert evaluate_task4_focus_sequence(**valid).passed
+    assert not evaluate_task4_focus_sequence(
+        **{**valid, "positive_tabindex_count": 1}
+    ).passed
+    assert not evaluate_task4_focus_sequence(
+        **{**valid, "focused_roles": ("skip", "primary-action", "navigation", "advanced-detail")}
+    ).passed
+    assert not evaluate_task4_focus_sequence(
+        **{**valid, "outline_widths": (3, 3, 3, 0, 3)}
+    ).passed
+
+
+def test_public_home_geometry_requires_desktop_grid_and_phone_source_order():
+    from src.workspace_visual_browser_gate import evaluate_public_home_geometry
+
+    assert evaluate_public_home_geometry(
+        viewport_width=1280,
+        viewport_height=720,
+        zoom=1,
+        phone_layout=False,
+        action_left=20,
+        action_right=600,
+        action_top=220,
+        action_bottom=360,
+        stop_top=480,
+        stop_bottom=540,
+        metrics_top=220,
+        metrics_bottom=450,
+        metrics_left=640,
+        metrics_right=1260,
+    ).passed
+    assert not evaluate_public_home_geometry(
+        viewport_width=1280,
+        viewport_height=720,
+        zoom=1,
+        phone_layout=False,
+        action_left=20,
+        action_right=600,
+        action_top=220,
+        action_bottom=360,
+        stop_top=220,
+        stop_bottom=280,
+        metrics_top=300,
+        metrics_bottom=450,
+        metrics_left=640,
+        metrics_right=1260,
+    ).passed
+
+
+def test_public_home_geometry_observes_the_grid_area_not_the_inner_action_link():
+    from src.workspace_visual_browser_gate import evaluate_public_home_geometry
+
+    source = Path("src/workspace_visual_browser_gate.py").read_text(encoding="utf-8")
+
+    assert 'const homeActionArea = document.querySelector(".public-home-primary")' in source
+    assert "home_action_area: homeActionArea && visible(homeActionArea)" in source
+
+    runner = source[
+        source.index("if route.slug == \"public-home\":") :
+        source.index("if route.slug == \"research-desk\":")
+    ]
+    assert 'observation.get("home_action_area")' in runner
+    assert 'action_left=float(home_action_area.get("left") or 0)' in runner
+    assert 'action_right=float(home_action_area.get("right") or 0)' in runner
+    assert 'action_top=float(home_action_area.get("top") or 0)' in runner
+    assert 'action_bottom=float(home_action_area.get("bottom") or 0)' in runner
+    assert not evaluate_public_home_geometry(
+        viewport_width=1280,
+        viewport_height=720,
+        zoom=1,
+        phone_layout=False,
+        action_left=20,
+        action_right=760,
+        action_top=220,
+        action_bottom=360,
+        stop_top=480,
+        stop_bottom=540,
+        metrics_left=640,
+        metrics_right=1260,
+        metrics_top=220,
+        metrics_bottom=450,
+    ).passed
+    assert evaluate_public_home_geometry(
+        viewport_width=390,
+        viewport_height=844,
+        zoom=1,
+        phone_layout=True,
+        action_left=12,
+        action_right=378,
+        action_top=220,
+        action_bottom=360,
+        stop_top=372,
+        stop_bottom=430,
+        metrics_top=442,
+        metrics_bottom=700,
+        metrics_left=12,
+        metrics_right=378,
+    ).passed
+    assert evaluate_public_home_geometry(
+        viewport_width=640,
+        viewport_height=844,
+        zoom=1,
+        phone_layout=True,
+        action_left=12,
+        action_right=628,
+        action_top=220,
+        action_bottom=360,
+        stop_top=372,
+        stop_bottom=430,
+        metrics_top=442,
+        metrics_bottom=700,
+        metrics_left=12,
+        metrics_right=628,
+    ).passed
+    assert not evaluate_public_home_geometry(
+        viewport_width=390,
+        viewport_height=844,
+        zoom=1,
+        phone_layout=True,
+        action_left=12,
+        action_right=378,
+        action_top=680,
+        action_bottom=760,
+        stop_top=780,
+        stop_bottom=860,
+        metrics_top=872,
+        metrics_bottom=1100,
+        metrics_left=12,
+        metrics_right=378,
+    ).passed
+    assert not evaluate_public_home_geometry(
+        viewport_width=390,
+        viewport_height=844,
+        zoom=1,
+        phone_layout=True,
+        action_left=12,
+        action_right=378,
+        action_top=220,
+        action_bottom=360,
+        stop_top=620,
+        stop_bottom=680,
+        metrics_top=372,
+        metrics_bottom=600,
+        metrics_left=12,
+        metrics_right=378,
+    ).passed
+
+
+def test_browser_observation_recognizes_public_selector_native_search_as_primary_action():
+    source = Path("src/workspace_visual_browser_gate.py").read_text(encoding="utf-8")
+
+    assert 'node.innerText.includes("Search saved companies")' in source
+    assert 'node.innerText.includes("Search this review queue")' in source
+    assert 'element.matches("[data-testid=\'stTextInput\'] input")' in source
+    assert "visible_region_counts" in source
+    assert 'matchMedia("(max-width: 640px)").matches' in source

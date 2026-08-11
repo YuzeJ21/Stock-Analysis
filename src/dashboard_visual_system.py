@@ -317,6 +317,8 @@ def evidence_timeline_html(
     *,
     empty_title: str,
     empty_body: str,
+    heading: str = "What changed",
+    aria_label: str = "Evidence timeline",
 ) -> HtmlFragment:
     """Render the supplied authoritative order without deriving a latest record."""
 
@@ -345,7 +347,7 @@ def evidence_timeline_html(
         )
     return _trusted_fragment(
         "<section class='sr-evidence-timeline' data-sr-region='supporting-evidence' "
-        "aria-label='Evidence timeline'><h2>What changed</h2>"
+        f"aria-label='{escape_attribute(aria_label)}'><h2>{escape_text(heading)}</h2>"
         f"<ol>{''.join(rendered)}</ol></section>"
     )
 
@@ -507,6 +509,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   white-space: normal;
 }}
 .stApp:has(.research-workflow-navigation) [data-testid="stTextInput"] input {{ min-height: 44px; }}
+.stApp:has(.public-app-shell) [data-testid="stTextInput"] input {{ min-height: 44px; }}
 .sr-stop-rule {{
   display: grid;
   gap: 4px;
@@ -565,7 +568,14 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
 .sr-supporting-intro p {{ margin: 0; color: var(--sr-muted); font-size: .8125rem; line-height: 1.5; }}
 .sr-evidence-timeline {{ max-width: 65rem; }}
 .sr-evidence-timeline h2 {{ margin: 0 0 8px; color: var(--sr-ink); font-size: 1.125rem; }}
-.sr-evidence-timeline ol {{ display: grid; gap: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--sr-border); }}
+.sr-evidence-timeline ol {{
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--sr-border);
+}}
 .sr-timeline-record, .sr-timeline-empty {{
   display: grid;
   grid-template-columns: minmax(9rem, auto) minmax(10rem, .8fr) minmax(0, 2fr);
@@ -573,6 +583,8 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   align-items: start;
   padding: 12px 0;
   border-bottom: 1px solid var(--sr-border);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
 }}
 .sr-timeline-record time {{ color: var(--sr-muted); font: .8125rem ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }}
 .sr-timeline-record strong, .sr-timeline-empty strong {{ color: var(--sr-ink); font-size: .8125rem; }}
@@ -683,7 +695,10 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   font-size: .8125rem;
 }}
 .public-app-shell .public-workspace-mode a {{ color: var(--sr-forest) !important; min-height: 44px; display: inline-flex; align-items: center; }}
-.public-skip-link:focus-visible, a:focus-visible, button:focus-visible, [role="button"]:focus-visible {{
+.public-skip-link:focus-visible, a:focus-visible, button:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible,
+[role="button"]:focus-visible, [data-sr-region]:focus-visible,
+.sr-evidence-timeline ol:focus-visible {{
   outline: 3px solid var(--sr-focus) !important;
   outline-offset: 3px !important;
 }}
@@ -726,6 +741,8 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   .sr-status-chip,
   .sr-stop-rule {{
     border: 2px solid CanvasText;
+    outline: 1px solid CanvasText;
+    outline-offset: -4px;
   }}
   .public-skip-link:focus-visible, a:focus-visible, button:focus-visible {{
     outline: 3px solid Highlight !important;

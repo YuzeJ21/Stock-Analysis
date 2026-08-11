@@ -6685,22 +6685,23 @@ def public_home_overview_html(summary: dict[str, object]) -> str:
         "Missing inputs stay blocked instead of being inferred."
     )
     return (
-        "<section class='public-home-overview' aria-label='Start your research review'>"
+        "<section class='public-home-overview' data-sr-region='primary-answer' "
+        "aria-label='Start your research review'>"
         "<div class='public-home-primary'>"
         "<div class='public-home-eyebrow'>Start here</div>"
         "<h2>Choose one ticker before reading any analysis.</h2>"
         "<p>Start with a readiness-backed name. The report will show what is usable, what stays withheld, and where evidence belongs.</p>"
-        f"<a class='public-primary-action' href='{selector_href}'>Start with Stock Selector</a>"
+        f"<a class='public-primary-action' data-sr-region='primary-action' href='{selector_href}'>Start with Stock Selector</a>"
         "</div>"
-        f"<div class='public-home-stop public-home-stop-phone'>{stop_copy}</div>"
-        "<dl class='public-home-metrics'>"
+        f"<div class='public-home-stop' data-sr-region='stop-rule'>{stop_copy}</div>"
+        "<dl class='public-home-metrics' data-sr-region='supporting-evidence'>"
         f"<div><dt>Tracked names</dt><dd>{master:,}</dd></div>"
         f"<div><dt>Price-ready</dt><dd>{price_ready:,}</dd></div>"
         f"<div><dt>DCF-ready</dt><dd>{dcf_ready:,}</dd></div>"
         f"<div><dt>Trusted peers</dt><dd>{peer_ready:,}</dd></div>"
         "</dl>"
-        f"<div class='public-home-stop public-home-stop-desktop'>{stop_copy}</div>"
         "</section>"
+        f"{advanced_detail_marker_html().value}"
     )
 
 
@@ -6931,12 +6932,14 @@ def render_public_shell_mode_styles() -> None:
         .public-home-overview {
           display: grid;
           grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr);
+          grid-template-areas: "action metrics" "stop stop";
           gap: 1rem 1.25rem;
           align-items: start;
           margin-top: 0.7rem;
           padding: 1.25rem 0 0.2rem;
           border-top: 1px solid #d9e0dc;
         }
+        .public-home-primary { grid-area: action; }
         .public-home-primary h2 {
           margin: 0.2rem 0 0;
           color: #102a43;
@@ -6971,6 +6974,7 @@ def render_public_shell_mode_styles() -> None:
         }
         .public-primary-action:hover { background: #0b5f59; }
         .public-home-metrics {
+          grid-area: metrics;
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 0;
@@ -6999,15 +7003,12 @@ def render_public_shell_mode_styles() -> None:
           font-weight: 760;
         }
         .public-home-stop {
-          grid-column: 1 / -1;
+          grid-area: stop;
           padding: 0.75rem 0;
           border-top: 1px solid #d9e0dc;
           color: #53616f;
           font-size: 0.84rem;
           line-height: 1.45;
-        }
-        .public-home-stop-phone {
-          display: none;
         }
         .public-home-stop strong { color: #8a4b08; }
         .public-selector-start {
@@ -7067,10 +7068,12 @@ def render_public_shell_mode_styles() -> None:
           min-height: 2.75rem;
           border-radius: 6px;
           box-shadow: none;
-          border-color: #0f766e;
-          background: #0f766e;
-          color: #ffffff !important;
+          border-color: #c7d1cc;
+          background: #ffffff;
+          color: #0f5f58 !important;
+          font-weight: 750;
         }
+        .selector-action-link:hover { background: #f4f8f6; border-color: #8ba69b; }
         .selector-result-footer {
           padding: 0.7rem 1rem;
           border-top: 1px solid #e6ebe8;
@@ -7261,6 +7264,48 @@ def render_public_shell_mode_styles() -> None:
           color: #53616f;
           font-size: 0.9rem;
         }
+        @media (max-width: 800px) {
+          .public-lane-row {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+            padding: 0.9rem 0;
+          }
+          .public-lane-coverage { max-width: 12rem; }
+        }
+        @media (min-width: 641px) and (max-height: 720px) {
+          .public-app-shell { margin-bottom: 0.35rem; }
+          .public-page-intro {
+            gap: 0.65rem;
+            padding: 0.55rem 0 0.1rem;
+          }
+          .public-page-intro p {
+            margin-top: 0.25rem;
+            line-height: 1.35;
+          }
+          .profile-trust-strip {
+            margin: 0.05rem 0 0.35rem;
+            padding: 0.38rem 0;
+          }
+          .stApp:has(.public-app-shell) .sr-answer-panel {
+            gap: 0.45rem;
+            margin-bottom: 0.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+          }
+          .stApp:has(.public-app-shell) .sr-answer-panel h2 {
+            font-size: 1.1rem;
+            line-height: 1.3;
+          }
+          .stApp:has(.public-app-shell) .sr-answer-reason {
+            font-size: 0.875rem;
+            line-height: 1.38;
+          }
+          .stApp:has(.public-app-shell) .sr-stop-rule {
+            gap: 0.15rem;
+            padding: 0.5rem 0.75rem;
+            line-height: 1.35;
+          }
+        }
         @media (max-width: 640px) {
           [data-testid="stMainBlockContainer"] {
             padding: 0.72rem 1rem 2.2rem !important;
@@ -7269,8 +7314,9 @@ def render_public_shell_mode_styles() -> None:
           .public-page-intro {
             grid-template-columns: 1fr;
             display: grid;
-            gap: 0.7rem;
+            gap: 0.45rem;
           }
+          .public-app-shell { margin-bottom: 0.35rem; }
           .public-app-status,
           .public-page-boundary {
             justify-content: flex-start;
@@ -7282,30 +7328,51 @@ def render_public_shell_mode_styles() -> None:
             font-size: 0.74rem;
           }
           .public-app-nav {
-            flex-wrap: wrap;
-            overflow-x: visible;
-            row-gap: 0.12rem;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            row-gap: 0;
           }
           .public-app-nav a {
+            flex: 0 0 auto;
             padding: 0.34rem 0.42rem 0.4rem;
             font-size: 0.7rem;
+          }
+          .public-page-intro {
+            gap: 0.3rem;
+            padding: 0.62rem 0 0.15rem;
           }
           .public-page-intro h1 {
             font-size: 1.24rem;
           }
           .public-page-intro p {
+            margin-top: 0.25rem;
             font-size: 0.88rem;
+            line-height: 1.35;
           }
-          .profile-trust-strip {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.7rem 0;
+          .public-page-boundary span { padding: 0.2rem 0.4rem; }
+          .profile-trust-strip.compact {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0;
+            margin: 0.1rem 0 0.45rem;
+            padding: 0.45rem 0;
           }
           .profile-trust-strip > span,
           .profile-trust-primary {
-            padding: 0 0.5rem;
+            padding: 0 0.3rem;
+            font-size: 0.72rem;
           }
           .profile-trust-primary { padding-left: 0; }
-          .profile-trust-strip > :nth-child(odd) { border-left: 0; }
+          .profile-trust-strip small,
+          .profile-trust-label { font-size: 0.58rem; }
+          .sr-answer-panel {
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            padding: 0.85rem;
+            border-radius: 8px;
+          }
+          .sr-answer-question { font-size: 0.75rem; }
+          .sr-answer-panel h2 { font-size: 1.08rem; line-height: 1.3; }
+          .sr-answer-reason { font-size: 0.84rem; line-height: 1.35; }
           .research-change-summary { grid-template-columns: 1fr; }
           .research-change-action {
             max-width: none;
@@ -7313,18 +7380,14 @@ def render_public_shell_mode_styles() -> None:
           }
           .public-home-overview {
             grid-template-columns: 1fr;
+            grid-template-areas: "action" "stop" "metrics";
             gap: 0;
             padding-top: 1rem;
           }
           .public-home-primary h2 { font-size: 1.1rem; }
-          .public-home-stop-phone {
-            display: block;
-            grid-column: auto;
+          .public-home-stop {
             padding: 0.3rem 0;
             line-height: 1.25;
-          }
-          .public-home-stop-desktop {
-            display: none;
           }
           .public-home-metrics {
             grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -7345,12 +7408,6 @@ def render_public_shell_mode_styles() -> None:
             grid-column: 2;
             grid-row: 1;
           }
-          .public-lane-row {
-            grid-template-columns: 1fr;
-            gap: 0.5rem;
-            padding: 0.9rem 0;
-          }
-          .public-lane-coverage { max-width: 12rem; }
           .public-proof-event {
             grid-template-columns: 1fr auto;
             gap: 0.45rem 0.75rem;
@@ -8000,9 +8057,33 @@ def single_stock_public_summary_html(frame: pd.DataFrame, *, target_mode: str = 
     boundary = format_missing(row.get("Review Boundary"), "Keep the review research-only.")
     safe_mode = RESEARCH_MODE if target_mode == RESEARCH_MODE else PUBLIC_DEMO_MODE
     summary_class = "public-ticker-summary research" if safe_mode == RESEARCH_MODE else "public-ticker-summary"
-    href = html.escape(f"?mode={safe_mode}&page=data-health&ticker={ticker}", quote=True)
+    encoded_ticker = quote(ticker, safe="")
+    href = html.escape(f"?mode={safe_mode}&page=data-health&ticker={encoded_ticker}", quote=True)
+    if safe_mode == RESEARCH_MODE:
+        return (
+            f"<section class='{summary_class}' aria-label='Selected ticker answer'>"
+            "<div class='public-ticker-name'>"
+            "<span>Selected ticker</span> "
+            f"<strong>{html.escape(ticker)}</strong>"
+            "</div>"
+            "<div class='public-ticker-answer use-now'>"
+            "<span>Use now</span>"
+            f"<p>{html.escape(use_now)}</p>"
+            "</div>"
+            "<div class='public-ticker-answer blocked'>"
+            "<span>Still withheld</span>"
+            f"<p>{html.escape(blocked)}</p>"
+            f"<small>{html.escape(context)}</small>"
+            "</div>"
+            "<div class='public-ticker-action'>"
+            f"<p>{html.escape(next_action)}</p>"
+            f"<a class='public-primary-action' href='{href}'>Open Data Health</a>"
+            f"<small>{html.escape(boundary)}</small>"
+            "</div>"
+            "</section>"
+        )
     return (
-        f"<section class='{summary_class}' aria-label='Selected ticker answer'>"
+        f"<section class='{summary_class}' data-sr-region='primary-answer' aria-label='Selected ticker answer'>"
         "<div class='public-ticker-name'>"
         "<span>Selected ticker</span> "
         f"<strong>{html.escape(ticker)}</strong>"
@@ -8011,17 +8092,18 @@ def single_stock_public_summary_html(frame: pd.DataFrame, *, target_mode: str = 
         "<span>Use now</span>"
         f"<p>{html.escape(use_now)}</p>"
         "</div>"
-        "<div class='public-ticker-answer blocked'>"
+        "<div class='public-ticker-action'>"
+        f"<p>{html.escape(next_action)}</p>"
+        f"<a class='public-primary-action' data-sr-region='primary-action' href='{href}'>Open Data Health</a>"
+        f"<small data-sr-region='stop-rule'>{html.escape(boundary)}</small>"
+        "</div>"
+        "<div class='public-ticker-answer blocked' data-sr-region='supporting-evidence'>"
         "<span>Still withheld</span>"
         f"<p>{html.escape(blocked)}</p>"
         f"<small>{html.escape(context)}</small>"
         "</div>"
-        "<div class='public-ticker-action'>"
-        f"<p>{html.escape(next_action)}</p>"
-        f"<a class='public-primary-action' href='{href}'>Open Data Health</a>"
-        f"<small>{html.escape(boundary)}</small>"
-        "</div>"
         "</section>"
+        f"{advanced_detail_marker_html().value}"
     )
 
 
@@ -15337,81 +15419,315 @@ def proof_history_first_answer_cards_html(frame: pd.DataFrame | None) -> str:
     return "<div class='public-proof-answer-cards'>" + "".join(rows) + "</div>"
 
 
-def proof_history_public_timeline_html(
+def _fail_closed_route_hierarchy_html(
+    *,
+    question: str,
+    answer: str,
+    reason: str,
+    action: SafeRouteAction,
+    stop_rule: str,
+    supporting_title: str,
+    supporting_body: str,
+) -> str:
+    """Return the shared answer/action/boundary/support/detail order for early exits."""
+
+    return (
+        answer_panel_html(
+            question=question,
+            answer=answer,
+            reason=reason,
+            action=action,
+            stop_rule=stop_rule,
+        ).value
+        + supporting_detail_html(
+            title=supporting_title,
+            body=supporting_body,
+        ).value
+        + advanced_detail_marker_html().value
+    )
+
+
+def public_stock_selector_empty_hierarchy_html() -> str:
+    """Withhold selection when the saved public queue has no evidence rows."""
+
+    return _fail_closed_route_hierarchy_html(
+        question="Which stock can I review?",
+        answer="No readiness-backed ticker is available in this saved queue.",
+        reason=(
+            "The saved queue has no company row to open. This withholds selection; it does "
+            "not establish that no company exists or that any company passed review."
+        ),
+        action=SafeRouteAction(
+            label="Return to Home",
+            href="?mode=public&page=home",
+        ),
+        stop_rule=(
+            "Research-only. Do not infer a ticker, fabricate a queue row, or treat an empty "
+            "saved queue as a recommendation."
+        ),
+        supporting_title="Why selection is withheld",
+        supporting_body=(
+            "A company link appears only from a saved readiness-backed row. Return Home until "
+            "reviewable saved evidence is available."
+        ),
+    )
+
+
+def public_single_stock_tickerless_hierarchy_html() -> str:
+    """Explain the canonical tickerless report route before native selection controls."""
+
+    return _fail_closed_route_hierarchy_html(
+        question="What can I use for this ticker right now?",
+        answer="No ticker is selected, so no company evidence is shown.",
+        reason=(
+            "Choose a saved ticker below or return to the readiness-backed selector. No report "
+            "opens and no company is inferred from this route."
+        ),
+        action=SafeRouteAction(
+            label="Return to Stock Selector",
+            href="?mode=public&page=stock-selector",
+        ),
+        stop_rule=(
+            "Research-only. Do not treat a default control value as reviewed evidence or open a "
+            "report until you intentionally choose a ticker."
+        ),
+        supporting_title="Ticker selection boundary",
+        supporting_body=(
+            "The native selector and Open Review button remain available below. They do not "
+            "refresh prices, import files, or contact external accounts."
+        ),
+    )
+
+
+def _mark_public_single_stock_selection_intent() -> None:
+    """Record only a native selector change made during the current app session."""
+
+    selected_ticker = str(
+        st.session_state.get("single-stock-public-ticker") or ""
+    ).strip().upper()
+    if selected_ticker:
+        st.session_state["single-stock-public-selection-intent"] = selected_ticker
+    else:
+        st.session_state.pop("single-stock-public-selection-intent", None)
+
+
+def data_health_unavailable_hierarchy_html(*, workspace_mode: str) -> str:
+    """Return a mode-correct evidence-only state when the local provider is unavailable."""
+
+    if workspace_mode == RESEARCH_MODE:
+        return_link = research_evidence_return_link("")
+        action = SafeRouteAction(
+            label=return_link["label"],
+            href=return_link["href"],
+        )
+    elif workspace_mode == PUBLIC_DEMO_MODE:
+        action = SafeRouteAction(
+            label="Return to Stock Selector",
+            href="?mode=public&page=stock-selector",
+        )
+    else:
+        raise ValueError(f"Unsupported evidence workspace mode: {workspace_mode}")
+    return _fail_closed_route_hierarchy_html(
+        question="What can I use and what stays unavailable?",
+        answer="Local evidence is unavailable, so no Data Health lane can be classified.",
+        reason=(
+            "The local provider did not initialize. Usable, blocked, and context-only lane states "
+            "remain withheld because no saved evidence was loaded."
+        ),
+        action=action,
+        stop_rule=(
+            "Research-only. Do not infer readiness, run a command from this evidence view, or "
+            "treat provider failure as a company conclusion."
+        ),
+        supporting_title="Evidence-only unavailable state",
+        supporting_body=(
+            "No coverage row, proof result, or readiness count is fabricated here. Leave this "
+            "page using the mode-correct return action."
+        ),
+    )
+
+
+def evidence_route_answer_html(
+    page_title: str,
+    *,
+    workspace_mode: str,
+    ticker: str = "",
+) -> str:
+    """Return one mode-correct evidence answer without changing route evidence."""
+
+    if page_title not in {"Data Health", PROOF_HISTORY_PATH_TITLE}:
+        raise ValueError(f"Unsupported evidence route: {page_title}")
+    if workspace_mode not in {PUBLIC_DEMO_MODE, RESEARCH_MODE}:
+        raise ValueError(f"Unsupported evidence workspace mode: {workspace_mode}")
+    safe_ticker = str(ticker or "").strip().upper()
+    encoded_ticker = quote(safe_ticker, safe="")
+    if workspace_mode == RESEARCH_MODE:
+        return_link = research_evidence_return_link(safe_ticker)
+        action = SafeRouteAction(
+            label=return_link["label"],
+            href=return_link["href"],
+        )
+    else:
+        action = SafeRouteAction(
+            label=(f"Return to {safe_ticker} report" if safe_ticker else "Return to Stock Selector"),
+            href=(
+                f"?mode=public&page=single-stock-report&ticker={encoded_ticker}&open=1"
+                if safe_ticker
+                else "?mode=public&page=stock-selector"
+            ),
+        )
+    if page_title == "Data Health":
+        question = "What can I use and what stays unavailable?"
+        answer = "Readiness stays lane-specific: usable inputs remain separate from blocked or context-only evidence."
+        reason = (
+            "Use the lane cards before opening advanced proof details: usable now, context only, "
+            "blocked, skipped or excluded, and the next proof boundary."
+        )
+        stop_rule = (
+            "Research-only. Missing or unreviewed inputs stay unavailable; Data Health does not "
+            "create evidence or a recommendation."
+        )
+    else:
+        question = "What evidence changed a readiness state?"
+        answer = "Reviewed lane and batch records show what changed and what remains blocked."
+        reason = (
+            "Review the authoritative saved order; missing timestamps stay visible and detailed "
+            "ledger tables remain secondary."
+        )
+        stop_rule = (
+            "Research-only. Proof History does not change local data, record outcomes, or unlock "
+            "blocked inputs."
+        )
+    return answer_panel_html(
+        question=question,
+        answer=answer,
+        reason=reason,
+        action=action,
+        stop_rule=stop_rule,
+    ).value
+
+
+def _proof_history_timeline_timestamp(value: object) -> str | None:
+    if value is None or (not isinstance(value, (list, tuple, dict, set)) and pd.isna(value)):
+        return None
+    text = str(value).strip()
+    if text.casefold() in {
+        "",
+        "nan",
+        "nat",
+        "none",
+        "null",
+        "unknown",
+        "unavailable",
+        "not available",
+        "no date recorded",
+        "timestamp unavailable",
+        "-",
+        "—",
+    }:
+        return None
+    return _proof_history_public_text(text)
+
+
+def _proof_history_row_value(row: pd.Series, *columns: str, fallback: str) -> str:
+    for column in columns:
+        if column not in row.index:
+            continue
+        value = row.get(column)
+        if value is None or pd.isna(value):
+            continue
+        text = str(value).strip()
+        if text:
+            return _proof_history_public_text(text)
+    return fallback
+
+
+def proof_history_timeline_records(
     proof_timeline: pd.DataFrame | None,
     batch_proof_frame: pd.DataFrame | None,
-) -> str:
-    """Return a compact public evidence timeline without exposing raw ledger rows."""
+) -> tuple[TimelineRecord, ...]:
+    """Adapt authoritative lane order followed by authoritative batch order."""
 
-    events: list[tuple[str, str, str, str, str]] = []
-    for frame, source_label, date_columns, note_columns in (
+    records: list[TimelineRecord] = []
+    for frame, source_label, id_columns, date_columns, note_columns in (
         (
             proof_timeline,
             "Lane proof",
+            ("Proof ID", "proof_id"),
             ("Proof Date", "Review Date"),
             ("What Changed", "Still Blocked", "Notes"),
         ),
         (
             batch_proof_frame,
             "Batch proof",
+            ("Batch ID", "batch_id"),
             ("Review Date", "Proof Date"),
             ("What Changed", "Notes", "Still Blocked"),
         ),
     ):
         if frame is None or frame.empty:
             continue
-        for _, row in frame.head(2).iterrows():
-            date = _proof_history_public_text(_proof_history_first_text(pd.DataFrame([row]), *date_columns, fallback="No date recorded"))
-            lane = _proof_history_public_text(_proof_history_first_text(pd.DataFrame([row]), "Lane", fallback="Proof lane"))
-            outcome = _proof_history_public_text(
-                _proof_history_first_text(pd.DataFrame([row]), "Final Outcome", "Reviewer Outcome", fallback="not recorded")
+        for position, (_, row) in enumerate(frame.iterrows(), start=1):
+            record_id = next(
+                (
+                    str(row.get(column)).strip()
+                    for column in id_columns
+                    if column in row.index
+                    and row.get(column) is not None
+                    and not pd.isna(row.get(column))
+                    and str(row.get(column)).strip()
+                ),
+                f"{source_label.casefold().replace(' ', '-')}-{position}",
             )
-            note = _proof_history_public_text(_proof_history_first_text(pd.DataFrame([row]), *note_columns, fallback="No change note recorded."))
-            events.append((date, lane, outcome, note, source_label))
-    if not events:
-        return (
-            "<section class='public-proof-timeline' aria-label='Latest evidence'>"
-            "<div class='public-proof-timeline-empty'>No reviewed proof event is available yet. "
-            "Blocked inputs remain unavailable until a reviewed source path changes.</div>"
-            "</section>"
-        )
-    distinct_events: list[tuple[str, str, str, str, str]] = []
-    seen_events: set[tuple[str, str, str, str]] = set()
-    for event in events:
-        display_note = compact_card_fragment(event[3], max_chars=180)
-        fingerprint = (event[0], event[1], event[2], display_note)
-        if fingerprint in seen_events:
-            continue
-        distinct_events.append((event[0], event[1], event[2], display_note, event[4]))
-        seen_events.add(fingerprint)
-    distinct_events.sort(
-        key=lambda event: pd.to_datetime(event[0], errors="coerce"),
-        reverse=True,
-    )
+            timestamp = next(
+                (
+                    normalized
+                    for column in date_columns
+                    if column in row.index
+                    for normalized in (_proof_history_timeline_timestamp(row.get(column)),)
+                    if normalized is not None
+                ),
+                None,
+            )
+            lane = _proof_history_row_value(row, "Lane", fallback="Proof lane")
+            outcome = _proof_history_row_value(
+                row,
+                "Final Outcome",
+                "Reviewer Outcome",
+                fallback="not recorded",
+            )
+            note = _proof_history_row_value(
+                row,
+                *note_columns,
+                fallback="No change note recorded.",
+            )
+            records.append(
+                TimelineRecord(
+                    record_id=record_id,
+                    timestamp=timestamp,
+                    label=f"{source_label}: {lane} · {outcome}",
+                    summary=note,
+                )
+            )
+    return tuple(records)
 
-    rendered = []
-    for date, lane, outcome, note, source_label in distinct_events[:3]:
-        outcome_label = outcome.replace("_", " ")
-        outcome_class = re.sub(r"[^a-z0-9]+", "-", outcome_label.lower()).strip("-") or "not-recorded"
-        rendered.append(
-            "<article class='public-proof-event'>"
-            f"<div class='public-proof-event-date'>{html.escape(date)}</div>"
-            "<div class='public-proof-event-main'>"
-            f"<div class='public-proof-event-lane'>{html.escape(lane)}</div>"
-            f"<p>{html.escape(compact_card_fragment(note, max_chars=180))}</p>"
-            "</div>"
-            "<div class='public-proof-event-outcome'>"
-            f"<span class='public-proof-outcome {html.escape(outcome_class, quote=True)}'>{html.escape(outcome_label)}</span>"
-            f"<small>{html.escape(source_label)}</small>"
-            "</div>"
-            "</article>"
-        )
-    return (
-        "<section class='public-proof-timeline' aria-label='Latest evidence'>"
-        "<div class='public-proof-timeline-heading'>Latest evidence</div>"
-        + "".join(rendered)
-        + "</section>"
-    )
+
+def proof_history_public_timeline_html(
+    proof_timeline: pd.DataFrame | None,
+    batch_proof_frame: pd.DataFrame | None,
+) -> str:
+    """Render every authoritative proof row without truncation, deduplication, or sorting."""
+
+    timeline = evidence_timeline_html(
+        proof_history_timeline_records(proof_timeline, batch_proof_frame),
+        empty_title="No reviewed proof event is available yet",
+        empty_body=(
+            "Blocked inputs remain unavailable until a reviewed source path changes."
+        ),
+        heading="Latest evidence",
+        aria_label="Latest evidence",
+    ).value
+    return f"<div class='public-proof-timeline'>{timeline}</div>"
 
 
 def proof_history_public_detail_cards(
@@ -15476,7 +15792,12 @@ def proof_history_public_detail_cards(
     ]
 
 
-def render_proof_history(*, public_mode: bool = True) -> None:
+def render_proof_history(
+    *,
+    public_mode: bool = True,
+    workspace_mode: str = PUBLIC_DEMO_MODE,
+    registered_tickers: list[str] | tuple[str, ...] | None = None,
+) -> None:
     if not public_mode:
         render_section_header(
             PROOF_HISTORY_PATH_TITLE,
@@ -15485,8 +15806,19 @@ def render_proof_history(*, public_mode: bool = True) -> None:
     proof_timeline = data_health_reviewed_proof_timeline_frame()
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
     proof_reconciliation = load_proof_readiness_reconciliation(root=BASE_DIR, data_dir=DATA_DIR)
-    proof_ticker = str(st.query_params.get("ticker") or "").strip().upper()
+    proof_ticker = data_health_focus_ticker(
+        st.query_params.get("ticker"),
+        registered_tickers,
+    )
     if public_mode:
+        st.markdown(
+            evidence_route_answer_html(
+                PROOF_HISTORY_PATH_TITLE,
+                workspace_mode=workspace_mode,
+                ticker=proof_ticker,
+            ),
+            unsafe_allow_html=True,
+        )
         st.markdown(
             proof_history_public_timeline_html(proof_timeline, batch_proof_frame),
             unsafe_allow_html=True,
@@ -15514,6 +15846,8 @@ def render_proof_history(*, public_mode: bool = True) -> None:
         show_commands=False,
         variant="queue",
     )
+    if public_mode:
+        st.markdown(advanced_detail_marker_html().value, unsafe_allow_html=True)
     with st.expander("Advanced: proof ledger details", expanded=False):
         render_section_header("Reviewed Data Proof Ledger", "Durable lane proof rows, not generated CSV churn.")
         if proof_timeline.empty:
@@ -30375,6 +30709,33 @@ def render_stock_selector(
             allowed_tickers,
         )
 
+    if public_mode and not research_discover and selector_frame.empty:
+        st.markdown(
+            public_stock_selector_empty_hierarchy_html(),
+            unsafe_allow_html=True,
+        )
+        render_notice_card(
+            "Selector queue is empty",
+            "No saved research-decision or final-watchlist row is available for public review.",
+            tone="warning",
+            public=True,
+        )
+        return
+
+    if public_mode and not research_discover:
+        st.markdown(
+            answer_panel_html(
+                question="Which stock can I review?",
+                answer="Choose one readiness-backed ticker before opening a saved report.",
+                reason=(
+                    "Search the saved review queue by ticker, theme, blocker, or proof step. "
+                    "Rows remain evidence-access paths, not a company ranking."
+                ),
+                action=None,
+                stop_rule=None,
+            ).value,
+            unsafe_allow_html=True,
+        )
     if not public_mode:
         render_section_header(
             STOCK_SELECTOR_PATH_TITLE,
@@ -30463,6 +30824,25 @@ def render_stock_selector(
                 "valuation, or is a recommendation."
             ),
         )
+    elif public_mode and not research_discover:
+        st.markdown(
+            stop_rule_html(
+                "Research-only. This page helps choose what to review next; it does not rank "
+                "companies or create a recommendation."
+            ).value,
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            supporting_detail_html(
+                title="Readiness-backed results",
+                body=(
+                    "Result links remain subordinate evidence actions. Blockers, excluded states, "
+                    "and proof freshness stay visible before deeper analysis."
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
+        st.markdown(advanced_detail_marker_html().value, unsafe_allow_html=True)
     open_change_counts: dict[str, int] = {}
     for item in tuple(ACTIVE_RESEARCH_CHANGE_STATE.get("queue") or ()):
         ticker_key = item.event.ticker.upper()
@@ -31479,7 +31859,36 @@ def render_single_stock_report(
     query_open_review = single_stock_query_open(st.query_params.get("open"))
     if research_mode:
         query_open_review = True
+    public_query_without_ticker = (
+        public_mode and not research_mode and not query_ticker
+    )
+    if public_query_without_ticker:
+        query_open_review = False
+    elif public_mode and query_ticker:
+        st.session_state.pop("single-stock-public-selection-intent", None)
+    intent_ticker = str(
+        st.session_state.get("single-stock-public-selection-intent") or ""
+    ).strip().upper()
+    current_widget_ticker = str(
+        st.session_state.get("single-stock-public-ticker") or ""
+    ).strip().upper()
+    selection_intent = bool(
+        intent_ticker
+        and current_widget_ticker
+        and intent_ticker == current_widget_ticker
+    )
+    if public_query_without_ticker and not selection_intent:
+        st.session_state.pop("single-stock-public-selection-intent", None)
+        st.session_state.pop("single-stock-public-ticker", None)
     compact_public_open_report = public_mode and query_open_review and bool(query_ticker)
+    tickerless_public_navigation = (
+        public_query_without_ticker and not selection_intent
+    )
+    if tickerless_public_navigation:
+        st.markdown(
+            public_single_stock_tickerless_hierarchy_html(),
+            unsafe_allow_html=True,
+        )
     header_caption = (
         f"{query_ticker} is selected. Review the selected ticker state first, then use supported sections only."
         if compact_public_open_report
@@ -31511,9 +31920,11 @@ def render_single_stock_report(
             selected = st.selectbox(
                 "Choose ticker",
                 public_ticker_options,
-                index=public_default_index,
+                index=None if tickerless_public_navigation else public_default_index,
+                placeholder="Choose a saved ticker",
                 help="Pick one saved local ticker for a read-only review. Operator mode has manual and online lookup controls.",
                 key="single-stock-public-ticker",
+                on_change=_mark_public_single_stock_selection_intent,
             )
         manual_ticker = ""
         use_yfinance = False
@@ -31535,7 +31946,14 @@ def render_single_stock_report(
                 "and should be checked against source readiness notes."
             ),
         )
-    ticker = (manual_ticker if selected == "Custom" else selected).strip().upper()
+    ticker = (manual_ticker if selected == "Custom" else selected or "").strip().upper()
+    if tickerless_public_navigation:
+        render_context_note(
+            "What happens next.",
+            "Choose one saved ticker, then Open Review. No report is inferred or opened from this route.",
+        )
+        st.button("Open Review", key="single-stock-report-button")
+        return
     provider_name = "yfinance" if use_yfinance else "local"
     coverage = pd.DataFrame()
     peer_summary: dict[str, object] = {}
@@ -33027,8 +33445,16 @@ def render_data_health(
     show_details: bool = False,
     public_mode: bool = True,
     show_public_evidence_return: bool = True,
+    workspace_mode: str = PUBLIC_DEMO_MODE,
 ) -> None:
     if provider is None:
+        if public_mode:
+            st.markdown(
+                data_health_unavailable_hierarchy_html(
+                    workspace_mode=workspace_mode,
+                ),
+                unsafe_allow_html=True,
+            )
         st.warning("Local provider could not be initialized.")
         return
     public_loading_placeholder = None
@@ -33124,18 +33550,35 @@ def render_data_health(
     if public_mode:
         if public_loading_placeholder is not None:
             public_loading_placeholder.empty()
-        if public_focus_ticker and show_public_evidence_return:
-            render_context_note(
-                "Ticker proof focus.",
-                f"You arrived from {public_focus_ticker}'s report. Review its readiness boundary here, then return to the report for supported analysis.",
-                tone="success",
-            )
-            st.link_button(
-                f"Return to {public_focus_ticker} report",
-                f"?mode=public&page=single-stock-report&ticker={public_focus_ticker}&open=1",
-            )
+        st.markdown(
+            evidence_route_answer_html(
+                "Data Health",
+                workspace_mode=workspace_mode,
+                ticker=public_focus_ticker,
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            supporting_detail_html(
+                title="Ticker proof focus." if public_focus_ticker else "Readiness evidence",
+                body=(
+                    (
+                        f"You arrived from {public_focus_ticker}'s report. Review its readiness "
+                        "boundary here, then return to the report for supported analysis. "
+                    )
+                    if public_focus_ticker
+                    else ""
+                )
+                + (
+                    "Lane cards preserve current counts, usable states, blockers, and proof "
+                    "boundaries before any detailed ledger or operator workflow."
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)
         render_signal_cards([nowcast_data_health_card(None, ticker=public_focus_ticker or "Selected ticker")], show_commands=False, variant="queue")
+        st.markdown(advanced_detail_marker_html().value, unsafe_allow_html=True)
         if public_mode and project_status_payload is None:
             with st.expander("Refresh status note", expanded=False):
                 render_notice_card(
@@ -36834,36 +37277,41 @@ def main() -> None:
         )
     elif content_page == "Data Health":
         if research_mode:
-            ticker = str(st.query_params.get("ticker") or "").strip().upper()
+            registered_tickers = provider.list_local_tickers() if hasattr(provider, "list_local_tickers") else []
+            ticker = data_health_focus_ticker(st.query_params.get("ticker"), registered_tickers)
             render_research_workspace_header(
                 "Data Health",
                 profile_context,
                 ticker=ticker,
                 primary_action="Inspect the blocked lane, then return to Company Workbench",
+                compact=True,
+                include_boundary=False,
             )
-            return_link = research_evidence_return_link(ticker)
-            st.link_button(return_link["label"], return_link["href"], type="primary")
-            st.caption(return_link["purpose"])
         render_data_health(
             provider,
             project_status_payload,
             show_reason_details,
             public_mode=not operator_mode,
             show_public_evidence_return=public_demo_mode,
+            workspace_mode=mode,
         )
     elif content_page == PROOF_HISTORY_PATH_TITLE:
+        registered_tickers = provider.list_local_tickers() if hasattr(provider, "list_local_tickers") else []
         if research_mode:
-            ticker = str(st.query_params.get("ticker") or "").strip().upper()
+            ticker = data_health_focus_ticker(st.query_params.get("ticker"), registered_tickers)
             render_research_workspace_header(
                 "Proof History",
                 profile_context,
                 ticker=ticker,
                 primary_action="Confirm what evidence changed, then return to Company Workbench",
+                compact=True,
+                include_boundary=False,
             )
-            return_link = research_evidence_return_link(ticker)
-            st.link_button(return_link["label"], return_link["href"], type="primary")
-            st.caption(return_link["purpose"])
-        render_proof_history(public_mode=not operator_mode)
+        render_proof_history(
+            public_mode=not operator_mode,
+            workspace_mode=mode,
+            registered_tickers=registered_tickers,
+        )
     elif content_page == "Universe Manager":
         render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))
     if public_demo_mode:

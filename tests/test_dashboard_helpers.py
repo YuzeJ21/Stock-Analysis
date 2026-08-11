@@ -8,6 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from streamlit.testing.v1 import AppTest
 
 import src.dashboard as dashboard
 import src.data_health_generated_churn as generated_churn
@@ -2550,54 +2551,425 @@ def test_selector_empty_result_explains_that_the_review_queue_can_be_cleared_or_
     assert "Clear the search or refine the filters" in rendered
 
 
-def test_public_proof_timeline_deduplicates_identical_events():
-    batch_proof_frame = pd.DataFrame(
-        [
-            {
-                "Review Date": "2026-07-11",
-                "Lane": "price history",
-                "Final Outcome": "still_blocked",
-                "Notes": "Yahoo returned only available post-listing history after Stooq 404. ZTG remains below preferred history depth.",
-            },
-            {
-                "Review Date": "2026-07-11",
-                "Lane": "price history",
-                "Final Outcome": "still_blocked",
-                "Notes": "Yahoo returned only available post-listing history after Stooq 404. YDES remains below preferred history depth.",
-            },
-        ]
+def test_public_stock_selector_empty_queue_fails_closed_with_one_ordered_safe_action(
+    monkeypatch,
+):
+    rendered: list[str] = []
+    empty = pd.DataFrame()
+    monkeypatch.setattr(dashboard, "load_ticker_readiness_report", lambda: (empty, None))
+    monkeypatch.setattr(dashboard, "load_dcf_readiness", lambda: (empty, None))
+    monkeypatch.setattr(
+        dashboard,
+        "load_optional_context_readiness",
+        lambda: {
+            "earnings_readiness": (empty, None),
+            "analyst_estimates_readiness": (empty, None),
+        },
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "stock_selector_source_frames",
+        lambda *args, **kwargs: (None, None, None, None),
+    )
+    monkeypatch.setattr(dashboard, "load_output", lambda *args, **kwargs: (empty, None))
+    monkeypatch.setattr(dashboard, "dashboard_readiness_summary", lambda *args, **kwargs: {})
+    monkeypatch.setattr(dashboard, "stock_selector_queue_frame", lambda *args, **kwargs: empty)
+    monkeypatch.setattr(
+        dashboard,
+        "stock_selector_saved_queue_notice_visible",
+        lambda **kwargs: False,
+    )
+    monkeypatch.setattr(dashboard.st, "markdown", lambda value, **kwargs: rendered.append(value))
+
+    dashboard.render_stock_selector(
+        {},
+        public_mode=True,
+        target_mode=dashboard.PUBLIC_DEMO_MODE,
     )
 
-    rendered = dashboard.proof_history_public_timeline_html(pd.DataFrame(), batch_proof_frame)
+    copy = " ".join(rendered)
+    ordered_regions = (
+        "data-sr-region='primary-answer'",
+        "data-sr-region='primary-action'",
+        "data-sr-region='stop-rule'",
+        "data-sr-region='supporting-evidence'",
+        "data-sr-region='advanced-detail'",
+    )
+    indexes = [copy.index(region) for region in ordered_regions]
+    assert indexes == sorted(indexes)
+    assert all(copy.count(region) == 1 for region in ordered_regions)
+    assert "No readiness-backed ticker is available in this saved queue." in copy
+    assert "?mode=public&amp;page=home" in copy
+    assert "?mode=research" not in copy
+    assert "make " not in copy.lower()
+    assert "recommendation" in copy.lower()
 
-    assert rendered.count("Yahoo returned only available post-listing history after Stooq 404") == 1
+
+@pytest.mark.parametrize(
+    ("workspace_mode", "expected_href", "forbidden_mode"),
+    (
+        (dashboard.PUBLIC_DEMO_MODE, "?mode=public&amp;page=stock-selector", "?mode=research"),
+        (dashboard.RESEARCH_MODE, "?mode=research&amp;page=research-desk", "?mode=public"),
+    ),
+)
+def test_providerless_data_health_uses_one_mode_correct_evidence_only_hierarchy(
+    monkeypatch,
+    workspace_mode,
+    expected_href,
+    forbidden_mode,
+):
+    rendered: list[str] = []
+    warnings: list[str] = []
+    monkeypatch.setattr(dashboard.st, "markdown", lambda value, **kwargs: rendered.append(value))
+    monkeypatch.setattr(dashboard.st, "warning", lambda value, **kwargs: warnings.append(value))
+
+    dashboard.render_data_health(
+        None,
+        public_mode=True,
+        workspace_mode=workspace_mode,
+    )
+
+    copy = " ".join(rendered)
+    ordered_regions = (
+        "data-sr-region='primary-answer'",
+        "data-sr-region='primary-action'",
+        "data-sr-region='stop-rule'",
+        "data-sr-region='supporting-evidence'",
+        "data-sr-region='advanced-detail'",
+    )
+    indexes = [copy.index(region) for region in ordered_regions]
+    assert indexes == sorted(indexes)
+    assert all(copy.count(region) == 1 for region in ordered_regions)
+    assert "Local evidence is unavailable, so no Data Health lane can be classified." in copy
+    assert expected_href in copy
+    assert forbidden_mode not in copy
+    assert "make " not in copy.lower()
+    assert warnings == ["Local provider could not be initialized."]
 
 
-def test_public_proof_timeline_orders_lane_and_batch_evidence_by_review_date():
+def test_canonical_tickerless_public_single_stock_starts_with_fail_closed_hierarchy():
+    rendered = dashboard.public_single_stock_tickerless_hierarchy_html()
+    ordered_regions = (
+        "data-sr-region='primary-answer'",
+        "data-sr-region='primary-action'",
+        "data-sr-region='stop-rule'",
+        "data-sr-region='supporting-evidence'",
+        "data-sr-region='advanced-detail'",
+    )
+    indexes = [rendered.index(region) for region in ordered_regions]
+
+    assert indexes == sorted(indexes)
+    assert all(rendered.count(region) == 1 for region in ordered_regions)
+    assert "No ticker is selected, so no company evidence is shown." in rendered
+    assert "?mode=public&amp;page=stock-selector" in rendered
+    assert "ticker=" not in rendered
+    assert "open=1" not in rendered
+
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    report_start = source.index("def render_single_stock_report(")
+    report_end = source.index("\ndef render_data_health(", report_start)
+    report = source[report_start:report_end]
+    hierarchy_index = report.index("public_single_stock_tickerless_hierarchy_html()")
+    select_index = report.index('key="single-stock-public-ticker"')
+    button_index = report.index('key="single-stock-report-button"')
+    assert hierarchy_index < select_index < button_index
+    assert 'st.session_state.pop("single-stock-public-ticker", None)' in report
+    assert 'st.session_state.get("single-stock-public-selection-intent")' in report
+    assert "index=None if tickerless_public_navigation else public_default_index" in report
+    assert 'placeholder="Choose a saved ticker"' in report
+    assert 'else selected or ""' in report
+
+
+def _run_tickerless_public_single_stock_fixture(
+    monkeypatch,
+    *,
+    query_params: dict[str, str],
+    session_state: dict[str, object],
+):
+    rendered: list[str] = []
+    select_calls: list[dict[str, object]] = []
+    button_calls: list[tuple[str, str]] = []
+
+    class TrackingProvider:
+        def list_local_tickers(self):
+            return ["AAPL", "NVDA"]
+
+        def get_ticker_dataset_coverage(self, ticker):
+            pytest.fail(f"tickerless route must not load coverage for {ticker}")
+
+        def get_peer_summary(self, ticker):
+            pytest.fail(f"tickerless route must not load peer summary for {ticker}")
+
+    class FakeStreamlit:
+        def __init__(self):
+            self.query_params = dict(query_params)
+            self.session_state = dict(session_state)
+
+        def markdown(self, value, **kwargs):
+            rendered.append(value)
+
+        def selectbox(self, label, options, **kwargs):
+            select_calls.append({"label": label, "options": tuple(options), **kwargs})
+            key = str(kwargs.get("key") or "")
+            if key and key in self.session_state:
+                return self.session_state[key]
+            index = kwargs.get("index", 0)
+            return None if index is None else options[index]
+
+        def button(self, label, **kwargs):
+            button_calls.append((label, str(kwargs.get("key") or "")))
+            return False
+
+    fake_st = FakeStreamlit()
+    monkeypatch.setattr(dashboard, "st", fake_st)
+    monkeypatch.setattr(
+        dashboard,
+        "build_provider",
+        lambda *args, **kwargs: pytest.fail("tickerless route must not build a provider"),
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "build_stock_report",
+        lambda *args, **kwargs: pytest.fail("tickerless route must not build a report"),
+    )
+
+    dashboard.render_single_stock_report(
+        TrackingProvider(),
+        show_source_details=False,
+        public_mode=True,
+    )
+    return fake_st, " ".join(rendered), select_calls, button_calls
+
+
+def test_canonical_tickerless_public_single_stock_ignores_persisted_selection_and_cached_report(
+    monkeypatch,
+):
+    query = {"mode": "public", "page": "single-stock-report"}
+    fake_st, rendered, select_calls, button_calls = _run_tickerless_public_single_stock_fixture(
+        monkeypatch,
+        query_params=query,
+        session_state={
+            "single-stock-public-ticker": "AAPL",
+            "single_stock_report_ticker": "AAPL",
+            "single_stock_report_payload": {
+                "ticker": "AAPL",
+                "valuation_readiness": {},
+                "valuation_snapshot": {},
+            },
+        },
+    )
+
+    assert fake_st.query_params == query
+    assert select_calls[0]["key"] == "single-stock-public-ticker"
+    assert select_calls[0]["index"] is None
+    assert "single-stock-public-ticker" not in fake_st.session_state
+    assert button_calls == [("Open Review", "single-stock-report-button")]
+    assert rendered.count("data-sr-region='primary-answer'") == 1
+    assert rendered.count("data-sr-region='primary-action'") == 1
+    assert rendered.count("data-sr-region='stop-rule'") == 1
+    assert "No ticker is selected, so no company evidence is shown." in rendered
+    assert "Review is open." not in rendered
+    assert "Preparing selected report." not in rendered
+
+
+def test_orphan_public_open_query_without_ticker_stays_tickerless_and_does_not_force_report(
+    monkeypatch,
+):
+    query = {"mode": "public", "page": "single-stock-report", "open": "1"}
+    fake_st, rendered, select_calls, button_calls = _run_tickerless_public_single_stock_fixture(
+        monkeypatch,
+        query_params=query,
+        session_state={},
+    )
+
+    assert fake_st.query_params == query
+    assert select_calls[0]["key"] == "single-stock-public-ticker"
+    assert select_calls[0]["index"] is None
+    assert button_calls == [("Open Review", "single-stock-report-button")]
+    assert rendered.count("data-sr-region='primary-answer'") == 1
+    assert rendered.count("data-sr-region='primary-action'") == 1
+    assert rendered.count("data-sr-region='stop-rule'") == 1
+    assert "No ticker is selected, so no company evidence is shown." in rendered
+    assert "Opening saved review evidence." not in rendered
+    assert "Preparing selected report." not in rendered
+
+
+def test_tickerless_public_single_stock_current_visit_selection_keeps_native_open_path():
+    dashboard_app = Path(dashboard.__file__).resolve()
+    app = AppTest.from_file(str(dashboard_app), default_timeout=120)
+    query = {"mode": "public", "page": "single-stock-report"}
+    app.query_params.update(query)
+    app.run(timeout=120)
+
+    assert not app.exception
+    ticker_control = next(item for item in app.selectbox if item.label == "Choose ticker")
+    assert ticker_control.value is None
+    ticker_control.select("AAPL").run(timeout=120)
+
+    assert not app.exception
+    assert next(item for item in app.selectbox if item.label == "Choose ticker").value == "AAPL"
+    open_button = next(item for item in app.button if item.label == "Open Review")
+    assert dict(app.query_params) == {"mode": ["public"], "page": ["single-stock-report"]}
+    open_button.click().run(timeout=120)
+
+    assert not app.exception
+    assert app.session_state["single_stock_report_ticker"] == "AAPL"
+    assert dict(app.query_params) == {"mode": ["public"], "page": ["single-stock-report"]}
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    assert 'key="single-stock-public-ticker"' in source
+    assert 'key="single-stock-report-button"' in source
+    assert "if open_review_clicked:\n        open_selected_report()" in source
+    assert 'if public_mode and st.session_state.get("single_stock_report_payload"):\n            st.rerun()' in source
+
+
+def test_tickerless_public_single_stock_navigate_away_and_back_does_not_reuse_orphan_intent():
+    dashboard_app = Path(dashboard.__file__).resolve()
+    app = AppTest.from_file(str(dashboard_app), default_timeout=120)
+    app.query_params.update({"mode": "public", "page": "single-stock-report"})
+    app.run(timeout=120)
+    next(item for item in app.selectbox if item.label == "Choose ticker").select("AAPL").run(
+        timeout=120
+    )
+    assert next(item for item in app.selectbox if item.label == "Choose ticker").value == "AAPL"
+
+    app.query_params["page"] = "home"
+    app.run(timeout=120)
+    assert not any(item.label == "Choose ticker" for item in app.selectbox)
+
+    app.query_params["page"] = "single-stock-report"
+    app.run(timeout=120)
+    rendered = " ".join(
+        str(item.value)
+        for item in (*app.markdown, *app.caption, *app.warning, *app.error)
+    )
+
+    assert not app.exception
+    assert next(item for item in app.selectbox if item.label == "Choose ticker").value is None
+    assert "No ticker is selected, so no company evidence is shown." in rendered
+    assert rendered.count("data-sr-region='primary-answer'") == 1
+    assert rendered.count("data-sr-region='primary-action'") == 1
+    assert rendered.count("data-sr-region='stop-rule'") == 1
+    assert dict(app.query_params) == {
+        "mode": ["public"],
+        "page": ["single-stock-report"],
+    }
+
+
+def test_public_proof_timeline_preserves_every_authoritative_row_and_undated_position():
     proof_timeline = pd.DataFrame(
         [
             {
-                "Proof Date": "2026-06-12",
+                "Proof ID": "lane-z",
+                "Proof Date": "2026-08-10",
                 "Lane": "Peer valuation inputs",
                 "Final Outcome": "still_blocked",
-                "What Changed": "Older lane evidence.",
-            }
+                "What Changed": "Same-date lane evidence first.",
+            },
+            {
+                "Proof ID": "lane-undated",
+                "Proof Date": "No date recorded",
+                "Lane": "Fundamentals",
+                "Final Outcome": "supported",
+                "What Changed": "Undated lane evidence stays in the middle.",
+            },
+            {
+                "Proof ID": "lane-a",
+                "Proof Date": "2026-08-10",
+                "Lane": "Price history",
+                "Final Outcome": "still_blocked",
+                "What Changed": "Same-date lane evidence last.",
+            },
         ]
     )
     batch_proof_frame = pd.DataFrame(
         [
             {
-                "Review Date": "2026-07-11",
+                "Batch ID": "batch-z",
+                "Review Date": "2026-08-09",
                 "Lane": "price history",
                 "Final Outcome": "still_blocked",
-                "Notes": "Newer batch evidence.",
-            }
+                "Notes": "Repeated note retained.",
+            },
+            {
+                "Batch ID": "batch-undated",
+                "Review Date": "",
+                "Lane": "price history",
+                "Final Outcome": "still_blocked",
+                "Notes": "Repeated note retained.",
+            },
+            {
+                "Batch ID": "batch-a",
+                "Review Date": "2026-08-09",
+                "Lane": "price history",
+                "Final Outcome": "still_blocked",
+                "Notes": "Repeated note retained.",
+            },
         ]
     )
 
     rendered = dashboard.proof_history_public_timeline_html(proof_timeline, batch_proof_frame)
 
-    assert rendered.index("2026-07-11") < rendered.index("2026-06-12")
+    expected_ids = (
+        "lane-z",
+        "lane-undated",
+        "lane-a",
+        "batch-z",
+        "batch-undated",
+        "batch-a",
+    )
+    indexes = [rendered.index(f"data-timeline-record-id='{record_id}'") for record_id in expected_ids]
+
+    assert indexes == sorted(indexes)
+    assert rendered.count("data-timeline-record-id=") == len(expected_ids)
+    assert rendered.count("Timestamp unavailable") == 2
+    assert rendered.count("Repeated note retained.") == 3
+    assert "No date recorded" not in rendered
+    assert "Latest evidence" in rendered
+
+
+def test_proof_timeline_timestamp_uses_secondary_date_and_normalizes_dash_sentinel():
+    records = dashboard.proof_history_timeline_records(
+        pd.DataFrame(
+            [
+                {
+                    "Proof ID": "lane-secondary-date",
+                    "Proof Date": "",
+                    "Review Date": "2026-08-08",
+                    "Lane": "fundamentals",
+                    "Final Outcome": "supported",
+                    "What Changed": "Secondary date retained.",
+                },
+                {
+                    "Proof ID": "lane-dash-date",
+                    "Proof Date": "-",
+                    "Review Date": "",
+                    "Lane": "peers",
+                    "Final Outcome": "still_blocked",
+                    "What Changed": "Dash sentinel stays undated.",
+                },
+            ]
+        ),
+        pd.DataFrame(),
+    )
+
+    assert tuple(record.record_id for record in records) == (
+        "lane-secondary-date",
+        "lane-dash-date",
+    )
+    assert tuple(record.timestamp for record in records) == ("2026-08-08", None)
+
+
+def test_authoritative_proof_timeline_uses_page_scrolling_without_nested_vertical_containment():
+    css = dashboard.dashboard_visual_system_css()
+    timeline_start = css.index(".sr-evidence-timeline ol {")
+    timeline_rule = css[timeline_start : css.index("}", timeline_start)]
+    record_start = css.index(".sr-timeline-record, .sr-timeline-empty {")
+    record_rule = css[record_start : css.index("}", record_start)]
+
+    assert "max-height:" not in timeline_rule
+    assert "overflow-y:" not in timeline_rule
+    assert "content-visibility: auto;" in record_rule
+    assert "contain-intrinsic-size:" in record_rule
 
 
 def test_public_single_stock_uses_one_detail_gate_before_report_sections():
@@ -3270,40 +3642,15 @@ def test_dashboard_theme_pins_review_surfaces_to_readable_colors(monkeypatch):
 
     css = str(captured["body"])
     assert '[data-testid="stAppViewContainer"]' in css
-    assert '[data-testid="stDataFrame"]' in css
-    assert '[data-testid="stExpander"]' in css
-    assert '[data-testid="stTabs"] [role="tablist"]' in css
-    assert '[data-testid="stTabs"] [role="tab"][aria-selected="true"]' in css
-    assert ".ops-copy.secondary" in css
-    assert ".ops-stat.evidence-stat" in css
-    assert ".pilot-flow" in css
-    assert ".pilot-flow-grid" in css
-    assert ".pilot-flow-status.manual" in css
-    assert "min-height: 1.75rem !important;" in css
-    assert ".signal-grid.queue-grid .signal-card" in css
-    assert "box-shadow: none;" in css
-    assert '[data-baseweb="popover"]' in css
-    assert "#MainMenu" in css
-    assert '[data-testid="stToolbar"]' in css
-    assert '[data-testid="stDeployButton"]' in css
-    assert '[data-testid="stAppDeployButton"]' in css
-    assert '[data-testid="stBaseButton-header"]' in css
-    assert '[data-testid="stBaseButton-headerNoPadding"]' in css
-    assert '[data-testid="stSidebarHeader"]' in css
-    assert '[data-testid="stSidebarCollapseButton"]' in css
-    assert '[data-testid="stIconMaterial"]' in css
-    assert '[data-testid="stSidebar"]' in css
-    assert "overflow-x: hidden !important;" in css
+    assert "--sr-canvas: #F6F7F4" in css
+    assert ".sr-workspace-content" in css
+    assert "[data-sr-region]" in css
+    assert ".sr-evidence-timeline" in css
+    assert "@media (forced-colors: active)" in css
+    assert "@media (prefers-reduced-motion: reduce)" in css
     assert "box-sizing: border-box;" in css
-    assert '[data-testid="stSidebar"] pre' in css
-    assert '[data-testid="stSidebar"] code' in css
-    assert "overflow-wrap: anywhere !important;" in css
-    assert "keyboard_double_arrow" not in css
-    assert ".stDeployButton" in css
-    assert ".stAppDeployButton" in css
-    assert "visibility: hidden !important" in css
-    assert "color: #111827 !important" in css
-    assert "background: #fffefa !important" in css
+    assert "outline: 3px solid var(--sr-focus)" in css
+    assert "min-height: 44px" in css
 
 
 def test_dashboard_card_helpers_render_modern_markup():
@@ -3396,7 +3743,9 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "Adds raw JSON under Sources & Gaps" not in source
     assert "Most users can leave this off" in source
     assert "Show reader tips" in source
-    assert 'if operator_mode and selected_page != "Data Health":' in source
+    assert 'if operator_mode and selected_page != "Data Health":' not in source
+    operator_branch = source.index("if operator_mode:", source.index("def main()"))
+    assert source.index('if selected_page != "Data Health":', operator_branch) > operator_branch
     assert "Show page tips" not in source
     assert "Adds extra explanation and review sections" in source
     assert "Most visitors can leave this off" in source
@@ -3447,7 +3796,8 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert 'label_visibility="collapsed"' in source
     assert '"Choose a page"' not in source
     assert 'st.expander("Research view switcher"' not in source
-    assert 'if show_sidebar_operator_guides:\n            with st.expander("Advanced: operator tools"' in source
+    assert 'if selected_page != "Data Health":\n                render_sidebar_product_intro()' in source
+    assert 'with st.expander("Advanced: operator tools", expanded=False):' in source
     assert 'st.expander("More pages"' not in source
     assert 'st.expander("Advanced pages"' not in source
     assert '"Open a research view"' in source
@@ -3476,19 +3826,18 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert 'st.session_state["dashboard-route-signature"] = route_signature' not in source
     assert 'elif path_selection == PROOF_HISTORY_PATH_TITLE:\n            selected_page = "Data Health"' not in source
     assert "elif content_page == PROOF_HISTORY_PATH_TITLE:" in source
-    assert "render_proof_history(public_mode=not operator_mode)" in source
+    assert "render_proof_history(" in source
+    assert "workspace_mode=mode" in source
     assert "render_public_shell_mode_styles()" in source
     assert "render_public_app_shell(selected_page)" in source
     assert "compact=True," in source
     assert "command_center_header_html(" in source
     assert "_header_readiness_summary()" in source
-    assert 'if public_demo_mode or operator_mode and selected_page != "Data Health":' in source
     assert source.index("elif content_page == PROOF_HISTORY_PATH_TITLE:") < source.index(
         "elif content_page == \"Universe Manager\":"
     )
-    assert 'show_sidebar_operator_guides = operator_mode and selected_page != "Data Health"' in source
-    assert "if show_sidebar_operator_guides:" in source
-    assert 'if operator_mode and selected_page == "Data Health":' in source
+    assert 'if selected_page != "Data Health":\n                render_sidebar_product_intro()' in source
+    assert 'if selected_page == "Data Health":\n                render_context_note(' in source
     assert '"Data Health operator."' in source
     assert "Use the lane buttons on the page. Copy-only commands stay inside evidence drawers." in source
     assert "Use the command center and lane buttons" not in source
@@ -3525,7 +3874,8 @@ def test_data_health_operator_flow_surfaces_auto_refresh_status_before_source_gu
     assert "copy manually when ready" in source
     assert "make stock-report-md TICKER=NVDA\\nmake dashboard" in source
     assert "make stock-report TICKER=NVDA\\nmake dashboard-smoke" not in source
-    assert "diagnostics" not in source.lower()
+    main_source = source[source.index("def main()") :]
+    assert '"diagnostics"' not in main_source.lower()
     assert 'st.expander("Active queue detail: grouped review steps", expanded=False)' in source
     assert 'st.expander("Active queue detail: grouped guided steps", expanded=False)' not in source
     assert "Grouped review guide. Review commands and proof commands are copy-only" in source
@@ -16789,7 +17139,7 @@ def test_proof_history_public_page_renders_timeline_before_ledger_details():
     assert '"Proof History One Answer"' not in proof_history_chunk
 
 
-def test_public_proof_timeline_shows_latest_evidence_without_exposing_ledger_rows():
+def test_public_proof_timeline_shows_latest_evidence_with_shared_timeline_rows():
     proof_timeline = pd.DataFrame(
         [
             {
@@ -16805,7 +17155,8 @@ def test_public_proof_timeline_shows_latest_evidence_without_exposing_ledger_row
     rendered = dashboard.proof_history_public_timeline_html(proof_timeline, pd.DataFrame())
 
     assert "public-proof-timeline" in rendered
-    assert "public-proof-event" in rendered
+    assert "sr-evidence-timeline" in rendered
+    assert "sr-timeline-record" in rendered
     assert "Peer mapping" in rendered
     assert "still blocked" in rendered.lower()
     assert "Candidate peers remain context only" in rendered
@@ -30145,14 +30496,16 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     assert "key=path_widget_key" in source
     assert "route_signature = f\"{mode}:{initial_page}\"" in source
     assert "show_reason_details = False" in source
-    assert 'if operator_mode and selected_page != "Data Health":' in source
+    assert 'if operator_mode and selected_page != "Data Health":' not in source
+    operator_branch = source.index("if operator_mode:", source.index("def main()"))
+    assert source.index('if selected_page != "Data Health":', operator_branch) > operator_branch
     assert 'st.expander("Research view switcher"' not in source
     assert 'st.expander("Operator run commands"' not in source
-    assert 'if show_sidebar_operator_guides:\n            with st.expander("Advanced: operator tools"' in source
-    assert 'show_sidebar_operator_guides = operator_mode and selected_page != "Data Health"' in source
-    assert "Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers." in source
+    assert 'if selected_page != "Data Health":\n                render_sidebar_product_intro()' in source
+    assert 'with st.expander("Advanced: operator tools", expanded=False):' in source
+    assert "Use the lane buttons on the page. Copy-only commands stay inside evidence drawers." in source
     assert '"Data Health operator."' in source
-    assert 'if selected_page == "Single-Stock Report" and operator_mode:' in source
+    assert source.index('if selected_page == "Single-Stock Report":', operator_branch) > operator_branch
     assert "render_home_page(\n            catalog," in source
     assert "project_status_payload=project_status_payload" in source
     assert "show_public_evidence_return=public_demo_mode" in source
@@ -30255,7 +30608,7 @@ def test_public_home_overview_keeps_one_start_action_and_compact_readiness_snaps
     assert "No data, no conclusion" in html
 
 
-def test_public_home_overview_exposes_breakpoint_stop_positions_from_identical_copy():
+def test_public_home_overview_uses_one_stop_rule_in_phone_source_order():
     rendered = dashboard.public_home_overview_html(
         {
             "master_universe": 3541,
@@ -30265,23 +30618,22 @@ def test_public_home_overview_exposes_breakpoint_stop_positions_from_identical_c
         }
     )
 
-    primary_index = rendered.index("class='public-home-primary'")
-    phone_stop_index = rendered.index(
-        "class='public-home-stop public-home-stop-phone'"
-    )
-    metrics_index = rendered.index("class='public-home-metrics'")
-    desktop_stop_index = rendered.index(
-        "class='public-home-stop public-home-stop-desktop'"
-    )
+    action_index = rendered.index("data-sr-region='primary-action'")
+    stop_index = rendered.index("data-sr-region='stop-rule'")
+    metrics_index = rendered.index("data-sr-region='supporting-evidence'")
 
-    assert primary_index < phone_stop_index < metrics_index < desktop_stop_index
-    assert rendered.count("No data, no conclusion.") == 2
-    assert rendered.count("Missing inputs stay blocked instead of being inferred.") == 2
+    assert rendered.count("data-sr-region='primary-answer'") == 1
+    assert rendered.count("data-sr-region='primary-action'") == 1
+    assert rendered.count("data-sr-region='stop-rule'") == 1
+    assert rendered.count("data-sr-region='supporting-evidence'") == 1
+    assert action_index < stop_index < metrics_index
+    assert rendered.count("No data, no conclusion.") == 1
+    assert rendered.count("Missing inputs stay blocked instead of being inferred.") == 1
     assert rendered.count("Start with Stock Selector") == 1
     assert rendered.count("<dt>") == 4
 
 
-def test_public_home_stop_uses_mutually_exclusive_breakpoint_placement(monkeypatch):
+def test_public_home_stop_uses_grid_areas_for_desktop_and_phone_placement(monkeypatch):
     rendered: list[str] = []
     monkeypatch.setattr(
         dashboard.st,
@@ -30297,44 +30649,87 @@ def test_public_home_stop_uses_mutually_exclusive_breakpoint_placement(monkeypat
     base_css = style[:mobile_start]
     mobile_css = style[mobile_start : style.index("</style>", mobile_start)]
 
-    base_phone_start = base_css.index(".public-home-stop-phone {")
-    base_phone_rule = base_css[base_phone_start : base_css.index("}", base_phone_start)]
-    assert "display: none;" in base_phone_rule
-
-    mobile_phone_start = mobile_css.index(".public-home-stop-phone {")
-    mobile_phone_rule = mobile_css[
-        mobile_phone_start : mobile_css.index("}", mobile_phone_start)
-    ]
-    assert "display: block;" in mobile_phone_rule
-    assert "padding: 0.3rem 0;" in mobile_phone_rule
-
-    mobile_desktop_start = mobile_css.index(".public-home-stop-desktop {")
-    mobile_desktop_rule = mobile_css[
-        mobile_desktop_start : mobile_css.index("}", mobile_desktop_start)
-    ]
-    assert "display: none;" in mobile_desktop_rule
+    overview_start = base_css.index(".public-home-overview {")
+    overview_rule = base_css[overview_start : base_css.index("}", overview_start)]
+    assert 'grid-template-areas: "action metrics" "stop stop";' in overview_rule
+    assert "grid-area: action" in base_css
+    assert "grid-area: metrics" in base_css
+    assert "grid-area: stop" in base_css
 
     overview_start = mobile_css.index(".public-home-overview {")
     overview_rule = mobile_css[overview_start : mobile_css.index("}", overview_start)]
+    assert 'grid-template-areas: "action" "stop" "metrics";' in overview_rule
     assert "gap: 0;" in overview_rule
-
-    metrics_start = mobile_css.index(".public-home-metrics {")
-    metrics_rule = mobile_css[metrics_start : mobile_css.index("}", metrics_start)]
-    assert "margin-top: 0.75rem;" in metrics_rule
+    assert ".public-home-stop-phone" not in style
+    assert ".public-home-stop-desktop" not in style
 
 
 def test_public_app_shell_has_compact_mobile_rules():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     mobile_index = source.index("@media (max-width: 640px)", source.index("def render_public_shell_mode_styles"))
-    mobile_chunk = source[mobile_index : mobile_index + 1200]
+    mobile_chunk = source[mobile_index : source.index("</style>", mobile_index)]
 
     assert ".public-app-topline" in mobile_chunk
     assert ".public-page-intro" in mobile_chunk
     assert ".public-app-nav a" in mobile_chunk
     assert "font-size: 1.24rem" in mobile_chunk
     assert ".public-page-boundary" in mobile_chunk
-    assert "flex-wrap: wrap" in mobile_chunk
+    nav_start = mobile_chunk.index(".public-app-nav {")
+    nav_rule = mobile_chunk[nav_start : mobile_chunk.index("}", nav_start)]
+    assert "flex-wrap: nowrap" in nav_rule
+    assert "overflow-x: auto" in nav_rule
+    trust_start = mobile_chunk.index(".profile-trust-strip.compact {")
+    trust_rule = mobile_chunk[trust_start : mobile_chunk.index("}", trust_start)]
+    assert "grid-template-columns: repeat(5, minmax(0, 1fr))" in trust_rule
+    answer_start = mobile_chunk.index(".sr-answer-panel {")
+    answer_rule = mobile_chunk[answer_start : mobile_chunk.index("}", answer_start)]
+    assert "padding: 0.85rem" in answer_rule
+    assert "gap: 0.5rem" in answer_rule
+
+
+def test_public_app_shell_has_short_desktop_density_without_hiding_copy(monkeypatch):
+    rendered: list[str] = []
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda body, **_kwargs: rendered.append(str(body)),
+    )
+
+    dashboard.render_public_shell_mode_styles()
+
+    style = rendered[0]
+    media_start = style.index("@media (min-width: 641px) and (max-height: 720px)")
+    media_chunk = style[media_start : style.index("@media (max-width: 640px)", media_start)]
+    assert ".public-app-shell" in media_chunk
+    assert ".public-page-intro" in media_chunk
+    assert ".profile-trust-strip" in media_chunk
+    assert ".stApp:has(.public-app-shell) .sr-answer-panel" in media_chunk
+    assert ".stApp:has(.public-app-shell) .sr-answer-panel h2" in media_chunk
+    assert ".stApp:has(.public-app-shell) .sr-answer-reason" in media_chunk
+    assert ".stApp:has(.public-app-shell) .sr-stop-rule" in media_chunk
+    assert "display: none" not in media_chunk
+    assert "visibility: hidden" not in media_chunk
+    assert "max-height:" not in media_chunk.split("{", 1)[1]
+
+
+def test_public_lane_rows_reflow_before_the_720_css_pixel_zoom_boundary(monkeypatch):
+    rendered: list[str] = []
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda body, **_kwargs: rendered.append(str(body)),
+    )
+
+    dashboard.render_public_shell_mode_styles()
+
+    style = rendered[0]
+    media_start = style.index("@media (max-width: 800px)")
+    media_chunk = style[media_start : style.index("@media", media_start + 1)]
+    lane_start = media_chunk.index(".public-lane-row {")
+    lane_rule = media_chunk[lane_start : media_chunk.index("}", lane_start)]
+    assert "grid-template-columns: 1fr" in lane_rule
+    assert ".public-lane-coverage" in media_chunk
 
 
 def test_public_single_stock_phone_uses_selector_local_scheme_a(monkeypatch):
@@ -30444,6 +30839,24 @@ def test_public_workflow_controls_reserve_accessible_touch_targets():
         rule_end = public_shell_css.index("}", rule_start)
         rule = public_shell_css[rule_start:rule_end]
         assert "min-height: 2.75rem" in rule
+
+    selector_start = public_shell_css.index(".selector-action-link {")
+    selector_rule = public_shell_css[selector_start : public_shell_css.index("}", selector_start)]
+    assert "background: #ffffff" in selector_rule
+    assert "color: #0f5f58 !important" in selector_rule
+    assert "background: #0f766e" not in selector_rule
+
+    visual_source = Path("src/dashboard_visual_system.py").read_text(encoding="utf-8")
+    assert '.stApp:has(.public-app-shell) [data-testid="stTextInput"] input' in visual_source
+    public_input_start = visual_source.index(
+        '.stApp:has(.public-app-shell) [data-testid="stTextInput"] input'
+    )
+    public_input_rule = visual_source[public_input_start : visual_source.index("}", public_input_start)]
+    assert "min-height: 44px" in public_input_rule
+    assert "input:focus-visible" in visual_source
+    assert "summary:focus-visible" in visual_source
+    assert '[data-sr-region]:focus-visible' in visual_source
+    assert '.sr-evidence-timeline ol:focus-visible' in visual_source
 
 
 def test_public_task_pages_do_not_render_duplicate_readiness_preview_cards():
@@ -30589,7 +31002,7 @@ def test_public_workflow_skip_link_bypasses_the_shared_public_shell():
     assert "st_api=st.sidebar" in source[skip_link_index:sidebar_index]
     assert skip_link_index < sidebar_index < output_frames_index
     assert public_mode_index < public_shell_style_index < shell_index < skip_target_index < dispatch_index
-    assert source[main_index:].count("render_public_workflow_skip_link(") == 1
+    assert source[main_index:].count("render_public_workflow_skip_link(") == 2
 
     skip_href = dashboard.public_workflow_skip_href(
         "Single-Stock Report",
@@ -30703,7 +31116,7 @@ def test_operator_workflow_skip_link_has_a_main_content_target():
 
     assert "st_api=st.sidebar" in source[operator_link_index:sidebar_index]
     assert operator_link_index < sidebar_index < output_frames_index < operator_branch_index < app_header_index < skip_target_index < dispatch_index
-    assert source[main_index:].count("render_public_workflow_skip_link(") == 1
+    assert source[main_index:].count("render_public_workflow_skip_link(") == 2
 
 
 def test_public_compact_header_allows_mobile_status_wrap():
@@ -30779,7 +31192,7 @@ def test_public_data_health_bootstrap_clears_before_the_shared_public_shell():
     data_health_branch_index = source.index('elif content_page == "Data Health":', shell_index)
     data_health_render_index = source.index("render_data_health(", data_health_branch_index)
     proof_history_branch_index = source.index("elif content_page == PROOF_HISTORY_PATH_TITLE:", data_health_render_index)
-    proof_render_index = source.index("render_proof_history(public_mode=not operator_mode)", proof_history_branch_index)
+    proof_render_index = source.index("render_proof_history(", proof_history_branch_index)
     assert bootstrap_index < sidebar_index < public_mode_index < clear_index < shell_index < data_health_branch_index < data_health_render_index
     assert "bootstrap_placeholder = None" in source[clear_index:shell_index]
     assert data_health_render_index < proof_history_branch_index < proof_render_index
@@ -30919,15 +31332,15 @@ def test_public_data_health_places_selected_ticker_context_before_universe_lane_
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     health_index = source.index("def render_data_health(")
     public_index = source.index("if public_mode:", health_index)
-    focus_guard_index = source.index("if public_focus_ticker and show_public_evidence_return:", public_index)
-    focus_note_index = source.index('"Ticker proof focus."', focus_guard_index)
-    return_link_index = source.index('f"Return to {public_focus_ticker} report"', focus_guard_index)
+    answer_index = source.index("evidence_route_answer_html(", public_index)
+    supporting_index = source.index("supporting_detail_html(", answer_index)
     coverage_index = source.index(
         "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)",
         public_index,
     )
 
-    assert public_index < focus_guard_index < focus_note_index < return_link_index < coverage_index
+    assert public_index < answer_index < supporting_index < coverage_index
+    assert "if public_focus_ticker and show_public_evidence_return:" not in source[public_index:coverage_index]
 
 
 def test_advanced_pages_use_one_readiness_boundary_instead_of_a_repeated_generic_card_grid():
@@ -31322,7 +31735,7 @@ def test_fast_public_single_stock_summary_keeps_answer_order_and_data_health_han
     withheld_index = rendered.index("Still withheld")
     handoff_index = rendered.index("Open Data Health")
 
-    assert selected_index < use_now_index < withheld_index < handoff_index
+    assert selected_index < use_now_index < handoff_index < withheld_index
     assert "?mode=public&amp;page=data-health&amp;ticker=NVDA" in rendered
 
 
@@ -35389,3 +35802,109 @@ def test_stock_selector_comparison_uses_three_ticker_limit_and_profile_scoped_jo
     assert "research_comparison_frame(" in render_source
     assert render_source.index('st.expander("Advanced: selected review tray", expanded=False)') < render_source.index("build_research_comparison(")
     assert dashboard.dashboard_mode_label(dashboard.RESEARCH_MODE) == "Personal research mode"
+
+
+def test_public_single_stock_summary_uses_one_answer_action_stop_and_supporting_region():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "BRK/B",
+                "Use Now": "Price history and source-backed fundamentals.",
+                "Still Blocked": "Trusted peer evidence.",
+                "Context Only": "Optional context remains unavailable.",
+                "Next Safe Action": "Open Data Health only if a field is blocked.",
+                "Review Boundary": "Research-only; no recommendation.",
+            }
+        ]
+    )
+
+    rendered = dashboard.single_stock_public_summary_html(frame)
+    answer = rendered.index("data-sr-region='primary-answer'")
+    action = rendered.index("data-sr-region='primary-action'")
+    stop = rendered.index("data-sr-region='stop-rule'")
+    supporting = rendered.index("data-sr-region='supporting-evidence'")
+
+    assert answer < action < stop < supporting
+    assert rendered.count("data-sr-region='primary-answer'") == 1
+    assert rendered.count("data-sr-region='primary-action'") == 1
+    assert rendered.count("data-sr-region='stop-rule'") == 1
+    assert rendered.count("data-sr-region='supporting-evidence'") == 1
+    assert "BRK/B" in rendered
+    assert "ticker=BRK%2FB" in rendered
+    assert "Price history and source-backed fundamentals." in rendered
+    assert "Trusted peer evidence." in rendered
+    assert "Research-only; no recommendation." in rendered
+
+
+@pytest.mark.parametrize("page_title", ("Data Health", "Proof History"))
+def test_evidence_route_answer_is_mode_identical_except_for_its_return_action(page_title):
+    public = dashboard.evidence_route_answer_html(
+        page_title,
+        workspace_mode=dashboard.PUBLIC_DEMO_MODE,
+        ticker="BRK/B",
+    )
+    personal = dashboard.evidence_route_answer_html(
+        page_title,
+        workspace_mode=dashboard.RESEARCH_MODE,
+        ticker="BRK/B",
+    )
+
+    for rendered in (public, personal):
+        assert rendered.count("data-sr-region='primary-answer'") == 1
+        assert rendered.count("data-sr-region='primary-action'") == 1
+        assert rendered.count("data-sr-region='stop-rule'") == 1
+        assert rendered.index("data-sr-region='primary-action'") < rendered.index(
+            "data-sr-region='stop-rule'"
+        )
+        assert "buy" not in rendered.lower()
+        assert "sell" not in rendered.lower()
+
+    assert "mode=public" in public
+    assert "mode=research" not in public
+    assert "mode=research" in personal
+    assert "mode=public" not in personal
+    assert "ticker=BRK%2FB" in public
+    assert "ticker=BRK%2FB" in personal
+    assert re.sub(r"<a\b.*?</a>", "<RETURN_ACTION>", public) == re.sub(
+        r"<a\b.*?</a>", "<RETURN_ACTION>", personal
+    )
+
+
+def test_evidence_route_query_tickers_encode_delimiters_and_fail_closed_when_unknown():
+    rendered = dashboard.evidence_route_answer_html(
+        "Proof History",
+        workspace_mode=dashboard.PUBLIC_DEMO_MODE,
+        ticker="A&B",
+    )
+
+    assert "ticker=A%26B" in rendered
+    assert "ticker=A&B" not in rendered
+    assert dashboard.data_health_focus_ticker("A&B", ["NVDA", "BRK/B"]) == ""
+
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    proof_start = source.index("def render_proof_history(")
+    proof_end = source.index("\ndef data_health_latest_reviewed_batch_packet_frame", proof_start)
+    proof_source = source[proof_start:proof_end]
+    assert "registered_tickers" in proof_source
+    assert "data_health_focus_ticker(" in proof_source
+
+
+def test_public_selector_shared_regions_wrap_native_search_without_changing_discover():
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    selector_start = source.index("def render_stock_selector(")
+    selector_end = source.index("\ndef price_refresh_operator_plan_cards", selector_start)
+    selector = source[selector_start:selector_end]
+
+    public_branch = selector.index("if public_mode and not research_discover:")
+    answer = selector.index("answer_panel_html(", public_branch)
+    search = selector.index("search = st.text_input(", answer)
+    stop = selector.index("stop_rule_html(", search)
+    supporting = selector.index('title="Readiness-backed results"', stop)
+    advanced = selector.index("advanced_detail_marker_html()", supporting)
+    filters = selector.index('st.expander("Advanced: filters and selection guidance"', advanced)
+
+    assert public_branch < answer < search < stop < supporting < advanced < filters
+    assert '"Search this review queue"' in selector
+    assert 'key="stock-selector-search"' in selector
+    assert 'target_page: str = "single-stock-report"' in selector
+    assert "if research_discover and research_boundary:" in selector

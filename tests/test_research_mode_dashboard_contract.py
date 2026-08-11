@@ -1690,11 +1690,23 @@ def test_research_evidence_detours_offer_return_before_evidence_content():
 
     for branch, renderer in ((data, "render_data_health("), (proof, "render_proof_history(")):
         header = branch.index("render_research_workspace_header(")
-        return_link = branch.index("research_evidence_return_link(", header)
-        button = branch.index("st.link_button(", return_link)
-        purpose = branch.index('st.caption(return_link["purpose"])', button)
-        content = branch.index(renderer, purpose)
-        assert header < return_link < button < purpose < content
+        boundary_delegation = branch.index("include_boundary=False", header)
+        content = branch.index(renderer, boundary_delegation)
+        assert header < boundary_delegation < content
+        assert "st.link_button(" not in branch[header:content]
+
+    public = dashboard.evidence_route_answer_html(
+        "Data Health",
+        workspace_mode=dashboard.PUBLIC_DEMO_MODE,
+        ticker="AVGO",
+    )
+    personal = dashboard.evidence_route_answer_html(
+        "Data Health",
+        workspace_mode=dashboard.RESEARCH_MODE,
+        ticker="AVGO",
+    )
+    assert "?mode=public&amp;page=single-stock-report&amp;ticker=AVGO&amp;open=1" in public
+    assert "?mode=research&amp;page=company-workbench&amp;ticker=AVGO&amp;open=1" in personal
 
 
 def test_dashboard_theme_keeps_primary_link_button_contrast_accessible():
@@ -1950,3 +1962,54 @@ def test_company_workbench_uses_two_mobile_lanes_then_one_at_two_hundred_percent
     assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in mobile
     narrow = styles[styles.index("@media (max-width: 260px)") :]
     assert ".company-workbench-primary-grid { grid-template-columns: 1fr; }" in narrow
+
+
+def test_public_evidence_routes_receive_explicit_mode_and_personal_headers_defer_boundary():
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    main = source[source.index("def main()") :]
+    data_health = main[main.index('elif content_page == "Data Health":') :]
+    proof_history = main[main.index("elif content_page == PROOF_HISTORY_PATH_TITLE:") :]
+
+    assert 'render_research_workspace_header(\n                "Data Health"' in data_health
+    assert 'render_research_workspace_header(\n                "Proof History"' in proof_history
+    assert "compact=True" in data_health[: data_health.index("render_data_health(")]
+    assert "compact=True" in proof_history[: proof_history.index("render_proof_history(")]
+    assert "include_boundary=False" in data_health[: data_health.index("render_data_health(")]
+    assert "include_boundary=False" in proof_history[: proof_history.index("render_proof_history(")]
+    assert "workspace_mode=mode" in data_health[: data_health.index('elif content_page == PROOF_HISTORY_PATH_TITLE:')]
+    assert "workspace_mode=mode" in proof_history
+    assert "public_mode=not operator_mode" in data_health
+    assert "public_mode=not operator_mode" in proof_history
+
+
+def test_public_and_evidence_route_renderers_adopt_one_shared_hierarchy_without_touching_workbench():
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    data_health_start = source.index("def render_data_health(")
+    data_health_end = source.index("\ndef render_research_workspace_styles(", data_health_start)
+    data_health = source[data_health_start:data_health_end]
+    proof_start = source.index("def render_proof_history(")
+    proof_end = source.index("\ndef data_health_latest_reviewed_batch_packet_frame", proof_start)
+    proof = source[proof_start:proof_end]
+    report_start = source.index("def render_single_stock_report(")
+    report_end = source.index("\ndef render_data_health(", report_start)
+    report = source[report_start:report_end]
+
+    assert data_health.index("evidence_route_answer_html(") < data_health.index(
+        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)"
+    )
+    assert data_health.index("supporting_detail_html(") < data_health.index(
+        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)"
+    )
+    assert data_health.index("advanced_detail_marker_html()") < data_health.index(
+        'st.expander("Advanced: how readiness works", expanded=False)'
+    )
+    assert proof.index("evidence_route_answer_html(") < proof.index(
+        "proof_history_public_timeline_html(proof_timeline, batch_proof_frame)"
+    )
+    assert proof.index("advanced_detail_marker_html()") < proof.index(
+        'st.expander("Advanced: proof ledger details", expanded=False)'
+    )
+    assert 'key="single-stock-public-ticker"' in report
+    assert 'key="single-stock-report-button"' in report
+    assert "selected_answer_target=selected_answer_target" in report
+    assert "selected_detail_target=selected_detail_target" in report
