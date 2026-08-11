@@ -1,3 +1,5 @@
+import pytest
+
 from src import dashboard_navigation as nav
 import src.dashboard as dashboard
 
@@ -19,6 +21,118 @@ def test_dashboard_navigation_maps_page_query_aliases():
     assert nav.dashboard_page_from_query("universe", pages) == "Universe Manager"
     assert nav.dashboard_page_from_query("value-rerating", pages) == "Value / Re-rating"
     assert nav.dashboard_page_from_query("unknown-page", pages) == "Home"
+
+
+@pytest.mark.parametrize(
+    ("mode", "page", "expected_page", "recognized", "redirected"),
+    (
+        ("public", "overview", "Home", True, True),
+        ("public", "research-desk", "Home", True, True),
+        ("research", "home", "Research Desk", True, True),
+        ("research", "single-stock-report", "Research Desk", True, True),
+        ("research", "universe-manager", "Research Desk", True, True),
+        ("public", "not-a-route", "Home", False, True),
+        ("research", "not-a-route", "Research Desk", False, True),
+        ("operator", "overview", "Overview", True, False),
+    ),
+)
+def test_workspace_route_resolution_fails_closed_by_mode(
+    mode, page, expected_page, recognized, redirected
+):
+    """Catches cross-mode and unknown deep links reaching a non-canonical shell."""
+
+    result = nav.resolve_workspace_route(
+        mode,
+        page,
+        {"mode": mode, "page": page},
+        dashboard.USER_PAGE_TITLES,
+        dashboard.ADVANCED_PAGE_TITLES,
+    )
+
+    assert result.page == expected_page
+    assert result.recognized is recognized
+    assert result.redirected is redirected
+
+
+def test_workspace_route_resolution_marks_an_explicit_invalid_mode_as_research_desk():
+    """Catches an invalid mode retaining an otherwise valid operator route."""
+
+    result = nav.resolve_workspace_route(
+        "visitor-mode",
+        "overview",
+        {"mode": "visitor-mode", "page": "overview", "ticker": "NVDA"},
+        dashboard.USER_PAGE_TITLES,
+        dashboard.ADVANCED_PAGE_TITLES,
+    )
+
+    assert result.mode == nav.RESEARCH_MODE
+    assert result.page == "Research Desk"
+    assert result.allowed is False
+    assert result.redirected is True
+    assert result.canonical_query == {"mode": "research", "page": "research-desk"}
+
+
+@pytest.mark.parametrize(
+    ("mode", "page", "query_params", "expected"),
+    (
+        ("public", "Home", {"mode": "public", "page": "home", "ticker": "NVDA"}, {"mode": "public"}),
+        ("public", "Stock Selector", {"ticker": "NVDA", "open": "1"}, {"mode": "public", "page": "stock-selector"}),
+        ("public", "Single-Stock Report", {"ticker": "BRK/B", "open": "1", "lane": "proof"}, {"mode": "public", "page": "single-stock-report", "ticker": "BRK/B", "open": "1"}),
+        ("public", "Data Health", {"ticker": "BRK/B", "lane": "peers", "drawer": "proof", "queue_details": "1", "batch_details": "1", "proof_details": "1", "metric_details": "1", "cash_preview": "1"}, {"mode": "public", "page": "data-health", "ticker": "BRK/B", "lane": "peers", "drawer": "proof", "queue_details": "1", "batch_details": "1", "proof_details": "1", "metric_details": "1"}),
+        ("public", "Proof History", {"ticker": "BRK/B", "open": "1"}, {"mode": "public", "page": "proof-history", "ticker": "BRK/B"}),
+        ("research", "Research Desk", {"ticker": "NVDA"}, {"mode": "research", "page": "research-desk"}),
+        ("research", "Company Workbench", {"ticker": "BRK/B", "open": "1", "cash_preview": "1", "proof_details": "1"}, {"mode": "research", "page": "company-workbench", "ticker": "BRK/B", "open": "1", "cash_preview": "1"}),
+        ("research", "Data Health", {"ticker": "BRK/B", "lane": "peers", "drawer": "proof", "proof_details": "1", "cash_preview": "1"}, {"mode": "research", "page": "data-health", "ticker": "BRK/B", "lane": "peers", "drawer": "proof", "proof_details": "1"}),
+        ("research", "Proof History", {"ticker": "BRK/B", "open": "1"}, {"mode": "research", "page": "proof-history", "ticker": "BRK/B"}),
+    ),
+)
+def test_canonical_workspace_query_keeps_only_the_exact_page_allowlist(mode, page, query_params, expected):
+    """Catches a redirect carrying a route key into a page that must ignore it."""
+
+    assert nav.canonical_workspace_query(mode, page, query_params) == expected
+
+
+def test_public_advanced_redirect_clears_route_specific_state():
+    result = nav.resolve_workspace_route(
+        "public",
+        "overview",
+        {"mode": "public", "page": "overview", "ticker": "AVGO", "open": "1"},
+        dashboard.USER_PAGE_TITLES,
+        dashboard.ADVANCED_PAGE_TITLES,
+    )
+
+    assert result.canonical_query == {"mode": "public"}
+
+
+def test_allowed_direct_request_is_not_rewritten_and_shared_evidence_mode_switch_keeps_evidence_state():
+    direct_query = {"mode": "research", "page": "data-health", "ticker": "BRK/B", "lane": "peers"}
+    direct = nav.resolve_workspace_route(
+        "research", "data-health", direct_query, dashboard.USER_PAGE_TITLES, dashboard.ADVANCED_PAGE_TITLES
+    )
+    switched = nav.resolve_workspace_route(
+        "public", "data-health", direct_query, dashboard.USER_PAGE_TITLES, dashboard.ADVANCED_PAGE_TITLES
+    )
+
+    assert direct.allowed is True
+    assert direct.redirected is False
+    assert switched.page == "Data Health"
+    assert switched.canonical_query == {"mode": "public", "page": "data-health", "ticker": "BRK/B", "lane": "peers"}
+
+
+def test_non_evidence_mode_switch_opens_the_target_mode_home_without_route_state():
+    """Catches a mode switch carrying a target-mode page and its ticker state across shells."""
+
+    switched = nav.resolve_workspace_route(
+        "research",
+        "company-workbench",
+        {"mode": "public", "page": "company-workbench", "ticker": "BRK/B", "open": "1"},
+        dashboard.USER_PAGE_TITLES,
+        dashboard.ADVANCED_PAGE_TITLES,
+    )
+
+    assert switched.page == "Research Desk"
+    assert switched.redirected is True
+    assert switched.canonical_query == {"mode": "research", "page": "research-desk"}
 
 
 def test_dashboard_navigation_public_path_labels_round_trip():

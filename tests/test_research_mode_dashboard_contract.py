@@ -37,6 +37,19 @@ def test_dashboard_defaults_local_use_to_research_desk_and_preserves_explicit_mo
     ) == "Data Health"
 
 
+def test_dashboard_resolves_raw_route_before_loading_workspace_state():
+    """Catches data/bootstrap work running before a disallowed route is canonicalized."""
+
+    source = Path("src/dashboard.py").read_text(encoding="utf-8")
+    main_start = source.index("def main()")
+    route_resolution = source.index("resolve_workspace_route(", main_start)
+    redirect_write = source.index("if route_resolution.redirected:", route_resolution)
+    data_profile = source.index("data_profile = resolve_data_profile", main_start)
+    bootstrap = source.index("render_public_route_bootstrap", main_start)
+
+    assert route_resolution < redirect_write < data_profile < bootstrap
+
+
 def test_personal_research_routes_do_not_render_ambiguous_freshness_label():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     assert "<small>Freshness</small>" not in source

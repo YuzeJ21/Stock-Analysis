@@ -153,6 +153,7 @@ from src.dashboard_navigation import (
     public_workflow_position,
     public_workflow_step,
     route_rail_query_update,
+    resolve_workspace_route,
     research_path_label,
     research_path_options,
     selected_page_from_route_rail,
@@ -29386,17 +29387,30 @@ def single_stock_query_ticker(value: object, local_tickers: list[str] | tuple[st
     text = str(raw or "").strip().upper()
     if not text:
         return ""
-    cleaned = re.sub(r"[^A-Z0-9.\-]", "", text)
-    if not cleaned:
-        return ""
-    local_lookup = {str(ticker).strip().upper() for ticker in (local_tickers or []) if str(ticker).strip()}
-    return cleaned if not local_lookup or cleaned in local_lookup else cleaned
+    local_lookup = {
+        str(ticker).strip().upper(): str(ticker).strip().upper()
+        for ticker in (local_tickers or [])
+        if str(ticker).strip()
+    }
+    if local_lookup:
+        return local_lookup.get(text, "")
+    return re.sub(r"[^A-Z0-9./\-]", "", text)
 
 
-def data_health_focus_ticker(value: object) -> str:
+def data_health_focus_ticker(
+    value: object,
+    registered_tickers: list[str] | tuple[str, ...] | None = None,
+) -> str:
     raw = value[0] if isinstance(value, list) and value else value
     text = str(raw or "").strip().upper()
-    return re.sub(r"[^A-Z0-9.\-]", "", text)
+    local_lookup = {
+        str(ticker).strip().upper(): str(ticker).strip().upper()
+        for ticker in (registered_tickers or [])
+        if str(ticker).strip()
+    }
+    if local_lookup:
+        return local_lookup.get(text, "")
+    return re.sub(r"[^A-Z0-9./\-]", "", text)
 
 
 def single_stock_query_open(value: object) -> bool:
@@ -32922,6 +32936,7 @@ def render_data_health(
     project_status_payload: dict[str, Any] | None = None,
     show_details: bool = False,
     public_mode: bool = True,
+    show_public_evidence_return: bool = True,
 ) -> None:
     if provider is None:
         st.warning("Local provider could not be initialized.")
@@ -32987,7 +33002,8 @@ def render_data_health(
     )
     selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
     selected_drawer = data_health_drawer_from_query(st.query_params.get("drawer"), selected_lane_key)
-    public_focus_ticker = data_health_focus_ticker(st.query_params.get("ticker"))
+    registered_tickers = provider.list_local_tickers() if hasattr(provider, "list_local_tickers") else []
+    public_focus_ticker = data_health_focus_ticker(st.query_params.get("ticker"), registered_tickers)
     drawer_detail_flags = data_health_drawer_detail_flags(selected_drawer, selected_lane_key)
     queue_details_requested = data_health_detail_selector_requested(
         st.query_params.get("queue_details"),
@@ -33018,7 +33034,7 @@ def render_data_health(
     if public_mode:
         if public_loading_placeholder is not None:
             public_loading_placeholder.empty()
-        if public_focus_ticker:
+        if public_focus_ticker and show_public_evidence_return:
             render_context_note(
                 "Ticker proof focus.",
                 f"You arrived from {public_focus_ticker}'s report. Review its readiness boundary here, then return to the report for supported analysis.",
@@ -36321,6 +36337,22 @@ def render_personal_research_route(
 def main() -> None:
     global ACTIVE_RESEARCH_CHANGE_STATE
     st.set_page_config(page_title="Stock Research Command Center", layout="wide")
+    page_query_value = st.query_params.get("page")
+    mode_query_value = st.query_params.get("mode")
+    route_resolution = resolve_workspace_route(
+        mode_query_value,
+        page_query_value,
+        st.query_params,
+        USER_PAGE_TITLES,
+        ADVANCED_PAGE_TITLES,
+    )
+    if route_resolution.redirected:
+        st.query_params.clear()
+        for query_key, query_value in route_resolution.canonical_query.items():
+            st.query_params[query_key] = query_value
+    has_explicit_page_query = dashboard_query_value_present(page_query_value)
+    initial_mode = route_resolution.mode
+    initial_page = route_resolution.page
     apply_dashboard_theme()
     render_semantic_main_bridge()
     data_profile = resolve_data_profile(project_root=BASE_DIR)
@@ -36336,17 +36368,6 @@ def main() -> None:
     )
     catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
-    page_query_value = st.query_params.get("page")
-    mode_query_value = st.query_params.get("mode")
-    has_explicit_page_query = dashboard_query_value_present(page_query_value)
-    has_explicit_mode_query = dashboard_query_value_present(mode_query_value)
-    queried_page = dashboard_page_from_query(page_query_value)
-    initial_mode = dashboard_mode_from_query(mode_query_value, queried_page)
-    initial_page = workspace_default_page(
-        queried_page,
-        mode=initial_mode,
-        has_explicit_page_query=has_explicit_page_query,
-    )
     bootstrap_placeholder = (
         render_public_route_bootstrap(initial_page, initial_mode)
         if initial_mode == PUBLIC_DEMO_MODE
@@ -36369,9 +36390,21 @@ def main() -> None:
             help="Personal research is the working default. Public keeps the guided demo; Operator keeps proof and maintenance tools.",
             key="dashboard-workspace-mode",
         )
-        if has_explicit_mode_query:
-            mode_selection = initial_mode
-        mode = mode_selection
+        if mode_selection != initial_mode:
+            route_resolution = resolve_workspace_route(
+                mode_selection,
+                initial_page,
+                st.query_params,
+                USER_PAGE_TITLES,
+                ADVANCED_PAGE_TITLES,
+            )
+            if route_resolution.redirected:
+                st.query_params.clear()
+                for query_key, query_value in route_resolution.canonical_query.items():
+                    st.query_params[query_key] = query_value
+            initial_mode = route_resolution.mode
+            initial_page = route_resolution.page
+        mode = initial_mode
         research_mode = mode == RESEARCH_MODE
         public_demo_mode = mode == PUBLIC_DEMO_MODE
         operator_mode = mode == OPERATOR_DEMO_MODE
@@ -36575,7 +36608,13 @@ def main() -> None:
             return_link = research_evidence_return_link(ticker)
             st.link_button(return_link["label"], return_link["href"], type="primary")
             st.caption(return_link["purpose"])
-        render_data_health(provider, project_status_payload, show_reason_details, public_mode=not operator_mode)
+        render_data_health(
+            provider,
+            project_status_payload,
+            show_reason_details,
+            public_mode=not operator_mode,
+            show_public_evidence_return=public_demo_mode,
+        )
     elif content_page == PROOF_HISTORY_PATH_TITLE:
         if research_mode:
             ticker = str(st.query_params.get("ticker") or "").strip().upper()

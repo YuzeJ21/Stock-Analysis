@@ -1103,7 +1103,9 @@ def test_advanced_evidence_links_preserve_personal_research_mode_and_ticker():
 
 
 def test_research_evidence_links_encode_ticker_and_return_to_workbench_or_desk():
-    assert advanced_evidence_links("BRK/B")[0]["href"].endswith("ticker=BRK%2FB")
+    data_health_link = advanced_evidence_links("BRK/B")[0]
+    assert data_health_link["href"].endswith("ticker=BRK%2FB")
+    assert data_health_link["href"].startswith("?mode=research&page=data-health")
     assert research_evidence_return_link("BRK/B") == {
         "label": "Return to Company Workbench",
         "href": "?mode=research&page=company-workbench&ticker=BRK%2FB&open=1",

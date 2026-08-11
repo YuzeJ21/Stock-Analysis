@@ -266,6 +266,12 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         "This brief is a snapshot of current saved evidence",
     ):
         assert secondary not in workbench_blocks
+    for evidence_name in ("Research Data Health", "Research Proof History"):
+        evidence_blocks = "\n".join(
+            next(result for result in results if result.name == evidence_name).rendered_blocks
+        )
+        assert evidence_blocks.count("Continue the selected-company review without changing evidence state.") == 1
+        assert "?mode=public&page=single-stock-report" not in evidence_blocks
 
 
 def test_company_workbench_opens_secondary_modules_only_after_explicit_action():

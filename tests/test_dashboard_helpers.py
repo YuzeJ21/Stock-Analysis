@@ -3691,7 +3691,8 @@ def test_data_health_default_view_prioritizes_fix_first_and_collapses_heavy_deta
     assert 'with st.expander("Queue outcome ledger summary", expanded=False)' not in source
     assert 'with st.expander("Readiness queue evidence", expanded=False)' not in source
     assert 'with st.expander("Data coverage proof queue detail", expanded=False)' not in source
-    assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=not operator_mode)" in source
+    assert "public_mode=not operator_mode" in source
+    assert "show_public_evidence_return=public_demo_mode" in source
     assert 'render_section_header("Action Paths"' not in source
     assert 'st.expander("Optional context evidence drawer", expanded=False)' in source
     assert 'st.expander("Last-resort diagnostic context", expanded=False)' in source
@@ -30133,8 +30134,8 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     assert 'page_query_value = st.query_params.get("page")' in source
     assert 'mode_query_value = st.query_params.get("mode")' in source
     assert "has_explicit_page_query = dashboard_query_value_present(page_query_value)" in source
-    assert "has_explicit_mode_query = dashboard_query_value_present(mode_query_value)" in source
-    assert "if has_explicit_mode_query:\n            mode_selection = initial_mode" in source
+    assert "route_resolution = resolve_workspace_route(" in source
+    assert "if mode_selection != initial_mode:" in source
     assert "selected_page_from_route_rail(" in source
     assert "if has_explicit_page_query:\n            selected_page = initial_page" not in source
     assert "mode_selection = st.radio" in source
@@ -30154,7 +30155,7 @@ def test_dashboard_public_mode_hides_operator_sidebar_sections_by_default():
     assert 'if selected_page == "Single-Stock Report" and operator_mode:' in source
     assert "render_home_page(\n            catalog," in source
     assert "project_status_payload=project_status_payload" in source
-    assert "render_data_health(provider, project_status_payload, show_reason_details, public_mode=not operator_mode)" in source
+    assert "show_public_evidence_return=public_demo_mode" in source
     assert "data_health_freshness_status(BASE_DIR)" in source
     assert "dashboard_generated_artifact_stale_warning(BASE_DIR)" in source
     assert '"Generated status may be stale"' in source
@@ -30776,7 +30777,7 @@ def test_public_data_health_bootstrap_clears_before_the_shared_public_shell():
     clear_index = source.index("if bootstrap_placeholder is not None:", public_mode_index)
     shell_index = source.index("render_public_app_shell(selected_page)", clear_index)
     data_health_branch_index = source.index('elif content_page == "Data Health":', shell_index)
-    data_health_render_index = source.index("render_data_health(provider, project_status_payload, show_reason_details, public_mode=not operator_mode)")
+    data_health_render_index = source.index("render_data_health(", data_health_branch_index)
     proof_history_branch_index = source.index("elif content_page == PROOF_HISTORY_PATH_TITLE:", data_health_render_index)
     proof_render_index = source.index("render_proof_history(public_mode=not operator_mode)", proof_history_branch_index)
     assert bootstrap_index < sidebar_index < public_mode_index < clear_index < shell_index < data_health_branch_index < data_health_render_index
@@ -30918,7 +30919,7 @@ def test_public_data_health_places_selected_ticker_context_before_universe_lane_
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     health_index = source.index("def render_data_health(")
     public_index = source.index("if public_mode:", health_index)
-    focus_guard_index = source.index("if public_focus_ticker:", public_index)
+    focus_guard_index = source.index("if public_focus_ticker and show_public_evidence_return:", public_index)
     focus_note_index = source.index('"Ticker proof focus."', focus_guard_index)
     return_link_index = source.index('f"Return to {public_focus_ticker} report"', focus_guard_index)
     coverage_index = source.index(
@@ -31762,7 +31763,9 @@ def test_advanced_pages_share_command_center_shell_before_raw_tables():
 
 def test_single_stock_query_ticker_prefills_known_or_custom_ticker():
     assert dashboard.single_stock_query_ticker("nvda", ["AAPL", "NVDA"]) == "NVDA"
-    assert dashboard.single_stock_query_ticker(["meta"], ["AAPL", "NVDA"]) == "META"
+    assert dashboard.single_stock_query_ticker(["meta"], ["AAPL", "NVDA"]) == ""
+    assert dashboard.single_stock_query_ticker("brk/b", ["AAPL", "BRK/B"]) == "BRK/B"
+    assert dashboard.single_stock_query_ticker("brk/b", ["AAPL", "BRK.B"]) == ""
     assert dashboard.single_stock_query_ticker("", ["AAPL", "NVDA"]) == ""
     assert "single_stock_query_ticker(st.query_params.get(\"ticker\"), local_tickers)" in Path("src/dashboard.py").read_text(
         encoding="utf-8"
@@ -32173,12 +32176,17 @@ def test_last_resort_legacy_import_checks_tab_groups_import_evidence_rows():
 def test_data_health_public_ticker_query_adds_proof_focus_context():
     assert dashboard.data_health_focus_ticker("nvda") == "NVDA"
     assert dashboard.data_health_focus_ticker(["brk.b"]) == "BRK.B"
+    assert dashboard.data_health_focus_ticker("brk/b", ["AAPL", "BRK/B"]) == "BRK/B"
+    assert dashboard.data_health_focus_ticker("brk/b", ["AAPL", "BRK.B"]) == ""
     assert dashboard.data_health_focus_ticker("bad ticker!") == "BADTICKER"
     assert dashboard.data_health_focus_ticker("") == ""
 
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     function_index = source.index("def render_data_health(")
-    focus_assignment_index = source.index("public_focus_ticker = data_health_focus_ticker(st.query_params.get(\"ticker\"))", function_index)
+    focus_assignment_index = source.index(
+        "public_focus_ticker = data_health_focus_ticker(st.query_params.get(\"ticker\"), registered_tickers)",
+        function_index,
+    )
     public_render_index = source.index("if public_mode:", focus_assignment_index)
     focus_note_index = source.index('"Ticker proof focus."', focus_assignment_index)
     drawer_index = source.index('st.expander("Public evidence drawer"', focus_note_index)
