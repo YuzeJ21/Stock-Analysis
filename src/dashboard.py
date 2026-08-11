@@ -24,6 +24,7 @@ from src.accessibility_bridge import render_semantic_main_bridge
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
+from src.dashboard_visual_system import render_stylesheet
 from src.continuation_gate import build_continuation_gate
 from src.source_activation_guide import build_provider_setup_checklist, build_source_activation_guide
 from src.data_onboarding import write_onboarding_outputs
@@ -36043,7 +36044,7 @@ def render_research_workspace_styles() -> None:
         unsafe_allow_html=True,
     )
     st.markdown(
-        "<style>" + research_accessibility_media_preferences_css() + "</style>",
+        render_stylesheet(research_accessibility_media_preferences_css()),
         unsafe_allow_html=True,
     )
 

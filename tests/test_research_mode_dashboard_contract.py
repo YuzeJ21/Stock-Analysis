@@ -6,6 +6,7 @@ import pytest
 
 from src import dashboard
 from src import dashboard_navigation as nav
+from src import dashboard_visual_system as visual
 from src.catalyst_evidence_timeline import CatalystEvent, append_reviewed_event
 from src.daily_research_queue import (
     DailyQueueEvidence,
@@ -857,15 +858,24 @@ def test_research_workspace_phone_styles_compact_profile_and_hide_only_duplicate
 
 
 def test_research_workspace_styles_inject_media_preferences_after_normal_styles():
-    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
-    start = source.index("def render_research_workspace_styles()")
-    end = source.index("\ndef render_research_workspace_header(", start)
-    styles = source[start:end]
+    rendered: list[tuple[str, dict[str, object]]] = []
 
-    normal_styles = styles.index("st.markdown(")
-    preferences = styles.index("research_accessibility_media_preferences_css()")
-    assert normal_styles < preferences
-    assert "unsafe_allow_html=True" in styles[preferences:]
+    def capture(html: str, **kwargs: object) -> None:
+        rendered.append((html, kwargs))
+
+    original_markdown = dashboard.st.markdown
+    dashboard.st.markdown = capture
+    try:
+        dashboard.render_research_workspace_styles()
+    finally:
+        dashboard.st.markdown = original_markdown
+
+    assert len(rendered) == 2
+    assert rendered[0][0].startswith("\n        <style>")
+    assert rendered[1] == (
+        visual.render_stylesheet(visual.legacy_research_accessibility_css()),
+        {"unsafe_allow_html": True},
+    )
 
 
 def test_company_workbench_keeps_review_path_and_lane_coverage_after_anchored_answer():
