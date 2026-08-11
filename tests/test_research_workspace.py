@@ -110,6 +110,8 @@ def test_monitor_follow_up_queue_composes_five_distinct_questions_without_rankin
     assert [row.ticker for row in result.primary_rows] == ["BBB", "CCC", "DDD"]
     assert result.monitor_count == 1
     assert result.is_empty is False
+    assert result.next_action_label == "Open BBB Company Workbench"
+    assert result.next_action_url == "?mode=research&page=company-workbench&ticker=BBB&open=1"
 
 
 @pytest.mark.parametrize(
@@ -302,6 +304,83 @@ def test_monitor_follow_up_queue_recent_or_unresolved_change_prevents_false_empt
 
     assert result.is_empty is False
     assert result.actionable_count > 0
+    if summary.items:
+        assert result.next_action_label == "Open AAA Company Workbench"
+        assert result.next_action_url == "?mode=research&page=company-workbench&ticker=AAA&open=1"
+    else:
+        assert result.next_action_label == "Open Data Health"
+        assert result.next_action_url == "?mode=research&page=data-health"
+
+
+def test_monitor_primary_reason_uses_the_same_authoritative_driver_as_its_action():
+    due = _discipline_row(
+        0,
+        "ROW",
+        "conflicting_evidence",
+        "Needs review",
+        "ROW evidence needs verification.",
+    )
+    weekly_item = WeeklySummaryItem(
+        "new_evidence",
+        "WEEK",
+        "WEEK has reviewed source evidence.",
+        "review_now",
+        "source:week",
+        "2026-08-04T00:00:00+00:00",
+    )
+
+    primary = build_monitor_follow_up_queue(
+        _weekly_summary(weekly_item),
+        (due,),
+        source_change_count=1,
+        readiness_state="unavailable",
+        readiness_message="Saved readiness is unavailable.",
+        observation_state="current",
+        observation_message="Market observation is current.",
+    )
+    weekly = build_monitor_follow_up_queue(
+        _weekly_summary(weekly_item),
+        (),
+        source_change_count=1,
+        readiness_state="current",
+        readiness_message="Saved readiness is current.",
+        observation_state="current",
+        observation_message="Market observation is current.",
+    )
+    source = build_monitor_follow_up_queue(
+        _weekly_summary(),
+        (),
+        source_change_count=2,
+        readiness_state="current",
+        readiness_message="Saved readiness is current.",
+        observation_state="current",
+        observation_message="Market observation is current.",
+    )
+    freshness = build_monitor_follow_up_queue(
+        _weekly_summary(),
+        (),
+        readiness_state="unavailable",
+        readiness_message="Saved readiness is unavailable.",
+        observation_state="current",
+        observation_message="Market observation is current.",
+    )
+    empty = build_monitor_follow_up_queue(
+        _weekly_summary(),
+        (),
+        readiness_state="current",
+        readiness_message="Saved readiness is current.",
+        observation_state="current",
+        observation_message="Market observation is current.",
+    )
+
+    assert primary.primary_reason == "ROW evidence needs verification."
+    assert weekly.primary_reason == "WEEK has reviewed source evidence."
+    assert source.primary_reason == "2 unresolved saved source-change items remain for review."
+    assert freshness.primary_reason == (
+        "Saved readiness: Saved readiness is unavailable. "
+        "Market observation: Market observation is current."
+    )
+    assert empty.primary_reason == empty.empty_boundary
 
 
 def test_research_accessibility_media_preferences_css_declares_bounded_fallbacks():
@@ -640,9 +719,32 @@ def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_regio
     assert "NVDA&lt;SCRIPT&gt;" in rendered
     assert "Revenue &lt;verified&gt;" in rendered
     assert "EPS &amp; consensus" in rendered
-    assert "No source-backed change &lt;queued&gt;." in rendered
+    primary = rendered[: rendered.index("data-sr-region='stop-rule'")]
+    assert "No source-backed change is queued." in primary
+    assert "No source-backed change &lt;queued&gt;." not in primary
     assert "Review valuation &gt; evidence" in rendered
     assert "<script>" not in rendered
+    assert rendered.count("data-sr-region='primary-answer'") == 1
+    assert rendered.count("data-sr-region='primary-action'") == 1
+    assert rendered.count("data-sr-region='stop-rule'") == 1
+    assert rendered.count("data-workbench-lane='usable'") == 1
+    assert rendered.count("data-workbench-lane='withheld'") == 1
+    assert rendered.count("data-workbench-lane='change'") == 1
+    assert rendered.count("data-workbench-lane='next-task'") == 1
+    assert rendered.count("class='sr-detail-disclosure'") == 0
+    assert "Blocked: EPS &amp; consensus Context only: Peer candidate" in primary
+    assert rendered.index("data-workbench-lane='usable'") < rendered.index(
+        "data-workbench-lane='withheld'"
+    ) < rendered.index("data-sr-region='primary-action'") < rendered.index(
+        "data-sr-region='stop-rule'"
+    )
+
+    detail = research_workspace.company_workbench_detail_disclosure_html(brief)
+    assert detail.count("class='sr-detail-disclosure'") == 1
+    assert detail.count("data-sr-region='advanced-detail'") == 1
+    assert "Full Company Brief evidence" in detail
+    assert "No source-backed change &lt;queued&gt;." in detail
+    assert "Wait for permitted history." in detail
 
 
 def _cash_preview() -> CompanyWorkbenchCashGenerationPreview:
@@ -1227,6 +1329,7 @@ def test_research_desk_brief_and_advanced_evidence_html_stay_answer_first_and_co
         "data-sr-region='supporting-evidence'"
     )
     assert "What needs my attention today?" in desk_html
+    assert "Freshness" in desk_html
     assert "Open Discover" in desk_html
     assert "market-complete event feed" in desk_html
     assert "Open Data Health" in evidence_html

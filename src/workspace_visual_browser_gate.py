@@ -63,7 +63,7 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
     WorkspaceVisualRoute(
         "company-workbench",
         "AVGO Company Workbench",
-        "/?mode=research&page=company-workbench&ticker=AVGO&open=1",
+        "/?mode=research&page=company-workbench&ticker=AVGO",
         "Company Brief",
         "Company Workbench",
         "research",
@@ -237,25 +237,42 @@ def evaluate_skip_focus(
 def evaluate_browser_zoom(
     *,
     requested_zoom: int,
-    physical_width: float,
-    physical_height: float,
+    declared_width: float,
+    declared_height: float,
+    screenshot_width: float,
+    screenshot_height: float,
     inner_width: float,
     inner_height: float,
+    visual_viewport_width: float,
+    visual_viewport_height: float,
     device_pixel_ratio: float,
     visual_viewport_scale: float,
 ) -> BrowserEvaluation:
-    del physical_height, inner_height
-    layout_ratio = physical_width / inner_width if inner_width > 0 else 0
+    expected_inner_width = declared_width / requested_zoom if requested_zoom > 0 else 0
+    expected_inner_height = declared_height / requested_zoom if requested_zoom > 0 else 0
+    layout_width_ratio = declared_width / inner_width if inner_width > 0 else 0
+    layout_height_ratio = declared_height / inner_height if inner_height > 0 else 0
     passed = (
         requested_zoom in ZOOMS
-        and abs(layout_ratio - requested_zoom) <= 0.08
+        and abs(screenshot_width - declared_width) <= 1
+        and abs(screenshot_height - declared_height) <= 1
+        and abs(inner_width - expected_inner_width) <= 1
+        and abs(inner_height - expected_inner_height) <= 1
+        and abs(visual_viewport_width - inner_width) <= 1
+        and abs(visual_viewport_height - inner_height) <= 1
+        and abs(layout_width_ratio - requested_zoom) <= 0.08
+        and abs(layout_height_ratio - requested_zoom) <= 0.08
         and abs(device_pixel_ratio - requested_zoom) <= 0.08
         and abs(visual_viewport_scale - 1) <= 0.01
     )
     return BrowserEvaluation(
         passed,
         (
-            f"requested={requested_zoom * 100}%; layout_ratio={layout_ratio:.3f}; "
+            f"requested={requested_zoom * 100}%; declared={declared_width:.0f}x{declared_height:.0f}; "
+            f"screenshot={screenshot_width:.0f}x{screenshot_height:.0f}; "
+            f"inner={inner_width:.0f}x{inner_height:.0f}; "
+            f"visual={visual_viewport_width:.0f}x{visual_viewport_height:.0f}; "
+            f"layout_ratio={layout_width_ratio:.3f}x{layout_height_ratio:.3f}; "
             f"device_pixel_ratio={device_pixel_ratio:.3f}; "
             f"visual_viewport_scale={visual_viewport_scale:.3f}"
         ),
@@ -398,6 +415,64 @@ def evaluate_focus_sequence(
     )
 
 
+def evaluate_personal_route_hierarchy(
+    *,
+    slug: str,
+    region_counts: dict[str, int],
+    region_order: tuple[str, ...],
+    primary_action_focusable_count: int,
+    legacy_pre_answer_action_count: int,
+) -> BrowserEvaluation:
+    """Require one answer-first hierarchy for a modernized personal route."""
+
+    if slug not in {"discover", "company-workbench", "monitor"}:
+        return BrowserEvaluation(False, f"unsupported personal route {slug!r}")
+    required = (
+        "workflow-nav",
+        "context",
+        "page-title",
+        "primary-answer",
+        "primary-action",
+        "stop-rule",
+        "advanced-detail",
+    )
+    required_counts_passed = all(int(region_counts.get(name, 0)) == 1 for name in required)
+    supporting_count = int(region_counts.get("supporting-evidence", 0))
+    supporting_count_passed = supporting_count in {0, 1}
+    try:
+        indexes = {name: region_order.index(name) for name in required}
+        required_order_passed = all(
+            indexes[left] < indexes[right]
+            for left, right in zip(required, required[1:])
+        )
+        supporting_order_passed = (
+            supporting_count == 0
+            or indexes["stop-rule"]
+            < region_order.index("supporting-evidence")
+            < indexes["advanced-detail"]
+        )
+    except ValueError:
+        required_order_passed = False
+        supporting_order_passed = False
+    passed = (
+        required_counts_passed
+        and supporting_count_passed
+        and required_order_passed
+        and supporting_order_passed
+        and primary_action_focusable_count == 1
+        and legacy_pre_answer_action_count == 0
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            f"route={slug}; counts={region_counts!r}; order={region_order!r}; "
+            f"supporting_count={supporting_count}; "
+            f"primary_action_focusable_count={primary_action_focusable_count}; "
+            f"legacy_pre_answer_action_count={legacy_pre_answer_action_count}"
+        ),
+    )
+
+
 def _parse_unique(raw: str, *, allowed: tuple[str, ...], label: str) -> tuple[str, ...]:
     values = tuple(value.strip() for value in str(raw or "").split(",") if value.strip())
     if not values:
@@ -481,6 +556,21 @@ def _browser_observation(page: Any) -> dict[str, object]:
         height: box.height,
       };
     });
+  const discoverAction = [...document.querySelectorAll("[data-testid='stTextInput']")]
+    .find((node) => node.innerText.includes("Search saved companies"))
+    ?.querySelector("input") || null;
+  const boxFor = (node, name) => {
+    const box = node.getBoundingClientRect();
+    return {
+      name,
+      left: box.left,
+      right: box.right,
+      top: box.top,
+      bottom: box.bottom,
+      width: box.width,
+      height: box.height,
+    };
+  };
   const textNodes = [...document.querySelectorAll(
     "h1, nav a, nav [aria-disabled='true'], label, .sr-status-chip, " +
     "[data-sr-region='primary-action'], [data-sr-region='stop-rule']"
@@ -497,20 +587,70 @@ def _browser_observation(page: Any) -> dict[str, object]:
     "nav a, [data-sr-region='primary-action'], [data-testid='stLinkButton'] a[kind='primary'], " +
     "[data-testid='stButton'] button[kind='primary']"
   );
+  if (discoverAction && visible(discoverAction)) {
+    controls.push(boxFor(discoverAction, "primary-action"));
+  }
   const main = document.querySelector("[role='main']") || document.querySelector("[data-testid='stMain']");
   const doc = document.documentElement;
   const body = document.body;
   const regions = boxes("[data-sr-region]");
+  if (discoverAction && visible(discoverAction)) {
+    regions.push(boxFor(discoverAction, "primary-action"));
+  }
   const publicNavs = [...document.querySelectorAll("nav[aria-label='Public workflow']")];
   const researchNavs = [...document.querySelectorAll("nav[aria-label='Personal research workflow']")];
   const operatorRadios = [...document.querySelectorAll("[data-testid='stSidebar'] [role='radiogroup']")];
+  const legacyPreAnswerActions = [
+    ...document.querySelectorAll(".research-workspace-action")
+  ].filter(visible);
   const regionCounts = {};
   for (const region of document.querySelectorAll("[data-sr-region]")) {
     const name = region.getAttribute("data-sr-region");
     regionCounts[name] = (regionCounts[name] || 0) + 1;
   }
+  if (discoverAction && visible(discoverAction)) {
+    regionCounts["primary-action"] = (regionCounts["primary-action"] || 0) + 1;
+  }
+  const regionNodes = [...document.querySelectorAll("[data-sr-region]")]
+    .map((node) => ({node, name: node.getAttribute("data-sr-region")}));
+  if (discoverAction && visible(discoverAction)) {
+    regionNodes.push({node: discoverAction, name: "primary-action"});
+  }
+  regionNodes.sort((left, right) => {
+    if (left.node === right.node) return 0;
+    return left.node.compareDocumentPosition(right.node) & Node.DOCUMENT_POSITION_FOLLOWING
+      ? -1
+      : 1;
+  });
+  const primaryActionNodes = [
+    ...document.querySelectorAll("[data-sr-region='primary-action']"),
+    ...(discoverAction && visible(discoverAction) ? [discoverAction] : []),
+  ];
+  const primaryActionFocusableCount = primaryActionNodes.filter((node) => {
+    if (!visible(node) || node.matches("[disabled], [aria-disabled='true']")) return false;
+    if (node.tabIndex < 0) return false;
+    return node.matches("a[href], button, input, select, textarea, summary");
+  }).length;
+  const overflowNodes = [...document.querySelectorAll("[role='main'] *")]
+    .filter(visible)
+    .map((node) => {
+      const box = node.getBoundingClientRect();
+      return {
+        tag: node.tagName.toLowerCase(),
+        class_name: String(node.className || "").slice(0, 120),
+        test_id: node.getAttribute("data-testid") || "",
+        left: box.left,
+        right: box.right,
+        width: box.width,
+        client_width: node.clientWidth,
+        scroll_width: node.scrollWidth,
+      };
+    })
+    .filter((row) => row.right > doc.clientWidth + 1 || row.scroll_width > row.client_width + 1)
+    .slice(0, 12);
   return {
     client_width: doc.clientWidth,
+    client_height: doc.clientHeight,
     document_scroll_width: doc.scrollWidth,
     body_scroll_width: body.scrollWidth,
     main_scroll_width: main ? main.scrollWidth : null,
@@ -525,6 +665,8 @@ def _browser_observation(page: Any) -> dict[str, object]:
     outer_height: window.outerHeight,
     device_pixel_ratio: window.devicePixelRatio,
     visual_viewport_scale: window.visualViewport ? window.visualViewport.scale : null,
+    visual_viewport_width: window.visualViewport ? window.visualViewport.width : null,
+    visual_viewport_height: window.visualViewport ? window.visualViewport.height : null,
     h1_count: document.querySelectorAll("[role='main'] h1").length,
     h1_text: [...document.querySelectorAll("[role='main'] h1")].map((node) => node.textContent.trim()),
     public_nav_count: publicNavs.length,
@@ -541,8 +683,10 @@ def _browser_observation(page: Any) -> dict[str, object]:
     spinner_count: document.querySelectorAll("[data-testid='stSpinner']").length,
     positive_tabindex_count: [...document.querySelectorAll("[tabindex]")]
       .filter((node) => node.tabIndex > 0).length,
-    region_order: [...document.querySelectorAll("[data-sr-region]")]
-      .map((node) => node.getAttribute("data-sr-region")),
+    region_order: regionNodes.map((entry) => entry.name),
+    primary_action_focusable_count: primaryActionFocusableCount,
+    legacy_pre_answer_action_count: legacyPreAnswerActions.length,
+    overflow_nodes: overflowNodes,
   };
 }
 """
@@ -742,13 +886,16 @@ def _evaluate_observation(
             client_width=client_width,
         ),
     )
-    add(
-        "main_scroll_width",
-        evaluate_scroll_width(
-            scroll_width=float(observation.get("main_scroll_width") or 0),
-            client_width=float(observation.get("main_client_width") or client_width),
-        ),
+    main_scroll = evaluate_scroll_width(
+        scroll_width=float(observation.get("main_scroll_width") or 0),
+        client_width=float(observation.get("main_client_width") or client_width),
     )
+    if not main_scroll.passed and observation.get("overflow_nodes"):
+        main_scroll = BrowserEvaluation(
+            False,
+            f"{main_scroll.detail}; overflow nodes={observation.get('overflow_nodes')!r}",
+        )
+    add("main_scroll_width", main_scroll)
     for index, text_node in enumerate(observation.get("text_nodes") or (), start=1):
         add(
             f"text_not_clipped_{index}",
@@ -832,27 +979,47 @@ def _evaluate_observation(
                 "detail": f"current core item count={observation.get('research_current_count')}",
             }
         )
-    if route.slug == "research-desk":
+    if route.slug in {"research-desk", "discover", "company-workbench", "monitor"}:
         required = ("primary-answer", "primary-action", "stop-rule")
         boxes = {
             str(row.get("name")): row for row in observation.get("regions") or ()
         }
         if zoom == 1:
-            if viewport[0] >= 1280:
+            observed_width = float(
+                observation.get("visual_viewport_width")
+                or observation.get("client_width")
+                or 0
+            )
+            observed_height = float(
+                observation.get("visual_viewport_height")
+                or observation.get("client_height")
+                or 0
+            )
+            if observed_width >= 1280:
                 hierarchy_passed = all(
-                    name in boxes and float(boxes[name].get("bottom") or 0) <= viewport[1] + 1
+                    name in boxes
+                    and float(boxes[name].get("bottom") or 0) <= observed_height + 1
                     for name in required
                 )
-                detail = "answer, action, and stop rule fully inside the desktop viewport"
+                detail = (
+                    "answer, action, and stop rule fully inside the observed desktop viewport "
+                    f"{observed_width:.0f}x{observed_height:.0f}"
+                )
             else:
                 hierarchy_passed = all(
-                    name in boxes and float(boxes[name].get("top") or viewport[1] + 2) <= viewport[1] + 1
+                    name in boxes
+                    and float(boxes[name].get("top") or observed_height + 2)
+                    <= observed_height + 1
                     for name in required
                 )
-                detail = "answer, action, and stop-rule starts inside the phone viewport"
+                detail = (
+                    "answer, action, and stop-rule starts inside the observed phone viewport "
+                    f"{observed_width:.0f}x{observed_height:.0f}"
+                )
             checks.append(
                 {"name": "initial_viewport_hierarchy", "passed": hierarchy_passed, "detail": detail}
             )
+    if route.slug in {"research-desk", "discover", "company-workbench", "monitor"}:
         checks.append(
             {
                 "name": "one_stop_rule",
@@ -860,6 +1027,24 @@ def _evaluate_observation(
                 "detail": f"stop-rule count={region_counts.get('stop-rule', 0)}",
             }
         )
+    if route.slug in {"discover", "company-workbench", "monitor"}:
+        add(
+            "personal_route_answer_hierarchy",
+            evaluate_personal_route_hierarchy(
+                slug=route.slug,
+                region_counts={str(name): int(count) for name, count in region_counts.items()},
+                region_order=tuple(
+                    str(value) for value in observation.get("region_order") or ()
+                ),
+                primary_action_focusable_count=int(
+                    observation.get("primary_action_focusable_count") or 0
+                ),
+                legacy_pre_answer_action_count=int(
+                    observation.get("legacy_pre_answer_action_count") or 0
+                ),
+            ),
+        )
+    if route.slug == "research-desk":
         for media_mode in ("normal", "forced-colors"):
             sequence = focus_sequences.get(media_mode) or {}
             add(
@@ -883,10 +1068,18 @@ def _evaluate_observation(
         "actual_browser_zoom_and_reflow",
         evaluate_browser_zoom(
             requested_zoom=zoom,
-            physical_width=float(observation.get("outer_width") or viewport[0]),
-            physical_height=float(observation.get("outer_height") or viewport[1]),
+            declared_width=float(viewport[0]),
+            declared_height=float(viewport[1]),
+            screenshot_width=float(observation.get("screenshot_width") or 0),
+            screenshot_height=float(observation.get("screenshot_height") or 0),
             inner_width=float(observation.get("inner_width") or 0),
             inner_height=float(observation.get("inner_height") or 0),
+            visual_viewport_width=float(
+                observation.get("visual_viewport_width") or 0
+            ),
+            visual_viewport_height=float(
+                observation.get("visual_viewport_height") or 0
+            ),
             device_pixel_ratio=float(observation.get("device_pixel_ratio") or 0),
             visual_viewport_scale=float(
                 observation.get("visual_viewport_scale") or 0
@@ -1024,8 +1217,8 @@ def _run_matrix_cell(
                         user_data_dir=profile,
                         executable_path=str(chrome),
                         headless=True,
-                        no_viewport=True,
-                        args=[f"--window-size={viewport[0]},{viewport[1]}"],
+                        viewport={"width": viewport[0], "height": viewport[1]},
+                        screen={"width": viewport[0], "height": viewport[1]},
                     )
                     page = context.pages[0] if context.pages else context.new_page()
                     page.on(
@@ -1060,7 +1253,19 @@ def _run_matrix_cell(
                         )
                         load_route()
                         observation = _browser_observation(page)
-                        page.screenshot(path=output_dir / screenshot_name, full_page=False)
+                        screenshot_bytes = page.screenshot(
+                            path=output_dir / screenshot_name,
+                            full_page=False,
+                            scale="device",
+                        )
+                        if screenshot_bytes[:8] != b"\x89PNG\r\n\x1a\n":
+                            raise RuntimeError("browser screenshot did not produce a PNG")
+                        observation["screenshot_width"] = int.from_bytes(
+                            screenshot_bytes[16:20], "big"
+                        )
+                        observation["screenshot_height"] = int.from_bytes(
+                            screenshot_bytes[20:24], "big"
+                        )
                         focus_sequences: dict[str, dict[str, object]] = {}
                         if route.slug == "research-desk":
                             focus_sequences["normal"] = _focus_sequence_observation(page)

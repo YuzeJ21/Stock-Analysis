@@ -79,6 +79,15 @@ class EvidenceRow:
 
 
 @dataclass(frozen=True)
+class TimelineRecord:
+    record_id: str
+    timestamp: str | None
+    label: str
+    summary: str
+    evidence_action: SafeRouteAction | None = None
+
+
+@dataclass(frozen=True)
 class VisualState:
     role: str
     state: str
@@ -303,8 +312,95 @@ def evidence_rows_html(rows: Sequence[EvidenceRow]) -> HtmlFragment:
     )
 
 
+def evidence_timeline_html(
+    records: Sequence[TimelineRecord],
+    *,
+    empty_title: str,
+    empty_body: str,
+) -> HtmlFragment:
+    """Render the supplied authoritative order without deriving a latest record."""
+
+    rendered: list[str] = []
+    for record in records:
+        if type(record) is not TimelineRecord:
+            raise TypeError("records accepts TimelineRecord values only.")
+        timestamp = str(record.timestamp or "").strip() or "Timestamp unavailable"
+        action = (
+            _action_link(record.evidence_action, region=False)
+            if record.evidence_action is not None
+            else ""
+        )
+        rendered.append(
+            "<li class='sr-timeline-record' "
+            f"data-timeline-record-id='{escape_attribute(record.record_id)}'>"
+            f"<time>{escape_text(timestamp)}</time>"
+            f"<strong>{escape_text(record.label)}</strong>"
+            f"<p>{escape_text(record.summary)}</p>{action}</li>"
+        )
+    if not rendered:
+        rendered.append(
+            "<li class='sr-timeline-empty'>"
+            f"<strong>{escape_text(empty_title)}</strong>"
+            f"<p>{escape_text(empty_body)}</p></li>"
+        )
+    return _trusted_fragment(
+        "<section class='sr-evidence-timeline' data-sr-region='supporting-evidence' "
+        "aria-label='Evidence timeline'><h2>What changed</h2>"
+        f"<ol>{''.join(rendered)}</ol></section>"
+    )
+
+
+def detail_disclosure_html(
+    summary: str,
+    body: Sequence[HtmlFragment],
+    *,
+    open_by_default: bool = False,
+) -> HtmlFragment:
+    """Render sealed pure detail without accepting raw trusted HTML."""
+
+    body_html = "".join(_fragment(item, field="body") for item in body)
+    open_attribute = " open" if open_by_default else ""
+    return _trusted_fragment(
+        f"<details class='sr-detail-disclosure' data-sr-region='advanced-detail'{open_attribute}>"
+        f"<summary>{escape_text(summary)}</summary>"
+        f"<div class='sr-detail-disclosure-body'>{body_html}</div></details>"
+    )
+
+
+def detail_item_html(*, label: str, body: str) -> HtmlFragment:
+    """Build escaped prose for a sealed detail disclosure."""
+
+    return _trusted_fragment(
+        "<section class='sr-detail-item'>"
+        f"<strong>{escape_text(label)}</strong><p>{escape_text(body)}</p></section>"
+    )
+
+
 def next_action_html(action: SafeRouteAction) -> HtmlFragment:
     return _trusted_fragment(_action_link(action, region=True))
+
+
+def next_step_prompt_html(*, title: str, body: str) -> HtmlFragment:
+    """Label an adjacent native control as the route's single next action."""
+
+    return _trusted_fragment(
+        "<section class='sr-next-step-prompt'>"
+        f"<strong>{escape_text(title)}</strong><span>{escape_text(body)}</span></section>"
+    )
+
+
+def stop_rule_html(rule: str) -> HtmlFragment:
+    return _trusted_fragment(
+        "<p class='sr-stop-rule research-workspace-boundary' data-sr-region='stop-rule'>"
+        f"<strong>Research boundary</strong><span>{escape_text(rule)}</span></p>"
+    )
+
+
+def supporting_detail_html(*, title: str, body: str) -> HtmlFragment:
+    return _trusted_fragment(
+        "<section class='sr-supporting-intro' data-sr-region='supporting-evidence'>"
+        f"<h2>{escape_text(title)}</h2><p>{escape_text(body)}</p></section>"
+    )
 
 
 def empty_state_html(
@@ -410,6 +506,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   text-decoration: none !important;
   white-space: normal;
 }}
+.stApp:has(.research-workflow-navigation) [data-testid="stTextInput"] input {{ min-height: 44px; }}
 .sr-stop-rule {{
   display: grid;
   gap: 4px;
@@ -450,6 +547,43 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   font-weight: 700;
   line-height: 1.35;
 }}
+.sr-next-step-prompt {{
+  display: grid;
+  gap: 4px;
+  min-height: 44px;
+  max-width: 65rem;
+  padding: 10px 16px;
+  color: var(--sr-text);
+  background: var(--sr-surface);
+  border-left: 4px solid var(--sr-forest);
+  border-radius: 6px;
+}}
+.sr-next-step-prompt strong {{ color: var(--sr-ink); font-size: .8125rem; }}
+.sr-next-step-prompt span {{ color: var(--sr-muted); font-size: .8125rem; line-height: 1.5; }}
+.sr-supporting-intro {{ max-width: 65rem; padding-top: 4px; }}
+.sr-supporting-intro h2 {{ margin: 0 0 4px; color: var(--sr-ink); font-size: 1.125rem; }}
+.sr-supporting-intro p {{ margin: 0; color: var(--sr-muted); font-size: .8125rem; line-height: 1.5; }}
+.sr-evidence-timeline {{ max-width: 65rem; }}
+.sr-evidence-timeline h2 {{ margin: 0 0 8px; color: var(--sr-ink); font-size: 1.125rem; }}
+.sr-evidence-timeline ol {{ display: grid; gap: 0; margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--sr-border); }}
+.sr-timeline-record, .sr-timeline-empty {{
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) minmax(10rem, .8fr) minmax(0, 2fr);
+  gap: 8px 16px;
+  align-items: start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--sr-border);
+}}
+.sr-timeline-record time {{ color: var(--sr-muted); font: .8125rem ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }}
+.sr-timeline-record strong, .sr-timeline-empty strong {{ color: var(--sr-ink); font-size: .8125rem; }}
+.sr-timeline-record p, .sr-timeline-empty p {{ margin: 0; color: var(--sr-text); font-size: .8125rem; line-height: 1.5; overflow-wrap: anywhere; }}
+.sr-timeline-empty {{ grid-template-columns: 1fr; }}
+.sr-detail-disclosure {{ max-width: 65rem; border-top: 1px solid var(--sr-border); }}
+.sr-detail-disclosure summary {{ min-height: 44px; padding: 12px 0; color: var(--sr-ink); font-weight: 700; cursor: pointer; }}
+.sr-detail-disclosure-body {{ display: grid; gap: 12px; padding: 0 0 16px; }}
+.sr-detail-item {{ display: grid; gap: 4px; }}
+.sr-detail-item strong {{ color: var(--sr-ink); font-size: .8125rem; }}
+.sr-detail-item p {{ margin: 0; color: var(--sr-text); font-size: .8125rem; line-height: 1.5; }}
 .sr-advanced-detail-marker {{
   height: 1px;
   overflow: hidden;
@@ -510,7 +644,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   border-color: var(--sr-nav-text) !important;
   color: var(--sr-nav-text) !important;
 }}
-.research-workflow-disabled {{ color: var(--sr-nav-muted) !important; opacity: .82; cursor: not-allowed; }}
+.research-workflow-disabled {{ position: relative; color: var(--sr-nav-muted) !important; opacity: .82; cursor: not-allowed; }}
 .research-workspace-mode {{
   display: grid;
   gap: 4px;
@@ -583,7 +717,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   .sr-answer-panel {{ gap: 12px; padding: 16px; }}
   .sr-answer-panel h2 {{ font-size: 1.0625rem; }}
   .sr-primary-action, .public-primary-action {{ width: 100%; }}
-  .sr-evidence-row {{ grid-template-columns: 1fr; }}
+  .sr-evidence-row, .sr-timeline-record {{ grid-template-columns: 1fr; }}
 }}
 @media (forced-colors: active) {{
   .public-app-nav a[aria-current="page"],

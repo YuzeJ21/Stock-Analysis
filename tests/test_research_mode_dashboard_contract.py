@@ -157,7 +157,7 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
     monkeypatch.setattr(
         dashboard,
         "render_research_workspace_header",
-        lambda *args, **kwargs: rendered.append(("Discover", kwargs["observation_recency"])),
+        lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(
         dashboard,
@@ -180,9 +180,21 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
     monkeypatch.setattr(
         dashboard,
         "render_daily_research_queue",
-        lambda status: daily_queue_calls.append(status),
+        lambda status, **kwargs: daily_queue_calls.append(status),
         raising=False,
     )
+    monkeypatch.setattr(
+        dashboard,
+        "render_daily_research_queue_details",
+        lambda *args, **kwargs: None,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "observation_recency_summary_html",
+        lambda value, **kwargs: rendered.append(("Discover", value)) or "",
+    )
+    monkeypatch.setattr(dashboard, "observation_recency_evidence_html", lambda value: "")
     monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard, "focused_cohort_cards", lambda cohort: [])
     monkeypatch.setattr(dashboard, "focused_cohort_coverage_cards", lambda coverage: [])
@@ -383,6 +395,8 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
             return False
 
     monkeypatch.setattr(dashboard, "load_observation_recency", lambda *args, **kwargs: object())
+    monkeypatch.setattr(dashboard, "observation_recency_summary_html", lambda *args, **kwargs: "")
+    monkeypatch.setattr(dashboard, "observation_recency_evidence_html", lambda *args, **kwargs: "")
     monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         dashboard,
@@ -393,7 +407,13 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
     monkeypatch.setattr(
         dashboard,
         "render_daily_research_queue",
-        lambda status: calls.append("strict eligibility"),
+        lambda status, **kwargs: calls.append("strict eligibility"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "render_daily_research_queue_details",
+        lambda *args, **kwargs: None,
         raising=False,
     )
     monkeypatch.setattr(
@@ -431,9 +451,78 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
         review_date=date(2026, 7, 31),
     )
 
-    assert "## Find a Company" in headings
+    assert all(value != "## Find a Company" for value in headings)
+    assert all("Browse saved companies" not in value for value in headings)
     assert calls[:2] == ["strict eligibility", "saved browsing"]
     assert calls[2:] == ["advanced"]
+
+
+def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser(
+    monkeypatch,
+):
+    calls: list[tuple[str, object]] = []
+    recency = object()
+    context = SimpleNamespace(data_dir=Path("/selected-profile/data"))
+
+    class Expander:
+        def __enter__(self):
+            calls.append(("advanced-body", None))
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(dashboard, "load_observation_recency", lambda *args, **kwargs: recency)
+    monkeypatch.setattr(
+        dashboard,
+        "render_research_workspace_header",
+        lambda *args, **kwargs: calls.append(("header", kwargs)),
+    )
+    monkeypatch.setattr(dashboard, "load_dashboard_daily_research_queue", lambda *args, **kwargs: object())
+    monkeypatch.setattr(dashboard, "render_daily_research_queue", lambda *args, **kwargs: calls.append(("strict", kwargs)))
+    monkeypatch.setattr(
+        dashboard,
+        "render_daily_research_queue_details",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(dashboard, "render_stock_selector", lambda *args, **kwargs: calls.append(("saved", kwargs)))
+    monkeypatch.setattr(
+        dashboard,
+        "observation_recency_summary_html",
+        lambda value, **kwargs: calls.append(("recency", value)) or "",
+    )
+    monkeypatch.setattr(dashboard, "observation_recency_evidence_html", lambda value: "")
+    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "focused_cohort_cards", lambda cohort: [])
+    monkeypatch.setattr(dashboard, "focused_cohort_coverage_cards", lambda coverage: [])
+    monkeypatch.setattr(dashboard.st, "markdown", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "caption", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+
+    dashboard.render_personal_research_route(
+        selected_page="Discover",
+        provider=object(),
+        context=context,
+        state={},
+        cohort=SimpleNamespace(members=()),
+        coverage=object(),
+        weekly_summary=object(),
+        ticker="AVGO",
+        review_date=date(2026, 8, 11),
+    )
+
+    header_kwargs = next(value for name, value in calls if name == "header")
+    assert header_kwargs["include_boundary"] is False
+    assert header_kwargs["compact"] is True
+    assert header_kwargs.get("observation_recency") is None
+    assert [name for name, _ in calls].index("strict") < [name for name, _ in calls].index(
+        "saved"
+    ) < [name for name, _ in calls].index("recency")
+    strict_kwargs = next(value for name, value in calls if name == "strict")
+    assert strict_kwargs["include_details"] is False
+    assert strict_kwargs["include_boundary"] is False
+    saved_kwargs = next(value for name, value in calls if name == "saved")
+    assert saved_kwargs["research_boundary"] == dashboard.QUEUE_BOUNDARY
 
 
 def test_daily_queue_renderer_is_ticker_bound_and_keeps_blockers_in_advanced(
@@ -509,6 +598,7 @@ def test_daily_queue_renderer_is_ticker_bound_and_keeps_blockers_in_advanced(
 
     combined = " ".join(rendered).lower()
     assert "screen eligibility — when supported" in combined
+    assert "research-only" in combined
     assert links == [
         (
             "Open ALFA Company Brief",
@@ -984,6 +1074,8 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     monkeypatch.setattr(dashboard, "load_dashboard_nowcast_cohort", lambda: ())
     monkeypatch.setattr(dashboard, "cohort_readiness_cards", lambda rows: [])
     monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "observation_recency_summary_html", lambda *args, **kwargs: "")
+    monkeypatch.setattr(dashboard, "observation_recency_evidence_html", lambda *args, **kwargs: "")
     monkeypatch.setattr(
         dashboard,
         "render_signal_cards",
@@ -1029,13 +1121,182 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     headings = [value for value in rendered if value.startswith("## ")]
     assert headings == ["## Follow-up Queue"]
     assert all(variant != "evidence-monitor" for _, variant in cards)
-    assert actions == [("Open Discover", "?mode=research&page=discover")]
+    assert actions == []
     copy = " ".join(rendered)
     assert "does not prove that no external event" in copy
     assert "Evidence Monitor Brief" not in copy
     assert "Research Discipline Review" not in copy
     assert "Research change monitor" not in copy
     assert "Advanced: Monitor evidence" in expanders
+    assert copy.count("data-sr-region='primary-answer'") == 1
+    assert copy.count("data-sr-region='primary-action'") == 1
+    assert copy.count("data-sr-region='stop-rule'") == 1
+
+
+def test_direct_tickerless_company_workbench_fails_closed_without_report_or_default_ticker(
+    monkeypatch,
+):
+    rendered: list[str] = []
+    monkeypatch.setattr(
+        dashboard,
+        "st",
+        SimpleNamespace(
+            query_params={},
+            markdown=lambda value, **kwargs: rendered.append(value),
+        ),
+    )
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "render_single_stock_report",
+        lambda *args, **kwargs: pytest.fail("tickerless Workbench must not render a saved report"),
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "load_company_workbench_cash_generation_preview",
+        lambda ticker: pytest.fail(f"tickerless Workbench must not load preview for {ticker!r}"),
+    )
+
+    dashboard.render_company_workbench(
+        object(),
+        SimpleNamespace(),
+        {},
+        object(),
+    )
+
+    copy = " ".join(rendered)
+    assert "Choose a company in Discover first" in copy
+    assert "?mode=research&amp;page=discover" in copy
+    assert copy.count("data-sr-region='primary-answer'") == 1
+    assert copy.count("data-sr-region='primary-action'") == 1
+    assert copy.count("data-sr-region='stop-rule'") == 1
+
+
+def test_direct_unregistered_company_workbench_fails_closed_without_saved_ticker_fallback(
+    monkeypatch,
+):
+    rendered: list[str] = []
+    monkeypatch.setattr(
+        dashboard,
+        "st",
+        SimpleNamespace(
+            query_params={"ticker": "NOTREAL"},
+            markdown=lambda value, **kwargs: rendered.append(value),
+        ),
+    )
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "render_single_stock_report",
+        lambda *args, **kwargs: pytest.fail("unregistered Workbench ticker must not render"),
+    )
+
+    dashboard.render_company_workbench(
+        SimpleNamespace(list_local_tickers=lambda: ["AVGO"]),
+        SimpleNamespace(),
+        {},
+        object(),
+    )
+
+    copy = " ".join(rendered)
+    assert "No registered saved company matches NOTREAL" in copy
+    assert copy.count("data-sr-region='primary-answer'") == 1
+    assert copy.count("data-sr-region='primary-action'") == 1
+    assert copy.count("data-sr-region='stop-rule'") == 1
+
+
+def test_direct_registered_company_workbench_without_open_preserves_query_and_renders_report(
+    monkeypatch,
+):
+    reports: list[dict[str, object]] = []
+    query = {"ticker": "AVGO", "cash_preview": "0"}
+
+    class Expander:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    target = SimpleNamespace(markdown=lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "st",
+        SimpleNamespace(
+            query_params=query,
+            markdown=lambda *args, **kwargs: None,
+            empty=lambda: target,
+            expander=lambda *args, **kwargs: Expander(),
+            caption=lambda *args, **kwargs: None,
+        ),
+    )
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "focused_ticker_coverage_cards", lambda *args, **kwargs: [])
+    monkeypatch.setattr(dashboard, "load_dashboard_quarterly_trend", lambda ticker: None)
+    monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "render_single_stock_report",
+        lambda *args, **kwargs: reports.append(kwargs),
+    )
+
+    dashboard.render_company_workbench(
+        SimpleNamespace(list_local_tickers=lambda: ["AVGO"]),
+        SimpleNamespace(),
+        {},
+        object(),
+    )
+
+    assert query == {"ticker": "AVGO", "cash_preview": "0"}
+    assert len(reports) == 1
+    assert reports[0]["research_mode"] is True
+    assert reports[0]["selected_answer_target"] is target
+    assert reports[0]["selected_detail_target"] is target
+
+
+def test_research_workbench_report_is_internally_open_without_changing_public_open_semantics():
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    start = source.index("def render_single_stock_report(")
+    end = source.index("\ndef render_data_health(", start)
+    report = source[start:end]
+
+    public_query = 'query_open_review = single_stock_query_open(st.query_params.get("open"))'
+    assert public_query in report
+    assert report.index(public_query) < report.index("if research_mode:") < report.index(
+        "compact_public_open_report ="
+    )
+
+
+def test_dashboard_keeps_authoring_call_scoped_to_the_selected_profile_and_ticker():
+    import ast
+
+    tree = ast.parse(Path(dashboard.__file__).read_text(encoding="utf-8"))
+    report = next(
+        node
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef) and node.name == "render_single_stock_report"
+    )
+    calls = [
+        node
+        for node in ast.walk(report)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "render_research_record_authoring"
+    ]
+
+    assert len(calls) == 1
+    keywords = {keyword.arg: ast.unparse(keyword.value) for keyword in calls[0].keywords}
+    assert keywords == {
+        "st_api": "st",
+        "profile_key": "selected_context.profile_key",
+        "ticker": "ticker",
+        "paths": (
+            "AuthoringPaths(journal=DATA_DIR / 'research_thesis_journal.csv', "
+            "catalysts=DATA_DIR / 'catalyst_evidence.csv', "
+            "outcomes=DATA_DIR / 'research_outcome_reviews.csv')"
+        ),
+    }
 
 
 def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_action(
@@ -1043,6 +1304,7 @@ def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_a
 ):
     cards: list[tuple[list[dict[str, object]], str]] = []
     actions: list[tuple[str, str]] = []
+    headers: list[dict[str, object]] = []
     row = ResearchDisciplineRow(
         cohort_order=0,
         ticker="AAA",
@@ -1063,7 +1325,11 @@ def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_a
         def __exit__(self, *args):
             return False
 
-    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "render_research_workspace_header",
+        lambda *args, **kwargs: headers.append(kwargs),
+    )
     monkeypatch.setattr(dashboard, "load_dashboard_research_discipline_rows", lambda *args, **kwargs: (row,))
     monkeypatch.setattr(dashboard, "load_dashboard_nowcast_cohort", lambda: ())
     monkeypatch.setattr(dashboard, "cohort_readiness_cards", lambda rows: [])
@@ -1105,6 +1371,33 @@ def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_a
         "evidence_freshness",
     ]
     assert actions == []
+    assert headers == [
+        {
+            "primary_action": (
+                "Review unresolved evidence changes; otherwise wait for new source evidence"
+            ),
+            "compact": True,
+            "include_boundary": False,
+        }
+    ]
+
+
+def test_discover_supporting_region_is_owned_by_selector_after_action_and_stop():
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    selector_start = source.index("def render_stock_selector(")
+    selector_end = source.index("\ndef price_refresh_operator_plan_cards", selector_start)
+    selector = source[selector_start:selector_end]
+    route_start = source.index("def render_personal_research_route(")
+    route_end = source.index("\ndef main()", route_start)
+    route = source[route_start:route_end]
+
+    search = selector.index("search = st.text_input(")
+    stop = selector.index("stop_rule_html(", search)
+    supporting = selector.index('title="Browse saved companies"', stop)
+    filters = selector.index("open_change_counts:", supporting)
+
+    assert search < stop < supporting < filters
+    assert 'title="Browse saved companies"' not in route
 
 
 def test_monitor_follow_up_grid_is_two_columns_then_one_column_on_phone():
@@ -1379,7 +1672,8 @@ def test_monitor_discipline_empty_state_is_process_only():
 
     assert "queue.empty_title" in monitor
     assert "queue.empty_boundary" in monitor
-    assert "research-monitor-neutral" in monitor
+    assert "answer_panel_html(" in monitor
+    assert "data-sr-region='primary-answer'" not in monitor
     removed_helper = "research_discipline_" + "summary_cards"
     assert removed_helper not in monitor
     assert '"Process attention"' in Path("src/research_decision_lab.py").read_text(encoding="utf-8")
@@ -1608,7 +1902,6 @@ def test_research_primary_sections_follow_route_h1_with_level_two_headings():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     expected_level_two = (
         "Follow-up Queue",
-        "Find a Company",
         "What Changed",
         "Research Decision Lab",
         "Business Trend",
@@ -1622,6 +1915,7 @@ def test_research_primary_sections_follow_route_h1_with_level_two_headings():
     for heading in expected_level_two:
         assert f'st.markdown("## {heading}")' in source
         assert f'st.markdown("### {heading}")' not in source
+    assert 'question="Find a Company · Screen eligibility — when supported"' in source
 
 
 def test_company_workbench_primary_actions_use_explicit_44px_browser_targets():
@@ -1644,3 +1938,15 @@ def test_company_workbench_primary_actions_use_explicit_44px_browser_targets():
         "            min-height: 44px;\n"
         "        }"
     ) in styles
+
+
+def test_company_workbench_uses_two_mobile_lanes_then_one_at_two_hundred_percent():
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    styles_start = source.index("def render_research_workspace_styles()")
+    styles_end = source.index("\ndef render_research_workspace_header(", styles_start)
+    styles = source[styles_start:styles_end]
+
+    mobile = styles[styles.index("@media (max-width: 640px)") :]
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in mobile
+    narrow = styles[styles.index("@media (max-width: 260px)") :]
+    assert ".company-workbench-primary-grid { grid-template-columns: 1fr; }" in narrow

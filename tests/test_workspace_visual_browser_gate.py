@@ -28,7 +28,7 @@ def test_route_fixtures_cover_the_literal_workspace_matrix_in_declared_order():
         "monthly-picks",
     )
     assert next(route for route in ROUTE_FIXTURES if route.slug == "company-workbench").route == (
-        "/?mode=research&page=company-workbench&ticker=AVGO&open=1"
+        "/?mode=research&page=company-workbench&ticker=AVGO"
     )
     assert next(route for route in ROUTE_FIXTURES if route.slug == "single-stock-report").route == (
         "/?mode=public&page=single-stock-report&ticker=AVGO&open=1"
@@ -86,20 +86,54 @@ def test_browser_zoom_evaluator_requires_real_layout_and_device_scale_change():
     from src.workspace_visual_browser_gate import evaluate_browser_zoom
 
     assert evaluate_browser_zoom(
+        requested_zoom=1,
+        declared_width=1280,
+        declared_height=720,
+        screenshot_width=1280,
+        screenshot_height=720,
+        inner_width=1280,
+        inner_height=720,
+        visual_viewport_width=1280,
+        visual_viewport_height=720,
+        device_pixel_ratio=1,
+        visual_viewport_scale=1,
+    ).passed
+    assert not evaluate_browser_zoom(
+        requested_zoom=1,
+        declared_width=1280,
+        declared_height=720,
+        screenshot_width=1280,
+        screenshot_height=633,
+        inner_width=1280,
+        inner_height=633,
+        visual_viewport_width=1280,
+        visual_viewport_height=633,
+        device_pixel_ratio=1,
+        visual_viewport_scale=1,
+    ).passed
+    assert evaluate_browser_zoom(
         requested_zoom=2,
-        physical_width=1280,
-        physical_height=720,
+        declared_width=1280,
+        declared_height=720,
+        screenshot_width=1280,
+        screenshot_height=720,
         inner_width=640,
         inner_height=360,
+        visual_viewport_width=640,
+        visual_viewport_height=360,
         device_pixel_ratio=2,
         visual_viewport_scale=1,
     ).passed
     assert not evaluate_browser_zoom(
         requested_zoom=2,
-        physical_width=1280,
-        physical_height=720,
+        declared_width=1280,
+        declared_height=720,
+        screenshot_width=640,
+        screenshot_height=316,
         inner_width=1280,
-        inner_height=720,
+        inner_height=633,
+        visual_viewport_width=1280,
+        visual_viewport_height=633,
         device_pixel_ratio=1,
         visual_viewport_scale=1,
     ).passed
@@ -200,6 +234,68 @@ def test_focus_sequence_evaluator_requires_natural_dom_and_physical_tab_order():
         region_order=region_order,
         outline_widths=(3, 3, 3, 3),
         positive_tabindex_count=0,
+    ).passed
+
+
+@pytest.mark.parametrize("slug", ("discover", "company-workbench", "monitor"))
+def test_personal_route_hierarchy_evaluator_requires_one_ordered_answer_contract(slug):
+    from src.workspace_visual_browser_gate import evaluate_personal_route_hierarchy
+
+    ordered = (
+        "workflow-nav",
+        "context",
+        "page-title",
+        "primary-answer",
+        "primary-action",
+        "stop-rule",
+        "supporting-evidence",
+        "advanced-detail",
+    )
+    counts = {name: ordered.count(name) for name in ordered}
+
+    assert evaluate_personal_route_hierarchy(
+        slug=slug,
+        region_counts=counts,
+        region_order=ordered,
+        primary_action_focusable_count=1,
+        legacy_pre_answer_action_count=0,
+    ).passed
+    assert not evaluate_personal_route_hierarchy(
+        slug=slug,
+        region_counts=counts,
+        region_order=ordered,
+        primary_action_focusable_count=0,
+        legacy_pre_answer_action_count=0,
+    ).passed
+    assert not evaluate_personal_route_hierarchy(
+        slug=slug,
+        region_counts={**counts, "primary-answer": 2},
+        region_order=ordered + ("primary-answer",),
+        primary_action_focusable_count=1,
+        legacy_pre_answer_action_count=0,
+    ).passed
+    assert not evaluate_personal_route_hierarchy(
+        slug=slug,
+        region_counts=counts,
+        region_order=(
+            "workflow-nav",
+            "context",
+            "page-title",
+            "primary-answer",
+            "supporting-evidence",
+            "primary-action",
+            "stop-rule",
+            "advanced-detail",
+        ),
+        primary_action_focusable_count=1,
+        legacy_pre_answer_action_count=0,
+    ).passed
+    assert not evaluate_personal_route_hierarchy(
+        slug=slug,
+        region_counts=counts,
+        region_order=ordered,
+        primary_action_focusable_count=1,
+        legacy_pre_answer_action_count=1,
     ).passed
 
 

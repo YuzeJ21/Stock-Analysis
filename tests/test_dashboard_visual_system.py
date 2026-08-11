@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -286,3 +287,97 @@ def test_shared_components_emit_unique_regions_and_malformed_evidence_stays_visi
         assert shell.count(f"data-sr-region='{region}'") == 1
     assert "not-a-real-state" in shell
     assert "sr-status-neutral" in shell
+
+
+def test_evidence_timeline_preserves_authoritative_order_and_undated_rows():
+    rows = (
+        visual.TimelineRecord("p2", "2026-08-01", "Latest", "Supported"),
+        visual.TimelineRecord("p1", None, "Undated", "Still visible"),
+    )
+
+    rendered = visual.evidence_timeline_html(
+        rows,
+        empty_title="No proof",
+        empty_body="No durable proof yet.",
+    ).value
+
+    assert rendered.index("Latest") < rendered.index("Undated")
+    assert "Timestamp unavailable" in rendered
+    assert rendered.count("data-timeline-record-id=") == 2
+    with pytest.raises(FrozenInstanceError):
+        rows[0].label = "Changed"
+
+
+def test_evidence_timeline_escapes_rows_and_renders_one_truthful_empty_state():
+    action = visual.SafeRouteAction(
+        label="Open <proof>",
+        href="?mode=research&page=proof-history&ticker=AVGO",
+    )
+    rendered = visual.evidence_timeline_html(
+        (
+            visual.TimelineRecord(
+                "proof<'1",
+                None,
+                "Changed <source>",
+                "Evidence & review",
+                action,
+            ),
+        ),
+        empty_title="No proof",
+        empty_body="No durable proof yet.",
+    ).value
+
+    assert "proof&lt;&#x27;1" in rendered
+    assert "Changed &lt;source&gt;" in rendered
+    assert "Evidence &amp; review" in rendered
+    assert "Open &lt;proof&gt;" in rendered
+    assert rendered.count("data-sr-region='supporting-evidence'") == 1
+
+    empty = visual.evidence_timeline_html(
+        (),
+        empty_title="No <proof>",
+        empty_body="No durable & reviewed proof yet.",
+    ).value
+    assert empty.count("No &lt;proof&gt;") == 1
+    assert "No durable &amp; reviewed proof yet." in empty
+    assert "Timestamp unavailable" not in empty
+
+
+def test_detail_disclosure_accepts_only_sealed_fragments_and_preserves_body_order():
+    first = visual.detail_item_html(label="First <lane>", body="Evidence & detail")
+    second = visual.status_chip_html(role="evidence", state="withheld", label="Second")
+
+    rendered = visual.detail_disclosure_html(
+        "Review <detail>",
+        (first, second),
+        open_by_default=True,
+    ).value
+
+    assert (
+        "<details class='sr-detail-disclosure' data-sr-region='advanced-detail' open>"
+        in rendered
+    )
+    assert "Review &lt;detail&gt;" in rendered
+    assert "First &lt;lane&gt;" in rendered
+    assert "Evidence &amp; detail" in rendered
+    assert rendered.index("First") < rendered.index("Second")
+    with pytest.raises(TypeError, match="trusted HtmlFragment"):
+        visual.detail_disclosure_html("Unsafe", ("<script>raw</script>",))
+
+
+def test_disabled_workbench_nav_positions_its_hidden_suffix_inside_the_nav_scroller():
+    css = visual.dashboard_visual_system_css()
+    rule = css[css.index("\n.research-workflow-disabled {") :]
+    rule = rule[: rule.index("}")]
+
+    assert "position: relative;" in rule
+
+
+def test_next_step_prompt_labels_native_control_without_impersonating_the_action():
+    rendered = visual.next_step_prompt_html(
+        title="Search saved companies",
+        body="Use the adjacent native search control.",
+    ).value
+
+    assert "Search saved companies" in rendered
+    assert "data-sr-region='primary-action'" not in rendered

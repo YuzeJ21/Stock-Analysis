@@ -17,6 +17,8 @@ from src.dashboard_visual_system import (
     advanced_detail_marker_html,
     answer_panel_html,
     context_bar_html,
+    detail_disclosure_html,
+    detail_item_html,
     evidence_rows_html,
     legacy_research_accessibility_css,
     page_title_html,
@@ -68,6 +70,7 @@ class MonitorFollowUpQueue:
     is_empty: bool
     empty_title: str
     empty_boundary: str
+    primary_reason: str
     next_action_label: str
     next_action_url: str
 
@@ -282,6 +285,62 @@ def build_monitor_follow_up_queue(
         + len(scheduled_rows)
         + freshness_attention_count
     )
+    empty_title = (
+        "No saved verification, evidence-wait, scheduled, or source-change item "
+        "is currently due."
+    )
+    empty_boundary = (
+        "This does not prove that no external event, risk, or research need exists."
+    )
+    action_ticker = next(
+        (
+            str(row.ticker or "").strip().upper()
+            for row in primary_rows
+            if str(row.ticker or "").strip()
+        ),
+        "",
+    )
+    if not action_ticker:
+        action_ticker = next(
+            (
+                str(item.ticker or "").strip().upper()
+                for item in summary.items
+                if str(item.ticker or "").strip()
+            ),
+            "",
+        )
+    if primary_rows:
+        primary_reason = (
+            str(primary_rows[0].attention_reason or "").strip()
+            or "Saved process evidence requires review."
+        )
+    elif summary.items:
+        primary_reason = (
+            str(summary.items[0].answer or "").strip()
+            or "Saved weekly evidence requires review."
+        )
+    elif normalized_change_count:
+        noun = "item" if normalized_change_count == 1 else "items"
+        verb = "remains" if normalized_change_count == 1 else "remain"
+        primary_reason = (
+            f"{normalized_change_count} unresolved saved source-change {noun} "
+            f"{verb} for review."
+        )
+    elif freshness_attention_count:
+        primary_reason = panels[4].body
+    else:
+        primary_reason = empty_boundary
+    if actionable_count and action_ticker:
+        next_action_label = f"Open {action_ticker} Company Workbench"
+        next_action_url = (
+            f"?mode=research&page=company-workbench&ticker={quote(action_ticker)}&open=1"
+        )
+    elif actionable_count:
+        next_action_label = "Open Data Health"
+        next_action_url = "?mode=research&page=data-health"
+    else:
+        next_action_label = "Open Discover"
+        next_action_url = "?mode=research&page=discover"
     return MonitorFollowUpQueue(
         panels=panels,
         primary_rows=primary_rows,
@@ -291,15 +350,11 @@ def build_monitor_follow_up_queue(
         monitor_count=monitor_count,
         actionable_count=actionable_count,
         is_empty=actionable_count == 0,
-        empty_title=(
-            "No saved verification, evidence-wait, scheduled, or source-change item "
-            "is currently due."
-        ),
-        empty_boundary=(
-            "This does not prove that no external event, risk, or research need exists."
-        ),
-        next_action_label="Open Discover",
-        next_action_url="?mode=research&page=discover",
+        empty_title=empty_title,
+        empty_boundary=empty_boundary,
+        primary_reason=primary_reason,
+        next_action_label=next_action_label,
+        next_action_url=next_action_url,
     )
 
 
@@ -759,46 +814,91 @@ def company_workbench_primary_brief_html(brief: Mapping[str, object]) -> str:
     def escaped(key: str, fallback: str) -> str:
         return html.escape(_brief_text(safe.get(key), fallback))
 
+    def raw(key: str, fallback: str) -> str:
+        return _brief_text(safe.get(key), fallback)
+
     href = html.escape(
         _brief_text(safe.get("data_health_href"), "?mode=research&page=data-health"),
         quote=True,
     )
-    change_kind = escaped("change_context_kind", "none").replace("_", " ")
+    raw_change_kind = raw("change_context_kind", "none")
+    if raw_change_kind not in {"none", "snapshot_only", "source_backed"}:
+        raw_change_kind = "none"
+    change_kind = html.escape(raw_change_kind).replace("_", " ")
+    change_summary = {
+        "none": "No source-backed change is queued.",
+        "snapshot_only": "Snapshot-only change context is available.",
+        "source_backed": "Source-backed change context is available.",
+    }[raw_change_kind]
     change_state = escaped("change_state", "monitor").replace("_", " ")
     task_state = escaped("next_task_state", "wait for evidence").replace("_", " ")
     return (
-        "<section class='company-workbench-primary-brief' aria-label='Company Brief'>"
+        "<section class='company-workbench-primary-brief' data-sr-region='primary-answer' "
+        "aria-label='Company Brief'>"
         "<div class='company-workbench-primary-heading'>"
         "<span>Company Brief</span>"
         f"<strong>{escaped('ticker', 'Selected company')}</strong>"
         "</div>"
         "<div class='company-workbench-primary-grid'>"
-        "<article class='company-workbench-primary-answer use-now'>"
+        "<article class='company-workbench-primary-answer use-now' data-workbench-lane='usable'>"
         "<span>Use now</span>"
         f"<p>{escaped('use_now', 'No supported evidence lane is available.')}</p>"
         "</article>"
-        "<article class='company-workbench-primary-answer withheld'>"
+        "<article class='company-workbench-primary-answer withheld' data-workbench-lane='withheld'>"
         "<span>Still withheld</span>"
         f"<p>{escaped('still_withheld', 'Evidence availability is unverified.')}</p>"
         "</article>"
-        "<article class='company-workbench-primary-answer changed'>"
+        "<article class='company-workbench-primary-answer changed' data-workbench-lane='change'>"
         "<span>What changed</span>"
-        f"<p>{escaped('what_changed', 'No unresolved source-backed change is queued for this company.')}</p>"
+        f"<p>{change_summary}</p>"
         f"<small>{change_kind} · {change_state}</small>"
         "</article>"
-        "<article class='company-workbench-primary-answer next-task'>"
+        "<article class='company-workbench-primary-answer next-task' data-workbench-lane='next-task'>"
         "<span>Next research task</span>"
         f"<strong>{escaped('next_task_title', 'Wait for reviewed evidence or choose another company')}</strong>"
-        f"<p>{escaped('next_task_body', 'No executable company task is available.')}</p>"
         f"<small>{task_state}</small>"
-        f"<a class='public-primary-action' href='{href}'>Open Data Health</a>"
+        f"<a class='public-primary-action' data-sr-region='primary-action' href='{href}' target='_self'>Open Data Health</a>"
         "</article>"
         "</div>"
-        "<p class='company-workbench-primary-stop'>"
+        "<p class='company-workbench-primary-stop research-workspace-boundary' data-sr-region='stop-rule'>"
         f"{escaped('stop_rule', 'Research-only: do not infer a recommendation or unsupported conclusion.')}"
         "</p>"
         "</section>"
     )
+
+
+def company_workbench_detail_disclosure_html(brief: Mapping[str, object]) -> str:
+    """Render exact Company Brief prose after supporting change evidence."""
+
+    safe = brief if isinstance(brief, Mapping) else {}
+
+    def raw(key: str, fallback: str) -> str:
+        return _brief_text(safe.get(key), fallback)
+
+    return detail_disclosure_html(
+        "Full Company Brief evidence",
+        (
+            detail_item_html(
+                label="Use now",
+                body=raw("use_now", "No supported evidence lane is available."),
+            ),
+            detail_item_html(
+                label="Still withheld",
+                body=raw("still_withheld", "Evidence availability is unverified."),
+            ),
+            detail_item_html(
+                label="What changed",
+                body=raw(
+                    "what_changed",
+                    "No unresolved source-backed change is queued for this company.",
+                ),
+            ),
+            detail_item_html(
+                label="Next research task detail",
+                body=raw("next_task_body", "No executable company task is available."),
+            ),
+        ),
+    ).value
 
 
 def focused_cohort_cards(cohort: FocusedCohort) -> list[dict[str, object]]:
@@ -1274,7 +1374,7 @@ def research_desk_brief_html(
     evidence = evidence_rows_html(
         (
             EvidenceRow(
-                lane="Saved readiness",
+                lane="Freshness · Saved readiness",
                 role="freshness",
                 state=freshness_state,
                 count_or_cutoff=brief.freshness_warning,

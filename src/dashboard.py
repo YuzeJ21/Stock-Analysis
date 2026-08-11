@@ -24,7 +24,19 @@ from src.accessibility_bridge import render_semantic_main_bridge
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
-from src.dashboard_visual_system import dashboard_visual_system_css, render_stylesheet
+from src.dashboard_visual_system import (
+    SafeRouteAction,
+    TimelineRecord,
+    advanced_detail_marker_html,
+    answer_panel_html,
+    dashboard_visual_system_css,
+    empty_state_html,
+    evidence_timeline_html,
+    next_action_html,
+    stop_rule_html,
+    supporting_detail_html,
+    render_stylesheet,
+)
 from src.continuation_gate import build_continuation_gate
 from src.source_activation_guide import build_provider_setup_checklist, build_source_activation_guide
 from src.data_onboarding import write_onboarding_outputs
@@ -227,6 +239,7 @@ from src.catalyst_evidence_timeline import (
     load_catalyst_events,
 )
 from src.daily_research_queue import (
+    QUEUE_BOUNDARY,
     compare_daily_queues,
     daily_queue_display_rows,
     daily_queue_summary_cards,
@@ -394,6 +407,7 @@ from src.research_workspace import (
     cash_generation_preview_rows,
     company_change_answer,
     company_next_research_task,
+    company_workbench_detail_disclosure_html,
     company_workbench_primary_brief,
     company_workbench_primary_brief_html,
     company_workbench_section_contract,
@@ -5683,6 +5697,7 @@ def ticker_change_timeline(
     selected = str(ticker or "").strip().upper()
     return [
         {
+            "event_id": event.event_id,
             "ticker": event.ticker,
             "detected_at": event.detected_at,
             "change": event.subtype.replace("_", " ").title(),
@@ -6303,24 +6318,22 @@ def load_dashboard_daily_research_queue(
     )
 
 
-def render_daily_research_queue(status: DailyQueueBuildStatus) -> None:
-    """Render current research candidates while keeping gate detail secondary."""
+def render_daily_research_queue_details(
+    status: DailyQueueBuildStatus,
+    *,
+    comparison=None,
+) -> None:
+    """Render strict-screen rows and diagnostics after the primary route answer."""
 
-    comparison = compare_daily_queues(status.result, None)
-    st.markdown("### Screen eligibility — when supported")
-    render_signal_cards(
-        daily_queue_summary_cards(comparison),
-        show_commands=False,
-        variant="queue",
-    )
-    rows = daily_queue_display_rows(comparison)
+    selected_comparison = comparison or compare_daily_queues(status.result, None)
+    rows = daily_queue_display_rows(selected_comparison)
     if rows:
         st.dataframe(
             pd.DataFrame(rows),
             width="stretch",
             hide_index=True,
         )
-        for item in comparison.current_eligible:
+        for item in selected_comparison.current_eligible:
             st.link_button(
                 f"Open {item.ticker} Company Brief",
                 item.workbench_url,
@@ -6339,31 +6352,62 @@ def render_daily_research_queue(status: DailyQueueBuildStatus) -> None:
         "No comparable prior queue was supplied, so daily entries and exits remain withheld. "
         "Rows are alphabetical research candidates, not a company ranking."
     )
-    with st.expander("Advanced: daily queue evidence", expanded=False):
-        st.caption(status.message)
-        diagnostic_rows = [
-            {"Evidence": "Momentum-ready records evaluated", "Value": status.considered_count},
-            {"Evidence": "Current eligible", "Value": len(status.result.eligible)},
-            {"Evidence": "Withheld", "Value": len(status.result.withheld)},
-            {"Evidence": "Saved price rows read", "Value": status.price_row_count},
-            {
-                "Evidence": "Historical valuation observations read",
-                "Value": status.valuation_observation_count,
-            },
-        ]
-        diagnostic_rows.extend(
-            {
-                "Evidence": f"Blocker: {blocker.replace('_', ' ')}",
-                "Value": count,
-            }
-            for blocker, count in status.blocker_counts
+    st.caption(status.message)
+    diagnostic_rows = [
+        {"Evidence": "Momentum-ready records evaluated", "Value": status.considered_count},
+        {"Evidence": "Current eligible", "Value": len(status.result.eligible)},
+        {"Evidence": "Withheld", "Value": len(status.result.withheld)},
+        {"Evidence": "Saved price rows read", "Value": status.price_row_count},
+        {
+            "Evidence": "Historical valuation observations read",
+            "Value": status.valuation_observation_count,
+        },
+    ]
+    diagnostic_rows.extend(
+        {
+            "Evidence": f"Blocker: {blocker.replace('_', ' ')}",
+            "Value": count,
+        }
+        for blocker, count in status.blocker_counts
+    )
+    st.dataframe(
+        pd.DataFrame(diagnostic_rows),
+        width="stretch",
+        hide_index=True,
+    )
+    st.caption(status.result.boundary)
+
+
+def render_daily_research_queue(
+    status: DailyQueueBuildStatus,
+    *,
+    include_details: bool = True,
+    include_boundary: bool = True,
+) -> None:
+    """Render current research candidates while keeping gate detail secondary."""
+
+    comparison = compare_daily_queues(status.result, None)
+    summary = daily_queue_summary_cards(comparison)[0]
+    reason = str(summary.get("body") or "").removesuffix(f" {QUEUE_BOUNDARY}")
+    st.markdown(
+        answer_panel_html(
+            question="Find a Company · Screen eligibility — when supported",
+            answer=str(summary.get("title") or "Strict screen unavailable"),
+            reason=reason,
+            action=None,
+            stop_rule=None,
+        ).value,
+        unsafe_allow_html=True,
+    )
+    if include_boundary:
+        st.markdown(
+            stop_rule_html(f"Research-only. {QUEUE_BOUNDARY}").value,
+            unsafe_allow_html=True,
         )
-        st.dataframe(
-            pd.DataFrame(diagnostic_rows),
-            width="stretch",
-            hide_index=True,
-        )
-        st.caption(status.result.boundary)
+    if include_details:
+        st.markdown(advanced_detail_marker_html().value, unsafe_allow_html=True)
+        with st.expander("Advanced: daily queue evidence", expanded=False):
+            render_daily_research_queue_details(status, comparison=comparison)
 
 
 def load_dashboard_outcome_status(context: ProfileContext, *, ticker: str):
@@ -7986,6 +8030,7 @@ def render_single_stock_public_summary(
     *,
     research_mode: bool,
     selected_answer_target=None,
+    selected_detail_target=None,
     primary_brief: Mapping[str, object] | None = None,
 ) -> None:
     """Render one selected-ticker answer at its route-selected target."""
@@ -8000,6 +8045,11 @@ def render_single_stock_public_summary(
     )
     target = selected_answer_target if selected_answer_target is not None else st
     target.markdown(rendered, unsafe_allow_html=True)
+    if research_mode and primary_brief is not None and selected_detail_target is not None:
+        selected_detail_target.markdown(
+            company_workbench_detail_disclosure_html(primary_brief),
+            unsafe_allow_html=True,
+        )
 
 
 def stock_report_public_answer_cards(frame: pd.DataFrame) -> list[dict[str, object]]:
@@ -30282,6 +30332,7 @@ def render_stock_selector(
     target_mode: str = PUBLIC_DEMO_MODE,
     target_page: str = "single-stock-report",
     allowed_tickers: tuple[str, ...] | None = None,
+    research_boundary: str | None = None,
 ) -> None:
     research_discover = (
         str(target_mode).strip().lower() == RESEARCH_MODE
@@ -30329,16 +30380,6 @@ def render_stock_selector(
             STOCK_SELECTOR_PATH_TITLE,
             "Choose one readiness-backed ticker first; use filters only when you need a narrower queue.",
         )
-    if research_discover:
-        st.markdown("### Browse saved companies")
-        render_context_note(
-            "Saved-company browsing is not strict screen eligibility.",
-            (
-                "Rows are alphabetical evidence-access paths. Availability does not mean "
-                "the company passed momentum and valuation screening, has attractive "
-                "valuation, or is a recommendation."
-            ),
-        )
     if stock_selector_saved_queue_notice_visible(
         public_mode=public_mode,
         selector_frame=selector_frame,
@@ -30370,6 +30411,20 @@ def render_stock_selector(
             tone="warning",
             public=public_mode,
         )
+        if research_discover and research_boundary:
+            st.markdown(
+                next_action_html(
+                    SafeRouteAction(
+                        label="Open Data Health",
+                        href="?mode=research&page=data-health",
+                    )
+                ).value,
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                stop_rule_html(f"Research-only. {research_boundary}").value,
+                unsafe_allow_html=True,
+            )
         return
 
     saved_presets = stock_selector_saved_filter_presets()
@@ -30385,6 +30440,29 @@ def render_stock_selector(
         ),
         key="stock-selector-search",
     ).strip()
+    if research_discover and research_boundary:
+        st.markdown(
+            stop_rule_html(f"Research-only. {research_boundary}").value,
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            supporting_detail_html(
+                title="Browse saved companies",
+                body=(
+                    "Search and filters apply only to the readiness-backed saved-company set. "
+                    "They do not change strict screen eligibility or create a ranking."
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
+        render_context_note(
+            "Saved-company browsing is not strict screen eligibility.",
+            (
+                "Rows are alphabetical evidence-access paths. Availability does not mean "
+                "the company passed momentum and valuation screening, has attractive "
+                "valuation, or is a recommendation."
+            ),
+        )
     open_change_counts: dict[str, int] = {}
     for item in tuple(ACTIVE_RESEARCH_CHANGE_STATE.get("queue") or ()):
         ticker_key = item.event.ticker.upper()
@@ -31393,11 +31471,14 @@ def render_single_stock_report(
     cash_generation_preview: CompanyWorkbenchCashGenerationPreview | None = None,
     observation_recency: ObservationRecencySet | None = None,
     selected_answer_target=None,
+    selected_detail_target=None,
 ) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
     query_open_review = single_stock_query_open(st.query_params.get("open"))
+    if research_mode:
+        query_open_review = True
     compact_public_open_report = public_mode and query_open_review and bool(query_ticker)
     header_caption = (
         f"{query_ticker} is selected. Review the selected ticker state first, then use supported sections only."
@@ -31674,6 +31755,7 @@ def render_single_stock_report(
                 research_mode=research_mode,
                 selected_answer_target=selected_answer_target,
                 primary_brief=primary_brief,
+                selected_detail_target=selected_detail_target,
             )
             if research_mode and not single_stock_detail_sections_visible(ticker):
                 render_context_note(
@@ -36032,19 +36114,35 @@ def render_research_workspace_styles() -> None:
             }
             .company-workbench-primary-brief {
                 margin-top: .15rem;
-                padding: .7rem;
+                padding: .55rem;
             }
-            .company-workbench-primary-grid { grid-template-columns: 1fr; }
+            .company-workbench-primary-heading { margin-bottom: .35rem; }
+            .company-workbench-primary-grid {
+                gap: .15rem;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
             .company-workbench-primary-answer {
                 border-left: 0;
                 border-top: 1px solid #e5e9e7;
-                padding: .55rem 0 0;
+                padding: .3rem 0 0;
             }
+            .company-workbench-primary-answer p,
+            .company-workbench-primary-answer strong,
+            .company-workbench-primary-answer small { margin-top: .14rem; }
+            .company-workbench-primary-answer p { line-height: 1.3; }
             .company-workbench-primary-answer .public-primary-action {
                 align-items: center;
                 display: inline-flex;
+                margin-top: .3rem;
                 min-height: 44px;
             }
+            .company-workbench-primary-stop {
+                margin-top: .4rem;
+                padding-top: .4rem;
+            }
+        }
+        @media (max-width: 260px) {
+            .company-workbench-primary-grid { grid-template-columns: 1fr; }
         }
         </style>
         """,
@@ -36149,7 +36247,8 @@ def render_research_monitor(
         "Monitor",
         context,
         primary_action="Review unresolved evidence changes; otherwise wait for new source evidence",
-        observation_recency=observation_recency,
+        compact=True,
+        include_boundary=False,
     )
     discipline = load_dashboard_research_discipline_rows(
         context,
@@ -36175,22 +36274,39 @@ def render_research_monitor(
             else "Market observation is unavailable."
         ),
     )
+    st.markdown(
+        answer_panel_html(
+            question="What saved research follow-up is due?",
+            answer=(
+                queue.empty_title
+                if queue.is_empty
+                else f"{queue.actionable_count} saved follow-up item(s) need attention."
+            ),
+            reason=queue.primary_reason,
+            action=SafeRouteAction(
+                label=queue.next_action_label,
+                href=queue.next_action_url,
+            ),
+            stop_rule=(
+                "Research-only. "
+                f"{queue.empty_boundary} Saved process state is not a recommendation or alert feed."
+            ),
+        ).value,
+        unsafe_allow_html=True,
+    )
     st.markdown("## Follow-up Queue")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
-    if queue.is_empty:
+    if not queue.is_empty:
         st.markdown(
-            "<div class='research-monitor-neutral follow-up-queue-empty' "
-            f"data-monitor-count='{queue.monitor_count}'>"
-            + context_note_html(queue.empty_title, queue.empty_boundary)
-            + "</div>",
+            supporting_detail_html(
+                title="Saved follow-up evidence",
+                body=(
+                    "Follow-up reasons retain saved cohort order and remain separate from "
+                    "company scoring or urgency."
+                ),
+            ).value,
             unsafe_allow_html=True,
         )
-        st.link_button(
-            queue.next_action_label,
-            queue.next_action_url,
-            type="primary",
-        )
-    else:
         render_signal_cards(
             [asdict(panel) for panel in queue.panels],
             show_commands=False,
@@ -36202,7 +36318,20 @@ def render_research_monitor(
             unsafe_allow_html=True,
         )
 
+    st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
     with st.expander("Advanced: Monitor evidence", expanded=False):
+        if observation_recency is not None:
+            st.markdown(
+                observation_recency_summary_html(
+                    observation_recency,
+                    include_selected=False,
+                ),
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                observation_recency_evidence_html(observation_recency),
+                unsafe_allow_html=True,
+            )
         if not discipline_frame.empty:
             st.dataframe(discipline_frame, width="stretch", hide_index=True)
         if discipline:
@@ -36249,19 +36378,82 @@ def render_company_workbench(
     observation_recency: ObservationRecencySet | None = None,
 ) -> None:
     ticker = str(st.query_params.get("ticker") or "").strip().upper()
-    cash_generation_preview = None
-    if company_workbench_cash_preview_requested(st.query_params.get("cash_preview")):
-        cash_generation_preview = load_company_workbench_cash_generation_preview(ticker)
     render_research_workspace_header(
         "Company Workbench",
         context,
         ticker=ticker,
         primary_action="Review usable evidence, then record what remains uncertain",
         compact=True,
-        observation_recency=observation_recency,
-        include_selected_observation=True,
+        include_boundary=False,
     )
+    registered_tickers = {
+        str(value or "").strip().upper()
+        for value in (
+            provider.list_local_tickers()
+            if provider is not None and hasattr(provider, "list_local_tickers")
+            else ()
+        )
+        if str(value or "").strip()
+    }
+    if not ticker or ticker not in registered_tickers:
+        title = (
+            f"No registered saved company matches {ticker}"
+            if ticker
+            else "Choose a company in Discover first"
+        )
+        st.markdown(
+            empty_state_html(
+                title=title,
+                absence=(
+                    "No registered ticker was supplied for this Company Workbench route. "
+                    "The workspace will not infer a default saved company."
+                ),
+                not_proven=(
+                    "that no saved company is available or that any company is unsuitable "
+                    "for evidence review"
+                ),
+                action=SafeRouteAction(
+                    label="Open Discover",
+                    href="?mode=research&page=discover",
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            stop_rule_html(
+                "Research-only. Select an explicit saved company before opening a Company Brief."
+            ).value,
+            unsafe_allow_html=True,
+        )
+        return
+    cash_generation_preview = None
+    if company_workbench_cash_preview_requested(st.query_params.get("cash_preview")):
+        cash_generation_preview = load_company_workbench_cash_generation_preview(ticker)
     selected_answer_target = st.empty()
+    timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
+    st.markdown(
+        evidence_timeline_html(
+            tuple(
+                TimelineRecord(
+                    record_id=str(row.get("event_id") or ""),
+                    timestamp=str(row.get("detected_at") or "").strip() or None,
+                    label=str(row.get("change") or "Evidence change"),
+                    summary=(
+                        f"{str(row.get('evidence_status') or 'unavailable').replace('_', ' ')}. "
+                        f"{str(row.get('research_task') or 'No saved research task is available.')}"
+                    ),
+                )
+                for row in timeline
+            ),
+            empty_title="No traceable saved change for this company",
+            empty_body=(
+                "No authoritative saved change row is available. This does not prove that "
+                "no external event occurred."
+            ),
+        ).value,
+        unsafe_allow_html=True,
+    )
+    selected_detail_target = st.empty()
     section_names = [section["title"] for section in company_workbench_section_contract()]
     with st.expander("Review path", expanded=False):
         st.caption(" -> ".join(section_names[:-1]))
@@ -36274,6 +36466,18 @@ def render_company_workbench(
         st.caption(
             "Lane coverage is technical evidence only; blocked and candidate-only states remain separate."
         )
+        if observation_recency is not None:
+            st.markdown(
+                observation_recency_summary_html(
+                    observation_recency,
+                    include_selected=True,
+                ),
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                observation_recency_evidence_html(observation_recency),
+                unsafe_allow_html=True,
+            )
     render_single_stock_report(
         provider,
         False,
@@ -36285,6 +36489,7 @@ def render_company_workbench(
         cash_generation_preview=cash_generation_preview,
         observation_recency=observation_recency,
         selected_answer_target=selected_answer_target,
+        selected_detail_target=selected_detail_target,
     )
     st.markdown("## Advanced Evidence")
     with st.expander("Advanced Evidence", expanded=False):
@@ -36321,11 +36526,14 @@ def render_personal_research_route(
             "Discover",
             context,
             primary_action="Check strict eligibility or browse one saved company",
-            observation_recency=observation_recency,
+            compact=True,
+            include_boundary=False,
         )
-        st.markdown("## Find a Company")
+        daily_queue = load_dashboard_daily_research_queue(context, as_of=review_date)
         render_daily_research_queue(
-            load_dashboard_daily_research_queue(context, as_of=review_date)
+            daily_queue,
+            include_details=False,
+            include_boundary=False,
         )
         render_stock_selector(
             {},
@@ -36333,8 +36541,23 @@ def render_personal_research_route(
             target_mode=RESEARCH_MODE,
             target_page="company-workbench",
             allowed_tickers=tuple(member.ticker for member in cohort.members),
+            research_boundary=QUEUE_BOUNDARY,
         )
+        st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
         with st.expander("Advanced: cohort readiness context", expanded=False):
+            if observation_recency is not None:
+                st.markdown(
+                    observation_recency_summary_html(
+                        observation_recency,
+                        include_selected=False,
+                    ),
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    observation_recency_evidence_html(observation_recency),
+                    unsafe_allow_html=True,
+                )
+            render_daily_research_queue_details(daily_queue)
             render_signal_cards(focused_cohort_cards(cohort), show_commands=False, variant="queue")
             render_signal_cards(
                 focused_cohort_coverage_cards(coverage),
