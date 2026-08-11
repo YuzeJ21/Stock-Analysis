@@ -297,6 +297,16 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
     assert RESEARCH_ROUTES[0].media_next_action_selector == (
         ".research-desk-brief .public-primary-action"
     )
+    assert [
+        route.media_next_action_selector for route in RESEARCH_ROUTES
+    ] == [
+        ".research-desk-brief .public-primary-action",
+        "[data-testid='stTextInput'] input[aria-label='Search saved companies']",
+        ".company-workbench-primary-brief .public-primary-action",
+        "[data-sr-region='primary-action']",
+        "[data-sr-region='primary-action']",
+        "[data-sr-region='primary-action']",
+    ]
 
 
 def test_company_workbench_primary_brief_contract_fails_closed_per_requirement():
@@ -374,6 +384,48 @@ def test_company_workbench_primary_brief_contract_fails_closed_per_requirement()
         )
         assert result["passed"] is False
         assert result["detail"]
+
+
+def test_company_workbench_primary_answer_text_accepts_one_direct_paragraph_or_strong_only():
+    from src.research_accessibility_browser_gate import (
+        _company_workbench_primary_answer_text,
+    )
+
+    class FakeBodyLocator:
+        def __init__(self, texts):
+            self._texts = tuple(texts)
+
+        def count(self):
+            return len(self._texts)
+
+        @property
+        def first(self):
+            return self
+
+        def inner_text(self):
+            return self._texts[0]
+
+    class FakeAnswer:
+        def __init__(self, texts):
+            self._texts = texts
+
+        def locator(self, selector):
+            assert selector == ":scope > p, :scope > strong"
+            return FakeBodyLocator(self._texts)
+
+    assert (
+        _company_workbench_primary_answer_text(
+            FakeAnswer(("  Saved evidence can be reviewed.  ",))
+        )
+        == "Saved evidence can be reviewed."
+    )
+    assert _company_workbench_primary_answer_text(FakeAnswer(())) == ""
+    assert (
+        _company_workbench_primary_answer_text(
+            FakeAnswer(("first body", "ambiguous second body"))
+        )
+        == ""
+    )
 
 
 def test_company_workbench_module_open_browser_check_supports_pointer_and_keyboard_activation():
@@ -622,6 +674,54 @@ def test_local_server_context_captures_bounded_stdout_and_stderr(monkeypatch, tm
     )
     assert server.capture_status == "captured_local_server"
     assert process.stdout.close_calls == 1
+
+
+def test_local_server_launchers_disable_streamlit_usage_telemetry_once(
+    monkeypatch,
+    tmp_path,
+):
+    import src.research_accessibility_browser_gate as gate
+
+    launched_commands = []
+
+    class FakeOutput:
+        def __iter__(self):
+            return iter(())
+
+        def close(self):
+            return None
+
+    class FakeProcess:
+        def __init__(self):
+            self.stdout = FakeOutput()
+
+        def terminate(self):
+            return None
+
+        def wait(self, timeout):
+            return 0
+
+        def kill(self):
+            return None
+
+    def fake_popen(command, **kwargs):
+        launched_commands.append(tuple(command))
+        return FakeProcess()
+
+    monkeypatch.setattr(gate, "_free_port", lambda: 43123)
+    monkeypatch.setattr(gate, "_wait_for_health", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gate.subprocess, "Popen", fake_popen)
+
+    with gate._captured_local_demo_server(tmp_path, timeout_seconds=5):
+        pass
+    with gate._captured_local_state_harness_server(tmp_path, timeout_seconds=5):
+        pass
+
+    assert len(launched_commands) == 2
+    for command in launched_commands:
+        assert command.count("--browser.gatherUsageStats") == 1
+        option_index = command.index("--browser.gatherUsageStats")
+        assert command[option_index + 1] == "false"
 
 
 def test_bounded_server_capture_retains_warning_count_after_early_line_eviction():

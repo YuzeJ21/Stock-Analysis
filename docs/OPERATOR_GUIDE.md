@@ -19,15 +19,18 @@ terminal proof commands only when you need local evidence behind the page:
 ```bash
 make demo
 make dashboard
+make readiness-ops-center
 make status-check TOP_N=5
 make project-status
 make stock-report-md TICKER=NVDA
 ```
 
+`make readiness-ops-center` reports current selected-profile readiness and lane truth. `make status-check TOP_N=5` inspects a saved generated snapshot and can be stale.
+
 If you only want a fast health check:
 
 ```bash
-make status-check TOP_N=5
+make readiness-ops-center
 make dashboard-smoke
 ```
 
@@ -81,8 +84,8 @@ make project-status
 ## What To Open First
 
 - Open `make dashboard` for the product page.
-- Start on `Home` to see readiness, blockers, and next safe commands.
-- Open the Home page `Example reports` section to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples without opening data files first.
+- Personal Research is the root default at `http://localhost:8501/`; enter Operator explicitly at `http://localhost:8501/?mode=operator` for source/proof work.
+- Open the Home page `Example reports` section to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples without opening data files first, only after entering explicit Operator mode. Operator warnings precede advanced detail; Monthly Picks, Momentum Leaders, Portfolio Review, Value / Re-rating, and Final Watchlist remain compatibility utilities, never primary workflow routes or research recommendations.
 - Open `Single-Stock Report` for one ticker when you want the clearest stock-level explanation.
 - Open `Data Health` when the app says analysis is blocked by missing local data.
 

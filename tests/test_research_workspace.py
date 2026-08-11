@@ -244,7 +244,8 @@ def test_monitor_follow_up_queue_empty_state_is_single_fail_closed_return_contra
     assert result.primary_rows == ()
     assert result.monitor_count == 0
     assert result.is_empty is True
-    assert result.actionable_count == 0
+    assert result.has_attention is False
+    assert not hasattr(result, "actionable_count")
     assert result.empty_title == (
         "No saved verification, evidence-wait, scheduled, or source-change item is currently due."
     )
@@ -303,13 +304,46 @@ def test_monitor_follow_up_queue_recent_or_unresolved_change_prevents_false_empt
     )
 
     assert result.is_empty is False
-    assert result.actionable_count > 0
+    assert result.has_attention is True
     if summary.items:
         assert result.next_action_label == "Open AAA Company Workbench"
         assert result.next_action_url == "?mode=research&page=company-workbench&ticker=AAA&open=1"
     else:
         assert result.next_action_label == "Open Data Health"
         assert result.next_action_url == "?mode=research&page=data-health"
+
+
+def test_monitor_follow_up_queue_collapses_overlapping_conditions_to_one_boolean_signal():
+    result = build_monitor_follow_up_queue(
+        _weekly_summary(
+            WeeklySummaryItem(
+                "new_evidence",
+                "AAA",
+                "AAA has reviewed source evidence.",
+                "review_now",
+                "source:aaa",
+                "2026-08-04T00:00:00+00:00",
+            )
+        ),
+        (
+            _discipline_row(
+                0,
+                "AAA",
+                "conflicting_evidence",
+                "Needs review",
+                "AAA evidence needs verification.",
+            ),
+        ),
+        source_change_count=3,
+        readiness_state="stale",
+        readiness_message="Saved readiness needs review.",
+        observation_state="current",
+        observation_message="Market observation is current.",
+    )
+
+    assert result.has_attention is True
+    assert result.is_empty is False
+    assert not hasattr(result, "actionable_count")
 
 
 def test_monitor_primary_reason_uses_the_same_authoritative_driver_as_its_action():

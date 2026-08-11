@@ -1,8 +1,19 @@
 # Accessibility Evidence
 
-This document records direct local accessibility evidence for the supported
-Personal Research workflow. It is an evidence log, not a WCAG conformance
-claim.
+This document records direct local accessibility evidence for supported Personal
+Research, Public, evidence, Operator, and compatibility routes. It is an evidence
+log, not a WCAG conformance claim.
+
+## 2026-08-11 workspace modernization acceptance boundary
+
+The current engineering acceptance covers an ordered 90-cell browser matrix:
+15 routes at `1280x720`, `1440x1024`, and `390x844`, at 100% and 200% zoom.
+It checks labelled navigation, one H1, answer/action/boundary hierarchy, target
+size, overflow, clipping, same-document skip behavior, forced-colors and
+reduced-motion emulation, final Streamlit state, and console/page errors.
+This automated engineering evidence only does not establish WCAG conformance,
+human or screen-reader usability, operating-system media behavior, hosted
+behavior, source rights, current-market validity, independent review, or market fit.
 
 ## 2026-07-23 partial workflow audit
 

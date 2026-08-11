@@ -134,7 +134,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "Find a Company",
         "Discover",
         ".selector-result-table.research-discover-result",
-        ".research-workspace-action",
+        "[data-testid='stTextInput'] input[aria-label='Search saved companies']",
     ),
     ResearchRoute(
         "Company Workbench",
@@ -150,7 +150,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "Follow-up Queue",
         "Monitor",
         ".signal-grid.evidence-monitor-grid",
-        ".research-workspace-action",
+        "[data-sr-region='primary-action']",
     ),
     ResearchRoute(
         "Research Data Health",
@@ -158,7 +158,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "Use now for market setup",
         "Data Health",
         ".public-lane-list[aria-label='Coverage by analysis lane']",
-        ".research-workspace-action",
+        "[data-sr-region='primary-action']",
         evidence_route=True,
     ),
     ResearchRoute(
@@ -167,7 +167,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "Latest evidence",
         "Proof History",
         ".public-proof-timeline",
-        ".research-workspace-action",
+        "[data-sr-region='primary-action']",
         evidence_route=True,
     ),
 )
@@ -1467,6 +1467,8 @@ def _captured_local_streamlit_server(
             "none",
             "--client.toolbarMode",
             "viewer",
+            "--browser.gatherUsageStats",
+            "false",
             "--server.port",
             str(selected_port),
         ],
@@ -2505,6 +2507,13 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
     )
 
 
+def _company_workbench_primary_answer_text(answer: Any) -> str:
+    """Read one direct answer body while rejecting missing or ambiguous markup."""
+
+    body = answer.locator(":scope > p, :scope > strong")
+    return body.first.inner_text().strip() if body.count() == 1 else ""
+
+
 def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
     brief = page.locator(
         ".company-workbench-primary-brief[aria-label='Company Brief']"
@@ -2534,13 +2543,10 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
     for index in range(answer_nodes.count()):
         answer = answer_nodes.nth(index)
         label = answer.locator("span").first
-        body = answer.locator("p").first
         answer_labels.append(
             label.inner_text().strip() if label.count() == 1 else ""
         )
-        answer_texts.append(
-            body.inner_text().strip() if body.count() == 1 else ""
-        )
+        answer_texts.append(_company_workbench_primary_answer_text(answer))
     secondary_module_count = sum(
         page.get_by_role("heading", level=2, name=heading, exact=True).count()
         for heading in (

@@ -525,6 +525,42 @@ def test_visible_text_wait_names_the_missing_marker_on_timeout():
     assert "Connection error: the application did not render." in message
 
 
+def test_local_demo_server_launch_disables_streamlit_usage_telemetry(
+    monkeypatch,
+    tmp_path,
+):
+    from src import public_performance_gate as gate
+
+    launched_commands = []
+
+    class FakeProcess:
+        def terminate(self):
+            return None
+
+        def wait(self, timeout):
+            return 0
+
+        def kill(self):
+            return None
+
+    def fake_popen(command, **kwargs):
+        launched_commands.append(tuple(command))
+        return FakeProcess()
+
+    monkeypatch.setattr(gate, "_free_port", lambda: 43123)
+    monkeypatch.setattr(gate, "_wait_for_health", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gate.subprocess, "Popen", fake_popen)
+
+    with gate._local_demo_server(tmp_path):
+        pass
+
+    assert len(launched_commands) == 1
+    command = launched_commands[0]
+    assert command.count("--browser.gatherUsageStats") == 1
+    option_index = command.index("--browser.gatherUsageStats")
+    assert command[option_index + 1] == "false"
+
+
 def test_local_demo_server_attaches_captured_server_log_to_route_failure(
     monkeypatch,
     tmp_path,

@@ -22,12 +22,12 @@ Do not run readiness rebuilds or generated-artifact commands without explicit ap
 Persistence contract:
 
 1. Start every continuation from live repository, roadmap, generated-artifact, test, runtime, remote-branch, and PR truth. Chat memory and the expected-state notes below are navigation aids only.
-2. Continue automatically while any safe, meaningful, in-scope local task remains. Do not ask for approval for ordinary reversible local implementation, testing, documentation, or draft-PR updates already authorized by this goal.
+2. Continue automatically while any safe, meaningful, in-scope local task remains. Ordinary reversible local implementation, testing, documentation, and local commits are authorized; draft-PR updates are not.
 3. Do not mark the goal blocked because one lane, provider, dataset, hosted account, reviewer, source, or calibration cohort is unavailable when another executable workstream exists.
 4. When an external dependency is unavailable, classify it once, record the exact unblock condition and last evidence, avoid identical retry loops, and move immediately to the next executable local task.
 5. Recheck an external dependency only when a credential, supplied dataset, account, URL, reviewer cohort, provider entitlement, source-rights decision, or other relevant external state has verifiably changed.
 6. Do not repeat exhausted provider probes, broad-coverage refreshes, speculative peer sourcing, or identical source-limit loops.
-7. Work one coherent independently tested slice at a time. Finish verification, exact staging, commit, push, roadmap/docs updates, and draft-PR updates before beginning the next slice.
+7. Work one coherent independently tested slice at a time. Finish verification, exact staging, local commit, and roadmap/docs updates before beginning the next slice. Do not push or update the draft PR without separate owner authorization.
 8. Preserve explicit approval requirements for merging, public deployment, external account changes, credential use, destructive actions, purchases, public communication, or material scope expansion.
 9. Never fabricate or infer data, forecasts, probabilities, evidence, events, peers, roles, comparability, outcomes, timestamps, sources, rights, reviewer results, hosted properties, recommendations, or completion evidence.
 10. Do not mark the objective complete until the requirement-by-requirement completion audit directly proves every applicable exit gate. Passing local tests is not proof of source access, hosting, external beta validation, evidence depth, calibration, or operating maturity.
@@ -200,11 +200,11 @@ Current external dependency classifications to verify once, then avoid looping:
 
 Approved Next-Stage Maturity Program:
 
-This is the authoritative priority order after the completed Research Decision Lab. If the current branch head lacks direct local matrix, branch synchronization, draft-PR update, or exact-head CI evidence, complete those release steps first; otherwise select the first incomplete safe roadmap priority. When the next requirement is unavailable, classify its last evidence and exact unblock condition once, leave it incomplete, and move to the next safe executable priority. Re-enter a blocked priority only after relevant external state changes.
+This is the authoritative priority order after the completed Research Decision Lab. First complete the direct local matrix and current-head local evidence for this modernization task, then select the first incomplete safe roadmap priority. A push, draft-PR update, merge, deploy, remote synchronization, or exact-head CI run requires separate owner authorization and is not part of this local task. When the next requirement is unavailable, classify its last evidence and exact unblock condition once, leave it incomplete, and move to the next safe executable priority. Re-enter a blocked priority only after relevant external state changes.
 
 A blocked priority does not become complete, and moving past it does not weaken its exit gate. Local contracts, fixtures, screenshots, subagent reviews, and green tests cannot substitute for direct source, hosted, accessibility, independent-user, or calibration evidence. Continue cycling through the ordered program while safe executable work exists; overall completion requires direct current evidence for every applicable priority.
 
-Documentation and routing reconciliation is complete locally. Reopen it only when current repository evidence reproduces contract drift.
+Documentation and routing now name Personal Research as the root default, Public and Operator as explicit modes, and legacy utilities as Operator-only compatibility surfaces. Reopen this contract when current repository evidence reproduces drift.
 
 The reproduced default-profile readiness truth drift is repaired locally: profile context reports declared-date freshness separately from tracked evidence origin, `working_artifact_uncommitted` routes status and reviewed-batch work to the no-write preview, and excluded generated readiness files remain unstaged. This local contract does not approve a readiness rebuild or promote the July working snapshot into PR evidence.
 
@@ -212,7 +212,7 @@ Modal modifiers and active exposure fail closed. The only active documented-resu
 
 Current local execution queue:
 
-Current local product slice awaiting GitHub release closure: Discover truth separation, the Company Workbench primary brief, Monitor consolidation, Research Desk simplification, and shared-shell cleanup are implemented test-first. Strict eligibility remains empty when required evidence is incomplete and never relaxes thresholds. Research Desk now renders one **Today's Research Brief** instead of a weekly-card row plus four competing answers; it routes to Monitor only when saved work needs attention and otherwise routes to Discover, while keeping all supporting evidence under Advanced. Alphabetical saved-company browsing remains available from readiness-only identities without importing ranking-adjacent fields or legacy outputs. Workbench shows one Company Brief with usable evidence, withheld evidence, change state, one authoritative next task, the stop rule, and a ticker-bound Data Health action before any detailed module; one explicit session-local action restores the unchanged detailed evidence modules without writing data or changing readiness. Monitor renders one five-panel **Follow-up Queue** instead of Evidence Monitor Brief, Research Discipline Review, and Research change monitor as three competing primary answers. Its empty state appears once, preserves the external-event boundary, and returns to Discover; full process identities and source-change evidence remain under `Advanced: Monitor evidence`. Personal Research now has one visible top page-navigation authority; the sidebar retains workspace selection without repeating Research page choices, and the Research main column no longer renders the Operator command/readiness header or broad profile strip before the route answer. Public/Operator shells, direct links, ticker parameters, and secondary evidence routes remain unchanged. At shared-shell implementation anchor `2bc374ab8`, the clean read-only browser gate passed all 12 six-route/two-viewport cases while the same 18 generated paths stayed excluded; two former global-label waits were replaced with route-owned answer markers after the simplified shell exposed their hidden coupling. Release credit attaches only after full current-head gates, protected-artifact identity, an intentional push, draft-PR reconciliation, and exact-head CI; PR #113 carries the current GitHub result. Pilot readiness remains blocked on uncommitted working readiness evidence and incomplete source proof. The next external data unblock remains one bounded permitted price-history plus historical-valuation evidence package through separately reviewed source activation.
+Current local product slice awaiting local quality closure: Discover truth separation, the Company Workbench primary brief, Monitor consolidation, Research Desk simplification, and shared-shell cleanup are implemented test-first. Strict eligibility remains empty when required evidence is incomplete and never relaxes thresholds. Research Desk now renders one **Today's Research Brief** instead of a weekly-card row plus four competing answers; it routes to Monitor only when saved work needs attention and otherwise routes to Discover, while keeping all supporting evidence under Advanced. Alphabetical saved-company browsing remains available from readiness-only identities without importing ranking-adjacent fields or legacy outputs. Workbench shows one Company Brief with usable evidence, withheld evidence, change state, one authoritative next task, the stop rule, and a ticker-bound Data Health action before any detailed module; one explicit session-local action restores the unchanged detailed evidence modules without writing data or changing readiness. Monitor renders one five-panel **Follow-up Queue** instead of Evidence Monitor Brief, Research Discipline Review, and Research change monitor as three competing primary answers. Its empty state appears once, preserves the external-event boundary, and returns to Discover; full process identities and source-change evidence remain under `Advanced: Monitor evidence`. Personal Research now has one in-content Personal research workflow navigation authority; no workspace selector or repeated Research page choices remain in the sidebar, and the Research main column no longer renders the Operator command/readiness header or broad profile strip before the route answer. Public and Operator remain explicit modes, direct links and ticker parameters remain supported, and legacy utilities stay quarantined in Operator compatibility surfaces. At shared-shell implementation anchor `2bc374ab8`, the clean read-only browser gate passed all 12 six-route/two-viewport cases while the same 18 generated paths stayed excluded; two former global-label waits were replaced with route-owned answer markers after the simplified shell exposed their hidden coupling. Local modernization credit attaches only after full current-head gates, protected-artifact identity, and independent automated review. No push, draft-PR update, merge, or deploy is part of this modernization task without separate owner authorization. Pilot readiness remains blocked on uncommitted working readiness evidence and incomplete source proof. The next external data unblock remains one bounded permitted price-history plus historical-valuation evidence package through separately reviewed source activation.
 
 Completed local item: `1. Add shared quant provenance/recency eligibility without coupling readiness.` This former queue item is implemented at
 `195ea18da9d1d6e06c36f8320509ccde46cdaa57` and is not an active task.
@@ -287,7 +287,7 @@ A saved record cannot change readiness, forecasts, probabilities, recommendation
 
 Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.
 Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.
-If the current branch head lacks direct local matrix, branch synchronization, draft-PR update, or exact-head CI evidence, complete those release steps first; otherwise select the first incomplete safe roadmap priority.
+If the current branch head lacks the direct local matrix or current-head local evidence, complete those local gates first; otherwise select the first incomplete safe roadmap priority. Remote synchronization, a draft-PR update, and exact-head CI remain separate owner-authorized work.
 That summary is necessary but not sufficient; the exact Priority 4 exit condition below also requires independent review, expected count/digest reproduction, and the partition gate.
 
 Priority 4 — Point-in-time benchmark and universe foundation
@@ -415,7 +415,7 @@ Execution order for each continuation:
 8. Keep technical evidence under Advanced unless it is required to explain the primary research answer.
 9. Classify unavailable external dependencies once and move to the next executable local roadmap item.
 10. Update tests, methodology, provenance, runbooks, ROADMAP.md, and this prompt when the verified stage or continuation contract changes.
-11. Stage exact intentional paths only, commit the verified slice, push only the named branch, and update PR #113 while keeping it draft.
+11. Stage exact intentional paths only and commit the verified slice locally. Do not push or update PR #113 without separate owner authorization; keep it draft.
 12. Continue to the next safe executable item rather than ending merely because one slice is complete.
 
 Continuation maturity lanes:
@@ -432,7 +432,7 @@ Stage 0 — Independent engineering legitimacy
 
 Stage 1 — Answer-first workflow hardening
 - Exit only when all four Personal Research routes show the primary answer and one next action before technical evidence at desktop and phone widths.
-- Current expected state: locally completed, including the verified mobile first-action density slice, Company Workbench anchored-answer correction, and public packaging reconciliation. Treat it as current-revision evidence only after focused/full tests, release and hygiene gates, exact push, and exact-head CI pass; local browser measurements, screenshots, and copy do not satisfy hosted, human-review, adoption, demand, competitive, or market gates.
+- Current expected state: locally completed, including the verified mobile first-action density slice, Company Workbench anchored-answer correction, and public packaging reconciliation. Treat it as current-revision local evidence only after focused/full tests, the full local matrix, release and hygiene gates, and independent automated review pass; local browser measurements, screenshots, and copy do not satisfy hosted, human-review, adoption, demand, competitive, or market gates.
 
 Stage 2 — Permitted source activation
 - Acquire one permitted append-only prospective point-in-time consensus snapshot for one reviewed ticker.
@@ -488,8 +488,8 @@ Verification after every meaningful implementation slice:
 - relevant commercial performance or release gate when workflow/runtime behavior changes;
 - `make staged-hygiene-check` and `git diff --cached --check` after exact staging.
 
-Release-matrix boundary: the controller owns the full release matrix, push, PR
-update, and hosted exact-head CI verification. A documentation-slice worker may
+Release-matrix boundary: the controller owns the full local release matrix. Push,
+PR update, and hosted exact-head CI verification require separate owner authorization. A documentation-slice worker may
 run only its focused docs/render checks, stage its exact reviewed files, and
 report the local evidence; it must not claim the full release matrix or hosted
 CI has passed.
@@ -500,8 +500,8 @@ Git and artifact rules:
 - Stage exact reviewed product, code, documentation, test, and template paths only.
 - Never stage broad generated CSV, JSON, readiness-report, stock-report, sample-report, screenshot, or timing churn. One exact curated screenshot may be staged only when it is the explicitly reviewed product asset required by the current slice.
 - Commit only coherent verified slices.
-- Push only to `codex/personal-research-mode-mvp`.
-- Keep PR #113 draft and update it after each verified implementation slice.
+- Do not push without separate owner authorization; if later authorized, push only to `codex/personal-research-mode-mvp`.
+- Keep PR #113 draft; update it only after separate owner authorization.
 - Keep PR #113 open and draft; do not merge, deploy, or mark it ready.
 - The same 18 protected generated paths remain excluded, byte-for-byte unchanged, and unstaged unless separately reviewed and explicitly approved:
   - `data/analyst_estimates_readiness.csv`

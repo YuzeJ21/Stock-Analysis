@@ -89,7 +89,7 @@ Use this split when deciding what can run on a schedule and what should stay rev
 
 | Workflow | Can run unattended? | Safe default | Review gate before analysis changes |
 | --- | --- | --- | --- |
-| Status and readiness checks | Yes. | `make status-check TOP_N=5`, `make readiness`, `make dashboard-smoke`. | None; these commands read or rebuild deterministic local status. |
+| Status and readiness checks | Yes. | `make readiness-ops-center`, `make readiness-preview TOP_N=20`, `make dashboard-smoke`. | None; these commands inspect current selected-profile readiness and lane truth or an in-memory preview without writing. |
 | Price planning | Yes, as a dry run. | `make price-refresh-loop DRY_RUN=1`. | Review the planned tickers and source notes before any real refresh. |
 | Price refresh | Only capped and intentionally. | Use capped loops after a dry run, then inspect local CSV diffs. | Run readiness, check source freshness, and avoid committing broad CSV churn by default. |
 | Fundamentals / DCF | No broad unattended apply. | Stage or inspect a 5-10 company pilot. | Validate, preview, confirm trusted source rows, then rebuild DCF readiness. |
@@ -110,7 +110,7 @@ You do not need to hand-refresh every ticker every day for the product to stay u
 | Peers | Update when a company enters a pilot or peer context is blocking a ready DCF report. | Peer queues can rank missing mappings separately from mapped-peer valuation-input blockers. | Whether the relationship is source-backed and whether mapped-peer valuation inputs are present. |
 | Earnings / estimates | Keep locked unless you have trusted local rows for a review cycle. | Templates, staged-folder checks, and rejected-row reports. | Whether the source is trusted and whether optional context should be applied. |
 
-A safe recurring routine is read-only by default: run `make status-check TOP_N=5`, `make readiness`, `make dashboard-smoke`, and `make price-refresh-loop DRY_RUN=1`. Only run a real capped price loop after reviewing the dry-run plan. Do not schedule unattended fundamentals, peer, earnings, estimate imports, or public commits.
+A safe recurring routine is read-only by default: run `make readiness-ops-center`, `make readiness-preview TOP_N=20`, `make dashboard-smoke`, and `make price-refresh-loop DRY_RUN=1`. Use `make status-check TOP_N=5` only to inspect a saved generated snapshot; it can be stale. Only run a real capped price loop after reviewing the dry-run plan. Do not schedule unattended fundamentals, peer, earnings, estimate imports, or public commits.
 
 ## Safe Overnight Automation
 
@@ -199,7 +199,7 @@ Run the matching rebuild proof:
 ```
 
 1. Save the baseline with `make readiness-snapshot`.
-2. Confirm blockers with `make status-check TOP_N=10`.
+2. Use `make readiness-ops-center` for current lane truth and blockers. Use `make status-check TOP_N=10` only to inspect a saved generated snapshot, which can be stale.
 3. For prices, inspect ticker-level proof gaps with `make price-history-proof-queue TOP_N=10`, then preview any broader update with `make price-refresh-loop DRY_RUN=1`.
 4. For fundamentals, use `make dcf-input-proof-queue TOP_N=25`, then `make dcf-input-source-review FAMILY=<family> TOP_N=10` to fill source file, as-of date, reviewer, review date, source proof status, validation result, preview result, and apply decision. Use `make dcf-input-source-guard ...` to block placeholders and preview the exact import row before `make dcf-input-proof-handoff FAMILY=<family> TOP_N=10` groups the packet, validation, preview, apply boundary, readiness proof, comparison, and proof-record dry run.
 5. When the DCF gap is `shares_outstanding`, use `make share-count-proof-queue TOP_N=10` to separate share-count-only blockers from tickers that still need price, revenue, free cash flow, or FCF margin too.

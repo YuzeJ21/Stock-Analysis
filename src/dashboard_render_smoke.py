@@ -151,8 +151,19 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         query_params=(("mode", "research"), ("page", "data-health"), ("ticker", "NVDA")),
         required_markers=(
             "Data Health",
-            "Continue the selected-company review without changing evidence state.",
+            "What can I use and what stays unavailable?",
+            "Return to Company Workbench",
             "Research-only",
+        ),
+        required_regions=(
+            "workflow-nav",
+            "context",
+            "page-title",
+            "primary-answer",
+            "primary-action",
+            "stop-rule",
+            "supporting-evidence",
+            "advanced-detail",
         ),
     ),
     DashboardRenderRoute(
@@ -160,8 +171,19 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         query_params=(("mode", "research"), ("page", "proof-history"), ("ticker", "NVDA")),
         required_markers=(
             "Proof History",
-            "Continue the selected-company review without changing evidence state.",
+            "What evidence changed a readiness state?",
+            "Return to Company Workbench",
             "Research-only",
+        ),
+        required_regions=(
+            "workflow-nav",
+            "context",
+            "page-title",
+            "primary-answer",
+            "primary-action",
+            "stop-rule",
+            "supporting-evidence",
+            "advanced-detail",
         ),
     ),
 )

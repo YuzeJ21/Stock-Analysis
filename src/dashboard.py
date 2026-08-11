@@ -30788,7 +30788,7 @@ def render_stock_selector(
         value=str(current_filter_values.get("search") or ""),
         placeholder="Search ticker, theme, blocker, or proof step",
         help=(
-            "Search alphabetical saved-company evidence paths. This does not rank companies."
+            None
             if research_discover
             else "Search readiness-backed rows before opening one saved report."
         ),
@@ -36775,7 +36775,7 @@ def render_research_monitor(
             answer=(
                 queue.empty_title
                 if queue.is_empty
-                else f"{queue.actionable_count} saved follow-up item(s) need attention."
+                else "Saved follow-up evidence needs attention."
             ),
             reason=queue.primary_reason,
             action=SafeRouteAction(

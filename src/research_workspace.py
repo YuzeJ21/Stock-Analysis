@@ -66,7 +66,7 @@ class MonitorFollowUpQueue:
     waiting_rows: tuple[ResearchDisciplineRow, ...]
     scheduled_rows: tuple[ResearchDisciplineRow, ...]
     monitor_count: int
-    actionable_count: int
+    has_attention: bool
     is_empty: bool
     empty_title: str
     empty_boundary: str
@@ -277,13 +277,11 @@ def build_monitor_follow_up_queue(
         state.casefold() not in current_states
         for state in (normalized_readiness, normalized_observation)
     )
-    actionable_count = (
-        len(summary.items)
-        + normalized_change_count
-        + len(verification_rows)
-        + len(waiting_rows)
-        + len(scheduled_rows)
-        + freshness_attention_count
+    has_attention = bool(
+        summary.items
+        or normalized_change_count
+        or primary_rows
+        or freshness_attention_count
     )
     empty_title = (
         "No saved verification, evidence-wait, scheduled, or source-change item "
@@ -330,12 +328,12 @@ def build_monitor_follow_up_queue(
         primary_reason = panels[4].body
     else:
         primary_reason = empty_boundary
-    if actionable_count and action_ticker:
+    if has_attention and action_ticker:
         next_action_label = f"Open {action_ticker} Company Workbench"
         next_action_url = (
             f"?mode=research&page=company-workbench&ticker={quote(action_ticker)}&open=1"
         )
-    elif actionable_count:
+    elif has_attention:
         next_action_label = "Open Data Health"
         next_action_url = "?mode=research&page=data-health"
     else:
@@ -348,8 +346,8 @@ def build_monitor_follow_up_queue(
         waiting_rows=waiting_rows,
         scheduled_rows=scheduled_rows,
         monitor_count=monitor_count,
-        actionable_count=actionable_count,
-        is_empty=actionable_count == 0,
+        has_attention=has_attention,
+        is_empty=not has_attention,
         empty_title=empty_title,
         empty_boundary=empty_boundary,
         primary_reason=primary_reason,

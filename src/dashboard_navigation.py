@@ -177,12 +177,17 @@ def _raw_page_resolution(value: object, user_page_titles: list[str]) -> tuple[st
     return page, dashboard_page_slug(unquote(raw)) in {"home", "start-at-home"}
 
 
-def _workspace_page_allowed(mode: str, page: str, user_page_titles: list[str]) -> bool:
+def _workspace_page_allowed(
+    mode: str,
+    page: str,
+    user_page_titles: list[str],
+    operator_page_titles: list[str],
+) -> bool:
     if mode == PUBLIC_DEMO_MODE:
         return page in PUBLIC_WORKSPACE_PAGES
     if mode == RESEARCH_MODE:
         return page in RESEARCH_WORKSPACE_PAGES
-    return page in {*user_page_titles, PROOF_HISTORY_PATH_TITLE}
+    return page in {*PUBLIC_WORKSPACE_PAGES, *operator_page_titles}
 
 
 def _workspace_fallback_page(mode: str) -> str:
@@ -221,7 +226,6 @@ def resolve_workspace_route(
     operator_page_titles: list[str],
 ) -> WorkspaceRouteResolution:
     """Resolve raw route state before unknown pages can collapse to Home."""
-    del operator_page_titles  # The full user page registry remains the operator compatibility contract.
     requested_page, recognized = _raw_page_resolution(raw_page, user_page_titles)
     mode_value = _query_value(raw_mode)
     mode_slug = dashboard_page_slug(unquote(mode_value))
@@ -244,7 +248,12 @@ def resolve_workspace_route(
     allowed = (
         not invalid_explicit_mode
         and recognized
-        and _workspace_page_allowed(mode, requested_page, user_page_titles)
+        and _workspace_page_allowed(
+            mode,
+            requested_page,
+            user_page_titles,
+            operator_page_titles,
+        )
         and (not mode_switched or requested_page in {"Data Health", PROOF_HISTORY_PATH_TITLE})
     )
     page = requested_page if allowed else _workspace_fallback_page(mode)

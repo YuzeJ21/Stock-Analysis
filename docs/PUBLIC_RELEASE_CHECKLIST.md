@@ -7,7 +7,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep the top of `README.md` focused on what the project does, why it matters, and how to run it.
 - Confirm `README.md` starts with `External Reviewer Start Here` so a GitHub or LinkedIn visitor sees the GitHub/local-app boundary, current-readiness source, and stop rules before deeper operator detail.
 - Keep the primary product flow near the top: README Workbench preview, `make dashboard`, then Research Desk -> Discover -> Company Workbench -> Monitor. Keep Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History as the secondary controlled Public demo.
-- Keep terminal proof commands secondary: use `make status-check TOP_N=5` and `make stock-report-md TICKER=NVDA` only after the visitor understands the public workflow.
+- Keep terminal proof commands secondary: use `make readiness-ops-center` for current lane truth. Treat `make status-check TOP_N=5` as saved generated-snapshot context that can be stale, and use `make stock-report-md TICKER=NVDA` only after the visitor understands the public workflow.
 - Keep `make stock-report TICKER=NVDA` available for optional local report-data inspection, but prefer `make stock-report-md` for LinkedIn/GitHub visitors.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
 - Keep `docs/DATA_STRATEGY.md` linked so visitors understand what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a small pilot.

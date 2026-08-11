@@ -1332,7 +1332,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
 
     assert len(readme.splitlines()) < 180
     assert "![Company Workbench answer preview](docs/assets/linkedin-public-dashboard.png)" in readme
-    assert "make status-check TOP_N=5` remains the source for current local counts" in readme
+    assert "make readiness-ops-center` for lane truth" in readme
     for preview_phrase in (
         "plain-language stock analysis modes",
         "At A Glance single-stock status",
@@ -1372,7 +1372,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert quick_start.index("make demo-dashboard") < quick_start.index("make status-check TOP_N=5")
     assert quick_start.index("make demo-dashboard") < quick_start.index("make pilot-readiness-check TOP_N=10")
     assert quick_start.index("make demo-dashboard") < quick_start.index("make stock-report-md TICKER=NVDA")
-    assert "Optional read-only proof after the app flow is clear" in quick_start
+    assert "Optional saved generated-snapshot inspection after the app flow is clear" in quick_start
     assert "When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps." in readme
     assert "## What You Can Analyze" in readme
     assert "## How Analysis Works" in readme
@@ -1526,7 +1526,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         assert phrase in readme
     quick_start = readme.split("## Quick Start", 1)[1].split("## Try This Visitor Workflow", 1)[0]
     assert "make pipeline" not in quick_start
-    assert "make readiness" not in quick_start
+    assert "\nmake readiness\n" not in quick_start
     assert quick_start.index("make demo") < quick_start.index("make demo-dashboard")
     assert quick_start.index("make demo-dashboard") < quick_start.index("make status-check TOP_N=5")
     assert quick_start.index("make status-check TOP_N=5") < quick_start.index("make stock-report-md TICKER=NVDA")
@@ -2747,8 +2747,10 @@ def test_product_facing_status_labels_avoid_action_language():
         for label in forbidden_labels:
             assert label not in text, f"{path} still exposes action-sounding label {label!r}"
 
-    for replacement in ("Research Ready", "Pullback Review Candidate", "Constructive Review", "Hold Review Only"):
-        assert replacement in Path("src/dashboard.py").read_text(encoding="utf-8")
+    dashboard = Path("src/dashboard.py").read_text(encoding="utf-8")
+    assert "Research Ready" in dashboard
+    for retired_action_label in ("Pullback Review Candidate", "Constructive Review", "Hold Review Only"):
+        assert retired_action_label not in dashboard
 
 
 def test_generated_product_outputs_use_current_import_draft_language():
@@ -3038,9 +3040,11 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   make demo-dashboard\"" in makefile
     assert "@echo \"3. Follow one ticker in the app before using terminal proof:\"" in makefile
     assert "@echo \"   Start with Stock Selector, open NVDA or another readiness-backed row, then use Data Health only if an input is blocked.\"" in makefile
-    assert "@echo \"4. Optional current-count proof:\"" in makefile
+    assert "@echo \"4. Optional current selected-profile readiness and lane truth:\"" in makefile
+    assert "@echo \"   make readiness-ops-center\"" in makefile
+    assert "@echo \"   Proves: current selected-profile readiness and lane truth without changing local files.\"" in makefile
     assert "@echo \"   make status-check TOP_N=5\"" in makefile
-    assert "@echo \"   Proves: current readiness counts and top blockers without changing local files.\"" in makefile
+    assert "@echo \"   Saved generated-snapshot counts and blockers only; this context can be stale.\"" in makefile
     assert "@echo \"5. Optional sample reports after the app flow is clear:\"" in makefile
     assert "@echo \"   make stock-report-md TICKER=NVDA  # DCF-ready company example\"" in makefile
     assert "@echo \"   make stock-report-md TICKER=ACIC  # price context with DCF gated\"" in makefile
@@ -3239,3 +3243,46 @@ def test_makefile_exposes_direct_html_research_brief_browser_gate():
     )[0]
     assert "PYTHONDONTWRITEBYTECODE=1" in target
     assert "tests/test_company_workbench_html_browser_gate.py" in target
+
+
+def test_accessibility_browser_gate_allows_the_exact_task6_review_paths():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    target = makefile.split("research-accessibility-browser-check:", 1)[1].split(
+        "\n\n", 1
+    )[0]
+    allowed = {
+        line.split("--allow-dirty-path ", 1)[1].strip().rstrip(" \\")
+        for line in target.splitlines()
+        if "--allow-dirty-path " in line
+    }
+
+    assert allowed == {
+        "src/dashboard.py",
+        "src/dashboard_navigation.py",
+        "src/research_workspace.py",
+        "src/research_accessibility_browser_gate.py",
+        "src/public_performance_gate.py",
+        "src/workspace_visual_browser_gate.py",
+        "src/dashboard_render_smoke.py",
+        "tests/test_research_accessibility_browser_gate.py",
+        "tests/test_public_performance_gate.py",
+        "tests/test_workspace_visual_browser_gate.py",
+        "tests/test_dashboard_render_smoke.py",
+        "tests/test_public_v1_release_docs.py",
+        "tests/test_launchers.py",
+        "tests/test_research_mode_dashboard_contract.py",
+        "tests/test_dashboard_navigation.py",
+        "tests/test_research_workspace.py",
+        "README.md",
+        "ROADMAP.md",
+        "docs/PERSONAL_RESEARCH_MODE.md",
+        "docs/PUBLIC_DEMO_WALKTHROUGH.md",
+        "docs/DASHBOARD_QA.md",
+        "docs/ACCESSIBILITY_EVIDENCE.md",
+        "docs/OPERATOR_GUIDE.md",
+        "docs/PUBLIC_RELEASE_CHECKLIST.md",
+        "docs/DATA_STRATEGY.md",
+        "docs/PILOT_READINESS_AUDIT.md",
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md",
+        "Makefile",
+    }

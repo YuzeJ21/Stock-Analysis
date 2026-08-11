@@ -34,10 +34,10 @@ help:
 	@echo "  make scheduler-activation-checklist Print the safe scheduler activation checklist"
 	@echo "  make public-check / public-release-handoff Verify sharing and terminal steps"
 	@echo "  make company-workbench-html-browser-check Verify offline research-brief bytes in a real browser"
-	@echo ""
 	@echo "Useful next paths:"
 	@echo "  Review one stock:        make stock-report-md TICKER=NVDA"
-	@echo "  Check current counts:    make status-check TOP_N=5"
+	@echo "  Check lane truth:        make readiness-ops-center"
+	@echo "  Inspect saved snapshot:  make status-check TOP_N=5  # can be stale"
 	@echo "  Share on LinkedIn:       make public-check && make linkedin-share-check"
 	@echo "  Verify public hygiene:   make diff-hygiene-summary && make staged-hygiene-check"
 	@echo ""
@@ -262,7 +262,7 @@ help-full:
 	@echo "  make public-wording-check Scan public docs, dashboard copy, and sample reports for unsupported advice/execution wording"
 	@echo "  make public-check     Run share-safe checks before posting the repo link; does not refresh broad local data"
 	@echo "  make status [TOP_N=5] Refresh supporting artifacts, then print read-only local project status"
-	@echo "  make status-check [TICKERS=NVDA,MSFT] [TOP_N=5] Print the current read-only local project status without refreshing artifacts"
+	@echo "  make status-check [TICKERS=NVDA,MSFT] [TOP_N=5] Print saved generated-snapshot local project status without refreshing artifacts; context can be stale"
 	@echo "  make test             Run unit tests"
 	@echo "  make pipeline         Generate core CSV outputs"
 	@echo "  make stock-report-md TICKER=NVDA [MD_OUTPUT=outputs/stock_reports/nvda.md] Generate a readable Markdown report for demos and review"
@@ -407,9 +407,11 @@ demo:
 	@echo "3. Follow one ticker in the app before using terminal proof:"
 	@echo "   Start with Stock Selector, open NVDA or another readiness-backed row, then use Data Health only if an input is blocked."
 	@echo ""
-	@echo "4. Optional current-count proof:"
+	@echo "4. Optional current selected-profile readiness and lane truth:"
+	@echo "   make readiness-ops-center"
+	@echo "   Proves: current selected-profile readiness and lane truth without changing local files."
 	@echo "   make status-check TOP_N=5"
-	@echo "   Proves: current readiness counts and top blockers without changing local files."
+	@echo "   Saved generated-snapshot counts and blockers only; this context can be stale."
 	@echo ""
 	@echo "5. Optional sample reports after the app flow is clear:"
 	@echo "   make stock-report-md TICKER=NVDA  # DCF-ready company example"
@@ -468,22 +470,33 @@ commercial-beta-performance-gate:
 
 research-accessibility-browser-check:
 	@python3 -m src.research_accessibility_browser_gate --root . --timeout-seconds $(or $(TIMEOUT_SECONDS),45) \
-		--allow-dirty-path src/dashboard_visual_system.py \
-		--allow-dirty-path src/workspace_visual_browser_gate.py \
-		--allow-dirty-path src/accessibility_bridge.py \
 		--allow-dirty-path src/dashboard.py \
+		--allow-dirty-path src/dashboard_navigation.py \
 		--allow-dirty-path src/research_workspace.py \
 		--allow-dirty-path src/research_accessibility_browser_gate.py \
+		--allow-dirty-path src/public_performance_gate.py \
+		--allow-dirty-path src/workspace_visual_browser_gate.py \
 		--allow-dirty-path src/dashboard_render_smoke.py \
-		--allow-dirty-path scripts/public_wording_check.py \
-		--allow-dirty-path tests/test_dashboard_visual_system.py \
-		--allow-dirty-path tests/test_workspace_visual_browser_gate.py \
-		--allow-dirty-path tests/test_accessibility_bridge.py \
-		--allow-dirty-path tests/test_research_workspace.py \
-		--allow-dirty-path tests/test_research_mode_dashboard_contract.py \
 		--allow-dirty-path tests/test_research_accessibility_browser_gate.py \
+		--allow-dirty-path tests/test_public_performance_gate.py \
+		--allow-dirty-path tests/test_workspace_visual_browser_gate.py \
 		--allow-dirty-path tests/test_dashboard_render_smoke.py \
-		--allow-dirty-path tests/test_public_wording_check.py \
+		--allow-dirty-path tests/test_public_v1_release_docs.py \
+		--allow-dirty-path tests/test_launchers.py \
+		--allow-dirty-path tests/test_research_mode_dashboard_contract.py \
+		--allow-dirty-path tests/test_dashboard_navigation.py \
+		--allow-dirty-path tests/test_research_workspace.py \
+		--allow-dirty-path README.md \
+		--allow-dirty-path ROADMAP.md \
+		--allow-dirty-path docs/PERSONAL_RESEARCH_MODE.md \
+		--allow-dirty-path docs/PUBLIC_DEMO_WALKTHROUGH.md \
+		--allow-dirty-path docs/DASHBOARD_QA.md \
+		--allow-dirty-path docs/ACCESSIBILITY_EVIDENCE.md \
+		--allow-dirty-path docs/OPERATOR_GUIDE.md \
+		--allow-dirty-path docs/PUBLIC_RELEASE_CHECKLIST.md \
+		--allow-dirty-path docs/DATA_STRATEGY.md \
+		--allow-dirty-path docs/PILOT_READINESS_AUDIT.md \
+		--allow-dirty-path docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md \
 		--allow-dirty-path Makefile \
 		$(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
 
@@ -654,7 +667,9 @@ trusted-data-pilot:
 	@echo "1. Save the current baseline:"
 	@echo "   make readiness-snapshot PROFILE=$(PROFILE)"
 	@echo ""
-	@echo "2. Confirm current blockers:"
+	@echo "2. Check current selected-profile readiness and lane truth:"
+	@echo "   make readiness-ops-center"
+	@echo "   Saved generated-snapshot context; this can be stale:"
 	@echo "   make status-check $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=$(or $(TOP_N),10)"
 	@echo ""
 	@echo "3. Check whether price coverage can be improved safely:"

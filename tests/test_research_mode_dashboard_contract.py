@@ -16,7 +16,7 @@ from src.daily_research_queue import (
 from src.daily_research_queue_adapter import DailyQueueBuildStatus
 from src.focused_research_cohort import FocusedCohort, FocusedCohortMember, build_focused_cohort
 from src.research_decision_lab import ResearchDisciplineRow
-from src.weekly_research_summary import WeeklyResearchSummary
+from src.weekly_research_summary import WeeklyResearchSummary, WeeklySummaryItem
 
 
 def test_dashboard_defaults_local_use_to_research_desk_and_preserves_explicit_modes():
@@ -273,10 +273,9 @@ def test_every_operator_allowed_title_has_one_escaped_route_shell_warning():
     operator_allowed_titles = (
         "Home",
         "Stock Selector",
-        "Research Desk",
-        "Discover",
-        "Company Workbench",
-        "Monitor",
+        "Single-Stock Report",
+        "Data Health",
+        "Proof History",
         "Overview",
         "Monthly Picks",
         "Market Direction",
@@ -284,11 +283,13 @@ def test_every_operator_allowed_title_has_one_escaped_route_shell_warning():
         "Portfolio Review",
         "Value / Re-rating",
         "Final Watchlist",
-        "Single-Stock Report",
-        "Data Health",
         "Universe Manager",
-        "Proof History",
     )
+    expected_operator_titles = tuple(
+        dict.fromkeys((*nav.PUBLIC_PATH_PAGE_TITLES, *dashboard.ADVANCED_PAGE_TITLES))
+    )
+    assert operator_allowed_titles == expected_operator_titles
+    assert set(operator_allowed_titles).isdisjoint(nav.RESEARCH_PATH_PAGE_TITLES)
     compatibility_titles = {
         "Monthly Picks",
         "Market Direction",
@@ -1187,6 +1188,9 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     assert all(variant != "evidence-monitor" for _, variant in cards)
     assert actions == []
     copy = " ".join(rendered)
+    assert "No saved verification, evidence-wait, scheduled, or source-change item is currently due." in copy
+    assert "Open Discover" in copy
+    assert "saved follow-up item(s)" not in copy
     assert "does not prove that no external event" in copy
     assert "Evidence Monitor Brief" not in copy
     assert "Research Discipline Review" not in copy
@@ -1195,6 +1199,60 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     assert copy.count("data-sr-region='primary-answer'") == 1
     assert copy.count("data-sr-region='primary-action'") == 1
     assert copy.count("data-sr-region='stop-rule'") == 1
+
+
+def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_health(
+    monkeypatch,
+):
+    rendered: list[str] = []
+
+    class Expander:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "load_dashboard_research_discipline_rows", lambda *args, **kwargs: ())
+    monkeypatch.setattr(dashboard, "load_dashboard_nowcast_cohort", lambda: ())
+    monkeypatch.setattr(dashboard, "cohort_readiness_cards", lambda rows: [])
+    monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "observation_recency_summary_html", lambda *args, **kwargs: "")
+    monkeypatch.setattr(dashboard, "observation_recency_evidence_html", lambda *args, **kwargs: "")
+    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "markdown", lambda value, **kwargs: rendered.append(value))
+    monkeypatch.setattr(dashboard.st, "caption", lambda value, **kwargs: rendered.append(value))
+    monkeypatch.setattr(dashboard.st, "dataframe", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+
+    dashboard.render_research_monitor(
+        {"queue": ()},
+        SimpleNamespace(
+            freshness_state="stale",
+            freshness_message="Saved readiness needs review.",
+        ),
+        WeeklyResearchSummary(
+            status="no_changes",
+            as_of="2026-08-04T00:00:00+00:00",
+            cohort_size=0,
+            unique_event_count=0,
+            items=(),
+            message="No traceable cohort evidence change requires review this week.",
+        ),
+        object(),
+        SimpleNamespace(
+            profile_price_lane=SimpleNamespace(
+                state="current",
+                message="Market observation is current.",
+            )
+        ),
+    )
+
+    copy = " ".join(rendered)
+    assert "Saved follow-up evidence needs attention." in copy
+    assert "1 saved follow-up item" not in copy
+    assert "Open Data Health" in copy
 
 
 def test_direct_tickerless_company_workbench_fails_closed_without_report_or_default_ticker(
@@ -1369,6 +1427,7 @@ def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_a
     cards: list[tuple[list[dict[str, object]], str]] = []
     actions: list[tuple[str, str]] = []
     headers: list[dict[str, object]] = []
+    rendered: list[str] = []
     row = ResearchDisciplineRow(
         cohort_order=0,
         ticker="AAA",
@@ -1398,12 +1457,21 @@ def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_a
     monkeypatch.setattr(dashboard, "load_dashboard_nowcast_cohort", lambda: ())
     monkeypatch.setattr(dashboard, "cohort_readiness_cards", lambda rows: [])
     monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "observation_recency_summary_html", lambda *args, **kwargs: "")
+    monkeypatch.setattr(dashboard, "observation_recency_evidence_html", lambda *args, **kwargs: "")
+    monkeypatch.setattr(
+        dashboard,
+        "research_monitor_frame",
+        lambda *args, **kwargs: __import__("pandas").DataFrame(
+            ({"Change": "one"}, {"Change": "two"})
+        ),
+    )
     monkeypatch.setattr(
         dashboard,
         "render_signal_cards",
         lambda values, **kwargs: cards.append((values, str(kwargs.get("variant") or ""))),
     )
-    monkeypatch.setattr(dashboard.st, "markdown", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "markdown", lambda value, **kwargs: rendered.append(value))
     monkeypatch.setattr(dashboard.st, "caption", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard.st, "dataframe", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard.st, "link_button", lambda label, url, **kwargs: actions.append((label, url)))
@@ -1416,14 +1484,29 @@ def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_a
             freshness_message="Saved readiness is current.",
         ),
         WeeklyResearchSummary(
-            status="no_changes",
+            status="review_required",
             as_of="2026-08-04T00:00:00+00:00",
             cohort_size=1,
-            unique_event_count=0,
-            items=(),
-            message="No traceable cohort evidence change requires review this week.",
+            unique_event_count=1,
+            items=(
+                WeeklySummaryItem(
+                    "new_evidence",
+                    "AAA",
+                    "AAA has reviewed source evidence.",
+                    "review_now",
+                    "source:aaa",
+                    "2026-08-04T00:00:00+00:00",
+                ),
+            ),
+            message="One traceable cohort evidence change requires review this week.",
         ),
         object(),
+        SimpleNamespace(
+            profile_price_lane=SimpleNamespace(
+                state="current",
+                message="Market observation is current.",
+            )
+        ),
     )
 
     primary_cards = next(values for values, variant in cards if variant == "evidence-monitor")
@@ -1435,6 +1518,10 @@ def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_a
         "evidence_freshness",
     ]
     assert actions == []
+    copy = " ".join(rendered)
+    assert "Saved follow-up evidence needs attention." in copy
+    assert "4 saved follow-up" not in copy
+    assert "saved follow-up item(s)" not in copy
     assert headers == [
         {
             "primary_action": (
@@ -1462,6 +1549,121 @@ def test_discover_supporting_region_is_owned_by_selector_after_action_and_stop()
 
     assert search < stop < supporting < filters
     assert 'title="Browse saved companies"' not in route
+
+
+def test_discover_search_omits_redundant_help_focus_stop_while_public_keeps_help():
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    selector_start = source.index("def render_stock_selector(")
+    selector_end = source.index("\ndef price_refresh_operator_plan_cards", selector_start)
+    selector = source[selector_start:selector_end]
+    search_start = selector.index("search = st.text_input(")
+    search_end = selector.index(").strip()", search_start)
+    search_call = selector[search_start:search_end]
+
+    assert '"Search saved companies" if research_discover else "Search this review queue"' in search_call
+    assert 'value=str(current_filter_values.get("search") or "")' in search_call
+    assert 'placeholder="Search ticker, theme, blocker, or proof step"' in search_call
+    assert 'key="stock-selector-search"' in search_call
+    assert "None\n            if research_discover" in search_call
+    assert "Search readiness-backed rows before opening one saved report." in search_call
+    assert "Search alphabetical saved-company evidence paths." not in search_call
+    assert "stock_selector_current_filter_values(saved_presets, st.session_state)" in selector
+    assert "Search and filters apply only to the readiness-backed saved-company set." in selector
+    assert "They do not change strict screen eligibility or create a ranking." in selector
+
+
+def test_stock_selector_search_widget_behavior_removes_only_discover_help(monkeypatch):
+    class SearchCaptured(RuntimeError):
+        pass
+
+    nonempty = dashboard.pd.DataFrame({"Ticker": ["NVDA"]})
+    captured: list[tuple[tuple[object, ...], dict[str, object]]] = []
+
+    monkeypatch.setattr(dashboard, "load_ticker_readiness_report", lambda: (nonempty, None))
+    monkeypatch.setattr(dashboard, "load_dcf_readiness", lambda: (nonempty, None))
+    monkeypatch.setattr(
+        dashboard,
+        "load_optional_context_readiness",
+        lambda: {
+            "earnings_readiness": (nonempty, None),
+            "analyst_estimates_readiness": (nonempty, None),
+        },
+    )
+    monkeypatch.setattr(
+        dashboard,
+        "stock_selector_source_frames",
+        lambda *args, **kwargs: (nonempty, None, nonempty, None),
+    )
+    monkeypatch.setattr(dashboard, "load_output", lambda *args, **kwargs: (nonempty, None))
+    monkeypatch.setattr(dashboard, "dashboard_readiness_summary", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        dashboard,
+        "discover_saved_company_browse_frame",
+        lambda *args, **kwargs: nonempty,
+    )
+    monkeypatch.setattr(dashboard, "stock_selector_queue_frame", lambda *args, **kwargs: nonempty)
+    monkeypatch.setattr(dashboard, "filter_selector_to_tickers", lambda frame, tickers: frame)
+    monkeypatch.setattr(
+        dashboard,
+        "stock_selector_saved_queue_notice_visible",
+        lambda **kwargs: False,
+    )
+    monkeypatch.setattr(dashboard.st, "markdown", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "stock_selector_saved_filter_presets",
+        lambda: [{"label": "All"}],
+    )
+
+    def current_values(presets, session_state):
+        assert presets == [{"label": "All"}]
+        assert session_state is dashboard.st.session_state
+        return {"search": "peer"}
+
+    def capture_text_input(*args, **kwargs):
+        captured.append((args, kwargs))
+        raise SearchCaptured
+
+    monkeypatch.setattr(dashboard, "stock_selector_current_filter_values", current_values)
+    monkeypatch.setattr(dashboard.st, "text_input", capture_text_input)
+
+    with pytest.raises(SearchCaptured):
+        dashboard.render_stock_selector(
+            {},
+            public_mode=True,
+            target_mode=dashboard.RESEARCH_MODE,
+            target_page="company-workbench",
+            allowed_tickers=("NVDA",),
+            research_boundary=dashboard.QUEUE_BOUNDARY,
+        )
+    with pytest.raises(SearchCaptured):
+        dashboard.render_stock_selector(
+            {},
+            public_mode=True,
+            target_mode=dashboard.PUBLIC_DEMO_MODE,
+            target_page="single-stock-report",
+        )
+
+    assert captured == [
+        (
+            ("Search saved companies",),
+            {
+                "value": "peer",
+                "placeholder": "Search ticker, theme, blocker, or proof step",
+                "help": None,
+                "key": "stock-selector-search",
+            },
+        ),
+        (
+            ("Search this review queue",),
+            {
+                "value": "peer",
+                "placeholder": "Search ticker, theme, blocker, or proof step",
+                "help": "Search readiness-backed rows before opening one saved report.",
+                "key": "stock-selector-search",
+            },
+        ),
+    ]
 
 
 def test_monitor_follow_up_grid_is_two_columns_then_one_column_on_phone():

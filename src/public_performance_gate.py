@@ -482,6 +482,8 @@ def _local_demo_server(root: Path, *, port: int | None = None, timeout_seconds: 
                 "none",
                 "--client.toolbarMode",
                 "viewer",
+                "--browser.gatherUsageStats",
+                "false",
                 "--server.port",
                 str(selected_port),
             ],

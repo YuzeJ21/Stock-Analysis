@@ -54,6 +54,68 @@ def test_workspace_route_resolution_fails_closed_by_mode(
     assert result.redirected is redirected
 
 
+@pytest.mark.parametrize("personal_page", nav.RESEARCH_PATH_PAGE_TITLES)
+def test_operator_rejects_personal_only_routes_to_canonical_home(personal_page):
+    """Catches a Personal-only deep link being accepted into a blank Operator shell."""
+
+    result = nav.resolve_workspace_route(
+        "operator",
+        nav.dashboard_page_slug(personal_page),
+        {
+            "mode": "operator",
+            "page": nav.dashboard_page_slug(personal_page),
+            "ticker": "AVGO",
+            "open": "1",
+            "lane": "peers",
+        },
+        dashboard.USER_PAGE_TITLES,
+        dashboard.ADVANCED_PAGE_TITLES,
+    )
+
+    assert result.mode == nav.OPERATOR_DEMO_MODE
+    assert result.requested_page == personal_page
+    assert result.page == "Home"
+    assert result.allowed is False
+    assert result.redirected is True
+    assert result.canonical_query == {"mode": "operator", "page": "home"}
+
+
+@pytest.mark.parametrize(
+    "operator_page",
+    tuple(
+        dict.fromkeys(
+            (*nav.PUBLIC_PATH_PAGE_TITLES, *dashboard.ADVANCED_PAGE_TITLES)
+        )
+    ),
+)
+def test_operator_preserves_public_and_actual_operator_routes(operator_page):
+    """Catches the narrow Operator allowlist dropping supported public or legacy pages."""
+
+    expected_operator_pages = tuple(
+        dict.fromkeys(
+            (*nav.PUBLIC_PATH_PAGE_TITLES, *dashboard.ADVANCED_PAGE_TITLES)
+        )
+    )
+    assert len(expected_operator_pages) == 13
+    query = {
+        "mode": "operator",
+        "page": nav.dashboard_page_slug(operator_page),
+        "sentinel": "preserve-direct-operator-state",
+    }
+    result = nav.resolve_workspace_route(
+        "operator",
+        nav.dashboard_page_slug(operator_page),
+        query,
+        dashboard.USER_PAGE_TITLES,
+        dashboard.ADVANCED_PAGE_TITLES,
+    )
+
+    assert result.page == operator_page
+    assert result.allowed is True
+    assert result.redirected is False
+    assert result.canonical_query == query
+
+
 def test_workspace_route_resolution_marks_an_explicit_invalid_mode_as_research_desk():
     """Catches an invalid mode retaining an otherwise valid operator route."""
 

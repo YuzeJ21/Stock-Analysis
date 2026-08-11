@@ -213,7 +213,7 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
     assert "First review move: open Stock Selector" in readme
     assert "screenshots are product evidence only" in readme
-    assert "| What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |" in readme
+    assert "| What proves current local readiness? | Run `make readiness-ops-center` for lane truth. `make status-check TOP_N=5` can describe a saved generated snapshot; screenshots are product evidence only. |" in readme
     assert "The controlled Public workspace keeps its existing five-page path" in readme
     assert "| Home |" in readme
     assert "| Stock Selector |" in readme
@@ -272,8 +272,8 @@ def test_active_roadmap_is_a_concise_current_decision_index():
 def test_roadmap_current_counts_are_live_command_gated():
     roadmap = _read("ROADMAP.md")
 
-    assert "Master universe rows: use `make project-status` or `make status-check TOP_N=5`" in roadmap
-    assert "Active research rows: use `make project-status` or the dashboard Home page" in roadmap
+    assert "Master-universe and saved generated-snapshot context: use `make project-status-check` or `make status-check TOP_N=5`; neither is current-market freshness proof." in roadmap
+    assert "Active research and lane truth: use `make readiness-ops-center`; dashboard counts remain saved-workspace context." in roadmap
     assert "whole tracked universe is analysis-ready" in roadmap
     assert "tracked master universe, active universe, and analysis-ready subset" in roadmap
     assert "current 3,538-ticker" not in roadmap
@@ -576,7 +576,7 @@ def test_readme_has_external_reviewer_handoff_before_operator_detail():
     assert "## External Reviewer Start Here" in readme
     assert "| What should I open first? | Start with this README preview, then use `docs/PUBLIC_DEMO_WALKTHROUGH.md` for the five-page workflow. |" in readme
     assert "| What is the live app path? | Run `make demo-dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
-    assert "| What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |" in readme
+    assert "| What proves current local readiness? | Run `make readiness-ops-center` for lane truth. `make status-check TOP_N=5` can describe a saved generated snapshot; screenshots are product evidence only. |" in readme
     assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
     assert "## External Reviewer Handoff" in readme
     assert "| Review first | Dashboard preview, then Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
@@ -648,7 +648,14 @@ def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
 
     assert "## Share Boundary" in walkthrough
     assert "Screenshots are product evidence only; they do not prove data freshness or unlock blocked inputs." in walkthrough
-    assert "Use `make status-check TOP_N=5` for current coverage and blocker counts." in walkthrough
+    assert "Use `make readiness-ops-center` for current lane truth." in walkthrough
+    assert "`make status-check TOP_N=5` can describe a saved generated snapshot" in walkthrough
+    assert "Use `make status-check TOP_N=5` for current coverage and blocker counts." not in walkthrough
+    assert "terminal proof of current coverage and blockers" not in walkthrough
+    assert "Run `make readiness-ops-center` for current selected-profile readiness and lane truth." in walkthrough
+    assert "saved generated-snapshot coverage/blocker context, which can be stale" in walkthrough
+    assert "make readiness-ops-center          # current selected-profile readiness and lane truth" in walkthrough
+    assert "make status-check TOP_N=5          # saved generated-snapshot context; it can be stale" in walkthrough
     assert "controlled portfolio/demo license" in walkthrough
     assert PUBLIC_V1_ROUTE in walkthrough
     assert "Run `make next-stage` when you want the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, push, deploy, or expose secrets." in walkthrough
@@ -756,7 +763,13 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     assert "Review one stock, Improve data coverage, and Inspect proof" not in makefile
     assert "make next-stage                 Print the current next-stage decision ladder" in makefile
     assert "make project-status-check       Read current coverage, blockers, and executable next steps" in makefile
-    assert "Check current counts:    make status-check TOP_N=5" in makefile
+    assert "Check lane truth:        make readiness-ops-center" in makefile
+    assert "Inspect saved snapshot:  make status-check TOP_N=5  # can be stale" in makefile
+    assert "Check current counts:    make status-check TOP_N=5" not in makefile
+    assert "4. Optional current selected-profile readiness and lane truth:" in makefile
+    assert "Saved generated-snapshot counts and blockers only; this context can be stale." in makefile
+    assert "Optional current-count proof" not in makefile
+    assert "Proves: current readiness counts" not in makefile
     assert "make linkedin-share-check" in makefile
     assert "Stock Research Command Center | Evidence-First Company Research" in makefile
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in makefile
@@ -1614,7 +1627,7 @@ def test_current_handoff_routes_to_local_reliability_work_not_exhausted_price_qu
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
 
     for text in (roadmap, prompt):
-        assert "Documentation and routing reconciliation is complete locally" in text
+        assert "Documentation and routing now name Personal Research as the root default, Public and Operator as explicit modes, and legacy utilities as Operator-only compatibility surfaces." in text
         assert "observation-recency UX repair" in text
         assert "framework reliability" in text
 
@@ -2177,8 +2190,15 @@ def test_broad_review_docs_use_durable_release_routing_and_fail_closed_boundarie
         "draft-PR update, or exact-head CI evidence, complete those release steps first; "
         "otherwise select the first incomplete safe roadmap priority."
     )
-    for document in (readme, product_spec, roadmap, next_stage, continuation):
+    for document in (product_spec, next_stage):
         assert durable_routing in document
+    for document in (readme, roadmap, continuation):
+        assert durable_routing not in document
+    for document in (readme, roadmap):
+        assert "Complete the direct local matrix and current-head local evidence first" in document
+        assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in document
+    assert "First complete the direct local matrix and current-head local evidence for this modernization task" in continuation
+    assert "A push, draft-PR update, merge, deploy, remote synchronization, or exact-head CI run requires separate owner authorization" in continuation
 
     broad_review_boundary = (
         "Broad-review repairs must be evaluated only through direct current-head local "
@@ -2238,7 +2258,7 @@ def test_html_research_brief_accessibility_and_dashboard_qa_name_actual_evidence
     _assert_html_brief_section_has_no_affirmative_overclaim(accessibility_section)
 
     for phrase in (
-        "?mode=research&page=company&ticker=<ticker>",
+        "?mode=research&page=company-workbench&ticker=<ticker>",
         "Download HTML Research Brief",
         "complete, partial, and withheld",
         "make company-workbench-html-browser-check",
@@ -2247,6 +2267,178 @@ def test_html_research_brief_accessibility_and_dashboard_qa_name_actual_evidence
         assert phrase in dashboard_qa
     assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in dashboard_qa
     _assert_html_brief_section_has_no_affirmative_overclaim(dashboard_qa_section)
+
+
+def test_workspace_modernization_docs_share_one_default_and_explicit_mode_contract():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    public = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
+    accessibility = _read("docs/ACCESSIBILITY_EVIDENCE.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+
+    assert len(readme.splitlines()) < 180
+    assert len(roadmap.splitlines()) <= 320
+    assert "Personal Research is the default local workspace" in readme
+    assert "http://localhost:8501/?mode=research&page=research-desk" in readme
+    assert "http://localhost:8501/?mode=public" in readme
+    assert "http://localhost:8501/?mode=operator" in operator
+    assert "The dashboard defaults to Public visitor mode" not in public
+    assert "Public is an explicit controlled demonstration mode" in public
+    assert "?mode=public" in public
+    assert "Use `make readiness-ops-center` for current lane truth" in public
+    assert "Use `make status-check TOP_N=5` for current coverage and blocker counts" not in public
+    assert "`make status-check TOP_N=5` remains the source for current local counts" not in public
+    assert "sidebar selects the workspace" not in readme
+    assert "sidebar retains the Personal/Public/Operator workspace selector" not in personal
+    assert "one in-content Personal research workflow navigation" in personal
+    assert "compatibility" in operator.lower()
+    assert "Personal Research" in roadmap
+    assert "90" in dashboard_qa
+    assert "100% and 200% zoom" in dashboard_qa
+    assert "automated engineering evidence only" in accessibility.lower()
+    assert "does not establish WCAG conformance" in accessibility
+    assert "Do not push" in continuation
+    assert "separate owner authorization" in continuation
+    assert "mutable default operator workspace" not in readme
+    assert "make dashboard` starts Personal Research" in readme
+    assert "Public and Operator remain explicit URL modes" in readme
+    release_first_claim = (
+        "If the current branch head lacks direct local matrix, branch synchronization, "
+        "draft-PR update, or exact-head CI evidence, complete those release steps first"
+    )
+    assert release_first_claim not in readme
+    assert release_first_claim not in roadmap
+    for document in (readme, roadmap):
+        assert "Complete the direct local matrix and current-head local evidence first" in document
+        assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in document
+    assert "Sidebar navigation remains the single public route chooser" not in dashboard_qa
+    assert "in-content public workflow navigation is the route chooser" in dashboard_qa
+    for stale_claim in (
+        "sidebar retains workspace selection",
+        "Public/Operator shells, direct links, ticker parameters, and secondary evidence routes remain unchanged",
+        "an intentional push, draft-PR reconciliation, and exact-head CI",
+        "branch synchronization, draft-PR update, or exact-head CI evidence, complete those release steps first",
+        "release and hygiene gates, exact push, and exact-head CI pass",
+    ):
+        assert stale_claim not in continuation
+    assert "one in-content Personal research workflow navigation" in continuation
+    assert "Public and Operator remain explicit modes" in continuation
+    assert "No push, draft-PR update, merge, or deploy is part of this modernization task" in continuation
+    assert "Remote synchronization, a draft-PR update, and exact-head CI remain separate owner-authorized work" in continuation
+    for document in (readme, roadmap, personal, public, dashboard_qa, accessibility, operator, continuation):
+        lowered = document.lower()
+        assert "research-only" in lowered
+        assert "source rights" in lowered or "source-rights" in lowered
+
+
+def test_active_status_check_copy_never_claims_current_lane_truth():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    public = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
+    release_checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    pilot_audit = _read("docs/PILOT_READINESS_AUDIT.md")
+    makefile = _read("Makefile")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    active = "\n".join(
+        (
+            readme,
+            roadmap,
+            public,
+            release_checklist,
+            data_strategy,
+            operator,
+            pilot_audit,
+            makefile,
+            continuation,
+        )
+    )
+
+    for stale_claim in (
+        "Check current counts:    make status-check TOP_N=5",
+        "Optional current-count proof",
+        "Proves: current readiness counts",
+        "Print the current read-only local project status without refreshing artifacts",
+        "terminal proof of current coverage and blockers",
+        "Use `make status-check TOP_N=5` for current coverage and blocker counts",
+        "`make status-check TOP_N=5` remains the source for current local counts",
+        "Optional read-only proof after the app flow is clear starts with `make status-check TOP_N=5`",
+        "Use `make status-check TOP_N=5` for the current local counts before quoting a snapshot",
+        "Run `make status-check TOP_N=5` and `make readiness-ops-center` before quoting current ticker or lane counts",
+        "Confirm blockers with `make status-check TOP_N=10`",
+        "2. Confirm current blockers:",
+    ):
+        assert stale_claim not in active
+
+    assert "make readiness-ops-center" in makefile
+    assert "current selected-profile readiness and lane truth" in makefile
+    assert "saved generated-snapshot" in makefile
+    assert "can be stale" in makefile
+    assert "saved generated snapshot" in readme
+    assert "Optional saved generated-snapshot inspection" in readme
+    assert "run `make readiness-ops-center` for current selected-profile readiness and lane truth" in readme
+    assert "saved generated-snapshot" in roadmap
+    assert "saved generated-snapshot" in public
+    assert "saved generated-snapshot context that can be stale" in release_checklist
+    assert "make readiness-ops-center` for current lane truth" in data_strategy
+    assert "make readiness-ops-center" in operator
+    assert "current selected-profile readiness and lane truth" in operator
+    assert "saved generated snapshot" in operator
+    assert "can be stale" in operator
+    assert "Historical snapshot notice" in pilot_audit
+    assert "superseded for current lane truth" in pilot_audit
+
+
+def test_unattended_status_guidance_uses_current_lane_truth_without_rebuilding():
+    makefile = _read("Makefile")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+
+    pilot_steps = makefile.split('trusted-data-pilot:\n', 1)[1].split(
+        '\ntrusted-data-pilot-candidates:', 1
+    )[0]
+    current_step = pilot_steps.split('2. Check current selected-profile readiness and lane truth:', 1)[1].split(
+        '3. Check whether price coverage can be improved safely:', 1
+    )[0]
+    assert "make readiness-ops-center" in current_step
+    assert "Saved generated-snapshot context; this can be stale:" in current_step
+    assert "make status-check" in current_step
+    assert "Confirm current blockers" not in current_step
+
+    first_run = operator.split("## First Local Run", 1)[1].split(
+        "## Selected Profile And Change Review", 1
+    )[0]
+    assert first_run.index("make dashboard") < first_run.index("make readiness-ops-center")
+    assert first_run.index("make readiness-ops-center") < first_run.index("make status-check TOP_N=5")
+    assert "current selected-profile readiness and lane truth" in first_run
+    assert "saved generated snapshot" in first_run
+    assert "can be stale" in first_run
+    fast_health = first_run.split("If you only want a fast health check:", 1)[1]
+    assert "make readiness-ops-center" in fast_health
+    assert "make dashboard-smoke" in fast_health
+    assert "make status-check" not in fast_health
+
+    background_map = data_strategy.split("## Background Automation Map", 1)[1].split(
+        "## Freshness Without Daily Manual Work", 1
+    )[0]
+    recurring_routine = data_strategy.split(
+        "A safe recurring routine is read-only by default:", 1
+    )[1].split("## Safe Overnight Automation", 1)[0]
+    for read_only_section in (background_map, recurring_routine):
+        assert "make readiness-ops-center" in read_only_section
+        assert "make readiness-preview TOP_N=20" in read_only_section
+        assert "make readiness`" not in read_only_section
+    assert "current selected-profile readiness and lane truth" in background_map
+    assert "saved generated snapshot" in recurring_routine
+    assert "can be stale" in recurring_routine
 
 
 def test_html_research_brief_continuation_contract_preserves_anchor_and_exclusions():

@@ -2,16 +2,22 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
-## 2026-08-05 Personal Research Shared Shell
+## 2026-08-11 Calm Institutional Workspace acceptance contract
 
-Personal Research now has one visible top workflow navigation for Research Desk,
-Discover, Company Workbench, and Monitor. The sidebar still selects Personal,
-Public, or Operator workspace mode and shows the selected data profile, but no
-longer repeats the Research page choices. The Research main column no longer
-renders the Operator command/readiness header or the broad profile strip before
-the route-specific answer. Public and Operator shells, direct route URLs, ticker
-parameters, and the secondary Data Health and Proof History evidence routes are
-unchanged.
+Personal Research now has one in-content workflow navigation for Research Desk,
+Discover, Company Workbench, and Monitor. The same DOM becomes a compact desktop
+rail and a contained phone strip; its Workspace mode disclosure replaces the
+retired sidebar selector. Public uses one explicit five-step workflow nav.
+Operator alone retains native sidebar workspace and route controls, and its
+operator or compatibility warning precedes detail. Canonical mode isolation
+fails disallowed links closed while preserving permitted ticker/evidence state.
+
+Final local acceptance requires one ordered 15-route x 3-viewport x 2-zoom,
+90-cell matrix at `1280x720`, `1440x1024`, and `390x844`, with 100% and 200% zoom.
+Each result records structured region/control geometry, an idle `notRunning`
+Streamlit state, console/page errors, and the bounded commit/worktree snapshot.
+Passing automation remains engineering evidence only, not data freshness, source
+rights, hosted behavior, WCAG conformance, independent review, or market validity.
 
 At implementation anchor `2bc374ab8`, the clean read-only accessibility browser
 gate passed all six routes at `1280x720` and `390x844`. It verified the labelled
@@ -66,7 +72,7 @@ validation.
 
 ## 2026-08-01 Company Workbench HTML Research Brief
 
-Open `?mode=research&page=company&ticker=<ticker>` with an explicit selected
+Open `?mode=research&page=company-workbench&ticker=<ticker>` with an explicit selected
 ticker. Company Workbench displays **Download HTML Research Brief** only after
 preparing the same session evidence and Scenario Lab result used by the visible
 research answer. The download preserves complete, partial, and withheld states;
@@ -500,9 +506,8 @@ Capture limitation:
 
 Checked with fresh real Streamlit captures at desktop and phone widths:
 
-- The public shell now uses a compact `Saved readiness` status strip, a numbered
-  five-step rail, the page's literal question, and the `Research-only` boundary.
-  Sidebar navigation remains the single public route chooser.
+- The public shell now uses a compact `Saved readiness` status strip, the page's
+  literal question, and the `Research-only` boundary. The in-content public workflow navigation is the route chooser; this supersedes the retired sidebar chooser described by older captures.
 - The Home, Single-Stock Report, Data Health, and Proof History first views no
   longer repeat a generic current-question / primary-next-step / stop-rule card
   set. Each page shows its own answer before Advanced details.

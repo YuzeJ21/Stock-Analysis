@@ -110,17 +110,33 @@ def test_research_routes_keep_observation_summary_and_advanced_evidence_responsi
         pytest.skip("Chrome-compatible browser is unavailable")
     playwright = pytest.importorskip("playwright.sync_api")
     routes = (
-        ("/?mode=research&page=research-desk", "What needs my attention today?", "selected_ticker"),
-        ("/?mode=research&page=discover", "Find a Company", "selected_ticker"),
+        (
+            "/?mode=research&page=research-desk",
+            "What needs my attention today?",
+            "selected_ticker",
+            "Advanced Evidence",
+            True,
+        ),
+        (
+            "/?mode=research&page=discover",
+            "Find a Company",
+            "selected_ticker",
+            "Advanced: cohort readiness context",
+            False,
+        ),
         (
             "/?mode=research&page=company-workbench&ticker=AVGO&open=1",
             "Company Workbench",
             "AVGO",
+            "Advanced: selected-company lane coverage",
+            False,
         ),
         (
             "/?mode=research&page=monitor",
             "Follow-up Queue",
             "selected_ticker",
+            "Advanced: Monitor evidence",
+            False,
         ),
     )
 
@@ -132,7 +148,7 @@ def test_research_routes_keep_observation_summary_and_advanced_evidence_responsi
             )
             try:
                 for width, height in ((1280, 720), (390, 844)):
-                    for route, marker, selected_scope in routes:
+                    for route, marker, selected_scope, drawer_label, nested_recency in routes:
                         context = browser.new_context(
                             viewport={"width": width, "height": height}
                         )
@@ -146,21 +162,22 @@ def test_research_routes_keep_observation_summary_and_advanced_evidence_responsi
                             _wait_for_visible_text(page, marker, timeout_seconds=60)
                             _wait_for_dom_stability(page, timeout_seconds=60)
 
-                            summaries = page.locator(
+                            drawer_summary = page.locator("details > summary").filter(
+                                has_text=drawer_label
+                            )
+                            assert drawer_summary.count() == 1
+                            drawer_summary.click()
+                            advanced = drawer_summary.locator("..")
+                            if nested_recency:
+                                recency_summary = advanced.locator(
+                                    "details > summary"
+                                ).filter(has_text="Advanced: market observation recency")
+                                assert recency_summary.count() == 1
+                                recency_summary.click()
+                            summaries = advanced.locator(
                                 "section.observation-recency-summary"
                             )
-                            if "research-desk" in route:
-                                page.locator("details > summary").filter(
-                                    has_text="Advanced Evidence"
-                                ).click()
-                            advanced_summary = page.locator("details > summary").filter(
-                                has_text="Advanced: market observation recency"
-                            )
-                            advanced = advanced_summary.locator("..")
                             assert summaries.count() == 1
-                            assert advanced_summary.count() == 1
-
-                            advanced_summary.click()
                             evidence = advanced.locator(
                                 "section.observation-recency-evidence"
                             )
@@ -239,6 +256,32 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         "Open evidence and analysis modules",
     ):
         assert marker in workbench_route.required_markers
+    evidence_contracts = {
+        "Research Data Health": "What can I use and what stays unavailable?",
+        "Research Proof History": "What evidence changed a readiness state?",
+    }
+    expected_evidence_regions = (
+        "workflow-nav",
+        "context",
+        "page-title",
+        "primary-answer",
+        "primary-action",
+        "stop-rule",
+        "supporting-evidence",
+        "advanced-detail",
+    )
+    for evidence_name, question in evidence_contracts.items():
+        route = next(
+            route for route in RESEARCH_RENDER_ROUTES if route.name == evidence_name
+        )
+        assert question in route.required_markers
+        assert "Return to Company Workbench" in route.required_markers
+        assert "Research-only" in route.required_markers
+        assert (
+            "Continue the selected-company review without changing evidence state."
+            not in route.required_markers
+        )
+        assert route.required_regions == expected_evidence_regions
     results = render_public_routes(Path("."), routes=RESEARCH_RENDER_ROUTES)
 
     assert all(result.exceptions == () for result in results)
@@ -270,7 +313,8 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         evidence_blocks = "\n".join(
             next(result for result in results if result.name == evidence_name).rendered_blocks
         )
-        assert evidence_blocks.count("Continue the selected-company review without changing evidence state.") == 1
+        assert evidence_blocks.count("Return to Company Workbench") == 1
+        assert "Continue the selected-company review without changing evidence state." not in evidence_blocks
         assert "?mode=public&page=single-stock-report" not in evidence_blocks
 
 
@@ -921,6 +965,34 @@ def test_monitor_renders_one_follow_up_queue_without_competing_primary_summaries
     assert "Research change monitor" not in rendered
     assert "company rank" not in rendered.lower()
     assert "expected return" not in rendered.lower()
+
+
+def test_operator_personal_deep_link_renders_populated_operator_home():
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    route = DashboardRenderRoute(
+        name="Operator rejects Discover deep link",
+        query_params=(
+            ("mode", "operator"),
+            ("page", "discover"),
+            ("ticker", "AVGO"),
+            ("open", "1"),
+        ),
+        required_markers=(
+            "Operator workspace",
+            "Current local readiness for the next research review.",
+            "Research Workflow",
+            "What To Do Next",
+            "Where To Go",
+        ),
+    )
+
+    result = render_public_routes(Path("."), routes=(route,))[0]
+    rendered = "\n".join(result.rendered_blocks)
+
+    assert result.passed
+    assert "<h1>Home</h1>" in rendered
+    assert "<h1>Discover</h1>" not in rendered
 
 
 def test_avgo_company_workbench_renders_one_authoritative_peer_task():

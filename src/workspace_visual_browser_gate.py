@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -25,6 +26,10 @@ from src.research_accessibility_browser_gate import _captured_local_demo_server
 
 VIEWPORTS: tuple[tuple[int, int], ...] = ((1280, 720), (1440, 1024), (390, 844))
 ZOOMS: tuple[int, ...] = (1, 2)
+PERSONAL_FOCUS_ROUTE_SLUGS: frozenset[str] = frozenset(
+    {"research-desk", "discover", "company-workbench", "monitor"}
+)
+MAX_EXTERNAL_HTTP_URL_EVIDENCE = 16
 
 
 @dataclass(frozen=True)
@@ -188,6 +193,134 @@ def evaluate_scroll_width(*, scroll_width: float, client_width: float) -> Browse
 def evaluate_control_target(*, width: float, height: float) -> BrowserEvaluation:
     passed = width >= 44 and height >= 44
     return BrowserEvaluation(passed, f"control target {width:.1f}x{height:.1f}")
+
+
+def evaluate_runtime_capture(
+    *,
+    app_state: str,
+    traceback_visible: bool,
+    spinner_count: int,
+    console_errors: tuple[str, ...],
+) -> BrowserEvaluation:
+    """Require a completed Streamlit render with no captured runtime failure."""
+
+    passed = (
+        app_state == "notRunning"
+        and traceback_visible is False
+        and spinner_count == 0
+        and not console_errors
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            f"app_state={app_state!r}; traceback={traceback_visible}; "
+            f"spinners={spinner_count}; console_errors={list(console_errors)!r}"
+        ),
+    )
+
+
+def _http_scheme(url: str) -> str | None:
+    value = str(url or "").strip()
+    lowered = value.lower()
+    if not lowered.startswith(("http:", "https:")):
+        return None
+    try:
+        scheme = urlsplit(value).scheme.lower()
+    except ValueError:
+        return "https" if lowered.startswith("https:") else "http"
+    return scheme if scheme in {"http", "https"} else None
+
+
+def _canonical_http_origin(url: str) -> tuple[str, str, int] | None:
+    try:
+        parsed = urlsplit(str(url or "").strip())
+        scheme = parsed.scheme.lower()
+        host = parsed.hostname
+        if scheme not in {"http", "https"} or not host:
+            return None
+        port = parsed.port
+    except (TypeError, ValueError):
+        return None
+    return (scheme, host.casefold(), port or (443 if scheme == "https" else 80))
+
+
+def _redacted_http_url(url: str) -> str:
+    origin = _canonical_http_origin(str(url or ""))
+    if origin is None:
+        return "<malformed-http-url>"
+    scheme, host, port = origin
+    host_display = f"[{host}]" if ":" in host else host
+    default_port = 443 if scheme == "https" else 80
+    port_suffix = "" if port == default_port else f":{port}"
+    return f"{scheme}://{host_display}{port_suffix}"
+
+
+def _new_http_network_capture() -> dict[str, object]:
+    return {
+        "http_request_count": 0,
+        "external_http_request_count": 0,
+        "external_urls": [],
+        "_external_origins_seen": set(),
+    }
+
+
+def _record_http_request(
+    capture: dict[str, object],
+    *,
+    url: str,
+    expected_origin: tuple[str, str, int],
+) -> None:
+    if _http_scheme(url) is None:
+        return
+    capture["http_request_count"] = int(capture["http_request_count"]) + 1
+    if _canonical_http_origin(url) == expected_origin:
+        return
+    capture["external_http_request_count"] = (
+        int(capture["external_http_request_count"]) + 1
+    )
+    origin_evidence = _redacted_http_url(url)
+    seen = capture["_external_origins_seen"]
+    if not isinstance(seen, set) or origin_evidence in seen:
+        return
+    seen.add(origin_evidence)
+    evidence = capture["external_urls"]
+    if isinstance(evidence, list) and len(evidence) < MAX_EXTERNAL_HTTP_URL_EVIDENCE:
+        evidence.append(origin_evidence)
+
+
+def http_network_capture_payload(capture: dict[str, object]) -> dict[str, object]:
+    external_urls = [str(value) for value in capture.get("external_urls") or ()]
+    external_count = int(capture.get("external_http_request_count") or 0)
+    seen = capture.get("_external_origins_seen")
+    external_origin_count = (
+        len(seen)
+        if isinstance(seen, set)
+        else int(capture.get("external_origin_count") or len(external_urls))
+    )
+    return {
+        "http_request_count": int(capture.get("http_request_count") or 0),
+        "external_http_request_count": external_count,
+        "external_origin_count": external_origin_count,
+        "external_urls": external_urls,
+        "external_urls_truncated": max(
+            0, external_origin_count - len(external_urls)
+        ),
+    }
+
+
+def evaluate_http_network_capture(network: dict[str, object]) -> BrowserEvaluation:
+    external_count = int(network.get("external_http_request_count") or 0)
+    external_urls = [str(value) for value in network.get("external_urls") or ()]
+    truncated = int(network.get("external_urls_truncated") or 0)
+    return BrowserEvaluation(
+        external_count == 0,
+        (
+            f"http_requests={int(network.get('http_request_count') or 0)}; "
+            f"external_http_requests={external_count}; "
+            f"external_origins={int(network.get('external_origin_count') or 0)}; "
+            f"external_urls={external_urls!r}; truncated={truncated}"
+        ),
+    )
 
 
 def evaluate_operator_route_contract(
@@ -455,15 +588,19 @@ def evaluate_focus_sequence(
         "advanced-detail",
     )
     try:
-        action_index = focused_roles.index("primary-action")
+        navigation_index = focused_roles.index("navigation", 1)
+        action_index = focused_roles.index("primary-action", navigation_index + 1)
+        advanced_index = focused_roles.index("advanced-detail", action_index + 1)
     except ValueError:
+        navigation_index = -1
         action_index = -1
+        advanced_index = -1
     tab_order_passed = (
         bool(focused_roles)
         and focused_roles[0] == "skip"
-        and action_index > 1
-        and set(focused_roles[1:action_index]) == {"navigation"}
-        and focused_roles[action_index + 1 : action_index + 2] == ("advanced-detail",)
+        and 0 < navigation_index < action_index < advanced_index
+        and all(role == "navigation" for role in focused_roles[1:action_index])
+        and "navigation" not in focused_roles[action_index + 1 : advanced_index]
     )
     try:
         region_indexes = tuple(region_order.index(name) for name in required_regions)
@@ -568,12 +705,14 @@ def evaluate_personal_route_hierarchy(
     slug: str,
     region_counts: dict[str, int],
     region_order: tuple[str, ...],
+    visible_region_counts: dict[str, int],
+    visible_region_order: tuple[str, ...],
     primary_action_focusable_count: int,
     legacy_pre_answer_action_count: int,
 ) -> BrowserEvaluation:
     """Require one answer-first hierarchy for a modernized personal route."""
 
-    if slug not in {"discover", "company-workbench", "monitor"}:
+    if slug not in {"research-desk", "discover", "company-workbench", "monitor"}:
         return BrowserEvaluation(False, f"unsupported personal route {slug!r}")
     required = (
         "workflow-nav",
@@ -586,7 +725,9 @@ def evaluate_personal_route_hierarchy(
     )
     required_counts_passed = all(int(region_counts.get(name, 0)) == 1 for name in required)
     supporting_count = int(region_counts.get("supporting-evidence", 0))
-    supporting_count_passed = supporting_count in {0, 1}
+    supporting_count_passed = (
+        supporting_count == 1 if slug == "research-desk" else supporting_count in {0, 1}
+    )
     try:
         indexes = {name: region_order.index(name) for name in required}
         required_order_passed = all(
@@ -602,11 +743,39 @@ def evaluate_personal_route_hierarchy(
     except ValueError:
         required_order_passed = False
         supporting_order_passed = False
+    visible_required_counts_passed = all(
+        int(visible_region_counts.get(name, 0)) == 1 for name in required
+    )
+    visible_supporting_count = int(
+        visible_region_counts.get("supporting-evidence", 0)
+    )
+    visible_supporting_count_passed = visible_supporting_count == supporting_count
+    try:
+        visible_indexes = {
+            name: visible_region_order.index(name) for name in required
+        }
+        visible_required_order_passed = all(
+            visible_indexes[left] < visible_indexes[right]
+            for left, right in zip(required, required[1:])
+        )
+        visible_supporting_order_passed = (
+            visible_supporting_count == 0
+            or visible_indexes["stop-rule"]
+            < visible_region_order.index("supporting-evidence")
+            < visible_indexes["advanced-detail"]
+        )
+    except ValueError:
+        visible_required_order_passed = False
+        visible_supporting_order_passed = False
     passed = (
         required_counts_passed
         and supporting_count_passed
         and required_order_passed
         and supporting_order_passed
+        and visible_required_counts_passed
+        and visible_supporting_count_passed
+        and visible_required_order_passed
+        and visible_supporting_order_passed
         and primary_action_focusable_count == 1
         and legacy_pre_answer_action_count == 0
     )
@@ -614,7 +783,8 @@ def evaluate_personal_route_hierarchy(
         passed,
         (
             f"route={slug}; counts={region_counts!r}; order={region_order!r}; "
-            f"supporting_count={supporting_count}; "
+            f"visible_counts={visible_region_counts!r}; visible_order={visible_region_order!r}; "
+            f"supporting_count={supporting_count}; visible_supporting_count={visible_supporting_count}; "
             f"primary_action_focusable_count={primary_action_focusable_count}; "
             f"legacy_pre_answer_action_count={legacy_pre_answer_action_count}"
         ),
@@ -847,6 +1017,186 @@ def prepare_output_dir(output_dir: Path | str) -> Path:
     return resolved
 
 
+def structured_geometry(observation: dict[str, object]) -> dict[str, object]:
+    """Return literal, machine-readable geometry without recomputing UI meaning."""
+
+    def number(key: str) -> float:
+        return float(observation.get(key) or 0)
+
+    return {
+        "viewport": {
+            "client_width": number("client_width"),
+            "client_height": number("client_height"),
+            "visual_width": number("visual_viewport_width"),
+            "visual_height": number("visual_viewport_height"),
+            "screenshot_width": number("screenshot_width"),
+            "screenshot_height": number("screenshot_height"),
+        },
+        "scroll_widths": {
+            "document": number("document_scroll_width"),
+            "body": number("body_scroll_width"),
+            "main": number("main_scroll_width"),
+            "main_client": number("main_client_width"),
+        },
+        "scroll_origins": {
+            "window": [number("scroll_x"), number("scroll_y")],
+            "document": [
+                number("document_scroll_left"),
+                number("document_scroll_top"),
+            ],
+            "main": [number("main_scroll_left"), number("main_scroll_top")],
+            "public_workflow": [number("public_app_nav_scroll_left")],
+            "personal_workflow": [
+                number("research_workflow_nav_scroll_left"),
+                number("research_workflow_nav_scroll_top"),
+            ],
+        },
+        "regions": [dict(row) for row in observation.get("regions") or ()],
+        "controls": [dict(row) for row in observation.get("controls") or ()],
+    }
+
+
+def _cell_identity(result: dict[str, object]) -> tuple[str, str, int]:
+    return (
+        str(result.get("route") or ""),
+        str(result.get("viewport") or ""),
+        int(result.get("zoom") or 0),
+    )
+
+
+def evaluate_full_matrix_coverage(
+    results: list[dict[str, object]],
+) -> dict[str, object]:
+    """Characterize exact ordered coverage of the specification's 90 cells."""
+
+    expected = [
+        (route.slug, f"{width}x{height}", zoom)
+        for route in ROUTE_FIXTURES
+        for width, height in VIEWPORTS
+        for zoom in ZOOMS
+    ]
+    observed = [_cell_identity(result) for result in results]
+    expected_set = set(expected)
+    observed_set = set(observed)
+
+    def label(cell: tuple[str, str, int]) -> str:
+        return f"{cell[0]} {cell[1]} zoom={cell[2]}"
+
+    missing = [label(cell) for cell in expected if cell not in observed_set]
+    unexpected = [label(cell) for cell in observed if cell not in expected_set]
+    ordered = observed == expected
+    full_matrix = (
+        ordered
+        and len(observed) == len(expected)
+        and not missing
+        and not unexpected
+    )
+    return {
+        "full_matrix": full_matrix,
+        "expected_cells": len(expected),
+        "observed_cells": len(observed),
+        "missing_cells": missing,
+        "unexpected_cells": unexpected,
+        "ordered": ordered,
+    }
+
+
+def _source_snapshot(root: Path) -> dict[str, object]:
+    """Bind browser evidence to HEAD plus the bounded set of worktree changes."""
+
+    changes: dict[str, str] = {}
+    try:
+        tracked = subprocess.check_output(
+            ["git", "diff", "--name-status", "--no-renames", "HEAD", "--"],
+            cwd=root,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+        for line in tracked.splitlines():
+            state, separator, relative = line.partition("\t")
+            if separator and relative:
+                changes[relative] = state.strip() or "M"
+        untracked = subprocess.check_output(
+            ["git", "ls-files", "--others", "--exclude-standard"],
+            cwd=root,
+            text=True,
+            stderr=subprocess.DEVNULL,
+        )
+        for relative in untracked.splitlines():
+            if relative:
+                changes.setdefault(relative, "?")
+    except (OSError, subprocess.CalledProcessError):
+        return {
+            "scope": "bounded_worktree",
+            "commit": _git_commit(root),
+            "state": "unknown",
+            "changes": [],
+        }
+
+    entries: list[dict[str, str]] = []
+    for relative, state in sorted(changes.items()):
+        path = root / relative
+        if path.is_symlink():
+            digest = hashlib.sha256(os.readlink(path).encode("utf-8")).hexdigest()
+        elif path.is_file():
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        else:
+            digest = "missing"
+        entries.append({"path": relative, "state": state, "sha256": digest})
+    return {
+        "scope": "bounded_worktree",
+        "commit": _git_commit(root),
+        "state": "working_tree" if entries else "exact_head",
+        "changes": entries,
+    }
+
+
+def evaluate_source_snapshot(snapshot: dict[str, object]) -> BrowserEvaluation:
+    """Require attributable HEAD identity and complete per-change digests."""
+
+    commit = str(snapshot.get("commit") or "")
+    state = str(snapshot.get("state") or "")
+    changes = snapshot.get("changes")
+    commit_valid = len(commit) == 40 and all(
+        character in "0123456789abcdefABCDEF" for character in commit
+    )
+    changes_valid = isinstance(changes, list)
+    if changes_valid:
+        for entry in changes:
+            if not isinstance(entry, dict):
+                changes_valid = False
+                break
+            digest = str(entry.get("sha256") or "")
+            digest_valid = digest == "missing" or (
+                len(digest) == 64
+                and all(
+                    character in "0123456789abcdefABCDEF" for character in digest
+                )
+            )
+            if not str(entry.get("path") or "") or not str(entry.get("state") or "") or not digest_valid:
+                changes_valid = False
+                break
+    state_matches_changes = (
+        (state == "exact_head" and changes == [])
+        or (state == "working_tree" and isinstance(changes, list) and bool(changes))
+    )
+    passed = (
+        snapshot.get("scope") == "bounded_worktree"
+        and state in {"exact_head", "working_tree"}
+        and commit_valid
+        and changes_valid
+        and state_matches_changes
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            f"scope={snapshot.get('scope')!r}; state={state!r}; "
+            f"commit_valid={commit_valid}; change_digests_valid={changes_valid}; "
+            f"state_matches_changes={state_matches_changes}"
+        ),
+    )
+
+
 def _git_commit(root: Path) -> str:
     try:
         return subprocess.check_output(
@@ -857,6 +1207,101 @@ def _git_commit(root: Path) -> str:
         ).strip()
     except (OSError, subprocess.CalledProcessError):
         return "unknown"
+
+
+def apply_final_runtime_observation(
+    observation: dict[str, object],
+    final_runtime: dict[str, object],
+) -> dict[str, object]:
+    """Preserve initial geometry while replacing the final runtime-only fields."""
+
+    merged = dict(observation)
+    for field in ("app_state", "traceback_visible", "spinner_count"):
+        merged[field] = final_runtime.get(field)
+    return merged
+
+
+def runtime_capture_payload(
+    observation: dict[str, object],
+    console_errors: tuple[str, ...],
+) -> dict[str, object]:
+    return {
+        "app_state": str(observation.get("app_state") or ""),
+        "traceback_visible": observation.get("traceback_visible") is True,
+        "spinner_count": int(observation.get("spinner_count") or 0),
+        "console_errors": list(console_errors),
+    }
+
+
+def finalize_runtime_check(
+    checks: list[dict[str, object]],
+    runtime: dict[str, object],
+) -> list[dict[str, object]]:
+    """Bind the runtime check to the same post-context payload that is serialized."""
+
+    evaluation = evaluate_runtime_capture(
+        app_state=str(runtime.get("app_state") or ""),
+        traceback_visible=runtime.get("traceback_visible") is True,
+        spinner_count=int(runtime.get("spinner_count") or 0),
+        console_errors=tuple(
+            str(value) for value in runtime.get("console_errors") or ()
+        ),
+    )
+    final_check = {
+        "name": "idle_runtime_without_errors",
+        "passed": evaluation.passed,
+        "detail": evaluation.detail,
+    }
+    replaced = False
+    finalized: list[dict[str, object]] = []
+    for check in checks:
+        if check.get("name") == "idle_runtime_without_errors":
+            finalized.append(final_check)
+            replaced = True
+        else:
+            finalized.append(check)
+    if not replaced:
+        finalized.append(final_check)
+    return finalized
+
+
+def finalize_http_network_check(
+    checks: list[dict[str, object]],
+    network: dict[str, object],
+) -> list[dict[str, object]]:
+    """Bind network truth to the post-context request capture."""
+
+    evaluation = evaluate_http_network_capture(network)
+    final_check = {
+        "name": "no_external_http_requests",
+        "passed": evaluation.passed,
+        "detail": evaluation.detail,
+    }
+    finalized = [
+        check
+        for check in checks
+        if check.get("name") != "no_external_http_requests"
+    ]
+    finalized.append(final_check)
+    return finalized
+
+
+def _http_network_log(network: dict[str, object]) -> str:
+    evaluation = evaluate_http_network_capture(network)
+    return "Browser HTTP request evidence: " + evaluation.detail
+
+
+def _runtime_observation(page: Any) -> dict[str, object]:
+    return page.evaluate(
+        """
+() => ({
+  app_state: document.querySelector('[data-testid="stApp"]')
+    ?.getAttribute("data-test-script-state") || "",
+  traceback_visible: document.body.innerText.includes("Traceback (most recent call last)"),
+  spinner_count: document.querySelectorAll("[data-testid='stSpinner']").length,
+})
+"""
+    )
 
 
 def _browser_observation(page: Any) -> dict[str, object]:
@@ -917,7 +1362,8 @@ def _browser_observation(page: Any) -> dict[str, object]:
   });
   const controls = boxes(
     "nav a, .command-top-link, [data-sr-region='primary-action'], [data-testid='stLinkButton'] a[kind='primary'], " +
-    "[data-testid='stButton'] button[kind='primary']"
+    "[data-testid='stButton'] button[kind='primary'], " +
+    "[data-testid='stSidebar'] [role='radiogroup'] label"
   );
   if (nativePrimaryAction && visible(nativePrimaryAction)) {
     controls.push(boxFor(nativePrimaryAction, "primary-action"));
@@ -1064,6 +1510,8 @@ def _browser_observation(page: Any) -> dict[str, object]:
     public_app_nav_scroll_left: publicAppNav ? publicAppNav.scrollLeft : 0,
     research_workflow_nav_scroll_left: researchWorkflowNav ? researchWorkflowNav.scrollLeft : 0,
     research_workflow_nav_scroll_top: researchWorkflowNav ? researchWorkflowNav.scrollTop : 0,
+    app_state: document.querySelector('[data-testid="stApp"]')
+      ?.getAttribute("data-test-script-state") || "",
     home_action_area: homeActionArea && visible(homeActionArea)
       ? boxFor(homeActionArea, "home-action-area")
       : null,
@@ -1553,7 +2001,7 @@ def _evaluate_observation(
                 "detail": f"stop-rule count={region_counts.get('stop-rule', 0)}",
             }
         )
-    if route.slug in {"discover", "company-workbench", "monitor"}:
+    if route.slug in {"research-desk", "discover", "company-workbench", "monitor"}:
         add(
             "personal_route_answer_hierarchy",
             evaluate_personal_route_hierarchy(
@@ -1561,6 +2009,16 @@ def _evaluate_observation(
                 region_counts={str(name): int(count) for name, count in region_counts.items()},
                 region_order=tuple(
                     str(value) for value in observation.get("region_order") or ()
+                ),
+                visible_region_counts={
+                    str(name): int(count)
+                    for name, count in dict(
+                        observation.get("visible_region_counts") or {}
+                    ).items()
+                },
+                visible_region_order=tuple(
+                    str(value)
+                    for value in observation.get("visible_region_order") or ()
                 ),
                 primary_action_focusable_count=int(
                     observation.get("primary_action_focusable_count") or 0
@@ -1649,7 +2107,7 @@ def _evaluate_observation(
                     "detail": f"missing Home geometry regions: {tuple(boxes)!r}",
                 }
             )
-    if route.slug == "research-desk":
+    if route.slug in PERSONAL_FOCUS_ROUTE_SLUGS:
         for media_mode in ("normal", "forced-colors"):
             sequence = focus_sequences.get(media_mode) or {}
             add(
@@ -1758,19 +2216,14 @@ def _evaluate_observation(
             ),
         ),
     )
-    checks.extend(
-        (
-            {
-                "name": "no_console_or_page_errors",
-                "passed": not console_errors,
-                "detail": "no console/page errors" if not console_errors else "; ".join(console_errors),
-            },
-            {
-                "name": "no_traceback_or_loading_capture",
-                "passed": observation.get("traceback_visible") is False and observation.get("spinner_count") == 0,
-                "detail": f"traceback={observation.get('traceback_visible')}; spinners={observation.get('spinner_count')}",
-            },
-        )
+    add(
+        "idle_runtime_without_errors",
+        evaluate_runtime_capture(
+            app_state=str(observation.get("app_state") or ""),
+            traceback_visible=observation.get("traceback_visible") is True,
+            spinner_count=int(observation.get("spinner_count") or 0),
+            console_errors=console_errors,
+        ),
     )
     return checks
 
@@ -1791,6 +2244,63 @@ def _chromium_zoom_preferences(*, host: str, zoom: int) -> dict[str, object]:
     }
 
 
+def _failed_cell_result(
+    *,
+    route: WorkspaceVisualRoute,
+    viewport: tuple[int, int],
+    zoom: int,
+    error: str,
+    screenshot: str = "",
+    observation: dict[str, object] | None = None,
+    console_errors: tuple[str, ...] = (),
+    network_capture: dict[str, object] | None = None,
+    server_log: str = "",
+) -> dict[str, object]:
+    captured = observation or {}
+    network = http_network_capture_payload(
+        network_capture or _new_http_network_capture()
+    )
+    network_evaluation = evaluate_http_network_capture(network)
+    browser_diagnostics = (
+        "Browser console/page errors:\n" + "\n".join(console_errors)
+        if console_errors
+        else "Browser console/page diagnostics before failure: none captured."
+    )
+    return {
+        "route": route.slug,
+        "viewport": f"{viewport[0]}x{viewport[1]}",
+        "zoom": zoom,
+        "passed": False,
+        "screenshot": screenshot,
+        "checks": [
+            {
+                "name": "cell_execution",
+                "passed": False,
+                "detail": error,
+            },
+            {
+                "name": "no_external_http_requests",
+                "passed": network_evaluation.passed,
+                "detail": network_evaluation.detail,
+            },
+        ],
+        "geometry": structured_geometry(captured),
+        "runtime": runtime_capture_payload(captured, console_errors),
+        "network": network,
+        "error": error,
+        "log": "\n".join(
+            part
+            for part in (
+                server_log.strip(),
+                browser_diagnostics,
+                _http_network_log(network),
+                f"Cell execution failed: {error}",
+            )
+            if part
+        ),
+    }
+
+
 def _run_matrix_cell(
     *,
     root: Path,
@@ -1803,32 +2313,27 @@ def _run_matrix_cell(
     screenshot_name = f"{route.slug}-{viewport[0]}x{viewport[1]}-zoom-{zoom}.png"
     chrome = find_chrome_executable()
     if chrome is None or not Path(chrome).is_file() or not os.access(chrome, os.X_OK):
-        return {
-            "route": route.slug,
-            "viewport": f"{viewport[0]}x{viewport[1]}",
-            "zoom": zoom,
-            "passed": False,
-            "screenshot": "",
-            "checks": [],
-            "error": "Chrome-compatible browser runtime is unavailable.",
-            "log": "Chrome-compatible browser runtime is unavailable.",
-        }
+        return _failed_cell_result(
+            route=route,
+            viewport=viewport,
+            zoom=zoom,
+            error="Chrome-compatible browser runtime is unavailable.",
+        )
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        return {
-            "route": route.slug,
-            "viewport": f"{viewport[0]}x{viewport[1]}",
-            "zoom": zoom,
-            "passed": False,
-            "screenshot": "",
-            "checks": [],
-            "error": "Playwright browser runtime is unavailable.",
-            "log": "Playwright browser runtime is unavailable.",
-        }
+        return _failed_cell_result(
+            route=route,
+            viewport=viewport,
+            zoom=zoom,
+            error="Playwright browser runtime is unavailable.",
+        )
 
     console_errors: list[str] = []
+    network_capture = _new_http_network_capture()
     server_log = ""
+    observation: dict[str, object] = {}
+    server: Any | None = None
     try:
         with _captured_local_demo_server(
             root,
@@ -1837,6 +2342,11 @@ def _run_matrix_cell(
             host = str(urlsplit(server.base_url).hostname or "")
             if host not in {"127.0.0.1", "localhost"}:
                 raise RuntimeError(f"browser zoom profile requires a local host, got {host!r}")
+            expected_origin = _canonical_http_origin(server.base_url)
+            if expected_origin is None:
+                raise RuntimeError(
+                    f"browser request capture requires a valid HTTP origin, got {server.base_url!r}"
+                )
             with tempfile.TemporaryDirectory(
                 prefix="stock-research-workspace-zoom-",
                 dir="/tmp",
@@ -1857,6 +2367,19 @@ def _run_matrix_cell(
                         screen={"width": viewport[0], "height": viewport[1]},
                     )
                     page = context.pages[0] if context.pages else context.new_page()
+
+                    def capture_request(request: Any) -> None:
+                        try:
+                            request_url = str(request.url)
+                        except Exception:
+                            request_url = "http://[unavailable-request-url"
+                        _record_http_request(
+                            network_capture,
+                            url=request_url,
+                            expected_origin=expected_origin,
+                        )
+
+                    page.on("request", capture_request)
                     page.on(
                         "console",
                         lambda message: console_errors.append(f"console {message.type}: {message.text}")
@@ -1882,6 +2405,13 @@ def _run_matrix_cell(
                                 page,
                                 timeout_seconds=max(5.0, timeout_seconds),
                             )
+                            page.wait_for_function(
+                                """() => {
+                                  const app = document.querySelector('[data-testid="stApp"]');
+                                  return app && app.getAttribute("data-test-script-state") === "notRunning";
+                                }""",
+                                timeout=int(max(5.0, timeout_seconds) * 1000),
+                            )
 
                         page.emulate_media(
                             reduced_motion="no-preference",
@@ -1904,8 +2434,7 @@ def _run_matrix_cell(
                             screenshot_bytes[20:24], "big"
                         )
                         focus_sequences: dict[str, dict[str, object]] = {}
-                        focus_route_slugs = {
-                            "research-desk",
+                        focus_route_slugs = PERSONAL_FOCUS_ROUTE_SLUGS | {
                             "public-home",
                             "stock-selector",
                             "single-stock-report",
@@ -1936,6 +2465,10 @@ def _run_matrix_cell(
                         if route.slug in focus_route_slugs:
                             load_route()
                             focus_sequences["forced-colors"] = _focus_sequence_observation(page)
+                        observation = apply_final_runtime_observation(
+                            observation,
+                            _runtime_observation(page),
+                        )
                         checks = _evaluate_observation(
                             observation,
                             route=route,
@@ -1951,16 +2484,36 @@ def _run_matrix_cell(
                         context.close()
             server_log = "\n".join(server.snapshot())
     except Exception as exc:
-        return {
-            "route": route.slug,
-            "viewport": f"{viewport[0]}x{viewport[1]}",
-            "zoom": zoom,
-            "passed": False,
-            "screenshot": screenshot_name if (output_dir / screenshot_name).exists() else "",
-            "checks": [],
-            "error": f"{type(exc).__name__}: {exc}",
-            "log": server_log,
-        }
+        if server is not None:
+            try:
+                server_log = "\n".join(server.snapshot())
+            except Exception as snapshot_exc:  # pragma: no cover - defensive diagnostics
+                server_log = (
+                    f"Server diagnostics unavailable: {type(snapshot_exc).__name__}: "
+                    f"{snapshot_exc}"
+                )
+        return _failed_cell_result(
+            route=route,
+            viewport=viewport,
+            zoom=zoom,
+            error=f"{type(exc).__name__}: {exc}",
+            screenshot=(
+                screenshot_name if (output_dir / screenshot_name).exists() else ""
+            ),
+            observation=observation,
+            console_errors=tuple(console_errors),
+            network_capture=network_capture,
+            server_log=server_log,
+        )
+    runtime = runtime_capture_payload(observation, tuple(console_errors))
+    checks = finalize_runtime_check(checks, runtime)
+    network = http_network_capture_payload(network_capture)
+    checks = finalize_http_network_check(checks, network)
+    browser_log = (
+        "Browser console/page errors: none."
+        if not console_errors
+        else "Browser console/page errors:\n" + "\n".join(console_errors)
+    )
     return {
         "route": route.slug,
         "viewport": f"{viewport[0]}x{viewport[1]}",
@@ -1968,7 +2521,14 @@ def _run_matrix_cell(
         "passed": bool(checks) and all(bool(check["passed"]) for check in checks),
         "screenshot": screenshot_name,
         "checks": checks,
-        "log": server_log,
+        "geometry": structured_geometry(observation),
+        "runtime": runtime,
+        "network": network,
+        "log": "\n".join(
+            part
+            for part in (server_log, browser_log, _http_network_log(network))
+            if part
+        ),
     }
 
 
@@ -1988,6 +2548,7 @@ def run_workspace_visual_browser_gate(
     selected_zooms = parse_zooms(zooms)
     destination = prepare_output_dir(output_dir)
     runner = cell_runner or _run_matrix_cell
+    source_snapshot = _source_snapshot(root)
     results: list[dict[str, object]] = []
     logs: list[str] = []
     for route in selected_routes:
@@ -2003,19 +2564,24 @@ def run_workspace_visual_browser_gate(
                         timeout_seconds=max(5.0, timeout_seconds),
                     )
                 except Exception as exc:
-                    result = {
-                        "route": route.slug,
-                        "viewport": f"{viewport[0]}x{viewport[1]}",
-                        "zoom": zoom,
-                        "passed": False,
-                        "screenshot": "",
-                        "checks": [],
-                        "error": f"{type(exc).__name__}: {exc}",
-                    }
+                    result = _failed_cell_result(
+                        route=route,
+                        viewport=viewport,
+                        zoom=zoom,
+                        error=f"{type(exc).__name__}: {exc}",
+                    )
                 log = str(result.pop("log", "") or "").strip()
+                if not log:
+                    error = str(result.get("error") or "").strip()
+                    log = (
+                        f"Cell execution failed: "
+                        f"{error or 'failed cell did not provide diagnostics'}"
+                        if not result.get("passed")
+                        else "No browser/server diagnostics were emitted for this cell."
+                    )
                 logs.append(
                     f"[{route.slug} {viewport[0]}x{viewport[1]} zoom={zoom}]\n"
-                    + (log or "No server warnings or errors captured.")
+                    + log
                 )
                 results.append(result)
     failures = [
@@ -2023,13 +2589,43 @@ def run_workspace_visual_browser_gate(
         for result in results
         if not result.get("passed")
     ]
+    source_snapshot_after = _source_snapshot(root)
+    source_before_validation = evaluate_source_snapshot(source_snapshot)
+    source_after_validation = evaluate_source_snapshot(source_snapshot_after)
+    source_snapshot_valid = (
+        source_before_validation.passed and source_after_validation.passed
+    )
+    source_snapshot_stable = source_snapshot == source_snapshot_after
+    if not source_snapshot_valid:
+        failures.append("source snapshot unavailable for matrix attribution")
+        logs.append(
+            "[matrix source snapshot]\n"
+            "Source snapshot attribution is unavailable; evidence is invalid.\n"
+            f"Before: {source_before_validation.detail}\n"
+            f"After: {source_after_validation.detail}"
+        )
+    if not source_snapshot_stable:
+        failures.append("source snapshot changed during matrix capture")
+        logs.append(
+            "[matrix source snapshot]\n"
+            "Source snapshot changed during matrix capture; evidence attribution is invalid."
+        )
     payload = {
         "verdict": "passed" if results and not failures else "failed",
-        "commit": _git_commit(root),
+        "commit": str(source_snapshot.get("commit") or _git_commit(root)),
         "environment": f"{platform.system()} {platform.machine()}",
         "routes": [route.slug for route in selected_routes],
         "viewports": [f"{width}x{height}" for width, height in selected_viewports],
         "zooms": list(selected_zooms),
+        "coverage": evaluate_full_matrix_coverage(results),
+        "source_snapshot": source_snapshot,
+        "source_snapshot_after": source_snapshot_after,
+        "source_snapshot_valid": source_snapshot_valid,
+        "source_snapshot_validation": {
+            "before": source_before_validation.detail,
+            "after": source_after_validation.detail,
+        },
+        "source_snapshot_stable": source_snapshot_stable,
         "results": results,
         "failures": failures,
         "boundary": (
