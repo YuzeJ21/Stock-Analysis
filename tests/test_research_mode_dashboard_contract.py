@@ -73,27 +73,26 @@ def test_research_workflow_navigation_rendering_scopes_primary_and_secondary_rou
     for selected_page in ("Data Health", "Proof History"):
         dashboard.render_research_workflow_navigation(selected_page, ticker="AVGO")
 
-    assert rendered == []
+    assert len(rendered) == 2
+    assert all("Personal research workflow" in html for html in rendered)
+    assert all(html.count("aria-current='page'") == 0 for html in rendered)
 
 
-def test_research_sidebar_uses_route_state_without_a_duplicate_page_radio():
+def test_public_and_research_use_route_state_without_sidebar_navigation_controls():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     main_start = source.index("def main()")
-    selector_start = source.index(
-        "path_options = workspace_path_options(initial_page, mode)",
-        main_start,
+    main = source[main_start:]
+    operator_branch = main.index("if operator_mode:")
+    public_research_branch = main.index(
+        "    else:\n        selected_page = initial_page",
+        operator_branch,
     )
-    selector_end = source.index(
-        "selected_page = selected_page_from_route_rail(",
-        selector_start,
-    )
-    selector = source[selector_start:selector_end]
+    sidebar = main.index("with st.sidebar:", operator_branch)
 
-    assert "if research_mode:" in selector
-    assert "path_selection = default_path" in selector
-    assert "else:" in selector
-    assert selector.index("if research_mode:") < selector.index("st.radio(")
-    assert "Choose your path" in selector
+    assert operator_branch < sidebar < public_research_branch
+    assert "selected_page = initial_page" in main[public_research_branch:]
+    assert "dashboard-workspace-mode" in main[operator_branch:public_research_branch]
+    assert "Choose your path" in main[operator_branch:public_research_branch]
 
 
 def test_research_main_shell_keeps_one_workflow_nav_without_operator_readiness_chrome():
@@ -122,6 +121,16 @@ def test_research_main_shell_keeps_one_workflow_nav_without_operator_readiness_c
     assert "render_profile_trust_strip(" not in research_shell
     assert "render_app_header(" in operator_shell
     assert "render_profile_trust_strip(" in operator_shell
+
+
+def test_public_shell_has_one_workflow_nav_and_url_only_workspace_mode_disclosure():
+    rendered = dashboard.public_app_shell_html("Home")
+
+    assert rendered.count("aria-label='Public workflow'") == 1
+    assert rendered.count("aria-label='Workspace mode'") == 1
+    assert "?mode=research&amp;page=research-desk" in rendered
+    assert "?mode=operator" in rendered
+    assert "dashboard-workspace-mode" not in rendered
 
 
 def test_personal_research_route_loads_once_from_selected_profile_and_passes_one_result(
@@ -818,8 +827,9 @@ def test_research_desk_renders_one_brief_before_advanced_supporting_evidence():
     desk = source[desk_start:desk_end]
 
     brief = desk.index("brief = build_research_desk_brief(")
-    brief_html = desk.index("research_desk_brief_html(brief)", brief)
-    advanced = desk.index('with st.expander("Advanced Evidence", expanded=False):', brief_html)
+    brief_html = desk.index("research_desk_brief_html(", brief)
+    advanced_region = desk.index("research_advanced_detail_marker_html()", brief_html)
+    advanced = desk.index('with st.expander("Advanced Evidence", expanded=False):', advanced_region)
     weekly_cards = desk.index("weekly_summary_cards(weekly_summary)", advanced)
     cohort = desk.index("focused_cohort_cards(cohort)", weekly_cards)
     coverage = desk.index("focused_cohort_coverage_cards(coverage)", cohort)
@@ -827,7 +837,7 @@ def test_research_desk_renders_one_brief_before_advanced_supporting_evidence():
     coverage_frame = desk.index("focused_cohort_coverage_frame(coverage)", cohort_frame)
     change_detail = desk.index('render_research_change_route_summary("Research Desk", state)', coverage_frame)
 
-    assert brief < brief_html < advanced < weekly_cards
+    assert brief < brief_html < advanced_region < advanced < weekly_cards
     assert weekly_cards < cohort < coverage < cohort_frame < coverage_frame < change_detail
     assert "research_desk_cards(" not in desk
     assert "research_desk_cards_html(" not in desk
@@ -1532,7 +1542,7 @@ def test_company_workbench_places_one_decision_lab_after_what_changed_before_bus
     assert "decision_lab_state.identity" in report
 
 
-def test_skip_link_renders_in_first_sidebar_bucket_before_page_answer():
+def test_skip_link_renders_in_mode_appropriate_first_focus_bucket_before_page_answer():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
 
     href = dashboard.public_workflow_skip_href(
@@ -1548,15 +1558,18 @@ def test_skip_link_renders_in_first_sidebar_bucket_before_page_answer():
     assert href == "#public-page-answer"
 
     main = source[source.index("def main()"):]
-    skip_call = main.index("render_public_workflow_skip_link(")
+    public_research_skip = main.index("render_public_workflow_skip_link(")
+    operator_branch = main.index("if operator_mode:")
     sidebar_entrypoint = main.index("with st.sidebar:")
     sidebar_header = main.index("render_sidebar_nav_header()")
     answer_target = main.index("render_public_workflow_skip_target()")
     dispatch = main.index("if research_mode and render_personal_research_route(")
 
-    assert "st_api=st.sidebar" in main[skip_call:sidebar_entrypoint]
-    assert skip_call < sidebar_entrypoint < sidebar_header < answer_target < dispatch
-    assert main.count("render_public_workflow_skip_link(") == 1
+    assert public_research_skip < operator_branch < sidebar_entrypoint < sidebar_header
+    assert "st_api=st.sidebar" in main[operator_branch:sidebar_entrypoint]
+    assert "st_api=st.sidebar" not in main[public_research_skip:operator_branch]
+    assert sidebar_header < answer_target < dispatch
+    assert main.count("render_public_workflow_skip_link(") == 2
 
 
 def test_semantic_main_bridge_runs_once_immediately_after_theme_before_route_content():

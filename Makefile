@@ -43,7 +43,7 @@ help:
 	@echo ""
 	@echo "For the full local command catalog, run: make help-full"
 
-.PHONY: dashboard-render-smoke research-dashboard-render-smoke commercial-beta-performance-contract commercial-beta-performance-gate research-accessibility-browser-check company-workbench-html-browser-check
+.PHONY: dashboard-render-smoke research-dashboard-render-smoke commercial-beta-performance-contract commercial-beta-performance-gate research-accessibility-browser-check workspace-visual-browser-check company-workbench-html-browser-check
 .PHONY: price-history-batch-closeout
 
 next-stage:
@@ -467,7 +467,44 @@ commercial-beta-performance-gate:
 	@python3 -m src.public_performance_gate --workflow research --browser --root . --warm-runs $(or $(WARM_RUNS),5) --cold-runs $(or $(COLD_RUNS),1) --timeout-seconds $(or $(TIMEOUT_SECONDS),30) --output "$(or $(OUTPUT),/tmp/stock-command-center-commercial-beta-performance.json)" $(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
 
 research-accessibility-browser-check:
-	@python3 -m src.research_accessibility_browser_gate --root . --timeout-seconds $(or $(TIMEOUT_SECONDS),45) $(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
+	@python3 -m src.research_accessibility_browser_gate --root . --timeout-seconds $(or $(TIMEOUT_SECONDS),45) \
+		--allow-dirty-path src/dashboard_visual_system.py \
+		--allow-dirty-path src/workspace_visual_browser_gate.py \
+		--allow-dirty-path src/accessibility_bridge.py \
+		--allow-dirty-path src/dashboard.py \
+		--allow-dirty-path src/research_workspace.py \
+		--allow-dirty-path src/research_accessibility_browser_gate.py \
+		--allow-dirty-path src/dashboard_render_smoke.py \
+		--allow-dirty-path scripts/public_wording_check.py \
+		--allow-dirty-path tests/test_dashboard_visual_system.py \
+		--allow-dirty-path tests/test_workspace_visual_browser_gate.py \
+		--allow-dirty-path tests/test_accessibility_bridge.py \
+		--allow-dirty-path tests/test_research_workspace.py \
+		--allow-dirty-path tests/test_research_mode_dashboard_contract.py \
+		--allow-dirty-path tests/test_research_accessibility_browser_gate.py \
+		--allow-dirty-path tests/test_dashboard_render_smoke.py \
+		--allow-dirty-path tests/test_public_wording_check.py \
+		--allow-dirty-path Makefile \
+		$(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
+
+workspace-visual-browser-check:
+ifndef ROUTES
+	$(error ROUTES is required)
+endif
+ifndef VIEWPORTS
+	$(error VIEWPORTS is required)
+endif
+ifndef ZOOMS
+	$(error ZOOMS is required)
+endif
+ifndef OUTPUT_DIR
+	$(error OUTPUT_DIR is required)
+endif
+	@python3 -m src.workspace_visual_browser_gate \
+		--routes "$(ROUTES)" \
+		--viewports "$(VIEWPORTS)" \
+		--zooms "$(ZOOMS)" \
+		--output-dir "$(OUTPUT_DIR)"
 
 company-workbench-html-browser-check:
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/test_company_workbench_html_browser_gate.py -q

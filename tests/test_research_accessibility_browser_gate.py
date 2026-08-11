@@ -274,14 +274,22 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
             "/?mode=research&page=data-health&ticker=NVDA",
             "Use now for market setup",
             "Data Health",
-            False,
+            True,
         ),
         (
             "/?mode=research&page=proof-history&ticker=NVDA",
             "Latest evidence",
             "Proof History",
-            False,
+            True,
         ),
+    ]
+    assert [route.evidence_route for route in RESEARCH_ROUTES] == [
+        False,
+        False,
+        False,
+        False,
+        True,
+        True,
     ]
     assert RESEARCH_ROUTES[0].media_marker_selector == (
         '.research-desk-brief[aria-label="Today\'s Research Brief"]'
@@ -842,15 +850,15 @@ def test_route_result_includes_fail_closed_bridge_transport_fields(monkeypatch):
     monkeypatch.setattr(gate, "_skip_link_assertions", lambda *args, **kwargs: [])
     monkeypatch.setattr(gate, "_media_preference_assertions", lambda *args, **kwargs: [])
     monkeypatch.setattr(
-        gate, "_same_document_streamlit_rerun_assertions", lambda *args, **kwargs: []
+        gate, "_personal_navigation_authority_assertions", lambda *args, **kwargs: []
     )
     monkeypatch.setattr(
         gate,
-        "_secondary_navigation_absence_assertion",
+        "_evidence_navigation_assertion",
         lambda *args, **kwargs: {
-            "name": "secondary_navigation_absent",
+            "name": "evidence_navigation",
             "passed": True,
-            "detail": "absent",
+            "detail": "present without a false core current item",
         },
     )
     monkeypatch.setattr(gate, "_navigation_assertion", lambda *args, **kwargs: {
@@ -1186,26 +1194,28 @@ def test_same_document_rerun_helper_uses_real_workspace_widget_event():
     )["passed"] is False
 
 
-def test_secondary_navigation_contract_requires_explicit_absence():
+def test_evidence_navigation_contract_requires_one_nav_and_no_false_core_current_item():
     from src.research_accessibility_browser_gate import (
-        evaluate_secondary_navigation_absence,
+        evaluate_evidence_navigation,
     )
 
-    absent = evaluate_secondary_navigation_absence(
-        navigation_count=0,
+    correct = evaluate_evidence_navigation(
+        navigation_count=1,
+        current_count=0,
         phase="initial",
     )
-    present_after_rerender = evaluate_secondary_navigation_absence(
+    false_current = evaluate_evidence_navigation(
         navigation_count=1,
+        current_count=1,
         phase="rerender",
     )
 
-    assert absent == {
-        "name": "secondary_workflow_navigation_absent_initial",
+    assert correct == {
+        "name": "evidence_workflow_navigation_initial",
         "passed": True,
-        "detail": "labelled primary workflow navigation count=0",
+        "detail": "labelled workflow navigation count=1; current core item count=0",
     }
-    assert present_after_rerender["passed"] is False
+    assert false_current["passed"] is False
 
 
 def test_route_transition_target_is_deterministic_and_never_self():
@@ -1344,15 +1354,16 @@ def test_browser_measurement_rechecks_landmark_after_rerun_and_route_transition(
     assert 'page.on("pageerror"' in measurement
     assert '_semantic_main_assertions(page, phase="initial")' in measurement
     assert (
-        '_semantic_main_assertions(page, phase="streamlit_rerun")'
+        '_semantic_main_assertions(page, phase="navigation_authority")'
         in measurement
     )
+    assert "_personal_navigation_authority_assertions(page)" in measurement
+    assert "_same_document_streamlit_rerun_assertions(" not in measurement
     assert '_semantic_main_assertions(page, phase="route_away")' in measurement
     assert '_semantic_main_assertions(page, phase="route_return")' in measurement
     assert '_wait_for_route_heading(page, route,' in measurement
     assert measurement.count("_wait_for_route_heading(") == 2
     assert "away_route," in measurement
-    assert "_same_document_streamlit_rerun_assertions(" in measurement
     assert "away_route = _route_transition_target(route)" in measurement
     assert measurement.count("_navigate_and_verify_route(") == 2
     assert transition.count("page.goto(") == 1
@@ -1362,26 +1373,26 @@ def test_browser_measurement_rechecks_landmark_after_rerun_and_route_transition(
     assert 'phase="route_away"' in measurement
     assert 'phase="route_return"' in measurement
     assert (
-        '_secondary_navigation_absence_assertion(page, phase="initial")'
+        '_evidence_navigation_assertion(page, phase="initial")'
         in measurement
     )
     assert (
-        '_secondary_navigation_absence_assertion(page, phase="streamlit_rerun")'
+        '_evidence_navigation_assertion(page, phase="navigation_authority")'
         in measurement
     )
     assert (
-        '_secondary_navigation_absence_assertion(page, phase="route_away")'
+        '_evidence_navigation_assertion(page, phase="route_away")'
         in measurement
     )
     assert (
-        '_secondary_navigation_absence_assertion(page, phase="route_return")'
+        '_evidence_navigation_assertion(page, phase="route_return")'
         in measurement
     )
     assert '_runtime_dom_assertions(page, phase="route_away")' in measurement
     assert '_runtime_dom_assertions(page, phase="route_return")' in measurement
     assert measurement.count("page.goto(") == 1
     assert measurement.index(
-        "_same_document_streamlit_rerun_assertions("
+        "_personal_navigation_authority_assertions(page)"
     ) < measurement.index("away_route = _route_transition_target(route)")
 
 
@@ -2039,6 +2050,30 @@ def test_repository_hygiene_allows_only_unstaged_generated_churn():
     assert staged_generated["staged_paths"] == [
         "data/reports/ticker_readiness_report.csv"
     ]
+
+
+def test_repository_hygiene_can_snapshot_an_exact_unstaged_implementation_allowlist():
+    from scripts.diff_hygiene import StatusEntry
+    from src.research_accessibility_browser_gate import evaluate_repository_hygiene
+
+    dashboard = StatusEntry("M", "src/dashboard.py")
+    unrelated = StatusEntry("?", "notes.txt")
+
+    allowed = evaluate_repository_hygiene(
+        [dashboard],
+        staged_entries=[],
+        allowed_dirty_paths=("src/dashboard.py",),
+    )
+    still_blocked = evaluate_repository_hygiene(
+        [dashboard, unrelated],
+        staged_entries=[],
+        allowed_dirty_paths=("src/dashboard.py",),
+    )
+
+    assert allowed["passed"] is True
+    assert allowed["allowed_dirty_product_paths"] == ["src/dashboard.py"]
+    assert still_blocked["passed"] is False
+    assert still_blocked["dirty_product_paths"] == ["notes.txt"]
 
 
 def test_viewport_geometry_rejects_off_canvas_zero_size_and_short_route_links():

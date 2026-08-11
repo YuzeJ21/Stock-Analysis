@@ -22,7 +22,8 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
     const bridgeAttributes = {
       "role": "main",
       "id": "research-main",
-      "aria-label": "Stock research workspace"
+      "aria-label": "Stock research workspace",
+      "tabindex": "-1"
     };
     if (window[observerKey]) {
       window[observerKey].disconnect();
@@ -107,7 +108,8 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
           attributes: {
             "role": attributeSnapshot(target, "role"),
             "id": attributeSnapshot(target, "id"),
-            "aria-label": attributeSnapshot(target, "aria-label")
+            "aria-label": attributeSnapshot(target, "aria-label"),
+            "tabindex": attributeSnapshot(target, "tabindex")
           },
           marker: attributeSnapshot(target, markerName)
         };
@@ -217,6 +219,10 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
         rememberOwnedMutation(target, "aria-label");
         target.setAttribute("aria-label", "Stock research workspace");
       }
+      if (target.getAttribute("tabindex") !== "-1") {
+        rememberOwnedMutation(target, "tabindex");
+        target.setAttribute("tabindex", "-1");
+      }
       window[targetKey] = target;
       setStatus("applied");
     }
@@ -234,6 +240,7 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
               mutation.attributeName === "data-testid" ||
               mutation.attributeName === "role" ||
               mutation.attributeName === "id" ||
+              mutation.attributeName === "tabindex" ||
               (
                 mutation.attributeName === "aria-label" &&
                 mutation.target === window[targetKey]
@@ -254,7 +261,9 @@ SEMANTIC_MAIN_BRIDGE_HTML = """
       host.body,
       {
         attributes: true,
-        attributeFilter: ["data-testid", "role", "id", "aria-label"],
+        attributeFilter: [
+          "data-testid", "role", "id", "aria-label", "tabindex"
+        ],
         childList: true,
         subtree: true
       }

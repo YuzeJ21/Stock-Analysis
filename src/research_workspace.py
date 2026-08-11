@@ -11,7 +11,16 @@ from urllib.parse import quote
 from src.company_workbench_cash_generation_preview import (
     CompanyWorkbenchCashGenerationPreview,
 )
-from src.dashboard_visual_system import legacy_research_accessibility_css
+from src.dashboard_visual_system import (
+    EvidenceRow,
+    SafeRouteAction,
+    advanced_detail_marker_html,
+    answer_panel_html,
+    context_bar_html,
+    evidence_rows_html,
+    legacy_research_accessibility_css,
+    page_title_html,
+)
 from src.focused_cohort_coverage import FocusedCohortCoverage
 from src.focused_research_cohort import FocusedCohort
 from src.quarterly_business_trend import QuarterlyTrendPacket
@@ -1113,23 +1122,42 @@ def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> 
         ("Research Desk", "research-desk", "?mode=research&page=research-desk"),
         ("Discover", "discover", "?mode=research&page=discover"),
     ]
-    if symbol:
-        routes.append(
-            (
-                "Company Workbench",
-                "company-workbench",
-                f"?mode=research&page=company-workbench&ticker={symbol}&open=1",
-            )
+    routes.append(
+        (
+            "Company Workbench",
+            "company-workbench",
+            f"?mode=research&page=company-workbench&ticker={symbol}&open=1"
+            if symbol
+            else "",
         )
-    routes.append(("Monitor", "monitor", "?mode=research&page=monitor"))
-    links = "".join(
-        "<a class='research-workflow-link' "
-        f"href='{html.escape(href, quote=True)}' target='_self'"
-        + (" aria-current='page'" if active_slug == slug else "")
-        + f">{html.escape(label)}</a>"
-        for label, slug, href in routes
     )
-    return f"<nav class='research-workflow-navigation' aria-label='Personal research workflow'>{links}</nav>"
+    routes.append(("Monitor", "monitor", "?mode=research&page=monitor"))
+    links: list[str] = []
+    for label, slug, href in routes:
+        if not href:
+            links.append(
+                "<span class='research-workflow-disabled' aria-disabled='true' "
+                "title='Choose a company in Discover first'>Company Workbench"
+                "<span class='sr-visually-hidden'> — Choose a company in Discover first</span></span>"
+            )
+            continue
+        current = " aria-current='page'" if active_slug == slug else ""
+        links.append(
+            "<a class='research-workflow-link' "
+            f"href='{html.escape(href, quote=True)}' target='_self'{current}>"
+            f"{html.escape(label)}</a>"
+        )
+    return (
+        "<nav class='research-workflow-navigation' data-sr-region='workflow-nav' aria-label='Personal research workflow'>"
+        "<a class='research-workspace-brand' href='?mode=research&amp;page=research-desk' target='_self'>"
+        "<span>Readiness-first</span><strong>Stock Research Command Center</strong></a>"
+        f"<div class='research-workflow-routes'>{''.join(links)}</div>"
+        "<div class='research-workspace-mode' role='group' aria-label='Workspace mode'>"
+        "<span>Workspace mode</span>"
+        "<a href='?mode=public' target='_self'>Public</a>"
+        "<a href='?mode=operator' target='_self'>Operator</a>"
+        "</div></nav>"
+    )
 
 
 def research_accessibility_media_preferences_css() -> str:
@@ -1178,6 +1206,7 @@ def research_workspace_header_html(
     freshness: str,
     primary_action: str,
     compact: bool = False,
+    include_boundary: bool = True,
 ) -> str:
     scope = str(ticker or "Focused research scope").strip().upper() if ticker else "Focused research scope"
     header_class = "research-workspace-header compact" if compact else "research-workspace-header"
@@ -1187,15 +1216,28 @@ def research_workspace_header_html(
         f"<div class='research-workspace-meta-item research-workspace-action'><dt>Next action</dt><dd>{html.escape(str(primary_action or 'Review source-backed evidence'))}</dd></div>"
         "</dl>"
     )
+    boundary_html = (
+        "<p class='research-workspace-boundary' data-sr-region='stop-rule'>"
+        "Research-only. Not investment advice; no trade instruction is produced.</p>"
+        if include_boundary
+        else ""
+    )
+    context = context_bar_html(
+        (
+            ("Data profile", str(profile_label or "Local research")),
+            ("Saved readiness", str(freshness or "Check saved readiness")),
+            ("Mode", "Personal research"),
+        )
+    ).value
+    title = page_title_html(
+        title=str(page_title or "Research Desk"),
+        purpose=f"{scope} · {str(profile_label or 'Local research')}",
+    ).value
     return (
         f"<section class='{header_class}' aria-label='Personal research workspace'>"
-        "<div class='research-workspace-heading'>"
-        "<span>Personal research mode</span>"
-        f"<h1>{html.escape(str(page_title or 'Research Desk'))}</h1>"
-        f"<p>{html.escape(scope)} · {html.escape(str(profile_label or 'Local research'))}</p>"
-        "</div>"
+        f"{context}{title}"
         f"{meta_html}"
-        "<p class='research-workspace-boundary'>Research-only. Not investment advice; no trade instruction is produced.</p>"
+        f"{boundary_html}"
         "</section>"
     )
 
@@ -1212,26 +1254,44 @@ def research_desk_cards_html(cards) -> str:
     return f"<section class='research-desk-grid' aria-label='Research Desk answers'>{rendered}</section>"
 
 
-def research_desk_brief_html(brief: ResearchDeskBrief) -> str:
+def research_desk_brief_html(
+    brief: ResearchDeskBrief,
+    *,
+    freshness_state: str = "unavailable",
+) -> str:
     """Render the Desk contract as one answer-first, keyboard-accessible block."""
 
+    answer = answer_panel_html(
+        question=brief.question,
+        answer=brief.answer,
+        reason=brief.reason,
+        action=SafeRouteAction(
+            label=brief.next_action_label,
+            href=brief.next_action_url,
+        ),
+        stop_rule=f"Research-only. {brief.stop_rule}",
+    ).value
+    evidence = evidence_rows_html(
+        (
+            EvidenceRow(
+                lane="Saved readiness",
+                role="freshness",
+                state=freshness_state,
+                count_or_cutoff=brief.freshness_warning,
+                reason=brief.reason,
+            ),
+        )
+    ).value
     return (
         "<section class='research-desk-brief' aria-label=\"Today's Research Brief\">"
-        "<div class='research-desk-brief-heading'>"
-        "<span>Today's Research Brief</span>"
-        f"<h2>{html.escape(brief.question)}</h2>"
-        "</div>"
-        f"<p class='research-desk-brief-answer'>{html.escape(brief.answer)}</p>"
-        "<dl class='research-desk-brief-context'>"
-        f"<div><dt>Why</dt><dd>{html.escape(brief.reason)}</dd></div>"
-        f"<div><dt>Freshness</dt><dd>{html.escape(brief.freshness_warning)}</dd></div>"
-        "</dl>"
-        "<a class='public-primary-action' "
-        f"href='{html.escape(brief.next_action_url, quote=True)}' target='_self'>"
-        f"{html.escape(brief.next_action_label)}</a>"
-        f"<p class='research-desk-brief-stop'>{html.escape(brief.stop_rule)}</p>"
-        "</section>"
+        f"{answer}{evidence}</section>"
     )
+
+
+def research_advanced_detail_marker_html() -> str:
+    """Expose one stable hook immediately before the existing advanced expander."""
+
+    return advanced_detail_marker_html().value
 
 
 def advanced_evidence_links_html(ticker: str) -> str:

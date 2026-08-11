@@ -24,7 +24,7 @@ from src.accessibility_bridge import render_semantic_main_bridge
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
-from src.dashboard_visual_system import render_stylesheet
+from src.dashboard_visual_system import dashboard_visual_system_css, render_stylesheet
 from src.continuation_gate import build_continuation_gate
 from src.source_activation_guide import build_provider_setup_checklist, build_source_activation_guide
 from src.data_onboarding import write_onboarding_outputs
@@ -401,6 +401,7 @@ from src.research_workspace import (
     focused_cohort_coverage_cards,
     focused_ticker_coverage_cards,
     quarterly_trend_cards,
+    research_advanced_detail_marker_html,
     research_desk_brief_html,
     research_accessibility_media_preferences_css,
     research_evidence_return_link,
@@ -4882,6 +4883,7 @@ def apply_dashboard_theme() -> None:
         </style>
         """,
     )
+    st.html(render_stylesheet(dashboard_visual_system_css()))
 
 
 def format_missing(value: object, fallback: str = "Not available") -> str:
@@ -5399,14 +5401,19 @@ def public_app_shell_html(page_title: str) -> str:
         "<span class='public-app-brand-kicker'>Readiness-first</span>"
         "<span class='public-app-brand-name'>Stock Research Command Center</span>"
         "</a>"
-        "<div class='public-app-status' aria-label='Product boundaries'>"
+        "<div class='public-app-status' data-sr-region='context' aria-label='Workspace context'>"
         "<span>Saved readiness</span>"
+        "<div class='public-workspace-mode' role='group' aria-label='Workspace mode'>"
+        "<span>Workspace mode</span>"
+        "<a href='?mode=research&amp;page=research-desk' target='_self'>Personal research</a>"
+        "<a href='?mode=operator' target='_self'>Operator</a>"
         "</div>"
         "</div>"
-        "<nav class='public-app-nav' aria-label='Public workflow'>"
+        "</div>"
+        "<nav class='public-app-nav' data-sr-region='workflow-nav' aria-label='Public workflow'>"
         + "".join(navigation)
         + "</nav>"
-        "<div class='public-page-intro'>"
+        "<div class='public-page-intro' data-sr-region='page-title'>"
         "<div>"
         f"<div class='public-page-step'>{html.escape(public_workflow_position(page_title))}</div>"
         f"<h1>{html.escape(step['question'])}</h1>"
@@ -7494,7 +7501,7 @@ def render_public_workflow_skip_link(
 
 
 def render_research_workflow_navigation(selected_page: str, *, ticker: str = "") -> None:
-    if selected_page not in RESEARCH_PATH_PAGE_TITLES:
+    if selected_page not in {*RESEARCH_PATH_PAGE_TITLES, "Data Health", PROOF_HISTORY_PATH_TITLE}:
         return
     st.markdown(
         research_workflow_navigation_html(active_page=selected_page, ticker=ticker),
@@ -36056,6 +36063,7 @@ def render_research_workspace_header(
     ticker: str = "",
     primary_action: str,
     compact: bool = False,
+    include_boundary: bool = True,
     observation_recency: ObservationRecencySet | None = None,
     include_selected_observation: bool = False,
 ) -> None:
@@ -36067,6 +36075,7 @@ def render_research_workspace_header(
             freshness=context.freshness_state.replace("_", " ").title(),
             primary_action=primary_action,
             compact=compact,
+            include_boundary=include_boundary,
         ),
         unsafe_allow_html=True,
     )
@@ -36090,6 +36099,7 @@ def render_research_desk(
         context,
         primary_action="Review the brief below",
         compact=True,
+        include_boundary=False,
     )
     brief = build_research_desk_brief(
         weekly_summary,
@@ -36098,7 +36108,14 @@ def render_research_desk(
         freshness_state=context.freshness_state,
         freshness_message=context.freshness_message,
     )
-    st.markdown(research_desk_brief_html(brief), unsafe_allow_html=True)
+    st.markdown(
+        research_desk_brief_html(
+            brief,
+            freshness_state=context.freshness_state,
+        ),
+        unsafe_allow_html=True,
+    )
+    st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
     with st.expander("Advanced Evidence", expanded=False):
         if observation_recency is not None:
             render_observation_recency(
@@ -36354,8 +36371,19 @@ def main() -> None:
     has_explicit_page_query = dashboard_query_value_present(page_query_value)
     initial_mode = route_resolution.mode
     initial_page = route_resolution.page
+    mode = initial_mode
+    research_mode = mode == RESEARCH_MODE
+    public_demo_mode = mode == PUBLIC_DEMO_MODE
+    operator_mode = mode == OPERATOR_DEMO_MODE
     apply_dashboard_theme()
     render_semantic_main_bridge()
+    if not operator_mode:
+        render_public_workflow_skip_link(
+            initial_page,
+            st.query_params,
+            mode=initial_mode,
+            st_api=st,
+        )
     data_profile = resolve_data_profile(project_root=BASE_DIR)
     profile_context = build_profile_context(project_root=BASE_DIR)
     research_change_state = load_dashboard_research_change_state(profile_context)
@@ -36374,56 +36402,49 @@ def main() -> None:
         if initial_mode == PUBLIC_DEMO_MODE
         else None
     )
-    render_public_workflow_skip_link(
-        initial_page,
-        st.query_params,
-        mode=initial_mode,
-        st_api=st.sidebar,
-    )
-    with st.sidebar:
-        render_sidebar_nav_header()
-        mode_options = [RESEARCH_MODE, PUBLIC_DEMO_MODE, OPERATOR_DEMO_MODE]
-        mode_selection = st.radio(
-            "Workspace",
-            mode_options,
-            index=mode_options.index(initial_mode),
-            format_func=dashboard_mode_label,
-            help="Personal research is the working default. Public keeps the guided demo; Operator keeps proof and maintenance tools.",
-            key="dashboard-workspace-mode",
+    if operator_mode:
+        render_public_workflow_skip_link(
+            initial_page,
+            st.query_params,
+            mode=initial_mode,
+            st_api=st.sidebar,
         )
-        if mode_selection != initial_mode:
-            route_resolution = resolve_workspace_route(
-                mode_selection,
-                initial_page,
-                st.query_params,
-                USER_PAGE_TITLES,
-                ADVANCED_PAGE_TITLES,
+        with st.sidebar:
+            render_sidebar_nav_header()
+            mode_options = [RESEARCH_MODE, PUBLIC_DEMO_MODE, OPERATOR_DEMO_MODE]
+            mode_selection = st.radio(
+                "Workspace",
+                mode_options,
+                index=mode_options.index(initial_mode),
+                format_func=dashboard_mode_label,
+                help="Personal research is the working default. Public keeps the guided demo; Operator keeps proof and maintenance tools.",
+                key="dashboard-workspace-mode",
             )
-            if route_resolution.redirected:
-                st.query_params.clear()
-                for query_key, query_value in route_resolution.canonical_query.items():
-                    st.query_params[query_key] = query_value
-            initial_mode = route_resolution.mode
-            initial_page = route_resolution.page
-        mode = initial_mode
-        research_mode = mode == RESEARCH_MODE
-        public_demo_mode = mode == PUBLIC_DEMO_MODE
-        operator_mode = mode == OPERATOR_DEMO_MODE
-        st.caption(f"Workspace: {dashboard_mode_label(mode)}")
-        st.caption(f"Data profile: {data_profile.name}")
-        path_options = workspace_path_options(initial_page, mode)
-        if public_demo_mode and initial_page in ADVANCED_PAGE_TITLES:
-            default_path = "Home"
-        elif research_mode and initial_page not in path_options:
-            default_path = "Research Desk"
-        else:
-            default_path = initial_page
-        route_signature = f"{mode}:{initial_page}"
-        path_state_key = "dashboard-path-selection"
-        path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"
-        if research_mode:
-            path_selection = default_path
-        else:
+            if mode_selection != initial_mode:
+                route_resolution = resolve_workspace_route(
+                    mode_selection,
+                    initial_page,
+                    st.query_params,
+                    USER_PAGE_TITLES,
+                    ADVANCED_PAGE_TITLES,
+                )
+                if route_resolution.redirected:
+                    st.query_params.clear()
+                    for query_key, query_value in route_resolution.canonical_query.items():
+                        st.query_params[query_key] = query_value
+                initial_mode = route_resolution.mode
+                initial_page = route_resolution.page
+            mode = initial_mode
+            research_mode = mode == RESEARCH_MODE
+            public_demo_mode = mode == PUBLIC_DEMO_MODE
+            operator_mode = mode == OPERATOR_DEMO_MODE
+            st.caption(f"Workspace: {dashboard_mode_label(mode)}")
+            st.caption(f"Data profile: {data_profile.name}")
+            path_options = workspace_path_options(initial_page, mode)
+            default_path = initial_page if initial_page in path_options else "Home"
+            route_signature = f"{mode}:{initial_page}"
+            path_state_key = "dashboard-path-selection"
+            path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"
             path_selection = st.radio(
                 "Choose your path",
                 path_options,
@@ -36433,90 +36454,81 @@ def main() -> None:
                 key=path_widget_key,
                 label_visibility="collapsed",
             )
-        selected_page = selected_page_from_route_rail(
-            initial_page=initial_page,
-            default_path=default_path,
-            path_selection=path_selection,
-            has_explicit_page_query=has_explicit_page_query,
-        )
-        route_query_update = route_rail_query_update(
-            selected_page=selected_page,
-            initial_page=initial_page,
-            mode=mode,
-            allowed_pages=path_options,
-        )
-        if route_query_update:
-            st.query_params.clear()
-            for query_key, query_value in route_query_update.items():
-                st.query_params[query_key] = query_value
-        if operator_mode and initial_page == "Data Health":
-            selected_page = "Data Health"
-        show_sidebar_operator_guides = operator_mode and selected_page != "Data Health"
-        if public_demo_mode or operator_mode and selected_page != "Data Health":
-            render_sidebar_product_intro()
-        if show_sidebar_operator_guides:
-            with st.expander("Advanced: operator tools", expanded=False):
-                advanced_page = st.selectbox(
-                    "Open a research view",
-                    ["Keep current path"] + ADVANCED_PAGE_TITLES,
-                    index=(["Keep current path"] + ADVANCED_PAGE_TITLES).index(initial_page)
-                    if initial_page in ADVANCED_PAGE_TITLES
-                    else 0,
-                    format_func=legacy_research_utility_label,
-                    help="Additional research views remain available, but first-time visitors can stay with the main path.",
+            selected_page = selected_page_from_route_rail(
+                initial_page=initial_page,
+                default_path=default_path,
+                path_selection=path_selection,
+                has_explicit_page_query=has_explicit_page_query,
+            )
+            route_query_update = route_rail_query_update(
+                selected_page=selected_page,
+                initial_page=initial_page,
+                mode=mode,
+                allowed_pages=path_options,
+            )
+            if route_query_update:
+                st.query_params.clear()
+                for query_key, query_value in route_query_update.items():
+                    st.query_params[query_key] = query_value
+            if operator_mode and initial_page == "Data Health":
+                selected_page = "Data Health"
+            if selected_page != "Data Health":
+                render_sidebar_product_intro()
+                with st.expander("Advanced: operator tools", expanded=False):
+                    advanced_page = st.selectbox(
+                        "Open a research view",
+                        ["Keep current path"] + ADVANCED_PAGE_TITLES,
+                        index=(["Keep current path"] + ADVANCED_PAGE_TITLES).index(initial_page)
+                        if initial_page in ADVANCED_PAGE_TITLES
+                        else 0,
+                        format_func=legacy_research_utility_label,
+                        help="Additional research views remain available, but first-time visitors can stay with the main path.",
+                    )
+                    if advanced_page != "Keep current path":
+                        selected_page = advanced_page
+                    st.divider()
+                    render_context_note(
+                        "Start simple.",
+                        "Home -> Stock Selector -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
+                    )
+                    render_sidebar_route_steps(dashboard_navigation_cards())
+                    st.divider()
+                    render_context_note(
+                        "Operator commands.",
+                        " ".join(sidebar_quick_help_lines()),
+                    )
+                    st.code(
+                        "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard",
+                        language="bash",
+                    )
+            show_reason_details = False
+            if selected_page != "Data Health":
+                show_reason_details = st.checkbox(
+                    "Show reader tips",
+                    value=False,
+                    help="Adds extra explanation and review sections. Most visitors can leave this off.",
                 )
-                if advanced_page != "Keep current path":
-                    selected_page = advanced_page
-                st.divider()
+            show_source_details = False
+            if selected_page == "Single-Stock Report":
+                show_source_details = st.checkbox(
+                    "Show data source details",
+                    value=False,
+                    help="Adds extra data-source and missing-input checks under Sources & Gaps. Most users can leave this off.",
+                )
+            st.divider()
+            if selected_page == "Data Health":
                 render_context_note(
-                    "Start simple.",
-                    "Home -> Stock Selector -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
+                    "Data Health operator.",
+                    "Use the lane buttons on the page. Copy-only commands stay inside evidence drawers.",
+                    tone="success",
                 )
-                render_sidebar_route_steps(dashboard_navigation_cards())
-                st.divider()
-                render_context_note(
-                    "Operator commands.",
-                    " ".join(sidebar_quick_help_lines()),
-                )
-                st.code(
-                    "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard",
-                    language="bash",
-                )
+            else:
+                note_title, note_body = sidebar_navigation_note(selected_page)
+                render_context_note(note_title, note_body, tone="success")
+    else:
+        selected_page = initial_page
         show_reason_details = False
-        if operator_mode and selected_page != "Data Health":
-            show_reason_details = st.checkbox(
-                "Show reader tips",
-                value=False,
-                help="Adds extra explanation and review sections. Most visitors can leave this off.",
-            )
         show_source_details = False
-        if selected_page == "Single-Stock Report" and operator_mode:
-            show_source_details = st.checkbox(
-                "Show data source details",
-                value=False,
-                help="Adds extra data-source and missing-input checks under Sources & Gaps. Most users can leave this off.",
-            )
-        st.divider()
-        if operator_mode and selected_page == "Data Health":
-            render_context_note(
-                "Data Health operator.",
-                "Use the lane buttons on the page. Copy-only commands stay inside evidence drawers.",
-                tone="success",
-            )
-        elif not research_mode:
-            note_title, note_body = sidebar_navigation_note(selected_page)
-            render_context_note(note_title, note_body, tone="success")
-        if public_demo_mode:
-            render_context_note(
-                "Clean visitor workflow.",
-                "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers.",
-            )
-        if research_mode:
-            render_context_note(
-                "Personal research workspace.",
-                "Research Desk -> Discover -> Company Workbench -> Monitor. Data Health and Proof History remain secondary evidence routes.",
-                tone="success",
-            )
 
     content_page = workspace_content_page(selected_page, mode)
     ticker = str(st.query_params.get("ticker") or "").strip().upper()

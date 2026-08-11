@@ -1136,22 +1136,43 @@ def test_research_workspace_header_keeps_scope_freshness_action_and_boundary_vis
     assert "class='research-workspace-meta-item research-workspace-action'" in rendered
     assert "Research-only" in rendered
     assert "investment advice" in rendered
+    assert rendered.count("data-sr-region='context'") == 1
+    assert rendered.count("data-sr-region='page-title'") == 1
 
 
 @pytest.mark.parametrize(
     "active_page",
-    ("research-desk", "discover", "company-workbench", "monitor"),
+    ("research-desk", "discover", "company-workbench", "monitor", "data-health", "proof-history"),
 )
-def test_mobile_workflow_navigation_is_labelled_and_has_one_current_page(active_page):
+def test_personal_workflow_navigation_is_single_labelled_dom_on_core_and_evidence_routes(active_page):
     rendered = research_workspace.research_workflow_navigation_html(active_page=active_page, ticker="AVGO")
 
     assert "aria-label='Personal research workflow'" in rendered
-    assert rendered.count("aria-current='page'") == 1
+    assert rendered.count("aria-label='Personal research workflow'") == 1
+    expected_current_count = 0 if active_page in {"data-health", "proof-history"} else 1
+    assert rendered.count("aria-current='page'") == expected_current_count
     assert all(label in rendered for label in ("Research Desk", "Discover", "Company Workbench", "Monitor"))
     assert "ticker=AVGO" in rendered
-    assert "Company Workbench" not in research_workspace.research_workflow_navigation_html(
-        active_page="discover",
+    assert "aria-label='Workspace mode'" in rendered
+
+
+def test_tickerless_workbench_destination_is_visible_disabled_and_does_not_infer_a_company():
+    rendered = research_workspace.research_workflow_navigation_html(active_page="discover")
+
+    assert "Company Workbench" in rendered
+    assert "aria-disabled='true'" in rendered
+    assert "Choose a company in Discover first" in rendered
+    assert "page=company-workbench" not in rendered
+
+
+def test_ticker_bound_workbench_destination_preserves_registered_symbol_punctuation():
+    rendered = research_workspace.research_workflow_navigation_html(
+        active_page="company-workbench",
+        ticker="BRK/B",
     )
+
+    assert "ticker=BRK%2FB&amp;open=1" in rendered
+    assert "aria-disabled='true'" not in rendered
 def test_research_workspace_header_labels_saved_readiness_without_changing_its_argument():
     rendered = research_workspace_header_html(
         "Research Desk",
@@ -1164,7 +1185,7 @@ def test_research_workspace_header_labels_saved_readiness_without_changing_its_a
     assert "<dt>Freshness</dt>" not in rendered
 
 
-def test_compact_research_workspace_header_keeps_identity_scope_and_boundary_without_duplicate_meta():
+def test_compact_research_workspace_header_keeps_context_identity_and_boundary_without_duplicate_meta():
     rendered = research_workspace_header_html(
         "Company Workbench",
         ticker="NVDA",
@@ -1180,7 +1201,7 @@ def test_compact_research_workspace_header_keeps_identity_scope_and_boundary_wit
     assert "Local Research" in rendered
     assert "Research-only" in rendered
     assert "investment advice" in rendered
-    assert "Current through 2026-07-16" not in rendered
+    assert "Current through 2026-07-16" in rendered
     assert "Review source-backed sections" not in rendered
     assert "research-workspace-meta" not in rendered
 
@@ -1193,10 +1214,18 @@ def test_research_desk_brief_and_advanced_evidence_html_stay_answer_first_and_co
         freshness_state="current",
         freshness_message="Saved readiness is current.",
     )
-    desk_html = research_desk_brief_html(brief)
+    desk_html = research_desk_brief_html(brief, freshness_state="current")
     evidence_html = advanced_evidence_links_html("NVDA")
 
-    assert desk_html.count("research-desk-brief") >= 1
+    assert desk_html.count("data-sr-region='primary-answer'") == 1
+    assert desk_html.count("data-sr-region='primary-action'") == 1
+    assert desk_html.count("data-sr-region='stop-rule'") == 1
+    assert desk_html.count("data-sr-region='supporting-evidence'") == 1
+    assert desk_html.index("data-sr-region='primary-answer'") < desk_html.index(
+        "data-sr-region='primary-action'"
+    ) < desk_html.index("data-sr-region='stop-rule'") < desk_html.index(
+        "data-sr-region='supporting-evidence'"
+    )
     assert "What needs my attention today?" in desk_html
     assert "Open Discover" in desk_html
     assert "market-complete event feed" in desk_html

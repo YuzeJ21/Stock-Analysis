@@ -21,6 +21,7 @@ PUBLIC_GLOBS = (
 )
 PUBLIC_SOURCE_FILES = (
     "src/dashboard.py",
+    "src/dashboard_visual_system.py",
     "src/stock_report.py",
     "src/company_workbench_html.py",
     "src/portable_research_action_policy.py",

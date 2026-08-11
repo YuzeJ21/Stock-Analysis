@@ -744,6 +744,7 @@ def test_semantic_main_bridge_is_fixed_idempotent_and_non_networked():
     assert 'setattribute("role", "main")' in source
     assert 'setattribute("id", "research-main")' in source
     assert 'setattribute("aria-label", "stock research workspace")' in source
+    assert 'setattribute("tabindex", "-1")' in source
     assert "mutationobserver" in source
     assert "disconnect()" in source
     assert "const host = document" in source
@@ -774,6 +775,36 @@ def test_semantic_main_bridge_is_fixed_idempotent_and_non_networked():
         "insertadjacentelement",
     ):
         assert forbidden not in source
+
+
+def test_semantic_main_bridge_removes_container_from_sequential_tab_order_and_restores():
+    result = _run_semantic_main_scenario(
+        elements=[
+            {
+                "name": "target",
+                "tag": "div",
+                "attributes": {
+                    "data-testid": "stMain",
+                    "tabindex": "0",
+                },
+            }
+        ],
+        operations=[
+            {"op": "run"},
+            {"op": "capture"},
+            {
+                "op": "remove-attribute",
+                "target": "target",
+                "name": "data-testid",
+            },
+            {"op": "flush"},
+            {"op": "capture"},
+        ],
+    )
+
+    applied, cleaned = result["captures"]
+    assert applied["elements"]["target"]["attributes"]["tabindex"] == "-1"
+    assert cleaned["elements"]["target"]["attributes"] == {"tabindex": "0"}
 
 
 @pytest.mark.parametrize(
@@ -826,6 +857,7 @@ def test_semantic_main_bridge_restores_each_original_attribute(tag, metadata):
         "role": "main",
         "id": "research-main",
         "aria-label": "Stock research workspace",
+        "tabindex": "-1",
         "data-research-main-bridge-owned": "true",
     }
     assert cleaned["status"] == "missing"
@@ -977,6 +1009,7 @@ def test_semantic_main_bridge_restores_latest_metadata_after_reassertion():
         "role": "main",
         "id": "research-main",
         "aria-label": "Stock research workspace",
+        "tabindex": "-1",
         "data-research-main-bridge-owned": "true",
     }
     assert filtered["queryCount"] == reasserted["queryCount"]
@@ -1023,6 +1056,7 @@ def test_semantic_main_bridge_observes_attribute_only_target_transitions():
         "role": "main",
         "id": "research-main",
         "aria-label": "Stock research workspace",
+        "tabindex": "-1",
         "data-research-main-bridge-owned": "true",
     }
     assert stable["queryCount"] == applied["queryCount"]
@@ -1031,7 +1065,13 @@ def test_semantic_main_bridge_observes_attribute_only_target_transitions():
     assert result["flushes"] == [1, 1, 1]
     assert applied["observers"][0]["options"] == {
         "attributes": True,
-        "attributeFilter": ["data-testid", "role", "id", "aria-label"],
+        "attributeFilter": [
+            "data-testid",
+            "role",
+            "id",
+            "aria-label",
+            "tabindex",
+        ],
         "childList": True,
         "subtree": True,
     }

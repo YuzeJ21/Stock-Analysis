@@ -15,6 +15,7 @@ class DashboardRenderRoute:
     name: str
     query_params: tuple[tuple[str, str], ...]
     required_markers: tuple[str, ...]
+    required_regions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,7 @@ class DashboardRenderResult:
     forbidden_markers: tuple[str, ...] = ()
     expanded_advanced: tuple[str, ...] = ()
     rendered_blocks: tuple[str, ...] = ()
+    missing_regions: tuple[str, ...] = ()
 
     @property
     def passed(self) -> bool:
@@ -33,6 +35,7 @@ class DashboardRenderResult:
             or self.missing_markers
             or self.forbidden_markers
             or self.expanded_advanced
+            or self.missing_regions
         )
 
 
@@ -94,6 +97,16 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
             "Open Discover",
             "market-complete event feed",
             "Research-only",
+        ),
+        required_regions=(
+            "workflow-nav",
+            "context",
+            "page-title",
+            "primary-answer",
+            "primary-action",
+            "stop-rule",
+            "supporting-evidence",
+            "advanced-detail",
         ),
     ),
     DashboardRenderRoute(
@@ -209,6 +222,11 @@ def render_public_routes(
         exceptions = tuple(str(item.value) for item in app.exception)
         missing_markers = tuple(marker for marker in route.required_markers if marker not in rendered)
         forbidden_markers = tuple(marker for marker in FORBIDDEN_RENDER_MARKERS if marker in rendered)
+        missing_regions = tuple(
+            region
+            for region in route.required_regions
+            if rendered.count(f"data-sr-region='{region}'") != 1
+        )
         results.append(
             DashboardRenderResult(
                 name=route.name,
@@ -217,6 +235,7 @@ def render_public_routes(
                 forbidden_markers=forbidden_markers,
                 expanded_advanced=_expanded_advanced_sections(app),
                 rendered_blocks=rendered_blocks,
+                missing_regions=missing_regions,
             )
         )
 
@@ -243,6 +262,8 @@ def render_dashboard_smoke(
             lines.append(f"  forbidden markers: {', '.join(result.forbidden_markers)}")
         if result.expanded_advanced:
             lines.append(f"  expanded advanced sections: {', '.join(result.expanded_advanced)}")
+        if result.missing_regions:
+            lines.append(f"  missing or duplicated regions: {', '.join(result.missing_regions)}")
     return "\n".join(lines)
 
 

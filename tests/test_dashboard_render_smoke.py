@@ -361,10 +361,24 @@ def test_research_route_renders_one_fragment_skip_link_and_one_existing_answer_t
     assert result.exceptions == ()
     assert rendered.count("class='public-skip-link'") == 1
     assert rendered.count("href='#public-page-answer'") == 1
+    assert "tabindex='1'" not in rendered
     assert rendered.count("id='public-page-answer'") == 1
 
 
-def test_research_skip_link_is_first_in_streamlit_sidebar_dom_bucket():
+def test_research_desk_render_smoke_requires_each_shared_region_once():
+    from src.dashboard_render_smoke import RESEARCH_RENDER_ROUTES, render_public_routes
+
+    route = next(route for route in RESEARCH_RENDER_ROUTES if route.name == "Research Desk")
+    result = render_public_routes(Path("."), routes=(route,))[0]
+    rendered = "\n".join(result.rendered_blocks)
+
+    assert result.exceptions == ()
+    assert result.missing_regions == ()
+    for region in route.required_regions:
+        assert rendered.count(f"data-sr-region='{region}'") == 1
+
+
+def test_research_skip_link_is_first_in_main_and_sidebar_has_no_navigation_controls():
     app = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
     app.query_params.update({"mode": "research", "page": "research-desk"})
     app.run(timeout=120)
@@ -373,11 +387,13 @@ def test_research_skip_link_is_first_in_streamlit_sidebar_dom_bucket():
     sidebar_markdown = [item.value for item in app.sidebar.markdown]
     main_markdown = [item.value for item in app.main.markdown]
 
-    assert "class='public-skip-link'" in sidebar_markdown[0]
-    assert not any("class='public-skip-link'" in value for value in main_markdown)
+    assert "class='public-skip-link'" in main_markdown[0]
+    assert not any("class='public-skip-link'" in value for value in sidebar_markdown)
+    assert not app.sidebar.radio
+    assert not app.sidebar.selectbox
 
 
-def test_public_skip_link_stays_in_first_sidebar_dom_bucket_and_renders_once():
+def test_public_skip_link_stays_in_first_main_bucket_without_sidebar_controls_and_renders_once():
     app = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
     app.query_params.update({"mode": "public"})
     app.run(timeout=120)
@@ -387,9 +403,25 @@ def test_public_skip_link_stays_in_first_sidebar_dom_bucket_and_renders_once():
     main_markdown = [item.value for item in app.main.markdown]
     rendered = sidebar_markdown + main_markdown
 
+    assert "class='public-skip-link'" in main_markdown[0]
+    assert not any("class='public-skip-link'" in value for value in sidebar_markdown)
+    assert not app.sidebar.radio
+    assert not app.sidebar.selectbox
+    assert sum("class='public-skip-link'" in value for value in rendered) == 1
+
+
+def test_operator_skip_link_stays_first_in_sidebar_before_native_route_controls():
+    app = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
+    app.query_params.update({"mode": "operator", "page": "overview"})
+    app.run(timeout=120)
+
+    assert not app.exception
+    sidebar_markdown = [item.value for item in app.sidebar.markdown]
+    main_markdown = [item.value for item in app.main.markdown]
+
     assert "class='public-skip-link'" in sidebar_markdown[0]
     assert not any("class='public-skip-link'" in value for value in main_markdown)
-    assert sum("class='public-skip-link'" in value for value in rendered) == 1
+    assert app.sidebar.radio
 
 
 def test_focused_skip_link_is_a_visible_horizontal_banner_in_public_and_research():
@@ -436,9 +468,7 @@ def test_focused_skip_link_is_a_visible_horizontal_banner_in_public_and_research
                                 timeout_seconds=60,
                             )
                             _wait_for_dom_stability(page, timeout_seconds=60)
-                            page.evaluate(
-                                "document.activeElement && document.activeElement.blur()"
-                            )
+                            page.locator("body").focus()
                             page.keyboard.press("Tab")
 
                             skip_links = page.locator(
@@ -473,6 +503,121 @@ def test_focused_skip_link_is_a_visible_horizontal_banner_in_public_and_research
                             assert active["width"] >= active["height"] * 2
                         finally:
                             context.close()
+            finally:
+                browser.close()
+
+
+def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors():
+    import pytest
+
+    from src.public_performance_gate import (
+        _local_demo_server,
+        _wait_for_dom_stability,
+        _wait_for_visible_text,
+        find_chrome_executable,
+    )
+
+    chrome = find_chrome_executable()
+    if chrome is None:
+        pytest.skip("Chrome-compatible browser is unavailable")
+    playwright = pytest.importorskip("playwright.sync_api")
+
+    with _local_demo_server(Path("."), timeout_seconds=60) as base_url:
+        with playwright.sync_playwright() as runtime:
+            browser = runtime.chromium.launch(
+                executable_path=str(chrome),
+                headless=True,
+            )
+            try:
+                for forced_colors in ("none", "active"):
+                    context = browser.new_context(viewport={"width": 1280, "height": 720})
+                    page = context.new_page()
+                    try:
+                        page.emulate_media(forced_colors=forced_colors)
+                        page.goto(
+                            f"{base_url}/?mode=research&page=research-desk",
+                            wait_until="domcontentloaded",
+                            timeout=60_000,
+                        )
+                        _wait_for_visible_text(
+                            page,
+                            "What needs my attention today?",
+                            timeout_seconds=60,
+                        )
+                        _wait_for_dom_stability(page, timeout_seconds=60)
+
+                        sequence_contract = page.evaluate(
+                            """
+                            () => {
+                              const selectors = [
+                                "[data-sr-region='workflow-nav']",
+                                "[data-sr-region='primary-answer']",
+                                "[data-sr-region='primary-action']",
+                                "[data-sr-region='stop-rule']",
+                                "[data-sr-region='supporting-evidence']",
+                                "[data-sr-region='advanced-detail']"
+                              ];
+                              const nodes = selectors.map((selector) => document.querySelector(selector));
+                              return {
+                                positiveTabindexCount: [...document.querySelectorAll("[tabindex]")]
+                                  .filter((node) => node.tabIndex > 0).length,
+                                skipTabindex: document.querySelector("a.public-skip-link")
+                                  ?.getAttribute("tabindex") ?? null,
+                                ordered: nodes.every(Boolean) && nodes.slice(0, -1).every(
+                                  (node, index) => Boolean(
+                                    node.compareDocumentPosition(nodes[index + 1]) &
+                                    Node.DOCUMENT_POSITION_FOLLOWING
+                                  )
+                                )
+                              };
+                            }
+                            """
+                        )
+                        assert sequence_contract == {
+                            "positiveTabindexCount": 0,
+                            "skipTabindex": None,
+                            "ordered": True,
+                        }
+
+                        page.locator("body").focus()
+                        roles = []
+                        outlines = []
+                        for _ in range(20):
+                            page.keyboard.press("Tab")
+                            observed = page.evaluate(
+                                """
+                                () => {
+                                  const element = document.activeElement;
+                                  let role = "other";
+                                  if (element.matches("a.public-skip-link")) role = "skip";
+                                  else if (element.closest("nav[aria-label='Personal research workflow']")) role = "navigation";
+                                  else if (element.matches("[data-sr-region='primary-action']")) role = "primary-action";
+                                  else if (element.matches("summary")) role = "advanced-detail";
+                                  const style = getComputedStyle(element);
+                                  return {
+                                    role,
+                                    outlineStyle: style.outlineStyle,
+                                    outlineWidth: Number.parseFloat(style.outlineWidth) || 0
+                                  };
+                                }
+                                """
+                            )
+                            roles.append(observed["role"])
+                            outlines.append(
+                                (observed["outlineStyle"], observed["outlineWidth"])
+                            )
+                            if observed["role"] == "advanced-detail":
+                                break
+
+                        action_index = roles.index("primary-action")
+                        assert roles[0] == "skip"
+                        assert action_index > 1
+                        assert set(roles[1:action_index]) == {"navigation"}
+                        assert roles[action_index + 1] == "advanced-detail"
+                        assert all(style not in {"", "none"} for style, _ in outlines)
+                        assert all(width >= 3 for _, width in outlines)
+                    finally:
+                        context.close()
             finally:
                 browser.close()
 

@@ -1,8 +1,10 @@
-"""Byte-level characterization for the initial dashboard presentation seam."""
+"""Contracts for the dashboard presentation seam and visual foundation."""
 
 import hashlib
 import json
 from pathlib import Path
+
+import pytest
 
 from src import dashboard
 from src import dashboard_visual_system as visual
@@ -40,15 +42,9 @@ def test_presentation_seam_keeps_rendered_stylesheet_byte_identical():
     assert visual.render_stylesheet(expected_css) == snapshots["accessibility_stylesheet"]
 
 
-def test_presentation_seam_keeps_public_helper_dom_snapshots_byte_identical():
+def test_presentation_seam_keeps_unmodified_public_helper_dom_snapshots_byte_identical():
     snapshots = _dom_snapshots()
 
-    assert research_workspace.research_workflow_navigation_html(
-        active_page="Company Workbench", ticker="brk/b"
-    ) == snapshots["research_workflow_navigation_html"]
-    assert dashboard.public_workflow_skip_link_html(
-        "?mode=research&page=company-workbench&ticker=AAPL's&open=1"
-    ) == snapshots["public_workflow_skip_link_html"]
     assert dashboard.section_header_html(
         "<Monthly Picks>", "Use <local> research coverage."
     ) == snapshots["section_header_html"]
@@ -59,3 +55,234 @@ def test_presentation_seam_escapes_text_and_quoted_attributes():
     assert visual.escape_attribute("AAPL's \"review\" & <local>") == (
         "AAPL&#x27;s &quot;review&quot; &amp; &lt;local&gt;"
     )
+
+
+def _relative_luminance(hex_color: str) -> float:
+    channels = [int(hex_color[index : index + 2], 16) / 255 for index in (1, 3, 5)]
+    linear = [
+        channel / 12.92 if channel <= 0.04045 else ((channel + 0.055) / 1.055) ** 2.4
+        for channel in channels
+    ]
+    return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+
+def _contrast(first: str, second: str) -> float:
+    lighter, darker = sorted((_relative_luminance(first), _relative_luminance(second)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def test_visual_tokens_match_the_approved_calm_institutional_palette():
+    assert visual.visual_tokens() == {
+        "--sr-canvas": "#F6F7F4",
+        "--sr-surface": "#FFFFFF",
+        "--sr-surface-muted": "#F1F4F1",
+        "--sr-ink": "#0F172A",
+        "--sr-text": "#243244",
+        "--sr-muted": "#475569",
+        "--sr-border": "#D9E1DC",
+        "--sr-nav": "#0B1B2B",
+        "--sr-nav-text": "#F8FAFC",
+        "--sr-nav-muted": "#CBD5E1",
+        "--sr-forest": "#155E4B",
+        "--sr-teal": "#0F766E",
+        "--sr-amber": "#854D0E",
+        "--sr-red": "#B42318",
+        "--sr-blue": "#315D8A",
+        "--sr-focus": "#0B6BFF",
+    }
+
+
+@pytest.mark.parametrize("surface", ("--sr-surface", "--sr-surface-muted", "--sr-canvas"))
+@pytest.mark.parametrize(
+    "foreground",
+    ("--sr-ink", "--sr-text", "--sr-muted", "--sr-forest", "--sr-teal", "--sr-amber", "--sr-red", "--sr-blue"),
+)
+def test_permitted_light_surface_text_pairs_are_aa_readable(surface, foreground):
+    tokens = visual.visual_tokens()
+
+    assert _contrast(tokens[foreground], tokens[surface]) >= 4.5
+
+
+def test_navigation_and_focus_pairs_meet_the_approved_contrast_floor():
+    tokens = visual.visual_tokens()
+
+    assert _contrast(tokens["--sr-nav-text"], tokens["--sr-nav"]) >= 4.5
+    assert _contrast(tokens["--sr-nav-muted"], tokens["--sr-nav"]) >= 4.5
+    for surface in ("--sr-surface", "--sr-surface-muted", "--sr-canvas", "--sr-nav"):
+        assert _contrast(tokens["--sr-focus"], tokens[surface]) >= 3
+
+
+@pytest.mark.parametrize("label", ("Keep", "Strong Rotation", "Risk Reduce", "peer_discount"))
+def test_analytic_labels_never_inherit_evidence_sentiment(label):
+    state = visual.visual_state("analytic", label)
+
+    assert state.semantic == "neutral"
+    assert state.label == label
+
+
+@pytest.mark.parametrize(
+    ("role", "state", "semantic"),
+    (
+        ("evidence", "supported", "supported"),
+        ("evidence", "partial", "partial"),
+        ("evidence", "blocked", "blocked"),
+        ("evidence", "stale", "stale"),
+        ("evidence", "excluded", "excluded"),
+        ("evidence", "withheld", "withheld"),
+        ("freshness", "current", "supported"),
+        ("freshness", "mixed", "partial"),
+        ("freshness", "missing", "blocked"),
+        ("workflow", "current", "workflow"),
+        ("trace", "source_backed", "trace"),
+        ("legacy", "supported", "neutral"),
+        ("unknown-role", "blocked", "neutral"),
+        ("", "", "neutral"),
+    ),
+)
+def test_visual_state_mapping_is_role_aware_and_fails_closed(role, state, semantic):
+    result = visual.visual_state(role, state)
+
+    assert result.semantic == semantic
+    assert result.label
+
+
+def test_dashboard_visual_css_uses_local_fonts_tokens_and_responsive_complete_controls():
+    css = visual.dashboard_visual_system_css()
+
+    assert "--sr-nav: #0B1B2B" in css
+    assert 'Inter, "SF Pro Text", "Segoe UI", system-ui, sans-serif' in css
+    assert "url(" not in css.lower()
+    assert "min-height: 44px" in css
+    assert "overflow-x: auto" in css
+    assert "text-overflow: ellipsis" not in css
+    assert "line-clamp" not in css
+    assert "@media (forced-colors: active)" in css
+    assert "@media (prefers-reduced-motion: reduce)" in css
+
+
+def test_typed_components_escape_every_text_and_attribute_boundary():
+    action = visual.SafeRouteAction(
+        label="Open <Desk>",
+        href="?mode=research&page=discover",
+        aria_label='Open "Desk" & continue',
+    )
+    rendered = visual.workspace_shell_html(
+        mode='research\" onmouseover="alert(1)',
+        navigation=visual.next_action_html(action),
+        content=(
+            visual.context_bar_html((("<Profile>", 'Demo & "local"'),)),
+            visual.answer_panel_html(
+                question="<Question>",
+                answer="Use & verify",
+                reason='Reason "quoted"',
+                action=action,
+                stop_rule="Stop <now>",
+            ),
+        ),
+    ).value
+
+    assert "<Profile>" not in rendered
+    assert "&lt;Profile&gt;" in rendered
+    assert "Demo &amp; \"local\"" in rendered
+    assert "Open &lt;Desk&gt;" in rendered
+    assert "Open &quot;Desk&quot; &amp; continue" in rendered
+    assert "research&quot; onmouseover=&quot;alert(1)" in rendered
+
+
+def test_workspace_shell_rejects_raw_or_foreign_nested_html():
+    with pytest.raises(TypeError):
+        visual.workspace_shell_html(mode="research", navigation=None, content=("<b>raw</b>",))
+    with pytest.raises(TypeError):
+        visual.workspace_shell_html(mode="research", navigation="<nav>raw</nav>", content=())
+
+
+def test_html_fragment_creation_is_module_controlled_and_forged_instances_are_rejected():
+    with pytest.raises(TypeError, match="module presentation helpers"):
+        visual.HtmlFragment("<script>alert('forged')</script>")
+
+    forged = object.__new__(visual.HtmlFragment)
+    object.__setattr__(forged, "value", "<script>alert('forged')</script>")
+    with pytest.raises(TypeError, match="trusted HtmlFragment"):
+        visual.workspace_shell_html(mode="research", navigation=forged, content=())
+
+    class ForeignFragment(visual.HtmlFragment):
+        pass
+
+    subclass_forgery = object.__new__(ForeignFragment)
+    object.__setattr__(subclass_forgery, "value", "<nav>forged</nav>")
+    with pytest.raises(TypeError, match="trusted HtmlFragment"):
+        visual.workspace_shell_html(
+            mode="research",
+            navigation=None,
+            content=(subclass_forgery,),
+        )
+
+
+@pytest.mark.parametrize("role", ("analytic", "legacy", "unknown-role"))
+@pytest.mark.parametrize("state", ("excluded", "withheld"))
+def test_excluded_and_withheld_semantics_remain_evidence_only(role, state):
+    assert visual.visual_state(role, state).semantic == "neutral"
+
+
+@pytest.mark.parametrize(
+    "href",
+    (
+        "",
+        "https://example.com/?mode=research&page=discover",
+        "//example.com/?mode=research&page=discover",
+        "/?mode=research&page=discover",
+        "?mode=research&page=discover#answer",
+        "?mode=research&mode=public&page=discover",
+        "?mode=research&page=discover&command=make+status-check",
+        "?mode=research&page=discover&apply=1",
+    ),
+)
+def test_safe_route_action_rejects_noncanonical_or_state_changing_links(href):
+    with pytest.raises(ValueError):
+        visual.SafeRouteAction(label="Open", href=href)
+
+
+def test_safe_route_action_renders_canonical_query_only_links():
+    rendered = visual.next_action_html(
+        visual.SafeRouteAction(
+            label="Open Workbench",
+            href="?mode=research&page=company-workbench&ticker=BRK%2FB&open=1",
+        )
+    ).value
+
+    assert "href='?mode=research&amp;page=company-workbench&amp;ticker=BRK%2FB&amp;open=1'" in rendered
+    assert "data-sr-region='primary-action'" in rendered
+
+
+def test_shared_components_emit_unique_regions_and_malformed_evidence_stays_visible_neutral():
+    action = visual.SafeRouteAction(label="Open Discover", href="?mode=research&page=discover")
+    shell = visual.workspace_shell_html(
+        mode="research",
+        navigation=None,
+        content=(
+            visual.context_bar_html((("Mode", "Personal research"),)),
+            visual.answer_panel_html(
+                question="What needs attention?",
+                answer="Review one saved evidence change.",
+                reason="The saved queue has a review item.",
+                action=action,
+                stop_rule="Research-only. Stop when evidence is unavailable.",
+            ),
+            visual.evidence_rows_html(
+                (
+                    visual.EvidenceRow(
+                        lane="Price setup",
+                        role="evidence",
+                        state="not-a-real-state",
+                        count_or_cutoff="Unavailable",
+                        reason="Malformed source state remains visible.",
+                    ),
+                )
+            ),
+        ),
+    ).value
+
+    for region in ("context", "primary-answer", "primary-action", "stop-rule", "supporting-evidence"):
+        assert shell.count(f"data-sr-region='{region}'") == 1
+    assert "not-a-real-state" in shell
+    assert "sr-status-neutral" in shell
