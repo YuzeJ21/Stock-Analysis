@@ -12,6 +12,12 @@ requirements and must not enter the application. Existing application data,
 readiness, provenance, source-rights, route, and research-only contracts remain
 authoritative.
 
+A repository and live-browser audit on 2026-08-10 amended the implementation
+contract before source work: authoritative proof ordering is preserved,
+canonical query retention is explicit, Public/Personal navigation-widget
+replacement is narrowly exempted, evidence-route navigation is intentional,
+Public Home has one stop-rule node, and inverse navigation colors are defined.
+
 ## Objective
 
 Modernize the existing Streamlit product into a calm institutional research
@@ -130,6 +136,40 @@ Before the visual foundation slice:
 - the redirected URL is canonicalized so reload and browser history cannot
   restore the disallowed page under the wrong mode.
 
+Route resolution consumes the raw `mode` and `page` query values before an
+unknown page can collapse to `Home`. It returns a structured result containing
+the normalized mode, requested page, canonical page, recognized state,
+allowed state, redirect state, and canonical retained-query mapping. An
+explicit unknown mode fails closed to Personal Research at Research Desk.
+
+Allowed direct requests are not rewritten merely for being loaded; their
+existing query state survives. Canonical redirects for disallowed or unknown
+pages clear all route-specific keys and retain only the normalized mode plus
+its canonical fallback page. Public Home uses canonical `?mode=public` with no
+`page=home`; Personal Research uses
+`?mode=research&page=research-desk`. Mode switches on Data Health or Proof
+History preserve that shared evidence page and its permitted keys. Other mode
+switches open the target mode's canonical home and clear route-specific keys.
+
+The canonical link and redirect allowlists are exact:
+
+| Mode and page | Permitted route-specific keys |
+| --- | --- |
+| Public Home, Stock Selector | none |
+| Public Single-Stock Report | `ticker`, `open` |
+| Public Data Health | `ticker`, `lane`, `drawer`, `queue_details`, `batch_details`, `proof_details`, `metric_details` |
+| Public Proof History | `ticker` |
+| Personal Research Desk, Discover, Monitor | none |
+| Personal Company Workbench | `ticker`, `open`, `cash_preview` |
+| Personal Data Health | `ticker`, `lane`, `drawer`, `queue_details`, `batch_details`, `proof_details`, `metric_details` |
+| Personal Proof History | `ticker` |
+
+`mode` and `page` are controlled canonical keys, not route-specific retained
+keys. Operator retains its current supported route and query behavior. Ticker
+round trips use the authoritative registry normalization and preserve valid
+punctuation such as the slash in `BRK/B`; a link builder and its consuming
+query parser cannot disagree about the same registered ticker.
+
 This is a fail-closed route-boundary repair, not a new route or a removal of
 Operator capability. It receives its own focused tests and review before visual
 changes begin.
@@ -151,9 +191,11 @@ Every primary page uses this visible order:
 
 The default DOM and visual order is question, answer, action, stop rule,
 supporting evidence, then detail. When the stop rule is inside `AnswerPanel`, it
-follows the action inside that panel. The only existing layout exception is
-Public Home desktop, which retains action, metrics, then stop rule; Public Home
-phone uses the already-approved action, stop rule, then metrics order. Evidence
+follows the action inside that panel. Public Home uses one semantic stop-rule
+node and one DOM order on every viewport: action, stop rule, then metrics. On
+desktop only, CSS grid placement presents metrics before the stop rule; the
+accessibility-tree order remains action, stop rule, metrics. Public Home phone
+uses the already-approved matching visual order. Evidence
 routes place their mode-level research boundary before the first ledger row.
 Operator and legacy routes place their operator or compatibility warning before
 detail rather than inventing a research stop rule.
@@ -174,11 +216,20 @@ rendered. Personal Research exposes only:
 - Company Workbench; and
 - Monitor.
 
-Data Health and Proof History remain secondary evidence destinations. The
-Personal Research Streamlit sidebar does not render route choices. Workspace
+Data Health and Proof History remain secondary evidence destinations and still
+render this same one primary workflow nav. No core item receives
+`aria-current="page"` on an evidence route; the evidence page H1 and context row
+identify the current secondary destination. The Personal Research Streamlit
+sidebar does not render route choices. Workspace
 mode switching is a separately labelled `Workspace mode` disclosure at the end
 of the same rail DOM; at phone width it follows the route strip in the same
 node. Its links change mode and are not labelled as page navigation.
+
+The rail always presents all four route names, but Company Workbench never
+infers a default ticker. When no selected ticker exists, its item is a
+non-link, `aria-disabled="true"` destination with the instruction to choose a
+company in Discover first. When a registered ticker exists, its link preserves
+that ticker and `open=1`.
 
 Public renders one labelled in-content five-step workflow `nav`; the Streamlit
 sidebar is not rendered. The same Public nav becomes a contained horizontal
@@ -192,6 +243,19 @@ behaviorally separated through the prerequisite redirect contract.
 Every mode and breakpoint has exactly one visible labelled route navigation.
 The current route is communicated through text plus shape or border, not color
 alone.
+
+Exactly one skip link exists per mode and keeps the existing
+`#public-page-answer` destination and same-document focus behavior. In Public
+and Personal Research, it is outside the unrendered sidebar and is the first
+focusable element before visible route navigation. In Operator, Streamlit's DOM
+ordering makes the sidebar the first focus bucket, so the skip link remains the
+first sidebar child before native workspace and route controls. No client-side
+DOM reordering is introduced. Public and Personal Research replace the
+navigation and workspace mode radios with URL-only links; this is an explicit
+exception to preserving the removed `dashboard-workspace-mode` and route-radio
+widget keys. Operator retains its existing native workspace and route controls
+and their widget state. All non-navigation Streamlit widget keys, session
+state, form, receipt, fingerprint, and rerun contracts remain unchanged.
 
 At phone width, the application uses a compact, labelled workflow strip with
 horizontal overflow contained inside the navigation region. Labels wrap or
@@ -230,6 +294,8 @@ baseline and remain subject to the explicit contrast matrix that follows.
 | `--sr-muted` | `#475569` | secondary text |
 | `--sr-border` | `#D9E1DC` | separators and necessary borders |
 | `--sr-nav` | `#0B1B2B` | navigation background |
+| `--sr-nav-text` | `#F8FAFC` | primary text on navigation background |
+| `--sr-nav-muted` | `#CBD5E1` | secondary text on navigation background |
 | `--sr-forest` | `#155E4B` | primary workflow action |
 | `--sr-teal` | `#0F766E` | supported evidence and workflow progress |
 | `--sr-amber` | `#854D0E` | partial, waiting, or stale state |
@@ -262,7 +328,9 @@ icons, borders that communicate state, and other non-text components. The
 matrix covers `--sr-surface`, `--sr-surface-muted`, `--sr-canvas`, and
 `--sr-nav` for every foreground token permitted on each surface. Unsupported
 combinations are not used even if an individual token passes on another
-surface.
+surface. In particular, navigation copy uses only `--sr-nav-text` or
+`--sr-nav-muted`; body, muted, teal, and forest foreground tokens are not
+assumed readable on `--sr-nav`.
 
 ### Typography
 
@@ -348,13 +416,16 @@ summary.
 
 ### `EvidenceTimeline`
 
-Pins the latest durable proof or traceable change as the primary row, then
-renders remaining records newest-first by parsed timestamp with original ledger
-order as the stable tie-break. Rows without a timestamp remain visible after
-dated rows, retain their original ledger order, and display `Timestamp
-unavailable`; no date is inferred. Missing or non-traceable history renders a
-truthful empty state. The component is not a news feed and does not imply
-completeness.
+Consumes the authoritative preordered proof or change payload and never
+recalculates which record is latest. Reviewed lane proof ordering remains
+`(proof_date, proof_id)` descending; reviewed batch proof ordering remains
+`(review_date, batch_id)` descending. The first authoritative row is pinned as
+the primary record and the remaining rows retain that supplied order. Other
+traceable change payloads retain their existing domain ordering contract.
+Rows without a timestamp remain visible in the position supplied by the
+authoritative adapter and display `Timestamp unavailable`; no date or tie-break
+is inferred. Missing or non-traceable history renders a truthful empty state.
+The component is not a news feed and does not imply completeness.
 
 ### `NextAction`
 
@@ -398,7 +469,9 @@ and confirmation controls are placed immediately adjacent to the relevant pure
 presentation panel inside a Streamlit container; they are never nested inside a
 pure HTML string. Existing widget keys, session-state names, rerun behavior,
 form boundaries, receipt identity, ledger fingerprint, and append-only tests
-remain unchanged unless a separately approved behavior design says otherwise.
+remain unchanged. The only approved widget exception is the removal of Public
+and Personal Research navigation/workspace radios in favor of the URL-only
+links defined above; Operator retains those native controls.
 
 `apply_dashboard_theme()` and route renderers remain thin integration points in
 `src/dashboard.py`. Existing helpers are migrated only when directly required
@@ -507,7 +580,9 @@ review.
 The program is divided into independently reviewable, test-first slices:
 
 0. **Mode-isolation prerequisite.** Enforce the complete per-mode allowed-page
-   sets and canonical fail-closed redirects before visual work.
+   sets, raw-query structured resolution, exact retained-key allowlists,
+   canonical fail-closed redirects, punctuation-safe ticker round trips, and
+   mode-correct evidence return links before visual work.
 1. **Byte-identical presentation seam.** Extract only the directly shared CSS
    and pure helpers into `src/dashboard_visual_system.py` while requiring
    byte-equivalent exported CSS and unchanged rendered DOM. Migrate affected
@@ -602,19 +677,36 @@ not copied into both modules merely to keep source-string tests green. Thin
 ### Route contract tests
 
 - unchanged supported route/query mapping;
+- raw unknown pages remain distinguishable from recognized Home until route
+  policy resolves them;
 - canonical Public-to-Home and Personal-Research-to-Research-Desk redirects for
   every disallowed cross-mode, advanced, legacy, and unknown page;
+- invalid explicit modes fail closed to canonical Personal Research Desk;
+- allowed direct requests preserve their current query mapping, while redirect
+  and mode-switch results keep only the exact page allowlist above;
+- punctuation-bearing registered tickers round-trip through link generation and
+  query parsing;
 - preserved shared Data Health and Proof History ticker/return behavior;
+- Personal evidence routes expose only the Personal return path and never add a
+  Public report return link;
 - unchanged Operator access to advanced and legacy routes;
 - one visible navigation authority;
+- evidence routes render the same one Personal workflow nav with no false core
+  `aria-current` item;
+- tickerless navigation shows a disabled Company Workbench destination and does
+  not infer a company;
+- the mode-appropriate sole skip link is first in the Public/Personal document
+  or Operator sidebar focus bucket and keeps its same-document target;
 - default question, answer, next action, stop rule, evidence, then detail source
-  order, plus the enumerated Public Home desktop/phone exceptions;
+  order, plus Public Home's desktop-only visual grid exception;
 - unchanged widget keys, session-state names, form boundaries, authoring receipt
-  and fingerprint behavior, and native-control rerun semantics;
+  and fingerprint behavior, and native-control rerun semantics outside the
+  explicit Public/Personal navigation-widget replacement;
 - Discover strict-screen and saved-browser separation;
 - Workbench independent usable and withheld lanes;
 - Monitor's single truthful zero state;
-- Public Home phone action, stop rule, metrics order;
+- one Public Home stop-rule node, with action, stop rule, metrics DOM order and
+  action, metrics, stop desktop visual placement;
 - Data Health and Proof History remain evidence-only; and
 - operator and legacy isolation remains intact.
 
@@ -622,9 +714,10 @@ not copied into both modules merely to keep source-string tests green. Thin
 
 - fresh-process render at `1280x720`, `1440x1024`, and `390x844` using the demo
   profile for Research Desk, Discover, AVGO Company Workbench, Monitor, Public
-  Home, Stock Selector, AVGO Single-Stock Report, Data Health, Proof History,
-  Operator Overview, Market Direction, Universe Manager, and one legacy
-  compatibility page;
+  Home, Stock Selector, AVGO Single-Stock Report, Public Data Health, Public
+  Proof History, Personal Data Health, Personal Proof History, Operator
+  Overview, Market Direction, Universe Manager, and one legacy compatibility
+  page;
 - each critical `data-sr-region` bounding box satisfies `left >= -1` and
   `right <= clientWidth + 1` at every viewport;
 - `documentElement.scrollWidth <= documentElement.clientWidth + 1` and the same
@@ -638,6 +731,7 @@ not copied into both modules merely to keep source-string tests green. Thin
 - at `390x844`, the top of `primary-answer`, `primary-action`, and `stop-rule`
   is inside the initial viewport on primary routes, and Public Home's complete
   stop rule ends at or above `844px`;
+- exactly one `[data-sr-region="stop-rule"]` exists on routes with a stop rule;
 - keyboard focus and skip-link behavior;
 - forced-colors and reduced-motion engineering checks;
 - no traceback, browser console error, or loading-state capture; and
