@@ -33,9 +33,11 @@ from src.dashboard_visual_system import (
     empty_state_html,
     evidence_timeline_html,
     next_action_html,
+    operator_route_shell_html as _operator_route_shell_html,
     stop_rule_html,
     supporting_detail_html,
     render_stylesheet,
+    visual_state,
 )
 from src.continuation_gate import build_continuation_gate
 from src.source_activation_guide import build_provider_setup_checklist, build_source_activation_guide
@@ -483,6 +485,9 @@ USER_PAGE_TITLES = ["Home", STOCK_SELECTOR_PATH_TITLE] + RESEARCH_PATH_PAGE_TITL
 ADVANCED_PAGE_TITLES = [
     title for title in _advanced_page_titles(USER_PAGE_TITLES) if title not in RESEARCH_PATH_PAGE_TITLES
 ]
+OPERATOR_COMPATIBILITY_PAGE_TITLES = frozenset(
+    (*LEGACY_RESEARCH_UTILITY_PAGES, "Market Direction")
+)
 RESEARCH_PAGE_RENDER_TARGETS = {
     "Research Desk": "Research Desk",
     "Discover": STOCK_SELECTOR_PATH_TITLE,
@@ -930,48 +935,6 @@ OUTPUT_TAB_GUIDANCE = {
     "Portfolio Review": "Holding-level thesis review and concentration/risk context.",
     "Value / Re-rating": "Local quality and valuation context where fundamentals exist.",
     "Final Watchlist": "Readiness-state view that separates review queues, monitor context, and data blockers.",
-}
-STATE_COLORS = {
-    "Research Ready": ("#dcfce7", "#14532d"),
-    "Watch": ("#dbeafe", "#1e3a8a"),
-    "Setup Forming": ("#fef9c3", "#713f12"),
-    "Pullback Review Candidate": ("#e0f2fe", "#075985"),
-    "Extended": ("#ffedd5", "#9a3412"),
-    "Risk Reduce": ("#fee2e2", "#991b1b"),
-    "Broken": ("#fecaca", "#7f1d1d"),
-    "Review Thesis": ("#fef3c7", "#78350f"),
-    "Keep": ("#dcfce7", "#14532d"),
-    "Constructive Review": ("#dbeafe", "#1e3a8a"),
-    "Hold Review Only": ("#e2e8f0", "#334155"),
-    "No Setup": ("#fee2e2", "#991b1b"),
-    "Insufficient Data": ("#e2e8f0", "#334155"),
-    "Strong Rotation": ("#dcfce7", "#14532d"),
-    "Early Rotation": ("#dbeafe", "#1e3a8a"),
-    "Overextended": ("#ffedd5", "#9a3412"),
-    "Weak": ("#fee2e2", "#991b1b"),
-    "Broken / No Setup": ("#fecaca", "#7f1d1d"),
-    "Peer Data Unavailable": ("#e2e8f0", "#334155"),
-    "Insufficient Peer Data": ("#e2e8f0", "#334155"),
-    "valid": ("#dcfce7", "#14532d"),
-    "valid_with_warnings": ("#fef9c3", "#713f12"),
-    "missing_file": ("#e2e8f0", "#334155"),
-    "Available": ("#dcfce7", "#14532d"),
-    "Not available": ("#e2e8f0", "#334155"),
-    "peer_discount": ("#dcfce7", "#14532d"),
-    "peer_premium": ("#ffedd5", "#9a3412"),
-    "mixed": ("#e2e8f0", "#334155"),
-    "insufficient_peer_data": ("#e2e8f0", "#334155"),
-    "Research Ready": ("#dcfce7", "#14532d"),
-    "Partial Coverage": ("#fef9c3", "#713f12"),
-    "Needs Price Data": ("#fee2e2", "#991b1b"),
-    "Needs Enrichment": ("#ffedd5", "#9a3412"),
-    "Liquid": ("#dcfce7", "#14532d"),
-    "Moderate Liquidity": ("#dbeafe", "#1e3a8a"),
-    "Thin / Needs Review": ("#ffedd5", "#9a3412"),
-    "High Co-movement": ("#fee2e2", "#991b1b"),
-    "Moderate Co-movement": ("#fef9c3", "#713f12"),
-    "Low Co-movement": ("#dcfce7", "#14532d"),
-    "Insufficient Overlap": ("#e2e8f0", "#334155"),
 }
 BADGE_COLORS = {
     "positive": ("#064e3b", "#d1fae5"),
@@ -2057,7 +2020,7 @@ def is_state_column(name: str) -> bool:
     )
 
 
-def style_frame(frame: pd.DataFrame):
+def style_frame(frame: pd.DataFrame, *, role: str = "analytic"):
     state_columns = [column for column in frame.columns if is_state_column(column)]
     highlight_columns = [
         column
@@ -2070,11 +2033,11 @@ def style_frame(frame: pd.DataFrame):
     def color_state(value: object) -> str:
         if pd.isna(value):
             return ""
-        style = STATE_COLORS.get(str(value))
-        if style is None:
-            return ""
-        background, foreground = style
-        return f"background-color: {background}; color: {foreground}; font-weight: 700"
+        state = visual_state(role, str(value), label=str(value))
+        return (
+            f"background-color: {state.background}; color: {state.foreground}; "
+            "font-weight: 700"
+        )
 
     def emphasize_text(value: object) -> str:
         if pd.isna(value) or str(value).strip() in {"", "nan"}:
@@ -5282,16 +5245,23 @@ def _badge(text: object, tone: str = "neutral") -> str:
     )
 
 
-def status_badge(status: object) -> str:
-    text = public_status_label(status)
-    lowered = text.lower()
-    if any(keyword in lowered for keyword in ("broken", "avoid", "risk reduce")):
-        return _badge(text, "negative")
-    if any(keyword in lowered for keyword in ("extended", "review", "insufficient")):
-        return _badge(text, "caution")
-    if any(keyword in lowered for keyword in ("watch", "setup", "candidate", "rotation", "keep")):
-        return _badge(text, "positive")
-    return _badge(text, "neutral")
+def status_badge(
+    status: object,
+    *,
+    role: str = "analytic",
+    label: object | None = None,
+) -> str:
+    text = public_status_label(status if label is None else label)
+    state = visual_state(role, str(status or ""), label=text)
+    return (
+        "<span "
+        f"data-sr-role='{html.escape(state.role, quote=True)}' "
+        f"data-sr-semantic='{html.escape(state.semantic, quote=True)}' "
+        "style='display:inline-block;padding:0.18rem 0.48rem;border-radius:0.45rem;"
+        f"font-size:0.78rem;font-weight:700;color:{state.foreground};"
+        f"background:{state.background};border:1px solid {state.border};'>"
+        f"{html.escape(state.label)}</span>"
+    )
 
 
 def score_badge(score: object) -> str:
@@ -8311,7 +8281,8 @@ def command_center_header_html(
     data_health_href = f"?mode={data_health_mode}&page=data-health"
     topbar_html = (
         f"<header class='command-shell{compact_class}'>"
-        f"<nav class='command-topbar{compact_class}' aria-label='Readiness status'>"
+        f"<section class='command-topbar{compact_class}' role='region' "
+        "aria-label='Saved readiness status'>"
         "<div class='command-top-left'>"
         "<span class='command-product-name'>Stock Research Command Center</span>"
         "<span class='command-status-item primary'>Saved readiness</span>"
@@ -8322,7 +8293,7 @@ def command_center_header_html(
         "<div class='command-top-right'>"
         f"<a class='command-top-link' href='{data_health_href}' target='_self'{data_health_current_attr}>Blocked inputs? Data Health</a>"
         "</div>"
-        "</nav>"
+        "</section>"
     )
     if compact:
         return (
@@ -9981,6 +9952,28 @@ def stock_report_readiness_badges(readiness: dict[str, object]) -> list[str]:
         ("analyst_estimates_available", "Estimates available", "Estimates missing"),
     ]
     return [ready_label if readiness.get(key) else missing_label for key, ready_label, missing_label in definitions]
+
+
+STOCK_REPORT_READINESS_BADGE_STATES = {
+    "DCF ready": "supported",
+    "DCF needs data": "blocked",
+    "Peer ready": "supported",
+    "Peers needed": "blocked",
+    "Earnings available": "supported",
+    "Earnings missing": "blocked",
+    "Estimates available": "supported",
+    "Estimates missing": "blocked",
+}
+
+
+def stock_report_readiness_status_badge(label: object) -> str:
+    display_label = str(label or "").strip()
+    canonical_state = STOCK_REPORT_READINESS_BADGE_STATES.get(display_label, "unknown")
+    return status_badge(
+        canonical_state,
+        role="readiness",
+        label=display_label,
+    )
 
 
 def stock_report_summary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
@@ -31601,13 +31594,21 @@ def render_home_page(
         )
 
 
+def operator_route_shell_html(title: str) -> str:
+    kind = (
+        "compatibility"
+        if str(title or "").strip() in OPERATOR_COMPATIBILITY_PAGE_TITLES
+        else "operator"
+    )
+    return _operator_route_shell_html(title=str(title or ""), kind=kind).value
+
+
+def render_operator_route_shell(title: str) -> None:
+    st.markdown(operator_route_shell_html(title), unsafe_allow_html=True)
+
+
 def render_legacy_research_utility_shell(title: str) -> None:
     render_section_header(title, "Retained only for deterministic compatibility and operator regression review.")
-    render_context_note(
-        "Legacy research utility — not part of Personal Research Mode",
-        "This retained view cannot provide recommendations, company ranking for action, position sizing, transaction direction, readiness, or Decision Lab evidence.",
-        tone="warning",
-    )
 
 
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
@@ -32475,7 +32476,14 @@ def render_single_stock_report(
                 "Shows which inputs are available before deeper analysis. Missing rows keep sections locked.",
             )
             render_signal_cards(stock_report_local_context_cards(coverage, peer_summary), show_commands=show_card_commands)
-            st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
+            st.dataframe(
+                style_frame(
+                    clean_display_frame(ticker_coverage_display_frame(coverage)),
+                    role="readiness",
+                ),
+                width="stretch",
+                hide_index=True,
+            )
             with st.expander("Evidence row details", expanded=False):
                 st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
             readiness_cols = st.columns(5)
@@ -32536,7 +32544,10 @@ def render_single_stock_report(
         )
     st.markdown(
         "<div style='display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.5rem 0 1rem 0;'>"
-        + "".join(status_badge(label) for label in stock_report_readiness_badges(readiness))
+        + "".join(
+            stock_report_readiness_status_badge(label)
+            for label in stock_report_readiness_badges(readiness)
+        )
         + "</div>",
         unsafe_allow_html=True,
     )
@@ -35437,7 +35448,14 @@ def render_data_health(
                             ]
                             if column in data_quality_frame.columns
                         ]
-                        st.dataframe(style_frame(clean_display_frame(data_quality_frame[data_quality_columns])), width="stretch", hide_index=True)
+                        st.dataframe(
+                            style_frame(
+                                clean_display_frame(data_quality_frame[data_quality_columns]),
+                                role="readiness",
+                            ),
+                            width="stretch",
+                            hide_index=True,
+                        )
                     else:
                         st.info(data_quality_message or "No data-quality rows are available.")
 
@@ -35495,13 +35513,30 @@ def render_data_health(
                         ]
                         with st.expander("Legacy liquidity rows", expanded=False):
                             if not liquidity_ready.empty:
-                                st.dataframe(style_frame(clean_display_frame(liquidity_ready[liquidity_columns])), width="stretch", hide_index=True)
+                                st.dataframe(
+                                    style_frame(
+                                        clean_display_frame(liquidity_ready[liquidity_columns]),
+                                        role="analytic",
+                                    ),
+                                    width="stretch",
+                                    hide_index=True,
+                                )
                             else:
                                 st.info("Liquidity analysis is blocked for all tickers until local price and volume rows are available.")
                             if not liquidity_unavailable.empty:
                                 st.markdown("##### Liquidity unavailable")
                                 st.dataframe(
-                                    style_frame(clean_display_frame(liquidity_unavailable[_readiness_columns(liquidity_unavailable, ["Ticker", "LiquidityStatus", "MissingDataFields", "Reason"])])),
+                                    style_frame(
+                                        clean_display_frame(
+                                            liquidity_unavailable[
+                                                _readiness_columns(
+                                                    liquidity_unavailable,
+                                                    ["Ticker", "LiquidityStatus", "MissingDataFields", "Reason"],
+                                                )
+                                            ]
+                                        ),
+                                        role="readiness",
+                                    ),
                                     width="stretch",
                                     hide_index=True,
                                 )
@@ -35531,13 +35566,30 @@ def render_data_health(
                         ]
                         with st.expander("Legacy correlation rows", expanded=False):
                             if not correlation_ready.empty:
-                                st.dataframe(style_frame(clean_display_frame(correlation_ready[correlation_columns])), width="stretch", hide_index=True)
+                                st.dataframe(
+                                    style_frame(
+                                        clean_display_frame(correlation_ready[correlation_columns]),
+                                        role="analytic",
+                                    ),
+                                    width="stretch",
+                                    hide_index=True,
+                                )
                             else:
                                 st.info("Correlation analysis is blocked until enough overlapping local return history exists.")
                             if not correlation_unavailable.empty:
                                 st.markdown("##### Correlation unavailable")
                                 st.dataframe(
-                                    style_frame(clean_display_frame(correlation_unavailable[_readiness_columns(correlation_unavailable, ["Ticker", "CorrelationStatus", "MissingDataFields", "Reason"])])),
+                                    style_frame(
+                                        clean_display_frame(
+                                            correlation_unavailable[
+                                                _readiness_columns(
+                                                    correlation_unavailable,
+                                                    ["Ticker", "CorrelationStatus", "MissingDataFields", "Reason"],
+                                                )
+                                            ]
+                                        ),
+                                        role="readiness",
+                                    ),
                                     width="stretch",
                                     hide_index=True,
                                 )
@@ -37226,6 +37278,7 @@ def main() -> None:
                 include_advanced=operator_mode,
             )
             render_public_workflow_skip_target()
+            render_operator_route_shell(selected_page)
 
     if selected_page in PUBLIC_PATH_PAGE_TITLES and operator_mode:
         render_research_change_route_summary(

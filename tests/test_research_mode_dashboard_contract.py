@@ -261,12 +261,76 @@ def test_legacy_renderers_use_one_collapsed_compatibility_boundary():
     output_end = source.index("\ndef _render_legacy_output_tab(", output_start)
     output = source[output_start:output_end]
 
-    assert "Legacy research utility — not part of Personal Research Mode" in shell
-    assert "recommendations, company ranking for action, position sizing, transaction direction" in shell
+    assert "Legacy research utility — not part of Personal Research Mode" not in shell
+    assert "render_context_note(" not in shell
     assert 'st.expander("Advanced: legacy compatibility output", expanded=False)' in monthly
     assert "_render_monthly_picks_legacy_output(catalog)" in monthly
     assert 'st.expander("Advanced: legacy compatibility output", expanded=False)' in output
     assert "_render_legacy_output_tab(title, output_frames, show_reason_details)" in output
+
+
+def test_every_operator_allowed_title_has_one_escaped_route_shell_warning():
+    operator_allowed_titles = (
+        "Home",
+        "Stock Selector",
+        "Research Desk",
+        "Discover",
+        "Company Workbench",
+        "Monitor",
+        "Overview",
+        "Monthly Picks",
+        "Market Direction",
+        "Momentum Leaders",
+        "Portfolio Review",
+        "Value / Re-rating",
+        "Final Watchlist",
+        "Single-Stock Report",
+        "Data Health",
+        "Universe Manager",
+        "Proof History",
+    )
+    compatibility_titles = {
+        "Monthly Picks",
+        "Market Direction",
+        "Momentum Leaders",
+        "Portfolio Review",
+        "Value / Re-rating",
+        "Final Watchlist",
+    }
+
+    for title in operator_allowed_titles:
+        rendered = dashboard.operator_route_shell_html(title)
+        expected_kind = "compatibility" if title in compatibility_titles else "operator"
+
+        assert rendered.count("<h1") == 1
+        assert f"<h1>{title}</h1>" in rendered
+        assert rendered.count("class='sr-operator-warning'") == 1
+        assert f"data-sr-operator-kind='{expected_kind}'" in rendered
+        assert "data-sr-region='stop-rule'" not in rendered
+        assert "Stop rule" not in rendered
+
+    escaped = dashboard.operator_route_shell_html('<Overview & "ops">')
+    assert '<Overview & "ops">' not in escaped
+    assert '&lt;Overview &amp; "ops"&gt;' in escaped
+
+
+def test_operator_common_shell_precedes_all_route_detail_without_changing_sidebar_keys():
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    main = source[source.index("def main() -> None:") :]
+
+    operator_branch = main.index("if operator_mode:")
+    workspace_radio = main.index('key="dashboard-workspace-mode"', operator_branch)
+    path_key = main.index('path_state_key = "dashboard-path-selection"', workspace_radio)
+    path_widget = main.index('path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"', path_key)
+    header = main.index("render_app_header(", path_widget)
+    skip_target = main.index("render_public_workflow_skip_target()", header)
+    route_shell = main.index("render_operator_route_shell(selected_page)", skip_target)
+    first_route_summary = main.index("if selected_page in PUBLIC_PATH_PAGE_TITLES and operator_mode:", route_shell)
+    dispatch = main.index("if research_mode and render_personal_research_route(", first_route_summary)
+
+    assert operator_branch < workspace_radio < path_key < path_widget < header
+    assert header < skip_target < route_shell < first_route_summary < dispatch
+    assert main.count("render_operator_route_shell(selected_page)") == 1
 
 
 def test_decision_lab_and_company_workbench_do_not_consume_legacy_utility_outputs():

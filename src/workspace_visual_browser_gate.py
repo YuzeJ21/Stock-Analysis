@@ -190,6 +190,72 @@ def evaluate_control_target(*, width: float, height: float) -> BrowserEvaluation
     return BrowserEvaluation(passed, f"control target {width:.1f}x{height:.1f}")
 
 
+def evaluate_operator_route_contract(
+    *,
+    slug: str,
+    expected_h1: str,
+    expected_kind: str,
+    h1_count: int,
+    h1_text: tuple[str, ...],
+    shell_count: int,
+    warning_count: int,
+    warning_kind: str,
+    warning_before_detail: bool,
+    detail_count: int,
+    stop_rule_count: int,
+    topbar_nav_count: int,
+    status_region_count: int,
+    status_region_labelled: bool,
+    profile_trust_count: int,
+    profile_trust_display: str,
+    profile_trust_item_count: int,
+    profile_trust_overlap_count: int,
+    shortcut_count: int,
+    shortcut_visible_count: int,
+    shortcut_width: float,
+    shortcut_height: float,
+    non_neutral_analytic_count: int,
+) -> BrowserEvaluation:
+    """Enforce the compact Operator shell without interpreting analytic sentiment."""
+
+    target = evaluate_control_target(width=shortcut_width, height=shortcut_height)
+    passed = (
+        h1_count == 1
+        and h1_text == (expected_h1,)
+        and shell_count == 1
+        and warning_count == 1
+        and warning_kind == expected_kind
+        and warning_before_detail
+        and detail_count >= 1
+        and stop_rule_count == 0
+        and topbar_nav_count == 0
+        and status_region_count == 1
+        and status_region_labelled
+        and profile_trust_count == 1
+        and profile_trust_display == "grid"
+        and profile_trust_item_count == 5
+        and profile_trust_overlap_count == 0
+        and shortcut_count == 1
+        and shortcut_visible_count == 1
+        and target.passed
+        and non_neutral_analytic_count == 0
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            f"route={slug}; h1={h1_text!r} ({h1_count}); shell={shell_count}; "
+            f"warning={warning_count}/{warning_kind!r} expected={expected_kind!r}; "
+            f"warning_before_detail={warning_before_detail}; details={detail_count}; "
+            f"stop_rules={stop_rule_count}; topbar_nav={topbar_nav_count}; "
+            f"status_region={status_region_count} labelled={status_region_labelled}; "
+            f"profile_trust={profile_trust_count} display={profile_trust_display!r} "
+            f"items={profile_trust_item_count} overlaps={profile_trust_overlap_count}; "
+            f"shortcut={shortcut_visible_count}/{shortcut_count} {shortcut_width:.1f}x{shortcut_height:.1f}; "
+            f"non_neutral_analytic={non_neutral_analytic_count}"
+        ),
+    )
+
+
 def evaluate_text_clipping(
     *,
     overflow: str,
@@ -839,7 +905,7 @@ def _browser_observation(page: Any) -> dict[str, object]:
   };
   const textNodes = [...document.querySelectorAll(
     "h1, nav a, nav [aria-disabled='true'], label, .sr-status-chip, " +
-    "[data-sr-region='primary-action'], [data-sr-region='stop-rule']"
+    ".command-top-link, [data-sr-region='primary-action'], [data-sr-region='stop-rule']"
   )].filter(visible).map((node) => {
     const style = getComputedStyle(node);
     return {
@@ -850,7 +916,7 @@ def _browser_observation(page: Any) -> dict[str, object]:
     };
   });
   const controls = boxes(
-    "nav a, [data-sr-region='primary-action'], [data-testid='stLinkButton'] a[kind='primary'], " +
+    "nav a, .command-top-link, [data-sr-region='primary-action'], [data-testid='stLinkButton'] a[kind='primary'], " +
     "[data-testid='stButton'] button[kind='primary']"
   );
   if (nativePrimaryAction && visible(nativePrimaryAction)) {
@@ -868,6 +934,52 @@ def _browser_observation(page: Any) -> dict[str, object]:
   const publicNavs = [...document.querySelectorAll("nav[aria-label='Public workflow']")];
   const researchNavs = [...document.querySelectorAll("nav[aria-label='Personal research workflow']")];
   const operatorRadios = [...document.querySelectorAll("[data-testid='stSidebar'] [role='radiogroup']")];
+  const operatorShells = [...document.querySelectorAll("[role='main'] .sr-operator-route-shell")];
+  const operatorWarnings = [...document.querySelectorAll("[role='main'] .sr-operator-warning")];
+  const operatorDetails = [...document.querySelectorAll(
+    "[role='main'] .section-shell, [role='main'] .signal-card, " +
+    "[role='main'] .notice-card, [role='main'] [data-testid='stDataFrame']"
+  )].filter(visible);
+  const commandTopbarNavs = [...document.querySelectorAll("nav.command-topbar")];
+  const commandStatusRegions = [...document.querySelectorAll(
+    ".command-topbar[role='region'][aria-label]"
+  )];
+  const commandTopLinks = [...document.querySelectorAll(".command-top-link")];
+  const visibleCommandTopLinks = commandTopLinks.filter(visible);
+  const firstCommandTopLink = visibleCommandTopLinks[0] || null;
+  const firstCommandTopLinkBox = firstCommandTopLink
+    ? firstCommandTopLink.getBoundingClientRect()
+    : null;
+  const profileTrustStrips = [...document.querySelectorAll(".profile-trust-strip.compact")];
+  const visibleProfileTrustStrips = profileTrustStrips.filter(visible);
+  const firstProfileTrust = visibleProfileTrustStrips[0] || null;
+  const profileTrustItems = firstProfileTrust
+    ? [...firstProfileTrust.children].filter(visible)
+    : [];
+  const profileTrustBoxes = profileTrustItems.map((node) => node.getBoundingClientRect());
+  let profileTrustOverlapCount = 0;
+  for (let leftIndex = 0; leftIndex < profileTrustBoxes.length; leftIndex += 1) {
+    for (let rightIndex = leftIndex + 1; rightIndex < profileTrustBoxes.length; rightIndex += 1) {
+      const left = profileTrustBoxes[leftIndex];
+      const right = profileTrustBoxes[rightIndex];
+      const horizontalOverlap = Math.min(left.right, right.right) - Math.max(left.left, right.left);
+      const verticalOverlap = Math.min(left.bottom, right.bottom) - Math.max(left.top, right.top);
+      if (horizontalOverlap > 1 && verticalOverlap > 1) profileTrustOverlapCount += 1;
+    }
+  }
+  const analyticStates = [...document.querySelectorAll(
+    "[data-sr-role='analytic'], [data-sr-role='legacy']"
+  )];
+  const nonNeutralAnalyticStates = analyticStates.filter(
+    (node) => node.getAttribute("data-sr-semantic") !== "neutral"
+  );
+  const firstOperatorWarning = operatorWarnings.find(visible) || null;
+  const firstOperatorDetail = operatorDetails[0] || null;
+  const operatorWarningBeforeDetail = Boolean(
+    firstOperatorWarning &&
+    firstOperatorDetail &&
+    (firstOperatorWarning.compareDocumentPosition(firstOperatorDetail) & Node.DOCUMENT_POSITION_FOLLOWING)
+  );
   const legacyPreAnswerActions = [
     ...document.querySelectorAll(".research-workspace-action")
   ].filter(visible);
@@ -965,6 +1077,29 @@ def _browser_observation(page: Any) -> dict[str, object]:
     research_current_count: document.querySelectorAll("nav[aria-label='Personal research workflow'] [aria-current='page']").length,
     operator_radio_count: operatorRadios.length,
     operator_radio_visible_count: operatorRadios.filter(visible).length,
+    operator_shell_count: operatorShells.length,
+    operator_warning_count: operatorWarnings.length,
+    operator_warning_kind: firstOperatorWarning
+      ? firstOperatorWarning.getAttribute("data-sr-operator-kind") || ""
+      : "",
+    operator_warning_before_detail: operatorWarningBeforeDetail,
+    operator_detail_count: operatorDetails.length,
+    stop_rule_count: document.querySelectorAll("[role='main'] [data-sr-region='stop-rule']").length,
+    command_topbar_nav_count: commandTopbarNavs.length,
+    command_status_region_count: commandStatusRegions.length,
+    command_status_region_labelled: commandStatusRegions.length === 1 &&
+      Boolean(commandStatusRegions[0].getAttribute("aria-label")?.trim()),
+    profile_trust_count: profileTrustStrips.length,
+    profile_trust_display: firstProfileTrust
+      ? getComputedStyle(firstProfileTrust).display
+      : "",
+    profile_trust_item_count: profileTrustItems.length,
+    profile_trust_overlap_count: profileTrustOverlapCount,
+    command_top_link_count: commandTopLinks.length,
+    command_top_link_visible_count: visibleCommandTopLinks.length,
+    command_top_link_width: firstCommandTopLinkBox ? firstCommandTopLinkBox.width : 0,
+    command_top_link_height: firstCommandTopLinkBox ? firstCommandTopLinkBox.height : 0,
+    non_neutral_analytic_count: nonNeutralAnalyticStates.length,
     skip_count: document.querySelectorAll("a.public-skip-link[href='#public-page-answer']").length,
     skip_in_sidebar_count: document.querySelectorAll("[data-testid='stSidebar'] a.public-skip-link[href='#public-page-answer']").length,
     skip_in_main_count: document.querySelectorAll("[role='main'] a.public-skip-link[href='#public-page-answer']").length,
@@ -1282,6 +1417,62 @@ def _evaluate_observation(
             operator_radio_visible=int(observation.get("operator_radio_visible_count") or 0),
         ),
     )
+    if route.mode == "operator":
+        expected_kind = (
+            "compatibility"
+            if route.slug in {"market-direction", "monthly-picks"}
+            else "operator"
+        )
+        add(
+            "operator_route_contract",
+            evaluate_operator_route_contract(
+                slug=route.slug,
+                expected_h1=route.expected_h1,
+                expected_kind=expected_kind,
+                h1_count=int(observation.get("h1_count") or 0),
+                h1_text=h1_text,
+                shell_count=int(observation.get("operator_shell_count") or 0),
+                warning_count=int(observation.get("operator_warning_count") or 0),
+                warning_kind=str(observation.get("operator_warning_kind") or ""),
+                warning_before_detail=(
+                    observation.get("operator_warning_before_detail") is True
+                ),
+                detail_count=int(observation.get("operator_detail_count") or 0),
+                stop_rule_count=int(observation.get("stop_rule_count") or 0),
+                topbar_nav_count=int(observation.get("command_topbar_nav_count") or 0),
+                status_region_count=int(
+                    observation.get("command_status_region_count") or 0
+                ),
+                status_region_labelled=(
+                    observation.get("command_status_region_labelled") is True
+                ),
+                profile_trust_count=int(
+                    observation.get("profile_trust_count") or 0
+                ),
+                profile_trust_display=str(
+                    observation.get("profile_trust_display") or ""
+                ),
+                profile_trust_item_count=int(
+                    observation.get("profile_trust_item_count") or 0
+                ),
+                profile_trust_overlap_count=int(
+                    observation.get("profile_trust_overlap_count") or 0
+                ),
+                shortcut_count=int(observation.get("command_top_link_count") or 0),
+                shortcut_visible_count=int(
+                    observation.get("command_top_link_visible_count") or 0
+                ),
+                shortcut_width=float(
+                    observation.get("command_top_link_width") or 0
+                ),
+                shortcut_height=float(
+                    observation.get("command_top_link_height") or 0
+                ),
+                non_neutral_analytic_count=int(
+                    observation.get("non_neutral_analytic_count") or 0
+                ),
+            ),
+        )
     expected_skip_placement = (
         observation.get("skip_count") == 1
         and (

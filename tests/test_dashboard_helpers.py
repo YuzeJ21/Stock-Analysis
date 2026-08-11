@@ -1,6 +1,7 @@
 from dataclasses import replace
 from datetime import date
 import ast
+import inspect
 import json
 import os
 import re
@@ -11,6 +12,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 import src.dashboard as dashboard
+import src.dashboard_visual_system as visual
 import src.data_health_generated_churn as generated_churn
 import src.source_activation_guide as source_activation_guide
 from src.observation_recency import evaluate_observation_rows
@@ -1808,7 +1810,9 @@ def test_command_center_header_matches_reference_shell_without_overclaiming():
     assert "About this center" not in html
     assert "Blocked inputs? Data Health" in html
     assert "Saved readiness" in html
-    assert "aria-label='Readiness status'" in html
+    assert "role='region'" in html
+    assert "aria-label='Saved readiness status'" in html
+    assert "<nav class='command-topbar" not in html
     assert "How this works" not in html
     assert "What can I use now?" not in html
     assert "command-home-link" not in html
@@ -2001,9 +2005,51 @@ def test_dashboard_badges_use_high_contrast_html():
     assert "background" in html
     assert "color" in html
     assert "Watch" in html
+    assert "data-sr-role='analytic'" in html
+    assert "data-sr-semantic='neutral'" in html
     raw_status_html = dashboard.status_badge("insufficient_peer_data")
     assert "Insufficient peer data" in raw_status_html
     assert "insufficient_peer_data" not in raw_status_html
+
+
+@pytest.mark.parametrize("label", ("Keep", "Strong Rotation", "Risk Reduce", "peer_discount"))
+@pytest.mark.parametrize("role", ("analytic", "legacy"))
+def test_dashboard_analytic_and_legacy_badges_fail_closed_to_neutral(label, role):
+    rendered = dashboard.status_badge(label, role=role)
+
+    assert f"data-sr-role='{role}'" in rendered
+    assert "data-sr-semantic='neutral'" in rendered
+    assert visual.visual_tokens()["--sr-muted"] in rendered
+    assert visual.visual_tokens()["--sr-teal"] not in rendered
+    assert visual.visual_tokens()["--sr-red"] not in rendered
+
+
+@pytest.mark.parametrize(
+    ("label", "semantic"),
+    (
+        ("DCF ready", "supported"),
+        ("DCF needs data", "blocked"),
+        ("Peer ready", "supported"),
+        ("Peers needed", "blocked"),
+        ("Earnings available", "supported"),
+        ("Earnings missing", "blocked"),
+        ("Estimates available", "supported"),
+        ("Estimates missing", "blocked"),
+    ),
+)
+def test_stock_report_readiness_badges_use_explicit_canonical_semantics(label, semantic):
+    rendered = dashboard.stock_report_readiness_status_badge(label)
+
+    assert "data-sr-role='readiness'" in rendered
+    assert f"data-sr-semantic='{semantic}'" in rendered
+    assert label in rendered
+
+
+def test_single_stock_report_uses_the_structured_readiness_badge_renderer():
+    source = inspect.getsource(dashboard.render_single_stock_report)
+
+    assert "stock_report_readiness_status_badge(label)" in source
+    assert '"".join(status_badge(label)' not in source
 
 
 def test_dashboard_page_query_supports_visitor_friendly_deep_links():
@@ -4967,8 +5013,9 @@ def test_command_center_header_uses_semantic_product_heading():
 
     assert "<header" in html
     assert "<h1 class='command-title-v2'>Stock Research Guided Workflow</h1>" in html
-    assert "<nav" in html
-    assert "aria-label='Readiness status'" in html
+    assert "<nav" not in html
+    assert "role='region'" in html
+    assert "aria-label='Saved readiness status'" in html
 
 
 def test_command_center_header_marks_data_health_handoff_for_a11y():
@@ -5001,12 +5048,94 @@ def test_chart_panel_title_normalizes_spacing_and_trailing_punctuation():
     assert dashboard.chart_panel_title("") == "Chart"
 
 
-def test_state_styles_include_text_color_for_dark_mode():
-    styled = dashboard.style_frame(pd.DataFrame({"FinalState": ["No Setup"]}))._compute()
+def test_analytic_state_styles_are_neutral_even_for_sentiment_like_labels():
+    styled = dashboard.style_frame(
+        pd.DataFrame(
+            {
+                "FinalState": ["Keep", "Risk Reduce"],
+                "ThemeStatus": ["Strong Rotation", "peer_discount"],
+            }
+        ),
+        role="analytic",
+    )._compute()
     css_values = [item for styles in styled.ctx.values() for item in styles]
 
-    assert ("color", "#991b1b") in css_values
-    assert ("font-weight", "700") in css_values
+    assert ("color", visual.visual_tokens()["--sr-muted"]) in css_values
+    assert ("background-color", visual.visual_tokens()["--sr-surface-muted"]) in css_values
+    assert ("color", "#14532d") not in css_values
+    assert ("color", "#991b1b") not in css_values
+
+
+def test_readiness_state_styles_keep_evidence_semantics_explicit():
+    styled = dashboard.style_frame(
+        pd.DataFrame(
+            {
+                "ReadinessStatus": [
+                    "Research Ready",
+                    "Partial Coverage",
+                    "Needs Price Data",
+                ]
+            }
+        ),
+        role="readiness",
+    )._compute()
+    css_values = [item for styles in styled.ctx.values() for item in styles]
+
+    assert ("color", visual.visual_tokens()["--sr-teal"]) in css_values
+    assert ("color", visual.visual_tokens()["--sr-amber"]) in css_values
+    assert ("color", visual.visual_tokens()["--sr-red"]) in css_values
+
+
+@pytest.mark.parametrize(
+    "label",
+    (
+        "Liquid",
+        "Moderate Liquidity",
+        "Thin / Needs Review",
+        "High Co-movement",
+        "Moderate Co-movement",
+        "Low Co-movement",
+    ),
+)
+def test_liquidity_and_correlation_labels_stay_neutral_as_analytics(label):
+    styled = dashboard.style_frame(
+        pd.DataFrame({"AnalyticStatus": [label]}),
+        role="analytic",
+    )._compute()
+    css_values = [item for styles in styled.ctx.values() for item in styles]
+
+    assert ("color", visual.visual_tokens()["--sr-muted"]) in css_values
+    assert ("color", visual.visual_tokens()["--sr-teal"]) not in css_values
+    assert ("color", visual.visual_tokens()["--sr-amber"]) not in css_values
+    assert ("color", visual.visual_tokens()["--sr-red"]) not in css_values
+
+
+@pytest.mark.parametrize(
+    "label",
+    (
+        "Insufficient Price Data",
+        "Insufficient Data",
+        "Insufficient Overlap",
+        "missing_file",
+        "not_available",
+        "insufficient_peer_data",
+    ),
+)
+def test_insufficient_and_missing_states_block_only_in_readiness_namespace(label):
+    assert visual.visual_state("analytic", label).semantic == "neutral"
+    assert visual.visual_state("readiness", label).semantic == "blocked"
+
+
+def test_operator_route_shell_css_keeps_title_warning_and_shortcut_complete():
+    css = visual.dashboard_visual_system_css()
+
+    assert ".sr-operator-route-shell" in css
+    assert ".sr-operator-warning" in css
+    assert ".stApp:has(.sr-operator-route-shell) .profile-trust-strip.compact" in css
+    assert ".stApp:has(.sr-operator-route-shell) .profile-trust-strip > span" in css
+    assert ".command-topbar.compact .command-top-link" in css
+    assert "min-width: 44px" in css
+    assert "min-height: 44px" in css
 
 
 def test_normalize_public_labels_preserves_valuation_avoid_category():
@@ -32423,7 +32552,11 @@ def test_last_resort_legacy_coverage_tab_nests_data_quality_and_ticker_readiness
     coverage_tab_index = source.index("with health_tabs[1]:", legacy_tables_index)
     data_quality_drawer_index = source.index('st.expander("Legacy data-quality rows", expanded=False)', coverage_tab_index)
     data_quality_columns_index = source.index("data_quality_columns = [", data_quality_drawer_index)
-    data_quality_frame_index = source.index("st.dataframe(style_frame(clean_display_frame(data_quality_frame[data_quality_columns]))", data_quality_columns_index)
+    data_quality_frame_index = source.index(
+        "clean_display_frame(data_quality_frame[data_quality_columns])",
+        data_quality_columns_index,
+    )
+    data_quality_role_index = source.index('role="readiness"', data_quality_frame_index)
     ticker_header_index = source.index('"Ticker Readiness Report"', data_quality_frame_index)
     ticker_drawer_index = source.index('st.expander("Legacy ticker readiness rows", expanded=False)', ticker_header_index)
     readiness_columns_index = source.index("readiness_columns = [", ticker_drawer_index)
@@ -32431,7 +32564,7 @@ def test_last_resort_legacy_coverage_tab_nests_data_quality_and_ticker_readiness
     liquidity_index = source.index('st.expander("Liquidity Context", expanded=False)', ticker_readiness_frame_index)
 
     assert coverage_tab_index < data_quality_drawer_index < data_quality_columns_index < data_quality_frame_index
-    assert data_quality_frame_index < ticker_header_index < ticker_drawer_index < readiness_columns_index
+    assert data_quality_frame_index < data_quality_role_index < ticker_header_index < ticker_drawer_index < readiness_columns_index
     assert readiness_columns_index < ticker_readiness_frame_index < liquidity_index
 
 
@@ -32442,7 +32575,7 @@ def test_last_resort_legacy_coverage_tab_nests_liquidity_and_correlation_rows():
     liquidity_context_index = source.index('st.expander("Liquidity Context", expanded=False)', coverage_tab_index)
     liquidity_rows_index = source.index('st.expander("Legacy liquidity rows", expanded=False)', liquidity_context_index)
     liquidity_ready_index = source.index(
-        "st.dataframe(style_frame(clean_display_frame(liquidity_ready[liquidity_columns]))",
+        "clean_display_frame(liquidity_ready[liquidity_columns])",
         liquidity_rows_index,
     )
     liquidity_unavailable_index = source.index("Liquidity unavailable", liquidity_ready_index)
@@ -32452,15 +32585,26 @@ def test_last_resort_legacy_coverage_tab_nests_liquidity_and_correlation_rows():
     )
     correlation_rows_index = source.index('st.expander("Legacy correlation rows", expanded=False)', correlation_context_index)
     correlation_ready_index = source.index(
-        "st.dataframe(style_frame(clean_display_frame(correlation_ready[correlation_columns]))",
+        "clean_display_frame(correlation_ready[correlation_columns])",
         correlation_rows_index,
     )
     correlation_unavailable_index = source.index("Correlation unavailable", correlation_ready_index)
     top_actions_index = source.index('st.expander("Top Data Actions", expanded=False)', correlation_unavailable_index)
 
+    liquidity_ready_block = source[liquidity_ready_index:liquidity_unavailable_index]
+    liquidity_unavailable_block = source[liquidity_unavailable_index:correlation_context_index]
+    correlation_ready_block = source[correlation_ready_index:correlation_unavailable_index]
+    correlation_unavailable_block = source[correlation_unavailable_index:top_actions_index]
+
     assert liquidity_context_index < liquidity_rows_index < liquidity_ready_index < liquidity_unavailable_index
     assert liquidity_unavailable_index < correlation_context_index < correlation_rows_index
     assert correlation_rows_index < correlation_ready_index < correlation_unavailable_index < top_actions_index
+    assert 'role="analytic"' in liquidity_ready_block
+    assert 'role="readiness"' not in liquidity_ready_block
+    assert 'role="readiness"' in liquidity_unavailable_block
+    assert 'role="analytic"' in correlation_ready_block
+    assert 'role="readiness"' not in correlation_ready_block
+    assert 'role="readiness"' in correlation_unavailable_block
 
 
 def test_last_resort_legacy_coverage_tab_nests_top_action_rows():

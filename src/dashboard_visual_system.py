@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from urllib.parse import parse_qsl, urlsplit
@@ -116,15 +117,51 @@ def visual_state(role: str, state: str, label: str | None = None) -> VisualState
     """Map an explicit semantic role and state without inferring investment sentiment."""
 
     normalized_role = str(role or "").strip().casefold()
-    normalized_state = str(state or "").strip().casefold().replace("-", "_")
+    normalized_state = re.sub(
+        r"[^a-z0-9]+",
+        "_",
+        str(state or "").strip().casefold(),
+    ).strip("_")
     semantic = "neutral"
     foreground = _VISUAL_TOKENS["--sr-muted"]
-    if normalized_role == "evidence":
-        if normalized_state in {"supported", "ready", "usable_now"}:
+    if normalized_role in {"evidence", "readiness"}:
+        if normalized_state in {
+            "supported",
+            "ready",
+            "usable_now",
+            "research_ready",
+            "available",
+            "valid",
+            "liquid",
+            "low_co_movement",
+        }:
             semantic, foreground = "supported", _VISUAL_TOKENS["--sr-teal"]
-        elif normalized_state in {"partial", "waiting", "candidate_context_only"}:
+        elif normalized_state in {
+            "partial",
+            "waiting",
+            "candidate_context_only",
+            "partial_coverage",
+            "valid_with_warnings",
+            "moderate_liquidity",
+            "moderate_co_movement",
+        }:
             semantic, foreground = "partial", _VISUAL_TOKENS["--sr-amber"]
-        elif normalized_state in {"blocked", "missing", "unavailable"}:
+        elif normalized_state in {
+            "blocked",
+            "missing",
+            "unavailable",
+            "needs_price_data",
+            "needs_enrichment",
+            "missing_file",
+            "not_available",
+            "peer_data_unavailable",
+            "insufficient_peer_data",
+            "insufficient_price_data",
+            "thin_needs_review",
+            "high_co_movement",
+            "insufficient_overlap",
+            "insufficient_data",
+        }:
             semantic, foreground = "blocked", _VISUAL_TOKENS["--sr-red"]
         elif normalized_state == "stale":
             semantic, foreground = "stale", _VISUAL_TOKENS["--sr-amber"]
@@ -249,6 +286,42 @@ def page_title_html(*, title: str, purpose: str) -> HtmlFragment:
     return _trusted_fragment(
         "<header class='sr-page-title' data-sr-region='page-title'>"
         f"<h1>{escape_text(title)}</h1><p>{escape_text(purpose)}</p></header>"
+    )
+
+
+def operator_route_shell_html(*, title: str, kind: str) -> HtmlFragment:
+    """Render one neutral Operator or compatibility boundary before route detail."""
+
+    normalized_kind = str(kind or "").strip().casefold()
+    if normalized_kind not in {"operator", "compatibility"}:
+        raise ValueError("Operator route shells require operator or compatibility kind.")
+    if normalized_kind == "compatibility":
+        kicker = "Compatibility utility"
+        purpose = "Retained operator-only output for deterministic regression review."
+        warning_title = "Compatibility boundary"
+        warning_body = (
+            "This legacy utility is excluded from Personal Research Mode and product "
+            "conclusions. Analytic labels stay neutral and do not create a recommendation "
+            "or transaction direction."
+        )
+    else:
+        kicker = "Operator workspace"
+        purpose = "Saved local readiness, maintenance, and review controls."
+        warning_title = "Operator boundary"
+        warning_body = (
+            "This route preserves local controls and evidence context. It does not create "
+            "a recommendation, ranking for action, or account action."
+        )
+    return _trusted_fragment(
+        "<section class='sr-operator-route-shell' data-sr-region='operator-shell' "
+        f"data-sr-operator-kind='{escape_attribute(normalized_kind)}'>"
+        "<header class='sr-operator-route-title' data-sr-region='page-title'>"
+        f"<p>{escape_text(kicker)}</p><h1>{escape_text(title)}</h1>"
+        f"<span>{escape_text(purpose)}</span></header>"
+        "<div class='sr-operator-warning' data-sr-region='operator-warning' role='note' "
+        f"data-sr-operator-kind='{escape_attribute(normalized_kind)}'>"
+        f"<strong>{escape_text(warning_title)}</strong>"
+        f"<span>{escape_text(warning_body)}</span></div></section>"
     )
 
 
@@ -477,6 +550,88 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
 .sr-page-title {{ max-width: 65ch; margin: 0 0 16px; }}
 .sr-page-title h1 {{ margin: 0; color: var(--sr-ink); font-size: 1.75rem; line-height: 1.2; }}
 .sr-page-title p {{ margin: 8px 0 0; color: var(--sr-muted); font-size: .9375rem; line-height: 1.5; }}
+.sr-operator-route-shell {{
+  display: grid;
+  gap: 12px;
+  margin: 0 0 16px;
+  padding: 20px 24px;
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 10px;
+}}
+.sr-operator-route-title {{ display: grid; gap: 6px; min-width: 0; }}
+.sr-operator-route-title p {{
+  margin: 0;
+  color: var(--sr-muted);
+  font-size: .75rem;
+  font-weight: 750;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}}
+.sr-operator-route-title h1 {{
+  margin: 0;
+  color: var(--sr-ink);
+  font-size: 1.5rem;
+  line-height: 1.2;
+}}
+.sr-operator-route-title span {{ color: var(--sr-muted); font-size: .875rem; line-height: 1.45; }}
+.sr-operator-warning {{
+  display: grid;
+  grid-template-columns: minmax(9rem, auto) minmax(0, 1fr);
+  gap: 8px 16px;
+  padding: 10px 12px;
+  color: var(--sr-text);
+  background: var(--sr-surface-muted);
+  border-left: 3px solid var(--sr-blue);
+  border-radius: 6px;
+  font-size: .8125rem;
+  line-height: 1.45;
+}}
+.sr-operator-warning strong {{ color: var(--sr-ink); }}
+.command-topbar .command-top-link,
+.command-topbar.compact .command-top-link {{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  white-space: normal;
+}}
+.stApp:has(.sr-operator-route-shell) .profile-trust-strip.compact {{
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 12px;
+  color: var(--sr-text);
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 8px;
+}}
+.stApp:has(.sr-operator-route-shell) .profile-trust-strip > span,
+.stApp:has(.sr-operator-route-shell) .profile-trust-primary {{
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 8px;
+  border-left: 1px solid var(--sr-border);
+  font-size: .8125rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}}
+.stApp:has(.sr-operator-route-shell) .profile-trust-primary {{
+  padding-left: 0;
+  border-left: 0;
+}}
+.stApp:has(.sr-operator-route-shell) .profile-trust-strip small,
+.stApp:has(.sr-operator-route-shell) .profile-trust-label {{
+  color: var(--sr-muted);
+  font-size: .6875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-transform: uppercase;
+}}
 .sr-answer-panel {{
   display: grid;
   gap: 12px;
@@ -729,6 +884,18 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   .sr-context-bar {{ gap: 8px 16px; }}
   .sr-context-item {{ min-width: min(9rem, 100%); }}
   .sr-page-title h1 {{ font-size: 1.375rem; }}
+  .sr-operator-route-shell {{ gap: 10px; padding: 16px; }}
+  .sr-operator-route-title h1 {{ font-size: 1.25rem; }}
+  .sr-operator-warning {{ grid-template-columns: 1fr; gap: 4px; }}
+  .stApp:has(.sr-operator-route-shell) .profile-trust-strip.compact {{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 0;
+    padding: 10px;
+  }}
+  .stApp:has(.sr-operator-route-shell) .profile-trust-strip > :nth-child(odd) {{
+    padding-left: 0;
+    border-left: 0;
+  }}
   .sr-answer-panel {{ gap: 12px; padding: 16px; }}
   .sr-answer-panel h2 {{ font-size: 1.0625rem; }}
   .sr-primary-action, .public-primary-action {{ width: 100%; }}

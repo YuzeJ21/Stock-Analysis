@@ -82,6 +82,241 @@ def test_pure_browser_evaluators_use_one_pixel_tolerance_and_44_pixel_targets():
     ).passed
 
 
+@pytest.mark.parametrize(
+    ("slug", "expected_h1", "expected_kind"),
+    (
+        ("operator-overview", "Overview", "operator"),
+        ("market-direction", "Market Direction", "compatibility"),
+        ("universe-manager", "Universe Manager", "operator"),
+        ("monthly-picks", "Monthly Picks", "compatibility"),
+    ),
+)
+def test_operator_route_contract_rejects_shell_chrome_target_and_sentiment_breaks(
+    slug,
+    expected_h1,
+    expected_kind,
+):
+    from src.workspace_visual_browser_gate import evaluate_operator_route_contract
+
+    valid = {
+        "slug": slug,
+        "expected_h1": expected_h1,
+        "expected_kind": expected_kind,
+        "h1_count": 1,
+        "h1_text": (expected_h1,),
+        "shell_count": 1,
+        "warning_count": 1,
+        "warning_kind": expected_kind,
+        "warning_before_detail": True,
+        "detail_count": 1,
+        "stop_rule_count": 0,
+        "topbar_nav_count": 0,
+        "status_region_count": 1,
+        "status_region_labelled": True,
+        "profile_trust_count": 1,
+        "profile_trust_display": "grid",
+        "profile_trust_item_count": 5,
+        "profile_trust_overlap_count": 0,
+        "shortcut_count": 1,
+        "shortcut_visible_count": 1,
+        "shortcut_width": 44,
+        "shortcut_height": 44,
+        "non_neutral_analytic_count": 0,
+    }
+    assert evaluate_operator_route_contract(**valid).passed
+
+    broken_cases = (
+        {"h1_count": 0, "h1_text": ()},
+        {"h1_count": 2, "h1_text": (expected_h1, expected_h1)},
+        {"shell_count": 2},
+        {"warning_count": 0},
+        {"warning_kind": "operator" if expected_kind == "compatibility" else "compatibility"},
+        {"warning_before_detail": False},
+        {"detail_count": 0},
+        {"stop_rule_count": 1},
+        {"topbar_nav_count": 1},
+        {"status_region_count": 0},
+        {"status_region_labelled": False},
+        {"profile_trust_count": 0},
+        {"profile_trust_display": "block"},
+        {"profile_trust_item_count": 4},
+        {"profile_trust_overlap_count": 1},
+        {"shortcut_count": 0, "shortcut_visible_count": 0},
+        {"shortcut_width": 43},
+        {"shortcut_height": 43},
+        {"non_neutral_analytic_count": 1},
+    )
+    for broken in broken_cases:
+        assert not evaluate_operator_route_contract(**{**valid, **broken}).passed
+
+
+def test_browser_observation_collects_operator_semantics_and_shortcut_geometry():
+    from src import workspace_visual_browser_gate as gate
+
+    captured: list[str] = []
+
+    class CapturingPage:
+        def evaluate(self, script):
+            captured.append(script)
+            return {}
+
+    assert gate._browser_observation(CapturingPage()) == {}
+    script = captured[0]
+    assert ".sr-operator-route-shell" in script
+    assert ".sr-operator-warning" in script
+    assert ".command-topbar[role='region'][aria-label]" in script
+    assert "nav.command-topbar" in script
+    assert ".command-top-link" in script
+    assert ".profile-trust-strip.compact" in script
+    assert "[data-sr-role='analytic']" in script
+    assert "[data-sr-role='legacy']" in script
+
+
+@pytest.mark.parametrize(
+    "slug",
+    ("operator-overview", "market-direction", "universe-manager", "monthly-picks"),
+)
+def test_operator_routes_run_the_strict_operator_contract_inside_browser_evaluation(slug):
+    from src import workspace_visual_browser_gate as gate
+
+    route = next(route for route in gate.ROUTE_FIXTURES if route.slug == slug)
+    expected_kind = (
+        "compatibility"
+        if slug in {"market-direction", "monthly-picks"}
+        else "operator"
+    )
+    observation = {
+        "client_width": 1280,
+        "client_height": 720,
+        "document_scroll_width": 1280,
+        "body_scroll_width": 1280,
+        "main_scroll_width": 1280,
+        "main_client_width": 1280,
+        "regions": (),
+        "region_counts": {},
+        "text_nodes": (),
+        "controls": (),
+        "inner_width": 1280,
+        "inner_height": 720,
+        "device_pixel_ratio": 1,
+        "visual_viewport_scale": 1,
+        "visual_viewport_width": 1280,
+        "visual_viewport_height": 720,
+        "screenshot_width": 1280,
+        "screenshot_height": 720,
+        "scroll_x": 0,
+        "scroll_y": 0,
+        "document_scroll_left": 0,
+        "document_scroll_top": 0,
+        "main_scroll_left": 0,
+        "main_scroll_top": 0,
+        "public_app_nav_scroll_left": 0,
+        "research_workflow_nav_scroll_left": 0,
+        "research_workflow_nav_scroll_top": 0,
+        "h1_count": 1,
+        "h1_text": (route.expected_h1,),
+        "public_nav_count": 0,
+        "public_nav_visible_count": 0,
+        "research_nav_count": 0,
+        "research_nav_visible_count": 0,
+        "operator_radio_count": 2,
+        "operator_radio_visible_count": 2,
+        "skip_count": 1,
+        "skip_in_sidebar_count": 1,
+        "skip_in_main_count": 0,
+        "traceback_visible": False,
+        "spinner_count": 0,
+        "positive_tabindex_count": 0,
+        "operator_shell_count": 1,
+        "operator_warning_count": 1,
+        "operator_warning_kind": expected_kind,
+        "operator_warning_before_detail": True,
+        "operator_detail_count": 1,
+        "stop_rule_count": 0,
+        "command_topbar_nav_count": 0,
+        "command_status_region_count": 1,
+        "command_status_region_labelled": True,
+        "profile_trust_count": 1,
+        "profile_trust_display": "grid",
+        "profile_trust_item_count": 5,
+        "profile_trust_overlap_count": 0,
+        "command_top_link_count": 1,
+        "command_top_link_visible_count": 1,
+        "command_top_link_width": 44,
+        "command_top_link_height": 44,
+        "non_neutral_analytic_count": 0,
+    }
+    checks = gate._evaluate_observation(
+        observation,
+        route=route,
+        viewport=(1280, 720),
+        zoom=1,
+        console_errors=(),
+        skip_focus={
+            "skip_count": 1,
+            "focused": True,
+            "route_preserved": True,
+            "fragment": "public-page-answer",
+            "active_id": "public-page-answer",
+        },
+        reduced_motion={
+            "active": True,
+            "target_count": 1,
+            "max_animation_duration_ms": 0.01,
+            "max_transition_duration_ms": 0.01,
+            "max_animation_iterations": 1,
+            "smooth_scroll_count": 0,
+        },
+        forced_colors={
+            "active": True,
+            "focus_outline_style": "solid",
+            "focus_outline_width": 3,
+            "state_count": 0,
+            "state_border_width": 0,
+            "state_outline_width": 0,
+        },
+        focus_sequences={},
+    )
+
+    strict = next(check for check in checks if check["name"] == "operator_route_contract")
+    assert strict["passed"] is True
+
+    observation["command_topbar_nav_count"] = 1
+    checks = gate._evaluate_observation(
+        observation,
+        route=route,
+        viewport=(1280, 720),
+        zoom=1,
+        console_errors=(),
+        skip_focus={
+            "skip_count": 1,
+            "focused": True,
+            "route_preserved": True,
+            "fragment": "public-page-answer",
+            "active_id": "public-page-answer",
+        },
+        reduced_motion={
+            "active": True,
+            "target_count": 1,
+            "max_animation_duration_ms": 0.01,
+            "max_transition_duration_ms": 0.01,
+            "max_animation_iterations": 1,
+            "smooth_scroll_count": 0,
+        },
+        forced_colors={
+            "active": True,
+            "focus_outline_style": "solid",
+            "focus_outline_width": 3,
+            "state_count": 0,
+            "state_border_width": 0,
+            "state_outline_width": 0,
+        },
+        focus_sequences={},
+    )
+    strict = next(check for check in checks if check["name"] == "operator_route_contract")
+    assert strict["passed"] is False
+
+
 def test_browser_zoom_evaluator_requires_real_layout_and_device_scale_change():
     from src.workspace_visual_browser_gate import evaluate_browser_zoom
 
