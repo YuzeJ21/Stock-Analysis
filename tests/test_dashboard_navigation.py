@@ -72,6 +72,26 @@ def test_workspace_route_resolution_marks_an_explicit_invalid_mode_as_research_d
     assert result.canonical_query == {"mode": "research", "page": "research-desk"}
 
 
+@pytest.mark.parametrize("operator_alias", ("ops", "internal", "advanced", "full"))
+def test_workspace_route_resolution_preserves_retained_operator_mode_aliases(operator_alias):
+    """Catches a retained Operator alias falling through as an invalid explicit mode."""
+
+    query = {"mode": operator_alias, "page": "overview", "ticker": "NVDA", "open": "1"}
+    result = nav.resolve_workspace_route(
+        operator_alias,
+        "overview",
+        query,
+        dashboard.USER_PAGE_TITLES,
+        dashboard.ADVANCED_PAGE_TITLES,
+    )
+
+    assert result.mode == nav.OPERATOR_DEMO_MODE
+    assert result.page == "Overview"
+    assert result.allowed is True
+    assert result.redirected is False
+    assert result.canonical_query == query
+
+
 @pytest.mark.parametrize(
     ("mode", "page", "query_params", "expected"),
     (

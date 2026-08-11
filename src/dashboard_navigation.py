@@ -49,6 +49,20 @@ PUBLIC_DEMO_MODE = "public"
 OPERATOR_DEMO_MODE = "operator"
 RESEARCH_MODE = "research"
 WORKSPACE_MODES = frozenset((PUBLIC_DEMO_MODE, OPERATOR_DEMO_MODE, RESEARCH_MODE))
+MODE_QUERY_ALIASES = {
+    "operator": OPERATOR_DEMO_MODE,
+    "ops": OPERATOR_DEMO_MODE,
+    "internal": OPERATOR_DEMO_MODE,
+    "advanced": OPERATOR_DEMO_MODE,
+    "full": OPERATOR_DEMO_MODE,
+    "public": PUBLIC_DEMO_MODE,
+    "demo": PUBLIC_DEMO_MODE,
+    "visitor": PUBLIC_DEMO_MODE,
+    "share": PUBLIC_DEMO_MODE,
+    "research": RESEARCH_MODE,
+    "personal": RESEARCH_MODE,
+    "workspace": RESEARCH_MODE,
+}
 PUBLIC_WORKSPACE_PAGES = frozenset(PUBLIC_PATH_PAGE_TITLES)
 RESEARCH_WORKSPACE_PAGES = frozenset((*RESEARCH_PATH_PAGE_TITLES, "Data Health", PROOF_HISTORY_PATH_TITLE))
 DATA_HEALTH_QUERY_KEYS = (
@@ -211,17 +225,21 @@ def resolve_workspace_route(
     requested_page, recognized = _raw_page_resolution(raw_page, user_page_titles)
     mode_value = _query_value(raw_mode)
     mode_slug = dashboard_page_slug(unquote(mode_value))
-    invalid_explicit_mode = bool(mode_value) and mode_slug not in WORKSPACE_MODES
+    resolved_mode = MODE_QUERY_ALIASES.get(mode_slug)
+    invalid_explicit_mode = bool(mode_value) and resolved_mode is None
     if invalid_explicit_mode:
         mode = RESEARCH_MODE
-    elif mode_slug in WORKSPACE_MODES:
-        mode = mode_slug
+    elif resolved_mode:
+        mode = resolved_mode
     elif requested_page in set(user_page_titles) - PUBLIC_WORKSPACE_PAGES - RESEARCH_WORKSPACE_PAGES:
         mode = OPERATOR_DEMO_MODE
     else:
         mode = RESEARCH_MODE
 
-    existing_mode = dashboard_page_slug(_normalized_query_mapping(query_params).get("mode", ""))
+    existing_mode = MODE_QUERY_ALIASES.get(
+        dashboard_page_slug(_normalized_query_mapping(query_params).get("mode", "")),
+        "",
+    )
     mode_switched = bool(existing_mode) and existing_mode != mode
     allowed = (
         not invalid_explicit_mode
@@ -319,12 +337,8 @@ def advanced_page_titles(user_page_titles: list[str]) -> list[str]:
 def dashboard_mode_from_query(value: object, initial_page: str, advanced_titles: list[str]) -> str:
     raw = value[0] if isinstance(value, list) and value else value
     slug = dashboard_page_slug(unquote(str(raw or "").strip()))
-    if slug in {"operator", "ops", "internal", "advanced", "full"}:
-        return OPERATOR_DEMO_MODE
-    if slug in {"public", "demo", "visitor", "share"}:
-        return PUBLIC_DEMO_MODE
-    if slug in {"research", "personal", "workspace"}:
-        return RESEARCH_MODE
+    if mode := MODE_QUERY_ALIASES.get(slug):
+        return mode
     if initial_page in advanced_titles:
         return OPERATOR_DEMO_MODE
     return RESEARCH_MODE
