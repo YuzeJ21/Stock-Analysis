@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from src.profile_context import (
-    READINESS_PREVIEW_COMMAND,
     READINESS_PREVIEW_NOTE,
     ProfileContext,
     readiness_inspection_route,
@@ -34,7 +33,7 @@ def build_continuation_gate(context: ProfileContext) -> ContinuationGate:
         getattr(context, "profile_label", "Default"),
         getattr(context, "data_dir", Path("data")),
     )
-    rebuild_command = inspection_action
+    rebuild_command = ""
     evidence_state = getattr(context, "readiness_evidence_state", "not_applicable")
     evidence_is_uncommitted = evidence_state == "working_artifact_uncommitted"
     evidence_is_unverified = evidence_state == "unverified"

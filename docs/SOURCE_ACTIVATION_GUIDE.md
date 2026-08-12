@@ -139,7 +139,9 @@ Source activation only makes a lane executable. It does not mark data as ready. 
 make imports-validate IMPORT_TICKERS=<ticker>
 make imports-preview IMPORT_TICKERS=<ticker>
 make imports-apply IMPORT_TICKERS=<ticker>
-make readiness
+make readiness-preview TOP_N=20
 ```
+
+Preview and the profile-bound in-memory comparison prove proposed local impact only. If an exact tracked 18-file readiness candidate already exists and is intentionally under review, use `make readiness-release-review TOP_N=20` and its reviewed record/guard flow; this guide does not create that candidate.
 
 Do not fabricate missing prices, fundamentals, shares, peers, earnings, estimates, valuation inputs, metrics, or recommendations.

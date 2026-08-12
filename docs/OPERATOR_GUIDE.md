@@ -71,13 +71,15 @@ CONFIRM_REVIEWED=1 make thesis-journal-record ...
 
 Never convert generated `purpose_thesis`, invalidation prompts, Change Monitor tasks, or candidate context into reviewed journal history automatically. A journal record does not refresh providers, apply imports, rebuild readiness, resolve a change event, stage files, commit, push, or create a transaction instruction.
 
-Rebuild local outputs only after changing source data, imports, or pipeline code:
+Inspect readiness impact after changing reviewed source data or imports; do not regenerate tracked release artifacts through a composite command:
 
 ```bash
-make pipeline
-make readiness
-make project-status
+make pipeline  # no-write guarded composite verification
+make readiness-preview TOP_N=20
+make project-status-check
 ```
+
+An optional ignored local package requires explicit authorization through `CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local>` and is not tracked release evidence. `make readiness-release-review TOP_N=20` applies only when an exact existing tracked 18-file candidate has been separately identified for review.
 
 `make project-status` also writes `outputs/project_status_remaining_stages.csv`. Use that stage map when deciding what is truly next after the public package is ready: LinkedIn manual share, hosted Streamlit deployment, FMP provider activation, peer readiness upgrade, optional earnings/estimate context, source-proof queue exhaustion, coverage-depth gaps, UX polish, and generated-artifact hygiene. The stage map is read-only; it separates actionable pending dependencies (`awaiting_external_setup`, `awaiting_reviewed_source`, and `awaiting_source_change`) from ready, manual-verification, and excluded states. These pending states do not turn the overall roadmap terminal: preserve their evidence, continue another executable product/share item, and resume only when the dependency changes. Lower-level tools may still report precise diagnostics such as `external_account_required` or `external_key_required`.
 
@@ -220,7 +222,7 @@ For larger price refreshes, dry-run first and keep batches capped:
 ```bash
 make price-refresh-loop DRY_RUN=1
 make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto
-make readiness-snapshot
+make readiness-snapshot PROFILE=<default|demo|local>
 make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30
 make diff-hygiene
 ```

@@ -125,9 +125,10 @@ Prices:
 ```bash
 make price-history-proof-queue TOP_N=25
 make price-refresh-loop DRY_RUN=1
-make readiness-snapshot
+make readiness-snapshot PROFILE=default
 make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30
-make readiness
+make readiness-preview TOP_N=20
+make reviewed-batch-compare PROFILE=default LANE=prices BATCH_ID=<id> REVIEW_DATE=<yyyy-mm-dd>
 make status-check TOP_N=5
 make diff-hygiene
 ```
@@ -176,7 +177,7 @@ Apply only after source proof, validation, preview, and rejected-row review:
 ```bash
 make imports-apply IMPORT_TICKERS=<ticker>
 make dcf-readiness
-make readiness
+make readiness-preview TOP_N=20
 make stock-report-md TICKER=<ticker>
 ```
 
@@ -225,11 +226,11 @@ Keep optional context locked until trusted local or reviewed provider-assisted r
 Before calling any lane supported, confirm:
 
 ```bash
-make readiness-snapshot
+make readiness-snapshot PROFILE=<default|demo|local>
 make imports-validate
 make imports-preview
-make readiness
-make reviewed-batch-compare LANE=<lane> BATCH_ID=<id> REVIEW_DATE=<yyyy-mm-dd>
+make readiness-preview TOP_N=20
+make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> BATCH_ID=<id> REVIEW_DATE=<yyyy-mm-dd>
 DRY_RUN=1 make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded>
 ```
 

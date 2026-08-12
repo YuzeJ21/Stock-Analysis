@@ -48,7 +48,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Review `docs/DIFF_HYGIENE_AUDIT.md` before staging so broad local CSV churn stays out of the public branch.
 - Treat new `docs/`, `scripts/`, and `tests/` files from public-product polish as reviewable product candidates, not generated data, when `make diff-hygiene` lists them.
 - Avoid committing huge timestamp-only generated CSV churn.
-- If `make readiness` or `make pipeline` was run during verification, clean or exclude the broad generated CSV/JSON churn before the public release commit. Keep only intentionally reviewed artifacts such as `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv` when they demonstrate the reviewed-batch workflow.
+- If an explicit writer or pipeline command was run during verification, clean or exclude the broad generated CSV/JSON churn before the public release commit. Keep only intentionally reviewed artifacts such as `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv` when they demonstrate the reviewed-batch workflow.
 
 ## Open-Source And Attribution Hygiene
 
@@ -127,7 +127,8 @@ Expanded command list:
 
 ```bash
 make pipeline
-make readiness
+make readiness-preview TOP_N=20
+make readiness-release-review TOP_N=20
 make public-check
 make pilot-readiness-check TOP_N=10
 make pilot-share-brief

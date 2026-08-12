@@ -953,7 +953,8 @@ def test_readiness_continuation_gate_docs_keep_rankings_non_executable():
         assert "current but untracked" in lowered
         assert "make readiness-preview TOP_N=20" in text
         assert "planning context only" in lowered
-        assert "separate intentional reviewed write" in lowered
+        assert "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=" in text
+        assert "make readiness-release-review TOP_N=20" in text
     assert "The stale readiness continuation gate" not in roadmap
     assert "The stale readiness continuation gate applies" not in data_strategy
     assert "## Stale Readiness Continuation Gate" not in dashboard_qa
@@ -2197,9 +2198,10 @@ def test_broad_review_docs_use_durable_release_routing_and_fail_closed_boundarie
     for document in (readme, roadmap):
         assert "Complete the direct local matrix and current-head local evidence first" in document
         assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in document
-    assert "First complete the direct local matrix and current-head local evidence for this modernization task" in continuation
+    assert "The Calm Institutional Workspace local engineering closure is complete" in continuation
+    assert "49123a989dae263e8c125ad3032bf96d0107853d" in continuation
+    assert "awaiting local quality closure" not in continuation
     assert "A push, draft-PR update, merge, deploy, remote synchronization, or exact-head CI run requires separate owner authorization" in continuation
-
     broad_review_boundary = (
         "Broad-review repairs must be evaluated only through direct current-head local "
         "and exact-head CI evidence; their presence alone establishes neither gate."
@@ -2227,6 +2229,53 @@ def test_broad_review_docs_use_durable_release_routing_and_fail_closed_boundarie
         "keep the verified portable HTML action-policy repair unchanged",
     ):
         assert stale_route not in active_routing
+
+
+def test_active_readiness_guidance_uses_supported_materialization_and_release_review_commands():
+    documents = {
+        "roadmap": _read("ROADMAP.md"),
+        "continuation": _read(
+            "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+        ),
+        "strategy": _read("docs/DATA_STRATEGY.md"),
+        "dashboard_qa": _read("docs/DASHBOARD_QA.md"),
+        "pilot_runbook": _read("docs/PILOT_RUNBOOK.md"),
+        "operator_guide": _read("docs/OPERATOR_GUIDE.md"),
+        "source_activation": _read("docs/SOURCE_ACTIVATION_GUIDE.md"),
+        "release_checklist": _read("docs/PUBLIC_RELEASE_CHECKLIST.md"),
+        "methodology": _read("docs/METHODOLOGY.md"),
+        "provenance": _read("docs/PROVENANCE_CONTRACT.md"),
+    }
+
+    for name in ("roadmap", "continuation", "strategy", "dashboard_qa"):
+        text = documents[name]
+        assert "make readiness-preview TOP_N=20" in text
+        assert "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=" in text
+        assert "make readiness-release-review TOP_N=20" in text
+        assert "`make readiness` is a separate intentional reviewed write" not in text
+        assert "intentional reviewed `make readiness` run" not in text
+
+    strategy = documents["strategy"]
+    for stale_command in (
+        "Prove the result with `make readiness`,",
+        "and `make readiness`.",
+        "run `make readiness` before relying on final counts",
+        "and `make readiness`. It compares",
+        "the operator sees `make readiness` first",
+    ):
+        assert stale_command not in strategy
+    assert "optional ignored local package" in strategy
+    assert "does not update the tracked 18-file release candidate" in strategy
+    assert "materialize with `CONFIRM_MATERIALIZE=1" not in strategy
+
+    for name, text in documents.items():
+        for line in text.splitlines():
+            stripped = line.strip()
+            assert stripped != "make readiness", name
+            assert not stripped.startswith("make readiness &&"), name
+            assert stripped != "make readiness-snapshot", name
+        assert "separate reviewed `make readiness`" not in text, name
+        assert "reviewed make readiness rebuild" not in text.lower(), name
 
 
 def test_html_research_brief_accessibility_and_dashboard_qa_name_actual_evidence():

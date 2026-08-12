@@ -347,8 +347,9 @@ def test_public_release_package_reports_clean_push_path():
     assert "Package status: clean; ready for the next reviewed work slice" in report
     assert "make public-check" in report
     assert "make browser-qa-capture-plan" not in report
-    assert "git push origin main" in report
-    assert "only when explicitly asked" in report
+    assert "git push origin main" not in report
+    assert "never infer main" in report
+    assert "separate owner authorization" in report
     assert "License gate: controlled demo LICENSE found" in report
     assert "root LICENSE" in report
     assert "make license-status" in report
@@ -485,11 +486,19 @@ def test_public_release_package_surfaces_push_when_branch_ahead_without_product_
         module.StatusEntry("M", "outputs/feature_readiness_summary.csv"),
     ]
 
-    report = module.build_public_release_package_report(entries, branch_status="## main...origin/main [ahead 1]")
+    report = module.build_public_release_package_report(
+        entries,
+        branch_status=(
+            "## codex/personal-research-mode-mvp..."
+            "origin/codex/personal-research-mode-mvp [ahead 10]"
+        ),
+    )
 
     assert "No reviewed product package to stage; keep generated churn local unless intentionally selected as evidence." in report
     assert "Reviewed local commit is ahead of origin; push only when explicitly asked and after public-check passes." in report
-    assert "git push origin main  # only when explicitly asked" in report
+    assert "git push origin codex/personal-research-mode-mvp" in report
+    assert "separate owner authorization" in report
+    assert "git push origin main" not in report
     assert "No reviewed product package to commit; generated churn remains local." in report
 
 
@@ -511,13 +520,22 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
         module.StatusEntry("??", "data/reports/ticker_readiness_report.previous.csv"),
     ]
 
-    report = module.build_public_release_handoff_report(entries, branch_status="## main...origin/main")
+    report = module.build_public_release_handoff_report(
+        entries,
+        branch_status=(
+            "## codex/personal-research-mode-mvp..."
+            "origin/codex/personal-research-mode-mvp [ahead 10]"
+        ),
+    )
 
     assert "Public Release Terminal Handoff" in report
     assert "Read-only" in report
     assert "Product/code/docs/test candidates: 4 (3 changed, 1 new)" in report
     assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
-    assert "Branch status: ## main...origin/main" in report
+    assert (
+        "Branch status: ## codex/personal-research-mode-mvp..."
+        "origin/codex/personal-research-mode-mvp [ahead 10]"
+    ) in report
     assert "Package status: product package pending commit; commit this package before starting another feature slice" in report
     assert "License gate: controlled demo LICENSE found" in report
     assert "root LICENSE" in report
@@ -543,8 +561,9 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "make staged-hygiene-check" in report
     assert "git diff --cached --check" in report
     assert "git commit -m \"Improve pilot handoff and workflow continuity\"" in report
-    assert "git push origin main" in report
-    assert "only when explicitly asked" in report
+    assert "git push origin codex/personal-research-mode-mvp" in report
+    assert "separate owner authorization" in report
+    assert "git push origin main" not in report
     staging_block = report.split("Step 2 - stage only", 1)[1].split("Step 3 - inspect", 1)[0]
     assert "data/prices.csv" not in staging_block
     assert "ticker_readiness_report.previous.csv" not in staging_block

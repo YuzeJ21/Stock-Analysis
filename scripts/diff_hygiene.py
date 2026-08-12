@@ -221,6 +221,22 @@ def load_branch_status(repo_root: Path) -> str:
     return result.stdout.splitlines()[0] if result.stdout.splitlines() else "branch status unavailable"
 
 
+def _branch_push_guidance(branch_status: str) -> str:
+    branch = ""
+    line = str(branch_status or "").strip()
+    if line.startswith("## "):
+        branch = line[3:].split("...", 1)[0].split(" ", 1)[0].strip()
+    if branch:
+        return (
+            f"  git push origin {branch}  # only when explicitly asked and after "
+            "separate owner authorization"
+        )
+    return (
+        "  # Push the reviewed current branch to its tracked upstream only after separate "
+        "owner authorization; never infer main."
+    )
+
+
 def format_paths(entries: list[StatusEntry], *, limit: int = 80) -> list[str]:
     rows = [f"  {entry.status or 'M'} {entry.path}" for entry in entries[:limit]]
     if len(entries) > limit:
@@ -833,6 +849,7 @@ def build_public_release_package_report(
     manual = groups["review_manually"]
     package_status = package_status_for_groups(groups)
     branch_is_ahead = "[ahead" in (branch_status or "")
+    push_guidance = _branch_push_guidance(branch_status)
 
     lines = [
         "Public Release Package",
@@ -854,7 +871,7 @@ def build_public_release_package_report(
                 f"Package status: {package_status}",
                 "Next safe action:",
                 "  make public-check",
-                "  git push origin main  # only when explicitly asked and after confirming the branch is ready to publish",
+                push_guidance,
             ]
         )
         return "\n".join(lines)
@@ -932,7 +949,7 @@ def build_public_release_package_report(
             "Commit and push only after staged hygiene passes:",
             "  git commit -m \"Improve pilot handoff and workflow continuity\"",
             "  git status --short --branch",
-            "  git push origin main  # only when explicitly asked",
+            push_guidance,
         ]
         if product
         else (
@@ -941,7 +958,7 @@ def build_public_release_package_report(
                 "  # No reviewed product package to commit; generated churn remains local.",
                 "  Reviewed local commit is ahead of origin; push only when explicitly asked and after public-check passes.",
                 "  git status --short --branch",
-                "  git push origin main  # only when explicitly asked",
+                push_guidance,
             ]
             if branch_is_ahead
             else [
@@ -1007,6 +1024,7 @@ def build_public_release_handoff_report(
         else []
     )
 
+    push_guidance = _branch_push_guidance(branch_status)
     lines = [
         "Public Release Terminal Handoff",
         "Read-only: this command prints the safe terminal sequence only. It does not stage, delete, reset, refresh, rewrite files, commit, or push.",
@@ -1073,7 +1091,7 @@ def build_public_release_handoff_report(
             "",
             "Step 5 - push only when explicitly asked after the local commit is reviewed:",
             "  git status --short --branch",
-            "  git push origin main  # only when explicitly asked",
+            push_guidance,
             "",
             "Generated churn to leave unstaged by default:",
         ]

@@ -1250,15 +1250,64 @@ def test_project_status_stage_map_does_not_call_github_synced_when_branch_is_ahe
         },
         trusted_data_pilot_has_candidates=False,
         price_coverage_complete=True,
-        git_status_line="## main...origin/main [ahead 1]",
+        git_status_line=(
+            "## codex/personal-research-mode-mvp..."
+            "origin/codex/personal-research-mode-mvp [ahead 10]"
+        ),
     )
 
     linkedin_row = rows[0]
     assert linkedin_row["Stage"] == "LinkedIn publish"
     assert linkedin_row["State"] == "needs_github_sync"
-    assert "ahead 1" in linkedin_row["Evidence"]
-    assert "git push origin main" in linkedin_row["Next Action"]
+    assert "ahead 10" in linkedin_row["Evidence"]
+    assert "codex/personal-research-mode-mvp" in linkedin_row["Next Action"]
+    assert "separate owner authorization" in linkedin_row["Next Action"]
+    assert "git push origin main" not in linkedin_row["Next Action"]
     assert "GitHub is synced" not in linkedin_row["Evidence"]
+
+
+def test_project_status_never_labels_readiness_preview_as_a_reviewed_write(capsys):
+    payload = {
+        "profile_context": {},
+        "summary": {
+            "data_sources_available": 0,
+            "data_sources_total": 0,
+            "data_sources_needing_attention": 0,
+            "data_sources_optional_locked": 0,
+            "data_gaps": 0,
+            "tickers_with_prices": 0,
+            "tickers_total": 0,
+            "tickers_usable_for_momentum": 0,
+            "tickers_fundamentals_ready": 0,
+            "tickers_dcf_ready": 0,
+            "tickers_peer_ready": 0,
+            "onboarding_actions": 0,
+            "critical_actions": 0,
+            "purpose_evaluation_groups": 0,
+            "purpose_evaluation_active_groups": 0,
+        },
+        "warnings": [],
+        "remaining_public_stage_rows": [],
+        "workflow_continuation": {},
+        "recommended_next_command_rows": [],
+        "top_onboarding_actions": [],
+        "top_dcf_input_actions": [],
+        "source_operator_summary": {},
+    }
+    gate = ContinuationGate(
+        state="inspection_only",
+        next_safe_command="make readiness-preview TOP_N=20",
+        reason="Working readiness is not tracked release evidence.",
+        rebuild_command="make readiness-preview TOP_N=20",
+        stop_rule="Do not start readiness writes.",
+        suppress_execution=True,
+    )
+
+    project_status._print_human(payload, continuation_gate=gate)
+    output = capsys.readouterr().out
+
+    assert "Continuation-safe next action: make readiness-preview TOP_N=20" in output
+    assert "readiness-preview TOP_N=20 requires an intentional reviewed write" not in output
 
 
 def test_project_status_stage_map_uses_hosted_url_marker_as_manual_gate():

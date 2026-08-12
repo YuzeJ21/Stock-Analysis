@@ -970,14 +970,17 @@ def test_make_next_stage_prints_current_stage_ladder_without_running_broad_work(
     assert "Read-only: this target prints the current next-stage decision ladder only." in output
     assert "Current package answer:" in output
     assert "Next executable repo-side item:" in output
+    executable = output.split("Next executable repo-side item:\n", 1)[1].split(
+        "\n\nExternal unblock conditions (not executable now):", 1
+    )[0]
+    assert executable.strip() == "- Readiness inspection: make readiness-preview TOP_N=20"
     assert "Hosted demo status:" in output
     assert "Provider key status:" in output
     assert "Source-proof queue status:" in output
-    assert "Current truth: make project-status-check" in output
-    assert "Public share gate: make public-check" in output
-    assert "Hosted app gate: make hosted-demo-readiness" in output
-    assert "Provider key gate: make provider-setup-checklist" in output
-    assert "Do not run broad proof queues unless project-status-check shows executable source-backed candidates." in output
+    assert "External unblock conditions (not executable now):" in output
+    assert "remote synchronization and public sharing require separate authorization" in output
+    assert "hosted operation, credentials, source rights, reviewers, and supplied evidence" in output
+    assert "Do not run broad proof queues while the continuation gate suppresses execution." in output
     assert "Generated churn stays excluded unless one exact artifact is reviewed evidence." in output
     assert "trusted-data-pilot-candidates" not in output
     assert "data-coverage-proof-queues" not in output
@@ -2000,12 +2003,13 @@ def test_operator_guide_is_command_focused_and_research_only():
     assert first_run.index("make dashboard") < first_run.index("make status-check TOP_N=5")
     assert first_run.index("make status-check TOP_N=5") < first_run.index("make project-status")
     assert first_run.index("make project-status") < first_run.index("make stock-report-md TICKER=NVDA")
-    assert "Rebuild local outputs only after changing source data, imports, or pipeline code" in first_run
+    assert "Inspect readiness impact after changing reviewed source data or imports" in first_run
     rebuild_section = first_run.split(
-        "Rebuild local outputs only after changing source data, imports, or pipeline code:", 1
+        "Inspect readiness impact after changing reviewed source data or imports; do not regenerate tracked release artifacts through a composite command:", 1
     )[1]
-    assert rebuild_section.index("make pipeline") < rebuild_section.index("make readiness")
-    assert rebuild_section.index("make readiness") < rebuild_section.index("make project-status")
+    assert rebuild_section.index("make pipeline") < rebuild_section.index("make readiness-preview")
+    assert rebuild_section.index("make readiness-preview") < rebuild_section.index("make project-status-check")
+    assert "make readiness\n" not in rebuild_section
 
     for forbidden in (
         "buy recommendation",
@@ -2629,9 +2633,11 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in data_strategy
     assert "make imports-apply IMPORT_TICKERS=<ticker> only after validation passes, preview scope is intended, rejected rows are zero" in data_strategy
     assert "Check the rejected-row report printed by the packet before treating the lane as available." in data_strategy
-    assert "Run the matching rebuild proof:" in data_strategy
-    assert "fundamentals lane: make readiness && make dcf-readiness" in data_strategy
-    assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in data_strategy
+    assert "Run the matching in-memory readiness comparison after the reviewed source step:" in data_strategy
+    assert "readiness impact: make readiness-preview TOP_N=20" in data_strategy
+    assert "batch comparison: make reviewed-batch-compare PROFILE=<default|demo|local>" in data_strategy
+    assert "fundamentals lane: make dcf-readiness" in data_strategy
+    assert "peer lane: make peer-mapping-queue TOP_N=25" in data_strategy
     assert "lane review path, validate/preview gate, apply boundary, rejected-row report path, rebuild proof, and evidence row to record" in data_strategy
     assert "The candidate list and one-company packet also print local file status" in data_strategy
     assert "A file with rows is not automatically trusted coverage" in data_strategy
@@ -2669,7 +2675,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "then preview any broader update with `make price-refresh-loop DRY_RUN=1`" in data_strategy
     assert "Pilot Evidence Checklist" in data_strategy
     assert "A company is a useful pilot win only when the evidence is reviewable, not just when a CSV row exists." in data_strategy
-    assert "Keep a before/after readiness count from `make readiness-snapshot` and `make readiness`." in data_strategy
+    assert "Keep a before/after readiness count from `make readiness-snapshot PROFILE=<default|demo|local>` and `make reviewed-batch-compare PROFILE=<default|demo|local> ...`" in data_strategy
     assert "Keep one regenerated Markdown report per pilot company" in data_strategy
     assert "Keep the exact review and validation path that changed the state" in data_strategy
     assert "Record local file status from the pilot output, but do not treat row counts or file existence as proof by themselves." in data_strategy
@@ -2687,7 +2693,9 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Reviewed Batch Execution V1" in data_strategy
     assert "Use `DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10` to preview a frontier lane as a reviewed run packet without writing packet artifacts." in data_strategy
     assert "The packet includes the pre-run readiness snapshot command, dry-run command, capped execution command, validate/preview/apply gates" in data_strategy
-    assert "the packet says to run `make readiness` before relying on final counts." in data_strategy
+    assert "the packet must stop at `make readiness-preview TOP_N=20`" in data_strategy
+    assert "creates an optional ignored local package only" in data_strategy
+    assert "does not update the tracked 18-file release candidate" in data_strategy
     assert "Use `make data-release-decision` after any reviewed batch or local refresh creates dirty CSV/report artifacts." in data_strategy
     assert "It separates three choices: keep generated artifacts local for working evidence, publish a reviewed data snapshot only when those exact artifacts are the deliverable, or clean back to a public code/docs release state." in data_strategy
     assert "Keep the public branch clean with `make diff-hygiene`" in data_strategy

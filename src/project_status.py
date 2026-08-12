@@ -462,11 +462,18 @@ def _linkedin_stage_from_git_status(git_status_line: str | None) -> dict[str, st
             "Completion Gate": "GitHub branch is synced and public gates pass.",
         }
     if "ahead" in lowered:
+        branch = ""
+        if line.startswith("## "):
+            branch = line[3:].split("...", 1)[0].split(" ", 1)[0].strip()
+        branch_label = branch or "the reviewed current branch"
         return {
             "State": "needs_github_sync",
             "Evidence": f"Public share gates may pass, but git status is {line}; push reviewed local commits before sharing the GitHub link.",
-            "Next Action": "Run git push origin main after confirming no generated churn is staged, then rerun public-check.",
-            "Completion Gate": "GitHub includes the latest reviewed local commit and public gates pass.",
+            "Next Action": (
+                f"After separate owner authorization, push {branch_label} to its tracked upstream "
+                "without inferring main, then rerun public-check."
+            ),
+            "Completion Gate": "GitHub includes the latest reviewed current-branch commit and public gates pass.",
         }
     return {
         "State": "ready_for_manual_share",
@@ -1948,9 +1955,17 @@ def _print_human(
             print(f"- Continuation-safe next action: {continuation_gate.next_safe_command}")
         if continuation_gate.reason:
             print(f"- Reason: {continuation_gate.reason}")
-        if continuation_gate.rebuild_command:
+        if (
+            continuation_gate.rebuild_command
+            and continuation_gate.rebuild_command != continuation_gate.next_safe_command
+        ):
             print(
                 f"- Rebuild boundary: {continuation_gate.rebuild_command} requires an intentional reviewed write."
+            )
+        elif continuation_gate.suppress_execution:
+            print(
+                "- Write boundary: readiness materialization remains separately gated; "
+                "the inspection command is no-write."
             )
         if continuation_gate.stop_rule:
             print(f"- Stop rule: {continuation_gate.stop_rule}")
