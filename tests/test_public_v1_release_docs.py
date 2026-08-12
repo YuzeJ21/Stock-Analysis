@@ -2544,6 +2544,31 @@ def test_release_docs_describe_the_monitor_follow_up_queue_without_market_or_tra
     assert "trade trigger" not in combined
 
 
+def test_active_personal_research_docs_route_saved_items_freshness_and_zero_truthfully():
+    for path in (
+        "README.md",
+        "ROADMAP.md",
+        "docs/PERSONAL_RESEARCH_MODE.md",
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md",
+    ):
+        text = _read(path)
+        assert "Monitor" in text
+        assert "Data Health" in text
+        assert "Discover" in text
+        assert "saved-source freshness condition" in text
+        assert "Monitor-or-Discover" not in text
+        assert "routes once to Monitor or Discover" not in text
+        assert "routes to Monitor only when saved work needs attention" not in text
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    assert "Base workspace product slice completed at `49123a989" in continuation
+    assert "current descendant worktree refines that routing" in continuation
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    assert "no saved research item is due but a saved-source freshness condition" in personal
+    assert "Open Data Health" in personal
+
+
 def test_readiness_release_docs_keep_technical_and_distribution_review_separate():
     for path in (
         "ROADMAP.md",

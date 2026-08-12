@@ -422,6 +422,8 @@ from src.research_workspace import (
     research_accessibility_media_preferences_css,
     research_evidence_return_link,
     research_monitor_frame,
+    monitor_primary_answer,
+    saved_readiness_display_label,
     research_workflow_navigation_html,
     research_workspace_header_html,
     weekly_summary_cards,
@@ -6359,6 +6361,11 @@ def render_daily_research_queue(
     comparison = compare_daily_queues(status.result, None)
     summary = daily_queue_summary_cards(comparison)[0]
     reason = str(summary.get("body") or "").removesuffix(f" {QUEUE_BOUNDARY}")
+    if not status.result.eligible:
+        reason = (
+            f"{reason} Check saved-company browsing separately below; strict "
+            "eligibility is unchanged."
+        )
     st.markdown(
         answer_panel_html(
             question="Find a Company · Screen eligibility — when supported",
@@ -24786,11 +24793,21 @@ def data_health_selected_lane_answer_cards(
     readiness_freshness: FreshnessStatus,
     *,
     project_status_payload: dict[str, Any] | None = None,
+    saved_readiness_summary: Mapping[str, object] | None = None,
 ) -> list[dict[str, object]]:
     """Return one plain-language answer for the selected Data Health lane."""
 
     lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, "Prices")
-    summary = project_status_payload.get("summary", {}) if isinstance(project_status_payload, dict) else {}
+    project_summary = (
+        project_status_payload.get("summary", {})
+        if isinstance(project_status_payload, dict)
+        else {}
+    )
+    summary = (
+        project_summary
+        if isinstance(project_summary, dict) and project_summary
+        else dict(saved_readiness_summary or {})
+    )
     recommended_rows = (
         project_status_payload.get("recommended_next_command_rows", [])
         if isinstance(project_status_payload, dict)
@@ -24867,8 +24884,14 @@ def data_health_selected_lane_answer_cards(
     fundamentals_ready = _summary_count(summary, "fundamentals_ready", "input_ready", "tickers_fundamentals_ready")
     dcf_ready = _summary_count(summary, "dcf_ready", "operating_company_dcf_ready", "tickers_dcf_ready")
     peer_ready = _summary_count(summary, "peer_ready", "tickers_peer_ready")
-    data_gaps = _summary_count(summary, "data_gaps", "locked_input_rows")
-    freshness_status = public_status_label(str(readiness_freshness.status or "unknown")).lower()
+    data_gaps = _summary_count(
+        summary,
+        "data_gaps",
+        "locked_input_rows",
+        "blocked_by_data",
+        "blocked",
+    )
+    freshness_status = saved_readiness_display_label(readiness_freshness.status)
     source_setup_note = ""
     if isinstance(summary, dict):
         source_total = _summary_count(summary, "data_sources_total")
@@ -30645,10 +30668,20 @@ def discover_browse_result_summary_html(
     total_count: int,
 ) -> str:
     return (
-        "<div class='public-selector-result-summary research-discover-summary'>"
+        "<div id='saved-company-browser' class='public-selector-result-summary research-discover-summary'>"
         f"<strong>{filtered_count:,}</strong> of {total_count:,} saved companies "
         "match the current search and filters."
         "</div>"
+    )
+
+
+def discover_saved_browser_jump_html() -> str:
+    """Return one visible in-page route from strict eligibility to saved browsing."""
+
+    return (
+        "<p class='research-discover-browser-jump'>"
+        "<a href='#saved-company-browser'>Browse saved companies</a>"
+        "</p>"
     )
 
 
@@ -30783,6 +30816,11 @@ def render_stock_selector(
 
     saved_presets = stock_selector_saved_filter_presets()
     current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
+    if research_discover:
+        st.markdown(
+            discover_saved_browser_jump_html(),
+            unsafe_allow_html=True,
+        )
     search = st.text_input(
         "Search saved companies" if research_discover else "Search this review queue",
         value=str(current_filter_values.get("search") or ""),
@@ -33587,6 +33625,21 @@ def render_data_health(
             ).value,
             unsafe_allow_html=True,
         )
+        if workspace_mode == RESEARCH_MODE and selected_lane_key != "prices":
+            render_section_header(
+                "Selected Lane Answer",
+                "Read-only lane evidence from the exact Company Workbench handoff.",
+            )
+            render_signal_cards(
+                data_health_selected_lane_answer_cards(
+                    selected_lane_key,
+                    public_readiness_freshness,
+                    project_status_payload=project_status_payload,
+                    saved_readiness_summary=readiness_summary,
+                ),
+                show_commands=False,
+                variant="queue",
+            )
         render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)
         render_signal_cards([nowcast_data_health_card(None, ticker=public_focus_ticker or "Selected ticker")], show_commands=False, variant="queue")
         st.markdown(advanced_detail_marker_html().value, unsafe_allow_html=True)
@@ -36665,7 +36718,7 @@ def render_research_workspace_header(
             page_title,
             ticker=ticker,
             profile_label=context.profile_label,
-            freshness=context.freshness_state.replace("_", " ").title(),
+            freshness=saved_readiness_display_label(context.freshness_state),
             primary_action=primary_action,
             compact=compact,
             include_boundary=include_boundary,
@@ -36700,6 +36753,16 @@ def render_research_desk(
         review_items=state.get("queue") or (),
         freshness_state=context.freshness_state,
         freshness_message=context.freshness_message,
+        observation_state=(
+            observation_recency.profile_price_lane.state
+            if observation_recency is not None
+            else None
+        ),
+        observation_message=(
+            _observation_recency_message(observation_recency.profile_price_lane)
+            if observation_recency is not None
+            else ""
+        ),
     )
     st.markdown(
         research_desk_brief_html(
@@ -36773,9 +36836,7 @@ def render_research_monitor(
         answer_panel_html(
             question="What saved research follow-up is due?",
             answer=(
-                queue.empty_title
-                if queue.is_empty
-                else "Saved follow-up evidence needs attention."
+                monitor_primary_answer(queue)
             ),
             reason=queue.primary_reason,
             action=SafeRouteAction(
@@ -36791,13 +36852,29 @@ def render_research_monitor(
     )
     st.markdown("## Follow-up Queue")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
-    if not queue.is_empty:
+    if queue.has_saved_follow_up:
         st.markdown(
             supporting_detail_html(
                 title="Saved follow-up evidence",
                 body=(
                     "Follow-up reasons retain saved cohort order and remain separate from "
                     "company scoring or urgency."
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
+        render_signal_cards(
+            [asdict(panel) for panel in queue.panels],
+            show_commands=False,
+            variant="evidence-monitor",
+        )
+    elif queue.has_freshness_attention:
+        st.markdown(
+            supporting_detail_html(
+                title="Saved-source freshness condition",
+                body=(
+                    "Saved readiness or market-observation freshness needs Data Health "
+                    "review; this is not a saved follow-up item or a live alert."
                 ),
             ).value,
             unsafe_allow_html=True,

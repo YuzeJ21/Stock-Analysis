@@ -76,6 +76,7 @@ class EvidenceRow:
     state: str
     count_or_cutoff: str
     reason: str
+    display_label: str | None = None
     evidence_action: SafeRouteAction | None = None
 
 
@@ -365,7 +366,11 @@ def status_chip_html(*, role: str, state: str, label: str | None = None) -> Html
 def evidence_rows_html(rows: Sequence[EvidenceRow]) -> HtmlFragment:
     rendered: list[str] = []
     for row in rows:
-        chip = status_chip_html(role=row.role, state=row.state).value
+        chip = status_chip_html(
+            role=row.role,
+            state=row.state,
+            label=row.display_label,
+        ).value
         action = _action_link(row.evidence_action, region=False) if row.evidence_action else ""
         rendered.append(
             "<li class='sr-evidence-row'>"
@@ -665,6 +670,15 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
 }}
 .stApp:has(.research-workflow-navigation) [data-testid="stTextInput"] input {{ min-height: 44px; }}
 .stApp:has(.public-app-shell) [data-testid="stTextInput"] input {{ min-height: 44px; }}
+.research-discover-browser-jump {{
+  position: relative;
+  z-index: 2;
+  top: 0;
+  height: 0;
+  margin: 0;
+  text-align: right;
+}}
+.research-discover-browser-jump a {{ color: var(--sr-forest) !important; font-weight: 650; }}
 .sr-stop-rule {{
   display: grid;
   gap: 4px;
@@ -900,6 +914,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   .sr-answer-panel h2 {{ font-size: 1.0625rem; }}
   .sr-primary-action, .public-primary-action {{ width: 100%; }}
   .sr-evidence-row, .sr-timeline-record {{ grid-template-columns: 1fr; }}
+}}
+@media (max-width: 360px) {{
+  .research-discover-browser-jump {{
+    position: static;
+    height: auto;
+    margin: 0 0 4px;
+    text-align: left;
+  }}
 }}
 @media (forced-colors: active) {{
   .public-app-nav a[aria-current="page"],

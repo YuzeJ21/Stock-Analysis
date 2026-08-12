@@ -124,8 +124,8 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
     WorkspaceVisualRoute(
         "personal-data-health",
         "Personal Data Health",
-        "/?mode=research&page=data-health&ticker=AVGO",
-        "Price / setup",
+        "/?mode=research&page=data-health&ticker=AVGO&lane=peers&drawer=proof",
+        "Selected Lane Answer",
         "Data Health",
         "research",
     ),
@@ -1606,6 +1606,7 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
   let role = "other";
   if (element.matches("a.public-skip-link")) role = "skip";
   else if (element.matches("[data-sr-region='primary-action']")) role = "primary-action";
+  else if (element.matches("a[href='#saved-company-browser']")) role = "navigation";
   else if (selectorSearch) role = "primary-action";
   else if (
     element.closest("nav[aria-label='Personal research workflow']") ||

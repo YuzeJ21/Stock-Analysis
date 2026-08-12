@@ -29159,6 +29159,30 @@ def test_data_health_price_lane_uses_saved_project_status_counts(tmp_path: Path)
     assert "not a recommendation" in rendered
 
 
+def test_data_health_peer_lane_uses_saved_readiness_counts_when_project_status_is_missing():
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus(
+            "current",
+            "Saved readiness artifacts are current.",
+            "make readiness-preview TOP_N=20",
+        ),
+        project_status_payload=None,
+        saved_readiness_summary={
+            "peer_ready": 9,
+            "blocked_by_data": 175,
+        },
+    )
+    rendered = " ".join(
+        str(value) for card in cards for value in card.values()
+    ).lower()
+
+    assert "9 tickers have trusted peer context" in rendered
+    assert "175 locked input row(s)" in rendered
+    assert "0 tickers have trusted peer context" not in rendered
+    assert "freshness: current for saved sources" in rendered
+
+
 def test_data_health_selected_lane_answer_cards_pivots_when_source_queues_are_exhausted():
     cards = dashboard.data_health_selected_lane_answer_cards(
         "fundamentals",

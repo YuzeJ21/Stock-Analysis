@@ -726,6 +726,20 @@ def test_empty_strict_screen_preserves_saved_browsing_boundary(monkeypatch):
     assert "No company currently has complete evidence for the strict screen" in copy
     assert "This does not prevent browsing saved companies" in copy
     assert "thresholds were not relaxed" in copy.lower()
+    primary_answer = next(
+        value for value in rendered if "data-sr-region='primary-answer'" in value
+    )
+    assert "Check saved-company browsing separately below" in primary_answer
+    assert "strict eligibility is unchanged" in primary_answer
+    assert "companies remain inspectable" not in primary_answer.lower()
+    assert "id='saved-company-browser'" in dashboard.discover_browse_result_summary_html(
+        2, 4
+    )
+    jump = dashboard.discover_saved_browser_jump_html()
+    assert "href='#saved-company-browser'" in jump
+    assert "Browse saved companies" in jump
+    selector_source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    assert "discover_saved_browser_jump_html()" in selector_source
 
 
 def test_company_workbench_anchors_answer_before_collapsed_navigation_and_passes_target_to_report():
@@ -1205,6 +1219,7 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
     monkeypatch,
 ):
     rendered: list[str] = []
+    cards: list[object] = []
 
     class Expander:
         def __enter__(self):
@@ -1220,7 +1235,11 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
     monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard, "observation_recency_summary_html", lambda *args, **kwargs: "")
     monkeypatch.setattr(dashboard, "observation_recency_evidence_html", lambda *args, **kwargs: "")
-    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "render_signal_cards",
+        lambda values, **kwargs: cards.extend(values),
+    )
     monkeypatch.setattr(dashboard.st, "markdown", lambda value, **kwargs: rendered.append(value))
     monkeypatch.setattr(dashboard.st, "caption", lambda value, **kwargs: rendered.append(value))
     monkeypatch.setattr(dashboard.st, "dataframe", lambda *args, **kwargs: None)
@@ -1250,9 +1269,23 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
     )
 
     copy = " ".join(rendered)
-    assert "Saved follow-up evidence needs attention." in copy
+    assert (
+        "No saved research item is due. A separate saved-source freshness condition needs Data Health review."
+        in copy
+    )
+    assert "Saved follow-up evidence needs attention." not in copy
+    assert "Saved follow-up evidence" not in copy
+    assert "Saved-source freshness condition" in copy
     assert "1 saved follow-up item" not in copy
     assert "Open Data Health" in copy
+    assert len(cards) == 5
+    assert {str(card.get("key") or "") for card in cards} == {
+        "since_last_review",
+        "needs_verification",
+        "waiting_on_evidence",
+        "scheduled_context",
+        "evidence_freshness",
+    }
 
 
 def test_direct_tickerless_company_workbench_fails_closed_without_report_or_default_ticker(
@@ -1936,7 +1969,7 @@ def test_monitor_discipline_empty_state_is_process_only():
     monitor_end = source.index("def render_company_workbench(", monitor_start)
     monitor = source[monitor_start:monitor_end]
 
-    assert "queue.empty_title" in monitor
+    assert "monitor_primary_answer(queue)" in monitor
     assert "queue.empty_boundary" in monitor
     assert "answer_panel_html(" in monitor
     assert "data-sr-region='primary-answer'" not in monitor

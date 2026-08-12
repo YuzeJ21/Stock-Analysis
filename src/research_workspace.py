@@ -66,6 +66,9 @@ class MonitorFollowUpQueue:
     waiting_rows: tuple[ResearchDisciplineRow, ...]
     scheduled_rows: tuple[ResearchDisciplineRow, ...]
     monitor_count: int
+    has_saved_follow_up: bool
+    has_freshness_attention: bool
+    freshness_attention_only: bool
     has_attention: bool
     is_empty: bool
     empty_title: str
@@ -87,6 +90,32 @@ class ResearchDeskBrief:
     stop_rule: str
 
 
+_CURRENT_SAVED_STATES = {"current", "fresh", "ready"}
+
+
+def saved_readiness_display_label(state: object) -> str:
+    """Label readiness as saved-source state rather than current-market truth."""
+
+    normalized = str(state or "").strip().casefold()
+    if normalized in _CURRENT_SAVED_STATES:
+        return "Current for saved sources"
+    return normalized.replace("_", " ").capitalize() or "Check saved readiness"
+
+
+def _saved_freshness_needs_attention(state: object) -> bool:
+    normalized = str(state or "").strip().casefold()
+    return normalized not in _CURRENT_SAVED_STATES
+
+
+def saved_research_item_count(
+    summary: WeeklyResearchSummary,
+    additional_items: Iterable[object] = (),
+) -> int:
+    """Return one shared saved-item count without using event cardinality."""
+
+    return max(len(tuple(summary.items or ())), len(tuple(additional_items or ())))
+
+
 def build_research_desk_brief(
     summary: WeeklyResearchSummary,
     *,
@@ -94,14 +123,16 @@ def build_research_desk_brief(
     review_items: Iterable[object],
     freshness_state: str,
     freshness_message: str,
+    observation_state: str | None = None,
+    observation_message: str = "",
 ) -> ResearchDeskBrief:
     """Compose one read-only answer from already-saved workspace evidence."""
 
     saved_review_items = tuple(review_items or ())
-    attention_count = max(
-        max(int(summary.unique_event_count), 0),
-        len(saved_review_items),
-    )
+    attention_count = saved_research_item_count(summary, saved_review_items)
+    readiness_attention = _saved_freshness_needs_attention(freshness_state)
+    observation_attention = _saved_freshness_needs_attention(observation_state)
+    freshness_attention = readiness_attention or observation_attention
     if attention_count:
         noun = "item" if attention_count == 1 else "items"
         answer = f"{attention_count} saved research {noun} need attention."
@@ -126,13 +157,30 @@ def build_research_desk_brief(
             if comparable
             else "A comparable saved before-and-after research snapshot is not available yet."
         )
-        next_action_label = "Open Discover"
-        next_action_url = "?mode=research&page=discover"
+        if freshness_attention:
+            condition = (
+                "saved readiness and market-observation freshness conditions"
+                if readiness_attention and observation_attention
+                else (
+                    "a separate saved-readiness freshness condition"
+                    if readiness_attention
+                    else "a separate saved market-observation freshness condition"
+                )
+            )
+            reason = (
+                f"No saved research item is due. {condition.capitalize()} still needs "
+                "Data Health review; it is not a saved research item or a live-market alert."
+            )
+            next_action_label = "Open Data Health"
+            next_action_url = "?mode=research&page=data-health"
+        else:
+            next_action_label = "Open Discover"
+            next_action_url = "?mode=research&page=discover"
 
     normalized_freshness = str(freshness_state or "").strip().casefold() or "unavailable"
     freshness_body = str(freshness_message or "").strip()
-    if normalized_freshness in {"current", "fresh", "ready"}:
-        freshness_warning = freshness_body or "Saved readiness is current."
+    if normalized_freshness in _CURRENT_SAVED_STATES:
+        freshness_warning = freshness_body or "Saved readiness is current for saved sources."
     elif normalized_freshness == "unavailable" and not freshness_body:
         freshness_warning = "Saved readiness is unavailable."
     else:
@@ -223,6 +271,11 @@ def build_monitor_follow_up_queue(
         else "No saved research-process context is currently scheduled."
     )
 
+    saved_readiness_label = (
+        saved_readiness_display_label(normalized_readiness)
+        if normalized_readiness.casefold() in _CURRENT_SAVED_STATES
+        else normalized_readiness
+    )
     panels = (
         MonitorFollowUpPanel(
             "since_last_review",
@@ -263,26 +316,26 @@ def build_monitor_follow_up_queue(
         MonitorFollowUpPanel(
             "evidence_freshness",
             "EVIDENCE FRESHNESS",
-            f"Readiness {normalized_readiness}; observation {normalized_observation}",
+            f"Readiness {saved_readiness_label}; observation {normalized_observation}",
             f"Saved readiness: {readiness_body} Market observation: {observation_body}",
             (
-                f"saved readiness: {normalized_readiness}",
+                f"saved readiness: {saved_readiness_label}",
                 f"market observation: {normalized_observation}",
             ),
         ),
     )
 
-    current_states = {"current", "fresh", "ready"}
     freshness_attention_count = sum(
-        state.casefold() not in current_states
+        state.casefold() not in _CURRENT_SAVED_STATES
         for state in (normalized_readiness, normalized_observation)
     )
-    has_attention = bool(
-        summary.items
+    has_saved_follow_up = bool(
+        saved_research_item_count(summary)
         or normalized_change_count
         or primary_rows
-        or freshness_attention_count
     )
+    has_freshness_attention = bool(freshness_attention_count)
+    has_attention = has_saved_follow_up or has_freshness_attention
     empty_title = (
         "No saved verification, evidence-wait, scheduled, or source-change item "
         "is currently due."
@@ -346,6 +399,9 @@ def build_monitor_follow_up_queue(
         waiting_rows=waiting_rows,
         scheduled_rows=scheduled_rows,
         monitor_count=monitor_count,
+        has_saved_follow_up=has_saved_follow_up,
+        has_freshness_attention=has_freshness_attention,
+        freshness_attention_only=(has_freshness_attention and not has_saved_follow_up),
         has_attention=has_attention,
         is_empty=not has_attention,
         empty_title=empty_title,
@@ -354,6 +410,17 @@ def build_monitor_follow_up_queue(
         next_action_label=next_action_label,
         next_action_url=next_action_url,
     )
+
+
+def monitor_primary_answer(queue: MonitorFollowUpQueue) -> str:
+    if queue.is_empty:
+        return queue.empty_title
+    if queue.freshness_attention_only:
+        return (
+            "No saved research item is due. A separate saved-source freshness "
+            "condition needs Data Health review."
+        )
+    return "Saved follow-up evidence needs attention."
 
 
 def build_evidence_monitor_brief(
@@ -782,9 +849,20 @@ def company_workbench_primary_brief(
     if not task_badges:
         task_badges = ("monitor", "research-only")
 
+    peer_task = "peer" in " ".join((task_title, *task_badges)).casefold()
+    if peer_task:
+        task_body = (
+            f"{task_body} Use the Data Health peer lane to inspect the exact blocker. "
+            "Reviewed source evidence is required; Personal Research does not silently "
+            "create peer mappings."
+        )
     href = "?mode=research&page=data-health"
     if raw_ticker:
         href += f"&ticker={quote(raw_ticker.upper())}"
+    data_health_label = "Open Data Health"
+    if peer_task:
+        href += "&lane=peers&drawer=proof"
+        data_health_label = "Open Data Health · Peers"
     return {
         "ticker": ticker,
         "use_now": use_now,
@@ -797,6 +875,7 @@ def company_workbench_primary_brief(
         "next_task_state": task_state,
         "next_task_badges": task_badges,
         "data_health_href": href,
+        "data_health_label": data_health_label,
         "stop_rule": (
             "Research-only: this brief is not a recommendation, probability, transaction "
             "instruction, or unsupported current-market conclusion."
@@ -855,7 +934,7 @@ def company_workbench_primary_brief_html(brief: Mapping[str, object]) -> str:
         "<span>Next research task</span>"
         f"<strong>{escaped('next_task_title', 'Wait for reviewed evidence or choose another company')}</strong>"
         f"<small>{task_state}</small>"
-        f"<a class='public-primary-action' data-sr-region='primary-action' href='{href}' target='_self'>Open Data Health</a>"
+        f"<a class='public-primary-action' data-sr-region='primary-action' href='{href}' target='_self'>{escaped('data_health_label', 'Open Data Health')}</a>"
         "</article>"
         "</div>"
         "<p class='company-workbench-primary-stop research-workspace-boundary' data-sr-region='stop-rule'>"
@@ -1377,6 +1456,7 @@ def research_desk_brief_html(
                 state=freshness_state,
                 count_or_cutoff=brief.freshness_warning,
                 reason=brief.reason,
+                display_label=saved_readiness_display_label(freshness_state),
             ),
         )
     ).value

@@ -159,6 +159,8 @@ def test_dashboard_visual_css_uses_local_fonts_tokens_and_responsive_complete_co
     assert "line-clamp" not in css
     assert "@media (forced-colors: active)" in css
     assert "@media (prefers-reduced-motion: reduce)" in css
+    assert ".research-discover-browser-jump" in css
+    assert "@media (max-width: 360px)" in css
 
 
 def test_typed_components_escape_every_text_and_attribute_boundary():

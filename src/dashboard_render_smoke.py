@@ -94,7 +94,7 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
             "Research Desk",
             "Today's Research Brief",
             "What needs my attention today?",
-            "Open Discover",
+            "Open Data Health",
             "market-complete event feed",
             "Research-only",
         ),
@@ -148,11 +148,19 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     ),
     DashboardRenderRoute(
         name="Research Data Health",
-        query_params=(("mode", "research"), ("page", "data-health"), ("ticker", "NVDA")),
+        query_params=(
+            ("mode", "research"),
+            ("page", "data-health"),
+            ("ticker", "NVDA"),
+            ("lane", "peers"),
+            ("drawer", "proof"),
+        ),
         required_markers=(
             "Data Health",
             "What can I use and what stays unavailable?",
             "Return to Company Workbench",
+            "Selected Lane Answer",
+            "trusted peer mapping proof",
             "Research-only",
         ),
         required_regions=(

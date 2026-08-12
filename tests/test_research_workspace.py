@@ -26,6 +26,9 @@ from src.research_workspace import (
     research_evidence_return_link,
     research_monitor_frame,
     research_workspace_header_html,
+    monitor_primary_answer,
+    saved_readiness_display_label,
+    saved_research_item_count,
     weekly_summary_cards,
 )
 from src.company_workbench_cash_generation_preview import (
@@ -103,7 +106,10 @@ def test_monitor_follow_up_queue_composes_five_distinct_questions_without_rankin
     assert "1 monitoring" in result.panels[1].badges
     assert "1 waiting on evidence" in result.panels[2].title
     assert "1 scheduled" in result.panels[3].title
-    assert result.panels[4].badges == ("saved readiness: current", "market observation: stale")
+    assert result.panels[4].badges == (
+        "saved readiness: Current for saved sources",
+        "market observation: stale",
+    )
     assert [row.ticker for row in result.verification_rows] == ["BBB"]
     assert [row.ticker for row in result.waiting_rows] == ["DDD"]
     assert [row.ticker for row in result.scheduled_rows] == ["CCC"]
@@ -230,6 +236,131 @@ def test_monitor_follow_up_queue_blank_freshness_inputs_fail_closed(blank):
         "market observation: unavailable",
     )
     assert result.is_empty is False
+
+
+def test_desk_and_monitor_distinguish_zero_saved_items_from_stale_observation():
+    summary = _weekly_summary()
+    desk = build_research_desk_brief(
+        summary,
+        change_status="no_changes",
+        review_items=(),
+        freshness_state="current",
+        freshness_message="Saved readiness matches saved sources.",
+        observation_state="stale",
+        observation_message="Saved market observation ends before the review date.",
+    )
+    monitor = build_monitor_follow_up_queue(
+        summary,
+        (),
+        source_change_count=0,
+        readiness_state="current",
+        readiness_message="Saved readiness matches saved sources.",
+        observation_state="stale",
+        observation_message="Saved market observation ends before the review date.",
+    )
+
+    assert desk.attention_count == 0
+    assert desk.answer == (
+        "No saved research item is currently due from the evidence loaded in this workspace."
+    )
+    assert "separate saved market-observation freshness condition" in desk.reason
+    assert desk.next_action_label == "Open Data Health"
+    assert monitor.has_saved_follow_up is False
+    assert monitor.has_freshness_attention is True
+    assert monitor.freshness_attention_only is True
+    assert monitor_primary_answer(monitor) == (
+        "No saved research item is due. A separate saved-source freshness condition needs Data Health review."
+    )
+
+
+@pytest.mark.parametrize(
+    ("unique_event_count", "item_count"),
+    [(0, 1), (1, 2)],
+)
+def test_desk_and_monitor_share_authoritative_saved_item_derivation(
+    unique_event_count,
+    item_count,
+):
+    items = tuple(
+        WeeklySummaryItem(
+            "requires_review",
+            "AAA",
+            f"Saved research item {index + 1} needs review.",
+            "review_now",
+            f"journal:aaa:{index + 1}",
+            "2026-08-04T00:00:00+00:00",
+        )
+        for index in range(item_count)
+    )
+    summary = WeeklyResearchSummary(
+        status="review_required",
+        as_of="2026-08-04T00:00:00+00:00",
+        cohort_size=1,
+        unique_event_count=unique_event_count,
+        items=items,
+        message=f"{item_count} traceable saved item(s).",
+    )
+
+    desk = build_research_desk_brief(
+        summary,
+        change_status="no_changes",
+        review_items=(),
+        freshness_state="current",
+        freshness_message="Saved readiness is current.",
+        observation_state="current",
+    )
+    monitor = build_monitor_follow_up_queue(
+        summary,
+        (),
+        readiness_state="current",
+        readiness_message="Saved readiness is current.",
+        observation_state="current",
+        observation_message="Saved observation is current.",
+    )
+
+    assert saved_research_item_count(summary) == item_count
+    assert desk.attention_count == item_count
+    assert desk.next_action_label == "Open Monitor"
+    assert monitor.has_saved_follow_up is True
+
+
+@pytest.mark.parametrize("missing_state", [None, ""])
+def test_desk_and_monitor_both_fail_closed_for_missing_saved_readiness(missing_state):
+    summary = _weekly_summary()
+    desk = build_research_desk_brief(
+        summary,
+        change_status="no_changes",
+        review_items=(),
+        freshness_state=missing_state,
+        freshness_message="",
+        observation_state="current",
+    )
+    monitor = build_monitor_follow_up_queue(
+        summary,
+        (),
+        readiness_state=missing_state,
+        readiness_message="",
+        observation_state="current",
+        observation_message="Saved observation is current.",
+    )
+
+    assert desk.next_action_label == "Open Data Health"
+    assert monitor.freshness_attention_only is True
+    assert "unavailable" in desk.freshness_warning.lower()
+
+
+@pytest.mark.parametrize(
+    ("state", "expected"),
+    [
+        ("current", "Current for saved sources"),
+        ("fresh", "Current for saved sources"),
+        ("ready", "Current for saved sources"),
+        ("stale", "Stale"),
+        ("working_artifact_uncommitted", "Working artifact uncommitted"),
+    ],
+)
+def test_saved_readiness_display_label_never_uses_ambiguous_current(state, expected):
+    assert saved_readiness_display_label(state) == expected
 
 
 def test_monitor_follow_up_queue_empty_state_is_single_fail_closed_return_contract():
@@ -680,6 +811,7 @@ def test_company_workbench_primary_brief_preserves_independent_answers():
         "next_task_state": "wait_for_evidence",
         "next_task_badges": ("valuation", "research-only"),
         "data_health_href": "?mode=research&page=data-health&ticker=NVDA",
+        "data_health_label": "Open Data Health",
         "stop_rule": (
             "Research-only: this brief is not a recommendation, probability, transaction "
             "instruction, or unsupported current-market conclusion."
@@ -704,6 +836,7 @@ def test_company_workbench_primary_brief_fails_closed_for_missing_inputs():
     assert brief["next_task_state"] == "wait_for_evidence"
     assert brief["next_task_badges"] == ("monitor", "research-only")
     assert brief["data_health_href"] == "?mode=research&page=data-health"
+    assert brief["data_health_label"] == "Open Data Health"
     for prohibited in (
         "rank",
         "expected_return",
@@ -779,6 +912,40 @@ def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_regio
     assert "Full Company Brief evidence" in detail
     assert "No source-backed change &lt;queued&gt;." in detail
     assert "Wait for permitted history." in detail
+
+
+def test_company_workbench_peer_task_routes_to_exact_review_only_peer_lane():
+    brief = company_workbench_primary_brief(
+        pd.DataFrame(
+            [
+                {
+                    "Ticker": "AAPL",
+                    "Use Now": "Price history.",
+                    "Still Blocked": "Peer comparison.",
+                    "Context Only": "Candidate peers.",
+                }
+            ]
+        ),
+        {},
+        {
+            "title": "Add peer mappings",
+            "body": "Peer context is partial.",
+            "state": "wait_for_evidence",
+            "badges": ["peers"],
+        },
+    )
+
+    assert brief["data_health_href"] == (
+        "?mode=research&page=data-health&ticker=AAPL&lane=peers&drawer=proof"
+    )
+    assert brief["data_health_label"] == "Open Data Health · Peers"
+    assert "Reviewed source evidence is required" in brief["next_task_body"]
+    assert "Personal Research does not silently create peer mappings" in brief[
+        "next_task_body"
+    ]
+    rendered = company_workbench_primary_brief_html(brief)
+    assert "Open Data Health · Peers" in rendered
+    assert "lane=peers&amp;drawer=proof" in rendered
 
 
 def _cash_preview() -> CompanyWorkbenchCashGenerationPreview:
@@ -955,6 +1122,7 @@ def test_research_desk_brief_no_item_state_routes_to_discover_without_claiming_m
         review_items=[],
         freshness_state="current",
         freshness_message="Saved readiness is current through 2026-08-04.",
+        observation_state="current",
     )
 
     assert brief.attention_count == 0
@@ -1349,6 +1517,7 @@ def test_research_desk_brief_and_advanced_evidence_html_stay_answer_first_and_co
         review_items=[],
         freshness_state="current",
         freshness_message="Saved readiness is current.",
+        observation_state="current",
     )
     desk_html = research_desk_brief_html(brief, freshness_state="current")
     evidence_html = advanced_evidence_links_html("NVDA")
@@ -1364,6 +1533,8 @@ def test_research_desk_brief_and_advanced_evidence_html_stay_answer_first_and_co
     )
     assert "What needs my attention today?" in desk_html
     assert "Freshness" in desk_html
+    assert "Current for saved sources" in desk_html
+    assert ">current<" not in desk_html.casefold()
     assert "Open Discover" in desk_html
     assert "market-complete event feed" in desk_html
     assert "Open Data Health" in evidence_html

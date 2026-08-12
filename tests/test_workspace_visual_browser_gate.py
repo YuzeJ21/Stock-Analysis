@@ -33,6 +33,9 @@ def test_route_fixtures_cover_the_literal_workspace_matrix_in_declared_order():
     assert next(route for route in ROUTE_FIXTURES if route.slug == "single-stock-report").route == (
         "/?mode=public&page=single-stock-report&ticker=AVGO&open=1"
     )
+    assert next(route for route in ROUTE_FIXTURES if route.slug == "personal-data-health").route == (
+        "/?mode=research&page=data-health&ticker=AVGO&lane=peers&drawer=proof"
+    )
 
 
 def test_default_viewports_are_the_literal_desktop_and_phone_contract():
@@ -1861,6 +1864,15 @@ def test_personal_focus_sequence_allows_intervening_native_controls():
         outline_widths=(3, 3, 3, 3, 3),
         positive_tabindex_count=0,
     ).passed
+
+
+def test_discover_saved_browser_jump_is_classified_as_in_page_navigation():
+    from src.workspace_visual_browser_gate import evaluate_focus_sequence
+
+    source = Path("src/workspace_visual_browser_gate.py").read_text(encoding="utf-8")
+
+    assert "a[href='#saved-company-browser']" in source
+    assert "role = \"navigation\"" in source
     assert not evaluate_focus_sequence(
         focused_roles=(
             "skip",

@@ -471,6 +471,7 @@ commercial-beta-performance-gate:
 research-accessibility-browser-check:
 	@python3 -m src.research_accessibility_browser_gate --root . --timeout-seconds $(or $(TIMEOUT_SECONDS),45) \
 		--allow-dirty-path src/dashboard.py \
+		--allow-dirty-path src/dashboard_visual_system.py \
 		--allow-dirty-path src/dashboard_navigation.py \
 		--allow-dirty-path src/research_workspace.py \
 		--allow-dirty-path src/research_accessibility_browser_gate.py \
@@ -481,6 +482,8 @@ research-accessibility-browser-check:
 		--allow-dirty-path tests/test_public_performance_gate.py \
 		--allow-dirty-path tests/test_workspace_visual_browser_gate.py \
 		--allow-dirty-path tests/test_dashboard_render_smoke.py \
+		--allow-dirty-path tests/test_dashboard_helpers.py \
+		--allow-dirty-path tests/test_dashboard_visual_system.py \
 		--allow-dirty-path tests/test_public_v1_release_docs.py \
 		--allow-dirty-path tests/test_launchers.py \
 		--allow-dirty-path tests/test_research_mode_dashboard_contract.py \

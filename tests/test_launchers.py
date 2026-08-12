@@ -3266,6 +3266,7 @@ def test_accessibility_browser_gate_allows_the_exact_task6_review_paths():
 
     assert allowed == {
         "src/dashboard.py",
+        "src/dashboard_visual_system.py",
         "src/dashboard_navigation.py",
         "src/research_workspace.py",
         "src/research_accessibility_browser_gate.py",
@@ -3276,6 +3277,8 @@ def test_accessibility_browser_gate_allows_the_exact_task6_review_paths():
         "tests/test_public_performance_gate.py",
         "tests/test_workspace_visual_browser_gate.py",
         "tests/test_dashboard_render_smoke.py",
+        "tests/test_dashboard_helpers.py",
+        "tests/test_dashboard_visual_system.py",
         "tests/test_public_v1_release_docs.py",
         "tests/test_launchers.py",
         "tests/test_research_mode_dashboard_contract.py",
