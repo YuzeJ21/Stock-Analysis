@@ -626,7 +626,7 @@ def test_cli_delimited_arguments_preserve_declared_order():
     assert parse_zooms("2,1") == (2, 1)
 
 
-def test_output_directory_must_resolve_under_tmp_and_be_empty(tmp_path):
+def test_output_directory_must_resolve_under_tmp_and_be_empty():
     from src.workspace_visual_browser_gate import prepare_output_dir
 
     output_dir = Path("/tmp") / "workspace-visual-browser-gate-test-empty"
@@ -641,7 +641,7 @@ def test_output_directory_must_resolve_under_tmp_and_be_empty(tmp_path):
     output_dir.rmdir()
 
     with pytest.raises(ValueError):
-        prepare_output_dir(tmp_path / "outside-tmp-contract")
+        prepare_output_dir(Path("/") / "outside-tmp-contract")
 
 
 def test_gate_builds_matrix_in_order_and_writes_only_declared_artifacts(tmp_path):
