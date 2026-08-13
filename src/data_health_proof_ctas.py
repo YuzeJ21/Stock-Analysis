@@ -133,7 +133,7 @@ def data_health_lane_auto_context_cards(
     freshness_status = format_missing(getattr(readiness_freshness, "status", ""), "").lower()
     if lane in {"fundamentals", "peers"} and freshness_status in {"missing", "stale"}:
         lane_label = "DCF" if lane == "fundamentals" else "peer"
-        refresh_command = format_missing(getattr(readiness_freshness, "refresh_command", ""), "make readiness")
+        refresh_command = "make readiness-preview TOP_N=20"
         freshness_message = compact_card_fragment(getattr(readiness_freshness, "message", ""), max_chars=170)
         return [
             {

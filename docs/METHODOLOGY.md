@@ -15,6 +15,47 @@ Current public method version: **Methodology v1 - readiness-first deterministic 
 
 This method is useful for a controlled research/demo product because it makes the data gate visible before analysis. It is not a complete valuation terminal, not investment advice, and not a recommendation engine.
 
+### Quant Interpretation Eligibility
+
+The shared quant interpretation overlay is implemented locally at
+`195ea18da9d1d6e06c36f8320509ccde46cdaa57`. It evaluates valuation,
+indicator, and review/risk results without changing their calculations or saved
+readiness. The overlay separately records observation recency, structured
+provenance, exact-source rights, and field scope, then permits only current
+context, historical/review-only context, or withholding.
+
+Structured external provenance and exact-source rights proof remain absent for
+the current local quant inputs. Those results must therefore remain
+historical/review-only or be withheld wherever the required proof is absent.
+The local overlay does not establish current-market data, hosted behavior,
+commercial eligibility, a forecast or nowcast, or calibration.
+
+### Readiness Promotion Evidence Review
+
+When saved readiness is stale, `make readiness-preview TOP_N=20` runs the production readiness logic in memory and keeps the proposed technical state separate from the evidence needed to review a rebuild. False-to-true fundamentals and DCF changes are checked against the exact canonical source value, source/as-of/durable-reference provenance, the checked-in commercial-rights decision, and the registered field list for Revenue, free cash flow, FCF margin, and shares outstanding.
+
+Composite or unregistered source values remain unknown exact identifiers; the method does not split them or borrow the rights decision of one component. Numerical completeness can therefore produce a proposed technical promotion while the evidence review remains blocked. DCF also depends on price evidence, and the current canonical price rows do not establish row-level provider provenance, so the fundamentals review never claims complete DCF commercial provenance. The preview writes nothing, does not edit source rights, does not make saved readiness current, and cannot authorize materialization or release review. An optional ignored local package uses `CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local>`; it is not the tracked candidate reviewed by `make readiness-release-review TOP_N=20`.
+
+The independent `DCF Price Lineage Review` inspects only false-to-true DCF promotions. For each ticker it parses canonical dates and positive closes, selects the greatest observation date, and requires exactly one row at that date. It then keeps five states independent: proposed technical DCF promotion, unique latest-row selection, complete row-level `source`/`source_ref`/`retrieved_at` lineage, exact-source commercial rights, and registered `prices` field scope. A missing usable row or duplicate latest date fails closed; the review does not choose an arbitrary duplicate.
+
+An observation date is not a retrieval timestamp. `as_of_date`, the `local:prices.csv` file-origin label, file modification time, adapter presence, refresh warnings, and OHLCV shape cannot establish the original provider or durable row reference. The current no-write inspection finds one unambiguous usable latest row for all 146 proposed DCF promotions, but no promoted row has complete lineage, approved exact-source rights, or registered price scope because the canonical source identifier is absent. This identifies an evidence gap; it does not invalidate local research prices, change technical readiness, or authorize a historical schema rewrite or readiness rebuild.
+
+For future reviewed rows, the manual normalization path accepts explicit `source_ref` and `retrieved_at` metadata and preserves them through validation, preview, and a later separately authorized apply. Validation reports row-level lineage completeness independently from technical OHLCV validity. It never substitutes normalization time for retrieval time, and an invalid retrieval timestamp remains blank. Complete preservation still does not establish commercial rights, registered `prices` support, freshness, reviewer acceptance, or apply/rebuild authorization.
+
+Staged validation and preview also evaluate the exact retained `source` value against the checked-in registry. The rights decision uses the existing commercial-eligibility contract, while price scope requires literal `prices` membership in the same exact record. Approved, unverified, unknown, blank, and mixed batches remain explicit; composite values are not split and aliases are not inferred. Invalid technical rows are excluded from these counts. The joined review adds evidence states without changing technical validity, lineage completeness, merge counts, source rights, or apply/readiness authorization.
+
+Explicit Commercial Research mode then applies a pre-mutation conjunction: every valid staged row must have complete lineage, approved exact-source rights, and registered `prices` scope. Failure returns before backup or canonical write and lists the independent blockers. Research mode does not inherit this commercial license gate, so existing local research compatibility remains intact. A passing guard is necessary for the commercial mutation path but is not payload review, freshness proof, readiness promotion, or automatic apply authorization.
+
+Direct provider refresh uses the same exact-source commercial metadata boundary before it can fetch or mutate. Each concrete provider has one fixed source ID; CLI aliases cannot borrow another record's rights, and an automatic ladder reviews each reachable leg independently. Commercial Research mode filters or refuses unapproved and scope-incomplete legs before provider execution, then rechecks the exact selected provider before adding fetched rows or status output. A missing or changed identity fails closed. Research mode retains its existing provider order and local refresh behavior. This enforcement does not approve any provider, add row-level lineage to canonical history, validate a payload, or make readiness current.
+
+Focused-cohort saved-row coverage applies field scope per lane rather than reusing one source-level approval. Technical availability, source/reference provenance, exact-source commercial rights, and registered scope remain separate for margins, free cash flow, cash, debt, shares, filing dates, earnings dates, each populated Revenue/EPS consensus metric, and every trusted-peer relationship. Cash and debt can therefore be partial independently, and Revenue-only consensus permission cannot unlock EPS. A date-only consensus row is not evidence. Candidate peers remain context-only. Commercial blockers are shown in the collapsed Advanced cohort evidence; research mode retains its source-backed local behavior.
+
+Adjusted price history in the same Commercial cohort additionally requires saved price readiness and at least one technically usable canonical date/positive-close row. Every retained history row must carry exact `source`, durable `source_ref`, and explicit `retrieved_at`, and its exact source must independently pass approved rights plus registered `prices` scope. One missing or unapproved row blocks the history rather than borrowing another row's permission. Current canonical history has no row lineage, so it remains local research context rather than commercially supported cohort evidence. Retrieval chronology remains a separate audit boundary.
+
+Canonical quarterly Revenue and EPS coverage applies the same field-specific commercial conjunction to accepted actual rows before a technical trend packet can mark the cohort lane usable. Every populated row for the metric needs source/reference/retrieval provenance, approved exact-source commercial rights, and literal `revenue` or `eps` scope. Revenue and EPS are independent: SEC Companyfacts' registered Revenue scope cannot unlock EPS. A passing commercial display review does not prove split-basis comparability, Q4 evidence, revision integrity, loader completeness, readiness, or nowcast activation; Research mode retains the existing packet-only behavior.
+
+The same preview summarizes newly ready, partial, and excluded feature transitions plus added or removed ticker rows. New DCF exclusions use the exact existing company-scope method and report a deterministic primary reason: non-operating asset type, acquisition/SPAC, closed-end fund, bank/bancorp, financial/insurance/mortgage, REIT, realty-trust/BDC, capital corporation, or nonpositive-revenue margin model. Reasons explain method fit; they are not company-quality labels. Transition counts can overlap for one ticker and are not current readiness totals.
+
 Use this quick model card before relying on a page or report:
 
 | Check | What to verify | Boundary |
@@ -23,7 +64,7 @@ Use this quick model card before relying on a page or report:
 | Freshness by lane | Latest price date, latest fundamentals filing date, peer review date, optional-context review date, and proof-ledger date. | Screenshots and sample reports are product evidence only; they do not prove current data freshness. |
 | Provenance | Source, as-of date, reviewed/import status, and whether the row is source-backed, candidate context, blocked, skipped, or excluded. | Metadata, candidate peers, or provider availability do not substitute for fundamentals, share-count, peer valuation, earnings, or analyst-estimate proof. |
 | DCF assumptions | WACC, terminal growth, forecast years, growth caps, FCF margin caps, and any normalization warning. | DCF output is scenario math, not a price target or instruction. |
-| Peer context | Candidate peers are separated from trusted peer mappings and mapped-peer valuation inputs. | Candidate peers can guide review, but they are not trusted peer proof. |
+| Peer context | Candidate peers are separated from trusted relationships, result read-through, and valuation-anchor inputs. | Candidate peers can guide review, but they are not trusted peer proof. |
 | Public share boundary | Public screenshots, walkthroughs, and QA evidence show product behavior. | They do not unlock blocked inputs or prove today's market/fundamental data. |
 
 ## Lane-Level Freshness Policy
@@ -34,16 +75,42 @@ Freshness is evaluated per lane because a daily price series, an annual filing, 
 - `review_due`: the row may remain useful as historical context, but the expected event or review cadence has arrived and the lane needs source review before a current-state claim.
 - `stale_or_unknown`: the as-of date, source event, or review evidence is missing or too uncertain to support a freshness claim. Required analysis stays blocked when freshness is part of its gate.
 
+### Local Market-Observation Recency
+
+The four Personal Research routes receive one read-only evaluation of the selected local `prices.csv` path per dashboard run. The evaluator uses the dashboard's UTC review date, independently checks the profile price lane, selected ticker, SPY, and QQQ where shown, and fails closed for unreadable files, invalid dates, future dates, or missing usable observations. Its exact `current` threshold is seven calendar days; it is not an exchange-session SLA and does not imply intraday, real-time, provider, or hosted freshness.
+
+This local observation-recency check is separate from saved readiness, technical usability, source provenance, and commercial rights. A current local observation does not establish permitted market-data source rights or hosted freshness; those remain external gates. A stale observation remains historical context only and cannot support a current-market interpretation.
+
 | Lane | Review expectation | Stale or changed behavior |
 | --- | --- | --- |
 | Price / momentum | Check the latest saved trading date when the project is opened; a daily after-close refresh is appropriate when current setup context is needed. | Show the latest date and short-history state. Do not imply intraday or real-time coverage, and do not fabricate missing OHLCV history. |
 | Fundamentals | Review after a verified quarterly or annual filing/source event. | Keep the filing/as-of date visible. A newer filing makes the prior row `review_due`; missing trusted fields remain blocked. |
+| Quarterly business trend | Review only from a fully parseable canonical ledger of explicit, versioned quarterly actual rows available by the selected cutoff. | Any rejected canonical row blocks the complete dashboard trend/cohort packet; row-numbered reasons stay under Advanced. Revenue and EPS comparisons require compatible metric definitions and matching periods. Missing comparisons remain partial; ambiguous revisions and absent evidence remain blocked. Q4 is never derived from annual values. |
+| Optional valuation, catalyst, and outcome evidence | Research-mode technical review remains separate. Commercial Research composition additionally reviews every used row against its exact source ID and literal `valuation_history`, `catalyst_evidence`, or `research_outcomes` registry scope. | One unknown, unapproved, or scope-incomplete used row blocks the supported/reviewed packet. Candidate catalyst context cannot satisfy supported evidence. Empty ledgers stay empty; blocker details stay under Advanced. |
 | Share count | Review after a validated capital-structure filing or explicit share-count fact. | Do not infer shares from price or market cap. Missing explicit evidence remains blocked even when metadata is current. |
 | DCF | Regenerate when a required fundamental, share-count, cash/debt input, price reference, or methodology version changes. | DCF inherits the weakest required input state. Stale or missing required inputs withhold current interpretation rather than silently reusing a prior conclusion. |
 | Trusted peers | Version and periodically review accepted relationships, and review again after a material business-model or segment change. | Missing source, rationale, reviewer, review date, or mapped-peer valuation inputs keeps the relationship candidate-only or blocked. |
 | Earnings / estimates | Treat as optional and time-sensitive; review only through a trusted provider/manual row carrying period and retrieval/as-of evidence. | Date-only or target-only rows remain candidate context. Missing trusted fields keep the lane locked. |
 
 A timestamp cannot turn an unsupported row into trusted evidence. Fresh metadata, screenshots, provider availability, or candidate context cannot substitute for the field-level source proof required by a readiness gate.
+
+Quarterly business trend is descriptive and backward-looking. Sequential and year-over-year changes do not become a forecast, recommendation, or numerical adjustment to DCF or Earnings Nowcast. Revenue, EPS, operating margin, free cash flow, and FCF margin keep independent `ready`, `partial`, `blocked`, or `withheld` states.
+
+### Evidence-Integrity Valuation And Nowcast Backtest Method
+
+Historical valuation observations reject non-finite valuation inputs, require a canonical real `YYYY-MM-DD` denominator period end, reject blank, malformed, and non-calendar denominator period ends, and reject post-cutoff retrieval evidence.
+
+Walk-forward Nowcast target actuals and prior-year benchmarks canonicalize Revenue/EPS independently through explicit `supersedes_source_ref` lineage, retain one event per ticker/period, and withhold ambiguous leaves per metric so one metric does not suppress the other; they use cutoff-bounded prior-year benchmarks so post-cutoff revisions cannot leak.
+
+The quarterly cash-generation contract derives operating margin as reported operating income divided by compatible quarterly Revenue, free cash flow as **cash from operations + reported capital expenditures** while preserving the source-reported capital-expenditure sign, and FCF margin as derived free cash flow divided by compatible quarterly Revenue. Inputs must match currency, scale, accounting basis, duration basis, fiscal period, and period end. Cross-quarter comparisons use the stable accounting definition rather than treating different period-end dates as different measurement definitions. Missing, ambiguous, post-cutoff, zero-denominator, or incompatible inputs block only the affected metric. The contract is in-memory and descriptive; it does not write a source row, modify a canonical dataset, or promote DCF, Earnings Nowcast, peer, catalyst, outcome, backtest, or calibration readiness.
+
+The one-company adapter acceptance harness composes that derivation with the immutable commercial source-rights registry. It requires one ticker, one matching source ID, explicitly approved commercial use, explicit support for operating income, cash from operations, and capital expenditures, no unresolved cutoff/revision/component/compatibility blockers, and at least one period with all three derived metrics. Its only success state is a local review-routing state: **accepted_for_review is not production activation**. A passing candidate still requires the actual source payload, rights review, and human review before any production caller may supply it.
+
+The bounded SEC pilot now supplies that source-review evidence for NVIDIA Q1 FY2027 and AMD Q1 FY2026. It selects Revenue, operating income, cash from operations, and capital expenditures from one exact Companyfacts accession and three-month context, requires the matching SEC submissions `acceptanceDateTime`, and matches concept, context, magnitude, and inline-fact identity against the exact filed 10-Q. Companyfacts exposes the capex magnitude without a cash-flow sign, so the pilot records a negative capex observation only when the matching filed-table value is explicitly displayed as an outflow; that proof state is `explicit_filed_table_outflow`. Identical repeated inline disclosures may collapse to the first document fact, but conflicting Companyfacts values, contexts, accessions, primary documents, magnitudes, or timestamps block the complete preview. The read-only result remains `accepted_for_review`; it does not persist a row, activate Company Workbench, rebuild readiness, or establish another company or quarter.
+
+The AMD Q1 FY2026 accession `0000002488-26-000076` result proves bounded two-company portability for the same exact-filing method: one immutable identity, three official SEC endpoints, compatible quarterly components, timezone-aware acceptance, explicit filed-table capex outflow, exact rights scope, and complete withholding. It does not prove broad company coverage, and no third company is inferred from cohort membership.
+
+The explicit Company Workbench cash-generation preview composes that accepted result for one bounded route and fixed review cutoff. It applies **complete withholding** on any required metric, identity, rights, timing, accession, capex-sign, or compatibility failure: no partial numeric card or component value may leak into the primary answer. When accepted, the primary answer shows the three descriptive metrics with a preview state, never `ready`; **Advanced-only technical lineage** retains source references, accession, timestamps, definitions, component values, and blockers. This composition is read-only, makes no deterministic forecast change, and leaves the normal canonical Workbench route unchanged.
 
 ## Profile Truth And Change Review Method
 
@@ -69,6 +136,28 @@ Preview validates one prospective entry without writing. Recording requires expl
 
 Confidence describes the reviewer's confidence in the documented hypothesis at that timestamp. It does not measure expected return, allocation size, or transaction direction. An empty journal is `not_started`; a thesis without a source-backed invalidation condition is `incomplete`; and a passed review date is `overdue`.
 
+## Research Decision Lab Method
+
+The Research Decision Lab is a read-only composition of the selected-profile report, Thesis Journal, Decision-Process Scorecard, Research Outcome Review, and unresolved source-backed change items. Its review loop is:
+
+```text
+Research plan -> evidence -> invalidation -> scenario -> review trigger -> learning
+```
+
+The six lanes are derived independently: `Plan` reflects only reviewer-authored thesis state; `Evidence` reflects only reviewed supporting or conflicting evidence; `Invalidation` requires an explicit source-backed invalidation condition; `Scenario` follows existing DCF readiness and visible-assumption gates; `Review trigger` follows unresolved evidence changes or reviewer-authored review dates; and `Learning` follows reviewed outcome evidence and its exact-source commercial-rights decision. Decision Lab lanes remain independent: a documented thesis cannot unlock Scenario, reviewed Learning cannot clear an Evidence conflict, and current readiness cannot create journal history.
+
+The next process step follows a deterministic documentation order: unresolved conflicting evidence, overdue review, missing thesis, missing invalidation, missing evidence, unscheduled review, DCF-ready but invisible assumptions, then continued monitoring. This order is not company attractiveness, expected return, portfolio priority, or a transaction signal. Monitor preserves the existing focused-cohort order and never reorders companies by process severity or market value.
+
+## Company Workbench HTML Research Brief Method
+
+The HTML Research Brief freezes one immutable prepared snapshot from the selected profile, ticker, saved report evidence, prepared Research Decision Lab state, and the already prepared Scenario Lab result. It is a read-only presentation of existing saved evidence and Python scenario math, not a new calculation engine, refresh, import, source collector, or readiness activator.
+
+The authoritative discounted explicit-cash-flow subtotal is the Scenario Lab result's `discounted_explicit_total`; the brief does not recompute that subtotal from displayed rows. Enterprise value, equity value, per-share value, sensitivity, provenance, source rights, field scope, freshness, and each research lane use independent field gates. A supported sibling may remain visible while an unsupported value is withheld. The label **Shares outstanding used by existing model** identifies the scenario input, while its split basis remains unverified unless explicit proof exists.
+
+The safe text/reference policy removes repository paths, local paths, secrets, control characters, unsafe or credential-bearing links, and recognized action language from portable content. Modal modifiers and active exposure fail closed. Only bounded HTTPS references without credentials, query strings, fragments, path traversal, or local paths may become links; an unsafe reference can retain only a sanitized non-link label. The standalone document applies an offline Content Security Policy with no JavaScript, image, font, form, or network access. Rendering, browser verification, print emulation, and in-memory PDF inspection follow a zero-write repository contract. Historical pre-fix evidence: Task 4 local matrix completed at `c8c313b9c`. Broad-review repairs must be evaluated only through direct current-head local and exact-head CI evidence; their presence alone establishes neither gate.
+
+Local engineering evidence does not establish source rights, current-market data, readiness activation, a new or professional line-item model, hosted operation, human or screen-reader conformance, independent validation, market fit, screening alpha, or probability calibration.
+
 ## Public Workflow Boundary
 
 The public page order is a reading workflow, not an analysis shortcut.
@@ -91,7 +180,19 @@ The product separates source inputs from analysis rules so the report is not a b
 | Earnings and analyst estimates | Trusted optional local imports. | Displays optional context only when rows pass schema and source-readiness checks. |
 | Report wording | Project code under `src/`. | Converts readiness, calculations, source state, and blockers into plain-language sections without inventing conclusions. |
 
+Company Workbench answer and routing surfaces apply that peer separation directly: broad `peer_ready` or `peer_trend_comparison_ready` may support mapped-price trend context, but cannot unlock peer-relative valuation, premium/discount, or peer DCF comparison when `peer_valuation_comparison_ready` is explicitly false. An absent explicit field falls back only for legacy loaded-report compatibility; a loaded report may narrow readiness further, but it cannot widen an independently blocked peer-valuation state.
+
 Third-party or optional provider data can supply rows, but it does not decide the research conclusion. The project code decides whether each local row is usable, which calculation is allowed, and which section must stay blocked or excluded.
+
+## Daily Momentum And Valuation Research Queue Method
+
+The Discover queue is a deterministic research-prioritization filter, not a security rating. It evaluates only saved `momentum_ready=true` companies. A row passes momentum only when `close > SMA50 > SMA200`, three-month return is positive, six-month return is positive, and the existing benchmark-relative return versus SPY is positive. RSI and volume are not first-version gates.
+
+Valuation is company-relative rather than peer-relative or DCF-relative. The existing point-in-time Historical Valuation Regime must be `ready`, current under its 120-day policy, commercially evidence-eligible, and at or below percentile `40.0` within its latest compatible definition segment. Current denominators are never backfilled over old prices. A missing or incompatible ledger cannot be replaced with a standalone current multiple.
+
+Minimum value-trap safeguards require positive free cash flow, non-negative revenue growth, and debt to equity no higher than the configured quality-value threshold, currently `2.0`. Each quantitative input must be finite. Price and fundamental evidence independently require current observation dates, explicit provenance, approved exact-source commercial rights, and registered field scope. One failed gate withholds the row; no weighted score offsets another failure.
+
+Eligible rows are sorted alphabetically. With an explicit comparable prior queue, set comparison can derive `new_today`, `still_qualifies`, and `exited_today`; without that baseline the product shows only current eligibility and withholds change claims. The dashboard adds no writer or scheduler, reads no legacy Monthly Picks or Final Watchlist output, and cannot modify readiness, forecasts, probabilities, research ledgers, or reviewed evidence. Current repository inputs truthfully produce no eligible real-company row because required valuation history and permitted current-market price evidence are absent.
 
 ## 1. How This Compares To Standard Research Workflows
 
@@ -226,6 +327,7 @@ Peer analysis is separate from standalone DCF.
 - Missing peer mappings block the mapping proof path; mapped peers with missing price, fundamentals, market cap, or valuation fields block the peer valuation inputs proof path.
 - Sector or industry fallback context, if shown, must be labeled as fallback and not trusted manual peer data.
 - Contextual earnings read-through additionally requires a source-backed peer actual and explicit target/peer fiscal periods. Calendar proximity or business similarity is not inferred as period comparability.
+- Peer valuation uses a stricter independent gate. A relationship may anchor peer medians only when it has source and as-of provenance, a reviewed `core_peer` or `secondary_peer` role, a relationship rationale, an economic comparability basis, and explicit `valuation_anchor_eligible=yes`. Aspirational, negative, excluded-close, and not-clean roles remain context-only. Legacy mappings without these fields stay visible as relationship context but cannot enter peer medians.
 
 This prevents the report from pretending that peer valuation exists when only partial peer data is available.
 
@@ -342,7 +444,7 @@ The product uses the same readiness proof ladder in the dashboard, single-stock 
 | --- | --- | --- | --- |
 | 1. Prices | Trusted local price rows. | Price/setup review, trend context, basic risk context when enough history exists. | Fundamentals, DCF, peers, earnings, and estimates. |
 | 2. Fundamentals / DCF inputs | Trusted company fundamentals with revenue, free cash flow or FCF margin, shares outstanding, and source metadata. | Fundamental field review and standalone DCF assumptions, scenarios, sensitivity, and fair value/share math. | Peer-relative valuation and optional earnings/estimate context. |
-| 3. Source-backed peers | Trusted peer mappings first, then mapped-peer price, fundamentals, market cap, and valuation inputs. | Peer trend context first, then peer-relative valuation only when mapped-peer valuation inputs pass readiness. | Peer premium/discount or peer DCF comparison when peer mappings or mapped-peer inputs are incomplete. |
+| 3. Source-backed peers | Trusted peer mappings first, then explicit peer role, economic comparability and valuation-anchor review, then mapped-peer price, fundamentals, market cap, and valuation inputs. | Peer trend context first, then peer-relative valuation only when at least two eligible anchors and their mapped-peer valuation inputs pass readiness. | Peer premium/discount or peer DCF comparison when roles, comparability, anchor decisions, mappings, or mapped-peer inputs are incomplete. |
 | 4. Optional context | Trusted earnings and analyst-estimate CSV rows. | Earnings timing context and analyst-estimate context. | Optional sections remain unavailable when those rows are missing. |
 
 Each step is permission to review a specific analysis layer, not permission to invent the next layer. Price-ready does not mean fundamentals-ready. Fundamentals-ready does not mean DCF-ready unless all required DCF fields pass. DCF-ready does not mean peer-ready. Peer-ready does not mean earnings or analyst estimates are available.
@@ -358,17 +460,115 @@ The safe local sequence is:
 
 This ladder is why empty or partial outputs are useful: they show the first trustworthy proof step instead of hiding the gap behind a weak conclusion.
 
+### Point-in-Time Universe Validation
+
+Implemented locally: read-only immutable-package status/preview with ten independent states: manifest, technical, temporal, identity, membership, corporate action, delisting, source rights, reproduction, and leakage.
+
+Completed review and remediation chronology is preserved in
+`docs/internal/POINT_IN_TIME_UNIVERSE_REVIEW_HISTORY.md`. Priority 4 remains
+externally incomplete; this methodology retains the current validation,
+resource, reproduction, and evidence boundaries.
+
+Local resource budgets for one supplied package: preview sample 100 rows; manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined 64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; package traversal 32 entries.
+
+Every source-bearing raw evidence row is reviewed independently for exact
+source rights even when technical parsing fails. Walk-forward minimum history
+uses only distinct, otherwise qualifying evaluations for the same universe
+strictly before the classified cutoff. Identity, membership, and event evidence
+requires publication no later than retrieval. Snapshot inputs must be regular
+files and are read from one descriptor with at most the declared limit plus one
+byte retained for overflow detection. Deeply nested manifest JSON or
+source-rights YAML fails with a stable readable input error instead of a
+traceback. Duplicate JSON/YAML mapping keys and malformed contract headers
+also fail nonzero, traceback-free, and write-free through the direct validator
+and CLI/Make boundaries.
+
+These local bounds do not prove scale, hosted reliability, or market readiness.
+
+No permitted independently reviewed real dataset, accepted expected count/digest, or source-rights proof is on record.
+
+The deterministic reproduction contract is `membership_count_and_sha256_at_cutoff_v1`. It binds each declared universe and evaluation cutoff to the eligible membership count and SHA-256 digest without falling back to current constituents or ticker identity.
+
+The only operating entries for this method are
+`make point-in-time-universe-status MANIFEST=<path>` and
+`make point-in-time-universe-preview MANIFEST=<path> TOP_N=20`. Both are
+read-only local inspection: they do not fetch a provider, write normalized or
+rejected rows, apply data, rebuild readiness, or activate analysis.
+
+Synthetic fixtures remain test-only and local software evidence cannot complete Priority 4.
+
+Priority 4 remains open until one bounded permitted real dataset is independently reviewed, reproduces the expected membership count and digest, and passes rights, identity, corporate-action, delisting, survivorship, cutoff, partition, reproduction, and leakage gates.
+
+This local evidence does not change independent readiness for actuals, consensus, Revenue, EPS, valuation, catalysts, outcomes, backtesting, or calibration.
+
+It does not provide investment advice; numerical probability remains unavailable without calibration; Q4 evidence and EPS split-basis compatibility remain explicit; synthetic evidence stays test-only; candidate peer evidence remains candidate-context-only.
+
+The synchronized Priority 4 local validator is frozen unless a newly
+reproduced Critical or Important defect requires reopening it. One bounded
+permitted real dataset remains the exact external exit gate. While that
+dataset and the independent Priority 5 source and peer evidence are
+unavailable, Priority 6's provider-neutral authorization contract is complete
+locally; hosted implementation remains environment-dependent. If the current
+branch head lacks direct local matrix, branch synchronization, draft-PR update,
+or exact-head CI evidence, complete those release steps first; otherwise select
+the first incomplete safe roadmap priority. Local contracts cannot prove hosted
+authentication, isolation, audit storage, retention, monitoring, rollback, or
+operated capacity.
+
+If a permitted dataset or its rights evidence is unavailable, record that
+external dependency and its exact unblock condition once. Do not retry an
+unavailable provider or infer source access, field scope, rights, independent
+review, or real-data validation from the local package result.
+
 ## 12. Earnings Nowcast Pilot Method
 
 The Earnings Nowcast pilot is a separate readiness-gated lane. It does not reuse generic optional-context readiness and does not let an earnings date, current target price, candidate peer, or provider availability unlock a forecast.
 
 The deterministic baseline requires at least five source-backed prior quarterly actuals, the matching prior-year fiscal quarter, and an exact forecast-period point-in-time consensus snapshot available at the forecast cutoff. Fiscal-period rows are canonicalized before history is counted: exact duplicates count once, an explicit source reference can supersede a prior row, and unresolved conflicting values block only the affected metric. Revenue and EPS are evaluated independently and must use comparable currency, unit scale, accounting basis, EPS share/operations basis, and split treatment. A stable Revenue history may produce a range while incompatible or unstable EPS remains withheld. Each snapshot records the fiscal period, cutoff, expected report date, forecast horizon, model version, immutable input hash, freshness state, and source IDs.
 
+SEC actual staging has a narrower primary-source lineage rule. Q1-Q3 accepts only 60-120 day SEC Companyfacts duration facts with a one-to-one fiscal identity/period-end mapping; cumulative facts and comparative facts without a source-backed original identity are rejected. Companyfacts EPS is explicitly marked `companyfacts_split_basis_unverified`, which cannot match an `as_reported` or split-adjusted consensus definition. Q4 is accepted only from an explicit fiscal-Q4 result table in a SEC-filed exhibit whose selected value column states one period-end date; filing timestamps and submission report dates are not substitutes. It is never derived by annual-minus-nine-month arithmetic, and guidance, ambiguous headers, or Q4 metrics spanning separate exhibits remain withheld. Evidence is append-only and cutoff-aware, so complete revision chains select the latest source-backed presentation without replacing historical evidence. The stage reports source-backed quarter-continuity gaps without inventing a missing fiscal period or value. Revenue and EPS readiness stay separate; EPS is withheld whenever split-adjustment, share, operations, accounting, currency, or scale basis is not source-backed and comparable across its usable history. The same sentinel is enforced downstream: Business Trend never displays or compares its EPS value, commercial cohort scope cannot override it, and backtesting cannot use it as a target or prior-year EPS outcome. Revenue evaluation remains independent.
+
+Filed-Q4 split basis has its own fail-closed proof boundary. Missing or malformed primary split language records `primary_split_basis_unverified`, not `as_reported`. Both unverified sentinels fail the shared downstream predicate, and arbitrary nonempty basis text is not treated as proof. Only a supported declared basis token or an explicitly parsed dated split statement can unlock EPS comparability; Revenue remains independent.
+
 The model combines recent sequential behavior and same-quarter year-over-year seasonality with fixed versioned weights. It emits ranges and a `higher`, `aligned`, or `lower` consensus-relative classification. It does not accept a text-generated numeric adjustment. Peer earnings, company news, industry indicators, and macro evidence are directional context only; candidate peers remain `candidate_context_only`, while a reviewed trusted source may raise the context state without changing the numerical baseline.
 
-Historical evaluation is chronological walk-forward only. The target actual and later consensus snapshots are excluded from model inputs and used only for scoring after the forecast. Fewer than 20 valid events is `backtest_insufficient`, not backtest-ready. Reports separate valid events from exclusions, group exclusion reasons, and include Revenue/EPS error, WAPE where valid, Revenue/EPS/joint interval coverage, directional accuracy, leakage failures, and latest-consensus/prior-year benchmarks. Numerical Beat/Miss probability stays unavailable until at least 100 valid out-of-sample observations pass finite-value, Brier-score, calibration-bin, and constant-rate benchmark gates. Every populated calibration bin reports its size, mean forecast probability, observed rate, and minimum-size status.
+Historical evaluation is chronological walk-forward only. The target actual and later consensus snapshots are excluded from model inputs and used only for scoring after the forecast. A consensus row retrieved on or after the target report is a leakage failure even when its stated snapshot time is earlier. Conflicting rows at the same latest snapshot timestamp are excluded as an ambiguous revision, and a snapshot more than 90 days before the target report is excluded as stale. Fewer than 20 valid events is `backtest_insufficient`, not backtest-ready. Reports separate valid events from exclusions, group exclusion reasons, and include Revenue/EPS error, WAPE where valid, Revenue/EPS/joint interval coverage, directional accuracy, leakage failures, and latest-consensus/prior-year benchmarks. A sample that meets the event minimum but fails to improve the latest-consensus Revenue or EPS benchmark fails the validation verdict with an explicit gate. A raw calibration count cannot establish calibrated probability. `calibrated` requires paired verified calibration status and a leakage-safe benchmark-passing `BacktestReport`. The pairing requires immutable observations whose Brier score, constant-rate benchmark, calibration error, bins, and digest recompute exactly, plus one-to-one identity matching with those report events by ticker, fiscal period, and cutoff. The retained Boolean must equal the declared strict Revenue or EPS comparison (`actual > consensus`); equality is not a Beat, and identity-less or unrelated same-count evidence cannot promote probability. The declared outcome metric itself must have a forecast and beat its corresponding consensus benchmark; a report validated only for the other metric cannot authorize it. Stored relative classifications are rederived from their forecast intervals and consensus before directional aggregates are trusted. A separate canonical digest binds the complete supplied report package: normalized event chronology, ordered source IDs, model version and input snapshot hash, scored fields, exclusions, failure tuples, summary metrics, and benchmarks. Any post-assessment change requires a fresh pairing. This digest proves only that the supplied in-memory objects remain internally identical; it does not authenticate a provider, source row, rights grant, timestamp, or external provenance. Every populated calibration bin reports its size, mean forecast probability, observed rate, and minimum-size status.
 
-The committed `SYN1`-`SYN5` cohort is synthetic test evidence only. It proves deterministic software behavior, not real semiconductor coverage, predictive accuracy, or data freshness. The pilot does not predict post-earnings price movement and does not provide investment advice.
+The committed `SYN1`-`SYN5` cohort is synthetic test evidence only. The intended five-company SEC staging scope is NVDA, AMD, AVGO, MU, and QCOM, but real pilot output remains `awaiting_point_in_time_consensus` until exact historical consensus evidence is present. This proves neither real semiconductor coverage, predictive accuracy, nor data freshness. The pilot does not predict post-earnings price movement and does not provide investment advice.
+
+The cohort readiness board reports actual-history, Q4, split-basis, exact-period consensus, backtest, and calibration gates independently. A raw calibration count cannot establish calibrated probability. `calibrated` requires the exact recalculated observation cohort and the exact leakage-safe benchmark-passing `BacktestReport` event cohort to agree on identity and declared outcome. Prospective collection preserves immutable snapshots and revisions; it does not reconstruct historical consensus from a current estimate. Provider configuration is an access state, not an evidence or rights state.
+
+Prospective collection preview also evaluates the exact declared source against the checked-in rights registry without splitting composite identifiers or inferring aliases. Technical `write_allowed` remains the append-only review decision. Commercial evidence separately requires approved rights plus literal `revenue_consensus` support when Revenue is populated and literal `eps_consensus` support when EPS is populated. Explicit Commercial Research mode conjuncts these states before a write and returns before filesystem mutation when either gate is incomplete; research mode retains its explicit reviewed local path. Passing this guard does not prove the estimate payload, point-in-time history, freshness, comparability, reviewer acceptance, calibration, or nowcast readiness.
+
+The earlier source-row validation boundary follows the same independence rule. Its exact normalized provider is resolved through the checked-in registry rather than a caller-declared rights label. Schema, fiscal-period, timestamp, value, and comparability failures determine technical rejection; only technically accepted rows enter commercial counts. Each accepted row requires `revenue_consensus` and `eps_consensus` scope only for the metrics it actually populates. Composite identifiers remain one unknown exact source, and `historical_evidence_reviewable` is a routing state rather than evidence activation or a readiness promotion.
+
+Collection preview and source-row validation share one pure commercial field-scope function. For one exact source ID it combines the existing rights decision with the literal ordered fields required by populated metrics; empty or duplicate field names are invalid, and unknown or composite IDs receive no alias expansion. This centralization changes no technical acceptance, blocker vocabulary, collection rule, or readiness state. Registry metadata cannot establish payload correctness, timestamp integrity, metric comparability, reviewer approval, collection, activation, backtesting, or calibration, and non-consensus evidence domains keep their own contracts.
+
+The supported source-review command is the read-only operating boundary before collection preview: `make earnings-consensus-source-review INPUT=<reviewed_source_export.csv> PROVIDER=<source_id> AS_OF=<timestamp>`. It reads the supplied upstream export without field enrichment, requires explicit provider identity and cutoff, and routes its ordered row mappings through the same validator. Human and JSON output expose rejected rows, candidate versus historical scope, rights, and metric scope; a completed review returns evidence even when the state is blocked. Invocation or ambiguous CSV-shape errors fail nonzero. The source-review export and prospective collection row are distinct input contracts; an accepted source row must be separately reviewed and explicitly mapped into the prospective schema, and the product neither infers fields nor writes that mapping. Neither outcome collects a row, changes readiness, or establishes activation.
+
+Pull-request engineering hygiene is range-based, not working-tree-based. The hosted event supplies exact base/head SHAs, checkout fetches their history, generated-artifact classification reads `BASE...HEAD`, and whitespace checks the same range. A clean checkout is therefore not treated as evidence that the PR changes no files. This automation is read-only engineering evidence, not source review, user validation, or merge approval.
+
+Temporal validation is fail-closed for both source categories. Evidence publication, snapshot, and retrieval timestamps must all be at or before the cutoff. The caller supplies one explicit UTC review cutoff, each row declares exactly `current_only` or `point_in_time`, and technical acceptance requires `snapshot_at <= retrieved_at <= review_cutoff`. Equality is allowed; missing/unknown scope, reversed ordering, invalid UTC timestamps, and post-cutoff evidence are rejected before a commercial row is counted. The cutoff does not infer publication time or prove provider availability, rights, payload correctness, freshness, collection, nowcast readiness, backtesting, or calibration.
+
+Batch collection preserves input order and evaluates each row against an in-memory virtual ledger containing saved evidence plus earlier technically reviewable proposed rows. Technical and commercial batch decisions remain separate. An empty input or any technical blocker rejects the complete record operation; explicit Commercial Research mode additionally requires every row's commercial evidence to pass. The CLI preview exposes the same row states and ordered blockers used by record, so a deterministic later rejection cannot leave earlier proposed rows appended. No row is reordered or repaired. This contract does not claim concurrent-writer exclusion or crash-safe transactionality.
+
+The saved prospective ledger is itself an input to that decision and is revalidated in full before status, preview, or record. Every row must satisfy the schema, snapshot IDs and evidence identities must be unique, and each ticker/period must form exactly one append-ordered, timestamp-increasing root-to-current-leaf revision chain. Preview produces a deterministic receipt bound to the normalized cutoff, Commercial Research mode, complete proposed batch, and complete saved ledger. Record requires the same cutoff and receipt and recomputes the decision before mutation; any changed input or intervening ledger write requires a new review. The receipt is local integrity evidence only, not proof of source truth, rights, reviewer approval, process locking, or crash recovery.
+
+Daily price lineage uses one temporal rule across normalization, staged validation/preview/apply, and DCF promotion review. For observation date `D`, local review uses `D + 1 day 00:00 UTC` as the earliest conservative availability boundary. A declared retrieval must carry an explicit timezone offset, must not precede that boundary, and must not exceed the explicit timezone-aware review cutoff. This does not infer an exchange close or provider publication time. Missing retrieval remains an independent lineage gap; malformed, naive, too-early, post-cutoff, or cutoff-unreviewed retrieval cannot become trusted commercial evidence or enter a canonical apply. Apply writes the one previously validated in-memory staged frame through same-directory atomic replacement, without claiming concurrent locking or crash-safe transactionality.
+
+Historical valuation regime context is computed only from observations where the denominator was publicly available by the matching numerator timestamp. Blank or malformed numerator/denominator evidence is retained only as a rejected row; it is never coerced to zero, and one invalid row does not discard valid sibling rows. Each metric definition forms a separate segment, and fewer than eight compatible observations remains `insufficient_history`. The output is a descriptive range and percentile, never a cheap/expensive label or recommendation.
+
+Research outcome review is an append-only learning loop tied to an original thesis and a closed observation window. Catalyst evidence is a cutoff-safe timeline of reviewed events. Neither uses price returns, sentiment scoring, or narrative adjustments to grade the company, grade the researcher, or change a numerical model.
+
+### Forward View V1
+
+Forward View is a deterministic composition of existing evidence, not a second forecast or valuation engine. It keeps five lanes separate: explicit quarterly Revenue/EPS trend, source-backed DCF bull/base/bear scenarios, trusted peer read-through, reviewer-authored thesis evidence, and the independently gated Earnings Outlook.
+
+Scenario values appear only when DCF readiness passes, source metadata retains both source and source reference, and all three bounded scenarios calculate from the same saved report. Stale profile evidence is labeled partial. Candidate peers, news context, generated narrative, and journal text cannot change Revenue, EPS, DCF assumptions, valuation scenarios, or probabilities. Numerical surprise probability remains governed by the Earnings Nowcast calibration gate.
+
+Every Forward View packet shows its source cutoff, saved-profile freshness, model version, withheld fields, and one next research task. It accepts the production stock-report provenance contract (`provider`, `retrieved_at`, `official`, freshness, and notes) or an explicit source/source-reference pair, and preserves that provenance under Advanced evidence. Any stale, mixed, missing, or unknown saved-profile freshness downgrades otherwise usable sections to review-due rather than presenting them as current.
+
+The Earnings Outlook lane loads only a real source-backed packet for the exact fiscal period named by the selected report. It never silently chooses a different real-company forecast period, never displays synthetic fixture evidence in the workbench, and reads the independent `probability_available` calibration gate before changing probability wording. Missing or incompatible evidence fails closed. The result describes plausible assumption cases and research wait conditions; it does not predict post-earnings price direction, rank companies, or provide an investment recommendation.
 
 ## 13. Methodology Limits
 

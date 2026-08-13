@@ -3,6 +3,9 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field, replace
 from typing import Any
 
+from src.observation_recency import ObservationRecency
+from src.quant_interpretation_eligibility import QuantEvidenceAssessment
+
 
 ALLOWED_RESULT_STATUSES = {"calculated", "partial", "insufficient_data", "not_applicable", "peer_data_unavailable"}
 DEFAULT_NORMALIZED_GROWTH_TARGET = 0.08
@@ -11,6 +14,12 @@ DEFAULT_BULL_NORMALIZED_GROWTH_TARGET = 0.10
 DEFAULT_MAX_START_GROWTH = 0.40
 DEFAULT_MAX_FCF_MARGIN = 0.45
 DEFAULT_MAX_PROJECTED_FCF_GROWTH = 0.35
+_QUANT_CALCULATION_STATES = {
+    "calculated": "available",
+    "partial": "partial",
+    "peer_data_unavailable": "partial",
+    "not_applicable": "excluded",
+}
 
 
 @dataclass
@@ -81,6 +90,7 @@ class DCFResult:
     notes: list[str]
     projected_fcfs: list[float] = field(default_factory=list)
     discounted_fcfs: list[float] = field(default_factory=list)
+    discounted_explicit_total: float | None = None
     terminal_value: float | None = None
     discounted_terminal_value: float | None = None
     enterprise_value: float | None = None
@@ -172,6 +182,39 @@ class ValuationResult:
             "notes": self.notes,
             "source_metadata": self.source_metadata,
         }
+
+
+def valuation_quant_assessment(
+    result: ValuationResult | DCFResult | RelativeValuationResult,
+    *,
+    scope: str,
+    observation: ObservationRecency,
+    provenance_state: str,
+    rights_state: str,
+    field_scope_state: str,
+) -> QuantEvidenceAssessment:
+    """Adapt an existing valuation result without changing its calculation state."""
+    _require_matching_observation_scope(scope, observation)
+    return QuantEvidenceAssessment(
+        family="valuation",
+        scope=scope,
+        calculation_state=_QUANT_CALCULATION_STATES.get(result.status, "unavailable"),
+        observation_state=observation.state,
+        observation_through_date=observation.through_date,
+        provenance_state=provenance_state,
+        rights_state=rights_state,
+        field_scope_state=field_scope_state,
+        evidence_notes=tuple(result.notes),
+    )
+
+
+def _require_matching_observation_scope(scope: str, observation: ObservationRecency) -> None:
+    expected_scope = scope.split(":", 1)[0].strip().upper() if isinstance(scope, str) else ""
+    observed_scope = observation.scope.strip().upper() if isinstance(observation.scope, str) else ""
+    if not expected_scope:
+        raise ValueError("scope must include a ticker")
+    if observed_scope != expected_scope:
+        raise ValueError("observation scope must match the valuation scope")
 
 
 def _sorted_unique(items: list[str]) -> list[str]:
@@ -422,7 +465,8 @@ def calculate_dcf(valuation_input: ValuationInput, assumptions: DCFAssumptions) 
     terminal_fcf = projected_fcfs[-1] * (1 + normalized_assumptions.terminal_growth)
     terminal_value = terminal_fcf / (normalized_assumptions.wacc - normalized_assumptions.terminal_growth)
     discounted_terminal_value = terminal_value / ((1 + normalized_assumptions.wacc) ** normalized_assumptions.forecast_years)
-    enterprise_value = sum(discounted_fcfs) + discounted_terminal_value
+    discounted_explicit_total = sum(discounted_fcfs)
+    enterprise_value = discounted_explicit_total + discounted_terminal_value
 
     equity_value = None
     if normalized_assumptions.cash is not None and normalized_assumptions.debt is not None:
@@ -449,6 +493,7 @@ def calculate_dcf(valuation_input: ValuationInput, assumptions: DCFAssumptions) 
         notes=notes,
         projected_fcfs=projected_fcfs,
         discounted_fcfs=discounted_fcfs,
+        discounted_explicit_total=discounted_explicit_total,
         terminal_value=terminal_value,
         discounted_terminal_value=discounted_terminal_value,
         enterprise_value=enterprise_value,

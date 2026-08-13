@@ -9,6 +9,4 @@ cd "${REPO_ROOT}"
 
 make verify
 make data-sources-check
-make monthly
-make track-record
 make dashboard-smoke

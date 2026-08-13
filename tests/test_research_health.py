@@ -7,6 +7,7 @@ import warnings
 
 import pandas as pd
 
+import src.research_health as research_health
 from src.research_health import (
     _filter_research_health_outputs,
     _filter_research_health_warnings,
@@ -36,6 +37,14 @@ def _price_frame() -> pd.DataFrame:
             ]
         )
     return pd.DataFrame(rows)
+
+
+def _file_manifest(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
 
 
 def test_data_quality_wizard_scores_readiness_and_reasons():
@@ -552,7 +561,7 @@ def test_research_health_outputs_respect_requested_ticker_slice_before_heavy_con
     assert list(outputs["correlation_risk"]["Ticker"]) == ["NVDA"]
 
 
-def test_research_health_run_writes_csv_outputs(tmp_path: Path):
+def test_research_health_run_defaults_to_no_write(tmp_path: Path, monkeypatch):
     data_dir = tmp_path / "data"
     output_dir = tmp_path / "outputs"
     data_dir.mkdir()
@@ -572,7 +581,58 @@ def test_research_health_run_writes_csv_outputs(tmp_path: Path):
     (data_dir / "theme_map.csv").write_text("Theme,ETF,Description\nAI,SMH,Semiconductors\nSoftware,QQQ,Software\n", encoding="utf-8")
     (data_dir / "fundamentals.csv").write_text("ticker,free_cash_flow,shares_outstanding\nNVDA,1000000,100000\n", encoding="utf-8")
 
+    before = _file_manifest(tmp_path)
+
+    def fail_writer(*_args, **_kwargs):
+        raise AssertionError("default research-health composition must not write")
+
+    monkeypatch.setattr(pd.DataFrame, "to_csv", fail_writer)
+    monkeypatch.setattr(research_health, "build_dcf_readiness_report", fail_writer, raising=False)
+    monkeypatch.setattr(research_health, "build_optional_context_readiness_reports", fail_writer, raising=False)
+    monkeypatch.setattr(research_health, "build_ticker_readiness_report", fail_writer, raising=False)
     result = run(tmp_path, data_dir=data_dir, output_dir=output_dir)
+
+    assert set(result["files"]) == {"data_quality_wizard", "liquidity_risk", "correlation_risk"}
+    assert _file_manifest(tmp_path) == before
+
+
+def test_research_health_run_writes_only_its_own_csv_outputs_when_explicit(tmp_path: Path, monkeypatch):
+    data_dir = tmp_path / "data"
+    output_dir = tmp_path / "outputs"
+    data_dir.mkdir()
+    output_dir.mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (data_dir / "prices.csv").write_text(_price_frame().to_csv(index=False), encoding="utf-8")
+    (data_dir / "universe.csv").write_text(
+        "Ticker,Theme,SectorETF,DefaultPurpose,MarketCapBucket,Notes\n"
+        "NVDA,AI,SMH,Momentum Leader,Large,\n"
+        "MSFT,Software,QQQ,Core Compounder,Large,\n",
+        encoding="utf-8",
+    )
+    (data_dir / "holdings.csv").write_text(
+        "Ticker,Shares,CostBasis,PositionPercent,PrimaryPurpose,SecondaryTags,OriginalThesis,MaxPositionPercent,InvalidationOverride\n",
+        encoding="utf-8",
+    )
+    (data_dir / "theme_map.csv").write_text("Theme,ETF,Description\nAI,SMH,Semiconductors\nSoftware,QQQ,Software\n", encoding="utf-8")
+    (data_dir / "fundamentals.csv").write_text("ticker,free_cash_flow,shares_outstanding\nNVDA,1000000,100000\n", encoding="utf-8")
+
+    before = _file_manifest(tmp_path)
+    readiness_calls = []
+
+    def record_readiness_call(*args, **kwargs):
+        readiness_calls.append({"args": args, "kwargs": kwargs})
+        return {}
+
+    monkeypatch.setattr(research_health, "build_dcf_readiness_report", record_readiness_call, raising=False)
+    monkeypatch.setattr(
+        research_health,
+        "build_optional_context_readiness_reports",
+        record_readiness_call,
+        raising=False,
+    )
+    monkeypatch.setattr(research_health, "build_ticker_readiness_report", record_readiness_call, raising=False)
+
+    result = run(tmp_path, data_dir=data_dir, output_dir=output_dir, write_output=True)
 
     assert set(result["files"]) == {"data_quality_wizard", "liquidity_risk", "correlation_risk"}
     for path in result["files"].values():
@@ -580,6 +640,11 @@ def test_research_health_run_writes_csv_outputs(tmp_path: Path):
         frame = pd.read_csv(path)
         assert "Reason" in frame.columns
         assert frame["Reason"].fillna("").str.len().gt(0).all()
+    after = _file_manifest(tmp_path)
+    expected_added = {path.relative_to(tmp_path).as_posix() for path in result["files"].values()}
+    assert set(after) - set(before) == expected_added
+    assert {path: after[path] for path in before} == before
+    assert readiness_calls == []
 
 
 def test_research_health_outputs_current_uses_canonical_csv_mtimes(tmp_path: Path):

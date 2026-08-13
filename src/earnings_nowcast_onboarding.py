@@ -141,14 +141,20 @@ LOADERS: dict[str, Callable[[Mapping[str, str]], object]] = {
 }
 
 
-def _cutoff_timestamp(filename: str, row: Mapping[str, str]) -> tuple[str, str] | None:
+def _cutoff_timestamps(filename: str, row: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
     if filename == "quarterly_actuals.csv":
-        return "quarterly actual", row.get("reported_at", "")
+        return (
+            ("quarterly actual", row.get("reported_at", "")),
+            ("quarterly actual retrieval", row.get("retrieved_at", "")),
+        )
     if filename == "consensus_snapshots.csv":
-        return "consensus snapshot", row.get("snapshot_at", "")
+        return (
+            ("consensus snapshot", row.get("snapshot_at", "")),
+            ("consensus snapshot retrieval", row.get("retrieved_at", "")),
+        )
     if filename == "signals.csv":
-        return "evidence signal", row.get("evidence_published_at", "")
-    return None
+        return (("evidence signal", row.get("evidence_published_at", "")),)
+    return ()
 
 
 def validate_onboarding(input_dir: Path, *, cutoff: str | None = None) -> dict[str, Any]:
@@ -197,10 +203,12 @@ def validate_onboarding(input_dir: Path, *, cutoff: str | None = None) -> dict[s
             except (TypeError, ValueError) as exc:
                 reasons.append(str(exc))
             if cutoff:
-                timestamp = _cutoff_timestamp(filename, row)
-                if timestamp:
+                # Check temporal fields from the raw row even when constructing the
+                # typed value failed. Otherwise an unrelated malformed field can
+                # hide post-cutoff publication or retrieval evidence.
+                for label, timestamp in _cutoff_timestamps(filename, row):
                     try:
-                        validate_cutoff(timestamp[1], cutoff, label=timestamp[0])
+                        validate_cutoff(timestamp, cutoff, label=label)
                     except ValueError as exc:
                         reasons.append(str(exc))
             item = {"file": filename, "row_number": row_number, "row": dict(row)}
@@ -304,10 +312,17 @@ def onboarding_readiness(input_dir: Path, *, ticker: str, cutoff: str | None = N
     cutoff = cutoff or datetime.now(timezone.utc).isoformat()
     validation = validate_onboarding(input_dir, cutoff=cutoff)
     if validation["rejected_count"]:
+        temporal_blocked = any(
+            "after forecast cutoff" in str(item.get("reasons") or "")
+            for item in validation["rejected_rows"]
+        )
         return {
             "ticker": str(ticker).strip().upper(),
             "state": "blocked",
-            "missing_evidence": ["invalid_onboarding_rows"],
+            "missing_evidence": [
+                *(["post_cutoff_evidence"] if temporal_blocked else []),
+                "invalid_onboarding_rows",
+            ],
             "validation": {"valid": False, "rejected_count": validation["rejected_count"]},
         }
     actuals = [item["value"] for item in validation["accepted_rows"] if item["file"] == "quarterly_actuals.csv"]

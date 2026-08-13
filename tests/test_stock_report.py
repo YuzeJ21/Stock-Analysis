@@ -4,6 +4,7 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 import pytest
@@ -390,6 +391,184 @@ def _copy_rich_fixture(tmp_path: Path) -> Path:
     return tmp_path
 
 
+@pytest.fixture()
+def provider() -> MockMarketDataProvider:
+    source = make_source_metadata(
+        provider="fixture",
+        freshness="test fixture",
+        official=False,
+        notes=["Test-only source metadata is not structured eligibility proof."],
+        retrieved_at="2026-07-20T20:00:00Z",
+    )
+    history = pd.DataFrame(
+        [
+            {
+                "date": pd.Timestamp("2025-10-31") + pd.Timedelta(days=day),
+                "close": 100.0 + day,
+            }
+            for day in range(260)
+        ]
+    )
+    return MockMarketDataProvider(
+        quotes={
+            "NVDA": QuoteSnapshot(
+                ticker="NVDA",
+                price=360.0,
+                previous_close=355.0,
+                open=356.0,
+                day_high=362.0,
+                day_low=354.0,
+                volume=1_000_000,
+                currency="USD",
+                market_time="2026-07-20T20:00:00Z",
+                source=source,
+            )
+        },
+        histories={("NVDA", "1y", "1d"): history},
+        financials={
+            "NVDA": FinancialSnapshot(
+                ticker="NVDA",
+                revenue=250_000_000_000,
+                revenue_growth=0.10,
+                eps=12.5,
+                free_cash_flow=90_000_000_000,
+                fcf_margin=0.36,
+                shares_outstanding=7_400_000_000,
+                cash=90_000_000_000,
+                debt=40_000_000_000,
+                source=source,
+            )
+        },
+        earnings={"NVDA": EarningsSummary(ticker="NVDA", source=source)},
+        estimates={"NVDA": AnalystEstimateSummary(ticker="NVDA", source=source)},
+    )
+
+
+def test_stock_report_keeps_quant_values_but_adds_independent_eligibility(provider):
+    report = build_stock_report("NVDA", provider)
+    payload = report.to_dict()
+    assert payload["valuation_snapshot"]["status"] == "calculated"
+    assert set(payload["quant_interpretation"]) == {
+        "valuation",
+        "indicators",
+        "review_metrics",
+    }
+    assert payload["quant_interpretation"]["valuation"]["calculation_state"] == "available"
+    assert payload["quant_interpretation"]["valuation"]["interpretation_state"] in {
+        "historical_review_only",
+        "withheld",
+    }
+    assert payload["quant_interpretation"]["valuation"]["commercial_eligible"] is False
+    assert payload["quant_interpretation"]["valuation"]["provenance_state"] == "unverified"
+    assert payload["quant_interpretation"]["valuation"]["rights_state"] == "unverified"
+    assert payload["quant_interpretation"]["valuation"]["field_scope_state"] == "unverified"
+    assert set(payload["quant_interpretation"]["indicators"]) == {
+        "one_month",
+        "three_month",
+        "one_year",
+    }
+    assert set(payload["quant_interpretation"]["review_metrics"]) == {"SPY", "QQQ"}
+
+
+def test_stock_report_recency_ignores_recent_rows_without_a_usable_close(provider):
+    valid_history = pd.DataFrame(
+        {
+            "date": pd.date_range(end="2026-06-01", periods=60, freq="D"),
+            "close": [100.0 + value for value in range(60)],
+        }
+    )
+    provider.histories[("NVDA", "1y", "1d")] = pd.concat(
+        [
+            valid_history,
+            pd.DataFrame([{"date": pd.Timestamp("2026-07-27"), "close": None}]),
+        ],
+        ignore_index=True,
+    )
+
+    with patch(
+        "src.stock_report.pd.Timestamp.now",
+        return_value=pd.Timestamp("2026-07-28T12:00:00Z"),
+    ):
+        payload = build_stock_report("NVDA", provider).to_dict()
+
+    valuation_decision = payload["quant_interpretation"]["valuation"]
+    assert valuation_decision["observation_through_date"] == "2026-06-01"
+    assert valuation_decision["observation_state"] == "stale_review_only"
+
+
+class _ChangingHistoryProvider:
+    def __init__(
+        self,
+        provider: MockMarketDataProvider,
+        history_versions: dict[str, list[pd.DataFrame]],
+    ) -> None:
+        self._provider = provider
+        self._history_versions = history_versions
+        self.history_calls = {ticker: 0 for ticker in history_versions}
+
+    def __getattr__(self, name: str):
+        return getattr(self._provider, name)
+
+    def get_price_history(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
+        ticker = ticker.upper()
+        call_index = self.history_calls[ticker]
+        versions = self._history_versions[ticker]
+        self.history_calls[ticker] += 1
+        return versions[min(call_index, len(versions) - 1)].copy()
+
+
+def test_stock_report_reuses_one_loaded_history_per_scope_for_metrics_and_eligibility(provider):
+    first_dates = pd.date_range(end="2026-06-01", periods=60, freq="D")
+    changed_dates = pd.date_range(end="2026-07-27", periods=60, freq="D")
+
+    def history(dates: pd.DatetimeIndex, start: float) -> pd.DataFrame:
+        return pd.DataFrame(
+            {
+                "date": dates,
+                "close": [start + value for value in range(len(dates))],
+            }
+        )
+
+    changing_provider = _ChangingHistoryProvider(
+        provider,
+        {
+            "NVDA": [
+                history(first_dates, 100.0),
+                history(changed_dates, 500.0),
+            ],
+            "SPY": [
+                history(first_dates, 200.0),
+                history(changed_dates, 600.0),
+            ],
+            "QQQ": [
+                history(first_dates, 300.0),
+                history(changed_dates, 700.0),
+            ],
+        },
+    )
+
+    with patch(
+        "src.stock_report.pd.Timestamp.now",
+        return_value=pd.Timestamp("2026-07-28T12:00:00Z"),
+    ):
+        payload = build_stock_report("NVDA", changing_provider).to_dict()
+
+    assert changing_provider.history_calls == {"NVDA": 1, "SPY": 1, "QQQ": 1}
+    for benchmark in ("SPY", "QQQ"):
+        calculated_metric = next(
+            metric
+            for metric in payload["review_metrics"][benchmark]["price_metrics"]
+            if metric["name"] == "benchmark_relative_return"
+        )
+        eligibility = payload["quant_interpretation"]["review_metrics"][benchmark][
+            "price_metrics"
+        ]["benchmark_relative_return"]
+        assert calculated_metric["state"] == "ready"
+        assert eligibility["calculation_state"] == "available"
+        assert eligibility["observation_through_date"] == "2026-06-01"
+        assert eligibility["observation_state"] == "stale_review_only"
+
+
 def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     source = make_source_metadata(
         provider="mock",
@@ -541,7 +720,9 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "- Still locked:" in markdown
     assert "- Trusted input: Source-backed peer mappings and peer valuation inputs." in markdown
     assert "- Data Health lane: Peer Mapping Proof. Suggested local check: `make focus-peers TICKER=MSFT`" in markdown
-    assert "Confirm with `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10` before treating the lane as available" in markdown
+    assert "Confirm with `make readiness-snapshot PROFILE=default" in markdown
+    assert "make reviewed-batch-compare PROFILE=default LANE=peers" in markdown
+    assert "make peer-mapping-queue TICKERS=MSFT TOP_N=10" in markdown
     assert "- First read: Start with DCF Calculation Path and Valuation Boundary Checklist" in markdown
     assert "- Then check: What We Can Analyze Now, Valuation Boundary Checklist, and Source Readiness Check." in markdown
     assert "- Copy-only proof step: `make focus-peers TICKER=MSFT`" in markdown
@@ -671,8 +852,8 @@ def test_build_stock_report_assembles_expected_sections(tmp_path: Path):
     assert "`make focus-peers TICKER=MSFT`" in markdown
     assert "`make optional-context-worklist TICKERS=MSFT TOP_N=10`" in markdown
     assert "`make imports-validate IMPORT_TICKERS=MSFT && make imports-preview IMPORT_TICKERS=MSFT && make imports-apply IMPORT_TICKERS=MSFT`" in markdown
-    assert "Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS=MSFT TOP_N=10`" in markdown
-    assert "Optional-context rebuild proof: `make optional-context-readiness && make readiness`" in markdown
+    assert "Peer proof: `make readiness-snapshot PROFILE=default" in markdown
+    assert "Optional-context proof: `make readiness-snapshot PROFILE=default" in markdown
     assert "Import paths, rejected-row files, and credential state are listed in the Source Readiness Check below." in markdown
     assert "import file path `data/staged/prices/` or `data/imports/prices.csv`" in markdown
     assert "import target `data/imports/peers.csv`" in markdown
@@ -1277,7 +1458,8 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "- Still locked: Blocked features: price, momentum, DCF." in markdown
     assert "- Trusted input: Trusted local price history." in markdown
     assert "- Data Health lane: Price Coverage Batch. Suggested local check: `make focus-price TICKER=APLD`" in markdown
-    assert "Confirm with `make price-coverage TOP_N=25 && make readiness` before treating the lane as available" in markdown
+    assert "Confirm with `make readiness-snapshot PROFILE=default" in markdown
+    assert "make reviewed-batch-compare PROFILE=default LANE=prices" in markdown
     assert "- Supported evaluation: Use available price or setup context only." in markdown
     assert "- Valuation boundary: Company valuation is blocked until trusted fundamentals, cash-flow or margin, share-count, and DCF inputs pass readiness." in markdown
     assert "- Data-confidence cue: low: price history is still the first required input." in markdown
@@ -1385,9 +1567,9 @@ def test_readiness_only_markdown_handles_blocked_broad_universe_ticker_without_a
     assert "`make price-refresh TICKERS=APLD PROVIDER=auto`" in markdown
     assert "Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub" in markdown
     assert "`make price-validate && make price-preview && make price-apply`" in markdown
-    assert "Price rebuild proof: `make price-coverage TOP_N=25 && make readiness`" in markdown
+    assert "Price proof: `make readiness-snapshot PROFILE=default" in markdown
     assert "`make focus-fundamentals TICKER=APLD`" in markdown
-    assert "DCF rebuild proof: `make dcf-readiness && make readiness`" in markdown
+    assert "DCF proof: `make readiness-snapshot PROFILE=default" in markdown
     assert "`make peer-mapping-queue TICKERS=APLD TOP_N=10`" in markdown
     assert "`make optional-context-worklist TICKERS=APLD TOP_N=10`" in markdown
     assert "the report does not run imports or refreshes and does not connect to external accounts" in markdown

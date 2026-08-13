@@ -9,10 +9,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.continuation_gate import (
+    READINESS_CONTINUATION_GATE_HEADING,
+    ContinuationGate,
+    build_continuation_gate,
+)
 from src.dcf_input_proof_queue import DcfInputProofRow, build_dcf_input_proof_queue_from_files, summarize_missing_input_families
-from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
-from src.profile_context import build_profile_context, render_profile_context_text
-from src.reviewed_batch_proof import ReviewedBatchProof, load_reviewed_batch_proofs
+from src.paths import resolve_data_dir, resolve_data_profile, resolve_outputs_dir, resolve_project_root
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE, build_profile_context, render_profile_context_text
+from src.reviewed_batch_proof import ReviewedBatchProof, load_reviewed_batch_proofs, resolve_readiness_proof_profile
 from src.session_source_preflight import load_session_source_preflight
 
 
@@ -362,8 +367,12 @@ def _source_status(sources: dict[str, object], key: str) -> dict[str, object]:
     return value if isinstance(value, dict) else {}
 
 
-def _fundamentals_source_ladder_context(root: Path) -> tuple[str, bool]:
-    preflight = load_session_source_preflight(root)
+def _fundamentals_source_ladder_context(
+    root: Path,
+    *,
+    output_dir: Path | str | None = None,
+) -> tuple[str, bool]:
+    preflight = load_session_source_preflight(root, output_dir=output_dir)
     if not preflight:
         return (
             "Session source availability is not recorded; run make session-source-preflight before retrying source-backed coverage work.",
@@ -430,8 +439,12 @@ def _fundamentals_source_ladder_context(root: Path) -> tuple[str, bool]:
     return "Session source availability: " + "; ".join(pieces) + ".", ladder_available
 
 
-def _source_activation_context(root: Path) -> tuple[bool, str]:
-    preflight = load_session_source_preflight(root)
+def _source_activation_context(
+    root: Path,
+    *,
+    output_dir: Path | str | None = None,
+) -> tuple[bool, str]:
+    preflight = load_session_source_preflight(root, output_dir=output_dir)
     if not isinstance(preflight, dict):
         return False, ""
     activation = preflight.get("source_activation", {})
@@ -477,7 +490,7 @@ def build_peer_readiness_summary(
             missing_peer_momentum=0,
             missing_peer_fundamentals=0,
             peer_valuation_blocked=0,
-            source_context="data/reports/peer_readiness_report.csv missing; run make readiness before using peer sub-state counts.",
+            source_context=f"data/reports/peer_readiness_report.csv missing; inspect with {READINESS_PREVIEW_COMMAND} before using peer sub-state counts. {READINESS_PREVIEW_NOTE}",
         )
     return PeerReadinessSummary(
         total_count=total,
@@ -496,9 +509,26 @@ def build_peer_readiness_summary(
     )
 
 
+def _selected_profile_paths(
+    root: Path,
+    profile: str,
+    *,
+    data_dir: Path | str | None,
+    output_dir: Path | str | None,
+) -> tuple[str, Path, Path]:
+    selected_profile = resolve_readiness_proof_profile(profile, project_root=root)
+    profile_context = resolve_data_profile(selected_profile, project_root=root)
+    data = resolve_data_dir(data_dir, root) if data_dir is not None else profile_context.data_dir
+    output = resolve_outputs_dir(output_dir, root) if output_dir is not None else profile_context.outputs_dir
+    if data != profile_context.data_dir or output != profile_context.outputs_dir:
+        raise ValueError("explicit overrides must match the selected profile paths")
+    return selected_profile, data, output
+
+
 def build_readiness_ops_lanes(
     root: Path | str = ".",
     *,
+    profile: str,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
     dcf_input_rows: list[DcfInputProofRow] | None = None,
@@ -506,8 +536,12 @@ def build_readiness_ops_lanes(
     peer_summary: PeerReadinessSummary | None = None,
 ) -> list[ReadinessLane]:
     root = Path(root)
-    data = resolve_data_dir(data_dir, root)
-    resolve_outputs_dir(output_dir, root)
+    selected_profile, data, output = _selected_profile_paths(
+        root,
+        profile,
+        data_dir=data_dir,
+        output_dir=output_dir,
+    )
     reports = data / "reports"
     readiness_rows = _read_csv(reports / "ticker_readiness_report.csv")
     feature_rows = _read_csv(reports / "feature_readiness_summary.csv")
@@ -554,8 +588,14 @@ def build_readiness_ops_lanes(
     analyst_ready = _count_true(readiness_rows, "analyst_estimates_ready")
     earnings_blocked = max(total - earnings_ready, 0)
     analyst_blocked = max(total - analyst_ready, 0)
-    fundamentals_source_context, source_ladder_available = _fundamentals_source_ladder_context(root)
-    source_activation_required, source_activation_context = _source_activation_context(root)
+    fundamentals_source_context, source_ladder_available = _fundamentals_source_ladder_context(
+        root,
+        output_dir=output,
+    )
+    source_activation_required, source_activation_context = _source_activation_context(
+        root,
+        output_dir=output,
+    )
     batch_ledger_summaries = build_reviewed_batch_ledger_summaries(root, data_dir=data)
     price_ledger_note = _reviewed_batch_ledger_note(
         batch_ledger_summaries.get("prices"),
@@ -642,7 +682,7 @@ def build_readiness_ops_lanes(
                 if price_ledger_status
                 else "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
             ),
-            proof_command="make readiness && make price-coverage TOP_N=25 && make status-check TOP_N=5",
+            proof_command=f"make readiness-snapshot PROFILE={selected_profile} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
             generated_churn_policy="Price refreshes can create broad CSV churn; keep refreshed data local unless intentionally reviewed.",
             stale_proof_warning=stale_warning,
             notes=(
@@ -684,8 +724,9 @@ def build_readiness_ops_lanes(
             ),
             next_safe_command=fundamentals_next_command,
             proof_command=(
-                "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && make readiness && make dcf-readiness"
+                f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker> && "
+                "make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && "
+                f"make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
             ),
             generated_churn_policy="Stage/apply only reviewed trusted fundamentals rows; avoid broad generated report churn by default.",
             stale_proof_warning=stale_warning,
@@ -723,8 +764,9 @@ def build_readiness_ops_lanes(
             ),
             next_safe_command=share_count_next_command,
             proof_command=(
-                "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && make dcf-readiness && make readiness"
+                f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker> && "
+                "make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && "
+                f"make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=share_count BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
             ),
             generated_churn_policy=(
                 "Apply only reviewed trusted share-count rows; broad readiness/report CSV churn stays local unless intentionally reviewed."
@@ -751,8 +793,9 @@ def build_readiness_ops_lanes(
             source_readiness="Peer relationships must be source-backed or clearly labeled fallback context only.",
             next_safe_command="make peer-mapping-queue TOP_N=25",
             proof_command=(
-                "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && make readiness && make peer-mapping-queue TOP_N=25"
+                f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker> && "
+                "make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && "
+                f"make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
             ),
             generated_churn_policy="Apply only reviewed peer rows; do not infer trusted peers from sector similarity.",
             stale_proof_warning=stale_warning,
@@ -781,7 +824,7 @@ def build_readiness_ops_lanes(
             source_lane="mapped_peer_inputs",
             source_readiness="Mapped peers need trusted price, fundamentals, market-cap, or valuation inputs before peer valuation appears.",
             next_safe_command="make peer-mapping-queue TOP_N=25",
-            proof_command="make readiness && make peer-mapping-queue TOP_N=25",
+            proof_command=f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
             generated_churn_policy="Keep mapped-peer data changes reviewed; broad readiness/report CSV churn is not staged by default.",
             stale_proof_warning=stale_warning,
             notes=(
@@ -811,8 +854,13 @@ def build_readiness_ops_lanes(
             ),
             next_safe_command=optional_context_next_command,
             proof_command=(
+                f"make readiness-snapshot PROFILE={selected_profile} && "
                 "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && make optional-context-readiness"
+                "make imports-preview IMPORT_TICKERS=<ticker> && "
+                "make imports-apply IMPORT_TICKERS=<ticker> && "
+                "make optional-context-readiness && "
+                f"make reviewed-batch-compare PROFILE={selected_profile} LANE=optional_context "
+                "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
             ),
             generated_churn_policy=(
                 "Do not apply or publish earnings rows unless trusted local/provider source rows were reviewed; "
@@ -844,8 +892,13 @@ def build_readiness_ops_lanes(
             ),
             next_safe_command=optional_context_next_command,
             proof_command=(
+                f"make readiness-snapshot PROFILE={selected_profile} && "
                 "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && make optional-context-readiness"
+                "make imports-preview IMPORT_TICKERS=<ticker> && "
+                "make imports-apply IMPORT_TICKERS=<ticker> && "
+                "make optional-context-readiness && "
+                f"make reviewed-batch-compare PROFILE={selected_profile} LANE=optional_context "
+                "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
             ),
             generated_churn_policy=(
                 "Do not apply or publish estimates unless trusted local/provider source rows were reviewed; "
@@ -872,7 +925,7 @@ def build_readiness_ops_lanes(
             source_lane="asset_type_scope",
             source_readiness="ETF/index/fund rows can support market monitoring while operating-company DCF is excluded.",
             next_safe_command="make stock-report-md TICKER=QQQ",
-            proof_command="make readiness && make stock-report-md TICKER=QQQ",
+            proof_command=f"make readiness-snapshot PROFILE={selected_profile} && make reviewed-batch-compare PROFILE={selected_profile} LANE=excluded BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER=QQQ",
             generated_churn_policy="Excluded examples are demo/report artifacts only when intentionally reviewed.",
             stale_proof_warning=stale_warning,
             notes="Excluded means not applicable, not failed; do not force company valuation onto non-company rows.",
@@ -1167,13 +1220,14 @@ def _queue_row_from_lane(
 def build_fundamentals_peer_metrics_queue(
     root: Path | str = ".",
     *,
+    profile: str,
     top_n: int = 10,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
 ) -> list[ReadinessQueueRow]:
     root = Path(root)
     return build_fundamentals_peer_metrics_queue_from_lanes(
-        build_readiness_ops_lanes(root, data_dir=data_dir, output_dir=output_dir),
+        build_readiness_ops_lanes(root, profile=profile, data_dir=data_dir, output_dir=output_dir),
         root=root,
         top_n=top_n,
         data_dir=data_dir,
@@ -1249,7 +1303,7 @@ def render_data_coverage_expansion_plan(steps: list[DataCoverageExpansionStep]) 
         "",
     ]
     if not steps:
-        lines.append("No expansion steps are available. Run make readiness before using the planner if saved reports are missing.")
+        lines.append(f"No expansion steps are available. Inspect saved readiness with {READINESS_PREVIEW_COMMAND}. {READINESS_PREVIEW_NOTE}")
         return "\n".join(lines)
     for step in steps:
         lines.extend(
@@ -1308,6 +1362,7 @@ def _share_count_only_dcf_rows(rows: list[DcfInputProofRow]) -> list[DcfInputPro
 def build_data_coverage_proof_queues(
     root: Path | str = ".",
     *,
+    profile: str,
     top_n: int = 10,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
@@ -1315,7 +1370,12 @@ def build_data_coverage_proof_queues(
     """Build the post-price proof queues without refreshing or applying local data."""
 
     root = Path(root)
-    data = resolve_data_dir(data_dir, root)
+    selected_profile, data, output = _selected_profile_paths(
+        root,
+        profile,
+        data_dir=data_dir,
+        output_dir=output_dir,
+    )
     dcf_rows = build_dcf_input_proof_queue_from_files(root, data_dir=data, top_n=100000)
     share_count_rows = _share_count_dcf_rows(dcf_rows)
     fundamentals_rows = _fundamentals_dcf_rows(dcf_rows)
@@ -1323,8 +1383,9 @@ def build_data_coverage_proof_queues(
     peer_summary = build_peer_readiness_summary(root, data_dir=data)
     lanes = build_readiness_ops_lanes(
         root,
+        profile=selected_profile,
         data_dir=data,
-        output_dir=output_dir,
+        output_dir=output,
         dcf_input_rows=dcf_rows,
         share_count_rows=share_count_rows,
         peer_summary=peer_summary,
@@ -1462,7 +1523,7 @@ def render_data_coverage_proof_queues(rows: list[DataCoverageProofQueueRow]) -> 
         "",
     ]
     if not rows:
-        lines.append("No proof queues are available. Run make readiness before relying on data-coverage queue counts.")
+        lines.append(f"No proof queues are available. Inspect with {READINESS_PREVIEW_COMMAND} before relying on data-coverage queue counts. {READINESS_PREVIEW_NOTE}")
         return "\n".join(lines)
     lines.append(
         "Queue | State | Queued | Ready | Partial | Blocked | Top blockers | Next safe command | Proof packet"
@@ -1515,7 +1576,7 @@ def render_fundamentals_peer_metrics_queue(rows: list[ReadinessQueueRow]) -> str
         "",
     ]
     if not rows:
-        lines.append("No queue rows are available. Run make readiness before relying on exact counts.")
+        lines.append(f"No queue rows are available. Inspect with {READINESS_PREVIEW_COMMAND} before relying on exact counts. {READINESS_PREVIEW_NOTE}")
         return "\n".join(lines)
     lines.append(
         "Lane | State | Ready | Partial | Blocked | Excluded | Missing input families | Source mode | Next proof"
@@ -1550,21 +1611,41 @@ def render_fundamentals_peer_metrics_queue(rows: list[ReadinessQueueRow]) -> str
     return "\n".join(lines)
 
 
-def render_readiness_ops_center(lanes: list[ReadinessLane]) -> str:
+def render_readiness_ops_center(
+    lanes: list[ReadinessLane],
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> str:
     lines = [
         "Data Readiness Operations Center",
         "Read-only: lane-level operations view. It does not refresh, import, apply, or rewrite local data.",
         "Research-only: lanes show data readiness and proof commands, not investment advice or trade instructions.",
         "",
     ]
+    inspection_only = bool(
+        continuation_gate is not None and continuation_gate.suppress_execution
+    )
+    if inspection_only:
+        lines.extend(
+            [
+                f"{READINESS_CONTINUATION_GATE_HEADING}: {continuation_gate.state}",
+                f"- Next safe preview: {continuation_gate.next_safe_command}",
+                f"- Reason: {continuation_gate.reason}",
+                "- Lane commands below are planning context only; do not execute source, refresh, apply, or proof commands from working readiness.",
+                f"  next_safe_command: {continuation_gate.next_safe_command}",
+                f"- Stop rule: {continuation_gate.stop_rule}",
+                "",
+            ]
+        )
     for lane in lanes:
+        command_label = "planning_command" if inspection_only else "next_safe_command"
         lines.extend(
             [
                 f"- {lane.label} | {lane.readiness_state} | {lane.workflow_mode}",
                 f"  counts: ready={lane.ready_count}; partial={lane.partial_count}; blocked={lane.blocked_count}; excluded={lane.excluded_count}; total={lane.total_count}",
                 f"  unlock_impact: {lane.unlock_impact}",
                 f"  source_lane: {lane.source_lane}; source_readiness: {lane.source_readiness}",
-                f"  next_safe_command: {lane.next_safe_command}",
+                f"  {command_label}: {lane.next_safe_command}",
                 f"  proof_command: {lane.proof_command}",
                 f"  generated_churn_policy: {lane.generated_churn_policy}",
                 f"  proof_freshness: {lane.stale_proof_warning}",
@@ -1574,15 +1655,31 @@ def render_readiness_ops_center(lanes: list[ReadinessLane]) -> str:
     return "\n".join(lines)
 
 
-def render_coverage_frontier(frontier: list[CoverageFrontierOpportunity]) -> str:
+def render_coverage_frontier(
+    frontier: list[CoverageFrontierOpportunity],
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> str:
     lines = [
         "Coverage Frontier Planner",
         "Read-only: ranks batch data-readiness opportunities by unlock impact. It does not imply data is available.",
         "Research-only: this is an operations queue, not investment advice or trade instruction.",
         "",
     ]
+    if continuation_gate is not None and continuation_gate.suppress_execution:
+        lines.extend(
+            [
+                f"{READINESS_CONTINUATION_GATE_HEADING}: {continuation_gate.state}",
+                f"- Next safe preview: {continuation_gate.next_safe_command}",
+                f"- Reason: {continuation_gate.reason}",
+                "- Ranked rows below are planning context only; do not execute their source or coverage commands from stale readiness.",
+                f"- Inspection boundary: {continuation_gate.next_safe_command}. {READINESS_PREVIEW_NOTE}",
+                f"- Stop rule: {continuation_gate.stop_rule}",
+                "",
+            ]
+        )
     if not frontier:
-        lines.append("No coverage frontier rows are available. Run make readiness first if saved reports are missing.")
+        lines.append(f"No coverage frontier rows are available. Inspect with {READINESS_PREVIEW_COMMAND} if saved reports are missing. {READINESS_PREVIEW_NOTE}")
         return "\n".join(lines)
     for row in frontier:
         lines.extend(
@@ -1637,9 +1734,10 @@ def main(argv: list[str] | None = None) -> int:
     data_path = resolve_data_dir(project_root=root)
     output_path = resolve_outputs_dir(project_root=root)
     context = build_profile_context(project_root=root, data_dir=data_path, output_dir=output_path)
+    profile = context.profile_key
     print(render_profile_context_text(context))
     if args.evidence:
-        lanes = build_readiness_ops_lanes(root, data_dir=data_path, output_dir=output_path)
+        lanes = build_readiness_ops_lanes(root, profile=profile, data_dir=data_path, output_dir=output_path)
         frontier = build_coverage_frontier(lanes, top_n=args.top_n)
         print(render_readiness_ops_evidence(lanes, frontier))
     elif args.coverage_proof_queues:
@@ -1647,6 +1745,7 @@ def main(argv: list[str] | None = None) -> int:
             render_data_coverage_proof_queues(
                 build_data_coverage_proof_queues(
                     root,
+                    profile=profile,
                     top_n=args.top_n,
                     data_dir=data_path,
                     output_dir=output_path,
@@ -1658,6 +1757,7 @@ def main(argv: list[str] | None = None) -> int:
             render_fundamentals_peer_metrics_queue(
                 build_fundamentals_peer_metrics_queue(
                     root,
+                    profile=profile,
                     top_n=args.top_n,
                     data_dir=data_path,
                     output_dir=output_path,
@@ -1665,15 +1765,20 @@ def main(argv: list[str] | None = None) -> int:
             )
         )
     elif args.expansion_plan:
-        lanes = build_readiness_ops_lanes(root, data_dir=data_path, output_dir=output_path)
+        lanes = build_readiness_ops_lanes(root, profile=profile, data_dir=data_path, output_dir=output_path)
         print(render_data_coverage_expansion_plan(build_data_coverage_expansion_plan(lanes, top_n=args.top_n)))
     elif args.coverage_frontier:
-        lanes = build_readiness_ops_lanes(root, data_dir=data_path, output_dir=output_path)
+        lanes = build_readiness_ops_lanes(root, profile=profile, data_dir=data_path, output_dir=output_path)
         frontier = build_coverage_frontier(lanes, top_n=args.top_n)
-        print(render_coverage_frontier(frontier))
+        print(render_coverage_frontier(frontier, continuation_gate=build_continuation_gate(context)))
     else:
-        lanes = build_readiness_ops_lanes(root, data_dir=data_path, output_dir=output_path)
-        print(render_readiness_ops_center(lanes))
+        lanes = build_readiness_ops_lanes(root, profile=profile, data_dir=data_path, output_dir=output_path)
+        print(
+            render_readiness_ops_center(
+                lanes,
+                continuation_gate=build_continuation_gate(context),
+            )
+        )
     return 0
 
 

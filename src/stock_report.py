@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import json
+import math
 import os
 import re
 from dataclasses import asdict, dataclass, field
@@ -11,7 +14,8 @@ from typing import Any
 import pandas as pd
 
 from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
-from src.indicators import compute_return
+from src.indicators import compute_return, indicator_quant_assessment
+from src.observation_recency import ObservationRecency, evaluate_observation_rows
 from src.fundamentals_source_ladder import build_fundamentals_source_ladder_rows
 from src.optional_context_sources import build_optional_context_source_ladder_rows, write_optional_context_imports
 from src.providers.alternative_fundamentals import (
@@ -37,9 +41,23 @@ from src.sec_filing_share_stage import stage_sec_filing_share_count_rows
 from src.providers.yfinance_provider import build_yfinance_fundamentals_rows
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.provider_env import load_provider_environment
-from src.review_metrics import build_review_metrics, configured_risk_free_rate
+from src.quant_interpretation_eligibility import (
+    QuantEvidenceAssessment,
+    evaluate_quant_interpretation,
+)
+from src.review_metrics import (
+    ReviewMetricsSnapshot,
+    build_review_metrics,
+    configured_risk_free_rate,
+    review_metric_quant_assessment,
+)
 from src.session_source_preflight import load_session_source_preflight
-from src.valuation import ValuationInput, ValuationResult, build_valuation_result
+from src.valuation import (
+    ValuationInput,
+    ValuationResult,
+    build_valuation_result,
+    valuation_quant_assessment,
+)
 
 
 REPORT_METHOD_VERSION = "readiness-first-v1"
@@ -86,6 +104,7 @@ class StockReport:
     data_freshness: list[DataFreshnessNote]
     valuation_readiness: dict[str, Any] = field(default_factory=dict)
     review_metrics: dict[str, Any] = field(default_factory=dict)
+    quant_interpretation: dict[str, Any] = field(default_factory=dict)
     dataset_coverage: list[dict[str, Any]] = field(default_factory=list)
     local_data_validation: list[dict[str, Any]] = field(default_factory=list)
     screener_context: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -119,6 +138,7 @@ class StockReport:
             "provenance": provenance,
             "valuation_readiness": self.valuation_readiness,
             "review_metrics": self.review_metrics,
+            "quant_interpretation": self.quant_interpretation,
             "dataset_coverage": self.dataset_coverage,
             "local_data_validation": self.local_data_validation,
             "screener_context": self.screener_context,
@@ -443,8 +463,159 @@ def _valuation_readiness_dict(
     }
 
 
+def _quant_interpretation_decision(
+    assessment: QuantEvidenceAssessment,
+) -> dict[str, Any]:
+    decision = asdict(evaluate_quant_interpretation(assessment))
+    return {
+        **decision,
+        "calculation_state": assessment.calculation_state,
+        "observation_state": assessment.observation_state,
+        "observation_through_date": assessment.observation_through_date,
+        "provenance_state": assessment.provenance_state,
+        "rights_state": assessment.rights_state,
+        "field_scope_state": assessment.field_scope_state,
+    }
+
+
+def _observation_rows(ticker: str, history: pd.DataFrame) -> list[dict[str, str]]:
+    if history.empty or "date" not in history.columns or "close" not in history.columns:
+        return []
+    dates = pd.to_datetime(history["date"], errors="coerce")
+    closes = pd.to_numeric(history["close"], errors="coerce")
+    finite_closes = closes.map(
+        lambda value: bool(pd.notna(value) and math.isfinite(float(value)))
+    )
+    usable = dates.notna() & closes.gt(0) & finite_closes
+    return [
+        {"ticker": ticker, "date": value.date().isoformat()}
+        for value in dates.loc[usable]
+    ]
+
+
+def _benchmark_history(
+    provider: MarketDataProvider,
+    benchmark: str,
+) -> pd.DataFrame:
+    try:
+        return provider.get_price_history(benchmark, period="1y", interval="1d")
+    except (KeyError, LookupError):
+        return pd.DataFrame(columns=["date", "close"])
+
+
+class _PreloadedPriceHistoryProvider:
+    def __init__(
+        self,
+        provider: MarketDataProvider,
+        histories: dict[str, pd.DataFrame],
+    ) -> None:
+        self._provider = provider
+        self._histories = {
+            ticker.upper(): history.copy()
+            for ticker, history in histories.items()
+        }
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._provider, name)
+
+    def get_price_history(
+        self,
+        ticker: str,
+        period: str,
+        interval: str,
+    ) -> pd.DataFrame:
+        scope = ticker.upper()
+        if scope not in self._histories:
+            raise LookupError(f"No preloaded price history for {scope}")
+        return self._histories[scope].copy()
+
+
+def _build_quant_interpretation(
+    *,
+    ticker: str,
+    history: pd.DataFrame,
+    benchmark_histories: dict[str, pd.DataFrame],
+    report_cutoff: pd.Timestamp,
+    performance: PerformanceSummary,
+    valuation: ValuationResult,
+    review_metric_snapshots: dict[str, ReviewMetricsSnapshot],
+) -> dict[str, Any]:
+    observation_rows = _observation_rows(ticker, history)
+    for benchmark, benchmark_history in benchmark_histories.items():
+        observation_rows.extend(_observation_rows(benchmark, benchmark_history))
+    observations = evaluate_observation_rows(
+        observation_rows,
+        selected_ticker=ticker,
+        benchmark_tickers=("SPY", "QQQ"),
+        as_of=report_cutoff.date(),
+    )
+    observations_by_scope: dict[str, ObservationRecency] = {
+        observations.selected_ticker.scope: observations.selected_ticker,
+        **{item.scope: item for item in observations.benchmarks},
+    }
+    proof_states = {
+        "provenance_state": "unverified",
+        "rights_state": "unverified",
+        "field_scope_state": "unverified",
+    }
+
+    valuation_decision = _quant_interpretation_decision(
+        valuation_quant_assessment(
+            valuation,
+            scope=f"{ticker}:valuation_snapshot",
+            observation=observations.selected_ticker,
+            **proof_states,
+        )
+    )
+    performance_row = {"ticker": ticker, **performance.to_dict()}
+    indicator_decisions = {
+        metric_name: _quant_interpretation_decision(
+            indicator_quant_assessment(
+                performance_row,
+                metric_name=metric_name,
+                observation=observations.selected_ticker,
+                benchmark_observation=None,
+                **proof_states,
+            )
+        )
+        for metric_name in ("one_month", "three_month", "one_year")
+    }
+    review_metric_decisions: dict[str, Any] = {}
+    for benchmark, snapshot in review_metric_snapshots.items():
+        benchmark_decisions: dict[str, Any] = {}
+        for group_name, metrics in (
+            ("price_metrics", snapshot.price_metrics),
+            ("fundamentals_metrics", snapshot.fundamentals_metrics),
+            ("valuation_metrics", snapshot.valuation_metrics),
+            ("peer_metrics", snapshot.peer_metrics),
+        ):
+            benchmark_decisions[group_name] = {
+                metric.name: _quant_interpretation_decision(
+                    review_metric_quant_assessment(
+                        metric,
+                        ticker=ticker,
+                        observation=observations.selected_ticker,
+                        benchmark_observation=(
+                            observations_by_scope.get(metric.benchmark.upper())
+                            if metric.benchmark
+                            else None
+                        ),
+                        **proof_states,
+                    )
+                )
+                for metric in metrics
+            }
+        review_metric_decisions[benchmark] = benchmark_decisions
+    return {
+        "valuation": valuation_decision,
+        "indicators": indicator_decisions,
+        "review_metrics": review_metric_decisions,
+    }
+
+
 def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport:
     ticker = ticker.upper()
+    report_cutoff = pd.Timestamp.now(tz="UTC")
     quote = provider.get_quote(ticker)
     history = provider.get_price_history(ticker, period="1y", interval="1d")
     financials = provider.get_financials(ticker)
@@ -491,10 +662,37 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
     )
     provider_root = getattr(provider, "base_dir", None)
     risk_free_rate = configured_risk_free_rate(Path(provider_root)) if provider_root is not None else 0.0
-    review_metrics = {
-        benchmark: build_review_metrics(ticker, provider, benchmark=benchmark, annual_risk_free_rate=risk_free_rate).to_dict()
+    price_histories = {ticker: history}
+    for benchmark in ("SPY", "QQQ"):
+        if benchmark not in price_histories:
+            price_histories[benchmark] = _benchmark_history(provider, benchmark)
+    metric_provider = _PreloadedPriceHistoryProvider(provider, price_histories)
+    review_metric_snapshots = {
+        benchmark: build_review_metrics(
+            ticker,
+            metric_provider,
+            benchmark=benchmark,
+            annual_risk_free_rate=risk_free_rate,
+        )
         for benchmark in ("SPY", "QQQ")
     }
+    review_metrics = {
+        benchmark: snapshot.to_dict()
+        for benchmark, snapshot in review_metric_snapshots.items()
+    }
+    benchmark_histories = {
+        benchmark: price_histories[benchmark]
+        for benchmark in ("SPY", "QQQ")
+    }
+    quant_interpretation = _build_quant_interpretation(
+        ticker=ticker,
+        history=history,
+        benchmark_histories=benchmark_histories,
+        report_cutoff=report_cutoff,
+        performance=performance,
+        valuation=valuation,
+        review_metric_snapshots=review_metric_snapshots,
+    )
     missing_data_warnings = _build_missing_data_warnings(
         performance,
         financials,
@@ -506,7 +704,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
 
     return StockReport(
         ticker=ticker,
-        generated_at=pd.Timestamp.now(tz="UTC").isoformat(),
+        generated_at=report_cutoff.isoformat(),
         provider_name=type(provider).__name__,
         price_snapshot=_price_snapshot_dict(quote),
         performance=performance,
@@ -519,6 +717,7 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
         data_freshness=data_freshness,
         valuation_readiness=_valuation_readiness_dict(valuation, earnings, estimates, peer_summary),
         review_metrics=review_metrics,
+        quant_interpretation=quant_interpretation,
         dataset_coverage=dataset_coverage,
         local_data_validation=local_data_validation,
         screener_context=screener_context,
@@ -1900,31 +2099,32 @@ def _stock_report_data_health_handoff_line(
     estimates_ready: Any,
     peer: dict[str, Any] | None = None,
 ) -> str:
+    selected_profile = resolve_readiness_proof_profile()
     if not bool(price_ready):
         lane = "Price Coverage Batch"
         command = f"make focus-price TICKER={ticker}"
-        proof = "make price-coverage TOP_N=25 && make readiness"
+        proof = f"make readiness-snapshot PROFILE={selected_profile} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     elif monitor_context:
         lane = "Single-Stock Review"
         command = f"make stock-report-md TICKER={ticker}"
-        proof = "make readiness"
+        proof = f"make readiness-snapshot PROFILE={selected_profile} && make reviewed-batch-compare PROFILE={selected_profile} LANE=excluded BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     elif dcf_status_text == "blocked":
         lane = "Fundamentals / DCF Proof"
         command = f"make focus-fundamentals TICKER={ticker}"
-        proof = "make dcf-readiness && make readiness"
+        proof = f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     elif not bool(peer_ready):
         peer_lane = _stock_report_peer_lane(peer, peer_ready)
         lane = "Peer Valuation Inputs Proof" if peer_lane == "peer_valuation_inputs" else "Peer Mapping Proof"
         command = f"make focus-peers TICKER={ticker}"
-        proof = f"make readiness && make peer-mapping-queue TICKERS={ticker} TOP_N=10"
+        proof = f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TICKERS={ticker} TOP_N=10"
     elif not bool(earnings_ready) or not bool(estimates_ready):
         lane = "Optional Context Proof"
         command = f"make optional-context-worklist TICKERS={ticker} TOP_N=10"
-        proof = "make optional-context-readiness && make readiness"
+        proof = f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     else:
         lane = "Single-Stock Review"
         command = f"make stock-report-md TICKER={ticker}"
-        proof = "make readiness"
+        proof = f"make readiness-snapshot PROFILE={selected_profile} && make reviewed-batch-compare PROFILE={selected_profile} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     return f"- Data Health lane: {lane}. Suggested local check: `{command}`. Confirm with `{proof}` before treating the lane as available."
 
 
@@ -2505,13 +2705,13 @@ def _stock_report_peer_evidence_ladder_lines(
             "- Trusted peer path: add verified mapped-peer price history in `data/imports/prices.csv` or reviewed mapped-peer fundamentals; "
             f"use `data/imports/peers.csv` only if mappings change. Then run `make imports-validate IMPORT_TICKERS={ticker}`, "
             f"`make imports-preview IMPORT_TICKERS={ticker}`, `make imports-apply IMPORT_TICKERS={ticker}`, "
-            "`make readiness`, and `make peer-mapping-queue TOP_N=25`."
+            f"`make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, and `make peer-mapping-queue TOP_N=25`."
         )
     else:
         trusted_peer_path = (
             f"- Trusted peer path: add source-backed rows in `data/imports/peers.csv`, then run `make imports-validate IMPORT_TICKERS={ticker}`, "
             f"`make imports-preview IMPORT_TICKERS={ticker}`, `make imports-apply IMPORT_TICKERS={ticker}`, "
-            "`make readiness`, and `make peer-mapping-queue TOP_N=25`."
+            f"`make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, and `make peer-mapping-queue TOP_N=25`."
         )
     return [
         "- Peer ladder: standalone DCF can be reviewed before peer valuation is ready.",
@@ -2584,6 +2784,7 @@ def _stock_report_unlock_command_lines(
     earnings_ready: Any,
     estimates_ready: Any,
 ) -> list[str]:
+    selected_profile = resolve_readiness_proof_profile()
     asset_type = _display_value(readiness.get("asset_type"), "").lower()
     monitor_context = dcf_status_text == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
     price_ready = bool(readiness.get("price_ready"))
@@ -2606,7 +2807,7 @@ def _stock_report_unlock_command_lines(
                 f"- Price first: `make focus-price TICKER={ticker}`.",
                 f"- Price coverage refresh: `make price-refresh TICKERS={ticker} PROVIDER=auto` so Stooq, Yahoo, optional IBKR read-only, and configured FMP/Alpha Vantage/Finnhub are tried before the last manual import path.",
                 "- Price import safety: `make price-validate && make price-preview && make price-apply`.",
-                "- Price rebuild proof: `make price-coverage TOP_N=25 && make readiness` before interpreting setup, trend, or valuation context.",
+                f"- Price proof: `make readiness-snapshot PROFILE={selected_profile} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before interpreting setup, trend, or valuation context.",
             ]
         )
     else:
@@ -2620,7 +2821,7 @@ def _stock_report_unlock_command_lines(
                 f"- Fundamentals / DCF: `make focus-fundamentals TICKER={ticker}`.",
                 f"- SEC/manual import checklist: `make sec-stage-queue TICKERS={ticker} TOP_N=10`.",
                 f"- Fundamentals import safety: `make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker}` after source review.",
-                "- DCF rebuild proof: `make dcf-readiness && make readiness` before reading standalone DCF output.",
+                f"- DCF proof: `make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before reading standalone DCF output.",
             ]
         )
     else:
@@ -2634,7 +2835,7 @@ def _stock_report_unlock_command_lines(
                 f"- Peer mapping: `make focus-peers TICKER={ticker}`.",
                 f"- Peer mapping checklist: `make peer-mapping-queue TICKERS={ticker} TOP_N=10`.",
                 f"- Peer import safety: `make templates && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker}` after source review.",
-                f"- Peer rebuild proof: `make readiness && make peer-mapping-queue TICKERS={ticker} TOP_N=10` before reading peer-relative valuation.",
+                f"- Peer proof: `make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TICKERS={ticker} TOP_N=10` before reading peer-relative valuation.",
             ]
         )
     else:
@@ -2648,7 +2849,7 @@ def _stock_report_unlock_command_lines(
                 "- Earnings import: `make import-earnings`.",
                 "- Analyst-estimates import: `make import-analyst-estimates`.",
                 f"- Optional import safety: `make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker}` after source review.",
-                "- Optional-context rebuild proof: `make optional-context-readiness && make readiness` before treating earnings or estimates as available context.",
+                f"- Optional-context proof: `make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker> && make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before treating earnings or estimates as available context.",
             ]
         )
     return lines

@@ -1,9 +1,12 @@
 import json
+from pathlib import Path
 
 import pandas as pd
 import pytest
 
+import src.demo_data_builder as demo_data_builder
 from src.demo_data_builder import build_demo_data_profile, verify_demo_data_profile
+from src.paths import DataProfile
 
 
 def _write_source_data(root):
@@ -113,6 +116,39 @@ def test_demo_builder_creates_profile_local_readiness_and_auditable_manifest(tmp
     assert manifest["known_limitations"]
     assert manifest["files"]["prices.csv"]["sha256"]
     assert not (tmp_path / "outputs" / "demo" / "research_decisions.csv").exists()
+
+
+@pytest.mark.parametrize("profile_name", ["default", "local"])
+def test_demo_builder_rejects_non_demo_profile_before_writing(tmp_path, monkeypatch, profile_name):
+    _write_source_data(tmp_path)
+    blocked_profile = DataProfile(
+        name=profile_name,
+        data_dir=tmp_path / "data" / profile_name,
+        outputs_dir=tmp_path / "outputs" / profile_name,
+    )
+    monkeypatch.setattr(demo_data_builder, "resolve_data_profile", lambda *_args, **_kwargs: blocked_profile)
+
+    with pytest.raises(ValueError, match="demo profile"):
+        build_demo_data_profile(tmp_path, tickers=("NVDA",), snapshot_date="2026-07-01")
+
+    assert not blocked_profile.data_dir.exists()
+    assert not blocked_profile.outputs_dir.exists()
+
+
+def test_demo_builder_targets_only_demo_paths_and_is_not_a_composite_make_dependency(tmp_path):
+    _write_source_data(tmp_path)
+
+    result = build_demo_data_profile(tmp_path, tickers=("NVDA",), snapshot_date="2026-07-01")
+
+    assert result.data_dir == tmp_path / "data" / "demo"
+    assert result.outputs_dir == tmp_path / "outputs" / "demo"
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    assert "demo-data-build:" in makefile
+    assert not any(
+        line.split(":", 1)[0].strip() not in {".PHONY", "demo-data-build"} and "demo-data-build" in line
+        for line in makefile.splitlines()
+        if ":" in line
+    )
 
 
 def test_demo_builder_refuses_to_overwrite_an_existing_demo_profile(tmp_path):

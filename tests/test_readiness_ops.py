@@ -2,6 +2,8 @@ import json
 import os
 from pathlib import Path
 
+import pytest
+
 from src import readiness_ops as readiness_ops_module
 from src.readiness_ops import (
     build_fundamentals_peer_metrics_queue,
@@ -21,6 +23,7 @@ from src.readiness_ops import (
     render_readiness_ops_evidence,
 )
 from src.dcf_input_proof_queue import DcfInputProofRow
+from src.continuation_gate import ContinuationGate
 
 
 def _write(path: Path, text: str) -> None:
@@ -192,7 +195,7 @@ def _sample_root(tmp_path: Path) -> Path:
 
 
 def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path: Path):
-    lanes = build_readiness_ops_lanes(_sample_root(tmp_path))
+    lanes = build_readiness_ops_lanes(_sample_root(tmp_path), profile="default")
     by_lane = {lane.lane: lane for lane in lanes}
 
     assert by_lane["price_coverage"].readiness_state == "partial"
@@ -213,8 +216,16 @@ def test_readiness_ops_center_preserves_lane_states_and_locked_context(tmp_path:
     assert by_lane["earnings_locked"].workflow_mode == "optional_source_ladder"
     assert by_lane["analyst_estimates_locked"].workflow_mode == "optional_source_ladder"
     assert by_lane["earnings_locked"].next_safe_command == "make optional-context-source-ladder-queue TOP_N=10"
-    assert "make imports-apply" not in by_lane["earnings_locked"].proof_command
-    assert "make imports-apply" not in by_lane["analyst_estimates_locked"].proof_command
+    for lane_name in ("earnings_locked", "analyst_estimates_locked"):
+        proof_command = by_lane[lane_name].proof_command
+        assert proof_command.startswith("make readiness-snapshot PROFILE=default && ")
+        assert "make imports-validate IMPORT_TICKERS=<ticker>" in proof_command
+        assert "make imports-preview IMPORT_TICKERS=<ticker>" in proof_command
+        assert "make imports-apply IMPORT_TICKERS=<ticker>" in proof_command
+        assert (
+            "make reviewed-batch-compare PROFILE=default LANE=optional_context "
+            "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        ) in proof_command
     assert "apply only after validation passes" in by_lane["earnings_locked"].generated_churn_policy
     assert "apply only after validation passes" in by_lane["analyst_estimates_locked"].generated_churn_policy
     assert by_lane["excluded_not_applicable"].readiness_state == "excluded"
@@ -239,7 +250,7 @@ def test_readiness_ops_surfaces_reviewed_batch_ledger_progress_without_unlocking
     _write_reviewed_batch_proofs(root)
 
     summaries = build_reviewed_batch_ledger_summaries(root)
-    lanes = build_readiness_ops_lanes(root)
+    lanes = build_readiness_ops_lanes(root, profile="default")
     by_lane = {lane.lane: lane for lane in lanes}
     rendered = render_readiness_ops_center(lanes)
     frontier = build_coverage_frontier(lanes, top_n=10)
@@ -276,7 +287,7 @@ def test_readiness_ops_uses_reviewed_price_ledger_to_stop_repeating_exhausted_re
         + "\n",
     )
 
-    lanes = build_readiness_ops_lanes(root)
+    lanes = build_readiness_ops_lanes(root, profile="default")
     by_lane = {lane.lane: lane for lane in lanes}
     frontier_rendered = render_coverage_frontier(build_coverage_frontier(lanes, top_n=10))
 
@@ -316,7 +327,7 @@ def test_readiness_ops_routes_exhausted_dcf_ladders_to_provider_or_manual_activa
         )
     ]
 
-    lanes = build_readiness_ops_lanes(root, dcf_input_rows=reviewed_rows)
+    lanes = build_readiness_ops_lanes(root, profile="default", dcf_input_rows=reviewed_rows)
     by_lane = {lane.lane: lane for lane in lanes}
     frontier_rendered = render_coverage_frontier(build_coverage_frontier(lanes, top_n=10))
 
@@ -330,7 +341,7 @@ def test_readiness_ops_routes_fundamentals_to_source_ladder_when_fallback_provid
     root = _sample_root(tmp_path)
     _write_session_source_preflight(root, fmp="available")
 
-    lanes = build_readiness_ops_lanes(root)
+    lanes = build_readiness_ops_lanes(root, profile="default")
     by_lane = {lane.lane: lane for lane in lanes}
     rendered = render_readiness_ops_center(lanes)
 
@@ -344,7 +355,7 @@ def test_readiness_ops_classifies_missing_fallback_keys_without_generic_blocker_
     root = _sample_root(tmp_path)
     _write_session_source_preflight(root)
 
-    lanes = build_readiness_ops_lanes(root)
+    lanes = build_readiness_ops_lanes(root, profile="default")
     by_lane = {lane.lane: lane for lane in lanes}
 
     assert by_lane["fundamentals_dcf"].next_safe_command == "make fundamentals-source-ladder-queue TOP_N=25"
@@ -390,7 +401,7 @@ def test_readiness_ops_routes_source_lanes_to_activation_when_no_source_path_is_
     }
     _write(root / "outputs" / "session_source_preflight.json", json.dumps(payload))
 
-    lanes = build_readiness_ops_lanes(root)
+    lanes = build_readiness_ops_lanes(root, profile="default")
     by_lane = {lane.lane: lane for lane in lanes}
     rendered = render_readiness_ops_center(lanes)
     frontier = build_coverage_frontier(lanes, top_n=10)
@@ -417,7 +428,7 @@ def test_readiness_ops_routes_source_lanes_to_activation_when_no_source_path_is_
 
 
 def test_fundamentals_peer_metrics_queue_summarizes_next_layer_without_fake_unlocks(tmp_path: Path):
-    rows = build_fundamentals_peer_metrics_queue(_sample_root(tmp_path), top_n=2)
+    rows = build_fundamentals_peer_metrics_queue(_sample_root(tmp_path), profile="default", top_n=2)
     rendered = render_fundamentals_peer_metrics_queue(rows)
     by_lane = {row.lane: row for row in rows}
 
@@ -446,8 +457,8 @@ def test_fundamentals_peer_metrics_queue_summarizes_next_layer_without_fake_unlo
 
 def test_fundamentals_peer_metrics_queue_can_reuse_existing_lanes(tmp_path: Path):
     root = _sample_root(tmp_path)
-    lanes = build_readiness_ops_lanes(root)
-    direct_rows = build_fundamentals_peer_metrics_queue(root, top_n=2)
+    lanes = build_readiness_ops_lanes(root, profile="default")
+    direct_rows = build_fundamentals_peer_metrics_queue(root, profile="default", top_n=2)
     reused_rows = build_fundamentals_peer_metrics_queue_from_lanes(lanes, root=root, top_n=2)
 
     assert [row.lane for row in reused_rows] == [row.lane for row in direct_rows]
@@ -485,6 +496,18 @@ def test_readiness_ops_cli_uses_selected_profile_context_and_lane_counts(tmp_pat
     (tmp_path / "data").mkdir()
     local_staging.rename(tmp_path / "data/local")
     monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+    monkeypatch.setattr(
+        readiness_ops_module,
+        "build_continuation_gate",
+        lambda _context: ContinuationGate(
+            state="inspection_only",
+            next_safe_command="make readiness-preview TOP_N=20",
+            reason="Working readiness is not tracked release evidence.",
+            rebuild_command="",
+            stop_rule="Do not start broad refresh or source-proof work.",
+            suppress_execution=True,
+        ),
+    )
 
     assert readiness_ops_module.main(["--root", str(tmp_path)]) == 0
     output = capsys.readouterr().out
@@ -493,6 +516,11 @@ def test_readiness_ops_cli_uses_selected_profile_context_and_lane_counts(tmp_pat
     assert "Saved readiness coverage: price=2/3; fundamentals=1/3; DCF=1/3; peers=0/3" in output
     assert "Price Coverage | partial" in output
     assert "counts: ready=2; partial=0; blocked=1; excluded=0; total=3" in output
+    assert "Readiness continuation gate: inspection_only" in output
+    assert "Next safe preview: make readiness-preview TOP_N=20" in output
+    assert "Lane commands below are planning context only" in output
+    assert output.count("next_safe_command: make readiness-preview TOP_N=20") == 1
+    assert "planning_command: make price-refresh-loop DRY_RUN=1" in output
 
 
 def test_peer_readiness_summary_separates_mapping_trend_and_valuation_inputs(tmp_path: Path):
@@ -563,7 +591,7 @@ def test_peer_frontier_ranks_mapping_before_mapped_peer_inputs_when_mapping_is_p
         + "\n",
     )
 
-    lanes = build_readiness_ops_lanes(root)
+    lanes = build_readiness_ops_lanes(root, profile="default")
     by_lane = {lane.lane: lane for lane in lanes}
     peer_frontier = build_coverage_frontier(
         [by_lane["peer_mapping"], by_lane["peer_valuation_inputs"]],
@@ -579,7 +607,7 @@ def test_peer_frontier_ranks_mapping_before_mapped_peer_inputs_when_mapping_is_p
 
 
 def test_coverage_frontier_ranks_batch_lanes_without_implying_data_available(tmp_path: Path):
-    lanes = build_readiness_ops_lanes(_sample_root(tmp_path))
+    lanes = build_readiness_ops_lanes(_sample_root(tmp_path), profile="default")
     frontier = build_coverage_frontier(lanes, top_n=10)
     rendered = render_coverage_frontier(frontier)
 
@@ -590,8 +618,31 @@ def test_coverage_frontier_ranks_batch_lanes_without_implying_data_available(tmp
     assert "make optional-context-source-ladder-queue TOP_N=10" in rendered
 
 
+def test_coverage_frontier_marks_ranked_rows_planning_only_when_readiness_is_stale(tmp_path: Path):
+    lanes = build_readiness_ops_lanes(_sample_root(tmp_path), profile="default")
+    frontier = build_coverage_frontier(lanes, top_n=2)
+    gate = ContinuationGate(
+        state="inspection_only",
+        next_safe_command="make readiness-preview TOP_N=20",
+        reason="Selected-profile source dates are newer than saved readiness.",
+        rebuild_command="make readiness",
+        stop_rule="Do not start broad refresh or source-proof work.",
+        suppress_execution=True,
+    )
+
+    rendered = render_coverage_frontier(frontier, continuation_gate=gate)
+
+    assert "Readiness continuation gate: inspection_only" in rendered
+    assert "Stale readiness continuation gate" not in rendered
+    assert "Next safe preview: make readiness-preview TOP_N=20" in rendered
+    assert "Ranked rows below are planning context only" in rendered
+    assert "Inspection boundary: make readiness-preview TOP_N=20" in rendered
+    assert "does not refresh or persist saved readiness" in rendered
+    assert rendered.index("Readiness continuation gate") < rendered.index("1.")
+
+
 def test_data_coverage_expansion_plan_keeps_batches_proof_gated_and_read_only(tmp_path: Path):
-    lanes = build_readiness_ops_lanes(_sample_root(tmp_path))
+    lanes = build_readiness_ops_lanes(_sample_root(tmp_path), profile="default")
     steps = build_data_coverage_expansion_plan(lanes, top_n=10)
     rendered = render_data_coverage_expansion_plan(steps)
     by_lane = {step.lane: step for step in steps}
@@ -623,7 +674,7 @@ def test_data_coverage_expansion_plan_keeps_batches_proof_gated_and_read_only(tm
 def test_data_coverage_expansion_plan_surfaces_reviewed_proof_status(tmp_path: Path):
     root = _sample_root(tmp_path)
     _write_reviewed_batch_proofs(root)
-    lanes = build_readiness_ops_lanes(root)
+    lanes = build_readiness_ops_lanes(root, profile="default")
     steps = build_data_coverage_expansion_plan(lanes, top_n=10)
     rendered = render_data_coverage_expansion_plan(steps)
     by_lane = {step.lane: step for step in steps}
@@ -634,7 +685,7 @@ def test_data_coverage_expansion_plan_surfaces_reviewed_proof_status(tmp_path: P
 
 
 def test_data_coverage_proof_queues_connect_next_batches_without_applying_data(tmp_path: Path):
-    rows = build_data_coverage_proof_queues(_sample_root(tmp_path), top_n=3)
+    rows = build_data_coverage_proof_queues(_sample_root(tmp_path), profile="default", top_n=3)
     rendered = render_data_coverage_proof_queues(rows)
     by_key = {row.queue_key: row for row in rows}
 
@@ -672,11 +723,25 @@ def test_data_coverage_proof_queues_connect_next_batches_without_applying_data(t
     assert "recommendations" in rendered
 
 
+def test_readiness_ops_rejects_profile_mismatched_override_paths(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    mismatched = {
+        "profile": "local",
+        "data_dir": root / "data",
+        "output_dir": root / "outputs",
+    }
+
+    with pytest.raises(ValueError, match="selected profile paths"):
+        build_readiness_ops_lanes(root, **mismatched)
+    with pytest.raises(ValueError, match="selected profile paths"):
+        build_data_coverage_proof_queues(root, top_n=3, **mismatched)
+
+
 def test_data_coverage_proof_queues_surface_reviewed_status_for_peer_mapping(tmp_path: Path):
     root = _sample_root(tmp_path)
     _write_reviewed_batch_proofs(root)
 
-    rows = build_data_coverage_proof_queues(root, top_n=3)
+    rows = build_data_coverage_proof_queues(root, profile="default", top_n=3)
     rendered = render_data_coverage_proof_queues(rows)
     by_key = {row.queue_key: row for row in rows}
 
@@ -687,7 +752,7 @@ def test_data_coverage_proof_queues_surface_reviewed_status_for_peer_mapping(tmp
 
 
 def test_readiness_ops_rendering_keeps_research_only_and_churn_boundaries(tmp_path: Path):
-    lanes = build_readiness_ops_lanes(_sample_root(tmp_path))
+    lanes = build_readiness_ops_lanes(_sample_root(tmp_path), profile="default")
     frontier = build_coverage_frontier(lanes, top_n=10)
     rendered = render_readiness_ops_center(lanes)
     evidence = render_readiness_ops_evidence(lanes, frontier)

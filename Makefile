@@ -1,10 +1,20 @@
-.PHONY: help help-full next-stage profile-context research-change-snapshot research-change-monitor research-review-queue research-event-review-record demo demo-data-build demo-data-check demo-dashboard demo-dashboard-smoke demo-dashboard-render-smoke local-profile-seed linkedin-share-check public-performance-contract public-performance-gate public-ux-review-checklist public-ux-review-checklist-json public-ux-review-notes public-ux-review-notes-check public-ux-review-note pilot-review-feedback pilot-feedback-closeout browser-qa-evidence browser-qa-capture-plan hosted-demo-readiness pilot-readiness-check pilot-readiness-packet pilot-share-brief trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight auto-refresh-plan auto-refresh-daily auto-refresh-weekly auto-refresh-optional auto-refresh-runbook auto-refresh-status scheduler-activation-checklist auto-apply-gate lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff license-status session-source-preflight source-activation-guide provider-setup-checklist provider-smoke fmp-smoke alpha-vantage-smoke finnhub-smoke universe-scope fundamentals-source-ladder fundamentals-source-ladder-queue optional-context-source-ladder optional-context-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage sec-filing-share-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check risk-context action-queue action-queue-check project-status project-status-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-preview-summary universe-stage universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-snapshot research-decisions earnings-nowcast-pilot earnings-nowcast-walkthrough earnings-nowcast-templates earnings-nowcast-validate earnings-nowcast-preview earnings-nowcast-readiness earnings-nowcast-prospective-plan
+.PHONY: help help-full next-stage profile-context research-change-snapshot research-change-monitor research-review-queue research-event-review-record demo demo-data-build demo-data-check demo-dashboard demo-dashboard-smoke demo-dashboard-render-smoke local-profile-seed linkedin-share-check public-performance-contract public-performance-gate public-ux-review-checklist public-ux-review-checklist-json public-ux-review-notes public-ux-review-notes-check public-ux-review-note pilot-review-feedback pilot-feedback-closeout browser-qa-evidence browser-qa-capture-plan hosted-demo-readiness pilot-readiness-check pilot-readiness-packet pilot-share-brief trusted-data-pilot trusted-data-pilot-candidates trusted-data-pilot-packet trusted-data-pilot-lane trusted-data-pilot-board trusted-data-pilot-evidence reviewed-data-proof reviewed-data-proof-record reviewed-batch-proof reviewed-batch-proof-record reviewed-batch-compare reviewed-batch-preflight proof-readiness-reconciliation auto-refresh-plan auto-refresh-daily auto-refresh-weekly auto-refresh-optional auto-refresh-runbook auto-refresh-status scheduler-activation-checklist auto-apply-gate lane-outcome-history price-reviewed-run fundamentals-batch-proof peer-batch-proof peer-mapping-source-review peer-mapping-writeback-guard public-demo-readiness-pack readiness-ops-center readiness-queue data-coverage-proof-queues coverage-frontier data-coverage-planner coverage-expansion-loop readiness-ops-evidence reviewed-batch decision-proof-queue metric-readiness metric-readiness-board benchmark-risk-review diff-hygiene diff-hygiene-summary diff-hygiene-files data-release-decision public-release-package public-release-handoff license-status session-source-preflight source-activation-guide provider-setup-checklist provider-smoke fmp-smoke alpha-vantage-smoke finnhub-smoke universe-scope fundamentals-source-ladder fundamentals-source-ladder-queue optional-context-source-ladder optional-context-source-ladder-queue fmp-stage alpha-vantage-stage finnhub-stage yfinance-stage sec-filing-share-stage staged-hygiene-check public-wording-check public-check status status-check test pipeline stock-report stock-report-md local-tickers monthly track-record validate-data data-sources-check data-sources research-health research-health-check risk-context action-queue action-queue-check project-status project-status-check verify validate-all daily dashboard dashboard-smoke sec-stage sec-validate sec-preview sec-apply imports-validate imports-preview imports-apply import-staging universe-preview universe-preview-summary universe-stage universe-apply universe-refresh universe-report universe-active coverage data-wizard unlock-ladder unlock-summary command-bundles command-bundle-details command-bundle-runbook bundle-prices bundle-fundamentals bundle-peers bundle-prices-broader bundle-fundamentals-broader bundle-peers-broader detail-prices detail-fundamentals detail-peers detail-prices-broader detail-fundamentals-broader detail-peers-broader runbook-prices runbook-fundamentals runbook-peers runbook-prices-broader runbook-fundamentals-broader runbook-peers-broader focus-price focus-fundamentals focus-peers onboarding templates price-status price-worklist fundamentals-peer-worklist optional-context-worklist sec-stage-queue peer-mapping-queue dcf-input-proof-queue dcf-input-proof-handoff dcf-input-source-review dcf-input-source-command-plan dcf-input-source-guard share-count-proof-queue price-history-proof-queue price-validate price-preview price-apply price-refresh price-refresh-loop price-normalize import-prices price-coverage dcf-readiness import-fundamentals optional-context-summary optional-context-readiness import-earnings import-analyst-estimates readiness readiness-preview readiness-release-review readiness-release-record readiness-release-guard readiness-materialize readiness-snapshot research-decisions earnings-nowcast-pilot earnings-nowcast-walkthrough earnings-nowcast-templates earnings-nowcast-validate earnings-nowcast-preview earnings-nowcast-readiness earnings-nowcast-prospective-plan
 
 .PHONY: thesis-journal thesis-journal-preview thesis-journal-record
+.PHONY: prospective-field-proof-status prospective-field-proof-audit prospective-field-proof-preview prospective-field-proof-record
+.PHONY: refresh-operations-status refresh-operations-runbook
+.PHONY: earnings-nowcast-sec-actuals-stage
+.PHONY: earnings-nowcast-cohort-readiness earnings-consensus-source-status earnings-consensus-source-review earnings-consensus-collection-plan earnings-consensus-collection-status earnings-consensus-collection-preview earnings-consensus-collection-record research-outcome-review research-outcome-review-preview research-outcome-review-record catalyst-evidence-timeline catalyst-evidence-preview catalyst-evidence-record
+EARNINGS_NOWCAST_COHORT ?= NVDA,AMD,AVGO,MU,QCOM
+.PHONY: commercial-source-rights commercial-beta-check commercial-beta-release-check
+.PHONY: private-beta-readiness
+.PHONY: point-in-time-universe-status point-in-time-universe-preview
+.PHONY: calibration-evidence-bundle-preview
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
 DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO
 DEFAULT_METRIC_BENCHMARKS := SPY,QQQ
+NO_WRITE_GUARD = PYTHONDONTWRITEBYTECODE=1 python3 -m src.no_write_artifact_guard --project-root . --
 
 help:
 	@echo "Stock Research Command Center"
@@ -16,20 +26,24 @@ help:
 	@echo "  make project-status-check       Read current coverage, blockers, and executable next steps"
 	@echo "  make provider-setup-checklist   Review optional key setup without exposing secrets"
 	@echo "  make hosted-demo-readiness      Check hosted-app readiness without deploying"
-	@echo "  make pilot-review-feedback      Print the controlled 5-10 reviewer feedback capture guide"
+	@echo "  make commercial-beta-check      Run the read-only commercial-beta contract checks"
+	@echo "  make point-in-time-universe-status MANIFEST=<path> [REGISTRY=<path>] Validate one immutable universe package"
+	@echo "  make point-in-time-universe-preview MANIFEST=<path> [REGISTRY=<path>] [TOP_N=20] Preview one immutable universe package"
+	@echo "  make pilot-review-feedback      Print the controlled 10-20 reviewer feedback capture guide"
 	@echo "  make pilot-feedback-closeout    Print the reviewer feedback closeout and fix/defer checklist"
 	@echo "  make scheduler-activation-checklist Print the safe scheduler activation checklist"
 	@echo "  make public-check / public-release-handoff Verify sharing and terminal steps"
-	@echo ""
+	@echo "  make company-workbench-html-browser-check Verify offline research-brief bytes in a real browser"
 	@echo "Useful next paths:"
 	@echo "  Review one stock:        make stock-report-md TICKER=NVDA"
-	@echo "  Check current counts:    make status-check TOP_N=5"
+	@echo "  Check lane truth:        make readiness-ops-center"
+	@echo "  Inspect saved snapshot:  make status-check TOP_N=5  # can be stale"
 	@echo "  Share on LinkedIn:       make public-check && make linkedin-share-check"
 	@echo "  Verify public hygiene:   make diff-hygiene-summary && make staged-hygiene-check"
 	@echo ""
 	@echo "For the full local command catalog, run: make help-full"
 
-.PHONY: dashboard-render-smoke
+.PHONY: dashboard-render-smoke research-dashboard-render-smoke commercial-beta-performance-contract commercial-beta-performance-gate research-accessibility-browser-check workspace-visual-browser-check company-workbench-html-browser-check
 .PHONY: price-history-batch-closeout
 
 next-stage:
@@ -88,6 +102,8 @@ help-full:
 	@echo "                        Print one lane group's ordered proof steps and evidence summary"
 	@echo "  make reviewed-data-proof"
 	@echo "  make reviewed-batch-proof"
+	@echo "  make proof-readiness-reconciliation TOP_N=20"
+	@echo "                        Compare historical proof outcomes with current saved readiness without writing files"
 	@echo "  make reviewed-batch-compare"
 	@echo "  make reviewed-batch-preflight"
 	@echo "                        Print the durable reviewed data proof ledger"
@@ -121,6 +137,12 @@ help-full:
 	@echo "                        Print the copy-ready terminal handoff for verify, stage, commit, and push"
 	@echo "  make license-status"
 	@echo "                        Print the read-only license/reuse gate before public sharing"
+	@echo "  make point-in-time-universe-status MANIFEST=<path> [REGISTRY=<path>]"
+	@echo "                        Print deterministic validation truth for one immutable universe package"
+	@echo "  make point-in-time-universe-preview MANIFEST=<path> [REGISTRY=<path>] [TOP_N=20]"
+	@echo "                        Preview reproduction digests and capped canonical exclusions without writing"
+	@echo "  make calibration-evidence-bundle-preview BUNDLE=<path>"
+	@echo "                        Preview aggregate calibration evidence consistency without writing"
 	@echo "  make session-source-preflight [SEC_USER_AGENT='Name email@example.com']"
 	@echo "                        Check one session's SEC/yfinance/local-fundamentals path before retrying source-backed coverage work"
 	@echo "  make source-activation-guide"
@@ -152,7 +174,7 @@ help-full:
 	@echo "  make public-ux-review-note"
 	@echo "                        Record one local UX review note row without staging or refreshing data"
 	@echo "  make pilot-review-feedback"
-	@echo "                        Print the controlled 5-10 reviewer feedback capture guide"
+	@echo "                        Print the controlled 10-20 reviewer feedback capture guide"
 	@echo "  make pilot-feedback-closeout"
 	@echo "                        Print the reviewer feedback closeout and fix/defer checklist"
 	@echo "  make readiness-ops-center"
@@ -197,13 +219,16 @@ help-full:
 	@echo "  make lane-outcome-history [LEDGER=data/reviewed_data_proofs.csv] Print lane outcome history from reviewed proof rows"
 	@echo "  make reviewed-data-proof-record LANE=<lane> PROOF_ID=<id> PROOF_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded> Record an intentional reviewed proof row"
 	@echo "  make reviewed-batch-proof [LEDGER=data/reviewed_batch_proofs.csv] Print durable reviewed batch proof rows"
+	@echo "  make proof-readiness-reconciliation [TOP_N=20] [TICKERS=ARCT] [JSON=1] Compare historical proof with current saved readiness"
 	@echo "  make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<auto_supported|human_reviewed_supported|candidate_context_only|still_blocked|skipped|excluded> Record a reviewed or auto-gated batch outcome"
-	@echo "  make reviewed-batch-compare [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare prior/current readiness snapshots for proof-ledger fields"
 	@echo "  make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates"
 	@echo "  make auto-refresh-plan       Print scheduler-ready source-backed auto-refresh lanes and auto gates"
 	@echo "  make auto-refresh-daily      Print daily price, SEC filing/share-count, and fundamentals refresh commands"
 	@echo "  make auto-refresh-runbook    Print compact scheduler runbook for SCHEDULE=daily|weekly|optional|all"
 	@echo "  make auto-refresh-status     Print source activation, setup gaps, next command, and runbook pointer"
+	@echo "  make refresh-operations-status Print read-only provider/retry planning status"
+	@echo "  make refresh-operations-runbook Print the read-only refresh operations runbook"
+	@echo "  make private-beta-readiness Print the read-only nine-area private-beta readiness contract"
 	@echo "  make scheduler-activation-checklist Print the safe scheduler activation checklist"
 	@echo "  make auto-apply-gate         Evaluate deterministic auto-apply gate fields for one staged slice"
 	@echo "  make fundamentals-batch-proof [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write the SEC/manual fundamentals proof packet with validate, preview, rejected-row, compare, and proof-record gates"
@@ -212,7 +237,7 @@ help-full:
 	@echo "  make price-history-batch-closeout [TOP_N=10] [TICKERS=AIAI,AMAN] Print a read-only grouped still-blocked proof-record scaffold"
 	@echo "  make peer-batch-proof [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write the peer mapping and mapped-peer valuation-input proof packet without inferring peers"
 	@echo "  make peer-mapping-source-review [DRY_RUN=1] [TOP_N=10] [TICKERS=NVDA,MSFT] Preview or write a fillable source-review packet before editing data/imports/peers.csv"
-	@echo "  make peer-mapping-writeback-guard TICKER=<ticker> PEER_TICKER=<peer> PEER_GROUP=<group> SOURCE=<url> AS_OF_DATE=<yyyy-mm-dd> REVIEWER=<name> REVIEW_DATE=<yyyy-mm-dd> Preview one reviewed peer import row; blocks duplicates, self-peers, placeholders, and stale readiness"
+	@echo "  make peer-mapping-writeback-guard TICKER=<ticker> PEER_TICKER=<peer> PEER_GROUP=<group> PEER_ROLE=<role> COMPARABILITY_BASIS=<basis> VALUATION_ANCHOR_ELIGIBLE=<yes|no> SOURCE=<url> AS_OF_DATE=<yyyy-mm-dd> REVIEWER=<name> REVIEW_DATE=<yyyy-mm-dd> Preview one reviewed peer import row; blocks incomplete evidence, duplicates, self-peers, placeholders, and stale readiness"
 	@echo "  make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] Print reviewed capped price-run execution, diff, and rollback plan"
 	@echo "  make public-demo-readiness-pack Print the small shareable public demo proof set"
 	@echo "  make readiness-ops-center Print lane-level ready/partial/blocked/excluded operations without refreshing data"
@@ -229,6 +254,7 @@ help-full:
 	@echo "  make metric-readiness-board [TICKERS=NVDA,META] [TOP_N=10] [BENCHMARKS=SPY,QQQ] [OUTPUT=outputs/metric_readiness_board.csv] Print or optionally export the combined benchmark metric-readiness board"
 	@echo "  make diff-hygiene     Print a read-only staging guide that separates product files from local data changes"
 	@echo "  make diff-hygiene-summary Print a short read-only staging summary for public checks"
+	@echo "  make pr-range-hygiene-check BASE_SHA=<sha> HEAD_SHA=<sha> Inspect committed PR paths for generated churn"
 	@echo "  make diff-hygiene-files Write local pathspec files under outputs/staging for safer reviewed staging"
 	@echo "  make data-release-decision Print read-only post-batch keep-local, reviewed-data-release, and cleanup guidance"
 	@echo "  make public-release-package Print read-only product staging, generated exclusion, final checks, commit, and push guidance"
@@ -236,7 +262,7 @@ help-full:
 	@echo "  make public-wording-check Scan public docs, dashboard copy, and sample reports for unsupported advice/execution wording"
 	@echo "  make public-check     Run share-safe checks before posting the repo link; does not refresh broad local data"
 	@echo "  make status [TOP_N=5] Refresh supporting artifacts, then print read-only local project status"
-	@echo "  make status-check [TICKERS=NVDA,MSFT] [TOP_N=5] Print the current read-only local project status without refreshing artifacts"
+	@echo "  make status-check [TICKERS=NVDA,MSFT] [TOP_N=5] Print saved generated-snapshot local project status without refreshing artifacts; context can be stale"
 	@echo "  make test             Run unit tests"
 	@echo "  make pipeline         Generate core CSV outputs"
 	@echo "  make stock-report-md TICKER=NVDA [MD_OUTPUT=outputs/stock_reports/nvda.md] Generate a readable Markdown report for demos and review"
@@ -302,8 +328,16 @@ help-full:
 	@echo "  make templates        Write local CSV templates for peers, earnings, estimates, and manual fallbacks"
 	@echo "  make import-staging   Write header-only staging CSV files under data/imports"
 	@echo "  make validate-data    Validate local CSV datasets"
-	@echo "  make readiness-snapshot Save current ticker readiness as data/reports/ticker_readiness_report.previous.csv before a refresh"
-	@echo "  make readiness        Write central data/reports/ticker_readiness_report.csv"
+	@echo ""
+	@echo "Advanced readiness boundaries:"
+	@echo "  make readiness-preview [TOP_N=20] In-memory preview: stable readiness impact, change causes, and promotion evidence without writing files"
+	@echo "  make readiness-release-review [TOP_N=20] [JSON=1] Review the exact default readiness candidate without writing"
+	@echo "  make readiness-release-record PREVIEW_RECEIPT=<receipt> REVIEWER=<name> REVIEW_DATE=<yyyy-mm-dd> TECHNICAL_DECISION=<approved|rejected> DISTRIBUTION_DECISION=<approved|rejected|external_review_required> CONFIRM_REVIEWED=1 Record one exact named review"
+	@echo "  make readiness-release-guard RECORD_ID=<record_id> Revalidate one record and print exact named staging paths"
+	@echo "  make readiness-snapshot PROFILE=<default|demo|local> Required profile; write one profile-specific prior snapshot from in-memory readiness"
+	@echo "  make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot; current readiness is composed in memory and no current report is written; Required profile"
+	@echo "  make readiness        Deprecated no-write guard; exits 2"
+	@echo "  CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local> Confirmed ignored local materialization; write one ignored full readiness package"
 	@echo ""
 	@echo "Price fallback:"
 	@echo "  make price-refresh-loop DRY_RUN=1 Preview the scalable capped refresh plan without changing local CSV files"
@@ -316,7 +350,8 @@ help-full:
 	@echo "  make price-coverage   Write data/price_coverage_report.csv with rows per universe ticker"
 	@echo "  Start with make status, then the printed price check or guided batch"
 	@echo "  make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual"
-	@echo "  make price-validate && make price-preview && make price-apply"
+	@echo "  make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=<source_id> SOURCE_REF=<durable_reference> RETRIEVED_AT=<timezone-aware-timestamp> AS_OF=<review-cutoff>"
+	@echo "  make price-validate AS_OF=<review-cutoff> && make price-preview AS_OF=<same-cutoff> && make price-apply AS_OF=<same-cutoff>"
 	@echo ""
 	@echo "Preview-first fundamentals and universe imports:"
 	@echo "  export SEC_USER_AGENT='Name email@example.com'"
@@ -372,9 +407,11 @@ demo:
 	@echo "3. Follow one ticker in the app before using terminal proof:"
 	@echo "   Start with Stock Selector, open NVDA or another readiness-backed row, then use Data Health only if an input is blocked."
 	@echo ""
-	@echo "4. Optional current-count proof:"
+	@echo "4. Optional current selected-profile readiness and lane truth:"
+	@echo "   make readiness-ops-center"
+	@echo "   Proves: current selected-profile readiness and lane truth without changing local files."
 	@echo "   make status-check TOP_N=5"
-	@echo "   Proves: current readiness counts and top blockers without changing local files."
+	@echo "   Saved generated-snapshot counts and blockers only; this context can be stale."
 	@echo ""
 	@echo "5. Optional sample reports after the app flow is clear:"
 	@echo "   make stock-report-md TICKER=NVDA  # DCF-ready company example"
@@ -425,6 +462,73 @@ public-performance-contract:
 public-performance-gate:
 	@python3 -m src.public_performance_gate --browser --warm-runs $(or $(WARM_RUNS),5) --cold-runs $(or $(COLD_RUNS),1) --timeout-seconds $(or $(TIMEOUT_SECONDS),30) $(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
 
+commercial-beta-performance-contract:
+	@python3 -m src.public_performance_gate --workflow research --contract --root .
+
+commercial-beta-performance-gate:
+	@python3 -m src.public_performance_gate --workflow research --browser --root . --warm-runs $(or $(WARM_RUNS),5) --cold-runs $(or $(COLD_RUNS),1) --timeout-seconds $(or $(TIMEOUT_SECONDS),30) --output "$(or $(OUTPUT),/tmp/stock-command-center-commercial-beta-performance.json)" $(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
+
+research-accessibility-browser-check:
+	@python3 -m src.research_accessibility_browser_gate --root . --timeout-seconds $(or $(TIMEOUT_SECONDS),45) \
+		--allow-dirty-path src/browser_qa_evidence.py \
+		--allow-dirty-path src/dashboard.py \
+		--allow-dirty-path src/dashboard_navigation.py \
+		--allow-dirty-path src/dashboard_render_smoke.py \
+		--allow-dirty-path src/dashboard_visual_system.py \
+		--allow-dirty-path src/project_status.py \
+		--allow-dirty-path src/public_performance_gate.py \
+		--allow-dirty-path src/readiness_ops.py \
+		--allow-dirty-path src/research_accessibility_browser_gate.py \
+		--allow-dirty-path src/research_loop.py \
+		--allow-dirty-path src/research_workspace.py \
+		--allow-dirty-path src/workspace_visual_browser_gate.py \
+		--allow-dirty-path tests/test_browser_qa_evidence.py \
+		--allow-dirty-path tests/test_dashboard_helpers.py \
+		--allow-dirty-path tests/test_dashboard_navigation.py \
+		--allow-dirty-path tests/test_dashboard_render_smoke.py \
+		--allow-dirty-path tests/test_dashboard_visual_system.py \
+		--allow-dirty-path tests/test_project_status.py \
+		--allow-dirty-path tests/test_public_performance_gate.py \
+		--allow-dirty-path tests/test_public_v1_release_docs.py \
+		--allow-dirty-path tests/test_readiness_ops.py \
+		--allow-dirty-path tests/test_research_accessibility_browser_gate.py \
+		--allow-dirty-path tests/test_research_loop.py \
+		--allow-dirty-path tests/test_research_mode_dashboard_contract.py \
+		--allow-dirty-path tests/test_research_workspace.py \
+		--allow-dirty-path tests/test_workspace_visual_browser_gate.py \
+		--allow-dirty-path tests/test_launchers.py \
+		--allow-dirty-path README.md \
+		--allow-dirty-path ROADMAP.md \
+		--allow-dirty-path docs/DASHBOARD_QA.md \
+		--allow-dirty-path docs/PERSONAL_RESEARCH_MODE.md \
+		--allow-dirty-path docs/PUBLIC_RELEASE_CHECKLIST.md \
+		--allow-dirty-path docs/superpowers/specs/2026-08-12-hypothetical-paper-position-laboratory-design.md \
+		--allow-dirty-path docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md \
+		--allow-dirty-path Makefile \
+		$(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)
+
+workspace-visual-browser-check:
+ifndef ROUTES
+	$(error ROUTES is required)
+endif
+ifndef VIEWPORTS
+	$(error VIEWPORTS is required)
+endif
+ifndef ZOOMS
+	$(error ZOOMS is required)
+endif
+ifndef OUTPUT_DIR
+	$(error OUTPUT_DIR is required)
+endif
+	@python3 -m src.workspace_visual_browser_gate \
+		--routes "$(ROUTES)" \
+		--viewports "$(VIEWPORTS)" \
+		--zooms "$(ZOOMS)" \
+		--output-dir "$(OUTPUT_DIR)"
+
+company-workbench-html-browser-check:
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/test_company_workbench_html_browser_gate.py -q
+
 public-ux-review-checklist:
 	@python3 -m src.public_ux_review_checklist
 
@@ -442,7 +546,7 @@ public-ux-review-note:
 
 pilot-review-feedback:
 	@echo "Controlled Pilot Review Feedback"
-	@echo "Read-only: this target prints the 5-10 external reviewers feedback capture guide."
+	@echo "Read-only: this target prints the 10-20 external reviewers feedback capture guide; all counted sessions must be independent target-persona reviews."
 	@echo "It does not refresh data, import rows, stage files, commit, push, or deploy."
 	@echo "Research-only: pilot feedback is product clarity evidence, not data proof, source proof, data freshness proof, investment advice, broker integration, or a trade instruction."
 	@echo ""
@@ -451,15 +555,20 @@ pilot-review-feedback:
 	@echo "Local-only working copy: cp docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv /tmp/stock-command-center-pilot-feedback.csv"
 	@echo ""
 	@echo "Reviewer path:"
-	@echo "   Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History"
+	@echo "   Research Desk -> Discover -> Company Workbench -> Monitor"
 	@echo ""
-	@echo "Ask four questions:"
+	@echo "Ask the complete task questions:"
 	@echo "   1. Where did you start?"
 	@echo "   2. What could you use now?"
 	@echo "   3. What was blocked or excluded?"
-	@echo "   4. What would you do next?"
+	@echo "   4. What evidence supports one conclusion?"
+	@echo "   5. What was difficult to author or update?"
+	@echo "   6. What would you do next?"
+	@echo "   7. Would you use this workflow again?"
+	@echo "   8. What is the most important missing workflow?"
 	@echo ""
-	@echo "Capture only anonymous route, clarity, time-to-first-answer, and reproducible issue notes."
+	@echo "Scorecard: Task success; Time to first useful answer; Readiness comprehension; Evidence trace; Authoring friction; Misuse risk; Trust; Perceived performance; Repeat-use case; Repeat-use intent; Most important missing workflow."
+	@echo "Before starting, confirm voluntary participation, withdrawal rights, minimal anonymous capture, and the working-note deletion date."
 	@echo "Closeout outcomes: clear, reproducible_ui_issue, documentation_gap, environment_limited, intentionally_deferred."
 	@echo "Do not capture names, account details, investment opinions, price targets, trade decisions, or portfolio information."
 	@echo "Commit a feedback log only after removing personal information and only when it is intentionally reviewed pilot evidence."
@@ -502,13 +611,13 @@ linkedin-share-check:
 	@echo "Research-only: this is portfolio/demo packaging, not investment advice, data freshness proof, broker integration, or trade instruction."
 	@echo ""
 	@echo "1. Open your LinkedIn profile and confirm the Featured card title matches:"
-	@echo "   Stock Research Command Center | Readiness-First Stock Research Workflow"
-	@echo "2. Confirm the Featured description says the project is research-only and mentions no broker integration, auto-trading, or investment advice."
-	@echo "3. Use docs/assets/linkedin-public-dashboard.png when you want the curated product screenshot."
+	@echo "   Stock Research Command Center | Evidence-First Company Research"
+	@echo "2. Confirm the Featured description names Research Desk -> Discover -> Company Workbench -> Monitor and keeps the project research-only with no broker integration, auto-trading, or investment advice."
+	@echo "3. Use docs/assets/linkedin-public-dashboard.png only as the reviewed count-safe Company Workbench answer visual."
 	@echo "4. If LinkedIn shows GitHub's generated OpenGraph card, keep it only if that card is acceptable; otherwise remove and re-add the Featured item with the curated screenshot."
-	@echo "5. Use the GitHub link unless you have separately deployed and verified a hosted Streamlit app."
+	@echo "5. Use the stable GitHub repository link only after this reviewed feature reaches the default branch. Until then, keep the existing stable item or label any non-default review link Draft engineering preview."
 	@echo "6. Open the GitHub link from LinkedIn and confirm the README starts with External Reviewer Start Here and names the GitHub/local-app boundary before deeper operator detail."
-	@echo "7. Stop before claiming screenshots prove current data freshness, coverage completion, provider-key activation, or investment advice."
+	@echo "7. Stop before claiming screenshots prove current data freshness, readiness counts, coverage completion, provider-key activation, hosting, market validation, or investment advice."
 	@echo ""
 	@echo "Next safe repo checks:"
 	@echo "   make public-check"
@@ -516,15 +625,16 @@ linkedin-share-check:
 	@echo "   make diff-hygiene-summary"
 
 pilot-readiness-check:
-	@python3 -m src.pilot_readiness --top-n $(or $(TOP_N),10)
+	@python3 -m src.pilot_readiness --profile "$(or $(PROFILE),default)" --top-n $(or $(TOP_N),10)
 
 pilot-readiness-packet:
-	@python3 -m src.pilot_readiness --packet --top-n $(or $(TOP_N),10) --output "$(or $(OUTPUT),outputs/pilot_readiness_packet.md)"
+	@python3 -m src.pilot_readiness --profile "$(or $(PROFILE),default)" --packet --top-n $(or $(TOP_N),10) $(if $(OUTPUT),--output "$(OUTPUT)",)
 
 pilot-share-brief:
-	@python3 -m src.pilot_readiness --share-brief --top-n $(or $(TOP_N),10) --output "$(or $(OUTPUT),outputs/pilot_share_brief.md)"
+	@python3 -m src.pilot_readiness --profile "$(or $(PROFILE),default)" --share-brief --top-n $(or $(TOP_N),10) $(if $(OUTPUT),--output "$(OUTPUT)",)
 
 trusted-data-pilot:
+	@case "$(PROFILE)" in default|demo|local) ;; *) echo "PROFILE must be exactly one of: default, demo, local" >&2; exit 2;; esac
 	@echo "Trusted Data Pilot"
 	@echo "Read-only guide: this target prints commands only. It does not refresh prices, import rows, edit CSVs, or change readiness outputs."
 	@echo ""
@@ -544,7 +654,7 @@ trusted-data-pilot:
 	@echo "Stop condition: if trusted source rows are unavailable, do not fill placeholders; leave the ticker visibly blocked by missing data and record the missing input."
 	@echo "Pilot evidence packet: baseline readiness, before report, focused blocker check, lane review path, validate/preview gate, apply boundary, rejected-row check, rebuild proof, and still-blocked evidence row."
 	@echo "One-company packet example:"
-	@echo "   make readiness-snapshot"
+	@echo "   make readiness-snapshot PROFILE=$(PROFILE)"
 	@echo "   make project-status-check"
 	@echo "   make trusted-data-pilot-candidates TOP_N=10  # only when project-status-check shows executable company candidates"
 	@echo "   make trusted-data-pilot-packet TICKER=<ticker>"
@@ -556,15 +666,17 @@ trusted-data-pilot:
 	@echo "   make imports-apply IMPORT_TICKERS=<ticker> only after validation passes, preview scope is intended, rejected rows are zero, and source provenance is present."
 	@echo "   Use the broad imports-apply sequence only after every staged row is source-reviewed and intended."
 	@echo "   Check the rejected-row report printed by the packet before treating the lane as available."
-	@echo "   Run the matching rebuild proof:"
-	@echo "      fundamentals lane: make readiness && make dcf-readiness"
-	@echo "      peer lane: make readiness && make peer-mapping-queue TOP_N=25"
+	@echo "   Run the matching in-memory comparison proof:"
+	@echo "      fundamentals lane: make dcf-readiness && make reviewed-batch-compare PROFILE=$(PROFILE) LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+	@echo "      peer lane: make reviewed-batch-compare PROFILE=$(PROFILE) LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
 	@echo "   make stock-report-md TICKER=<ticker>"
 	@echo ""
 	@echo "1. Save the current baseline:"
-	@echo "   make readiness-snapshot"
+	@echo "   make readiness-snapshot PROFILE=$(PROFILE)"
 	@echo ""
-	@echo "2. Confirm current blockers:"
+	@echo "2. Check current selected-profile readiness and lane truth:"
+	@echo "   make readiness-ops-center"
+	@echo "   Saved generated-snapshot context; this can be stale:"
 	@echo "   make status-check $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=$(or $(TOP_N),10)"
 	@echo ""
 	@echo "3. Check whether price coverage can be improved safely:"
@@ -588,10 +700,10 @@ trusted-data-pilot:
 	@echo "   make imports-preview IMPORT_TICKERS=<ticker>"
 	@echo "   make imports-apply IMPORT_TICKERS=<ticker>"
 	@echo ""
-	@echo "7. Prove the lane is available before reading valuation:"
-	@echo "   make readiness"
-	@echo "   make dcf-readiness"
-	@echo "   make peer-mapping-queue $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=25"
+	@echo "7. Prove the lane is available before reading valuation with the same profile used for the baseline:"
+	@echo "   make reviewed-batch-compare PROFILE=$(PROFILE) LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+	@echo "   make dcf-readiness && make reviewed-batch-compare PROFILE=$(PROFILE) LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+	@echo "   make reviewed-batch-compare PROFILE=$(PROFILE) LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue $(if $(TICKERS),TICKERS=$(TICKERS) )TOP_N=25"
 	@echo "   make stock-report-md TICKER=<ticker>"
 	@echo ""
 	@echo "8. Keep the public branch clean:"
@@ -655,28 +767,34 @@ readiness-ops-evidence:
 	@python3 -m src.readiness_ops --root . --evidence --top-n $(or $(TOP_N),10)
 
 reviewed-batch:
-	@python3 -m src.reviewed_batch --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/reviewed_batch_packet.md) --csv-output $(or $(CSV_OUTPUT),outputs/reviewed_batch_packet.csv) $(if $(DRY_RUN),--dry-run,)
+	@python3 -m src.reviewed_batch --root . --profile $(or $(PROFILE),default) --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/reviewed_batch_packet.md) --csv-output $(or $(CSV_OUTPUT),outputs/reviewed_batch_packet.csv) $(if $(DRY_RUN),--dry-run,)
 
 fundamentals-batch-proof:
-	@python3 -m src.reviewed_batch --root . --lane fundamentals --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/fundamentals_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/fundamentals_batch_proof.csv) $(if $(DRY_RUN),--dry-run,)
+	@python3 -m src.reviewed_batch --root . --profile $(or $(PROFILE),default) --lane fundamentals --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/fundamentals_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/fundamentals_batch_proof.csv) $(if $(DRY_RUN),--dry-run,)
 
 peer-batch-proof:
-	@python3 -m src.reviewed_batch --root . --lane peers --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/peer_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/peer_batch_proof.csv) $(if $(DRY_RUN),--dry-run,)
+	@python3 -m src.reviewed_batch --root . --profile $(or $(PROFILE),default) --lane peers --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/peer_batch_proof.md) --csv-output $(or $(CSV_OUTPUT),outputs/peer_batch_proof.csv) $(if $(DRY_RUN),--dry-run,)
 
 peer-mapping-source-review:
 	@python3 -m src.peer_mapping_source_review --root . --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers "$(TICKERS)",) --md-output $(or $(MD_OUTPUT),outputs/peer_mapping_source_review.md) --csv-output $(or $(CSV_OUTPUT),outputs/peer_mapping_source_review.csv) $(if $(DRY_RUN),--dry-run,)
 
 peer-mapping-writeback-guard:
-	@python3 -m src.peer_mapping_source_review --root . --guard-writeback --ticker "$(TICKER)" --peer-ticker "$(PEER_TICKER)" --peer-group "$(PEER_GROUP)" --sector "$(SECTOR)" --industry "$(INDUSTRY)" --source "$(SOURCE)" --as-of-date "$(AS_OF_DATE)" --relationship-rationale "$(RELATIONSHIP_RATIONALE)" --reviewer "$(REVIEWER)" --review-date "$(REVIEW_DATE)" --source-proof-status "$(SOURCE_PROOF_STATUS)" --import-row-ready "$(IMPORT_ROW_READY)"
+	@python3 -m src.peer_mapping_source_review --root . --guard-writeback --ticker "$(TICKER)" --peer-ticker "$(PEER_TICKER)" --peer-group "$(PEER_GROUP)" --sector "$(SECTOR)" --industry "$(INDUSTRY)" --peer-role "$(PEER_ROLE)" --source "$(SOURCE)" --as-of-date "$(AS_OF_DATE)" --relationship-rationale "$(RELATIONSHIP_RATIONALE)" --comparability-basis "$(COMPARABILITY_BASIS)" --valuation-anchor-eligible "$(VALUATION_ANCHOR_ELIGIBLE)" --reviewer "$(REVIEWER)" --review-date "$(REVIEW_DATE)" --source-proof-status "$(SOURCE_PROOF_STATUS)" --import-row-ready "$(IMPORT_ROW_READY)"
 
 reviewed-batch-proof:
 	@python3 -m src.reviewed_batch_proof --ledger $(or $(LEDGER),data/reviewed_batch_proofs.csv)
 
+proof-readiness-reconciliation:
+	@python3 -m src.proof_readiness_reconciliation --root . --top-n $(or $(TOP_N),20) $(if $(TICKERS),--tickers "$(TICKERS)",) $(if $(filter 1,$(JSON)),--json,)
+
 reviewed-batch-compare:
-	@python3 -m src.readiness_comparison --root . --top-n $(or $(TOP_N),25) --batch-id "$(or $(BATCH_ID),<batch_id>)" --lane "$(or $(LANE),prices)" --review-date "$(or $(REVIEW_DATE),<yyyy-mm-dd>)"
+ifndef PROFILE
+	$(error PROFILE is required: default, demo, or local)
+endif
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.readiness_comparison --root . --profile "$(PROFILE)" --top-n $(or $(TOP_N),25) --batch-id "$(or $(BATCH_ID),<batch_id>)" --lane "$(or $(LANE),prices)" --review-date "$(or $(REVIEW_DATE),<yyyy-mm-dd>)"
 
 reviewed-batch-preflight:
-	@python3 -m src.reviewed_batch_preflight --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),100) --max-candidates $(or $(MAX_CANDIDATES),3500) --provider $(or $(PROVIDER),auto) $(if $(BATCH_ID),--batch-id "$(BATCH_ID)",) $(if $(REVIEW_DATE),--review-date "$(REVIEW_DATE)",)
+	@python3 -m src.reviewed_batch_preflight --root . --profile $(or $(PROFILE),default) --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),100) --max-candidates $(or $(MAX_CANDIDATES),3500) --provider $(or $(PROVIDER),auto) $(if $(BATCH_ID),--batch-id "$(BATCH_ID)",) $(if $(REVIEW_DATE),--review-date "$(REVIEW_DATE)",)
 
 auto-refresh-plan:
 	@python3 -m src.auto_refresh_orchestrator --root . --schedule all
@@ -695,6 +813,12 @@ auto-refresh-runbook:
 
 auto-refresh-status:
 	@python3 -m src.auto_refresh_orchestrator --root . --schedule $(or $(SCHEDULE),daily) --status
+
+refresh-operations-status:
+	@python3 -m src.auto_refresh_orchestrator --root . --schedule $(or $(SCHEDULE),daily) --status
+
+refresh-operations-runbook:
+	@python3 -m src.auto_refresh_orchestrator --root . --schedule $(or $(SCHEDULE),daily) --runbook
 
 scheduler-activation-checklist:
 	@echo "Scheduler Activation Checklist"
@@ -749,6 +873,10 @@ diff-hygiene:
 diff-hygiene-summary:
 	@python3 scripts/diff_hygiene.py --summary
 
+.PHONY: pr-range-hygiene-check
+pr-range-hygiene-check:
+	@python3 scripts/diff_hygiene.py --range-base "$(BASE_SHA)" --range-head "$(HEAD_SHA)"
+
 diff-hygiene-files:
 	@python3 scripts/diff_hygiene.py --write-files
 
@@ -766,6 +894,24 @@ universe-scope:
 
 staged-hygiene-check:
 	@python3 scripts/diff_hygiene.py --staged-check
+
+point-in-time-universe-status point-in-time-universe-preview: export POINT_IN_TIME_UNIVERSE_MANIFEST := $(value MANIFEST)
+point-in-time-universe-status point-in-time-universe-preview: export POINT_IN_TIME_UNIVERSE_REGISTRY := $(if $(strip $(value REGISTRY)),$(value REGISTRY),config/source_rights.yml)
+point-in-time-universe-status point-in-time-universe-preview: export POINT_IN_TIME_UNIVERSE_TOP_N := $(if $(strip $(value TOP_N)),$(value TOP_N),20)
+
+point-in-time-universe-status:
+	@case "$${POINT_IN_TIME_UNIVERSE_MANIFEST}" in *[![:space:]]*) ;; *) echo "MANIFEST is required" >&2; exit 2;; esac
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.point_in_time_universe status \
+		--manifest "$${POINT_IN_TIME_UNIVERSE_MANIFEST}" \
+		--registry "$${POINT_IN_TIME_UNIVERSE_REGISTRY}" \
+		--top-n "$${POINT_IN_TIME_UNIVERSE_TOP_N}"
+
+point-in-time-universe-preview:
+	@case "$${POINT_IN_TIME_UNIVERSE_MANIFEST}" in *[![:space:]]*) ;; *) echo "MANIFEST is required" >&2; exit 2;; esac
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.point_in_time_universe preview \
+		--manifest "$${POINT_IN_TIME_UNIVERSE_MANIFEST}" \
+		--registry "$${POINT_IN_TIME_UNIVERSE_REGISTRY}" \
+		--top-n "$${POINT_IN_TIME_UNIVERSE_TOP_N}"
 
 public-wording-check:
 	@python3 scripts/public_wording_check.py
@@ -797,16 +943,33 @@ public-check:
 	@$(MAKE) --silent demo
 
 test:
-	python3 -m pytest tests -q
+	$(NO_WRITE_GUARD) python3 -m pytest tests -q
+
+COMMERCIAL_SOURCE_RIGHTS_REPO_ROOT := $(strip $(shell dirname "$(MAKEFILE_LIST)"))
+
+commercial-source-rights: export COMMERCIAL_SOURCE_RIGHTS_CONFIG := $(value CONFIG)
+commercial-source-rights: export COMMERCIAL_SOURCE_RIGHTS_SOURCE := $(value SOURCE)
+commercial-source-rights: export COMMERCIAL_SOURCE_RIGHTS_REPO_ROOT := $(COMMERCIAL_SOURCE_RIGHTS_REPO_ROOT)
+commercial-source-rights:
+	@set --; \
+	case "$${COMMERCIAL_SOURCE_RIGHTS_CONFIG}" in \
+		*[![:space:]]*) set -- "$$@" "--config=$${COMMERCIAL_SOURCE_RIGHTS_CONFIG}" ;; \
+	esac; \
+	case "$${COMMERCIAL_SOURCE_RIGHTS_SOURCE}" in \
+		*[![:space:]]*) set -- "$$@" "--source=$${COMMERCIAL_SOURCE_RIGHTS_SOURCE}" ;; \
+	esac; \
+	PYTHONDONTWRITEBYTECODE=1 \
+	PYTHONPATH="$${COMMERCIAL_SOURCE_RIGHTS_REPO_ROOT}$${PYTHONPATH:+:$${PYTHONPATH}}" \
+	python3 -m src.commercial_source_rights "$$@"
 
 status:
-	python3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)
+	$(NO_WRITE_GUARD) python3 -m src.project_status --check --top-n $(or $(TOP_N),5)
 
 status-check:
 	python3 -m src.project_status --check --top-n $(or $(TOP_N),5) $(if $(TICKERS),--tickers $(TICKERS),)
 
 pipeline:
-	python3 -m src.report_generator
+	$(NO_WRITE_GUARD) python3 -m src.report_generator
 
 stock-report:
 ifndef TICKER
@@ -875,13 +1038,10 @@ license-status:
 	@python3 -m src.license_status --root .
 
 verify:
-	$(MAKE) test
-	$(MAKE) pipeline
-	$(MAKE) validate-data
-	$(MAKE) onboarding
+	$(NO_WRITE_GUARD) $(MAKE) test pipeline validate-data onboarding
 
 validate-all:
-	scripts/validate_all.sh
+	$(NO_WRITE_GUARD) scripts/validate_all.sh
 
 coverage:
 	python3 -m src.data_onboarding --coverage $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
@@ -977,16 +1137,15 @@ endif
 	python3 -m src.data_onboarding --peer-mapping-queue --top-n 1 --tickers $(TICKER)
 
 onboarding:
-	python3 -m src.manual_price_import --coverage-only --top-n $(or $(TOP_N),20)
-	python3 -m src.dcf_readiness --top-n $(or $(TOP_N),20)
-	python3 -m src.optional_context_readiness
-	python3 -m src.readiness_engine
-	python3 -m src.data_sources --write-output
-	python3 -m src.data_onboarding --write-output --top-n $(or $(TOP_N),20)
-	python3 -m src.research_health --write-output
-	python3 -m src.action_queue --write-output
-	python3 -m src.research_decisions
-	python3 -m src.project_status --write-output
+	$(NO_WRITE_GUARD) python3 -m src.manual_price_import --coverage-only --read-only --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.dcf_readiness --read-only --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.optional_context_readiness --read-only --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.readiness_preview --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.data_sources --check --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.data_onboarding --coverage --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.research_health --check --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.action_queue --check --top-n $(or $(TOP_N),20)
+	$(NO_WRITE_GUARD) python3 -m src.project_status --check --top-n $(or $(TOP_N),20)
 
 templates:
 	python3 -m src.data_onboarding --write-templates
@@ -1043,13 +1202,13 @@ peer-mapping-queue:
 	python3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)
 
 price-validate:
-	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --validate-price-imports
+	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --validate-price-imports $(if $(AS_OF),--review-cutoff "$(AS_OF)",)
 
 price-preview:
-	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --preview-price-import-merge
+	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --preview-price-import-merge $(if $(AS_OF),--review-cutoff "$(AS_OF)",)
 
 price-apply:
-	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --apply-price-import-merge
+	STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --apply-price-import-merge $(if $(AS_OF),--review-cutoff "$(AS_OF)",)
 
 price-refresh:
 ifdef TICKERS
@@ -1065,36 +1224,52 @@ price-normalize:
 ifndef INPUT
 	$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)
 endif
+ifdef RETRIEVED_AT
+ifndef AS_OF
+	$(error AS_OF is required when RETRIEVED_AT is supplied)
+endif
+endif
 ifdef TICKER
-	python3 -m src.price_import_normalizer --input $(INPUT) --ticker $(TICKER) --source $(or $(SOURCE),generic_manual)
+	python3 -m src.price_import_normalizer --input $(INPUT) --ticker $(TICKER) --source $(or $(SOURCE),generic_manual) $(if $(SOURCE_REF),--source-ref "$(SOURCE_REF)",) $(if $(RETRIEVED_AT),--retrieved-at "$(RETRIEVED_AT)",) $(if $(AS_OF),--review-cutoff "$(AS_OF)",)
 else
-	python3 -m src.price_import_normalizer --input $(INPUT) --source $(or $(SOURCE),generic_manual)
+	python3 -m src.price_import_normalizer --input $(INPUT) --source $(or $(SOURCE),generic_manual) $(if $(SOURCE_REF),--source-ref "$(SOURCE_REF)",) $(if $(RETRIEVED_AT),--retrieved-at "$(RETRIEVED_AT)",) $(if $(AS_OF),--review-cutoff "$(AS_OF)",)
 endif
 
 daily:
-	$(MAKE) price-refresh
-	$(MAKE) pipeline
-	$(MAKE) monthly
-	$(MAKE) track-record
-	$(MAKE) validate-data
-	$(MAKE) onboarding
-	python3 -m src.action_queue --write-output
-	python3 -m src.project_status --write-output
+	$(NO_WRITE_GUARD) $(MAKE) pipeline validate-data onboarding status-check TOP_N=$(or $(TOP_N),5)
 
 dashboard:
-	streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
+	PYTHONPATH="$(CURDIR):$${PYTHONPATH:-}" streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
 
 demo-dashboard:
-	STOCK_RESEARCH_DATA_PROFILE=demo streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
+	STOCK_RESEARCH_DATA_PROFILE=demo PYTHONPATH="$(CURDIR):$${PYTHONPATH:-}" streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true
 
 dashboard-smoke:
-	scripts/smoke_dashboard.sh
+	$(NO_WRITE_GUARD) scripts/smoke_dashboard.sh
 
 demo-dashboard-smoke:
 	STOCK_RESEARCH_DATA_PROFILE=demo scripts/smoke_dashboard.sh
 
 dashboard-render-smoke:
 	@python3 -m src.dashboard_render_smoke
+
+research-dashboard-render-smoke:
+	@python3 -m src.dashboard_render_smoke --routes research
+
+.PHONY: sec-quarterly-cash-preview
+sec-quarterly-cash-preview:
+ifndef AS_OF
+	$(error AS_OF is required, for example: make sec-quarterly-cash-preview AS_OF=2026-07-20T23:59:59-04:00)
+endif
+	@python3 -m src.sec_quarterly_cash_generation_preview \
+		--ticker "$(or $(TICKER),NVDA)" \
+		--cik "$(or $(CIK),0001045810)" \
+		--fiscal-period "$(or $(FISCAL_PERIOD),2027-Q1)" \
+		--period-start "$(or $(PERIOD_START),2026-01-26)" \
+		--period-end "$(or $(PERIOD_END),2026-04-26)" \
+		--accession "$(or $(ACCESSION),0001045810-26-000052)" \
+		--primary-document "$(or $(PRIMARY_DOCUMENT),nvda-20260426.htm)" \
+		--as-of "$(AS_OF)"
 
 demo-dashboard-render-smoke:
 	@STOCK_RESEARCH_DATA_PROFILE=demo python3 -m src.dashboard_render_smoke
@@ -1110,6 +1285,31 @@ provider-setup-checklist:
 
 hosted-demo-readiness:
 	@python3 -m src.hosted_demo_readiness --root .
+
+private-beta-readiness:
+	@python3 -m src.private_beta_readiness
+
+commercial-beta-check:
+	@echo "Commercial Research Beta Check"
+	@echo "Read-only: checks source rights, refresh-operation safety, and private-beta readiness without fetching or applying data."
+	@$(MAKE) --silent commercial-source-rights
+	@$(MAKE) --silent refresh-operations-status
+	@$(MAKE) --silent private-beta-readiness
+
+commercial-beta-release-check:
+	@echo "Commercial Research Beta Release Check"
+	@echo "Read-only: verifies the local release candidate without fetching, importing, applying, staging, committing, pushing, or changing external services."
+	@$(MAKE) --silent commercial-beta-check
+	@python3 -m pytest tests/test_dashboard_render_smoke.py tests/test_public_performance_gate.py tests/test_launchers.py -q
+	@$(MAKE) --silent research-dashboard-render-smoke
+	@$(MAKE) --silent commercial-beta-performance-contract
+	@$(MAKE) --silent browser-qa-evidence
+	@$(MAKE) --silent public-check
+	@$(MAKE) --silent pilot-readiness-check TOP_N=10
+	@$(MAKE) --silent diff-hygiene-summary
+	@git diff --check
+	@echo "Safe claims: reproducible local research workflow; readiness-first analysis; source-rights gates; research-only controlled beta candidate."
+	@echo "Unsafe claims: hosted or authenticated availability; complete coverage; calibrated predictive accuracy; investment recommendations; licensed operation without verified rights."
 
 provider-smoke:
 ifndef TICKER
@@ -1230,10 +1430,57 @@ import-analyst-estimates:
 	python3 -m src.manual_optional_context_import analyst_estimates
 
 readiness:
-	python3 -m src.readiness_engine
+	@echo "Deprecated no-write guard: use make readiness-preview TOP_N=20 for inspection." >&2
+	@echo "For an intentional ignored snapshot: CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local>" >&2
+	@exit 2
+
+readiness-preview:
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.readiness_preview --top-n $(or $(TOP_N),20)
+
+readiness-release-review:
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.readiness_release_review review --project-root . --top-n $(or $(TOP_N),20) $(if $(JSON),--json,)
+
+readiness-release-record:
+ifndef PREVIEW_RECEIPT
+	$(error PREVIEW_RECEIPT is required)
+endif
+ifndef REVIEWER
+	$(error REVIEWER is required)
+endif
+ifndef REVIEW_DATE
+	$(error REVIEW_DATE is required)
+endif
+ifndef TECHNICAL_DECISION
+	$(error TECHNICAL_DECISION is required: approved or rejected)
+endif
+ifndef DISTRIBUTION_DECISION
+	$(error DISTRIBUTION_DECISION is required: approved, rejected, or external_review_required)
+endif
+ifneq ($(CONFIRM_REVIEWED),1)
+	$(error CONFIRM_REVIEWED=1 is required after reviewing the exact preview receipt)
+endif
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.readiness_release_review record --project-root . --preview-receipt "$(PREVIEW_RECEIPT)" --reviewer "$(REVIEWER)" --review-date "$(REVIEW_DATE)" --technical-decision "$(TECHNICAL_DECISION)" --distribution-decision "$(DISTRIBUTION_DECISION)" --confirm-reviewed
+
+readiness-release-guard:
+ifndef RECORD_ID
+	$(error RECORD_ID is required)
+endif
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.readiness_release_review guard --project-root . --record-id "$(RECORD_ID)"
+
+readiness-materialize:
+ifndef PROFILE
+	$(error PROFILE is required: default, demo, or local)
+endif
+ifneq ($(CONFIRM_MATERIALIZE),1)
+	$(error CONFIRM_MATERIALIZE=1 is required)
+endif
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.readiness_materializer --project-root . --profile "$(PROFILE)" --confirm-materialize
 
 readiness-snapshot:
-	python3 -m src.readiness_engine --snapshot-only
+ifndef PROFILE
+	$(error PROFILE is required: default, demo, or local)
+endif
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.readiness_engine --project-root . --profile "$(PROFILE)" --snapshot-only
 
 research-decisions:
 	python3 -m src.research_decisions
@@ -1278,7 +1525,113 @@ earnings-nowcast-preview:
 	@python3 -m src.earnings_nowcast_onboarding preview --input-dir $(or $(INPUT_DIR),data/imports/earnings_nowcast) $(if $(EXISTING_DIR),--existing-dir $(EXISTING_DIR),) $(if $(AS_OF),--cutoff $(AS_OF),)
 
 earnings-nowcast-readiness:
-	@python3 -m src.earnings_nowcast_onboarding readiness --input-dir $(or $(INPUT_DIR),data/imports/earnings_nowcast) --ticker $(or $(TICKER),SYN1) $(if $(AS_OF),--cutoff $(AS_OF),)
+	@python3 -m src.earnings_nowcast_onboarding readiness --input-dir $(if $(FIXTURE),tests/fixtures/earnings_nowcast_onboarding,$(or $(INPUT_DIR),data/imports/earnings_nowcast)) --ticker $(or $(TICKER),SYN1) $(if $(AS_OF),--cutoff $(AS_OF),)
+
+earnings-nowcast-cohort-readiness:
+	@python3 -m src.earnings_nowcast_cohort --input-dir $(if $(FIXTURE),tests/fixtures/earnings_nowcast_onboarding,$(or $(INPUT_DIR),data/imports/earnings_nowcast)) --tickers "$(or $(TICKERS),$(EARNINGS_NOWCAST_COHORT))" --as-of "$(or $(AS_OF),2026-01-31T23:59:59Z)" $(if $(JSON),--json,)
+
+calibration-evidence-bundle-preview: export CALIBRATION_EVIDENCE_BUNDLE := $(value BUNDLE)
+calibration-evidence-bundle-preview:
+	@case "$${CALIBRATION_EVIDENCE_BUNDLE}" in *[![:space:]]*) ;; *) echo "BUNDLE is required" >&2; exit 2;; esac
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.calibration_evidence_bundle preview \
+		--bundle "$${CALIBRATION_EVIDENCE_BUNDLE}"
+
+earnings-consensus-source-status:
+	@python3 -m src.earnings_consensus_sources $(if $(REVIEWED_CSV),--reviewed-csv "$(REVIEWED_CSV)",) $(if $(JSON),--json,)
+
+earnings-consensus-source-review:
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.earnings_consensus_sources --review-csv "$(INPUT)" --provider "$(PROVIDER)" --as-of "$(AS_OF)" $(if $(JSON),--json,)
+
+earnings-consensus-collection-plan:
+	@python3 -m src.earnings_consensus_collector plan --tickers "$(or $(TICKERS),$(EARNINGS_NOWCAST_COHORT))" --as-of "$(or $(AS_OF),2026-01-31T23:59:59Z)" --cadence "$(or $(CADENCE),weekly)"
+
+earnings-consensus-collection-status:
+	@python3 -m src.earnings_consensus_collector status --ledger "$(or $(LEDGER),data/imports/earnings_nowcast/prospective_consensus.csv)"
+
+earnings-consensus-collection-preview:
+	@python3 -m src.earnings_consensus_collector preview --input "$(INPUT)" --ledger "$(or $(LEDGER),data/imports/earnings_nowcast/prospective_consensus.csv)" --as-of "$(AS_OF)"
+
+earnings-consensus-collection-record:
+	@test -n "$(AS_OF)" || (echo "AS_OF is required and must match the reviewed preview cutoff" >&2; exit 2)
+	@test -n "$(PREVIEW_RECEIPT)" || (echo "PREVIEW_RECEIPT is required from the exact reviewed preview" >&2; exit 2)
+	@test "$(CONFIRM_REVIEWED)" = "1" || (echo "CONFIRM_REVIEWED=1 is required after reviewing the exact preview" >&2; exit 2)
+	@python3 -m src.earnings_consensus_collector record --input "$(INPUT)" --ledger "$(or $(LEDGER),data/imports/earnings_nowcast/prospective_consensus.csv)" --as-of "$(AS_OF)" --preview-receipt "$(PREVIEW_RECEIPT)" --confirm-reviewed
+
+prospective-field-proof-status: export FIELD_PROOF_LEDGER := $(if $(strip $(value LEDGER)),$(value LEDGER),data/prospective_field_proofs.csv)
+prospective-field-proof-status: export FIELD_PROOF_JSON := $(value JSON)
+prospective-field-proof-status:
+	@if [ "$${FIELD_PROOF_JSON}" = "1" ]; then \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof status --ledger "$${FIELD_PROOF_LEDGER}" --json; \
+	else \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof status --ledger "$${FIELD_PROOF_LEDGER}"; \
+	fi
+
+prospective-field-proof-audit: export FIELD_PROOF_LEDGER := $(if $(strip $(value LEDGER)),$(value LEDGER),data/prospective_field_proofs.csv)
+prospective-field-proof-audit: export FIELD_PROOF_JSON := $(value JSON)
+prospective-field-proof-audit:
+	@if [ "$${FIELD_PROOF_JSON}" = "1" ]; then \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof audit --ledger "$${FIELD_PROOF_LEDGER}" --json; \
+	else \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof audit --ledger "$${FIELD_PROOF_LEDGER}"; \
+	fi
+
+prospective-field-proof-preview: export FIELD_PROOF_INPUT := $(value INPUT)
+prospective-field-proof-preview: export FIELD_PROOF_LEDGER := $(if $(strip $(value LEDGER)),$(value LEDGER),data/prospective_field_proofs.csv)
+prospective-field-proof-preview: export FIELD_PROOF_AS_OF := $(value AS_OF)
+prospective-field-proof-preview: export FIELD_PROOF_JSON := $(value JSON)
+prospective-field-proof-preview:
+	@if [ "$${FIELD_PROOF_JSON}" = "1" ]; then \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof preview --input "$${FIELD_PROOF_INPUT}" --ledger "$${FIELD_PROOF_LEDGER}" --as-of "$${FIELD_PROOF_AS_OF}" --json; \
+	else \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof preview --input "$${FIELD_PROOF_INPUT}" --ledger "$${FIELD_PROOF_LEDGER}" --as-of "$${FIELD_PROOF_AS_OF}"; \
+	fi
+
+prospective-field-proof-record: export FIELD_PROOF_INPUT := $(value INPUT)
+prospective-field-proof-record: export FIELD_PROOF_LEDGER := $(if $(strip $(value LEDGER)),$(value LEDGER),data/prospective_field_proofs.csv)
+prospective-field-proof-record: export FIELD_PROOF_AS_OF := $(value AS_OF)
+prospective-field-proof-record: export FIELD_PROOF_PREVIEW_RECEIPT := $(value PREVIEW_RECEIPT)
+prospective-field-proof-record: export FIELD_PROOF_CONFIRM_REVIEWED := $(value CONFIRM_REVIEWED)
+prospective-field-proof-record: export FIELD_PROOF_JSON := $(value JSON)
+prospective-field-proof-record:
+	@case "$${FIELD_PROOF_INPUT}" in *[![:space:]]*) ;; *) echo "INPUT is required for the exact reviewed field proof batch" >&2; exit 2;; esac
+	@case "$${FIELD_PROOF_AS_OF}" in *[![:space:]]*) ;; *) echo "AS_OF is required and must match the reviewed preview cutoff" >&2; exit 2;; esac
+	@case "$${FIELD_PROOF_PREVIEW_RECEIPT}" in *[![:space:]]*) ;; *) echo "PREVIEW_RECEIPT is required from the exact reviewed preview" >&2; exit 2;; esac
+	@test "$${FIELD_PROOF_CONFIRM_REVIEWED}" = "1" || (echo "CONFIRM_REVIEWED=1 is required after reviewing the exact preview" >&2; exit 2)
+	@if [ "$${FIELD_PROOF_JSON}" = "1" ]; then \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof record --input "$${FIELD_PROOF_INPUT}" --ledger "$${FIELD_PROOF_LEDGER}" --as-of "$${FIELD_PROOF_AS_OF}" --preview-receipt "$${FIELD_PROOF_PREVIEW_RECEIPT}" --confirm-reviewed --json; \
+	else \
+		PYTHONDONTWRITEBYTECODE=1 python3 -m src.prospective_field_proof record --input "$${FIELD_PROOF_INPUT}" --ledger "$${FIELD_PROOF_LEDGER}" --as-of "$${FIELD_PROOF_AS_OF}" --preview-receipt "$${FIELD_PROOF_PREVIEW_RECEIPT}" --confirm-reviewed; \
+	fi
+
+research-outcome-review:
+	@python3 -m src.research_outcome_review --ledger "$(or $(LEDGER),data/research_outcome_reviews.csv)" --profile-key "$(or $(PROFILE_KEY),default)" --ticker "$(or $(TICKER),NVDA)"
+
+research-outcome-review-preview:
+	@python3 -m src.research_outcome_review --ledger "$(or $(LEDGER),data/research_outcome_reviews.csv)" --preview-input "$(INPUT)"
+
+research-outcome-review-record:
+	@python3 -m src.research_outcome_review --ledger "$(or $(LEDGER),data/research_outcome_reviews.csv)" --record-input "$(INPUT)" $(if $(CONFIRM_REVIEWED),--confirm-reviewed,)
+
+catalyst-evidence-timeline:
+	@python3 -m src.catalyst_evidence_timeline --ledger "$(or $(LEDGER),data/catalyst_evidence.csv)" --profile-key "$(or $(PROFILE_KEY),default)" --ticker "$(or $(TICKER),NVDA)" --as-of "$(or $(AS_OF),2026-01-31T23:59:59Z)"
+
+catalyst-evidence-preview:
+	@python3 -m src.catalyst_evidence_timeline --ledger "$(or $(LEDGER),data/catalyst_evidence.csv)" --preview-input "$(INPUT)"
+
+catalyst-evidence-record:
+	@python3 -m src.catalyst_evidence_timeline --ledger "$(or $(LEDGER),data/catalyst_evidence.csv)" --record-input "$(INPUT)" $(if $(CONFIRM_REVIEWED),--confirm-reviewed,)
 
 earnings-nowcast-prospective-plan:
 	@python3 -m src.earnings_nowcast_onboarding prospective-plan --output-dir $(or $(OUTPUT_DIR),data/imports/earnings_nowcast)
+
+earnings-nowcast-sec-actuals-stage:
+ifndef TICKERS
+	$(error TICKERS is required, for example: make earnings-nowcast-sec-actuals-stage TICKERS=NVDA OUTPUT_DIR=/tmp/sec-actuals AS_OF=2026-07-16T03:59:59Z)
+endif
+ifndef OUTPUT_DIR
+	$(error OUTPUT_DIR is required; use a generated temporary/review directory)
+endif
+ifndef AS_OF
+	$(error AS_OF is required for cutoff-safe evidence staging)
+endif
+	@python3 -m src.earnings_nowcast_sec_actuals --tickers "$(TICKERS)" --output-dir "$(OUTPUT_DIR)" --cutoff "$(AS_OF)" --max-runtime-seconds "$(or $(SEC_STAGE_MAX_RUNTIME_SECONDS),300)"

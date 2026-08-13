@@ -1,8 +1,112 @@
 from __future__ import annotations
 
+import math
+from datetime import date
+from typing import Mapping
+
 import pandas as pd
 
 from src.config import AppConfig
+from src.observation_recency import ObservationRecency
+from src.quant_interpretation_eligibility import QuantEvidenceAssessment
+
+
+_RELATIVE_BENCHMARKS = {
+    "relative_return_vs_spy": "SPY",
+    "relative_return_vs_qqq": "QQQ",
+    "relative_return_vs_sector_etf": "sector_etf",
+}
+_OBSERVATION_PRIORITY = {"current": 0, "stale_review_only": 1, "unavailable": 2}
+
+
+def indicator_quant_assessment(
+    row: Mapping[str, object],
+    *,
+    metric_name: str,
+    observation: ObservationRecency,
+    benchmark_observation: ObservationRecency | None,
+    provenance_state: str,
+    rights_state: str,
+    field_scope_state: str,
+) -> QuantEvidenceAssessment:
+    """Adapt one indicator row without changing its values or readiness state."""
+    ticker = _normalized_scope(row.get("ticker"))
+    if not ticker:
+        raise ValueError("indicator row ticker must be non-empty")
+    if _normalized_scope(observation.scope) != ticker:
+        raise ValueError("observation scope must match the indicator ticker")
+
+    composed_observation = observation
+    benchmark_name = _benchmark_name(row, metric_name)
+    if benchmark_name:
+        if benchmark_observation is None:
+            raise ValueError("relative indicator requires a benchmark observation")
+        if _normalized_scope(benchmark_observation.scope) != benchmark_name:
+            raise ValueError("benchmark observation scope must match the indicator benchmark")
+        composed_observation = _strictest_observation(observation, benchmark_observation)
+
+    numeric_value = pd.to_numeric(pd.Series([row.get(metric_name)]), errors="coerce").iloc[0]
+    calculation_state = (
+        "available"
+        if pd.notna(numeric_value) and math.isfinite(float(numeric_value))
+        else "unavailable"
+    )
+    return QuantEvidenceAssessment(
+        family="indicator",
+        scope=f"{ticker}:{metric_name}",
+        calculation_state=calculation_state,
+        observation_state=composed_observation.state,
+        observation_through_date=composed_observation.through_date,
+        provenance_state=provenance_state,
+        rights_state=rights_state,
+        field_scope_state=field_scope_state,
+        evidence_notes=(),
+    )
+
+
+def _benchmark_name(row: Mapping[str, object], metric_name: str) -> str:
+    expected = _RELATIVE_BENCHMARKS.get(metric_name)
+    if expected == "sector_etf":
+        expected = _normalized_scope(row.get("sector_etf"))
+        if not expected:
+            raise ValueError("relative sector indicator requires a sector ETF")
+    return expected or ""
+
+
+def _normalized_scope(value: object) -> str:
+    return value.strip().upper() if isinstance(value, str) else ""
+
+
+def _strictest_observation(
+    observation: ObservationRecency,
+    benchmark_observation: ObservationRecency,
+) -> ObservationRecency:
+    if _has_rejected_through_date(observation) or _has_rejected_through_date(
+        benchmark_observation
+    ):
+        return ObservationRecency(
+            observation.scope,
+            "",
+            None,
+            "unavailable",
+            "A required observation date is invalid for quantitative interpretation.",
+        )
+    observation_priority = _OBSERVATION_PRIORITY.get(observation.state, 3)
+    benchmark_priority = _OBSERVATION_PRIORITY.get(benchmark_observation.state, 3)
+    if benchmark_priority > observation_priority:
+        return benchmark_observation
+    if observation_priority > benchmark_priority:
+        return observation
+    return min((observation, benchmark_observation), key=lambda item: item.through_date)
+
+
+def _has_rejected_through_date(observation: ObservationRecency) -> bool:
+    if observation.state == "unavailable":
+        return False
+    try:
+        return date.fromisoformat(observation.through_date) > date.today()
+    except (TypeError, ValueError):
+        return True
 
 
 def ema(series: pd.Series, span: int, min_periods: int = 1) -> pd.Series:

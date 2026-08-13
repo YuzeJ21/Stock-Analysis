@@ -6,8 +6,8 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 
 - Keep the top of `README.md` focused on what the project does, why it matters, and how to run it.
 - Confirm `README.md` starts with `External Reviewer Start Here` so a GitHub or LinkedIn visitor sees the GitHub/local-app boundary, current-readiness source, and stop rules before deeper operator detail.
-- Keep the guided product flow near the top: README preview, `docs/PUBLIC_DEMO_WALKTHROUGH.md`, then `make dashboard` and the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path.
-- Keep terminal proof commands secondary: use `make status-check TOP_N=5` and `make stock-report-md TICKER=NVDA` only after the visitor understands the public workflow.
+- Keep the primary product flow near the top: README Workbench preview, `make dashboard`, then Research Desk -> Discover -> Company Workbench -> Monitor. Keep Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History as the secondary controlled Public demo.
+- Keep terminal proof commands secondary: use `make readiness-ops-center` for current lane truth. Treat `make status-check TOP_N=5` as saved generated-snapshot context that can be stale, and use `make stock-report-md TICKER=NVDA` only after the visitor understands the public workflow.
 - Keep `make stock-report TICKER=NVDA` available for optional local report-data inspection, but prefer `make stock-report-md` for LinkedIn/GitHub visitors.
 - Keep `docs/OPERATOR_GUIDE.md` linked from the README as the deeper local workflow guide so LinkedIn visitors see a short landing page first and advanced users still have exact commands.
 - Keep `docs/DATA_STRATEGY.md` linked so visitors understand what can refresh safely, what needs trusted local input, and why the next coverage milestone should be a small pilot.
@@ -15,7 +15,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Confirm the V1 public route set works before replacing the current design in use: `?mode=public&page=home`, `?mode=public&page=stock-selector`, `?mode=public&page=single-stock-report&ticker=NVDA&open=1`, `?mode=public&page=data-health`, and `?mode=public&page=proof-history`.
 - Stock Selector is the primary public stock-selection surface. It should show readiness-backed candidates, blockers, next proof steps, and row actions without presenting the queue as a recommendation list.
 - Data Health should stay the first coverage-readiness surface: one answer per lane before queue drawers, route maps, advanced evidence details, or proof ledgers.
-- Proof History evidence is the public proof-inspection surface. The `Proof History` page should land there rather than shortcutting visitors into a generic Data Health table.
+- Proof History evidence is the public proof-inspection surface. The `Proof History` page should land on **Newest reviewed evidence**, initially expose only the first 20 globally newest-first records, and state the shown/total count; the full authoritative ledger remains under collapsed Advanced details rather than duplicating every row in the first-view accessibility tree.
 - Operator context should stay collapsed by default and be framed as secondary evidence, not the primary visitor workflow.
 - Confirm visitors are not told to manually refresh the full universe every day; the public workflow should explain lane-specific freshness and generated-data hygiene instead.
 - Keep `make trusted-data-pilot-candidates TOP_N=10` visible only after `make project-status-check` shows executable company candidates for ranking current company blockers before improving 5-10 trusted companies without broad generated data churn. If project-status-check says current source-proof queues are exhausted, start with `make provider-setup-checklist` instead, then run only the listed reviewed one-ticker smoke command before any broader batch.
@@ -34,10 +34,10 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Keep the pilot evidence packet visible: baseline readiness, before report, focused blocker check, lane review path, validate/preview gate, apply boundary, rejected-row check, rebuild proof, and still-blocked evidence row.
 - Include current readiness numbers only when they are clearly labeled as local snapshots.
 - Keep generated examples that help visitors understand the product, such as `outputs/stock_reports/qqq.md` and `outputs/stock_reports/nvda.md`.
-- Use `docs/assets/linkedin-public-dashboard.png` as the LinkedIn Featured thumbnail unless you intentionally want an operator-mode screenshot; treat image counts as illustrative and use `make status-check TOP_N=5` for current local counts.
-- Use GitHub as the LinkedIn link target unless a hosted app has been separately deployed and verified. The current public-share package is GitHub plus curated screenshots plus local run instructions.
+- Use `docs/assets/linkedin-public-dashboard.png` as the LinkedIn Featured thumbnail only when it is the reviewed `1200x627` Company Workbench answer-first capture. Do not publish changing coverage or readiness figures in the social image.
+- Use the stable GitHub repository as the LinkedIn link target only after the reviewed feature reaches the default branch. Until then, keep the existing stable item or label any non-default review link `Draft engineering preview`. Do not substitute a hosted-app link until it is separately deployed and verified.
 - Before replacing the GitHub link with a hosted app link, complete `docs/HOSTED_DEMO_DEPLOYMENT.md` and rerun the public gates.
-- Confirm the LinkedIn Featured description mentions Python + Streamlit, data readiness before analysis, research-only, no broker integration, no auto-trading, and no investment advice.
+- Confirm the LinkedIn Featured description mentions Python + Streamlit, Research Desk -> Discover -> Company Workbench -> Monitor, usable versus withheld evidence, research-only, no broker integration, no auto-trading, and no investment advice.
 - Confirm LinkedIn copy does not imply complete coverage, provider-key activation, public hosted app availability, data freshness proof, or investment recommendations.
 - Run `make browser-qa-evidence` before sharing or replacing public screenshots. It shows the current public-share image recommendation, committed asset checks, current real-app capture status, route expectations, and capture boundaries without refreshing data or writing reports.
 - Run `make linkedin-share-check` for the final LinkedIn Featured-card checklist. It is read-only: it does not open LinkedIn, upload files, edit your profile, refresh data, stage files, commit, or push.
@@ -48,7 +48,7 @@ Use this checklist before sharing the repository on GitHub or LinkedIn.
 - Review `docs/DIFF_HYGIENE_AUDIT.md` before staging so broad local CSV churn stays out of the public branch.
 - Treat new `docs/`, `scripts/`, and `tests/` files from public-product polish as reviewable product candidates, not generated data, when `make diff-hygiene` lists them.
 - Avoid committing huge timestamp-only generated CSV churn.
-- If `make readiness` or `make pipeline` was run during verification, clean or exclude the broad generated CSV/JSON churn before the public release commit. Keep only intentionally reviewed artifacts such as `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv` when they demonstrate the reviewed-batch workflow.
+- If an explicit writer or pipeline command was run during verification, clean or exclude the broad generated CSV/JSON churn before the public release commit. Keep only intentionally reviewed artifacts such as `outputs/reviewed_batch_packet.md` and `outputs/reviewed_batch_packet.csv` when they demonstrate the reviewed-batch workflow.
 
 ## Open-Source And Attribution Hygiene
 
@@ -127,7 +127,8 @@ Expanded command list:
 
 ```bash
 make pipeline
-make readiness
+make readiness-preview TOP_N=20
+make readiness-release-review TOP_N=20
 make public-check
 make pilot-readiness-check TOP_N=10
 make pilot-share-brief

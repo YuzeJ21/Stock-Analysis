@@ -23,6 +23,195 @@ def test_default_performance_contract_covers_the_guided_public_workflow():
     ]
     assert all(route.first_useful_marker for route in DEFAULT_ROUTE_SPECS)
     assert all(route.full_markers for route in DEFAULT_ROUTE_SPECS)
+    proof_history = next(route for route in DEFAULT_ROUTE_SPECS if route.name == "Proof History")
+    assert "Newest reviewed evidence" in proof_history.full_markers
+    assert "Latest evidence" not in proof_history.full_markers
+
+
+def test_research_performance_contract_covers_the_commercial_beta_workflow():
+    from src.public_performance_gate import RESEARCH_ROUTE_SPECS
+
+    assert [route.name for route in RESEARCH_ROUTE_SPECS] == [
+        "Research Desk",
+        "Discover",
+        "Company Workbench",
+        "Monitor",
+    ]
+    assert all(route.critical for route in RESEARCH_ROUTE_SPECS)
+    assert RESEARCH_ROUTE_SPECS[0].first_useful_marker == "What needs my attention today?"
+    assert RESEARCH_ROUTE_SPECS[0].full_markers == (
+        "What needs my attention today?",
+        "Freshness",
+        "Open Discover",
+        "market-complete event feed",
+        "Research-only",
+    )
+    assert RESEARCH_ROUTE_SPECS[1].first_useful_marker == "Find a Company"
+    assert RESEARCH_ROUTE_SPECS[1].full_markers == (
+        "Discover",
+        "Screen eligibility — when supported",
+        "Browse saved companies",
+        "Search saved companies",
+        "Advanced: cohort readiness context",
+        "Research-only",
+    )
+    assert RESEARCH_ROUTE_SPECS[2].full_markers == (
+        "Company Workbench",
+        "Advanced: selected-company lane coverage",
+        "WHAT CHANGED",
+        "Research Decision Lab",
+        "Business Trend",
+        "Valuation",
+        "Forward View",
+        "What Remains Withheld",
+        "Research Conclusion",
+        "NEXT RESEARCH TASK",
+        "Research-only",
+    )
+    assert RESEARCH_ROUTE_SPECS[3].first_useful_marker == "Follow-up Queue"
+    assert RESEARCH_ROUTE_SPECS[3].full_markers == (
+        "Follow-up Queue",
+        "SINCE LAST REVIEW",
+        "NEEDS VERIFICATION",
+        "WAITING ON EVIDENCE",
+        "SCHEDULED CONTEXT",
+        "EVIDENCE FRESHNESS",
+        "Advanced: Monitor evidence",
+        "Advanced: five-company Earnings Nowcast readiness",
+        "Research-only",
+    )
+    assert RESEARCH_ROUTE_SPECS[2].route == "/?mode=research&page=company-workbench&ticker=NVDA&open=1"
+    assert RESEARCH_ROUTE_SPECS[2].first_useful_marker == "USE NOW"
+    assert RESEARCH_ROUTE_SPECS[2].full_reveal_action == "Open evidence and analysis modules"
+    assert "Selected Company" not in RESEARCH_ROUTE_SPECS[2].full_markers
+    assert "Forward View" in RESEARCH_ROUTE_SPECS[2].full_markers
+    assert "What Remains Withheld" in RESEARCH_ROUTE_SPECS[2].full_markers
+    assert RESEARCH_ROUTE_SPECS[3].full_markers[0] == "Follow-up Queue"
+
+
+@pytest.mark.parametrize("run_kind", ("cold", "warm"))
+@pytest.mark.parametrize("viewport_index", (0, 1))
+def test_company_workbench_route_measurement_accepts_its_rendered_answer_markers(
+    run_kind,
+    viewport_index,
+):
+    from src.public_performance_gate import (
+        DEFAULT_VIEWPORTS,
+        RESEARCH_ROUTE_SPECS,
+        _measure_route,
+    )
+
+    initial_body = " ".join(
+        (
+            "Company Workbench",
+            "USE NOW",
+            "Advanced: selected-company lane coverage",
+            "WHAT CHANGED",
+            "Open evidence and analysis modules",
+            "Research-only",
+        )
+    )
+    revealed_body = " ".join(
+        (
+            initial_body,
+            "Research Decision Lab",
+            "Business Trend",
+            "Valuation",
+            "Forward View",
+            "What Remains Withheld",
+            "Research Conclusion",
+            "NEXT RESEARCH TASK",
+        )
+    )
+
+    class Locator:
+        def __init__(self, *, body=False):
+            self.body = body
+
+        def wait_for(self, *, state, timeout):
+            assert state == "visible"
+            assert timeout == 1000
+
+        def inner_text(self, *, timeout):
+            assert self.body
+            assert timeout in {1000, 2000}
+            return self.page.rendered_body
+
+        def count(self):
+            return 0
+
+    class Button:
+        def __init__(self, page):
+            self.page = page
+
+        def click(self, *, timeout):
+            assert timeout == 1000
+            self.page.rendered_body = revealed_body
+
+    class Page:
+        def __init__(self):
+            self.url = "http://127.0.0.1:8501/?mode=research&page=company-workbench&ticker=NVDA&open=1"
+            self.rendered_body = initial_body
+
+        def goto(self, url, *, wait_until, timeout):
+            self.url = url
+            assert wait_until == "domcontentloaded"
+            assert timeout == 1000
+
+        def locator(self, selector):
+            locator = Locator(body=selector == "body")
+            locator.page = self
+            return locator
+
+        def get_by_role(self, role, *, name, exact):
+            assert role == "button"
+            assert name == "Open evidence and analysis modules"
+            assert exact is True
+            return Button(self)
+
+        def wait_for_function(self, expression, *, arg, timeout):
+            assert "document.body.innerText.includes(marker)" in expression
+            assert timeout == 1000
+            if arg not in self.rendered_body:
+                raise TimeoutError(f"missing rendered marker: {arg}")
+
+        def wait_for_timeout(self, milliseconds):
+            assert milliseconds == 250
+
+        def evaluate(self, expression):
+            assert "scrollWidth" in expression
+            return 0
+
+    class Context:
+        def __init__(self):
+            self.page = Page()
+
+        def new_page(self):
+            return self.page
+
+        def close(self):
+            pass
+
+    class Browser:
+        def new_context(self, *, viewport):
+            selected = DEFAULT_VIEWPORTS[viewport_index]
+            assert viewport == {"width": selected.width, "height": selected.height}
+            return Context()
+
+    route = next(route for route in RESEARCH_ROUTE_SPECS if route.name == "Company Workbench")
+    sample = _measure_route(
+        Browser(),
+        base_url="http://127.0.0.1:8501",
+        route=route,
+        viewport=DEFAULT_VIEWPORTS[viewport_index],
+        run_kind=run_kind,
+        timeout_seconds=1,
+    )
+
+    assert sample.success is True
+    assert sample.failure == ""
+    assert sample.viewport == DEFAULT_VIEWPORTS[viewport_index].label
+    assert sample.run_kind == run_kind
 
 
 def test_nearest_rank_percentile_does_not_select_the_best_run():
@@ -71,6 +260,104 @@ def test_performance_summary_and_gate_keep_cold_warm_and_failure_truth_separate(
     assert "Data Health: 1 failed timing run(s)" in result.failures
 
 
+def test_first_useful_summary_and_gate_keep_cold_and_warm_populations_separate():
+    from src.public_performance_gate import (
+        PerformanceThresholds,
+        RouteTimingSample,
+        evaluate_performance_gate,
+        summarize_route_timings,
+    )
+
+    samples = [
+        RouteTimingSample("Company Workbench", "1280x720", "cold", 1.1, 3.1, 8.0, True),
+        RouteTimingSample("Company Workbench", "1280x720", "warm", 0.3, 1.1, 3.0, True),
+        RouteTimingSample("Company Workbench", "1280x720", "warm", 0.3, 1.2, 3.1, True),
+        RouteTimingSample("Company Workbench", "1280x720", "warm", 0.3, 1.3, 3.2, True),
+        RouteTimingSample("Company Workbench", "1280x720", "warm", 0.3, 1.4, 3.3, True),
+        RouteTimingSample("Company Workbench", "1280x720", "warm", 0.3, 1.5, 3.4, True),
+    ]
+
+    summary = summarize_route_timings(samples)
+    workbench = summary[0]
+
+    assert workbench["warm_shell_p90_seconds"] == 0.3
+    assert workbench["cold_shell_max_seconds"] == 1.1
+    assert "shell_p90_seconds" not in workbench
+    assert workbench["warm_first_useful_p90_seconds"] == 1.5
+    assert workbench["cold_first_useful_max_seconds"] == 3.1
+    assert "first_useful_p90_seconds" not in workbench
+
+    result = evaluate_performance_gate(
+        summary,
+        critical_routes={"Company Workbench"},
+        thresholds=PerformanceThresholds(),
+        min_cold_runs=1,
+        min_warm_runs=5,
+    )
+
+    assert result.verdict == "failed"
+    assert "Company Workbench: cold shell max 1.100s exceeds 1.000s" in result.failures
+    assert "Company Workbench: cold first-useful max 3.100s exceeds 3.000s" in result.failures
+    assert not any("warm shell" in failure for failure in result.failures)
+    assert not any("warm first-useful" in failure for failure in result.failures)
+
+
+def test_performance_gate_enforces_warm_shell_and_first_useful_p90_independently():
+    from src.public_performance_gate import (
+        PerformanceThresholds,
+        RouteTimingSample,
+        evaluate_performance_gate,
+        summarize_route_timings,
+    )
+
+    samples = [
+        RouteTimingSample("Discover", "390x844", "cold", 0.9, 2.9, 8.0, True),
+        RouteTimingSample("Discover", "390x844", "warm", 0.7, 2.4, 3.0, True),
+        RouteTimingSample("Discover", "390x844", "warm", 0.8, 2.5, 3.1, True),
+        RouteTimingSample("Discover", "390x844", "warm", 0.9, 2.6, 3.2, True),
+        RouteTimingSample("Discover", "390x844", "warm", 1.1, 3.2, 3.3, True),
+        RouteTimingSample("Discover", "390x844", "warm", 0.9, 2.8, 3.4, True),
+    ]
+
+    result = evaluate_performance_gate(
+        summarize_route_timings(samples),
+        critical_routes={"Discover"},
+        thresholds=PerformanceThresholds(),
+        min_cold_runs=1,
+        min_warm_runs=5,
+    )
+
+    assert result.verdict == "failed"
+    assert "Discover: warm shell p90 1.100s exceeds 1.000s" in result.failures
+    assert "Discover: warm first-useful p90 3.200s exceeds 3.000s" in result.failures
+    assert not any("cold shell" in failure for failure in result.failures)
+    assert not any("cold first-useful" in failure for failure in result.failures)
+
+
+def test_performance_gate_fails_closed_when_required_samples_are_missing():
+    from src.public_performance_gate import (
+        PerformanceThresholds,
+        RouteTimingSample,
+        evaluate_performance_gate,
+        summarize_route_timings,
+    )
+
+    summary = summarize_route_timings(
+        [RouteTimingSample("Company Workbench", "390x844", "cold", 0.2, 1.2, 3.0, True)]
+    )
+
+    result = evaluate_performance_gate(
+        summary,
+        critical_routes={"Company Workbench"},
+        thresholds=PerformanceThresholds(),
+        min_cold_runs=1,
+        min_warm_runs=5,
+    )
+
+    assert result.verdict == "failed"
+    assert "Company Workbench: warm sample count 0 is below 5" in result.failures
+
+
 def test_demo_snapshot_identity_uses_the_tracked_manifest_hashes(tmp_path):
     from src.public_performance_gate import demo_snapshot_identity
 
@@ -97,16 +384,27 @@ def test_demo_snapshot_identity_uses_the_tracked_manifest_hashes(tmp_path):
 
 
 def test_contract_payload_is_read_only_research_safe_and_browser_explicit(tmp_path):
-    from src.public_performance_gate import performance_contract_payload
+    from src.public_performance_gate import RESEARCH_ROUTE_SPECS, performance_contract_payload
 
     manifest = tmp_path / "data" / "demo" / "manifest.json"
     manifest.parent.mkdir(parents=True)
     manifest.write_text(json.dumps({"files": {}}), encoding="utf-8")
 
-    payload = performance_contract_payload(tmp_path)
+    payload = performance_contract_payload(
+        tmp_path,
+        route_specs=RESEARCH_ROUTE_SPECS,
+        workflow="research",
+    )
     rendered = json.dumps(payload).lower()
 
     assert payload["mode"] == "contract_only"
+    assert payload["workflow"] == "research"
+    assert [row["name"] for row in payload["routes"]] == [
+        "Research Desk",
+        "Discover",
+        "Company Workbench",
+        "Monitor",
+    ]
     assert payload["browser_requirement"] == "playwright plus a local chrome-compatible executable"
     assert payload["thresholds"]["warm_full_settle_seconds"] == 5.0
     assert payload["thresholds"]["cold_full_settle_seconds"] == 10.0
@@ -124,6 +422,10 @@ def test_makefile_exposes_contract_and_real_browser_performance_commands():
     assert "public-performance-gate:" in makefile
     assert "python3 -m src.public_performance_gate --contract" in makefile
     assert "python3 -m src.public_performance_gate --browser" in makefile
+    assert "commercial-beta-performance-contract:" in makefile
+    assert "commercial-beta-performance-gate:" in makefile
+    assert "--workflow research --contract" in makefile
+    assert "--workflow research --browser" in makefile
 
 
 def test_find_chrome_executable_uses_only_an_executable_candidate(tmp_path):
@@ -163,7 +465,14 @@ def test_performance_result_payload_includes_commit_snapshot_samples_and_gate(tm
     assert payload["environment"] == "test chrome"
     assert payload["demo_snapshot"]["sha256"]
     assert payload["samples"][0]["run_kind"] == "cold"
-    assert payload["summary"][0]["warm_full_settle_p90_seconds"] == 2.0
+    summary = payload["summary"][0]
+    assert summary["warm_shell_p90_seconds"] == 0.2
+    assert summary["cold_shell_max_seconds"] == 0.2
+    assert summary["warm_first_useful_p90_seconds"] == 1.0
+    assert summary["cold_first_useful_max_seconds"] == 1.2
+    assert "shell_p90_seconds" not in summary
+    assert "first_useful_p90_seconds" not in summary
+    assert summary["warm_full_settle_p90_seconds"] == 2.0
     assert payload["failures"] == []
 
 
@@ -195,12 +504,113 @@ def test_visible_text_wait_uses_rendered_body_text_instead_of_hidden_duplicate_l
 def test_visible_text_wait_names_the_missing_marker_on_timeout():
     from src.public_performance_gate import _wait_for_visible_text
 
+    class Body:
+        def inner_text(self, *, timeout):
+            assert timeout == 2000
+            return "Connection error: the application did not render."
+
     class FailingPage:
+        url = "http://127.0.0.1:8501/?mode=research&page=research-desk"
+
         def wait_for_function(self, expression, *, arg, timeout):
             raise RuntimeError("browser timeout")
 
-    with pytest.raises(TimeoutError, match="USE NOW"):
+        def locator(self, selector):
+            assert selector == "body"
+            return Body()
+
+    with pytest.raises(TimeoutError) as captured:
         _wait_for_visible_text(FailingPage(), "USE NOW", timeout_seconds=3)
+
+    message = str(captured.value)
+    assert "USE NOW" in message
+    assert "mode=research&page=research-desk" in message
+    assert "Connection error: the application did not render." in message
+
+
+def test_local_demo_server_launch_disables_streamlit_usage_telemetry(
+    monkeypatch,
+    tmp_path,
+):
+    from src import public_performance_gate as gate
+
+    launched_commands = []
+
+    class FakeProcess:
+        def terminate(self):
+            return None
+
+        def wait(self, timeout):
+            return 0
+
+        def kill(self):
+            return None
+
+    def fake_popen(command, **kwargs):
+        launched_commands.append(tuple(command))
+        return FakeProcess()
+
+    monkeypatch.setattr(gate, "_free_port", lambda: 43123)
+    monkeypatch.setattr(gate, "_wait_for_health", lambda *args, **kwargs: None)
+    monkeypatch.setattr(gate.subprocess, "Popen", fake_popen)
+
+    with gate._local_demo_server(tmp_path):
+        pass
+
+    assert len(launched_commands) == 1
+    command = launched_commands[0]
+    assert command.count("--browser.gatherUsageStats") == 1
+    option_index = command.index("--browser.gatherUsageStats")
+    assert command[option_index + 1] == "false"
+
+
+def test_local_demo_server_attaches_captured_server_log_to_route_failure(
+    monkeypatch,
+    tmp_path,
+):
+    from src import public_performance_gate as gate
+
+    class FakeProcess:
+        def __init__(self):
+            self.returncode = None
+
+        def terminate(self):
+            self.returncode = 0
+
+        def wait(self, timeout):
+            return 0
+
+        def kill(self):
+            self.returncode = -9
+
+    def fake_popen(*args, stdout, **kwargs):
+        if hasattr(stdout, "write"):
+            stdout.write(b"Traceback: websocket session failed\n")
+            stdout.flush()
+        return FakeProcess()
+
+    monkeypatch.setattr(gate.subprocess, "Popen", fake_popen)
+    monkeypatch.setattr(gate, "_wait_for_health", lambda *args, **kwargs: None)
+
+    with pytest.raises(RuntimeError, match="route failed") as captured:
+        with gate._local_demo_server(tmp_path):
+            raise RuntimeError("route failed")
+
+    notes = getattr(captured.value, "__notes__", ())
+    assert any("Local Streamlit server log" in note for note in notes)
+    assert any("websocket session failed" in note for note in notes)
+
+
+def test_horizontal_overflow_check_uses_document_widths():
+    from src.public_performance_gate import _horizontal_overflow_pixels
+
+    class FakePage:
+        def evaluate(self, expression):
+            assert "scrollWidth" in expression
+            assert "clientWidth" in expression
+            return 14
+
+    assert _horizontal_overflow_pixels(FakePage()) == 14
 
 
 def test_reviewed_performance_baseline_documents_reproducible_evidence_boundary():
@@ -218,6 +628,17 @@ def test_reviewed_performance_baseline_documents_reproducible_evidence_boundary(
     assert "60 recorded route samples" in baseline
     assert "product performance evidence only" in baseline.lower()
     assert "not data-freshness proof" in baseline.lower()
+    assert "make commercial-beta-performance-contract" in baseline
+    assert "make commercial-beta-performance-gate" in baseline
+    assert "e930bd0e1b1062c029a7633a226db8dbc03a506b" in baseline
+    assert "48 recorded route samples" in baseline
+    assert "Company Workbench" in baseline
+    assert "Research Desk" in baseline
+    assert "Warm visible-shell p90" in baseline
+    assert "Cold visible-shell max" in baseline
+    assert "Warm first-useful p90" in baseline
+    assert "Cold first-useful max" in baseline
+    assert "3.0s" in baseline
 
 
 def test_performance_progress_line_shows_route_viewport_run_and_outcome():

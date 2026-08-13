@@ -963,7 +963,6 @@ def build_action_queue_payload(
     *,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
-    refresh_research_health: bool = True,
     source_payload: dict[str, Any] | None = None,
     onboarding_payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -1003,10 +1002,6 @@ def build_action_queue_payload(
         command_bundles = pd.DataFrame(onboarding_payload["command_bundles"])
     if source_payload is None and _data_gaps_need_refresh(data_gaps):
         data_gaps = pd.DataFrame(build_data_source_payload(root, data_dir=data_path, output_dir=output_path)["data_gaps"])
-    if refresh_research_health and _data_quality_needs_refresh(data_quality):
-        run_research_health(root, data_dir=data_path, output_dir=output_path)
-        data_quality = _load_csv(output_path / "data_quality_wizard.csv")
-
     items = build_action_queue_rows(
         price_status=price_status,
         price_worklist=price_worklist,
@@ -1026,17 +1021,19 @@ def write_action_queue_output(
     *,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
-    refresh_research_health: bool = True,
+    refresh_research_health: bool = False,
     source_payload: dict[str, Any] | None = None,
     onboarding_payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     root = resolve_project_root(project_root)
+    data_path = resolve_data_dir(data_dir, root)
     output_path = resolve_outputs_dir(output_dir, root)
+    if refresh_research_health:
+        run_research_health(root, data_dir=data_path, output_dir=output_path, write_output=True)
     payload = build_action_queue_payload(
         root,
-        data_dir=data_dir,
+        data_dir=data_path,
         output_dir=output_path,
-        refresh_research_health=refresh_research_health,
         source_payload=source_payload,
         onboarding_payload=onboarding_payload,
     )

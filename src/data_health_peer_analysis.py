@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import pandas as pd
+from src.profile_context import active_readiness_inspection_route
 
 from src.data_health_summary import bool_series
 
@@ -23,14 +26,15 @@ def peer_analysis_boundary_cards(
     peer_readiness_frame: pd.DataFrame | None,
     ticker_readiness_frame: pd.DataFrame | None = None,
 ) -> list[dict[str, object]]:
+    inspection_command, inspection_note = active_readiness_inspection_route()
     if peer_readiness_frame is None or peer_readiness_frame.empty:
         return [
             {
                 "kicker": "PEER ANALYSIS",
                 "title": "Peer readiness not loaded",
-                "body": "Refresh peer readiness before interpreting peer trend or peer valuation context. Missing peer output means peer analysis stays locked. Open operator details for read-only proof steps.",
+                "body": f"Inspect peer readiness before interpreting peer trend or peer valuation context. Missing peer output means peer analysis stays locked. {inspection_note}",
                 "badges": ["readiness first", "no inferred peers"],
-                "command": "make readiness",
+                "command": inspection_command,
             }
         ]
 
@@ -81,10 +85,11 @@ def peer_analysis_boundary_cards(
             "title": f"{int(trend_ready.sum())} trend-ready / {int(valuation_ready.sum())} valuation-ready",
             "body": (
                 "Peer trend context can be reviewed when mapped peers have enough price history. "
-                "Peer valuation is separate and needs source-backed mappings plus peer valuation inputs."
+                "Peer valuation is separate and needs source-backed mappings plus peer valuation inputs. "
+                f"{inspection_note}"
             ),
             "badges": ["trend before valuation", "module-gated"],
-            "command": "make readiness",
+            "command": inspection_command,
         },
         {
             "kicker": "WHAT IS STILL LOCKED",
@@ -133,7 +138,7 @@ def peer_analysis_boundary_cards(
             "title": "data/imports/peers.csv",
             "body": (
                 "Add only source-backed peer mappings, then run make imports-validate, make imports-preview, "
-                "and make imports-apply. Rebuild with make readiness and make peer-mapping-queue TOP_N=25 before reading peer valuation. "
+                f"and make imports-apply. Compare with make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> and make peer-mapping-queue TOP_N=25 before reading peer valuation. "
                 "Sector or industry fallback is context, not trusted peer valuation data."
             ),
             "badges": ["source-backed only", "preview first"],
@@ -154,8 +159,8 @@ def peer_function_quality_frame(
                     "Current Coverage": "Peer readiness not ready yet",
                     "Supported Today": "Nothing yet; run readiness before interpreting peer context.",
                     "Not Supported Yet": "Peer trend or valuation comparison.",
-                    "Methodology / Provenance": "Project peer readiness checks after make readiness.",
-                    "Next Step": "make readiness",
+                    "Methodology / Provenance": "Project peer readiness checks from the selected profile's in-memory comparison.",
+                    "Next Step": "make readiness-preview TOP_N=20",
                 }
             ]
         )
@@ -188,7 +193,7 @@ def peer_function_quality_frame(
                 "Supported Today": "Relative price or momentum context when mapped peers have enough local price rows.",
                 "Not Supported Yet": "Peer-relative valuation or quality conclusions.",
                 "Methodology / Provenance": "Project price/momentum readiness checks for mapped peers.",
-                "Next Step": "make readiness",
+                "Next Step": "make readiness-preview TOP_N=20",
             },
             {
                 "Peer Area": "Peer valuation comparison",

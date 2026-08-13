@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import json
 import os
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from src.paths import resolve_project_root
+from src.continuation_gate import READINESS_CONTINUATION_GATE_HEADING, build_continuation_gate
+from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.profile_context import build_profile_context
+from src.profile_context import READINESS_PREVIEW_NOTE
 from src.provider_env import load_provider_environment
 from src.session_source_preflight import load_session_source_preflight
 
@@ -321,10 +327,11 @@ def build_source_activation_guide() -> dict[str, Any]:
         "providers": providers,
         "one_ticker_smoke_handoff": ONE_TICKER_SMOKE_HANDOFF,
         "apply_gate": [
+            f"make readiness-snapshot PROFILE={resolve_readiness_proof_profile()}",
             "make imports-validate IMPORT_TICKERS=<ticker>",
             "make imports-preview IMPORT_TICKERS=<ticker>",
             "make imports-apply IMPORT_TICKERS=<ticker> only when validation passes, preview scope is intended, rejected rows are zero, and source provenance exists",
-            "make readiness",
+            f"make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
         ],
         "next_commands": [
             "make session-source-preflight",
@@ -609,6 +616,28 @@ def build_provider_setup_checklist(
             }
         )
     current_gate = _current_gate_from_preflight(current_preflight)
+    continuation_gate = None
+    if root is not None:
+        project_root = resolve_project_root(Path(root))
+        continuation_gate = build_continuation_gate(
+            build_profile_context(
+                project_root=project_root,
+                data_dir=resolve_data_dir(project_root=project_root),
+                output_dir=resolve_outputs_dir(project_root=project_root),
+            )
+        )
+        if continuation_gate.suppress_execution:
+            existing_avoid = str(current_gate.get("avoid_repeating") or "").strip()
+            avoid_parts = [] if existing_avoid in {"", "-"} else [existing_avoid]
+            avoid_parts.extend(["broad_refresh", "source_proof", "readiness_rebuild"])
+            current_gate.update(
+                {
+                    "can_run_now": continuation_gate.state,
+                    "avoid_repeating": ", ".join(dict.fromkeys(avoid_parts)),
+                    "next_step": continuation_gate.next_safe_command,
+                    "next_step_reason": continuation_gate.reason,
+                }
+            )
     return {
         "title": "Provider Setup Checklist",
         "research_boundary": guide["research_boundary"],
@@ -627,6 +656,7 @@ def build_provider_setup_checklist(
         "apply_gate": guide["apply_gate"],
         "non_retry_rule": guide["non_retry_rule"],
         "current_gate": current_gate,
+        "continuation_gate": asdict(continuation_gate) if continuation_gate is not None else {},
     }
 
 
@@ -635,9 +665,21 @@ def render_provider_setup_checklist(checklist: dict[str, Any]) -> str:
         str(checklist["title"]),
         str(checklist["research_boundary"]),
         str(checklist["secret_policy"]),
-        "",
-        "First provider answer:",
     ]
+    continuation_gate = checklist.get("continuation_gate", {})
+    if isinstance(continuation_gate, dict) and continuation_gate.get("suppress_execution"):
+        lines.extend(
+            [
+                "",
+                f"{READINESS_CONTINUATION_GATE_HEADING}: {continuation_gate.get('state', '-')}",
+                f"- Next safe preview: {continuation_gate.get('next_safe_command', '-')}",
+                f"- Reason: {continuation_gate.get('reason', '-')}",
+                "- Planning context only: provider rows and setup classifications below do not authorize source execution.",
+                f"- Inspection boundary: {continuation_gate.get('next_safe_command', '-')}. {READINESS_PREVIEW_NOTE}",
+                f"- Stop rule: {continuation_gate.get('stop_rule', '-')}",
+            ]
+        )
+    lines.extend(["", "First provider answer:"])
     first_answer = checklist.get("first_answer", {})
     if isinstance(first_answer, dict) and first_answer:
         lines.extend(

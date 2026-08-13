@@ -53,20 +53,20 @@ class BrowserQaCaptureTarget:
 
 DEFAULT_BROWSER_QA_EVIDENCE: tuple[BrowserQaEvidence, ...] = (
     BrowserQaEvidence(
-        name="LinkedIn public dashboard thumbnail",
+        name="LinkedIn Company Workbench thumbnail",
         path=Path("docs/assets/linkedin-public-dashboard.png"),
-        route="http://localhost:8501/?mode=public",
+        route="http://localhost:8501/?mode=research&page=company-workbench&ticker=AVGO&open=1",
         expected_markers=(
-            "Saved readiness",
-            "Step 1 of 5",
-            "What is this product and where do I start?",
+            "Company Workbench",
+            "Use now",
+            "Still withheld",
+            "Open Data Health",
+            "Stop if peer mappings or peer valuation inputs lack source-backed rows.",
             "Research-only",
-            "Start with Stock Selector",
-            "No data, no conclusion",
         ),
         min_width=1200,
-        min_height=600,
-        use="LinkedIn Featured and GitHub preview image.",
+        min_height=627,
+        use="LinkedIn Featured answer-first Company Workbench image; product-flow evidence only.",
     ),
     BrowserQaEvidence(
         name="Public visitor home screenshot",
@@ -233,7 +233,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
             "What evidence changed a readiness state?",
             "Research-only",
             "Review evidence only; proof records do not refresh or unlock data.",
-            "Latest evidence",
+            "Newest reviewed evidence",
             "Advanced: proof ledger details",
         ),
         details_boundary="Proof History starts with the latest reviewed outcome; raw ledger rows stay collapsed under proof details.",
@@ -279,6 +279,38 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
         details_boundary="The lane answer and source gate appear before route maps, per-lane drawers, and detailed action tables.",
         qa_focus="Operator can see why a fundamentals lane is blocked before opening advanced route-map evidence.",
         stop_rule="Stop if route links execute commands, expose raw tables first, or imply generated churn belongs in the default staging set.",
+    ),
+    BrowserQaRouteCheck(
+        name="Research Desk",
+        route="http://localhost:8501/?mode=research&page=research-desk",
+        first_view_markers=("Saved readiness", "RESEARCH DESK", "FOCUSED COHORT", "Next action", "Research-only"),
+        details_boundary="Research change evidence stays under Advanced; the desk starts with cohort scope and one next action.",
+        qa_focus="Reviewer can understand the saved research scope and continue to Discover without reading operator evidence.",
+        stop_rule="Stop if the desk shows a traceback, recommendation ranking, raw source table, or unresolved evidence before the cohort answer.",
+    ),
+    BrowserQaRouteCheck(
+        name="Research Discover",
+        route="http://localhost:8501/?mode=research&page=discover",
+        first_view_markers=("Saved readiness", "DISCOVER", "Which stock can I review?", "Search this review queue", "Research-only"),
+        details_boundary="Advanced filters and full selector rows stay collapsed; the first path is a bounded readiness-backed company queue.",
+        qa_focus="Reviewer can choose a company because it is reviewable, not because the product predicts expected return.",
+        stop_rule="Stop if Discover ranks recommendations, exposes raw readiness tables first, or requires horizontal scrolling.",
+    ),
+    BrowserQaRouteCheck(
+        name="Research Company Workbench",
+        route="http://localhost:8501/?mode=research&page=company-workbench&ticker=NVDA&open=1",
+        first_view_markers=("Saved readiness", "Company Workbench", "Company Brief", "Use now", "Still withheld", "Next research task", "Open Data Health", "Open evidence and analysis modules", "Research-only"),
+        details_boundary="Trend, valuation, scenarios, Research Decision Lab, authoring, methodology, conclusion detail, and the HTML brief stay closed until `Open evidence and analysis modules`; Advanced evidence remains collapsed.",
+        qa_focus="Reviewer sees the selected company, usable evidence, withheld lanes, and one research task before technical tables. Route-marker screenshots do not prove validation, confirmation, or persistence; the temporary-ledger AppTest and direct persistence tests provide that evidence.",
+        stop_rule="Stop if the workbench shows traceback text, synthetic evidence as real, an unavailable forecast, a secondary module before the explicit action, an Arrow-incompatible evidence table, a visible confirmation before an exact preview, or a route-marker screenshot presented as validation, confirmation, or persistence evidence.",
+    ),
+    BrowserQaRouteCheck(
+        name="Research Monitor",
+        route="http://localhost:8501/?mode=research&page=monitor",
+        first_view_markers=("Saved readiness", "MONITOR", "Follow-up Queue", "SINCE LAST REVIEW", "NEEDS VERIFICATION", "WAITING ON EVIDENCE", "SCHEDULED CONTEXT", "EVIDENCE FRESHNESS", "Research-only"),
+        details_boundary="Full Research Discipline identities and source-change evidence stay under Advanced: Monitor evidence; an empty monitor remains one truthful wait state rather than a ranking.",
+        qa_focus="Reviewer can distinguish verification work, evidence waits, scheduled context, freshness, and no saved task without treating the queue as external-event completeness.",
+        stop_rule="Stop if Monitor repeats competing primary summaries, invents changes, recommends stocks, or exposes raw evidence before the Follow-up Queue.",
     ),
 )
 
@@ -328,6 +360,42 @@ DEFAULT_BROWSER_QA_RESPONSIVE_ROUTE_CHECKS: tuple[BrowserQaResponsiveRouteCheck,
         first_view_must_keep="Saved readiness, Step 5 of 5, latest evidence, proof ledger details collapsed",
         mobile_risk="Proof History starts to feel like a second command center instead of evidence review.",
         stop_rule="Stop if raw ledger rows, command blocks, or data-refresh language appear before evidence cards.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Research Desk",
+        route="http://localhost:8501/?mode=research&page=research-desk",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Saved readiness, Research Desk, focused cohort, freshness, one next action, Research-only",
+        mobile_risk="Cohort cards or monitoring summaries push the primary Discover path too far below the first answer.",
+        stop_rule="Stop if the phone view overflows horizontally or opens with raw research-change evidence.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Discover",
+        route="http://localhost:8501/?mode=research&page=discover",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Saved readiness, Discover, focused cohort boundary, company search, Research-only",
+        mobile_risk="Company cards, filters, or badges become cramped enough to obscure the review action.",
+        stop_rule="Stop if the phone view ranks recommendations, exposes full rows first, or forces horizontal scrolling.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Company Workbench",
+        route="http://localhost:8501/?mode=research&page=company-workbench&ticker=NVDA&open=1",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Saved readiness, Company Workbench, Company Brief, four primary answers, one Data Health handoff, one module-open action, complete stop rule, Research-only",
+        mobile_risk="The Company Brief, module-open action, or complete stop rule becomes clipped, cramped, or separated from the selected-company answer.",
+        stop_rule="Stop if the phone view overflows, shows traceback text, loses a primary answer or stop rule, or renders a secondary module before the explicit action.",
+    ),
+    BrowserQaResponsiveRouteCheck(
+        page="Monitor",
+        route="http://localhost:8501/?mode=research&page=monitor",
+        desktop_viewport="1280x720",
+        phone_viewport="390x844",
+        first_view_must_keep="Saved readiness, Monitor, Follow-up Queue, five question panels or one fail-closed empty state, one next action, Research-only",
+        mobile_risk="An empty evidence queue looks broken instead of a truthful wait state.",
+        stop_rule="Stop if the phone view invents changes, exposes raw evidence first, or forces horizontal scrolling.",
     ),
 )
 
@@ -614,7 +682,7 @@ def browser_qa_share_recommendation_rows(
         {
             "Review Item": "Data readiness claim",
             "State": "blocked_inputs_remain_blocked",
-            "Recommendation": "Use make status-check TOP_N=5 for current counts; do not treat screenshots as data freshness proof.",
+            "Recommendation": "Do not publish readiness counts from screenshots; use the live read-only status check for local operating review.",
             "Boundary": "Screenshots do not unlock fundamentals, peers, earnings, estimates, valuation inputs, or metrics.",
         },
     ]
@@ -755,8 +823,8 @@ def main(argv: list[str] | None = None) -> int:
     print("Manual browser review: use these route checks when a normal local browser can open the Streamlit app.")
     print(_markdown_table(route_rows, ["Route Check", "Route", "First View Markers", "Details Boundary", "QA Focus", "Stop Rule"]))
     print()
-    print("Responsive Public Workflow QA")
-    print("Review the five public pages at desktop and phone width before changing screenshots or LinkedIn copy.")
+    print("Responsive Public And Personal Research Workflow QA")
+    print("Review the five public pages and four personal-research pages at desktop and phone width before changing screenshots or LinkedIn copy.")
     print(
         _markdown_table(
             responsive_route_rows,

@@ -3,6 +3,9 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import pytest
+
+import src.data_update as data_update
 
 from src.data_update import (
     AlphaVantageDailyPriceSource,
@@ -23,12 +26,19 @@ from src.data_update import (
     update_local_price_data,
     validate_price_imports,
 )
+from src.commercial_source_rights import build_source_rights_registry
 from src.provider_env import reset_provider_environment_cache
 
 
 class FakePriceSource:
-    def __init__(self, payloads: dict[str, pd.DataFrame | None]) -> None:
+    def __init__(
+        self,
+        payloads: dict[str, pd.DataFrame | None],
+        *,
+        source_id: str = "fake_price_source",
+    ) -> None:
         self.payloads = payloads
+        self.source_id = source_id
         self.calls: list[str] = []
 
     def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
@@ -87,6 +97,32 @@ class FakeIBKRBar:
         self.low = low
         self.close = close
         self.volume = volume
+
+
+def _commercial_price_registry(
+    source_id: str,
+    *,
+    commercial_use: str = "approved",
+    supported_fields: list[str] | None = None,
+):
+    return build_source_rights_registry(
+        [
+            {
+                "source_id": source_id,
+                "display_name": f"{source_id} test source",
+                "permitted_use": "reviewed_price_research",
+                "commercial_use": commercial_use,
+                "redistribution": "derived_data_only",
+                "storage_limits": "reviewed rows only",
+                "attribution": "durable source reference required",
+                "rate_limits": "test fixture only",
+                "authentication": "test fixture only",
+                "expected_freshness": "fixture timestamp",
+                "supported_fields": supported_fields or ["prices"],
+                "fallback_priority": 1,
+            }
+        ]
+    )
 
 
 def test_stooq_source_reports_api_key_page_without_parser_failure():
@@ -364,7 +400,7 @@ def test_ibkr_price_source_exposes_no_trading_methods():
 
 
 def test_price_source_ladder_tries_stooq_after_yahoo_has_no_rows():
-    yahoo = FakePriceSource({"META": None})
+    yahoo = FakePriceSource({"META": None}, source_id="yahoo")
     stooq = FakePriceSource(
         {
             "META": pd.DataFrame(
@@ -381,7 +417,8 @@ def test_price_source_ladder_tries_stooq_after_yahoo_has_no_rows():
                     }
                 ]
             )
-        }
+        },
+        source_id="stooq",
     )
 
     frame, warnings = PriceSourceLadder([("yahoo", yahoo), ("stooq", stooq)]).fetch_history("META")
@@ -396,7 +433,7 @@ def test_price_source_ladder_tries_stooq_after_yahoo_has_no_rows():
 def test_update_local_price_data_records_auto_price_ladder_provider(tmp_path: Path):
     (tmp_path / "data").mkdir()
     (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
-    yahoo = FakePriceSource({"META": None})
+    yahoo = FakePriceSource({"META": None}, source_id="yahoo")
     stooq = FakePriceSource(
         {
             "META": pd.DataFrame(
@@ -413,7 +450,8 @@ def test_update_local_price_data_records_auto_price_ladder_provider(tmp_path: Pa
                     }
                 ]
             )
-        }
+        },
+        source_id="stooq",
     )
     source = PriceSourceLadder([("yahoo", yahoo), ("stooq", stooq)])
 
@@ -463,6 +501,182 @@ def test_make_price_source_auto_adds_configured_ibkr_before_keyed_price_fallback
 
     assert isinstance(source, PriceSourceLadder)
     assert source.provider_names == ["stooq", "yahoo", "ibkr", "fmp"]
+
+
+def test_price_sources_expose_exact_source_ids():
+    assert StooqDailyPriceSource.source_id == "stooq"
+    assert YahooChartDailyPriceSource.source_id == "yahoo"
+    assert FMPDailyPriceSource.source_id == "fmp"
+    assert AlphaVantageDailyPriceSource.source_id == "alpha_vantage"
+    assert FinnhubDailyPriceSource.source_id == "finnhub"
+    assert IBKRDailyPriceSource.source_id == "ibkr"
+
+
+def test_price_source_ladder_rejects_label_that_does_not_match_exact_source_id():
+    source = FakePriceSource({}, source_id="stooq")
+
+    with pytest.raises(ValueError, match="price source label/source_id mismatch"):
+        PriceSourceLadder([("yahoo", source)])
+
+
+def test_make_price_source_blocks_unapproved_exact_provider_in_commercial_mode():
+    registry = _commercial_price_registry("stooq", commercial_use="unverified")
+
+    with pytest.raises(RuntimeError, match="commercial_price_source_review_required.*stooq"):
+        make_price_source("stooq", commercial_mode=True, rights_registry=registry)
+
+
+def test_make_price_source_blocks_provider_without_registered_price_scope():
+    registry = _commercial_price_registry("stooq", supported_fields=["revenue"])
+
+    with pytest.raises(RuntimeError, match="commercial_price_scope_review_required.*stooq"):
+        make_price_source("stooq", commercial_mode=True, rights_registry=registry)
+
+
+def test_make_price_source_commercial_auto_keeps_only_independently_eligible_legs(monkeypatch):
+    for key in ("FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY", "IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"):
+        monkeypatch.delenv(key, raising=False)
+    reset_provider_environment_cache()
+    registry = _commercial_price_registry("stooq")
+
+    source = make_price_source("auto", commercial_mode=True, rights_registry=registry)
+
+    assert isinstance(source, PriceSourceLadder)
+    assert source.provider_names == ["stooq"]
+    assert source.source_ids == ("stooq",)
+
+
+def test_make_price_source_commercial_auto_fails_when_no_leg_is_eligible(monkeypatch):
+    for key in ("FMP_API_KEY", "ALPHA_VANTAGE_API_KEY", "FINNHUB_API_KEY", "IBKR_HOST", "IBKR_PORT", "IBKR_CLIENT_ID"):
+        monkeypatch.delenv(key, raising=False)
+    reset_provider_environment_cache()
+    registry = _commercial_price_registry("unrelated_source")
+
+    with pytest.raises(RuntimeError, match="commercial_price_source_review_required.*stooq.*yahoo"):
+        make_price_source("auto", commercial_mode=True, rights_registry=registry)
+
+
+def test_commercial_price_update_blocks_missing_identity_before_fetch_or_output(tmp_path: Path):
+    class MissingIdentitySource:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def fetch_history(self, _ticker: str):
+            self.calls += 1
+            return pd.DataFrame(), []
+
+    source = MissingIdentitySource()
+
+    with pytest.raises(RuntimeError, match="commercial_price_source_id_required"):
+        update_local_price_data(
+            tmp_path,
+            source=source,
+            tickers=["META"],
+            commercial_mode=True,
+            rights_registry=_commercial_price_registry("approved_prices"),
+        )
+
+    assert source.calls == 0
+    assert not (tmp_path / "data" / "prices.csv").exists()
+    assert not (tmp_path / "outputs" / "price_update_status.csv").exists()
+
+
+def test_commercial_price_update_blocks_unapproved_source_before_fetch_or_output(tmp_path: Path):
+    source = FakePriceSource({"META": None}, source_id="unverified_prices")
+
+    with pytest.raises(RuntimeError, match="commercial_price_source_review_required.*unverified_prices"):
+        update_local_price_data(
+            tmp_path,
+            source=source,
+            tickers=["META"],
+            commercial_mode=True,
+            rights_registry=_commercial_price_registry(
+                "unverified_prices", commercial_use="unverified"
+            ),
+        )
+
+    assert source.calls == []
+    assert not (tmp_path / "data" / "prices.csv").exists()
+    assert not (tmp_path / "outputs" / "price_update_status.csv").exists()
+
+
+def test_commercial_price_update_allows_approved_scoped_source(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    source = FakePriceSource(
+        {
+            "META": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "META",
+                        "open": 100.0,
+                        "high": 102.0,
+                        "low": 99.0,
+                        "close": 101.0,
+                        "adj_close": 101.0,
+                        "volume": 12345,
+                    }
+                ]
+            )
+        },
+        source_id="approved_prices",
+    )
+
+    result = update_local_price_data(
+        tmp_path,
+        source=source,
+        tickers=["META"],
+        commercial_mode=True,
+        rights_registry=_commercial_price_registry("approved_prices"),
+    )
+
+    assert result.tickers_updated == ["META"]
+    assert result.path.exists()
+    assert result.status_path is not None and result.status_path.exists()
+
+
+def test_commercial_price_update_blocks_changed_identity_before_mutation(tmp_path: Path):
+    (tmp_path / "data").mkdir()
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+
+    class ChangedIdentitySource(FakePriceSource):
+        def fetch_history(self, ticker: str):
+            frame, warnings = super().fetch_history(ticker)
+            self.source_id = "unreviewed_after_fetch"
+            return frame, warnings
+
+    source = ChangedIdentitySource(
+        {
+            "META": pd.DataFrame(
+                [
+                    {
+                        "date": pd.Timestamp("2026-01-03"),
+                        "ticker": "META",
+                        "open": 100.0,
+                        "high": 102.0,
+                        "low": 99.0,
+                        "close": 101.0,
+                        "adj_close": 101.0,
+                        "volume": 12345,
+                    }
+                ]
+            )
+        },
+        source_id="approved_prices",
+    )
+
+    with pytest.raises(RuntimeError, match="commercial_price_source_changed"):
+        update_local_price_data(
+            tmp_path,
+            source=source,
+            tickers=["META"],
+            commercial_mode=True,
+            rights_registry=_commercial_price_registry("approved_prices"),
+        )
+
+    assert not (tmp_path / "data" / "prices.csv").exists()
+    assert not (tmp_path / "outputs" / "price_update_status.csv").exists()
 
 
 def test_price_refresh_cli_accepts_direct_finnhub_provider(tmp_path: Path, monkeypatch):
@@ -1213,19 +1427,71 @@ def _write_price_import_fixture(root: Path) -> None:
         encoding="utf-8",
     )
     (import_dir / "prices.csv").write_text(
-        "date,ticker,open,high,low,close,volume,adjusted_close,source,as_of_date,notes,extra\n"
-        "2026-01-02,nvda,100,103,99,102,1500,102,manual,2026-01-03,updated,row-extra\n"
-        "2026-01-03,NVDA,102,104,101,103,1600,103,manual,2026-01-03,new,row-extra\n"
-        "2026-01-02,NVDA,100,103,99,102,1500,102,manual,2026-01-03,duplicate,row-extra\n"
-        "2026-01-04,BAD,10,9,11,10,100,10,manual,2026-01-03,bad-high-low,row-extra\n",
+        "date,ticker,open,high,low,close,volume,adjusted_close,source,source_ref,retrieved_at,as_of_date,notes,extra\n"
+        "2026-01-02,nvda,100,103,99,102,1500,102,manual,https://example.test/NVDA/2026-01-02,2026-01-03T23:00:00Z,2026-01-03,updated,row-extra\n"
+        "2026-01-03,NVDA,102,104,101,103,1600,103,manual,https://example.test/NVDA/2026-01-03,2026-01-04T23:00:00Z,2026-01-03,new,row-extra\n"
+        "2026-01-02,NVDA,100,103,99,102,1500,102,manual,https://example.test/NVDA/2026-01-02,2026-01-03T23:00:00Z,2026-01-03,duplicate,row-extra\n"
+        "2026-01-04,BAD,10,9,11,10,100,10,manual,https://example.test/BAD/2026-01-04,2026-01-05T23:00:00Z,2026-01-03,bad-high-low,row-extra\n",
         encoding="utf-8",
+    )
+
+
+def _price_rights_registry():
+    return build_source_rights_registry(
+        [
+            {
+                "source_id": "approved_prices",
+                "display_name": "Approved Prices",
+                "permitted_use": "reviewed_price_research",
+                "commercial_use": "approved",
+                "redistribution": "derived_data_only",
+                "storage_limits": "reviewed rows only",
+                "attribution": "durable source reference required",
+                "rate_limits": "manual reviewed export",
+                "authentication": "reviewed account",
+                "expected_freshness": "payload timestamp",
+                "supported_fields": ["prices"],
+                "fallback_priority": 1,
+            },
+            {
+                "source_id": "approved_fundamentals",
+                "display_name": "Approved Fundamentals",
+                "permitted_use": "reviewed_fundamentals_research",
+                "commercial_use": "approved",
+                "redistribution": "derived_data_only",
+                "storage_limits": "reviewed rows only",
+                "attribution": "durable source reference required",
+                "rate_limits": "manual reviewed export",
+                "authentication": "reviewed account",
+                "expected_freshness": "filing driven",
+                "supported_fields": ["revenue"],
+                "fallback_priority": 2,
+            },
+            {
+                "source_id": "unverified_prices",
+                "display_name": "Unverified Prices",
+                "permitted_use": "research_only",
+                "commercial_use": "unverified",
+                "redistribution": "not_permitted",
+                "storage_limits": "local research only",
+                "attribution": "source attribution required",
+                "rate_limits": "manual reviewed export",
+                "authentication": "none",
+                "expected_freshness": "not guaranteed",
+                "supported_fields": ["prices"],
+                "fallback_priority": 90,
+            },
+        ]
     )
 
 
 def test_price_import_validation_valid_fixture_and_duplicates(tmp_path: Path):
     _write_price_import_fixture(tmp_path)
 
-    summary = validate_price_imports(tmp_path)
+    summary = validate_price_imports(
+        tmp_path,
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
 
     assert summary["status"] == "valid_with_warnings"
     assert summary["valid_rows"] == 2
@@ -1234,6 +1500,149 @@ def test_price_import_validation_valid_fixture_and_duplicates(tmp_path: Path):
     assert "extra" in summary["unknown_columns"]
     assert "price import draft" not in " ".join(summary["warnings"]).lower()
     assert "invalid price import file row" in " ".join(summary["warnings"]).lower()
+    assert summary["lineage_status"] == "lineage_complete"
+    assert summary["lineage_complete_rows"] == 2
+    assert summary["lineage_review_required_rows"] == 0
+    assert summary["lineage_missing_fields"] == []
+    assert set(summary["valid_frame"]["source_ref"]) == {
+        "https://example.test/NVDA/2026-01-02",
+        "https://example.test/NVDA/2026-01-03",
+    }
+    assert set(summary["valid_frame"]["retrieved_at"]) == {
+        "2026-01-03T23:00:00+00:00",
+        "2026-01-04T23:00:00+00:00",
+    }
+    assert summary["commercial_rights_status"] == "rights_review_required"
+    assert summary["rights_approved_rows"] == 0
+    assert summary["rights_review_required_rows"] == 2
+    assert summary["rights_status_counts"] == {"unknown_source": 2}
+    assert summary["price_scope_status"] == "price_scope_review_required"
+    assert summary["price_scope_complete_rows"] == 0
+    assert summary["price_scope_review_required_rows"] == 2
+    assert summary["source_review_rows"] == [
+        {
+            "source_id": "manual",
+            "row_count": 2,
+            "rights_status": "unknown_source",
+            "commercial_rights_approved": False,
+            "price_scope_complete": False,
+            "blockers": ["commercial_rights:unknown_source", "registered_price_scope_incomplete"],
+        }
+    ]
+
+
+def test_price_import_validation_keeps_technical_validity_independent_from_lineage(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    import_dir = data_dir / "imports"
+    import_dir.mkdir(parents=True)
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (import_dir / "prices.csv").write_text(
+        "date,ticker,open,high,low,close,volume,adjusted_close,source,source_ref,retrieved_at\n"
+        "2026-01-02,NVDA,100,103,99,102,1500,102,manual,,not-a-timestamp\n",
+        encoding="utf-8",
+    )
+
+    summary = validate_price_imports(tmp_path)
+
+    assert summary["status"] == "valid_with_warnings"
+    assert summary["valid_rows"] == 1
+    assert summary["lineage_status"] == "lineage_review_required"
+    assert summary["lineage_complete_rows"] == 0
+    assert summary["lineage_review_required_rows"] == 1
+    assert summary["lineage_missing_fields"] == ["retrieved_at", "source_ref"]
+    assert summary["valid_frame"].iloc[0]["source"] == "manual"
+    assert pd.isna(summary["valid_frame"].iloc[0]["source_ref"])
+    assert summary["valid_frame"].iloc[0]["retrieved_at"] == ""
+    assert "lineage review" in " ".join(summary["warnings"]).lower()
+
+
+def test_price_import_validation_keeps_rights_and_scope_independent(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    import_dir = data_dir / "imports"
+    import_dir.mkdir(parents=True)
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (import_dir / "prices.csv").write_text(
+        "date,ticker,open,high,low,close,volume,source,source_ref,retrieved_at\n"
+        "2026-01-02,NVDA,100,103,99,102,1500,approved_prices,https://example.test/approved,2026-01-03T23:00:00Z\n"
+        "2026-01-02,MSFT,200,203,199,202,2500,unverified_prices,https://example.test/unverified,2026-01-03T23:00:00Z\n"
+        "2026-01-02,META,300,303,299,302,3500,approved_fundamentals,https://example.test/fundamentals,2026-01-03T23:00:00Z\n"
+        "2026-01-02,GOOG,400,403,399,402,4500,,https://example.test/missing,2026-01-03T23:00:00Z\n"
+        "2026-01-02,BAD,10,9,11,10,100,approved_prices,https://example.test/invalid,2026-01-03T23:00:00Z\n",
+        encoding="utf-8",
+    )
+
+    summary = validate_price_imports(tmp_path, rights_registry=_price_rights_registry())
+
+    assert summary["status"] == "valid_with_warnings"
+    assert summary["valid_rows"] == 4
+    assert summary["commercial_rights_status"] == "mixed_rights"
+    assert summary["rights_approved_rows"] == 2
+    assert summary["rights_review_required_rows"] == 2
+    assert summary["rights_status_counts"] == {
+        "approved": 2,
+        "commercial_rights_unverified": 1,
+        "unknown_source": 1,
+    }
+    assert summary["price_scope_status"] == "mixed_price_scope"
+    assert summary["price_scope_complete_rows"] == 2
+    assert summary["price_scope_review_required_rows"] == 2
+    assert [row["source_id"] for row in summary["source_review_rows"]] == [
+        "<missing>",
+        "approved_fundamentals",
+        "approved_prices",
+        "unverified_prices",
+    ]
+    assert summary["source_review_rows"][0]["rights_status"] == "unknown_source"
+    assert summary["source_review_rows"][0]["price_scope_complete"] is False
+    assert summary["source_review_rows"][1]["commercial_rights_approved"] is True
+    assert summary["source_review_rows"][1]["price_scope_complete"] is False
+    assert summary["source_review_rows"][2]["blockers"] == []
+    assert summary["source_review_rows"][3]["blockers"] == [
+        "commercial_rights:commercial_rights_unverified"
+    ]
+    assert "BAD" not in {row["ticker"] for row in summary["valid_frame"].to_dict(orient="records")}
+
+
+def test_price_import_validation_keeps_yfinance_technical_status_valid(tmp_path: Path):
+    import_dir = tmp_path / "data" / "imports"
+    import_dir.mkdir(parents=True)
+    (tmp_path / "config.yaml").write_text(Path("config.yaml").read_text(), encoding="utf-8")
+    (import_dir / "prices.csv").write_text(
+        "date,ticker,open,high,low,close,volume,source,source_ref,retrieved_at\n"
+        "2026-01-02,NVDA,100,103,99,102,1500,yfinance,https://example.test/yfinance,2026-01-03T23:00:00Z\n",
+        encoding="utf-8",
+    )
+
+    summary = validate_price_imports(tmp_path)
+
+    assert summary["status"] == "valid"
+    assert summary["warnings"] == []
+    assert summary["lineage_status"] == "lineage_complete"
+    assert summary["commercial_rights_status"] == "rights_review_required"
+    assert summary["rights_status_counts"] == {"commercial_rights_unverified": 1}
+    assert summary["price_scope_status"] == "price_scope_complete"
+    assert summary["commercial_evidence_warnings"] == [
+        "Commercial rights review required for 1 valid staged price row(s)."
+    ]
+
+
+def test_price_import_preview_inherits_injected_rights_and_scope_review(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_prices"
+    staged.to_csv(staged_path, index=False)
+
+    preview = preview_price_import_merge(tmp_path, rights_registry=_price_rights_registry())
+
+    assert preview["new_rows"] == 1
+    assert preview["updated_rows"] == 1
+    assert preview["commercial_rights_status"] == "rights_approved"
+    assert preview["rights_approved_rows"] == 2
+    assert preview["rights_review_required_rows"] == 0
+    assert preview["price_scope_status"] == "price_scope_complete"
+    assert preview["price_scope_complete_rows"] == 2
+    assert preview["price_scope_review_required_rows"] == 0
 
 
 def test_price_import_validation_missing_file_uses_plain_import_file_language(tmp_path: Path):
@@ -1270,12 +1679,187 @@ def test_preview_price_import_merge_reports_new_updated_and_skipped(tmp_path: Pa
     assert preview["updated_rows"] == 1
     assert preview["skipped_rows"] == 2
     assert preview["unchanged_rows"] == 0
+    assert preview["lineage_status"] == "lineage_complete"
+    assert preview["lineage_complete_rows"] == 2
+    assert preview["lineage_review_required_rows"] == 0
+    assert preview["commercial_rights_status"] == "rights_review_required"
+    assert preview["price_scope_status"] == "price_scope_review_required"
+
+
+def test_commercial_price_apply_blocks_before_backup_or_canonical_write(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+    canonical_path = tmp_path / "data" / "prices.csv"
+    before = canonical_path.read_bytes()
+
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
+
+    assert result["applied"] is False
+    assert result["apply_status"] == "commercial_evidence_review_required"
+    assert result["apply_blockers"] == [
+        "commercial_rights_review_required",
+        "registered_price_scope_review_required",
+    ]
+    assert result["backup_path"] is None
+    assert canonical_path.read_bytes() == before
+    assert not (tmp_path / "data" / "backups").exists()
+
+
+def test_commercial_price_apply_blocks_incomplete_lineage_independently(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_prices"
+    staged.loc[staged["ticker"].astype(str).str.upper() == "NVDA", "source_ref"] = ""
+    staged.to_csv(staged_path, index=False)
+
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        rights_registry=_price_rights_registry(),
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
+
+    assert result["applied"] is False
+    assert result["apply_blockers"] == ["price_lineage_review_required"]
+    assert result["commercial_rights_status"] == "rights_approved"
+    assert result["price_scope_status"] == "price_scope_complete"
+
+
+def test_commercial_price_apply_blocks_missing_registered_price_scope(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_fundamentals"
+    staged.to_csv(staged_path, index=False)
+
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        rights_registry=_price_rights_registry(),
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
+
+    assert result["applied"] is False
+    assert result["apply_blockers"] == ["registered_price_scope_review_required"]
+    assert result["commercial_rights_status"] == "rights_approved"
+    assert result["price_scope_status"] == "price_scope_review_required"
+
+
+def test_commercial_price_apply_allows_complete_approved_batch(tmp_path: Path):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_prices"
+    staged.to_csv(staged_path, index=False)
+
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        rights_registry=_price_rights_registry(),
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
+
+    assert result["applied"] is True
+    assert result["apply_status"] == "applied"
+    assert result["apply_blockers"] == []
+    assert result["backup_path"] is not None
+    assert result["commercial_rights_status"] == "rights_approved"
+    assert result["price_scope_status"] == "price_scope_complete"
+
+
+@pytest.mark.parametrize(
+    ("retrieved_at", "cutoff", "blocker"),
+    [
+        ("2026-01-03T23:00:00", "2026-01-05T00:00:00Z", "retrieved_at_timezone_required"),
+        ("2026-01-02T23:59:59Z", "2026-01-05T00:00:00Z", "retrieved_before_observation_available"),
+        ("2026-01-05T00:00:01Z", "2026-01-05T00:00:00Z", "retrieved_after_review_cutoff"),
+    ],
+)
+def test_staged_price_preview_and_apply_share_temporal_blockers_without_mutation(
+    tmp_path: Path,
+    retrieved_at: str,
+    cutoff: str,
+    blocker: str,
+):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_prices"
+    staged.loc[:, "retrieved_at"] = retrieved_at
+    staged.to_csv(staged_path, index=False)
+    canonical_path = tmp_path / "data" / "prices.csv"
+    before = canonical_path.read_bytes()
+
+    preview = preview_price_import_merge(
+        tmp_path,
+        rights_registry=_price_rights_registry(),
+        review_cutoff=cutoff,
+    )
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        rights_registry=_price_rights_registry(),
+        review_cutoff=cutoff,
+    )
+
+    assert preview["price_temporal_status"] == "temporal_review_required"
+    assert blocker in preview["price_temporal_blocker_counts"]
+    assert result["applied"] is False
+    assert result["apply_blockers"][0] == "price_temporal_review_required"
+    assert canonical_path.read_bytes() == before
+    assert not (tmp_path / "data" / "backups").exists()
+
+
+def test_price_apply_uses_one_validated_staged_frame_and_atomic_replace(tmp_path: Path, monkeypatch):
+    _write_price_import_fixture(tmp_path)
+    staged_path = tmp_path / "data" / "imports" / "prices.csv"
+    staged = pd.read_csv(staged_path)
+    staged.loc[:, "source"] = "approved_prices"
+    staged.to_csv(staged_path, index=False)
+    read_calls = 0
+    replace_calls: list[tuple[Path, Path]] = []
+    original_read = data_update._read_price_import
+    original_replace = data_update.os.replace
+
+    def _read_once(path: Path):
+        nonlocal read_calls
+        read_calls += 1
+        return original_read(path)
+
+    def _replace(source: Path, destination: Path):
+        replace_calls.append((Path(source), Path(destination)))
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(data_update, "_read_price_import", _read_once)
+    monkeypatch.setattr(data_update.os, "replace", _replace)
+
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=True,
+        rights_registry=_price_rights_registry(),
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
+
+    assert result["applied"] is True
+    assert read_calls == 1
+    assert len(replace_calls) == 1
+    temporary, destination = replace_calls[0]
+    assert temporary.parent == destination.parent
+    assert destination == tmp_path / "data" / "prices.csv"
 
 
 def test_apply_price_import_merge_backs_up_and_never_deletes_rows(tmp_path: Path):
     _write_price_import_fixture(tmp_path)
 
-    result = apply_price_import_merge(tmp_path)
+    result = apply_price_import_merge(
+        tmp_path,
+        commercial_mode=False,
+        review_cutoff="2026-01-05T00:00:00Z",
+    )
     prices = pd.read_csv(tmp_path / "data" / "prices.csv")
 
     assert result["applied"] is True
@@ -1285,3 +1869,11 @@ def test_apply_price_import_merge_backs_up_and_never_deletes_rows(tmp_path: Path
     assert set(prices["ticker"]) == {"NVDA", "MSFT"}
     updated = prices.loc[(prices["ticker"] == "NVDA") & (prices["date"] == "2026-01-02")].iloc[0]
     assert updated["close"] == 102
+    assert updated["source_ref"] == "https://example.test/NVDA/2026-01-02"
+    assert updated["retrieved_at"] == "2026-01-03T23:00:00+00:00"
+    new_row = prices.loc[(prices["ticker"] == "NVDA") & (prices["date"] == "2026-01-03")].iloc[0]
+    assert new_row["source_ref"] == "https://example.test/NVDA/2026-01-03"
+    assert new_row["retrieved_at"] == "2026-01-04T23:00:00+00:00"
+    msft = prices.loc[prices["ticker"] == "MSFT"].iloc[0]
+    assert pd.isna(msft["source_ref"])
+    assert pd.isna(msft["retrieved_at"])

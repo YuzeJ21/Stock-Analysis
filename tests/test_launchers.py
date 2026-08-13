@@ -1,13 +1,378 @@
 import csv
+import json
 import os
 import re
 import subprocess
 from pathlib import Path
 
+import pytest
 
-def _makefile_targets() -> set[str]:
-    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+def _makefile_targets(makefile: str | None = None) -> set[str]:
+    if makefile is None:
+        makefile = Path("Makefile").read_text(encoding="utf-8")
     return set(re.findall(r"^([A-Za-z0-9_.-]+):(?:\s|$)", makefile, flags=re.MULTILINE))
+
+
+def _tree_manifest(root: Path) -> dict[str, tuple[str, bytes | None]]:
+    manifest = {".": ("directory", None)}
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            manifest[relative] = ("symlink", os.readlink(path).encode())
+        elif path.is_dir():
+            manifest[relative] = ("directory", None)
+        else:
+            manifest[relative] = ("file", path.read_bytes())
+    return manifest
+
+
+def _make_target_block(makefile: str, target: str) -> str:
+    match = re.search(
+        rf"^{re.escape(target)}:(?P<body>.*?)(?=^[A-Za-z0-9_.-]+:(?:\s|$)|\Z)",
+        makefile,
+        flags=re.MULTILINE | re.DOTALL,
+    )
+    assert match is not None, f"missing Make target {target}"
+    return match.group(0)
+
+
+def _reachable_make_targets(makefile: str, initial: str) -> set[str]:
+    reachable: set[str] = set()
+    pending = [initial]
+    known = _makefile_targets(makefile)
+    while pending:
+        target = pending.pop()
+        if target in reachable:
+            continue
+        reachable.add(target)
+        block = _make_target_block(makefile, target)
+        header = block.splitlines()[0].split(":", 1)[1]
+        referenced = {token for token in header.split() if token in known}
+        for invocation in re.findall(r"\$\(MAKE\)([^\n]*)", block):
+            referenced.update(
+                token
+                for token in re.findall(r"[A-Za-z0-9_.-]+", invocation)
+                if token in known
+            )
+        for script_name in re.findall(r"\b(scripts/[A-Za-z0-9_.-]+)", block):
+            script = Path(script_name).read_text(encoding="utf-8")
+            for invocation in re.findall(r"\bmake\s+([^\n]+)", script):
+                referenced.update(
+                    token
+                    for token in re.findall(r"[A-Za-z0-9_.-]+", invocation)
+                    if token in known
+                )
+        pending.extend(sorted(referenced & known))
+    return reachable
+
+
+def test_readiness_release_make_requires_record_and_guard_inputs_without_writing(tmp_path: Path):
+    makefile = Path("Makefile").resolve()
+    before = _tree_manifest(tmp_path)
+
+    record = subprocess.run(
+        ["make", "--no-print-directory", "-f", str(makefile), "readiness-release-record"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    guard = subprocess.run(
+        ["make", "--no-print-directory", "-f", str(makefile), "readiness-release-guard"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert record.returncode != 0
+    assert "PREVIEW_RECEIPT is required" in record.stderr
+    assert guard.returncode != 0
+    assert "RECORD_ID is required" in guard.stderr
+    assert _tree_manifest(tmp_path) == before
+
+
+def test_readiness_release_review_make_is_json_and_write_free():
+    from src.readiness_release_review import AXIS_NAMES, CANDIDATE_PATHS
+
+    root = Path.cwd()
+    before_files = {item.path: (root / item.path).read_bytes() for item in CANDIDATE_PATHS}
+    before_status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        cwd=root,
+        capture_output=True,
+        check=True,
+    ).stdout
+
+    result = subprocess.run(
+        ["make", "--no-print-directory", "readiness-release-review", "TOP_N=1", "JSON=1"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+
+    after_files = {item.path: (root / item.path).read_bytes() for item in CANDIDATE_PATHS}
+    after_status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"],
+        cwd=root,
+        capture_output=True,
+        check=True,
+    ).stdout
+    payload = json.loads(result.stdout)
+    assert result.returncode == 0, result.stderr
+    assert len(payload["preview_receipt"]) == 64
+    changed_ticker_count = payload["working_to_proposed"]["changed_ticker_count"]
+    assert isinstance(changed_ticker_count, int)
+    assert changed_ticker_count >= 0
+    assert [axis["name"] for axis in payload["axes"]] == list(AXIS_NAMES)
+    assert after_files == before_files
+    assert after_status == before_status
+
+
+def test_make_reachability_tracks_every_target_on_recursive_multi_target_lines():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert {
+        "verify",
+        "test",
+        "pipeline",
+        "validate-data",
+        "onboarding",
+    } <= _reachable_make_targets(makefile, "verify")
+    assert {
+        "daily",
+        "pipeline",
+        "validate-data",
+        "onboarding",
+        "status-check",
+    } <= _reachable_make_targets(makefile, "daily")
+
+
+def test_default_and_public_workflow_graphs_cannot_reach_writer_targets():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    public_dependencies = {
+        "diff-hygiene-summary",
+        "staged-hygiene-check",
+        "public-wording-check",
+        "test",
+        "demo-dashboard-smoke",
+        "demo-dashboard-render-smoke",
+        "browser-qa-evidence",
+        "linkedin-share-check",
+        "license-status",
+        "demo",
+    }
+    forbidden_writer_targets = {
+        "readiness-materialize",
+        "readiness-snapshot",
+        "price-refresh",
+        "monthly",
+        "track-record",
+        "research-decisions",
+        "project-status",
+    }
+
+    public_reachable = _reachable_make_targets(makefile, "public-check")
+    assert public_dependencies <= public_reachable
+    for initial in (
+        "status",
+        "pipeline",
+        "onboarding",
+        "daily",
+        "dashboard-smoke",
+        "test",
+        "verify",
+        "validate-all",
+        "public-check",
+    ):
+        reachable = _reachable_make_targets(makefile, initial)
+        assert not (reachable & forbidden_writer_targets), (
+            initial,
+            sorted(reachable & forbidden_writer_targets),
+        )
+
+
+def test_legacy_readiness_make_boundaries_fail_closed_without_writing(tmp_path: Path):
+    makefile = Path("Makefile").resolve()
+    before = _tree_manifest(tmp_path)
+
+    guard = subprocess.run(
+        ["make", "-f", str(makefile), "readiness"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    missing_profile = subprocess.run(
+        ["make", "-f", str(makefile), "readiness-materialize"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    missing_confirmation = subprocess.run(
+        ["make", "-f", str(makefile), "readiness-materialize", "PROFILE=default"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    missing_snapshot_profile = subprocess.run(
+        ["make", "-f", str(makefile), "readiness-snapshot"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert guard.returncode == 2
+    assert "deprecated" in guard.stderr.lower()
+    assert "make readiness-preview TOP_N=20" in guard.stderr
+    assert "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=" in guard.stderr
+    assert missing_profile.returncode == 2
+    assert "PROFILE is required" in missing_profile.stderr
+    assert missing_confirmation.returncode == 2
+    assert "CONFIRM_MATERIALIZE=1 is required" in missing_confirmation.stderr
+    assert missing_snapshot_profile.returncode == 2
+    assert "PROFILE is required" in missing_snapshot_profile.stderr
+    assert _tree_manifest(tmp_path) == before
+
+
+def test_trusted_data_pilot_walkthrough_uses_profile_bound_before_apply_compare_proof():
+    result = subprocess.run(
+        ["make", "trusted-data-pilot", "PROFILE=local", "TICKERS=NVDA"],
+        cwd=Path.cwd(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert "make readiness\n" not in result.stdout
+    assert "make readiness &&" not in result.stdout
+    assert result.stdout.count("make readiness-snapshot PROFILE=local") >= 2
+    for lane in ("prices", "fundamentals", "peers"):
+        comparison = (
+            f"make reviewed-batch-compare PROFILE=local LANE={lane} "
+            "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        )
+        assert comparison in result.stdout
+    snapshot_at = result.stdout.index("make readiness-snapshot PROFILE=local")
+    validate_at = result.stdout.index("make imports-validate IMPORT_TICKERS=<ticker>")
+    preview_at = result.stdout.index("make imports-preview IMPORT_TICKERS=<ticker>")
+    apply_at = result.stdout.index("make imports-apply IMPORT_TICKERS=<ticker>")
+    compare_at = result.stdout.index("make reviewed-batch-compare PROFILE=local LANE=fundamentals")
+    assert snapshot_at < validate_at < preview_at < apply_at < compare_at
+
+
+@pytest.mark.parametrize("profile", [None, "", "unknown", "<default|demo|local>"])
+def test_trusted_data_pilot_walkthrough_fails_closed_without_concrete_profile(profile: str | None):
+    command = ["make", "trusted-data-pilot", "TICKERS=NVDA"]
+    if profile is not None:
+        command.append(f"PROFILE={profile}")
+
+    result = subprocess.run(
+        command,
+        cwd=Path.cwd(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    rendered = result.stdout + result.stderr
+
+    assert result.returncode == 2
+    assert "PROFILE must be exactly one of: default, demo, local" in rendered
+    assert "make readiness-snapshot" not in rendered
+    assert "make imports-apply" not in rendered
+    assert "make reviewed-batch-compare" not in rendered
+
+
+def test_default_and_composite_targets_are_guarded_and_exclude_writer_commands():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    forbidden_fragments = (
+        "--write-output",
+        "--refresh-artifacts",
+        "src.readiness_engine",
+        "readiness-materialize",
+        "price-refresh",
+        "monthly",
+        "track-record",
+        "research-decisions",
+        "project-status --write-output",
+    )
+
+    assert (
+        "NO_WRITE_GUARD = PYTHONDONTWRITEBYTECODE=1 python3 -m "
+        "src.no_write_artifact_guard --project-root . --"
+    ) in makefile
+    for target in (
+        "status",
+        "pipeline",
+        "onboarding",
+        "daily",
+        "dashboard-smoke",
+        "test",
+        "verify",
+        "validate-all",
+    ):
+        block = _make_target_block(makefile, target)
+        assert "$(NO_WRITE_GUARD)" in block, target
+        assert not [fragment for fragment in forbidden_fragments if fragment in block], target
+
+
+def test_onboarding_uses_read_only_price_coverage_while_price_coverage_target_writes():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    onboarding = _make_target_block(makefile, "onboarding")
+    writer = _make_target_block(makefile, "price-coverage")
+
+    assert "src.manual_price_import --coverage-only --read-only" in onboarding
+    assert "src.manual_price_import --coverage-only" in writer
+    assert "--read-only" not in writer
+
+
+def test_reviewed_batch_compare_requires_and_forwards_one_profile():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    block = _make_target_block(makefile, "reviewed-batch-compare")
+
+    assert "PROFILE is required: default, demo, or local" in block
+    assert '--profile "$(PROFILE)"' in block
+    assert "make readiness" not in block
+
+    help_line = next(
+        line for line in makefile.splitlines() if "make reviewed-batch-compare" in line and "Compare" in line
+    )
+    assert "PROFILE=<default|demo|local>" in help_line
+    assert "current readiness is composed in memory and no current report is written" in help_line
+
+
+def test_full_help_keeps_the_five_primary_readiness_boundaries_separate():
+    result = subprocess.run(
+        ["make", "help-full"], capture_output=True, text=True, check=False
+    )
+
+    assert result.returncode == 0
+    help_text = result.stdout
+    advanced_readiness = help_text.split("Advanced readiness boundaries:\n", 1)[1].split(
+        "\n\n", 1
+    )[0]
+    for boundary in (
+        "make readiness-preview [TOP_N=20] In-memory preview",
+        "make readiness-snapshot PROFILE=<default|demo|local> Required profile",
+        "make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot; current readiness is composed in memory and no current report is written; Required profile",
+        "make readiness        Deprecated no-write guard; exits 2",
+        "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local> Confirmed ignored local materialization",
+    ):
+        assert boundary in advanced_readiness
+
+
+def test_reviewed_batch_packet_targets_forward_one_named_profile():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    for target in ("reviewed-batch", "fundamentals-batch-proof", "peer-batch-proof"):
+        block = _make_target_block(makefile, target)
+        assert '--profile $(or $(PROFILE),default)' in block
 
 
 def test_tracked_holdings_file_is_sanitized_demo_data():
@@ -44,10 +409,14 @@ def test_streamlit_toolbar_uses_viewer_mode_for_public_dashboard():
 def test_dashboard_launchers_force_viewer_mode_for_public_demo():
     makefile = Path("Makefile").read_text(encoding="utf-8")
     launcher = Path("scripts/dashboard.sh").read_text(encoding="utf-8")
+    smoke = Path("scripts/smoke_dashboard.sh").read_text(encoding="utf-8")
 
     assert "streamlit run src/dashboard.py --client.toolbarMode viewer --server.headless true" in makefile
     assert "--client.toolbarMode viewer" in launcher
     assert "--server.headless true" in launcher
+    assert 'export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"' in launcher
+    assert 'export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"' in smoke
+    assert 'PYTHONPATH="$(CURDIR):$${PYTHONPATH:-}" streamlit run' in makefile
 
 
 def test_public_check_requires_a_fresh_dashboard_render_smoke():
@@ -59,6 +428,38 @@ def test_public_check_requires_a_fresh_dashboard_render_smoke():
     assert "$(MAKE) --silent demo-dashboard-smoke" in public_check
 
 
+def test_makefile_exposes_research_dashboard_render_smoke():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "research-dashboard-render-smoke" in _makefile_targets()
+    target = makefile.split("research-dashboard-render-smoke:", 1)[1].split("\n\n", 1)[0]
+    assert "python3 -m src.dashboard_render_smoke --routes research" in target
+
+
+def test_calibration_evidence_bundle_preview_is_explicit_and_read_only():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    assert "calibration-evidence-bundle-preview" in _makefile_targets()
+    block = makefile.split("calibration-evidence-bundle-preview:", 1)[1].split("\n\n", 1)[0]
+    assert "BUNDLE is required" in block
+    assert "python3 -m src.calibration_evidence_bundle preview" in block
+    assert '--bundle "$${CALIBRATION_EVIDENCE_BUNDLE}"' in block
+    assert "record" not in block
+    assert "apply" not in block
+
+
+def test_calibration_evidence_bundle_preview_rejects_an_implicit_input():
+    result = subprocess.run(
+        ["make", "calibration-evidence-bundle-preview"],
+        cwd=Path.cwd(),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "BUNDLE is required" in result.stderr
+
+
 def test_dashboard_smoke_uses_an_isolated_fresh_server():
     smoke = Path("scripts/smoke_dashboard.sh").read_text(encoding="utf-8")
 
@@ -66,6 +467,10 @@ def test_dashboard_smoke_uses_an_isolated_fresh_server():
     assert 'if [[ "${PORT}" == "0" ]]' in smoke
     assert "Dashboard already healthy" not in smoke
     assert "--server.fileWatcherType none" in smoke
+    assert "Dashboard import check passed" in smoke
+    assert "Path(dashboard.__file__).resolve()" in smoke
+    assert 'PYTHONDONTWRITEBYTECODE=1 REPO_ROOT="${REPO_ROOT}" python3' in smoke
+    assert "PYTHONDONTWRITEBYTECODE=1 streamlit run" in smoke
 
 
 def test_price_mutation_targets_use_the_ignored_local_profile():
@@ -74,6 +479,17 @@ def test_price_mutation_targets_use_the_ignored_local_profile():
     for target in ("price-validate", "price-preview", "price-apply", "price-refresh"):
         block = makefile.split(f"{target}:", 1)[1].split("\n\n", 1)[0]
         assert "STOCK_RESEARCH_DATA_PROFILE=local" in block
+
+
+def test_price_review_targets_forward_one_explicit_temporal_cutoff():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    for target in ("price-validate", "price-preview", "price-apply"):
+        block = makefile.split(f"{target}:", 1)[1].split("\n\n", 1)[0]
+        assert '--review-cutoff "$(AS_OF)"' in block
+    normalize = makefile.split("price-normalize:", 1)[1].split("\n\n", 1)[0]
+    assert "AS_OF is required when RETRIEVED_AT is supplied" in normalize
+    assert '--review-cutoff "$(AS_OF)"' in normalize
 
 
 def test_demo_data_check_only_runs_the_manifest_verifier():
@@ -139,6 +555,7 @@ def test_makefile_contains_convenience_targets():
         "decision-proof-queue",
         "metric-readiness-board",
         "diff-hygiene-summary",
+        "pr-range-hygiene-check",
         "diff-hygiene-files",
         "data-release-decision",
         "public-release-package",
@@ -296,7 +713,7 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-batch-proof",
         "Print durable reviewed batch proof rows",
         "make reviewed-batch-compare",
-        "Compare prior/current readiness snapshots for proof-ledger fields",
+        "Compare a profile-bound prior snapshot; current readiness is composed in memory and no current report is written",
         "make reviewed-batch-preflight",
         "Check snapshot, dry-run, compare, proof, and artifact gates",
         "make lane-outcome-history",
@@ -320,7 +737,7 @@ def test_makefile_help_documents_key_workflows():
         "make public-ux-review-note",
         "Record one local UX review note row without staging or refreshing data",
         "make pilot-review-feedback",
-        "Print the controlled 5-10 reviewer feedback capture guide",
+        "Print the controlled 10-20 reviewer feedback capture guide",
         "make project-status-check",
         "Print project status without writing dashboard snapshot files",
         "make readiness-ops-center",
@@ -350,7 +767,7 @@ def test_makefile_help_documents_key_workflows():
         "make reviewed-batch-proof [LEDGER=data/reviewed_batch_proofs.csv] Print durable reviewed batch proof rows",
         "make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<auto_supported|human_reviewed_supported|candidate_context_only|still_blocked|skipped|excluded> Record a reviewed or auto-gated batch outcome",
         "make auto-refresh-plan       Print scheduler-ready source-backed auto-refresh lanes and auto gates",
-        "make reviewed-batch-compare [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare prior/current readiness snapshots for proof-ledger fields",
+        "make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot; current readiness is composed in memory and no current report is written",
         "make reviewed-batch-preflight [LANE=prices] [TOP_N=100] [MAX_CANDIDATES=3500] Check snapshot, dry-run, compare, proof, and artifact gates",
         "make price-reviewed-run [MAX_CANDIDATES=3500] [TOP_N=100] [PROVIDER=auto] Print reviewed capped price-run execution, diff, and rollback plan",
         "make public-demo-readiness-pack Print the small shareable public demo proof set",
@@ -504,10 +921,13 @@ def test_linkedin_share_check_prints_read_only_final_checklist():
     output = result.stdout
     assert "LinkedIn Share Check" in output
     assert "Read-only: this target prints the final LinkedIn visual checklist only." in output
-    assert "Stock Research Command Center | Readiness-First Stock Research Workflow" in output
+    assert "Stock Research Command Center | Evidence-First Company Research" in output
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in output
+    assert "stable GitHub repository link only after this reviewed feature reaches the default branch" in output
+    assert "Draft engineering preview" in output
     assert "docs/assets/linkedin-public-dashboard.png" in output
     assert "GitHub's generated OpenGraph card" in output
-    assert "hosted Streamlit app" in output
+    assert "hosting" in output
     assert "screenshots prove current data freshness" in output
     assert "provider-key activation" in output
     assert "make public-check" in output
@@ -516,6 +936,14 @@ def test_linkedin_share_check_prints_read_only_final_checklist():
 def test_make_help_output_stays_visitor_friendly():
     result = subprocess.run(["make", "help"], check=True, capture_output=True, text=True)
     output = result.stdout
+    visitor_lines = [
+        line
+        for line in output.splitlines()
+        if not (
+            line.startswith("make[")
+            and ("Entering directory" in line or "Leaving directory" in line)
+        )
+    ]
 
     assert "Stock Research Command Center" in output
     assert "Start here:" in output
@@ -531,7 +959,7 @@ def test_make_help_output_stays_visitor_friendly():
     assert "fundamentals-source-ladder-queue" not in output
     assert "Data onboarding:" not in output
     assert "Preview-first fundamentals and universe imports:" not in output
-    assert len(output.splitlines()) <= 25
+    assert len(visitor_lines) <= 25
 
 
 def test_make_next_stage_prints_current_stage_ladder_without_running_broad_work():
@@ -542,14 +970,17 @@ def test_make_next_stage_prints_current_stage_ladder_without_running_broad_work(
     assert "Read-only: this target prints the current next-stage decision ladder only." in output
     assert "Current package answer:" in output
     assert "Next executable repo-side item:" in output
+    executable = output.split("Next executable repo-side item:\n", 1)[1].split(
+        "\n\nExternal unblock conditions (not executable now):", 1
+    )[0]
+    assert executable.strip() == "- Readiness inspection: make readiness-preview TOP_N=20"
     assert "Hosted demo status:" in output
     assert "Provider key status:" in output
     assert "Source-proof queue status:" in output
-    assert "Current truth: make project-status-check" in output
-    assert "Public share gate: make public-check" in output
-    assert "Hosted app gate: make hosted-demo-readiness" in output
-    assert "Provider key gate: make provider-setup-checklist" in output
-    assert "Do not run broad proof queues unless project-status-check shows executable source-backed candidates." in output
+    assert "External unblock conditions (not executable now):" in output
+    assert "remote synchronization and public sharing require separate authorization" in output
+    assert "hosted operation, credentials, source rights, reviewers, and supplied evidence" in output
+    assert "Do not run broad proof queues while the continuation gate suppresses execution." in output
     assert "Generated churn stays excluded unless one exact artifact is reviewed evidence." in output
     assert "trusted-data-pilot-candidates" not in output
     assert "data-coverage-proof-queues" not in output
@@ -569,7 +1000,7 @@ def test_price_refresh_defaults_to_capped_broad_universe_batch():
     assert "STOCK_RESEARCH_DATA_PROFILE=local python3 -m src.data_update --universe-file data/local/universe.csv --missing-only --max-tickers $(or $(TOP_N),25)" in makefile
 
 
-def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
+def test_price_refresh_loop_uses_capped_defaults_and_ends_with_read_only_inspection():
     makefile = Path("Makefile").read_text(encoding="utf-8")
     script = Path("scripts/price_refresh_loop.sh").read_text(encoding="utf-8")
 
@@ -603,8 +1034,9 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Manual equivalent avoided: about $MANUAL_25_BATCHES separate 25-ticker refresh command(s)." in script
     assert "Estimated wait between batches: about $WAIT_SECONDS second(s), plus provider response time." in script
     assert "Resume behavior: each batch uses the missing-price worklist" in script
-    assert "Before a real run, copy make readiness-snapshot" in script
-    assert "What changes on a real run: local price CSVs and generated readiness/report outputs may update." in script
+    assert "Before a real run, use make readiness-preview TOP_N=20" in script
+    assert "What changes on a real run: local price CSVs may update." in script
+    assert "The post-refresh readiness preview and status check do not persist derived artifacts." in script
     assert "What stays manual: staging, validation, commit selection, and any generated CSV review remain under your control." in script
     assert "Plain planning knob: set MAX_CANDIDATES=3500" in script
     assert "Use MAX_CANDIDATES first when you know the approximate missing-price count; use BATCHES only as an advanced override." in script
@@ -623,14 +1055,14 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Planned loop command: make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Planned loop command: make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "Each capped batch would run: make price-refresh TOP_N=$TOP_N PROVIDER=$PROVIDER" in script
-    assert "Snapshot command before a real run: make readiness-snapshot" in script
+    assert "Baseline inspection command before a real run: make readiness-preview TOP_N=20" in script
     assert "Hygiene command after a real run: make diff-hygiene" in script
     assert "Recommended next sequence:" in script
-    assert "1. make readiness-snapshot" in script
+    assert "1. make readiness-preview TOP_N=20" in script
     assert "2. make price-refresh-loop MAX_CANDIDATES=$MAX_CANDIDATES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
     assert "2. make price-refresh-loop BATCHES=$BATCHES TOP_N=$TOP_N PROVIDER=$PROVIDER SLEEP_SECONDS=$SLEEP_SECONDS" in script
-    assert "3. make diff-hygiene" in script
-    assert "4. make stock-report-md TICKER=NVDA or reopen the dashboard to review the local result" in script
+    assert "3. make status-check TOP_N=5" in script
+    assert "4. make diff-hygiene" in script
     assert "If you want broader coverage, set MAX_CANDIDATES first while keeping TOP_N capped, then dry-run again." in script
     assert "Example broad dry run: make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=$PROVIDER" in script
     assert "Advanced alternative: make price-refresh-loop DRY_RUN=1 BATCHES=30 TOP_N=100 PROVIDER=$PROVIDER" in script
@@ -645,9 +1077,12 @@ def test_price_refresh_loop_uses_capped_defaults_and_rebuilds_status():
     assert "Non-blocking provider failure recorded for price batch $i." in script
     assert "Source path outcome: price provider ladder still_blocked for this session after batch $FAILED_BATCH failed." in script
     assert "This replaces repeating 25-ticker refreshes manually" in script
-    assert "make price-coverage TOP_N=25" in script
-    assert "make readiness" in script
-    assert "make project-status" in script
+    real_branch = script.split('if [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "true" ]; then', 1)[1].split("fi\n\ni=1", 1)[1]
+    assert "make price-coverage" not in real_branch
+    assert "make readiness\n" not in real_branch
+    assert "make project-status" not in real_branch
+    real_make_commands = [line.strip() for line in real_branch.splitlines() if line.startswith("make ")]
+    assert real_make_commands[-2:] == ["make readiness-preview TOP_N=20", "make status-check TOP_N=5"]
     assert "run make diff-hygiene before staging" in script
 
 
@@ -858,7 +1293,7 @@ def test_price_refresh_loop_can_record_provider_failure_without_blocking(tmp_pat
         "echo \"$*\" >> \"$CALLS_LOG\"\n"
         "case \"$1\" in\n"
         "  price-refresh) exit 1 ;;\n"
-        "  price-coverage|readiness|project-status) exit 0 ;;\n"
+        "  readiness-preview|status-check) exit 0 ;;\n"
         "  *) exit 0 ;;\n"
         "esac\n",
         encoding="utf-8",
@@ -890,9 +1325,7 @@ def test_price_refresh_loop_can_record_provider_failure_without_blocking(tmp_pat
     assert "skipping remaining price batches in this session" in output
     assert "source path outcome: price provider ladder still_blocked for this session" in output
     assert recorded_calls.count("price-refresh TOP_N=2 PROVIDER=auto") == 1
-    assert "price-coverage TOP_N=25" in recorded_calls
-    assert "readiness" in recorded_calls
-    assert "project-status" in recorded_calls
+    assert recorded_calls[-2:] == ["readiness-preview TOP_N=20", "status-check TOP_N=5"]
 
 
 def test_readme_public_landing_page_is_short_visual_and_command_focused():
@@ -901,9 +1334,8 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     public_demo = Path("docs/PUBLIC_DEMO_WALKTHROUGH.md").read_text(encoding="utf-8")
 
     assert len(readme.splitlines()) < 180
-    assert "![Dashboard preview](docs/assets/public-demo-home-real.jpg)" in readme
-    assert "docs/assets/linkedin-public-dashboard.png" in readme
-    assert "make status-check TOP_N=5` remains the source for current local counts" in readme
+    assert "![Company Workbench answer preview](docs/assets/linkedin-public-dashboard.png)" in readme
+    assert "make readiness-ops-center` for lane truth" in readme
     for preview_phrase in (
         "plain-language stock analysis modes",
         "At A Glance single-stock status",
@@ -934,16 +1366,16 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         assert stale_preview_phrase not in preview
     assert "## Quick Start" in readme
     assert "flowchart LR" in readme
-    assert 'Home["Home: workflow start"] --> Selector["Stock Selector: readiness-backed queue"]' in readme
-    assert 'Selector --> Report["Single-Stock Report: one ticker"]' in readme
-    assert 'Report --> Health["Data Health: missing input"]' in readme
-    assert 'Health --> Proof["Proof History: source-proof trail"]' in readme
+    assert 'Desk["Research Desk: changed evidence"] --> Discover["Discover: strict eligibility or saved evidence"]' in readme
+    assert 'Discover --> Workbench["Company Workbench: Company Brief first"]' in readme
+    assert 'Workbench --> Monitor["Monitor: unresolved research changes"]' in readme
+    assert 'Workbench -. advanced evidence .-> Health["Data Health and Proof History"]' in readme
     assert "Open the product before proof packets or report commands" in readme
     quick_start = readme[readme.index("## Quick Start") : readme.index("## Try This Visitor Workflow")]
     assert quick_start.index("make demo-dashboard") < quick_start.index("make status-check TOP_N=5")
     assert quick_start.index("make demo-dashboard") < quick_start.index("make pilot-readiness-check TOP_N=10")
     assert quick_start.index("make demo-dashboard") < quick_start.index("make stock-report-md TICKER=NVDA")
-    assert "Optional read-only proof after the app flow is clear" in quick_start
+    assert "Optional saved generated-snapshot inspection after the app flow is clear" in quick_start
     assert "When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps." in readme
     assert "## What You Can Analyze" in readme
     assert "## How Analysis Works" in readme
@@ -1053,7 +1485,6 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "what to read first",
         "Copyable Proof Commands",
         "readiness-state output, not an action list",
-        "Roadmap Snapshot",
         "Review them before committing",
             "Before sharing or committing, run `make public-check`, then `make public-release-package`",
             "compact branch status, package status, staging, generated-exclusion, final-check, commit, and push checklist",
@@ -1098,7 +1529,7 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         assert phrase in readme
     quick_start = readme.split("## Quick Start", 1)[1].split("## Try This Visitor Workflow", 1)[0]
     assert "make pipeline" not in quick_start
-    assert "make readiness" not in quick_start
+    assert "\nmake readiness\n" not in quick_start
     assert quick_start.index("make demo") < quick_start.index("make demo-dashboard")
     assert quick_start.index("make demo-dashboard") < quick_start.index("make status-check TOP_N=5")
     assert quick_start.index("make status-check TOP_N=5") < quick_start.index("make stock-report-md TICKER=NVDA")
@@ -1413,22 +1844,20 @@ def test_roadmap_keeps_active_plan_separate_from_completed_product_history():
     for phrase in (
         "## Now",
         "## Next",
+        "## Externally blocked",
         "## Later",
+        "## Completed with evidence",
         "### P0: Performance Release Candidate",
-        "### P1: Controlled Hosted Preview Verification",
-        "### P1: Controlled Pilot Review",
-        "### P2: FMP One-Ticker Source Smoke",
-        "### P3: 25-50 Company Trusted-Peer Pilot",
-        "keep GitHub as the public link until the hosted route is verified.",
+        "### P1 local prerequisite: Hosted operating contracts",
+        "### P1 local prerequisite: Independent beta protocol",
+        "`hosted_account_and_controls_required`",
+        "`independent_reviewers_required`",
     ):
         assert phrase in roadmap
 
-    assert roadmap.index("### P0: Performance Release Candidate") < roadmap.index(
-        "### P1: Controlled Hosted Preview Verification"
-    )
-    assert roadmap.index("### P1: Controlled Hosted Preview Verification") < roadmap.index(
-        "### P1: Controlled Pilot Review"
-    )
+    completed = roadmap.index("## Completed with evidence")
+    assert completed < roadmap.index("### P0: Performance Release Candidate")
+    assert roadmap.index("## Externally blocked") < completed
 
 
 def test_roadmap_routes_exhausted_proof_queues_to_provider_setup_before_candidate_loops():
@@ -1574,12 +2003,13 @@ def test_operator_guide_is_command_focused_and_research_only():
     assert first_run.index("make dashboard") < first_run.index("make status-check TOP_N=5")
     assert first_run.index("make status-check TOP_N=5") < first_run.index("make project-status")
     assert first_run.index("make project-status") < first_run.index("make stock-report-md TICKER=NVDA")
-    assert "Rebuild local outputs only after changing source data, imports, or pipeline code" in first_run
+    assert "Inspect readiness impact after changing reviewed source data or imports" in first_run
     rebuild_section = first_run.split(
-        "Rebuild local outputs only after changing source data, imports, or pipeline code:", 1
+        "Inspect readiness impact after changing reviewed source data or imports; do not regenerate tracked release artifacts through a composite command:", 1
     )[1]
-    assert rebuild_section.index("make pipeline") < rebuild_section.index("make readiness")
-    assert rebuild_section.index("make readiness") < rebuild_section.index("make project-status")
+    assert rebuild_section.index("make pipeline") < rebuild_section.index("make readiness-preview")
+    assert rebuild_section.index("make readiness-preview") < rebuild_section.index("make project-status-check")
+    assert "make readiness\n" not in rebuild_section
 
     for forbidden in (
         "buy recommendation",
@@ -1606,8 +2036,9 @@ def test_public_release_docs_point_to_operator_guide_without_stale_future_copy()
     assert "review-required lanes for fundamentals, peers, earnings, and analyst estimates" in checklist
     assert "not told to manually refresh the full universe every day" in checklist
     assert "lane-specific freshness and generated-data hygiene" in checklist
-    assert "Keep the guided product flow near the top" in checklist
-    assert "then `make dashboard` and the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path" in checklist
+    assert "Keep the primary product flow near the top" in checklist
+    assert "then Research Desk -> Discover -> Company Workbench -> Monitor" in checklist
+    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History as the secondary controlled Public demo" in checklist
     assert "Keep terminal proof commands secondary" in checklist
     assert "make stock-report-md TICKER=NVDA" in checklist
     assert "make trusted-data-pilot-candidates TOP_N=10" in checklist
@@ -1808,39 +2239,23 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
 
     for phrase in (
-        "data readiness first, analysis second, research decision last",
-        "what can be reviewed now",
-        "what is blocked by missing data",
-        "what is excluded because the method does not apply",
-        "which trusted local input would unlock the next layer",
-        "Best first click: open the dashboard preview, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.",
-        "Each public page now opens with one question, one short answer, one primary next action, and one stop rule.",
-        "The public workflow is checked at desktop and mobile widths.",
-        "The current-page shortcut is visible so visitors know where they are.",
+        "Stock Research Command Center | Evidence-First Company Research",
+        "local Python and Streamlit portfolio beta for evidence-first company research",
+        "Research Desk -> Discover -> Company Workbench -> Monitor",
+        "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History",
+        "what evidence can be used now",
+        "keep unsupported conclusions withheld",
+        "Data Health and Proof History remain available",
+        "real Workbench answer-first screenshot",
+        "screenshots are product evidence only",
+        "stable GitHub repository link only after this reviewed feature reaches the default branch",
+        "Draft engineering preview",
         "Operator details stay collapsed until someone intentionally leaves the public path.",
-        "The first story is the public workflow, not operator automation.",
-        "Keep reviewed batch packets, provider setup, and validate / preview / apply mechanics as operator detail after the visitor understands the product.",
-        "Use the refreshed `docs/assets/linkedin-public-dashboard.png` thumbnail for the LinkedIn Featured card.",
-        "Best demos",
-        "`NVDA` for DCF-ready company review",
-        "`META` for valuation still gated by trusted fundamentals",
-        "`QQQ` for ETF/index monitor context",
-        "`MU` for standalone DCF with peer valuation still locked",
-        "`CRDO` for a fundamentals-gated proof workflow",
-        "A Streamlit command center dashboard",
-        "Market-wide readiness checks across a broad ticker universe",
-        "Single-stock Markdown reports",
-        "At A Glance",
-        "Reader Guide",
-        "Evaluation Snapshot",
-        "Proof Checklist",
-        "Best Review Path",
-        "DCF-ready, standalone DCF, price/setup-only, monitor-only, and data-needed-before-analysis report modes",
-        "Source readiness notes and copyable local proof commands",
-        "CSV-first import, validation, preview, rejected-row, and readiness workflows",
-        "ready data can be analyzed, blocked data is explained",
-        "missing rows are treated as the next proof step",
-        "At A Glance status, Evaluation Snapshot, Proof Checklist, Best Review Path, method cue, DCF assumptions",
+        "The first story is company research, not operator automation.",
+        "reviewed batch packets, provider setup, validate / preview / apply mechanics",
+        "Use the reviewed `docs/assets/linkedin-public-dashboard.png` Workbench thumbnail",
+        "no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions",
+        "local portfolio beta, not a hosted product or market-validated service",
         "Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted.",
         "Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates.",
         "Keep lane-level operator views, coverage frontier details, reviewed batch packets, and validate / preview / apply guidance as follow-up context after the public workflow is clear.",
@@ -1867,21 +2282,14 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     ):
         assert phrase in brief
 
-    assert "standalone DCF review where peer-relative valuation is still locked" in brief
-    assert "price/setup review where valuation remains gated" in brief
+    assert "readiness counts" not in brief.lower()
     assert "CSV-first staged import workflows" not in brief
     assert "staged import validation" not in brief
     linkedin_demo_talking_points = brief.split("## Demo Talking Points", 1)[1]
     assert "make trusted-data-pilot-candidates TOP_N=10" not in linkedin_demo_talking_points
     assert "make trusted-data-pilot-packet TICKER=CRDO" not in linkedin_demo_talking_points
     assert "make trusted-data-pilot TICKERS=<chosen names> TOP_N=10" not in linkedin_demo_talking_points
-    assert "refusing to present every ticker as complete" in brief
-    for guardrail_phrase in (
-        "direct buy/sell instructions",
-        "jumping straight to rankings",
-        "no broker integration",
-    ):
-        assert guardrail_phrase in brief
+    assert "investment advice" in brief
 
 
 def test_dashboard_qa_records_latest_public_flow_browser_check():
@@ -2123,9 +2531,9 @@ def test_readiness_model_documents_peer_layers_and_snapshot_history():
 def test_dashboard_advanced_commands_recommend_dry_run_before_refresh():
     dashboard = Path("src/dashboard.py").read_text(encoding="utf-8")
     dry_run_index = dashboard.index("make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto")
-    refresh_index = dashboard.index("make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30")
 
-    assert dry_run_index < refresh_index
+    assert dry_run_index >= 0
+    assert "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30" not in dashboard
     assert "Inspect broad refresh changes before committing or sharing them publicly" in dashboard
     assert "broad refresh churn should be inspected before it is committed or shared publicly" not in dashboard
     assert "Open Review" in dashboard
@@ -2225,9 +2633,11 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "make imports-validate IMPORT_TICKERS=<ticker> && make imports-preview IMPORT_TICKERS=<ticker>" in data_strategy
     assert "make imports-apply IMPORT_TICKERS=<ticker> only after validation passes, preview scope is intended, rejected rows are zero" in data_strategy
     assert "Check the rejected-row report printed by the packet before treating the lane as available." in data_strategy
-    assert "Run the matching rebuild proof:" in data_strategy
-    assert "fundamentals lane: make readiness && make dcf-readiness" in data_strategy
-    assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in data_strategy
+    assert "Run the matching in-memory readiness comparison after the reviewed source step:" in data_strategy
+    assert "readiness impact: make readiness-preview TOP_N=20" in data_strategy
+    assert "batch comparison: make reviewed-batch-compare PROFILE=<default|demo|local>" in data_strategy
+    assert "fundamentals lane: make dcf-readiness" in data_strategy
+    assert "peer lane: make peer-mapping-queue TOP_N=25" in data_strategy
     assert "lane review path, validate/preview gate, apply boundary, rejected-row report path, rebuild proof, and evidence row to record" in data_strategy
     assert "The candidate list and one-company packet also print local file status" in data_strategy
     assert "A file with rows is not automatically trusted coverage" in data_strategy
@@ -2265,7 +2675,7 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "then preview any broader update with `make price-refresh-loop DRY_RUN=1`" in data_strategy
     assert "Pilot Evidence Checklist" in data_strategy
     assert "A company is a useful pilot win only when the evidence is reviewable, not just when a CSV row exists." in data_strategy
-    assert "Keep a before/after readiness count from `make readiness-snapshot` and `make readiness`." in data_strategy
+    assert "Keep a before/after readiness count from `make readiness-snapshot PROFILE=<default|demo|local>` and `make reviewed-batch-compare PROFILE=<default|demo|local> ...`" in data_strategy
     assert "Keep one regenerated Markdown report per pilot company" in data_strategy
     assert "Keep the exact review and validation path that changed the state" in data_strategy
     assert "Record local file status from the pilot output, but do not treat row counts or file existence as proof by themselves." in data_strategy
@@ -2283,7 +2693,9 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Reviewed Batch Execution V1" in data_strategy
     assert "Use `DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10` to preview a frontier lane as a reviewed run packet without writing packet artifacts." in data_strategy
     assert "The packet includes the pre-run readiness snapshot command, dry-run command, capped execution command, validate/preview/apply gates" in data_strategy
-    assert "the packet says to run `make readiness` before relying on final counts." in data_strategy
+    assert "the packet must stop at `make readiness-preview TOP_N=20`" in data_strategy
+    assert "creates an optional ignored local package only" in data_strategy
+    assert "does not update the tracked 18-file release candidate" in data_strategy
     assert "Use `make data-release-decision` after any reviewed batch or local refresh creates dirty CSV/report artifacts." in data_strategy
     assert "It separates three choices: keep generated artifacts local for working evidence, publish a reviewed data snapshot only when those exact artifacts are the deliverable, or clean back to a public code/docs release state." in data_strategy
     assert "Keep the public branch clean with `make diff-hygiene`" in data_strategy
@@ -2343,8 +2755,10 @@ def test_product_facing_status_labels_avoid_action_language():
         for label in forbidden_labels:
             assert label not in text, f"{path} still exposes action-sounding label {label!r}"
 
-    for replacement in ("Research Ready", "Pullback Review Candidate", "Constructive Review", "Hold Review Only"):
-        assert replacement in Path("src/dashboard.py").read_text(encoding="utf-8")
+    dashboard = Path("src/dashboard.py").read_text(encoding="utf-8")
+    assert "Research Ready" in dashboard
+    for retired_action_label in ("Pullback Review Candidate", "Constructive Review", "Hold Review Only"):
+        assert retired_action_label not in dashboard
 
 
 def test_generated_product_outputs_use_current_import_draft_language():
@@ -2450,9 +2864,11 @@ def test_validate_all_reuses_current_verification_targets():
 
     assert "make verify" in script
     assert "make data-sources-check" in script
-    assert "make monthly" in script
-    assert "make track-record" in script
     assert "make dashboard-smoke" in script
+    assert "make monthly" not in script
+    assert "make track-record" not in script
+    assert "--write-output" not in script
+    assert "price-refresh" not in script
     assert "python3 -m pytest tests -q" not in script
     assert "python3 -m src.data_sources --check" not in script
 
@@ -2460,16 +2876,8 @@ def test_validate_all_reuses_current_verification_targets():
 def test_daily_launcher_reuses_current_make_targets():
     script = Path("scripts/daily.sh").read_text(encoding="utf-8")
 
-    for command in (
-        "make price-refresh",
-        "make pipeline",
-        "make monthly",
-        "make track-record",
-        "make validate-data",
-        "make onboarding",
-    ):
-        assert command in script
-
+    make_commands = [line.strip() for line in script.splitlines() if line.startswith("make ")]
+    assert make_commands == ["make daily"]
     assert "python3 -m src.data_update --universe-file data/universe.csv" not in script
     assert "python3 -m src.report_generator" not in script
 
@@ -2496,7 +2904,7 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "git add" not in monitor
     assert "git push" not in monitor
 
-    assert "status:\n\tpython3 -m src.project_status --refresh-artifacts --top-n $(or $(TOP_N),5)" in makefile
+    assert "status:\n\t$(NO_WRITE_GUARD) python3 -m src.project_status --check --top-n $(or $(TOP_N),5)" in makefile
     assert "status-check:\n\tpython3 -m src.project_status --check --top-n $(or $(TOP_N),5) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "coverage:\n\tpython3 -m src.data_onboarding --coverage $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "data-wizard:\n\tpython3 -m src.data_onboarding --wizard $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
@@ -2527,9 +2935,11 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "optional-context-worklist:\n\tpython3 -m src.data_onboarding --optional-context-worklist $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "sec-stage-queue:\n\tpython3 -m src.data_onboarding --sec-stage-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
     assert "peer-mapping-queue:\n\tpython3 -m src.data_onboarding --peer-mapping-queue $(if $(TOP_N),--top-n $(TOP_N),) $(if $(TICKERS),--tickers $(TICKERS),)" in makefile
-    assert "trusted-data-pilot:\n\t@echo \"Trusted Data Pilot\"" in makefile
+    trusted_data_pilot = _make_target_block(makefile, "trusted-data-pilot")
+    assert 'case "$(PROFILE)" in default|demo|local)' in trusted_data_pilot
+    assert '@echo "Trusted Data Pilot"' in trusted_data_pilot
     assert "trusted-data-pilot-candidates:\n\t@python3 -m src.trusted_data_pilot --top-n $(or $(TOP_N),10) $(if $(TICKERS),--tickers $(TICKERS),) $(if $(filter 1 true TRUE yes YES,$(VERBOSE)),--verbose,)" in makefile
-    assert "pilot-share-brief:\n\t@python3 -m src.pilot_readiness --share-brief --top-n $(or $(TOP_N),10) --output \"$(or $(OUTPUT),outputs/pilot_share_brief.md)\"" in makefile
+    assert "pilot-share-brief:\n\t@python3 -m src.pilot_readiness --profile \"$(or $(PROFILE),default)\" --share-brief --top-n $(or $(TOP_N),10) $(if $(OUTPUT),--output \"$(OUTPUT)\",)" in makefile
     assert "trusted-data-pilot-packet:\nifndef TICKER\n\t$(error TICKER is required, for example: make trusted-data-pilot-packet TICKER=CRDO)\nendif\n\t@python3 -m src.trusted_data_pilot --packet $(TICKER)" in makefile
     assert "DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD" in makefile
     assert "DEFAULT_TRUSTED_PILOT_EVIDENCE_TICKERS := MU,CRDO" in makefile
@@ -2545,9 +2955,10 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "data-coverage-planner:\n\t@python3 -m src.readiness_ops --root . --expansion-plan --top-n $(or $(TOP_N),10)" in makefile
     assert "coverage-expansion-loop:\n\t@python3 -m src.coverage_expansion_loop --root . --lane $(or $(LANE),auto) --top-n $(or $(TOP_N),10)" in makefile
     assert "readiness-ops-evidence:\n\t@python3 -m src.readiness_ops --root . --evidence --top-n $(or $(TOP_N),10)" in makefile
-    assert "reviewed-batch:\n\t@python3 -m src.reviewed_batch --root . --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10)" in makefile
+    assert "reviewed-batch:\n\t@python3 -m src.reviewed_batch --root . --profile $(or $(PROFILE),default) --lane $(or $(LANE),prices) --top-n $(or $(TOP_N),10)" in makefile
     assert "reviewed-batch-proof:\n\t@python3 -m src.reviewed_batch_proof --ledger $(or $(LEDGER),data/reviewed_batch_proofs.csv)" in makefile
-    assert "reviewed-batch-compare:\n\t@python3 -m src.readiness_comparison --root ." in makefile
+    assert "reviewed-batch-compare:\nifndef PROFILE\n\t$(error PROFILE is required: default, demo, or local)\nendif" in makefile
+    assert 'src.readiness_comparison --root . --profile "$(PROFILE)"' in makefile
     assert "reviewed-batch-preflight:\n\t@python3 -m src.reviewed_batch_preflight --root ." in makefile
     assert "reviewed-batch-proof-record:\nifndef BATCH_ID" in makefile
     assert "$(error FINAL_OUTCOME is required: supported, auto_supported, human_reviewed_supported, candidate_context_only, still_blocked, skipped, or excluded)" in makefile
@@ -2590,9 +3001,9 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "ifndef IMPORT_TICKERS\nifndef ALLOW_BROAD_IMPORT_APPLY" in makefile
     assert "$(error IMPORT_TICKERS is required for imports-apply; use ALLOW_BROAD_IMPORT_APPLY=1 only after full staged-scope review)" in makefile
     assert "Check the rejected-row report printed by the packet before treating the lane as available." in makefile
-    assert "Run the matching rebuild proof:" in makefile
-    assert "fundamentals lane: make readiness && make dcf-readiness" in makefile
-    assert "peer lane: make readiness && make peer-mapping-queue TOP_N=25" in makefile
+    assert "Run the matching in-memory comparison proof:" in makefile
+    assert "fundamentals lane: make dcf-readiness && make reviewed-batch-compare PROFILE=$(PROFILE) LANE=fundamentals" in makefile
+    assert "peer lane: make reviewed-batch-compare PROFILE=$(PROFILE) LANE=peers" in makefile
     assert "If SEC staging is not configured or source rows are not ready, stop at diagnostics and keep the ticker visibly blocked by missing data." in makefile
     assert "Add peers only when you have source-backed relationships; sector/industry fallback is context, not trusted peer valuation." in makefile
     assert "Stage only intentional docs/code/tests or reviewed sample Markdown reports; keep broad CSV/JSON refresh churn local unless it is the reviewed artifact." in makefile
@@ -2604,6 +3015,14 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "make trusted-data-pilot-candidates [TICKERS=NVDA,CRDO,META] [TOP_N=10] Rank read-only company candidates for the next trusted-data pilot" in makefile
     assert "make trusted-data-pilot-lane LANE=fundamentals_dcf [TICKERS=MU,CRDO,HOOD] [TOP_N=10] Print a read-only lane-group runbook and evidence summary" in makefile
     assert "price-normalize:\nifndef INPUT\n\t$(error INPUT is required, for example: make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=yahoo_manual)\nendif" in makefile
+    price_normalize_target = makefile.split("price-normalize:", 1)[1].split("daily:", 1)[0]
+    assert '$(if $(SOURCE_REF),--source-ref "$(SOURCE_REF)",)' in price_normalize_target
+    assert '$(if $(RETRIEVED_AT),--retrieved-at "$(RETRIEVED_AT)",)' in price_normalize_target
+    assert (
+        "make price-normalize INPUT=data/raw/prices/NVDA.csv TICKER=NVDA SOURCE=<source_id> "
+        "SOURCE_REF=<durable_reference> RETRIEVED_AT=<timezone-aware-timestamp> "
+        "AS_OF=<review-cutoff>"
+    ) in makefile
     assert "stock-report:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report TICKER=NVDA)\nendif\n\tpython3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) $(if $(OUTPUT),--output $(OUTPUT),) $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
     assert "stock-report-md:\nifndef TICKER\n\t$(error TICKER is required, for example: make stock-report-md TICKER=NVDA)\nendif\n\t@python3 -m src.stock_report --ticker $(TICKER) --provider $(if $(PROVIDER),$(PROVIDER),local) --quiet $(if $(MD_OUTPUT),--markdown-output $(MD_OUTPUT),)" in makefile
     assert "local-tickers:\n\tpython3 -m src.stock_report --list-local-tickers" in makefile
@@ -2629,9 +3048,11 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     assert "@echo \"   make demo-dashboard\"" in makefile
     assert "@echo \"3. Follow one ticker in the app before using terminal proof:\"" in makefile
     assert "@echo \"   Start with Stock Selector, open NVDA or another readiness-backed row, then use Data Health only if an input is blocked.\"" in makefile
-    assert "@echo \"4. Optional current-count proof:\"" in makefile
+    assert "@echo \"4. Optional current selected-profile readiness and lane truth:\"" in makefile
+    assert "@echo \"   make readiness-ops-center\"" in makefile
+    assert "@echo \"   Proves: current selected-profile readiness and lane truth without changing local files.\"" in makefile
     assert "@echo \"   make status-check TOP_N=5\"" in makefile
-    assert "@echo \"   Proves: current readiness counts and top blockers without changing local files.\"" in makefile
+    assert "@echo \"   Saved generated-snapshot counts and blockers only; this context can be stale.\"" in makefile
     assert "@echo \"5. Optional sample reports after the app flow is clear:\"" in makefile
     assert "@echo \"   make stock-report-md TICKER=NVDA  # DCF-ready company example\"" in makefile
     assert "@echo \"   make stock-report-md TICKER=ACIC  # price context with DCF gated\"" in makefile
@@ -2684,8 +3105,8 @@ def test_makefile_verify_and_daily_targets_reuse_shared_make_workflows():
     ):
         assert phrase in makefile
     assert "@git status --short --branch --untracked-files=no | sed -n '1p'" in makefile
-    assert "verify:\n\t$(MAKE) test\n\t$(MAKE) pipeline\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
-    assert "daily:\n\t$(MAKE) price-refresh\n\t$(MAKE) pipeline\n\t$(MAKE) monthly\n\t$(MAKE) track-record\n\t$(MAKE) validate-data\n\t$(MAKE) onboarding" in makefile
+    assert "verify:\n\t$(NO_WRITE_GUARD) $(MAKE) test pipeline validate-data onboarding" in makefile
+    assert "daily:\n\t$(NO_WRITE_GUARD) $(MAKE) pipeline validate-data onboarding status-check TOP_N=$(or $(TOP_N),5)" in makefile
     public_check_body = makefile.split("public-check:", 1)[1].split("\n\ntest:", 1)[0]
     assert "price-refresh" not in public_check_body
     assert "imports-apply" not in public_check_body
@@ -2718,3 +3139,165 @@ def test_earnings_nowcast_onboarding_launchers_have_no_apply_path():
     assert "src.earnings_nowcast_onboarding" in section
     assert "earnings-nowcast-apply" not in section
     assert "imports-apply" not in section
+
+
+def test_earnings_nowcast_readiness_launcher_has_explicit_fixture_onboarding_path():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    section = makefile[makefile.index("earnings-nowcast-readiness:") :]
+
+    assert "$(if $(FIXTURE),tests/fixtures/earnings_nowcast_onboarding,$(or $(INPUT_DIR),data/imports/earnings_nowcast))" in section
+    assert "tests/fixtures/earnings_nowcast)" not in section
+    assert "imports-apply" not in section
+
+
+def test_earnings_nowcast_sec_actuals_stage_launcher_requires_scoped_output_and_cutoff():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "earnings-nowcast-sec-actuals-stage" in _makefile_targets()
+    target = makefile.split("earnings-nowcast-sec-actuals-stage:", 1)[1].split("\n\n", 1)[0]
+    assert "TICKERS is required" in target
+    assert "OUTPUT_DIR is required" in target
+    assert "AS_OF is required" in target
+    assert "--cutoff \"$(AS_OF)\"" in target
+    assert "--output-dir \"$(OUTPUT_DIR)\"" in target
+    assert "--max-runtime-seconds \"$(or $(SEC_STAGE_MAX_RUNTIME_SECONDS),300)\"" in target
+    assert "generated temporary/review directory" in target
+    assert "data/earnings_nowcast" not in target
+    assert "data/imports" not in target
+    assert "imports-apply" not in target
+    assert "--apply" not in target
+
+
+def test_makefile_exposes_read_only_commercial_beta_check():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "commercial-beta-check" in _makefile_targets()
+    target = makefile.split("commercial-beta-check:", 1)[1].split("\n\n", 1)[0]
+    assert "$(MAKE) --silent commercial-source-rights" in target
+    assert "$(MAKE) --silent refresh-operations-status" in target
+    assert "$(MAKE) --silent private-beta-readiness" in target
+    for forbidden in ("price-refresh", "imports-apply", "git add", "git push"):
+        assert forbidden not in target
+
+
+def test_makefile_exposes_read_only_commercial_beta_release_check():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "commercial-beta-release-check" in _makefile_targets()
+    target = makefile.split("commercial-beta-release-check:", 1)[1].split("\n\n", 1)[0]
+    for required in (
+        "$(MAKE) --silent commercial-beta-check",
+        "$(MAKE) --silent research-dashboard-render-smoke",
+        "$(MAKE) --silent commercial-beta-performance-contract",
+        "$(MAKE) --silent browser-qa-evidence",
+        "$(MAKE) --silent public-check",
+        "$(MAKE) --silent pilot-readiness-check TOP_N=10",
+        "$(MAKE) --silent diff-hygiene-summary",
+        "git diff --check",
+        "Safe claims:",
+        "Unsafe claims:",
+    ):
+        assert required in target
+    for forbidden in (
+        "price-refresh",
+        "imports-apply",
+        "git add",
+        "git commit",
+        "git push",
+        "deploy",
+    ):
+        assert forbidden not in target
+
+
+def test_makefile_exposes_bytecode_free_consensus_source_review_target():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "earnings-consensus-source-review:" in makefile
+    assert "PYTHONDONTWRITEBYTECODE=1 python3 -m src.earnings_consensus_sources" in makefile
+    assert '--review-csv "$(INPUT)"' in makefile
+    assert '--provider "$(PROVIDER)"' in makefile
+    assert '--as-of "$(AS_OF)"' in makefile
+
+
+def test_consensus_record_requires_the_exact_reviewed_preview_receipt():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    match = re.search(
+        r"^earnings-consensus-collection-record:\n(?P<body>(?:\t.*\n)+)",
+        makefile,
+        flags=re.MULTILINE,
+    )
+    assert match is not None
+    target = match.group("body")
+
+    assert 'test -n "$(AS_OF)"' in target
+    assert 'test -n "$(PREVIEW_RECEIPT)"' in target
+    assert 'test "$(CONFIRM_REVIEWED)" = "1"' in target
+    assert '--as-of "$(AS_OF)"' in target
+    assert '--preview-receipt "$(PREVIEW_RECEIPT)"' in target
+    assert target.count("--confirm-reviewed") == 1
+    assert "$(if $(JSON),--json,)" in makefile
+
+
+def test_makefile_exposes_direct_html_research_brief_browser_gate():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "company-workbench-html-browser-check" in _makefile_targets()
+    assert (
+        "make company-workbench-html-browser-check Verify offline research-brief bytes in a real browser"
+        in makefile
+    )
+    target = makefile.split("company-workbench-html-browser-check:", 1)[1].split(
+        "\n\n", 1
+    )[0]
+    assert "PYTHONDONTWRITEBYTECODE=1" in target
+    assert "tests/test_company_workbench_html_browser_gate.py" in target
+
+
+def test_accessibility_browser_gate_allows_the_exact_current_maturity_paths():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    target = makefile.split("research-accessibility-browser-check:", 1)[1].split(
+        "\n\n", 1
+    )[0]
+    allowed = {
+        line.split("--allow-dirty-path ", 1)[1].strip().rstrip(" \\")
+        for line in target.splitlines()
+        if "--allow-dirty-path " in line
+    }
+
+    assert allowed == {
+        "src/browser_qa_evidence.py",
+        "src/dashboard.py",
+        "src/dashboard_navigation.py",
+        "src/dashboard_render_smoke.py",
+        "src/dashboard_visual_system.py",
+        "src/project_status.py",
+        "src/public_performance_gate.py",
+        "src/readiness_ops.py",
+        "src/research_accessibility_browser_gate.py",
+        "src/research_loop.py",
+        "src/research_workspace.py",
+        "src/workspace_visual_browser_gate.py",
+        "tests/test_browser_qa_evidence.py",
+        "tests/test_dashboard_helpers.py",
+        "tests/test_dashboard_navigation.py",
+        "tests/test_dashboard_render_smoke.py",
+        "tests/test_dashboard_visual_system.py",
+        "tests/test_project_status.py",
+        "tests/test_public_performance_gate.py",
+        "tests/test_public_v1_release_docs.py",
+        "tests/test_readiness_ops.py",
+        "tests/test_research_accessibility_browser_gate.py",
+        "tests/test_research_loop.py",
+        "tests/test_research_mode_dashboard_contract.py",
+        "tests/test_research_workspace.py",
+        "tests/test_workspace_visual_browser_gate.py",
+        "tests/test_launchers.py",
+        "README.md",
+        "ROADMAP.md",
+        "docs/DASHBOARD_QA.md",
+        "docs/PERSONAL_RESEARCH_MODE.md",
+        "docs/PUBLIC_RELEASE_CHECKLIST.md",
+        "docs/superpowers/specs/2026-08-12-hypothetical-paper-position-laboratory-design.md",
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md",
+        "Makefile",
+    }

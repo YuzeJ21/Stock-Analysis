@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from src.price_import_normalizer import normalize_price_imports
 
@@ -29,6 +30,93 @@ def test_yahoo_style_csv_normalizes_with_ticker(tmp_path: Path):
     assert staged.iloc[0]["ticker"] == "NVDA"
     assert staged.iloc[0]["adjusted_close"] == 103.5
     assert staged.iloc[0]["source"] == "yahoo_manual"
+
+
+def test_normalizer_preserves_explicit_source_reference_and_retrieval_timestamp(tmp_path: Path):
+    raw = tmp_path / "NVDA.csv"
+    output = tmp_path / "imports" / "prices.csv"
+    raw.write_text(
+        "Date,Open,High,Low,Close,Adj Close,Volume\n"
+        "2026-01-02,100,105,99,104,103.5,123456\n",
+        encoding="utf-8",
+    )
+
+    normalize_price_imports(
+        input_path=raw,
+        output_path=output,
+        ticker="NVDA",
+        source="approved_prices",
+        source_ref="https://example.test/prices/NVDA/2026-01-02",
+        retrieved_at="2026-01-03T23:00:00Z",
+        review_cutoff="2026-01-04T00:00:00Z",
+        as_of_date="2026-01-02",
+    )
+    staged = pd.read_csv(output)
+
+    assert staged.iloc[0]["source"] == "approved_prices"
+    assert staged.iloc[0]["source_ref"] == "https://example.test/prices/NVDA/2026-01-02"
+    assert staged.iloc[0]["retrieved_at"] == "2026-01-03T23:00:00+00:00"
+
+
+@pytest.mark.parametrize(
+    ("retrieved_at", "review_cutoff", "reason"),
+    [
+        ("2026-01-03T23:00:00", "2026-01-04T00:00:00Z", "retrieved_at_timezone_required"),
+        ("2026-01-02T23:59:59Z", "2026-01-04T00:00:00Z", "retrieved_before_observation_available"),
+        ("2026-01-04T00:00:01Z", "2026-01-04T00:00:00Z", "retrieved_after_review_cutoff"),
+        ("2026-01-03T23:00:00Z", None, "review_cutoff_required"),
+    ],
+)
+def test_normalizer_rejects_invalid_retrieval_lineage_before_writing(
+    tmp_path: Path,
+    retrieved_at: str,
+    review_cutoff: str | None,
+    reason: str,
+):
+    raw = tmp_path / "NVDA.csv"
+    output = tmp_path / "imports" / "prices.csv"
+    raw.write_text(
+        "Date,Open,High,Low,Close,Volume\n"
+        "2026-01-02,100,105,99,104,123456\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=reason):
+        normalize_price_imports(
+            input_path=raw,
+            output_path=output,
+            ticker="NVDA",
+            source="approved_prices",
+            source_ref="https://example.test/NVDA",
+            retrieved_at=retrieved_at,
+            review_cutoff=review_cutoff,
+        )
+
+    assert not output.exists()
+
+
+def test_normalizer_does_not_invent_source_reference_or_retrieval_timestamp(tmp_path: Path):
+    raw = tmp_path / "NVDA.csv"
+    output = tmp_path / "imports" / "prices.csv"
+    raw.write_text(
+        "Date,Open,High,Low,Close,Volume\n"
+        "2026-01-02,100,105,99,104,123456\n",
+        encoding="utf-8",
+    )
+
+    normalize_price_imports(
+        input_path=raw,
+        output_path=output,
+        ticker="NVDA",
+        source="manual",
+        as_of_date="2026-01-03",
+    )
+    staged = pd.read_csv(output)
+
+    assert "source_ref" in staged.columns
+    assert "retrieved_at" in staged.columns
+    assert pd.isna(staged.iloc[0]["source_ref"])
+    assert pd.isna(staged.iloc[0]["retrieved_at"])
 
 
 def test_generic_csv_with_ticker_column_normalizes(tmp_path: Path):

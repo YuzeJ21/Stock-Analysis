@@ -4,8 +4,10 @@ import argparse
 import json
 import os
 import shutil
+import stat
+import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 import pandas as pd
 try:
@@ -15,11 +17,31 @@ except ImportError:  # pragma: no cover - exercised only in stripped-down enviro
 
 from src.company_analysis_scope import excludes_company_dcf_for_inputs as company_dcf_excluded
 from src.loader import normalize_columns
-from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.paths import PROJECT_ROOT, resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.peer_evidence_quality import assess_peer_evidence
+from src.readiness_source_boundary import (
+    ReadinessSourceBoundaryError,
+    readiness_input_identity,
+    validate_readiness_source_boundary,
+)
 from src.universe_model import ASSET_TYPES, build_universe_coverage_report, ensure_universe_files, infer_asset_type
 
 ALLOWED_CANDIDATE_STATES = {"candidate", "fallback_context", "research_only"}
 COMPANY_PEER_EXCLUDED_ASSET_TYPES = {"etf", "index_proxy", "fund"}
+
+READINESS_REPORT_NAMES: tuple[str, ...] = (
+    "universe_coverage_report",
+    "price_coverage_report",
+    "fundamentals_coverage_report",
+    "dcf_readiness_report",
+    "peer_readiness_report",
+    "earnings_readiness_report",
+    "analyst_estimates_readiness_report",
+    "ticker_readiness_report",
+    "feature_readiness_summary",
+    "peer_unlock_worklist",
+    "data_source_status",
+)
 
 
 TICKER_READINESS_COLUMNS = [
@@ -113,6 +135,8 @@ PEER_READINESS_COLUMNS = [
     "peer_momentum_ready_count",
     "peer_fundamentals_ready_count",
     "peer_valuation_ready_count",
+    "peer_valuation_anchor_eligible_count",
+    "peer_valuation_anchor_blockers",
     "ready_peer_count",
     "peer_missing_price_tickers",
     "peer_missing_momentum_tickers",
@@ -165,6 +189,14 @@ PEER_UNLOCK_WORKLIST_COLUMNS = [
     "updated_at",
 ]
 READINESS_SNAPSHOT_FILENAME = "ticker_readiness_report.previous.csv"
+READINESS_SNAPSHOT_TEMP_FILENAME = ".ticker_readiness_report.previous.csv.tmp"
+READINESS_SNAPSHOT_SCHEMA_VERSION: Final[str] = "1"
+# Bump this whenever readiness methodology can change comparison fields.
+READINESS_METHOD_VERSION: Final[str] = "1"
+
+
+class ReadinessSnapshotError(RuntimeError):
+    """Raised when a profile-bound prior snapshot cannot be published safely."""
 
 
 def _now() -> str:
@@ -191,35 +223,174 @@ def _write(frame: pd.DataFrame, path: Path, columns: list[str] | None = None) ->
     frame.to_csv(path, index=False)
 
 
-def save_previous_ticker_readiness_snapshot(
-    base_dir: Path | str | None = None,
+def _lstat(path: Path):
+    try:
+        return path.lstat()
+    except FileNotFoundError:
+        return None
+
+
+def _path_identity(path: Path) -> tuple[int, int] | None:
+    metadata = _lstat(path)
+    if metadata is None:
+        return None
+    return (metadata.st_dev, metadata.st_ino)
+
+
+def _validate_snapshot_directory(path: Path, *, allow_missing: bool) -> bool:
+    metadata = _lstat(path)
+    if metadata is None:
+        if allow_missing:
+            return False
+        raise ReadinessSnapshotError(f"Snapshot reports directory is missing: {path}")
+    if stat.S_ISLNK(metadata.st_mode):
+        raise ReadinessSnapshotError(f"Snapshot path must not be a symbolic link: {path}")
+    if not stat.S_ISDIR(metadata.st_mode):
+        raise ReadinessSnapshotError(f"Snapshot reports path must be a directory: {path}")
+    return True
+
+
+def _validate_optional_snapshot_file(path: Path) -> tuple[int, int] | None:
+    metadata = _lstat(path)
+    if metadata is None:
+        return None
+    if stat.S_ISLNK(metadata.st_mode):
+        raise ReadinessSnapshotError(f"Snapshot path must not be a symbolic link: {path}")
+    if not stat.S_ISREG(metadata.st_mode):
+        raise ReadinessSnapshotError(f"Snapshot path must be a regular file: {path}")
+    return (metadata.st_dev, metadata.st_ino)
+
+
+def _read_snapshot_bytes(path: Path, expected_identity: tuple[int, int]) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    try:
+        metadata = os.fstat(descriptor)
+        if (metadata.st_dev, metadata.st_ino) != expected_identity or not stat.S_ISREG(metadata.st_mode):
+            raise ReadinessSnapshotError("Prior readiness snapshot changed after validation.")
+        chunks: list[bytes] = []
+        while True:
+            chunk = os.read(descriptor, 1024 * 1024)
+            if not chunk:
+                return b"".join(chunks)
+            chunks.append(chunk)
+    finally:
+        os.close(descriptor)
+
+
+def _fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _write_bytes_to_new_file(path: Path, payload: bytes) -> tuple[int, int]:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags, 0o666)
+    try:
+        with os.fdopen(descriptor, "wb", closefd=False) as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        metadata = os.fstat(descriptor)
+        return (metadata.st_dev, metadata.st_ino)
+    finally:
+        os.close(descriptor)
+
+
+def _restore_snapshot_after_failed_publication(
+    reports_path: Path,
+    snapshot_path: Path,
+    temporary_path: Path,
     *,
-    data_dir: Path | str | None = None,
-) -> dict[str, Any]:
-    """Copy the current ticker readiness report to the deterministic prior snapshot path."""
-    root = resolve_project_root(base_dir)
-    data_path = resolve_data_dir(data_dir, root)
-    reports_path = data_path / "reports"
-    source_path = reports_path / "ticker_readiness_report.csv"
+    prior_bytes: bytes | None,
+    published_identity: tuple[int, int],
+) -> None:
+    if _path_identity(snapshot_path) != published_identity:
+        raise ReadinessSnapshotError(
+            "Published snapshot changed before rollback; operator recovery is required."
+        )
+    if prior_bytes is None:
+        snapshot_path.unlink()
+    else:
+        if _lstat(temporary_path) is not None:
+            raise ReadinessSnapshotError(
+                "Snapshot temporary path changed before rollback; operator recovery is required."
+            )
+        _write_bytes_to_new_file(temporary_path, prior_bytes)
+        os.replace(temporary_path, snapshot_path)
+    try:
+        _fsync_directory(reports_path)
+    except OSError:
+        pass
+
+
+def _publish_profile_snapshot(
+    reports_path: Path,
+    frame: pd.DataFrame,
+) -> Path:
     snapshot_path = reports_path / READINESS_SNAPSHOT_FILENAME
-    if not source_path.exists():
-        return {
-            "status": "missing_current_report",
-            "source_path": str(source_path),
-            "snapshot_path": str(snapshot_path),
-            "rows": 0,
-            "message": "Run make readiness before saving a prior readiness snapshot.",
-        }
-    frame = pd.read_csv(source_path)
-    reports_path.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source_path, snapshot_path)
-    return {
-        "status": "written",
-        "source_path": str(source_path),
-        "snapshot_path": str(snapshot_path),
-        "rows": int(len(frame)),
-        "message": "Saved current readiness report as the prior snapshot for the next comparison.",
-    }
+    temporary_path = reports_path / READINESS_SNAPSHOT_TEMP_FILENAME
+    reports_created = False
+    if not _validate_snapshot_directory(reports_path, allow_missing=True):
+        reports_path.mkdir()
+        reports_created = True
+    _validate_snapshot_directory(reports_path, allow_missing=False)
+    reports_identity = _path_identity(reports_path)
+    if reports_identity is None:
+        raise ReadinessSnapshotError("Snapshot reports directory identity is unavailable.")
+    prior_identity = _validate_optional_snapshot_file(snapshot_path)
+    prior_bytes = _read_snapshot_bytes(snapshot_path, prior_identity) if prior_identity is not None else None
+    if _lstat(temporary_path) is not None:
+        _validate_optional_snapshot_file(temporary_path)
+        raise ReadinessSnapshotError(f"Snapshot temporary path already exists: {temporary_path}")
+
+    temporary_identity: tuple[int, int] | None = None
+    published = False
+    try:
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(temporary_path, flags, 0o666)
+        try:
+            metadata = os.fstat(descriptor)
+            temporary_identity = (metadata.st_dev, metadata.st_ino)
+            with os.fdopen(descriptor, "w", encoding="utf-8", newline="", closefd=False) as handle:
+                frame.to_csv(handle, index=False)
+                handle.flush()
+                os.fsync(handle.fileno())
+        finally:
+            os.close(descriptor)
+        if _path_identity(reports_path) != reports_identity:
+            raise ReadinessSnapshotError("Snapshot reports directory changed after validation.")
+        if _path_identity(temporary_path) != temporary_identity:
+            raise ReadinessSnapshotError("Snapshot temporary file changed after serialization.")
+        if _path_identity(snapshot_path) != prior_identity:
+            raise ReadinessSnapshotError("Prior readiness snapshot changed after validation.")
+        _fsync_directory(reports_path)
+        os.replace(temporary_path, snapshot_path)
+        published = True
+        if _path_identity(snapshot_path) != temporary_identity:
+            raise ReadinessSnapshotError("Published readiness snapshot identity is unavailable.")
+        _fsync_directory(reports_path)
+        return snapshot_path
+    except Exception as error:
+        if published and temporary_identity is not None:
+            _restore_snapshot_after_failed_publication(
+                reports_path,
+                snapshot_path,
+                temporary_path,
+                prior_bytes=prior_bytes,
+                published_identity=temporary_identity,
+            )
+        elif temporary_identity is None or _path_identity(temporary_path) == temporary_identity:
+            if _lstat(temporary_path) is not None:
+                temporary_path.unlink()
+        if reports_created and _lstat(reports_path) is not None and not any(reports_path.iterdir()):
+            reports_path.rmdir()
+        raise ReadinessSnapshotError(
+            "Readiness snapshot publication failed; the prior baseline was preserved."
+        ) from error
 
 
 def _load_thresholds(root: Path) -> dict[str, Any]:
@@ -506,6 +677,8 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
                     "peer_momentum_ready_count": 0,
                     "peer_fundamentals_ready_count": 0,
                     "peer_valuation_ready_count": 0,
+                    "peer_valuation_anchor_eligible_count": 0,
+                    "peer_valuation_anchor_blockers": "",
                     "ready_peer_count": 0,
                     "peer_missing_price_tickers": "",
                     "peer_missing_momentum_tickers": "",
@@ -557,15 +730,26 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
         momentum_ready_peers = []
         fundamentals_ready_peers = []
         valuation_ready_peers = []
+        valuation_anchor_eligible_peers: list[str] = []
+        valuation_anchor_blockers: list[str] = []
+        peer_rows_by_ticker = {
+            str(row.get("peer_ticker") or "").strip().upper(): row
+            for row in ticker_peers.to_dict("records")
+        }
         for peer in valid_peers:
             fundamental_row = _select_row(fundamentals, peer)
+            quality = assess_peer_evidence(peer_rows_by_ticker.get(peer, {}))
+            if quality.valuation_anchor_state == "eligible":
+                valuation_anchor_eligible_peers.append(peer)
+            else:
+                valuation_anchor_blockers.append(f"{peer}: {', '.join(quality.blockers)}")
             if peer_price_ready_by_ticker.get(peer, False):
                 price_ready_peers.append(peer)
             if peer_momentum_ready_by_ticker.get(peer, False):
                 momentum_ready_peers.append(peer)
             if _has_meaningful_fundamentals(fundamental_row):
                 fundamentals_ready_peers.append(peer)
-            if _has_dcf_fundamentals(fundamental_row):
+            if quality.valuation_anchor_state == "eligible" and _has_dcf_fundamentals(fundamental_row):
                 valuation_ready_peers.append(peer)
         missing_price_peers = sorted(set(valid_peers) - set(price_ready_peers))
         missing_momentum_peers = sorted(set(valid_peers) - set(momentum_ready_peers))
@@ -574,7 +758,11 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
         peer_price_ready = len(valid_peers) >= min_peers and len(price_ready_peers) >= min_peers
         peer_momentum_ready = len(valid_peers) >= min_peers and len(momentum_ready_peers) >= min_peers
         peer_fundamentals_ready = len(valid_peers) >= min_peers and len(fundamentals_ready_peers) >= min_peers
-        peer_valuation_ready = len(valid_peers) >= min_peers and len(valuation_ready_peers) >= min_peers
+        peer_valuation_ready = (
+            len(valid_peers) >= min_peers
+            and len(valuation_anchor_eligible_peers) >= min_peers
+            and len(valuation_ready_peers) >= min_peers
+        )
         peer_ready = peer_momentum_ready
         mapping_status = "mapped" if len(valid_peers) >= min_peers else "missing_mapping" if not valid_peers else "insufficient_mapping"
         blocker_type = ""
@@ -586,6 +774,8 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
             blocker_type = "peer_momentum_missing"
         elif not peer_fundamentals_ready:
             blocker_type = "peer_fundamentals_missing"
+        elif len(valuation_anchor_eligible_peers) < min_peers:
+            blocker_type = "peer_comparability_unreviewed"
         elif not peer_valuation_ready:
             blocker_type = "peer_valuation_blocked"
         group = ""
@@ -639,6 +829,11 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
             next_peer_action = f"Add enough local price history for mapped peers: {', '.join(missing_momentum_peers[:5])}."
         elif blocker_type == "peer_fundamentals_missing":
             next_peer_action = f"Import trusted fundamentals for mapped peers: {', '.join(missing_fundamentals_peers[:5])}."
+        elif blocker_type == "peer_comparability_unreviewed":
+            next_peer_action = (
+                "Review peer role, relationship rationale, economic comparability basis, and explicit valuation-anchor "
+                f"eligibility for mapped peers: {', '.join(sorted(set(valid_peers) - set(valuation_anchor_eligible_peers))[:5])}."
+            )
         elif blocker_type == "peer_valuation_blocked":
             next_peer_action = f"Import DCF-ready fundamentals for mapped peers: {', '.join(missing_valuation_peers[:5])}."
         else:
@@ -667,6 +862,8 @@ def build_peer_readiness_report(root: Path, data_path: Path, master: pd.DataFram
                 "peer_momentum_ready_count": len(momentum_ready_peers),
                 "peer_fundamentals_ready_count": len(fundamentals_ready_peers),
                 "peer_valuation_ready_count": len(valuation_ready_peers),
+                "peer_valuation_anchor_eligible_count": len(valuation_anchor_eligible_peers),
+                "peer_valuation_anchor_blockers": "; ".join(valuation_anchor_blockers),
                 "ready_peer_count": len(momentum_ready_peers),
                 "peer_missing_price_tickers": ", ".join(missing_price_peers[:10]),
                 "peer_missing_momentum_tickers": ", ".join(missing_momentum_peers[:10]),
@@ -919,7 +1116,9 @@ def build_peer_unlock_worklist(peer_report: pd.DataFrame, ticker_readiness: pd.D
             workflow_group = "peer_context_review"
             next_action_summary = "Review peer readiness details and keep valuation blocked until required peer inputs are present."
             next_input_file = "data/peers.csv"
-            validation_sequence = f"make readiness -> make stock-report-md TICKER={ticker}"
+            validation_sequence = (
+                f"make readiness-preview TOP_N=20 -> make stock-report-md TICKER={ticker}"
+            )
         rows.append(
             {
                 "priority": priority,
@@ -961,15 +1160,14 @@ def build_ticker_readiness_report(
     *,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
+    write_outputs: bool = False,
 ) -> dict[str, pd.DataFrame]:
     root = resolve_project_root(base_dir)
     data_path = resolve_data_dir(data_dir, root)
     outputs_path = resolve_outputs_dir(output_dir, root)
     reports_path = data_path / "reports"
-    ensure_universe_files(root, data_dir=data_path)
+    master, active = ensure_universe_files(root, data_dir=data_path, write_outputs=False)
     thresholds = _load_thresholds(root)
-    master = _read_csv(data_path / "universe_master.csv")
-    active = _read_csv(data_path / "universe_active.csv")
     legacy = _read_csv(data_path / "universe.csv")
     holdings = _read_csv(data_path / "holdings.csv")
     prices = _read_csv(data_path / "prices.csv")
@@ -977,7 +1175,7 @@ def build_ticker_readiness_report(
     earnings = _read_csv(data_path / "earnings.csv")
     estimates = _read_csv(data_path / "analyst_estimates.csv")
 
-    universe_report = build_universe_coverage_report(root, data_dir=data_path)
+    universe_report = build_universe_coverage_report(root, data_dir=data_path, write_output=False)
     price_report = build_price_coverage_report(root, data_path, master, active, thresholds)
     fundamentals_report = build_fundamentals_coverage_report(root, data_path, master)
     peer_report = build_peer_readiness_report(root, data_path, master, thresholds)
@@ -1119,85 +1317,144 @@ def build_ticker_readiness_report(
     feature_summary = build_feature_readiness_summary(ticker_readiness)
     peer_unlock_worklist = build_peer_unlock_worklist(peer_report, ticker_readiness)
 
-    reports = {
-        "universe_coverage_report": universe_report,
-        "price_coverage_report": price_report,
-        "fundamentals_coverage_report": fundamentals_report,
-        "dcf_readiness_report": dcf_report.rename(columns={"is_dcf_ready": "dcf_ready"}),
-        "peer_readiness_report": peer_report,
-        "earnings_readiness_report": earnings_report,
-        "analyst_estimates_readiness_report": estimates_report,
-        "ticker_readiness_report": ticker_readiness,
-        "feature_readiness_summary": feature_summary,
-        "peer_unlock_worklist": peer_unlock_worklist,
-        "data_source_status": source_status,
-    }
-    for name, frame in reports.items():
-        _write(frame, reports_path / f"{name}.csv")
-    # Compatibility copies for existing dashboard/helpers.
-    _write(price_report, data_path / "price_coverage_report.csv")
-    _write(dcf_report, data_path / "dcf_readiness.csv")
-    _write(earnings_report, data_path / "earnings_readiness.csv")
-    _write(estimates_report, data_path / "analyst_estimates_readiness.csv")
-    outputs_path.mkdir(parents=True, exist_ok=True)
-    _write(feature_summary, outputs_path / "feature_readiness_summary.csv")
-    _write(peer_unlock_worklist, outputs_path / "peer_unlock_worklist.csv")
+    reports = dict(
+        zip(
+            READINESS_REPORT_NAMES,
+            (
+                universe_report,
+                price_report,
+                fundamentals_report,
+                dcf_report.rename(columns={"is_dcf_ready": "dcf_ready"}),
+                peer_report,
+                earnings_report,
+                estimates_report,
+                ticker_readiness,
+                feature_summary,
+                peer_unlock_worklist,
+                source_status,
+            ),
+            strict=True,
+        )
+    )
+    if write_outputs:
+        for name, frame in reports.items():
+            _write(frame, reports_path / f"{name}.csv")
+        # Compatibility copies for existing dashboard/helpers.
+        _write(price_report, data_path / "price_coverage_report.csv")
+        _write(dcf_report, data_path / "dcf_readiness.csv")
+        _write(earnings_report, data_path / "earnings_readiness.csv")
+        _write(estimates_report, data_path / "analyst_estimates_readiness.csv")
+        outputs_path.mkdir(parents=True, exist_ok=True)
+        _write(feature_summary, outputs_path / "feature_readiness_summary.csv")
+        _write(peer_unlock_worklist, outputs_path / "peer_unlock_worklist.csv")
     return reports
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate central per-feature ticker readiness reports.")
+def _deprecated_readiness_boundary() -> None:
+    print(
+        "Deprecated no-write guard: use make readiness-preview TOP_N=20 for inspection.",
+        file=sys.stderr,
+    )
+    print(
+        "For an intentional ignored snapshot: CONFIRM_MATERIALIZE=1 "
+        "make readiness-materialize PROFILE=<default|demo|local>",
+        file=sys.stderr,
+    )
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Guard legacy readiness writes or capture one explicit baseline.")
     parser.add_argument("--project-root", help="Project root. Defaults to this repository.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--output-dir", help="Optional output directory. Relative paths resolve from project root.")
+    parser.add_argument("--profile", choices=("default", "demo", "local"))
     parser.add_argument(
         "--save-previous",
         action="store_true",
-        help="Copy the current ticker readiness report to data/reports/ticker_readiness_report.previous.csv before regenerating.",
+        help="Deprecated compatibility flag; always fails closed without reading or writing readiness artifacts.",
     )
     parser.add_argument(
         "--snapshot-only",
         action="store_true",
-        help="Only save the current ticker readiness report as the prior snapshot; do not regenerate readiness.",
+        help=(
+            "Compose one profile-bound prior snapshot from readiness in memory; "
+            "never read the tracked current readiness report."
+        ),
     )
     parser.add_argument("--json", action="store_true")
-    args = parser.parse_args()
-    root = resolve_project_root(args.project_root)
-    data_path = resolve_data_dir(args.data_dir, root)
-    output_path = resolve_outputs_dir(args.output_dir, root)
-    snapshot_payload = None
-    if args.save_previous or args.snapshot_only:
-        snapshot_payload = save_previous_ticker_readiness_snapshot(root, data_dir=data_path)
-        if args.snapshot_only:
-            if args.json:
-                print(json.dumps(snapshot_payload, indent=2))
-                return
-            print(format_path_context(root, data_path, output_path))
-            for key, value in snapshot_payload.items():
-                print(f"{key}: {value}")
-            return
-    reports = build_ticker_readiness_report(root, data_dir=data_path, output_dir=output_path)
-    readiness = reports["ticker_readiness_report"]
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as error:
+        return int(error.code)
+    if not args.snapshot_only:
+        _deprecated_readiness_boundary()
+        return 2
+    if args.save_previous:
+        _deprecated_readiness_boundary()
+        return 2
+    if args.profile is None:
+        print("--profile is required with --snapshot-only: default, demo, or local.", file=sys.stderr)
+        return 2
+    if args.data_dir or args.output_dir:
+        print("--snapshot-only accepts only the fixed selected --profile paths.", file=sys.stderr)
+        return 2
+
+    lexical_root = Path(
+        os.path.abspath(
+            os.fspath((Path(args.project_root) if args.project_root else PROJECT_ROOT).expanduser())
+        )
+    )
+    try:
+        selected = validate_readiness_source_boundary(lexical_root, args.profile)
+        reports_path = selected.data_dir / "reports"
+        _validate_snapshot_directory(reports_path, allow_missing=True)
+        _validate_optional_snapshot_file(reports_path / READINESS_SNAPSHOT_FILENAME)
+        if _lstat(reports_path / READINESS_SNAPSHOT_TEMP_FILENAME) is not None:
+            _validate_optional_snapshot_file(reports_path / READINESS_SNAPSHOT_TEMP_FILENAME)
+            raise ReadinessSnapshotError(
+                f"Snapshot temporary path already exists: {reports_path / READINESS_SNAPSHOT_TEMP_FILENAME}"
+            )
+        input_identity = readiness_input_identity(lexical_root, selected.name)
+        reports = build_ticker_readiness_report(
+            lexical_root.resolve(strict=True),
+            data_dir=selected.data_dir,
+            output_dir=selected.outputs_dir,
+            write_outputs=False,
+        )
+        readiness = reports.get("ticker_readiness_report")
+        if not isinstance(readiness, pd.DataFrame):
+            raise ReadinessSnapshotError("Readiness builder did not return a ticker readiness DataFrame.")
+        if readiness.empty:
+            raise ReadinessSnapshotError("Empty in-memory readiness cannot become a prior baseline.")
+        if readiness_input_identity(lexical_root, selected.name) != input_identity:
+            raise ReadinessSnapshotError("Named readiness inputs changed during baseline composition.")
+        captured_at = pd.Timestamp.now(tz="UTC").isoformat()
+        snapshot_frame = readiness.copy(deep=True)
+        snapshot_frame["snapshot_profile"] = selected.name
+        snapshot_frame["snapshot_input_identity"] = input_identity
+        snapshot_frame["snapshot_captured_at"] = captured_at
+        snapshot_frame["snapshot_schema_version"] = READINESS_SNAPSHOT_SCHEMA_VERSION
+        snapshot_frame["snapshot_method_version"] = READINESS_METHOD_VERSION
+        snapshot_path = _publish_profile_snapshot(reports_path, snapshot_frame)
+    except (ReadinessSourceBoundaryError, ReadinessSnapshotError, OSError, ValueError, KeyError) as error:
+        print(f"Readiness snapshot refused: {error}", file=sys.stderr)
+        return 2
+
     payload = {
         "status": "written",
-        "report_path": str(data_path / "reports" / "ticker_readiness_report.csv"),
-        "previous_snapshot_path": str(data_path / "reports" / READINESS_SNAPSHOT_FILENAME),
-        "rows": len(readiness),
-        "ready": int(readiness["overall_readiness_state"].eq("ready").sum()) if not readiness.empty else 0,
-        "partial": int(readiness["overall_readiness_state"].eq("partial").sum()) if not readiness.empty else 0,
-        "blocked": int(readiness["overall_readiness_state"].eq("blocked").sum()) if not readiness.empty else 0,
-        "excluded": int(readiness["overall_readiness_state"].eq("excluded").sum()) if not readiness.empty else 0,
+        "profile": selected.name,
+        "snapshot_path": str(snapshot_path),
+        "rows": int(len(snapshot_frame)),
+        "input_identity": input_identity,
+        "method_version": READINESS_METHOD_VERSION,
     }
-    if snapshot_payload is not None:
-        payload["snapshot_status"] = snapshot_payload.get("status")
-        payload["snapshot_rows"] = snapshot_payload.get("rows")
     if args.json:
         print(json.dumps(payload, indent=2))
-        return
-    print(format_path_context(root, data_path, output_path))
-    for key, value in payload.items():
-        print(f"{key}: {value}")
+    else:
+        for key, value in payload.items():
+            print(f"{key}: {value}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import pandas as pd
+from src.profile_context import active_readiness_inspection_route
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
 
 from src.data_health_coverage_delta import build_readiness_change_frame
 
@@ -46,15 +48,23 @@ def readiness_recent_progress_cards(
     previous_frame: pd.DataFrame | None = None,
     feature_summary_frame: pd.DataFrame | None = None,
     previous_snapshot_label: str = "",
+    *,
+    profile: str,
 ) -> list[dict[str, object]]:
+    selected_profile = resolve_readiness_proof_profile(profile)
+    inspection_command, inspection_note = active_readiness_inspection_route()
+    proof_unavailable = (
+        "Proof unavailable: choose a reviewed lane, batch ID, review date, and validated update scope "
+        f"before copying a snapshot/apply/compare sequence for PROFILE={selected_profile}."
+    )
     if current_frame is None or current_frame.empty:
         return [
             {
                 "kicker": "WHAT CHANGED",
                 "title": "Readiness report missing",
-                "body": "Refresh readiness before comparing current and prior product status. Open operator details for read-only proof steps.",
+                "body": f"Inspect readiness before comparing current and prior product status. {inspection_note}",
                 "badges": ["blocked"],
-                "command": "make readiness",
+                "command": inspection_command,
             }
         ]
 
@@ -82,10 +92,10 @@ def readiness_recent_progress_cards(
             "body": (
                 f"Active universe: {active}. DCF-ready: {dcf_ready}. Peer-ready: {peer_ready}. "
                 f"Blocked: {int(state_counts.get('blocked', 0))}. Partial: {int(state_counts.get('partial', 0))}. "
-                f"Latest refresh timestamp: {_format_missing(latest)}."
+                f"Latest refresh timestamp: {_format_missing(latest)}. {inspection_note}"
             ),
             "badges": ["current counts", "readiness first"],
-            "command": "make readiness",
+            "command": inspection_command,
         }
     ]
 
@@ -114,10 +124,10 @@ def readiness_recent_progress_cards(
                 "body": (
                     f"Compared with {prior_label}; prior refresh timestamp: {_format_missing(prior_latest)}. "
                     f"Newly ready tickers: {newly_ready or 'none detected'}. "
-                    "This is a count comparison only; review source readiness before interpreting analysis."
+                    f"This is a count comparison only; review source readiness before interpreting analysis. {inspection_note}"
                 ),
                 "badges": ["previous vs current", "no fabricated deltas"],
-                "command": "make readiness",
+                "command": inspection_command,
             }
         )
     else:
@@ -130,7 +140,7 @@ def readiness_recent_progress_cards(
                     "Save a baseline snapshot before the next targeted refresh or import, then refresh readiness to compare real before/after counts."
                 ),
                 "badges": ["no prior snapshot", "data-honest"],
-                "command": "make readiness-snapshot",
+                "command": f"make readiness-snapshot PROFILE={selected_profile}",
             }
         )
 
@@ -143,7 +153,7 @@ def readiness_recent_progress_cards(
                 "The dashboard compares only saved local snapshots and never invents progress."
             ),
             "badges": ["review workflow", "copy only"],
-            "command": "make readiness-snapshot",
+            "command": proof_unavailable,
         }
     )
 

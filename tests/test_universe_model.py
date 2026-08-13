@@ -1,8 +1,98 @@
+import json
+import sys
 from pathlib import Path
 
 import pandas as pd
 
-from src.universe_model import ensure_universe_files, infer_asset_type, refresh_universe
+import src.universe_model as universe_model
+from src.universe_model import build_universe_coverage_report, ensure_universe_files, infer_asset_type, refresh_universe
+
+
+def _file_manifest(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+
+
+def test_ensure_universe_files_defaults_to_no_write(tmp_path: Path, monkeypatch):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame(
+        [{"Ticker": "NVDA", "CompanyName": "NVIDIA", "DefaultPurpose": "Core Compounder"}]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    before = _file_manifest(tmp_path)
+
+    def fail_write(*_args, **_kwargs):
+        raise AssertionError("default universe composition must not write")
+
+    monkeypatch.setattr(universe_model, "_write_csv", fail_write)
+    master, active = ensure_universe_files(tmp_path)
+
+    assert set(master["ticker"]) == {"NVDA"}
+    assert set(active["ticker"]) == {"NVDA"}
+    assert _file_manifest(tmp_path) == before
+
+
+def test_universe_coverage_defaults_to_no_write(tmp_path: Path, monkeypatch):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame(
+        [{"Ticker": "NVDA", "CompanyName": "NVIDIA", "DefaultPurpose": "Core Compounder"}]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    before = _file_manifest(tmp_path)
+
+    def fail_write(*_args, **_kwargs):
+        raise AssertionError("default coverage composition must not write")
+
+    monkeypatch.setattr(universe_model, "_write_csv", fail_write)
+    report = build_universe_coverage_report(tmp_path)
+
+    assert set(report["ticker"]) == {"NVDA"}
+    assert _file_manifest(tmp_path) == before
+
+
+def test_explicit_coverage_write_never_repairs_canonical_universe(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    reports_dir = data_dir / "reports"
+    reports_dir.mkdir(parents=True)
+    pd.DataFrame([{"ticker": "A", "name": "Agilent", "asset_type": "etf"}]).to_csv(
+        data_dir / "universe_master.csv", index=False
+    )
+    pd.DataFrame([{"ticker": "A", "company_name": "Agilent", "default_purpose": "Core Compounder"}]).to_csv(
+        data_dir / "universe.csv", index=False
+    )
+    canonical_before = (data_dir / "universe_master.csv").read_bytes()
+
+    report = build_universe_coverage_report(tmp_path, write_output=True)
+
+    assert not report.empty
+    assert (reports_dir / "universe_coverage_report.csv").exists()
+    assert (data_dir / "universe_master.csv").read_bytes() == canonical_before
+
+
+def test_ensure_only_truthfully_reports_explicitly_ensured_files(tmp_path: Path, monkeypatch, capsys):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame(
+        [{"Ticker": "NVDA", "CompanyName": "NVIDIA", "DefaultPurpose": "Core Compounder"}]
+    ).to_csv(data_dir / "universe.csv", index=False)
+
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["universe_model", "--project-root", str(tmp_path), "--ensure-only", "--json"],
+    )
+    universe_model.main()
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "ensured"
+    assert payload["ensured_files"] == [
+        str(data_dir / "universe_master.csv"),
+        str(data_dir / "universe_active.csv"),
+    ]
+    assert all(Path(path).exists() for path in payload["ensured_files"])
 
 
 def test_ensure_universe_files_preserves_legacy_active_universe(tmp_path: Path):

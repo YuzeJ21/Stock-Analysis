@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+
 
 def _git_changed_paths(root: Path, paths: list[Path]) -> set[str] | None:
     rel_paths = [path.relative_to(root).as_posix() for path in paths if path.exists()]
@@ -35,7 +37,7 @@ def generated_artifact_stale_warning(
     generated_paths: list[Path],
     source_paths: list[Path],
     display_root: Path,
-    refresh_command: str = "make readiness or make status",
+    refresh_command: str = READINESS_PREVIEW_COMMAND,
 ) -> str:
     existing_generated = [path for path in generated_paths if path.exists()]
     if not existing_generated:
@@ -59,5 +61,5 @@ def generated_artifact_stale_warning(
         sample = f"{sample}, +{len(relative_sources) - 4} more"
     return (
         "Generated status artifacts may be stale because source CSVs changed after the last saved readiness view "
-        f"({sample}). Run {refresh_command} to refresh before relying on exact counts."
+        f"({sample}). Inspect with {refresh_command} before relying on exact counts. {READINESS_PREVIEW_NOTE}"
     )

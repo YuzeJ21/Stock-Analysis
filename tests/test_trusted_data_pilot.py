@@ -86,6 +86,24 @@ def _write_sec_filing_document_cache(root, cik: str = "0001045810") -> None:
     )
 
 
+def test_empty_candidate_builders_do_not_require_a_proof_profile(monkeypatch, tmp_path):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+
+    def _unexpected_resolver():
+        raise AssertionError("empty candidate builders must not resolve a proof profile")
+
+    monkeypatch.setattr(
+        "src.trusted_data_pilot.resolve_readiness_proof_profile",
+        _unexpected_resolver,
+    )
+
+    candidates = build_trusted_data_pilot_candidates([], [], [], top_n=0)
+    evidence_candidates = load_trusted_data_pilot_evidence_candidates(root=tmp_path, top_n=0)
+
+    assert candidates == []
+    assert evidence_candidates == []
+
+
 def test_trusted_data_pilot_candidates_prioritize_active_company_blockers():
     readiness_rows = [
         {"ticker": "META", "asset_type": "company", "in_active_universe": "True"},
@@ -383,7 +401,13 @@ def test_trusted_data_pilot_evidence_rows_record_before_state_without_claiming_u
     assert rows[0]["current_outcome"] == "still blocked or unproven until rebuilt readiness changes"
     assert rows[0]["changed_inputs"] == "revenue, free-cash-flow margin"
     assert rows[0]["review_command"] == "make focus-fundamentals TICKER=CRDO"
-    assert rows[0]["proof_command"] == "make readiness && make dcf-readiness && make stock-report-md TICKER=CRDO"
+    proof = rows[0]["proof_command"]
+    assert proof.startswith("make readiness-snapshot PROFILE=default")
+    assert "make imports-validate IMPORT_TICKERS=CRDO" in proof
+    assert "make imports-preview IMPORT_TICKERS=CRDO" in proof
+    assert "make imports-apply IMPORT_TICKERS=CRDO" in proof
+    assert "make reviewed-batch-compare PROFILE=default LANE=fundamentals" in proof
+    assert proof.endswith("make stock-report-md TICKER=CRDO")
     assert rows[0]["report_path"] == "outputs/stock_reports/crdo.md"
     rendered = " ".join(rows[0].values()).lower()
     assert "placeholder" not in rendered
@@ -1148,7 +1172,8 @@ def test_render_trusted_data_pilot_candidates_is_read_only_and_actionable(tmp_pa
     assert "imports-apply" not in review_step
     assert "4. Prepare trusted rows only if the source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "6. Check rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
-    assert "8. Rebuild lane proof: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
+    assert "8. Rebuild lane proof: make readiness-snapshot PROFILE=default" in rendered
+    assert "make reviewed-batch-compare PROFILE=default LANE=fundamentals" in rendered
     assert "Evidence expectation: Evidence required: before report, lane review output" not in rendered
     assert "Do not call META available until the rebuilt report proves the lane changed." not in rendered
     assert "9. If still blocked, keep the blocker visible and move to the next active/demo candidate: make trusted-data-pilot TICKERS=META TOP_N=1" in rendered
@@ -1212,8 +1237,8 @@ def test_render_trusted_data_pilot_candidates_uses_peer_proof_for_peer_led_loop(
     )
     assert "Decision gate: Decision gate:" not in rendered
     assert "leave peer valuation blocked and show peer context only when supported" not in rendered
-    assert "8. Rebuild lane proof: make readiness && make peer-mapping-queue TOP_N=25 && make stock-report-md TICKER=MU" in rendered
-    assert "8. make readiness && make dcf-readiness" not in rendered
+    assert "8. Rebuild lane proof: make readiness-snapshot PROFILE=default" in rendered
+    assert "make reviewed-batch-compare PROFILE=default LANE=peers" in rendered
     assert "sector or industry fallback" not in rendered.lower()
 
     verbose = render_trusted_data_pilot_candidates(candidates, verbose=True)
@@ -1404,14 +1429,15 @@ def test_render_trusted_data_pilot_packet_prints_one_company_proof_loop(tmp_path
     assert "Outcome states: supported means rebuilt readiness and the regenerated report prove the lane changed" in rendered
     assert "still_blocked means validation failed" in rendered
     assert "skipped means source proof was unavailable for CRDO" in rendered
-    assert "1. Baseline readiness: make readiness-snapshot" in rendered
+    assert "1. Baseline readiness: make readiness-snapshot PROFILE=default" in rendered
     assert "2. Before report: make stock-report-md TICKER=CRDO" in rendered
     assert "3. Focused blocker check: make focus-fundamentals TICKER=CRDO" in rendered
     assert "4. Prepare or stage trusted rows only if source review passes: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "5. Validate and preview first: make imports-validate IMPORT_TICKERS=CRDO && make imports-preview IMPORT_TICKERS=CRDO" in rendered
     assert "6. Check rejected-row report: data/rejected/fundamentals_import_rejected.csv" in rendered
     assert "7. Apply only if the gate passes: make imports-apply IMPORT_TICKERS=CRDO" in rendered
-    assert "make readiness && make dcf-readiness && make stock-report-md TICKER=CRDO" in rendered
+    assert "make readiness-snapshot PROFILE=default" in rendered
+    assert "make reviewed-batch-compare PROFILE=default LANE=fundamentals" in rendered
     assert "8. Rebuild proof and after report:" in rendered
     assert "8. After report:" not in rendered
     assert "9. Record the evidence row and keep any remaining blocker visible." in rendered
@@ -1746,7 +1772,8 @@ def test_render_trusted_data_pilot_board_summarizes_batch_without_writing_files(
     assert "shared_review_command_pattern: make focus-fundamentals TICKER=META" in rendered
     assert "trusted_row_target: data/staged/fundamentals/ or data/imports/fundamentals.csv" in rendered
     assert "rejected_row_report: data/rejected/fundamentals_import_rejected.csv" in rendered
-    assert "proof_command_pattern: make readiness && make dcf-readiness && make stock-report-md TICKER=META" in rendered
+    assert "proof_command_pattern: make readiness-snapshot PROFILE=default" in rendered
+    assert "make reviewed-batch-compare PROFILE=default LANE=fundamentals" in rendered
     assert "stop_condition: stop if source proof is unavailable" in rendered
     assert "batch_status: review_only" in rendered
     assert "- Peer mapping proof path:" in rendered
@@ -1810,7 +1837,8 @@ def test_render_trusted_data_pilot_lane_prints_ordered_evidence_summary_without_
     assert "What proves the lane: Rebuilt readiness shows fundamentals_ready and dcf_ready" in rendered
     assert "Rows/files needed: SEC-staged or reviewed manual rows" in rendered
     assert "Rejected-row reports that matter: data/rejected/fundamentals_import_rejected.csv" in rendered
-    assert "Command that confirms readiness changed: make readiness && make dcf-readiness && make stock-report-md TICKER=<ticker>" in rendered
+    assert "Command that confirms readiness changed: make readiness-snapshot PROFILE=default" in rendered
+    assert "make reviewed-batch-compare PROFILE=default LANE=fundamentals" in rendered
     assert "What remains blocked: trusted revenue" in rendered
     assert "Outcome contract:" in rendered
     assert "supported: rebuilt readiness and regenerated reports prove the lane changed" in rendered

@@ -7,6 +7,7 @@ from typing import Any, Iterable
 
 import pandas as pd
 
+from src.commercial_source_rights import enforce_commercial_source_rights
 from src.providers.market_data import (
     AnalystEstimateSummary,
     EarningsSummary,
@@ -27,6 +28,7 @@ class YFinanceProvider(MarketDataProvider):
     """
 
     def __init__(self) -> None:
+        enforce_commercial_source_rights("yfinance")
         try:
             import yfinance as yf
         except ImportError as exc:  # pragma: no cover - environment-dependent

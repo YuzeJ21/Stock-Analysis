@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+from src.profile_context import active_readiness_inspection_route
 
 from src.data_health_summary import bool_series
 
@@ -41,14 +42,15 @@ def peer_unlock_operator_cards(
     peer_unlock_worklist_frame: pd.DataFrame | None,
     ticker_readiness_frame: pd.DataFrame | None = None,
 ) -> list[dict[str, object]]:
+    inspection_command, inspection_note = active_readiness_inspection_route()
     if peer_unlock_worklist_frame is None or peer_unlock_worklist_frame.empty:
         return [
             {
                 "kicker": "PEER UNLOCK QUEUE",
                 "title": "Peer unlock queue not ready yet",
-                "body": "Build the peer unlock queue before editing trusted peer rows.",
+                "body": f"Inspect the missing peer unlock queue before editing trusted peer rows. {inspection_note}",
                 "badges": ["blocked"],
-                "command": "make readiness",
+                "command": inspection_command,
             }
         ]
 
@@ -137,7 +139,10 @@ def peer_unlock_operator_cards(
         "make templates -> make imports-validate IMPORT_TICKERS=<ticker> -> "
         "make imports-preview IMPORT_TICKERS=<ticker> -> make imports-apply IMPORT_TICKERS=<ticker>",
     )
-    peer_schema = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
+    peer_schema = (
+        "ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, "
+        "comparability_basis, valuation_anchor_eligible, source, as_of_date"
+    )
     priority_text = ", ".join(f"P{int(key)}: {int(value)}" for key, value in priority_counts.head(4).items())
     workflow_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in workflow_counts.head(3).items())
     scope_text = ", ".join(f"{str(key).replace('_', ' ')}: {int(value)}" for key, value in scope_counts.head(3).items())

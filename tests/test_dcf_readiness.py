@@ -9,6 +9,14 @@ from src.manual_fundamentals_import import import_staged_fundamentals
 from src.value_engine import classify_value_row
 
 
+def _file_manifest(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
 def test_dcf_readiness_reports_missing_fields_and_ready_company():
     universe = pd.DataFrame(
         [
@@ -141,9 +149,50 @@ def test_dcf_readiness_cli_prints_plain_english_unlock_path(
     assert "make focus-fundamentals ticker=amd" in output
     assert "make sec-stage tickers=amd" in output
     assert "data/imports/fundamentals.csv" in output
-    assert "make imports-validate import_tickers=amd -> make imports-preview import_tickers=amd -> make imports-apply import_tickers=amd -> make dcf-readiness -> make readiness" in output
+    assert "make imports-validate import_tickers=amd -> make imports-preview import_tickers=amd -> make imports-apply import_tickers=amd -> make dcf-readiness -> make reviewed-batch-compare profile=default lane=fundamentals" in output
     assert "price target" not in output
     assert "undervalued" not in output
+
+
+def test_dcf_readiness_cli_read_only_builds_frame_and_leaves_tree_unchanged(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame(
+        [{"ticker": "NVDA", "default_purpose": "Momentum Leader", "market_cap_bucket": "Large"}]
+    ).to_csv(data_dir / "universe.csv", index=False)
+    pd.DataFrame(
+        [{"ticker": "NVDA", "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2, "shares_outstanding": 10}]
+    ).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame([{"ticker": "NVDA", "date": "2026-01-01", "close": 100}]).to_csv(
+        data_dir / "prices.csv",
+        index=False,
+    )
+    before = _file_manifest(tmp_path)
+
+    def fail_if_called(*_args, **_kwargs):
+        raise AssertionError("read-only DCF CLI reached the report writer")
+
+    monkeypatch.setattr("src.dcf_readiness.build_dcf_readiness_report", fail_if_called)
+
+    exit_code = main(
+        [
+            "--project-root",
+            str(tmp_path),
+            "--read-only",
+            "--top-n",
+            "1",
+        ]
+    )
+    output = capsys.readouterr().out
+
+    assert exit_code == 0
+    assert "Read-only DCF readiness preview; no files written." in output
+    assert "DCF-ready tickers: 1/1" in output
+    assert _file_manifest(tmp_path) == before
 
 
 def test_value_engine_marks_missing_dcf_inputs_not_ready_without_fake_positive_valuation():

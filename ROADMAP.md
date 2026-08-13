@@ -1,259 +1,320 @@
 # Roadmap
 
-Stock Research Command Center follows one principle: **data readiness first, analysis second, research decision last**. It is research-only software: no investment advice, broker trading, order routing, auto-trading, direct buy/sell instructions, or fabricated data.
+Stock Research Command Center is an **Evidence-First Research Workbench** for serious individual equity researchers and small research teams. Its operating rule is **data readiness first, analysis second, research decision last**.
 
-This is the active plan only. Completed delivery history lives in [Completed Milestones](docs/COMPLETED_MILESTONES.md).
+It is research-only: no investment advice, recommendation, company ranking, broker integration, order routing, auto-trading, direct buy/sell instruction, allocation, position sizing, stop-loss, take-profit, or fabricated evidence. The active roadmap is this file; detailed delivery history lives in [Completed Milestones](docs/COMPLETED_MILESTONES.md), accessibility findings in [Accessibility Evidence](docs/ACCESSIBILITY_EVIDENCE.md), point-in-time-universe remediation in [Point-in-Time Universe Review History](docs/internal/POINT_IN_TIME_UNIVERSE_REVIEW_HISTORY.md), and persistent execution boundaries in the [Commercial Research Beta Continuation Contract](docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md).
 
 ## Current Truth
 
-Use live, read-only commands instead of static counts:
-
-- Master universe rows: use `make project-status` or `make status-check TOP_N=5`.
-- Active research rows: use `make project-status` or the dashboard Home page.
+- Master-universe and saved generated-snapshot context: use `make project-status-check` or `make status-check TOP_N=5`; neither is current-market freshness proof.
+- Active research and lane truth: use `make readiness-ops-center`; dashboard counts remain saved-workspace context.
 - Lane readiness: use `make readiness-ops-center`.
+- Historical proof versus current readiness: use `make proof-readiness-reconciliation TOP_N=20`. It is a current-snapshot audit; historical proof cannot promote current readiness.
+- Readiness evidence impact: use `make readiness-preview TOP_N=20`. It computes future proposed states in memory, writes no files, and does not authorize staging or a readiness rebuild.
 - Source/provider state: use `make session-source-preflight` and `make provider-setup-checklist`.
-- Package/share state: use `make pilot-readiness-check TOP_N=10` and `make public-check`.
+- Package/share state: use `make pilot-readiness-check TOP_N=10`, `make public-check`, and `make browser-qa-evidence`.
+- Commercial-beta state: use `make commercial-beta-check`, `make commercial-beta-performance-gate`, and `make commercial-beta-release-check`. Commit `6328c8cea` passed the category-separated 48-sample browser gate, the aggregate release check, and exact-head CI. Shell and first-useful evidence keep warm p90 separate from cold maximum at the unchanged one-second and three-second limits. These are local evidence only; they do not refresh data and do not prove market validation.
+- Point-in-time universe software: only `make point-in-time-universe-status MANIFEST=<path>` and `make point-in-time-universe-preview MANIFEST=<path> TOP_N=20` are supported. Both are read-only.
 
 The product deliberately separates the tracked master universe, active universe, and analysis-ready subset. It must never imply that the whole tracked universe is analysis-ready.
 
+The tracked June 7 readiness snapshot remains stale under this roadmap's declared-date policy. An excluded local generated working-data snapshot may be date-current relative to the saved local source files but is not committed PR evidence; use the declared dates reported by the current read-only commands instead of preserving a brittle local snapshot date in this roadmap. The product reports those two states independently: `freshness_state=current` and `readiness_evidence_state=working_artifact_uncommitted`, while the continuation and reviewed-batch gates remain inspection-only. A read-only preview reported zero stable readiness changes, but that observation does not authorize staging or a readiness rebuild. Rerun the current commands instead of copying counts into documentation.
+
+`historical_supported_currently_blocked`, `explicit_ticker_change`, and `current_canonical_row_missing` are distinct reconciliation outcomes. Current saved readiness remains authoritative, and reconciliation does not establish the historical cause of a transition, restore canonical data, or report current readiness totals.
+
+The readiness continuation gate follows declared source dates, never file mtimes, and keeps date freshness independent from tracked evidence eligibility. It routes stale, incomplete, unverified, or current but untracked readiness to inspection-only. A date-current but uncommitted default-profile readiness snapshot cannot become PR evidence through local generated files. `make readiness-preview TOP_N=20` does not make saved readiness current or reviewable, does not refresh data, and is not current readiness counts or rebuild approval; provider ordering and ranked coverage remain planning context only. After explicit source and artifact authorization, `CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local>` may create an ignored local snapshot; release eligibility remains separately fail-closed through `make readiness-release-review TOP_N=20`, `make readiness-release-record ...`, and `make readiness-release-guard RECORD_ID=<record_id>`.
+
+Primary research flow: **Research Desk -> Discover -> Company Workbench -> Monitor**.
+
 Public visitor flow: **Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History**.
 
-## Completed Regression Gate
+Operator source/proof work remains separate. Data Health and Proof History are Advanced Evidence in Personal Research mode. Empty ledgers stay empty; candidate context stays untrusted.
 
-### P0: Profile Truth And Local Research Change Workflow
+Data Health and Proof History stay inside Personal Research mode and retain `Return to Company Workbench`; the detour does not change readiness. The direct-open loading state preserves Selected ticker -> `Use now` -> `Still withheld` -> `Open Data Health`, a 44px primary action, at least 50px result rows, no horizontal overflow, no traceback, and the desktop four-column layout. Owner-approved responsive repair anchor `18417d90766e9aeb629eef6bb1ef4fc40805773c` has fresh zero-scroll `resolved_post_fix` evidence at `390x844`: Home `stop_bottom=843.609375`, `action_height=44`, and `visible_stops=1`; Single-Stock Report `stop_bottom=836.421875`, `action_height=44`, and `trust_gap=2.21875`; both recorded `scroll_width=390`, all four measured scroll offsets were zero, no horizontal overflow, no traceback, and zero open Advanced details. Home phone order is primary -> stop -> metrics in both source and visual order. At `1280x720`, desktop retained two Home grid tracks and four Single-Stock Report grid tracks, one breakpoint-appropriate Home stop, 44px actions, and zero scroll/overflow/runtime errors. The historical `stop_bottom=886.3125` failure and the earlier unscrolled `843.4296875` claim remain superseded evidence, not current completion proof. Phone first-action density, Advanced data health cards, Auto-refresh status, and Session Source Preflight are workflow evidence only. This repair does not prove market validation, does not change readiness, source, research, or generated-artifact state, and does not prove hosted behavior, accessibility conformance, reviewer validation, demand, or product-market fit.
 
-**Status:** implemented and locally verified on 2026-07-15.
+Stage A-G labels are continuation maturity lanes only; they do not replace the numbered Stage 0-6 exit gates. Stage B — local field-proof audit and operator hardening is complete locally. A blocked priority does not become complete; classify it once and move to the next safe executable priority.
+## Now: Commercial Research Beta Foundation
 
-Every dashboard and status surface uses one selected-profile context for source date, readiness build time, snapshot identity, freshness, and matching coverage counts. Generated comparable snapshots support deterministic filing, readiness, price-history, fundamentals/share-count, and Nowcast-consensus change events. The derived review queue prioritizes unresolved research work, while append-only review outcomes remain separate from readiness mutation.
+**Current product stage:** local Commercial Research Beta release candidate with the Calm Institutional Workspace implemented across Personal Research, Public, evidence, Operator, and compatibility routes. It remains a controlled portfolio/demo package, not a hosted or commercially launched product.
 
-Use `make profile-context`, `make research-change-snapshot`, `make research-change-monitor`, and `make research-review-queue`. Generated snapshots and event previews stay unstaged. A missing baseline means no comparison is available; it never means no changes occurred.
+**Positioning:** a maintained evidence-first research tool candidate, not a smaller Bloomberg, Koyfin, TIKR, Fiscal.ai, AlphaSense, Quartr, or QuantConnect.
 
-**Boundary:** local monitoring is read-only except for the explicit reviewed-resolution append. Hosted alerts, scheduled snapshot rotation, and notification delivery remain Later and require operating evidence.
+**What works locally**
 
-### P0: Research Thesis And Evidence Journal
+- Research Desk now composes one read-only **Today's Research Brief** from the saved weekly summary, source-change state, and readiness freshness. It answers what saved work needs attention, gives one traceable reason, and routes once to Monitor for saved follow-up items, Data Health for a separate saved-source freshness condition, or Discover when neither is due. Weekly, cohort, observation, coverage, and source-change detail remains under Advanced Evidence. A zero-item answer is scoped to loaded workspace evidence and explicitly does not claim that no external event exists. Discover separates the unchanged strict **Screen eligibility — when supported** contract from alphabetical **Browse saved companies** evidence access. Saved rows explain inspectability, usable evidence, and the main gap; they are not screened opportunities, rankings, expected-return claims, or recommendations. The research browse path reads focused-cohort ticker readiness and never reads legacy decision, ranking, or watchlist outputs. Company Workbench composes trends, valuation, forward scenarios, evidence, and authoring. Monitor composes one **Follow-up Queue** with Since last review, Needs verification, Waiting on evidence, Scheduled context, and Evidence freshness. It renders one fail-closed empty state and one Discover action only when neither a saved item nor a saved-source freshness condition needs attention; complete process identities and source-change rows remain under `Advanced: Monitor evidence`.
+- Research Decision Lab supports read-only composition plus append-only thesis, counter-thesis, evidence, catalyst, invalidation, scenario-assumption, and outcome records through validate -> preview -> explicit confirm.
+- SEC quarterly actuals preserve source lineage. EPS split basis remains unverified without explicit proof. Q4 actuals require an explicit SEC-filed Q4 table; Q4 is never derived.
+- Historical Valuation Regime, Source Freshness Timeline - Implemented, Research Comparison View - Implemented, Peer Read-Through Map, Scenario Lab, Research Outcome Review, and Catalyst Evidence Timeline stay fail-closed when their ledgers or source inputs are empty. Historical-valuation numeric loading also rejects blank or malformed numerator/denominator evidence per row instead of coercing it to zero or discarding valid sibling rows.
+- Calculation software supports price setup, drawdown, volatility, beta, Sharpe/Sortino, DCF/scenarios, valuation context, deterministic nowcast contracts, walk-forward review, and point-in-time-universe validation.
+- Quant interpretation eligibility is implemented locally at `195ea18da9d1d6e06c36f8320509ccde46cdaa57`: one shared, fail-closed overlay keeps valuation, indicator, and review/risk calculations and readiness independent while classifying their interpretation as current context, historical/review-only, or withheld.
+- Company Workbench preserves peer trend and peer valuation readiness independently: mapped price history may support trend context, but only `peer_valuation_comparison_ready` can unlock peer-relative valuation, premium/discount, peer DCF comparison, or route the next proof beyond the peers lane.
+- Commercial source-rights, refresh-operation, provider-neutral authorization, workspace-isolation, audit-obligation, retention, monitoring, incident, and rollback contracts are locally testable. Local contracts do not prove hosted operation.
+- Public/package/release gates and current-head automation verify code, wording, route rendering, hygiene, and research boundaries. Automated evidence is not independent human review.
 
-**Status:** implemented and locally verified on 2026-07-15; retain as a research-process regression gate.
+**Current truthful limitations**
 
-The selected-profile Single-Stock Report now shows one compact, reviewer-authored thesis answer with supporting and conflicting evidence, catalysts, risks, invalidation conditions, confidence history, and review dates. `data/research_thesis_journal.csv` is append-only. Thesis revisions preserve prior entries through `supersedes_entry_id`; generated thesis text and Change Monitor tasks never write journal rows automatically.
+- Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`.
+- Numerical Beat/Miss probability remains `awaiting_calibration_evidence` and withheld until every predeclared gate passes. A raw calibration count cannot establish calibrated probability. `calibrated` requires paired verified calibration status and a leakage-safe benchmark-passing `BacktestReport`. The pairing requires recalculated immutable probability observations matched one-for-one to those report events by ticker, fiscal period, and cutoff. Each retained outcome must also equal the declared strict Revenue or EPS result (`actual > consensus`); an equal actual is not a Beat. The declared metric itself must be modeled and improve its matching consensus benchmark, and each stored relative classification is rederived from its forecast interval before aggregate evidence is accepted. A canonical digest also binds the exact report package, including event chronology, ordered source IDs, model/input identity, scored fields, exclusions, failures, summaries, and benchmarks; post-assessment relabelling requires a fresh assessment. This proves internal consistency only, not external source authenticity or rights.
+- A saved artifact being current relative to local files does not render its latest market observation current. Current-market interpretation requires an independent observation-recency state.
+- Local market-observation recency is implemented as a read-only, independently fail-closed check of the selected local `prices.csv` path. Its exact policy is seven calendar days from the dashboard review date, not an exchange-session SLA. Permitted market-data source rights and hosted freshness remain external gates.
+- Structured external provenance and exact-source rights proof for the current local quant inputs remain absent, and the historical-valuation observation ledger is absent. The daily queue therefore truthfully yields no eligible real-company candidate from current repository inputs; the shared overlay leaves local quant results historical/review-only or withheld. Neither establishes a current-market claim, hosted operation, calibration, nowcast activation, or commercial completion.
+- One permitted independently reviewed real point-in-time universe package, one permitted point-in-time consensus source, and one genuinely reviewed peer relationship are not on record.
+- Independent beta sessions completed: zero. The local protocol is ready, but it is not user-validation or demand evidence.
+### Company Workbench HTML Research Brief
+Company Workbench HTML Research Brief — Historical pre-fix evidence: Task 4 local matrix completed at `c8c313b9c`. Modal modifiers and active exposure fail closed. Broad-review repairs must be evaluated only through direct current-head local and exact-head CI evidence; their presence alone establishes neither gate. Exact-head repair evidence: commit `b69badfc80424d3a97fae5f77706aa6ed1533167` passed the 5,828-test full suite, the required dashboard, render, HTML, accessibility, public, and hygiene gates, branch/PR synchronization, and exact-head GitHub Actions run `30726301045`. The brief downloads an immutable offline view of existing saved evidence and prepared Python scenario math, preserves independent field gates and research-only wording, writes no repository artifact, and does not activate readiness or create a new calculation engine. Pilot packaging remains blocked on readiness freshness and source proof. Source rights, current data, hosted operation, human and screen-reader accessibility, independent workflow sessions, screening validation, and probability calibration remain open gates. Local engineering evidence does not establish source rights, current-market data, readiness activation, a new or professional line-item model, hosted operation, human or screen-reader conformance, independent validation, market fit, screening alpha, or probability calibration.
+## Next: Ordered Maturity Work
 
-Use `make thesis-journal TICKER=<ticker>` to read, `make thesis-journal-preview ...` to validate without writing, and `CONFIRM_REVIEWED=1 make thesis-journal-record ...` only after source review. Journal entries never mutate source rows, readiness, valuation, or Review Queue outcomes.
+Complete the direct local matrix and current-head local evidence first, then select the first incomplete safe roadmap priority. Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization. If the next gate needs an unavailable source, account, environment, reviewer, or elapsed event history, classify it once under **Externally blocked** and continue to the next executable priority. Passing local tests never completes an external gate. Evidence publication, snapshot, and retrieval timestamps must all be at or before the cutoff.
 
-**Boundary:** the journal documents a research process. Confidence is not investment conviction, expected return, position size, or a transaction instruction.
+Documentation and routing now name Personal Research as the root default, Public and Operator as explicit modes, and legacy utilities as Operator-only compatibility surfaces. Reopen this contract when current repository evidence reproduces drift.
 
-### P0: Performance Release Candidate
+Current answer-first UX program: Discover truth separation, the Company Workbench primary brief, Monitor consolidation, Research Desk simplification, and shared-shell cleanup are implemented locally. Research Desk replaces the weekly summary plus four overlapping answer cards with one Today's Research Brief and keeps supporting evidence under Advanced. Workbench composes **Use now**, **Still withheld**, **What changed**, one authoritative **Next research task**, the research-only stop rule, and the ticker-bound Data Health action before secondary modules. Trend, valuation, scenarios, authoring, methodology, the Research Decision Lab, conclusion detail, and the offline HTML brief remain available only after one session-local **Open evidence and analysis modules** action; reopening cannot change canonical data or readiness. Monitor replaces three competing primary summaries with one five-panel Follow-up Queue and one fail-closed zero-state action. Personal Research now uses one in-content workflow nav that becomes a compact desktop rail and a wrapped phone grid; its workspace-mode disclosure replaces the retired sidebar selector. Public uses one five-step in-content nav and an explicit mode link. Operator alone retains native sidebar workspace/route controls, with warnings before advanced or compatibility detail. Mode isolation canonicalizes disallowed links to safe starts while preserving allowed ticker/evidence query state. The full modernization acceptance is the ordered 15-route x 3-viewport x 2-zoom browser matrix plus focused/full, accessibility, wording, performance, hygiene, and protected-artifact gates. Pilot readiness remains truthfully blocked on uncommitted working readiness evidence and incomplete source proof. This remains local engineering evidence, not hosted, independent-human, screen-reader, WCAG, source-rights, current-market, or market validation. These presentation changes do not alter calculations, authoring persistence, readiness, evidence identities, thresholds, or source-rights decisions.
 
-**Status:** passed locally on the fixed demo profile on 2026-07-14; retain as a release regression gate.
+The bounded observation-recency UX repair is complete locally. Research Desk, Discover, and Monitor show one profile-lane interpretation; Company Workbench shows one selected-ticker interpretation. Exact selected/profile/SPY/QQQ dates, machine states, policy, path, and excluded-date diagnostics remain inside responsive Advanced evidence. A direct four-route browser matrix at `1280x720` and `390x844` verifies one summary, four independently labelled cards, phone single-column layout, and no evidence-container horizontal overflow without writing screenshots or other artifacts.
 
-**Goal:** keep the guided public workflow fast enough that an external reviewer does not mistake loading for a broken page.
+Completed local reliability item: default-profile readiness now separates temporal freshness from tracked release-evidence eligibility. Dirty or untracked required readiness reports are labelled `working_artifact_uncommitted`, and Git comparison failures are `unverified`; project status, continuation routing, pilot readiness, and reviewed-batch preflight fail closed to the no-write preview without staging or rewriting generated artifacts. Reviewed-batch temporal routing now uses the same declared-date profile context instead of a separate mtime rule.
 
-Use the tracked `data/demo/manifest.json` snapshot as the fixed performance dataset. Do not mix route measurements with broad data refreshes or generated local-profile churn.
+Completed local item: `1. Add shared provenance and recency eligibility to valuation, indicator, and review-metric interpretation without coupling their independent readiness states.` The shared overlay is implemented at
+`195ea18da9d1d6e06c36f8320509ccde46cdaa57`; this historical queue entry is not
+an open task, and the independent historical-valuation numeric-integrity repair
+did not substitute for it.
 
-1. Run `make public-performance-contract` to inspect the read-only route, viewport, snapshot, and threshold contract.
-2. Run `make public-performance-gate` for real-browser cold and warm evidence at desktop and phone widths.
-3. Measure the visible shell, first useful answer, and full settle separately; report repeated warm results as p90 rather than selecting the fastest run.
-4. Treat Stock Selector, Single-Stock Report, and Data Health as critical routes. Keep Home and Proof History regression-protected.
-5. Optimize saved summaries, deferred detail, pagination, and deterministic caching in small tested slices without weakening readiness or hiding blocked states.
+Completed local framework reliability item: `1. Close the same-document
+Streamlit transport reliability evidence.` Exact local commit
+`d68ab27bee9c07c450faeb866b08cbf13638b56f`
+passed 4,381 tests, the required render/public/commercial-beta/pilot gates, and
+all 12 six-route/two-viewport browser results. Every result reported zero
+deprecated-component warnings, bridge iframes, bridge focusable descendants,
+and bridge height; the owned bounded server-output capture also reported zero
+deprecated warnings. The same 18 generated paths remained excluded.
 
-**Exit gate:** loading feedback within 1 second, first useful answer within 3 seconds, warm full-settle p90 within 5 seconds, and cold full settle within 10 seconds on the defined local reference environment.
+Those historical transport and research-state anchors were subsequently covered by the exact-head local and GitHub release matrix at `b69badfc8`; their earlier environment and synchronization blockers are no longer active routing items.
+This closes only automated engineering evidence. Hosted product behavior, independent-human accessibility, source evidence, and market validation remain separate incomplete gates.
 
-**Stop rule:** a missing browser dependency is `environment_limited`, not a pass. Keep timing JSON and screenshots generated and unstaged unless one concise artifact is intentionally reviewed.
+Priority 7 accessibility remains open. Automated media-preference emulation and route/viewport engineering checks are available locally, but direct-platform, independent-human, screen-reader, and assistive-technology evidence remains external until a suitable environment exists. Select any remaining safe automated work only through the durable release-routing rule above; direct true zoom, forced-colors, reduced-motion, and material target review remain incomplete unless the named protocol records them.
 
-## External Stages
+### Priority 1 — Legacy portfolio, ranking, and action-language quarantine
 
-### P1: Controlled Hosted Preview Verification
+Priority 1 — completed locally. Legacy portfolio, ranking, position, cost-basis, picks, entry-zone, disposition, and transaction-like surfaces are Operator-only compatibility utilities labelled `Legacy research utility — not part of Personal Research Mode`. Public and Personal Research routes fail closed. Retained compatibility code cannot feed Company Workbench, Research Decision Lab, readiness, recommendations, sizing, or transaction behavior.
 
-**Goal:** turn the deterministic `demo` profile into a verified, controlled hosted demo without exposing local refresh data or credentials.
+### Priority 2 — Stage B field-proof audit and operator hardening: completed locally
 
-Repository-side preparation is complete. The remaining deployment work requires an external host/account and a verified public URL.
+Stage B — completed locally. This is prospective-only; legacy narrative proof is not upgraded, and an absent ledger is a valid empty state. `technical_write_eligible` and `commercial_evidence_eligible` remain independent. `make prospective-field-proof-audit` and preview expose append history, current/superseded state, blockers, per-row technical/commercial answers, and receipt revalidation without writes. Stage B is the second approved local priority after legacy surface quarantine. There is no readiness mapping; any activation requires a separate design. Activation remains non-active and separately designed. No sample field-proof rows are checked in.
 
-1. Choose a Streamlit-compatible host and deploy `main` with `dashboard.py` as the entrypoint.
-2. Set `STOCK_RESEARCH_DATA_PROFILE=demo` in the host environment.
-3. Keep provider keys, account IDs, tokens, and broker/session files out of the repo and public app.
-4. Verify the five-page workflow on the hosted URL at desktop and mobile widths.
-5. Set `HOSTED_DEMO_URL` locally only after the URL opens successfully, then rerun the public gates before changing GitHub or LinkedIn copy.
+`make prospective-field-proof-status`, `make prospective-field-proof-preview INPUT=<reviewed_field_proof.csv> AS_OF=<utc-cutoff>`, and `make prospective-field-proof-record INPUT=<same-file> AS_OF=<same-cutoff> PREVIEW_RECEIPT=<exact-receipt> CONFIRM_REVIEWED=1` preserve `preview_receipt_persisted=false` and `receipt_revalidation_required=true`. The preview receipt binds ledger, input, cutoff, commercial mode, and source-rights registry. Audit and preview do not activate readiness; the audit does not update canonical data, does not update proof-readiness reconciliation, and does not activate Company Workbench.
 
-**Dependencies:** the local performance release gate, an external hosting account, a public or access-controlled preview URL, and a human browser review of the deployed route.
+### Priority 3 — In-app research-record authoring: completed locally
 
-**Stop rule:** keep GitHub as the public link until the hosted route is verified. Call the route private only when access control is actually enforced. Screenshots remain product evidence only, never data-freshness proof.
+Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix. Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer. A valid record requires an exact preview and explicit confirmation before save. Drafts are untrusted and preview receipts are session-only. Production tests never append repository ledgers; persistence tests use temporary ledgers. automated generation cannot become reviewer-authored evidence. A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.
 
-### P1: Controlled Pilot Review
+Hardening commit `07758114c` closes the confirmation race: all three append engines share one resolved-ledger cooperative lock, receipts bind resolved ledger identity, every new preview resets confirmation, and uncertain post-append teardown requires one-shot read-side reload before success.
 
-**Goal:** validate whether an external reviewer can understand the product in under three minutes.
+Final integrity commit `e3a090dba` ensures confirmation appends only the receipt-matched recomputed record and enforces one readable active thesis lineage: revisions must supersede the exact active entry and preserve its thesis ID. The Company Workbench locks and explains that relationship, with temporary-ledger create -> revise -> reload coverage.
 
-1. Share the GitHub demo package with 5-10 reviewers.
-2. Ask reviewers to follow the public visitor flow without operator instructions.
-3. Record only concrete issues: where they started, what they thought was usable, what looked blocked, and what they expected to do next.
-4. Prioritize reproducible first-viewport, wording, routing, or accessibility defects. Do not use pilot feedback to weaken readiness gates.
+Confirmation-integrity commit `5a6c55921` binds every displayed preview field, preview time, and destination label to the exact receipt. If an append raises after it may have written, confirmation returns one-shot `save_pending_reload` with the exact record ID unless the locked ledger is provably unchanged; it never invites a blind duplicate retry.
 
-Use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) to capture anonymous, reproducible workflow observations without collecting personal, portfolio, or investment-opinion data.
+Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete. Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent. Complete the direct local matrix and current-head local evidence first, then select the first incomplete safe roadmap priority. Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization.
 
-**Dependencies:** a locally passing performance release gate, a verified delivery path, external reviewers, and controlled feedback collection.
+### Priority 4 — Point-in-time benchmark and universe foundation
 
-**Stop rule:** do not call pilot feedback data proof; it only validates product clarity and workflow reliability.
+The approved design is `docs/superpowers/specs/2026-07-23-point-in-time-universe-foundation-design.md`. It remains isolated from the current ticker-centric universe.
 
-## Now
+Implemented locally: read-only immutable-package status/preview with ten independent states: manifest, technical, temporal, identity, membership, corporate action, delisting, source rights, reproduction, and leakage. Synthetic fixtures remain test-only and local software evidence cannot complete Priority 4.
 
-### P2: Scenario Lab - Implemented
+Priority 4 remains open until one bounded permitted real dataset is independently reviewed, reproduces the expected membership count and digest, and passes rights, identity, corporate-action, delisting, survivorship, cutoff, partition, reproduction, and leakage gates. The controls for corporate actions, delistings, survivorship, and leakage remain explicit and independent.
 
-**Goal:** let a reviewer vary source-backed DCF assumptions and understand valuation sensitivity without changing canonical data or producing a recommendation.
+This local evidence does not change independent readiness for actuals, consensus, Revenue, EPS, valuation, catalysts, outcomes, backtesting, or calibration.
 
-1. Start only from a company whose selected profile is DCF-ready.
-2. Load the saved source-backed revenue, FCF or margin, shares, cash, debt, and price context as immutable baseline evidence.
-3. Allow bounded changes to revenue growth, operating or FCF margin, discount rate, terminal growth, and forecast horizon.
-4. Show baseline and scenario ranges, directional sensitivity, terminal-value contribution, and every changed assumption.
-5. Keep scenarios session-local or explicitly exported as generated research artifacts; never apply them to canonical fundamentals or readiness.
+It does not provide investment advice; numerical probability remains unavailable without calibration; Q4 evidence and EPS split-basis compatibility remain explicit; synthetic evidence stays test-only; candidate peer evidence remains candidate-context-only.
 
-**Stop rule:** blocked or excluded DCF inputs produce no valuation output. Scenario results are assumption tests, never fair-value claims, rankings, or direct actions.
+Digest method: `membership_count_and_sha256_at_cutoff_v1`. Supported commands are exactly `make point-in-time-universe-status MANIFEST=<path>` and `make point-in-time-universe-preview MANIFEST=<path> TOP_N=20`.
 
-**Implemented proof:** the detailed Valuation tab now loads source-backed defaults, enforces bounded controls, reports changed assumptions and sensitivity, and keeps provenance and scenario identity under Advanced. It is session-local and does not change canonical inputs or readiness.
+Resource limits and detailed remediation evidence live in `docs/internal/POINT_IN_TIME_UNIVERSE_REVIEW_HISTORY.md`. Priority 4 remains externally incomplete.
 
-### P2: Source Freshness Timeline - Implemented
+Local resource budgets for one supplied package: preview sample 100 rows; manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined 64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; package traversal 32 entries. These local bounds do not prove scale, hosted reliability, or market readiness. No permitted independently reviewed real dataset, accepted expected count/digest, or source-rights proof is on record.
 
-**Goal:** show a selected ticker's source chronology without confusing report time, retrieval time, market time, or financial effective date.
+### Priority 5 — One permitted consensus source and one reviewed peer relationship
 
-The Sources & Gaps tab now derives a deterministic same-profile timeline from the report payload, shows unknown timestamps explicitly, deduplicates exact source records, and keeps raw provenance under Advanced. It never refreshes data, changes readiness, or infers publication, cutoff, or revision dates that are not present.
+Review one exact-source, permitted, point-in-time consensus snapshot for one ticker/fiscal period and one independently sourced peer relationship. Technical validity, rights, Revenue, EPS, comparability, reviewer decision, append history, and valuation-anchor eligibility remain independent.
 
-**Stop rule:** a recent retrieval or report timestamp does not render an older source period current or unlock a blocked lane.
+Neither item unlocks probability, broad coverage, readiness in another lane, or a company conclusion.
 
-### P2: Research Comparison View - Implemented
+Set `SOURCE_INPUT=<reviewed_source_export.csv>`, then run `make earnings-consensus-source-review INPUT=$SOURCE_INPUT PROVIDER=<source_id> AS_OF=<timestamp>` before collection preview. After separate human review and explicit evidence-preserving mapping, set `COLLECTION_INPUT=<prospective_consensus.csv>` and run `make earnings-consensus-collection-preview INPUT=$COLLECTION_INPUT AS_OF=<same-timestamp>`. Only after exact preview review may `CONFIRM_REVIEWED=1 make earnings-consensus-collection-record INPUT=$COLLECTION_INPUT AS_OF=<same-timestamp> PREVIEW_RECEIPT=<exact-receipt>` create an append-only evidence record. It does not activate readiness or numerical probability. Never infer an explicit provider.
 
-**Goal:** compare selected companies across usable evidence, blockers, proof freshness, and reviewed catalysts or risks without ranking them.
+### Priority 6 — Controlled hosted operating boundary
 
-The existing operator-only selected review tray now accepts two or three tickers, preserves user order, and displays an evidence matrix for price, fundamentals, DCF, trusted peers, supported analysis, missing inputs, next proof, freshness, and profile-scoped journal context. It adds no route and writes no data.
+Provider-neutral, deny-by-default workspace authorization is complete locally. `src.hosted_access_control.evaluate_workspace_access` creates an append-only, privacy-safe audit obligation. The module has no dashboard, ledger, readiness, provider, persistence, environment, network, or generated-artifact integration. It does not prove hosted authentication, deployed isolation, audit storage, retention, monitoring, rollback, incident response, operated capacity, or market validation.
 
-**Stop rule:** the comparison produces no score, winner, expected return, recommendation, or action; candidate peer context remains separate from trusted-peer readiness.
+The actual environment must prove authentication, cross-user/cross-workspace denial, least privilege, durable persistence, append-only audit, retention/deletion, health monitoring, recovery, rollback, and named operating ownership. A local contract or URL alone is insufficient.
 
-### P2: Peer Read-Through Map - Implemented
+**Exit gate:** the actual hosted environment directly proves every claimed control, including an observed rollback rehearsal and named owner.
 
-**Goal:** show which peer results can be reviewed as directional business context without treating sector similarity or candidate peers as trusted evidence.
+### Priority 7 — Accessibility evidence beyond screenshots
 
-The existing detailed Valuation tab now separates trusted relationships, candidate-only relationships, explicit business-overlap evidence, target/peer fiscal periods, source-backed Revenue/EPS actuals, and the remaining proof needed for contextual read-through. A result becomes `reviewable_context` only when relationship provenance, business overlap, actual result evidence, and both fiscal periods are explicit.
+The approved narrow remediation is implemented and has reproducible local direct-browser evidence at exact tested implementation anchor `0000c97e7db17e5d4353e30e976f2b7dec6bfd46`. `make research-accessibility-browser-check` first verified a clean product/code/test/docs tree, classified and excluded exactly 18 unstaged generated CSV/output paths, and verified the rendered Stock Research Command Center `Demo` profile before attaching the commit or profile. It then passed all eight Research Desk, Discover, ticker-bound Company Workbench, and Monitor cases at `1280x720` and `390x844`: after initial focus was cleared, one physical Tab focused the sole skip link, whose box was fully inside both horizontal and vertical viewport bounds before Enter preserved the route and focused the answer; the labelled workflow navigation and every applicable route link were inside the viewport, and each link was at least `44px` high; all four actually rendered eligible Discover actions had unique ticker-bound names; focused summaries exposed a solid three-pixel outline; and rejected empty-thesis validation bound, described, and focused Thesis Id while retaining one global alert. The live Workbench regression then changed the draft, proved the bridge-owned Thesis Id node and relationships were removed, and proved the next validation associated only `effective_at is required` with Effective At on desktop and phone. The gate uses no DOM-order enumeration or programmatic skip-link focus as keyboard evidence; rejects non-loopback or mismatched servers and dirty implementation evidence without attributing a local commit/profile; fails closed without Chrome/Playwright; assumes no Discover row count; and writes no JSON, timing, report, screenshot, readiness, canonical-data, or ledger artifact.
 
-**Stop rule:** candidate peers never become trusted automatically. Missing relationship source, actual result, or fiscal timing withholds read-through; even reviewable context cannot alter Earnings Nowcast numbers, DCF, readiness, rankings, or actions.
+The separately reviewed framework-safe semantic-main slice is implemented and has direct local browser evidence at exact tested implementation anchor `d1328eaa4d08cf08ec2b70939e4e031ee5f907b0`. The focused gate tests returned `22 passed`; `make research-accessibility-browser-check` again verified the loopback Stock Research Command Center `Demo` identity and a clean product tree while excluding the same 18 unstaged generated paths, then passed all 12 Research Desk, Discover, ticker-bound Company Workbench, Monitor, Research Data Health, and Research Proof History cases at `1280x720` and `390x844` with no failures. Every initial DOM and every DOM after a genuine same-document Streamlit `notRunning` -> `running` -> `notRunning` script cycle had exactly one role-based main with exact `role="main"`, `id="research-main"`, `aria-label="Stock research workspace"`, one contained answer target, one level-one heading, and host bridge status `applied`; only that same-document rerun/probe phase preserved the exact route with zero top-level navigation. A hidden inert mutation probe also required the live bridge observer to restore `applied` before the probe was removed. Separately, every case deliberately navigated to an explicit different Research route and back, waited for marker/stability/exact H1, then required the full away and return URLs, including the complete query string and empty fragment with the ticker parameter where present, before repeating semantic-main, runtime, and applicable primary/secondary navigation assertions. The physical-Tab skip target was focused inside the unique initial main; all cases had no console/page error, rendered traceback, or horizontal overflow across the recorded phases. The controlled native radio event and installed Streamlit test-state transition are framework engineering evidence only, not pointer/keyboard/mobile-sidebar interaction credit or a public cross-version compatibility guarantee. The gate remained repository/data read-only and produced no repository artifact.
 
-### P2: Decision-Process Scorecard - Implemented
+This closes the five narrow reproduced defects and the stable route-level semantic-main defect for the recorded local automated browser matrices only. Commit `6328c8cea` also passed the clean-tree direct dynamic-state matrix at desktop and phone widths: loading, empty, withheld, stale, failure, and validation remained visible non-live states; the five authoring transitions used the required single polite-status or assertive-alert semantics; unchanged rerenders became non-live; and the repository snapshot remained byte-for-byte unchanged. Independent-human keyboard review, 200%/400% zoom and reflow, direct platform forced-colors and reduced-motion review, screen-reader tasks, remaining small framework controls, and material-defect retests remain incomplete. Automated DOM checks and screenshots are supporting engineering evidence only; they do not prove WCAG conformance, screen-reader usability, hosted behavior, or independent-human accessibility validation.
 
-**Goal:** render research discipline reviewable without grading a company or measuring investment performance.
+The local media-preference engineering slice is implemented at exact anchor `a97a096e1caf2761176dc42798a8c9686179aecc`. `make research-accessibility-browser-check TIMEOUT_SECONDS=90` passed forced-colors and reduced-motion emulation in all 12 six-route/two-viewport results while the existing landmark, focus, navigation, authoring, dynamic-state, runtime, overflow, and repository-write checks remained green; the same 18 unstaged generated paths stayed excluded. This is automated engineering evidence only. C01, C02, M01, direct platform and human media-preference review, zoom, screen-reader, assistive-technology, hosted, independent-human, and WCAG evidence remain incomplete, so Priority 7 remains open.
+The earlier K01/K03/K04/K05/K06/K09 and mobile-navigation failures remain historical evidence in `docs/ACCESSIBILITY_EVIDENCE.md`; the new direct gate supersedes those five narrow implementation findings only at its recorded product anchor and viewports. Priority 7 remains incomplete.
+The bounded 2026-08-13 current-browser follow-up measured the materially exposed primary-Research framework targets at desktop and phone widths. Dataframe actions were `24x24`, disclosure headers at least `37.6px` high, authoring controls `32x38` or larger, route/mode links at least `44px` high, and neither viewport had document-level horizontal overflow. No app-owned size or non-overlap defect reproduced, so no product change was made; pointer activation remains unproved. This is supporting engineering evidence only; independent-human pointer, keyboard, true-zoom, direct-platform media, screen-reader, assistive-technology, hosted, and WCAG evidence remain incomplete.
 
-The Single-Stock Report now derives profile-scoped checks for readiness review, thesis documentation, recorded evidence, later review of conflicting evidence, invalidation conditions, confidence history, review-date currency, unresolved Change Monitor tasks, and visible DCF assumptions. Details stay collapsed below the Thesis Journal.
+The earlier Streamlit normalization to `target="_blank"` also remains historical evidence; the route-preserving correction continues to use fragment-only `#public-page-answer` with `target="_self"`. The current gate directly verifies the resulting same-route focus transfer without treating the historical defect as current.
 
-**Stop rule:** the scorecard reports process states and next review steps only. It produces no numeric company score, expected return, performance claim, ranking, recommendation, or action; blocked and excluded analysis remain distinct from incomplete documentation.
+Use `docs/ACCESSIBILITY_TASK_PROTOCOL.md`; the protocol is not completion evidence. The corrected same-page target is `#public-page-answer`; incomplete direct tasks remain `blocked_environment`. No WCAG conformance claim is made.
 
-### P2: Earnings Nowcast Pilot Evidence
+### Priority 8 — Independent workflow validation
 
-**Goal:** move the implemented Earnings Nowcast pilot from synthetic infrastructure proof to a leakage-safe, source-backed semiconductor cohort.
+Run 10-20 independent workflow sessions with the target researcher persona through Research Desk -> Discover -> Company Workbench -> Monitor. Owner-led, automated, fixture, and screenshot sessions do not count.
 
-Earnings Nowcast real-data safety infrastructure is implemented for deterministic Revenue/EPS ranges, consensus-relative classification, metric-specific canonical quarterly evidence, comparability checks, evidence-only directional signals, chronological walk-forward backtesting, explicit sample-sufficiency/calibration diagnostics, and a separate probability calibration gate. Versioned read-only append-only onboarding templates, validation, preview, readiness, and prospective collection planning are implemented. The committed fixture cohort is synthetic test evidence only.
+Measure task completion, time to first useful answer, readiness comprehension, evidence tracing, authoring friction, trust, misuse risk, perceived performance, repeat-use intent, and the most important missing workflow. Use voluntary minimal-data capture, withdrawal handling, a deletion date, anonymized evidence, reproducible findings, severity decisions, and material-defect retests.
 
-1. Acquire permitted append-only historical quarterly actuals and point-in-time consensus snapshots with source references, publication/retrieval timestamps, and explicit Revenue/EPS comparability definitions for a narrow semiconductor cohort.
-2. Use `make earnings-nowcast-prospective-plan` for future snapshot collection, then run the implemented onboarding validate/preview/readiness gates before any real-company packet; no automatic apply path exists.
-3. Keep candidate peer/news signals separate from reviewed trusted evidence; signals explain context and never mutate forecast numbers.
-4. Run chronological out-of-sample evaluation against latest-consensus and prior-year benchmarks.
-5. Withhold numerical Beat/Miss probability until at least 100 valid events pass Brier-score, calibration-bin, and benchmark-improvement gates.
+The local invitation, scorecard, log schema, runbook, and closeout checklist are ready. This does not prove demand, retention, product-market fit, or financial validity.
 
-Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`; numerical probability remains `awaiting_calibration_evidence`.
+### Priority 9 — Out-of-sample calibration cohort
 
-**Stop rule:** do not substitute current analyst estimates for historical point-in-time snapshots, use post-cutoff evidence, infer numeric adjustments from text, claim predictive accuracy from fixtures, or predict post-earnings price movement.
+Accumulate at least 100 valid leakage-safe out-of-sample events from permitted point-in-time inputs with immutable cutoffs, comparable actuals, revision lineage, exclusions, missingness, and reproducible cohort membership.
 
-## Next
+Evaluate predeclared Brier score, calibration bins, constant-benchmark improvement, sample sufficiency, missingness, stability, and temporal/cohort leakage. The local `make calibration-evidence-bundle-preview BUNDLE=<path>` contract reads one supplied immutable bundle, reports `invalid`, `blocked`, or `contract_consistent_review_required`, and writes no artifact. It recomputes retained observations against the exact backtest package; an unrelated same-size cohort is not evidence. It does not activate readiness, establish source rights or authenticity, persist evidence, or validate real events. Actuals, consensus, Revenue, EPS, valuation, catalysts, outcomes, backtesting, and calibration remain independent; probability remains withheld unless every applicable external and calibration gate passes.
 
-### P2: FMP One-Ticker Source Smoke
+### Priority 10 — Separately approved hypothetical paper-position laboratory
 
-**Goal:** add one controlled keyed free-tier fallback after the public pilot foundation is stable.
+The design-only proposal at `docs/superpowers/specs/2026-08-12-hypothetical-paper-position-laboratory-design.md` and the concise decision packet at `docs/internal/RESEARCH_REHEARSAL_LAB_OWNER_DECISION_PACKET.md` are available for owner review. Owner approval remains open, every decision in the packet is unresolved, and implementation planning is not authorized. The proposal covers research-only intent, isolation, private-data policy, safe language, misuse analysis, storage/retention/export/deletion choices, acceptance, and explicit non-goals. It prohibits recommendations, model-generated sizing, allocation, live holdings, account imports, brokers, order routing, auto-trading, stop/profit instructions, and performance claims. Live brokerage remains out of scope permanently.
 
-1. Configure `FMP_API_KEY` outside Git in the ignored local key file or host secrets.
-2. Run `make project-status-check`; only continue if it identifies a reviewed candidate scope.
-3. Run `make fmp-smoke TICKER=<ticker>` for one ticker.
-4. Run `make imports-validate IMPORT_TICKERS=<ticker>` and `make imports-preview IMPORT_TICKERS=<ticker>`.
-5. Apply only if validation passes, preview scope is intended, rejected rows are zero, and source provenance is present.
-6. Record a supported, candidate-context-only, still-blocked, skipped, or excluded outcome before any larger batch.
+## Externally blocked
 
-**Dependencies:** an FMP key and an executable reviewed candidate. The current source-proof queues have no unreviewed executable company candidates, so provider reachability alone does not unlock coverage.
+| Stage | Classification | Evidence checked | Exact unblock condition |
+| --- | --- | --- | --- |
+| Priority 4 | `point_in_time_benchmark_universe_and_rights_required` | No permitted independently reviewed real package is on record. | Supply one bounded permitted package and independent expected-count/digest review; pass rights, identity, corporate-action, delisting, survivorship, cutoff, partition, reproduction, and leakage gates. |
+| Priority 5 consensus | `permitted_point_in_time_consensus_and_rights_required` | No permitted exact-period point-in-time input or approved exact-source field rights are on record. | Configure one permitted source or reviewed CSV, approve exact-source rights/field scope, then validate and preview one ticker/period without inferring a provider. |
+| Priority 5 peer | `trustworthy_peer_source_and_review_required` | No genuinely reviewed relationship is on record. | Provide source/as-of evidence and reviewer capacity; record role, rationale, comparability, and an explicit valuation-anchor decision. |
+| Priority 6 | `hosted_account_and_controls_required` | No verified hosted identity/persistence environment or URL is on record. | Approve the exact environment and directly verify authentication, isolation, audit, retention, monitoring, backup, rollback, incident response, and named owner capacity. |
+| Priority 7 | `accessibility_manual_review_environment_required` | Automated forced-colors and reduced-motion emulation exists; true zoom, direct platform/human media-preference review, and screen-reader coverage remain incomplete. | Provide a suitable review environment and complete the task protocol plus material-defect retests. |
+| Priority 8 | `independent_reviewers_required` | The protocol is locally ready; zero independent sessions are on record. | Complete 10-20 independent target-persona sessions with anonymized evidence and retest material defects. |
+| Priority 9 | `calibration_cohort_required` | Valid real leakage-safe calibration events: zero. | Accumulate at least 100 permitted events and pass the predeclared calibration/benchmark gates. |
 
-**Stop rule:** no broad batch from setup alone. Provider setup/source-boundary review must happen before `make trusted-data-pilot-candidates TOP_N=10` only after source state changes.
-
-### P2: Price History Maintenance
-
-Price coverage uses `PROVIDER=auto` in this fixed order: **Stooq, Yahoo**, optional IBKR read-only when explicitly configured, then keyed FMP, Alpha Vantage, and Finnhub fallbacks. This maintenance lane is finite and read-only until a separately reviewed source-backed change is eligible for the import gate.
-
-1. Run the default executable queue: `make price-history-proof-queue TOP_N=25`.
-   - `momentum-not-ready` rows describe a readiness state, not a refresh instruction.
-   - `unreviewed preferred-history candidates` are the only default queue rows eligible for a narrow reviewed investigation.
-   - `reviewed source-limited items` are excluded from the default queue because they remain wait-only.
-2. Use audit mode only to inspect reviewed source-limited items: `INCLUDE_REVIEWED=1 make price-history-proof-queue TOP_N=25`.
-3. When compatible reviewed evidence exists, use `make price-history-batch-closeout TOP_N=25` to produce the read-only grouped closeout scaffold. It does not record proof rows, stage files, commit, or push.
-
-**Stop rules:** stop on no readiness movement in reviewed scope; no identical source-limit retry unless source behavior or verified OHLCV changes; batch compatible proof evidence intentionally; never commit or push one proof row per ticker by default; pivot to the next roadmap item when no executable candidates.
-
-### P3: 25-50 Company Trusted-Peer Pilot
-
-**Goal:** address the largest analytical-depth gap without inferring trusted peers across the full universe.
-
-1. Select 25-50 operating companies from a few clearly comparable industries.
-2. Generate candidate peer context from SIC, industry, and product context; label it `candidate_context_only`.
-3. Promote a relationship only after source-backed review captures peer source, review date, rationale, and as-of context.
-4. Keep peer trend readiness separate from peer valuation readiness.
-5. Require trusted peer price, fundamentals, and valuation inputs before relative valuation appears.
-
-**Dependencies:** a licensed or otherwise trustworthy peer relationship source and reviewed mappings.
-
-**Stop rule:** sector similarity is not trusted-peer proof. Do not target broad-universe peer readiness before the pilot has repeatable evidence.
-
-The implemented Peer Read-Through Map is the review surface for this future cohort. It does not satisfy the external trusted-relationship dependency or create broad peer coverage by itself.
+Unavailable dependencies are recorded once and not retried until relevant external state changes. This is the Approved Next-Stage Maturity Program; blocked work must move to the next safe executable priority.
 
 ## Later
 
-### P4: Optional Earnings And Analyst Estimates
+### Focused price-history maintenance
 
-Proceed only when a trusted provider supplies supported earnings actual/estimate fields, estimate period, source, and retrieval/as-of date. Date-only and target-price-only data remain `candidate_context_only`; optional context never unlocks DCF readiness or becomes a recommendation.
+`PROVIDER=auto` remains **Stooq, Yahoo**, optional IBKR read-only, then keyed FMP, Alpha Vantage, and Finnhub fallbacks. An explicit provider identity and commercial rights/`prices` scope are required before commercial fetch or mutation.
 
-### P4: Scheduler Maturity
+- `momentum-not-ready` is a readiness state, not a refresh instruction.
+- Only `unreviewed preferred-history candidates` are default investigation candidates.
+- Inspect `reviewed source-limited items` only with `INCLUDE_REVIEWED=1`.
+- Use `make price-history-batch-closeout TOP_N=25` only when compatible reviewed evidence exists.
+- stop on no readiness movement in reviewed scope; no identical source-limit retry unless source behavior or verified OHLCV changes; batch compatible proof evidence intentionally; never commit or push one proof row per ticker by default; pivot to the next roadmap item when no executable candidates.
 
-Add scheduled snapshot rotation, alerts, and source monitoring only after at least one provider pilot proves deterministic batch limits, provenance, rejection handling, and proof-ledger recording. Daily price and filing checks may be read-only; imports still require validation, preview, and source gates. The local Change Monitor is not itself a hosted alerting service.
+Provider setup/source-boundary review comes before candidate loops. The current source-proof queues have no unreviewed executable company candidates. Run `make provider-setup-checklist`; run `make trusted-data-pilot-candidates TOP_N=10` only after relevant source state changes.
 
-### Later: Broader Peer Expansion
+### Focused peer expansion
 
-Expand beyond the peer pilot only after trusted relationship sourcing, review capacity, and lane-level quality checks are repeatable.
+A 25-50 company trusted-peer pilot is governed by the Approved Next-Stage Maturity Program and begins only after the single reviewed relationship in Priority 5 proves trustworthy sourcing and repeatable review capacity. Candidate sector similarity is not peer proof.
 
-### Later: Product Direction Decision
+### Research-oriented monitoring
 
-Use `docs/PRODUCT_DIRECTION_DECISION.md` after hosted-preview, controlled-pilot, and trusted-peer evidence exist. Choose explicitly among a portfolio-quality research prototype, maintained research tool, or operated research platform; keep the decision provisional while those dependencies remain external.
+After source and workflow evidence support it, add source-linked filing/catalyst changes, thesis reminders, watchlists, and daily/weekly “what changed” recaps. Any summary must be cited to approved evidence and unable to change readiness, forecasts, or reviewed records automatically.
+
+### Product-direction decision
+
+Use `docs/PRODUCT_DIRECTION_DECISION.md` after hosted, independent-review, trusted-peer, data-economics, operating-capacity, and repeat-use evidence exists. Default direction remains a maintained personal/small-team research tool; an operated platform is not authorized by feature volume or test counts.
+
+## Completed with evidence
+
+Detailed evidence is in `docs/COMPLETED_MILESTONES.md`; this section is an index, not duplicated chronology.
+
+### P0: Profile Truth And Local Research Change Workflow
+
+Implemented and regression-gated. Snapshot-only and source-backed changes stay distinct; missing change evidence is not a negative company signal.
+
+### P0: Research Thesis And Evidence Journal
+
+Implemented with append-only provenance, invalidation, conflicting evidence, outcome review, and no automatic readiness or forecast promotion.
+
+### P0: Performance Release Candidate
+
+Passed on commit `6328c8cea`: warm shell/first-useful p90 and cold shell/first-useful maximum are separate and independently enforced at the unchanged one-second and three-second limits. The fixed `data/demo/manifest.json` run recorded 48 successful samples with no failures; the aggregate release check, 4,474-test full suite, six-route/two-viewport accessibility browser gate, state harness, push, draft-PR exact-head check, and generated-artifact exclusion also passed. This proves a reproducible local release candidate, not hosted performance, source coverage, human validation, or market readiness. Do not retry unchanged failures, select fastest runs, or stage `/tmp` timing evidence.
+
+### P1 local prerequisite: Hosted operating contracts
+
+Local deployment and operating contracts are complete; actual hosted verification remains externally blocked under Priority 6.
+
+### P1 local prerequisite: Independent beta protocol
+
+The independent-session protocol is locally complete; actual sessions remain externally blocked under Priority 8.
+
+### P2: Scenario Lab - Implemented
+
+Scenario assumptions are explicit research context and cannot become recommendations, rankings, or deterministic forecast inputs.
+
+### Earnings Nowcast real-data safety infrastructure
+
+Deterministic synthetic-fixture software, point-in-time consensus contracts, actuals lineage, backtest, and calibration gates are implemented. Real-company coverage and predictive accuracy are not established.
+
+### Bounded SEC cash-generation evidence
+
+The one-company adapter acceptance harness and bounded exact-source review started with NVIDIA Q1 FY2027; the later AMD Q1 FY2026 review established bounded two-company portability. They do **not** prove production activation, broad history, Q4 portability, or market validation. The preview does not activate Company Workbench or readiness in ordinary routes and does not prove broad company coverage.
+
+AMD Q1 FY2026 uses accession `0000002488-26-000076`. The one explicit user-flow composition can expose accepted preview evidence only through an opt-in route; it does not prove a second company at the historical NVIDIA-only milestone and never promotes production state.
+
+Valuation and backtest safeguards reject non-finite valuation inputs; require a canonical real `YYYY-MM-DD` denominator period end; reject blank, malformed, and non-calendar denominator period ends; reject post-cutoff retrieval evidence; canonicalize Revenue/EPS independently through explicit `supersedes_source_ref` lineage; retain one event per ticker/period; withhold ambiguous leaves per metric so one metric does not suppress the other; and use cutoff-bounded prior-year benchmarks so post-cutoff revisions cannot leak.
+
+### Research Decision Lab
+
+Implemented locally — Research Decision Lab. Stage 4 — Documentation and release evidence: completed locally. Read-only composition, Workbench integration, Monitor discipline review, and release evidence passed without trading or recommendation behavior.
+
+This does not prove source coverage, predictive accuracy, investment performance, independent adoption, hosted reliability, commercial demand, competitive superiority, or product-market fit.
+
+### Methodology and packaging maturity
+
+Current methodology maturity supports a transparent local research prototype and controlled beta candidate. It does not prove broad real-company coverage or market validation. Phone first-action density, answer-first layout, Advanced data health cards, auto-refresh status, Session Source Preflight, commercial-beta release evidence, and source-rights boundaries are locally verified product/package evidence only.
 
 ## Dependencies And Manual Gates
 
-| Item | State | What the repo can do | What remains external |
-| --- | --- | --- | --- |
-| Hosted demo | repo-ready | deterministic demo profile, deployment guide, and local public checks | hosting account, verified public URL, browser review |
-| FMP fallback | optional key missing | one-ticker smoke, validation, preview, provenance gate | `FMP_API_KEY` outside Git |
-| Alpha Vantage / Finnhub | optional keys missing | capped fallback interfaces and source-state checks | provider keys and a reviewed use case |
-| Trusted peers | source-gated | candidate/trusted state separation and proof workflow | reviewed source relationships and rationale |
-| Earnings / estimates | intentionally locked | optional-context states and import gates | trusted provider/manual rows with supported fields |
+| Item | Local state | Manual/external gate |
+| --- | --- | --- |
+| Readiness/data | fail-closed software and reviewed local artifacts | source rights, exact-source rows, validate/preview/apply, rebuild, and proof |
+| Providers | provider-neutral contracts and capped adapters | explicit provider key/rights/scope and reviewed use case |
+| Hosting | architecture and authorization contracts | approved account/environment plus direct operating evidence |
+| Accessibility | partial direct desktop/phone evidence | remaining environment/tasks and material-defect retests |
+| Reviewer validation | complete privacy-safe protocol | 10-20 independent sessions |
+| Calibration | predeclared methodology | at least 100 valid permitted events |
 
 ## Success Gates
 
-### Public Demo Gate
+### Independent engineering gate
 
-- `make demo-data-check`
-- `make demo-dashboard-smoke`
-- `make demo-dashboard-render-smoke`
-- `make public-check`
-- `make browser-qa-evidence`
+- Current-head GitHub Actions result, not a previous revision.
+- Full tests, dashboard startup, Personal Research route rendering, public wording, generated-artifact hygiene, and whitespace.
+- Independent human review remains separate from automation.
+
+### Public/demo gate
+
+- `make dashboard-smoke`
+- `make research-dashboard-render-smoke`
 - `make public-wording-check`
+- `make public-check`
+- `make commercial-beta-release-check`
 - `make pilot-readiness-check TOP_N=10`
 - `make diff-hygiene-summary`
 - `git diff --check`
 
-### Source-Backed Apply Gate
+### Source-backed apply gate
 
-- A narrow, intended ticker scope.
-- Source provenance and relevant as-of context.
-- `make imports-validate IMPORT_TICKERS=<ticker>` passes.
-- `make imports-preview IMPORT_TICKERS=<ticker>` is narrow and rejected rows are zero.
-- Readiness and proof evidence are rebuilt after an approved apply.
+A narrow intended scope, exact-source rights/provenance, validation, preview, rejected-row review, explicit apply/skip decision, rebuilt readiness, and proof-ledger evidence are all required. Candidate context, setup, screenshots, local contracts, or historical proof cannot substitute.
 
 ## Permanently Out Of Scope
 
-- Broker execution, account actions, order routing, or auto-trading.
-- Direct buy/sell instructions or investment recommendations.
-- Fabricated prices, fundamentals, shares, peers, earnings, estimates, valuation inputs, or metrics.
-- Promoting candidate peers, stale rows, screenshots, or provider setup into trusted readiness proof.
+- Investment advice, direct buy/sell instructions, company rankings, expected-return scores, or automated stock picking.
+- Broker execution, account imports, live holdings, order routing, or auto-trading.
+- Model-generated sizing, allocation, stop-loss, take-profit, or post-earnings price prediction.
+- Fabricated data, forecasts, probabilities, peers, events, sources, timestamps, rights, reviewers, demand, or recommendations.
+- Promoting candidate context, stale rows, synthetic fixtures, screenshots, provider setup, or empty ledgers into trusted evidence.
+
+## Readiness Release Evidence Contract
+
+Run `make readiness-release-review TOP_N=20`; record the exact receipt with `make readiness-release-record PREVIEW_RECEIPT=<exact_receipt> REVIEWER=<named_reviewer> REVIEW_DATE=<yyyy-mm-dd> TECHNICAL_DECISION=<approved|rejected> DISTRIBUTION_DECISION=<approved|rejected|external_review_required> CONFIRM_REVIEWED=1`; then run `make readiness-release-guard RECORD_ID=<record_id>`. Review and guard are read-only; record may preserve a blocked outcome. Guard requires approved decisions, matching axes/head/bytes/digests, and unstaged state before printing named paths. This workflow does not change readiness and does not grant source rights; it cannot replace independent review, external evidence, legal/distribution/accessibility approval, hosted validation, calibration, or pilot evidence. Restart review after any relevant change.

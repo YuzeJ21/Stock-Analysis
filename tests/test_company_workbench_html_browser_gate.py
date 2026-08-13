@@ -1,0 +1,889 @@
+from __future__ import annotations
+
+import os
+import socket
+import subprocess
+import tempfile
+from pathlib import Path
+
+import pytest
+
+import src.company_workbench_html_browser_gate as browser_gate
+from src.company_workbench_html import (
+    CompanyWorkbenchHtmlSnapshot,
+    HtmlBriefAnswer,
+    HtmlBriefDcfBridge,
+    HtmlBriefEvidenceRow,
+    HtmlBriefSafeReference,
+    HtmlBriefScenario,
+    HtmlBriefSection,
+    HtmlBriefSensitivity,
+    company_workbench_html_bytes,
+)
+from src.company_workbench_html_browser_gate import (
+    REQUIRED_OBSERVATION_KEYS,
+    evaluate_html_brief_observation,
+    repository_fingerprint,
+    run_company_workbench_html_browser_gate,
+)
+
+
+EXACT_CSP = (
+    "default-src 'none'; script-src 'none'; connect-src 'none'; img-src 'none'; "
+    "style-src 'unsafe-inline'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+)
+
+ASSERTION_NAMES = {
+    "observation_complete",
+    "one_h1",
+    "semantic_landmarks",
+    "logical_headings",
+    "skip_focus",
+    "visible_focus",
+    "tables_captioned",
+    "csp_exact",
+    "no_script",
+    "no_event_handlers",
+    "no_forms",
+    "no_iframes",
+    "no_remote_requests",
+    "research_boundary_visible",
+    "blockers_visible",
+    "provenance_visible",
+    "no_overflow",
+    "forced_colors_non_color_cue",
+    "reduced_motion_static",
+    "print_boundary_visible",
+    "print_provenance_visible",
+    "no_console_errors",
+    "no_page_errors",
+    "pdf_in_memory",
+}
+
+DEPENDENT_ASSERTIONS = {
+    "state": set(),
+    "viewport": set(),
+    "h1_count": {"one_h1"},
+    "header_count": {"semantic_landmarks"},
+    "main_count": {"semantic_landmarks"},
+    "footer_count": {"semantic_landmarks"},
+    "section_count": {"semantic_landmarks"},
+    "heading_levels": {"logical_headings"},
+    "skip_target_focused": {"skip_focus"},
+    "visible_focus": {"visible_focus"},
+    "table_count": {"tables_captioned"},
+    "captioned_table_count": {"tables_captioned"},
+    "csp": {"csp_exact"},
+    "script_count": {"no_script"},
+    "event_handler_count": {"no_event_handlers"},
+    "form_count": {"no_forms"},
+    "iframe_count": {"no_iframes"},
+    "remote_request_count": {"no_remote_requests"},
+    "boundary_visible": {"research_boundary_visible"},
+    "blockers_visible": {"blockers_visible"},
+    "provenance_visible": {"provenance_visible"},
+    "overflow_px": {"no_overflow"},
+    "forced_colors_non_color_cue": {"forced_colors_non_color_cue"},
+    "reduced_motion_static": {"reduced_motion_static"},
+    "print_boundary_visible": {"print_boundary_visible"},
+    "print_provenance_visible": {"print_provenance_visible"},
+    "console_errors": {"no_console_errors"},
+    "page_errors": {"no_page_errors"},
+    "pdf_byte_length": {"pdf_in_memory"},
+    "pdf_header": {"pdf_in_memory"},
+}
+
+
+def _complete_observation() -> dict[str, object]:
+    return {
+        "state": "complete",
+        "viewport": "1280x720",
+        "h1_count": 1,
+        "header_count": 1,
+        "main_count": 1,
+        "footer_count": 1,
+        "section_count": 2,
+        "heading_levels": (1, 2, 2),
+        "skip_target_focused": True,
+        "visible_focus": True,
+        "table_count": 1,
+        "captioned_table_count": 1,
+        "csp": EXACT_CSP,
+        "script_count": 0,
+        "event_handler_count": 0,
+        "form_count": 0,
+        "iframe_count": 0,
+        "remote_request_count": 0,
+        "boundary_visible": True,
+        "blockers_visible": True,
+        "provenance_visible": True,
+        "overflow_px": 0.0,
+        "forced_colors_non_color_cue": True,
+        "reduced_motion_static": True,
+        "print_boundary_visible": True,
+        "print_provenance_visible": True,
+        "console_errors": (),
+        "page_errors": (),
+        "pdf_byte_length": 512,
+        "pdf_header": "%PDF",
+    }
+
+
+def _assertion_map(observation: dict[str, object]):
+    result = evaluate_html_brief_observation(observation)
+    return result, {assertion.name: assertion for assertion in result.assertions}
+
+
+def _synthetic_snapshot(state: str) -> CompanyWorkbenchHtmlSnapshot:
+    normalized = {
+        "complete": "available",
+        "partial": "partial",
+        "withheld": "withheld",
+    }[state]
+    blocker = ("Synthetic unavailable input remains withheld.",)
+    bridge = HtmlBriefDcfBridge(
+        state=normalized,
+        enterprise_state=normalized,
+        equity_state=normalized,
+        per_share_state=normalized,
+        explicit_total_state=normalized,
+        projected_fcfs=(),
+        discounted_fcfs=(),
+        discounted_explicit_total=None,
+        terminal_value=None,
+        discounted_terminal_value=None,
+        enterprise_value=None,
+        cash=None,
+        debt=None,
+        net_debt=None,
+        equity_value=None,
+        shares_outstanding=None,
+        shares_label="Synthetic share basis",
+        share_basis_state=normalized,
+        scenario_value_per_share=None,
+        currency="",
+        blockers=blocker,
+    )
+    scenarios = tuple(
+        HtmlBriefScenario(
+            name=name,
+            state=normalized,
+            modified=False,
+            method_name="Synthetic test method",
+            revenue_growth=None,
+            fcf_margin=None,
+            wacc=None,
+            terminal_growth=None,
+            forecast_years=None,
+            bridge=bridge,
+        )
+        for name in ("Bear", "Base", "Bull")
+    )
+    section = HtmlBriefSection(
+        key="synthetic",
+        title="Synthetic evidence state",
+        state=normalized,
+        answer="Synthetic test evidence only.",
+        facts=(),
+        blockers=blocker,
+    )
+    evidence = HtmlBriefEvidenceRow(
+        section="Synthetic provenance",
+        state=normalized,
+        source_id="synthetic-test-source",
+        source_ref=HtmlBriefSafeReference("Synthetic source", ""),
+        as_of="not recorded",
+        retrieved_at="not recorded",
+        rights_state=normalized,
+        field_scope_state=normalized,
+        model_identity="synthetic-model",
+        input_identity="synthetic-input",
+        blockers=blocker,
+    )
+    return CompanyWorkbenchHtmlSnapshot(
+        ticker="TEST",
+        profile_label="Synthetic test profile",
+        review_cutoff="not recorded",
+        source_as_of="not recorded",
+        generated_at="not recorded",
+        model_version="synthetic-test-v1",
+        freshness_state=normalized,
+        rights_state=normalized,
+        boundary="Research-only, fail-closed portable brief; no recommendation, probability, or transaction action.",
+        answers=(
+            HtmlBriefAnswer(
+                "Synthetic answer",
+                "Synthetic answer",
+                "Synthetic test answer only.",
+                normalized,
+                (),
+            ),
+        ),
+        recency=section,
+        readiness_lanes=(section,),
+        scenarios=scenarios,
+        sensitivity=HtmlBriefSensitivity(normalized, (), (), (), blocker),
+        research_sections=(section,),
+        decision_lanes=(section,),
+        evidence_rows=(evidence,),
+        blockers=blocker,
+        identity=f"synthetic-{state}",
+    )
+
+
+def _synthetic_brief(state: str) -> bytes:
+    return company_workbench_html_bytes(_synthetic_snapshot(state))
+
+
+def _append_test_css(document: bytes, css: str) -> bytes:
+    marker = b"</style>"
+    assert document.count(marker) == 1
+    return document.replace(marker, css.encode("utf-8") + marker, 1)
+
+
+def _wrap_skip_link_in_overflow(document: bytes, overflow: str) -> bytes:
+    assert overflow in {"auto", "scroll"}
+    rendered = document.decode("utf-8", errors="strict")
+    body = '<body class="srcc-html-document">'
+    assert rendered.count(body) == 1
+    assert rendered.count("</a><header") == 1
+    rendered = rendered.replace(
+        body,
+        body + f'<div class="test-focus-clip test-focus-clip-{overflow}">',
+        1,
+    ).replace("</a><header", "</a></div><header", 1)
+    return _append_test_css(
+        rendered.encode("utf-8"),
+        f"""
+.test-focus-clip {{ position: absolute; inset: .5rem auto auto .5rem; width: 18rem; height: 3rem; overflow: {overflow} !important; }}
+.test-focus-clip .srcc-skip-link {{ position: static !important; display: block !important; width: 100% !important; height: 100% !important; outline: none !important; box-shadow: none !important; border: 0 !important; }}
+.test-focus-clip .srcc-skip-link:focus-visible {{ outline: 4px solid #d04a00 !important; outline-offset: 8px !important; }}
+""",
+    )
+
+
+def _directional_shadow_clipped_at_edge(
+    document: bytes,
+    *,
+    overflow: str,
+    edge: str,
+) -> bytes:
+    assert overflow in {"auto", "scroll"}
+    assert edge in {"left", "right"}
+    offset = "-16px" if edge == "left" else "16px"
+    justify = "flex-start" if edge == "left" else "flex-end"
+    wrapped = _wrap_skip_link_in_overflow(document, overflow)
+    return _append_test_css(
+        wrapped,
+        f"""
+.test-focus-clip {{ display: flex !important; align-items: stretch !important; justify-content: {justify} !important; }}
+.test-focus-clip .srcc-skip-link {{ flex: 0 0 4rem !important; width: 4rem !important; height: 100% !important; outline: none !important; border: 0 !important; box-shadow: none !important; background: #ffffff !important; }}
+.test-focus-clip .srcc-skip-link:focus-visible {{ outline: none !important; border: 0 !important; background: #ffffff !important; box-shadow: {offset} 0 0 0 #d04a00 !important; }}
+""",
+    )
+
+
+def _static_shadow_with_unsupported_focus_addition(
+    document: bytes,
+    *,
+    added_shadow: str,
+) -> bytes:
+    return _append_test_css(
+        document,
+        f"""
+.srcc-skip-link {{
+    outline: none !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    color: #18222e !important;
+    text-decoration: none !important;
+    box-shadow: 10px 0 0 0 #d04a00 !important;
+}}
+.srcc-skip-link:focus-visible {{
+    outline: none !important;
+    border: 0 !important;
+    background: #ffffff !important;
+    color: #18222e !important;
+    text-decoration: none !important;
+    box-shadow: 10px 0 0 0 #d04a00, {added_shadow} !important;
+}}
+""",
+    )
+
+
+def _failed_assertion_names(result) -> set[str]:
+    return {assertion.name for assertion in result.assertions if not assertion.passed}
+
+
+def _run_actual_browser_page(document: bytes, operation):
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as playwright:
+        executable = browser_gate.find_chrome_executable()
+        if executable is None:
+            executable = Path(playwright.chromium.executable_path)
+        browser = playwright.chromium.launch(
+            executable_path=str(executable), headless=True
+        )
+        try:
+            return browser_gate._run_page_in_context(
+                browser,
+                width=1280,
+                height=720,
+                operation=lambda page: (
+                    page.set_content(document.decode("utf-8"), wait_until="load"),
+                    operation(page),
+                )[1],
+            )
+        finally:
+            browser.close()
+
+
+def test_media_css_settlement_proves_each_observed_transition_and_cleans_probe():
+    transitions = (
+        (
+            {"media": "screen", "forced_colors": "active", "reduced_motion": "no-preference"},
+            {"media": "screen", "forced_colors": "active", "reduced_motion": "no-preference"},
+        ),
+        (
+            {"media": "screen", "forced_colors": "none", "reduced_motion": "reduce"},
+            {"media": "screen", "forced_colors": "none", "reduced_motion": "reduce"},
+        ),
+        (
+            {"media": "print", "forced_colors": "none", "reduced_motion": "reduce"},
+            {"media": "print", "forced_colors": "none", "reduced_motion": "reduce"},
+        ),
+    )
+
+    def observe(page):
+        evidence = []
+        for requested, expected_computed in transitions:
+            evidence.append(
+                browser_gate._settle_media_css(
+                    page,
+                    **requested,
+                    viewport="1280x720",
+                    boundary_selector=".srcc-boundary, .boundary",
+                    provenance_selector=".srcc-advanced-evidence, .advanced-evidence",
+                )
+            )
+            assert not page.evaluate(
+                "Boolean(document.querySelector('#srcc-media-settlement-probe, #srcc-media-settlement-style'))"
+            )
+        return evidence
+
+    evidence = _run_actual_browser_page(_synthetic_brief("complete"), observe)
+
+    assert [item["computed_probe"] for item in evidence] == [
+        expected for _, expected in transitions
+    ]
+    for item, (_, expected) in zip(evidence, transitions):
+        for target_name in ("boundary", "provenance"):
+            assert {
+                key: item["targets"][target_name][key]
+                for key in ("media", "forced_colors", "reduced_motion")
+            } == expected
+    assert [item["match_media"] for item in evidence] == [
+        {"print": False, "forced_colors": True, "reduced_motion": False},
+        {"print": False, "forced_colors": False, "reduced_motion": True},
+        {"print": True, "forced_colors": False, "reduced_motion": True},
+    ]
+    assert all(item["viewport"] == "1280x720" for item in evidence)
+    assert all(item["browser_version"] for item in evidence)
+
+
+def test_media_css_settlement_timeout_fails_closed_with_diagnostics_and_cleanup():
+    sabotaged = _append_test_css(
+        _synthetic_brief("complete"),
+        """
+html body #srcc-media-settlement-probe {
+    --srcc-media-type: stale !important;
+}
+@media print {
+    .srcc-boundary {
+        opacity: 0 !important;
+        transition: none !important;
+        animation: none !important;
+    }
+    .srcc-advanced-evidence {
+        visibility: hidden !important;
+        transition: none !important;
+        animation: none !important;
+    }
+}
+""",
+    )
+
+    def observe(page):
+        with pytest.raises(RuntimeError) as captured:
+            browser_gate._settle_media_css(
+                page,
+                media="print",
+                forced_colors="none",
+                reduced_motion="reduce",
+                viewport="1280x720",
+                boundary_selector=".srcc-boundary, .boundary",
+                provenance_selector=".srcc-advanced-evidence, .advanced-evidence",
+                timeout_ms=100,
+            )
+        assert not page.evaluate(
+            "Boolean(document.querySelector('#srcc-media-settlement-probe, #srcc-media-settlement-style'))"
+        )
+        return str(captured.value)
+
+    diagnostic = _run_actual_browser_page(sabotaged, observe)
+
+    assert "HTML brief media/CSS settlement failed" in diagnostic
+    assert "expected" in diagnostic
+    assert "'media': 'print'" in diagnostic
+    assert "'print': True" in diagnostic
+    assert "'media': 'stale'" in diagnostic
+    assert "boundary" in diagnostic
+    assert "'opacity': '0'" in diagnostic
+    assert "provenance" in diagnostic
+    assert "'visibility': 'hidden'" in diagnostic
+    assert "'viewport': '1280x720'" in diagnostic
+    assert "browser_version" in diagnostic
+
+
+def test_evaluator_accepts_the_complete_typed_contract():
+    result, assertions = _assertion_map(_complete_observation())
+
+    assert REQUIRED_OBSERVATION_KEYS == tuple(_complete_observation())
+    assert set(assertions) == ASSERTION_NAMES
+    assert result.state == "complete"
+    assert result.viewport == "1280x720"
+    assert result.passed
+    assert all(assertion.evidence for assertion in result.assertions)
+
+
+@pytest.mark.parametrize(
+    ("assertion_name", "changes"),
+    (
+        ("one_h1", {"h1_count": 2}),
+        ("semantic_landmarks", {"main_count": 0}),
+        ("logical_headings", {"heading_levels": (1, 3)}),
+        ("skip_focus", {"skip_target_focused": False}),
+        ("visible_focus", {"visible_focus": False}),
+        ("tables_captioned", {"captioned_table_count": 0}),
+        ("csp_exact", {"csp": "default-src 'none'"}),
+        ("no_script", {"script_count": 1}),
+        ("no_event_handlers", {"event_handler_count": 1}),
+        ("no_forms", {"form_count": 1}),
+        ("no_iframes", {"iframe_count": 1}),
+        ("no_remote_requests", {"remote_request_count": 1}),
+        ("research_boundary_visible", {"boundary_visible": False}),
+        ("blockers_visible", {"blockers_visible": False}),
+        ("provenance_visible", {"provenance_visible": False}),
+        ("no_overflow", {"overflow_px": 1.01}),
+        ("forced_colors_non_color_cue", {"forced_colors_non_color_cue": False}),
+        ("reduced_motion_static", {"reduced_motion_static": False}),
+        ("print_boundary_visible", {"print_boundary_visible": False}),
+        ("print_provenance_visible", {"print_provenance_visible": False}),
+        ("no_console_errors", {"console_errors": ("console failed",)}),
+        ("no_page_errors", {"page_errors": ("page failed",)}),
+        ("pdf_in_memory", {"pdf_header": "not-pdf"}),
+        ("pdf_in_memory", {"pdf_byte_length": 0}),
+    ),
+)
+def test_each_observed_defect_fails_its_named_assertion(assertion_name, changes):
+    observation = _complete_observation()
+    observation.update(changes)
+
+    result, assertions = _assertion_map(observation)
+
+    assert not result.passed
+    assert not assertions[assertion_name].passed
+
+
+@pytest.mark.parametrize("missing_key", tuple(_complete_observation()))
+def test_each_missing_observation_fails_closed(missing_key):
+    observation = _complete_observation()
+    del observation[missing_key]
+
+    result, assertions = _assertion_map(observation)
+
+    assert not result.passed
+    assert not assertions["observation_complete"].passed
+    assert all(
+        not assertions[name].passed for name in DEPENDENT_ASSERTIONS[missing_key]
+    )
+
+
+@pytest.mark.parametrize(
+    ("key", "wrong_value"),
+    (
+        ("state", 1),
+        ("viewport", None),
+        ("h1_count", True),
+        ("header_count", 1.0),
+        ("main_count", "1"),
+        ("footer_count", False),
+        ("section_count", 2.0),
+        ("heading_levels", [1, 2]),
+        ("skip_target_focused", 1),
+        ("visible_focus", "yes"),
+        ("table_count", True),
+        ("captioned_table_count", 1.0),
+        ("csp", None),
+        ("script_count", False),
+        ("event_handler_count", 0.0),
+        ("form_count", "0"),
+        ("iframe_count", None),
+        ("remote_request_count", False),
+        ("boundary_visible", 1),
+        ("blockers_visible", "true"),
+        ("provenance_visible", None),
+        ("overflow_px", 0),
+        ("forced_colors_non_color_cue", 1),
+        ("reduced_motion_static", "true"),
+        ("print_boundary_visible", 1),
+        ("print_provenance_visible", None),
+        ("console_errors", []),
+        ("page_errors", (1,)),
+        ("pdf_byte_length", True),
+        ("pdf_header", b"%PDF"),
+    ),
+)
+def test_each_wrong_typed_observation_fails_closed(key, wrong_value):
+    observation = _complete_observation()
+    observation[key] = wrong_value
+
+    result, assertions = _assertion_map(observation)
+
+    assert not result.passed
+    assert not assertions["observation_complete"].passed
+    assert all(not assertions[name].passed for name in DEPENDENT_ASSERTIONS[key])
+
+
+def test_repository_fingerprint_detects_tracked_untracked_delete_and_rename(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    tracked = tmp_path / "tracked.txt"
+    tracked.write_text("first", encoding="utf-8")
+    subprocess.run(["git", "add", "tracked.txt"], cwd=tmp_path, check=True)
+    initial = repository_fingerprint(tmp_path)
+
+    tracked.write_text("second", encoding="utf-8")
+    tracked_changed = repository_fingerprint(tmp_path)
+    assert tracked_changed != initial
+
+    untracked = tmp_path / "visible.txt"
+    untracked.write_text("one", encoding="utf-8")
+    untracked_added = repository_fingerprint(tmp_path)
+    assert untracked_added != tracked_changed
+    untracked.write_text("two", encoding="utf-8")
+    untracked_changed = repository_fingerprint(tmp_path)
+    assert untracked_changed != untracked_added
+
+    tracked.unlink()
+    deleted = repository_fingerprint(tmp_path)
+    assert deleted != untracked_changed
+
+    untracked.rename(tmp_path / "renamed.txt")
+    renamed = repository_fingerprint(tmp_path)
+    assert renamed != deleted
+
+
+def test_repository_fingerprint_hashes_link_type_and_target(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / "target-a").write_text("same", encoding="utf-8")
+    (tmp_path / "target-b").write_text("same", encoding="utf-8")
+    link = tmp_path / "visible-link"
+    link.symlink_to("target-a")
+    before = repository_fingerprint(tmp_path)
+
+    link.unlink()
+    link.symlink_to("target-b")
+
+    assert repository_fingerprint(tmp_path) != before
+
+
+def test_repository_fingerprint_detects_executable_bit_changes(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    executable = tmp_path / "tracked-tool"
+    executable.write_bytes(b"same bytes")
+    executable.chmod(0o644)
+    subprocess.run(["git", "add", "tracked-tool"], cwd=tmp_path, check=True)
+    before = repository_fingerprint(tmp_path)
+
+    executable.chmod(0o755)
+
+    assert repository_fingerprint(tmp_path) != before
+
+
+def test_repository_fingerprint_distinguishes_regular_fifo_and_socket():
+    if not hasattr(os, "mkfifo") or not hasattr(socket, "AF_UNIX"):
+        pytest.skip(
+            "FIFO and Unix-domain socket nodes are unavailable on this platform"
+        )
+    with tempfile.TemporaryDirectory(prefix="hb-", dir="/tmp") as directory:
+        repo = Path(directory)
+        subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+        special = repo / "node"
+        special.write_bytes(b"ordinary")
+        subprocess.run(["git", "add", "node"], cwd=repo, check=True)
+        regular = repository_fingerprint(repo)
+
+        special.unlink()
+        os.mkfifo(special)
+        fifo = repository_fingerprint(repo)
+
+        special.unlink()
+        unix_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            unix_socket.bind(str(special))
+            socket_node = repository_fingerprint(repo)
+        finally:
+            unix_socket.close()
+            if special.exists():
+                special.unlink()
+
+    assert regular != fifo
+    assert fifo != socket_node
+
+
+def test_page_context_cleanup_survives_page_close_failure():
+    class Page:
+        def close(self):
+            raise RuntimeError("page close failed")
+
+    class Context:
+        def __init__(self):
+            self.closed = False
+
+        def new_page(self):
+            return Page()
+
+        def close(self):
+            self.closed = True
+
+    class Browser:
+        def __init__(self):
+            self.context = Context()
+
+        def new_context(self, *, viewport):
+            assert viewport == {"width": 390, "height": 844}
+            return self.context
+
+    browser = Browser()
+
+    with pytest.raises(RuntimeError, match="page close failed"):
+        browser_gate._run_page_in_context(
+            browser,
+            width=390,
+            height=844,
+            operation=lambda page: "observed",
+        )
+
+    assert browser.context.closed
+
+
+def test_page_context_cleanup_survives_new_page_failure():
+    class Context:
+        def __init__(self):
+            self.closed = False
+
+        def new_page(self):
+            raise RuntimeError("new page failed")
+
+        def close(self):
+            self.closed = True
+
+    class Browser:
+        def __init__(self):
+            self.context = Context()
+
+        def new_context(self, *, viewport):
+            return self.context
+
+    browser = Browser()
+
+    with pytest.raises(RuntimeError, match="new page failed"):
+        browser_gate._run_page_in_context(
+            browser,
+            width=1280,
+            height=720,
+            operation=lambda page: "unreachable",
+        )
+
+    assert browser.context.closed
+
+
+def test_actual_browser_matrix_accepts_injected_bytes_without_writing_repo():
+    cases = {
+        state: _synthetic_brief(state) for state in ("complete", "partial", "withheld")
+    }
+
+    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+
+    assert len(results) == 9
+    assert {(result.state, result.viewport) for result in results} == {
+        (state, viewport)
+        for state in cases
+        for viewport in ("1280x720", "390x844", "640x900")
+    }
+    assert all(result.passed for result in results), [
+        (result.state, result.viewport, [a for a in result.assertions if not a.passed])
+        for result in results
+        if not result.passed
+    ]
+
+
+def test_actual_browser_rejects_opacity_clipping_offscreen_and_print_hiding():
+    original = _synthetic_brief("complete")
+    cases = {
+        "boundary-opacity": _append_test_css(
+            original, ".srcc-boundary { opacity: 0 !important; }"
+        ),
+        "provenance-ancestor-clipped": _append_test_css(
+            original,
+            ".srcc-html-document main { height: 1px !important; overflow: hidden !important; }",
+        ),
+        "provenance-offscreen": _append_test_css(
+            original,
+            ".srcc-advanced-evidence { position: fixed !important; left: -10000px !important; top: 0 !important; }",
+        ),
+        "print-boundary-opacity": _append_test_css(
+            original,
+            "@media print { .srcc-boundary { opacity: 0 !important; } }",
+        ),
+        "print-provenance-offscreen": _append_test_css(
+            original,
+            "@media print { .srcc-advanced-evidence { position: fixed !important; left: -10000px !important; top: 0 !important; } }",
+        ),
+    }
+
+    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+    failures = {
+        (result.state, result.viewport): _failed_assertion_names(result)
+        for result in results
+    }
+
+    for viewport in ("1280x720", "390x844", "640x900"):
+        assert "research_boundary_visible" in failures[("boundary-opacity", viewport)]
+        assert (
+            "provenance_visible" in failures[("provenance-ancestor-clipped", viewport)]
+        )
+        assert "provenance_visible" in failures[("provenance-offscreen", viewport)]
+        assert (
+            "print_boundary_visible" in failures[("print-boundary-opacity", viewport)]
+        )
+        assert (
+            "print_provenance_visible"
+            in failures[("print-provenance-offscreen", viewport)]
+        )
+
+
+def test_actual_browser_rejects_transparent_clipped_and_offscreen_focus_cues():
+    original = _synthetic_brief("complete")
+    cases = {
+        "focus-transparent": _append_test_css(
+            original,
+            ".srcc-skip-link:focus-visible { outline-style: none !important; box-shadow: 0 0 0 3px transparent !important; border-style: none !important; }",
+        ),
+        "focus-clipped": _append_test_css(
+            original,
+            ".srcc-skip-link:focus-visible { outline-width: 4px !important; outline-offset: 2px !important; clip-path: inset(0) !important; }",
+        ),
+        "focus-offscreen": _append_test_css(
+            original, ".srcc-skip-link:focus-visible { top: -10000px !important; }"
+        ),
+    }
+
+    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+
+    assert all("visible_focus" in _failed_assertion_names(result) for result in results)
+
+
+def test_actual_browser_requires_a_focus_specific_change_and_rejects_overflow_clipping():
+    original = _synthetic_brief("complete")
+    cases = {
+        "focus-static-border": _append_test_css(
+            original,
+            """
+.srcc-skip-link { border: 3px solid #18222e !important; background: #ffffff !important; }
+.srcc-skip-link:focus-visible { outline: none !important; box-shadow: none !important; }
+""",
+        ),
+        "focus-overflow-auto": _wrap_skip_link_in_overflow(original, "auto"),
+        "focus-overflow-scroll": _wrap_skip_link_in_overflow(original, "scroll"),
+    }
+
+    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+
+    assert all("visible_focus" in _failed_assertion_names(result) for result in results)
+
+
+def test_actual_browser_allows_a_visible_focus_specific_inside_cue():
+    inside_cue = _append_test_css(
+        _synthetic_brief("complete"),
+        """
+.srcc-skip-link { border: 2px solid #18222e !important; background: #ffffff !important; outline: none !important; }
+.srcc-skip-link:focus-visible { background: #ffe680 !important; box-shadow: inset 0 0 0 3px #9d2020 !important; outline: none !important; }
+""",
+    )
+
+    results = run_company_workbench_html_browser_gate(
+        {"focus-inside-cue": inside_cue}, repo_root=Path.cwd()
+    )
+
+    assert all(result.passed for result in results), [
+        (result.viewport, _failed_assertion_names(result))
+        for result in results
+        if not result.passed
+    ]
+
+
+def test_actual_browser_rejects_fully_clipped_directional_focus_shadows():
+    original = _synthetic_brief("complete")
+    cases = {
+        f"focus-shadow-{edge}-{overflow}": _directional_shadow_clipped_at_edge(
+            original,
+            overflow=overflow,
+            edge=edge,
+        )
+        for edge in ("left", "right")
+        for overflow in ("auto", "scroll")
+    }
+
+    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+
+    assert len(results) == 12
+    assert all("visible_focus" in _failed_assertion_names(result) for result in results)
+
+
+def test_actual_browser_rejects_unchanged_shadow_plus_unsupported_focus_addition():
+    original = _synthetic_brief("complete")
+    cases = {
+        "focus-adds-blurred-shadow": _static_shadow_with_unsupported_focus_addition(
+            original,
+            added_shadow="0 0 4px 3px #177245",
+        ),
+        "focus-adds-transparent-shadow": _static_shadow_with_unsupported_focus_addition(
+            original,
+            added_shadow="0 0 0 3px transparent",
+        ),
+    }
+
+    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+
+    assert len(results) == 6
+    assert all("visible_focus" in _failed_assertion_names(result) for result in results)
+
+
+def test_make_target_runs_only_the_browser_gate_without_artifact_options():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    target = makefile.split("company-workbench-html-browser-check:", 1)[1].split(
+        "\n\n", 1
+    )[0]
+
+    assert "PYTHONDONTWRITEBYTECODE=1" in target
+    assert (
+        "python3 -m pytest tests/test_company_workbench_html_browser_gate.py -q"
+        in target
+    )
+    assert "tests/test_company_workbench_html_browser_gate.py tests/" not in target
+    assert not any(
+        option in target
+        for option in ("--output", "--screenshot", "--json", "--html", "--pdf")
+    )

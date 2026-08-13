@@ -6,6 +6,8 @@ apply CSV changes, connect to brokers, or provide investment advice.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import csv
 import shlex
@@ -14,6 +16,7 @@ from io import StringIO
 from pathlib import Path
 from typing import Iterable
 
+from src.peer_evidence_quality import ALLOWED_PEER_ROLES, VALUATION_ANCHOR_ROLES
 from src.reviewed_batch import FreshnessStatus, readiness_freshness_status
 
 
@@ -31,9 +34,12 @@ SOURCE_REVIEW_COLUMNS = (
     "peer_group",
     "sector",
     "industry",
+    "peer_role",
     "source",
     "as_of_date",
     "relationship_rationale",
+    "comparability_basis",
+    "valuation_anchor_eligible",
     "reviewer",
     "review_date",
     "source_proof_status",
@@ -51,13 +57,28 @@ SOURCE_REVIEW_COLUMNS = (
 REQUIRED_REVIEW_FIELDS = (
     "proposed_peer_ticker",
     "peer_group",
+    "peer_role",
     "source",
     "as_of_date",
     "relationship_rationale",
+    "comparability_basis",
+    "valuation_anchor_eligible",
     "reviewer",
     "review_date",
 )
-IMPORT_ROW_COLUMNS = ("ticker", "peer_ticker", "peer_group", "sector", "industry", "source", "as_of_date")
+IMPORT_ROW_COLUMNS = (
+    "ticker",
+    "peer_ticker",
+    "peer_group",
+    "sector",
+    "industry",
+    "peer_role",
+    "relationship_rationale",
+    "comparability_basis",
+    "valuation_anchor_eligible",
+    "source",
+    "as_of_date",
+)
 READY_SOURCE_PROOF_STATUSES = {"reviewed", "supported", "source_backed", "source-backed"}
 READY_IMPORT_VALUES = {"yes", "true", "ready", "1"}
 
@@ -81,6 +102,9 @@ class PeerMappingReviewRow:
     focus_command: str
     validation_sequence: str
     do_not_proceed_if: str
+    peer_role: str = "<core_peer|secondary_peer|context-only role>"
+    comparability_basis: str = "<reviewed economic comparability and caveats>"
+    valuation_anchor_eligible: str = "<yes|no>"
     candidate_context_state: str = "not_loaded"
     candidate_context_source: str = "not_loaded"
     candidate_context_count: str = "0"
@@ -186,6 +210,14 @@ def peer_mapping_import_csv_header() -> str:
 
 def peer_mapping_source_review_missing_fields(row: PeerMappingReviewRow) -> tuple[str, ...]:
     missing = [field for field in REQUIRED_REVIEW_FIELDS if _is_placeholder(getattr(row, field))]
+    peer_role = str(row.peer_role or "").strip().lower()
+    anchor_decision = str(row.valuation_anchor_eligible or "").strip().lower()
+    if not _is_placeholder(row.peer_role) and peer_role not in ALLOWED_PEER_ROLES:
+        missing.append("peer_role_invalid")
+    if not _is_placeholder(row.valuation_anchor_eligible) and anchor_decision not in {"yes", "no"}:
+        missing.append("valuation_anchor_eligible_invalid")
+    if anchor_decision == "yes" and peer_role in ALLOWED_PEER_ROLES and peer_role not in VALUATION_ANCHOR_ROLES:
+        missing.append("peer_role_not_anchor_eligible")
     proof_status = str(row.source_proof_status or "").strip().lower()
     if proof_status not in READY_SOURCE_PROOF_STATUSES:
         missing.append("source_proof_status")
@@ -206,6 +238,10 @@ def peer_mapping_import_row_scaffold(row: PeerMappingReviewRow) -> str:
             row.peer_group,
             "" if _is_placeholder(row.sector) else row.sector,
             "" if _is_placeholder(row.industry) else row.industry,
+            row.peer_role,
+            row.relationship_rationale,
+            row.comparability_basis,
+            row.valuation_anchor_eligible,
             row.source,
             row.as_of_date,
         )
@@ -237,6 +273,7 @@ def peer_mapping_source_review_completion(row: PeerMappingReviewRow, freshness: 
 
 
 def peer_mapping_import_preview(row: PeerMappingReviewRow, freshness: FreshnessStatus) -> PeerMappingImportPreview:
+    selected_profile = resolve_readiness_proof_profile()
     completion = peer_mapping_source_review_completion(row, freshness)
     ready = completion.status == "ready_for_import_row_scaffold"
     csv_row = completion.import_row_scaffold if ready else ""
@@ -254,7 +291,7 @@ def peer_mapping_import_preview(row: PeerMappingReviewRow, freshness: FreshnessS
         target_file=row.target_file,
         validation_command=validation_command,
         apply_boundary=apply_boundary,
-        post_apply_proof="make readiness && make peer-mapping-queue TOP_N=25 && make reviewed-batch-compare LANE=peers ...",
+        post_apply_proof=f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
     )
 
 
@@ -272,7 +309,7 @@ def peer_mapping_packet_decision(packet: PeerMappingSourceReviewPacket) -> PeerM
         return PeerMappingPacketDecision(
             status="still_blocked",
             answer="No peer source-review rows are available for the selected scope.",
-            next_safe_action="Run make readiness && make peer-mapping-queue TOP_N=25, then rerun make peer-mapping-source-review.",
+            next_safe_action="Run make readiness-preview TOP_N=20, then rerun make peer-mapping-source-review.",
             candidate_context_state="not_loaded",
             trusted_peer_proof_state="locked",
             boundary="Do not infer peer mappings when the peer source-review packet has no rows.",
@@ -578,9 +615,12 @@ def build_peer_mapping_source_review_packet(
                     peer_group="<reviewed peer group>",
                     sector="<reviewed sector>",
                     industry="<reviewed industry>",
+                    peer_role="<core_peer|secondary_peer|context-only role>",
                     source="<durable URL or local document reference>",
                     as_of_date="<YYYY-MM-DD>",
                     relationship_rationale="<why this source supports the peer relationship>",
+                    comparability_basis="<reviewed economic comparability and caveats>",
+                    valuation_anchor_eligible="<yes|no>",
                     reviewer="<reviewer>",
                     review_date="<YYYY-MM-DD>",
                     source_proof_status="needs_review",
@@ -592,7 +632,7 @@ def build_peer_mapping_source_review_packet(
                         f"make imports-validate IMPORT_TICKERS={ticker} -> "
                         f"make imports-preview IMPORT_TICKERS={ticker} -> "
                         f"make imports-apply IMPORT_TICKERS={ticker} -> "
-                        "make readiness -> make peer-mapping-queue TOP_N=25"
+                        f"make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25"
                     ),
                     do_not_proceed_if=(
                         "source does not name the peer relationship or comparable business context; "
@@ -616,6 +656,7 @@ def build_peer_mapping_source_review_packet(
 
 
 def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPacket) -> str:
+    selected_profile = resolve_readiness_proof_profile()
     status = "blocked_by_freshness" if packet.freshness.status in {"missing", "stale"} else "ready_for_review"
     decision = peer_mapping_packet_decision(packet)
     lines = [
@@ -642,13 +683,13 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
         "",
         "## Source Proof Contract",
         "",
-        "- Import schema: `ticker, peer_ticker, peer_group, sector, industry, source, as_of_date`.",
-        "- Required review fields before import: proposed peer ticker, peer group, source, as-of date, relationship rationale, reviewer, and review date.",
+        "- Import schema: `ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date`.",
+        "- Required review fields before import: proposed peer ticker, peer group, peer role, source, as-of date, relationship rationale, comparability basis, valuation-anchor decision, reviewer, and review date.",
         "- Accepted proof: a durable URL or local document that names the peer relationship or supports comparable business context.",
         "- Rejected shortcuts: memory, popularity, sector/theme similarity alone, row-count convenience, or placeholders.",
         "- Candidate context: local classification leads may help source review, but remain `candidate_context_only` and never count as trusted peer proof.",
         "- Validation path: `make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> make imports-apply IMPORT_TICKERS=<ticker>` only after source review.",
-        "- Post-run proof: `make readiness -> make peer-mapping-queue TOP_N=25 -> make reviewed-batch-compare LANE=peers ...`.",
+        f"- Post-run proof: `make readiness-snapshot PROFILE={selected_profile} -> reviewed validate/preview/apply -> make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25`.",
         "- Import row scaffold appears only after source proof status and required review fields are filled.",
         "",
         "## Review Rows",
@@ -657,7 +698,7 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
     if not packet.rows:
         lines.extend(
             [
-                "No peer mapping source-review rows were generated. Run `make readiness` and `make peer-mapping-queue TOP_N=25`, then retry.",
+                "No peer mapping source-review rows were generated. Run `make readiness-preview TOP_N=20` and `make peer-mapping-queue TOP_N=25`, then retry.",
                 "",
             ]
         )
@@ -680,8 +721,11 @@ def render_peer_mapping_source_review_markdown(packet: PeerMappingSourceReviewPa
                 f"- Post-apply proof: `{import_preview.post_apply_proof}`",
                 f"- Proposed peer ticker: `{row.proposed_peer_ticker}`",
                 f"- Peer group: `{row.peer_group}`",
+                f"- Peer role: `{row.peer_role}`",
                 f"- Source: `{row.source}`",
                 f"- Relationship rationale: `{row.relationship_rationale}`",
+                f"- Comparability basis: `{row.comparability_basis}`",
+                f"- Valuation anchor eligible: `{row.valuation_anchor_eligible}`",
                 f"- Candidate context state: `{row.candidate_context_state}`",
                 f"- Candidate context source: `{row.candidate_context_source}`",
                 f"- Candidate context count: `{row.candidate_context_count}`",
@@ -784,9 +828,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--peer-group", default="<reviewed peer group>")
     parser.add_argument("--sector", default="<reviewed sector>")
     parser.add_argument("--industry", default="<reviewed industry>")
+    parser.add_argument("--peer-role", default="<core_peer|secondary_peer|context-only role>")
     parser.add_argument("--source", default="<durable URL or local document reference>")
     parser.add_argument("--as-of-date", default="<YYYY-MM-DD>")
     parser.add_argument("--relationship-rationale", default="<why this source supports the peer relationship>")
+    parser.add_argument("--comparability-basis", default="<reviewed economic comparability and caveats>")
+    parser.add_argument("--valuation-anchor-eligible", default="<yes|no>")
     parser.add_argument("--reviewer", default="<reviewer>")
     parser.add_argument("--review-date", default="<YYYY-MM-DD>")
     parser.add_argument("--source-proof-status", default="needs_review")
@@ -804,9 +851,12 @@ def main(argv: list[str] | None = None) -> int:
             peer_group=args.peer_group,
             sector=args.sector,
             industry=args.industry,
+            peer_role=args.peer_role,
             source=args.source,
             as_of_date=args.as_of_date,
             relationship_rationale=args.relationship_rationale,
+            comparability_basis=args.comparability_basis,
+            valuation_anchor_eligible=args.valuation_anchor_eligible,
             reviewer=args.reviewer,
             review_date=args.review_date,
             source_proof_status=args.source_proof_status,
@@ -817,7 +867,7 @@ def main(argv: list[str] | None = None) -> int:
                 f"make imports-validate IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
                 f"make imports-preview IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
                 f"make imports-apply IMPORT_TICKERS={str(args.ticker).strip().upper()} -> "
-                "make readiness -> make peer-mapping-queue TOP_N=25"
+                f"make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25"
             ),
             do_not_proceed_if=(
                 "source does not name the peer relationship or comparable business context; "

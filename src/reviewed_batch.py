@@ -17,22 +17,16 @@ from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.readiness_ops import ReadinessLane, build_readiness_ops_lanes
 from src.session_source_preflight import load_session_source_preflight
 from src.share_count_proof_queue import build_share_count_proof_queue_from_files
-from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
+from src.paths import DataProfile, resolve_project_root
+from src.profile_context import build_profile_context
+from src.readiness_source_boundary import (
+    ReadinessSourceBoundaryError,
+    validate_readiness_source_boundary,
+)
 
 
 DEFAULT_PACKET_MD = Path("outputs/reviewed_batch_packet.md")
 DEFAULT_PACKET_CSV = Path("outputs/reviewed_batch_packet.csv")
-REQUIRED_READINESS_REPORTS = (
-    "data/reports/ticker_readiness_report.csv",
-    "data/reports/feature_readiness_summary.csv",
-)
-SOURCE_FILES_FOR_FRESHNESS = (
-    "data/prices.csv",
-    "data/fundamentals.csv",
-    "data/peers.csv",
-    "data/earnings.csv",
-    "data/analyst_estimates.csv",
-)
 PROOF_TEMPLATE_FIELDS = (
     "batch_id",
     "lane",
@@ -95,7 +89,7 @@ ACTION_COLUMNS = (
 class FreshnessStatus:
     status: str
     message: str
-    refresh_command: str = "make readiness"
+    refresh_command: str = "make readiness-preview TOP_N=20"
 
 
 @dataclass(frozen=True)
@@ -138,6 +132,7 @@ class ReviewedBatchAction:
 @dataclass(frozen=True)
 class ReviewedBatchPacket:
     batch_id: str
+    profile: str
     selected_lane: str
     selected_scope: str
     top_n: int
@@ -219,46 +214,60 @@ def normalize_batch_lane(value: str) -> tuple[str, ...]:
     raise ValueError("Unknown reviewed batch lane. Use prices, fundamentals, share_count, peers, metrics, or optional_context.")
 
 
-def _mtime(path: Path) -> float:
+def _reviewed_batch_profile(root: Path, profile: str) -> DataProfile:
+    """Resolve an existing profile safely, while preserving missing-data preflight output."""
+
     try:
-        return path.stat().st_mtime
-    except FileNotFoundError:
-        return 0.0
-
-
-def _selected_data_path(relative_path: str, data_dir: Path) -> Path:
-    path = Path(relative_path)
-    parts = path.parts[1:] if path.parts and path.parts[0] == "data" else path.parts
-    return data_dir.joinpath(*parts)
+        return validate_readiness_source_boundary(root, profile)
+    except ReadinessSourceBoundaryError:
+        data_relative, outputs_relative = {
+            "default": (Path("data"), Path("outputs")),
+            "demo": (Path("data/demo"), Path("outputs/demo")),
+            "local": (Path("data/local"), Path("outputs/local")),
+        }[profile]
+        lexical_root = root.expanduser().absolute()
+        lexical_data = lexical_root / data_relative
+        if lexical_data.exists() or lexical_data.is_symlink():
+            raise
+        return DataProfile(
+            name=profile,
+            data_dir=lexical_data.resolve(strict=False),
+            outputs_dir=(lexical_root / outputs_relative).resolve(strict=False),
+        )
 
 
 def readiness_freshness_status(
     root: Path | str = ".",
     *,
+    profile: str | None = None,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
+    include_evidence: bool = True,
 ) -> FreshnessStatus:
     project_root = resolve_project_root(root)
-    data_path = resolve_data_dir(data_dir, project_root)
-    resolve_outputs_dir(output_dir, project_root)
-    readiness_paths = [_selected_data_path(path, data_path) for path in REQUIRED_READINESS_REPORTS]
-    source_paths = [_selected_data_path(path, data_path) for path in SOURCE_FILES_FOR_FRESHNESS]
-    missing = [str(path.relative_to(data_path)) for path in readiness_paths if not path.exists()]
-    if missing:
+    profile_context = build_profile_context(
+        project_root=project_root,
+        profile=profile,
+        data_dir=data_dir,
+        output_dir=output_dir,
+    )
+    if profile_context.freshness_state != "current":
+        message = profile_context.freshness_message
+        if profile_context.freshness_state == "missing":
+            message = f"Missing readiness artifact(s). {profile_context.freshness_message}"
         return FreshnessStatus(
-            "missing",
-            "Missing readiness artifact(s): "
-            + ", ".join(missing)
-            + ". Run make readiness before using this packet for execution.",
+            profile_context.freshness_state,
+            message,
+            profile_context.refresh_command,
         )
-    readiness_time = min(_mtime(path) for path in readiness_paths)
-    newer_sources = [path for path in source_paths if _mtime(path) > readiness_time]
-    if newer_sources:
+    if include_evidence and profile_context.readiness_evidence_state in {
+        "working_artifact_uncommitted",
+        "unverified",
+    }:
         return FreshnessStatus(
-            "stale",
-            "Readiness artifacts may be stale because source file(s) changed after the saved reports: "
-            + ", ".join(str(path.relative_to(data_path)) for path in newer_sources)
-            + ". Run make readiness before relying on final counts.",
+            profile_context.readiness_evidence_state,
+            profile_context.readiness_evidence_message,
+            "make readiness-preview TOP_N=20",
         )
     return FreshnessStatus("current", "Readiness artifacts are current relative to watched source files.")
 
@@ -292,10 +301,17 @@ def _peer_worklist_rows_for_lane(rows: list[dict[str, str]], lane: str) -> list[
     return rows
 
 
-def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tuple[str, ...]) -> tuple[str, ...]:
+def _candidate_tickers(
+    root: Path,
+    lane: str,
+    top_n: int,
+    selected_tickers: tuple[str, ...],
+    *,
+    data_dir: Path,
+) -> tuple[str, ...]:
     if selected_tickers:
         return selected_tickers[: max(top_n, 0)]
-    reports = root / "data" / "reports"
+    reports = data_dir / "reports"
     rows: list[dict[str, str]]
     if lane == "price_coverage":
         rows = [
@@ -307,7 +323,11 @@ def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tupl
         session_state = _session_source_state(root)
         if not session_state["sec_available"] and int(session_state["local_fundamentals_fixable"]) > 0:
             queue_limit = max(top_n * 5, top_n + 25, 0)
-            local_queue = build_dcf_input_proof_queue_from_files(root, top_n=queue_limit)
+            local_queue = build_dcf_input_proof_queue_from_files(
+                root,
+                data_dir=data_dir,
+                top_n=queue_limit,
+            )
             local_tickers = [
                 row.ticker
                 for row in local_queue
@@ -325,6 +345,7 @@ def _candidate_tickers(root: Path, lane: str, top_n: int, selected_tickers: tupl
             row.ticker
             for row in build_share_count_proof_queue_from_files(
                 root,
+                data_dir=data_dir,
                 top_n=max(top_n, 0),
             )
         )
@@ -360,8 +381,6 @@ def _join_ticker_arg(tickers: tuple[str, ...]) -> str:
 
 
 def reviewed_batch_packet_status(packet: ReviewedBatchPacket) -> str:
-    if packet.freshness.status in {"missing", "stale"}:
-        return "blocked_by_freshness"
     if not packet.actions:
         return "blocked_no_actions"
     return "ready_for_review"
@@ -369,14 +388,12 @@ def reviewed_batch_packet_status(packet: ReviewedBatchPacket) -> str:
 
 def reviewed_batch_next_safe_action(packet: ReviewedBatchPacket) -> str:
     status = reviewed_batch_packet_status(packet)
-    if status == "blocked_by_freshness":
-        return packet.freshness.refresh_command
     if status == "blocked_no_actions":
-        return "make readiness"
+        return f"make readiness-snapshot PROFILE={packet.profile}"
     first_action = packet.actions[0] if packet.actions else None
     if first_action is None:
-        return "make readiness"
-    return first_action.dry_run_command
+        return f"make readiness-snapshot PROFILE={packet.profile}"
+    return first_action.pre_run_readiness_snapshot
 
 
 def _session_source_state(root: Path) -> dict[str, object]:
@@ -391,12 +408,31 @@ def _session_source_state(root: Path) -> dict[str, object]:
     }
 
 
-def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Path) -> dict[str, str]:
+def _lane_commands(
+    lane: str,
+    tickers: tuple[str, ...],
+    top_n: int,
+    *,
+    root: Path,
+    profile: str,
+) -> dict[str, str]:
     ticker_arg = _join_ticker_arg(tickers)
     session_state = _session_source_state(root)
     sec_available = bool(session_state["sec_available"])
     local_fundamentals_fixable = int(session_state["local_fundamentals_fixable"])
     local_share_fixable = int(session_state["local_share_fixable"])
+    compare_lane = {
+        "price_coverage": "prices",
+        "fundamentals_dcf": "fundamentals",
+        "share_count_proof": "share_count",
+        "peer_mapping": "peers",
+        "peer_valuation_inputs": "peers",
+        "metric_readiness_review": "metrics",
+    }.get(lane, "optional_context")
+    compare = (
+        f"make reviewed-batch-compare PROFILE={profile} LANE={compare_lane} "
+        "BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    )
     if lane == "price_coverage":
         return {
             "dry_run": f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={top_n} PROVIDER=auto",
@@ -404,8 +440,8 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "make price-validate",
             "preview": "make price-preview",
             "apply": "make price-apply only for reviewed trusted rows",
-            "post": f"make readiness && make price-coverage TOP_N={top_n} && make status-check TOP_N=5",
-            "compare": "make reviewed-batch-compare LANE=prices BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": compare,
+            "compare": compare,
             "artifacts": "data/prices.csv; data/reports/price_coverage_report.csv; outputs/reviewed_batch_packet.csv",
             "rollback": "If refreshed prices are incomplete or suspicious, keep generated CSV churn unstaged and restore reviewed local price files from git or the readiness snapshot.",
         }
@@ -425,10 +461,10 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after reviewed trusted fundamentals rows pass preview",
-            "post": "make readiness && make dcf-readiness && make status-check TOP_N=5",
-            "compare": "make reviewed-batch-compare LANE=fundamentals BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": compare,
+            "compare": compare,
             "artifacts": "data/imports/fundamentals.csv; data/fundamentals.csv; data/rejected/fundamentals_import_rejected.csv; data/reports/dcf_readiness_report.csv",
-            "rollback": "If preview/rejected rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun make readiness.",
+            "rollback": f"If preview/rejected rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun the profile-bound comparison: {compare}.",
         }
     if lane == "share_count_proof":
         if not sec_available and local_share_fixable == 0:
@@ -444,10 +480,10 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after reviewed trusted shares_outstanding rows pass preview",
-            "post": "make dcf-readiness && make readiness && make status-check TOP_N=5",
-            "compare": "make reviewed-batch-compare LANE=share_count BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": compare,
+            "compare": compare,
             "artifacts": "data/imports/fundamentals.csv; data/fundamentals.csv; data/rejected/fundamentals_import_rejected.csv; data/reports/dcf_readiness_report.csv; outputs/reviewed_batch_packet.csv",
-            "rollback": "If share-count rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups and rerun dcf-readiness plus readiness.",
+            "rollback": f"If share-count rows are wrong, do not apply. If applied rows are wrong, restore data/fundamentals.csv from git/backups, run make dcf-readiness, then {compare}.",
         }
     if lane == "peer_mapping":
         return {
@@ -456,10 +492,10 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after source-backed peer mapping rows are reviewed",
-            "post": f"make readiness && make peer-mapping-queue TOP_N={top_n} && make status-check TOP_N=5",
-            "compare": "make reviewed-batch-compare LANE=peers BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": compare,
+            "compare": compare,
             "artifacts": "data/imports/peers.csv; data/peers.csv; data/rejected/peers_import_rejected.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv",
-            "rollback": "If peer mapping rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv from git/backups and rerun readiness.",
+            "rollback": f"If peer mapping rows are wrong, do not apply. If applied rows are wrong, restore data/peers.csv from git/backups and rerun the profile-bound comparison: {compare}.",
         }
     if lane == "peer_valuation_inputs":
         return {
@@ -468,10 +504,10 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "make imports-validate",
             "preview": "make imports-preview",
             "apply": "make imports-apply only after reviewed mapped-peer fundamentals, price, market-cap, or valuation-input rows pass preview",
-            "post": f"make readiness && make peer-mapping-queue TOP_N={top_n} && make metric-readiness TICKERS={ticker_arg} BENCHMARK=SPY",
-            "compare": "make reviewed-batch-compare LANE=peers BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": f"{compare} && make metric-readiness TICKERS={ticker_arg} BENCHMARK=SPY",
+            "compare": compare,
             "artifacts": "data/imports/fundamentals.csv; data/imports/prices.csv; data/imports/peers.csv if mappings change; data/rejected/fundamentals_import_rejected.csv; data/rejected/price_import_rejected.csv; data/rejected/peers_import_rejected.csv; data/reports/peer_readiness_report.csv; data/reports/peer_unlock_worklist.csv",
-            "rollback": "If mapped-peer input rows are wrong, do not apply. If applied rows are wrong, restore the touched canonical fundamentals, prices, or peers CSVs, then rerun readiness.",
+            "rollback": f"If mapped-peer input rows are wrong, do not apply. If applied rows are wrong, restore the touched canonical fundamentals, prices, or peers CSVs, then rerun the profile-bound comparison: {compare}.",
         }
     if lane == "metric_readiness_review":
         return {
@@ -480,8 +516,8 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
             "validate": "not_applicable_read_only_metric_review",
             "preview": "review metric blocker families, source gates, and row-level missing inputs before any data work",
             "apply": "not_applicable; metrics remain blocked until the underlying trusted source rows are reviewed through their lane",
-            "post": f"make readiness && make metric-readiness-board TOP_N={top_n} TICKERS={ticker_arg} BENCHMARKS=SPY,QQQ",
-            "compare": "make reviewed-batch-compare LANE=metrics BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            "post": compare,
+            "compare": compare,
             "artifacts": "metric-readiness console output; Data Health Metrics lane; optional reviewed_batch_packet.csv",
             "rollback": "No local data is mutated by metric-readiness review. If follow-up source rows are changed in another lane, use that lane's rollback path.",
         }
@@ -491,16 +527,16 @@ def _lane_commands(lane: str, tickers: tuple[str, ...], top_n: int, *, root: Pat
         "validate": "make imports-validate",
         "preview": "make imports-preview",
         "apply": "make imports-apply only after trusted local earnings/estimate rows pass preview",
-        "post": "make optional-context-readiness && make readiness",
-        "compare": "make reviewed-batch-compare LANE=optional_context BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+        "post": compare,
+        "compare": compare,
         "artifacts": "data/imports/earnings.csv; data/imports/analyst_estimates.csv; data/reports/earnings_readiness_report.csv; data/reports/analyst_estimates_readiness_report.csv",
         "rollback": "If optional rows are wrong, do not apply. If applied rows are wrong, restore earnings/analyst-estimates CSVs and rerun optional-context readiness.",
     }
 
 
-def _do_not_proceed(lane: ReadinessLane, freshness: FreshnessStatus) -> str:
+def _do_not_proceed(lane: ReadinessLane) -> str:
     blockers = [
-        "readiness artifacts are missing or stale",
+        "the profile-bound prior readiness snapshot is missing or invalid",
         "source proof is unavailable",
         "validation fails",
         "preview shows unexpected rows",
@@ -541,27 +577,29 @@ def _do_not_proceed(lane: ReadinessLane, freshness: FreshnessStatus) -> str:
         )
     if lane.lane == "metric_readiness_review":
         blockers.append("the missing metric inputs have not been traced to prices, fundamentals, market cap, or peer-input proof")
-    if freshness.status in {"missing", "stale"}:
-        blockers.insert(0, f"{freshness.status}: run {freshness.refresh_command}")
     return "; ".join(blockers)
 
 
-def _lane_proof_instructions(lane: str, top_n: int) -> list[str]:
+def _lane_proof_instructions(lane: str, top_n: int, *, profile: str) -> list[str]:
+    def compare(compare_lane: str) -> str:
+        return (
+            f"make reviewed-batch-compare PROFILE={profile} LANE={compare_lane} "
+            "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        )
     if lane == "price_coverage":
         return [
             "Record pre-run price-ready, momentum-ready, liquidity, and correlation counts before any refresh.",
             "Use dry-run output to cap scope; do not treat provider availability as reviewed data.",
-            "After execution, rerun readiness and compare changed readiness counts before keeping artifacts.",
-            "Use make reviewed-batch-compare after make readiness so the proof ledger records changed counts and changed tickers without guessing.",
+            f"After execution, run {compare('prices')} so changed counts come from the saved baseline and current in-memory row set.",
         ]
     if lane == "fundamentals_dcf":
         return [
             "Record pre-run fundamentals-ready and DCF-ready counts plus the exact missing fields.",
-            "Start from the first-class packet command: make fundamentals-batch-proof TOP_N=<n> or make fundamentals-batch-proof TICKERS=<scope>.",
+            f"Start from the first-class packet command: make fundamentals-batch-proof PROFILE={profile} TOP_N=<n> or make fundamentals-batch-proof PROFILE={profile} TICKERS=<scope>.",
             "Use make sec-stage-queue TOP_N=<n> for a dry-run queue; run make sec-stage TICKERS=<scope> only when SEC_USER_AGENT is configured.",
             "If SEC staging is unavailable, place only reviewed trusted manual rows in data/imports/fundamentals.csv.",
             "Run make imports-validate and make imports-preview before imports-apply; rejected-row reports must be clear or explained.",
-            "After apply, rerun make readiness and make dcf-readiness before calling any ticker supported.",
+            f"After apply, run make dcf-readiness and {compare('fundamentals')} before calling any ticker supported.",
         ]
     if lane == "share_count_proof":
         return [
@@ -569,34 +607,34 @@ def _lane_proof_instructions(lane: str, top_n: int) -> list[str]:
             f"Start from the first-class queue command: make share-count-proof-queue TOP_N={top_n}.",
             "Use SEC/manual source documents only when they explicitly verify shares_outstanding; do not infer it from market cap, price, peers, or placeholders.",
             "Run make imports-validate and make imports-preview before imports-apply; rejected-row reports must be clear or explained.",
-            "After apply, rerun make dcf-readiness, make readiness, and the relevant stock report before calling the lane supported.",
+            f"After apply, run make dcf-readiness, {compare('share_count')}, and the relevant stock report before calling the lane supported.",
         ]
     if lane == "peer_mapping":
         return [
             "Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.",
-            "Start from the first-class packet command: make peer-batch-proof TOP_N=<n> or make peer-batch-proof TICKERS=<scope>.",
+            f"Start from the first-class packet command: make peer-batch-proof PROFILE={profile} TOP_N=<n> or make peer-batch-proof PROFILE={profile} TICKERS=<scope>.",
             f"Inspect missing peer relationships with make peer-mapping-queue TOP_N={top_n} and make focus-peers TICKER=<ticker>.",
-            "Peer mapping import schema: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date.",
+            "Peer mapping import schema: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date.",
             "Source proof checklist: source must name the peer relationship or comparable business context, include a durable URL or local document reference, and have a review date; do not use memory, popularity, or row-count convenience as proof.",
             "Treat sector or industry fallback as context only; it is not trusted peer mapping proof.",
             "Run make imports-validate and make imports-preview before imports-apply; data/rejected/peers_import_rejected.csv must be clear or explained.",
-            "After reviewed mapping rows, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.",
+            f"After reviewed mapping rows, run {compare('peers')} and make peer-mapping-queue before reading peer valuation dispersion.",
         ]
     if lane == "peer_valuation_inputs":
         return [
             "Record peer_mapping_ready, peer_price_ready, peer_momentum_ready, peer_fundamentals_ready, peer_valuation_ready, and peer_valuation_comparison_ready before changes.",
-            "Start from the first-class packet command: make peer-batch-proof TOP_N=<n> or make peer-batch-proof TICKERS=<scope>.",
+            f"Start from the first-class packet command: make peer-batch-proof PROFILE={profile} TOP_N=<n> or make peer-batch-proof PROFILE={profile} TICKERS=<scope>.",
             f"Inspect the peer valuation sub-lane with make peer-mapping-queue TOP_N={top_n} and make focus-peers TICKER=<ticker>.",
             "Follow the printed mapped-peer dependency with make focus-fundamentals TICKER=<peer> or verified peer price/market-cap proof.",
             "Do not treat mapped peers as valuation-ready until mapped-peer inputs pass validate, preview, rejected-row review, and rebuilt readiness.",
-            "After reviewed mapped-peer inputs, rerun make readiness and make peer-mapping-queue before reading peer valuation dispersion.",
+            f"After reviewed mapped-peer inputs, run {compare('peers')} and make peer-mapping-queue before reading peer valuation dispersion.",
         ]
     if lane == "metric_readiness_review":
         return [
             "Record the SPY/QQQ blocker-family summary before opening row-level proof.",
             "Map each blocked metric to its source lane: prices, fundamentals, market context, or peer inputs.",
             "Do not apply rows from the metrics packet; use the underlying reviewed lane packet when source proof exists.",
-            "After any reviewed source-lane change, rerun make readiness and make metric-readiness-board before describing the metric as ready.",
+            f"After any reviewed source-lane change, run {compare('metrics')} and make metric-readiness-board before describing the metric as ready.",
         ]
     return [
         "Record pre-run optional context readiness counts.",
@@ -606,17 +644,25 @@ def _lane_proof_instructions(lane: str, top_n: int) -> list[str]:
 
 
 def _proof_template_csv_row(packet: ReviewedBatchPacket) -> str:
+    comparison_command = (
+        packet.actions[0].readiness_comparison_command
+        if packet.actions
+        else (
+            f"make reviewed-batch-compare PROFILE={packet.profile} LANE={packet.selected_lane} "
+            "BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        )
+    )
     values = {
         "batch_id": packet.batch_id,
         "lane": packet.selected_scope,
         "scope": packet.selected_lane,
         "tickers": ",".join(packet.tickers) if packet.tickers else f"top {packet.top_n}",
-        "pre_run_readiness_snapshot": "make readiness-snapshot or saved readiness counts before command",
+        "pre_run_readiness_snapshot": f"make readiness-snapshot PROFILE={packet.profile}",
         "command_run": "<copy exact command>",
         "validation_result": "<pass/fail/not_applicable>",
         "preview_result": "<reviewed rows / no unexpected rows / not_applicable>",
         "apply_result": "<not_run/applied/skipped>",
-        "post_run_readiness_snapshot": "make readiness && lane proof command",
+        "post_run_readiness_snapshot": comparison_command,
         "changed_readiness_counts": "<before -> after counts, or none>",
         "changed_tickers": "<tickers changed, or none>",
         "reviewer": "<name>",
@@ -645,8 +691,23 @@ def _proof_record_scaffold(batch_id: str, lane: str) -> str:
     )
 
 
-def _metric_readiness_lane(root: Path, top_n: int, tickers: tuple[str, ...]) -> ReadinessLane:
-    candidate_count = len(_candidate_tickers(root, "metric_readiness_review", top_n, tickers))
+def _metric_readiness_lane(
+    root: Path,
+    top_n: int,
+    tickers: tuple[str, ...],
+    *,
+    data_dir: Path,
+    profile: str,
+) -> ReadinessLane:
+    candidate_count = len(
+        _candidate_tickers(
+            root,
+            "metric_readiness_review",
+            top_n,
+            tickers,
+            data_dir=data_dir,
+        )
+    )
     return ReadinessLane(
         lane="metric_readiness_review",
         label="Metric Readiness Review",
@@ -663,7 +724,7 @@ def _metric_readiness_lane(root: Path, top_n: int, tickers: tuple[str, ...]) -> 
         next_safe_command=f"make metric-readiness-board TOP_N={top_n} BENCHMARKS=SPY,QQQ",
         proof_command=f"make metric-readiness-board TOP_N={top_n} BENCHMARKS=SPY,QQQ",
         generated_churn_policy="read-only console proof by default; do not stage generated CSV unless intentionally exported as reviewed evidence",
-        stale_proof_warning="Run make readiness first if readiness artifacts are stale before interpreting final counts.",
+        stale_proof_warning=f"Use make readiness-snapshot PROFILE={profile} before changes and the profile-bound in-memory comparison afterward.",
         notes="Review metrics are coverage diagnostics only, not rankings or recommendations.",
     )
 
@@ -674,14 +735,39 @@ def build_reviewed_batch_packet(
     lane: str = "prices",
     top_n: int = 10,
     tickers: str | Iterable[str] | None = None,
+    profile: str = "default",
 ) -> ReviewedBatchPacket:
     root = Path(root)
+    if profile not in {"default", "demo", "local"}:
+        raise ValueError("Unknown reviewed batch profile. Use default, demo, or local.")
+    selected_profile = _reviewed_batch_profile(root, profile)
     selected_lane_codes = normalize_batch_lane(lane)
     selected_tickers = _split_tickers(tickers)
-    freshness = readiness_freshness_status(root)
-    lanes = [lane_row for lane_row in build_readiness_ops_lanes(root) if lane_row.lane in selected_lane_codes]
+    freshness = FreshnessStatus(
+        "not_used",
+        "Tracked-current saved-artifact freshness is not used; use the profile-bound baseline and current in-memory comparison.",
+        f"make readiness-snapshot PROFILE={profile}",
+    )
+    lanes = [
+        lane_row
+        for lane_row in build_readiness_ops_lanes(
+            root,
+            profile=profile,
+            data_dir=selected_profile.data_dir,
+            output_dir=selected_profile.outputs_dir,
+        )
+        if lane_row.lane in selected_lane_codes
+    ]
     if "metric_readiness_review" in selected_lane_codes and not any(lane_row.lane == "metric_readiness_review" for lane_row in lanes):
-        lanes.append(_metric_readiness_lane(root, top_n, selected_tickers))
+        lanes.append(
+            _metric_readiness_lane(
+                root,
+                top_n,
+                selected_tickers,
+                data_dir=selected_profile.data_dir,
+                profile=profile,
+            )
+        )
     lane_lookup = {lane_row.lane: lane_row for lane_row in lanes}
     batch_id = datetime.now(timezone.utc).strftime("RB-%Y%m%dT%H%M%SZ")
     actions: list[ReviewedBatchAction] = []
@@ -689,8 +775,14 @@ def build_reviewed_batch_packet(
         lane_row = lane_lookup.get(lane_code)
         if lane_row is None:
             continue
-        action_tickers = _candidate_tickers(root, lane_code, top_n, selected_tickers)
-        commands = _lane_commands(lane_code, action_tickers, top_n, root=root)
+        action_tickers = _candidate_tickers(
+            root,
+            lane_code,
+            top_n,
+            selected_tickers,
+            data_dir=selected_profile.data_dir,
+        )
+        commands = _lane_commands(lane_code, action_tickers, top_n, root=root, profile=profile)
         action_scope = _join_ticker_arg(action_tickers)
         for proposed in action_tickers or ("<lane_scope>",):
             actions.append(
@@ -713,8 +805,8 @@ def build_reviewed_batch_packet(
                     proof_record_command=_proof_record_scaffold(batch_id, lane_code),
                     expected_artifacts=commands["artifacts"],
                     rollback=commands["rollback"],
-                    do_not_proceed_if=_do_not_proceed(lane_row, freshness),
-                    pre_run_readiness_snapshot="record saved counts before command; run make readiness-snapshot if needed",
+                    do_not_proceed_if=_do_not_proceed(lane_row),
+                    pre_run_readiness_snapshot=f"make readiness-snapshot PROFILE={profile}",
                     command_run="<copy exact command actually run>",
                     validation_result="<pass/fail/not_applicable>",
                     preview_result="<reviewed rows / no unexpected rows / not_applicable>",
@@ -732,6 +824,7 @@ def build_reviewed_batch_packet(
             )
     return ReviewedBatchPacket(
         batch_id=batch_id,
+        profile=profile,
         selected_lane=lane,
         selected_scope=", ".join(selected_lane_codes),
         top_n=top_n,
@@ -763,8 +856,8 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
         "",
         "## Readiness Snapshot",
         "",
-        "- Pre-run snapshot command: `make readiness-snapshot`",
-        "- Refresh saved readiness reports before relying on final counts: `make readiness`",
+        f"- Pre-run snapshot command: `make readiness-snapshot PROFILE={packet.profile}`",
+        f"- Post-apply proof: `make reviewed-batch-compare PROFILE={packet.profile} LANE=<lane> BATCH_ID=<batch_id> REVIEW_DATE=<yyyy-mm-dd>`",
         "- Current operations view: `make readiness-ops-center`",
         "- Current frontier view: `make coverage-frontier TOP_N=10`",
         "",
@@ -774,18 +867,7 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
     if not packet.actions:
         lines.extend(
             [
-                "No proposed actions were created. Run `make readiness` and choose one of `prices`, `fundamentals`, `share_count`, `peers`, `metrics`, or `optional_context`.",
-                "",
-            ]
-        )
-    if packet_status == "blocked_by_freshness":
-        lines.extend(
-            [
-                "## Blocked Preflight",
-                "",
-                f"- Stop before dry-run, capped execution, validate, preview, or apply steps until `{packet.freshness.refresh_command}` is complete.",
-                "- Treat this packet as a stale-readiness scaffold, not execution approval.",
-                "- Rebuild the packet after freshness is current so changed counts and proof fields are not based on stale artifacts.",
+                f"No proposed actions were created. Capture `make readiness-snapshot PROFILE={packet.profile}` and choose one of `prices`, `fundamentals`, `share_count`, `peers`, `metrics`, or `optional_context`.",
                 "",
             ]
         )
@@ -809,7 +891,7 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
                 f"- Do not proceed if: {action.do_not_proceed_if}",
                 "",
                 "Peer/sub-lane proof instructions:" if action.lane in {"peer_mapping", "peer_valuation_inputs"} else "Lane proof instructions:",
-                *[f"- {instruction}" for instruction in _lane_proof_instructions(action.lane, packet.top_n)],
+                *[f"- {instruction}" for instruction in _lane_proof_instructions(action.lane, packet.top_n, profile=packet.profile)],
                 "",
             ]
         )
@@ -817,7 +899,7 @@ def render_packet_markdown(packet: ReviewedBatchPacket) -> str:
         [
             "## Review Checklist",
             "",
-            "- Confirm readiness artifacts are current or run `make readiness`.",
+            f"- Confirm the pre-run baseline was captured with `make readiness-snapshot PROFILE={packet.profile}` before any apply decision.",
             "- Confirm the dry run matches the intended lane and capped scope.",
             "- Confirm source files are trusted and local.",
             "- For mutating workflows, run validate -> preview -> apply only after review.",
@@ -869,14 +951,6 @@ def render_packet_preview(packet: ReviewedBatchPacket) -> str:
         f"actions: {len(packet.actions)}",
         "message: Previewed reviewed batch packet; no Markdown or CSV artifacts were written.",
     ]
-    if packet.freshness.status in {"missing", "stale"}:
-        lines.extend(
-            [
-                "blocked_preflight:",
-                f"- {packet.freshness.message}",
-                f"- Run {packet.freshness.refresh_command} before relying on final counts.",
-            ]
-        )
     if packet.actions:
         action = packet.actions[0]
         lines.extend(
@@ -899,7 +973,7 @@ def render_packet_preview(packet: ReviewedBatchPacket) -> str:
         if remaining > 0:
             lines.append(f"additional_actions: {remaining}")
     else:
-        lines.append("top_action: none; run make readiness and choose a supported lane.")
+        lines.append(f"top_action: none; run make readiness-snapshot PROFILE={packet.profile} and choose a supported lane.")
     lines.extend(
         [
             "guardrails:",
@@ -927,6 +1001,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lane", default="prices", help="prices, fundamentals, share_count, peers, metrics, optional_context.")
     parser.add_argument("--top-n", type=int, default=10)
     parser.add_argument("--tickers", default="", help="Optional comma-separated ticker scope.")
+    parser.add_argument("--profile", choices=("default", "demo", "local"), default="default")
     parser.add_argument("--md-output", default=str(DEFAULT_PACKET_MD))
     parser.add_argument("--csv-output", default=str(DEFAULT_PACKET_CSV))
     parser.add_argument("--dry-run", action="store_true", help="Preview the packet without writing Markdown or CSV artifacts.")
@@ -941,6 +1016,7 @@ def main(argv: list[str] | None = None) -> int:
         lane=args.lane,
         top_n=args.top_n,
         tickers=args.tickers,
+        profile=args.profile,
     )
     if args.dry_run:
         print(render_packet_markdown(packet) if args.print else render_packet_preview(packet))

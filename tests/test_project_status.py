@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import src.project_status as project_status
+from src.continuation_gate import ContinuationGate
 from src.project_status import build_project_status_payload, main, write_project_status_output
 
 
@@ -600,26 +601,21 @@ def test_project_status_human_output_surfaces_focus_and_exact_commands(tmp_path:
     finally:
         sys.argv = argv_before
 
-    assert "top locked inputs to review" in output
+    assert "continuation gate: inspection_required" in output
+    assert "continuation-safe next action: make readiness-preview top_n=20" in output
+    assert "top locked inputs to review" not in output
     assert "first read:" in output
-    assert "ready now:" in output
+    assert "ready in saved snapshot:" in output
     assert "still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates" in output
-    assert "best next proof: make trusted-data-pilot-candidates top_n=10" in output
+    assert "best next proof: make readiness-preview top_n=20" in output
     assert "details below are capped and copy-only" in output
-    assert "last manual fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" in output
-    assert "trusted import/fallback: make price-normalize input=data/raw/prices/nvda.csv ticker=nvda source=yahoo_manual" not in output
-    assert "suggested check: make focus-fundamentals ticker=nvda" in output
-    assert "trusted import/fallback: make sec-stage tickers=nvda" in output
-    assert "guidance: use make" in output
-    assert "command: make price-normalize" not in output
-    assert "review short price-history blocker (nvda): make focus-price ticker=nvda" in output
-    assert (
-        "no verified local price history is present for this ticker yet." in output
-        or "this ticker has only" in output
-    )
-    assert "source:" in output
+    assert "make price-normalize" not in output
+    assert "make focus-fundamentals" not in output
+    assert "make sec-stage" not in output
+    assert "make focus-price" not in output
+    assert "source:" not in output
     assert "source readiness:" in output
-    assert "open price coverage guided data batch: make runbook-prices" in output
+    assert "make runbook-prices" not in output
 
 
 def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
@@ -635,8 +631,8 @@ def test_project_status_cli_check_uses_read_only_path(tmp_path: Path, capsys: py
 
     assert "project status summary" in output
     assert "first read:" in output
-    assert "ready now:" in output
-    assert "best next proof: make trusted-data-pilot-candidates top_n=10" in output
+    assert "ready in saved snapshot:" in output
+    assert "best next proof: make readiness-preview top_n=20" in output
     assert "missing-data steps:" in output
     assert "research-purpose groups:" in output
     assert "onboarding actions:" not in output
@@ -799,15 +795,17 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
 
     assert "Project status summary:" in output
     assert "First read:" in output
-    assert "Ready now: 1 with price rows, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready." in output
+    assert "Ready in saved snapshot: 1 with price rows, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready." in output
     assert "Fundamentals/input-ready tickers: 1/2" in output
     assert "Operating-company DCF-ready tickers: 1/2" in output
-    assert "Best next proof: make trusted-data-pilot-candidates TOP_N=10" in output
+    assert "Best next proof: make readiness-preview TOP_N=20" in output
     assert "Read-only project snapshot." in output
     assert "Read-only operator snapshot." not in output
     assert "Commands below are copy-only local research helpers" in output
     assert "Recommended next local steps:" in output
-    assert "rank trusted data pilot candidates: make trusted-data-pilot-candidates top_n=10" in output.lower()
+    assert "inspect readiness evidence impact: make readiness-preview top_n=20" in output.lower()
+    assert "inspect stale readiness impact" not in output.lower()
+    assert "make trusted-data-pilot-candidates" not in output
     assert "Local folders:" in output
     assert "data: data" in output
     assert "outputs: outputs" in output
@@ -816,7 +814,7 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
     assert "Operating-company DCF-ready tickers: 1/2" in output
     assert "Required data sources needing attention: 0" in output
     assert "Optional/manual lanes locked: 2" in output
-    assert "make focus-fundamentals TICKER=AMD" in output
+    assert "make focus-fundamentals TICKER=AMD" not in output
     assert "generated CSV churn" not in output
     assert "Wrote:" not in output
 
@@ -1177,6 +1175,11 @@ def test_project_status_stage_map_classifies_remaining_public_items(
     capsys: pytest.CaptureFixture[str],
 ):
     _write_fast_status_artifacts(tmp_path)
+    monkeypatch.setattr(
+        project_status,
+        "_git_status_line",
+        lambda _root: "## main...origin/main",
+    )
     monkeypatch.setattr(project_status, "_dcf_source_ladder_has_unreviewed_rows", lambda _root, _data_path: False)
     monkeypatch.setattr(project_status, "_trusted_data_pilot_has_candidates", lambda _root, top_n=10: False)
     monkeypatch.setattr(project_status, "_price_coverage_complete", lambda _summary: True)
@@ -1252,15 +1255,109 @@ def test_project_status_stage_map_does_not_call_github_synced_when_branch_is_ahe
         },
         trusted_data_pilot_has_candidates=False,
         price_coverage_complete=True,
-        git_status_line="## main...origin/main [ahead 1]",
+        git_status_line=(
+            "## codex/personal-research-mode-mvp..."
+            "origin/codex/personal-research-mode-mvp [ahead 10]"
+        ),
     )
 
     linkedin_row = rows[0]
     assert linkedin_row["Stage"] == "LinkedIn publish"
     assert linkedin_row["State"] == "needs_github_sync"
-    assert "ahead 1" in linkedin_row["Evidence"]
-    assert "git push origin main" in linkedin_row["Next Action"]
+    assert "ahead 10" in linkedin_row["Evidence"]
+    assert "codex/personal-research-mode-mvp" in linkedin_row["Next Action"]
+    assert "separate owner authorization" in linkedin_row["Next Action"]
+    assert "git push origin main" not in linkedin_row["Next Action"]
     assert "GitHub is synced" not in linkedin_row["Evidence"]
+
+
+def test_project_status_labels_an_aligned_feature_branch_as_draft_engineering_preview():
+    """Catches feature-branch sync being promoted as a stable default-branch share."""
+
+    stage = project_status._linkedin_stage_from_git_status(
+        "## codex/personal-research-mode-mvp...origin/codex/personal-research-mode-mvp"
+    )
+
+    assert stage["State"] == "draft_engineering_preview"
+    assert "Draft engineering preview" in stage["Evidence"]
+    assert "default branch" in stage["Completion Gate"]
+    assert "Post or update LinkedIn" not in stage["Next Action"]
+    assert "ready_for_manual_share" not in stage.values()
+
+
+def test_project_status_keeps_an_aligned_default_branch_share_eligible():
+    """Catches the fail-closed feature-branch rule blocking an actual stable branch."""
+
+    stage = project_status._linkedin_stage_from_git_status("## main...origin/main")
+
+    assert stage["State"] == "ready_for_manual_share"
+    assert "use GitHub link" in stage["Evidence"]
+
+
+@pytest.mark.parametrize(
+    "git_status_line",
+    (
+        None,
+        "",
+        "not a porcelain branch line",
+        "## main",
+        "## main...",
+        "## main...origin/other",
+        "## main...origin/main [gone]",
+    ),
+)
+def test_project_status_fails_closed_when_git_branch_status_is_unavailable(git_status_line):
+    """Catches unreadable or malformed Git state being called share-ready."""
+
+    stage = project_status._linkedin_stage_from_git_status(git_status_line)
+
+    assert stage["State"] == "needs_git_status_review"
+    assert "unavailable" in stage["Evidence"].lower()
+    assert "ready_for_manual_share" not in stage.values()
+
+
+def test_project_status_never_labels_readiness_preview_as_a_reviewed_write(capsys):
+    payload = {
+        "profile_context": {},
+        "summary": {
+            "data_sources_available": 0,
+            "data_sources_total": 0,
+            "data_sources_needing_attention": 0,
+            "data_sources_optional_locked": 0,
+            "data_gaps": 0,
+            "tickers_with_prices": 0,
+            "tickers_total": 0,
+            "tickers_usable_for_momentum": 0,
+            "tickers_fundamentals_ready": 0,
+            "tickers_dcf_ready": 0,
+            "tickers_peer_ready": 0,
+            "onboarding_actions": 0,
+            "critical_actions": 0,
+            "purpose_evaluation_groups": 0,
+            "purpose_evaluation_active_groups": 0,
+        },
+        "warnings": [],
+        "remaining_public_stage_rows": [],
+        "workflow_continuation": {},
+        "recommended_next_command_rows": [],
+        "top_onboarding_actions": [],
+        "top_dcf_input_actions": [],
+        "source_operator_summary": {},
+    }
+    gate = ContinuationGate(
+        state="inspection_only",
+        next_safe_command="make readiness-preview TOP_N=20",
+        reason="Working readiness is not tracked release evidence.",
+        rebuild_command="make readiness-preview TOP_N=20",
+        stop_rule="Do not start readiness writes.",
+        suppress_execution=True,
+    )
+
+    project_status._print_human(payload, continuation_gate=gate)
+    output = capsys.readouterr().out
+
+    assert "Continuation-safe next action: make readiness-preview TOP_N=20" in output
+    assert "readiness-preview TOP_N=20 requires an intentional reviewed write" not in output
 
 
 def test_project_status_stage_map_uses_hosted_url_marker_as_manual_gate():
@@ -1341,7 +1438,7 @@ def test_project_status_stage_map_reports_completed_public_ux_review():
             "share_review_gate": "share_review_ready",
             "status": "review_complete",
             "pending_rows": 0,
-            "classification_counts": {"resolved": 10},
+            "classification_counts": {"resolved": 9, "resolved_post_fix": 1},
             "next_safe_command": "make public-ux-review-notes-check",
         },
     )
@@ -1628,7 +1725,8 @@ def test_project_status_cli_check_labels_stale_generated_snapshot_before_counts(
     assert freshness_index < warning_index < summary_index < ready_index
     assert "Ready now: 1 price-ready" not in output
     assert "generated report" not in output.lower()
-    assert "Refresh needed: run make readiness or make status before using exact readiness counts." in output
+    assert "Inspection needed: run make readiness-preview TOP_N=20 before using exact saved counts." in output
+    assert "does not refresh or persist saved readiness" in output
 
 
 def test_project_status_human_write_output_reports_written_files(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
@@ -1742,10 +1840,10 @@ def test_project_status_refresh_rebuilds_stale_research_health_outputs(tmp_path:
         os.utime(output_dir / filename, (100, 100))
     for path in (tmp_path / "data").glob("*.csv"):
         os.utime(path, (200, 200))
-    calls: list[str] = []
+    calls: list[bool] = []
 
-    def fake_research_health(_root, *, data_dir=None, output_dir=None):
-        calls.append("research_health")
+    def fake_research_health(_root, *, data_dir=None, output_dir=None, write_output=False):
+        calls.append(write_output)
         target = Path(output_dir)
         for filename in ["data_quality_wizard.csv", "liquidity_risk.csv", "correlation_risk.csv"]:
             (target / filename).write_text("Ticker,Reason\nNVDA,rebuild\n", encoding="utf-8")
@@ -1755,11 +1853,13 @@ def test_project_status_refresh_rebuilds_stale_research_health_outputs(tmp_path:
 
     payload = write_project_status_output(tmp_path, top_n=2, refresh_supporting_outputs=True)
 
-    assert calls == ["research_health"]
+    assert calls == [True]
     assert payload["summary"]["tickers_total"] == 1
 
 
-def test_project_status_human_refresh_artifacts_keeps_cli_clean(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
+def test_project_status_human_refresh_artifacts_keeps_cli_clean_and_readiness_fail_closed(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+):
     _write_minimal_local_data(tmp_path)
 
     argv_before = sys.argv[:]
@@ -1771,9 +1871,14 @@ def test_project_status_human_refresh_artifacts_keeps_cli_clean(tmp_path: Path, 
         sys.argv = argv_before
 
     assert "project status summary" in output
-    assert "review short price-history blocker (nvda): make focus-price ticker=nvda" in output
+    assert "readiness built: unavailable" in output
     assert "wrote:" not in output
     assert (tmp_path / "outputs" / "project_status.json").exists()
+    assert not (tmp_path / "data/reports/ticker_readiness_report.csv").exists()
+    assert not (tmp_path / "data/dcf_readiness.csv").exists()
+    assert not (tmp_path / "data/earnings_readiness.csv").exists()
+    assert not (tmp_path / "data/analyst_estimates_readiness.csv").exists()
+    assert not (tmp_path / "outputs/local/derived").exists()
 
 
 def test_project_status_prefers_bundle_matching_top_blocker_ticker(tmp_path: Path):
@@ -1860,3 +1965,55 @@ def test_project_status_prefers_holdings_first_price_blockers_when_priority_matc
     assert payload["recommended_next_command_rows"][1]["Command"] == "make trusted-data-pilot-candidates TOP_N=10"
     assert payload["recommended_next_command_rows"][2]["Step"] == "Open Price Coverage Guided Data Batch"
     assert payload["recommended_next_command_rows"][2]["Command"] == "make runbook-prices"
+
+
+def test_project_status_stale_gate_suppresses_broad_next_steps(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=5)
+    assert payload is not None
+    gate = ContinuationGate(
+        state="inspection_only",
+        next_safe_command="make readiness-preview TOP_N=20",
+        reason="Selected-profile source dates are newer than saved readiness.",
+        rebuild_command="make readiness",
+        stop_rule="Do not start broad refresh, source-proof, apply, or readiness-rebuild work.",
+        suppress_execution=True,
+    )
+
+    project_status._print_human(payload, continuation_gate=gate)
+    output = capsys.readouterr().out
+
+    assert "Continuation gate: inspection_only" in output
+    assert "Continuation-safe next action: make readiness-preview TOP_N=20" in output
+    assert "Rebuild boundary: make readiness requires an intentional reviewed write." in output
+    assert "Top locked inputs to review:" not in output
+    assert "make price-refresh-loop DRY_RUN=1" not in output
+    assert "make trusted-data-pilot-candidates TOP_N=10" not in output
+
+
+def test_project_status_json_includes_fail_closed_continuation_gate(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+
+    main(
+        [
+            "--check",
+            "--json",
+            "--project-root",
+            str(tmp_path),
+            "--data-dir",
+            "data",
+            "--output-dir",
+            "outputs",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["continuation_gate"]["state"] == "inspection_required"
+    assert payload["continuation_gate"]["next_safe_command"] == "make readiness-preview TOP_N=20"
+    assert payload["continuation_gate"]["suppress_execution"] is True

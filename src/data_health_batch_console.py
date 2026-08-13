@@ -7,6 +7,8 @@ guards, execution cards, and checklist rows.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import re
 from typing import Any
 
@@ -120,7 +122,7 @@ def reviewed_batch_snapshot_gate_cards(preflight: Any) -> list[dict[str, object]
                     "Run readiness before packet, dry-run, capped execution, comparison, or proof-record work."
                 ),
                 "badges": ["missing current", "stop"],
-                "command": "make readiness",
+                "command": "make readiness-preview TOP_N=20",
             }
         ]
     if not preflight.prior_snapshot_exists:
@@ -153,12 +155,12 @@ def reviewed_batch_snapshot_gate_cards(preflight: Any) -> list[dict[str, object]
 def reviewed_batch_snapshot_gate_frame(preflight: Any) -> pd.DataFrame:
     if not preflight.current_report_exists:
         status = "missing_current_report"
-        next_step = "Run make readiness before saving a baseline snapshot."
-        command = "make readiness"
+        next_step = "Inspect current readiness in memory before saving a profile-bound baseline snapshot."
+        command = "make readiness-preview TOP_N=20"
         stop_if = "current readiness report is unavailable"
     elif not preflight.prior_snapshot_exists:
         status = "missing_prior_snapshot"
-        next_step = "Run make readiness-snapshot before the packet or dry-run command."
+        next_step = f"Run make readiness-snapshot PROFILE={resolve_readiness_proof_profile()} before the packet or dry-run command."
         command = preflight.snapshot_command
         stop_if = "baseline snapshot is missing"
     else:
@@ -284,7 +286,7 @@ def reviewed_batch_loop_card(preflight: Any, freshness: Any) -> dict[str, object
         badges = [freshness.status, "refresh first"]
     elif not preflight.current_report_exists:
         title = "Build current readiness first"
-        command = "make readiness"
+        command = "make readiness-preview TOP_N=20"
         gate_note = "Current readiness report is missing, so changed-count proof cannot start yet."
         badges = ["missing current", "stop"]
     elif not preflight.prior_snapshot_exists:
@@ -371,7 +373,7 @@ def reviewed_batch_operator_flow_cards(
         next_badges = [freshness.status, "refresh first"]
     elif snapshot_blocked:
         next_title = "Capture snapshot gate"
-        next_command = preflight.snapshot_command if preflight.current_report_exists else "make readiness"
+        next_command = preflight.snapshot_command if preflight.current_report_exists else "make readiness-preview TOP_N=20"
         next_body = batch_gate_summary(preflight)
         next_badges = [preflight.status, "snapshot first"]
     else:
@@ -451,7 +453,7 @@ def reviewed_batch_execution_frame(preflight: Any) -> pd.DataFrame:
             {"Step": "8. Proof", "Command": preflight.comparison_command, "Gate": "Record supported, candidate_context_only, still_blocked, skipped, or excluded only after proof."},
             {"Step": "9. Ledger", "Command": preflight.proof_record_command, "Gate": "Durable record after source files and generated churn are classified."},
             {"Step": "10. Hygiene", "Command": " && ".join(preflight.post_run_hygiene[:2]), "Gate": "Classify generated CSV/JSON churn before any public commit."},
-            {"Step": "Rollback", "Command": "restore reviewed standard local CSVs from git/backups, then rerun make readiness", "Gate": "Use if applied local rows are wrong or source proof fails."},
+            {"Step": "Rollback", "Command": "restore reviewed standard local CSVs from git/backups, then rerun the profile-bound comparison", "Gate": "Use if applied local rows are wrong or source proof fails."},
         ]
     )
 

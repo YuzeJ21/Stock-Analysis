@@ -1,8 +1,214 @@
 from pathlib import Path
+import os
+import subprocess
 
 import pandas as pd
+import pytest
 
-from src.readiness_engine import build_ticker_readiness_report, save_previous_ticker_readiness_snapshot
+import src.readiness_engine as readiness_engine
+from src.readiness_engine import (
+    READINESS_METHOD_VERSION,
+    READINESS_REPORT_NAMES,
+    build_peer_readiness_report,
+    build_ticker_readiness_report,
+    main,
+)
+
+
+def _file_manifest(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+
+
+def test_ticker_readiness_no_write_returns_reports_without_mutating_files(tmp_path: Path, monkeypatch):
+    monkeypatch.delenv("STOOQ_API_KEY", raising=False)
+    monkeypatch.delenv("SEC_USER_AGENT", raising=False)
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "name": "NVIDIA",
+                "exchange": "NASDAQ",
+                "asset_type": "company",
+                "sector": "Technology",
+                "source": "test_fixture",
+            }
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame(
+        [{"ticker": "NVDA", "scope": "active_research", "theme": "AI"}]
+    ).to_csv(data_dir / "universe_active.csv", index=False)
+    before = _file_manifest(tmp_path)
+
+    original_ensure = readiness_engine.ensure_universe_files
+    original_coverage = readiness_engine.build_universe_coverage_report
+
+    def assert_no_write_ensure(*args, **kwargs):
+        assert kwargs["write_outputs"] is False
+        return original_ensure(*args, **kwargs)
+
+    def assert_no_write_coverage(*args, **kwargs):
+        assert kwargs["write_output"] is False
+        return original_coverage(*args, **kwargs)
+
+    def fail_write(*_args, **_kwargs):
+        raise AssertionError("default readiness composition must not write")
+
+    monkeypatch.setattr(readiness_engine, "ensure_universe_files", assert_no_write_ensure)
+    monkeypatch.setattr(readiness_engine, "build_universe_coverage_report", assert_no_write_coverage)
+    monkeypatch.setattr(readiness_engine, "_write", fail_write)
+    reports = build_ticker_readiness_report(
+        tmp_path,
+        data_dir=data_dir,
+        output_dir=tmp_path / "outputs",
+    )
+
+    assert "ticker_readiness_report" in reports
+    assert "data_source_status" in reports
+    assert READINESS_REPORT_NAMES == (
+        "universe_coverage_report",
+        "price_coverage_report",
+        "fundamentals_coverage_report",
+        "dcf_readiness_report",
+        "peer_readiness_report",
+        "earnings_readiness_report",
+        "analyst_estimates_readiness_report",
+        "ticker_readiness_report",
+        "feature_readiness_summary",
+        "peer_unlock_worklist",
+        "data_source_status",
+    )
+    assert tuple(reports) == READINESS_REPORT_NAMES
+    assert set(reports["ticker_readiness_report"]["ticker"]) == {"NVDA"}
+    assert _file_manifest(tmp_path) == before
+    assert not (tmp_path / "outputs").exists()
+
+
+def test_explicit_readiness_write_does_not_repair_canonical_universe(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    pd.DataFrame([{"ticker": "A", "name": "Agilent", "asset_type": "etf"}]).to_csv(
+        data_dir / "universe_master.csv", index=False
+    )
+    pd.DataFrame([{"ticker": "A", "company_name": "Agilent", "default_purpose": "Core Compounder"}]).to_csv(
+        data_dir / "universe.csv", index=False
+    )
+    canonical_before = (data_dir / "universe_master.csv").read_bytes()
+
+    reports = build_ticker_readiness_report(
+        tmp_path,
+        data_dir=data_dir,
+        output_dir=tmp_path / "outputs",
+        write_outputs=True,
+    )
+
+    assert "ticker_readiness_report" in reports
+    assert (tmp_path / "outputs" / "feature_readiness_summary.csv").exists()
+    assert (data_dir / "universe_master.csv").read_bytes() == canonical_before
+
+
+def _write_snapshot_fixture(root: Path, profile: str = "default") -> Path:
+    data_dir = root / {"default": "data", "demo": "data/demo", "local": "data/local"}[profile]
+    data_dir.mkdir(parents=True)
+    pd.DataFrame(
+        [
+            {
+                "ticker": "AAA",
+                "name": "Alpha Corp",
+                "exchange": "NYSE",
+                "asset_type": "company",
+                "source": "test_fixture",
+            }
+        ]
+    ).to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame([{"ticker": "AAA", "scope": "active_research", "theme": "Test"}]).to_csv(
+        data_dir / "universe_active.csv", index=False
+    )
+    return data_dir
+
+
+def test_readiness_cli_default_is_a_nonwriting_deprecated_guard(tmp_path: Path, monkeypatch, capsys):
+    before = _file_manifest(tmp_path)
+
+    def fail_build(*_args, **_kwargs):
+        raise AssertionError("deprecated readiness guard must not compose readiness")
+
+    monkeypatch.setattr(readiness_engine, "build_ticker_readiness_report", fail_build)
+    exit_code = main(["--project-root", str(tmp_path)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 2
+    assert "deprecated" in captured.err.lower()
+    assert "make readiness-preview TOP_N=20" in captured.err
+    assert "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=" in captured.err
+    assert _file_manifest(tmp_path) == before
+
+
+def test_readiness_save_previous_is_the_same_nonwriting_guard(tmp_path: Path, monkeypatch, capsys):
+    before = _file_manifest(tmp_path)
+    monkeypatch.setattr(
+        readiness_engine,
+        "build_ticker_readiness_report",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("builder must not run")),
+    )
+
+    assert main(["--project-root", str(tmp_path), "--save-previous"]) == 2
+    assert "deprecated" in capsys.readouterr().err.lower()
+    assert _file_manifest(tmp_path) == before
+
+
+def test_readiness_module_propagates_profile_validation_as_shell_exit_2_without_writes(tmp_path: Path):
+    before = _file_manifest(tmp_path)
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(Path.cwd())
+
+    result = subprocess.run(
+        [
+            "python3",
+            "-m",
+            "src.readiness_engine",
+            "--project-root",
+            str(tmp_path),
+            "--snapshot-only",
+        ],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "profile" in result.stderr.lower()
+    assert _file_manifest(tmp_path) == before
+
+
+def test_readiness_module_help_describes_deprecated_guard_and_in_memory_snapshot():
+    environment = os.environ.copy()
+    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment["PYTHONPATH"] = str(Path.cwd())
+
+    result = subprocess.run(
+        ["python3", "-m", "src.readiness_engine", "--help"],
+        cwd=Path.cwd(),
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    normalized = " ".join(result.stdout.split())
+    assert "Deprecated compatibility flag; always fails closed without reading or writing readiness artifacts." in normalized
+    assert "Compose one profile-bound prior snapshot from readiness in memory; never read the tracked current readiness report." in normalized
+    assert "Copy the current ticker readiness report" not in normalized
+    assert "Only save the current ticker readiness report" not in normalized
+    assert "before regenerating" not in normalized
 
 
 def _price_rows(ticker: str, periods: int) -> list[dict[str, object]]:
@@ -21,34 +227,245 @@ def _price_rows(ticker: str, periods: int) -> list[dict[str, object]]:
     ]
 
 
-def test_save_previous_ticker_readiness_snapshot_uses_deterministic_prior_path(tmp_path: Path):
-    data_dir = tmp_path / "data"
+@pytest.mark.parametrize("profile", ["default", "demo", "local"])
+def test_snapshot_cli_composes_one_profile_bound_baseline_without_reading_current_report(
+    tmp_path: Path, profile: str
+):
+    data_dir = _write_snapshot_fixture(tmp_path, profile)
     reports_dir = data_dir / "reports"
-    reports_dir.mkdir(parents=True)
+    reports_dir.mkdir()
     current = reports_dir / "ticker_readiness_report.csv"
-    pd.DataFrame(
-        [
-            {"ticker": "AAA", "price_ready": True, "updated_at": "2026-05-29T00:00:00+00:00"},
-            {"ticker": "BBB", "price_ready": False, "updated_at": "2026-05-29T00:00:00+00:00"},
-        ]
-    ).to_csv(current, index=False)
+    current.write_text("ticker,overall_readiness_state\nSTALE,ready\n", encoding="utf-8")
+    other_current = reports_dir / "feature_readiness_summary.csv"
+    other_current.write_bytes(b"canonical-current-bytes\n")
+    canonical_before = {current: current.read_bytes(), other_current: other_current.read_bytes()}
 
-    payload = save_previous_ticker_readiness_snapshot(tmp_path, data_dir=data_dir)
+    result = main(
+        ["--project-root", str(tmp_path), "--profile", profile, "--snapshot-only", "--json"]
+    )
+
     snapshot = reports_dir / "ticker_readiness_report.previous.csv"
+    frame = pd.read_csv(snapshot)
+    assert result == 0
+    assert set(frame["ticker"]) == {"AAA"}
+    assert "STALE" not in set(frame["ticker"])
+    assert set(frame["snapshot_profile"]) == {profile}
+    assert len(set(frame["snapshot_input_identity"])) == 1
+    assert len(frame.loc[0, "snapshot_input_identity"]) == 64
+    assert len(set(frame["snapshot_captured_at"])) == 1
+    assert pd.Timestamp(frame.loc[0, "snapshot_captured_at"]).tzinfo is not None
+    assert set(frame["snapshot_schema_version"].astype(str)) == {"1"}
+    assert set(frame["snapshot_method_version"].astype(str)) == {READINESS_METHOD_VERSION}
+    assert all(path.read_bytes() == canonical_before[path] for path in canonical_before)
+    assert not (reports_dir / ".ticker_readiness_report.previous.csv.tmp").exists()
+    for other_profile in {"default", "demo", "local"} - {profile}:
+        other_data = tmp_path / {
+            "default": "data",
+            "demo": "data/demo",
+            "local": "data/local",
+        }[other_profile]
+        assert not (other_data / "reports/ticker_readiness_report.previous.csv").exists()
 
-    assert payload["status"] == "written"
-    assert payload["rows"] == 2
-    assert payload["snapshot_path"] == str(snapshot)
-    assert snapshot.exists()
-    assert pd.read_csv(snapshot).to_dict("records") == pd.read_csv(current).to_dict("records")
+
+def test_snapshot_builder_is_no_write_and_uses_selected_profile_paths(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    data_dir = _write_snapshot_fixture(tmp_path, "demo")
+    calls: list[dict[str, object]] = []
+
+    def build(root, **kwargs):
+        calls.append({"root": root, **kwargs})
+        return {"ticker_readiness_report": pd.DataFrame([{"ticker": "BUILT"}])}
+
+    monkeypatch.setattr(readiness_engine, "build_ticker_readiness_report", build)
+    assert main(["--project-root", str(tmp_path), "--profile", "demo", "--snapshot-only"]) == 0
+
+    assert calls == [
+        {
+            "root": tmp_path.resolve(),
+            "data_dir": data_dir.resolve(),
+            "output_dir": (tmp_path / "outputs/demo").resolve(),
+            "write_outputs": False,
+        }
+    ]
+    assert set(pd.read_csv(data_dir / "reports/ticker_readiness_report.previous.csv")["ticker"]) == {
+        "BUILT"
+    }
 
 
-def test_save_previous_ticker_readiness_snapshot_is_honest_when_current_report_missing(tmp_path: Path):
-    payload = save_previous_ticker_readiness_snapshot(tmp_path, data_dir=tmp_path / "data")
+def test_empty_in_memory_snapshot_fails_before_serialization_and_preserves_baseline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys
+):
+    data_dir = _write_snapshot_fixture(tmp_path)
+    reports_dir = data_dir / "reports"
+    reports_dir.mkdir()
+    snapshot = reports_dir / "ticker_readiness_report.previous.csv"
+    snapshot.write_bytes(b"ticker,snapshot_profile\nOLD,default\n")
+    before = _file_manifest(tmp_path)
+    monkeypatch.setattr(
+        readiness_engine,
+        "build_ticker_readiness_report",
+        lambda *_args, **_kwargs: {"ticker_readiness_report": pd.DataFrame()},
+    )
 
-    assert payload["status"] == "missing_current_report"
-    assert payload["rows"] == 0
-    assert "make readiness" in payload["message"]
+    result = main(["--project-root", str(tmp_path), "--profile", "default", "--snapshot-only"])
+
+    assert result == 2
+    assert "empty" in capsys.readouterr().err.lower()
+    assert _file_manifest(tmp_path) == before
+
+
+@pytest.mark.parametrize("failure", ["serialization", "file_fsync", "replace", "directory_fsync"])
+def test_snapshot_failure_preserves_existing_baseline_and_never_exposes_partial_file(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    failure: str,
+):
+    data_dir = _write_snapshot_fixture(tmp_path)
+    reports_dir = data_dir / "reports"
+    reports_dir.mkdir()
+    snapshot = reports_dir / "ticker_readiness_report.previous.csv"
+    original = b"ticker,snapshot_profile\nOLD,default\n"
+    snapshot.write_bytes(original)
+    monkeypatch.setattr(
+        readiness_engine,
+        "build_ticker_readiness_report",
+        lambda *_args, **_kwargs: {"ticker_readiness_report": pd.DataFrame([{"ticker": "NEW"}])},
+    )
+    if failure == "serialization":
+        monkeypatch.setattr(
+            pd.DataFrame,
+            "to_csv",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(OSError("serialization failed")),
+        )
+    elif failure == "file_fsync":
+        monkeypatch.setattr(
+            readiness_engine.os,
+            "fsync",
+            lambda *_args: (_ for _ in ()).throw(OSError("file fsync failed")),
+        )
+    elif failure == "replace":
+        monkeypatch.setattr(
+            readiness_engine.os,
+            "replace",
+            lambda *_args: (_ for _ in ()).throw(OSError("replace failed")),
+        )
+    else:
+        original_fsync_directory = readiness_engine._fsync_directory
+        calls = 0
+
+        def fail_after_replace(path: Path):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise OSError("directory fsync failed")
+            return original_fsync_directory(path)
+
+        monkeypatch.setattr(readiness_engine, "_fsync_directory", fail_after_replace)
+
+    result = main(["--project-root", str(tmp_path), "--profile", "default", "--snapshot-only"])
+
+    assert result == 2
+    assert snapshot.read_bytes() == original
+    assert not (reports_dir / ".ticker_readiness_report.previous.csv.tmp").exists()
+
+
+@pytest.mark.parametrize("lexical_path", ["reports", "snapshot", "temporary"])
+@pytest.mark.parametrize("target_scope", ["inside", "outside"])
+def test_snapshot_rejects_every_output_symlink_before_builder_or_write(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    lexical_path: str,
+    target_scope: str,
+):
+    data_dir = _write_snapshot_fixture(tmp_path)
+    reports_dir = data_dir / "reports"
+    target_root = tmp_path if target_scope == "inside" else tmp_path.parent
+    target = target_root / f"snapshot-{lexical_path}-{target_scope}"
+    if lexical_path == "reports":
+        target.mkdir(exist_ok=True)
+        reports_dir.symlink_to(target, target_is_directory=True)
+    else:
+        reports_dir.mkdir()
+        target.write_bytes(b"operator bytes\n")
+        path = reports_dir / (
+            "ticker_readiness_report.previous.csv"
+            if lexical_path == "snapshot"
+            else ".ticker_readiness_report.previous.csv.tmp"
+        )
+        path.symlink_to(target)
+    before = _file_manifest(tmp_path)
+    calls = []
+
+    def build(*_args, **_kwargs):
+        calls.append(True)
+        return {"ticker_readiness_report": pd.DataFrame([{"ticker": "NEW"}])}
+
+    monkeypatch.setattr(readiness_engine, "build_ticker_readiness_report", build)
+
+    result = main(["--project-root", str(tmp_path), "--profile", "default", "--snapshot-only"])
+
+    assert result == 2
+    assert calls == []
+    assert _file_manifest(tmp_path) == before
+
+
+def test_snapshot_revalidates_every_named_source_before_readiness_composition(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    data_dir = _write_snapshot_fixture(tmp_path)
+    target = tmp_path / "linked-prices.csv"
+    target.write_bytes(b"ticker,date,close\nAAA,2026-01-01,1\n")
+    (data_dir / "prices.csv").symlink_to(target)
+    before = _file_manifest(tmp_path)
+    calls = []
+    monkeypatch.setattr(
+        readiness_engine,
+        "build_ticker_readiness_report",
+        lambda *_args, **_kwargs: calls.append(True),
+    )
+
+    result = main(["--project-root", str(tmp_path), "--profile", "default", "--snapshot-only"])
+
+    assert result == 2
+    assert calls == []
+    assert _file_manifest(tmp_path) == before
+
+
+def test_serialization_failure_never_deletes_a_raced_in_temporary_symlink(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    data_dir = _write_snapshot_fixture(tmp_path)
+    reports_dir = data_dir / "reports"
+    reports_dir.mkdir()
+    snapshot = reports_dir / "ticker_readiness_report.previous.csv"
+    baseline = b"ticker,snapshot_profile\nOLD,default\n"
+    snapshot.write_bytes(baseline)
+    temporary = reports_dir / ".ticker_readiness_report.previous.csv.tmp"
+    displaced = reports_dir / "operator-displaced-partial-snapshot.tmp"
+    operator_target = tmp_path / "operator-temporary-target"
+    operator_target.write_bytes(b"preserve operator target\n")
+    monkeypatch.setattr(
+        readiness_engine,
+        "build_ticker_readiness_report",
+        lambda *_args, **_kwargs: {"ticker_readiness_report": pd.DataFrame([{"ticker": "NEW"}])},
+    )
+
+    def replace_temporary_then_fail(*_args, **_kwargs):
+        temporary.rename(displaced)
+        temporary.symlink_to(operator_target)
+        raise OSError("serialization failed after path replacement")
+
+    monkeypatch.setattr(pd.DataFrame, "to_csv", replace_temporary_then_fail)
+
+    result = main(["--project-root", str(tmp_path), "--profile", "default", "--snapshot-only"])
+
+    assert result == 2
+    assert snapshot.read_bytes() == baseline
+    assert temporary.is_symlink()
+    assert os.readlink(temporary) == str(operator_target)
+    assert operator_target.read_bytes() == b"preserve operator target\n"
+    assert displaced.exists()
 
 
 def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_path: Path, monkeypatch):
@@ -90,7 +507,7 @@ def test_ticker_readiness_report_tracks_ready_blocked_and_excluded_states(tmp_pa
     pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "analyst_estimates.csv", index=False)
     pd.DataFrame(columns=["ticker", "shares"]).to_csv(data_dir / "holdings.csv", index=False)
 
-    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir)
+    reports = build_ticker_readiness_report(tmp_path, data_dir=data_dir, output_dir=outputs_dir, write_outputs=True)
     readiness = reports["ticker_readiness_report"].set_index("ticker")
     feature_summary = reports["feature_readiness_summary"].set_index("feature")
     source_status = reports["data_source_status"].set_index("source_name")
@@ -754,8 +1171,8 @@ def test_readiness_requires_source_and_minimum_ready_peer_metrics(tmp_path: Path
     ).to_csv(data_dir / "fundamentals.csv", index=False)
     pd.DataFrame(
         [
-            {"ticker": "AAA", "peer_ticker": "BBB", "peer_group": "Test", "source": "fixture"},
-            {"ticker": "AAA", "peer_ticker": "CCC", "peer_group": "Test", "source": "fixture"},
+            {"ticker": "AAA", "peer_ticker": "BBB", "peer_group": "Test", "peer_role": "core_peer", "relationship_rationale": "Synthetic fixture overlap", "comparability_basis": "business model; growth and margin", "valuation_anchor_eligible": "yes", "source": "fixture", "as_of_date": "2026-06-30"},
+            {"ticker": "AAA", "peer_ticker": "CCC", "peer_group": "Test", "peer_role": "secondary_peer", "relationship_rationale": "Synthetic fixture overlap", "comparability_basis": "business model; growth and margin", "valuation_anchor_eligible": "yes", "source": "fixture", "as_of_date": "2026-06-30"},
         ]
     ).to_csv(data_dir / "peers.csv", index=False)
     pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "earnings.csv", index=False)
@@ -860,8 +1277,8 @@ def test_peer_valuation_comparison_requires_dcf_ready_peer_inputs(tmp_path: Path
     ).to_csv(data_dir / "fundamentals.csv", index=False)
     pd.DataFrame(
         [
-            {"ticker": "AAA", "peer_ticker": "BBB", "peer_group": "Test", "source": "fixture"},
-            {"ticker": "AAA", "peer_ticker": "CCC", "peer_group": "Test", "source": "fixture"},
+            {"ticker": "AAA", "peer_ticker": "BBB", "peer_group": "Test", "peer_role": "core_peer", "relationship_rationale": "Synthetic fixture overlap", "comparability_basis": "business model; growth and margin", "valuation_anchor_eligible": "yes", "source": "fixture", "as_of_date": "2026-06-30"},
+            {"ticker": "AAA", "peer_ticker": "CCC", "peer_group": "Test", "peer_role": "secondary_peer", "relationship_rationale": "Synthetic fixture overlap", "comparability_basis": "business model; growth and margin", "valuation_anchor_eligible": "yes", "source": "fixture", "as_of_date": "2026-06-30"},
         ]
     ).to_csv(data_dir / "peers.csv", index=False)
     pd.DataFrame(columns=["ticker", "source"]).to_csv(data_dir / "earnings.csv", index=False)
@@ -880,3 +1297,74 @@ def test_peer_valuation_comparison_requires_dcf_ready_peer_inputs(tmp_path: Path
     assert worklist.loc["AAA", "workflow_group"] == "peer_valuation_unlock"
     assert worklist.loc["AAA", "peer_trend_status"] == "peer_trend_possible"
     assert worklist.loc["AAA", "peer_valuation_status"] == "peer_valuation_blocked"
+
+
+def test_peer_trend_readiness_stays_independent_when_valuation_anchor_evidence_is_missing(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    master = pd.DataFrame(
+        [
+            {"ticker": "AAA", "asset_type": "company"},
+            {"ticker": "BBB", "asset_type": "company"},
+            {"ticker": "CCC", "asset_type": "company"},
+        ]
+    )
+    master.to_csv(data_dir / "universe_master.csv", index=False)
+    pd.DataFrame(_price_rows("AAA", 60) + _price_rows("BBB", 60) + _price_rows("CCC", 60)).to_csv(
+        data_dir / "prices.csv", index=False
+    )
+    pd.DataFrame(
+        [
+            {"ticker": ticker, "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2, "shares_outstanding": 10, "source": "fixture"}
+            for ticker in ("AAA", "BBB", "CCC")
+        ]
+    ).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "AAA", "peer_ticker": "BBB", "peer_group": "Test", "source": "fixture", "as_of_date": "2026-06-30"},
+            {"ticker": "AAA", "peer_ticker": "CCC", "peer_group": "Test", "source": "fixture", "as_of_date": "2026-06-30"},
+        ]
+    ).to_csv(data_dir / "peers.csv", index=False)
+    pd.DataFrame(columns=["ticker", "peer_ticker", "candidate_state"]).to_csv(data_dir / "peer_candidates.csv", index=False)
+
+    report = build_peer_readiness_report(tmp_path, data_dir, master, {"price_ready": {"min_rows": 5}, "momentum_ready": {"min_rows": 20}, "peer_ready": {"min_peers": 2}}).set_index("ticker")
+
+    assert bool(report.loc["AAA", "peer_trend_comparison_ready"]) is True
+    assert bool(report.loc["AAA", "peer_valuation_ready"]) is False
+    assert int(report.loc["AAA", "peer_valuation_anchor_eligible_count"]) == 0
+    assert report.loc["AAA", "peer_blocker_type"] == "peer_comparability_unreviewed"
+    assert "peer role" in report.loc["AAA", "next_peer_action"].lower()
+
+
+def test_only_explicitly_eligible_peers_can_unlock_peer_valuation_readiness(tmp_path: Path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    master = pd.DataFrame(
+        [
+            {"ticker": "AAA", "asset_type": "company"},
+            {"ticker": "BBB", "asset_type": "company"},
+            {"ticker": "CCC", "asset_type": "company"},
+        ]
+    )
+    pd.DataFrame(_price_rows("AAA", 60) + _price_rows("BBB", 60) + _price_rows("CCC", 60)).to_csv(
+        data_dir / "prices.csv", index=False
+    )
+    pd.DataFrame(
+        [
+            {"ticker": ticker, "revenue": 100, "free_cash_flow": 20, "fcf_margin": 0.2, "shares_outstanding": 10, "source": "fixture"}
+            for ticker in ("AAA", "BBB", "CCC")
+        ]
+    ).to_csv(data_dir / "fundamentals.csv", index=False)
+    pd.DataFrame(
+        [
+            {"ticker": "AAA", "peer_ticker": peer, "peer_group": "Test", "peer_role": role, "relationship_rationale": "Reviewed operating overlap", "comparability_basis": "business model; growth and margin", "valuation_anchor_eligible": "yes", "source": "fixture", "as_of_date": "2026-06-30"}
+            for peer, role in (("BBB", "core_peer"), ("CCC", "secondary_peer"))
+        ]
+    ).to_csv(data_dir / "peers.csv", index=False)
+    pd.DataFrame(columns=["ticker", "peer_ticker", "candidate_state"]).to_csv(data_dir / "peer_candidates.csv", index=False)
+
+    report = build_peer_readiness_report(tmp_path, data_dir, master, {"price_ready": {"min_rows": 5}, "momentum_ready": {"min_rows": 20}, "peer_ready": {"min_peers": 2}}).set_index("ticker")
+
+    assert int(report.loc["AAA", "peer_valuation_anchor_eligible_count"]) == 2
+    assert bool(report.loc["AAA", "peer_valuation_ready"]) is True
+    assert report.loc["AAA", "peer_valuation_anchor_blockers"] == ""

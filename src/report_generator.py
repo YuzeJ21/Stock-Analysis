@@ -9,14 +9,14 @@ from src.dcf_readiness import build_dcf_readiness_frame
 from src.loader import load_inputs
 from src.market_direction import run as run_market_direction
 from src.momentum_engine import run as run_momentum
-from src.optional_context_readiness import build_optional_context_readiness_reports
+from src.optional_context_readiness import build_optional_context_readiness_frames
 from src.portfolio_review import review_holdings
 from src.providers.csv_provider import CSVDataFetcher
 from src.paths import format_path_context, resolve_data_dir, resolve_outputs_dir, resolve_project_root
-from src.purpose_evaluation import write_purpose_evaluation_summary
+from src.purpose_evaluation import build_purpose_evaluation_summary, write_purpose_evaluation_summary
 from src.purpose_router import route_purposes
 from src.readiness_engine import build_ticker_readiness_report
-from src.research_decisions import write_research_decisions
+from src.research_decisions import build_research_decisions_frame, write_research_decisions
 from src.research_health import build_research_health_outputs
 from src.state_machine import build_final_watchlist
 from src.value_engine import run as run_value
@@ -168,9 +168,22 @@ def run(
     try:
         from src.data_onboarding import build_ticker_coverage
 
+        analysis_output_tickers: set[str] = set()
+        for analysis_frame in (final_watchlist_df, momentum_df):
+            for ticker_column in ("ticker", "Ticker"):
+                if ticker_column in analysis_frame.columns:
+                    analysis_output_tickers.update(
+                        analysis_frame[ticker_column].dropna().astype(str).str.upper().str.strip()
+                    )
+                    break
         coverage_rows = [
             row.to_dict()
-            for row in build_ticker_coverage(base_dir, data_dir=data_dir, output_dir=output_dir)
+            for row in build_ticker_coverage(
+                base_dir,
+                data_dir=data_dir,
+                output_dir=output_dir,
+                analysis_output_tickers=analysis_output_tickers,
+            )
         ]
     except Exception as exc:  # pragma: no cover - defensive reporting path
         backfill_warnings.append(f"Research health coverage could not be assembled: {exc}")
@@ -182,7 +195,6 @@ def run(
     )
 
     outputs_dir = output_dir
-    outputs_dir.mkdir(parents=True, exist_ok=True)
     files = {
         "purpose_classification": outputs_dir / "purpose_classification.csv",
         "market_direction": outputs_dir / "market_direction.csv",
@@ -201,42 +213,54 @@ def run(
         "earnings_readiness": data_dir / "earnings_readiness.csv",
         "analyst_estimates_readiness": data_dir / "analyst_estimates_readiness.csv",
     }
-    purpose_df.to_csv(files["purpose_classification"], index=False)
-    market_direction_df.to_csv(files["market_direction"], index=False)
-    momentum_df.to_csv(files["momentum_leaders"], index=False)
-    portfolio_df.to_csv(files["portfolio_review"], index=False)
-    value_df.to_csv(files["undervalued_candidates"], index=False)
-    final_watchlist_df.to_csv(files["final_watchlist"], index=False)
-    for output_name, output_frame in research_health_outputs.items():
-        output_frame.to_csv(files[output_name], index=False)
-    dcf_readiness_df.to_csv(data_files["dcf_readiness"], index=False)
-    optional_context_readiness = build_optional_context_readiness_reports(base_dir, data_dir=data_dir)
-    readiness_reports = build_ticker_readiness_report(base_dir, data_dir=data_dir, output_dir=output_dir)
-    research_decisions_df = write_research_decisions(base_dir, data_dir=data_dir, output_dir=output_dir)
-    purpose_evaluation_summary_df = write_purpose_evaluation_summary(base_dir, data_dir=data_dir, output_dir=output_dir)
+    optional_context_readiness = build_optional_context_readiness_frames(base_dir, data_dir=data_dir)
+    readiness_reports = build_ticker_readiness_report(
+        base_dir,
+        data_dir=data_dir,
+        output_dir=output_dir,
+        write_outputs=False,
+    )
+    readiness = readiness_reports["ticker_readiness_report"]
+    research_decisions_df = build_research_decisions_frame(
+        readiness,
+        final_watchlist_df,
+        source_mode="in_memory",
+    )
+    purpose_evaluation_summary_df = build_purpose_evaluation_summary(
+        research_decisions_df,
+        readiness,
+        purpose_df,
+    )
+
+    composed_frames = {
+        "purpose_classification": purpose_df,
+        "market_direction": market_direction_df,
+        "momentum_leaders": momentum_df,
+        "portfolio_review": portfolio_df,
+        "undervalued_candidates": value_df,
+        "final_watchlist": final_watchlist_df,
+        "research_decisions": research_decisions_df,
+        "purpose_evaluation_summary": purpose_evaluation_summary_df,
+        **research_health_outputs,
+        "dcf_readiness": dcf_readiness_df,
+        **optional_context_readiness,
+        **readiness_reports,
+    }
+    frames = {name: frame.copy(deep=True) for name, frame in composed_frames.items()}
+    readiness_files = {
+        name: data_dir / "reports" / f"{name}.csv"
+        for name in readiness_reports
+    }
+    path_labels = {**files, **data_files, **readiness_files}
 
     warnings = sorted(set(loaded.warnings + indicator_warnings + backfill_warnings))
     return {
         "files": files,
         "data_files": data_files,
+        "path_labels": path_labels,
+        "frames": frames,
         "warnings": warnings,
-        "row_counts": {
-            "purpose_classification": len(purpose_df),
-            "market_direction": len(market_direction_df),
-            "momentum_leaders": len(momentum_df),
-            "portfolio_review": len(portfolio_df),
-            "undervalued_candidates": len(value_df),
-            "final_watchlist": len(final_watchlist_df),
-            "research_decisions": len(research_decisions_df),
-            "purpose_evaluation_summary": len(purpose_evaluation_summary_df),
-            **{name: len(frame) for name, frame in research_health_outputs.items()},
-            "dcf_readiness": len(dcf_readiness_df),
-            **{name: len(frame) for name, frame in optional_context_readiness.items()},
-            "ticker_readiness_report": len(readiness_reports["ticker_readiness_report"]),
-            "feature_readiness_summary": len(readiness_reports.get("feature_readiness_summary", pd.DataFrame())),
-            "peer_readiness_report": len(readiness_reports.get("peer_readiness_report", pd.DataFrame())),
-            "peer_unlock_worklist": len(readiness_reports.get("peer_unlock_worklist", pd.DataFrame())),
-        },
+        "row_counts": {name: len(frame) for name, frame in frames.items()},
     }
 
 
@@ -261,10 +285,9 @@ def main() -> None:
             output_dir=Path(args.output_dir) if args.output_dir else None,
         )
     )
-    print("Generated outputs:")
-    for name, path in result["files"].items():
-        print(f"- {name}: {path}")
-    for name, path in result.get("data_files", {}).items():
+    print("In-memory pipeline result; no files written")
+    print("Legacy path labels (not written):")
+    for name, path in result["path_labels"].items():
         print(f"- {name}: {path}")
     print("Row counts:")
     for name, count in result["row_counts"].items():

@@ -21,6 +21,7 @@ SOURCE_PREFIXES = (
 )
 
 ROOT_PRODUCT_FILES = {
+    ".github/workflows/commercial-research-beta.yml",
     ".gitignore",
     ".streamlit/config.toml",
     ".streamlit/secrets.toml.example",
@@ -33,6 +34,7 @@ ROOT_PRODUCT_FILES = {
     "Makefile",
     "requirements.txt",
     "config.yaml",
+    "config/source_rights.yml",
     "config/hosted_demo.env.example",
     "config/provider_keys.env.example",
     "pyproject.toml",
@@ -117,6 +119,8 @@ def is_generated_churn(path: str) -> bool:
 
 
 def classify_path(path: str) -> str:
+    if path.startswith(("data/", "outputs/")) and path.casefold().endswith(".html"):
+        return "review_manually"
     if path.startswith(REVIEWED_DEMO_PROFILE_PREFIXES):
         return "product_candidate"
     if is_generated_churn(path):
@@ -152,6 +156,44 @@ def load_staged_status(repo_root: Path) -> list[StatusEntry]:
     return [parse_name_status_line(line) for line in result.stdout.splitlines() if line]
 
 
+def resolve_commit(repo_root: Path, revision: str, *, label: str) -> str:
+    value = str(revision or "").strip()
+    if not value:
+        raise ValueError(f"{label} is required")
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--verify", f"{value}^{{commit}}"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(f"{label} does not resolve to a commit: {value}") from exc
+    return result.stdout.strip()
+
+
+def load_range_status(
+    repo_root: Path, base_revision: str, head_revision: str
+) -> list[StatusEntry]:
+    """Load committed path changes from one explicit pull-request range."""
+
+    base_sha = resolve_commit(repo_root, base_revision, label="range base")
+    head_sha = resolve_commit(repo_root, head_revision, label="range head")
+    result = subprocess.run(
+        ["git", "diff", "--name-status", "--find-renames", f"{base_sha}...{head_sha}"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return [
+        parse_name_status_line(line)
+        for line in result.stdout.splitlines()
+        if line
+    ]
+
+
 def load_staged_added_lines(repo_root: Path, path: str) -> list[str]:
     result = subprocess.run(
         ["git", "diff", "--cached", "--unified=0", "--", path],
@@ -177,6 +219,22 @@ def load_branch_status(repo_root: Path) -> str:
         text=True,
     )
     return result.stdout.splitlines()[0] if result.stdout.splitlines() else "branch status unavailable"
+
+
+def _branch_push_guidance(branch_status: str) -> str:
+    branch = ""
+    line = str(branch_status or "").strip()
+    if line.startswith("## "):
+        branch = line[3:].split("...", 1)[0].split(" ", 1)[0].strip()
+    if branch:
+        return (
+            f"  git push origin {branch}  # only when explicitly asked and after "
+            "separate owner authorization"
+        )
+    return (
+        "  # Push the reviewed current branch to its tracked upstream only after separate "
+        "owner authorization; never infer main."
+    )
 
 
 def format_paths(entries: list[StatusEntry], *, limit: int = 80) -> list[str]:
@@ -500,6 +558,54 @@ def build_summary_report(entries: list[StatusEntry]) -> str:
     return "\n".join(lines)
 
 
+def range_hygiene_has_blockers(entries: list[StatusEntry]) -> bool:
+    """Generated CSV/JSON churn is never accepted silently in a PR range."""
+
+    return bool(group_entries(entries)["generated_csv_churn"])
+
+
+def build_range_check_report(
+    entries: list[StatusEntry], base_revision: str, head_revision: str
+) -> str:
+    groups = group_entries(entries)
+    lines = [
+        "Pull Request Range Hygiene Check",
+        "Read-only: this command inspects committed paths and does not modify the working tree.",
+        f"Range: {base_revision}...{head_revision}",
+        "",
+        format_count_line("Product/code/docs/test files", groups["product_candidate"]),
+        format_count_line("Markdown sample reports", groups["sample_report_candidate"]),
+        format_count_line("Generated CSV/JSON churn", groups["generated_csv_churn"]),
+        format_count_line("Manual-review paths", groups["review_manually"]),
+    ]
+    if range_hygiene_has_blockers(entries):
+        lines.extend(
+            [
+                "",
+                "Pull-request range hygiene failed.",
+                "Generated CSV/JSON churn is present in the explicit base/head range:",
+                *format_paths(groups["generated_csv_churn"], limit=80),
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "",
+                "Pull-request range hygiene passed.",
+                "No generated CSV/JSON churn is present in the explicit base/head range.",
+            ]
+        )
+    if groups["review_manually"]:
+        lines.extend(
+            [
+                "",
+                "Manual-review paths in the range (reported, not reclassified):",
+                *format_paths(groups["review_manually"], limit=80),
+            ]
+        )
+    return "\n".join(lines)
+
+
 def staged_hygiene_has_blockers(entries: list[StatusEntry]) -> bool:
     groups = group_entries(entries)
     return bool(groups["generated_csv_churn"] or groups["review_manually"])
@@ -743,6 +849,7 @@ def build_public_release_package_report(
     manual = groups["review_manually"]
     package_status = package_status_for_groups(groups)
     branch_is_ahead = "[ahead" in (branch_status or "")
+    push_guidance = _branch_push_guidance(branch_status)
 
     lines = [
         "Public Release Package",
@@ -764,7 +871,7 @@ def build_public_release_package_report(
                 f"Package status: {package_status}",
                 "Next safe action:",
                 "  make public-check",
-                "  git push origin main  # only when explicitly asked and after confirming the branch is ready to publish",
+                push_guidance,
             ]
         )
         return "\n".join(lines)
@@ -842,7 +949,7 @@ def build_public_release_package_report(
             "Commit and push only after staged hygiene passes:",
             "  git commit -m \"Improve pilot handoff and workflow continuity\"",
             "  git status --short --branch",
-            "  git push origin main  # only when explicitly asked",
+            push_guidance,
         ]
         if product
         else (
@@ -851,7 +958,7 @@ def build_public_release_package_report(
                 "  # No reviewed product package to commit; generated churn remains local.",
                 "  Reviewed local commit is ahead of origin; push only when explicitly asked and after public-check passes.",
                 "  git status --short --branch",
-                "  git push origin main  # only when explicitly asked",
+                push_guidance,
             ]
             if branch_is_ahead
             else [
@@ -917,6 +1024,7 @@ def build_public_release_handoff_report(
         else []
     )
 
+    push_guidance = _branch_push_guidance(branch_status)
     lines = [
         "Public Release Terminal Handoff",
         "Read-only: this command prints the safe terminal sequence only. It does not stage, delete, reset, refresh, rewrite files, commit, or push.",
@@ -983,7 +1091,7 @@ def build_public_release_handoff_report(
             "",
             "Step 5 - push only when explicitly asked after the local commit is reviewed:",
             "  git status --short --branch",
-            "  git push origin main  # only when explicitly asked",
+            push_guidance,
             "",
             "Generated churn to leave unstaged by default:",
         ]
@@ -1141,6 +1249,8 @@ def main() -> int:
         action="store_true",
         help="Fail if the staged diff includes generated CSV/JSON churn or manual-review paths.",
     )
+    parser.add_argument("--range-base", help="Explicit pull-request base commit SHA.")
+    parser.add_argument("--range-head", help="Explicit pull-request head commit SHA.")
     parser.add_argument(
         "--data-release-decision",
         action="store_true",
@@ -1158,6 +1268,15 @@ def main() -> int:
     )
     args = parser.parse_args()
     repo_root = Path(__file__).resolve().parents[1]
+    if bool(args.range_base) != bool(args.range_head):
+        parser.error("--range-base and --range-head are required together")
+    if args.range_base and args.range_head:
+        try:
+            entries = load_range_status(repo_root, args.range_base, args.range_head)
+        except ValueError as exc:
+            parser.error(str(exc))
+        print(build_range_check_report(entries, args.range_base, args.range_head))
+        return 1 if range_hygiene_has_blockers(entries) else 0
     if args.staged_check:
         entries = load_staged_status(repo_root)
         print(build_staged_check_report(entries, repo_root))

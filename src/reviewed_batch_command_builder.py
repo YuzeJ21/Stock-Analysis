@@ -7,6 +7,8 @@ do not refresh data, apply imports, or record proof rows.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import shlex
 from dataclasses import dataclass
 from pathlib import Path
@@ -56,13 +58,13 @@ REVIEWED_BATCH_OUTCOME_REQUIRED_FIELDS: tuple[OutcomeRequiredField, ...] = (
         "changed_readiness_counts",
         "Changed Readiness Counts",
         "Copy the before/after readiness count delta from the reviewed batch comparison.",
-        "make reviewed-batch-compare",
+        "selected-profile reviewed-batch comparison",
     ),
     OutcomeRequiredField(
         "changed_tickers",
         "Changed Tickers",
         "Copy changed ticker evidence or record none after comparing snapshots.",
-        "make reviewed-batch-compare",
+        "selected-profile reviewed-batch comparison",
     ),
     OutcomeRequiredField(
         "source_files",
@@ -128,8 +130,8 @@ PROOF_COMPLETION_ACTIONS: dict[str, str] = {
     "validation_result": "Copy the validator result, or record not_applicable_read_only for read-only lanes.",
     "preview_result": "Copy the preview and rejected-row review result before recording proof.",
     "apply_result": "Record applied, skipped, or not_applicable_read_only after the apply gate is reviewed.",
-    "changed_readiness_counts": "Run make readiness-snapshot and make reviewed-batch-compare, then copy the count delta or none.",
-    "changed_tickers": "Run make reviewed-batch-compare, then copy changed tickers or none.",
+    "changed_readiness_counts": "Run the selected-profile readiness snapshot and reviewed-batch comparison, then copy the count delta or none.",
+    "changed_tickers": "Run the selected-profile reviewed-batch comparison, then copy changed tickers or none.",
     "source_files": "List reviewed source files or read-only command output used as proof.",
     "generated_artifacts_reviewed": "Classify generated artifacts as kept evidence or excluded churn before recording proof.",
 }
@@ -167,7 +169,13 @@ def build_outcome_recorder_rows(
     comparison_changed_counts: str,
     comparison_changed_tickers: Sequence[str],
     comparison_blocking_message: str,
+    profile: str | None = None,
 ) -> list[dict[str, str]]:
+    selected_profile = resolve_readiness_proof_profile(profile)
+    comparison_command = (
+        f"make reviewed-batch-compare PROFILE={selected_profile} LANE=<lane> "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    )
     rows: list[dict[str, str]] = []
     for item in REVIEWED_BATCH_OUTCOME_REQUIRED_FIELDS:
         value = str(packet_values.get(item.label, "") or "").strip()
@@ -175,11 +183,15 @@ def build_outcome_recorder_rows(
         status = "ready"
         next_step = "Reviewed value is present."
         copy_from = item.source
+        if item.field in {"changed_readiness_counts", "changed_tickers"}:
+            copy_from = comparison_command
         if item.field in {"changed_readiness_counts", "changed_tickers"} and comparison_status != "ok":
             status = "blocked_by_snapshot_gate"
             display_value = display_value if value else "comparison not available"
             next_step = comparison_blocking_message or "Run the snapshot comparison before recording readiness proof."
-            copy_from = "make readiness-snapshot, then make reviewed-batch-compare"
+            copy_from = (
+                f"make readiness-snapshot PROFILE={selected_profile}, then {comparison_command}"
+            )
         elif item.field in {"changed_readiness_counts", "changed_tickers"} and value.lower().startswith("none"):
             next_step = "Reviewed no-change value is present."
         elif is_placeholder_value(value):
@@ -335,7 +347,13 @@ def build_proof_completion_rows(
     validation_rows: Sequence[Mapping[str, str]],
     *,
     command_status: str | None = None,
+    profile: str | None = None,
 ) -> list[dict[str, str]]:
+    selected_profile = resolve_readiness_proof_profile(profile)
+    comparison_command = (
+        f"make reviewed-batch-compare PROFILE={selected_profile} LANE=<lane> "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    )
     status = command_status or proof_record_validation_status(validation_rows)
     blocked_rows = [row for row in validation_rows if str(row.get("Validation Status", "")) != "ready"]
     if not blocked_rows:
@@ -354,8 +372,18 @@ def build_proof_completion_rows(
         validation_status = str(row.get("Validation Status", "") or "").strip()
         value = str(row.get("Command Value", "") or "").strip()
         action = PROOF_COMPLETION_ACTIONS.get(field, "Fill this reviewed proof field before recording the batch outcome.")
+        if field == "changed_readiness_counts":
+            action = (
+                f"Run make readiness-snapshot PROFILE={selected_profile} and {comparison_command}, "
+                "then copy the count delta or none."
+            )
+        elif field == "changed_tickers":
+            action = f"Run {comparison_command}, then copy changed tickers or none."
         if validation_status == "blocked_by_snapshot_gate":
-            action = "Run make readiness-snapshot, then make reviewed-batch-compare before copying changed readiness proof."
+            action = (
+                f"Run make readiness-snapshot PROFILE={selected_profile}, then {comparison_command} "
+                "before copying changed readiness proof."
+            )
         elif validation_status == "invalid_outcome":
             action = f"Set FINAL_OUTCOME exactly to {ALLOWED_OUTCOME_TEXT}."
         rows.append(

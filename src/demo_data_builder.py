@@ -273,6 +273,8 @@ def build_demo_data_profile(
     ticker_set = set(selected_tickers)
     source_data = root / "data"
     profile = resolve_data_profile("demo", root)
+    if profile.name != "demo":
+        raise ValueError("Demo data builder may only write the demo profile.")
     if profile.data_dir.exists() and any(profile.data_dir.iterdir()) and not overwrite:
         raise FileExistsError(f"Demo data profile already exists at {profile.data_dir}; pass overwrite=True to replace it.")
     if profile.data_dir.exists():
@@ -309,7 +311,7 @@ def build_demo_data_profile(
     resolved_snapshot_date = snapshot_date or _derived_snapshot_date(prices_path)
     _append_price_backed_benchmark_metadata(profile.data_dir, derived_metadata_tickers, resolved_snapshot_date)
 
-    build_ticker_readiness_report(root, data_dir=profile.data_dir, output_dir=profile.outputs_dir)
+    build_ticker_readiness_report(root, data_dir=profile.data_dir, output_dir=profile.outputs_dir, write_outputs=True)
     _normalize_generated_timestamps(profile.data_dir, resolved_snapshot_date)
     _normalize_generated_timestamps(profile.outputs_dir, resolved_snapshot_date)
 

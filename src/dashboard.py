@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import (
+    primary_profile_bound_reviewed_write_proof_sequence,
+    primary_profile_scoped_reviewed_step,
+    profile_bound_reviewed_write_proof_sequence,
+    resolve_readiness_proof_profile,
+)
+
 import html
 import json
 import os
@@ -7,15 +14,32 @@ import re
 from dataclasses import asdict
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable, Mapping
 from urllib.parse import quote, urlencode
 
 import pandas as pd
 import streamlit as st
 
+from src.accessibility_bridge import render_semantic_main_bridge
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
+from src.dashboard_visual_system import (
+    SafeRouteAction,
+    TimelineRecord,
+    advanced_detail_marker_html,
+    answer_panel_html,
+    dashboard_visual_system_css,
+    empty_state_html,
+    evidence_timeline_html,
+    next_action_html,
+    operator_route_shell_html as _operator_route_shell_html,
+    stop_rule_html,
+    supporting_detail_html,
+    render_stylesheet,
+    visual_state,
+)
+from src.continuation_gate import build_continuation_gate
 from src.source_activation_guide import build_provider_setup_checklist, build_source_activation_guide
 from src.data_onboarding import write_onboarding_outputs
 from src.data_health_console import (
@@ -129,20 +153,28 @@ from src.dashboard_navigation import (
     PUBLIC_DEMO_MODE,
     PUBLIC_PATH_LABELS,
     PUBLIC_PATH_PAGE_TITLES,
+    RESEARCH_MODE,
+    RESEARCH_PATH_PAGE_TITLES,
     STOCK_SELECTOR_PATH_TITLE,
+    LEGACY_RESEARCH_UTILITY_PAGES,
     advanced_page_titles as _advanced_page_titles,
     dashboard_mode_from_query as _dashboard_mode_from_query,
     dashboard_mode_label,
     dashboard_page_from_query as _dashboard_page_from_query,
     dashboard_page_slug,
+    legacy_research_utility_label,
     page_title_from_public_path,
     public_path_label,
     public_workflow_position,
     public_workflow_step,
     route_rail_query_update,
+    resolve_workspace_route,
+    research_path_label,
+    research_path_options,
     selected_page_from_route_rail,
     sidebar_path_index as _sidebar_path_index,
     sidebar_path_options as _sidebar_path_options,
+    workspace_page_for_mode,
 )
 from src.data_health_proof_checklist import (
     proof_checklist_summary_cards as data_health_proof_checklist_summary_cards,
@@ -198,6 +230,31 @@ from src.coverage_expansion_loop import CoverageExpansionLoop, build_coverage_ex
 from src.dcf_input_proof_queue import build_dcf_input_proof_handoff, build_dcf_input_proof_queue_from_files
 from src.dcf_input_proof_queue import build_dcf_input_source_review_rows
 from src.earnings_nowcast_ui import nowcast_data_health_card, nowcast_summary_cards
+from src.earnings_nowcast_report import build_nowcast_packet
+from src.earnings_nowcast_cohort import build_cohort_readiness, cohort_readiness_cards
+from src.research_outcome_review import derive_outcome_status, load_outcomes, outcome_status_cards
+from src.research_record_authoring import AuthoringPaths
+from src.research_record_authoring_ui import render_research_record_authoring
+from src.catalyst_evidence_timeline import (
+    build_catalyst_timeline,
+    catalyst_timeline_cards,
+    load_catalyst_events,
+)
+from src.daily_research_queue import (
+    QUEUE_BOUNDARY,
+    compare_daily_queues,
+    daily_queue_display_rows,
+    daily_queue_summary_cards,
+)
+from src.daily_research_queue_adapter import (
+    DailyQueueBuildStatus,
+    build_daily_research_queue_from_files,
+)
+from src.historical_valuation_regime import (
+    build_valuation_regime,
+    load_valuation_observations,
+    valuation_regime_cards,
+)
 from src.monthly_picks import build_monthly_research_picks
 from src.monthly_picks import MonthlyPickConfig
 from src.providers.local_data_catalog import LocalDataCatalog
@@ -267,27 +324,55 @@ from src.research_thesis_journal import (
     derive_journal_state,
     load_journal_entries,
 )
+from src.focused_research_cohort import FocusedCohort, build_focused_cohort, focused_cohort_frame
+from src.focused_cohort_coverage import (
+    FocusedCohortCoverage,
+    build_focused_cohort_coverage,
+    derive_cohort_evidence,
+    focused_cohort_coverage_frame,
+)
+from src.forward_view import build_forward_view, forward_view_cards, forward_view_rows
+from src.quarterly_business_trend import (
+    QuarterlyTrendPacket,
+    build_quarterly_trend_packet_from_load,
+    build_quarterly_trend_packet,
+    load_quarterly_actuals_csv,
+    quarterly_trend_rows,
+)
+from src.weekly_research_summary import WeeklyResearchSummary, build_weekly_research_summary, weekly_summary_rows
 from src.decision_process_scorecard import (
     DecisionProcessScorecard,
     build_decision_process_scorecard,
     decision_process_rows,
 )
-from src.scenario_lab import (
-    ScenarioLabResult,
-    ScenarioParameters,
-    default_scenario_parameters,
-    run_scenario_lab,
+from src.research_decision_lab import (
+    ResearchDisciplineRow,
+    build_research_discipline_rows,
+    build_research_decision_lab_state,
+    decision_lab_cards,
+    decision_lab_rows,
+    research_discipline_rows,
+    unavailable_research_decision_lab_state,
+)
+from src.scenario_lab import ScenarioLabResult
+from src.scenario_lab_session import (
+    ScenarioLabSessionSnapshot,
+    run_scenario_lab_from_state,
+    scenario_lab_input_from_report,
 )
 from src.source_freshness_timeline import (
     FreshnessTimeline,
     build_source_freshness_timeline,
     timeline_rows,
 )
-from src.valuation import ValuationInput
 from src.reviewed_batch_proof import (
     DEFAULT_BATCH_PROOF_LEDGER,
     latest_reviewed_batch_proof,
     load_reviewed_batch_proofs,
+)
+from src.proof_readiness_reconciliation import (
+    ProofReadinessReconciliationSummary,
+    load_proof_readiness_reconciliation,
 )
 from src.peer_mapping_source_review import (
     PeerMappingSourceReviewPacket,
@@ -302,6 +387,48 @@ from src.review_metrics import build_metric_readiness_summary, configured_risk_f
 from src.risk_context_workflow import data_health_risk_context_cards, split_risk_context_by_price_ready
 from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
 from src.profile_context import ProfileContext, build_profile_context
+from src.observation_recency import ObservationRecency, ObservationRecencySet, load_observation_recency
+from src.company_workbench_cash_generation_preview import (
+    CompanyWorkbenchCashGenerationPreview,
+    company_workbench_cash_preview_requested,
+)
+from src.company_workbench_cash_generation_preview_loader import (
+    load_company_workbench_cash_generation_preview,
+)
+from src.company_workbench_html import (
+    CompanyWorkbenchHtmlInputs,
+    build_company_workbench_html_snapshot,
+    company_workbench_html_download_spec,
+    render_company_workbench_html_fragment,
+)
+from src.research_workspace import (
+    advanced_evidence_links_html,
+    build_monitor_follow_up_queue,
+    build_research_desk_brief,
+    cash_generation_preview_cards,
+    cash_generation_preview_rows,
+    company_change_answer,
+    company_next_research_task,
+    company_workbench_detail_disclosure_html,
+    company_workbench_primary_brief,
+    company_workbench_primary_brief_html,
+    company_workbench_section_contract,
+    focused_cohort_cards,
+    focused_cohort_coverage_cards,
+    focused_ticker_coverage_cards,
+    quarterly_trend_cards,
+    research_advanced_detail_marker_html,
+    research_desk_brief_html,
+    research_accessibility_media_preferences_css,
+    research_evidence_return_link,
+    research_monitor_frame,
+    monitor_freshness_condition_label,
+    monitor_primary_answer,
+    saved_readiness_display_label,
+    research_workflow_navigation_html,
+    research_workspace_header_html,
+    weekly_summary_cards,
+)
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
 from src.paths import resolve_data_dir, resolve_data_profile, resolve_outputs_dir
 from src.stock_report import DCF_INPUT_TRIAGE, build_provider, build_stock_report, export_stock_report_json
@@ -311,6 +438,7 @@ from src.single_stock_workflow import (
     single_stock_data_health_handoff_cards,
     single_stock_loading_contract_cards,
     single_stock_one_answer_frame,
+    single_stock_peer_valuation_ready,
     single_stock_report_data_health_route,
     single_stock_next_command,
     single_stock_pre_report_contract_cards,
@@ -335,6 +463,10 @@ PIPELINE_FILES = {
     "research_decisions.csv": "Research Decisions",
     PURPOSE_EVALUATION_SUMMARY_CSV: "Purpose Evaluation Summary",
 }
+PIPELINE_FRAME_KEYS = {
+    filename: filename.removesuffix(".csv")
+    for filename in PIPELINE_FILES
+}
 MONTHLY_FILES = {
     "monthly_research_picks.csv": "Monthly Research Picks",
     "monthly_picks_track_record.csv": "Monthly Picks Track Record",
@@ -352,8 +484,19 @@ DASHBOARD_TAB_TITLES = [
     "Data Health",
     "Universe Manager",
 ]
-USER_PAGE_TITLES = ["Home", STOCK_SELECTOR_PATH_TITLE] + DASHBOARD_TAB_TITLES
-ADVANCED_PAGE_TITLES = _advanced_page_titles(USER_PAGE_TITLES)
+USER_PAGE_TITLES = ["Home", STOCK_SELECTOR_PATH_TITLE] + RESEARCH_PATH_PAGE_TITLES + DASHBOARD_TAB_TITLES
+ADVANCED_PAGE_TITLES = [
+    title for title in _advanced_page_titles(USER_PAGE_TITLES) if title not in RESEARCH_PATH_PAGE_TITLES
+]
+OPERATOR_COMPATIBILITY_PAGE_TITLES = frozenset(
+    (*LEGACY_RESEARCH_UTILITY_PAGES, "Market Direction")
+)
+RESEARCH_PAGE_RENDER_TARGETS = {
+    "Research Desk": "Research Desk",
+    "Discover": STOCK_SELECTOR_PATH_TITLE,
+    "Company Workbench": "Single-Stock Report",
+    "Monitor": "Monitor",
+}
 DATA_SOURCE_FILES = {
     "data_source_status.csv": "Data Source Status",
     "data_gap_report.csv": "Data Gap Report",
@@ -373,6 +516,33 @@ def dashboard_query_value_present(value: object) -> bool:
 
 def dashboard_mode_from_query(value: object, initial_page: str = "Home") -> str:
     return _dashboard_mode_from_query(value, initial_page, ADVANCED_PAGE_TITLES)
+
+
+def workspace_default_page(initial_page: str, *, mode: str, has_explicit_page_query: bool) -> str:
+    initial_page = workspace_page_for_mode(initial_page, mode)
+    if has_explicit_page_query:
+        return initial_page
+    if mode == RESEARCH_MODE and initial_page == "Home":
+        return "Research Desk"
+    return initial_page
+
+
+def workspace_path_options(initial_page: str, mode: str) -> list[str]:
+    if mode == RESEARCH_MODE:
+        return research_path_options(initial_page)
+    return sidebar_path_options(initial_page)
+
+
+def workspace_path_label(page_title: str, mode: str) -> str:
+    if mode == RESEARCH_MODE:
+        return research_path_label(page_title)
+    return public_path_label(page_title)
+
+
+def workspace_content_page(selected_page: str, mode: str) -> str:
+    if mode == RESEARCH_MODE:
+        return RESEARCH_PAGE_RENDER_TARGETS.get(selected_page, selected_page)
+    return selected_page
 
 
 def dashboard_generated_artifact_stale_warning(root: Path = BASE_DIR) -> str:
@@ -398,7 +568,7 @@ def dashboard_generated_artifact_stale_warning(root: Path = BASE_DIR) -> str:
         generated_paths=generated_paths,
         source_paths=source_paths,
         display_root=root,
-        refresh_command="make readiness or make status",
+        refresh_command="make readiness-preview TOP_N=20 or make status",
     )
 
 
@@ -406,7 +576,7 @@ def data_health_freshness_status(root: Path = BASE_DIR) -> FreshnessStatus:
     freshness = readiness_freshness_status(root)
     generated_stale_warning = dashboard_generated_artifact_stale_warning(root)
     if generated_stale_warning and freshness.status == "current":
-        return FreshnessStatus("stale", generated_stale_warning, "make readiness")
+        return FreshnessStatus("stale", generated_stale_warning, "make readiness-preview TOP_N=20")
     return freshness
 
 
@@ -494,7 +664,7 @@ def dashboard_page_reader_cards(page_title: str) -> list[dict[str, object]]:
             "analyze": "Current market-wide readiness, recent progress, example reports, and the safest next local research path.",
             "locked": "Any module without trusted local rows stays locked; broad universe coverage is not the same as analysis readiness.",
             "read": "Read readiness cards first, then What Changed Recently, then the next-step cards. Treat big universe counts as coverage, not proof that every ticker is analysis-ready.",
-            "proof": "After any refresh or import, run make readiness and reopen Home before interpreting changed counts.",
+            "proof": "After any refresh or import, run the profile-bound readiness comparison and reopen Home before interpreting changed counts.",
             "review_route": "Start on Home for readiness, open Value / Re-rating for valuation boundaries, use Single-Stock Report for ticker proof, then use Data Health for missing-input steps.",
             "review_area": "Home next-step cards",
             "command": "make status-check TOP_N=5",
@@ -769,48 +939,6 @@ OUTPUT_TAB_GUIDANCE = {
     "Value / Re-rating": "Local quality and valuation context where fundamentals exist.",
     "Final Watchlist": "Readiness-state view that separates review queues, monitor context, and data blockers.",
 }
-STATE_COLORS = {
-    "Research Ready": ("#dcfce7", "#14532d"),
-    "Watch": ("#dbeafe", "#1e3a8a"),
-    "Setup Forming": ("#fef9c3", "#713f12"),
-    "Pullback Review Candidate": ("#e0f2fe", "#075985"),
-    "Extended": ("#ffedd5", "#9a3412"),
-    "Risk Reduce": ("#fee2e2", "#991b1b"),
-    "Broken": ("#fecaca", "#7f1d1d"),
-    "Review Thesis": ("#fef3c7", "#78350f"),
-    "Keep": ("#dcfce7", "#14532d"),
-    "Constructive Review": ("#dbeafe", "#1e3a8a"),
-    "Hold Review Only": ("#e2e8f0", "#334155"),
-    "No Setup": ("#fee2e2", "#991b1b"),
-    "Insufficient Data": ("#e2e8f0", "#334155"),
-    "Strong Rotation": ("#dcfce7", "#14532d"),
-    "Early Rotation": ("#dbeafe", "#1e3a8a"),
-    "Overextended": ("#ffedd5", "#9a3412"),
-    "Weak": ("#fee2e2", "#991b1b"),
-    "Broken / No Setup": ("#fecaca", "#7f1d1d"),
-    "Peer Data Unavailable": ("#e2e8f0", "#334155"),
-    "Insufficient Peer Data": ("#e2e8f0", "#334155"),
-    "valid": ("#dcfce7", "#14532d"),
-    "valid_with_warnings": ("#fef9c3", "#713f12"),
-    "missing_file": ("#e2e8f0", "#334155"),
-    "Available": ("#dcfce7", "#14532d"),
-    "Not available": ("#e2e8f0", "#334155"),
-    "peer_discount": ("#dcfce7", "#14532d"),
-    "peer_premium": ("#ffedd5", "#9a3412"),
-    "mixed": ("#e2e8f0", "#334155"),
-    "insufficient_peer_data": ("#e2e8f0", "#334155"),
-    "Research Ready": ("#dcfce7", "#14532d"),
-    "Partial Coverage": ("#fef9c3", "#713f12"),
-    "Needs Price Data": ("#fee2e2", "#991b1b"),
-    "Needs Enrichment": ("#ffedd5", "#9a3412"),
-    "Liquid": ("#dcfce7", "#14532d"),
-    "Moderate Liquidity": ("#dbeafe", "#1e3a8a"),
-    "Thin / Needs Review": ("#ffedd5", "#9a3412"),
-    "High Co-movement": ("#fee2e2", "#991b1b"),
-    "Moderate Co-movement": ("#fef9c3", "#713f12"),
-    "Low Co-movement": ("#dcfce7", "#14532d"),
-    "Insufficient Overlap": ("#e2e8f0", "#334155"),
-}
 BADGE_COLORS = {
     "positive": ("#064e3b", "#d1fae5"),
     "neutral": ("#1f2937", "#e5e7eb"),
@@ -998,9 +1126,16 @@ def load_pipeline_outputs(
     allow_refresh: bool = False,
 ) -> dict[str, tuple[pd.DataFrame | None, str | None]]:
     tables = {filename: load_output(outputs_dir / filename) for filename in PIPELINE_FILES}
-    if allow_refresh and any(frame is None for frame, _ in tables.values()):
-        run_report_generator(BASE_DIR, output_dir=outputs_dir)
-        tables = {filename: load_output(outputs_dir / filename) for filename in PIPELINE_FILES}
+    if allow_refresh:
+        result = run_report_generator(BASE_DIR)
+        frames = result.get("frames", {})
+        tables = {}
+        for filename, frame_key in PIPELINE_FRAME_KEYS.items():
+            frame = frames.get(frame_key)
+            if not isinstance(frame, pd.DataFrame):
+                tables[filename] = (None, f"In-memory pipeline result did not include `{frame_key}`.")
+                continue
+            tables[filename] = (normalize_public_labels(frame.copy(deep=True)), None)
     return tables
 
 
@@ -1888,7 +2023,7 @@ def is_state_column(name: str) -> bool:
     )
 
 
-def style_frame(frame: pd.DataFrame):
+def style_frame(frame: pd.DataFrame, *, role: str = "analytic"):
     state_columns = [column for column in frame.columns if is_state_column(column)]
     highlight_columns = [
         column
@@ -1901,11 +2036,11 @@ def style_frame(frame: pd.DataFrame):
     def color_state(value: object) -> str:
         if pd.isna(value):
             return ""
-        style = STATE_COLORS.get(str(value))
-        if style is None:
-            return ""
-        background, foreground = style
-        return f"background-color: {background}; color: {foreground}; font-weight: 700"
+        state = visual_state(role, str(value), label=str(value))
+        return (
+            f"background-color: {state.background}; color: {state.foreground}; "
+            "font-weight: 700"
+        )
 
     def emphasize_text(value: object) -> str:
         if pd.isna(value) or str(value).strip() in {"", "nan"}:
@@ -2007,6 +2142,7 @@ def apply_dashboard_theme() -> None:
         [role="button"]:focus-visible,
         [role="radio"]:focus-visible,
         [role="tab"]:focus-visible,
+        summary:focus-visible,
         [tabindex]:not([tabindex="-1"]):focus-visible {
           outline: 3px solid #0f766e !important;
           outline-offset: 3px !important;
@@ -2017,6 +2153,11 @@ def apply_dashboard_theme() -> None:
           outline: 3px solid #22c55e !important;
           outline-offset: 3px !important;
           box-shadow: 0 0 0 5px rgba(34, 197, 94, 0.20) !important;
+        }
+        [data-testid="stTooltipHoverTarget"] button,
+        [data-testid="stDataFrame"] button {
+          min-width: 24px !important;
+          min-height: 24px !important;
         }
         .public-skip-link {
           position: absolute;
@@ -2039,11 +2180,21 @@ def apply_dashboard_theme() -> None:
           box-shadow: 0 14px 32px rgba(0,0,0,0.24);
         }
         .public-skip-link:focus {
-          width: auto;
-          height: auto;
-          overflow: visible;
-          clip-path: none;
-          white-space: normal;
+          position: fixed !important;
+          inset: 0.55rem auto auto 0.55rem !important;
+          width: max-content !important;
+          max-width: calc(100vw - 1.1rem) !important;
+          height: auto !important;
+          overflow: visible !important;
+          clip-path: none !important;
+          white-space: nowrap !important;
+        }
+        @media (max-width: 760px) {
+          [data-testid="stSidebar"]:has(.public-skip-link:focus) {
+            transform: none !important;
+            left: -100vw !important;
+            transition: none !important;
+          }
         }
         .public-workflow-skip-target {
           width: 1px;
@@ -2627,6 +2778,108 @@ def apply_dashboard_theme() -> None:
         .selector-result-row:last-child {
           border-bottom: 0;
         }
+        .research-discover-result .selector-result-row {
+          grid-template-columns: 7rem minmax(0, 1fr) auto !important;
+          align-items: start;
+        }
+        .research-discover-answers {
+          display: grid;
+          gap: 0.56rem;
+          min-width: 0;
+        }
+        .research-discover-answer {
+          min-width: 0;
+          overflow-wrap: anywhere;
+          white-space: normal;
+        }
+        .research-discover-answer-label {
+          display: block;
+          color: #334155;
+          font-size: 0.7rem;
+          font-weight: 900;
+          letter-spacing: 0.06em;
+          margin-bottom: 0.12rem;
+          text-transform: uppercase;
+        }
+        .research-discover-answer-value {
+          color: #111827;
+          font-size: 0.84rem;
+          line-height: 1.42;
+        }
+        .research-discipline-table-wrap,
+        .research-discipline-identity-table-wrap {
+          width: 100%;
+          max-width: 100%;
+          overflow: hidden;
+          margin: 0.42rem 0 0.72rem 0;
+        }
+        .research-discipline-table,
+        .research-discipline-identity-table {
+          width: 100%;
+          max-width: 100%;
+          table-layout: fixed;
+          border-collapse: collapse;
+          color: #1e293b;
+          font-size: 0.82rem;
+        }
+        .research-discipline-table th,
+        .research-discipline-table td,
+        .research-discipline-identity-table th,
+        .research-discipline-identity-table td {
+          padding: 0.58rem 0.62rem;
+          border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+          text-align: left;
+          vertical-align: top;
+          overflow-wrap: anywhere;
+          white-space: normal;
+        }
+        .research-discipline-table thead th,
+        .research-discipline-identity-table thead th {
+          color: #334155;
+          background: #f8fafc;
+          font-size: 0.7rem;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+        .research-discipline-table th:first-child,
+        .research-discipline-identity-table th:first-child {
+          width: 16%;
+        }
+        .research-discipline-table th:nth-child(2) {
+          width: 22%;
+        }
+        @media (max-width: 760px) {
+          .research-discover-result .selector-result-row {
+            grid-template-columns: 1fr !important;
+          }
+          .research-discover-result .selector-actions {
+            grid-column: auto;
+            grid-row: auto;
+            justify-self: stretch;
+          }
+          .research-discover-result .selector-action-link{
+            box-sizing: border-box;
+            justify-content: center;
+            width: 100%;
+          }
+          .research-discover-answer {
+            display: block;
+          }
+          .research-discipline-table,
+          .research-discipline-identity-table {
+            font-size: 0.76rem;
+          }
+          .research-discipline-table th,
+          .research-discipline-table td,
+          .research-discipline-identity-table th,
+          .research-discipline-identity-table td {
+            padding: 0.46rem 0.38rem;
+          }
+          .research-discipline-table th:first-child,
+          .research-discipline-identity-table th:first-child {
+            width: 18%;
+          }
+        }
         .selector-result-ticker {
           color: #07111d;
           font-size: 1rem;
@@ -2867,6 +3120,14 @@ def apply_dashboard_theme() -> None:
         }
         [data-testid="stMarkdownContainer"] p {
           color: var(--research-muted);
+        }
+        [data-testid="stLinkButton"] a[kind="primary"] {
+          background: #0b3b36 !important;
+          border-color: #0b3b36 !important;
+          color: #ffffff !important;
+        }
+        [data-testid="stLinkButton"] a[kind="primary"] * {
+          color: #ffffff !important;
         }
         .block-container {
           padding-top: 1.25rem;
@@ -3140,6 +3401,9 @@ def apply_dashboard_theme() -> None:
           gap: 0.46rem;
           margin: 0.52rem 0 0.72rem 0;
         }
+        .signal-grid.evidence-monitor-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
         .signal-card {
           background: #ffffff;
           border: 1px solid rgba(148, 163, 184, 0.22);
@@ -3364,6 +3628,7 @@ def apply_dashboard_theme() -> None:
           .public-loading-preview,
           .signal-grid,
           .signal-grid.queue-grid,
+          .signal-grid.evidence-monitor-grid,
           .metric-card-grid {
             grid-template-columns: 1fr;
             gap: 0.42rem;
@@ -4598,6 +4863,7 @@ def apply_dashboard_theme() -> None:
         </style>
         """,
     )
+    st.html(render_stylesheet(dashboard_visual_system_css()))
 
 
 def format_missing(value: object, fallback: str = "Not available") -> str:
@@ -4982,16 +5248,23 @@ def _badge(text: object, tone: str = "neutral") -> str:
     )
 
 
-def status_badge(status: object) -> str:
-    text = public_status_label(status)
-    lowered = text.lower()
-    if any(keyword in lowered for keyword in ("broken", "avoid", "risk reduce")):
-        return _badge(text, "negative")
-    if any(keyword in lowered for keyword in ("extended", "review", "insufficient")):
-        return _badge(text, "caution")
-    if any(keyword in lowered for keyword in ("watch", "setup", "candidate", "rotation", "keep")):
-        return _badge(text, "positive")
-    return _badge(text, "neutral")
+def status_badge(
+    status: object,
+    *,
+    role: str = "analytic",
+    label: object | None = None,
+) -> str:
+    text = public_status_label(status if label is None else label)
+    state = visual_state(role, str(status or ""), label=text)
+    return (
+        "<span "
+        f"data-sr-role='{html.escape(state.role, quote=True)}' "
+        f"data-sr-semantic='{html.escape(state.semantic, quote=True)}' "
+        "style='display:inline-block;padding:0.18rem 0.48rem;border-radius:0.45rem;"
+        f"font-size:0.78rem;font-weight:700;color:{state.foreground};"
+        f"background:{state.background};border:1px solid {state.border};'>"
+        f"{html.escape(state.label)}</span>"
+    )
 
 
 def score_badge(score: object) -> str:
@@ -5115,14 +5388,19 @@ def public_app_shell_html(page_title: str) -> str:
         "<span class='public-app-brand-kicker'>Readiness-first</span>"
         "<span class='public-app-brand-name'>Stock Research Command Center</span>"
         "</a>"
-        "<div class='public-app-status' aria-label='Product boundaries'>"
+        "<div class='public-app-status' data-sr-region='context' aria-label='Workspace context'>"
         "<span>Saved readiness</span>"
+        "<div class='public-workspace-mode' role='group' aria-label='Workspace mode'>"
+        "<span>Workspace mode</span>"
+        "<a href='?mode=research&amp;page=research-desk' target='_self'>Personal research</a>"
+        "<a href='?mode=operator' target='_self'>Operator</a>"
         "</div>"
         "</div>"
-        "<nav class='public-app-nav' aria-label='Public workflow'>"
+        "</div>"
+        "<nav class='public-app-nav' data-sr-region='workflow-nav' aria-label='Public workflow'>"
         + "".join(navigation)
         + "</nav>"
-        "<div class='public-page-intro'>"
+        "<div class='public-page-intro' data-sr-region='page-title'>"
         "<div>"
         f"<div class='public-page-step'>{html.escape(public_workflow_position(page_title))}</div>"
         f"<h1>{html.escape(step['question'])}</h1>"
@@ -5155,7 +5433,7 @@ def profile_trust_strip_html(context: ProfileContext, *, compact: bool = False) 
     )
     return (
         f"<section class='profile-trust-strip{compact_class}' "
-        "aria-label='Selected data profile and freshness'>"
+        "aria-label='Selected data profile and saved readiness'>"
         "<div class='profile-trust-primary'>"
         "<span class='profile-trust-label'>Data profile</span>"
         f"<strong>{html.escape(context.profile_label)}</strong>"
@@ -5163,7 +5441,7 @@ def profile_trust_strip_html(context: ProfileContext, *, compact: bool = False) 
         f"<span><small>Sources through</small>{html.escape(source_as_of)}</span>"
         f"{readiness_item}"
         f"<span class='profile-freshness {html.escape(context.freshness_state)}'>"
-        f"<small>Freshness</small>{html.escape(freshness)}</span>"
+        f"<small>Saved readiness</small>{html.escape(freshness)}</span>"
         f"<span><small>Price-ready</small>{coverage.price_ready:,}/{coverage.total:,}</span>"
         f"<span><small>DCF-ready</small>{coverage.dcf_ready:,}/{coverage.total:,}</span>"
         "</section>"
@@ -5187,17 +5465,146 @@ def profile_advanced_details(context: ProfileContext) -> dict[str, object]:
         },
         "Data directory": str(context.data_dir),
         "Outputs directory": str(context.outputs_dir),
-        "Freshness detail": context.freshness_message,
+        "Saved readiness detail": context.freshness_message,
         "Refresh command": context.refresh_command or "No refresh required",
         "Lane source dates": dict(context.lane_source_dates),
         "Snapshot inputs": list(context.snapshot_inputs),
     }
 
 
-def render_profile_trust_strip(context: ProfileContext, *, compact: bool = False) -> None:
-    st.markdown(profile_trust_strip_html(context, compact=compact), unsafe_allow_html=True)
+def _observation_recency_message(row: ObservationRecency) -> str:
+    if row.state == "stale_review_only":
+        return "Historical context only; no current-market claim is made."
+    return row.message
+
+
+def _observation_recency_item_html(
+    row: ObservationRecency,
+    *,
+    scope_label: str = "",
+) -> str:
+    through_date = row.through_date or "Unavailable"
+    state = row.state or "unavailable"
+    displayed_scope = scope_label or row.scope or "Unavailable"
+    return (
+        "<article class='observation-recency-item'>"
+        f"<small>Scope</small><strong>{html.escape(displayed_scope)}</strong>"
+        f"<small>Through date</small><span>{html.escape(through_date)}</span>"
+        f"<small>State</small><span>{html.escape(state)}</span>"
+        f"<p>{html.escape(_observation_recency_message(row))}</p>"
+        "</article>"
+    )
+
+
+def observation_recency_summary_html(
+    result: ObservationRecencySet,
+    *,
+    include_selected: bool,
+) -> str:
+    """Render one route-relevant interpretation without technical evidence."""
+
+    row = result.selected_ticker if include_selected else result.profile_price_lane
+    state_presentation = {
+        "current": ("Current", "current"),
+        "stale_review_only": ("Stale", "stale"),
+        "unavailable": ("Unavailable", "unavailable"),
+    }
+    state_label, state_class = state_presentation.get(
+        row.state,
+        ("Unavailable", "unavailable"),
+    )
+    return (
+        f"<section class='observation-recency-summary {state_class}' "
+        "aria-label='Market observation interpretation'>"
+        "<span>Market observation</span>"
+        f"<strong>{html.escape(state_label)}</strong>"
+        f"<p>{html.escape(_observation_recency_message(row))}</p>"
+        "</section>"
+    )
+
+
+def observation_recency_evidence_html(result: ObservationRecencySet) -> str:
+    """Render complete independently labelled observation evidence."""
+
+    labelled_rows = (
+        (result.selected_ticker, result.selected_ticker.scope or "selected_ticker"),
+        (result.profile_price_lane, result.profile_price_lane.scope),
+        *((row, row.scope) for row in result.benchmarks),
+    )
+    cards = "".join(
+        _observation_recency_item_html(row, scope_label=scope_label)
+        for row, scope_label in labelled_rows
+    )
+    excluded = "".join(
+        "<li>"
+        f"<span>{html.escape(scope_label)}</span>"
+        f"<strong>{row.excluded_date_count:,}</strong>"
+        "</li>"
+        for row, scope_label in labelled_rows
+    )
+    return (
+        "<section class='observation-recency-evidence' "
+        "aria-label='Detailed market observation recency evidence'>"
+        "<div class='observation-recency-evidence-grid'>"
+        f"{cards}"
+        "</div>"
+        "<dl class='observation-recency-evidence-meta'>"
+        "<div><dt>Review date</dt>"
+        f"<dd>{html.escape(str(result.as_of or 'Unavailable'))}</dd></div>"
+        "<div><dt>Policy threshold</dt>"
+        f"<dd>{result.policy_days:,} calendar days</dd></div>"
+        "<div><dt>Source path</dt>"
+        f"<dd>{html.escape(result.source_path or 'Unavailable')}</dd></div>"
+        "</dl>"
+        "<div class='observation-recency-exclusions'>"
+        "<strong>Excluded dates by scope</strong>"
+        f"<ul>{excluded}</ul>"
+        "</div>"
+        "</section>"
+    )
+
+
+def observation_recency_advanced_details(result: ObservationRecencySet) -> dict[str, object]:
+    """Return technical recency evidence for the supplied local result."""
+
+    rows = (result.selected_ticker, result.profile_price_lane, *result.benchmarks)
+    return {
+        "Policy threshold": f"{result.policy_days} calendar days",
+        "Source path": result.source_path or "Unavailable",
+        "Review date": result.as_of,
+        "Excluded dates": {row.scope: row.excluded_date_count for row in rows},
+    }
+
+
+def render_observation_recency(
+    result: ObservationRecencySet,
+    *,
+    include_selected: bool,
+) -> None:
+    st.markdown(
+        observation_recency_summary_html(result, include_selected=include_selected),
+        unsafe_allow_html=True,
+    )
+    with st.expander("Advanced: market observation recency", expanded=False):
+        st.markdown(observation_recency_evidence_html(result), unsafe_allow_html=True)
+
+
+def render_profile_trust_details(context: ProfileContext) -> None:
+    """Keep technical profile evidence after the page's primary answer."""
+
     with st.expander("Advanced: profile identity and freshness evidence", expanded=False):
         st.json(profile_advanced_details(context))
+
+
+def render_profile_trust_strip(
+    context: ProfileContext,
+    *,
+    compact: bool = False,
+    include_advanced: bool = True,
+) -> None:
+    st.markdown(profile_trust_strip_html(context, compact=compact), unsafe_allow_html=True)
+    if include_advanced:
+        render_profile_trust_details(context)
 
 
 def research_change_home_summary(
@@ -5263,6 +5670,7 @@ def ticker_change_timeline(
     selected = str(ticker or "").strip().upper()
     return [
         {
+            "event_id": event.event_id,
             "ticker": event.ticker,
             "detected_at": event.detected_at,
             "change": event.subtype.replace("_", " ").title(),
@@ -5352,6 +5760,327 @@ def load_dashboard_research_change_state(context: ProfileContext) -> dict[str, o
             "prior_path": prior_path,
             "current_path": current_path,
         }
+
+
+def load_dashboard_focused_cohort(context: ProfileContext) -> FocusedCohort:
+    """Build the personal review cohort from saved readiness evidence only."""
+
+    try:
+        readiness = pd.read_csv(DATA_DIR / "reports" / "ticker_readiness_report.csv")
+        universe = pd.read_csv(DATA_DIR / "universe_master.csv")
+    except (FileNotFoundError, OSError, UnicodeError, pd.errors.ParserError):
+        readiness = pd.DataFrame()
+        universe = pd.DataFrame()
+    return build_focused_cohort(
+        readiness,
+        universe,
+        target_size=25,
+        minimum_size=25,
+        profile_freshness=context.freshness_state,
+    )
+
+
+def load_dashboard_focused_cohort_coverage(cohort: FocusedCohort) -> FocusedCohortCoverage:
+    """Compose saved cohort lane evidence without refreshing or repairing data."""
+
+    def optional_csv(path: Path) -> pd.DataFrame:
+        try:
+            return pd.read_csv(path)
+        except (FileNotFoundError, OSError, UnicodeError, pd.errors.ParserError):
+            return pd.DataFrame()
+
+    readiness = optional_csv(DATA_DIR / "reports" / "ticker_readiness_report.csv")
+    universe = optional_csv(DATA_DIR / "universe_master.csv")
+    fundamentals = optional_csv(DATA_DIR / "fundamentals.csv")
+    price_path = DATA_DIR / "prices.csv"
+    try:
+        price_columns = tuple(pd.read_csv(price_path, nrows=0).columns)
+    except (FileNotFoundError, OSError, UnicodeError, pd.errors.ParserError):
+        price_columns = ()
+    price_lineage_missing_fields = tuple(
+        field
+        for field in ("source", "source_ref", "retrieved_at")
+        if field not in price_columns
+    )
+    prices = (
+        pd.DataFrame(columns=price_columns)
+        if price_columns and price_lineage_missing_fields
+        else optional_csv(price_path)
+    )
+    consensus = optional_csv(DATA_DIR / "earnings_nowcast" / "consensus_snapshots.csv")
+    earnings = optional_csv(DATA_DIR / "earnings.csv")
+    peers = optional_csv(DATA_DIR / "peers.csv")
+    peer_candidates = optional_csv(DATA_DIR / "peer_candidates.csv")
+    actuals = load_quarterly_actuals_csv(DATA_DIR / "earnings_nowcast" / "quarterly_actuals.csv")
+    tickers = tuple(member.ticker for member in cohort.members)
+    evidence = derive_cohort_evidence(
+        tickers,
+        fundamentals=fundamentals,
+        prices=prices,
+        price_lineage_missing_fields=price_lineage_missing_fields,
+        readiness=readiness,
+        universe=universe,
+        consensus=consensus,
+        earnings=earnings,
+        peers=peers,
+        peer_candidates=peer_candidates,
+        quarterly_actuals=actuals.actuals if not actuals.rejected_count else None,
+        as_of=pd.Timestamp.now(tz="UTC").isoformat(),
+        commercial_mode=True,
+    )
+    packets = {
+        ticker: build_quarterly_trend_packet_from_load(ticker, actuals)
+        for ticker in tickers
+    }
+    return build_focused_cohort_coverage(
+        cohort,
+        readiness,
+        quarterly_packets=packets,
+        evidence_by_ticker=evidence,
+    )
+
+
+def load_dashboard_quarterly_trend(ticker: str) -> QuarterlyTrendPacket:
+    """Load real canonical quarterly actuals; absent evidence fails closed."""
+
+    loaded = load_quarterly_actuals_csv(DATA_DIR / "earnings_nowcast" / "quarterly_actuals.csv")
+    return build_quarterly_trend_packet_from_load(
+        ticker,
+        loaded,
+        as_of=pd.Timestamp.now(tz="UTC").isoformat(),
+    )
+
+
+def load_dashboard_nowcast_packet(
+    report_payload: dict[str, object],
+    *,
+    ticker: str,
+) -> dict[str, object] | None:
+    """Load one exact-period real-company nowcast packet or fail closed."""
+
+    earnings = report_payload.get("earnings_summary")
+    fiscal_period = (
+        str(earnings.get("fiscal_period") or "").strip().upper()
+        if isinstance(earnings, dict)
+        else ""
+    )
+    as_of = str(report_payload.get("generated_at") or "").strip()
+    if not fiscal_period or not as_of:
+        return None
+    try:
+        packet = build_nowcast_packet(
+            DATA_DIR / "earnings_nowcast",
+            ticker=ticker,
+            fiscal_period=fiscal_period,
+            as_of_timestamp=as_of,
+        )
+    except (FileNotFoundError, KeyError, TypeError, ValueError):
+        return None
+    if packet.get("evidence_scope") != "source_backed_preview_only":
+        return None
+    return packet
+
+
+def load_dashboard_weekly_summary(
+    context: ProfileContext,
+    cohort: FocusedCohort,
+    review_items,
+) -> WeeklyResearchSummary:
+    """Compose a traceable weekly queue from reviewed events and journal dates."""
+
+    as_of = pd.Timestamp.now(tz="UTC").isoformat()
+    try:
+        entries = load_journal_entries(DATA_DIR / "research_thesis_journal.csv")
+    except ValueError:
+        entries = ()
+    journal_rows: list[dict[str, object]] = []
+    for member in cohort.members:
+        try:
+            state = derive_journal_state(
+                entries,
+                profile_key=context.profile_key,
+                ticker=member.ticker,
+                as_of=as_of,
+            )
+        except ValueError:
+            continue
+        source_ref = ""
+        if state.invalidation_conditions:
+            source_ref = state.invalidation_conditions[-1].source_ref
+        journal_rows.append(
+            {
+                "ticker": member.ticker,
+                "review_due_date": state.review_due_date,
+                "source_ref": source_ref or f"journal:{context.profile_key}:{member.ticker}",
+                "invalidation_triggered": False,
+                "invalidation_condition": "",
+            }
+        )
+    return build_weekly_research_summary(
+        cohort,
+        review_items,
+        journal_rows=journal_rows,
+        as_of=as_of,
+    )
+
+
+def load_dashboard_research_discipline_rows(
+    context: ProfileContext,
+    cohort: FocusedCohort,
+    review_items,
+    *,
+    as_of: str | None = None,
+) -> tuple[ResearchDisciplineRow, ...]:
+    """Compose saved per-ticker process states without fetching or building reports."""
+
+    selected_as_of = as_of or pd.Timestamp.now(tz="UTC").isoformat()
+    ledger_error = ""
+    try:
+        journal_entries = load_journal_entries(DATA_DIR / "research_thesis_journal.csv")
+    except (OSError, UnicodeError, ValueError) as exc:
+        journal_entries = ()
+        ledger_error = f"Research thesis journal could not be verified: {exc}"
+    try:
+        outcomes = load_outcomes(DATA_DIR / "research_outcome_reviews.csv")
+    except (OSError, UnicodeError, ValueError) as exc:
+        outcomes = ()
+        ledger_error = ledger_error or f"Research outcome ledger could not be verified: {exc}"
+    catalyst_error = ""
+    try:
+        catalyst_events = load_catalyst_events(DATA_DIR / "catalyst_evidence.csv")
+    except (OSError, UnicodeError, ValueError) as exc:
+        catalyst_events = ()
+        catalyst_error = f"Catalyst evidence ledger could not be verified: {exc}"
+
+    saved_review_items = tuple(review_items)
+    states_by_ticker = {}
+    catalyst_timelines_by_ticker = {}
+    for member in cohort.members:
+        ticker = member.ticker.upper()
+        if ledger_error:
+            states_by_ticker[ticker] = unavailable_research_decision_lab_state(
+                profile_key=context.profile_key,
+                ticker=ticker,
+                reason=ledger_error,
+            )
+            continue
+        try:
+            journal_state = derive_journal_state(
+                journal_entries,
+                profile_key=context.profile_key,
+                ticker=ticker,
+                as_of=selected_as_of,
+            )
+            outcome_status = derive_outcome_status(
+                outcomes,
+                profile_key=context.profile_key,
+                ticker=ticker,
+                commercial_mode=True,
+            )
+            report_context = {
+                "ticker": ticker,
+                "asset_type": "company",
+                "valuation_readiness": {"dcf_ready": "dcf" in member.usable_lanes},
+                "valuation_snapshot": {},
+            }
+            scorecard = build_decision_process_scorecard(
+                report_context,
+                profile_key=context.profile_key,
+                journal_state=journal_state,
+                review_items=saved_review_items,
+            )
+            states_by_ticker[ticker] = build_research_decision_lab_state(
+                profile_key=context.profile_key,
+                journal_state=journal_state,
+                scorecard=scorecard,
+                outcome_status=outcome_status,
+                review_items=saved_review_items,
+            )
+            if not catalyst_error:
+                catalyst_timelines_by_ticker[ticker] = build_catalyst_timeline(
+                    catalyst_events,
+                    profile_key=context.profile_key,
+                    ticker=ticker,
+                    as_of=selected_as_of,
+                    commercial_mode=True,
+                )
+        except (KeyError, TypeError, ValueError) as exc:
+            states_by_ticker[ticker] = unavailable_research_decision_lab_state(
+                profile_key=context.profile_key,
+                ticker=ticker,
+                reason=str(exc),
+            )
+
+    return build_research_discipline_rows(
+        states_by_ticker,
+        focused_tickers=(member.ticker for member in cohort.members),
+        catalyst_timelines_by_ticker=catalyst_timelines_by_ticker,
+        catalyst_error=catalyst_error,
+    )
+
+
+def research_discipline_table_html(
+    rows: Iterable[ResearchDisciplineRow],
+) -> str:
+    """Render the primary process answer without exposing technical identity."""
+
+    rendered_rows = []
+    for row in rows:
+        order = int(row.cohort_order)
+        rendered_rows.append(
+            "<tr class='research-discipline-row' "
+            f"data-cohort-order='{order}'>"
+            f"<th scope='row'>{html.escape(str(row.ticker))}</th>"
+            f"<td>{html.escape(str(row.attention_label))}</td>"
+            f"<td>{html.escape(str(row.attention_reason))}</td>"
+            "</tr>"
+        )
+    if not rendered_rows:
+        return ""
+    return (
+        "<div class='research-discipline-table-wrap'>"
+        "<table class='research-discipline-table'>"
+        "<thead><tr>"
+        "<th scope='col'>Ticker</th>"
+        "<th scope='col'>Process attention</th>"
+        "<th scope='col'>Why</th>"
+        "</tr></thead>"
+        "<tbody>"
+        + "".join(rendered_rows)
+        + "</tbody></table></div>"
+    )
+
+
+def research_discipline_identity_table_html(
+    rows: Iterable[ResearchDisciplineRow],
+) -> str:
+    """Render source and identity only inside the Advanced evidence disclosure."""
+
+    rendered_rows = []
+    for row in rows:
+        order = int(row.cohort_order)
+        rendered_rows.append(
+            "<tr class='research-discipline-identity-row' "
+            f"data-cohort-order='{order}'>"
+            f"<th scope='row'>{html.escape(str(row.ticker))}</th>"
+            f"<td>{html.escape(str(row.attention_source))}</td>"
+            f"<td>{html.escape(str(row.identity))}</td>"
+            "</tr>"
+        )
+    if not rendered_rows:
+        return ""
+    return (
+        "<div class='research-discipline-identity-table-wrap'>"
+        "<table class='research-discipline-identity-table'>"
+        "<thead><tr>"
+        "<th scope='col'>Ticker</th>"
+        "<th scope='col'>Attention source</th>"
+        "<th scope='col'>Decision Lab identity</th>"
+        "</tr></thead>"
+        "<tbody>"
+        + "".join(rendered_rows)
+        + "</tbody></table></div>"
+    )
 
 
 def render_research_change_route_summary(
@@ -5522,33 +6251,171 @@ def load_dashboard_journal_state(
     )
 
 
-def scenario_lab_input_from_report(report_payload: dict[str, object]) -> ValuationInput:
-    """Build a scenario input from the selected report without inventing fields."""
+def load_dashboard_nowcast_cohort(as_of: str | None = None):
+    """Load the five-company readiness board without fetching or applying data."""
 
-    price = report_payload.get("price_snapshot", {}) or {}
-    financials = report_payload.get("financial_summary", {}) or {}
-    valuation = report_payload.get("valuation_snapshot", {}) or {}
-    return ValuationInput(
-        ticker=str(report_payload.get("ticker") or "").strip().upper(),
-        current_price=price.get("price"),
-        revenue=financials.get("revenue"),
-        revenue_growth=financials.get("revenue_growth"),
-        free_cash_flow=financials.get("free_cash_flow"),
-        fcf_margin=financials.get("fcf_margin"),
-        operating_margin=financials.get("operating_margin"),
-        profit_margin=financials.get("profit_margin"),
-        eps=financials.get("eps"),
-        ebitda=financials.get("ebitda"),
-        shares_outstanding=financials.get("shares_outstanding"),
-        cash=financials.get("cash"),
-        debt=financials.get("debt"),
-        net_debt=financials.get("net_debt"),
-        market_cap=financials.get("market_cap"),
-        trailing_pe=financials.get("trailing_pe"),
-        forward_pe=financials.get("forward_pe"),
-        price_to_book=financials.get("price_to_book"),
-        source_metadata=[dict(row) for row in (valuation.get("source_metadata") or [])],
-        screener_context=dict(report_payload.get("screener_context", {}) or {}),
+    return build_cohort_readiness(
+        DATA_DIR / "earnings_nowcast",
+        tickers=("NVDA", "AMD", "AVGO", "MU", "QCOM"),
+        as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
+    )
+
+
+def load_dashboard_valuation_regime(ticker: str, *, as_of: str | None = None):
+    """Load aligned point-in-time valuation observations or fail closed."""
+
+    try:
+        observations = load_valuation_observations(DATA_DIR / "historical_valuation_observations.csv")
+    except (OSError, UnicodeError, ValueError):
+        observations = ()
+    return build_valuation_regime(
+        observations,
+        ticker=ticker,
+        metric="price_to_fcf_per_share",
+        as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
+        commercial_mode=True,
+    )
+
+
+def load_dashboard_daily_research_queue(
+    context: ProfileContext,
+    *,
+    as_of,
+) -> DailyQueueBuildStatus:
+    """Build one selected-profile queue without refreshing or writing data."""
+
+    return build_daily_research_queue_from_files(
+        project_root=BASE_DIR,
+        data_dir=context.data_dir,
+        as_of=as_of,
+    )
+
+
+def render_daily_research_queue_details(
+    status: DailyQueueBuildStatus,
+    *,
+    comparison=None,
+) -> None:
+    """Render strict-screen rows and diagnostics after the primary route answer."""
+
+    selected_comparison = comparison or compare_daily_queues(status.result, None)
+    rows = daily_queue_display_rows(selected_comparison)
+    if rows:
+        st.dataframe(
+            pd.DataFrame(rows),
+            width="stretch",
+            hide_index=True,
+        )
+        for item in selected_comparison.current_eligible:
+            st.link_button(
+                f"Open {item.ticker} Company Brief",
+                item.workbench_url,
+            )
+    else:
+        render_notice_card(
+            "No company currently has complete evidence for the strict screen",
+            (
+                "Current-market, momentum, historical valuation, fundamental, provenance, "
+                "or source-rights evidence is incomplete. Thresholds were not relaxed. "
+                "This does not prevent browsing saved companies for evidence inspection."
+            ),
+            tone="warning",
+        )
+    st.caption(
+        "No comparable prior queue was supplied, so daily entries and exits remain withheld. "
+        "Rows are alphabetical research candidates, not a company ranking."
+    )
+    st.caption(status.message)
+    diagnostic_rows = [
+        {"Evidence": "Momentum-ready records evaluated", "Value": status.considered_count},
+        {"Evidence": "Current eligible", "Value": len(status.result.eligible)},
+        {"Evidence": "Withheld", "Value": len(status.result.withheld)},
+        {"Evidence": "Saved price rows read", "Value": status.price_row_count},
+        {
+            "Evidence": "Historical valuation observations read",
+            "Value": status.valuation_observation_count,
+        },
+    ]
+    diagnostic_rows.extend(
+        {
+            "Evidence": f"Blocker: {blocker.replace('_', ' ')}",
+            "Value": count,
+        }
+        for blocker, count in status.blocker_counts
+    )
+    st.dataframe(
+        pd.DataFrame(diagnostic_rows),
+        width="stretch",
+        hide_index=True,
+    )
+    st.caption(status.result.boundary)
+
+
+def render_daily_research_queue(
+    status: DailyQueueBuildStatus,
+    *,
+    include_details: bool = True,
+    include_boundary: bool = True,
+) -> None:
+    """Render current research candidates while keeping gate detail secondary."""
+
+    comparison = compare_daily_queues(status.result, None)
+    summary = daily_queue_summary_cards(comparison)[0]
+    reason = str(summary.get("body") or "").removesuffix(f" {QUEUE_BOUNDARY}")
+    if not status.result.eligible:
+        reason = (
+            f"{reason} Check saved-company browsing separately below; strict "
+            "eligibility is unchanged."
+        )
+    st.markdown(
+        answer_panel_html(
+            question="Find a Company · Screen eligibility — when supported",
+            answer=str(summary.get("title") or "Strict screen unavailable"),
+            reason=reason,
+            action=None,
+            stop_rule=None,
+        ).value,
+        unsafe_allow_html=True,
+    )
+    if include_boundary:
+        st.markdown(
+            stop_rule_html(f"Research-only. {QUEUE_BOUNDARY}").value,
+            unsafe_allow_html=True,
+        )
+    if include_details:
+        st.markdown(advanced_detail_marker_html().value, unsafe_allow_html=True)
+        with st.expander("Advanced: daily queue evidence", expanded=False):
+            render_daily_research_queue_details(status, comparison=comparison)
+
+
+def load_dashboard_outcome_status(context: ProfileContext, *, ticker: str):
+    """Load selected-profile outcome learning without grading performance."""
+
+    try:
+        outcomes = load_outcomes(DATA_DIR / "research_outcome_reviews.csv")
+    except (OSError, UnicodeError, ValueError):
+        outcomes = ()
+    return derive_outcome_status(
+        outcomes,
+        profile_key=context.profile_key,
+        ticker=ticker,
+        commercial_mode=True,
+    )
+
+
+def load_dashboard_catalyst_timeline(context: ProfileContext, *, ticker: str, as_of: str | None = None):
+    """Load cutoff-safe reviewed catalyst context without provider calls."""
+
+    try:
+        events = load_catalyst_events(DATA_DIR / "catalyst_evidence.csv")
+    except (OSError, UnicodeError, ValueError):
+        events = ()
+    return build_catalyst_timeline(
+        events,
+        profile_key=context.profile_key,
+        ticker=ticker,
+        as_of=as_of or pd.Timestamp.now(tz="UTC").isoformat(),
+        commercial_mode=True,
     )
 
 
@@ -5574,14 +6441,17 @@ def scenario_lab_status_cards(result: ScenarioLabResult) -> list[dict[str, objec
     ]
 
 
-def render_scenario_lab(report_payload: dict[str, object], *, profile_key: str) -> None:
-    """Render bounded, session-local DCF assumption controls inside Valuation."""
+def render_scenario_lab(session: ScenarioLabSessionSnapshot) -> ScenarioLabResult | None:
+    """Render one prepared Scenario Lab session without recalculating it."""
 
-    valuation_input = scenario_lab_input_from_report(report_payload)
-    try:
-        defaults = default_scenario_parameters(valuation_input)
-    except ValueError:
-        defaults = ScenarioParameters(0.08, 0.15, 0.09, 0.03, 5)
+    widget_keys = dict(session.widget_keys)
+    for field, key in widget_keys.items():
+        if key not in st.session_state:
+            st.session_state[key] = getattr(session.parameters, field)
+    if session.result is None:
+        st.warning(session.blocker)
+        for field, key in widget_keys.items():
+            st.session_state[key] = getattr(session.parameters, field)
 
     st.markdown("#### Scenario Lab")
     render_context_note(
@@ -5590,23 +6460,19 @@ def render_scenario_lab(report_payload: dict[str, object], *, profile_key: str) 
     )
     control_columns = st.columns(2)
     with control_columns[0]:
-        revenue_growth = st.slider("Revenue growth", min_value=-0.50, max_value=0.40, value=defaults.revenue_growth, step=0.01)
-        fcf_margin = st.slider("FCF margin", min_value=-0.50, max_value=0.45, value=defaults.fcf_margin, step=0.01)
-        forecast_years = st.slider("Forecast years", min_value=1, max_value=10, value=defaults.forecast_years, step=1)
+        st.slider("Revenue growth", min_value=-0.50, max_value=0.40, step=0.01, key=widget_keys["revenue_growth"])
+        st.slider("FCF margin", min_value=-0.50, max_value=0.45, step=0.01, key=widget_keys["fcf_margin"])
+        st.slider("Forecast years", min_value=1, max_value=10, step=1, key=widget_keys["forecast_years"])
     with control_columns[1]:
-        wacc = st.slider("WACC", min_value=0.05, max_value=0.20, value=defaults.wacc, step=0.005)
-        terminal_growth = st.slider("Terminal growth", min_value=-0.02, max_value=0.05, value=defaults.terminal_growth, step=0.005)
+        st.slider("WACC", min_value=0.05, max_value=0.20, step=0.005, key=widget_keys["wacc"])
+        st.slider("Terminal growth", min_value=-0.02, max_value=0.05, step=0.005, key=widget_keys["terminal_growth"])
 
-    result = run_scenario_lab(
-        valuation_input,
-        ScenarioParameters(revenue_growth, fcf_margin, wacc, terminal_growth, forecast_years),
-        profile_key=profile_key,
-        dcf_ready=bool(_stock_report_payload_readiness(report_payload).get("dcf_ready")),
-        asset_type=stock_report_inferred_asset_type(report_payload),
-    )
+    result = session.result
+    if result is None:
+        return None
     render_signal_cards(scenario_lab_status_cards(result), show_commands=False)
     if result.status != "calculated" or result.baseline_result is None or result.scenario_result is None:
-        return
+        return result
 
     metrics = st.columns(4)
     metrics[0].metric("Baseline / Share", report_display_value(result.baseline_result.fair_value_per_share, "currency"))
@@ -5635,6 +6501,7 @@ def render_scenario_lab(report_payload: dict[str, object], *, profile_key: str) 
             st.dataframe(sensitivity_frame, width="stretch")
         for warning in result.warnings:
             st.caption(warning)
+    return result
 
 
 def peer_read_through_summary_cards(read_through: PeerReadThroughMap) -> list[dict[str, object]]:
@@ -5665,7 +6532,9 @@ def peer_read_through_summary_cards(read_through: PeerReadThroughMap) -> list[di
             else f"{read_through.reviewable_count} peer results ready for contextual review"
         )
         body = (
-            f"{read_through.withheld_count} relationship(s) still need proof. Reviewable context does not change "
+            f"{read_through.valuation_anchor_count} valuation anchor eligible; "
+            f"{read_through.comparability_withheld_count} trusted relationship(s) still need role or comparability proof. "
+            "Reviewable context does not change "
             "a forecast, valuation, readiness state, or action."
         )
         badges = ["Context only", f"{read_through.trusted_count} trusted"]
@@ -5685,6 +6554,9 @@ def peer_read_through_frame(read_through: PeerReadThroughMap) -> pd.DataFrame:
         columns=[
             "Peer",
             "Relationship",
+            "Peer Role",
+            "Comparability",
+            "Valuation Anchor",
             "Business Overlap",
             "Fiscal Timing",
             "Peer Result",
@@ -5699,7 +6571,7 @@ def render_peer_read_through_map(report_payload: dict[str, object], *, profile_k
     st.markdown("#### Peer Read-Through Map")
     render_context_note(
         "Which peer results can be reviewed as context?",
-        "Trusted relationships, source-backed actual results, and explicit fiscal periods are checked separately. Candidate peers never become trusted automatically.",
+        "Relationship provenance, peer role, economic comparability, valuation-anchor eligibility, source-backed actual results, and fiscal periods are checked separately. Candidate peers never become trusted automatically.",
     )
     render_signal_cards(peer_read_through_summary_cards(read_through), show_commands=False)
     frame = peer_read_through_frame(read_through)
@@ -5786,22 +6658,28 @@ def public_home_overview_html(summary: dict[str, object]) -> str:
     dcf_ready = int(summary.get("dcf_ready") or 0)
     peer_ready = int(summary.get("peer_ready") or 0)
     selector_href = html.escape(public_page_href(STOCK_SELECTOR_PATH_TITLE), quote=True)
+    stop_copy = (
+        "<strong>No data, no conclusion.</strong> "
+        "Missing inputs stay blocked instead of being inferred."
+    )
     return (
-        "<section class='public-home-overview' aria-label='Start your research review'>"
+        "<section class='public-home-overview' data-sr-region='primary-answer' "
+        "aria-label='Start your research review'>"
         "<div class='public-home-primary'>"
         "<div class='public-home-eyebrow'>Start here</div>"
         "<h2>Choose one ticker before reading any analysis.</h2>"
         "<p>Start with a readiness-backed name. The report will show what is usable, what stays withheld, and where evidence belongs.</p>"
-        f"<a class='public-primary-action' href='{selector_href}'>Start with Stock Selector</a>"
+        f"<a class='public-primary-action' data-sr-region='primary-action' href='{selector_href}'>Start with Stock Selector</a>"
         "</div>"
-        "<dl class='public-home-metrics'>"
+        f"<div class='public-home-stop' data-sr-region='stop-rule'>{stop_copy}</div>"
+        "<dl class='public-home-metrics' data-sr-region='supporting-evidence'>"
         f"<div><dt>Tracked names</dt><dd>{master:,}</dd></div>"
         f"<div><dt>Price-ready</dt><dd>{price_ready:,}</dd></div>"
         f"<div><dt>DCF-ready</dt><dd>{dcf_ready:,}</dd></div>"
         f"<div><dt>Trusted peers</dt><dd>{peer_ready:,}</dd></div>"
         "</dl>"
-        "<div class='public-home-stop'><strong>No data, no conclusion.</strong> Missing inputs stay blocked instead of being inferred.</div>"
         "</section>"
+        f"{advanced_detail_marker_html().value}"
     )
 
 
@@ -5815,8 +6693,41 @@ def render_public_shell_mode_styles() -> None:
     st.markdown(
         """
         <style>
-        [data-testid="stSidebar"] {
+        [data-testid="stApp"] [data-testid="stSidebar"] {
+          display: block !important;
+          position: absolute !important;
+          inset: 0 auto auto 0 !important;
+          width: 0 !important;
+          min-width: 0 !important;
+          height: 0 !important;
+          overflow: visible !important;
+          border: 0 !important;
+          background: transparent !important;
+          z-index: 10001 !important;
+        }
+        [data-testid="stApp"] [data-testid="stSidebar"] [data-testid="stSidebarContent"],
+        [data-testid="stApp"] [data-testid="stSidebar"] [data-testid="stVerticalBlock"] {
+          width: 0 !important;
+          min-width: 0 !important;
+          height: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+          background: transparent !important;
+          border: 0 !important;
+          gap: 0 !important;
+        }
+        [data-testid="stApp"] [data-testid="stSidebar"] [data-testid="stElementContainer"] {
           display: none !important;
+        }
+        [data-testid="stApp"] [data-testid="stSidebar"] [data-testid="stElementContainer"]:has(.public-skip-link) {
+          display: block !important;
+          width: 0 !important;
+          min-width: 0 !important;
+          height: 0 !important;
+          overflow: visible !important;
+        }
+        [data-testid="stApp"] [data-testid="stSidebar"] .public-skip-link {
+          visibility: visible !important;
         }
         [data-testid="stMain"] {
           margin-left: 0 !important;
@@ -5999,12 +6910,14 @@ def render_public_shell_mode_styles() -> None:
         .public-home-overview {
           display: grid;
           grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.75fr);
+          grid-template-areas: "action metrics" "stop stop";
           gap: 1rem 1.25rem;
           align-items: start;
           margin-top: 0.7rem;
           padding: 1.25rem 0 0.2rem;
           border-top: 1px solid #d9e0dc;
         }
+        .public-home-primary { grid-area: action; }
         .public-home-primary h2 {
           margin: 0.2rem 0 0;
           color: #102a43;
@@ -6039,6 +6952,7 @@ def render_public_shell_mode_styles() -> None:
         }
         .public-primary-action:hover { background: #0b5f59; }
         .public-home-metrics {
+          grid-area: metrics;
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 0;
@@ -6067,7 +6981,7 @@ def render_public_shell_mode_styles() -> None:
           font-weight: 760;
         }
         .public-home-stop {
-          grid-column: 1 / -1;
+          grid-area: stop;
           padding: 0.75rem 0;
           border-top: 1px solid #d9e0dc;
           color: #53616f;
@@ -6132,10 +7046,12 @@ def render_public_shell_mode_styles() -> None:
           min-height: 2.75rem;
           border-radius: 6px;
           box-shadow: none;
-          border-color: #0f766e;
-          background: #0f766e;
-          color: #ffffff !important;
+          border-color: #c7d1cc;
+          background: #ffffff;
+          color: #0f5f58 !important;
+          font-weight: 750;
         }
+        .selector-action-link:hover { background: #f4f8f6; border-color: #8ba69b; }
         .selector-result-footer {
           padding: 0.7rem 1rem;
           border-top: 1px solid #e6ebe8;
@@ -6326,6 +7242,48 @@ def render_public_shell_mode_styles() -> None:
           color: #53616f;
           font-size: 0.9rem;
         }
+        @media (max-width: 800px) {
+          .public-lane-row {
+            grid-template-columns: 1fr;
+            gap: 0.5rem;
+            padding: 0.9rem 0;
+          }
+          .public-lane-coverage { max-width: 12rem; }
+        }
+        @media (min-width: 641px) and (max-height: 720px) {
+          .public-app-shell { margin-bottom: 0.35rem; }
+          .public-page-intro {
+            gap: 0.65rem;
+            padding: 0.55rem 0 0.1rem;
+          }
+          .public-page-intro p {
+            margin-top: 0.25rem;
+            line-height: 1.35;
+          }
+          .profile-trust-strip {
+            margin: 0.05rem 0 0.35rem;
+            padding: 0.38rem 0;
+          }
+          .stApp:has(.public-app-shell) .sr-answer-panel {
+            gap: 0.45rem;
+            margin-bottom: 0.5rem;
+            padding: 1rem;
+            border-radius: 8px;
+          }
+          .stApp:has(.public-app-shell) .sr-answer-panel h2 {
+            font-size: 1.1rem;
+            line-height: 1.3;
+          }
+          .stApp:has(.public-app-shell) .sr-answer-reason {
+            font-size: 0.875rem;
+            line-height: 1.38;
+          }
+          .stApp:has(.public-app-shell) .sr-stop-rule {
+            gap: 0.15rem;
+            padding: 0.5rem 0.75rem;
+            line-height: 1.35;
+          }
+        }
         @media (max-width: 640px) {
           [data-testid="stMainBlockContainer"] {
             padding: 0.72rem 1rem 2.2rem !important;
@@ -6334,8 +7292,9 @@ def render_public_shell_mode_styles() -> None:
           .public-page-intro {
             grid-template-columns: 1fr;
             display: grid;
-            gap: 0.7rem;
+            gap: 0.45rem;
           }
+          .public-app-shell { margin-bottom: 0.35rem; }
           .public-app-status,
           .public-page-boundary {
             justify-content: flex-start;
@@ -6347,30 +7306,57 @@ def render_public_shell_mode_styles() -> None:
             font-size: 0.74rem;
           }
           .public-app-nav {
-            flex-wrap: wrap;
-            overflow-x: visible;
-            row-gap: 0.12rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+            gap: 0.1rem;
+            overflow: visible;
           }
           .public-app-nav a {
+            justify-content: center;
+            min-width: 0;
             padding: 0.34rem 0.42rem 0.4rem;
             font-size: 0.7rem;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+            text-align: center;
+            white-space: normal;
+          }
+          .public-page-intro {
+            gap: 0.3rem;
+            padding: 0.62rem 0 0.15rem;
           }
           .public-page-intro h1 {
             font-size: 1.24rem;
           }
           .public-page-intro p {
+            margin-top: 0.25rem;
             font-size: 0.88rem;
+            line-height: 1.35;
           }
-          .profile-trust-strip {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 0.7rem 0;
+          .public-page-boundary span { padding: 0.2rem 0.4rem; }
+          .profile-trust-strip.compact {
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 0;
+            margin: 0.1rem 0 0.45rem;
+            padding: 0.45rem 0;
           }
           .profile-trust-strip > span,
           .profile-trust-primary {
-            padding: 0 0.5rem;
+            padding: 0 0.3rem;
+            font-size: 0.72rem;
           }
           .profile-trust-primary { padding-left: 0; }
-          .profile-trust-strip > :nth-child(odd) { border-left: 0; }
+          .profile-trust-strip small,
+          .profile-trust-label { font-size: 0.58rem; }
+          .stApp:has(.public-app-shell) .sr-answer-panel {
+            gap: 0.35rem;
+            margin-bottom: 0.5rem;
+            padding: 0.65rem;
+            border-radius: 8px;
+          }
+          .sr-answer-question { font-size: 0.75rem; }
+          .stApp:has(.public-app-shell) .sr-answer-panel h2 { font-size: 1rem; line-height: 1.25; }
+          .stApp:has(.public-app-shell) .sr-answer-reason { font-size: 0.82rem; line-height: 1.3; }
           .research-change-summary { grid-template-columns: 1fr; }
           .research-change-action {
             max-width: none;
@@ -6378,12 +7364,19 @@ def render_public_shell_mode_styles() -> None:
           }
           .public-home-overview {
             grid-template-columns: 1fr;
-            gap: 1rem;
+            grid-template-areas: "action" "stop" "metrics";
+            gap: 0;
             padding-top: 1rem;
           }
           .public-home-primary h2 { font-size: 1.1rem; }
-          .public-home-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-          .public-home-stop { grid-column: auto; }
+          .public-home-stop {
+            padding: 0.3rem 0;
+            line-height: 1.25;
+          }
+          .public-home-metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            margin-top: 0.75rem;
+          }
           .public-selector-start {
             align-items: flex-start;
             padding: 0.8rem 0;
@@ -6399,12 +7392,6 @@ def render_public_shell_mode_styles() -> None:
             grid-column: 2;
             grid-row: 1;
           }
-          .public-lane-row {
-            grid-template-columns: 1fr;
-            gap: 0.5rem;
-            padding: 0.9rem 0;
-          }
-          .public-lane-coverage { max-width: 12rem; }
           .public-proof-event {
             grid-template-columns: 1fr auto;
             gap: 0.45rem 0.75rem;
@@ -6416,8 +7403,35 @@ def render_public_shell_mode_styles() -> None:
           }
           .public-ticker-summary {
             grid-template-columns: 1fr;
-            gap: 0.85rem;
-            padding: 0.9rem 0;
+            gap: 0.2rem;
+            margin-top: -1rem;
+            padding: 0 0 0.25rem;
+          }
+          .public-ticker-name {
+            display: flex;
+            align-items: baseline;
+            gap: 0.35rem;
+          }
+          .public-ticker-answer p {
+            margin-top: 0.12rem;
+            line-height: 1.35;
+          }
+          .public-ticker-answer small {
+            margin-top: 0.12rem;
+            line-height: 1.25;
+          }
+          .public-ticker-action {
+            gap: 0.2rem;
+          }
+          .public-ticker-action p {
+            line-height: 1.35;
+          }
+          .public-ticker-action small {
+            margin-top: 0;
+            line-height: 1.25;
+          }
+          .public-ticker-action .public-primary-action {
+            order: -1;
           }
           .public-ticker-name strong { font-size: 1.3rem; }
         }
@@ -6548,36 +7562,15 @@ def public_workflow_skip_href(
     *,
     mode: str = PUBLIC_DEMO_MODE,
 ) -> str:
-    skip_mode = OPERATOR_DEMO_MODE if mode == OPERATOR_DEMO_MODE else PUBLIC_DEMO_MODE
-    params: list[tuple[str, str]] = [("mode", skip_mode)]
-    if page_title != "Home":
-        params.append(("page", dashboard_page_slug(page_title)))
-
-    getter = getattr(query_params, "get", None)
-    if callable(getter):
-        for key in (
-            "ticker",
-            "open",
-            "lane",
-            "drawer",
-            "queue_details",
-            "batch_details",
-            "metric_details",
-            "proof_details",
-        ):
-            value = getter(key)
-            if isinstance(value, (list, tuple)):
-                value = value[-1] if value else ""
-            text = str(value or "").strip()
-            if text:
-                params.append((key, text))
-    return "?" + urlencode(params) + "#public-page-answer"
+    # A fragment-only destination preserves every current route parameter and
+    # avoids a Streamlit rerun that would reset keyboard focus to the document.
+    return "#public-page-answer"
 
 
 def public_workflow_skip_link_html(skip_href: str = "#public-page-answer") -> str:
     return (
         f"<a class='public-skip-link' href='{html.escape(skip_href, quote=True)}' "
-        "aria-label='Skip to page answer'>Skip to page answer</a>"
+        "target='_self' aria-label='Skip to page answer'>Skip to page answer</a>"
     )
 
 
@@ -6586,9 +7579,19 @@ def render_public_workflow_skip_link(
     query_params: object | None = None,
     *,
     mode: str = PUBLIC_DEMO_MODE,
+    st_api: object = st,
 ) -> None:
     skip_href = public_workflow_skip_href(page_title, query_params, mode=mode) if page_title else "#public-page-answer"
-    st.markdown(public_workflow_skip_link_html(skip_href), unsafe_allow_html=True)
+    st_api.markdown(public_workflow_skip_link_html(skip_href), unsafe_allow_html=True)
+
+
+def render_research_workflow_navigation(selected_page: str, *, ticker: str = "") -> None:
+    if selected_page not in {*RESEARCH_PATH_PAGE_TITLES, "Data Health", PROOF_HISTORY_PATH_TITLE}:
+        return
+    st.markdown(
+        research_workflow_navigation_html(active_page=selected_page, ticker=ticker),
+        unsafe_allow_html=True,
+    )
 
 
 def public_workflow_skip_target_html() -> str:
@@ -6954,7 +7957,10 @@ def signal_card_html(
 
 
 def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool = True, variant: str = "") -> None:
-    grid_class = "signal-grid queue-grid" if variant == "queue" else "signal-grid"
+    grid_class = {
+        "queue": "signal-grid queue-grid",
+        "evidence-monitor": "signal-grid evidence-monitor-grid",
+    }.get(variant, "signal-grid")
     st.markdown(
         f"<div class='{grid_class}'>"
         + "".join(
@@ -7017,7 +8023,7 @@ def single_stock_public_answer_cards(frame: pd.DataFrame) -> list[dict[str, obje
     ]
 
 
-def single_stock_public_summary_html(frame: pd.DataFrame) -> str:
+def single_stock_public_summary_html(frame: pd.DataFrame, *, target_mode: str = "public") -> str:
     """Return one public ticker answer with a visible evidence handoff."""
 
     if frame is None or frame.empty:
@@ -7033,29 +8039,87 @@ def single_stock_public_summary_html(frame: pd.DataFrame) -> str:
     context = format_missing(row.get("Context Only"), "No context-only note reported.")
     next_action = public_safe_next_action_text(row.get("Next Safe Action"))
     boundary = format_missing(row.get("Review Boundary"), "Keep the review research-only.")
-    href = html.escape(f"?mode=public&page=data-health&ticker={ticker}", quote=True)
+    safe_mode = RESEARCH_MODE if target_mode == RESEARCH_MODE else PUBLIC_DEMO_MODE
+    summary_class = "public-ticker-summary research" if safe_mode == RESEARCH_MODE else "public-ticker-summary"
+    encoded_ticker = quote(ticker, safe="")
+    lane_query = "&lane=peers" if "peer" in next_action.casefold() else ""
+    href = html.escape(
+        f"?mode={safe_mode}&page=data-health&ticker={encoded_ticker}{lane_query}&drawer=proof",
+        quote=True,
+    )
+    if safe_mode == RESEARCH_MODE:
+        return (
+            f"<section class='{summary_class}' aria-label='Selected ticker answer'>"
+            "<div class='public-ticker-name'>"
+            "<span>Selected ticker</span> "
+            f"<strong>{html.escape(ticker)}</strong>"
+            "</div>"
+            "<div class='public-ticker-answer use-now'>"
+            "<span>Use now</span>"
+            f"<p>{html.escape(use_now)}</p>"
+            "</div>"
+            "<div class='public-ticker-answer blocked'>"
+            "<span>Still withheld</span>"
+            f"<p>{html.escape(blocked)}</p>"
+            f"<small>{html.escape(context)}</small>"
+            "</div>"
+            "<div class='public-ticker-action'>"
+            f"<p>{html.escape(next_action)}</p>"
+            f"<a class='public-primary-action' href='{href}'>Open Data Health</a>"
+            f"<small>{html.escape(boundary)}</small>"
+            "</div>"
+            "</section>"
+        )
     return (
-        "<section class='public-ticker-summary' aria-label='Selected ticker answer'>"
+        f"<section class='{summary_class}' data-sr-region='primary-answer' aria-label='Selected ticker answer'>"
         "<div class='public-ticker-name'>"
-        "<span>Selected ticker</span>"
+        "<span>Selected ticker</span> "
         f"<strong>{html.escape(ticker)}</strong>"
         "</div>"
         "<div class='public-ticker-answer use-now'>"
         "<span>Use now</span>"
         f"<p>{html.escape(use_now)}</p>"
         "</div>"
-        "<div class='public-ticker-answer blocked'>"
+        "<div class='public-ticker-action'>"
+        f"<p>{html.escape(next_action)}</p>"
+        f"<a class='public-primary-action' data-sr-region='primary-action' href='{href}'>Open Data Health</a>"
+        f"<small data-sr-region='stop-rule'>{html.escape(boundary)}</small>"
+        "</div>"
+        "<div class='public-ticker-answer blocked' data-sr-region='supporting-evidence'>"
         "<span>Still withheld</span>"
         f"<p>{html.escape(blocked)}</p>"
         f"<small>{html.escape(context)}</small>"
         "</div>"
-        "<div class='public-ticker-action'>"
-        f"<p>{html.escape(next_action)}</p>"
-        f"<a class='public-primary-action' href='{href}'>Open Data Health</a>"
-        f"<small>{html.escape(boundary)}</small>"
-        "</div>"
         "</section>"
+        f"{advanced_detail_marker_html().value}"
     )
+
+
+def render_single_stock_public_summary(
+    frame: pd.DataFrame,
+    *,
+    research_mode: bool,
+    selected_answer_target=None,
+    selected_detail_target=None,
+    primary_brief: Mapping[str, object] | None = None,
+) -> None:
+    """Render one selected-ticker answer at its route-selected target."""
+
+    rendered = (
+        company_workbench_primary_brief_html(primary_brief)
+        if research_mode and primary_brief is not None
+        else single_stock_public_summary_html(
+            frame,
+            target_mode=RESEARCH_MODE if research_mode else "public",
+        )
+    )
+    target = selected_answer_target if selected_answer_target is not None else st
+    target.markdown(rendered, unsafe_allow_html=True)
+    if research_mode and primary_brief is not None and selected_detail_target is not None:
+        selected_detail_target.markdown(
+            company_workbench_detail_disclosure_html(primary_brief),
+            unsafe_allow_html=True,
+        )
 
 
 def stock_report_public_answer_cards(frame: pd.DataFrame) -> list[dict[str, object]]:
@@ -7206,6 +8270,7 @@ def command_center_header_html(
     latest_price: str,
     compact: bool = False,
     current_page: str = "Home",
+    current_mode: str = PUBLIC_DEMO_MODE,
 ) -> str:
     summary = summary or {}
     normalized_current_page = str(current_page or "Home").strip()
@@ -7230,9 +8295,16 @@ def command_center_header_html(
     )
     compact_class = " compact" if compact else ""
     data_health_current_attr = " aria-current='page'" if normalized_current_page == "Data Health" else ""
+    data_health_mode = (
+        current_mode
+        if current_mode in {RESEARCH_MODE, OPERATOR_DEMO_MODE}
+        else PUBLIC_DEMO_MODE
+    )
+    data_health_href = f"?mode={data_health_mode}&page=data-health"
     topbar_html = (
         f"<header class='command-shell{compact_class}'>"
-        f"<nav class='command-topbar{compact_class}' aria-label='Readiness status'>"
+        f"<section class='command-topbar{compact_class}' role='region' "
+        "aria-label='Saved readiness status'>"
         "<div class='command-top-left'>"
         "<span class='command-product-name'>Stock Research Command Center</span>"
         "<span class='command-status-item primary'>Saved readiness</span>"
@@ -7241,9 +8313,9 @@ def command_center_header_html(
         "<span class='command-status-item command-stop-status'>No account actions</span>"
         "</div>"
         "<div class='command-top-right'>"
-        f"<a class='command-top-link' href='?mode=public&page=data-health' target='_self'{data_health_current_attr}>Blocked inputs? Data Health</a>"
+        f"<a class='command-top-link' href='{data_health_href}' target='_self'{data_health_current_attr}>Blocked inputs? Data Health</a>"
         "</div>"
-        "</nav>"
+        "</section>"
     )
     if compact:
         return (
@@ -7445,6 +8517,7 @@ def render_app_header(
     *,
     compact: bool = False,
     current_page: str = "Home",
+    current_mode: str = OPERATOR_DEMO_MODE,
 ) -> None:
     universe = catalog.load_dataframe("universe")
     tickers = 0 if universe is None or universe.empty else len(universe)
@@ -7463,6 +8536,7 @@ def render_app_header(
             latest_price=latest_price,
             compact=compact,
             current_page=current_page,
+            current_mode=current_mode,
         ),
         unsafe_allow_html=True,
     )
@@ -8493,7 +9567,7 @@ def active_unlock_command(ticker: object, dataset: str, asset_type: object = "")
     if dataset == "prices":
         return f"make focus-price TICKER={ticker_text}"
     if dataset == "fundamentals":
-        return "make readiness" if asset_text in {"etf", "fund", "index"} else f"make focus-fundamentals TICKER={ticker_text}"
+        return "make readiness-preview TOP_N=20" if asset_text in {"etf", "fund", "index"} else f"make focus-fundamentals TICKER={ticker_text}"
     if dataset == "peers":
         return f"make focus-peers TICKER={ticker_text}"
     if dataset == "earnings":
@@ -8517,7 +9591,7 @@ def active_unlock_validation_sequence(ticker: object, dataset: str, asset_type: 
         return f"make focus-price TICKER={ticker_text} -> {scoped_import_sequence(ticker_text)}"
     if dataset == "fundamentals":
         if asset_text in {"etf", "fund", "index", "index_proxy"}:
-            return "make readiness -> confirm ETF/index DCF exclusion; no operating-company fundamentals import is required"
+            return "make readiness-preview TOP_N=20 -> confirm ETF/index DCF exclusion; no operating-company fundamentals import is required"
         return f"make focus-fundamentals TICKER={ticker_text} -> make sec-stage-queue TOP_N=25 or prepare trusted fundamentals import file rows -> {scoped_import_sequence(ticker_text)}"
     if dataset == "peers":
         return f"make focus-peers TICKER={ticker_text} -> make templates -> fill data/imports/peers.csv with source-backed mappings -> {scoped_import_sequence(ticker_text)}"
@@ -8525,7 +9599,7 @@ def active_unlock_validation_sequence(ticker: object, dataset: str, asset_type: 
         return f"make templates -> make import-earnings -> {scoped_import_sequence(ticker_text)}"
     if dataset == "analyst_estimates":
         return f"make templates -> make import-analyst-estimates -> {scoped_import_sequence(ticker_text)}"
-    return "make readiness -> make project-status"
+    return "make readiness-preview TOP_N=20 -> make project-status"
 
 
 def active_unlock_trusted_input_needed(dataset: str, ticker: object, asset_type: object = "") -> str:
@@ -8842,7 +9916,7 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
                 "title": "No active rows",
                 "body": "Refresh readiness and confirm the active-universe scope before using the active-universe unlock cockpit. Open operator details for read-only proof steps.",
                 "badges": ["active only"],
-                "command": "make readiness",
+                "command": "make readiness-preview TOP_N=20",
             }
         ]
     frame = cockpit_frame.copy()
@@ -8870,7 +9944,7 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
             "title": f"{len(frame)} active ticker(s)",
             "body": f"{int(blocked.sum())} blocked and {int(partial.sum())} partial rows shown. Queue groups: {group_text}. Dataset lanes: {dataset_text}.",
             "badges": ["active universe", "row-limited"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
         {
             "kicker": "NEXT ACTIVE ACTION",
@@ -8880,7 +9954,7 @@ def active_universe_unlock_cards(cockpit_frame: pd.DataFrame | None) -> list[dic
                 format_missing(top_row.get("queue_group"), "queue group"),
                 format_missing(top_row.get("rejected_status"), "rejected status"),
             ],
-            "command": format_missing(top_row.get("exact_command"), "make readiness"),
+            "command": format_missing(top_row.get("exact_command"), "make readiness-preview TOP_N=20"),
         },
         {
             "kicker": "IMPORT STATUS",
@@ -8900,6 +9974,28 @@ def stock_report_readiness_badges(readiness: dict[str, object]) -> list[str]:
         ("analyst_estimates_available", "Estimates available", "Estimates missing"),
     ]
     return [ready_label if readiness.get(key) else missing_label for key, ready_label, missing_label in definitions]
+
+
+STOCK_REPORT_READINESS_BADGE_STATES = {
+    "DCF ready": "supported",
+    "DCF needs data": "blocked",
+    "Peer ready": "supported",
+    "Peers needed": "blocked",
+    "Earnings available": "supported",
+    "Earnings missing": "blocked",
+    "Estimates available": "supported",
+    "Estimates missing": "blocked",
+}
+
+
+def stock_report_readiness_status_badge(label: object) -> str:
+    display_label = str(label or "").strip()
+    canonical_state = STOCK_REPORT_READINESS_BADGE_STATES.get(display_label, "unknown")
+    return status_badge(
+        canonical_state,
+        role="readiness",
+        label=display_label,
+    )
 
 
 def stock_report_summary_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
@@ -10107,7 +11203,7 @@ def stock_report_next_step_cards(
     if not has_prices:
         cards.append(
             {
-                "kicker": "NEXT STEP",
+                "kicker": "RESEARCH PRIORITY",
                 "title": "Fix price coverage",
                 "body": (
                     f"{ticker} still needs stronger verified local price history before broader trust. "
@@ -10115,26 +11211,28 @@ def stock_report_next_step_cards(
                     "fallbacks are tried before the last manual import-file path."
                 ),
                 "badges": ["prices", "data moat"],
+                "state": "wait_for_evidence",
                 "command": ticker_focus_command("prices", ticker, fallback=f"make price-refresh TICKERS={ticker} PROVIDER=auto"),
             }
         )
     elif is_etf_like:
         cards.append(
             {
-                "kicker": "NEXT STEP",
+                "kicker": "RESEARCH PRIORITY",
                 "title": "Review ETF / market proxy",
                 "body": (
                     f"{ticker} should be reviewed as market, theme, liquidity, or risk context. "
                     "Operating-company DCF and peer-relative valuation are excluded rather than failed."
                 ),
                 "badges": ["monitor context", "DCF excluded"],
+                "state": "review_now",
                 "command": f"make stock-report-md TICKER={ticker}",
             }
         )
     elif not readiness.get("dcf_ready") and not has_fundamentals:
         cards.append(
             {
-                "kicker": "NEXT STEP",
+                "kicker": "RESEARCH PRIORITY",
                 "title": "Review fundamentals import file" if staged_fundamentals_import else "Stage fundamentals",
                 "body": (
                     f"{ticker} already has fundamentals import file rows in {fundamentals_target_file}. "
@@ -10146,13 +11244,14 @@ def stock_report_next_step_cards(
                     )
                 ),
                 "badges": ["fundamentals", "import file" if staged_fundamentals_import else "sec queue"],
+                "state": "wait_for_evidence",
                 "command": fundamentals_command,
             }
         )
     elif not readiness.get("peer_ready") or not peer_summary.get("peer_dataset_present"):
         cards.append(
             {
-                "kicker": "NEXT STEP",
+                "kicker": "RESEARCH PRIORITY",
                 "title": "Review peer import file" if staged_peer_import else "Add peer mappings",
                 "body": (
                     f"{ticker} already has peer mapping import file rows in {peer_target_file}. "
@@ -10164,19 +11263,21 @@ def stock_report_next_step_cards(
                     )
                 ),
                 "badges": ["peers", "import file" if staged_peer_import else "manual research"],
+                "state": "wait_for_evidence",
                 "command": peer_command,
             }
         )
     else:
         cards.append(
             {
-                "kicker": "NEXT STEP",
+                "kicker": "RESEARCH PRIORITY",
                 "title": "Review full report",
                 "body": (
                     f"{ticker} already has the minimum local context for a deeper single-name pass. "
                     "Move through valuation, trend and risk context, and source readiness together."
                 ),
                 "badges": ["ready", "single name"],
+                "state": "review_now",
                 "command": f"make stock-report-md TICKER={ticker}",
             }
         )
@@ -10684,6 +11785,95 @@ def stock_report_review_metric_summary_cards(report_payload: dict[str, object]) 
     ]
 
 
+def _stock_report_quant_interpretation_entries(
+    report_payload: Mapping[str, object],
+) -> list[Mapping[str, object]]:
+    entries: list[Mapping[str, object]] = []
+
+    def collect(value: object) -> None:
+        if not isinstance(value, Mapping):
+            return
+        if "interpretation_state" in value and "family" in value:
+            entries.append(value)
+            return
+        for nested in value.values():
+            collect(nested)
+
+    collect(report_payload.get("quant_interpretation", {}))
+    return entries
+
+
+def stock_report_quant_interpretation_cards(
+    report_payload: Mapping[str, object],
+) -> list[dict[str, object]]:
+    labels = {
+        "historical_review_only": "Historical review only",
+        "withheld": "Interpretation withheld",
+    }
+    for entry in _stock_report_quant_interpretation_entries(report_payload):
+        state = str(entry.get("interpretation_state") or "")
+        calculation_state = str(entry.get("calculation_state") or "")
+        if state not in labels or calculation_state not in {"available", "partial"}:
+            continue
+        family = str(entry.get("family") or "quantitative result").replace("_", " ")
+        return [
+            {
+                "kicker": "QUANT INTERPRETATION BOUNDARY",
+                "title": labels[state],
+                "body": str(
+                    entry.get("summary")
+                    or "Quantitative interpretation is limited pending eligible evidence."
+                ),
+                "badges": [
+                    family,
+                    "commercial use not eligible",
+                ],
+            }
+        ]
+    return []
+
+
+def stock_report_quant_interpretation_evidence_frame(
+    report_payload: Mapping[str, object],
+) -> pd.DataFrame:
+    columns = [
+        "Family",
+        "Scope",
+        "Calculation State",
+        "Observation Date",
+        "Observation State",
+        "Provenance",
+        "Rights",
+        "Field Scope",
+        "Reason Codes",
+    ]
+
+    def escaped(value: object, fallback: str = "Unavailable") -> str:
+        if value is None:
+            return fallback
+        if isinstance(value, (list, tuple, set)):
+            text = ", ".join(str(item) for item in value)
+        else:
+            text = str(value)
+        return html.escape(text.strip() or fallback)
+
+    rows = [
+        {
+            "Family": escaped(entry.get("family")),
+            "Scope": escaped(entry.get("scope")),
+            "Calculation State": escaped(entry.get("calculation_state")),
+            "Observation Date": escaped(entry.get("observation_through_date")),
+            "Observation State": escaped(entry.get("observation_state")),
+            "Provenance": escaped(entry.get("provenance_state")),
+            "Rights": escaped(entry.get("rights_state")),
+            "Field Scope": escaped(entry.get("field_scope_state")),
+            "Reason Codes": escaped(entry.get("reasons")),
+        }
+        for entry in _stock_report_quant_interpretation_entries(report_payload)
+    ]
+    return pd.DataFrame(rows, columns=columns)
+
+
 def stock_report_missing_data_text(warnings: list[object]) -> str:
     if not warnings:
         return "No explicit missing-data warnings were assembled from the current inputs."
@@ -11092,13 +12282,13 @@ def data_health_coverage_summary_frame(
             "lane": "Peers",
             "coverage_tier": "peer_candidate_context / trusted_peer_ready",
             "state": _coverage_lane_state(peer_ready, master, locked_when_empty=True),
-            "one_clear_answer": "Use only where source-backed peer mappings and required peer data exist.",
+            "one_clear_answer": "Use relationship context only with source-backed mappings; use peer medians only after role, comparability, and anchor review.",
             "ready_coverage": _coverage_summary_fraction(peer_ready, master),
             "supporting_coverage": f"Peer valuation comparisons {peer_valuation_ready:,}",
             "blocked_or_limited": f"{max(master - peer_ready, 0):,} still need peer mapping or peer inputs",
-            "why_blocked_or_limited": "Candidate peers are context only; trusted peers need source-backed mappings plus trusted peer inputs.",
-            "proof_to_unlock": "Reviewed trusted peer mapping rows plus mapped-peer price, fundamentals, and valuation inputs.",
-            "stop_rule": "Stop if candidate peers are promoted to trusted peers or mapped-peer inputs are missing.",
+            "why_blocked_or_limited": "Candidate and legacy-unreviewed peers stay context-only and cannot enter peer medians.",
+            "proof_to_unlock": "Reviewed peer role, rationale, comparability, anchor decision, and required mapped-peer inputs.",
+            "stop_rule": "Stop if candidate or legacy-unreviewed peers enter peer medians or required inputs are missing.",
             "operator_step": "make project-status",
         },
         {
@@ -11264,6 +12454,8 @@ def data_health_public_lane_list_html(
     readiness_summary: dict[str, object],
     peer_readiness_frame: pd.DataFrame | None = None,
     root: Path | None = None,
+    *,
+    research_mode: bool = False,
 ) -> str:
     """Render four public readiness lanes as a comparable decision list."""
 
@@ -11283,7 +12475,11 @@ def data_health_public_lane_list_html(
         {
             "lane": "Optional inputs",
             "state": "optional / locked" if optional_ready <= 0 else "optional context",
-            "one_clear_answer": "No earnings or analyst-estimate input is used in the public review.",
+            "one_clear_answer": (
+                "No earnings or analyst-estimate input is used in the saved research review."
+                if research_mode
+                else "No earnings or analyst-estimate input is used in the public review."
+            ),
             "ready_coverage": "Not analysis-ready",
             "why_blocked_or_limited": "Trusted source-backed earnings and estimate rows are still required.",
             "ready_count": optional_ready,
@@ -11327,9 +12523,16 @@ def data_health_public_lane_list_html(
 def render_data_health_public_lane_list(
     readiness_summary: dict[str, object],
     peer_readiness_frame: pd.DataFrame | None = None,
+    *,
+    research_mode: bool = False,
 ) -> None:
     st.markdown(
-        data_health_public_lane_list_html(readiness_summary, peer_readiness_frame, root=BASE_DIR),
+        data_health_public_lane_list_html(
+            readiness_summary,
+            peer_readiness_frame,
+            root=BASE_DIR,
+            research_mode=research_mode,
+        ),
         unsafe_allow_html=True,
     )
 
@@ -11375,9 +12578,14 @@ def render_data_health_coverage_summary(
     peer_readiness_frame: pd.DataFrame | None = None,
     *,
     public_mode: bool = False,
+    research_mode: bool = False,
 ) -> None:
     if public_mode:
-        render_data_health_public_lane_list(readiness_summary, peer_readiness_frame)
+        render_data_health_public_lane_list(
+            readiness_summary,
+            peer_readiness_frame,
+            research_mode=research_mode,
+        )
         return
     render_section_header(
         "Coverage Summary / What Can I Use?",
@@ -11544,7 +12752,12 @@ def data_health_auto_refresh_status_cards(
                 "artifact_policy": "generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
             }
         )
-    status_payload = build_auto_refresh_status_payload(preflight, build_scheduler_plan(schedule=schedule))
+    project_root = root or BASE_DIR
+    status_payload = build_auto_refresh_status_payload(
+        preflight,
+        build_scheduler_plan(schedule=schedule),
+        continuation_gate=build_continuation_gate(build_profile_context(project_root=project_root)),
+    )
     return overview_console.auto_refresh_status_cards(status_payload)
 
 
@@ -11554,13 +12767,19 @@ def data_health_source_activation_setup_cards() -> list[dict[str, object]]:
 
 def data_health_provider_setup_checklist_cards(root: Path | None = None) -> list[dict[str, object]]:
     return overview_console.provider_setup_checklist_cards(
-        build_provider_setup_checklist(_cached_session_source_preflight_payload(root))
+        build_provider_setup_checklist(
+            _cached_session_source_preflight_payload(root),
+            root=root or BASE_DIR,
+        )
     )
 
 
 def data_health_provider_setup_first_answer_frame(root: Path | None = None) -> pd.DataFrame:
     return overview_console.provider_setup_first_answer_frame(
-        build_provider_setup_checklist(_cached_session_source_preflight_payload(root))
+        build_provider_setup_checklist(
+            _cached_session_source_preflight_payload(root),
+            root=root or BASE_DIR,
+        )
     )
 
 
@@ -11701,7 +12920,7 @@ def data_health_valuation_unlock_snapshot_cards(
                 "title": "Readiness report not loaded",
                 "body": "Refresh readiness before using the valuation unlock snapshot. Missing readiness output means analysis should stay current-only and blocked. Open operator details for read-only proof steps.",
                 "badges": ["readiness first", "no guessing"],
-                "command": "make readiness",
+                "command": "make readiness-preview TOP_N=20",
             }
         ]
 
@@ -11969,25 +13188,25 @@ def data_health_trusted_pilot_lane_cards(lane_frame: pd.DataFrame | None, *, lim
     return trusted_pilot_console.trusted_pilot_lane_cards(lane_frame, limit=limit)
 
 
-@lru_cache(maxsize=4)
-def cached_readiness_ops_lanes(root_text: str):
-    return tuple(build_readiness_ops_lanes(Path(root_text)))
+@lru_cache(maxsize=12)
+def cached_readiness_ops_lanes(root_text: str, profile: str):
+    return tuple(build_readiness_ops_lanes(Path(root_text), profile=profile))
 
 
-@lru_cache(maxsize=8)
-def cached_fundamentals_peer_metrics_queue(root_text: str, top_n: int):
-    lanes = cached_readiness_ops_lanes(root_text)
+@lru_cache(maxsize=24)
+def cached_fundamentals_peer_metrics_queue(root_text: str, profile: str, top_n: int):
+    lanes = cached_readiness_ops_lanes(root_text, profile)
     return tuple(build_fundamentals_peer_metrics_queue_from_lanes(lanes, root=Path(root_text), top_n=top_n))
 
 
-@lru_cache(maxsize=8)
-def cached_data_coverage_proof_queues(root_text: str, top_n: int):
-    return tuple(build_data_coverage_proof_queues(Path(root_text), top_n=top_n))
+@lru_cache(maxsize=24)
+def cached_data_coverage_proof_queues(root_text: str, profile: str, top_n: int):
+    return tuple(build_data_coverage_proof_queues(Path(root_text), profile=profile, top_n=top_n))
 
 
-@lru_cache(maxsize=8)
-def cached_pilot_readiness_checks(root_text: str, top_n: int):
-    return tuple(build_pilot_readiness_checks(Path(root_text), top_n=top_n))
+@lru_cache(maxsize=24)
+def cached_pilot_readiness_checks(root_text: str, profile: str, top_n: int):
+    return tuple(build_pilot_readiness_checks(Path(root_text), profile=profile, top_n=top_n))
 
 
 @lru_cache(maxsize=8)
@@ -12024,7 +13243,7 @@ def cached_metric_readiness_queue_rows(root_text: str, top_n: int):
                     "Next Check": row.next_action,
                     "Freshness": freshness.get("status", "unknown"),
                     "Freshness Message": freshness.get("message", ""),
-                    "Refresh Command": freshness.get("refresh_command", "make readiness"),
+                    "Refresh Command": freshness.get("refresh_command", "make readiness-preview TOP_N=20"),
                 }
             )
     return tuple(rows)
@@ -12033,7 +13252,7 @@ def cached_metric_readiness_queue_rows(root_text: str, top_n: int):
 def data_health_readiness_ops_center_frame(root: Path | None = None) -> pd.DataFrame:
     """Return broad lane-level readiness operations for Data Health."""
 
-    lanes = cached_readiness_ops_lanes(str(root or BASE_DIR))
+    lanes = cached_readiness_ops_lanes(str(root or BASE_DIR), _active_data_profile_name())
     rows = [
         {
             "Lane": lane.label,
@@ -12059,14 +13278,14 @@ def data_health_readiness_ops_center_frame(root: Path | None = None) -> pd.DataF
 
 
 def data_health_coverage_frontier_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
-    lanes = cached_readiness_ops_lanes(str(root or BASE_DIR))
+    lanes = cached_readiness_ops_lanes(str(root or BASE_DIR), _active_data_profile_name())
     return coverage_console.coverage_frontier_frame_from_lanes(lanes, top_n=top_n)
 
 
 def data_health_fundamentals_peer_metrics_queue_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
     """Return the next readiness queue after broad price coverage."""
 
-    rows = cached_fundamentals_peer_metrics_queue(str(root or BASE_DIR), top_n)
+    rows = cached_fundamentals_peer_metrics_queue(str(root or BASE_DIR), _active_data_profile_name(), top_n)
     return pd.DataFrame(
         [
             {
@@ -12092,7 +13311,11 @@ def data_health_fundamentals_peer_metrics_queue_frame(root: Path | None = None, 
 def data_health_data_coverage_proof_queue_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
     """Return proof queues for DCF, share count, trusted fundamentals, and peers."""
 
-    rows = cached_data_coverage_proof_queues(str(root or BASE_DIR), top_n)
+    rows = cached_data_coverage_proof_queues(
+        str(root or BASE_DIR),
+        _active_data_profile_name(),
+        top_n,
+    )
     return pd.DataFrame(
         [
             {
@@ -12117,7 +13340,11 @@ def data_health_data_coverage_proof_queue_frame(root: Path | None = None, *, top
 
 
 def data_health_pilot_readiness_frame(root: Path | None = None, *, top_n: int = 10) -> pd.DataFrame:
-    checks = cached_pilot_readiness_checks(str(root or BASE_DIR), top_n)
+    checks = cached_pilot_readiness_checks(
+        str(root or BASE_DIR),
+        _active_data_profile_name(),
+        top_n,
+    )
     return pd.DataFrame(
         [
             {
@@ -12422,7 +13649,7 @@ def data_health_trusted_fundamentals_source_review_frame(
                     "Validate Command": "blocked until source-review scope exists",
                     "Preview Command": "blocked until validation is reviewed",
                     "Apply Boundary": "Do not apply fundamentals rows without reviewed source proof.",
-                    "Post-Run Proof": "make dcf-readiness && make readiness",
+                    "Post-Run Proof": "blocked until DCF input proof queue and reviewed source scope exist",
                     "Proof Record Dry-Run Boundary": "blocked until reviewed source scope exists",
                     "Stop Rule": "Run make dcf-input-proof-queue TOP_N=10 before reviewing trusted fundamentals source rows.",
                 }
@@ -12446,7 +13673,7 @@ def data_health_trusted_fundamentals_source_review_frame(
                     "Validate Command": "blocked until source-review scope exists",
                     "Preview Command": "blocked until validation is reviewed",
                     "Apply Boundary": "Do not apply fundamentals rows without reviewed source proof.",
-                    "Post-Run Proof": "make dcf-readiness && make readiness",
+                    "Post-Run Proof": "blocked until the selected family has reviewed proof rows",
                     "Proof Record Dry-Run Boundary": "blocked until reviewed source scope exists",
                     "Stop Rule": "Keep the lane blocked when the selected family has no current proof rows.",
                 }
@@ -12504,7 +13731,7 @@ def data_health_trusted_fundamentals_source_review_frame(
                 "Apply Boundary": format_missing(first_preview.get("Apply Boundary"), "Do not apply rows without reviewed source proof."),
                 "Post-Run Proof": format_missing(
                     first_preview.get("Post-Guard Proof"),
-                    format_missing(first_filtered.get("Proof After Update"), "make dcf-readiness && make readiness"),
+                    "blocked until guard readiness is ready_for_guard",
                 ),
                 "Proof Record Dry-Run Boundary": format_missing(
                     first_handoff.get("Proof Record Dry Run"),
@@ -12577,10 +13804,17 @@ def data_health_trusted_fundamentals_source_review_command_frame(frame: pd.DataF
                 "Review Boundary": "Apply is an explicit reviewed decision, not an automatic command from this drawer.",
             },
             {
-                "Step": "Post-run readiness proof",
-                "Status": "after_reviewed_apply_or_skip",
-                "Copy Command": format_missing(row.get("Post-Run Proof"), "make dcf-readiness && make readiness"),
-                "Review Boundary": "Run after a reviewed apply or skip decision to prove the lane is supported or still blocked.",
+                "Step": "Begin reviewed write proof",
+                "Status": "ready_before_reviewed_apply" if ready else "blocked_by_placeholders",
+                "Copy Command": format_missing(
+                    row.get("Post-Run Proof"),
+                    "blocked until guard readiness is ready_for_guard",
+                ),
+                "Review Boundary": (
+                    "Begin this one sequence before apply: it snapshots first, then validates, previews, applies the reviewed row, rebuilds readiness, and compares. If the operator skips, do not run the write sequence; keep the lane blocked."
+                    if ready
+                    else "Do not run a write proof while reviewed source fields or guard readiness are blocked."
+                ),
             },
             {
                 "Step": "Proof-record dry run",
@@ -12838,12 +14072,13 @@ def data_health_dcf_input_proof_handoff_cards(frame: pd.DataFrame | None, select
         handoff_command = f"make dcf-input-proof-handoff FAMILY={family} TOP_N=10"
     tickers = ",".join(str(ticker).strip() for ticker in work["Ticker"].head(10).tolist() if str(ticker).strip())
     family_for_packet = family_label.replace(" top family", "")
+    profile = _active_data_profile_name()
     if family_for_packet == "shares_outstanding":
-        packet = f"DRY_RUN=1 make reviewed-batch LANE=share_count TICKERS={tickers}"
+        packet = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=share_count TICKERS={tickers}"
     elif family_for_packet == "price":
-        packet = f"DRY_RUN=1 make reviewed-batch LANE=prices TICKERS={tickers}"
+        packet = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=prices TICKERS={tickers}"
     else:
-        packet = f"DRY_RUN=1 make fundamentals-batch-proof TICKERS={tickers}"
+        packet = f"DRY_RUN=1 make fundamentals-batch-proof PROFILE={profile} TICKERS={tickers}"
     return [
         {
             "kicker": "DCF PROOF HANDOFF",
@@ -13118,11 +14353,14 @@ def data_health_dcf_proof_loop_outcome_frame(
     comparison_detail = "Open Proof review details before using changed counts in a DCF proof row."
     comparison_command = "Open Proof review details."
     if comparison is not None:
-        comparison_command = f"make reviewed-batch-compare LANE={compare_lane}"
+        comparison_command = (
+            f"make reviewed-batch-compare PROFILE={comparison.profile} LANE={compare_lane} BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+        )
         if comparison.status != "ok":
             comparison_status = comparison.status
             comparison_detail = comparison.blocking_message or "Snapshot comparison is blocked until before/after readiness reports exist."
-            comparison_command = "make readiness-snapshot" if comparison.status == "missing_before" else "make readiness"
+            if comparison.status == "missing_before":
+                comparison_command = f"make readiness-snapshot PROFILE={comparison.profile}"
         elif comparison.blocking_message:
             comparison_status = "stale_snapshot_warning"
             comparison_detail = (
@@ -13440,6 +14678,7 @@ def data_health_readiness_queue_drilldown_frame(
         metric_queue_frame=metric_queue_frame,
         batch_proof_frame=batch_proof_frame,
         freshness_status=freshness_status,
+        profile=_active_data_profile_name(),
     )
 
 
@@ -13501,19 +14740,19 @@ def data_health_readiness_queue_drilldown_cards(row: pd.Series | dict[str, objec
 
 
 def data_health_readiness_queue_lane_action_frame(row: pd.Series | dict[str, object]) -> pd.DataFrame:
-    return build_readiness_queue_lane_action_frame(row)
+    return build_readiness_queue_lane_action_frame(row, profile=_active_data_profile_name())
 
 
 def data_health_readiness_queue_route_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
-    return build_readiness_queue_route_cards(row)
+    return build_readiness_queue_route_cards(row, profile=_active_data_profile_name())
 
 
 def data_health_readiness_queue_route_overview_cards(frame: pd.DataFrame | None) -> list[dict[str, object]]:
-    return build_readiness_queue_route_overview_cards(frame)
+    return build_readiness_queue_route_overview_cards(frame, profile=_active_data_profile_name())
 
 
 def data_health_readiness_queue_route_strip_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
-    return build_readiness_queue_route_strip_cards(row)
+    return build_readiness_queue_route_strip_cards(row, profile=_active_data_profile_name())
 
 
 def data_health_readiness_queue_lane_action_cards(row: pd.Series | dict[str, object]) -> list[dict[str, object]]:
@@ -13625,7 +14864,7 @@ def data_health_peer_readiness_v2_cards(ops_frame: pd.DataFrame | None) -> list[
                 "title": "Peer sub-states need readiness rows",
                 "body": "Refresh readiness, then reopen Data Health to separate peer mapping, peer price, peer fundamentals, and peer valuation readiness. Open operator details for read-only proof steps.",
                 "badges": ["read-only", "peer gates"],
-                "command": "make readiness && make peer-mapping-queue TOP_N=25",
+                "command": f"make readiness-snapshot PROFILE={_active_data_profile_name()} && make peer-mapping-queue TOP_N=25",
             }
         ]
     peer_rows = ops_frame.loc[
@@ -13665,6 +14904,8 @@ def data_health_peer_readiness_v2_cards(ops_frame: pd.DataFrame | None) -> list[
 def data_health_peer_readiness_v2_frame(ops_frame: pd.DataFrame | None) -> pd.DataFrame:
     """Return explicit peer sub-state rows for the Data Health drilldown."""
 
+    profile = _active_data_profile_name()
+    compare = f"make reviewed-batch-compare PROFILE={profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     sub_states = [
         {
             "Sub-State": "Peer mapping",
@@ -13674,22 +14915,22 @@ def data_health_peer_readiness_v2_frame(ops_frame: pd.DataFrame | None) -> pd.Da
         {
             "Sub-State": "Peer price",
             "Meaning": "Mapped peers have local trusted price history for context.",
-            "Proof Command": "make price-coverage TOP_N=25 && make readiness",
+            "Proof Command": f"make price-coverage TOP_N=25 && {compare}",
         },
         {
             "Sub-State": "Peer momentum",
             "Meaning": "Mapped peers have enough price history for trend context.",
-            "Proof Command": "make readiness && make metric-readiness BENCHMARK=SPY",
+            "Proof Command": f"{compare} && make metric-readiness BENCHMARK=SPY",
         },
         {
             "Sub-State": "Peer fundamentals",
             "Meaning": "Mapped peers have trusted fundamentals rows.",
-            "Proof Command": "make dcf-readiness && make readiness",
+            "Proof Command": f"make dcf-readiness && {compare}",
         },
         {
             "Sub-State": "Peer valuation",
             "Meaning": "Mapped peers have trusted valuation inputs such as fundamentals plus market-cap context.",
-            "Proof Command": "make readiness && make peer-mapping-queue TOP_N=25",
+            "Proof Command": f"{compare} && make peer-mapping-queue TOP_N=25",
         },
         {
             "Sub-State": "Peer valuation comparison",
@@ -13727,6 +14968,8 @@ def data_health_reviewed_batch_ladder_cards(
     freshness: FreshnessStatus | None = None,
 ) -> list[dict[str, object]]:
     freshness = freshness or readiness_freshness_status(BASE_DIR)
+    profile = _active_data_profile_name()
+    snapshot_command = f"make readiness-snapshot PROFILE={profile}"
     if frontier_frame is None or frontier_frame.empty:
         return [
             {
@@ -13744,15 +14987,15 @@ def data_health_reviewed_batch_ladder_cards(
     top = frontier_frame.iloc[0]
     lane = format_missing(top.get("Lane"), "Coverage lane")
     next_safe_command = format_missing(top.get("Next Safe Command"), "make coverage-frontier TOP_N=10")
-    proof_command = format_missing(top.get("Proof Command"), "make readiness")
+    comparison_command = f"make reviewed-batch-compare PROFILE={profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     workflow = normalize_operator_copy(format_missing(top.get("Workflow Mode"), "review"))
-    reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10"
+    reviewed_batch_command = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=prices TOP_N=10"
     if "fundamental" in lane.lower() or "dcf" in lane.lower():
-        reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=fundamentals TOP_N=10"
+        reviewed_batch_command = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=fundamentals TOP_N=10"
     elif "peer" in lane.lower():
-        reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10"
+        reviewed_batch_command = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=peers TOP_N=10"
     elif "earning" in lane.lower() or "estimate" in lane.lower() or "optional" in lane.lower():
-        reviewed_batch_command = "DRY_RUN=1 make reviewed-batch LANE=optional_context TOP_N=10"
+        reviewed_batch_command = f"DRY_RUN=1 make reviewed-batch PROFILE={profile} LANE=optional_context TOP_N=10"
 
     freshness_badges = [freshness.status, "stop if stale"] if freshness.status in {"missing", "stale"} else [freshness.status, "snapshot checked"]
     return [
@@ -13760,10 +15003,10 @@ def data_health_reviewed_batch_ladder_cards(
             "kicker": "BATCH STEP 1",
             "title": "Confirm readiness snapshot",
             "body": (
-                f"{freshness.message} Run {freshness.refresh_command} before relying on final counts when artifacts are missing or stale."
+                f"{freshness.message} Capture the named baseline before any reviewed changes; tracked-current report freshness is context only."
             ),
             "badges": freshness_badges,
-            "command": freshness.refresh_command,
+            "command": snapshot_command,
         },
         {
             "kicker": "BATCH STEP 2",
@@ -13793,7 +15036,7 @@ def data_health_reviewed_batch_ladder_cards(
                 "and keep generated CSV/JSON churn out unless intentionally selected as evidence."
             ),
             "badges": ["prove after", "clean diff"],
-            "command": f"{proof_command} && make diff-hygiene",
+            "command": f"{comparison_command} && make diff-hygiene",
         },
     ]
 
@@ -13877,7 +15120,7 @@ def data_health_reviewed_batch_proof_frame(ledger_path: Path | None = None) -> p
             "Lane": proof.lane,
             "Scope": proof.scope,
             "Tickers": proof.tickers,
-            "Command Run": proof.command_run,
+            "Historical Command (not executable)": proof.command_run,
             "Validate Result": proof.validation_result,
             "Preview Result": proof.preview_result,
             "Apply Result": proof.apply_result,
@@ -13941,6 +15184,98 @@ def data_health_reviewed_batch_proof_cards(ledger_path: Path | None = None) -> l
     ]
 
 
+def proof_readiness_reconciliation_cards(
+    summary: ProofReadinessReconciliationSummary,
+    *,
+    ticker: str = "",
+) -> list[dict[str, object]]:
+    def label(value: str) -> str:
+        return str(value or "").replace("_", " ")
+
+    conflicts = [
+        row
+        for row in summary.rows
+        if row.state == "historical_supported_currently_blocked"
+    ]
+    selected = str(ticker or "").strip().upper()
+    selected_conflicts = [row for row in conflicts if selected and row.ticker == selected]
+    if conflicts:
+        blocker_counts = [
+            (blocker_code, int(count))
+            for blocker_code, count in summary.current_blocker_counts
+            if blocker_code != "none"
+        ]
+        largest_blocker_code, largest_blocker_count = max(
+            blocker_counts,
+            key=lambda item: item[1],
+            default=("none", 0),
+        )
+        largest_blocker_label = label(largest_blocker_code)
+        title = f"{len(conflicts):,} historical-support/current-readiness conflict(s)"
+        body = (
+            "Historical support is not current readiness. Current saved readiness remains authoritative. "
+            f"Largest observable current blocker: {largest_blocker_label} ({largest_blocker_count:,}). "
+            "Observable current blockers describe saved inputs; they do not establish the historical cause, "
+            "restore data, promote readiness, or rewrite proof history. Historical evidence does not establish "
+            "the historical cause."
+        )
+        badges = [summary.input_status, "current state wins"]
+    else:
+        title = "No historical-support/current-readiness conflict found"
+        body = (
+            "The current reconciliation found no mapped conflict. This does not prove source rights, field scope, "
+            "provenance, or payload truth, and current saved readiness remains authoritative."
+        )
+        badges = [summary.input_status, "read-only"]
+    cards: list[dict[str, object]] = [
+        {
+            "kicker": "PROOF / CURRENT STATE",
+            "title": title,
+            "body": body,
+            "badges": badges,
+            "command": "",
+        }
+    ]
+    if selected_conflicts:
+        lanes = ", ".join(dict.fromkeys(label(row.lane) for row in selected_conflicts))
+        applicability = ", ".join(
+            dict.fromkeys(label(row.proof_applicability) for row in selected_conflicts)
+        )
+        blockers = ", ".join(
+            dict.fromkeys(
+                f"{label(row.current_blocker_code)}"
+                + (
+                    f" ({', '.join(label(field) for field in row.current_blocker_fields)})"
+                    if row.current_blocker_fields
+                    else ""
+                )
+                for row in selected_conflicts
+            )
+        )
+        next_safe_review = next(
+            (
+                row.next_safe_review
+                for row in selected_conflicts
+                if row.next_safe_review
+            ),
+            "No safe next review is recorded.",
+        )
+        cards.append(
+            {
+                "kicker": "SELECTED TICKER",
+                "title": f"{selected}: historical proof conflicts with current readiness",
+                "body": (
+                    f"Current blocked lane(s): {lanes}. Proof applicability: {applicability}. "
+                    f"Current blocker(s): {blockers}. Next safe review: {next_safe_review} "
+                    "Reconciliation itself does not unlock the lane."
+                ),
+                "badges": [selected, "currently blocked"],
+                "command": "",
+            }
+        )
+    return cards
+
+
 def _proof_history_first_text(frame: pd.DataFrame | None, *columns: str, fallback: str = "Not recorded") -> str:
     if frame is None or frame.empty:
         return fallback
@@ -13962,7 +15297,7 @@ def _proof_history_public_text(value: object, fallback: str = "Not recorded") ->
             "company-level assumptions and sensitivity review are available",
         ),
         (
-            r"\brun make readiness before relying on generated CSV output\b",
+            r"\brun make\s+readiness before relying on generated CSV output\b",
             "refresh readiness before relying on saved status output",
         ),
         (r"\bgenerated CSV output\b", "saved status output"),
@@ -14015,13 +15350,13 @@ def proof_history_public_summary_html(proof_timeline: pd.DataFrame | None, batch
         "<div class='public-proof-history'>"
         "<div class='public-proof-summary-card'>"
         "<div class='public-proof-kicker'>Proof History</div>"
-        "<div class='public-proof-title'>Latest source-proof trail</div>"
-        f"<div class='public-proof-body'>{html.escape(str(proof_count))} reviewed lane proof records. Latest lane: {html.escape(latest_proof_lane)}. Outcome: {html.escape(latest_proof_outcome)}. {html.escape(latest_proof_change)}</div>"
+        "<div class='public-proof-title'>Saved source-proof trail</div>"
+        f"<div class='public-proof-body'>{html.escape(str(proof_count))} reviewed lane proof records. Saved lane: {html.escape(latest_proof_lane)}. Outcome: {html.escape(latest_proof_outcome)}. {html.escape(latest_proof_change)}</div>"
         "</div>"
         "<div class='public-proof-summary-card'>"
         "<div class='public-proof-kicker'>Reviewed Batch Proof</div>"
         "<div class='public-proof-title'>Changed readiness needs durable proof</div>"
-        f"<div class='public-proof-body'>{html.escape(str(batch_count))} reviewed batch proof records. Latest lane: {html.escape(latest_batch_lane)}. Outcome: {html.escape(latest_batch_outcome)}. {html.escape(latest_batch_change)}</div>"
+        f"<div class='public-proof-body'>{html.escape(str(batch_count))} reviewed batch proof records. Saved lane: {html.escape(latest_batch_lane)}. Outcome: {html.escape(latest_batch_outcome)}. {html.escape(latest_batch_change)}</div>"
         "</div>"
         "</div>"
     )
@@ -14054,14 +15389,14 @@ def proof_history_first_answer_frame(
                 "Boundary": "Proof History does not change local data, record outcomes, or unlock blocked inputs.",
             },
             {
-                "Question": f"Latest reviewed outcome: {latest_proof_lane}",
+                "Question": f"Saved reviewed outcome: {latest_proof_lane}",
                 "Answer": f"{latest_proof_outcome}. {latest_proof_change}.",
                 "Next Safe Destination": "Single-Stock Report for interpretation.",
                 "Boundary": "Evidence only; this does not change local data or unlock blocked inputs.",
             },
             {
                 "Question": "What is still blocked or context only?",
-                "Answer": f"{latest_proof_blocker} Latest batch {latest_batch_lane}: {latest_batch_outcome}.",
+                "Answer": f"{latest_proof_blocker} Saved batch {latest_batch_lane}: {latest_batch_outcome}.",
                 "Next Safe Destination": "Data Health only if the blocker still matters.",
                 "Boundary": "Blocked, context-only, skipped, and excluded states stay visible until source proof changes.",
             },
@@ -14117,81 +15452,347 @@ def proof_history_first_answer_cards_html(frame: pd.DataFrame | None) -> str:
     return "<div class='public-proof-answer-cards'>" + "".join(rows) + "</div>"
 
 
-def proof_history_public_timeline_html(
+def _fail_closed_route_hierarchy_html(
+    *,
+    question: str,
+    answer: str,
+    reason: str,
+    action: SafeRouteAction,
+    stop_rule: str,
+    supporting_title: str,
+    supporting_body: str,
+) -> str:
+    """Return the shared answer/action/boundary/support/detail order for early exits."""
+
+    return (
+        answer_panel_html(
+            question=question,
+            answer=answer,
+            reason=reason,
+            action=action,
+            stop_rule=stop_rule,
+        ).value
+        + supporting_detail_html(
+            title=supporting_title,
+            body=supporting_body,
+        ).value
+        + advanced_detail_marker_html().value
+    )
+
+
+def public_stock_selector_empty_hierarchy_html() -> str:
+    """Withhold selection when the saved public queue has no evidence rows."""
+
+    return _fail_closed_route_hierarchy_html(
+        question="Which stock can I review?",
+        answer="No readiness-backed ticker is available in this saved queue.",
+        reason=(
+            "The saved queue has no company row to open. This withholds selection; it does "
+            "not establish that no company exists or that any company passed review."
+        ),
+        action=SafeRouteAction(
+            label="Return to Home",
+            href="?mode=public&page=home",
+        ),
+        stop_rule=(
+            "Research-only. Do not infer a ticker, fabricate a queue row, or treat an empty "
+            "saved queue as a recommendation."
+        ),
+        supporting_title="Why selection is withheld",
+        supporting_body=(
+            "A company link appears only from a saved readiness-backed row. Return Home until "
+            "reviewable saved evidence is available."
+        ),
+    )
+
+
+def public_single_stock_tickerless_hierarchy_html() -> str:
+    """Explain the canonical tickerless report route before native selection controls."""
+
+    return _fail_closed_route_hierarchy_html(
+        question="What can I use for this ticker right now?",
+        answer="No ticker is selected, so no company evidence is shown.",
+        reason=(
+            "Choose a saved ticker below or return to the readiness-backed selector. No report "
+            "opens and no company is inferred from this route."
+        ),
+        action=SafeRouteAction(
+            label="Return to Stock Selector",
+            href="?mode=public&page=stock-selector",
+        ),
+        stop_rule=(
+            "Research-only. Do not treat a default control value as reviewed evidence or open a "
+            "report until you intentionally choose a ticker."
+        ),
+        supporting_title="Ticker selection boundary",
+        supporting_body=(
+            "The native selector and Open Review button remain available below. They do not "
+            "refresh prices, import files, or contact external accounts."
+        ),
+    )
+
+
+def _mark_public_single_stock_selection_intent() -> None:
+    """Record only a native selector change made during the current app session."""
+
+    selected_ticker = str(
+        st.session_state.get("single-stock-public-ticker") or ""
+    ).strip().upper()
+    if selected_ticker:
+        st.session_state["single-stock-public-selection-intent"] = selected_ticker
+    else:
+        st.session_state.pop("single-stock-public-selection-intent", None)
+
+
+def data_health_unavailable_hierarchy_html(*, workspace_mode: str) -> str:
+    """Return a mode-correct evidence-only state when the local provider is unavailable."""
+
+    if workspace_mode == RESEARCH_MODE:
+        return_link = research_evidence_return_link("")
+        action = SafeRouteAction(
+            label=return_link["label"],
+            href=return_link["href"],
+        )
+    elif workspace_mode == PUBLIC_DEMO_MODE:
+        action = SafeRouteAction(
+            label="Return to Stock Selector",
+            href="?mode=public&page=stock-selector",
+        )
+    else:
+        raise ValueError(f"Unsupported evidence workspace mode: {workspace_mode}")
+    return _fail_closed_route_hierarchy_html(
+        question="What can I use and what stays unavailable?",
+        answer="Local evidence is unavailable, so no Data Health lane can be classified.",
+        reason=(
+            "The local provider did not initialize. Usable, blocked, and context-only lane states "
+            "remain withheld because no saved evidence was loaded."
+        ),
+        action=action,
+        stop_rule=(
+            "Research-only. Do not infer readiness, run a command from this evidence view, or "
+            "treat provider failure as a company conclusion."
+        ),
+        supporting_title="Evidence-only unavailable state",
+        supporting_body=(
+            "No coverage row, proof result, or readiness count is fabricated here. Leave this "
+            "page using the mode-correct return action."
+        ),
+    )
+
+
+def evidence_route_answer_html(
+    page_title: str,
+    *,
+    workspace_mode: str,
+    ticker: str = "",
+    selected_lane_label: str = "",
+) -> str:
+    """Return one mode-correct evidence answer without changing route evidence."""
+
+    if page_title not in {"Data Health", PROOF_HISTORY_PATH_TITLE}:
+        raise ValueError(f"Unsupported evidence route: {page_title}")
+    if workspace_mode not in {PUBLIC_DEMO_MODE, RESEARCH_MODE}:
+        raise ValueError(f"Unsupported evidence workspace mode: {workspace_mode}")
+    safe_ticker = str(ticker or "").strip().upper()
+    encoded_ticker = quote(safe_ticker, safe="")
+    if workspace_mode == RESEARCH_MODE:
+        return_link = research_evidence_return_link(safe_ticker)
+        action = SafeRouteAction(
+            label=return_link["label"],
+            href=return_link["href"],
+        )
+    else:
+        action = SafeRouteAction(
+            label=(f"Return to {safe_ticker} report" if safe_ticker else "Return to Stock Selector"),
+            href=(
+                f"?mode=public&page=single-stock-report&ticker={encoded_ticker}&open=1"
+                if safe_ticker
+                else "?mode=public&page=stock-selector"
+            ),
+        )
+    if page_title == "Data Health":
+        question = "What can I use and what stays unavailable?"
+        lane_prefix = (
+            f"Selected Lane Answer — {str(selected_lane_label).strip()}. "
+            if str(selected_lane_label).strip()
+            else ""
+        )
+        answer = (
+            f"{lane_prefix}Usable, blocked, and context-only evidence stay separate."
+            if lane_prefix
+            else "Readiness stays lane-specific: usable inputs remain separate from blocked or context-only evidence."
+        )
+        reason = (
+            "Use the lane cards before opening advanced proof details: usable now, context only, "
+            "blocked, skipped or excluded, and the next proof boundary."
+        )
+        stop_rule = (
+            "Research-only. Missing or unreviewed inputs stay unavailable; Data Health does not "
+            "create evidence or a recommendation."
+        )
+    else:
+        question = "What evidence changed a readiness state?"
+        answer = "Reviewed lane and batch records show what changed and what remains blocked."
+        reason = (
+            "Review the authoritative saved order; missing timestamps stay visible and detailed "
+            "ledger tables remain secondary."
+        )
+        stop_rule = (
+            "Research-only. Proof History does not change local data, record outcomes, or unlock "
+            "blocked inputs."
+        )
+    return answer_panel_html(
+        question=question,
+        answer=answer,
+        reason=reason,
+        action=action,
+        stop_rule=stop_rule,
+    ).value
+
+
+def _proof_history_timeline_timestamp(value: object) -> str | None:
+    if value is None or (not isinstance(value, (list, tuple, dict, set)) and pd.isna(value)):
+        return None
+    text = str(value).strip()
+    if text.casefold() in {
+        "",
+        "nan",
+        "nat",
+        "none",
+        "null",
+        "unknown",
+        "unavailable",
+        "not available",
+        "no date recorded",
+        "timestamp unavailable",
+        "-",
+        "—",
+    }:
+        return None
+    return _proof_history_public_text(text)
+
+
+def _proof_history_row_value(row: pd.Series, *columns: str, fallback: str) -> str:
+    for column in columns:
+        if column not in row.index:
+            continue
+        value = row.get(column)
+        if value is None or pd.isna(value):
+            continue
+        text = str(value).strip()
+        if text:
+            return _proof_history_public_text(text)
+    return fallback
+
+
+def proof_history_timeline_records(
     proof_timeline: pd.DataFrame | None,
     batch_proof_frame: pd.DataFrame | None,
-) -> str:
-    """Return a compact public evidence timeline without exposing raw ledger rows."""
+) -> tuple[TimelineRecord, ...]:
+    """Return every authoritative proof record in stable newest-first order."""
 
-    events: list[tuple[str, str, str, str, str]] = []
-    for frame, source_label, date_columns, note_columns in (
+    records: list[TimelineRecord] = []
+    for frame, source_label, id_columns, date_columns, note_columns in (
         (
             proof_timeline,
             "Lane proof",
+            ("Proof ID", "proof_id"),
             ("Proof Date", "Review Date"),
             ("What Changed", "Still Blocked", "Notes"),
         ),
         (
             batch_proof_frame,
             "Batch proof",
+            ("Batch ID", "batch_id"),
             ("Review Date", "Proof Date"),
             ("What Changed", "Notes", "Still Blocked"),
         ),
     ):
         if frame is None or frame.empty:
             continue
-        for _, row in frame.head(2).iterrows():
-            date = _proof_history_public_text(_proof_history_first_text(pd.DataFrame([row]), *date_columns, fallback="No date recorded"))
-            lane = _proof_history_public_text(_proof_history_first_text(pd.DataFrame([row]), "Lane", fallback="Proof lane"))
-            outcome = _proof_history_public_text(
-                _proof_history_first_text(pd.DataFrame([row]), "Final Outcome", "Reviewer Outcome", fallback="not recorded")
+        for position, (_, row) in enumerate(frame.iterrows(), start=1):
+            record_id = next(
+                (
+                    str(row.get(column)).strip()
+                    for column in id_columns
+                    if column in row.index
+                    and row.get(column) is not None
+                    and not pd.isna(row.get(column))
+                    and str(row.get(column)).strip()
+                ),
+                f"{source_label.casefold().replace(' ', '-')}-{position}",
             )
-            note = _proof_history_public_text(_proof_history_first_text(pd.DataFrame([row]), *note_columns, fallback="No change note recorded."))
-            events.append((date, lane, outcome, note, source_label))
-    if not events:
-        return (
-            "<section class='public-proof-timeline' aria-label='Latest evidence'>"
-            "<div class='public-proof-timeline-empty'>No reviewed proof event is available yet. "
-            "Blocked inputs remain unavailable until a reviewed source path changes.</div>"
-            "</section>"
-        )
-    distinct_events: list[tuple[str, str, str, str, str]] = []
-    seen_events: set[tuple[str, str, str, str]] = set()
-    for event in events:
-        display_note = compact_card_fragment(event[3], max_chars=180)
-        fingerprint = (event[0], event[1], event[2], display_note)
-        if fingerprint in seen_events:
-            continue
-        distinct_events.append((event[0], event[1], event[2], display_note, event[4]))
-        seen_events.add(fingerprint)
-    distinct_events.sort(
-        key=lambda event: pd.to_datetime(event[0], errors="coerce"),
-        reverse=True,
-    )
+            timestamp = next(
+                (
+                    normalized
+                    for column in date_columns
+                    if column in row.index
+                    for normalized in (_proof_history_timeline_timestamp(row.get(column)),)
+                    if normalized is not None
+                ),
+                None,
+            )
+            lane = _proof_history_row_value(row, "Lane", fallback="Proof lane")
+            outcome = _proof_history_row_value(
+                row,
+                "Final Outcome",
+                "Reviewer Outcome",
+                fallback="not recorded",
+            )
+            note = _proof_history_row_value(
+                row,
+                *note_columns,
+                fallback="No change note recorded.",
+            )
+            records.append(
+                TimelineRecord(
+                    record_id=record_id,
+                    timestamp=timestamp,
+                    label=f"{source_label}: {lane} · {outcome}",
+                    summary=note,
+                )
+            )
+    indexed_records = tuple(enumerate(records))
 
-    rendered = []
-    for date, lane, outcome, note, source_label in distinct_events[:3]:
-        outcome_label = outcome.replace("_", " ")
-        outcome_class = re.sub(r"[^a-z0-9]+", "-", outcome_label.lower()).strip("-") or "not-recorded"
-        rendered.append(
-            "<article class='public-proof-event'>"
-            f"<div class='public-proof-event-date'>{html.escape(date)}</div>"
-            "<div class='public-proof-event-main'>"
-            f"<div class='public-proof-event-lane'>{html.escape(lane)}</div>"
-            f"<p>{html.escape(compact_card_fragment(note, max_chars=180))}</p>"
-            "</div>"
-            "<div class='public-proof-event-outcome'>"
-            f"<span class='public-proof-outcome {html.escape(outcome_class, quote=True)}'>{html.escape(outcome_label)}</span>"
-            f"<small>{html.escape(source_label)}</small>"
-            "</div>"
-            "</article>"
+    def newest_first(item: tuple[int, TimelineRecord]) -> tuple[int, int, int]:
+        position, record = item
+        parsed = pd.to_datetime(record.timestamp, utc=True, errors="coerce")
+        if pd.isna(parsed):
+            return (1, 0, position)
+        return (0, -int(parsed.value), position)
+
+    return tuple(record for _, record in sorted(indexed_records, key=newest_first))
+
+
+PROOF_HISTORY_INITIAL_RECORD_LIMIT = 20
+
+
+def proof_history_public_timeline_html(
+    proof_timeline: pd.DataFrame | None,
+    batch_proof_frame: pd.DataFrame | None,
+) -> str:
+    """Render a bounded newest-first summary while the full saved ledger stays available."""
+
+    records = proof_history_timeline_records(proof_timeline, batch_proof_frame)
+    visible_records = records[:PROOF_HISTORY_INITIAL_RECORD_LIMIT]
+    timeline = evidence_timeline_html(
+        visible_records,
+        empty_title="No reviewed proof event is available yet",
+        empty_body=(
+            "Blocked inputs remain unavailable until a reviewed source path changes."
+        ),
+        heading="Newest reviewed evidence",
+        aria_label="Newest reviewed evidence",
+    ).value
+    summary = ""
+    if records:
+        summary = (
+            "<p class='public-proof-timeline-summary'>"
+            f"Showing {len(visible_records)} of {len(records)} reviewed records in newest-first order. "
+            "Open Advanced proof ledger details for all authoritative rows."
+            "</p>"
         )
-    return (
-        "<section class='public-proof-timeline' aria-label='Latest evidence'>"
-        "<div class='public-proof-timeline-heading'>Latest evidence</div>"
-        + "".join(rendered)
-        + "</section>"
-    )
+    return f"<div class='public-proof-timeline'>{summary}{timeline}</div>"
 
 
 def proof_history_public_detail_cards(
@@ -14221,7 +15822,7 @@ def proof_history_public_detail_cards(
     batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
     return [
         {
-            "kicker": "LATEST LANE PROOF",
+            "kicker": "SAVED LANE PROOF",
             "title": f"{latest_proof_lane}: {latest_proof_outcome}",
             "body": (
                 f"{card_sentence('What changed', latest_proof_change)} "
@@ -14237,14 +15838,14 @@ def proof_history_public_detail_cards(
                 "Evidence only; not a second dashboard. "
                 "What this proves: reviewed source-proof outcomes by lane or batch. "
                 "What it does not prove: Proof History does not change local data, record outcomes, or unlock blocked inputs. "
-                "Evidence review only: read the latest lane and batch outcome; open Data Health only if a blocker remains. "
+                "Evidence review only: read a saved lane or batch outcome; open Data Health only if a blocker remains. "
                 "Detailed proof ledgers and evidence scaffolds stay collapsed."
             ),
             "badges": ["evidence trail", "reviewed changes"],
             "command": "",
         },
         {
-            "kicker": "LATEST BATCH PROOF",
+            "kicker": "SAVED BATCH PROOF",
             "title": f"{latest_batch_lane}: {latest_batch_outcome}",
             "body": (
                 f"{card_sentence('Changed tickers', latest_batch_tickers_summary)} "
@@ -14256,7 +15857,12 @@ def proof_history_public_detail_cards(
     ]
 
 
-def render_proof_history(*, public_mode: bool = True) -> None:
+def render_proof_history(
+    *,
+    public_mode: bool = True,
+    workspace_mode: str = PUBLIC_DEMO_MODE,
+    registered_tickers: list[str] | tuple[str, ...] | None = None,
+) -> None:
     if not public_mode:
         render_section_header(
             PROOF_HISTORY_PATH_TITLE,
@@ -14264,7 +15870,20 @@ def render_proof_history(*, public_mode: bool = True) -> None:
         )
     proof_timeline = data_health_reviewed_proof_timeline_frame()
     batch_proof_frame = data_health_reviewed_batch_proof_frame()
+    proof_reconciliation = load_proof_readiness_reconciliation(root=BASE_DIR, data_dir=DATA_DIR)
+    proof_ticker = data_health_focus_ticker(
+        st.query_params.get("ticker"),
+        registered_tickers,
+    )
     if public_mode:
+        st.markdown(
+            evidence_route_answer_html(
+                PROOF_HISTORY_PATH_TITLE,
+                workspace_mode=workspace_mode,
+                ticker=proof_ticker,
+            ),
+            unsafe_allow_html=True,
+        )
         st.markdown(
             proof_history_public_timeline_html(proof_timeline, batch_proof_frame),
             unsafe_allow_html=True,
@@ -14278,7 +15897,7 @@ def render_proof_history(*, public_mode: bool = True) -> None:
         render_signal_cards(proof_cards, show_commands=False, variant="queue")
         render_context_note(
             "Evidence boundary.",
-            "Review the latest lane or batch outcome here. Use Data Health only when a remaining blocker needs investigation; Proof History never changes readiness.",
+            "Review a saved lane or batch outcome here. Use Data Health only when a remaining blocker needs investigation; Proof History never changes readiness.",
             tone="success",
         )
         with st.expander("Advanced: evidence summary", expanded=False):
@@ -14287,6 +15906,13 @@ def render_proof_history(*, public_mode: bool = True) -> None:
                 proof_history_public_summary_html(proof_timeline, batch_proof_frame),
                 unsafe_allow_html=True,
             )
+    render_signal_cards(
+        proof_readiness_reconciliation_cards(proof_reconciliation, ticker=proof_ticker),
+        show_commands=False,
+        variant="queue",
+    )
+    if public_mode:
+        st.markdown(advanced_detail_marker_html().value, unsafe_allow_html=True)
     with st.expander("Advanced: proof ledger details", expanded=False):
         render_section_header("Reviewed Data Proof Ledger", "Durable lane proof rows, not generated CSV churn.")
         if proof_timeline.empty:
@@ -14344,6 +15970,10 @@ def _data_health_packet_tickers(packet_frame: pd.DataFrame | None) -> list[str]:
     return proof_console.packet_tickers(packet_frame)
 
 
+def _active_data_profile_name() -> str:
+    return resolve_data_profile(project_root=BASE_DIR).name
+
+
 def data_health_reviewed_batch_outcome_recorder_frame(
     packet_frame: pd.DataFrame | None = None,
     comparison: ReadinessComparison | None = None,
@@ -14351,7 +15981,7 @@ def data_health_reviewed_batch_outcome_recorder_frame(
     """Show which proof-row fields are still missing before a batch outcome can be recorded."""
 
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_outcome_recorder_frame(packet_frame, comparison)
 
 
@@ -14362,7 +15992,7 @@ def data_health_reviewed_batch_outcome_recorder_cards(
     """Compact card for missing proof-row fields before outcome recording."""
 
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_outcome_recorder_cards(packet_frame, comparison)
 
 
@@ -14381,7 +16011,7 @@ def data_health_reviewed_batch_proof_record_command_frame(
     """Return copy-ready proof-record command arguments with missing fields visible."""
 
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_record_command_frame(packet_frame, comparison)
 
 
@@ -14390,7 +16020,7 @@ def data_health_reviewed_batch_proof_record_command_arguments_frame(
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_record_command_arguments_frame(packet_frame, comparison)
 
 
@@ -14399,7 +16029,7 @@ def data_health_reviewed_batch_proof_record_validation_frame(
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_record_validation_frame(packet_frame, comparison)
 
 
@@ -14408,7 +16038,7 @@ def data_health_reviewed_batch_proof_completion_frame(
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_completion_frame(packet_frame, comparison)
 
 
@@ -14417,7 +16047,7 @@ def data_health_reviewed_batch_proof_ledger_preview_frame(
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_ledger_preview_frame(packet_frame, comparison)
 
 
@@ -14426,7 +16056,7 @@ def data_health_reviewed_batch_proof_ledger_preview_cards(
     comparison: ReadinessComparison | None = None,
 ) -> list[dict[str, object]]:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_ledger_preview_cards(packet_frame, comparison)
 
 
@@ -14439,7 +16069,7 @@ def data_health_reviewed_batch_proof_record_command_cards(
     comparison: ReadinessComparison | None = None,
 ) -> list[dict[str, object]]:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_record_command_cards(packet_frame, comparison)
 
 
@@ -14448,7 +16078,7 @@ def data_health_reviewed_batch_proof_completion_cards(
     comparison: ReadinessComparison | None = None,
 ) -> list[dict[str, object]]:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_completion_cards(packet_frame, comparison)
 
 
@@ -14463,7 +16093,7 @@ def data_health_reviewed_batch_proof_loop_cards(
     """Compact proof drawer cards that connect packet, comparison, and ledger scaffold."""
 
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_loop_cards(packet_frame, comparison)
 
 
@@ -14472,20 +16102,25 @@ def data_health_reviewed_batch_proof_loop_frame(
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
     packet_frame = packet_frame if packet_frame is not None else data_health_latest_reviewed_batch_packet_frame()
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return proof_console.reviewed_batch_proof_loop_frame(packet_frame, comparison)
 
 
 def data_health_readiness_comparison_frame(comparison: ReadinessComparison | None = None) -> pd.DataFrame:
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     return pd.DataFrame(
         [
             {
                 "Status": comparison.status,
+                "Profile": comparison.profile,
                 "Before Snapshot": str(comparison.before_path),
                 "After Snapshot": str(comparison.after_path),
+                "After Row Set": comparison.after_source or str(comparison.after_path),
                 "Rows Before": comparison.before_rows,
                 "Rows After": comparison.after_rows,
+                "Before Input Identity": comparison.before_input_identity,
+                "After Input Identity": comparison.after_input_identity,
+                "Readiness Method Version": comparison.readiness_method_version,
                 "Changed Readiness Counts": comparison.changed_readiness_counts,
                 "Changed Tickers": ", ".join(comparison.changed_tickers) if comparison.changed_tickers else "none",
                 "Changed Ticker Count": comparison.changed_count,
@@ -14497,7 +16132,11 @@ def data_health_readiness_comparison_frame(comparison: ReadinessComparison | Non
 
 
 def data_health_readiness_comparison_cards(comparison: ReadinessComparison | None = None) -> list[dict[str, object]]:
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
+    profile = resolve_readiness_proof_profile(
+        comparison.profile or _active_data_profile_name(),
+        project_root=BASE_DIR,
+    )
     if comparison.status != "ok":
         return [
             {
@@ -14508,7 +16147,7 @@ def data_health_readiness_comparison_cards(comparison: ReadinessComparison | Non
                     "changed readiness counts in the proof ledger."
                 ),
                 "badges": [comparison.status, "read-only"],
-                "command": "make readiness-snapshot",
+                "command": f"make readiness-snapshot PROFILE={profile}",
             }
         ]
     changed_tickers = ", ".join(comparison.changed_tickers) if comparison.changed_tickers else "none"
@@ -14522,18 +16161,28 @@ def data_health_readiness_comparison_cards(comparison: ReadinessComparison | Non
                 "Use this as proof-ledger input after source review; it is not a recommendation signal."
             ),
             "badges": [comparison.freshness_status, "proof input"],
-            "command": "make reviewed-batch-compare LANE=prices",
+            "command": f"make reviewed-batch-compare PROFILE={profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
         }
     ]
 
 
 def data_health_reviewed_batch_preflight_cards(preflight: ReviewedBatchPreflight | None = None) -> list[dict[str, object]]:
-    preflight = preflight or build_reviewed_batch_preflight(BASE_DIR, lane="prices", top_n=100)
+    preflight = preflight or build_reviewed_batch_preflight(
+        BASE_DIR,
+        lane="prices",
+        top_n=100,
+        profile=_active_data_profile_name(),
+    )
     return batch_console.reviewed_batch_preflight_cards(preflight)
 
 
 def data_health_reviewed_batch_preflight_frame(preflight: ReviewedBatchPreflight | None = None) -> pd.DataFrame:
-    preflight = preflight or build_reviewed_batch_preflight(BASE_DIR, lane="prices", top_n=100)
+    preflight = preflight or build_reviewed_batch_preflight(
+        BASE_DIR,
+        lane="prices",
+        top_n=100,
+        profile=_active_data_profile_name(),
+    )
     return batch_console.reviewed_batch_preflight_frame(preflight)
 
 
@@ -14579,12 +16228,22 @@ def data_health_reviewed_batch_loop_card(
 def data_health_coverage_expansion_loop_cards(
     loop: CoverageExpansionLoop | None = None,
 ) -> list[dict[str, object]]:
-    loop = loop or build_coverage_expansion_loop(BASE_DIR, lane="auto", top_n=10)
+    loop = loop or build_coverage_expansion_loop(
+        BASE_DIR,
+        profile=_active_data_profile_name(),
+        lane="auto",
+        top_n=10,
+    )
     return coverage_console.coverage_expansion_loop_cards(loop)
 
 
 def data_health_coverage_expansion_loop_frame(loop: CoverageExpansionLoop | None = None) -> pd.DataFrame:
-    loop = loop or build_coverage_expansion_loop(BASE_DIR, lane="auto", top_n=10)
+    loop = loop or build_coverage_expansion_loop(
+        BASE_DIR,
+        profile=_active_data_profile_name(),
+        lane="auto",
+        top_n=10,
+    )
     return coverage_console.coverage_expansion_loop_frame(loop)
 
 
@@ -15672,7 +17331,7 @@ def readiness_panel_cards(summary: dict[str, object]) -> list[dict[str, object]]
             "title": f"{summary.get('liquidity_ready', 0)} liquidity / {summary.get('correlation_ready', 0)} correlation",
             "body": f"{summary.get('blocked_by_data', 0)} ticker(s) are currently blocked by data and {summary.get('excluded_count', 0)} feature exclusions are visible.",
             "badges": ["analysis available", "blocked listed"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
         {
             "kicker": "VALUATION",
@@ -15880,6 +17539,9 @@ def peer_input_ladder_frame(
     if frame.empty:
         return pd.DataFrame(columns=columns)
 
+    profile = _active_data_profile_name()
+    snapshot_command = f"make readiness-snapshot PROFILE={profile}"
+    comparison_command = f"make reviewed-batch-compare PROFILE={profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     step_definitions = [
         {
             "label": "1. Add source-backed peer mappings",
@@ -15888,7 +17550,10 @@ def peer_input_ladder_frame(
             "unlocks": "A trusted peer set for the subject company; peer trend can be checked after mapped peer price history is ready.",
             "locked": "Peer-relative premium/discount, peer valuation comparison, and peer DCF comparison stay locked.",
             "path": "data/imports/peers.csv",
-            "validation": f"make templates -> fill source-backed peers -> {scoped_import_sequence()} -> make readiness",
+            "validation": (
+                f"{snapshot_command} -> make templates -> fill source-backed peers -> "
+                f"{scoped_import_sequence()} -> {comparison_command}"
+            ),
             "command": "make peer-mapping-queue TOP_N=25",
         },
         {
@@ -15898,7 +17563,10 @@ def peer_input_ladder_frame(
             "unlocks": "Peer trend context from mapped peer price history.",
             "locked": "Peer valuation remains locked until peer fundamentals and valuation inputs pass readiness.",
             "path": "data/imports/prices.csv or data/staged/prices/",
-            "validation": "make focus-price TICKER=<peer> -> make price-validate -> make price-preview -> make price-apply -> make readiness",
+            "validation": (
+                f"{snapshot_command} -> make focus-price TICKER=<peer> -> make price-validate -> "
+                f"make price-preview -> make price-apply -> {comparison_command}"
+            ),
             "command": "make price-history-proof-queue TOP_N=25",
         },
         {
@@ -15908,7 +17576,10 @@ def peer_input_ladder_frame(
             "unlocks": "Peer valuation input readiness for mapped peers.",
             "locked": "Peer-relative valuation stays withheld until all mapped peer valuation inputs pass readiness.",
             "path": "data/imports/fundamentals.csv or data/staged/fundamentals/",
-            "validation": f"make focus-fundamentals TICKER=<peer> -> {scoped_import_sequence('<peer>')} -> make readiness",
+            "validation": (
+                f"{snapshot_command} -> make focus-fundamentals TICKER=<peer> -> "
+                f"{scoped_import_sequence('<peer>')} -> {comparison_command}"
+            ),
             "command": "make peer-mapping-queue TOP_N=25",
         },
         {
@@ -15918,8 +17589,8 @@ def peer_input_ladder_frame(
             "unlocks": "Peer-relative valuation only when mappings, peer prices, and peer fundamentals are all ready.",
             "locked": "No peer premium/discount or peer DCF comparison before readiness passes.",
             "path": "Saved peer readiness proof after rebuilding readiness",
-            "validation": "make readiness -> make peer-mapping-queue TOP_N=25 -> make stock-report-md TICKER=<ticker>",
-            "command": "make readiness && make peer-mapping-queue TOP_N=25",
+            "validation": f"{comparison_command} -> make peer-mapping-queue TOP_N=25 -> make stock-report-md TICKER=<ticker>",
+            "command": f"make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
         },
     ]
 
@@ -15952,13 +17623,14 @@ def peer_input_ladder_frame(
 
 def peer_input_ladder_cards(peer_input_ladder: pd.DataFrame | None) -> list[dict[str, object]]:
     if peer_input_ladder is None or peer_input_ladder.empty:
+        comparison_command = f"make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
         return [
             {
                 "kicker": "PEER INPUT LADDER",
                 "title": "No peer input ladder rows",
-                "body": "Run readiness and peer-mapping queue outputs before assuming peer valuation is ready.",
+                "body": "Run the active profile's in-memory peer comparison before assuming peer valuation is ready.",
                 "badges": ["readiness first", "no guessed peers"],
-                "command": "make readiness",
+                "command": comparison_command,
             }
         ]
     frame = peer_input_ladder.copy()
@@ -15966,7 +17638,7 @@ def peer_input_ladder_cards(peer_input_ladder: pd.DataFrame | None) -> list[dict
     total_rows = int(pd.to_numeric(frame.get("Priority Count"), errors="coerce").fillna(0).sum())
     active_rows = int(pd.to_numeric(frame.get("Active Universe Count"), errors="coerce").fillna(0).sum())
     dcf_rows = int(pd.to_numeric(frame.get("DCF-Ready Count"), errors="coerce").fillna(0).sum())
-    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date"
     return [
         {
             "kicker": "PEER INPUT LADDER",
@@ -16045,7 +17717,7 @@ def first_peer_mapping_unlock_frame(peer_unlock_worklist_frame: pd.DataFrame | N
             "Step": "2. Add source-backed mappings only",
             "Why It Matters": (
                 "Peer relationships must come from trusted research context; sector or industry fallback is not trusted peer data. "
-                "Schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date."
+                "Schema guide for data/imports/peers.csv: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date."
             ),
             "Copy Command": "make templates",
             "Trusted Input": "data/imports/peers.csv",
@@ -16063,7 +17735,7 @@ def first_peer_mapping_unlock_frame(peer_unlock_worklist_frame: pd.DataFrame | N
         {
             "Step": "4. Rebuild peer readiness",
             "Why It Matters": "Confirm peer_ready changed from real source-backed mappings before showing peer-relative valuation context.",
-            "Copy Command": "make readiness && make peer-mapping-queue TOP_N=25",
+            "Copy Command": f"make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25",
             "Trusted Input": "Peer readiness and peer unlock worklist",
         },
     ]
@@ -16074,6 +17746,7 @@ def first_peer_mapping_unlock_cards(peer_unlock_worklist_frame: pd.DataFrame | N
     frame = first_peer_mapping_unlock_frame(peer_unlock_worklist_frame, next_ticker)
     first = frame.iloc[0]
     mapping = frame.iloc[1]
+    selected_profile = _active_data_profile_name()
     return [
         {
             "kicker": "FIRST PEER UNLOCK",
@@ -16095,9 +17768,10 @@ def first_peer_mapping_unlock_cards(peer_unlock_worklist_frame: pd.DataFrame | N
             "body": "Do not show peer-relative valuation until source-backed mappings and required peer inputs pass readiness after a rebuild.",
             "badges": ["peer valuation gated", "copy-only"],
             "command": (
+                f"make readiness-snapshot PROFILE={selected_profile} && "
                 "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                 "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
             ),
         },
     ]
@@ -16114,7 +17788,7 @@ def fundamentals_dcf_diagnostic_cards(
                 "title": "Readiness not ready yet",
                 "body": "Refresh readiness before reviewing the fundamentals and DCF unlock guide. Open operator details for read-only proof steps.",
                 "badges": ["blocked"],
-                "command": "make readiness",
+                "command": "make readiness-preview TOP_N=20",
             }
         ]
 
@@ -16274,7 +17948,7 @@ def fundamentals_peer_unlock_story_cards(
                 "title": "Run readiness first",
                 "body": "What this means: Data Health needs current readiness rows before it can separate fundamentals work from peer valuation work.",
                 "badges": ["readiness first", "no guessing"],
-                "command": "make readiness",
+                "command": "make readiness-preview TOP_N=20",
             }
         ]
 
@@ -16316,7 +17990,7 @@ def fundamentals_peer_unlock_story_cards(
                 "DCF-ready companies still need source-backed peers before peer-relative valuation appears."
             ),
             "badges": ["sequence visible", "data-honest"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
         {
             "kicker": "WHAT YOU CAN ANALYZE NOW",
@@ -16396,6 +18070,7 @@ def data_health_fundamentals_unlock_frame(
     unlock_rows = frame.loc[missing_fundamentals | missing_dcf].copy()
     if unlock_rows.empty:
         return pd.DataFrame(columns=columns)
+    selected_profile = resolve_readiness_proof_profile()
     active_rank = (
         ~bool_series(unlock_rows, "in_active_universe")
         if "in_active_universe" in unlock_rows.columns
@@ -16449,7 +18124,7 @@ def data_health_fundamentals_unlock_frame(
                     "or fill `data/imports/fundamentals.csv` with trusted manual rows. "
                     f"3. Run `{scoped_import_sequence(ticker, separator='`, `')}`, then `make dcf-readiness`."
                 ),
-                "Readiness Proof": "Run `make dcf-readiness` and `make readiness`, then reopen Data Health or the single-stock report before reading DCF output.",
+                "Readiness Proof": f"Run `make readiness-snapshot PROFILE={selected_profile}` before reviewed validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` before reading DCF output.",
                 "Copy-Only Command": command,
                 "Validation Path": f"{scoped_import_sequence(ticker)} -> make dcf-readiness",
             }
@@ -16472,10 +18147,11 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
                 "title": "No fundamentals unlock rows",
                 "body": "No price-ready fundamentals-locked rows are visible in the current worklist. Regenerate readiness before assuming coverage improved.",
                 "badges": ["current output", "no inference"],
-                "command": "make readiness",
+                "command": "make readiness-preview TOP_N=20",
             }
         ]
 
+    selected_profile = resolve_readiness_proof_profile()
     frame = fundamentals_unlock_frame.copy()
     first = frame.iloc[0]
     ticker = format_missing(first.get("Ticker"), "Ticker")
@@ -16485,7 +18161,7 @@ def data_health_fundamentals_unlock_cards(fundamentals_unlock_frame: pd.DataFram
     price_gate = compact_reason(first.get("Price Readiness Gate"), max_sentences=1, max_chars=160)
     priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, stage trusted fundamentals only, then validate, preview, apply, and rerun DCF readiness.")
-    proof = format_missing(first.get("Readiness Proof"), "Run make dcf-readiness and make readiness before reading DCF output.")
+    proof = format_missing(first.get("Readiness Proof"), f"Run make readiness-snapshot PROFILE={selected_profile} before reviewed validate/preview/apply, then make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> before reading DCF output.")
     sequence_summary = validation_sequence_summary(sequence)
     validation_summary = validation_sequence_summary(first.get("Validation Path"))
     command = format_missing(first.get("Copy-Only Command"), f"make focus-fundamentals TICKER={ticker}")
@@ -16578,7 +18254,7 @@ def data_health_peer_unlock_frame(
     unlock_rows = frame.loc[missing_mapping | peer_not_ready | missing_peer_inputs].copy()
     if unlock_rows.empty:
         return pd.DataFrame(columns=columns)
-    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date"
     if "priority" in unlock_rows.columns:
         scope_text = unlock_rows.get("workflow_scope", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
         workflow_text = unlock_rows.get("workflow_group", pd.Series("", index=unlock_rows.index)).fillna("").astype(str).str.lower()
@@ -16632,7 +18308,7 @@ def data_health_peer_unlock_frame(
             input_path = "data/imports/peers.csv with source-backed peer mappings"
         validation_path = format_missing(
             row.get("validation_sequence"),
-            f"make templates -> fill data/imports/peers.csv -> {scoped_import_sequence()} -> make readiness -> make peer-mapping-queue TOP_N=25",
+            f"make readiness-snapshot PROFILE={_active_data_profile_name()} -> make templates -> fill data/imports/peers.csv -> {scoped_import_sequence()} -> make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> -> make peer-mapping-queue TOP_N=25",
         )
         can_review = (
             "Peer trend context may be reviewed from mapped peer price history; peer valuation stays locked until trusted valuation inputs pass."
@@ -16657,9 +18333,9 @@ def data_health_peer_unlock_frame(
                     f"1. Inspect `{command}`. 2. Run `make templates`, then add source-backed peer rows in `data/imports/peers.csv`. "
                     f"Schema guide: {peer_schema_guide}. "
                     "3. Run `make imports-validate`, `make imports-preview`, and `make imports-apply`. "
-                    "4. Run `make readiness` and `make peer-mapping-queue TOP_N=25` before reading peer valuation."
+                    "4. Run the profile-bound in-memory comparison and `make peer-mapping-queue TOP_N=25` before reading peer valuation."
                 ),
-                "Readiness Proof": "Run `make readiness` and `make peer-mapping-queue TOP_N=25`, then reopen Data Health or the single-stock report before reading peer-relative valuation.",
+                "Readiness Proof": f"Run `make readiness-snapshot PROFILE={_active_data_profile_name()}` before reviewed validate/preview/apply, then `make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `make peer-mapping-queue TOP_N=25` before reading peer-relative valuation.",
                 "Copy-Only Command": command,
                 "Validation Path": validation_path,
             }
@@ -16669,16 +18345,18 @@ def data_health_peer_unlock_frame(
 
 def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> list[dict[str, object]]:
     if peer_unlock_frame is None or peer_unlock_frame.empty:
+        comparison_command = f"make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
         return [
             {
                 "kicker": "PEER QUEUE",
                 "title": "No peer unlock rows",
-                "body": "No peer-locked rows are visible in the current queue. Regenerate readiness before assuming peer valuation is available.",
+                "body": "No peer-locked rows are visible in the current queue. Run the active profile's in-memory peer comparison before assuming peer valuation is available.",
                 "badges": ["current output", "no guessed peers"],
-                "command": "make readiness",
+                "command": comparison_command,
             }
         ]
 
+    selected_profile = _active_data_profile_name()
     frame = peer_unlock_frame.copy()
     first = frame.iloc[0]
     ticker = format_missing(first.get("Ticker"), "Ticker")
@@ -16690,11 +18368,11 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
     dcf_gate = compact_reason(first.get("DCF Readiness Gate"), max_sentences=1, max_chars=160)
     priority_scope = format_missing(first.get("Priority Scope"), "current queue priority").lower()
     sequence = format_missing(first.get("Next Safe Sequence"), "Inspect the focus command, add source-backed peer rows, then validate, preview, and apply before reading peer valuation.")
-    proof = format_missing(first.get("Readiness Proof"), "Run make readiness and make peer-mapping-queue TOP_N=25 before reading peer-relative valuation.")
+    proof = format_missing(first.get("Readiness Proof"), f"Run make readiness-snapshot PROFILE={selected_profile} before reviewed validate/preview/apply, then make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> and make peer-mapping-queue TOP_N=25 before reading peer-relative valuation.")
     sequence_summary = validation_sequence_summary(sequence)
     validation_summary = validation_sequence_summary(first.get("Validation Path"))
     command = format_missing(first.get("Copy-Only Command"), f"make focus-peers TICKER={ticker}")
-    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, source, as_of_date"
+    peer_schema_guide = "ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date"
     return [
         {
             "kicker": "PEER QUEUE",
@@ -16724,9 +18402,10 @@ def data_health_peer_unlock_cards(peer_unlock_frame: pd.DataFrame | None) -> lis
             ),
             "badges": ["validate", "preview before apply", "proof before valuation"],
             "command": (
-                "make templates && make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                f"make readiness-snapshot PROFILE={selected_profile} && make templates && "
+                "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                 "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
             ),
         },
     ]
@@ -16762,7 +18441,7 @@ def data_health_peer_source_review_frame(packet: PeerMappingSourceReviewPacket |
     freshness_status = format_missing(packet.freshness.status, "unknown").replace("_", " ")
     review_gate = "blocked by freshness" if packet.freshness.status in {"missing", "stale"} else "source proof required"
     required_fills = (
-        "proposed_peer_ticker, peer_group, source, as_of_date, relationship_rationale, reviewer, review_date"
+        "proposed_peer_ticker, peer_group, peer_role, source, as_of_date, relationship_rationale, comparability_basis, valuation_anchor_eligible, reviewer, review_date"
     )
     rows: list[dict[str, object]] = []
     for row in packet.rows[: max(limit, 0)]:
@@ -16805,7 +18484,7 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
                 "title": "Build peer readiness first",
                 "body": "No peer source-review packet is loaded. Rebuild readiness and the peer queue before editing peer import rows.",
                 "badges": ["readiness first", "no guessed peers"],
-                "command": "make readiness && make peer-mapping-queue TOP_N=25",
+                "command": f"make readiness-snapshot PROFILE={_active_data_profile_name()} && make peer-mapping-queue TOP_N=25",
             }
         ]
     if packet.freshness.status in {"missing", "stale"}:
@@ -16818,7 +18497,7 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
                     "then regenerate the peer mapping source-review packet."
                 ),
                 "badges": ["freshness gate", "blocked"],
-                "command": packet.freshness.refresh_command,
+                "command": f"make readiness-snapshot PROFILE={_active_data_profile_name()}",
             }
         ]
     if not packet.rows:
@@ -16832,6 +18511,7 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
             }
         ]
 
+    selected_profile = _active_data_profile_name()
     first = packet.rows[0]
     first_completion = peer_mapping_source_review_completion(first, packet.freshness)
     first_import_preview = peer_mapping_import_preview(first, packet.freshness)
@@ -16899,9 +18579,10 @@ def data_health_peer_source_review_cards(packet: PeerMappingSourceReviewPacket |
             ),
             "badges": ["validate", "preview", "proof after apply"],
             "command": (
+                f"make readiness-snapshot PROFILE={selected_profile} && "
                 "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                 "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
             ),
         },
     ]
@@ -16919,7 +18600,7 @@ def data_health_peer_proof_batch_planner_frame(
                     "Step": "1. Confirm peer proof scope",
                     "Status": "missing_packet",
                     "Scope": "no peer source-review packet",
-                    "Copy-Ready Action": "make readiness && make peer-mapping-source-review TOP_N=10",
+                    "Copy-Ready Action": f"make readiness-snapshot PROFILE={_active_data_profile_name()} && make peer-mapping-source-review TOP_N=10",
                     "Review Boundary": "Rebuild readiness and peer source-review rows before planning peer proof.",
                 }
             ],
@@ -16932,7 +18613,7 @@ def data_health_peer_proof_batch_planner_frame(
                     "Step": "1. Confirm peer proof scope",
                     "Status": f"blocked_by_{packet.freshness.status}",
                     "Scope": packet.freshness.message,
-                    "Copy-Ready Action": packet.freshness.refresh_command,
+                    "Copy-Ready Action": f"make readiness-snapshot PROFILE={_active_data_profile_name()}",
                     "Review Boundary": "Do not use stale or missing peer readiness artifacts as proof.",
                 }
             ],
@@ -16959,7 +18640,7 @@ def data_health_peer_proof_batch_planner_frame(
     proof_record_command = peer_mapping_proof_record_command(first, guard_status)
     tickers = ",".join(packet.tickers[: max(packet.top_n, 1)]) or first.ticker
     source_packet_command = f"DRY_RUN=1 make peer-mapping-source-review TOP_N={packet.top_n}"
-    reviewed_batch_packet = f"DRY_RUN=1 make reviewed-batch LANE=peers TICKERS={tickers}"
+    reviewed_batch_packet = f"DRY_RUN=1 make reviewed-batch PROFILE={_active_data_profile_name()} LANE=peers TICKERS={tickers}"
     latest = data_health_peer_latest_proof_row(batch_proof_frame)
     latest_status = "not_recorded"
     if not latest.empty:
@@ -17010,7 +18691,7 @@ def data_health_peer_proof_batch_planner_frame(
                 "Copy-Ready Action": (
                     "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                     "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                    f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
                 ),
                 "Review Boundary": "Apply only reviewed rows after validate, preview, rejected-row review, and an explicit apply decision.",
             },
@@ -17081,6 +18762,9 @@ def data_health_peer_proof_loop_outcome_frame(
     batch_proof_frame: pd.DataFrame | None,
     comparison: ReadinessComparison | None = None,
 ) -> pd.DataFrame:
+    profile = comparison.profile if comparison is not None else _active_data_profile_name()
+    snapshot_command = f"make readiness-snapshot PROFILE={profile}"
+    comparison_command = f"make reviewed-batch-compare PROFILE={profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     source_status = "not_loaded"
     source_detail = "Run make peer-mapping-source-review TOP_N=10."
     source_action = "DRY_RUN=1 make peer-mapping-source-review TOP_N=10"
@@ -17095,15 +18779,15 @@ def data_health_peer_proof_loop_outcome_frame(
         source_status = "missing_packet"
         source_detail = "Rebuild readiness and the peer source-review packet before recording peer proof."
     elif packet.freshness.status in {"missing", "stale"}:
-        source_action = packet.freshness.refresh_command
+        source_action = snapshot_command
         source_status = "blocked_by_freshness"
         source_detail = f"{packet.freshness.status}: {packet.freshness.message}"
         guard_status = "blocked_by_freshness"
         guard_detail = "Refresh readiness before peer write-back or proof-record review."
-        guard_command = packet.freshness.refresh_command
+        guard_command = snapshot_command
         proof_record_status = "blocked_by_freshness"
         proof_record_detail = "Do not record peer proof from stale readiness artifacts."
-        proof_record_command = packet.freshness.refresh_command
+        proof_record_command = snapshot_command
     elif not packet.rows:
         source_action = f"DRY_RUN=1 make peer-mapping-source-review TOP_N={packet.top_n}"
         source_status = "no_source_rows"
@@ -17157,11 +18841,11 @@ def data_health_peer_proof_loop_outcome_frame(
     comparison_detail = "Open Proof review details before using changed counts in a peer proof row."
     comparison_command = "Open Proof review details."
     if comparison is not None:
-        comparison_command = "make reviewed-batch-compare LANE=peers"
+        comparison_command = f"make reviewed-batch-compare PROFILE={profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
         if comparison.status != "ok":
             comparison_status = comparison.status
             comparison_detail = comparison.blocking_message or "Snapshot comparison is blocked until before/after readiness reports exist."
-            comparison_command = "make readiness-snapshot" if comparison.status == "missing_before" else "make readiness"
+            comparison_command = snapshot_command if comparison.status == "missing_before" else comparison_command
         elif comparison.blocking_message:
             comparison_status = "stale_snapshot_warning"
             comparison_detail = (
@@ -17198,7 +18882,8 @@ def data_health_peer_proof_loop_outcome_frame(
                 "Next Safe Action": (
                     "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                     "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
+                    f"make reviewed-batch-compare PROFILE={profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
                 ),
             },
             {
@@ -17296,7 +18981,7 @@ def data_health_peer_proof_completion_checklist_frame(
                     "Checklist Item": "1. Build peer source-review packet",
                     "Status": "missing_packet",
                     "Need Before Proceeding": "Rebuild readiness and generate the peer source-review packet before source proof.",
-                    "Next Safest Action": "make readiness && make peer-mapping-source-review TOP_N=10",
+                    "Next Safest Action": f"make readiness-snapshot PROFILE={_active_data_profile_name()} && make peer-mapping-source-review TOP_N=10",
                     "Stop Rule": "Stop if peer readiness artifacts are missing; do not infer peer rows.",
                 }
             ],
@@ -17346,7 +19031,11 @@ def data_health_peer_proof_completion_checklist_frame(
                 "Checklist Item": "1. Confirm freshness and packet scope",
                 "Status": freshness_status,
                 "Need Before Proceeding": f"{freshness_need}; tickers: {tickers}",
-                "Next Safest Action": packet.freshness.refresh_command if freshness_status in {"missing", "stale"} else packet_command,
+                "Next Safest Action": (
+                    f"make readiness-snapshot PROFILE={_active_data_profile_name()}"
+                    if freshness_status in {"missing", "stale"}
+                    else packet_command
+                ),
                 "Stop Rule": "Stop if readiness is stale or missing; do not use stale peer rows as proof.",
             },
             {
@@ -17370,7 +19059,7 @@ def data_health_peer_proof_completion_checklist_frame(
                 "Next Safest Action": (
                     "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
                     "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> && "
-                    "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make readiness && make peer-mapping-queue TOP_N=25"
+                    f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make peer-mapping-queue TOP_N=25"
                 ),
                 "Stop Rule": "Stop if validate, preview, apply decision, or rebuilt readiness proof is missing.",
             },
@@ -17513,7 +19202,7 @@ def first_fundamentals_unlock_frame(sec_configured: bool, next_ticker: str | Non
         {
             "Step": "5. Rebuild readiness",
             "Why It Matters": "Confirm fundamentals_ready and dcf_ready changed from real imported rows before reading valuation output.",
-            "Copy Command": "make readiness && make dcf-readiness",
+            "Copy Command": f"make readiness-snapshot PROFILE={_active_data_profile_name()} && make dcf-readiness",
             "Trusted Input": preferred_path,
         },
     ]
@@ -17743,8 +19432,8 @@ def fundamentals_dcf_function_quality_frame(
                     "Current Coverage": "Readiness not ready yet",
                     "Supported Today": "Nothing yet; run readiness before interpreting fundamentals or DCF status.",
                     "Not Supported Yet": "Any company valuation conclusion.",
-                    "Methodology / Provenance": "Project readiness checks after make readiness.",
-                    "Next Step": "make readiness",
+                    "Methodology / Provenance": "Project readiness checks from the selected profile's in-memory comparison.",
+                    "Next Step": "make readiness-preview TOP_N=20",
                 }
             ]
         )
@@ -18104,15 +19793,16 @@ def decision_next_action_proof(row: pd.Series) -> str:
     report_command = stock_report_md_command(ticker) if ticker else "make project-status"
     if asset_type in {"etf", "index_proxy", "fund"}:
         return f"Proof after review: run `{report_command}` and confirm operating-company DCF is excluded, not failed."
+    selected_profile = resolve_readiness_proof_profile()
     if blocker == "price":
-        return f"Proof after data changes: run `make price-coverage TOP_N=25`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}` before reviewed price validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
     if blocker in {"fundamentals", "dcf"}:
-        return f"Proof after data changes: run `make dcf-readiness`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}` before reviewed fundamentals validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
     if blocker in {"peer", "peers"}:
-        return f"Proof after data changes: run `make peer-mapping-queue TOP_N=25`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}` before reviewed peer validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, `make peer-mapping-queue TOP_N=25`, and `{report_command}`."
     if blocker in {"earnings", "analyst_estimates", "optional_context"}:
-        return f"Proof after data changes: run `make optional-context-readiness`, `make readiness`, then `{report_command}`."
-    return f"Proof before interpretation: run `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}` before reviewed optional-context validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
+    return f"Proof before interpretation: run `make readiness-snapshot PROFILE={selected_profile}`, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
 
 
 def decision_next_action_title(row: pd.Series) -> str:
@@ -18238,7 +19928,7 @@ def decision_workflow_summary_cards(
             "title": top_subtype,
             "body": ", ".join(f"{key}: {int(value)}" for key, value in list(subtype_counts.items())[:3]),
             "badges": ["reason codes"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
         {
             "kicker": "TOP PRIMARY BLOCKER",
@@ -18282,7 +19972,7 @@ def decision_workflow_summary_cards(
                 "title": f"{len(research_now_optional_locked)} research row(s)",
                 "body": (
                     f"Optional Context Locked row(s): {ticker_text}. Research Now rows have supported core or DCF context, but earnings or analyst-estimate context remains unavailable "
-                    "until trusted local CSV rows exist. Proof after data changes: run `make optional-context-readiness`, `make readiness`, then reopen the relevant single-stock report."
+                    "until trusted local CSV rows exist. Proof after data changes uses the profile-bound snapshot before reviewed validate/preview/apply and the matching optional-context comparison before reopening the relevant single-stock report."
                 ),
                 "badges": ["core research ok", "optional locked"],
                 "command": "make optional-context-worklist TOP_N=25",
@@ -18471,7 +20161,7 @@ def final_decision_table_guide_cards(decisions_frame: pd.DataFrame | None) -> li
             "title": f"Top blocker: {top_blocker}",
             "body": "Use primary_blocker, missing_data, blocked_features, and excluded_features before interpreting any ticker-level output.",
             "badges": ["read blockers first"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
         {
             "kicker": "NEXT ACTION",
@@ -19307,7 +20997,7 @@ def active_evaluation_queue_cards(queue_frame: pd.DataFrame | None) -> list[dict
             "title": lane_title,
             "body": "Research Now rows stay separated from monitor rows and missing-data rows so missing inputs do not look like conclusions.",
             "badges": ["readiness gated", "data-honest"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
         {
             "kicker": "COPY ONLY",
@@ -19719,7 +21409,7 @@ def product_page_logic_audit_cards(audit_frame: pd.DataFrame | None) -> list[dic
         next_title = format_missing(next_row.get("check"), "Product-page check")
         next_body = compact_reason(next_row.get("operator_action"), max_sentences=1, max_chars=180)
         next_badges = [format_missing(next_row.get("status"), "review"), "copy only"]
-        next_command = "make readiness"
+        next_command = "make readiness-preview TOP_N=20"
     return [
         {
             "kicker": "QUALITY CHECK",
@@ -19795,7 +21485,7 @@ def purpose_evaluation_summary_cards(summary_frame: pd.DataFrame | None) -> list
             "title": f"{peer_limited} peer-limited, {fundamentals_limited} fundamentals-limited",
             "body": "Purpose evaluation separates supported analysis from blocked valuation, peer, fundamentals, earnings, and estimate context.",
             "badges": ["readiness first", "no overclaiming"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
         {
             "kicker": "OPTIONAL CONTEXT",
@@ -20188,7 +21878,7 @@ def next_action_console_source_note(category: str) -> str:
         "Import Validation / Rejected Rows": "Uses staged local CSV validation, preview/apply, and rejected-row reports before any local dataset is trusted.",
         "Single-Stock Review": "Reads current readiness, decisions, coverage, DCF, peer, and optional-context outputs for one ticker.",
     }
-    return notes.get(category, "Uses saved local readiness reports; run make readiness and make project-status after data changes.")
+    return notes.get(category, "Uses saved local readiness reports; inspect readiness in memory and run make project-status after data changes.")
 
 
 def next_action_console_plain_english_state(category: str) -> dict[str, str]:
@@ -20606,7 +22296,7 @@ def market_next_action_cards(
             "title": "Regenerate readiness after imports",
             "body": "After any import file update or provider refresh, rebuild readiness before interpreting conclusions.",
             "badges": ["deterministic", "CSV-first"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         }
     )
     return cards[:5]
@@ -20620,7 +22310,7 @@ def market_blocker_summary_cards(ticker_readiness_frame: pd.DataFrame | None) ->
                 "title": "Readiness report missing",
                 "body": "Generate the central readiness report before reviewing broad-universe blocker queues.",
                 "badges": ["blocked"],
-                "command": "make readiness",
+                "command": "make readiness-preview TOP_N=20",
             }
         ]
     frame = ticker_readiness_frame.copy()
@@ -20668,7 +22358,7 @@ def market_blocker_summary_cards(ticker_readiness_frame: pd.DataFrame | None) ->
             "title": f"{len(dcf_excluded)} ticker(s)",
             "body": "ETFs, index proxies, and funds stay excluded from operating-company DCF and can still be used for market/risk context.",
             "badges": ["excluded", "not a data error"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
     ]
 
@@ -20696,7 +22386,7 @@ def single_stock_readiness_snapshot(
             "ticker": symbol,
             "status": "missing",
             "main_reason": "Ticker is not in the current master or active universe outputs.",
-            "next_action": "Stage or refresh universe metadata, then run make universe-report and make readiness.",
+            "next_action": "Stage or refresh universe metadata, then run make universe-report and inspect readiness in memory.",
         }
 
     decision_row: dict[str, object] = {}
@@ -20743,7 +22433,7 @@ def single_stock_readiness_snapshot(
         peer_blocker_type = "missing_peer_mapping"
         next_peer_action = next_peer_action or peer_mapping_unlock_action(symbol)
 
-    next_action = decision_row.get("next_best_action") or decision_row.get("next_action") or readiness_row.get("next_action") or "Run make readiness after the next data import."
+    next_action = decision_row.get("next_best_action") or decision_row.get("next_action") or readiness_row.get("next_action") or "Run the profile-bound readiness comparison after the next reviewed data import."
     if dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}:
         next_action = f"Review {symbol} as ETF/index/fund monitor context; operating-company DCF and peer valuation stay excluded."
         peer_blocker_type = "monitor_context"
@@ -20917,7 +22607,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     candidate_peer_count = _peer_candidate_count_from_obj(snapshot)
     peer_blocker = format_missing(snapshot.get("peer_blocker_type"), "Not available")
     sec_present = bool(os.environ.get("SEC_USER_AGENT", "").strip())
@@ -20925,7 +22615,7 @@ def single_stock_source_audit_frame(snapshot: dict[str, object]) -> pd.DataFrame
     if dcf_status == "ready":
         dcf_command = stock_report_md_command(ticker)
     elif dcf_status == "excluded":
-        dcf_command = "make readiness"
+        dcf_command = "make readiness-preview TOP_N=20"
     elif sec_present:
         dcf_command = f"make sec-stage TICKERS={ticker}"
     else:
@@ -21031,39 +22721,50 @@ def single_stock_source_audit_cards(snapshot: dict[str, object]) -> list[dict[st
 
 
 def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame:
+    selected_profile = resolve_readiness_proof_profile()
     ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     peer_trend_ready = str(snapshot.get("peer_trend_comparison_ready", "")).strip().lower() in {"true", "1", "yes", "y", "ready"}
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
 
+    status_command = primary_profile_scoped_reviewed_step(
+        profile=selected_profile, step="make status-check TOP_N=5"
+    )
+
     if not price_ready:
         can_analyze = "Ticker is known, but setup, valuation, and trend review are locked until trusted price rows exist."
         locked = "Prices, momentum, DCF, peer context, earnings, and analyst estimates."
         next_input = "Trusted local price history."
-        command = f"make focus-price TICKER={ticker}"
-        proof_command = (
-            "After trusted price rows pass make price-validate, make price-preview, and make price-apply, "
-            "run make price-coverage TOP_N=25 and make readiness."
+        command = f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make focus-price TICKER={ticker}"
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane="prices",
+            reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
         )
     elif monitor_context:
         can_analyze = "Market, theme, liquidity, or risk monitor context when local price rows are ready."
         locked = "Operating-company DCF and peer valuation are excluded for ETF/index/fund monitor context."
-        next_input = "No company DCF input is required; refresh readiness or open the Markdown report for monitor context."
-        command = stock_report_md_command(ticker)
-        proof_command = "Run make readiness, then open the Markdown report to confirm monitor context stays DCF-excluded."
+        next_input = "No company DCF input is required; inspect the profile-scoped readiness status for monitor context."
+        command = status_command
+        proof_command = status_command
     elif dcf_status == "blocked":
         can_analyze = "Price/setup context can be reviewed; company valuation remains locked."
         locked = f"DCF is blocked by missing trusted inputs: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=140)}"
         next_input = "Trusted fundamentals such as revenue, free cash flow or margin, and shares outstanding."
-        command = f"make focus-fundamentals TICKER={ticker}"
-        proof_command = (
-            f"After fundamentals pass {scoped_import_sequence(ticker)}, "
-            "run make dcf-readiness and make readiness."
+        command = f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make focus-fundamentals TICKER={ticker}"
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane="fundamentals",
+            reviewed_steps=(
+                f"make imports-validate IMPORT_TICKERS={ticker}",
+                f"make imports-preview IMPORT_TICKERS={ticker}",
+                f"make imports-apply IMPORT_TICKERS={ticker}",
+            ),
         )
     elif dcf_status == "ready" and not peer_ready:
         if peer_trend_ready:
@@ -21076,34 +22777,48 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
             can_analyze = "Standalone DCF assumptions, scenario math, sensitivity, and source readiness can be reviewed."
             locked = "Peer-relative valuation remains locked until source-backed peer mappings and peer valuation inputs pass readiness."
         next_input = "Trusted peer mappings in data/imports/peers.csv plus peer inputs when needed."
-        command = f"make focus-peers TICKER={ticker}"
-        proof_command = (
-            f"After peer rows pass {scoped_import_sequence(ticker)}, "
-            "run make readiness and make peer-mapping-queue TOP_N=25."
+        command = f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make focus-peers TICKER={ticker}"
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane="peers",
+            reviewed_steps=(
+                f"make imports-validate IMPORT_TICKERS={ticker}",
+                f"make imports-preview IMPORT_TICKERS={ticker}",
+                f"make imports-apply IMPORT_TICKERS={ticker}",
+            ),
         )
     elif not earnings_ready or not estimates_ready:
         can_analyze = "Price, fundamentals, standalone DCF, and peer context can be reviewed from trusted local inputs."
         locked = "Earnings and analyst-estimate context stays unavailable until trusted optional CSV rows exist."
         next_input = "Trusted local earnings or analyst estimate rows, only if you have a source you trust."
-        command = "make optional-context-worklist TOP_N=25"
-        proof_command = (
-            f"After optional rows pass {scoped_import_sequence(ticker)}, "
-            "run make optional-context-readiness and make readiness."
+        command = f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make optional-context-worklist TOP_N=25"
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane="optional_context",
+            reviewed_steps=(
+                f"make imports-validate IMPORT_TICKERS={ticker}",
+                f"make imports-preview IMPORT_TICKERS={ticker}",
+                f"make imports-apply IMPORT_TICKERS={ticker}",
+            ),
         )
     else:
         can_analyze = "Supported single-stock review is available from current trusted local inputs."
         locked = "No core analysis lock detected; continue to source readiness and assumption review."
-        next_input = "Review the Markdown report and source readiness notes before interpreting the result."
-        command = stock_report_md_command(ticker)
-        proof_command = "Run the Markdown report again after any import or refresh to confirm the ready state still holds."
+        next_input = "Inspect the profile-scoped readiness status and source readiness notes before interpreting the result."
+        command = status_command
+        proof_command = status_command
+
+    inherited_next_action = compact_reason(snapshot.get("next_action"), max_sentences=1, max_chars=180)
+    if "stock-report-md" in inherited_next_action.casefold():
+        inherited_next_action = "Use the profile-scoped status check shown here before taking another primary action."
 
     rows = [
         {
             "Question": "What can I analyze now?",
             "Answer": can_analyze,
             "Trusted Input Needed": "Use only current local/provider rows that already passed readiness.",
-            "Proof Command": "Use the current readiness outputs as the proof state before interpreting analysis.",
-            "Copy-Only Command": stock_report_md_command(ticker) if price_ready else command,
+            "Proof Command": status_command,
+            "Copy-Only Command": command,
         },
         {
             "Question": "What is still locked or excluded?",
@@ -21114,7 +22829,7 @@ def single_stock_reader_guide_frame(snapshot: dict[str, object]) -> pd.DataFrame
         },
         {
             "Question": "What should I do next?",
-            "Answer": compact_reason(snapshot.get("next_action"), max_sentences=1, max_chars=180),
+            "Answer": inherited_next_action,
             "Trusted Input Needed": next_input,
             "Proof Command": proof_command,
             "Copy-Only Command": command,
@@ -21153,8 +22868,8 @@ def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[st
         next_row = frame.loc[frame["Question"].eq("What should I do next?")]
         proof_row = locked_row.iloc[0] if not locked_row.empty else frame.iloc[-1]
         command_row = next_row.iloc[0] if not next_row.empty else proof_row
-        proof_command = format_missing(proof_row.get("Proof Command"), "Run make readiness before interpreting changed output.")
-        copy_command = format_missing(command_row.get("Copy-Only Command"), "make stock-report-md TICKER=NVDA")
+        proof_command = format_missing(proof_row.get("Proof Command"), "Run the profile-bound readiness comparison before interpreting changed output.")
+        copy_command = format_missing(command_row.get("Copy-Only Command"), "make status-check TOP_N=5")
         cards.append(
             {
                 "kicker": "PROOF PATH",
@@ -21163,7 +22878,7 @@ def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[st
                     "Read this single-stock page in sequence: what can be analyzed now, what stays locked or excluded, "
                     f"which trusted input is needed, then proof command: {proof_command}. "
                     "Exact next command is copyable from this card. "
-                    "Do not treat the lane as unlocked until the proof command passes and the report is reopened."
+                    "Do not treat the lane as unlocked until the proof command passes and the page is reopened."
                 ),
                 "badges": ["readiness proof", "copy only"],
                 "command": copy_command,
@@ -21173,48 +22888,59 @@ def single_stock_reader_guide_cards(snapshot: dict[str, object]) -> list[dict[st
 
 
 def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
+    selected_profile = resolve_readiness_proof_profile()
     ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     peer_trend_ready = str(snapshot.get("peer_trend_comparison_ready", "")).strip().lower() in {"true", "1", "yes", "y", "ready"}
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
 
+    status_command = primary_profile_scoped_reviewed_step(
+        profile=selected_profile, step="make status-check TOP_N=5"
+    )
+
     if not snapshot or snapshot.get("status") == "missing":
         first_read = "Ticker is not available in the current readiness outputs."
         analyze_now = "No single-stock analysis is shown until the ticker appears in local readiness files."
         still_locked = "Universe metadata, prices, fundamentals, DCF, peers, earnings, and analyst estimates."
-        command = format_missing(snapshot.get("next_action") if snapshot else "", "make universe-report")
-        proof_command = "Run make universe-report and make readiness before reopening the single-stock report."
+        command = status_command
+        proof_command = status_command
         badges = ["missing ticker", "readiness first"]
     elif not price_ready:
         first_read = "Start with trusted price history."
         analyze_now = "The app can identify the ticker, but it withholds setup, trend, valuation, and peer context until price rows exist."
         still_locked = "Prices, momentum, DCF, peers, earnings, and analyst estimates."
-        command = f"make focus-price TICKER={ticker}"
-        proof_command = (
-            "After trusted price rows pass make price-validate, make price-preview, and make price-apply, "
-            "run make price-coverage TOP_N=25 and make readiness."
+        command = f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make focus-price TICKER={ticker}"
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane="prices",
+            reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
         )
         badges = ["price first", "no inference"]
     elif monitor_context:
         first_read = "Use this as monitor context."
         analyze_now = "Local price rows can support market, theme, liquidity, and risk context."
         still_locked = "Operating-company DCF and peer valuation are excluded, not failed, for ETF/index/fund context."
-        command = stock_report_md_command(ticker)
-        proof_command = "Run make readiness, then open the Markdown report to confirm monitor context stays DCF-excluded."
+        command = status_command
+        proof_command = status_command
         badges = ["monitor context", "DCF excluded"]
     elif dcf_status == "blocked":
         first_read = "Review setup first; valuation is still locked."
         analyze_now = "Price and setup context can be reviewed from trusted local rows."
         still_locked = f"DCF is blocked by missing trusted fundamentals: {compact_reason(snapshot.get('dcf_reason'), max_sentences=1, max_chars=130)}"
-        command = f"make focus-fundamentals TICKER={ticker}"
-        proof_command = (
-            f"After fundamentals pass {scoped_import_sequence(ticker)}, "
-            "run make dcf-readiness and make readiness."
+        command = f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make focus-fundamentals TICKER={ticker}"
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane="fundamentals",
+            reviewed_steps=(
+                f"make imports-validate IMPORT_TICKERS={ticker}",
+                f"make imports-preview IMPORT_TICKERS={ticker}",
+                f"make imports-apply IMPORT_TICKERS={ticker}",
+            ),
         )
         badges = ["fundamentals needed", "no valuation conclusion"]
     elif dcf_status == "ready" and not peer_ready:
@@ -21228,35 +22954,51 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
         else:
             analyze_now = "DCF assumptions, sensitivity, source readiness, and company setup can be reviewed from trusted local inputs."
             still_locked = "Peer-relative valuation waits for source-backed peer mappings and peer valuation inputs."
-        command = f"make focus-peers TICKER={ticker}"
-        proof_command = (
-            f"After peer rows pass {scoped_import_sequence(ticker)}, "
-            "run make readiness and make peer-mapping-queue TOP_N=25."
+        command = f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make focus-peers TICKER={ticker}"
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane="peers",
+            reviewed_steps=(
+                f"make imports-validate IMPORT_TICKERS={ticker}",
+                f"make imports-preview IMPORT_TICKERS={ticker}",
+                f"make imports-apply IMPORT_TICKERS={ticker}",
+            ),
         )
         badges = ["DCF ready", "peer gated"]
     elif not earnings_ready or not estimates_ready:
         first_read = "Core analysis is reviewable; optional context is locked."
         analyze_now = "Prices, fundamentals, standalone DCF, and peer context are available from trusted local inputs."
         still_locked = "Earnings and analyst-estimate sections remain unavailable until trusted optional CSV rows pass validation."
-        command = "make optional-context-worklist TOP_N=25"
-        proof_command = (
-            f"After optional rows pass {scoped_import_sequence(ticker)}, "
-            "run make optional-context-readiness and make readiness."
+        command = f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make optional-context-worklist TOP_N=25"
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane="optional_context",
+            reviewed_steps=(
+                f"make imports-validate IMPORT_TICKERS={ticker}",
+                f"make imports-preview IMPORT_TICKERS={ticker}",
+                f"make imports-apply IMPORT_TICKERS={ticker}",
+            ),
         )
         badges = ["core ready", "optional locked"]
     else:
         first_read = "Supported single-stock review is available."
         analyze_now = "Price, fundamentals, DCF, peer context, earnings, estimates, source readiness, and assumptions can be reviewed."
         still_locked = "No core lock detected; still review source readiness and methodology notes before interpreting outputs."
-        command = stock_report_md_command(ticker)
-        proof_command = "Run the Markdown report again after any import or refresh to confirm the ready state still holds."
+        command = status_command
+        proof_command = status_command
         badges = ["review ready", "source check"]
+
+    summary = ""
+    if snapshot.get("one_minute_summary"):
+        summary = compact_reason(snapshot.get("one_minute_summary"), max_sentences=1, max_chars=180)
+        if "stock-report-md" in summary.casefold():
+            summary = "Use the profile-scoped status check shown here before taking another primary action."
 
     return [
         {
             "kicker": "FIRST READ",
             "title": first_read,
-            "body": format_missing(snapshot.get("one_minute_summary"), analyze_now),
+            "body": summary or analyze_now,
             "badges": badges,
             "command": command,
         },
@@ -21265,7 +23007,7 @@ def single_stock_quick_read_cards(snapshot: dict[str, object]) -> list[dict[str,
             "title": "What this page can support",
             "body": analyze_now,
             "badges": ["plain English", "local rules"],
-            "command": stock_report_md_command(ticker) if price_ready else command,
+            "command": command,
         },
         {
             "kicker": "STILL LOCKED",
@@ -21292,7 +23034,7 @@ def single_stock_methodology_bridge_cards(snapshot: dict[str, object]) -> list[d
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "blocked").lower()
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
@@ -21359,7 +23101,7 @@ def single_stock_methodology_bridge_cards(snapshot: dict[str, object]) -> list[d
                 "and writes the report wording without inventing missing inputs."
             ),
             "badges": ["local rules", "data-honest"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
         {
             "kicker": "DCF BOUNDARY",
@@ -21435,7 +23177,7 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
     ticker = format_missing(snapshot.get("ticker"), "TICKER").upper()
     asset_type = format_missing(snapshot.get("asset_type"), "").lower()
     dcf_status = format_missing(snapshot.get("dcf_status"), "").lower()
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     candidate_peer_count = _peer_candidate_count_from_obj(snapshot)
     peer_title = "Peer ready" if peer_ready else format_missing(snapshot.get("peer_blocker_type"), "missing_peer_mapping")
     peer_body = (
@@ -21491,7 +23233,7 @@ def single_stock_status_cards(snapshot: dict[str, object]) -> list[dict[str, obj
             "title": f"Ready: {ready_features}",
             "body": f"Blocked: {blocked_features}. Excluded: {excluded_features}. Missing data: {format_missing(snapshot.get('missing_data'), '-')}",
             "badges": ["readiness first"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
         {
             "kicker": "PEER PATH",
@@ -22650,9 +24392,9 @@ def data_health_proof_history_operator_console_frame(
 ) -> pd.DataFrame:
     proof_count = 0 if proof_timeline is None else len(proof_timeline)
     batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     comparison_next_proof = comparison.blocking_message or "Use changed counts as proof-ledger input after source review."
-    if comparison.status != "ok" and "make readiness-snapshot" in comparison_next_proof:
+    if comparison.status != "ok" and re.search(r"make\s+readiness-snapshot", comparison_next_proof):
         comparison_next_proof = "Capture a prior readiness snapshot before a reviewed batch, then compare real before/after counts."
     return pd.DataFrame(
         [
@@ -22688,7 +24430,7 @@ def data_health_proof_history_operator_console_html(
 ) -> str:
     proof_count = 0 if proof_timeline is None else len(proof_timeline)
     batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
-    comparison = comparison or compare_readiness_snapshots(BASE_DIR, top_n=10)
+    comparison = comparison or compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10)
     next_title = "Proof ledger review"
     next_body = "Open evidence only when you need durable supported, candidate-context-only, still-blocked, skipped, or excluded outcomes."
     if comparison.status != "ok":
@@ -23116,11 +24858,28 @@ def data_health_selected_lane_answer_cards(
     readiness_freshness: FreshnessStatus,
     *,
     project_status_payload: dict[str, Any] | None = None,
+    saved_readiness_summary: Mapping[str, object] | None = None,
 ) -> list[dict[str, object]]:
     """Return one plain-language answer for the selected Data Health lane."""
 
     lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, "Prices")
-    summary = project_status_payload.get("summary", {}) if isinstance(project_status_payload, dict) else {}
+    project_summary_value = (
+        project_status_payload.get("summary", {})
+        if isinstance(project_status_payload, dict)
+        else {}
+    )
+    project_summary = (
+        project_summary_value
+        if isinstance(project_summary_value, Mapping)
+        else {}
+    )
+    saved_summary = dict(saved_readiness_summary or {})
+
+    def resolved_count(*keys: str) -> int | None:
+        project_count = _summary_optional_count(project_summary, *keys)
+        if project_count is not None:
+            return project_count
+        return _summary_optional_count(saved_summary, *keys)
     recommended_rows = (
         project_status_payload.get("recommended_next_command_rows", [])
         if isinstance(project_status_payload, dict)
@@ -23193,27 +24952,65 @@ def data_health_selected_lane_answer_cards(
         or "project-status" in source_gate_command
     )
 
-    price_ready = _summary_count(summary, "price_ready", "tickers_with_prices")
-    fundamentals_ready = _summary_count(summary, "fundamentals_ready", "input_ready", "tickers_fundamentals_ready")
-    dcf_ready = _summary_count(summary, "dcf_ready", "operating_company_dcf_ready", "tickers_dcf_ready")
-    peer_ready = _summary_count(summary, "peer_ready", "tickers_peer_ready")
-    data_gaps = _summary_count(summary, "data_gaps", "locked_input_rows")
-    freshness_status = public_status_label(str(readiness_freshness.status or "unknown")).lower()
+    price_ready = resolved_count("price_ready", "tickers_with_prices")
+    fundamentals_ready = resolved_count(
+        "fundamentals_ready",
+        "input_ready",
+        "tickers_fundamentals_ready",
+    )
+    dcf_ready = resolved_count(
+        "dcf_ready",
+        "operating_company_dcf_ready",
+        "tickers_dcf_ready",
+    )
+    peer_ready = resolved_count("peer_ready", "tickers_peer_ready")
+    data_gaps = resolved_count(
+        "data_gaps",
+        "locked_input_rows",
+        "blocked_by_data",
+        "blocked",
+    )
+    freshness_status = saved_readiness_display_label(readiness_freshness.status)
     source_setup_note = ""
-    if isinstance(summary, dict):
-        source_total = _summary_count(summary, "data_sources_total")
-        source_available = _summary_count(summary, "data_sources_available")
-        optional_locked = _summary_count(summary, "data_sources_optional_locked")
-        required_attention = _summary_count(summary, "data_sources_needing_attention")
-        if source_total or source_available or optional_locked or required_attention:
+    source_total = resolved_count("data_sources_total")
+    source_available = resolved_count("data_sources_available")
+    optional_locked = resolved_count("data_sources_optional_locked")
+    required_attention = resolved_count("data_sources_needing_attention")
+    source_counts = (source_total, source_available, optional_locked, required_attention)
+    if any(count is not None for count in source_counts):
+        if all(count is not None for count in source_counts):
             source_setup_note = (
                 f"\nSource setup: {source_available:,}/{source_total:,} data sources available; "
                 f"{optional_locked:,} optional provider gap(s); {required_attention:,} required gap(s)."
             )
+        else:
+            source_setup_note = (
+                "\nSource setup counts are unavailable until complete saved source-status evidence is present."
+            )
 
+    price_lane_answer = (
+        f"{price_ready:,} tickers have price rows."
+        if price_ready is not None
+        else "Price-row count is unavailable."
+    )
+    fundamentals_lane_answer = (
+        f"{dcf_ready:,} DCF-ready and {fundamentals_ready:,} fundamentals-ready tickers can use source-backed company inputs."
+        if dcf_ready is not None and fundamentals_ready is not None
+        else "DCF-ready and fundamentals-ready counts are unavailable; source-backed company inputs stay withheld until saved evidence is available."
+    )
+    peer_lane_answer = (
+        f"{peer_ready:,} tickers have trusted peer context."
+        if peer_ready is not None
+        else "Trusted peer count is unavailable."
+    )
+    locked_input_answer = (
+        f"{data_gaps:,} locked input row(s) remain visible instead of being inferred."
+        if data_gaps is not None
+        else "Locked input count is unavailable; missing inputs remain visible instead of being inferred."
+    )
     lane_answers = {
         "prices": (
-            f"{price_ready:,} tickers have price rows. Price context is usable where history depth is ready; short-history rows stay partial.",
+            f"{price_lane_answer} Price context is usable where history depth is ready; short-history rows stay partial.",
             "Price gaps or short history do not unlock fundamentals, DCF, peers, earnings, or estimates.",
             "Context only: liquidity, correlation, and setup rows stay historical context until their proof gates pass.",
             "Excluded/not applicable: operating-company DCF stays excluded for ETF/index/fund monitor rows.",
@@ -23221,7 +25018,7 @@ def data_health_selected_lane_answer_cards(
             "Stop: do not use price rows as fundamentals, valuation, peer, earnings, or estimate proof.",
         ),
         "fundamentals": (
-            f"{dcf_ready:,} DCF-ready and {fundamentals_ready:,} fundamentals-ready tickers can use source-backed company inputs.",
+            fundamentals_lane_answer,
             "Source proof remains blocked where revenue, cash flow, margins, shares, or related DCF inputs are missing.",
             "Context only: metadata, candidate peers, universe membership, and optional rows stay separate from trusted fundamentals proof.",
             "Excluded/not applicable: ETF/index/fund rows keep operating-company DCF excluded instead of failed.",
@@ -23229,7 +25026,7 @@ def data_health_selected_lane_answer_cards(
             "Stop: do not interpret missing source proof as a weak-company conclusion.",
         ),
         "peers": (
-            f"{peer_ready:,} tickers have trusted peer context. Candidate peers remain context only until source-backed mapping proof exists.",
+            f"{peer_lane_answer} Candidate peers remain context only until source-backed mapping proof exists.",
             "Peer-relative analysis stays blocked when trusted mappings or mapped-peer inputs are missing.",
             "Context only: candidate peers can guide review but are not trusted peer proof.",
             "Excluded/not applicable: ETF/index/fund rows keep operating-company peer valuation excluded instead of failed.",
@@ -23308,7 +25105,7 @@ def data_health_selected_lane_answer_cards(
         {
             "kicker": "BLOCKER",
             "title": "What stays locked",
-            "body": f"{blocked} {data_gaps:,} locked input row(s) remain visible instead of being inferred.",
+            "body": f"{blocked} {locked_input_answer}",
             "badges": ["blocked visible", "no inference"],
         },
         next_action_card,
@@ -27205,6 +29002,17 @@ def valuation_plain_language_cards(
     ready_ticker = first_ticker(ready_companies, "NVDA")
     blocked_ticker = first_ticker(blocked_companies, "TICKER")
     excluded_ticker = first_ticker(excluded_rows, "QQQ")
+    selected_profile = _active_data_profile_name()
+    fundamentals_write_proof = profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="fundamentals",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make dcf-readiness",
+        ),
+    )
     return [
         {
             "kicker": "WHAT THIS MEANS",
@@ -27248,11 +29056,11 @@ def valuation_plain_language_cards(
             "kicker": "PROOF PATH",
             "title": "Prove valuation readiness before interpretation",
             "body": (
-                "After fundamentals change, refresh valuation readiness before reading Value / Re-rating again. "
+                "Begin this sequence before any fundamentals apply: snapshot first, then validate, preview, apply the reviewed scope, rebuild valuation readiness, and compare. "
                 "Ready means DCF assumptions can be reviewed; it does not create a price target or peer-relative conclusion."
             ),
             "badges": ["proof first", "no overclaim"],
-            "command": "make dcf-readiness && make readiness",
+            "command": fundamentals_write_proof,
         },
     ]
 
@@ -27552,6 +29360,7 @@ def render_overview(
                 prior_ticker_readiness_frame,
                 feature_summary_frame,
                 previous_snapshot_label=prior_ticker_readiness_message,
+                profile=_active_data_profile_name(),
             ),
             show_commands=False,
         )
@@ -27884,7 +29693,7 @@ def _plain_home_evaluation_workflow_cards() -> list[dict[str, object]]:
                 "before showing deeper analysis; provider rows never decide conclusions by themselves."
             ),
             "badges": ["data readiness", "no guessing"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
         {
             "kicker": "STEP 2",
@@ -27986,6 +29795,23 @@ def _summary_count(summary: dict[str, object] | None, *keys: str) -> int:
         except (TypeError, ValueError):
             continue
     return 0
+
+
+def _summary_optional_count(
+    summary: Mapping[str, object] | None,
+    *keys: str,
+) -> int | None:
+    """Return an explicit saved count without turning absent evidence into zero."""
+
+    summary = summary or {}
+    for key in keys:
+        if key not in summary or summary.get(key) in (None, ""):
+            continue
+        try:
+            return int(summary.get(key))
+        except (TypeError, ValueError):
+            continue
+    return None
 
 
 def research_cockpit_summary_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
@@ -28090,17 +29916,30 @@ def single_stock_query_ticker(value: object, local_tickers: list[str] | tuple[st
     text = str(raw or "").strip().upper()
     if not text:
         return ""
-    cleaned = re.sub(r"[^A-Z0-9.\-]", "", text)
-    if not cleaned:
-        return ""
-    local_lookup = {str(ticker).strip().upper() for ticker in (local_tickers or []) if str(ticker).strip()}
-    return cleaned if not local_lookup or cleaned in local_lookup else cleaned
+    local_lookup = {
+        str(ticker).strip().upper(): str(ticker).strip().upper()
+        for ticker in (local_tickers or [])
+        if str(ticker).strip()
+    }
+    if local_lookup:
+        return local_lookup.get(text, "")
+    return re.sub(r"[^A-Z0-9./\-]", "", text)
 
 
-def data_health_focus_ticker(value: object) -> str:
+def data_health_focus_ticker(
+    value: object,
+    registered_tickers: list[str] | tuple[str, ...] | None = None,
+) -> str:
     raw = value[0] if isinstance(value, list) and value else value
     text = str(raw or "").strip().upper()
-    return re.sub(r"[^A-Z0-9.\-]", "", text)
+    local_lookup = {
+        str(ticker).strip().upper(): str(ticker).strip().upper()
+        for ticker in (registered_tickers or [])
+        if str(ticker).strip()
+    }
+    if local_lookup:
+        return local_lookup.get(text, "")
+    return re.sub(r"[^A-Z0-9./\-]", "", text)
 
 
 def single_stock_query_open(value: object) -> bool:
@@ -28248,6 +30087,149 @@ def single_stock_detail_sections_key(ticker: object) -> str:
 
 def single_stock_detail_sections_visible(ticker: object) -> bool:
     return bool(st.session_state.get(single_stock_detail_sections_key(ticker), False))
+
+
+def discover_saved_company_browse_frame(
+    ticker_readiness_frame: pd.DataFrame | None,
+    *,
+    allowed_tickers: tuple[str, ...] | None = None,
+    limit: int = 120,
+) -> pd.DataFrame:
+    """Build alphabetical saved-company browsing from readiness only."""
+
+    if ticker_readiness_frame is None or ticker_readiness_frame.empty:
+        return pd.DataFrame()
+    ticker_col = _selector_column(ticker_readiness_frame, "ticker", "Ticker")
+    if not ticker_col:
+        return pd.DataFrame()
+
+    frame = ticker_readiness_frame.copy()
+    asset_col = _selector_column(frame, "asset_type", "Asset Type")
+    if asset_col:
+        frame = frame.loc[
+            frame[asset_col]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.lower()
+            .eq("company")
+        ].copy()
+    if allowed_tickers is not None:
+        allowed = {
+            str(value).strip().upper()
+            for value in allowed_tickers
+            if str(value).strip()
+        }
+        frame = frame.loc[
+            frame[ticker_col]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.upper()
+            .isin(allowed)
+        ].copy()
+    if frame.empty:
+        return pd.DataFrame()
+
+    readiness_col = _selector_column(frame, "overall_readiness_state", "Readiness")
+    supported_col = _selector_column(frame, "ready_features", "supported_analysis")
+    blocker_col = _selector_column(frame, "missing_data", "missing_data_summary")
+    next_col = _selector_column(frame, "next_action", "next_research_step")
+    freshness_col = _selector_column(
+        frame,
+        "updated_at",
+        "source_freshness_summary",
+    )
+    sector_col = _selector_column(frame, "sector", "SectorETF")
+    theme_col = _selector_column(frame, "theme", "industry")
+    lane_fields = (
+        ("price_ready", "price"),
+        ("fundamentals_ready", "fundamentals"),
+        ("dcf_ready", "DCF"),
+        ("peer_ready", "peer"),
+    )
+
+    rows: list[dict[str, object]] = []
+    for _, row in frame.iterrows():
+        ticker = str(row.get(ticker_col, "")).strip().upper()
+        if not ticker:
+            continue
+        lanes = [
+            label
+            for column, label in lane_fields
+            if str(row.get(column, "")).strip().lower()
+            in {"true", "1", "yes", "y"}
+        ]
+        if lanes:
+            if len(lanes) == 1:
+                lane_copy = lanes[0]
+            else:
+                lane_copy = ", ".join(lanes[:-1]) + f", and {lanes[-1]}"
+            why_inspectable = (
+                f"Saved evidence is available for {lane_copy} review."
+            )
+        else:
+            why_inspectable = (
+                "This saved company can be opened for evidence inspection; "
+                "no usable research lane is currently recorded."
+            )
+        sector = _selector_text(row, sector_col, fallback="")
+        theme = _selector_text(row, theme_col, fallback="")
+        rows.append(
+            {
+                "Ticker": ticker,
+                "Asset Type": _selector_text(row, asset_col, fallback="company"),
+                "Research State": "Saved company",
+                "Readiness": _selector_text(
+                    row,
+                    readiness_col,
+                    fallback="Needs readiness check",
+                ),
+                "Price Ready": "price" in lanes,
+                "Fundamentals Ready": "fundamentals" in lanes,
+                "DCF Ready": "DCF" in lanes,
+                "Trusted Peer Ready": "peer" in lanes,
+                "Review Detail": "Evidence inspection",
+                "Sector / Theme": " / ".join(
+                    value for value in (sector, theme) if value
+                )
+                or "Not available",
+                "Why Inspectable": why_inspectable,
+                "Supported Now": _selector_text(
+                    row,
+                    supported_col,
+                    fallback="No usable research lane is recorded.",
+                ),
+                "Blocked / Missing": _selector_text(
+                    row,
+                    blocker_col,
+                    fallback=(
+                        "No principal evidence gap is recorded; this does not mean "
+                        "no external research need exists."
+                    ),
+                ),
+                "Next Proof Step": _selector_text(
+                    row,
+                    next_col,
+                    fallback="Review saved readiness before deeper research.",
+                ),
+                "Proof Freshness": _selector_text(
+                    row,
+                    freshness_col,
+                    fallback="Saved readiness freshness is unavailable.",
+                ),
+            }
+        )
+
+    result = pd.DataFrame(rows)
+    if result.empty:
+        return result
+    result = result.sort_values(
+        "Ticker",
+        key=lambda values: values.str.upper(),
+        kind="mergesort",
+    )
+    return result.head(max(limit, 1)).reset_index(drop=True)
 
 
 def stock_selector_queue_frame(
@@ -28516,7 +30498,61 @@ def research_comparison_frame(comparison: ResearchComparison) -> pd.DataFrame:
     return pd.DataFrame(comparison_matrix_rows(comparison))
 
 
-def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, limit: int = 30) -> str:
+def discover_review_action_label(
+    ticker: str,
+    *,
+    company_brief: bool = False,
+) -> str:
+    symbol = str(ticker or "").strip().upper()
+    if not symbol:
+        return "Open Company Brief" if company_brief else "Open review"
+    return (
+        f"Open {symbol} Company Brief"
+        if company_brief
+        else f"Open {symbol} review"
+    )
+
+
+def discover_research_answer(row: Mapping[str, object]) -> dict[str, str]:
+    """Answer saved-company evidence questions without ranking semantics."""
+
+    fallbacks = {
+        "why_inspectable": (
+            "Saved readiness does not record why this company is inspectable."
+        ),
+        "usable_evidence": "No usable research lane is recorded in saved readiness.",
+        "main_evidence_gap": (
+            "No principal evidence gap is recorded in saved readiness; this does not mean "
+            "no risk or external research need exists."
+        ),
+    }
+
+    def saved_text(field: str, fallback_key: str) -> str:
+        text = format_missing(row.get(field), "").strip()
+        if not text:
+            return fallbacks[fallback_key]
+        if fallback_key == "main_evidence_gap" and text.lower() == "no blocker":
+            return fallbacks[fallback_key]
+        return text
+
+    return {
+        "why_inspectable": saved_text("Why Inspectable", "why_inspectable"),
+        "usable_evidence": saved_text("Supported Now", "usable_evidence"),
+        "main_evidence_gap": saved_text(
+            "Blocked / Missing",
+            "main_evidence_gap",
+        ),
+    }
+
+
+def stock_selector_result_table_html(
+    frame: pd.DataFrame,
+    *,
+    total_count: int,
+    limit: int = 30,
+    target_mode: str = PUBLIC_DEMO_MODE,
+    target_page: str = "single-stock-report",
+) -> str:
     """Render selector rows as a compact public review queue."""
 
     if frame is None or frame.empty:
@@ -28529,6 +30565,7 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
             "</div>"
         )
     visible = frame.head(max(limit, 1))
+    research_discover = str(target_mode).strip().lower() == "research"
     rows: list[str] = []
     for _, row in visible.iterrows():
         ticker = str(row.get("Ticker", "")).strip().upper() or "TICKER"
@@ -28536,7 +30573,9 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
         if theme.strip().lower() in {"", "not available", "unclassified"}:
             theme = ""
         supported = _selector_public_fragment(row.get("Supported Now", "Supported analysis not listed."), max_chars=110)
-        report_href = html.escape(f"?mode=public&page=single-stock-report&ticker={ticker}&open=1")
+        report_href = html.escape(
+            f"?mode={target_mode}&page={target_page}&ticker={ticker}&open=1"
+        )
         state_label = stock_selector_public_state_label(row)
         readiness_class = _selector_readiness_class(state_label)
         identity_html = (
@@ -28545,15 +30584,37 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
             + (f"<div class='selector-result-state'>{html.escape(theme)}</div>" if theme else "")
             + "</div>"
         )
+        if research_discover:
+            answers = discover_research_answer(row)
+            answer_html = (
+                "<div class='selector-result-summary research-discover-answers'>"
+                "<div class='research-discover-answer'>"
+                "<span class='research-discover-answer-label'>Why inspectable</span>"
+                f"<span class='research-discover-answer-value'>{html.escape(answers['why_inspectable'])}</span>"
+                "</div>"
+                "<div class='research-discover-answer'>"
+                "<span class='research-discover-answer-label'>Usable evidence</span>"
+                f"<span class='research-discover-answer-value'>{html.escape(answers['usable_evidence'])}</span>"
+                "</div>"
+                "<div class='research-discover-answer'>"
+                "<span class='research-discover-answer-label'>Main evidence gap</span>"
+                f"<span class='research-discover-answer-value'>{html.escape(answers['main_evidence_gap'])}</span>"
+                "</div>"
+                "</div>"
+            )
+        else:
+            answer_html = (
+                "<div class='selector-result-summary'>"
+                f"<span class='selector-readiness-pill {html.escape(readiness_class)}'>{html.escape(state_label)}</span>"
+                f"<div class='selector-result-body'>{html.escape(supported)}</div>"
+                "</div>"
+            )
         rows.append(
             "<div class='selector-result-row'>"
             + identity_html
-            + "<div class='selector-result-summary'>"
-            f"<span class='selector-readiness-pill {html.escape(readiness_class)}'>{html.escape(state_label)}</span>"
-            f"<div class='selector-result-body'>{html.escape(supported)}</div>"
-            "</div>"
-            "<div class='selector-actions'>"
-            f"<a class='selector-action-link' href='{report_href}' target='_self'>Open review</a>"
+            + answer_html
+            + "<div class='selector-actions'>"
+            f"<a class='selector-action-link' href='{report_href}' target='_self'>{html.escape(discover_review_action_label(ticker, company_brief=research_discover))}</a>"
             "</div>"
             "</div>"
         )
@@ -28564,7 +30625,12 @@ def stock_selector_result_table_html(frame: pd.DataFrame, *, total_count: int, l
             f"{len(visible):,} of {len(frame):,} matching rows shown; {total_count:,} readiness-backed rows are available before filtering."
             "</div>"
         )
-    return "<div class='selector-result-table'>" + "".join(rows) + footer + "</div>"
+    result_class = (
+        "selector-result-table research-discover-result"
+        if research_discover
+        else "selector-result-table"
+    )
+    return f"<div class='{result_class}'>" + "".join(rows) + footer + "</div>"
 
 
 def _stock_selector_filter_options(frame: pd.DataFrame, column: str, limit: int = 24) -> list[str]:
@@ -28680,18 +30746,90 @@ def _selector_option_index(options: list[str], preferred: str) -> int:
     return options.index(preferred_text) if preferred_text in options else 0
 
 
+def filter_selector_to_tickers(
+    frame: pd.DataFrame,
+    allowed_tickers: tuple[str, ...] | None,
+) -> pd.DataFrame:
+    """Limit a selector queue without changing its source order."""
+
+    if allowed_tickers is None:
+        return frame
+    if frame is None or frame.empty or "Ticker" not in frame.columns:
+        return pd.DataFrame(columns=list(frame.columns) if frame is not None else [])
+    allowed = {str(ticker or "").strip().upper() for ticker in allowed_tickers}
+    return frame.loc[frame["Ticker"].astype(str).str.upper().isin(allowed)].copy()
+
+
+def stock_selector_source_frames(
+    output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
+    *,
+    research_discover: bool,
+) -> tuple[
+    pd.DataFrame | None,
+    str | None,
+    pd.DataFrame | None,
+    str | None,
+]:
+    """Load legacy selector outputs only outside Personal Research Discover."""
+
+    if research_discover:
+        return None, None, None, None
+    decisions_frame, decisions_message = load_output(
+        OUTPUTS_DIR / "research_decisions.csv"
+    )
+    final_frame, final_message = output_frames.get(
+        "final_watchlist.csv",
+        (None, None),
+    )
+    return decisions_frame, decisions_message, final_frame, final_message
+
+
+def discover_browse_result_summary_html(
+    filtered_count: int,
+    total_count: int,
+) -> str:
+    return (
+        "<div id='saved-company-browser' class='public-selector-result-summary research-discover-summary'>"
+        f"<strong>{filtered_count:,}</strong> of {total_count:,} saved companies "
+        "match the current search and filters."
+        "</div>"
+    )
+
+
+def discover_saved_browser_jump_html() -> str:
+    """Return one visible in-page route from strict eligibility to saved browsing."""
+
+    return (
+        "<p class='research-discover-browser-jump'>"
+        "<a href='#saved-company-browser'>Browse saved companies</a>"
+        "</p>"
+    )
+
+
 def render_stock_selector(
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
     *,
     public_mode: bool = True,
+    target_mode: str = PUBLIC_DEMO_MODE,
+    target_page: str = "single-stock-report",
+    allowed_tickers: tuple[str, ...] | None = None,
+    research_boundary: str | None = None,
 ) -> None:
+    research_discover = (
+        str(target_mode).strip().lower() == RESEARCH_MODE
+        and str(target_page).strip().lower() == "company-workbench"
+    )
     ticker_readiness_frame, ticker_readiness_message = load_ticker_readiness_report()
     dcf_readiness_frame, _ = load_dcf_readiness()
     optional_tables = load_optional_context_readiness()
     earnings_readiness_frame, _ = optional_tables["earnings_readiness"]
     analyst_readiness_frame, _ = optional_tables["analyst_estimates_readiness"]
-    decisions_frame, decisions_message = load_output(OUTPUTS_DIR / "research_decisions.csv")
-    final_frame, final_message = output_frames.get("final_watchlist.csv", (None, None))
+    decisions_frame, decisions_message, final_frame, final_message = (
+        stock_selector_source_frames(
+            output_frames,
+            research_discover=research_discover,
+        )
+    )
     coverage_frame, _ = load_output(OUTPUTS_DIR / "ticker_data_coverage.csv")
     summary = dashboard_readiness_summary(
         coverage_frame,
@@ -28700,8 +30838,51 @@ def render_stock_selector(
         analyst_readiness_frame,
         ticker_readiness_frame,
     )
-    selector_frame = stock_selector_queue_frame(decisions_frame, final_frame, ticker_readiness_frame, limit=120)
+    if research_discover:
+        selector_frame = discover_saved_company_browse_frame(
+            ticker_readiness_frame,
+            allowed_tickers=allowed_tickers,
+            limit=120,
+        )
+    else:
+        selector_frame = stock_selector_queue_frame(
+            decisions_frame,
+            final_frame,
+            ticker_readiness_frame,
+            limit=120,
+        )
+        selector_frame = filter_selector_to_tickers(
+            selector_frame,
+            allowed_tickers,
+        )
 
+    if public_mode and not research_discover and selector_frame.empty:
+        st.markdown(
+            public_stock_selector_empty_hierarchy_html(),
+            unsafe_allow_html=True,
+        )
+        render_notice_card(
+            "Selector queue is empty",
+            "No saved research-decision or final-watchlist row is available for public review.",
+            tone="warning",
+            public=True,
+        )
+        return
+
+    if public_mode and not research_discover:
+        st.markdown(
+            answer_panel_html(
+                question="Which stock can I review?",
+                answer="Choose one readiness-backed ticker before opening a saved report.",
+                reason=(
+                    "Search the saved review queue by ticker, theme, blocker, or proof step. "
+                    "Rows remain evidence-access paths, not a company ranking."
+                ),
+                action=None,
+                stop_rule=None,
+            ).value,
+            unsafe_allow_html=True,
+        )
     if not public_mode:
         render_section_header(
             STOCK_SELECTOR_PATH_TITLE,
@@ -28724,23 +30905,96 @@ def render_stock_selector(
 
     if selector_frame.empty:
         render_notice_card(
-            "Selector queue is empty",
-            "Build saved research decisions or the final watchlist before using the selector surface.",
+            (
+                "No saved companies are available to browse"
+                if research_discover
+                else "Selector queue is empty"
+            ),
+            (
+                "Saved readiness contains no company rows in the focused cohort."
+                if research_discover
+                else "Build saved research decisions or the final watchlist before using the selector surface."
+            ),
             "make status-check TOP_N=5",
             tone="warning",
             public=public_mode,
         )
+        if research_discover and research_boundary:
+            st.markdown(
+                next_action_html(
+                    SafeRouteAction(
+                        label="Open Data Health",
+                        href="?mode=research&page=data-health",
+                    )
+                ).value,
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                stop_rule_html(f"Research-only. {research_boundary}").value,
+                unsafe_allow_html=True,
+            )
         return
 
     saved_presets = stock_selector_saved_filter_presets()
     current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
+    if research_discover:
+        st.markdown(
+            discover_saved_browser_jump_html(),
+            unsafe_allow_html=True,
+        )
     search = st.text_input(
-        "Search this review queue",
+        "Search saved companies" if research_discover else "Search this review queue",
         value=str(current_filter_values.get("search") or ""),
         placeholder="Search ticker, theme, blocker, or proof step",
-        help="Search readiness-backed rows before opening one saved report.",
+        help=(
+            None
+            if research_discover
+            else "Search readiness-backed rows before opening one saved report."
+        ),
         key="stock-selector-search",
     ).strip()
+    if research_discover and research_boundary:
+        st.markdown(
+            stop_rule_html(f"Research-only. {research_boundary}").value,
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            supporting_detail_html(
+                title="Browse saved companies",
+                body=(
+                    "Search and filters apply only to the readiness-backed saved-company set. "
+                    "They do not change strict screen eligibility or create a ranking."
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
+        render_context_note(
+            "Saved-company browsing is not strict screen eligibility.",
+            (
+                "Rows are alphabetical evidence-access paths. Availability does not mean "
+                "the company passed momentum and valuation screening, has attractive "
+                "valuation, or is a recommendation."
+            ),
+        )
+    elif public_mode and not research_discover:
+        st.markdown(
+            stop_rule_html(
+                "Research-only. This page helps choose what to review next; it does not rank "
+                "companies or create a recommendation."
+            ).value,
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            supporting_detail_html(
+                title="Readiness-backed results",
+                body=(
+                    "Result links remain subordinate evidence actions. Blockers, excluded states, "
+                    "and proof freshness stay visible before deeper analysis."
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
+        st.markdown(advanced_detail_marker_html().value, unsafe_allow_html=True)
     open_change_counts: dict[str, int] = {}
     for item in tuple(ACTIVE_RESEARCH_CHANGE_STATE.get("queue") or ()):
         ticker_key = item.event.ticker.upper()
@@ -28812,7 +31066,15 @@ def render_stock_selector(
     if needs_review_only:
         filtered = filter_selector_needs_review(filtered, open_event_ids_by_ticker=open_change_counts)
 
-    if public_mode:
+    if research_discover:
+        st.markdown(
+            discover_browse_result_summary_html(
+                len(filtered),
+                len(selector_frame),
+            ),
+            unsafe_allow_html=True,
+        )
+    elif public_mode:
         st.markdown(public_selector_result_summary_html(len(filtered), len(selector_frame)), unsafe_allow_html=True)
     else:
         count_label = f"{len(filtered):,} of {len(selector_frame):,} readiness-backed rows"
@@ -28857,7 +31119,12 @@ def render_stock_selector(
                     )
                     st.dataframe(research_comparison_frame(comparison), width="stretch", hide_index=True)
     st.markdown(
-        stock_selector_result_table_html(filtered, total_count=len(selector_frame), limit=10 if public_mode else 15),
+        stock_selector_result_table_html(filtered,
+            total_count=len(selector_frame),
+            limit=10 if public_mode else 15,
+            target_mode=target_mode,
+            target_page=target_page,
+        ),
         unsafe_allow_html=True,
     )
     with st.expander("Advanced: full filtered selector rows", expanded=False):
@@ -28907,7 +31174,7 @@ def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) 
                 "A snapshot lets the dashboard compare current and prior readiness after the refresh, instead of guessing what changed."
             ),
             "badges": ["compare later", "local only"],
-            "command": "make readiness-snapshot",
+            "command": f"make readiness-snapshot PROFILE={_active_data_profile_name()}",
         },
         {
             "kicker": "CAPPED RUN",
@@ -28927,7 +31194,7 @@ def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) 
                 "Rebuild price coverage, readiness, and project status, then inspect local CSV changes before staging anything."
             ),
             "badges": ["prove readiness", "review changes"],
-            "command": "make price-coverage TOP_N=25 && make readiness && make project-status && make diff-hygiene",
+            "command": f"make price-coverage TOP_N=25 && make reviewed-batch-compare PROFILE={_active_data_profile_name()} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make project-status && make diff-hygiene",
         },
     ]
 
@@ -29149,7 +31416,7 @@ def roadmap_milestone_status_frame(summary: dict[str, object] | None = None) -> 
                 "Current Status": "Implemented, proof-first",
                 "Evidence": "Data Health now starts with guided lane answers, then keeps coverage frontier, reviewed proof timeline, and reviewed-batch packet paths behind proof-first details.",
                 "Next Safe Step": "Inspect the lane frontier, then create a copy-only reviewed batch packet before any capped execution.",
-                "Copy Command": "DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10",
+                "Copy Command": f"DRY_RUN=1 make reviewed-batch PROFILE={_active_data_profile_name()} LANE=prices TOP_N=10",
             },
             {
                 "Roadmap Area": "Fundamentals / DCF data proof",
@@ -29296,6 +31563,26 @@ def _plain_home_function_quality_frame(summary: dict[str, object] | None = None)
     )
 
 
+def _plain_home_operator_command_sequence(*, profile: str | None = None) -> list[str]:
+    """Return inspection-only home commands when reviewed proof scope is unknown."""
+
+    selected_profile = resolve_readiness_proof_profile(profile, project_root=BASE_DIR)
+    return [
+        "make status-check TOP_N=5",
+        "make price-refresh-loop DRY_RUN=1",
+        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
+        (
+            "# Readiness proof unavailable: choose a reviewed lane, batch id, review date, and approved "
+            f"validate/preview/apply sequence before changing PROFILE={selected_profile}."
+        ),
+        "make diff-hygiene",
+        "make readiness-preview TOP_N=20",
+        "make project-status",
+        "make stock-report-md TICKER=NVDA",
+        "make dashboard-smoke",
+    ]
+
+
 def render_home_page(
     catalog: LocalDataCatalog,
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
@@ -29336,7 +31623,7 @@ def render_home_page(
         render_notice_card(
             "Generated status may be stale",
             generated_stale_warning,
-            "make readiness",
+            "make readiness-preview TOP_N=20",
             tone="warning",
             public=public_mode,
         )
@@ -29434,20 +31721,7 @@ def render_home_page(
 
                 st.write("Preview capped refreshes first. Use update commands only when you intentionally want to change local files.")
                 st.code(
-                    "\n".join(
-                        [
-                            "make status-check TOP_N=5",
-                            "make price-refresh-loop DRY_RUN=1",
-                            "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
-                            "make readiness-snapshot",
-                            "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
-                            "make diff-hygiene",
-                            "make readiness",
-                            "make project-status",
-                            "make stock-report-md TICKER=NVDA",
-                            "make dashboard-smoke",
-                        ]
-                    ),
+                    "\n".join(_plain_home_operator_command_sequence(profile=_active_data_profile_name())),
                     language="bash",
                 )
                 st.caption("Broad refresh changes should be inspected before they are committed or shared publicly.")
@@ -29479,7 +31753,37 @@ def render_home_page(
         )
 
 
+def operator_route_shell_html(title: str) -> str:
+    kind = (
+        "compatibility"
+        if str(title or "").strip() in OPERATOR_COMPATIBILITY_PAGE_TITLES
+        else "operator"
+    )
+    return _operator_route_shell_html(title=str(title or ""), kind=kind).value
+
+
+def render_operator_route_shell(title: str) -> None:
+    st.markdown(operator_route_shell_html(title), unsafe_allow_html=True)
+
+
+def render_legacy_research_utility_shell(title: str) -> None:
+    render_section_header(title, "Retained only for deterministic compatibility and operator regression review.")
+
+
 def render_monthly_picks(catalog: LocalDataCatalog) -> None:
+    render_legacy_research_utility_shell("Monthly Picks")
+    with st.expander("Advanced: legacy compatibility output", expanded=False):
+        show_legacy_output = st.checkbox(
+            "Load legacy monthly candidate and track-record output",
+            value=False,
+            help="Compatibility review only. This output is excluded from Personal Research Mode and product conclusions.",
+            key="legacy-monthly-picks-output",
+        )
+    if show_legacy_output:
+        _render_monthly_picks_legacy_output(catalog)
+
+
+def _render_monthly_picks_legacy_output(catalog: LocalDataCatalog) -> None:
     render_advanced_page_shell(
         "Monthly Picks",
         "A compact, data-gated research-candidate list. Scores help decide what to review next; they are not advice, allocation guidance, or a conclusion list.",
@@ -29650,6 +31954,19 @@ def render_advanced_page_shell(title: str, caption: str) -> None:
 
 
 def render_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], show_reason_details: bool) -> None:
+    render_legacy_research_utility_shell(title)
+    with st.expander("Advanced: legacy compatibility output", expanded=False):
+        show_legacy_output = st.checkbox(
+            f"Load legacy {title.lower()} output",
+            value=False,
+            help="Compatibility review only. This output is excluded from Personal Research Mode and product conclusions.",
+            key=f"legacy-output-{dashboard_page_slug(title)}",
+        )
+    if show_legacy_output:
+        _render_legacy_output_tab(title, output_frames, show_reason_details)
+
+
+def _render_legacy_output_tab(title: str, output_frames: dict[str, tuple[pd.DataFrame | None, str | None]], show_reason_details: bool) -> None:
     filename = TAB_TO_FILE[title]
     frame, message = output_frames[filename]
     render_advanced_page_shell(title, OUTPUT_TAB_GUIDANCE.get(title, "Search, filter, and inspect the most important columns first."))
@@ -29688,12 +32005,50 @@ def render_single_stock_report(
     *,
     public_mode: bool = True,
     profile_context: ProfileContext | None = None,
+    research_mode: bool = False,
+    research_review_items=(),
+    quarterly_trend_packet: QuarterlyTrendPacket | None = None,
+    cash_generation_preview: CompanyWorkbenchCashGenerationPreview | None = None,
+    observation_recency: ObservationRecencySet | None = None,
+    selected_answer_target=None,
+    selected_detail_target=None,
 ) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
     query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)
     query_open_review = single_stock_query_open(st.query_params.get("open"))
+    if research_mode:
+        query_open_review = True
+    public_query_without_ticker = (
+        public_mode and not research_mode and not query_ticker
+    )
+    if public_query_without_ticker:
+        query_open_review = False
+    elif public_mode and query_ticker:
+        st.session_state.pop("single-stock-public-selection-intent", None)
+    intent_ticker = str(
+        st.session_state.get("single-stock-public-selection-intent") or ""
+    ).strip().upper()
+    current_widget_ticker = str(
+        st.session_state.get("single-stock-public-ticker") or ""
+    ).strip().upper()
+    selection_intent = bool(
+        intent_ticker
+        and current_widget_ticker
+        and intent_ticker == current_widget_ticker
+    )
+    if public_query_without_ticker and not selection_intent:
+        st.session_state.pop("single-stock-public-selection-intent", None)
+        st.session_state.pop("single-stock-public-ticker", None)
     compact_public_open_report = public_mode and query_open_review and bool(query_ticker)
+    tickerless_public_navigation = (
+        public_query_without_ticker and not selection_intent
+    )
+    if tickerless_public_navigation:
+        st.markdown(
+            public_single_stock_tickerless_hierarchy_html(),
+            unsafe_allow_html=True,
+        )
     header_caption = (
         f"{query_ticker} is selected. Review the selected ticker state first, then use supported sections only."
         if compact_public_open_report
@@ -29725,9 +32080,11 @@ def render_single_stock_report(
             selected = st.selectbox(
                 "Choose ticker",
                 public_ticker_options,
-                index=public_default_index,
+                index=None if tickerless_public_navigation else public_default_index,
+                placeholder="Choose a saved ticker",
                 help="Pick one saved local ticker for a read-only review. Operator mode has manual and online lookup controls.",
                 key="single-stock-public-ticker",
+                on_change=_mark_public_single_stock_selection_intent,
             )
         manual_ticker = ""
         use_yfinance = False
@@ -29749,7 +32106,14 @@ def render_single_stock_report(
                 "and should be checked against source readiness notes."
             ),
         )
-    ticker = (manual_ticker if selected == "Custom" else selected).strip().upper()
+    ticker = (manual_ticker if selected == "Custom" else selected or "").strip().upper()
+    if tickerless_public_navigation:
+        render_context_note(
+            "What happens next.",
+            "Choose one saved ticker, then Open Review. No report is inferred or opened from this route.",
+        )
+        st.button("Open Review", key="single-stock-report-button")
+        return
     provider_name = "yfinance" if use_yfinance else "local"
     coverage = pd.DataFrame()
     peer_summary: dict[str, object] = {}
@@ -29759,7 +32123,12 @@ def render_single_stock_report(
     single_stock_loading_placeholder = None
     if public_mode and compact_public_open_report and not report_payload:
         fast_snapshot = single_stock_fast_readiness_snapshot(ticker)
-        render_signal_cards(single_stock_quick_read_cards(fast_snapshot)[:3], show_commands=False, variant="queue")
+        fast_answer_frame = single_stock_one_answer_frame(fast_snapshot)
+        render_single_stock_public_summary(
+            fast_answer_frame,
+            research_mode=research_mode,
+            selected_answer_target=selected_answer_target,
+        )
         single_stock_loading_placeholder = st.empty()
         with single_stock_loading_placeholder.container():
             render_signal_cards(single_stock_loading_contract_cards(ticker), show_commands=False, variant="queue")
@@ -29874,33 +32243,304 @@ def render_single_stock_report(
             coverage if provider is not None and ticker else None,
             peer_summary if provider is not None and ticker else None,
         )
+        journal_state = None
+        journal_error = ""
+        try:
+            journal_state = load_dashboard_journal_state(
+                profile_context or build_profile_context(project_root=BASE_DIR),
+                ticker=ticker,
+            )
+        except ValueError as exc:
+            journal_error = str(exc)
+        trend_packet = quarterly_trend_packet or load_dashboard_quarterly_trend(ticker)
+        peer_read_through = build_peer_read_through_map(
+            report_payload,
+            profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
+        )
+        nowcast_packet = load_dashboard_nowcast_packet(report_payload, ticker=ticker)
+        selected_context = profile_context or build_profile_context(project_root=BASE_DIR)
+        scenario_session = run_scenario_lab_from_state(
+            report_payload,
+            st.session_state,
+            profile_key=selected_context.profile_key,
+            dcf_ready=bool(report_readiness.get("dcf_ready")),
+            asset_type=stock_report_inferred_asset_type(report_payload),
+        )
+        valuation_regime = load_dashboard_valuation_regime(ticker)
+        outcome_status = load_dashboard_outcome_status(selected_context, ticker=ticker)
+        catalyst_timeline = load_dashboard_catalyst_timeline(selected_context, ticker=ticker)
+        decision_process_scorecard = None
+        decision_process_error = journal_error
+        if journal_state is not None:
+            try:
+                decision_process_scorecard = build_decision_process_scorecard(
+                    report_payload,
+                    profile_key=selected_context.profile_key,
+                    journal_state=journal_state,
+                    review_items=tuple(research_review_items),
+                )
+                decision_lab_state = build_research_decision_lab_state(
+                    profile_key=selected_context.profile_key,
+                    journal_state=journal_state,
+                    scorecard=decision_process_scorecard,
+                    outcome_status=outcome_status,
+                    review_items=tuple(research_review_items),
+                )
+            except ValueError as exc:
+                decision_process_error = str(exc)
+                decision_lab_state = unavailable_research_decision_lab_state(
+                    profile_key=selected_context.profile_key,
+                    ticker=ticker,
+                    reason=decision_process_error,
+                )
+        else:
+            decision_lab_state = unavailable_research_decision_lab_state(
+                profile_key=selected_context.profile_key,
+                ticker=ticker,
+                reason=journal_error or "No reviewed journal evidence is available.",
+            )
+        forward_view_packet = build_forward_view(
+            report_payload,
+            trend_packet,
+            journal_state=journal_state,
+            peer_map=peer_read_through,
+            nowcast_packet=nowcast_packet,
+            freshness_state=(profile_context or build_profile_context(project_root=BASE_DIR)).freshness_state,
+        )
+        change_answer = None
+        conclusion_cards = None
+        authoritative_task = None
+        primary_brief = None
+        if research_mode:
+            change_answer = company_change_answer(ticker, research_review_items)
+            conclusion_cards = stock_report_next_step_cards(
+                report_payload,
+                coverage if provider is not None and ticker else None,
+                peer_summary if provider is not None and ticker else None,
+            )
+            authoritative_task = company_next_research_task(
+                change_answer,
+                conclusion_cards,
+            )
+            primary_brief = company_workbench_primary_brief(
+                single_answer_frame,
+                change_answer,
+                authoritative_task,
+            )
         if public_mode:
-            st.markdown(single_stock_public_summary_html(single_answer_frame), unsafe_allow_html=True)
-            render_signal_cards(nowcast_summary_cards(None, ticker=ticker), show_commands=False, variant="queue")
+            render_single_stock_public_summary(
+                single_answer_frame,
+                research_mode=research_mode,
+                selected_answer_target=selected_answer_target,
+                primary_brief=primary_brief,
+                selected_detail_target=selected_detail_target,
+            )
+            if research_mode and not single_stock_detail_sections_visible(ticker):
+                render_context_note(
+                    "Detailed company modules stay closed.",
+                    "Open them only when you need trend, valuation, scenarios, authoring, methodology, or raw evidence behind the Company Brief.",
+                )
+                if st.button(
+                    "Open evidence and analysis modules",
+                    key=f"{single_stock_detail_sections_key(ticker)}:research-open",
+                ):
+                    st.session_state[single_stock_detail_sections_key(ticker)] = True
+                    st.rerun()
+                return
+            quant_interpretation_cards = stock_report_quant_interpretation_cards(report_payload)
+            quant_interpretation_evidence = stock_report_quant_interpretation_evidence_frame(
+                report_payload
+            )
+            if quant_interpretation_cards:
+                st.markdown("## Quant interpretation boundary")
+                render_signal_cards(
+                    quant_interpretation_cards,
+                    show_commands=False,
+                    variant="queue",
+                )
+            if not quant_interpretation_evidence.empty:
+                with st.expander(
+                    "Advanced: quantitative interpretation evidence",
+                    expanded=False,
+                ):
+                    st.dataframe(
+                        quant_interpretation_evidence,
+                        width="stretch",
+                        hide_index=True,
+                    )
+            if research_mode:
+                change_context_badge = {
+                    "none": "no queued change",
+                    "snapshot_only": "snapshot evidence only",
+                    "source_backed": "source-backed change",
+                }.get(str(change_answer["change_context_kind"]), "no queued change")
+                st.markdown("## What Changed")
+                render_signal_cards(
+                    [
+                        {
+                            "kicker": "EVIDENCE CHANGE",
+                            "title": str(change_answer["answer"]),
+                            "body": str(change_answer["next_task"]),
+                            "badges": [
+                                str(change_answer["state"]).replace("_", " "),
+                                change_context_badge,
+                            ],
+                            "command": "",
+                        }
+                    ],
+                    show_commands=False,
+                    variant="queue",
+                )
+                st.markdown("## Research Decision Lab")
+                render_signal_cards(decision_lab_cards(decision_lab_state), show_commands=False, variant="queue")
+                with st.expander("Advanced: Decision Lab evidence", expanded=False):
+                    st.dataframe(
+                        pd.DataFrame(decision_lab_rows(decision_lab_state)),
+                        width="stretch",
+                        hide_index=True,
+                    )
+                    st.caption(f"Decision Lab identity: {decision_lab_state.identity}")
+                    st.caption(decision_lab_state.boundary)
+                st.markdown("## Business Trend")
+                render_signal_cards(quarterly_trend_cards(trend_packet), show_commands=False, variant="queue")
+                if cash_generation_preview is not None:
+                    render_signal_cards(
+                        cash_generation_preview_cards(cash_generation_preview),
+                        show_commands=False,
+                        variant="queue",
+                    )
+                    with st.expander("Advanced: cash-generation preview evidence", expanded=False):
+                        st.dataframe(
+                            pd.DataFrame(
+                                cash_generation_preview_rows(cash_generation_preview)
+                            ),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                        st.caption(
+                            "Preview only: production activation is false; readiness promotions are none; "
+                            "no persistence or readiness rebuild occurs."
+                        )
+                with st.expander("Advanced: quarterly trend evidence", expanded=False):
+                    st.dataframe(pd.DataFrame(quarterly_trend_rows(trend_packet)), width="stretch", hide_index=True)
+                    if trend_packet.canonical_rejected_rows:
+                        st.dataframe(
+                            pd.DataFrame(
+                                {
+                                    "Canonical row": [
+                                        row["row_number"]
+                                        for row in trend_packet.canonical_rejected_rows
+                                    ],
+                                    "Rejection reason": [
+                                        row["reason"]
+                                        for row in trend_packet.canonical_rejected_rows
+                                    ],
+                                }
+                            ),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    st.caption("Q4 is never derived. Only explicit versioned quarterly source rows can unlock a comparison.")
+                st.markdown("## Valuation")
+                render_signal_cards(
+                    stock_report_valuation_boundary_cards(report_payload),
+                    show_commands=False,
+                    variant="queue",
+                )
+                render_signal_cards(valuation_regime_cards(valuation_regime), show_commands=False, variant="queue")
+                with st.expander("Advanced: historical valuation evidence", expanded=False):
+                    if valuation_regime.source_refs:
+                        st.dataframe(
+                            pd.DataFrame({"Source Reference": list(valuation_regime.source_refs)}),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    if valuation_regime.commercial_blockers:
+                        st.dataframe(
+                            pd.DataFrame({"Commercial blocker": list(valuation_regime.commercial_blockers)}),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    st.caption(valuation_regime.boundary)
+                st.markdown("## Forward View")
+                render_signal_cards(forward_view_cards(forward_view_packet), show_commands=False, variant="queue")
+                render_signal_cards(catalyst_timeline_cards(catalyst_timeline), show_commands=False, variant="queue")
+                with st.expander("Advanced: Forward View evidence", expanded=False):
+                    st.dataframe(pd.DataFrame(forward_view_rows(forward_view_packet)), width="stretch", hide_index=True)
+                    if catalyst_timeline.upcoming or catalyst_timeline.recent:
+                        st.dataframe(
+                            pd.DataFrame([asdict(row) for row in (*catalyst_timeline.upcoming, *catalyst_timeline.recent)]),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    if catalyst_timeline.commercial_blockers:
+                        st.dataframe(
+                            pd.DataFrame({"Commercial blocker": list(catalyst_timeline.commercial_blockers)}),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    st.caption(
+                        f"Model {forward_view_packet.model_version}; cutoff {forward_view_packet.source_cutoff or 'unavailable'}. "
+                        "Candidate context never changes numerical scenarios."
+                    )
+            else:
+                render_signal_cards(nowcast_summary_cards(None, ticker=ticker), show_commands=False, variant="queue")
+            if research_mode:
+                st.markdown("## What Remains Withheld")
+                withheld = [
+                    lane.replace("_", " ")
+                    for lane, ready in (
+                        ("quarterly trend", (quarterly_trend_packet or load_dashboard_quarterly_trend(ticker)).status != "blocked"),
+                        ("trusted peers", bool(report_readiness.get("peer_ready"))),
+                        ("earnings context", bool(report_readiness.get("earnings_available") or report_readiness.get("earnings_ready"))),
+                        ("analyst estimates", bool(report_readiness.get("analyst_estimates_available") or report_readiness.get("analyst_estimates_ready"))),
+                    )
+                    if not ready
+                ]
+                render_signal_cards(
+                    [
+                        {
+                            "kicker": "WITHHELD INPUTS",
+                            "title": ", ".join(withheld) if withheld else "No listed review lane is withheld",
+                            "body": "Unavailable or unverified inputs remain withheld; the workbench does not infer them from price, peers, or narrative context.",
+                            "badges": ["fail closed", "no inference"],
+                            "command": "",
+                        }
+                    ],
+                    show_commands=False,
+                    variant="queue",
+                )
         else:
             render_signal_cards(operator_single_stock_workflow_cards(workflow_fit_cards), show_commands=False)
             with st.expander("Advanced: review summary details", expanded=False):
                 st.table(clean_display_frame(single_answer_frame))
                 st.table(clean_display_frame(report_answer_frame))
                 render_signal_cards(at_a_glance_cards, show_commands=show_card_commands)
-        journal_state = None
-        try:
-            journal_state = load_dashboard_journal_state(
-                profile_context or build_profile_context(project_root=BASE_DIR),
-                ticker=ticker,
-            )
+        if journal_state is not None:
             journal_summary = research_thesis_journal_summary(journal_state)
-        except ValueError as exc:
+        else:
             journal_summary = {
                 "status": "unavailable",
                 "title": "Research journal unavailable",
                 "answer": "The reviewed journal could not be verified for this selected profile and ticker.",
                 "evidence": "No thesis or evidence claim is shown.",
-                "boundary": str(exc),
+                "boundary": journal_error or "No reviewed journal evidence is available.",
                 "confidence": "",
                 "primary_action": "Review the journal contract before using it",
             }
         st.markdown(research_thesis_journal_html(journal_summary), unsafe_allow_html=True)
+        if research_mode:
+            render_signal_cards(outcome_status_cards(outcome_status), show_commands=False, variant="queue")
+            render_research_record_authoring(
+                st_api=st,
+                profile_key=selected_context.profile_key,
+                ticker=ticker,
+                paths=AuthoringPaths(
+                    journal=DATA_DIR / "research_thesis_journal.csv",
+                    catalysts=DATA_DIR / "catalyst_evidence.csv",
+                    outcomes=DATA_DIR / "research_outcome_reviews.csv",
+                ),
+            )
         with st.expander("Advanced: thesis and evidence history", expanded=False):
             if journal_state is not None and journal_state.entries:
                 st.dataframe(
@@ -29910,24 +32550,75 @@ def render_single_stock_report(
                 )
             else:
                 st.caption("No verified journal history is available for this selected profile and ticker.")
+            if outcome_status.commercial_blockers:
+                st.dataframe(
+                    pd.DataFrame({"Commercial blocker": list(outcome_status.commercial_blockers)}),
+                    width="stretch",
+                    hide_index=True,
+                )
         with st.expander("Decision-process scorecard", expanded=False):
-            if journal_state is None:
-                st.caption("The decision-process checks remain unavailable until the selected-profile journal can be verified.")
+            if decision_process_scorecard is None:
+                st.caption(
+                    "The decision-process checks remain unavailable until the selected-profile journal can be verified."
+                )
+                if decision_process_error:
+                    st.caption(f"Decision-process checks unavailable: {decision_process_error}")
             else:
-                try:
-                    scorecard = build_decision_process_scorecard(
-                        report_payload,
-                        profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
-                        journal_state=journal_state,
-                        review_items=tuple(ACTIVE_RESEARCH_CHANGE_STATE.get("queue") or ()),
-                    )
-                    render_signal_cards(decision_process_scorecard_cards(scorecard), show_commands=False)
-                    st.dataframe(decision_process_scorecard_frame(scorecard), width="stretch", hide_index=True)
-                    with st.expander("Advanced: process identity", expanded=False):
-                        st.caption(f"Process identity: {scorecard.scorecard_identity}")
-                        st.caption(scorecard.boundary)
-                except ValueError as exc:
-                    st.caption(f"Decision-process checks unavailable: {exc}")
+                render_signal_cards(decision_process_scorecard_cards(decision_process_scorecard), show_commands=False)
+                st.dataframe(
+                    decision_process_scorecard_frame(decision_process_scorecard),
+                    width="stretch",
+                    hide_index=True,
+                )
+                with st.expander("Advanced: process identity", expanded=False):
+                    st.caption(f"Process identity: {decision_process_scorecard.scorecard_identity}")
+                    st.caption(decision_process_scorecard.boundary)
+        if research_mode:
+            st.markdown("## Research Conclusion")
+            render_signal_cards(
+                conclusion_cards,
+                show_commands=False,
+                variant="queue",
+            )
+            selected_answer = single_answer_frame.iloc[0].to_dict()
+            selected_answer["state"] = report_one_answer_snapshot["status"]
+            html_brief_snapshot = build_company_workbench_html_snapshot(
+                CompanyWorkbenchHtmlInputs(
+                    report_payload=report_payload,
+                    profile_context=selected_context,
+                    observation_recency=observation_recency,
+                    selected_answer=selected_answer,
+                    authoritative_task=authoritative_task,
+                    scenario_lab_result=scenario_session.result,
+                    nowcast_packet=nowcast_packet,
+                    decision_lab_state=decision_lab_state,
+                    quarterly_trend=trend_packet,
+                    forward_view=forward_view_packet,
+                    journal_state=journal_state,
+                    valuation_regime=valuation_regime,
+                    catalyst_timeline=catalyst_timeline,
+                )
+            )
+            html_brief_fragment = render_company_workbench_html_fragment(
+                html_brief_snapshot
+            )
+            html_brief_download = company_workbench_html_download_spec(
+                html_brief_snapshot
+            )
+            with st.expander("HTML Research Brief", expanded=False):
+                st.caption(
+                    "This brief is a snapshot of current saved evidence and Python scenario math; "
+                    "it is not a recommendation or current-market claim."
+                )
+                st.html(html_brief_fragment, unsafe_allow_javascript=False)
+                st.download_button(
+                    "Download HTML Research Brief",
+                    data=html_brief_download.data,
+                    file_name=html_brief_download.file_name,
+                    mime=html_brief_download.mime,
+                    key=f"company-workbench-html:{selected_context.profile_key}:{ticker}",
+                    on_click="ignore",
+                )
     if public_mode and report_payload and not single_stock_detail_sections_visible(ticker):
         render_context_note(
             "Detailed report stays closed.",
@@ -29944,7 +32635,14 @@ def render_single_stock_report(
                 "Shows which inputs are available before deeper analysis. Missing rows keep sections locked.",
             )
             render_signal_cards(stock_report_local_context_cards(coverage, peer_summary), show_commands=show_card_commands)
-            st.dataframe(style_frame(clean_display_frame(ticker_coverage_display_frame(coverage))), width="stretch", hide_index=True)
+            st.dataframe(
+                style_frame(
+                    clean_display_frame(ticker_coverage_display_frame(coverage)),
+                    role="readiness",
+                ),
+                width="stretch",
+                hide_index=True,
+            )
             with st.expander("Evidence row details", expanded=False):
                 st.dataframe(clean_display_frame(coverage), width="stretch", hide_index=True)
             readiness_cols = st.columns(5)
@@ -30005,7 +32703,10 @@ def render_single_stock_report(
         )
     st.markdown(
         "<div style='display:flex;gap:0.5rem;flex-wrap:wrap;margin:0.5rem 0 1rem 0;'>"
-        + "".join(status_badge(label) for label in stock_report_readiness_badges(readiness))
+        + "".join(
+            stock_report_readiness_status_badge(label)
+            for label in stock_report_readiness_badges(readiness)
+        )
         + "</div>",
         unsafe_allow_html=True,
     )
@@ -30178,10 +32879,7 @@ def render_single_stock_report(
             st.markdown("#### Bull / Base / Bear Scenarios")
             st.dataframe(pd.DataFrame(scenario_rows), width="stretch", hide_index=True)
 
-        render_scenario_lab(
-            report_payload,
-            profile_key=(profile_context or build_profile_context(project_root=BASE_DIR)).profile_key,
-        )
+        render_scenario_lab(scenario_session)
 
         render_peer_read_through_map(
             report_payload,
@@ -30393,6 +33091,7 @@ def render_market_command_center(
             prior_ticker_readiness_frame,
             feature_summary_frame,
             previous_snapshot_label=prior_ticker_readiness_message,
+            profile=_active_data_profile_name(),
         )
     )
     render_section_header(
@@ -30744,7 +33443,7 @@ def render_market_command_center(
         render_notice_card(
             "Ticker readiness report not ready yet",
             "Build ticker readiness proof before using the market-wide filters.",
-            "make readiness",
+            "make readiness-preview TOP_N=20",
             tone="warning",
         )
         return
@@ -30910,13 +33609,40 @@ def render_market_command_center(
             st.dataframe(clean_display_frame(detail_frame), width="stretch", hide_index=True)
 
 
+def data_health_read_only_presentation(workspace_mode: str) -> dict[str, str]:
+    """Return mode-specific labels for the shared read-only Data Health shell."""
+
+    if workspace_mode == RESEARCH_MODE:
+        return {
+            "drawer_label": "Research evidence drawer",
+            "path_options_label": "Research path options",
+            "proof_translation": "translated for the saved research workflow",
+            "mode_note": "Personal Research keeps this route read-only and company-centered.",
+        }
+    return {
+        "drawer_label": "Public evidence drawer",
+        "path_options_label": "Public path options",
+        "proof_translation": "translated for the public workflow",
+        "mode_note": "Public mode keeps the story readable for visitors.",
+    }
+
+
 def render_data_health(
     provider,
     project_status_payload: dict[str, Any] | None = None,
     show_details: bool = False,
     public_mode: bool = True,
+    show_public_evidence_return: bool = True,
+    workspace_mode: str = PUBLIC_DEMO_MODE,
 ) -> None:
     if provider is None:
+        if public_mode:
+            st.markdown(
+                data_health_unavailable_hierarchy_html(
+                    workspace_mode=workspace_mode,
+                ),
+                unsafe_allow_html=True,
+            )
         st.warning("Local provider could not be initialized.")
         return
     public_loading_placeholder = None
@@ -30979,8 +33705,10 @@ def render_data_health(
         ticker_readiness_frame,
     )
     selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
+    selected_lane_requested = bool(str(st.query_params.get("lane") or "").strip())
     selected_drawer = data_health_drawer_from_query(st.query_params.get("drawer"), selected_lane_key)
-    public_focus_ticker = data_health_focus_ticker(st.query_params.get("ticker"))
+    registered_tickers = provider.list_local_tickers() if hasattr(provider, "list_local_tickers") else []
+    public_focus_ticker = data_health_focus_ticker(st.query_params.get("ticker"), registered_tickers)
     drawer_detail_flags = data_health_drawer_detail_flags(selected_drawer, selected_lane_key)
     queue_details_requested = data_health_detail_selector_requested(
         st.query_params.get("queue_details"),
@@ -31009,20 +33737,63 @@ def render_data_health(
     readiness_freshness = data_health_freshness_status(BASE_DIR)
     public_readiness_freshness = public_freshness_status(readiness_freshness) if public_mode else readiness_freshness
     if public_mode:
+        personal_research_mode = workspace_mode == RESEARCH_MODE
+        presentation = data_health_read_only_presentation(workspace_mode)
+        evidence_drawer_label = presentation["drawer_label"]
+        path_options_label = presentation["path_options_label"]
+        proof_translation = presentation["proof_translation"]
         if public_loading_placeholder is not None:
             public_loading_placeholder.empty()
-        if public_focus_ticker:
-            render_context_note(
-                "Ticker proof focus.",
-                f"You arrived from {public_focus_ticker}'s report. Review its readiness boundary here, then return to the report for supported analysis.",
-                tone="success",
+        st.markdown(
+            evidence_route_answer_html(
+                "Data Health",
+                workspace_mode=workspace_mode,
+                ticker=public_focus_ticker,
+                selected_lane_label=(
+                    DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
+                    if selected_lane_requested
+                    else ""
+                ),
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            supporting_detail_html(
+                title="Ticker proof focus." if public_focus_ticker else "Readiness evidence",
+                body=(
+                    (
+                        f"You arrived from {public_focus_ticker}'s report. Review its readiness "
+                        "boundary here, then return to the report for supported analysis. "
+                    )
+                    if public_focus_ticker
+                    else ""
+                )
+                + (
+                    "Lane cards preserve current counts, usable states, blockers, and proof "
+                    "boundaries before any detailed ledger or operator workflow."
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
+        if selected_lane_requested:
+            render_signal_cards(
+                data_health_selected_lane_answer_cards(
+                    selected_lane_key,
+                    public_readiness_freshness,
+                    project_status_payload=project_status_payload,
+                    saved_readiness_summary=readiness_summary,
+                ),
+                show_commands=False,
+                variant="queue",
             )
-            st.link_button(
-                f"Return to {public_focus_ticker} report",
-                f"?mode=public&page=single-stock-report&ticker={public_focus_ticker}&open=1",
-            )
-        render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)
+        render_data_health_coverage_summary(
+            readiness_summary,
+            peer_readiness_frame,
+            public_mode=True,
+            research_mode=personal_research_mode,
+        )
         render_signal_cards([nowcast_data_health_card(None, ticker=public_focus_ticker or "Selected ticker")], show_commands=False, variant="queue")
+        st.markdown(advanced_detail_marker_html().value, unsafe_allow_html=True)
         if public_mode and project_status_payload is None:
             with st.expander("Refresh status note", expanded=False):
                 render_notice_card(
@@ -31044,19 +33815,22 @@ def render_data_health(
             )
             render_signal_cards(data_health_public_source_boundary_cards(project_status_payload), show_commands=False, variant="queue")
             render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
-            render_signal_cards(data_health_public_first_30_second_cards(readiness_summary), show_commands=False, variant="queue")
+            if not personal_research_mode:
+                render_signal_cards(data_health_public_first_30_second_cards(readiness_summary), show_commands=False, variant="queue")
             render_research_loop_strip(
                 **data_health_research_loop_context(
                     selected_lane_key=selected_lane_key,
                     readiness_freshness=public_readiness_freshness,
-                    next_action="Open the public evidence drawer",
+                    next_action=f"Open the {evidence_drawer_label.lower()}",
                     public_mode=True,
+                    workspace_mode=workspace_mode,
                 )
             )
-            render_section_header("Public path options", "Use these only when the lane answer does not resolve the current question.")
-            render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
+            if not personal_research_mode:
+                render_section_header(path_options_label, "Use these only when the lane answer does not resolve the current question.")
+                render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
         public_evidence_drawer_expanded = selected_drawer == "proof"
-        with st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded):
+        with st.expander(evidence_drawer_label, expanded=public_evidence_drawer_expanded):
             render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
             render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=False)
             render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")
@@ -31071,7 +33845,7 @@ def render_data_health(
                 render_notice_card(
                     "Generated status may be stale",
                     generated_stale_warning,
-                    "make readiness",
+                    "make readiness-preview TOP_N=20",
                     tone="warning",
                     public=True,
                 )
@@ -31087,7 +33861,10 @@ def render_data_health(
             render_signal_cards(freshness_cards, show_commands=False)
             render_section_header("Review Metrics Readiness", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
             render_signal_cards(data_health_review_metric_readiness_cards(), show_commands=False)
-            render_section_header("Latest Reviewed Proof", "Durable reviewed outcomes for lane and batch proof, translated for the public workflow.")
+            render_section_header(
+                "Saved Reviewed Proof",
+                f"Durable reviewed outcomes for lane and batch proof, {proof_translation}.",
+            )
             render_signal_cards(
                 proof_history_public_detail_cards(
                     data_health_reviewed_proof_timeline_frame(),
@@ -31098,12 +33875,20 @@ def render_data_health(
             )
             render_context_note(
                 "Operator details are hidden.",
-                "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode. Public mode keeps the story readable for visitors.",
+                (
+                    "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks remain in Operator mode. "
+                    f"{presentation['mode_note']}"
+                ),
             )
         return
     selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
     batch_lane = data_health_batch_lane_for_operator(selected_lane_key)
-    batch_preflight = build_reviewed_batch_preflight(BASE_DIR, lane=batch_lane, top_n=10)
+    batch_preflight = build_reviewed_batch_preflight(
+        BASE_DIR,
+        lane=batch_lane,
+        top_n=10,
+        profile=_active_data_profile_name(),
+    )
     operator_snapshot_cards = data_health_operator_snapshot_cards(
         readiness_summary,
         ops_center,
@@ -31129,6 +33914,7 @@ def render_data_health(
             selected_lane_key,
             readiness_freshness,
             project_status_payload=project_status_payload,
+            saved_readiness_summary=readiness_summary,
         ),
         show_commands=False,
         variant="queue",
@@ -31242,7 +34028,7 @@ def render_data_health(
     batch_proof_frame = data_health_reviewed_batch_proof_frame() if should_load_proof_details else pd.DataFrame()
     batch_proof_summary_frame = batch_proof_frame if not batch_proof_frame.empty else data_health_reviewed_batch_proof_frame()
     batch_packet_frame = data_health_latest_reviewed_batch_packet_frame() if should_load_proof_details else pd.DataFrame()
-    readiness_comparison = compare_readiness_snapshots(BASE_DIR, top_n=10) if should_load_proof_details else None
+    readiness_comparison = compare_readiness_snapshots(BASE_DIR, profile=_active_data_profile_name(), top_n=10) if should_load_proof_details else None
     prior_ticker_readiness_frame, _prior_ticker_readiness_message = load_prior_ticker_readiness_report()
     peer_v2_frame = data_health_peer_readiness_v2_frame(ops_center)
     lane_board = (
@@ -31643,7 +34429,12 @@ def render_data_health(
                         render_collapsed_detail_frame("Raw lane evidence row", pd.DataFrame([drilldown_row.to_dict()]), table=True)
 
     coverage_loop = (
-        build_coverage_expansion_loop(BASE_DIR, lane=batch_lane, top_n=10)
+        build_coverage_expansion_loop(
+            BASE_DIR,
+            profile=_active_data_profile_name(),
+            lane=batch_lane,
+            top_n=10,
+        )
         if selected_lane_key not in {"metrics", "proof"} and batch_details_requested
         else None
     )
@@ -32529,21 +35320,21 @@ def render_data_health(
         render_notice_card(
             "Feature readiness summary not ready yet",
             feature_summary_message,
-            "make readiness",
+            "make readiness-preview TOP_N=20",
             tone="warning",
         )
     if peer_unlock_worklist_frame is None and peer_unlock_worklist_message:
         render_notice_card(
             "Peer unlock worklist not ready yet",
             peer_unlock_worklist_message,
-            "make readiness",
+            "make readiness-preview TOP_N=20",
             tone="warning",
         )
     if peer_readiness_frame is None and peer_readiness_message:
         render_notice_card(
             "Peer readiness report not ready yet",
             peer_readiness_message,
-            "make readiness",
+            "make readiness-preview TOP_N=20",
             tone="warning",
         )
     if decisions_frame is None and decisions_message:
@@ -32871,7 +35662,14 @@ def render_data_health(
                             ]
                             if column in data_quality_frame.columns
                         ]
-                        st.dataframe(style_frame(clean_display_frame(data_quality_frame[data_quality_columns])), width="stretch", hide_index=True)
+                        st.dataframe(
+                            style_frame(
+                                clean_display_frame(data_quality_frame[data_quality_columns]),
+                                role="readiness",
+                            ),
+                            width="stretch",
+                            hide_index=True,
+                        )
                     else:
                         st.info(data_quality_message or "No data-quality rows are available.")
 
@@ -32929,13 +35727,30 @@ def render_data_health(
                         ]
                         with st.expander("Legacy liquidity rows", expanded=False):
                             if not liquidity_ready.empty:
-                                st.dataframe(style_frame(clean_display_frame(liquidity_ready[liquidity_columns])), width="stretch", hide_index=True)
+                                st.dataframe(
+                                    style_frame(
+                                        clean_display_frame(liquidity_ready[liquidity_columns]),
+                                        role="analytic",
+                                    ),
+                                    width="stretch",
+                                    hide_index=True,
+                                )
                             else:
                                 st.info("Liquidity analysis is blocked for all tickers until local price and volume rows are available.")
                             if not liquidity_unavailable.empty:
                                 st.markdown("##### Liquidity unavailable")
                                 st.dataframe(
-                                    style_frame(clean_display_frame(liquidity_unavailable[_readiness_columns(liquidity_unavailable, ["Ticker", "LiquidityStatus", "MissingDataFields", "Reason"])])),
+                                    style_frame(
+                                        clean_display_frame(
+                                            liquidity_unavailable[
+                                                _readiness_columns(
+                                                    liquidity_unavailable,
+                                                    ["Ticker", "LiquidityStatus", "MissingDataFields", "Reason"],
+                                                )
+                                            ]
+                                        ),
+                                        role="readiness",
+                                    ),
                                     width="stretch",
                                     hide_index=True,
                                 )
@@ -32965,13 +35780,30 @@ def render_data_health(
                         ]
                         with st.expander("Legacy correlation rows", expanded=False):
                             if not correlation_ready.empty:
-                                st.dataframe(style_frame(clean_display_frame(correlation_ready[correlation_columns])), width="stretch", hide_index=True)
+                                st.dataframe(
+                                    style_frame(
+                                        clean_display_frame(correlation_ready[correlation_columns]),
+                                        role="analytic",
+                                    ),
+                                    width="stretch",
+                                    hide_index=True,
+                                )
                             else:
                                 st.info("Correlation analysis is blocked until enough overlapping local return history exists.")
                             if not correlation_unavailable.empty:
                                 st.markdown("##### Correlation unavailable")
                                 st.dataframe(
-                                    style_frame(clean_display_frame(correlation_unavailable[_readiness_columns(correlation_unavailable, ["Ticker", "CorrelationStatus", "MissingDataFields", "Reason"])])),
+                                    style_frame(
+                                        clean_display_frame(
+                                            correlation_unavailable[
+                                                _readiness_columns(
+                                                    correlation_unavailable,
+                                                    ["Ticker", "CorrelationStatus", "MissingDataFields", "Reason"],
+                                                )
+                                            ]
+                                        ),
+                                        role="readiness",
+                                    ),
                                     width="stretch",
                                     hide_index=True,
                                 )
@@ -33490,147 +36322,1203 @@ def render_universe_manager(universe_summary: dict[str, Any]) -> None:
         )
 
 
+def render_research_workspace_styles() -> None:
+    st.markdown(
+        """
+        <style>
+        .research-workspace-header {
+            border: 1px solid #d7ddd9;
+            border-left: 4px solid #087f5b;
+            border-radius: 8px;
+            padding: 1rem 1.1rem;
+            margin: 0 0 1rem;
+            background: #ffffff;
+        }
+        .research-workspace-header.compact { padding: .35rem .9rem; margin-bottom: .15rem; }
+        .research-workspace-header.compact h1 { padding: 0; }
+        .research-workspace-header.compact .research-workspace-heading p {
+            font-size: .9rem; line-height: 1.35;
+        }
+        .research-workspace-header.compact .research-workspace-boundary {
+            font-size: .85rem; line-height: 1.35; margin-top: .25rem;
+        }
+        .profile-trust-strip {
+            display: grid;
+            grid-template-columns: minmax(9rem, 1.2fr) repeat(4, minmax(7rem, 1fr));
+            gap: .55rem;
+            margin: .2rem 0 .8rem;
+            padding: .65rem 0;
+            border-top: 1px solid #d9e0dc;
+            border-bottom: 1px solid #d9e0dc;
+        }
+        .profile-trust-strip > span,
+        .profile-trust-primary {
+            display: grid;
+            min-width: 0;
+            gap: .12rem;
+            padding: 0 .55rem;
+            border-left: 1px solid #e6ebe8;
+            font-size: .8rem;
+            overflow-wrap: anywhere;
+        }
+        .profile-trust-primary { border-left: 0; padding-left: 0; }
+        .profile-trust-strip small,
+        .profile-trust-label {
+            color: #667085;
+            font-size: .68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .profile-freshness.current { color: #0f766e; }
+        .profile-freshness.stale,
+        .profile-freshness.mixed { color: #a15c00; }
+        .profile-freshness.missing { color: #b42318; }
+        .observation-recency-summary {
+            display: grid;
+            grid-template-columns: auto auto minmax(0, 1fr);
+            align-items: baseline;
+            gap: .35rem .55rem;
+            margin: -.25rem 0 .8rem;
+            padding: .55rem .7rem;
+            border: 1px solid #d9e0dc;
+            border-left: 4px solid #667085;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+        .observation-recency-summary > span {
+            color: #667085;
+            font-size: .7rem;
+            font-weight: 760;
+            text-transform: uppercase;
+        }
+        .observation-recency-summary > strong {
+            color: #475569;
+            font-size: .82rem;
+        }
+        .observation-recency-summary > p {
+            min-width: 0;
+            margin: 0;
+            color: #52615c;
+            font-size: .8rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        .observation-recency-summary.current {
+            border-left-color: #0f766e;
+        }
+        .observation-recency-summary.current > strong {
+            color: #0f766e;
+        }
+        .observation-recency-summary.stale {
+            border-left-color: #a15c00;
+        }
+        .observation-recency-summary.stale > strong {
+            color: #a15c00;
+        }
+        .observation-recency-summary.unavailable {
+            border-left-color: #b42318;
+        }
+        .observation-recency-summary.unavailable > strong {
+            color: #b42318;
+        }
+        .observation-recency-evidence {
+            display: grid;
+            gap: .8rem;
+            min-width: 0;
+        }
+        .observation-recency-evidence-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+            gap: .65rem;
+            min-width: 0;
+        }
+        .observation-recency-item {
+            display: grid;
+            grid-template-columns: minmax(5rem, .7fr) minmax(0, 1.3fr);
+            align-content: start;
+            gap: .28rem .5rem;
+            min-width: 0;
+            padding: .72rem .76rem;
+            border: 1px solid #dfe4e1;
+            border-radius: 8px;
+            background: #ffffff;
+            overflow-wrap: anywhere;
+        }
+        .observation-recency-item small {
+            color: #667085;
+            font-size: .68rem;
+            font-weight: 760;
+            text-transform: uppercase;
+        }
+        .observation-recency-item strong,
+        .observation-recency-item span {
+            min-width: 0;
+            color: #243b53;
+            font-size: .76rem;
+            overflow-wrap: anywhere;
+        }
+        .observation-recency-item p {
+            grid-column: 1 / -1;
+            margin: .2rem 0 0;
+            color: #52615c;
+            font-size: .76rem;
+            line-height: 1.35;
+            overflow-wrap: anywhere;
+        }
+        .observation-recency-evidence-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+            gap: .65rem;
+            margin: 0;
+        }
+        .observation-recency-evidence-meta > div {
+            min-width: 0;
+            padding: .58rem .64rem;
+            border-top: 1px solid #dfe4e1;
+        }
+        .observation-recency-evidence-meta dt {
+            color: #667085;
+            font-size: .68rem;
+            font-weight: 760;
+            text-transform: uppercase;
+        }
+        .observation-recency-evidence-meta dd {
+            margin: .18rem 0 0;
+            color: #243b53;
+            font-size: .76rem;
+            overflow-wrap: anywhere;
+        }
+        .observation-recency-exclusions {
+            min-width: 0;
+            color: #243b53;
+            font-size: .76rem;
+        }
+        .observation-recency-exclusions ul {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+            gap: .35rem;
+            margin: .4rem 0 0;
+            padding: 0;
+            list-style: none;
+        }
+        .observation-recency-exclusions li {
+            display: flex;
+            justify-content: space-between;
+            gap: .5rem;
+            min-width: 0;
+            padding: .4rem .5rem;
+            border: 1px solid #e6ebe8;
+            border-radius: 6px;
+            overflow-wrap: anywhere;
+        }
+        .research-workspace-heading span,
+        .research-desk-brief-heading > span {
+            color: #52615c;
+            font-size: .78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .research-workspace-heading h1 { margin: .15rem 0; font-size: 1.7rem; }
+        .research-workspace-heading p,
+        .research-workspace-boundary { margin: .25rem 0 0; color: #52615c; }
+        .research-workspace-meta {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .65rem;
+            margin: .9rem 0;
+        }
+        .research-workspace-meta div { border-top: 1px solid #e5e9e7; padding-top: .55rem; }
+        .research-workspace-meta dt { color: #66736f; font-size: .78rem; }
+        .research-workspace-meta dd { margin: .1rem 0 0; font-weight: 650; }
+        .research-desk-brief {
+            border: 1px solid #cbd8d2;
+            border-left: 4px solid #153f34;
+            border-radius: 10px;
+            padding: 1rem 1.1rem;
+            background: #fff;
+            margin-bottom: 1rem;
+        }
+        .research-desk-brief-heading h2 {
+            font-size: 1.2rem;
+            line-height: 1.3;
+            margin: .3rem 0 .55rem;
+        }
+        .research-desk-brief-answer {
+            color: #153f34;
+            font-size: 1.35rem;
+            font-weight: 720;
+            line-height: 1.3;
+            margin: 0 0 .8rem;
+        }
+        .research-desk-brief-context {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: .65rem;
+            margin: 0 0 .9rem;
+        }
+        .research-desk-brief-context div {
+            border-top: 1px solid #e5e9e7;
+            min-width: 0;
+            padding-top: .55rem;
+        }
+        .research-desk-brief-context dt {
+            color: #66736f;
+            font-size: .78rem;
+        }
+        .research-desk-brief-context dd {
+            margin: .15rem 0 0;
+            overflow-wrap: anywhere;
+        }
+        .research-desk-brief-stop {
+            border-top: 1px solid #e5e9e7;
+            color: #52615c;
+            font-size: .78rem;
+            line-height: 1.4;
+            margin: .85rem 0 0;
+            padding-top: .65rem;
+        }
+        .research-evidence-links { display: grid; gap: .55rem; }
+        .research-evidence-link {
+            border: 1px solid #dfe4e1;
+            border-radius: 8px;
+            color: inherit;
+            display: grid;
+            padding: .75rem;
+            text-decoration: none;
+        }
+        .research-evidence-link span { color: #52615c; font-size: .86rem; }
+        .research-workflow-navigation {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .45rem;
+            margin: .45rem 0 .8rem;
+            max-width: 100%;
+        }
+        .research-workflow-link {
+            align-items: center;
+            border: 1px solid #c8d5cf;
+            border-radius: 6px;
+            color: #0f4c3a !important;
+            display: inline-flex;
+            min-height: 2.75rem;
+            padding: .35rem .7rem;
+            text-decoration: none !important;
+        }
+        .research-workflow-link[aria-current='page'] {
+            background: #0f766e;
+            border-color: #0f766e;
+            color: #fff !important;
+            font-weight: 760;
+        }
+        .public-ticker-summary.research {
+            display: grid;
+            grid-template-columns: 8rem minmax(0, 1fr) minmax(0, 1fr) minmax(12rem, 0.8fr);
+            gap: 1rem;
+            align-items: start;
+            margin-top: .45rem;
+            padding: .75rem 0;
+            border-top: 1px solid #d9e0dc;
+            border-bottom: 1px solid #d9e0dc;
+        }
+        .public-ticker-summary.research .public-ticker-name {
+            display: grid;
+            gap: .28rem;
+        }
+        .public-ticker-summary.research .public-ticker-name span,
+        .public-ticker-summary.research .public-ticker-answer span {
+            color: #667085;
+            font-size: .68rem;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+        .public-ticker-summary.research .public-ticker-name strong {
+            color: #102a43;
+            font-size: 1.35rem;
+            line-height: 1;
+        }
+        .public-ticker-summary.research .public-ticker-answer { min-width: 0; }
+        .public-ticker-summary.research .public-ticker-answer.use-now {
+            border-left: 3px solid #0f766e;
+            padding-left: .75rem;
+        }
+        .public-ticker-summary.research .public-ticker-answer.blocked {
+            border-left: 3px solid #c27c1b;
+            padding-left: .75rem;
+        }
+        .public-ticker-summary.research .public-ticker-answer p,
+        .public-ticker-summary.research .public-ticker-action p {
+            margin: .3rem 0 0;
+            color: #253746;
+            font-size: .86rem;
+            line-height: 1.4;
+        }
+        .public-ticker-summary.research .public-ticker-answer small,
+        .public-ticker-summary.research .public-ticker-action small {
+            display: block;
+            margin-top: .3rem;
+            color: #667085;
+            font-size: .74rem;
+            line-height: 1.35;
+        }
+        .public-ticker-summary.research .public-ticker-action {
+            display: grid;
+            justify-items: start;
+            gap: .45rem;
+        }
+        .public-ticker-summary.research .public-ticker-action p { margin: 0; }
+        .public-ticker-summary.research .public-primary-action {
+            display: inline-flex;
+            align-items: center;
+            min-height: 2.5rem;
+            padding: .45rem .7rem;
+            border-radius: 6px;
+            background: #0f766e;
+            color: #fff !important;
+            font-size: .82rem;
+            font-weight: 760;
+            text-decoration: none !important;
+        }
+        .company-workbench-primary-brief {
+            border: 1px solid #d9e0dc;
+            border-radius: 8px;
+            margin-top: .45rem;
+            padding: .85rem;
+        }
+        .company-workbench-primary-heading {
+            align-items: baseline;
+            display: flex;
+            gap: .5rem;
+            margin-bottom: .75rem;
+        }
+        .company-workbench-primary-heading span,
+        .company-workbench-primary-answer span {
+            color: #667085;
+            font-size: .68rem;
+            font-weight: 800;
+            letter-spacing: .05em;
+            text-transform: uppercase;
+        }
+        .company-workbench-primary-heading strong {
+            color: #102a43;
+            font-size: 1.25rem;
+        }
+        .company-workbench-primary-grid {
+            display: grid;
+            gap: .75rem;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+        .company-workbench-primary-answer {
+            border-left: 3px solid #9aa7a2;
+            min-width: 0;
+            padding-left: .7rem;
+        }
+        .company-workbench-primary-answer.use-now { border-left-color: #0f766e; }
+        .company-workbench-primary-answer.withheld { border-left-color: #c27c1b; }
+        .company-workbench-primary-answer.changed { border-left-color: #4f6f92; }
+        .company-workbench-primary-answer.next-task { border-left-color: #0f4c3a; }
+        .company-workbench-primary-answer p,
+        .company-workbench-primary-answer strong,
+        .company-workbench-primary-answer small {
+            display: block;
+            margin: .28rem 0 0;
+        }
+        .company-workbench-primary-answer p {
+            color: #253746;
+            font-size: .84rem;
+            line-height: 1.4;
+        }
+        .company-workbench-primary-answer small {
+            color: #667085;
+            font-size: .72rem;
+        }
+        .company-workbench-primary-answer .public-primary-action {
+            display: inline-flex;
+            align-items: center;
+            margin-top: .5rem;
+            min-height: 44px;
+        }
+        div[data-testid="stButton"] > button {
+            min-height: 44px;
+        }
+        .company-workbench-primary-stop {
+            border-top: 1px solid #e5e9e7;
+            color: #52615c;
+            font-size: .78rem;
+            line-height: 1.4;
+            margin: .75rem 0 0;
+            padding-top: .65rem;
+        }
+        @media (max-width: 640px) {
+            .observation-recency-summary {
+                grid-template-columns: auto 1fr;
+            }
+            .observation-recency-summary > p {
+                grid-column: 1 / -1;
+            }
+            .observation-recency-evidence-grid,
+            .observation-recency-evidence-meta,
+            .observation-recency-exclusions ul {
+                grid-template-columns: 1fr;
+            }
+            .research-workflow-navigation { gap: .35rem; margin: .35rem 0 .65rem; }
+            .research-workflow-link { flex: 1 1 10rem; justify-content: center; min-width: 0; }
+            .research-desk-brief { padding: .85rem; }
+            .research-desk-brief-answer { font-size: 1.15rem; }
+            .research-desk-brief-context { grid-template-columns: 1fr; }
+            .research-workspace-header {
+                padding: .72rem .78rem;
+                margin-bottom: .65rem;
+            }
+            .research-workspace-heading h1 { font-size: 1.4rem; }
+            .research-workspace-meta {
+                grid-template-columns: 1fr;
+                gap: 0;
+                margin: .5rem 0 .4rem;
+            }
+            .research-workspace-freshness { display: none; }
+            .research-workspace-action {
+                border-top: 1px solid #e5e9e7;
+                padding-top: .45rem;
+            }
+            .profile-trust-strip.compact {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: .3rem;
+                margin: .12rem 0 .6rem;
+                padding: .45rem 0;
+            }
+            .profile-trust-strip.compact > span,
+            .profile-trust-strip.compact .profile-trust-primary {
+                padding: 0 .35rem;
+            }
+            .profile-trust-strip.compact > :nth-child(3n + 1) { border-left: 0; }
+            .public-ticker-summary.research {
+                grid-template-columns: 1fr;
+                gap: .2rem;
+                margin-top: .15rem;
+                padding: 0 0 .3rem;
+            }
+            .public-ticker-summary.research .public-ticker-name {
+                display: flex;
+                align-items: baseline;
+                gap: .3rem;
+            }
+            .public-ticker-summary.research .public-ticker-name strong { font-size: 1rem; }
+            .public-ticker-summary.research .public-ticker-answer.use-now,
+            .public-ticker-summary.research .public-ticker-answer.blocked {
+                border-left: 0;
+                padding-left: 0;
+            }
+            .public-ticker-summary.research .public-ticker-answer p,
+            .public-ticker-summary.research .public-ticker-action p { margin-top: .12rem; }
+            .public-ticker-summary.research .public-ticker-answer small,
+            .public-ticker-summary.research .public-ticker-action small { margin-top: .12rem; }
+            .public-ticker-summary.research .public-ticker-action { gap: .15rem; }
+            .public-ticker-summary.research .public-primary-action {
+                min-height: 24px;
+                padding: .1rem 0;
+                background: transparent;
+                color: #0f766e !important;
+                text-decoration: underline !important;
+            }
+            .company-workbench-primary-brief {
+                margin-top: .15rem;
+                padding: .55rem;
+            }
+            .company-workbench-primary-heading { margin-bottom: .35rem; }
+            .company-workbench-primary-grid {
+                gap: .15rem;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .company-workbench-primary-answer {
+                border-left: 0;
+                border-top: 1px solid #e5e9e7;
+                padding: .3rem 0 0;
+            }
+            .company-workbench-primary-answer p,
+            .company-workbench-primary-answer strong,
+            .company-workbench-primary-answer small { margin-top: .14rem; }
+            .company-workbench-primary-answer p { line-height: 1.3; }
+            .company-workbench-primary-answer .public-primary-action {
+                align-items: center;
+                display: inline-flex;
+                margin-top: .3rem;
+                min-height: 44px;
+            }
+            .company-workbench-primary-stop {
+                margin-top: .4rem;
+                padding-top: .4rem;
+            }
+        }
+        @media (max-width: 260px) {
+            .company-workbench-primary-grid { grid-template-columns: 1fr; }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        render_stylesheet(research_accessibility_media_preferences_css()),
+        unsafe_allow_html=True,
+    )
+
+
+def render_research_workspace_header(
+    page_title: str,
+    context: ProfileContext,
+    *,
+    ticker: str = "",
+    primary_action: str,
+    compact: bool = False,
+    include_boundary: bool = True,
+    observation_recency: ObservationRecencySet | None = None,
+    include_selected_observation: bool = False,
+) -> None:
+    st.markdown(
+        research_workspace_header_html(
+            page_title,
+            ticker=ticker,
+            profile_label=context.profile_label,
+            freshness=saved_readiness_display_label(context.freshness_state),
+            primary_action=primary_action,
+            compact=compact,
+            include_boundary=include_boundary,
+        ),
+        unsafe_allow_html=True,
+    )
+    if observation_recency is not None:
+        render_observation_recency(
+            observation_recency,
+            include_selected=include_selected_observation,
+        )
+
+
+def render_research_desk(
+    state: dict[str, object],
+    context: ProfileContext,
+    cohort: FocusedCohort,
+    coverage: FocusedCohortCoverage,
+    weekly_summary: WeeklyResearchSummary,
+    observation_recency: ObservationRecencySet | None = None,
+) -> None:
+    render_research_workspace_header(
+        "Research Desk",
+        context,
+        primary_action="Review the brief below",
+        compact=True,
+        include_boundary=False,
+    )
+    brief = build_research_desk_brief(
+        weekly_summary,
+        change_status=str(state.get("status") or "unavailable"),
+        review_items=state.get("queue") or (),
+        freshness_state=context.freshness_state,
+        freshness_message=context.freshness_message,
+        observation_state=(
+            observation_recency.profile_price_lane.state
+            if observation_recency is not None
+            else None
+        ),
+        observation_message=(
+            _observation_recency_message(observation_recency.profile_price_lane)
+            if observation_recency is not None
+            else ""
+        ),
+    )
+    st.markdown(
+        research_desk_brief_html(
+            brief,
+            freshness_state=context.freshness_state,
+        ),
+        unsafe_allow_html=True,
+    )
+    st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
+    with st.expander("Advanced Evidence", expanded=False):
+        if observation_recency is not None:
+            render_observation_recency(
+                observation_recency,
+                include_selected=False,
+            )
+        render_signal_cards(weekly_summary_cards(weekly_summary), show_commands=False, variant="queue")
+        render_signal_cards(focused_cohort_cards(cohort), show_commands=False, variant="queue")
+        render_signal_cards(focused_cohort_coverage_cards(coverage), show_commands=False, variant="queue")
+        cohort_frame = focused_cohort_frame(cohort)
+        if not cohort_frame.empty:
+            st.dataframe(cohort_frame, width="stretch", hide_index=True)
+        coverage_frame = focused_cohort_coverage_frame(coverage)
+        if not coverage_frame.empty:
+            st.dataframe(coverage_frame, width="stretch", hide_index=True)
+        weekly_rows = weekly_summary_rows(weekly_summary)
+        if weekly_rows:
+            st.dataframe(pd.DataFrame(weekly_rows), width="stretch", hide_index=True)
+        st.markdown(advanced_evidence_links_html(""), unsafe_allow_html=True)
+        render_research_change_route_summary("Research Desk", state)
+
+
+def render_research_monitor(
+    state: dict[str, object],
+    context: ProfileContext,
+    weekly_summary: WeeklyResearchSummary,
+    cohort: FocusedCohort,
+    observation_recency: ObservationRecencySet | None = None,
+) -> None:
+    render_research_workspace_header(
+        "Monitor",
+        context,
+        primary_action="Review unresolved evidence changes; otherwise wait for new source evidence",
+        compact=True,
+        include_boundary=False,
+    )
+    discipline = load_dashboard_research_discipline_rows(
+        context,
+        cohort,
+        state.get("queue") or (),
+    )
+    profile_observation = (
+        observation_recency.profile_price_lane
+        if observation_recency is not None
+        else None
+    )
+    change_frame = research_monitor_frame(state.get("queue") or ())
+    queue = build_monitor_follow_up_queue(
+        weekly_summary,
+        discipline,
+        source_change_count=len(change_frame),
+        readiness_state=context.freshness_state,
+        readiness_message=context.freshness_message,
+        observation_state=(profile_observation.state if profile_observation else "unavailable"),
+        observation_message=(
+            _observation_recency_message(profile_observation)
+            if profile_observation is not None
+            else "Market observation is unavailable."
+        ),
+    )
+    st.markdown(
+        answer_panel_html(
+            question="What saved research follow-up is due?",
+            answer=(
+                monitor_primary_answer(queue)
+            ),
+            reason=queue.primary_reason,
+            action=SafeRouteAction(
+                label=queue.next_action_label,
+                href=queue.next_action_url,
+            ),
+            stop_rule=(
+                "Research-only. "
+                f"{queue.empty_boundary} Saved process state is not a recommendation or alert feed."
+            ),
+        ).value,
+        unsafe_allow_html=True,
+    )
+    st.markdown("## Follow-up Queue")
+    discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
+    if queue.has_saved_follow_up:
+        st.markdown(
+            supporting_detail_html(
+                title="Saved follow-up evidence",
+                body=(
+                    "Follow-up reasons retain saved cohort order and remain separate from "
+                    "company scoring or urgency."
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
+        render_signal_cards(
+            [asdict(panel) for panel in queue.panels],
+            show_commands=False,
+            variant="evidence-monitor",
+        )
+    elif queue.has_freshness_attention:
+        st.markdown(
+            supporting_detail_html(
+                title=monitor_freshness_condition_label(queue).capitalize(),
+                body=(
+                    "The named saved-readiness or market-observation condition needs Data Health "
+                    "review; this is not a saved follow-up item or a live alert."
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
+        render_signal_cards(
+            [asdict(panel) for panel in queue.panels],
+            show_commands=False,
+            variant="evidence-monitor",
+        )
+    if queue.primary_rows:
+        st.markdown(
+            research_discipline_table_html(queue.primary_rows),
+            unsafe_allow_html=True,
+        )
+
+    st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
+    with st.expander("Advanced: Monitor evidence", expanded=False):
+        if observation_recency is not None:
+            st.markdown(
+                observation_recency_summary_html(
+                    observation_recency,
+                    include_selected=False,
+                ),
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                observation_recency_evidence_html(observation_recency),
+                unsafe_allow_html=True,
+            )
+        if not discipline_frame.empty:
+            st.dataframe(discipline_frame, width="stretch", hide_index=True)
+        if discipline:
+            st.markdown(
+                research_discipline_identity_table_html(discipline),
+                unsafe_allow_html=True,
+            )
+        else:
+            st.caption("No focused-cohort process identity is available from saved evidence.")
+        st.caption(
+            "Rows preserve saved focused-cohort order. Process state does not rank companies, "
+            "estimate returns, or replace source-change review."
+        )
+        if not change_frame.empty:
+            st.dataframe(change_frame, width="stretch", hide_index=True)
+        else:
+            st.caption("No unresolved saved source-change row is available.")
+        events = tuple(state.get("events") or ())
+        if events:
+            st.dataframe(
+                pd.DataFrame([event.__dict__ for event in events]),
+                width="stretch",
+                hide_index=True,
+            )
+        else:
+            st.caption(
+                str(state.get("message") or "No comparable research change evidence is available.")
+            )
+    nowcast_cohort = load_dashboard_nowcast_cohort()
+    with st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False):
+        st.markdown("### Earnings evidence readiness")
+        render_signal_cards(cohort_readiness_cards(nowcast_cohort), show_commands=False, variant="queue")
+        st.dataframe(pd.DataFrame([asdict(row) for row in nowcast_cohort]), width="stretch", hide_index=True)
+        st.caption("This board creates no forecast. Missing consensus, Q4, split, backtest, and calibration evidence remain separate blockers.")
+    with st.expander("Advanced Evidence", expanded=False):
+        st.caption("Source identifiers and raw change rows remain in the separate evidence drawer below.")
+
+
+def render_company_workbench(
+    provider,
+    context: ProfileContext,
+    state: dict[str, object],
+    coverage: FocusedCohortCoverage,
+    observation_recency: ObservationRecencySet | None = None,
+) -> None:
+    ticker = str(st.query_params.get("ticker") or "").strip().upper()
+    render_research_workspace_header(
+        "Company Workbench",
+        context,
+        ticker=ticker,
+        primary_action="Review usable evidence, then record what remains uncertain",
+        compact=True,
+        include_boundary=False,
+    )
+    registered_tickers = {
+        str(value or "").strip().upper()
+        for value in (
+            provider.list_local_tickers()
+            if provider is not None and hasattr(provider, "list_local_tickers")
+            else ()
+        )
+        if str(value or "").strip()
+    }
+    if not ticker or ticker not in registered_tickers:
+        title = (
+            f"No registered saved company matches {ticker}"
+            if ticker
+            else "Choose a company in Discover first"
+        )
+        st.markdown(
+            empty_state_html(
+                title=title,
+                absence=(
+                    "No registered ticker was supplied for this Company Workbench route. "
+                    "The workspace will not infer a default saved company."
+                ),
+                not_proven=(
+                    "that no saved company is available or that any company is unsuitable "
+                    "for evidence review"
+                ),
+                action=SafeRouteAction(
+                    label="Open Discover",
+                    href="?mode=research&page=discover",
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            stop_rule_html(
+                "Research-only. Select an explicit saved company before opening a Company Brief."
+            ).value,
+            unsafe_allow_html=True,
+        )
+        return
+    cash_generation_preview = None
+    if company_workbench_cash_preview_requested(st.query_params.get("cash_preview")):
+        cash_generation_preview = load_company_workbench_cash_generation_preview(ticker)
+    selected_answer_target = st.empty()
+    timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
+    st.markdown(
+        evidence_timeline_html(
+            tuple(
+                TimelineRecord(
+                    record_id=str(row.get("event_id") or ""),
+                    timestamp=str(row.get("detected_at") or "").strip() or None,
+                    label=str(row.get("change") or "Evidence change"),
+                    summary=(
+                        f"{str(row.get('evidence_status') or 'unavailable').replace('_', ' ')}. "
+                        f"{str(row.get('research_task') or 'No saved research task is available.')}"
+                    ),
+                )
+                for row in timeline
+            ),
+            empty_title="No traceable saved change for this company",
+            empty_body=(
+                "No authoritative saved change row is available. This does not prove that "
+                "no external event occurred."
+            ),
+        ).value,
+        unsafe_allow_html=True,
+    )
+    selected_detail_target = st.empty()
+    section_names = [section["title"] for section in company_workbench_section_contract()]
+    with st.expander("Review path", expanded=False):
+        st.caption(" -> ".join(section_names[:-1]))
+    with st.expander("Advanced: selected-company lane coverage", expanded=False):
+        render_signal_cards(
+            focused_ticker_coverage_cards(coverage, ticker),
+            show_commands=False,
+            variant="queue",
+        )
+        st.caption(
+            "Lane coverage is technical evidence only; blocked and candidate-only states remain separate."
+        )
+        if observation_recency is not None:
+            st.markdown(
+                observation_recency_summary_html(
+                    observation_recency,
+                    include_selected=True,
+                ),
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                observation_recency_evidence_html(observation_recency),
+                unsafe_allow_html=True,
+            )
+    render_single_stock_report(
+        provider,
+        False,
+        public_mode=True,
+        profile_context=context,
+        research_mode=True,
+        research_review_items=state.get("queue") or (),
+        quarterly_trend_packet=load_dashboard_quarterly_trend(ticker),
+        cash_generation_preview=cash_generation_preview,
+        observation_recency=observation_recency,
+        selected_answer_target=selected_answer_target,
+        selected_detail_target=selected_detail_target,
+    )
+    st.markdown("## Advanced Evidence")
+    with st.expander("Advanced Evidence", expanded=False):
+        st.markdown(advanced_evidence_links_html(ticker), unsafe_allow_html=True)
+        st.caption("Detailed ticker-change evidence remains in the separate evidence drawer below.")
+    render_research_change_route_summary("Single-Stock Report", state, ticker=ticker)
+
+
+def render_personal_research_route(
+    *,
+    selected_page: str,
+    provider,
+    context: ProfileContext,
+    state: dict[str, object],
+    cohort: FocusedCohort,
+    coverage: FocusedCohortCoverage,
+    weekly_summary: WeeklyResearchSummary,
+    ticker: str,
+    review_date,
+) -> bool:
+    """Load one local observation result and render one primary research route."""
+    if selected_page not in RESEARCH_PATH_PAGE_TITLES:
+        return False
+
+    observation_recency = load_observation_recency(
+        context.data_dir / "prices.csv",
+        selected_ticker=ticker,
+        as_of=review_date,
+    )
+    if selected_page == "Research Desk":
+        render_research_desk(state, context, cohort, coverage, weekly_summary, observation_recency)
+    elif selected_page == "Discover":
+        render_research_workspace_header(
+            "Discover",
+            context,
+            primary_action="Check strict eligibility or browse one saved company",
+            compact=True,
+            include_boundary=False,
+        )
+        daily_queue = load_dashboard_daily_research_queue(context, as_of=review_date)
+        render_daily_research_queue(
+            daily_queue,
+            include_details=False,
+            include_boundary=False,
+        )
+        render_stock_selector(
+            {},
+            public_mode=True,
+            target_mode=RESEARCH_MODE,
+            target_page="company-workbench",
+            allowed_tickers=tuple(member.ticker for member in cohort.members),
+            research_boundary=QUEUE_BOUNDARY,
+        )
+        st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
+        with st.expander("Advanced: cohort readiness context", expanded=False):
+            if observation_recency is not None:
+                st.markdown(
+                    observation_recency_summary_html(
+                        observation_recency,
+                        include_selected=False,
+                    ),
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    observation_recency_evidence_html(observation_recency),
+                    unsafe_allow_html=True,
+                )
+            render_daily_research_queue_details(daily_queue)
+            render_signal_cards(focused_cohort_cards(cohort), show_commands=False, variant="queue")
+            render_signal_cards(
+                focused_cohort_coverage_cards(coverage),
+                show_commands=False,
+                variant="queue",
+            )
+            st.caption(
+                "Cohort membership and lane coverage remain evidence context only; "
+                "they do not rank expected return or create a recommendation."
+            )
+    elif selected_page == "Company Workbench":
+        render_company_workbench(provider, context, state, coverage, observation_recency)
+    else:
+        render_research_monitor(state, context, weekly_summary, cohort, observation_recency)
+    return True
+
+
 def main() -> None:
     global ACTIVE_RESEARCH_CHANGE_STATE
     st.set_page_config(page_title="Stock Research Command Center", layout="wide")
+    page_query_value = st.query_params.get("page")
+    mode_query_value = st.query_params.get("mode")
+    route_resolution = resolve_workspace_route(
+        mode_query_value,
+        page_query_value,
+        st.query_params,
+        USER_PAGE_TITLES,
+        ADVANCED_PAGE_TITLES,
+    )
+    if route_resolution.redirected:
+        st.query_params.clear()
+        for query_key, query_value in route_resolution.canonical_query.items():
+            st.query_params[query_key] = query_value
+    has_explicit_page_query = dashboard_query_value_present(page_query_value)
+    initial_mode = route_resolution.mode
+    initial_page = route_resolution.page
+    mode = initial_mode
+    research_mode = mode == RESEARCH_MODE
+    public_demo_mode = mode == PUBLIC_DEMO_MODE
+    operator_mode = mode == OPERATOR_DEMO_MODE
     apply_dashboard_theme()
+    render_semantic_main_bridge()
+    if not operator_mode:
+        render_public_workflow_skip_link(
+            initial_page,
+            st.query_params,
+            mode=initial_mode,
+            st_api=st,
+        )
     data_profile = resolve_data_profile(project_root=BASE_DIR)
     profile_context = build_profile_context(project_root=BASE_DIR)
     research_change_state = load_dashboard_research_change_state(profile_context)
     ACTIVE_RESEARCH_CHANGE_STATE = research_change_state
+    focused_cohort = load_dashboard_focused_cohort(profile_context)
+    focused_cohort_coverage = load_dashboard_focused_cohort_coverage(focused_cohort)
+    weekly_research_summary = load_dashboard_weekly_summary(
+        profile_context,
+        focused_cohort,
+        research_change_state.get("queue") or (),
+    )
     catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
-    page_query_value = st.query_params.get("page")
-    mode_query_value = st.query_params.get("mode")
-    initial_page = dashboard_page_from_query(page_query_value)
-    initial_mode = dashboard_mode_from_query(mode_query_value, initial_page)
-    bootstrap_placeholder = render_public_route_bootstrap(initial_page, initial_mode)
-
-    with st.sidebar:
-        render_sidebar_nav_header()
-        has_explicit_page_query = dashboard_query_value_present(page_query_value)
-        has_explicit_mode_query = dashboard_query_value_present(mode_query_value)
-        public_demo_mode = st.toggle(
-            "Public visitor mode",
-            value=initial_mode == PUBLIC_DEMO_MODE,
-            help="Keeps the dashboard focused on the real visitor workflow. Turn off for operator workflows, detailed boards, and local command runbooks.",
+    bootstrap_placeholder = (
+        render_public_route_bootstrap(initial_page, initial_mode)
+        if initial_mode == PUBLIC_DEMO_MODE
+        else None
+    )
+    if operator_mode:
+        render_public_workflow_skip_link(
+            initial_page,
+            st.query_params,
+            mode=initial_mode,
+            st_api=st.sidebar,
         )
-        if has_explicit_mode_query:
-            public_demo_mode = initial_mode == PUBLIC_DEMO_MODE
-        mode = PUBLIC_DEMO_MODE if public_demo_mode else OPERATOR_DEMO_MODE
-        if not public_demo_mode:
-            render_public_workflow_skip_link(initial_page, st.query_params, mode=OPERATOR_DEMO_MODE)
-        if not public_demo_mode:
-            st.caption(f"Mode: {dashboard_mode_label(mode)}")
-        st.caption(f"Data profile: {data_profile.name}")
-        path_options = sidebar_path_options(initial_page)
-        default_path = "Home" if public_demo_mode and initial_page in ADVANCED_PAGE_TITLES else initial_page
-        route_signature = f"{mode}:{initial_page}"
-        path_state_key = "dashboard-path-selection"
-        path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"
-        path_selection = st.radio(
-            "Choose your path",
-            path_options,
-            index=sidebar_path_index(default_path, path_options),
-            format_func=public_path_label,
-            help="Most visitors only need these paths: review one stock, explore ready names, check data coverage, or inspect proof.",
-            key=path_widget_key,
-            label_visibility="collapsed",
-        )
-        selected_page = selected_page_from_route_rail(
-            initial_page=initial_page,
-            default_path=default_path,
-            path_selection=path_selection,
-            has_explicit_page_query=has_explicit_page_query,
-        )
-        route_query_update = route_rail_query_update(selected_page=selected_page, initial_page=initial_page, mode=mode)
-        if route_query_update:
-            st.query_params.clear()
-            for query_key, query_value in route_query_update.items():
-                st.query_params[query_key] = query_value
-        if not public_demo_mode and initial_page == "Data Health":
-            selected_page = "Data Health"
-        show_sidebar_operator_guides = not public_demo_mode and selected_page != "Data Health"
-        if public_demo_mode or selected_page != "Data Health":
-            render_sidebar_product_intro()
-        if show_sidebar_operator_guides:
-            with st.expander("Advanced: operator tools", expanded=False):
-                advanced_page = st.selectbox(
-                    "Open a research view",
-                    ["Keep current path"] + ADVANCED_PAGE_TITLES,
-                    index=(["Keep current path"] + ADVANCED_PAGE_TITLES).index(initial_page)
-                    if initial_page in ADVANCED_PAGE_TITLES
-                    else 0,
-                    help="Additional research views remain available, but first-time visitors can stay with the main path.",
+        with st.sidebar:
+            render_sidebar_nav_header()
+            mode_options = [RESEARCH_MODE, PUBLIC_DEMO_MODE, OPERATOR_DEMO_MODE]
+            mode_selection = st.radio(
+                "Workspace",
+                mode_options,
+                index=mode_options.index(initial_mode),
+                format_func=dashboard_mode_label,
+                help="Personal research is the working default. Public keeps the guided demo; Operator keeps proof and maintenance tools.",
+                key="dashboard-workspace-mode",
+            )
+            if mode_selection != initial_mode:
+                route_resolution = resolve_workspace_route(
+                    mode_selection,
+                    initial_page,
+                    st.query_params,
+                    USER_PAGE_TITLES,
+                    ADVANCED_PAGE_TITLES,
                 )
-                if advanced_page != "Keep current path":
-                    selected_page = advanced_page
-                st.divider()
+                if route_resolution.redirected:
+                    st.query_params.clear()
+                    for query_key, query_value in route_resolution.canonical_query.items():
+                        st.query_params[query_key] = query_value
+                initial_mode = route_resolution.mode
+                initial_page = route_resolution.page
+            mode = initial_mode
+            research_mode = mode == RESEARCH_MODE
+            public_demo_mode = mode == PUBLIC_DEMO_MODE
+            operator_mode = mode == OPERATOR_DEMO_MODE
+            st.caption(f"Workspace: {dashboard_mode_label(mode)}")
+            st.caption(f"Data profile: {data_profile.name}")
+            path_options = workspace_path_options(initial_page, mode)
+            default_path = initial_page if initial_page in path_options else "Home"
+            route_signature = f"{mode}:{initial_page}"
+            path_state_key = "dashboard-path-selection"
+            path_widget_key = f"{path_state_key}-{dashboard_page_slug(route_signature)}"
+            path_selection = st.radio(
+                "Choose your path",
+                path_options,
+                index=path_options.index(default_path) if default_path in path_options else 0,
+                format_func=lambda page: workspace_path_label(page, mode),
+                help="Choose the next research step. Evidence and maintenance remain secondary to the company review path.",
+                key=path_widget_key,
+                label_visibility="collapsed",
+            )
+            selected_page = selected_page_from_route_rail(
+                initial_page=initial_page,
+                default_path=default_path,
+                path_selection=path_selection,
+                has_explicit_page_query=has_explicit_page_query,
+            )
+            route_query_update = route_rail_query_update(
+                selected_page=selected_page,
+                initial_page=initial_page,
+                mode=mode,
+                allowed_pages=path_options,
+            )
+            if route_query_update:
+                st.query_params.clear()
+                for query_key, query_value in route_query_update.items():
+                    st.query_params[query_key] = query_value
+            if operator_mode and initial_page == "Data Health":
+                selected_page = "Data Health"
+            if selected_page != "Data Health":
+                render_sidebar_product_intro()
+                with st.expander("Advanced: operator tools", expanded=False):
+                    advanced_page = st.selectbox(
+                        "Open a research view",
+                        ["Keep current path"] + ADVANCED_PAGE_TITLES,
+                        index=(["Keep current path"] + ADVANCED_PAGE_TITLES).index(initial_page)
+                        if initial_page in ADVANCED_PAGE_TITLES
+                        else 0,
+                        format_func=legacy_research_utility_label,
+                        help="Additional research views remain available, but first-time visitors can stay with the main path.",
+                    )
+                    if advanced_page != "Keep current path":
+                        selected_page = advanced_page
+                    st.divider()
+                    render_context_note(
+                        "Start simple.",
+                        "Home -> Stock Selector -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
+                    )
+                    render_sidebar_route_steps(dashboard_navigation_cards())
+                    st.divider()
+                    render_context_note(
+                        "Operator commands.",
+                        " ".join(sidebar_quick_help_lines()),
+                    )
+                    st.code(
+                        "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard",
+                        language="bash",
+                    )
+            show_reason_details = False
+            if selected_page != "Data Health":
+                show_reason_details = st.checkbox(
+                    "Show reader tips",
+                    value=False,
+                    help="Adds extra explanation and review sections. Most visitors can leave this off.",
+                )
+            show_source_details = False
+            if selected_page == "Single-Stock Report":
+                show_source_details = st.checkbox(
+                    "Show data source details",
+                    value=False,
+                    help="Adds extra data-source and missing-input checks under Sources & Gaps. Most users can leave this off.",
+                )
+            st.divider()
+            if selected_page == "Data Health":
                 render_context_note(
-                    "Start simple.",
-                    "Home -> Stock Selector -> Single-Stock Report -> Data Health. Turn on reader tips only when you want more review context.",
+                    "Data Health operator.",
+                    "Use the lane buttons on the page. Copy-only commands stay inside evidence drawers.",
+                    tone="success",
                 )
-                render_sidebar_route_steps(dashboard_navigation_cards())
-                st.divider()
-                render_context_note(
-                    "Operator commands.",
-                    " ".join(sidebar_quick_help_lines()),
-                )
-                st.code(
-                    "make status-check TOP_N=5\nmake stock-report-md TICKER=NVDA\nmake dashboard",
-                    language="bash",
-                )
+            else:
+                note_title, note_body = sidebar_navigation_note(selected_page)
+                render_context_note(note_title, note_body, tone="success")
+    else:
+        selected_page = initial_page
         show_reason_details = False
-        if not public_demo_mode and selected_page != "Data Health":
-            show_reason_details = st.checkbox(
-                "Show reader tips",
-                value=False,
-                help="Adds extra explanation and review sections. Most visitors can leave this off.",
-            )
         show_source_details = False
-        if selected_page == "Single-Stock Report" and not public_demo_mode:
-            show_source_details = st.checkbox(
-                "Show data source details",
-                value=False,
-                help="Adds extra data-source and missing-input checks under Sources & Gaps. Most users can leave this off.",
-            )
-        st.divider()
-        if not public_demo_mode and selected_page == "Data Health":
-            render_context_note(
-                "Data Health operator.",
-                "Use the lane buttons on the page. Copy-only commands stay inside evidence drawers.",
-                tone="success",
-            )
-        else:
-            note_title, note_body = sidebar_navigation_note(selected_page)
-            render_context_note(note_title, note_body, tone="success")
-        if public_demo_mode:
-            render_context_note(
-                "Clean visitor workflow.",
-                "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Operator mode restores detailed boards; Data Health keeps commands inside evidence drawers.",
-            )
 
-    output_frames = dashboard_output_frames_for_page(selected_page)
+    content_page = workspace_content_page(selected_page, mode)
+    ticker = str(st.query_params.get("ticker") or "").strip().upper()
+    output_frames = dashboard_output_frames_for_page(content_page)
     if public_demo_mode:
         if bootstrap_placeholder is not None:
             bootstrap_placeholder.empty()
             bootstrap_placeholder = None
         render_public_shell_mode_styles()
-        render_public_workflow_skip_link(selected_page, st.query_params)
         render_public_app_shell(selected_page)
-        render_profile_trust_strip(profile_context, compact=True)
+        render_profile_trust_strip(profile_context, compact=True, include_advanced=False)
         render_public_workflow_skip_target()
     else:
-        render_app_header(
-            catalog,
-            output_frames,
-            compact=True,
-            current_page=selected_page,
-        )
-        render_profile_trust_strip(profile_context, compact=True)
-        render_public_workflow_skip_target()
+        if research_mode:
+            render_research_workflow_navigation(selected_page, ticker=ticker)
+            render_public_workflow_skip_target()
+            render_research_workspace_styles()
+        else:
+            render_app_header(
+                catalog,
+                output_frames,
+                compact=True,
+                current_page=selected_page,
+                current_mode=mode,
+            )
+            render_profile_trust_strip(
+                profile_context,
+                compact=True,
+                include_advanced=operator_mode,
+            )
+            render_public_workflow_skip_target()
+            render_operator_route_shell(selected_page)
 
-    if selected_page in PUBLIC_PATH_PAGE_TITLES:
+    if selected_page in PUBLIC_PATH_PAGE_TITLES and operator_mode:
         render_research_change_route_summary(
             selected_page,
             research_change_state,
@@ -33640,10 +37528,22 @@ def main() -> None:
     project_status_payload = load_saved_project_status_payload(BASE_DIR)
 
     universe_summary = None
-    if selected_page in {"Overview", "Universe Manager"}:
+    if content_page in {"Overview", "Universe Manager"}:
         universe_summary = summarize_universe_manager(BASE_DIR)
 
-    if selected_page == "Home":
+    if research_mode and render_personal_research_route(
+        selected_page=selected_page,
+        provider=provider,
+        context=profile_context,
+        state=research_change_state,
+        cohort=focused_cohort,
+        coverage=focused_cohort_coverage,
+        weekly_summary=weekly_research_summary,
+        ticker=ticker,
+        review_date=pd.Timestamp.now(tz="UTC").date(),
+    ):
+        return
+    if content_page == "Home":
         render_home_page(
             catalog,
             output_frames,
@@ -33651,27 +37551,68 @@ def main() -> None:
             public_mode=public_demo_mode,
             project_status_payload=project_status_payload,
         )
-    elif selected_page == STOCK_SELECTOR_PATH_TITLE:
+    elif content_page == STOCK_SELECTOR_PATH_TITLE:
         render_stock_selector(output_frames, public_mode=public_demo_mode)
-    elif selected_page == "Overview":
+    elif content_page == "Overview":
         render_overview(output_frames, catalog, universe_summary or summarize_universe_manager(BASE_DIR), project_status_payload)
-    elif selected_page == "Monthly Picks":
+    elif content_page == "Monthly Picks":
         render_monthly_picks(catalog)
-    elif selected_page in {"Market Direction", "Momentum Leaders", "Portfolio Review", "Value / Re-rating", "Final Watchlist"}:
-        render_output_tab(selected_page, output_frames, show_reason_details)
-    elif selected_page == "Single-Stock Report":
+    elif content_page in {"Market Direction", "Momentum Leaders", "Portfolio Review", "Value / Re-rating", "Final Watchlist"}:
+        render_output_tab(content_page, output_frames, show_reason_details)
+    elif content_page == "Single-Stock Report":
         render_single_stock_report(
             provider,
             show_source_details,
             public_mode=public_demo_mode,
             profile_context=profile_context,
         )
-    elif selected_page == "Data Health":
-        render_data_health(provider, project_status_payload, show_reason_details, public_mode=public_demo_mode)
-    elif selected_page == PROOF_HISTORY_PATH_TITLE:
-        render_proof_history(public_mode=public_demo_mode)
-    elif selected_page == "Universe Manager":
+    elif content_page == "Data Health":
+        if research_mode:
+            registered_tickers = provider.list_local_tickers() if hasattr(provider, "list_local_tickers") else []
+            ticker = data_health_focus_ticker(st.query_params.get("ticker"), registered_tickers)
+            render_research_workspace_header(
+                "Data Health",
+                profile_context,
+                ticker=ticker,
+                primary_action="Inspect the blocked lane, then return to Company Workbench",
+                compact=True,
+                include_boundary=False,
+            )
+        render_data_health(
+            provider,
+            project_status_payload,
+            show_reason_details,
+            public_mode=not operator_mode,
+            show_public_evidence_return=public_demo_mode,
+            workspace_mode=mode,
+        )
+    elif content_page == PROOF_HISTORY_PATH_TITLE:
+        registered_tickers = provider.list_local_tickers() if hasattr(provider, "list_local_tickers") else []
+        if research_mode:
+            ticker = data_health_focus_ticker(st.query_params.get("ticker"), registered_tickers)
+            render_research_workspace_header(
+                "Proof History",
+                profile_context,
+                ticker=ticker,
+                primary_action="Confirm what evidence changed, then return to Company Workbench",
+                compact=True,
+                include_boundary=False,
+            )
+        render_proof_history(
+            public_mode=not operator_mode,
+            workspace_mode=mode,
+            registered_tickers=registered_tickers,
+        )
+    elif content_page == "Universe Manager":
         render_universe_manager(universe_summary or summarize_universe_manager(BASE_DIR))
+    if public_demo_mode:
+        render_profile_trust_details(profile_context)
+        if selected_page in PUBLIC_PATH_PAGE_TITLES:
+            render_research_change_route_summary(
+                selected_page,
+                research_change_state,
+                ticker=str(st.query_params.get("ticker") or ""),
+            )
     if bootstrap_placeholder is not None:
         bootstrap_placeholder.empty()
 

@@ -5,11 +5,12 @@ Use this when sharing the project from GitHub or LinkedIn. The walkthrough is re
 ## Share Boundary
 
 - Screenshots are product evidence only; they do not prove data freshness or unlock blocked inputs.
-- Use `make status-check TOP_N=5` for current coverage and blocker counts.
+- Use `make readiness-ops-center` for current lane truth. `make status-check TOP_N=5` can describe a saved generated snapshot; neither proves current-market freshness.
 - Share under the controlled portfolio/demo license; do not describe the repository as open source or reusable software.
 - Keep the demo research-only: no investment advice, broker action, order routing, auto-trading, or direct buy/sell instructions.
+- Saved source labels and screenshots do not establish source rights, current-market freshness, or commercial permission.
 - No public hosted Streamlit URL is configured yet; the shareable path is the GitHub project, curated screenshots, and tracked `make demo-dashboard` instructions. Use `docs/HOSTED_DEMO_DEPLOYMENT.md` only when preparing a verified hosted app link.
-- Public UX status is `review_limited`: repeated local cold/warm evidence passes, but hosted-route verification and external reviewer workflow evidence remain pending.
+- Public UX status is `share_review_ready` for the local GitHub/demo workflow: public checks, browser evidence, and repeated local cold/warm evidence pass. Hosted-route verification and external reviewer workflow evidence remain pending before calling it a hosted or externally validated product.
 - FMP, Alpha Vantage, and Finnhub are optional provider fallbacks and are not configured by default. Provider setup does not prove coverage until a reviewed source-backed smoke, validation, preview, and readiness rebuild pass.
 - Coverage is intentionally readiness-gated rather than complete. Fundamentals, share count, peer mapping, earnings, and analyst estimates can remain blocked or locked while the product is still useful.
 - Stop before claiming a blocked lane is ready unless source proof, validation, preview, apply, rebuilt readiness, and proof history all support it.
@@ -18,7 +19,7 @@ Use this when sharing the project from GitHub or LinkedIn. The walkthrough is re
 
 - GitHub-only review: start with the preview image, the five-page workflow map, and this walkthrough script.
 - Live dashboard review: run `make demo-dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
-- Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; `make status-check TOP_N=5` remains the source for current local counts.
+- Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; use `make readiness-ops-center` for current lane truth, while `make status-check TOP_N=5` remains saved-snapshot context.
 - Responsive evidence: desktop and phone-width public-flow checks are summarized in `docs/DASHBOARD_QA.md`; they prove layout behavior, not data freshness.
 - Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof.
 
@@ -34,7 +35,7 @@ Best visitor path:
 4. Follow the five public pages: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 5. Use the examples below only to show different readiness states.
 6. Run `make next-stage` when you want the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, push, deploy, or expose secrets.
-7. Run `make status-check TOP_N=5` only when you want terminal proof of current coverage and blockers.
+7. Run `make readiness-ops-center` for current selected-profile readiness and lane truth. Use `make status-check TOP_N=5` only to inspect saved generated-snapshot coverage/blocker context, which can be stale.
 
 What each page answers:
 
@@ -64,7 +65,8 @@ make demo-dashboard               # open the compact tracked demo profile
 make next-stage                  # print the current package/provider/hosted/source-queue ladder without changing local data
 
 # Optional read-only proof after the app flow is clear:
-make status-check TOP_N=5
+make readiness-ops-center          # current selected-profile readiness and lane truth
+make status-check TOP_N=5          # saved generated-snapshot context; it can be stale
 make stock-report-md TICKER=NVDA
 make stock-report-md TICKER=MU
 make stock-report-md TICKER=QQQ
@@ -72,7 +74,7 @@ make project-status-check
 make provider-setup-checklist  # use when project-status-check says source-proof queues are exhausted
 ```
 
-The dashboard defaults to Public visitor mode. Keep visitors on the five-page path first; switch Public visitor mode off only for Operator context, detailed proof tables, coverage frontier workflows, or validate / preview / apply guidance.
+The dashboard defaults to Personal Research at the root URL. Public is an explicit controlled demonstration mode at `?mode=public`; keep visitors on its five-page path. Operator is separately explicit at `?mode=operator` for source/proof operations and compatibility utilities.
 
 Provider setup is an operator-side follow-up, not a demo prerequisite. If `make project-status-check` says source-proof queues are exhausted, run `make provider-setup-checklist` to see which free/public sources are usable now and which optional keyed providers need local keys. Setup alone does not unlock coverage; readiness still requires source proof, validation, preview, rejected-row review, apply/skip decision, rebuilt readiness, and proof history.
 

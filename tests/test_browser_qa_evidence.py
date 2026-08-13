@@ -21,7 +21,11 @@ from src.browser_qa_evidence import (
     image_size,
     main,
 )
-from src.browser_qa_evidence import DEFAULT_BROWSER_QA_EVIDENCE, DEFAULT_BROWSER_QA_ROUTE_CHECKS
+from src.browser_qa_evidence import (
+    DEFAULT_BROWSER_QA_EVIDENCE,
+    DEFAULT_BROWSER_QA_RESPONSIVE_ROUTE_CHECKS,
+    DEFAULT_BROWSER_QA_ROUTE_CHECKS,
+)
 
 
 def _write_png(path: Path, width: int = 1200, height: int = 627) -> None:
@@ -77,6 +81,24 @@ def test_default_public_browser_qa_contract_uses_current_compact_workflow_marker
     assert "Current question" not in rendered
     assert "Primary next step" not in rendered
     assert "research-loop-strip" not in rendered
+
+
+def test_linkedin_asset_contract_is_count_safe_workbench_answer_evidence():
+    asset = DEFAULT_BROWSER_QA_EVIDENCE[0]
+
+    assert asset.name == "LinkedIn Company Workbench thumbnail"
+    assert asset.route.endswith("?mode=research&page=company-workbench&ticker=AVGO&open=1")
+    assert asset.expected_markers == (
+        "Company Workbench",
+        "Use now",
+        "Still withheld",
+        "Open Data Health",
+        "Stop if peer mappings or peer valuation inputs lack source-backed rows.",
+        "Research-only",
+    )
+    assert (asset.min_width, asset.min_height) == (1200, 627)
+    assert "answer-first" in asset.use.lower()
+    assert "readiness" not in " ".join(asset.expected_markers).lower()
 
 
 def test_browser_qa_evidence_rows_keep_routes_assets_and_boundaries_visible(tmp_path):
@@ -379,7 +401,7 @@ def test_browser_qa_share_recommendation_prefers_ready_public_image_and_keeps_bl
     assert rows[2]["State"] == "route_markers_only"
     assert "exact current copy" in rows[2]["Recommendation"].lower()
     assert "data health proof lane screenshot" in rendered
-    assert "use make status-check top_n=5 for current counts" in rendered
+    assert "do not publish readiness counts from screenshots" in rendered
     assert "screenshots do not unlock fundamentals" in rendered
     assert "generated thumbnails" in rendered
     assert "normal local browser" in rendered
@@ -411,7 +433,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert len(payload["local_capture_checklist"]) == 3
     assert len(payload["capture_session_plan"]) == 6
     assert len(payload["route_qa_checklist"]) >= 7
-    assert len(payload["responsive_route_qa_checklist"]) == 5
+    assert len(payload["responsive_route_qa_checklist"]) == 9
     assert "browser qa evidence is product evidence only" in rendered
     assert "responsive_route_qa_checklist" in rendered
     assert "saved readiness" in rendered
@@ -436,7 +458,7 @@ def test_browser_qa_evidence_payload_is_machine_readable_and_research_safe(tmp_p
     assert "public_share_recommendation" in rendered
     assert "pending_capture_closeout" in rendered
     assert "linkedin-public-dashboard.png" in rendered
-    assert "use make status-check top_n=5 for current counts" in rendered
+    assert "do not publish readiness counts from screenshots" in rendered
     assert "make staged-hygiene-check" in rendered
     assert "reviewed_asset_stage_command" in rendered
     assert "do not use generated thumbnails" in rendered
@@ -476,7 +498,8 @@ def test_browser_qa_responsive_route_rows_cover_public_flow_without_raw_ops():
     rendered = " ".join(str(value) for row in rows for value in row.values()).lower()
     pages = [str(row["Page"]) for row in rows]
 
-    assert pages == ["Home", "Stock Selector", "Single-Stock Report", "Data Health", "Proof History"]
+    assert pages[:5] == ["Home", "Stock Selector", "Single-Stock Report", "Data Health", "Proof History"]
+    assert pages[5:] == ["Research Desk", "Discover", "Company Workbench", "Monitor"]
     assert all(row["Desktop Viewport"] == "1280x720" for row in rows)
     assert all(row["Phone Viewport"] == "390x844" for row in rows)
     assert all("Saved readiness" in str(row["First View Must Keep"]) for row in rows)
@@ -530,6 +553,12 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "Public Data Health coverage answer" in route_names
     assert "Data Health proof lane progressive load" in route_names
     assert "Data Health queue drawer routing" in route_names
+    assert {
+        "Research Desk",
+        "Research Discover",
+        "Research Company Workbench",
+        "Research Monitor",
+    }.issubset(route_names)
     public_rows = [
         row
         for row in rows
@@ -541,6 +570,14 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "Which stock can I review?" in str(stock_selector["First View Markers"])
     assert "Search this review queue" in str(stock_selector["First View Markers"])
     assert "direct review-queue search" in str(stock_selector["Details Boundary"])
+    workbench = next(row for row in rows if row["Route Check"] == "Research Company Workbench")
+    assert "Company Workbench" in str(workbench["First View Markers"])
+    assert "Company Brief" in str(workbench["First View Markers"])
+    assert "Next research task" in str(workbench["First View Markers"])
+    assert "Open evidence and analysis modules" in str(workbench["First View Markers"])
+    assert "Open Data Health" in str(workbench["First View Markers"])
+    assert "Research Decision Lab" not in str(workbench["First View Markers"])
+    assert "Selected Company" not in str(workbench["First View Markers"])
     assert "choose a reviewable ticker" in str(stock_selector["QA Focus"])
     single_stock = next(row for row in rows if row["Route Check"] == "Single-stock workflow fit")
     assert "USE NOW" in str(single_stock["First View Markers"])
@@ -553,7 +590,7 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "one coverage answer per lane" in str(public_data_health["Details Boundary"])
     assert "provider setup" in str(public_data_health["Stop Rule"])
     proof_history = next(row for row in rows if row["Route Check"] == "Public proof history evidence view")
-    assert "Latest evidence" in str(proof_history["First View Markers"])
+    assert "Newest reviewed evidence" in str(proof_history["First View Markers"])
     assert "Advanced: proof ledger details" in str(proof_history["First View Markers"])
     assert "latest proof evidence" not in str(proof_history["First View Markers"]).lower()
     fast_view = next(row for row in rows if row["Route Check"] == "Data Health operator fast view")
@@ -598,7 +635,7 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "ready_with_manual_capture_pending" in output
     assert "public share recommendation" in output
     assert "linkedin-public-dashboard.png" in output
-    assert "use make status-check top_n=5 for current counts" in output
+    assert "do not publish readiness counts from screenshots" in output
     assert "manual capture targets" in output
     assert "pending capture closeout" in output
     assert "stage if reviewed" in output
@@ -611,6 +648,8 @@ def test_browser_qa_evidence_cli_is_read_only_and_research_safe(tmp_path, capsys
     assert "operator-data-health-queue-routing-real.jpg" in output
     assert "real streamlit screenshots" in output
     assert "route qa checklist" in output
+    assert "responsive public and personal research workflow qa" in output
+    assert "five public pages and four personal-research pages" in output
     assert "manual browser review" in output
     assert "single-stock workflow fit" in output
     assert "data health proof lane progressive load" in output
@@ -678,3 +717,37 @@ def test_browser_qa_capture_plan_cli_prints_only_capture_sequence(capsys):
     assert "route qa checklist" not in output
     assert "buy" not in output
     assert "sell" not in output
+
+
+def test_company_workbench_browser_qa_keeps_secondary_modules_behind_explicit_open():
+    route = next(
+        item
+        for item in DEFAULT_BROWSER_QA_ROUTE_CHECKS
+        if item.name == "Research Company Workbench"
+    )
+    responsive = next(
+        item
+        for item in DEFAULT_BROWSER_QA_RESPONSIVE_ROUTE_CHECKS
+        if item.page == "Company Workbench"
+    )
+
+    assert "Add a reviewed research record" not in route.first_view_markers
+    assert (
+        "Trend, valuation, scenarios, Research Decision Lab, authoring, methodology, conclusion detail, and the HTML brief stay closed until `Open evidence and analysis modules`; Advanced evidence remains collapsed."
+        == route.details_boundary
+    )
+    assert (
+        "Stop if the workbench shows traceback text, synthetic evidence as real, an unavailable forecast, a secondary module before the explicit action, an Arrow-incompatible evidence table, a visible confirmation before an exact preview, or a route-marker screenshot presented as validation, confirmation, or persistence evidence."
+        == route.stop_rule
+    )
+    assert (
+        "Route-marker screenshots do not prove validation, confirmation, or persistence; the temporary-ledger AppTest and direct persistence tests provide that evidence."
+        in route.qa_focus
+    )
+    assert "Add a reviewed research record" not in responsive.first_view_must_keep
+    assert "collapsed composer" not in responsive.first_view_must_keep
+    assert "module-open action" in responsive.mobile_risk
+    assert (
+        "Stop if the phone view overflows, shows traceback text, loses a primary answer or stop rule, or renders a secondary module before the explicit action."
+        == responsive.stop_rule
+    )

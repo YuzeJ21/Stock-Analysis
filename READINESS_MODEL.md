@@ -37,6 +37,8 @@ The feature does not apply to this ticker or asset type.
 | `portfolio_ready` | holdings, prices, purpose metadata | holding row plus enough relevant data for review component | holding ticker parseable, position fields numeric when present | `portfolio_review.csv` | show review state | show missing components | mark holding blocked | not applicable |
 | `final_decision_ready` | central readiness report plus analysis outputs | enough data for the chosen decision bucket | blocked features reduce confidence | `research_decisions.csv`, `final_watchlist.csv` | show decision bucket and confidence | show reduced confidence | classify as Blocked by Data | classify as Excluded |
 
+`momentum_ready`, `portfolio_ready`, and `final_decision_ready` remain compatibility-only readiness rows for historical pipelines. Their retained pages are labeled **Legacy research utility — not part of Personal Research Mode** and are available only in Operator mode behind a collapsed compatibility control. They cannot feed Research Decision Lab, cannot change readiness outside their own historical calculation contracts, and cannot produce recommendations, sizing, or transaction behavior. Personal Research and Public routes do not expose these rows as current product capability.
+
 ## General Dashboard Rules
 
 - Show readiness before conclusions.

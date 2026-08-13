@@ -6,6 +6,23 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from src.continuation_gate import (
+    READINESS_CONTINUATION_GATE_HEADING,
+    ContinuationGate,
+    build_continuation_gate,
+)
+from src.profile_context import build_profile_context
+from src.profile_context import READINESS_PREVIEW_NOTE
+from src.reviewed_batch_proof import (
+    primary_profile_bound_reviewed_write_proof_sequence,
+    resolve_readiness_proof_profile,
+)
+from src.refresh_operations import (
+    ProviderAttempt,
+    RefreshOperationPlan,
+    RefreshOperationRequest,
+    build_refresh_operation_plan,
+)
 from src.session_source_preflight import build_session_source_preflight
 
 
@@ -63,9 +80,61 @@ class SchedulerPlan:
     weekly_commands: tuple[str, ...]
     optional_commands: tuple[str, ...]
     guardrails: tuple[str, ...]
+    refresh_operations: tuple[RefreshOperationPlan, ...]
+    retry_cap: int
+    session_id: str
+    provider_availability_proven: bool
 
 
-def build_default_lane_policies() -> tuple[LanePolicy, ...]:
+def build_default_lane_policies(profile: str | None = None) -> tuple[LanePolicy, ...]:
+    selected_profile = resolve_readiness_proof_profile(profile)
+    price_proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="daily_price_refresh",
+        reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+    )
+    share_count_proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="share_count",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+        ),
+    )
+    fundamentals_proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="fundamentals",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch> IMPORT_FILES=fundamentals.csv",
+        ),
+    )
+    peer_proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="peers",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+        ),
+    )
+    optional_proof = primary_profile_bound_reviewed_write_proof_sequence(
+        profile=selected_profile,
+        lane="optional_context",
+        reviewed_steps=(
+            "make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
+        ),
+    )
+    price_dry_run = (
+        f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} "
+        "make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto"
+        if selected_profile == "local"
+        else price_proof
+    )
     return (
         LanePolicy(
             lane="daily_price_refresh",
@@ -73,10 +142,10 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             cadence="daily_after_market_close",
             provider_order=("stooq", "yahoo", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=3500,
-            auto_apply=True,
-            dry_run_command="make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto",
-            gated_apply_command="make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
-            proof_command="make price-coverage TOP_N=25 && make readiness && make status-check TOP_N=5",
+            auto_apply=False,
+            dry_run_command=price_dry_run,
+            gated_apply_command=price_proof,
+            proof_command=price_proof,
             source_boundary="Provider OHLCV rows only; no fabricated or padded price history.",
         ),
         LanePolicy(
@@ -85,17 +154,10 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             cadence="daily",
             provider_order=("sec_submissions", "sec_filing_document", "sec_companyfacts"),
             max_batch_size=25,
-            auto_apply=True,
-            dry_run_command="make share-count-proof-queue TOP_N=25",
-            gated_apply_command=(
-                "make sec-filing-share-stage TICKERS=<ticker> && "
-                "make imports-validate IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && "
-                "make imports-preview IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && "
-                "make auto-apply-gate LANE=share_count CHANGED_ROWS=<rows> VALIDATION_STATUS=valid "
-                "PREVIEW_STATUS=valid REJECTED_ROWS=0 SOURCE_PROVENANCE=present && "
-                "make imports-apply IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv"
-            ),
-            proof_command="make dcf-readiness && make readiness && make stock-report-md TICKER=<ticker>",
+            auto_apply=False,
+            dry_run_command=f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make share-count-proof-queue TOP_N=25",
+            gated_apply_command=share_count_proof,
+            proof_command=share_count_proof,
             source_boundary="Only explicit SEC filing document facts with CIK, form, filed date, accession, and entity proof.",
         ),
         LanePolicy(
@@ -104,16 +166,10 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             cadence="daily",
             provider_order=("sec_companyfacts", "yfinance", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=25,
-            auto_apply=True,
-            dry_run_command="make fundamentals-source-ladder-queue TOP_N=25",
-            gated_apply_command=(
-                "make imports-validate IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && "
-                "make imports-preview IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv && "
-                "make auto-apply-gate LANE=fundamentals_dcf CHANGED_ROWS=<rows> VALIDATION_STATUS=valid "
-                "PREVIEW_STATUS=valid REJECTED_ROWS=0 SOURCE_PROVENANCE=present && "
-                "make imports-apply IMPORT_TICKERS=<ticker> IMPORT_FILES=fundamentals.csv"
-            ),
-            proof_command="make dcf-readiness && make readiness && make stock-report-md TICKER=<ticker>",
+            auto_apply=False,
+            dry_run_command=f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make fundamentals-source-ladder-queue TOP_N=25",
+            gated_apply_command=fundamentals_proof,
+            proof_command=fundamentals_proof,
             source_boundary="SEC/provider fundamentals only; no placeholder revenue, cash flow, margin, or share rows.",
         ),
         LanePolicy(
@@ -123,9 +179,9 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             provider_order=("local_industry", "sic", "sector", "reviewed_peer_sources"),
             max_batch_size=100,
             auto_apply=False,
-            dry_run_command="make peer-mapping-queue TOP_N=25",
-            gated_apply_command="DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=25",
-            proof_command="make readiness && make peer-mapping-queue TOP_N=25",
+            dry_run_command=f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make peer-mapping-queue TOP_N=25",
+            gated_apply_command=peer_proof,
+            proof_command=peer_proof,
             source_boundary="Candidate peers are context only; trusted peer proof requires reviewed source-backed rows.",
         ),
         LanePolicy(
@@ -134,16 +190,10 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
             cadence="daily_or_weekly_when_provider_configured",
             provider_order=("yfinance", "fmp", "alpha_vantage", "finnhub"),
             max_batch_size=25,
-            auto_apply=True,
-            dry_run_command="make optional-context-source-ladder-queue TOP_N=10",
-            gated_apply_command=(
-                "make imports-validate IMPORT_TICKERS=<ticker> && "
-                "make imports-preview IMPORT_TICKERS=<ticker> && "
-                "make auto-apply-gate LANE=optional_context CHANGED_ROWS=<rows> VALIDATION_STATUS=valid "
-                "PREVIEW_STATUS=valid REJECTED_ROWS=0 SOURCE_PROVENANCE=present && "
-                "make imports-apply IMPORT_TICKERS=<ticker> && make optional-context-readiness"
-            ),
-            proof_command="make optional-context-readiness && make readiness",
+            auto_apply=False,
+            dry_run_command=f"STOCK_RESEARCH_DATA_PROFILE={selected_profile} make optional-context-source-ladder-queue TOP_N=10",
+            gated_apply_command=optional_proof,
+            proof_command=optional_proof,
             source_boundary=(
                 "Optional provider rows only; earnings timing or price-target-only rows are candidate_context_only "
                 "until earnings metrics or EPS/revenue estimate fields unlock readiness."
@@ -152,7 +202,8 @@ def build_default_lane_policies() -> tuple[LanePolicy, ...]:
     )
 
 
-def evaluate_auto_apply_gate(gate: AutoGateInput) -> AutoGateDecision:
+def evaluate_auto_apply_gate(gate: AutoGateInput, *, profile: str | None = None) -> AutoGateDecision:
+    selected_profile = resolve_readiness_proof_profile(profile)
     reasons: list[str] = []
     validation = gate.validation_status.strip().lower()
     preview = gate.preview_status.strip().lower()
@@ -176,25 +227,60 @@ def evaluate_auto_apply_gate(gate: AutoGateInput) -> AutoGateDecision:
     if gate.changed_rows > gate.max_batch_size:
         reasons.append("changed row count exceeds lane max batch size")
 
+    non_local_price = gate.lane == "daily_price_refresh" and selected_profile != "local"
+    if non_local_price:
+        reasons.append("price writes require the local profile")
+
     if reasons:
+        if non_local_price:
+            required_next_commands = (
+                primary_profile_bound_reviewed_write_proof_sequence(
+                    profile=selected_profile,
+                    lane="daily_price_refresh",
+                    reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+                ),
+            )
+        else:
+            required_next_commands = (
+                "record auto-refresh proof with FINAL_OUTCOME=still_blocked",
+                "pivot to the next executable lane",
+            )
         return AutoGateDecision(
             status="blocked",
             outcome="still_blocked",
             reasons=tuple(reasons),
-            required_next_commands=(
-                "record auto-refresh proof with FINAL_OUTCOME=still_blocked",
-                "pivot to the next executable lane",
-            ),
+            required_next_commands=required_next_commands,
         )
 
+    proof_lane = {
+        "daily_sec_filing_share_count": "share_count",
+        "daily_fundamentals_dcf": "fundamentals",
+        "weekly_peer_candidates": "peers",
+        "optional_earnings_estimates": "optional_context",
+        "fundamentals_dcf": "fundamentals",
+    }.get(gate.lane, gate.lane)
+    if gate.lane == "daily_price_refresh":
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane=proof_lane,
+            reviewed_steps=("make price-validate", "make price-preview", "make price-apply"),
+        )
+    else:
+        import_files = " IMPORT_FILES=fundamentals.csv" if proof_lane in {"fundamentals", "share_count"} else ""
+        proof_command = primary_profile_bound_reviewed_write_proof_sequence(
+            profile=selected_profile,
+            lane=proof_lane,
+            reviewed_steps=(
+                f"make imports-validate IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
+                f"make imports-preview IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
+                f"make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>{import_files}",
+            ),
+        )
     return AutoGateDecision(
         status="auto_apply_ready",
         outcome="auto_supported",
         reasons=("validation, preview, provenance, scope, and no-fabrication gates passed",),
-        required_next_commands=(
-            "make imports-apply IMPORT_TICKERS=<ticker-or-reviewed-batch>",
-            "make readiness && make reviewed-batch-proof-record FINAL_OUTCOME=auto_supported",
-        ),
+        required_next_commands=(proof_command,),
     )
 
 
@@ -202,8 +288,16 @@ def build_scheduler_plan(
     policies: Iterable[LanePolicy] | None = None,
     *,
     schedule: str = "all",
+    available_providers: Iterable[str] | None = None,
+    attempts: Iterable[ProviderAttempt] = (),
+    retry_cap: int = 1,
+    session_id: str = "scheduler-session",
+    profile: str | None = None,
 ) -> SchedulerPlan:
-    all_policies = tuple(policies or build_default_lane_policies())
+    selected_profile = resolve_readiness_proof_profile(profile)
+    all_policies = tuple(policies or build_default_lane_policies(profile=selected_profile))
+    if retry_cap < 1:
+        raise ValueError("retry_cap must be positive")
 
     def _policy_matches_schedule(policy: LanePolicy) -> bool:
         if schedule == "all":
@@ -217,9 +311,31 @@ def build_scheduler_plan(
         return True
 
     selected = tuple(policy for policy in all_policies if _policy_matches_schedule(policy))
+    provider_attempts = tuple(attempts)
+    provider_availability_proven = available_providers is not None
+    available = (
+        tuple(available_providers)
+        if available_providers is not None
+        else ()
+    )
+    refresh_operations = tuple(
+        build_refresh_operation_plan(
+            RefreshOperationRequest(
+                lane=policy.lane,
+                provider_order=policy.provider_order,
+                available_providers=available,
+                batch_limit=policy.max_batch_size,
+                freshness_policy=policy.cadence,
+                retry_cap=retry_cap,
+                session_id=session_id,
+                attempts=provider_attempts,
+            )
+        )
+        for policy in selected
+    )
 
-    def _commands_for(policy: LanePolicy) -> tuple[str, str]:
-        return (policy.dry_run_command, policy.gated_apply_command)
+    def _commands_for(policy: LanePolicy) -> tuple[str, ...]:
+        return (policy.dry_run_command,)
 
     daily = tuple(
         command
@@ -251,18 +367,48 @@ def build_scheduler_plan(
             "No broker integration.",
             "No auto-trading, order routing, or direct buy/sell instructions.",
             "No fabricated prices, fundamentals, shares, peers, earnings, estimates, or valuation inputs.",
+            "Automatic application is disabled; scheduler output is read-only planning and manual-review handoff only.",
             "Run make session-source-preflight before scheduler batches.",
             "Free-tier fallback caps: fmp<=250/day and <=25/run; alpha_vantage<=25/day and <=5/run; finnhub<=60/day and <=10/run.",
             "Do not repeat exhausted source-proof queues; run make coverage-expansion-loop TOP_N=10 and pivot to workflow evidence until new source-backed rows, keyed providers, reviewed manual rows, or changed blockers appear.",
             "Generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
         ),
+        refresh_operations=refresh_operations,
+        retry_cap=retry_cap,
+        session_id=session_id,
+        provider_availability_proven=provider_availability_proven,
     )
+
+
+def available_refresh_providers(preflight: dict[str, object]) -> frozenset[str]:
+    sources = preflight.get("sources", {})
+    sources = sources if isinstance(sources, dict) else {}
+
+    def _available(source_name: str) -> bool:
+        status = sources.get(source_name, {})
+        return isinstance(status, dict) and status.get("status") == "available"
+
+    available = {"local_industry", "sic", "sector"}
+    if _available("price_ladder"):
+        available.update(("stooq", "yahoo"))
+    if _available("sec"):
+        available.add("sec_companyfacts")
+    if _available("sec_submissions"):
+        available.add("sec_submissions")
+    if _available("sec") and _available("sec_submissions"):
+        available.add("sec_filing_document")
+    if _available("yfinance_stage"):
+        available.add("yfinance")
+    for provider in ("fmp", "alpha_vantage", "finnhub"):
+        if _available(provider):
+            available.add(provider)
+    return frozenset(available)
 
 
 def render_scheduler_plan(plan: SchedulerPlan) -> str:
     lines = [
         "Auto Refresh Orchestrator Plan",
-        "Read-only plan: this command prints scheduler-ready coverage commands and deterministic auto-apply gates.",
+        "Read-only plan: this command prints scheduler-ready coverage commands and manual-review gates.",
         "Research-only: no broker integration, no auto-trading, no order routing, and no direct buy/sell instructions.",
         "",
         "Proof outcomes: auto_supported, human_reviewed_supported, candidate_context_only, still_blocked, skipped, excluded.",
@@ -286,8 +432,17 @@ def render_scheduler_plan(plan: SchedulerPlan) -> str:
             f"auto_apply={str(policy.auto_apply).lower()}; providers={','.join(policy.provider_order)}"
         )
         lines.append(f"  source boundary: {policy.source_boundary}")
-        lines.append(f"  gated apply: {policy.gated_apply_command}")
-        lines.append(f"  proof: {policy.proof_command}")
+        lines.append("  scheduler boundary: scope review only; mutation requires a separate reviewed handoff")
+    lines.append("Refresh operation plans:")
+    for operation in plan.refresh_operations:
+        lines.append(
+            f"- {operation.lane}: status={operation.status}; provider={operation.selected_provider or '-'}; "
+            f"skipped={','.join(operation.skipped_providers) or '-'}; "
+            f"failure_reason={operation.failure_reason or '-'}; "
+            f"automatic_apply_enabled={str(operation.automatic_apply_enabled).lower()}; "
+            f"stages={','.join(stage.name for stage in operation.stages)}"
+        )
+    lines.append(f"Retry policy: session_id={plan.session_id}; retry_cap={plan.retry_cap}")
     lines.append("Guardrails:")
     lines.extend(f"- {guardrail}" for guardrail in plan.guardrails)
     return "\n".join(lines)
@@ -305,20 +460,44 @@ def _human_source_gate(value: object) -> str:
     return text
 
 
-def render_scheduler_runbook(plan: SchedulerPlan, preflight: dict[str, object] | None = None) -> str:
+def render_scheduler_runbook(
+    plan: SchedulerPlan,
+    preflight: dict[str, object] | None = None,
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> str:
     schedule_label = plan.schedule.replace("_", " ").title()
     lines = [
         f"Auto Refresh {schedule_label} Runbook",
         "Compact unattended checklist. Research-only; no broker integration, no auto-trading, no order routing.",
         "",
-        "Start:",
-        "- make session-source-preflight",
-        "- make readiness-ops-center",
-        "- make coverage-frontier TOP_N=10",
-        "",
     ]
+    if continuation_gate is not None and continuation_gate.suppress_execution:
+        lines.extend(
+            [
+                f"{READINESS_CONTINUATION_GATE_HEADING}: {continuation_gate.state}",
+                f"- Reason: {continuation_gate.reason}",
+                "- Lane policies below are planning context only.",
+                f"- Inspection boundary: {continuation_gate.next_safe_command}. {READINESS_PREVIEW_NOTE}",
+                f"- Stop rule: {continuation_gate.stop_rule}",
+                "",
+                "Start:",
+                f"- {continuation_gate.next_safe_command}",
+                "",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "Start:",
+                "- make session-source-preflight",
+                "- make readiness-ops-center",
+                "- make coverage-frontier TOP_N=10",
+                "",
+            ]
+        )
     if preflight is not None:
-        payload = build_auto_refresh_status_payload(preflight, plan)
+        payload = build_auto_refresh_status_payload(preflight, plan, continuation_gate=continuation_gate)
         lines.extend(
             [
                 "Current source gate:",
@@ -334,17 +513,13 @@ def render_scheduler_runbook(plan: SchedulerPlan, preflight: dict[str, object] |
     lines.append("Lane loop:")
     for index, policy in enumerate(plan.policies, start=1):
         gate_mode = (
-            "Run the deterministic gate before apply; if blocked, use "
-            "ALLOW_BLOCKED_GATE=1 make auto-apply-gate to record still_blocked and pivot."
-            if policy.auto_apply
-            else "No auto-apply; keep candidate context separate from trusted proof."
+            "Automatic application is disabled. This scheduler stops after scope preview; "
+            "record still_blocked and pivot when the source path is unavailable."
         )
         lines.extend(
             [
                 f"{index}. {policy.label}",
                 f"   dry-run: {policy.dry_run_command}",
-                f"   gated apply: {policy.gated_apply_command}",
-                f"   proof: {policy.proof_command}",
                 f"   gate rule: {gate_mode}",
                 f"   source boundary: {policy.source_boundary}",
             ]
@@ -385,13 +560,33 @@ def _join_values(value: object) -> str:
     return text or "-"
 
 
-def render_auto_refresh_status(preflight: dict[str, object], plan: SchedulerPlan) -> str:
-    payload = build_auto_refresh_status_payload(preflight, plan)
+def render_auto_refresh_status(
+    preflight: dict[str, object],
+    plan: SchedulerPlan,
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> str:
+    payload = build_auto_refresh_status_payload(preflight, plan, continuation_gate=continuation_gate)
     categories = payload["source_categories"]
     lines = [
         "Auto Refresh Status",
         "Read-only scheduler summary. It does not refresh, import, apply, or rewrite local data.",
         "Research-only: no investment advice, broker actions, auto-trading, order routing, or direct buy/sell instructions.",
+    ]
+    if continuation_gate is not None and continuation_gate.suppress_execution:
+        lines.extend(
+            [
+                "",
+                f"{READINESS_CONTINUATION_GATE_HEADING}: {continuation_gate.state}",
+                f"- Next safe preview: {continuation_gate.next_safe_command}",
+                f"- Reason: {continuation_gate.reason}",
+                "- refresh_operations below are planning context only; they are not executable routing.",
+                f"- Inspection boundary: {continuation_gate.next_safe_command}. {READINESS_PREVIEW_NOTE}",
+                f"- Stop rule: {continuation_gate.stop_rule}",
+            ]
+        )
+    lines.extend(
+        [
         "",
         f"source_activation: {payload['source_activation']}",
         f"source_activation_reason: {_human_source_gate(payload['source_activation_reason'])}",
@@ -411,11 +606,33 @@ def render_auto_refresh_status(preflight: dict[str, object], plan: SchedulerPlan
         f"free_tier_batch_limits: {payload['free_tier_batch_limits']}",
         f"pivot_rule: {payload['pivot_rule']}",
         f"artifact_policy: {payload['artifact_policy']}",
-    ]
+        "",
+        "refresh_operations:",
+        ]
+    )
+    for operation in payload["refresh_operations"]:
+        lines.append(
+            f"- {operation['lane']}: status={operation['status']}; "
+            f"provider={operation['selected_provider'] or '-'}; "
+            f"failure_reason={operation['failure_reason'] or '-'}"
+        )
     return "\n".join(lines)
 
 
-def build_auto_refresh_status_payload(preflight: dict[str, object], plan: SchedulerPlan) -> dict[str, object]:
+def build_auto_refresh_status_payload(
+    preflight: dict[str, object],
+    plan: SchedulerPlan,
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> dict[str, object]:
+    if not plan.provider_availability_proven:
+        plan = build_scheduler_plan(
+            plan.policies,
+            schedule=plan.schedule,
+            available_providers=available_refresh_providers(preflight),
+            retry_cap=plan.retry_cap,
+            session_id=plan.session_id,
+        )
     activation = preflight.get("source_activation", {})
     activation = activation if isinstance(activation, dict) else {}
     categories = preflight.get("source_categories", {})
@@ -427,7 +644,7 @@ def build_auto_refresh_status_payload(preflight: dict[str, object], plan: Schedu
 
     next_command = _join_values(console.get("next_executable_command") or operator_summary.get("next_step"))
     schedule = plan.schedule
-    return {
+    payload = {
         "source_activation": _join_values(activation.get("status")),
         "source_activation_reason": _join_values(activation.get("reason")),
         "can_run_now": _join_values(operator_summary.get("can_run_now") or console.get("next_executable_lane")),
@@ -445,7 +662,23 @@ def build_auto_refresh_status_payload(preflight: dict[str, object], plan: Schedu
         "free_tier_batch_limits": _join_values(console.get("free_tier_batch_limits")),
         "pivot_rule": "if a source path is unavailable or already reviewed non-actionable, record the outcome once and move to the next executable lane.",
         "artifact_policy": "generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
+        "refresh_operations": [asdict(operation) for operation in plan.refresh_operations],
     }
+    if continuation_gate is not None:
+        payload["continuation_gate"] = asdict(continuation_gate)
+        if continuation_gate.suppress_execution:
+            existing_avoid = str(payload.get("avoid_repeating") or "").strip()
+            avoid_parts = [] if existing_avoid in {"", "-"} else [existing_avoid]
+            avoid_parts.extend(["broad_refresh", "source_proof", "readiness_rebuild"])
+            payload.update(
+                {
+                    "can_run_now": continuation_gate.state,
+                    "avoid_repeating": ", ".join(dict.fromkeys(avoid_parts)),
+                    "next_executable_command": continuation_gate.next_safe_command,
+                    "next_step_reason": continuation_gate.reason,
+                }
+            )
+    return payload
 
 
 def _build_gate_from_args(args: argparse.Namespace) -> AutoGateInput:
@@ -463,6 +696,13 @@ def _build_gate_from_args(args: argparse.Namespace) -> AutoGateInput:
     )
 
 
+def _parse_provider_attempt(value: str) -> ProviderAttempt:
+    parts = tuple(part.strip() for part in value.split(":"))
+    if len(parts) != 3 or not all(parts):
+        raise argparse.ArgumentTypeError("provider attempt must be provider:session_id:outcome")
+    return ProviderAttempt(provider=parts[0], session_id=parts[1], outcome=parts[2])
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Plan and gate unattended source-backed coverage refreshes.")
     parser.add_argument("--root", default=".")
@@ -470,6 +710,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--runbook", action="store_true")
     parser.add_argument("--status", action="store_true")
+    parser.add_argument(
+        "--available-providers",
+        default=None,
+        help="Comma-separated providers proven available for this scheduler session.",
+    )
+    parser.add_argument("--session-id", default="scheduler-session")
+    parser.add_argument("--retry-cap", type=int, default=1)
+    parser.add_argument(
+        "--provider-attempt",
+        action="append",
+        type=_parse_provider_attempt,
+        default=[],
+        help="Prior attempt as provider:session_id:outcome; repeat for multiple attempts.",
+    )
     parser.add_argument("--gate-lane", default="")
     parser.add_argument("--changed-rows", type=int, default=0)
     parser.add_argument("--max-batch-size", type=int, default=25)
@@ -489,7 +743,7 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     args = parser.parse_args(argv)
-    Path(args.root).resolve()
+    root = Path(args.root).resolve()
 
     if args.gate_lane:
         decision = evaluate_auto_apply_gate(_build_gate_from_args(args))
@@ -509,19 +763,47 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         return 2
 
-    plan = build_scheduler_plan(schedule=args.schedule)
+    available_providers = None
+    if args.available_providers is not None:
+        available_providers = tuple(
+            provider.strip() for provider in args.available_providers.split(",") if provider.strip()
+        )
+    preflight = None
+    if available_providers is None:
+        preflight = build_session_source_preflight(root)
+        available_providers = available_refresh_providers(preflight)
+    plan = build_scheduler_plan(
+        schedule=args.schedule,
+        available_providers=available_providers,
+        attempts=args.provider_attempt,
+        retry_cap=args.retry_cap,
+        session_id=args.session_id,
+    )
+    continuation_gate = build_continuation_gate(build_profile_context(project_root=root))
     if args.status:
-        preflight = build_session_source_preflight(Path(args.root).resolve())
+        if preflight is None:
+            preflight = build_session_source_preflight(root)
         if args.json:
-            print(json.dumps(build_auto_refresh_status_payload(preflight, plan), indent=2, sort_keys=True))
+            print(
+                json.dumps(
+                    build_auto_refresh_status_payload(
+                        preflight,
+                        plan,
+                        continuation_gate=continuation_gate,
+                    ),
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
         else:
-            print(render_auto_refresh_status(preflight, plan))
+            print(render_auto_refresh_status(preflight, plan, continuation_gate=continuation_gate))
         return 0
     if args.json:
         print(json.dumps(asdict(plan), indent=2, sort_keys=True))
     elif args.runbook:
-        preflight = build_session_source_preflight(Path(args.root).resolve())
-        print(render_scheduler_runbook(plan, preflight))
+        if preflight is None:
+            preflight = build_session_source_preflight(root)
+        print(render_scheduler_runbook(plan, preflight, continuation_gate=continuation_gate))
     else:
         print(render_scheduler_plan(plan))
     return 0

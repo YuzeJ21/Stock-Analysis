@@ -5,12 +5,14 @@ import json
 import os
 import re
 import subprocess
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 from src.artifact_freshness import generated_artifact_stale_warning
+from src.continuation_gate import ContinuationGate, build_continuation_gate
 from src.data_onboarding import build_onboarding_payload
 from src.data_onboarding import write_onboarding_outputs
 from src.data_update import enrich_price_update_status_frame, refresh_price_update_status_output
@@ -22,7 +24,7 @@ from src.hosted_demo_readiness import read_hosted_demo_url
 from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
 from src.profile_context import build_profile_context, render_profile_context_text
 from src.price_history_proof_queue import _reviewed_non_actionable_price_tickers
-from src.public_ux_review_checklist import public_ux_review_notes_status
+from src.public_ux_review_checklist import SUCCESSFUL_REVIEW_CLASSIFICATIONS, public_ux_review_notes_status
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
 from src.readiness_ops import build_reviewed_batch_ledger_summaries
 from src.research_health import research_health_outputs_current
@@ -353,7 +355,7 @@ def _stale_generated_artifact_warnings(data_path: Path, output_path: Path) -> li
         generated_paths=generated_paths,
         source_paths=source_paths,
         display_root=root,
-        refresh_command="make readiness or make status",
+        refresh_command="make readiness-preview TOP_N=20",
     )
     if not warning:
         return []
@@ -452,6 +454,20 @@ def _git_status_line(root: Path) -> str:
 def _linkedin_stage_from_git_status(git_status_line: str | None) -> dict[str, str]:
     line = str(git_status_line or "").strip()
     lowered = line.lower()
+    branch = ""
+    upstream = ""
+    if line.startswith("## "):
+        branch_token = line[3:].split(" ", 1)[0].strip()
+        branch, separator, upstream = branch_token.partition("...")
+        branch = branch.strip()
+        upstream = upstream.strip() if separator else ""
+    if not branch:
+        return {
+            "State": "needs_git_status_review",
+            "Evidence": "Git branch/upstream status is unavailable or unrecognized; synchronization is not proven.",
+            "Next Action": "Inspect the current branch and upstream before preparing any public share.",
+            "Completion Gate": "A recognized aligned default-branch status and separate owner share approval are present.",
+        }
     if "behind" in lowered or "diverged" in lowered:
         return {
             "State": "needs_git_sync_review",
@@ -460,11 +476,40 @@ def _linkedin_stage_from_git_status(git_status_line: str | None) -> dict[str, st
             "Completion Gate": "GitHub branch is synced and public gates pass.",
         }
     if "ahead" in lowered:
+        branch_label = branch or "the reviewed current branch"
         return {
             "State": "needs_github_sync",
             "Evidence": f"Public share gates may pass, but git status is {line}; push reviewed local commits before sharing the GitHub link.",
-            "Next Action": "Run git push origin main after confirming no generated churn is staged, then rerun public-check.",
-            "Completion Gate": "GitHub includes the latest reviewed local commit and public gates pass.",
+            "Next Action": (
+                f"After separate owner authorization, push {branch_label} to its tracked upstream "
+                "without inferring main, then rerun public-check."
+            ),
+            "Completion Gate": "GitHub includes the latest reviewed current-branch commit and public gates pass.",
+        }
+    upstream_matches_branch = bool(
+        upstream and (upstream == branch or upstream.endswith(f"/{branch}"))
+    )
+    if not upstream_matches_branch or "[" in line:
+        return {
+            "State": "needs_git_status_review",
+            "Evidence": "Git upstream alignment is unavailable or unrecognized; synchronization is not proven.",
+            "Next Action": "Inspect the current branch and upstream before preparing any public share.",
+            "Completion Gate": "A recognized aligned default-branch status and separate owner share approval are present.",
+        }
+    if branch and branch not in {"main", "master"}:
+        return {
+            "State": "draft_engineering_preview",
+            "Evidence": (
+                f"Draft engineering preview: {branch} is aligned with its upstream, but feature-branch sync "
+                "does not establish default-branch presence or owner review approval."
+            ),
+            "Next Action": (
+                "Keep the GitHub share explicitly labelled Draft engineering preview until owner review and "
+                "default-branch release gates are complete."
+            ),
+            "Completion Gate": (
+                "The reviewed feature is present on the default branch and the owner separately authorizes stable sharing."
+            ),
         }
     return {
         "State": "ready_for_manual_share",
@@ -501,7 +546,9 @@ def _public_ux_stage_from_status(status: dict[str, Any] | None) -> dict[str, str
     gate = str(status.get("share_review_gate") or "").strip()
     if gate == "share_review_ready":
         counts = status.get("classification_counts") if isinstance(status.get("classification_counts"), dict) else {}
-        resolved = int(counts.get("resolved") or 0)
+        resolved = sum(
+            int(counts.get(classification) or 0) for classification in SUCCESSFUL_REVIEW_CLASSIFICATIONS
+        )
         total = int(status.get("expected_rows") or resolved)
         return {
             "State": "share_review_ready",
@@ -1878,7 +1925,7 @@ def write_project_status_output(
         source_payload = write_data_source_outputs(root, data_dir=data_path, output_dir=output_path)
         onboarding_payload = write_onboarding_outputs(root, data_dir=data_path, output_dir=output_path)
         if not research_health_outputs_current(root, data_dir=data_path, output_dir=output_path):
-            run_research_health(root, data_dir=data_path, output_dir=output_path)
+            run_research_health(root, data_dir=data_path, output_dir=output_path, write_output=True)
         write_action_queue_output(
             root,
             data_dir=data_path,
@@ -1924,7 +1971,11 @@ def write_project_status_output(
     }
 
 
-def _print_human(payload: dict[str, Any]) -> None:
+def _print_human(
+    payload: dict[str, Any],
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> None:
     summary = payload["summary"]
     warnings = list(payload.get("warnings", []))
     has_stale_snapshot_warning = any(
@@ -1933,6 +1984,27 @@ def _print_human(payload: dict[str, Any]) -> None:
     )
     print("Read-only project snapshot.")
     print("Commands below are copy-only local research helpers; this status view does not run them.")
+    suppress_execution = bool(continuation_gate and continuation_gate.suppress_execution)
+    if continuation_gate is not None:
+        print(f"Continuation gate: {continuation_gate.state}")
+        if continuation_gate.next_safe_command:
+            print(f"- Continuation-safe next action: {continuation_gate.next_safe_command}")
+        if continuation_gate.reason:
+            print(f"- Reason: {continuation_gate.reason}")
+        if (
+            continuation_gate.rebuild_command
+            and continuation_gate.rebuild_command != continuation_gate.next_safe_command
+        ):
+            print(
+                f"- Rebuild boundary: {continuation_gate.rebuild_command} requires an intentional reviewed write."
+            )
+        elif continuation_gate.suppress_execution:
+            print(
+                "- Write boundary: readiness materialization remains separately gated; "
+                "the inspection command is no-write."
+            )
+        if continuation_gate.stop_rule:
+            print(f"- Stop rule: {continuation_gate.stop_rule}")
     if has_stale_snapshot_warning:
         print("Snapshot freshness: generated snapshot may be stale; refresh before relying on exact counts.")
     for warning in warnings:
@@ -1964,10 +2036,19 @@ def _print_human(payload: dict[str, Any]) -> None:
         {"Step": f"Next {index}", "Command": command}
         for index, command in enumerate(payload.get("recommended_next_commands", []), start=1)
     ]
+    if suppress_execution:
+        command_rows = [
+            {
+                "Step": "Inspect readiness evidence impact",
+                "Command": continuation_gate.next_safe_command,
+                "Reason": "Compare saved and proposed stable readiness states in memory before any reviewed rebuild decision.",
+                "FreshnessContext": "Inspection only; this does not make saved readiness current.",
+            }
+        ]
     first_command = str(command_rows[0].get("Command") or "").strip() if command_rows else ""
     print("First read:")
     ready_label = "Ready now"
-    if has_stale_snapshot_warning:
+    if has_stale_snapshot_warning or suppress_execution:
         ready_label = "Ready in saved snapshot"
     print(
         f"- {ready_label}: {summary['tickers_with_prices']} with price rows, "
@@ -1976,12 +2057,18 @@ def _print_human(payload: dict[str, Any]) -> None:
         f"{summary['tickers_peer_ready']} peer-ready."
     )
     if has_stale_snapshot_warning:
-        print("- Refresh needed: run make readiness or make status before using exact readiness counts.")
+        print("- Inspection needed: run make readiness-preview TOP_N=20 before using exact saved counts. In-memory preview only; it does not refresh or persist saved readiness.")
     print(
         "- Still blocked: trusted fundamentals, peer mappings, earnings, and analyst estimates "
         "stay locked where source-backed rows are missing."
     )
-    if first_command == "make provider-setup-checklist":
+    if suppress_execution:
+        print(
+            f"- Best next proof: {continuation_gate.next_safe_command} for no-write readiness impact inspection; "
+            "source and coverage execution stays paused until readiness is current and tracked, or a separate "
+            "reviewed readiness decision is authorized."
+        )
+    elif first_command == "make provider-setup-checklist":
         print(
             "- Best next proof: make provider-setup-checklist for provider setup and source-boundary evidence; "
             "current source-proof queues have no unreviewed executable company candidates, so wait for new "
@@ -2055,27 +2142,28 @@ def _print_human(payload: dict[str, Any]) -> None:
             print(f"  evidence: {evidence}")
         if next_action:
             print(f"  next: {next_action}")
-    print("Top locked inputs to review:")
-    price_complete = _price_coverage_complete(summary)
-    for row in payload["top_onboarding_actions"]:
-        ticker = f" {row['ticker']}" if row.get("ticker") else ""
-        raw_dataset_label = str(row.get("dataset") or "data")
-        dataset_label = raw_dataset_label
-        if dataset_label == "prices" and price_complete:
-            dataset_label = "price history"
-        print(f"- P{row['priority']} {dataset_label}{ticker}")
-        if row.get("focus_command"):
-            print(f"  suggested check: {row['focus_command']}")
-        if row.get("recommended_action"):
-            print(f"  guidance: {_friendly_cli_guidance(row['recommended_action'])}")
-        if row.get("example_command"):
-            example_label = "last manual fallback" if raw_dataset_label == "prices" else "trusted import/fallback"
-            print(f"  {example_label}: {row['example_command']}")
-        if row.get("credential_required"):
-            present = "present" if bool(row.get("credential_present")) else "missing"
-            print(f"  credential: {row['credential_required']} ({present})")
-        if row.get("manual_fallback_command"):
-            print(f"  fallback: {row['manual_fallback_command']}")
+    if not suppress_execution:
+        print("Top locked inputs to review:")
+        price_complete = _price_coverage_complete(summary)
+        for row in payload["top_onboarding_actions"]:
+            ticker = f" {row['ticker']}" if row.get("ticker") else ""
+            raw_dataset_label = str(row.get("dataset") or "data")
+            dataset_label = raw_dataset_label
+            if dataset_label == "prices" and price_complete:
+                dataset_label = "price history"
+            print(f"- P{row['priority']} {dataset_label}{ticker}")
+            if row.get("focus_command"):
+                print(f"  suggested check: {row['focus_command']}")
+            if row.get("recommended_action"):
+                print(f"  guidance: {_friendly_cli_guidance(row['recommended_action'])}")
+            if row.get("example_command"):
+                example_label = "last manual fallback" if raw_dataset_label == "prices" else "trusted import/fallback"
+                print(f"  {example_label}: {row['example_command']}")
+            if row.get("credential_required"):
+                present = "present" if bool(row.get("credential_present")) else "missing"
+                print(f"  credential: {row['credential_required']} ({present})")
+            if row.get("manual_fallback_command"):
+                print(f"  fallback: {row['manual_fallback_command']}")
     print("Recommended next local steps:")
     for row in command_rows:
         print(f"- {row.get('Step', 'Next')}: {row.get('Command', '')}")
@@ -2161,21 +2249,20 @@ def main(argv: list[str] | None = None) -> None:
             tickers=explicit_tickers,
         )
 
+    profile_context = build_profile_context(
+        project_root=root,
+        data_dir=data_path,
+        output_dir=output_path,
+    )
+    continuation_gate = build_continuation_gate(profile_context)
+    payload["continuation_gate"] = asdict(continuation_gate)
     if args.json:
         print(json.dumps(payload, indent=2))
         return
 
-    print(
-        render_profile_context_text(
-            build_profile_context(
-                project_root=root,
-                data_dir=data_path,
-                output_dir=output_path,
-            )
-        )
-    )
+    print(render_profile_context_text(profile_context))
     print(_format_operator_path_context(root, data_path, output_path))
-    _print_human(payload)
+    _print_human(payload, continuation_gate=continuation_gate)
     if args.write_output:
         print("Wrote:")
         for path in payload.get("written_files", {}).values():

@@ -6,6 +6,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 echo "Repo root: ${REPO_ROOT}"
 cd "${REPO_ROOT}"
+export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 exec streamlit run src/dashboard.py \
   --client.toolbarMode viewer \
   --server.headless true

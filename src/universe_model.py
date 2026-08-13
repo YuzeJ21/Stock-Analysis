@@ -167,7 +167,12 @@ def _legacy_universe_to_active(legacy: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=ACTIVE_COLUMNS)
 
 
-def ensure_universe_files(base_dir: Path | str | None = None, *, data_dir: Path | str | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
+def ensure_universe_files(
+    base_dir: Path | str | None = None,
+    *,
+    data_dir: Path | str | None = None,
+    write_outputs: bool = False,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     root = resolve_project_root(base_dir)
     data_path = resolve_data_dir(data_dir, root)
     master_path = data_path / "universe_master.csv"
@@ -177,7 +182,8 @@ def ensure_universe_files(base_dir: Path | str | None = None, *, data_dir: Path 
     active = _read_csv(active_path)
     if master.empty and not legacy.empty:
         master = _legacy_universe_to_master(legacy)
-        _write_csv(master, master_path, MASTER_COLUMNS)
+        if write_outputs:
+            _write_csv(master, master_path, MASTER_COLUMNS)
     elif not legacy.empty:
         legacy_master = _legacy_universe_to_master(legacy)
         missing_legacy = legacy_master.loc[~legacy_master["ticker"].isin(set(master.get("ticker", pd.Series(dtype=str))))]
@@ -188,7 +194,8 @@ def ensure_universe_files(base_dir: Path | str | None = None, *, data_dir: Path 
                 .sort_values("ticker")
                 .reset_index(drop=True)
             )
-            _write_csv(master, master_path, MASTER_COLUMNS)
+            if write_outputs:
+                _write_csv(master, master_path, MASTER_COLUMNS)
         if not legacy_master.empty and "ticker" in master.columns:
             master = master.copy()
             legacy_by_ticker = legacy_master.set_index("ticker", drop=False)
@@ -215,10 +222,12 @@ def ensure_universe_files(base_dir: Path | str | None = None, *, data_dir: Path 
                         master.at[idx, "name"] = legacy_row.get("name", "")
                     repaired = True
             if repaired:
-                _write_csv(master, master_path, MASTER_COLUMNS)
+                if write_outputs:
+                    _write_csv(master, master_path, MASTER_COLUMNS)
     if active.empty and not legacy.empty:
         active = _legacy_universe_to_active(legacy)
-        _write_csv(active, active_path, ACTIVE_COLUMNS)
+        if write_outputs:
+            _write_csv(active, active_path, ACTIVE_COLUMNS)
     return master, active
 
 
@@ -301,10 +310,11 @@ def build_universe_coverage_report(
     *,
     data_dir: Path | str | None = None,
     output_path: Path | str | None = None,
+    write_output: bool = False,
 ) -> pd.DataFrame:
     root = resolve_project_root(base_dir)
     data_path = resolve_data_dir(data_dir, root)
-    master, active = ensure_universe_files(root, data_dir=data_path)
+    master, active = ensure_universe_files(root, data_dir=data_path, write_outputs=False)
     output = Path(output_path) if output_path is not None else data_path / "reports" / "universe_coverage_report.csv"
     output = output if output.is_absolute() else root / output
     active_tickers = set(active.get("ticker", pd.Series(dtype=str)).dropna().astype(str).str.upper())
@@ -336,8 +346,9 @@ def build_universe_coverage_report(
             }
         )
     report = pd.DataFrame(rows)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    report.to_csv(output, index=False)
+    if write_output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        report.to_csv(output, index=False)
     return report
 
 
@@ -356,7 +367,7 @@ def refresh_universe(
     report_path = data_path / "reports" / "universe_coverage_report.csv"
     staged_path = data_path / "staged" / "universe"
     staged_path.mkdir(parents=True, exist_ok=True)
-    master, active = ensure_universe_files(root, data_dir=data_path)
+    master, active = ensure_universe_files(root, data_dir=data_path, write_outputs=True)
 
     files = sorted(path for path in staged_path.glob("*.csv") if path.is_file())
     valid_frames: list[pd.DataFrame] = []
@@ -382,7 +393,7 @@ def refresh_universe(
     _write_csv(active, active_path, ACTIVE_COLUMNS)
     rejected_path.parent.mkdir(parents=True, exist_ok=True)
     rejected_all.to_csv(rejected_path, index=False)
-    report = build_universe_coverage_report(root, data_dir=data_path, output_path=report_path)
+    report = build_universe_coverage_report(root, data_dir=data_path, output_path=report_path, write_output=True)
     status = "refreshed"
     if import_staged and not files:
         status = "no_staged_files"
@@ -410,22 +421,30 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Manage master/active universe files and reports.")
     parser.add_argument("--project-root", help="Project root. Defaults to this repository.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
-    parser.add_argument("--report-only", action="store_true", help="Only write the universe coverage report.")
+    parser.add_argument("--report-only", action="store_true", help="Preview the universe coverage report without writing files.")
     parser.add_argument("--ensure-only", action="store_true", help="Only ensure universe_master/universe_active files exist.")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     root = resolve_project_root(args.project_root)
     data_path = resolve_data_dir(args.data_dir, root)
     if args.report_only:
-        report = build_universe_coverage_report(root, data_dir=data_path)
-        payload = {"status": "report_written", "rows": len(report), "report_path": str(data_path / "reports" / "universe_coverage_report.csv")}
+        report = build_universe_coverage_report(root, data_dir=data_path, write_output=False)
+        payload = {"status": "report_preview", "rows": len(report), "report": report.to_dict("records")}
     elif args.ensure_only:
-        master, active = ensure_universe_files(root, data_dir=data_path)
-        payload = {"status": "ensured", "master_rows": len(master), "active_rows": len(active)}
+        master, active = ensure_universe_files(root, data_dir=data_path, write_outputs=True)
+        payload = {
+            "status": "ensured",
+            "master_rows": len(master),
+            "active_rows": len(active),
+            "ensured_files": [str(data_path / "universe_master.csv"), str(data_path / "universe_active.csv")],
+        }
     else:
         payload = refresh_universe(root, data_dir=data_path).to_dict()
     if args.json:
         print(json.dumps(payload, indent=2))
+        return
+    if args.report_only:
+        print(report.to_csv(index=False), end="")
         return
     print(format_path_context(root, data_path, root / "outputs"))
     for key, value in payload.items():

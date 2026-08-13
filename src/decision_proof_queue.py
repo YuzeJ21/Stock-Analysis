@@ -6,6 +6,8 @@ imports, route orders, or turn decision buckets into investment advice.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import json
 from dataclasses import dataclass
@@ -142,22 +144,24 @@ def _decision_next_action_summary(row: pd.Series) -> str:
     return _compact_reason(row.get("next_best_action"), max_sentences=1, max_chars=180)
 
 
-def _decision_next_action_proof(row: pd.Series) -> str:
+def _decision_next_action_proof(row: pd.Series, *, selected_profile: str | None) -> str:
     ticker = _format_missing(row.get("ticker"), "").upper()
     blocker = _format_missing(row.get("primary_blocker"), "").lower().replace(" ", "_")
     asset_type = _format_missing(row.get("asset_type"), row.get("asset_type_readiness", "")).lower()
     report_command = _stock_report_md_command(ticker) if ticker else "make project-status"
     if asset_type in {"etf", "index_proxy", "fund"}:
         return f"Proof after review: run `{report_command}` and confirm operating-company DCF is excluded, not failed."
+    if selected_profile is None:
+        raise ValueError("selected profile is required for a profile-bound proof command")
     if blocker == "price":
-        return f"Proof after data changes: run `make price-coverage TOP_N=25`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}`, complete reviewed price validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
     if blocker in {"fundamentals", "dcf"}:
-        return f"Proof after data changes: run `make dcf-readiness`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}`, complete reviewed fundamentals validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
     if blocker in {"peer", "peers"}:
-        return f"Proof after data changes: run `make peer-mapping-queue TOP_N=25`, `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}`, complete reviewed peer validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=peers BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>`, `make peer-mapping-queue TOP_N=25`, and `{report_command}`."
     if blocker in {"earnings", "analyst_estimates", "optional_context"}:
-        return f"Proof after data changes: run `make optional-context-readiness`, `make readiness`, then `{report_command}`."
-    return f"Proof before interpretation: run `make readiness`, then `{report_command}`."
+        return f"Proof after data changes: run `make readiness-snapshot PROFILE={selected_profile}`, complete reviewed optional-context validate/preview/apply, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=optional_context BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
+    return f"Proof before interpretation: run `make readiness-snapshot PROFILE={selected_profile}`, then `make reviewed-batch-compare PROFILE={selected_profile} LANE=<lane> BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>` and `{report_command}`."
 
 
 def _peer_valuation_blocked(row: pd.Series) -> bool:
@@ -250,6 +254,7 @@ def build_decision_proof_queue_frame(
     frame = frame.assign(_bucket_rank=bucket_rank, _active_rank=active_rank, _blocker_rank=blocker_rank)
     frame = frame.sort_values(["_bucket_rank", "_active_rank", "_blocker_rank", "ticker"], kind="stable")
 
+    selected_profile: str | None = None
     rows: list[dict[str, object]] = []
     for _, row in frame.head(max(limit, 0)).iterrows():
         ticker = _format_missing(row.get("ticker"), "TICKER").upper()
@@ -267,6 +272,8 @@ def build_decision_proof_queue_frame(
             if asset_type in {"etf", "index_proxy", "fund"} or "monitor" in bucket.lower()
             else _purpose_unlock_command(ticker, row.get("primary_blocker"), action)
         )
+        if asset_type not in {"etf", "index_proxy", "fund"} and selected_profile is None:
+            selected_profile = resolve_readiness_proof_profile()
         rows.append(
             {
                 "priority": len(rows) + 1,
@@ -279,7 +286,7 @@ def build_decision_proof_queue_frame(
                 "what_stays_locked": _compact_reason(locked, max_sentences=2, max_chars=220),
                 "next_action_summary": action,
                 "copy_only_command": command,
-                "proof_after_unlock": _decision_next_action_proof(row),
+                "proof_after_unlock": _decision_next_action_proof(row, selected_profile=selected_profile),
                 "source_note": (
                     f"Local readiness updated {_format_missing(row.get('updated_at'), 'not available')}; "
                     "decision labels are review states, not recommendations."
@@ -295,7 +302,7 @@ def build_decision_proof_queue_cards(queue_frame: pd.DataFrame | None) -> list[d
             {
                 "kicker": "DECISION PROOF",
                 "title": "No proof queue yet",
-                "body": "Run make research-decisions and make readiness before reading decision proof rows.",
+                "body": "Run make research-decisions and inspect readiness in memory before reading decision proof rows.",
                 "badges": ["refresh first", "copy only"],
                 "command": "make research-decisions",
             }
@@ -330,7 +337,7 @@ def build_decision_proof_queue_cards(queue_frame: pd.DataFrame | None) -> list[d
             "title": f"Peer mentions: {peer_limited} / optional mentions: {optional_limited}",
             "body": "Withheld context remains visible so peer comparison, earnings, estimates, or company-valuation exclusions do not look like hidden conclusions.",
             "badges": ["data-honest", "no fabrication"],
-            "command": "make readiness",
+            "command": "make readiness-preview TOP_N=20",
         },
     ]
 
@@ -797,7 +804,7 @@ def _artifact_gate(root: Path) -> tuple[FreshnessStatus, str]:
     if not decision_path.exists():
         return FreshnessStatus("missing", f"Missing {RESEARCH_DECISIONS_CSV}. Run make research-decisions first."), "make research-decisions"
     if not readiness_path.exists():
-        return FreshnessStatus("missing", f"Missing {TICKER_READINESS_CSV}. Run make readiness first."), "make readiness"
+        return FreshnessStatus("missing", f"Missing {TICKER_READINESS_CSV}. Inspect readiness in memory first."), "make readiness-preview TOP_N=20"
     freshness = readiness_freshness_status(root)
     if freshness.status != "current":
         return freshness, freshness.refresh_command

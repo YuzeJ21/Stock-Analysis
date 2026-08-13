@@ -4,6 +4,8 @@ Date: 2026-06-22
 
 Last repo-truth refresh: 2026-07-09
 
+Historical snapshot notice: this dated audit is superseded for current lane truth. Run `make readiness-ops-center` for current selected-profile readiness; `make status-check TOP_N=5` only describes a saved generated snapshot and can be stale.
+
 Verdict: ready for a controlled pilot with manual gates.
 
 This audit reviews the current repository as a pilot package, not as a broad public launch. The product is research-only and readiness-first: missing trusted data must remain visible as `blocked`, `partial`, `still_blocked`, `skipped`, or `excluded` rather than being filled with placeholder analysis.
@@ -12,13 +14,13 @@ This audit reviews the current repository as a pilot package, not as a broad pub
 
 Current stage: controlled GitHub/LinkedIn pilot-share package with manual gates.
 
-The repository is past prototype/internal-alpha for the core workflow because it has a working Streamlit dashboard, single-stock reports, readiness gates, proof ledgers, screenshot evidence, and release checks. It is ready to share as a controlled GitHub/LinkedIn portfolio demo after `make public-check` passes, but it is not public launch-ready as a hosted data product. Hosted demo remains external-account-required until a public URL is deployed and verified. Provider activation remains external-key-required for FMP, Alpha Vantage, and Finnhub. Broad fundamentals, source-backed peers, earnings, analyst estimates, and full valuation inputs remain intentionally incomplete for much of the broad universe. Use `make status-check TOP_N=5` for the current local counts before quoting a snapshot.
+The repository is past prototype/internal-alpha for the core workflow because it has a working Streamlit dashboard, single-stock reports, readiness gates, proof ledgers, screenshot evidence, and release checks. It is ready to share as a controlled GitHub/LinkedIn portfolio demo after `make public-check` passes, but it is not public launch-ready as a hosted data product. Hosted demo remains external-account-required until a public URL is deployed and verified. Provider activation remains external-key-required for FMP, Alpha Vantage, and Finnhub. Broad fundamentals, source-backed peers, earnings, analyst estimates, and full valuation inputs remain intentionally incomplete for much of the broad universe. Use `make readiness-ops-center` for current local counts before quoting them; saved generated snapshots are historical context only.
 
 ## Stage Ratings
 
 | Category | Rating | Evidence |
 | --- | --- | --- |
-| Data ingestion and coverage | Yellow | Price coverage and local import workflows exist, but broad fundamentals, peer mappings, earnings, and estimates remain source-review gated. Run `make status-check TOP_N=5` and `make readiness-ops-center` before quoting current ticker or lane counts. |
+| Data ingestion and coverage | Yellow | Price coverage and local import workflows exist, but broad fundamentals, peer mappings, earnings, and estimates remain source-review gated. Run `make readiness-ops-center` before quoting current ticker or lane counts; use `make status-check TOP_N=5` only for saved generated-snapshot context that can be stale. |
 | Evidence ledger / provenance | Green | `make pilot-readiness-check TOP_N=10` reports the reviewed batch proof ledger and latest durable outcome. |
 | Readiness states | Green | `make readiness-ops-center` separates ready, partial, blocked, and excluded states for price, DCF, share count, peers, optional lanes, and not-applicable rows. |
 | Stale data detection | Green | `make pilot-readiness-check TOP_N=10` reports readiness artifacts are current relative to watched source files. |

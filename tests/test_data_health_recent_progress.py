@@ -6,12 +6,13 @@ from src import data_health_recent_progress as recent_progress
 
 
 def test_recent_progress_cards_missing_current_keeps_command_out_of_body():
-    cards = recent_progress.readiness_recent_progress_cards(None)
+    cards = recent_progress.readiness_recent_progress_cards(None, profile="default")
     body = str(cards[0]["body"]).lower()
 
     assert cards[0]["title"] == "Readiness report missing"
-    assert cards[0]["command"] == "make readiness"
-    assert "open operator details" in body
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
+    assert "does not refresh or persist saved readiness" in body
+    assert "inspect readiness" in body
     assert "copy-only command" not in body
     assert "make " not in body
 
@@ -38,12 +39,20 @@ def test_recent_progress_cards_show_current_only_baseline_without_prior_snapshot
         }
     )
 
-    cards = recent_progress.readiness_recent_progress_cards(readiness, feature_summary_frame=feature_summary)
+    cards = recent_progress.readiness_recent_progress_cards(
+        readiness,
+        feature_summary_frame=feature_summary,
+        profile="local",
+    )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
     assert cards[0]["title"] == "2/3 price-ready"
     assert cards[1]["title"] == "Current-only baseline"
-    assert cards[1]["command"] == "make readiness-snapshot"
+    assert cards[1]["command"] == "make readiness-snapshot PROFILE=local"
+    assert cards[2]["command"] == (
+        "Proof unavailable: choose a reviewed lane, batch ID, review date, and validated update scope "
+        "before copying a snapshot/apply/compare sequence for PROFILE=local."
+    )
     assert "active universe: 2" in rendered
     assert "dcf-ready: 1" in rendered
     assert "peer-ready: 1" in rendered
@@ -86,6 +95,7 @@ def test_recent_progress_cards_compare_prior_snapshot_and_newly_ready_tickers():
         current,
         previous,
         previous_snapshot_label="data/reports/ticker_readiness_report.previous.csv",
+        profile="demo",
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
@@ -97,5 +107,7 @@ def test_recent_progress_cards_compare_prior_snapshot_and_newly_ready_tickers():
     assert "compared with saved prior readiness snapshot" in rendered
     assert "data/reports/ticker_readiness_report.previous.csv" not in rendered
     assert "snapshot -> targeted update -> compare" in rendered
+    assert cards[2]["command"].endswith("for PROFILE=demo.")
+    assert "<default|demo|local>" not in rendered
     assert "buy" not in rendered
     assert "sell" not in rendered

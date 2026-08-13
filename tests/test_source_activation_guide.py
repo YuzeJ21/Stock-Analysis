@@ -1,11 +1,52 @@
 import json
+from types import SimpleNamespace
 
+import src.source_activation_guide as source_activation_guide
 from src.source_activation_guide import (
     build_provider_setup_checklist,
     build_source_activation_guide,
     render_provider_setup_checklist,
     render_source_activation_guide,
 )
+
+
+def test_provider_setup_checklist_routes_stale_readiness_to_inspection_only(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        source_activation_guide,
+        "build_profile_context",
+        lambda **_: SimpleNamespace(
+            freshness_state="stale",
+            freshness_message="Selected-profile source dates are newer than saved readiness.",
+            refresh_command="make readiness",
+        ),
+    )
+    current_preflight = {
+        "source_activation_console_v2": {
+            "operator_summary": {
+                "can_run_now": ["sec_fundamentals_share_count"],
+                "needs_setup": ["fmp"],
+                "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                "next_step": "make coverage-frontier TOP_N=10",
+                "next_step_reason": "Review ranked source work.",
+            }
+        }
+    }
+
+    checklist = build_provider_setup_checklist(current_preflight, root=tmp_path)
+    rendered = render_provider_setup_checklist(checklist)
+
+    assert checklist["current_gate"]["can_run_now"] == "inspection_only"
+    assert checklist["current_gate"]["needs_setup"] == "fmp"
+    assert checklist["current_gate"]["avoid_repeating"] == (
+        "fundamentals_share_count_source_ladder, broad_refresh, source_proof, readiness_rebuild"
+    )
+    assert checklist["current_gate"]["next_step"] == "make readiness-preview TOP_N=20"
+    assert checklist["continuation_gate"]["state"] == "inspection_only"
+    assert "Readiness continuation gate: inspection_only" in rendered
+    assert "Stale readiness continuation gate" not in rendered
+    assert "Planning context only" in rendered
+    assert "next_step: make readiness-preview TOP_N=20" in rendered
+    assert "next_step: make coverage-frontier TOP_N=10" not in rendered
 
 
 def test_source_activation_guide_lists_public_sources_without_secrets(monkeypatch):
@@ -63,7 +104,16 @@ def test_source_activation_guide_prints_exact_next_commands(monkeypatch):
     ]
     assert "make session-source-preflight" in guide["next_commands"]
     assert "make coverage-frontier TOP_N=10" in guide["next_commands"]
-    assert "make imports-validate IMPORT_TICKERS=<ticker>" in guide["apply_gate"]
+    assert guide["apply_gate"][0] == "make readiness-snapshot PROFILE=default"
+    assert guide["apply_gate"][1:4] == [
+        "make imports-validate IMPORT_TICKERS=<ticker>",
+        "make imports-preview IMPORT_TICKERS=<ticker>",
+        "make imports-apply IMPORT_TICKERS=<ticker> only when validation passes, preview scope is intended, rejected rows are zero, and source provenance exists",
+    ]
+    assert guide["apply_gate"][-1] == (
+        "make reviewed-batch-compare PROFILE=default LANE=<lane> "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
+    )
     assert guide["non_retry_rule"] == (
         "Record unavailable source paths once, then pivot to the next executable lane in this session."
     )

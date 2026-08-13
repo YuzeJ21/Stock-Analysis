@@ -19,7 +19,12 @@ from src.earnings_nowcast_contract import (
 )
 
 
-def _actual(period: str = "2025-Q4", *, reported_at: str = "2026-01-20T21:00:00Z") -> QuarterlyActual:
+def _actual(
+    period: str = "2025-Q4",
+    *,
+    reported_at: str = "2026-01-20T21:00:00Z",
+    retrieved_at: str | None = None,
+) -> QuarterlyActual:
     return QuarterlyActual(
         ticker=" syn1 ",
         fiscal_period=period,
@@ -29,11 +34,15 @@ def _actual(period: str = "2025-Q4", *, reported_at: str = "2026-01-20T21:00:00Z
         eps_actual=1.0,
         source="synthetic_test_fixture",
         source_ref=f"fixture://actual/{period}",
-        retrieved_at="2026-01-20T21:01:00Z",
+        retrieved_at=retrieved_at or reported_at,
     )
 
 
-def _consensus(*, snapshot_at: str = "2026-01-15T12:00:00Z") -> ConsensusSnapshot:
+def _consensus(
+    *,
+    snapshot_at: str = "2026-01-15T12:00:00Z",
+    retrieved_at: str | None = None,
+) -> ConsensusSnapshot:
     return ConsensusSnapshot(
         ticker="SYN1",
         fiscal_period="2026-Q1",
@@ -41,7 +50,7 @@ def _consensus(*, snapshot_at: str = "2026-01-15T12:00:00Z") -> ConsensusSnapsho
         revenue_consensus=110.0,
         eps_consensus=1.1,
         source="synthetic_test_fixture",
-        retrieved_at="2026-01-15T12:01:00Z",
+        retrieved_at=retrieved_at or snapshot_at,
     )
 
 
@@ -59,6 +68,32 @@ def test_contract_rejects_evidence_published_after_cutoff():
 
     with pytest.raises(ValueError, match="quarterly actual timestamp .* after forecast cutoff"):
         actual.available_at("2026-01-31T23:59:59Z")
+
+
+@pytest.mark.parametrize(
+    "evidence",
+    [
+        _actual(retrieved_at="2026-02-01T00:00:00Z"),
+        _consensus(retrieved_at="2026-02-01T00:00:00Z"),
+    ],
+)
+def test_contract_rejects_evidence_retrieved_after_cutoff(evidence):
+    with pytest.raises(ValueError, match="retrieval timestamp .* after forecast cutoff"):
+        evidence.available_at("2026-01-31T23:59:59Z")
+
+
+def test_contract_requires_publication_or_snapshot_not_after_retrieval():
+    with pytest.raises(ValueError, match="reported_at cannot be after retrieved_at"):
+        _actual(
+            reported_at="2026-01-20T21:00:00Z",
+            retrieved_at="2026-01-20T20:59:59Z",
+        )
+
+    with pytest.raises(ValueError, match="snapshot_at cannot be after retrieved_at"):
+        _consensus(
+            snapshot_at="2026-01-15T12:00:00Z",
+            retrieved_at="2026-01-15T11:59:59Z",
+        )
 
 
 def test_contract_rejects_naive_timestamps_and_invalid_periods():

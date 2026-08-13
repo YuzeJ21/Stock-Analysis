@@ -7,9 +7,4 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 echo "Repo root: ${REPO_ROOT}"
 cd "${REPO_ROOT}"
 
-make price-refresh
-make pipeline
-make monthly
-make track-record
-make validate-data
-make onboarding
+make daily

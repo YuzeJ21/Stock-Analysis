@@ -142,7 +142,7 @@ def proof_planner_outcome_summary_cards(
                 "title": "Planner summary unavailable",
                 "body": "Refresh readiness before relying on DCF or peer planner status.",
                 "badges": ["readiness first", "blocked visible"],
-                "command": "make readiness",
+                "command": "make readiness-preview TOP_N=20",
             }
         ]
     ready_states = {"ready_or_no_current_gap", "ready_to_plan", "ready_for_proof_record_review", "supported"}
@@ -187,7 +187,7 @@ def proof_planner_outcome_summary_cards(
     ]
     stale_blockers = frame.loc[frame["Planner State"].fillna("").astype(str).str.lower().eq("blocked_by_freshness")]
     if not stale_blockers.empty:
-        refresh_command = format_missing(getattr(readiness_freshness, "refresh_command", ""), "make readiness")
+        refresh_command = "make readiness-preview TOP_N=20"
         freshness_message = compact_card_fragment(getattr(readiness_freshness, "message", ""), max_chars=180)
         cards.insert(
             0,

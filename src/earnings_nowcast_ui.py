@@ -43,14 +43,14 @@ def _unit_label(value: object) -> str:
     return labels.get(scale, f"scale {scale:g}")
 
 
-def _metric_definition_text(packet: Mapping[str, Any]) -> str:
+def _metric_definition_parts(packet: Mapping[str, Any]) -> tuple[str, str]:
     definitions = packet.get("metric_definitions", {})
     if not isinstance(definitions, Mapping):
-        return ""
+        return "", ""
     revenue = definitions.get("revenue", {})
     eps = definitions.get("eps", {})
     if not isinstance(revenue, Mapping) or not isinstance(eps, Mapping):
-        return ""
+        return "", ""
     revenue_text = (
         f"Revenue definition: {revenue.get('currency', 'currency unspecified')} "
         f"{_unit_label(revenue.get('unit_scale'))}, {str(revenue.get('basis', 'basis unspecified')).replace('_', ' ')} basis."
@@ -62,7 +62,7 @@ def _metric_definition_text(packet: Mapping[str, Any]) -> str:
         f"{str(eps.get('operations_basis', 'operations basis unspecified')).replace('_', ' ')}, "
         f"{str(eps.get('split_adjustment_basis', 'split basis unspecified')).replace('_', ' ')}."
     )
-    return f" {revenue_text} {eps_text}"
+    return " " + revenue_text, " " + eps_text
 
 
 def _forecast_horizon_text(forecast: Mapping[str, object]) -> str:
@@ -91,13 +91,22 @@ def nowcast_public_answers(
     baseline_ready = bool(packet and isinstance(forecast, Mapping) and state not in {"blocked", "excluded"})
     evidence_scope = str(packet.get("evidence_scope", "unverified_evidence")) if packet else "unverified_evidence"
     synthetic_test_only = evidence_scope == "synthetic_test_evidence_only"
+    revenue_ready = bool(readiness.get("revenue_ready")) and baseline_ready
+    eps_ready = bool(readiness.get("eps_ready")) and baseline_ready
+    consensus_ready = bool(readiness.get("consensus_ready")) and baseline_ready
+    revenue_definition, eps_definition = _metric_definition_parts(packet or {})
 
     if baseline_ready:
-        ranges = (
-            f"Revenue range: {_range_text(forecast, 'revenue')}. "
-            f"EPS range: {_range_text(forecast, 'eps')}."
-            f"{_metric_definition_text(packet)}"
-            f"{_forecast_horizon_text(forecast)}"
+        revenue_range = (
+            f"Revenue range: {_range_text(forecast, 'revenue')}."
+            f"{revenue_definition}{_forecast_horizon_text(forecast)}"
+            if revenue_ready
+            else "Revenue range is withheld because its independent evidence gate did not pass."
+        )
+        eps_range = (
+            f"EPS range: {_range_text(forecast, 'eps')}.{eps_definition}"
+            if eps_ready
+            else "EPS range is withheld because its independent evidence gate did not pass."
         )
         revenue_classification = str(forecast.get("revenue_classification", "withheld")).replace("_", " ")
         eps_classification = str(forecast.get("eps_classification", "withheld")).replace("_", " ")
@@ -116,7 +125,8 @@ def nowcast_public_answers(
         )
         next_action = "Review the range, then open Advanced evidence only if needed"
     else:
-        ranges = "No numerical Revenue or EPS forecast is shown until the baseline evidence gate passes."
+        revenue_range = "No numerical Revenue forecast is shown until its evidence gate passes."
+        eps_range = "No numerical EPS forecast is shown until its evidence gate passes."
         consensus = "Consensus comparison is unavailable because no source-backed baseline is ready."
         context = "Candidate peer or news context cannot unlock or modify a numerical baseline."
         withheld = "Revenue, EPS, and numerical Beat/Miss probability remain analytically withheld."
@@ -135,11 +145,13 @@ def nowcast_public_answers(
         eligibility_status = "eligibility_unverified"
         eligibility_answer = f"{normalized_ticker} eligibility has not been verified."
 
-    baseline_status = "synthetic_test_only" if synthetic_test_only and baseline_ready else "ready" if baseline_ready else "blocked"
-    baseline_answer = (
-        "No real-company baseline; a test-only synthetic range is available."
+    actuals_status = "synthetic_test_only" if synthetic_test_only and baseline_ready else "ready" if baseline_ready else "blocked"
+    actuals_answer = (
+        "Synthetic test-only quarterly actuals satisfy the software fixture contract; they are not real-company evidence."
         if synthetic_test_only and baseline_ready
-        else nowcast_state_label(state)
+        else "Source-backed quarterly actual history is available for at least one metric."
+        if baseline_ready
+        else "Source-backed, comparable quarterly actual history is not yet sufficient."
     )
 
     return {
@@ -148,20 +160,25 @@ def nowcast_public_answers(
             "status": eligibility_status,
             "answer": eligibility_answer,
         },
-        "baseline": {
-            "question": "Is a real source-backed baseline available?",
-            "status": baseline_status,
-            "answer": baseline_answer,
-        },
-        "ranges": {
-            "question": "What Revenue/EPS range can be reviewed?",
-            "status": "ready" if baseline_ready else "withheld",
-            "answer": ranges,
+        "actuals": {
+            "question": "Are source-backed quarterly actuals available?",
+            "status": actuals_status,
+            "answer": actuals_answer,
         },
         "consensus": {
-            "question": "How does the range compare with consensus?",
-            "status": "ready" if baseline_ready else "withheld",
+            "question": "Is exact-period point-in-time consensus available?",
+            "status": "ready" if consensus_ready else "withheld",
             "answer": consensus,
+        },
+        "revenue": {
+            "question": "Is the Revenue range ready?",
+            "status": "ready" if revenue_ready else "withheld",
+            "answer": revenue_range,
+        },
+        "eps": {
+            "question": "Is the EPS range ready?",
+            "status": "ready" if eps_ready else "withheld",
+            "answer": eps_range,
         },
         "evidence_context": {
             "question": "What evidence explains the context?",
@@ -184,9 +201,10 @@ def nowcast_public_answers(
 def _public_answers_body(answers: Mapping[str, Mapping[str, str]]) -> str:
     labels = (
         ("eligibility", "Eligibility"),
-        ("baseline", "Baseline"),
-        ("ranges", "Range"),
+        ("actuals", "Actuals"),
         ("consensus", "Consensus"),
+        ("revenue", "Revenue"),
+        ("eps", "EPS"),
         ("evidence_context", "Context"),
         ("withheld", "Withheld"),
         ("next_action", "Next"),

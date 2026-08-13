@@ -63,17 +63,19 @@ def test_public_answers_follow_reviewer_question_order():
 
     assert list(answers) == [
         "eligibility",
-        "baseline",
-        "ranges",
+        "actuals",
         "consensus",
+        "revenue",
+        "eps",
         "evidence_context",
         "withheld",
         "next_action",
     ]
     assert answers["eligibility"]["status"] == "synthetic_test_only"
-    assert answers["baseline"]["status"] == "synthetic_test_only"
-    assert "No real-company baseline" in answers["baseline"]["answer"]
-    assert "Revenue" in answers["ranges"]["answer"]
+    assert answers["actuals"]["status"] == "synthetic_test_only"
+    assert "test-only" in answers["actuals"]["answer"]
+    assert "Revenue range" in answers["revenue"]["answer"]
+    assert "EPS range" in answers["eps"]["answer"]
     assert "test-only" in answers["evidence_context"]["answer"]
     assert "probability" in answers["withheld"]["answer"].lower()
 
@@ -82,10 +84,11 @@ def test_blocked_public_answers_expose_no_numbers_or_synthetic_evidence():
     answers = nowcast_public_answers(None, ticker="NVDA")
     rendered = json.dumps(answers)
 
-    assert answers["baseline"]["status"] == "blocked"
-    assert answers["ranges"]["status"] == "withheld"
+    assert answers["actuals"]["status"] == "blocked"
+    assert answers["revenue"]["status"] == "withheld"
+    assert answers["eps"]["status"] == "withheld"
     assert "midpoint" not in rendered
-    assert not any(character.isdigit() for character in answers["ranges"]["answer"])
+    assert not any(character.isdigit() for character in answers["revenue"]["answer"])
     assert "SYN" not in rendered
     assert answers["next_action"]["answer"] == "Open Data Health"
     assert answers["eligibility"]["status"] == "eligibility_unverified"
@@ -105,10 +108,10 @@ def test_internal_states_have_plain_english_labels():
 def test_summary_card_body_presents_public_answers_in_review_order():
     body = nowcast_summary_cards(_packet(), ticker="SYN1")[0]["body"]
 
-    labels = ["Eligibility:", "Baseline:", "Range:", "Consensus:", "Context:", "Withheld:", "Next:"]
+    labels = ["Eligibility:", "Actuals:", "Consensus:", "Revenue:", "EPS:", "Context:", "Withheld:", "Next:"]
     positions = [body.index(label) for label in labels]
     assert positions == sorted(positions)
-    assert body.count("\n") == 6
+    assert body.count("\n") == 7
 
 
 def test_real_packet_explains_metric_definitions_and_forecast_horizon():
@@ -129,7 +132,8 @@ def test_real_packet_explains_metric_definitions_and_forecast_horizon():
 
     answers = nowcast_public_answers(packet, ticker="REAL")
 
-    assert "USD millions" in answers["ranges"]["answer"]
-    assert "GAAP diluted EPS" in answers["ranges"]["answer"]
-    assert "89-day forecast horizon" in answers["ranges"]["answer"]
-    assert "expected report date 2026-04-30" in answers["ranges"]["answer"]
+    combined = answers["revenue"]["answer"] + answers["eps"]["answer"]
+    assert "USD millions" in combined
+    assert "GAAP diluted EPS" in combined
+    assert "89-day forecast horizon" in combined
+    assert "expected report date 2026-04-30" in combined

@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from src.research_decisions import build_research_decisions_frame
 
@@ -128,7 +129,7 @@ def test_research_decisions_block_company_when_fundamentals_or_dcf_are_missing()
     assert "make focus-fundamentals TICKER=AMD" in row["next_best_action"]
     assert "make sec-stage TICKERS=AMD" in row["next_best_action"]
     assert "data/imports/fundamentals.csv" in row["next_best_action"]
-    assert "make imports-validate IMPORT_TICKERS=AMD, make imports-preview IMPORT_TICKERS=AMD, make imports-apply IMPORT_TICKERS=AMD, make dcf-readiness, and make readiness" in row["next_best_action"]
+    assert "make imports-validate IMPORT_TICKERS=AMD, make imports-preview IMPORT_TICKERS=AMD, make imports-apply IMPORT_TICKERS=AMD, make dcf-readiness, and make reviewed-batch-compare PROFILE=default LANE=fundamentals" in row["next_best_action"]
     assert "before reading DCF output" in row["next_best_action"]
     assert row["next_research_question"] == (
         "Which trusted fundamentals or DCF fields are missing, and can SEC staging or manual import fill them?"
@@ -180,6 +181,34 @@ def test_research_decisions_only_research_now_when_core_data_is_ready():
     assert "Which source-backed peers" in row["next_research_question"]
     assert "peer-relative context is still limiting" in row["review_priority_reason"]
     assert "core price, fundamentals, and DCF are ready" in row["confidence_explanation"]
+
+
+def test_research_decisions_in_memory_source_mode_uses_truthful_fixed_lineage():
+    readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "NVDA",
+                "asset_type": "company",
+                "ready_features": "price, momentum, fundamentals, dcf",
+                "updated_at": "2026-08-03T12:00:00+00:00",
+            }
+        ]
+    )
+
+    row = build_research_decisions_frame(readiness, source_mode="in_memory").iloc[0]
+
+    assert row["source_freshness_summary"] == (
+        "Based on the current in-memory readiness composition; readiness row updated "
+        "2026-08-03T12:00:00+00:00. No readiness CSV was read or written for this decision view."
+    )
+    assert "local CSV readiness outputs" not in row["source_freshness_summary"]
+
+
+def test_research_decisions_rejects_unsupported_source_mode_before_rendering():
+    readiness = pd.DataFrame([{"ticker": "NVDA", "asset_type": "company"}])
+
+    with pytest.raises(ValueError, match="Unsupported research decision source mode"):
+        build_research_decisions_frame(readiness, source_mode="generated_csv")
 
 
 def test_research_decisions_peer_blocker_next_action_uses_exact_import_flow():

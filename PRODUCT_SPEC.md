@@ -6,15 +6,31 @@ This project is a local, CSV-first stock research command center. It helps a use
 
 The product is not a trading bot. It does not place orders, connect to brokers, recommend options trades, or fabricate missing market, fundamentals, earnings, or analyst-estimate data.
 
+The supported workflow is `Research Desk -> Discover -> Company Workbench -> Monitor`. Operator-only legacy compatibility utilities are retained for deterministic regression and historical file contracts, not as current investing capability.
+
+## In-App Reviewed Research Records
+
+Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer.
+A valid record requires an exact preview and explicit confirmation before save.
+Final integrity commit `e3a090dba` ensures confirmation appends only the receipt-matched recomputed record and enforces one readable active thesis lineage: revisions must supersede the exact active entry and preserve its thesis ID. The Company Workbench locks and explains that relationship, with temporary-ledger create -> revise -> reload coverage.
+Confirmation-integrity commit `5a6c55921` binds every displayed preview field, preview time, and destination label to the exact receipt. If an append raises after it may have written, confirmation returns one-shot `save_pending_reload` with the exact record ID unless the locked ledger is provably unchanged; it never invites a blind duplicate retry.
+Drafts are untrusted and preview receipts are session-only.
+Production tests never append repository ledgers; persistence tests use temporary ledgers.
+A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.
+
+Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.
+Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.
+If the current branch head lacks direct local matrix, branch synchronization, draft-PR update, or exact-head CI evidence, complete those release steps first; otherwise select the first incomplete safe roadmap priority. Modal modifiers and active exposure fail closed. Broad-review repairs must be evaluated only through direct current-head local and exact-head CI evidence; their presence alone establishes neither gate.
+
 ## Target User
 
 The target user is an individual investor or research reviewer who wants a deterministic local workflow for:
 
 - maintaining a broad market universe;
 - narrowing that universe into an active research list;
-- reviewing portfolio holdings;
+- reviewing one company and its source-backed research record;
 - tracking readiness by analysis feature;
-- generating watchlists only when the needed data exists;
+- monitoring a focused cohort without ranking companies for action;
 - seeing exact data blockers and next import actions.
 
 ## Non-Goals
@@ -98,6 +114,12 @@ The product is now organized around a few research-facing surfaces:
 - Markdown reports under `outputs/stock_reports/`: small visitor-readable examples of richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data modes.
 
 The primary public path is: Home workflow start -> Stock Selector -> Single-Stock Report -> Data Health lane answer -> Proof History evidence.
+
+## Legacy Compatibility Boundary
+
+`Monthly Picks`, `Momentum Leaders`, `Portfolio Review`, `Value / Re-rating`, and `Final Watchlist` are Operator-only compatibility utilities. Every retained page is labeled **Legacy research utility — not part of Personal Research Mode**, and its detailed output is hidden behind an explicit collapsed compatibility control.
+
+These utilities preserve historical algorithms, regression checks, and output filenames only. They cannot feed Research Decision Lab, cannot change readiness, and cannot produce recommendations, sizing, or transaction behavior. Public and Personal Research routes cannot open them. Retained position, cost-basis, disposition, ranked-candidate, or action-like fields are not supported product claims.
 
 These surfaces must show supported, blocked, partial, and excluded states before showing detailed tables. Broad-universe tables, command blocks, route maps, and proof ledgers should stay filtered, row-limited, collapsed, or operator-scoped by default.
 

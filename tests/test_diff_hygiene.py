@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -27,6 +28,42 @@ def test_diff_hygiene_classifies_generated_csv_churn_separately():
     assert module.classify_path("outputs/decision_proof_queue.md") == "generated_csv_churn"
 
 
+def test_pr_range_hygiene_inspects_committed_range_not_clean_worktree(tmp_path: Path):
+    module = load_diff_hygiene_module()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args: str) -> str:
+        result = subprocess.run(
+            ["git", *args], cwd=repo, check=True, capture_output=True, text=True
+        )
+        return result.stdout.strip()
+
+    git("init", "-b", "main")
+    git("config", "user.name", "Range Test")
+    git("config", "user.email", "range@example.invalid")
+    (repo / "README.md").write_text("base\n", encoding="utf-8")
+    git("add", "README.md")
+    git("commit", "-m", "base")
+    base_sha = git("rev-parse", "HEAD")
+    generated = repo / "data" / "reports" / "readiness.json"
+    generated.parent.mkdir(parents=True)
+    generated.write_text("{}\n", encoding="utf-8")
+    git("add", "data/reports/readiness.json")
+    git("commit", "-m", "generated")
+    head_sha = git("rev-parse", "HEAD")
+
+    assert git("status", "--porcelain") == ""
+    entries = module.load_range_status(repo, base_sha, head_sha)
+    report = module.build_range_check_report(entries, base_sha, head_sha)
+
+    assert entries == [module.StatusEntry("A", "data/reports/readiness.json")]
+    assert module.range_hygiene_has_blockers(entries) is True
+    assert "Pull Request Range Hygiene Check" in report
+    assert "data/reports/readiness.json" in report
+    assert "failed" in report.lower()
+
+
 def test_diff_hygiene_keeps_markdown_reports_as_reviewable_examples():
     module = load_diff_hygiene_module()
 
@@ -39,6 +76,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
 
     for path in (
         ".gitignore",
+        ".github/workflows/commercial-research-beta.yml",
         ".streamlit/config.toml",
         ".streamlit/secrets.toml.example",
         "README.md",
@@ -46,6 +84,7 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
         "requirements.txt",
         "config/hosted_demo.env.example",
         "config/provider_keys.env.example",
+        "config/source_rights.yml",
         "docs/DIFF_HYGIENE_AUDIT.md",
         "src/dashboard.py",
         "tests/test_launchers.py",
@@ -66,6 +105,33 @@ def test_diff_hygiene_classifies_product_files_as_commit_candidates():
     assert module.classify_path(".streamlit/secrets.toml") == "review_manually"
     assert module.classify_path("config/hosted_demo.env") == "review_manually"
     assert module.classify_path("config/provider_keys.env") == "review_manually"
+
+
+def test_html_brief_code_and_evidence_stay_product_candidates_but_saved_html_requires_manual_review():
+    module = load_diff_hygiene_module()
+
+    for path in (
+        "src/company_workbench_html.py",
+        "src/portable_research_action_policy.py",
+        "src/company_workbench_html_browser_gate.py",
+        "tests/test_company_workbench_html.py",
+        "tests/test_company_workbench_html_browser_gate.py",
+        "docs/internal/COMPANY_WORKBENCH_HTML_RESEARCH_BRIEF.md",
+    ):
+        assert module.classify_path(path) == "product_candidate"
+
+    for path in (
+        "outputs/local/example-research-brief.html",
+        "data/local/example-research-brief.html",
+        "outputs/demo/example-research-brief.html",
+        "data/demo/example-research-brief.html",
+    ):
+        assert module.classify_path(path) == "review_manually"
+        assert module.is_generated_churn(path) is False
+
+    assert not hasattr(module, "GENERATED_HTML_ARTIFACTS")
+    assert not any(str(path).endswith(".html") for path in module.GENERATED_MARKDOWN_ARTIFACTS)
+    assert not Path("src/company_workbench_html_writer.py").exists()
 
 
 def test_diff_hygiene_counts_untracked_and_staged_added_files_as_new():
@@ -281,8 +347,9 @@ def test_public_release_package_reports_clean_push_path():
     assert "Package status: clean; ready for the next reviewed work slice" in report
     assert "make public-check" in report
     assert "make browser-qa-capture-plan" not in report
-    assert "git push origin main" in report
-    assert "only when explicitly asked" in report
+    assert "git push origin main" not in report
+    assert "never infer main" in report
+    assert "separate owner authorization" in report
     assert "License gate: controlled demo LICENSE found" in report
     assert "root LICENSE" in report
     assert "make license-status" in report
@@ -419,11 +486,19 @@ def test_public_release_package_surfaces_push_when_branch_ahead_without_product_
         module.StatusEntry("M", "outputs/feature_readiness_summary.csv"),
     ]
 
-    report = module.build_public_release_package_report(entries, branch_status="## main...origin/main [ahead 1]")
+    report = module.build_public_release_package_report(
+        entries,
+        branch_status=(
+            "## codex/personal-research-mode-mvp..."
+            "origin/codex/personal-research-mode-mvp [ahead 10]"
+        ),
+    )
 
     assert "No reviewed product package to stage; keep generated churn local unless intentionally selected as evidence." in report
     assert "Reviewed local commit is ahead of origin; push only when explicitly asked and after public-check passes." in report
-    assert "git push origin main  # only when explicitly asked" in report
+    assert "git push origin codex/personal-research-mode-mvp" in report
+    assert "separate owner authorization" in report
+    assert "git push origin main" not in report
     assert "No reviewed product package to commit; generated churn remains local." in report
 
 
@@ -445,13 +520,22 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
         module.StatusEntry("??", "data/reports/ticker_readiness_report.previous.csv"),
     ]
 
-    report = module.build_public_release_handoff_report(entries, branch_status="## main...origin/main")
+    report = module.build_public_release_handoff_report(
+        entries,
+        branch_status=(
+            "## codex/personal-research-mode-mvp..."
+            "origin/codex/personal-research-mode-mvp [ahead 10]"
+        ),
+    )
 
     assert "Public Release Terminal Handoff" in report
     assert "Read-only" in report
     assert "Product/code/docs/test candidates: 4 (3 changed, 1 new)" in report
     assert "Generated CSV/JSON churn excluded by default: 2 (1 changed, 1 new)" in report
-    assert "Branch status: ## main...origin/main" in report
+    assert (
+        "Branch status: ## codex/personal-research-mode-mvp..."
+        "origin/codex/personal-research-mode-mvp [ahead 10]"
+    ) in report
     assert "Package status: product package pending commit; commit this package before starting another feature slice" in report
     assert "License gate: controlled demo LICENSE found" in report
     assert "root LICENSE" in report
@@ -477,8 +561,9 @@ def test_public_release_handoff_prints_terminal_safe_sequence():
     assert "make staged-hygiene-check" in report
     assert "git diff --cached --check" in report
     assert "git commit -m \"Improve pilot handoff and workflow continuity\"" in report
-    assert "git push origin main" in report
-    assert "only when explicitly asked" in report
+    assert "git push origin codex/personal-research-mode-mvp" in report
+    assert "separate owner authorization" in report
+    assert "git push origin main" not in report
     staging_block = report.split("Step 2 - stage only", 1)[1].split("Step 3 - inspect", 1)[0]
     assert "data/prices.csv" not in staging_block
     assert "ticker_readiness_report.previous.csv" not in staging_block

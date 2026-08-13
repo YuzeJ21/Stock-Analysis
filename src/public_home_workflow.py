@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 
 def _format_optional_text(value: object, fallback: str) -> str:
     if value is None:
@@ -265,7 +267,6 @@ def public_home_route_choice_cards(summary: dict[str, object]) -> list[tuple[str
     peer_ready = int(summary.get("peer_ready") or 0)
     earnings_ready = int(summary.get("earnings_ready") or 0)
     estimates_ready = int(summary.get("analyst_estimates_ready") or summary.get("analyst_ready") or 0)
-
     has_price_gap = bool(master and price_ready < master)
     has_depth_gap = price_ready > dcf_ready or dcf_ready > peer_ready or earnings_ready == 0 or estimates_ready == 0
     data_gap_count = max(master - price_ready, 0) if master else 0
@@ -405,6 +406,7 @@ def public_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
     peer_ready = int(summary.get("peer_ready") or 0)
     earnings_ready = int(summary.get("earnings_ready") or 0)
     estimates_ready = int(summary.get("analyst_estimates_ready") or summary.get("analyst_ready") or 0)
+    selected_profile = resolve_readiness_proof_profile()
 
     if price_ready < master:
         primary = {
@@ -474,7 +476,7 @@ def public_home_next_step_cards(summary: dict[str, object]) -> list[dict[str, ob
                 "Then review the local status snapshot and reopen Home so ready and locked counts are current."
             ),
             "badges": ["proof first", "copy-only"],
-            "command": "make readiness && make status-check TOP_N=5",
+            "command": f"make readiness-snapshot PROFILE={selected_profile} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N=5",
         },
         {
             "kicker": "PILOT PATH",

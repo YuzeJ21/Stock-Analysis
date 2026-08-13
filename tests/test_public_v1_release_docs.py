@@ -1,5 +1,6 @@
 from pathlib import Path
 import re
+import subprocess
 
 
 PUBLIC_V1_ROUTE = (
@@ -9,6 +10,194 @@ PUBLIC_V1_ROUTE = (
 
 def _read(path: str) -> str:
     return Path(path).read_text(encoding="utf-8")
+
+
+def _markdown_section(text: str, heading: str) -> str:
+    """Return one exact Markdown heading section through its next peer/parent."""
+    lines = text.splitlines()
+    try:
+        start = lines.index(heading)
+    except ValueError as exc:
+        raise AssertionError(f"missing Markdown section: {heading}") from exc
+    level = len(heading) - len(heading.lstrip("#"))
+    section: list[str] = []
+    for line in lines[start + 1 :]:
+        match = re.match(r"^(#{1,6})\s+", line)
+        if match and len(match.group(1)) <= level:
+            break
+        section.append(line)
+    return "\n".join(section).strip()
+
+
+def _assert_html_brief_section_has_no_affirmative_overclaim(section: str) -> None:
+    normalized = " ".join(section.split()).lower()
+    for misleading_claim in (
+        "source rights are established",
+        "current-market data is verified",
+        "readiness is activated",
+        "new calculation engine is complete",
+        "professional line-item model is complete",
+        "hosted operation is complete",
+        "human accessibility conformance is complete",
+        "screen-reader conformance is complete",
+        "independent validation is complete",
+        "market fit is established",
+        "screening alpha is established",
+        "probability calibration is complete",
+    ):
+        assert misleading_claim not in normalized
+
+
+HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY = (
+    "Local engineering evidence does not establish source rights, current-market "
+    "data, readiness activation, a new or professional line-item model, hosted "
+    "operation, human or screen-reader conformance, independent validation, market "
+    "fit, screening alpha, or probability calibration."
+)
+
+
+def test_streamlit_range_supports_same_document_javascript_transport():
+    requirements = Path("requirements.txt").read_text(encoding="utf-8")
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+
+    assert "streamlit>=1.52,<2" in requirements
+    assert '"streamlit>=1.52,<2"' in pyproject
+    assert "streamlit>=1.44" not in requirements + pyproject
+
+
+def test_streamlit_runtime_rejects_incompatible_starlette_gzip_signature():
+    requirements = Path("requirements.txt").read_text(encoding="utf-8")
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+
+    assert "starlette>=0.46,<1.4" in requirements
+    assert '"starlette>=0.46,<1.4"' in pyproject
+
+
+def test_proof_readiness_reconciliation_docs_keep_historical_proof_separate_from_current_state():
+    roadmap = _read("ROADMAP.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, operator, prompt):
+        assert "make proof-readiness-reconciliation TOP_N=20" in text
+        assert "historical_supported_currently_blocked" in text
+        assert "current saved readiness remains authoritative" in text.lower()
+        assert "explicit_ticker_change" in text
+        assert "current_canonical_row_missing" in text
+        assert "does not establish the historical cause" in text.lower()
+    assert "current-snapshot audit" in roadmap.lower()
+    assert "does not restore canonical data" in operator.lower()
+    assert "before reusing a supporting proof outcome" in prompt.lower()
+    assert "source rights" in prompt.lower()
+    assert "field scope" in prompt.lower()
+    assert "changed_tickers" in operator
+    assert "changed_tickers" in prompt
+    assert "structured per-ticker" in prompt.lower()
+    assert "future" in roadmap.lower()
+
+
+def test_calibration_bundle_preview_docs_preserve_the_priority_9_boundary():
+    roadmap = _read("ROADMAP.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    prompt = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    for text in (roadmap, operator, prompt):
+        assert "make calibration-evidence-bundle-preview BUNDLE=<path>" in text
+        assert "contract_consistent_review_required" in text
+        assert "probability remains withheld" in text.lower()
+        assert "does not activate readiness" in text.lower()
+    assert "Valid real leakage-safe calibration events: zero" in roadmap
+    assert "Synthetic fixtures remain test-only" in prompt
+
+
+def test_provider_neutral_workspace_authorization_is_documented_without_hosted_claims():
+    architecture = _read("docs/PRIVATE_BETA_ARCHITECTURE.md")
+    roadmap = _read("ROADMAP.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+
+    for document in (architecture, roadmap, continuation):
+        normalized = " ".join(document.split())
+        assert "provider-neutral" in normalized
+        assert "deny-by-default" in normalized
+        assert "append-only" in normalized
+        assert "privacy-safe audit obligation" in normalized
+        assert "does not prove hosted authentication" in normalized
+
+    assert "src.hosted_access_control.evaluate_workspace_access" in architecture
+    normalized_architecture = " ".join(architecture.split())
+    assert (
+        "The evaluator performs no authentication, persistence, audit storage, "
+        "retention, monitoring" in normalized_architecture
+    )
+    assert (
+        "rollback, incident response, or operated capacity. All such states "
+        "remain external" in normalized_architecture
+    )
+
+    normalized_roadmap = " ".join(roadmap.split())
+    assert (
+        "**Exit gate:** the actual hosted environment directly proves every "
+        "claimed control, including an observed rollback rehearsal and named "
+        "owner." in normalized_roadmap
+    )
+    assert (
+        "The module has no dashboard, ledger, readiness, provider, persistence, "
+        "environment, network, or generated-artifact integration."
+        in normalized_roadmap
+    )
+    assert (
+        "does not prove hosted authentication, deployed isolation, audit storage, "
+        "retention, monitoring, rollback, incident response, operated capacity"
+        in normalized_roadmap
+    )
+
+    normalized_continuation = " ".join(continuation.split())
+    assert "Do not create or change hosted accounts" in continuation
+    assert (
+        "does not prove hosted authentication, deployed isolation, persistence, "
+        "audit storage, retention, monitoring, rollback, incident response, "
+        "operated capacity" in normalized_continuation
+    )
+    assert (
+        "Provider-specific integration remains blocked until the exact identity, "
+        "storage, logging, host, and operating environment are explicitly approved."
+        in normalized_continuation
+    )
+
+
+def test_two_company_cash_preview_docs_preserve_bounded_portability_boundary():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (methodology, provenance, personal, roadmap, prompt):
+        assert "AMD Q1 FY2026" in text
+        assert "0000002488-26-000076" in text
+        assert "bounded two-company portability" in text.lower()
+    assert "cash_preview=1" in personal
+    assert "production_activation=false" in provenance
+    assert "readiness_promotions=()" in provenance
+    assert "does not prove broad company coverage" in roadmap.lower()
+    assert "do not add a third company" in prompt.lower()
+
+
+def test_makefile_exposes_stdout_only_readiness_preview_contract():
+    makefile = _read("Makefile")
+
+    assert "readiness-preview" in makefile.splitlines()[0]
+    assert (
+        "make readiness-preview [TOP_N=20] In-memory preview: stable readiness impact, change causes, and promotion evidence without writing files"
+        in makefile
+    )
+    assert (
+        "readiness-preview:\n\t@PYTHONDONTWRITEBYTECODE=1 python3 -m src.readiness_preview --top-n $(or $(TOP_N),20)"
+        in makefile
+    )
 
 
 def test_readme_product_tour_matches_v1_public_route_model():
@@ -24,8 +213,8 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
     assert "First review move: open Stock Selector" in readme
     assert "screenshots are product evidence only" in readme
-    assert "| What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |" in readme
-    assert "Start with the five public paths" in readme
+    assert "| What proves current local readiness? | Run `make readiness-ops-center` for lane truth. `make status-check TOP_N=5` can describe a saved generated snapshot; screenshots are product evidence only. |" in readme
+    assert "The controlled Public workspace keeps its existing five-page path" in readme
     assert "| Home |" in readme
     assert "| Stock Selector |" in readme
     assert "| Single-Stock Report |" in readme
@@ -66,11 +255,25 @@ def test_readme_and_roadmap_keep_active_planning_separate_from_completed_history
     assert "without reopening broad proof loops" in completed
 
 
+def test_active_roadmap_is_a_concise_current_decision_index():
+    roadmap = _read("ROADMAP.md")
+
+    for heading in (
+        "## Now",
+        "## Next",
+        "## Externally blocked",
+        "## Later",
+        "## Completed with evidence",
+    ):
+        assert heading in roadmap
+    assert len(roadmap.splitlines()) <= 320
+
+
 def test_roadmap_current_counts_are_live_command_gated():
     roadmap = _read("ROADMAP.md")
 
-    assert "Master universe rows: use `make project-status` or `make status-check TOP_N=5`" in roadmap
-    assert "Active research rows: use `make project-status` or the dashboard Home page" in roadmap
+    assert "Master-universe and saved generated-snapshot context: use `make project-status-check` or `make status-check TOP_N=5`; neither is current-market freshness proof." in roadmap
+    assert "Active research and lane truth: use `make readiness-ops-center`; dashboard counts remain saved-workspace context." in roadmap
     assert "whole tracked universe is analysis-ready" in roadmap
     assert "tracked master universe, active universe, and analysis-ready subset" in roadmap
     assert "current 3,538-ticker" not in roadmap
@@ -115,49 +318,81 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
 def test_readme_has_compact_current_next_stages_for_external_reviewers():
     readme = _read("README.md")
 
+    assert readme.count("## External Reviewer Start Here") == 1
+    assert "## Personal Research Start Here" not in readme
+    assert "Primary product workflow" in readme
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in readme
+    assert "Secondary controlled demo" in readme
+    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in readme
+    assert "Data Health and Proof History stay under **Advanced Evidence**" in readme
     assert "## Now / Next / Not Yet" in readme
     assert "| Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, manual gates, and a locally passed performance gate. | Use `make public-check` before sharing; keep generated churn excluded and do not treat local timing as hosted proof. |" in readme
     assert "| Next | Optional controlled hosted preview and task-based external pilot review. | Hosting remains external until a URL is verified; reviewer feedback must remain anonymous workflow evidence, not investment opinion. |" in readme
     assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim this until external hosting, provider keys, source proof, validation, preview, apply, rebuilt readiness, and proof history support it. |" in readme
     assert "This is the fastest reviewer answer: the product is shareable as a controlled demo now, deeper coverage is source-gated, and hosting/provider automation stays optional until verified." in readme
-    assert "## Current Next Stages" in readme
-    assert "| Performance release candidate | Passed locally on the fixed demo profile | Re-run `make public-performance-gate` for current route evidence; do not mix measurements with broad data refreshes or treat local timing as hosted proof. |" in readme
-    assert "| LinkedIn publish | Ready after GitHub sync | If the branch is ahead, push reviewed commits after `make public-check`; if GitHub is synced, use the GitHub link and `docs/LINKEDIN_PROJECT_BRIEF.md`; do not claim hosted app availability. |" in readme
-    assert "| Hosted Streamlit demo | External account required | Run `make hosted-demo-readiness`, then follow `docs/HOSTED_DEMO_DEPLOYMENT.md`; keep GitHub as the public link until the hosted route is verified. |" in readme
-    assert "| FMP provider activation | External key required | Configure `FMP_API_KEY` outside the repo, then run one reviewed ticker smoke before any broader batch. |" in readme
-    assert "| Peer readiness upgrade | Source-gated | Keep candidate peers as context only until source-backed peer rows pass review. |" in readme
-    assert "| Optional earnings / estimates | Locked | Use trusted provider or reviewed manual rows only; do not infer optional context. |" in readme
-    assert "| Broad proof queues | Do not retry now | Current queues are exhausted; reopen only after keyed provider rows, reviewed manual rows, or changed blockers exist. |" in readme
-    assert "| Public UX polish | Review limited | Public checks and repeated local cold/warm route timings pass; external reviewer evidence is still required before upgrading the claim. |" in readme
-    assert "| Generated artifacts | Excluded by default | Keep local CSV/report/sample-report churn unstaged unless one exact artifact is reviewed as public evidence. |" in readme
-    assert "The local fixed-demo performance gate has passed and remains a regression check" in readme
-    assert "The active evidence stage is a narrow, append-only Earnings Nowcast pilot" in readme
-    assert "hosting and external review remain separate external stages" in readme
-    assert readme.index("## External Reviewer Start Here") < readme.index("## Current Next Stages")
+    assert "local Commercial Research Beta foundation" in readme
+    assert "not a hosted or commercially launched product" in readme
+    assert "Authentication, private workspaces, operated data rights, real beta users, and repeatable provider operations remain separate gates" in readme
     assert readme.index("## External Reviewer Start Here") < readme.index("## Now / Next / Not Yet")
-    assert readme.index("## Now / Next / Not Yet") < readme.index("## Current Next Stages")
-    assert readme.index("## Current Next Stages") < readme.index("## What You Can Analyze")
+    assert readme.index("## Now / Next / Not Yet") < readme.index("## What You Can Analyze")
 
 
-def test_public_status_language_uses_review_limited_until_live_route_gate_passes():
+def test_public_status_language_keeps_share_review_ready_local_only():
     readme = _read("README.md")
 
-    assert "| Public UX polish | Review limited |" in readme
-    assert "Share-review ready" not in readme
+    assert "This repository is ready to review as a controlled GitHub/LinkedIn portfolio demo." in readme
+    assert "It is not currently published as a hosted Streamlit app." in readme
+    assert "Hosting remains external until a URL is verified" in readme
     assert "make public-performance-gate" in readme
 
 
-def test_active_roadmap_puts_performance_before_hosting_and_external_pilot():
+def test_active_roadmap_keeps_completed_performance_separate_from_external_gates():
     roadmap = _read("ROADMAP.md")
 
+    completed = roadmap.index("## Completed with evidence")
     performance = roadmap.index("### P0: Performance Release Candidate")
-    hosted = roadmap.index("### P1: Controlled Hosted Preview Verification")
-    pilot = roadmap.index("### P1: Controlled Pilot Review")
-
-    assert performance < hosted < pilot
+    assert roadmap.index("## Externally blocked") < completed < performance
+    assert "`hosted_account_and_controls_required`" in roadmap
+    assert "`independent_reviewers_required`" in roadmap
     assert "data/demo/manifest.json" in roadmap
     assert "first useful" in roadmap.lower()
     assert "p90" in roadmap.lower()
+    assert "make commercial-beta-release-check" in roadmap
+    assert "make commercial-beta-performance-gate" in roadmap
+
+
+def test_performance_release_gate_records_immutable_research_evidence():
+    performance = _read("docs/PERFORMANCE_RELEASE_GATE.md")
+
+    assert "immutable release-candidate" in performance
+    assert re.search(r"commit `[0-9a-f]{40}`", performance)
+    assert "48 recorded route samples, zero failures, and no horizontal overflow" in performance
+    for route in ("Research Desk", "Discover", "Company Workbench", "Monitor"):
+        assert f"| {route} | 1280x720 |" in performance
+        assert f"| {route} | 390x844 |" in performance
+    assert "/tmp/stock-command-center-commercial-beta-performance.json" in performance
+    assert "Keep it out of\nGit" in performance
+
+
+def test_hosted_handoff_covers_research_routes_health_and_rollback_without_claiming_a_host():
+    hosted = _read("docs/HOSTED_DEMO_DEPLOYMENT.md")
+
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in hosted
+    assert "make commercial-beta-performance-gate BASE_URL=<verified-url>" in hosted
+    assert "## Health Check And Rollback" in hosted
+    assert "external_account_required" in hosted
+    assert "Do not claim private or authenticated access" in hosted
+
+
+def test_private_beta_architecture_keeps_operating_controls_external_and_independent():
+    architecture = _read("docs/PRIVATE_BETA_ARCHITECTURE.md")
+
+    assert "external_operations_required" in architecture
+    assert "incident response" in architecture
+    assert "rollback" in architecture
+    assert "owner capacity" in architecture
+    assert "authentication, workspaces, user data separation" in architecture
+    assert "A local runbook does not prove" in architecture
 
 
 def test_methodology_defines_lane_level_freshness_policy_without_claiming_live_data():
@@ -234,6 +469,12 @@ def test_product_direction_decision_stays_provisional_until_external_evidence_ex
 def test_linkedin_brief_has_now_next_not_yet_share_framing():
     linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
 
+    assert "Stock Research Command Center | Evidence-First Company Research" in linkedin
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in linkedin
+    assert "stable GitHub repository link only after this reviewed feature reaches the default branch" in linkedin
+    assert "Draft engineering preview" in linkedin
+    assert "readiness counts" not in linkedin.lower()
+    assert "Workbench answer-first screenshot" in linkedin
     assert "## Now / Next / Not Yet" in linkedin
     assert "| Now | GitHub/LinkedIn portfolio demo with the guided public workflow, screenshots, methodology, and local run commands. | Share the GitHub link and curated screenshot after GitHub is synced and `make public-check` passes. |" in linkedin
     assert "| Next | Source-backed Earnings Nowcast evidence pilot, plus optional hosted preview and controlled review. | Keep synthetic fixtures separate from real evidence; do not imply a hosted URL, private access, predictive validation, or provider-backed automation before verification. |" in linkedin
@@ -298,7 +539,7 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "make hosted-demo-readiness" in hosted
     assert "stock picks" not in hosted.lower()
     assert "buy/sell" in hosted
-    assert "streamlit>=1.44" in requirements
+    assert "streamlit>=1.52,<2" in requirements
     assert "pandas>=2.2" in requirements
     assert "numpy>=1.26" in requirements
     assert "PyYAML>=6.0" in requirements
@@ -335,7 +576,7 @@ def test_readme_has_external_reviewer_handoff_before_operator_detail():
     assert "## External Reviewer Start Here" in readme
     assert "| What should I open first? | Start with this README preview, then use `docs/PUBLIC_DEMO_WALKTHROUGH.md` for the five-page workflow. |" in readme
     assert "| What is the live app path? | Run `make demo-dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
-    assert "| What proves current local readiness? | `make status-check TOP_N=5` remains the source for current local counts; screenshots are product evidence only. |" in readme
+    assert "| What proves current local readiness? | Run `make readiness-ops-center` for lane truth. `make status-check TOP_N=5` can describe a saved generated snapshot; screenshots are product evidence only. |" in readme
     assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
     assert "## External Reviewer Handoff" in readme
     assert "| Review first | Dashboard preview, then Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
@@ -345,7 +586,8 @@ def test_readme_has_external_reviewer_handoff_before_operator_detail():
     assert readme.index("## External Reviewer Start Here") < readme.index("## External Reviewer Handoff")
     assert readme.index("## External Reviewer Handoff") < readme.index("## Data Coverage Strategy")
     assert "Confirm `README.md` starts with `External Reviewer Start Here`" in checklist
-    assert "then `make dashboard` and the Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History path" in checklist
+    assert "then Research Desk -> Discover -> Company Workbench -> Monitor" in checklist
+    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History as the secondary controlled Public demo" in checklist
     assert "Keep terminal proof commands secondary" in checklist
     assert "Put the best demo commands near the top" not in checklist
 
@@ -406,7 +648,14 @@ def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
 
     assert "## Share Boundary" in walkthrough
     assert "Screenshots are product evidence only; they do not prove data freshness or unlock blocked inputs." in walkthrough
-    assert "Use `make status-check TOP_N=5` for current coverage and blocker counts." in walkthrough
+    assert "Use `make readiness-ops-center` for current lane truth." in walkthrough
+    assert "`make status-check TOP_N=5` can describe a saved generated snapshot" in walkthrough
+    assert "Use `make status-check TOP_N=5` for current coverage and blocker counts." not in walkthrough
+    assert "terminal proof of current coverage and blockers" not in walkthrough
+    assert "Run `make readiness-ops-center` for current selected-profile readiness and lane truth." in walkthrough
+    assert "saved generated-snapshot coverage/blocker context, which can be stale" in walkthrough
+    assert "make readiness-ops-center          # current selected-profile readiness and lane truth" in walkthrough
+    assert "make status-check TOP_N=5          # saved generated-snapshot context; it can be stale" in walkthrough
     assert "controlled portfolio/demo license" in walkthrough
     assert PUBLIC_V1_ROUTE in walkthrough
     assert "Run `make next-stage` when you want the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, push, deploy, or expose secrets." in walkthrough
@@ -487,6 +736,18 @@ def test_dashboard_qa_tracks_v1_replacement_browser_checks():
     assert "the current in-app browser shows `localhost refused to connect`" not in qa
 
 
+def test_dashboard_qa_records_commercial_beta_research_mode_live_review():
+    qa = _read("docs/DASHBOARD_QA.md")
+
+    assert "Commercial Beta Research Workflow Live Review" in qa
+    assert "1280x720" in qa
+    assert "390x844" in qa
+    assert "Research Desk, Discover, Company Workbench, and Monitor" in qa
+    assert "ArrowInvalid" in qa
+    assert "no horizontal overflow" in qa
+    assert "product evidence only" in qa
+
+
 def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     makefile = _read("Makefile")
     brief = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
@@ -502,8 +763,19 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     assert "Review one stock, Improve data coverage, and Inspect proof" not in makefile
     assert "make next-stage                 Print the current next-stage decision ladder" in makefile
     assert "make project-status-check       Read current coverage, blockers, and executable next steps" in makefile
-    assert "Check current counts:    make status-check TOP_N=5" in makefile
+    assert "Check lane truth:        make readiness-ops-center" in makefile
+    assert "Inspect saved snapshot:  make status-check TOP_N=5  # can be stale" in makefile
+    assert "Check current counts:    make status-check TOP_N=5" not in makefile
+    assert "4. Optional current selected-profile readiness and lane truth:" in makefile
+    assert "Saved generated-snapshot counts and blockers only; this context can be stale." in makefile
+    assert "Optional current-count proof" not in makefile
+    assert "Proves: current readiness counts" not in makefile
     assert "make linkedin-share-check" in makefile
+    assert "Stock Research Command Center | Evidence-First Company Research" in makefile
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in makefile
+    assert "stable GitHub repository link only after this reviewed feature reaches the default branch" in makefile
+    assert "Draft engineering preview" in makefile
+    assert "count-safe Company Workbench answer visual" in makefile
     assert "GitHub's generated OpenGraph card" in makefile
 
 
@@ -517,8 +789,8 @@ def test_active_roadmap_and_price_history_maintenance_are_finite_and_read_only()
     assert "The active roadmap is ROADMAP.md" in continuity
     assert "make project-status-check" in next_stage
     assert "make readiness-ops-center" in next_stage
-    assert "make price-history-proof-queue TOP_N=25" in next_stage
-    assert "make price-history-batch-closeout TOP_N=25" in next_stage
+    assert "make price-history-proof-queue TOP_N=25" not in next_stage
+    assert "make price-history-batch-closeout TOP_N=25" not in next_stage
     assert "momentum-not-ready" in roadmap
     assert "unreviewed preferred-history candidates" in roadmap
     assert "reviewed source-limited items" in roadmap
@@ -532,6 +804,208 @@ def test_active_roadmap_and_price_history_maintenance_are_finite_and_read_only()
     assert "make price-history-proof-queue TOP_N=25" in readme
     assert "make price-history-batch-closeout TOP_N=25" in readme
     assert "read-only batch closeout" in readme
+
+
+def test_commercial_beta_continuation_prompt_is_persistent_but_evidence_bound():
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "Commercial Research Beta Continuation Contract" in roadmap
+    assert "/goal" in prompt
+    assert "codex/personal-research-mode-mvp" in prompt
+    assert "pull/113" in prompt
+    assert "commit `781ba2481` or a later verified descendant" in prompt
+    assert "commit `54f3977d7` or a later verified descendant" in prompt
+    assert "classify it once" in prompt
+    assert "avoid identical retry loops" in prompt
+    assert "Continue automatically while any safe, meaningful, in-scope local task remains" in prompt
+    assert "Do not mark the objective complete" in prompt
+    assert "Stage 1 — Answer-first workflow hardening" in prompt
+    assert "Stage 6 — Operating maturity and product direction" in prompt
+    assert "Never use `git add -A`" in prompt
+    assert "Keep PR #113 draft" in prompt
+    assert "Do not merge into main or deploy publicly without explicit approval" in prompt
+    assert "Generated CSV, JSON" in prompt
+    assert "Point-in-time consensus and rights: `permitted_point_in_time_consensus_and_rights_required`" in prompt
+    assert "Hosted account and controls: `hosted_account_and_controls_required`" in prompt
+    assert "Independent reviewers: `independent_reviewers_required`" in prompt
+    assert "Trusted peer/source review: `trustworthy_peer_source_and_review_required`" in prompt
+    assert "Calibration cohort: `calibration_cohort_required`" in prompt
+    assert "Operated owner/incident/rollback capacity: `operated_owner_incident_rollback_capacity_required`" in prompt
+    assert "Research-only; no investment advice" in prompt
+    assert "Keep the goal active whenever any applicable gate remains incomplete or unproven" in prompt
+
+
+def test_consensus_source_review_docs_keep_review_collection_and_activation_separate():
+    roadmap = _read("ROADMAP.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    pilot = _read("docs/EARNINGS_NOWCAST_PILOT.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, data_strategy, pilot, methodology, provenance, prompt):
+        assert "earnings-consensus-source-review" in text
+        assert "collection preview" in text.lower()
+        assert "read-only" in text.lower()
+    assert "explicit provider" in roadmap.lower()
+    assert "original one-based" in provenance.lower()
+    assert "auto_apply=false" in pilot
+    assert "source-review-before-preview" in prompt.lower()
+
+
+def test_consensus_source_review_docs_use_distinct_source_and_collection_inputs():
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    pilot = _read("docs/EARNINGS_NOWCAST_PILOT.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (data_strategy, pilot, prompt):
+        assert "SOURCE_INPUT=<reviewed_source_export.csv>" in text
+        assert "COLLECTION_INPUT=<prospective_consensus.csv>" in text
+        assert "distinct input contracts" in text.lower()
+        assert "earnings-consensus-source-review INPUT=<reviewed.csv>" not in text
+
+
+def test_quarterly_cash_generation_docs_preserve_no_file_and_market_maturity_boundaries():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    personal_mode = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "cash from operations + reported capital expenditures" in methodology
+    assert "explicit_filed_quarter" in provenance
+    assert "no new data file, writer, template, or generated artifact" in provenance
+    assert "reviewed quarterly source adapter" in personal_mode
+    assert "methodology maturity" in roadmap
+    assert "does not prove broad real-company coverage or market validation" in roadmap
+    assert (
+        "Quarterly cash-generation source adapter: `one_company_source_preview_accepted_for_review`"
+        in prompt
+    )
+    assert "no supplemental data file" in prompt
+
+
+def test_quarterly_adapter_acceptance_docs_keep_review_and_activation_separate():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    personal_mode = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "accepted_for_review is not production activation" in methodology
+    assert "production_activation=false" in provenance
+    assert "readiness_promotions=()" in provenance
+    assert "no adapter file is loaded or written" in personal_mode
+    assert "one-company adapter acceptance harness" in roadmap
+    assert "bounded exact-source review" in roadmap
+    assert "They do **not** prove production activation" in roadmap
+    assert "Quarterly adapter acceptance" in prompt
+    assert "accepted_for_review" in prompt
+
+
+def test_mobile_research_first_action_docs_preserve_readiness_and_market_boundaries():
+    personal_mode = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "mobile first-action density" in personal_mode.lower()
+    assert "does not change readiness" in personal_mode.lower()
+    assert "phone first-action" in roadmap.lower()
+    assert "mobile first-action density" in prompt.lower()
+
+
+def test_personal_research_evidence_detours_preserve_workspace_and_return_path():
+    roadmap = _read("ROADMAP.md")
+    personal_mode = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, personal_mode, dashboard_qa, prompt):
+        assert "Data Health and Proof History stay inside Personal Research mode" in text
+        assert "Return to Company Workbench" in text
+        assert "does not change readiness" in text
+
+
+def test_pilot_freshness_docs_fail_closed_on_declared_source_dates():
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (data_strategy, roadmap, prompt):
+        assert "declared source dates" in text.lower()
+        assert "file mtimes" in text.lower()
+        assert "make readiness-preview TOP_N=20" in text
+        assert "does not make saved readiness current" in text.lower()
+    assert "does not rebuild readiness" in data_strategy.lower()
+    assert "make readiness" in prompt
+
+
+def test_readiness_continuation_gate_docs_keep_rankings_non_executable():
+    roadmap = _read("ROADMAP.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, data_strategy, dashboard_qa, prompt):
+        lowered = text.lower()
+        assert "readiness continuation gate" in lowered
+        assert "current but untracked" in lowered
+        assert "make readiness-preview TOP_N=20" in text
+        assert "planning context only" in lowered
+        assert "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=" in text
+        assert "make readiness-release-review TOP_N=20" in text
+    assert "The stale readiness continuation gate" not in roadmap
+    assert "The stale readiness continuation gate applies" not in data_strategy
+    assert "## Stale Readiness Continuation Gate" not in dashboard_qa
+    assert "- Stale readiness continuation gate across" not in prompt
+    assert "The stale readiness continuation gate follows" not in prompt
+    assert "does not refresh data" in roadmap.lower()
+    assert "does not prove market validation" in roadmap.lower()
+    assert "auto-refresh status" in roadmap.lower()
+    assert "session source preflight" in roadmap.lower()
+    assert "commercial-beta release" in roadmap.lower()
+    assert "auto-refresh status" in prompt.lower()
+    assert "session source preflight" in prompt.lower()
+    assert "advanced data health cards" in roadmap.lower()
+    assert "advanced data health cards" in dashboard_qa.lower()
+    assert "advanced data health cards" in prompt.lower()
+
+
+def test_readiness_promotion_evidence_docs_keep_technical_and_rights_states_independent():
+    roadmap = _read("ROADMAP.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, data_strategy, methodology, provenance, prompt):
+        lowered = text.lower()
+        assert "technical" in lowered
+        assert "commercial" in lowered
+        assert "field" in lowered
+        assert "make readiness" in text
+    assert "composite or unregistered source values" in data_strategy.lower()
+    assert "does not establish price-source provenance" in provenance
+    assert "local_evidence_review_required" in prompt
+    assert "not current readiness counts or rebuild approval" in roadmap
+
+
+def test_readiness_change_cause_docs_explain_method_fit_without_company_judgment():
+    roadmap = _read("ROADMAP.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, data_strategy, methodology, provenance, prompt):
+        lowered = text.lower()
+        assert "transition" in lowered
+        assert "method" in lowered
+        assert "current readiness totals" in lowered
+    assert "acquisition/spac" in methodology.lower()
+    assert "not a negative company signal" in roadmap.lower()
+    assert "cannot alter scope" in prompt.lower()
 
 
 def test_thesis_journal_docs_preserve_append_only_research_boundary():
@@ -591,3 +1065,1638 @@ def test_research_comparison_docs_preserve_non_ranking_boundary():
     assert "never calculates a score or winner" in methodology
     assert "Research Comparison Contract" in provenance
     assert "candidate peer context cannot satisfy trusted-peer readiness" in provenance
+
+
+def test_sec_cash_generation_pilot_docs_preserve_review_boundary():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    strategy = _read("docs/DATA_STRATEGY.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "explicit_filed_table_outflow" in methodology
+    assert "acceptanceDateTime" in provenance
+    assert "sec_companyfacts" in strategy
+    assert "accepted_for_review is not production activation" in personal
+    assert "NVIDIA Q1 FY2027" in roadmap
+    assert "does not activate Company Workbench" in roadmap
+    assert "sec-quarterly-cash-preview" in prompt
+    assert "do not repeat the NVIDIA pilot" in prompt
+
+
+def test_company_workbench_cash_preview_docs_preserve_explicit_no_activation_boundary():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "cash_preview=1" in personal
+    assert "Cash-generation review preview" in personal
+    assert "not production evidence" in personal
+    assert "production_activation=false" in provenance
+    assert "readiness_promotions=()" in provenance
+    assert "no canonical persistence" in provenance
+    assert "complete withholding" in methodology
+    assert "Advanced-only technical lineage" in methodology
+    assert "one explicit user-flow composition" in roadmap
+    assert "does not prove a second company" in roadmap
+    assert "do not repeat the NVIDIA pilot" in prompt
+    assert "bounded second-company proof" in prompt
+
+
+def test_evidence_integrity_docs_preserve_fail_closed_valuation_and_cutoff_backtest_boundary():
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    safeguards = (
+        "reject non-finite valuation inputs",
+        "require a canonical real `YYYY-MM-DD` denominator period end",
+        "reject blank, malformed, and non-calendar denominator period ends",
+        "reject post-cutoff retrieval evidence",
+        "canonicalize Revenue/EPS independently through explicit `supersedes_source_ref` lineage",
+        "retain one event per ticker/period",
+        "withhold ambiguous leaves per metric so one metric does not suppress the other",
+        "use cutoff-bounded prior-year benchmarks so post-cutoff revisions cannot leak",
+    )
+
+    for text in (roadmap, methodology, prompt):
+        for safeguard in safeguards:
+            assert safeguard in text
+
+    assert (
+        "Evidence-integrity hardening anchor: commit `7d463bae7` or a later verified descendant"
+        in prompt
+    )
+
+
+def test_prospective_field_proof_docs_preserve_stage_a_recording_boundary():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    commands = (
+        "make prospective-field-proof-status",
+        "make prospective-field-proof-preview",
+        "make prospective-field-proof-record",
+    )
+    for text in (readme, roadmap, operator, prompt):
+        for command in commands:
+            assert command in text
+        lowered = text.lower()
+        assert "prospective-only" in lowered
+        assert "legacy narrative proof is not upgraded" in lowered
+        assert "absent ledger is a valid empty state" in lowered
+        assert "technical_write_eligible" in text
+        assert "commercial_evidence_eligible" in text
+        assert "preview receipt" in lowered
+        assert "ledger, input, cutoff, commercial mode, and source-rights registry" in lowered
+        assert "does not activate readiness" in lowered
+
+    assert "No sample field-proof rows are checked in" in readme
+    assert "No sample field-proof rows are checked in" in roadmap
+    assert (
+        "The implemented structured per-ticker/per-field record is prospective-only"
+        in prompt
+    )
+    assert "structured per-ticker/per-field proof record is prospective future work" not in prompt
+    assert "No sample field-proof rows are checked in" in operator
+    assert not Path("data/prospective_field_proofs.csv").exists()
+
+    for text in (roadmap, operator, prompt):
+        lowered = text.lower()
+        assert "does not update canonical data" in lowered
+        assert "does not update proof-readiness reconciliation" in lowered
+        assert "does not activate company workbench" in lowered
+        assert "separate design" in lowered
+
+    assert "cooperative local locking" in operator.lower()
+    assert "not crash-safe" in operator.lower()
+    assert "not a database transaction" in operator.lower()
+    assert "writers that do not cooperate" in operator.lower()
+
+
+def test_release_docs_distinguish_tracked_and_excluded_readiness_snapshots():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+
+    assert "For 10-20 external reviewer sessions" in readme
+    assert "For 5-10 external reviewer sessions" not in readme
+    assert "`make pilot-readiness-packet` writes `outputs/pilot_readiness_packet.md`" in readme
+    assert "`make pilot-readiness-packet` is not read-only" in readme
+
+    assert "tracked June 7 readiness snapshot" in roadmap
+    assert "excluded local generated working-data snapshot" in roadmap
+    assert "declared dates reported by the current read-only commands" in roadmap
+    assert "excluded July 21 local generated working-data snapshot" not in roadmap
+    assert "remains stale under this roadmap's declared-date policy" in roadmap
+    assert "zero stable readiness changes" in roadmap
+    assert "not committed PR evidence" in roadmap
+    assert "does not authorize staging or a readiness rebuild" in roadmap
+    for stale_count in (
+        "current inspection finds 152",
+        "146/146 promotions",
+        "current-snapshot audit reports 3,506",
+        "read-only current snapshot reports 21,246",
+    ):
+        assert stale_count not in roadmap
+    volatile_observation = re.compile(
+        r"\b(?:current|last observed|last verified|remains)[^.\n]*"
+        r"(?:\d{1,3}(?:,\d{3})+|\d+/\d+|\d+\s+"
+        r"(?:\w+\s+){0,2}(?:snapshots|rows|promotions|conflicts|outcomes|tickers))",
+        re.IGNORECASE,
+    )
+    assert not volatile_observation.search(roadmap)
+
+
+def test_active_maturity_handoff_matches_current_sync_priority_and_ui_contracts():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
+
+    for text in (roadmap, continuation):
+        assert "working_artifact_uncommitted" in text
+        assert "independent human review" in text
+
+    assert "d96d7af8f10c8e6c63096355d2abbf109de4f1f2" in continuation
+    assert "PR #113" in continuation
+    assert "31612484529" in continuation
+
+    assert (
+        "One permitted independently reviewed real point-in-time universe package, "
+        "one permitted point-in-time consensus source"
+    ) in roadmap
+    assert (
+        "The first external data unblock remains Priority 4's bounded permitted "
+        "point-in-time benchmark/universe package; Priority 5's permitted consensus"
+    ) in continuation
+
+    assert "exact-head CI is green" in continuation
+    assert "Remote synchronization, draft-PR update, exact-head CI" not in continuation
+    assert "next external data unblock remains one bounded permitted price-history" not in continuation
+    assert "automated media-preference" in roadmap.lower()
+    assert "direct-platform, independent-human, screen-reader, and assistive-technology" in roadmap
+    assert (
+        "If the current branch head lacks direct local matrix, branch synchronization, "
+        "draft-PR update, or exact-head CI evidence"
+    ) in next_stage
+
+    assert "contained horizontal phone strip" not in personal
+    assert "wrapped phone grid" in personal
+    assert "contained phone strip" not in roadmap
+    assert "wrapped phone grid" in roadmap
+    for text in (readme, dashboard_qa):
+        assert "contained phone strip" not in text
+        assert "wrapped phone grid" in text
+    assert "canonical query allowlists strip unsupported route state" in personal.lower()
+    assert "Operator mode keeps Operator Data Health links in Operator mode" in personal
+
+    assert "Newest reviewed evidence" in checklist
+    assert "first 20" in checklist
+    assert "full authoritative ledger remains under collapsed Advanced details" in checklist
+    assert "Draft engineering preview" in checklist
+
+
+def test_priority_ten_proposal_is_design_only_isolated_and_owner_gated():
+    proposal_path = Path(
+        "docs/superpowers/specs/2026-08-12-hypothetical-paper-position-laboratory-design.md"
+    )
+    assert proposal_path.exists()
+    proposal = proposal_path.read_text(encoding="utf-8")
+    roadmap = _read("ROADMAP.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+
+    assert "Proposal — not approved; implementation unauthorized" in proposal
+    for heading in (
+        "## Research Purpose And User Workflow",
+        "## Isolation Contract",
+        "## Private-Data Policy",
+        "## Safe Language Contract",
+        "## Misuse And Threat Analysis",
+        "## Storage, Retention, Export, And Deletion Choices",
+        "## Acceptance Criteria",
+        "## Explicit Non-Goals",
+        "## Owner Decisions Required",
+    ):
+        assert heading in proposal
+    for fail_closed_anchor in (
+        "No storage choice is approved by this proposal.",
+        "Forbidden product language includes or implies:",
+        "Implementation could be considered only after separate owner approval",
+        "This proposal does not authorize or design:",
+        "Until those decisions are recorded, implementation remains unauthorized.",
+    ):
+        assert fail_closed_anchor in proposal
+    for forbidden in (
+        "model-generated position size",
+        "recommended allocation",
+        "broker connection",
+        "order routing",
+        "auto-trading",
+        "stop-loss instruction",
+        "take-profit instruction",
+        "investment-performance claim",
+    ):
+        assert forbidden in proposal
+    assert "No implementation plan" in proposal
+    assert "owner approval remains open" in roadmap.lower()
+    assert proposal_path.name in roadmap
+    assert proposal_path.name in continuation
+    assert "implementation remains unauthorized" in continuation.lower()
+
+
+def test_public_make_help_marks_legacy_readiness_guard_and_profile_bound_writers():
+    result = subprocess.run(
+        ["make", "help-full"], capture_output=True, text=True, check=False
+    )
+    help_text = result.stdout
+
+    assert result.returncode == 0
+    advanced_readiness = help_text.split("Advanced readiness boundaries:\n", 1)[1].split(
+        "\n\n", 1
+    )[0]
+    for boundary in (
+        "make readiness-preview [TOP_N=20] In-memory preview",
+        "without writing files",
+        "make readiness-snapshot PROFILE=<default|demo|local> Required profile",
+        "make reviewed-batch-compare PROFILE=<default|demo|local> [BATCH_ID=<id>] [LANE=prices] [REVIEW_DATE=<yyyy-mm-dd>] Compare a profile-bound prior snapshot; current readiness is composed in memory and no current report is written; Required profile",
+        "make readiness        Deprecated no-write guard; exits 2",
+        "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local> Confirmed ignored local materialization",
+    ):
+        assert boundary in advanced_readiness
+    assert "Write central data/reports/ticker_readiness_report.csv" not in help_text
+
+
+def test_public_mobile_handoff_docs_record_zero_scroll_post_fix_evidence():
+    roadmap = _read("ROADMAP.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, dashboard_qa, prompt):
+        normalized = " ".join(text.split())
+        assert "direct-open loading state" in normalized
+        assert "Selected ticker -> `Use now` -> `Still withheld` -> `Open Data Health`" in normalized
+        assert "44px" in normalized
+        assert "zero-scroll" in normalized.lower()
+        assert "Home `stop_bottom=843.609375`" in normalized
+        assert "Single-Stock Report `stop_bottom=836.421875`" in normalized
+        assert "`trust_gap=2.21875`" in normalized
+        assert "`visible_stops=1`" in normalized
+        assert "`scroll_width=390`" in normalized
+        assert "all four measured scroll offsets were zero" in normalized
+        assert "`resolved_post_fix`" in normalized
+        assert "no horizontal overflow" in normalized
+        assert "no traceback" in normalized
+        assert "desktop retained two Home grid tracks and four Single-Stock Report grid tracks" in normalized
+
+    normalized_roadmap = " ".join(roadmap.split())
+    normalized_qa = " ".join(dashboard_qa.split())
+    normalized_prompt = " ".join(prompt.split())
+    assert "Home phone order is primary -> stop -> metrics" in normalized_roadmap
+    assert "one visible stop rule" in normalized_qa
+    assert "Home and Single-Stock Report are `resolved_post_fix`" in normalized_prompt
+    assert "does not change readiness, source, research, or generated-artifact state" in normalized_roadmap
+    assert "does not prove hosted behavior, accessibility conformance" in normalized_roadmap
+    assert "changed no readiness, source, research, or generated-artifact state" in normalized_qa
+    assert "Neither form of local presentation evidence proves data freshness, source rights, hosted behavior, accessibility compliance, external reviewer behavior, or predictive validity" in normalized_qa
+    assert "not hosted, accessibility-conformance, external-reviewer, freshness, demand, or market evidence" in normalized_prompt
+    assert "changes no readiness, source, research, or generated-artifact state" in normalized_prompt
+    assert "fresh screenshots and audit notes remain" not in dashboard_qa
+    assert "earlier screenshots predate this regression fix" in dashboard_qa
+    assert "no new screenshot artifact was created" in dashboard_qa
+
+
+def test_continuation_docs_keep_maturity_lanes_and_external_unblocks_truthful():
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, prompt):
+        assert "Stage A-G labels are continuation maturity lanes only" in text
+        assert "do not replace the numbered Stage 0-6 exit gates" in text
+        assert "Stage B — local field-proof audit and operator hardening" in text
+        assert "no readiness mapping" in text.lower()
+        assert "separate design" in text.lower()
+
+    assert (
+        "The next executable maturity choice is a separately designed Company Workbench activation preview"
+        not in roadmap
+    )
+    assert "is the second approved local priority after legacy surface quarantine" in roadmap
+    assert "Activation remains non-active and separately designed" in roadmap
+
+    classifications = (
+        "permitted_point_in_time_consensus_and_rights_required",
+        "hosted_account_and_controls_required",
+        "independent_reviewers_required",
+        "trustworthy_peer_source_and_review_required",
+        "calibration_cohort_required",
+        "operated_owner_incident_rollback_capacity_required",
+        "point_in_time_benchmark_universe_and_rights_required",
+        "accessibility_manual_review_environment_required",
+        "paper_position_lab_design_approval_required",
+    )
+    for classification in classifications:
+        assert prompt.count(classification) == 1
+
+    assert "Subagent review is engineering review only; no GitHub human reviews exist." in prompt
+    assert "10-20 independent task-based reviewers" in prompt
+    assert "one bounded reviewed peer relationship" in prompt
+    assert "at least 100 leakage-safe out-of-sample events" in prompt
+    assert "a named owner and directly rehearsed incident and rollback capacity" in prompt
+
+
+def test_approved_next_stage_program_is_ordered_non_blocking_and_evidence_bound():
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    ordered_priorities = (
+        "Priority 1 — Legacy portfolio, ranking, and action-language quarantine",
+        "Priority 2 — Stage B field-proof audit and operator hardening",
+        "Priority 3 — In-app research-record authoring",
+        "Priority 4 — Point-in-time benchmark and universe foundation",
+        "Priority 5 — One permitted consensus source and one reviewed peer relationship",
+        "Priority 6 — Controlled hosted operating boundary",
+        "Priority 7 — Accessibility evidence beyond screenshots",
+        "Priority 8 — Independent workflow validation",
+        "Priority 9 — Out-of-sample calibration cohort",
+        "Priority 10 — Separately approved hypothetical paper-position laboratory",
+    )
+
+    for text in (roadmap, prompt):
+        assert "Approved Next-Stage Maturity Program" in text
+        positions = [text.index(priority) for priority in ordered_priorities]
+        assert positions == sorted(positions)
+        assert all(text.count(priority) == 1 for priority in ordered_priorities)
+        assert "A blocked priority does not become complete" in text
+        assert "move to the next safe executable priority" in text
+        assert "at least 100 valid leakage-safe out-of-sample events" in text
+        assert "Live brokerage remains out of scope" in text
+        assert "earnings-consensus-collection-record" in text
+        assert "append-only evidence record" in text
+        assert "does not activate readiness or numerical probability" in text
+
+    assert "automated generation cannot become reviewer-authored evidence" in roadmap
+    assert "corporate actions, delistings, survivorship, and leakage" in roadmap
+    assert "10-20 independent workflow sessions" in roadmap
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in roadmap
+    assert "governed by the Approved Next-Stage Maturity Program" in roadmap
+    assert "after the single reviewed relationship in Priority 5" in roadmap
+    assert "provider-neutral control contracts" in prompt
+    assert "provider-specific implementation" in prompt.lower()
+    assert "separate approved design" in prompt
+
+
+def test_external_dependency_entries_own_distinct_conditions_and_last_observed_evidence():
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    labels = (
+        "Point-in-time consensus and rights",
+        "Hosted account and controls",
+        "Independent reviewers",
+        "Trusted peer/source review",
+        "Calibration cohort",
+        "Operated owner/incident/rollback capacity",
+        "Point-in-time benchmark/universe data and rights",
+        "Accessibility manual-review environment",
+        "Paper-position laboratory design approval",
+    )
+    bullets = {
+        label: next(
+            line for line in prompt.splitlines() if line.startswith(f"- {label}:")
+        )
+        for label in labels
+    }
+    for bullet in bullets.values():
+        assert "Last observed:" in bullet
+        assert "Exact unblock condition:" in bullet
+        observed = bullet.split("Last observed:", 1)[1].split(
+            "Exact unblock condition:", 1
+        )[0]
+        assert not re.search(r"\d", observed)
+
+    hosted = bullets["Hosted account and controls"].lower()
+    for required in ("host account", "verified url", "access controls", "isolation"):
+        assert required in hosted
+    for operated_only in (
+        "health",
+        "incident",
+        "rollback",
+        "audit",
+        "retention",
+        "entitlements",
+        "monitoring",
+    ):
+        assert operated_only not in hosted
+
+    operated = bullets["Operated owner/incident/rollback capacity"].lower()
+    for required in (
+        "named owner",
+        "rehearsed incident",
+        "rollback",
+        "audit",
+        "retention",
+        "entitlements",
+        "monitoring",
+        "health-check",
+    ):
+        assert required in operated
+    for hosted_only in ("host account", "verified url", "access controls", "isolation"):
+        assert hosted_only not in operated
+
+    reviewers = bullets["Independent reviewers"]
+    assert "independent human GitHub review of PR #113" in reviewers
+    assert "when a human submits review evidence" not in reviewers
+    assert "generic human review evidence" not in reviewers.lower()
+
+
+def test_research_decision_lab_release_docs_bind_local_completion_to_current_evidence():
+    methodology = _read("docs/METHODOLOGY.md")
+    provenance = _read("docs/PROVENANCE_CONTRACT.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    roadmap = _read("ROADMAP.md")
+    decision_prompt = _read("docs/internal/RESEARCH_DECISION_LAB_CONTINUATION_GOAL_PROMPT.md")
+    commercial_prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    design = _read("docs/superpowers/specs/2026-07-22-research-decision-lab-design.md")
+    browser_contract = _read("src/browser_qa_evidence.py")
+    readme = _read("README.md")
+
+    assert "Research plan -> evidence -> invalidation -> scenario -> review trigger -> learning" in methodology
+    for lane in ("Plan", "Evidence", "Invalidation", "Scenario", "Review trigger", "Learning"):
+        assert f"`{lane}`" in methodology
+    assert "Decision Lab lanes remain independent" in methodology
+
+    assert "Research Decision Lab Contract" in provenance
+    assert "writes no journal, outcome, source, readiness, proof, report, screenshot, or timing artifact" in provenance
+    assert "A valid lane cannot promote, repair, or clear another lane" in provenance
+
+    assert "What Changed -> Research Decision Lab -> Business Trend" in personal
+    assert "one **Follow-up Queue**" in personal
+    assert "does not prove that no external event, risk, or research need exists" in personal
+
+    assert "Implemented locally — Research Decision Lab" in roadmap
+    assert "Stage 4 — Documentation and release evidence: completed locally" in roadmap
+    assert "Local Decision Lab implementation is complete" in decision_prompt
+    assert "Local Decision Lab implementation is complete" in commercial_prompt
+    assert "Status:** Implemented locally; external maturity gates remain separate" in design
+
+    assert "Research Decision Lab" in browser_contract
+    assert "Open evidence and analysis modules" in browser_contract
+    assert '"Follow-up Queue"' in browser_contract
+    assert "Research Decision Lab" in readme
+    assert "Follow-up Queue" in readme
+
+    external_boundary = (
+        "does not prove source coverage, predictive accuracy, investment performance, independent adoption, "
+        "hosted reliability, commercial demand, competitive superiority, or product-market fit"
+    )
+    for text in (roadmap, decision_prompt, commercial_prompt):
+        assert external_boundary in text
+
+
+def test_legacy_research_utility_quarantine_is_consistent_across_product_docs():
+    readme = _read("README.md")
+    product_spec = _read("PRODUCT_SPEC.md")
+    readiness = _read("READINESS_MODEL.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    design = _read("docs/superpowers/specs/2026-07-22-legacy-research-utility-quarantine-design.md")
+
+    boundary = "Legacy research utility — not part of Personal Research Mode"
+    for text in (readme, product_spec, readiness, roadmap, prompt, design):
+        assert boundary in text
+
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in readme
+    assert "Operator-only legacy compatibility utilities" in product_spec
+    assert "compatibility-only readiness rows" in readiness
+    assert "Priority 1 — completed locally" in roadmap
+    assert "Priority 2 — Stage B field-proof audit and operator hardening" in roadmap
+    assert "Priority 1 is complete locally" in prompt
+    assert "Priority 2 is complete locally" in prompt
+
+    for text in (readme, product_spec, readiness):
+        lowered = text.lower()
+        assert "cannot feed research decision lab" in lowered
+        assert "cannot change readiness" in lowered
+        assert "cannot produce recommendations, sizing, or transaction behavior" in lowered
+
+
+def test_stage_b_field_proof_audit_is_documented_as_read_only_and_no_mapping():
+    readme = _read("README.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    design = _read("docs/superpowers/specs/2026-07-22-field-proof-stage-b-audit-design.md")
+
+    for text in (readme, operator, roadmap, prompt, design):
+        assert "make prospective-field-proof-audit" in text
+        assert "preview_receipt_persisted=false" in text
+        assert "receipt_revalidation_required=true" in text
+
+    assert "Stage B — completed locally" in roadmap
+    assert "Priority 3 — In-app research-record authoring" in roadmap
+    assert "Priority 2 is complete locally" in prompt
+    assert "Priority 3 — completed locally after direct desktop/phone runtime review" in prompt
+
+    for text in (operator, roadmap, prompt):
+        lowered = text.lower()
+        assert "does not activate readiness" in lowered
+        assert "does not update canonical data" in lowered
+        assert "does not activate company workbench" in lowered
+
+
+def test_priority_three_authoring_release_docs_require_current_runtime_evidence_before_local_completion():
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    design = _read("docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md")
+    plan = _read("docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md")
+    readme = _read("README.md")
+    product_spec = _read("PRODUCT_SPEC.md")
+
+    assert "# In-App Research-Record Authoring Implementation Plan" in plan
+    assert "REQUIRED SUB-SKILL" in plan
+    assert "Validate -> Preview -> Confirm and save" in plan
+
+    release_contract = (
+        "Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer.",
+        "A valid record requires an exact preview and explicit confirmation before save.",
+        "Drafts are untrusted and preview receipts are session-only.",
+        "Production tests never append repository ledgers; persistence tests use temporary ledgers.",
+        "A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger.",
+    )
+    historical_priority_contract = (
+        "Priority 3 is complete locally only after all automated acceptance tests and direct desktop/phone review pass; Priority 4 is next and incomplete.",
+        "Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.",
+    )
+
+    for text in (readme, product_spec, roadmap, prompt, design):
+        for statement in release_contract:
+            assert statement in text
+
+    for statement in historical_priority_contract:
+        assert statement in design
+
+    current_priority_contract = (
+        "Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.",
+        "Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.",
+    )
+    for text in (readme, product_spec, roadmap, prompt):
+        for statement in current_priority_contract:
+            assert statement in text
+        assert historical_priority_contract[0] not in text
+
+    assert "selected `profile_key` and normalized ticker" in design
+    assert "current ledger fingerprint" in plan.lower()
+
+
+def test_active_product_docs_use_evidence_first_positioning_and_current_stage_truth():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    assert "Evidence-First Research Workbench" in readme
+    assert "serious individual equity researchers and small research teams" in readme
+
+    for text in (readme, roadmap, methodology, prompt):
+        assert "Priority 4 is next and incomplete" not in text
+        assert "next executable local methodology lane is the\nprovider-neutral hosted-control contract in Priority 6" not in text
+
+
+def test_current_roadmap_consensus_commands_match_makefile_required_inputs():
+    roadmap = _read("ROADMAP.md")
+    makefile = _read("Makefile")
+    priority_five = roadmap.split(
+        "### Priority 5 — One permitted consensus source and one reviewed peer relationship",
+        maxsplit=1,
+    )[1].split("### Priority 6", maxsplit=1)[0]
+    source_target = makefile.split(
+        "earnings-consensus-source-review:",
+        maxsplit=1,
+    )[1].split("earnings-consensus-collection-plan:", maxsplit=1)[0]
+    record_target = makefile.split(
+        "earnings-consensus-collection-record:",
+        maxsplit=1,
+    )[1].split("prospective-field-proof-status:", maxsplit=1)[0]
+
+    assert '$(INPUT)' in source_target
+    assert '$(PROVIDER)' in source_target
+    assert '$(AS_OF)' in source_target
+    assert (
+        "make earnings-consensus-source-review "
+        "INPUT=$SOURCE_INPUT PROVIDER=<source_id> AS_OF=<timestamp>"
+        in priority_five
+    )
+    assert '$(INPUT)' in record_target
+    assert (
+        "make earnings-consensus-collection-record "
+        "INPUT=$COLLECTION_INPUT AS_OF=<same-timestamp>"
+        in priority_five
+    )
+
+
+def test_completed_priorities_are_not_reissued_as_implementation_work():
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    completed_section = prompt.split(
+        "Priority 1 — Legacy portfolio, ranking, and action-language quarantine",
+        maxsplit=1,
+    )[1].split("Priority 4 — Point-in-time benchmark", maxsplit=1)[0]
+
+    for stale_instruction in (
+        "Inventory every Personal Research",
+        "Remove those concepts from supported primary flows",
+        "Complete the approved read-only audit",
+        "Design and implement simple validate -> preview -> confirm authoring",
+        "begin with Priority 1, then Priority 2",
+    ):
+        assert stale_instruction not in completed_section
+        assert stale_instruction not in prompt
+
+    assert (
+        "Do not re-run Priorities 1-3 unless a current regression is directly reproduced."
+        in prompt
+    )
+
+
+def test_current_handoff_routes_to_local_reliability_work_not_exhausted_price_queues():
+    roadmap = _read("ROADMAP.md")
+    next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, prompt):
+        assert "Documentation and routing now name Personal Research as the root default, Public and Operator as explicit modes, and legacy utilities as Operator-only compatibility surfaces." in text
+        assert "observation-recency UX repair" in text
+        assert "framework reliability" in text
+
+    assert "Documentation and routing reconciliation is historical/completed context" in next_stage
+    assert "Prior accessibility and Discover work is historical/completed context" in next_stage
+
+    assert "Finish this documentation/routing reconciliation once" not in prompt
+    assert "Complete the documentation/routing reconciliation once" not in next_stage
+    assert "make price-history-proof-queue" not in next_stage
+    assert "make price-history-batch-closeout" not in next_stage
+    assert (
+        "Broad-review repairs must be evaluated only through direct current-head local "
+        "and exact-head CI evidence; their presence alone establishes neither gate."
+        in roadmap
+    )
+    assert (
+        "provider-neutral retention/deletion or audit-event work is not the active next lane"
+        in prompt
+    )
+
+
+def test_completed_index_labels_local_prerequisites_without_claiming_external_exit():
+    roadmap = _read("ROADMAP.md")
+
+    assert "### P1 local prerequisite: Hosted operating contracts" in roadmap
+    assert "### P1 local prerequisite: Independent beta protocol" in roadmap
+    assert "### P1: Controlled Hosted Preview Verification" not in roadmap
+    assert "### P1: Controlled Pilot Review" not in roadmap
+
+
+def test_capability_audit_records_recency_as_implemented_and_keeps_quant_gate_open():
+    audit = _read("docs/analysis_capability_audit.md")
+
+    assert "observation-recency separation is implemented" in audit
+    assert "shared provenance and recency eligibility" in audit
+    assert "separate calculation readiness from observation recency" not in audit
+    assert "The next local quality work is semantic-main bridge framework reliability" not in audit
+    assert (
+        "Remaining accessibility maturity requires direct human and assistive-technology evidence"
+        in audit
+    )
+
+
+def test_completed_observation_recency_repair_routes_to_shared_quant_eligibility():
+    roadmap = _read("ROADMAP.md")
+    next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    audit = _read("docs/analysis_capability_audit.md")
+
+    for text in (roadmap, next_stage, prompt, audit):
+        assert "observation-recency UX repair is complete locally" in text
+        assert "responsive Advanced" in text
+
+    assert "1. Complete the observation-recency UX repair." not in prompt
+    assert "1. Implement the observation-recency UX repair" not in next_stage
+    assert (
+        "1. Add shared quant provenance/recency eligibility without coupling readiness."
+        in prompt
+    )
+    assert (
+        "1. Add shared provenance and recency eligibility to valuation, indicator, "
+        "and review-metric interpretation"
+        in roadmap
+    )
+
+
+def test_accessibility_evidence_records_same_page_skip_fix_without_overclaim():
+    roadmap = _read("ROADMAP.md")
+    evidence = _read("docs/ACCESSIBILITY_EVIDENCE.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    for text in (roadmap, evidence, prompt):
+        assert 'target="_blank"' in text
+        assert 'target="_self"' in text
+        assert "#public-page-answer" in text
+        assert "blocked_environment" in text
+
+    assert "K01 and K02 therefore remain `blocked_environment`" in evidence
+    assert "no complete keyboard-only traversal is claimed" in evidence
+    assert "framework-control target-size audit" in evidence
+    assert "exactly `24x24`" in evidence
+    assert "enlarged the tooltip wrapper, not its nested" in evidence
+    assert "`Open Data Health` at `102x24`" in evidence
+    assert "does not prove pointer-spacing exceptions" in evidence
+    assert "Priority 7 remains incomplete" in evidence
+    for text in (roadmap, evidence, prompt):
+        assert "pointer activation remains unproved" in text.lower()
+    assert (
+        "met the measured size and non-overlap portions of the local target contract"
+        in prompt
+    )
+    assert "pointer activation remains unproved" in prompt.lower()
+    assert "met the existing local target contract" not in prompt
+
+
+def test_priority_three_release_docs_record_controller_runtime_evidence_without_claiming_production_persistence():
+    readme = _read("README.md")
+    product_spec = _read("PRODUCT_SPEC.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+    design = _read("docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md")
+
+    completion = "Priority 3 — completed locally after direct desktop/phone runtime review and the required automated acceptance matrix."
+    assert completion in roadmap
+    assert completion in prompt
+    assert completion in design
+
+    assert "Desktop `1280x720`: `clientWidth=scrollWidth=1280`." in design
+    assert "Phone `390x844`: `clientWidth=scrollWidth=390`." in design
+    assert "No successful production save was attempted; persistence evidence remains temporary-ledger AppTest and direct persistence tests only." in design
+    assert "`6b7cdbd3b`, `996d86610`, `10c2c155c`, and `e67b16d04`" in design
+    assert "Commit identifier will be added only after the corresponding commit exists." not in design
+
+    hardening = (
+        "Hardening commit `07758114c` closes the confirmation race: all three append engines "
+        "share one resolved-ledger cooperative lock, receipts bind resolved ledger identity, "
+        "every new preview resets confirmation, and uncertain post-append teardown requires "
+        "one-shot read-side reload before success."
+    )
+    for text in (roadmap, prompt, design):
+        assert hardening in text
+
+    integrity = (
+        "Final integrity commit `e3a090dba` ensures confirmation appends only the "
+        "receipt-matched recomputed record and enforces one readable active thesis lineage: "
+        "revisions must supersede the exact active entry and preserve its thesis ID. The Company "
+        "Workbench locks and explains that relationship, with temporary-ledger create -> revise "
+        "-> reload coverage."
+    )
+    for text in (readme, product_spec, roadmap, prompt, design):
+        assert integrity in text
+
+    confirmation_integrity = (
+        "Confirmation-integrity commit `5a6c55921` binds every displayed preview field, "
+        "preview time, and destination label to the exact receipt. If an append raises after "
+        "it may have written, confirmation returns one-shot `save_pending_reload` with the exact "
+        "record ID unless the locked ledger is provably unchanged; it never invites a blind "
+        "duplicate retry."
+    )
+    for text in (readme, product_spec, roadmap, prompt, design):
+        assert confirmation_integrity in text
+
+
+def test_accessibility_task_protocol_is_reproducible_and_cannot_claim_conformance_from_incomplete_runs():
+    protocol = _read("docs/ACCESSIBILITY_TASK_PROTOCOL.md")
+    roadmap = _read("ROADMAP.md")
+    prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
+
+    required_protocol = (
+        "commit SHA",
+        "Research Desk -> Discover -> Company Workbench -> Monitor",
+        "keyboard_only",
+        "zoom_200",
+        "zoom_400",
+        "forced_colors",
+        "reduced_motion",
+        "screen_reader",
+        "passed_direct",
+        "blocked_environment",
+        "No result may be inferred from a screenshot",
+        "Do not save a research record",
+        "No WCAG conformance claim",
+    )
+    for phrase in required_protocol:
+        assert phrase in protocol
+
+    for text in (roadmap, prompt):
+        assert "docs/ACCESSIBILITY_TASK_PROTOCOL.md" in text
+        assert "the protocol is not completion evidence" in text
+
+
+def test_priority_four_approved_design_preserves_point_in_time_and_no_write_boundaries():
+    design_path = (
+        "docs/superpowers/specs/"
+        "2026-07-23-point-in-time-universe-foundation-design.md"
+    )
+    design = _read(design_path)
+    roadmap = _read("ROADMAP.md")
+    prompt = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    normalized_design = " ".join(design.split())
+
+    required_design = (
+        "Stable security identifier; never derived from ticker",
+        "`complete_snapshot` or `event_history`",
+        "`raw`, `normalized`, `excluded`, and `analysis_eligible`",
+        "`source_rights_eligibility`",
+        "`reproduction_ready`",
+        "`leakage_safe`",
+        "membership_count_and_sha256_at_cutoff_v1",
+        "create no directory or artifact",
+        "Synthetic fixtures prove software behavior only",
+        "does not satisfy that exit gate by itself",
+    )
+    for phrase in required_design:
+        assert phrase in normalized_design
+
+    for text in (roadmap, prompt):
+        assert design_path in text
+        assert "current ticker-centric universe" in text
+        assert "Synthetic fixtures remain test-only" in text
+
+
+def test_priority_four_local_validator_is_documented_without_claiming_real_data_completion():
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    prompt = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    implementation = (
+        "Implemented locally: read-only immutable-package status/preview with ten "
+        "independent states: manifest, technical, temporal, identity, membership, "
+        "corporate action, delisting, source rights, reproduction, and leakage."
+    )
+    synthetic_boundary = (
+        "Synthetic fixtures remain test-only and local software evidence cannot "
+        "complete Priority 4."
+    )
+    real_data_exit = (
+        "Priority 4 remains open until one bounded permitted real dataset is "
+        "independently reviewed, reproduces the expected membership count and digest, "
+        "and passes rights, identity, corporate-action, delisting, survivorship, "
+        "cutoff, partition, reproduction, and leakage gates."
+    )
+    independent_readiness = (
+        "This local evidence does not change independent readiness for actuals, "
+        "consensus, Revenue, EPS, valuation, catalysts, outcomes, backtesting, or "
+        "calibration."
+    )
+    research_boundaries = (
+        "It does not provide investment advice; numerical probability remains "
+        "unavailable without calibration; Q4 evidence and EPS split-basis "
+        "compatibility remain explicit; synthetic evidence stays test-only; candidate "
+        "peer evidence remains candidate-context-only."
+    )
+    commands = {
+        "make point-in-time-universe-status MANIFEST=<path>",
+        "make point-in-time-universe-preview MANIFEST=<path> TOP_N=20",
+    }
+
+    for text in (roadmap, methodology, prompt):
+        assert implementation in text
+        assert "membership_count_and_sha256_at_cutoff_v1" in text
+        assert synthetic_boundary in text
+        assert text.count(real_data_exit) == 1
+        assert independent_readiness in text
+        assert research_boundaries in text
+        assert set(
+            re.findall(r"`(make point-in-time-universe-[^`]+)`", text)
+        ) == commands
+
+    assert "Priority 4 is complete" not in roadmap
+    assert "Priority 4 is complete" not in methodology
+    assert "Priority 4 is complete" not in prompt
+    assert "Priority 4 — completed" not in roadmap
+    assert "Priority 4 — completed" not in prompt
+
+    assert "Start from current repository truth, not chat memory." in prompt
+    assert (
+        "Verify authoritative remote commit "
+        "`b69badfc80424d3a97fae5f77706aa6ed1533167` or a later descendant "
+        "before relying on this implementation evidence."
+    ) in prompt
+    assert "exact-head GitHub Actions run `30185232040` passed" in prompt
+    assert (
+        "At that exact head the branch and draft PR were synchronized and GitHub "
+        "Actions run `30726301045` passed"
+    ) in prompt
+    assert (
+        "Point-in-time universe production-validator lineage anchor: commit "
+        "`1361472bce6d23cc537ef222c3735bb640c9838a`"
+    ) in prompt
+    assert (
+        "When external evidence is unavailable, record its exact unblock condition "
+        "once and continue to the next safe executable lane."
+    ) in prompt
+    assert (
+        "Never claim overall completion without direct current evidence for every "
+        "applicable exit gate."
+    ) in prompt
+    assert (
+        "Do not run readiness rebuilds or generated-artifact commands without "
+        "explicit approval."
+    ) in prompt
+
+
+def test_priority_four_resource_budgets_and_review_state_are_documented_truthfully():
+    roadmap = _read("ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    prompt = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    history = _read("docs/internal/POINT_IN_TIME_UNIVERSE_REVIEW_HISTORY.md")
+    prior_review_closures = (
+        "The second through fourth fresh whole-branch reviews drove the raw-row "
+        "rights, cutoff-relative history, publication chronology, immutable "
+        "bounded-read, aggregate-budget, and structured-input parser closures."
+    )
+    budgets = (
+        "Local resource budgets for one supplied package: preview sample 100 rows; "
+        "manifest 1 MiB; each contract CSV 32 MiB; four contract snapshots combined "
+        "64 MiB; source-rights registry 4 MiB; declared rows 250,000 per contract; "
+        "package traversal 32 entries."
+    )
+    scope_boundary = (
+        "These local bounds do not prove scale, hosted reliability, or market "
+        "readiness."
+    )
+    external_gate = (
+        "No permitted independently reviewed real dataset, accepted expected "
+        "count/digest, or source-rights proof is on record."
+    )
+    v5_findings = (
+        "The fifth fresh whole-branch review confirmed those closures and found "
+        "three Important trust-boundary defects: C0/C1 characters in structural "
+        "identifiers could render the newline-delimited membership digest ambiguous "
+        "and forge public status lines, while manifest creation could predate its "
+        "cutoff or bound evidence."
+    )
+    v5_remediation = (
+        "Commits `b2bbd9961` and `c643d066b` remediate those V5 findings locally "
+        "with one shared C0/C1 plus Unicode line/paragraph-separator boundary, "
+        "safe structural-token rendering, an explicit "
+        "creation-at-or-after-cutoff manifest gate, and exact-row chronology "
+        "against every contract timestamp."
+    )
+    first_review_follow_up = (
+        "The first independent R7 review found the Unicode separator and "
+        "`listing_state_after` bypass gaps; `c643d066b` closes them locally."
+    )
+    v6_finding = (
+        "The sixth fresh whole-branch review confirmed those closures and found "
+        "one remaining Important non-scalar input defect: lone Unicode surrogate "
+        "code points could reach public output."
+    )
+    v6_remediation = (
+        "Commit `f143d48ed` rejects Unicode category `Cs` through the shared "
+        "boundary and defensively ASCII-escapes it while valid "
+        "supplementary-plane scalars remain deterministic."
+    )
+    v7_findings = (
+        "The seventh fresh whole-branch review confirmed the V6 correction and "
+        "found four further trust-boundary defects (two Critical, one Important, "
+        "and one Minor): duplicate JSON/YAML mapping keys could silently change "
+        "manifest and rights meaning; invalid or unresolved successor and "
+        "listing-state evidence could authorize stale original-member digests; "
+        "malformed CSV headers could discard contract bodies and continue; and "
+        "non-RFC3339 manifest or policy timestamps were accepted."
+    )
+    v7_remediation = (
+        "The local seventh-review remediation rejects duplicate keys at every "
+        "mapping depth, requires strict RFC3339 UTC manifest and policy "
+        "timestamps with at most six fractional-second digits, stops malformed "
+        "headers as package-level input-identity failures, and enforces explicit "
+        "policy/event/listing-state, successor-identity, and "
+        "membership-consistency gates without inferring or repairing a successor "
+        "or membership."
+    )
+    scoped_review_state = (
+        "An independent scoped re-review then confirmed the four original findings "
+        "and the two compatibility regressions were addressed."
+    )
+    eighth_review_state = (
+        "The eighth fresh whole-branch review then found three Critical, nine "
+        "Important, and two Minor defects across sub-microsecond ordering, event-time "
+        "identity, listing chronology and rights, walk-forward bootstrap aggregation, "
+        "identity/action reconciliation, eligible provenance, package-contained "
+        "bounded reads, manifest type handling, standalone rights loading, and "
+        "literal-safe Make arguments."
+    )
+    eighth_remediation_state = (
+        "Remediation 9A through 9G closed every finding test-first. Independent scoped "
+        "re-reviews confirmed no remaining Critical or Important finding in each "
+        "corrected scope; the two Minor contracts now reject identical issuer/security "
+        "IDs and recursively freeze manifest semantics."
+    )
+    freeze_reconciliation = (
+        "Freeze reconciliation consolidated 21 overlapping remediation test files "
+        "into six domain suites and one shared fixture module, removed one exact "
+        "duplicate plus cross-remediation private imports, and closed five additional "
+        "local correctness gaps: ambiguous parents cannot authorize forks; pre-action "
+        "cutoffs do not poison later required coverage; decision-consumed "
+        "listing-state evidence is retained in eligible provenance; manifest nesting "
+        "is explicitly bounded; and structural source IDs cannot forge status output."
+    )
+    local_verification = (
+        "Full branch verification at freeze reconciliation is 4,084 passing tests, "
+        "one environment-limited socket test skipped, and one existing dependency "
+        "deprecation warning."
+    )
+    remaining_boundary = (
+        "The final fresh whole-slice review found one Important cutoff-relative "
+        "event regression; it was reproduced, fixed, and confirmed closed with no "
+        "remaining Critical or Important issue. The consolidated package was "
+        "synchronized at `69c49968e77bfd55fa259695089e1f34ac2fddfb`, and exact-head "
+        "GitHub Actions run `30185232040` passed"
+    )
+    remaining_external_boundary = (
+        "Real-data evidence remains pending; Priority 4 remains externally incomplete."
+    )
+    controlled_failures = (
+        "Duplicate JSON/YAML mapping keys and malformed contract headers also "
+        "fail nonzero, traceback-free, and write-free through the direct "
+        "validator and CLI/Make boundaries."
+    )
+
+    normalized_history = " ".join(history.split())
+    for statement in (
+        prior_review_closures,
+        v5_findings,
+        v5_remediation,
+        first_review_follow_up,
+        v6_finding,
+        v6_remediation,
+        v7_findings,
+        v7_remediation,
+        scoped_review_state,
+        eighth_review_state,
+        eighth_remediation_state,
+        freeze_reconciliation,
+        local_verification,
+        remaining_boundary,
+        remaining_external_boundary,
+        controlled_failures,
+        budgets,
+        scope_boundary,
+        external_gate,
+    ):
+        assert statement in normalized_history
+
+    history_link = "docs/internal/POINT_IN_TIME_UNIVERSE_REVIEW_HISTORY.md"
+    for text in (roadmap, methodology, prompt):
+        normalized = " ".join(text.split())
+        assert history_link in text
+        assert "Priority 4 remains externally incomplete" in normalized
+        assert budgets in normalized
+        assert scope_boundary in normalized
+        assert external_gate in normalized
+        assert prior_review_closures not in normalized
+        assert v5_findings not in normalized
+        assert eighth_review_state not in normalized
+        assert freeze_reconciliation not in normalized
+
+    assert prior_review_closures in normalized_history
+    assert v5_findings in normalized_history
+    assert v5_remediation in normalized_history
+    assert first_review_follow_up in normalized_history
+    assert v6_finding in normalized_history
+    assert v6_remediation in normalized_history
+    assert v7_findings in normalized_history
+    assert v7_remediation in normalized_history
+    assert scoped_review_state in normalized_history
+    assert eighth_review_state in normalized_history
+    assert eighth_remediation_state in normalized_history
+    assert freeze_reconciliation in normalized_history
+    assert local_verification in normalized_history
+    assert remaining_boundary in normalized_history
+    assert remaining_external_boundary in normalized_history
+    assert controlled_failures in normalized_history
+    assert budgets in normalized_history
+    assert scope_boundary in normalized_history
+    assert external_gate in normalized_history
+
+
+def test_html_research_brief_public_and_methodology_docs_keep_the_verified_boundary():
+    readme = _markdown_section(
+        _read("README.md"), "### Download HTML Research Brief"
+    )
+    methodology = _markdown_section(
+        _read("docs/METHODOLOGY.md"),
+        "## Company Workbench HTML Research Brief Method",
+    )
+
+    assert "Download HTML Research Brief" in readme
+    assert "existing saved evidence and Python scenario math" in readme
+    assert "does not refresh data or acquire a new source" in readme
+    assert "No repository HTML or PDF artifact is written" in readme
+    assert "research-only" in readme.lower()
+    assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in " ".join(readme.split())
+    _assert_html_brief_section_has_no_affirmative_overclaim(readme)
+
+    normalized = " ".join(methodology.split())
+    for phrase in (
+        "immutable prepared snapshot",
+        "authoritative discounted explicit-cash-flow subtotal",
+        "discounted_explicit_total",
+        "independent field gates",
+        "Shares outstanding used by existing model",
+        "split basis remains unverified",
+        "safe text/reference policy",
+        "offline Content Security Policy",
+        "no JavaScript, image, font, form, or network access",
+        "zero-write",
+    ):
+        assert phrase in normalized
+    assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in normalized
+    _assert_html_brief_section_has_no_affirmative_overclaim(methodology)
+
+
+def test_portable_html_action_repair_docs_preserve_history_and_name_current_release():
+    methodology = _read("docs/METHODOLOGY.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    roadmap_section = _markdown_section(
+        _read("ROADMAP.md"), "### Company Workbench HTML Research Brief"
+    )
+    roadmap = " ".join(roadmap_section.split())
+
+    for document in (roadmap, methodology, continuation):
+        assert "Historical pre-fix evidence: Task 4 local matrix completed at `c8c313b9c`." in document
+        assert (
+            "Broad-review repairs must be evaluated only through direct current-head "
+            "local and exact-head CI evidence; their presence alone establishes neither gate."
+            in document
+        )
+
+    assert "This historical pre-fix matrix was recorded on 2026-08-01" in dashboard_qa
+    assert "It is not current-head evidence" in dashboard_qa
+    assert "On 2026-08-01 the historical pre-fix local matrix for this anchor passed" in continuation
+    assert "On 2026-08-01 the current local matrix passed" not in continuation
+
+    current_release_evidence = (
+        "Exact-head repair evidence: commit "
+        "`b69badfc80424d3a97fae5f77706aa6ed1533167` passed the 5,828-test "
+        "full suite, the required dashboard, render, HTML, accessibility, public, "
+        "and hygiene gates, branch/PR synchronization, and exact-head GitHub "
+        "Actions run `30726301045`."
+    )
+    for document in (roadmap, dashboard_qa, continuation):
+        assert current_release_evidence in " ".join(document.split())
+
+    for stale_release_route in (
+        "The current branch requires a fresh exact-head local matrix, branch/PR "
+        "synchronization, and exact-head CI before review-safety claims.",
+        "exact-head CI still requires the intentional push",
+        "push and exact-head CI remain open",
+    ):
+        assert stale_release_route not in roadmap
+
+    assert "Pilot packaging remains blocked on readiness freshness and source proof." in roadmap
+
+    assert "Company Workbench HTML Research Brief" in roadmap
+    assert (
+        "Source rights, current data, hosted operation, human and screen-reader "
+        "accessibility, independent workflow sessions, screening validation, and "
+        "probability calibration remain open gates."
+    ) in roadmap
+    assert "does not activate readiness" in roadmap
+    assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in roadmap
+    _assert_html_brief_section_has_no_affirmative_overclaim(roadmap_section)
+
+
+def test_broad_review_docs_use_durable_release_routing_and_fail_closed_boundaries():
+    readme = _read("README.md")
+    product_spec = _read("PRODUCT_SPEC.md")
+    roadmap = _read("ROADMAP.md")
+    next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
+    methodology = _read("docs/METHODOLOGY.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+
+    durable_routing = (
+        "If the current branch head lacks direct local matrix, branch synchronization, "
+        "draft-PR update, or exact-head CI evidence, complete those release steps first; "
+        "otherwise select the first incomplete safe roadmap priority."
+    )
+    for document in (product_spec, next_stage):
+        assert durable_routing in document
+    for document in (readme, roadmap, continuation):
+        assert durable_routing not in document
+    for document in (readme, roadmap):
+        assert "Complete the direct local matrix and current-head local evidence first" in document
+        assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in document
+    assert "The Calm Institutional Workspace local engineering closure is complete" in continuation
+    assert "49123a989dae263e8c125ad3032bf96d0107853d" in continuation
+    assert "awaiting local quality closure" not in continuation
+    assert "A push, draft-PR update, merge, deploy, remote synchronization, or exact-head CI run requires separate owner authorization" in continuation
+    broad_review_boundary = (
+        "Broad-review repairs must be evaluated only through direct current-head local "
+        "and exact-head CI evidence; their presence alone establishes neither gate."
+    )
+    for document in (readme, product_spec, roadmap, next_stage, methodology, continuation):
+        assert broad_review_boundary in document
+
+    fail_closed_boundaries = (
+        "Modal modifiers and active exposure fail closed.",
+        "A raw calibration count cannot establish calibrated probability.",
+        "`calibrated` requires paired verified calibration status and a leakage-safe "
+        "benchmark-passing `BacktestReport`.",
+        "Evidence publication, snapshot, and retrieval timestamps must all be at or "
+        "before the cutoff.",
+    )
+    for document in (roadmap, methodology, continuation):
+        for boundary in fail_closed_boundaries:
+            assert boundary in document
+
+    active_routing = "\n".join((readme, product_spec, roadmap, next_stage, continuation))
+    for stale_route in (
+        "The portable HTML action-policy repair is the first executable local release-safety lane.",
+        "advance the portable HTML action-policy repair",
+        "Task 4 runs the full current-head matrix",
+        "keep the verified portable HTML action-policy repair unchanged",
+    ):
+        assert stale_route not in active_routing
+
+
+def test_active_readiness_guidance_uses_supported_materialization_and_release_review_commands():
+    documents = {
+        "roadmap": _read("ROADMAP.md"),
+        "continuation": _read(
+            "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+        ),
+        "strategy": _read("docs/DATA_STRATEGY.md"),
+        "dashboard_qa": _read("docs/DASHBOARD_QA.md"),
+        "pilot_runbook": _read("docs/PILOT_RUNBOOK.md"),
+        "operator_guide": _read("docs/OPERATOR_GUIDE.md"),
+        "source_activation": _read("docs/SOURCE_ACTIVATION_GUIDE.md"),
+        "release_checklist": _read("docs/PUBLIC_RELEASE_CHECKLIST.md"),
+        "methodology": _read("docs/METHODOLOGY.md"),
+        "provenance": _read("docs/PROVENANCE_CONTRACT.md"),
+    }
+
+    for name in ("roadmap", "continuation", "strategy", "dashboard_qa"):
+        text = documents[name]
+        assert "make readiness-preview TOP_N=20" in text
+        assert "CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=" in text
+        assert "make readiness-release-review TOP_N=20" in text
+        assert "`make readiness` is a separate intentional reviewed write" not in text
+        assert "intentional reviewed `make readiness` run" not in text
+
+    strategy = documents["strategy"]
+    for stale_command in (
+        "Prove the result with `make readiness`,",
+        "and `make readiness`.",
+        "run `make readiness` before relying on final counts",
+        "and `make readiness`. It compares",
+        "the operator sees `make readiness` first",
+    ):
+        assert stale_command not in strategy
+    assert "optional ignored local package" in strategy
+    assert "does not update the tracked 18-file release candidate" in strategy
+    assert "materialize with `CONFIRM_MATERIALIZE=1" not in strategy
+
+    for name, text in documents.items():
+        for line in text.splitlines():
+            stripped = line.strip()
+            assert stripped != "make readiness", name
+            assert not stripped.startswith("make readiness &&"), name
+            assert stripped != "make readiness-snapshot", name
+        assert "separate reviewed `make readiness`" not in text, name
+        assert "reviewed make readiness rebuild" not in text.lower(), name
+
+
+def test_html_research_brief_accessibility_and_dashboard_qa_name_actual_evidence():
+    accessibility_section = _markdown_section(
+        _read("docs/ACCESSIBILITY_EVIDENCE.md"),
+        "## 2026-08-01 Company Workbench HTML Research Brief actual-byte matrix",
+    )
+    dashboard_qa_section = _markdown_section(
+        _read("docs/DASHBOARD_QA.md"),
+        "## 2026-08-01 Company Workbench HTML Research Brief",
+    )
+    accessibility = " ".join(accessibility_section.split())
+    dashboard_qa = " ".join(dashboard_qa_section.split())
+
+    for phrase in (
+        "actual UTF-8 download bytes",
+        "1280x720, 390x844, and 640x900",
+        "browser-automated Tab and Enter input",
+        "print media",
+        "forced-colors emulation",
+        "reduced-motion emulation",
+        "in-memory PDF",
+        "no horizontal overflow",
+        "automated engineering evidence only",
+    ):
+        assert phrase in accessibility
+    assert "physical keyboard Tab and Enter" not in accessibility
+    assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in accessibility
+    _assert_html_brief_section_has_no_affirmative_overclaim(accessibility_section)
+
+    for phrase in (
+        "?mode=research&page=company-workbench&ticker=<ticker>",
+        "Download HTML Research Brief",
+        "complete, partial, and withheld",
+        "make company-workbench-html-browser-check",
+        "No HTML, PDF, screenshot, JSON, timing, readiness, canonical-data, or report artifact is written",
+    ):
+        assert phrase in dashboard_qa
+    assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in dashboard_qa
+    _assert_html_brief_section_has_no_affirmative_overclaim(dashboard_qa_section)
+
+
+def test_workspace_modernization_docs_share_one_default_and_explicit_mode_contract():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    public = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
+    accessibility = _read("docs/ACCESSIBILITY_EVIDENCE.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+
+    assert len(readme.splitlines()) < 180
+    assert len(roadmap.splitlines()) <= 320
+    assert "Personal Research is the default local workspace" in readme
+    assert "http://localhost:8501/?mode=research&page=research-desk" in readme
+    assert "http://localhost:8501/?mode=public" in readme
+    assert "http://localhost:8501/?mode=operator" in operator
+    assert "The dashboard defaults to Public visitor mode" not in public
+    assert "Public is an explicit controlled demonstration mode" in public
+    assert "?mode=public" in public
+    assert "Use `make readiness-ops-center` for current lane truth" in public
+    assert "Use `make status-check TOP_N=5` for current coverage and blocker counts" not in public
+    assert "`make status-check TOP_N=5` remains the source for current local counts" not in public
+    assert "sidebar selects the workspace" not in readme
+    assert "sidebar retains the Personal/Public/Operator workspace selector" not in personal
+    assert "one in-content Personal research workflow navigation" in personal
+    assert "compatibility" in operator.lower()
+    assert "Personal Research" in roadmap
+    assert "90" in dashboard_qa
+    assert "100% and 200% zoom" in dashboard_qa
+    assert "automated engineering evidence only" in accessibility.lower()
+    assert "does not establish WCAG conformance" in accessibility
+    assert "Do not push" in continuation
+    assert "separate owner authorization" in continuation
+    assert "mutable default operator workspace" not in readme
+    assert "make dashboard` starts Personal Research" in readme
+    assert "Public and Operator remain explicit URL modes" in readme
+    release_first_claim = (
+        "If the current branch head lacks direct local matrix, branch synchronization, "
+        "draft-PR update, or exact-head CI evidence, complete those release steps first"
+    )
+    assert release_first_claim not in readme
+    assert release_first_claim not in roadmap
+    for document in (readme, roadmap):
+        assert "Complete the direct local matrix and current-head local evidence first" in document
+        assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in document
+    assert "Sidebar navigation remains the single public route chooser" not in dashboard_qa
+    assert "in-content public workflow navigation is the route chooser" in dashboard_qa
+    for stale_claim in (
+        "sidebar retains workspace selection",
+        "Public/Operator shells, direct links, ticker parameters, and secondary evidence routes remain unchanged",
+        "an intentional push, draft-PR reconciliation, and exact-head CI",
+        "branch synchronization, draft-PR update, or exact-head CI evidence, complete those release steps first",
+        "release and hygiene gates, exact push, and exact-head CI pass",
+    ):
+        assert stale_claim not in continuation
+    assert "one in-content Personal research workflow navigation" in continuation
+    assert "Public and Operator remain explicit modes" in continuation
+    assert "No push, draft-PR update, merge, or deploy is part of this modernization task" in continuation
+    assert "Remote synchronization, a draft-PR update, and exact-head CI remain separate owner-authorized work" in continuation
+    for document in (readme, roadmap, personal, public, dashboard_qa, accessibility, operator, continuation):
+        lowered = document.lower()
+        assert "research-only" in lowered
+        assert "source rights" in lowered or "source-rights" in lowered
+
+
+def test_active_status_check_copy_never_claims_current_lane_truth():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    public = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
+    release_checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    pilot_audit = _read("docs/PILOT_READINESS_AUDIT.md")
+    makefile = _read("Makefile")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    active = "\n".join(
+        (
+            readme,
+            roadmap,
+            public,
+            release_checklist,
+            data_strategy,
+            operator,
+            pilot_audit,
+            makefile,
+            continuation,
+        )
+    )
+
+    for stale_claim in (
+        "Check current counts:    make status-check TOP_N=5",
+        "Optional current-count proof",
+        "Proves: current readiness counts",
+        "Print the current read-only local project status without refreshing artifacts",
+        "terminal proof of current coverage and blockers",
+        "Use `make status-check TOP_N=5` for current coverage and blocker counts",
+        "`make status-check TOP_N=5` remains the source for current local counts",
+        "Optional read-only proof after the app flow is clear starts with `make status-check TOP_N=5`",
+        "Use `make status-check TOP_N=5` for the current local counts before quoting a snapshot",
+        "Run `make status-check TOP_N=5` and `make readiness-ops-center` before quoting current ticker or lane counts",
+        "Confirm blockers with `make status-check TOP_N=10`",
+        "2. Confirm current blockers:",
+    ):
+        assert stale_claim not in active
+
+    assert "make readiness-ops-center" in makefile
+    assert "current selected-profile readiness and lane truth" in makefile
+    assert "saved generated-snapshot" in makefile
+    assert "can be stale" in makefile
+    assert "saved generated snapshot" in readme
+    assert "Optional saved generated-snapshot inspection" in readme
+    assert "run `make readiness-ops-center` for current selected-profile readiness and lane truth" in readme
+    assert "saved generated-snapshot" in roadmap
+    assert "saved generated-snapshot" in public
+    assert "saved generated-snapshot context that can be stale" in release_checklist
+    assert "make readiness-ops-center` for current lane truth" in data_strategy
+    assert "make readiness-ops-center" in operator
+    assert "current selected-profile readiness and lane truth" in operator
+    assert "saved generated snapshot" in operator
+    assert "can be stale" in operator
+    assert "Historical snapshot notice" in pilot_audit
+    assert "superseded for current lane truth" in pilot_audit
+
+
+def test_unattended_status_guidance_uses_current_lane_truth_without_rebuilding():
+    makefile = _read("Makefile")
+    operator = _read("docs/OPERATOR_GUIDE.md")
+    data_strategy = _read("docs/DATA_STRATEGY.md")
+
+    pilot_steps = makefile.split('trusted-data-pilot:\n', 1)[1].split(
+        '\ntrusted-data-pilot-candidates:', 1
+    )[0]
+    current_step = pilot_steps.split('2. Check current selected-profile readiness and lane truth:', 1)[1].split(
+        '3. Check whether price coverage can be improved safely:', 1
+    )[0]
+    assert "make readiness-ops-center" in current_step
+    assert "Saved generated-snapshot context; this can be stale:" in current_step
+    assert "make status-check" in current_step
+    assert "Confirm current blockers" not in current_step
+
+    first_run = operator.split("## First Local Run", 1)[1].split(
+        "## Selected Profile And Change Review", 1
+    )[0]
+    assert first_run.index("make dashboard") < first_run.index("make readiness-ops-center")
+    assert first_run.index("make readiness-ops-center") < first_run.index("make status-check TOP_N=5")
+    assert "current selected-profile readiness and lane truth" in first_run
+    assert "saved generated snapshot" in first_run
+    assert "can be stale" in first_run
+    fast_health = first_run.split("If you only want a fast health check:", 1)[1]
+    assert "make readiness-ops-center" in fast_health
+    assert "make dashboard-smoke" in fast_health
+    assert "make status-check" not in fast_health
+
+    background_map = data_strategy.split("## Background Automation Map", 1)[1].split(
+        "## Freshness Without Daily Manual Work", 1
+    )[0]
+    recurring_routine = data_strategy.split(
+        "A safe recurring routine is read-only by default:", 1
+    )[1].split("## Safe Overnight Automation", 1)[0]
+    for read_only_section in (background_map, recurring_routine):
+        assert "make readiness-ops-center" in read_only_section
+        assert "make readiness-preview TOP_N=20" in read_only_section
+        assert "make readiness`" not in read_only_section
+    assert "current selected-profile readiness and lane truth" in background_map
+    assert "saved generated snapshot" in recurring_routine
+    assert "can be stale" in recurring_routine
+
+
+def test_html_research_brief_continuation_contract_preserves_anchor_and_exclusions():
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+
+    assert "Company Workbench HTML Research Brief implementation anchors:" in continuation
+    assert "`6ad7f34310652f1b172525a0b8f00becf874c44c`" in continuation
+    assert "`8218af401`" in continuation
+    assert "Keep PR #113 open and draft" in continuation
+    assert "The same 18 protected generated paths remain excluded" in continuation
+    for path in (
+        "data/analyst_estimates_readiness.csv",
+        "data/dcf_readiness.csv",
+        "data/earnings_readiness.csv",
+        "data/price_coverage_report.csv",
+        "data/reports/analyst_estimates_readiness_report.csv",
+        "data/reports/data_source_status.csv",
+        "data/reports/dcf_readiness_report.csv",
+        "data/reports/earnings_readiness_report.csv",
+        "data/reports/feature_readiness_summary.csv",
+        "data/reports/fundamentals_coverage_report.csv",
+        "data/reports/peer_readiness_report.csv",
+        "data/reports/peer_unlock_worklist.csv",
+        "data/reports/price_coverage_report.csv",
+        "data/reports/ticker_readiness_report.csv",
+        "data/reports/universe_coverage_report.csv",
+        "data/universe_master.csv",
+        "outputs/feature_readiness_summary.csv",
+        "outputs/peer_unlock_worklist.csv",
+    ):
+        assert f"`{path}`" in continuation
+
+
+def test_release_docs_describe_the_monitor_follow_up_queue_without_market_or_trade_claims():
+    readme = Path("README.md").read_text(encoding="utf-8")
+    roadmap = Path("ROADMAP.md").read_text(encoding="utf-8")
+    personal = Path("docs/PERSONAL_RESEARCH_MODE.md").read_text(encoding="utf-8")
+    qa = Path("docs/DASHBOARD_QA.md").read_text(encoding="utf-8")
+    combined = "\n".join((readme, roadmap, personal, qa)).lower()
+
+    assert "follow-up queue" in readme.lower()
+    assert "since the last review" in personal.lower()
+    assert "needs verification" in personal.lower()
+    assert "waiting on evidence" in personal.lower()
+    assert "scheduled context" in personal.lower()
+    assert "evidence freshness" in personal.lower()
+    assert "monitor-only rows are retained" in personal.lower()
+    assert "follow-up queue" in roadmap.lower()
+    assert "follow-up queue" in qa.lower()
+    assert "confidence percentage" not in combined
+    assert "risk budget" not in combined
+    assert "trade trigger" not in combined
+
+
+def test_active_personal_research_docs_route_saved_items_freshness_and_zero_truthfully():
+    for path in (
+        "README.md",
+        "ROADMAP.md",
+        "docs/PERSONAL_RESEARCH_MODE.md",
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md",
+    ):
+        text = _read(path)
+        assert "Monitor" in text
+        assert "Data Health" in text
+        assert "Discover" in text
+        assert "saved-source freshness condition" in text
+        assert "Monitor-or-Discover" not in text
+        assert "routes once to Monitor or Discover" not in text
+        assert "routes to Monitor only when saved work needs attention" not in text
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    assert "Base workspace product slice completed at `49123a989" in continuation
+    assert "current descendant worktree refines that routing" in continuation
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    assert "no saved research item is due but a saved-source freshness condition" in personal
+    assert "Open Data Health" in personal
+
+
+def test_readiness_release_docs_keep_technical_and_distribution_review_separate():
+    for path in (
+        "ROADMAP.md",
+        "docs/NEXT_STAGE_ROADMAP.md",
+        "docs/DATA_STRATEGY.md",
+        "docs/OPERATOR_GUIDE.md",
+    ):
+        text = _read(path)
+        lowered = text.lower()
+        assert "make readiness-release-review TOP_N=20" in text
+        assert "make readiness-release-record" in text
+        assert "make readiness-release-guard RECORD_ID=<record_id>" in text
+        assert "does not grant source rights" in lowered
+        assert "does not change readiness" in lowered
+        assert "independent review" in lowered
+        assert "external_review_required" in text
+        assert "git add -A" not in text

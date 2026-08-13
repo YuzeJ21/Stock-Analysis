@@ -164,7 +164,17 @@ LOCAL_DATASET_SCHEMAS: dict[str, LocalDatasetSchema] = {
     "peers": LocalDatasetSchema(
         dataset_name="peers",
         required_columns=("ticker", "peer_ticker"),
-        optional_columns=("peer_group", "sector", "industry", "source", "as_of_date"),
+        optional_columns=(
+            "peer_group",
+            "sector",
+            "industry",
+            "peer_role",
+            "relationship_rationale",
+            "comparability_basis",
+            "valuation_anchor_eligible",
+            "source",
+            "as_of_date",
+        ),
         date_columns=("as_of_date",),
         ticker_columns=("ticker", "peer_ticker"),
     ),

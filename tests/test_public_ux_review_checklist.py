@@ -58,7 +58,7 @@ def test_public_ux_review_checklist_keeps_operator_details_and_data_claims_out()
     assert "If in-app browser capture is unavailable or times out, classify the review as environment_limited" in rendered
     assert "Do not replace screenshot assets from a timed-out, blank, cropped, or loading capture." in rendered
     assert "Review log template:" in rendered
-    assert "Issue classification: resolved, intentionally_deferred, environment_limited, skipped, or blocked_with_evidence" in rendered
+    assert "Issue classification: resolved, resolved_post_fix (fresh verified recapture after a fix), intentionally_deferred, environment_limited, skipped, or blocked_with_evidence" in rendered
     assert "blocked, candidate-only, skipped, or excluded lane appears as analysis-ready" in rendered
     assert "broker trading, order routing, auto-trading, direct buy/sell instructions, or investment advice" in rendered
     assert "make project-status-check" in rendered
@@ -256,6 +256,36 @@ def test_public_ux_review_notes_status_marks_share_review_ready_when_all_rows_re
     assert "share_review_gate: share_review_ready" in rendered
 
 
+def test_public_ux_review_notes_status_marks_share_review_ready_after_verified_fix(tmp_path):
+    notes_path = write_public_ux_review_notes(tmp_path)
+    for page, *_ in PUBLIC_ROUTES:
+        for viewport in ("desktop", "phone"):
+            classification = (
+                "resolved_post_fix"
+                if page == "Single-Stock Report" and viewport == "phone"
+                else "resolved"
+            )
+            record_public_ux_review_note(
+                notes_path=notes_path,
+                page=page,
+                viewport=viewport,
+                first_answer_visible="yes",
+                primary_next_action_visible="yes",
+                advanced_details_collapsed="yes",
+                classification=classification,
+                notes=f"{page} {viewport} reviewed.",
+            )
+
+    status = public_ux_review_notes_status(notes_path)
+
+    assert status["status"] == "review_complete"
+    assert status["share_review_gate"] == "share_review_ready"
+    assert status["pending_rows"] == 0
+    assert status["problem_rows"] == []
+    assert status["classification_counts"]["resolved"] == 9
+    assert status["classification_counts"]["resolved_post_fix"] == 1
+
+
 def test_public_ux_review_notes_status_marks_limited_gate_when_problem_rows_remain(tmp_path):
     notes_path = write_public_ux_review_notes(tmp_path)
     for page, *_ in PUBLIC_ROUTES:
@@ -280,6 +310,31 @@ def test_public_ux_review_notes_status_marks_limited_gate_when_problem_rows_rema
     assert status["pending_rows"] == 0
     assert status["problem_rows"][0]["page"] == "Data Health"
     assert "share_review_gate: review_limited" in rendered
+
+
+def test_public_ux_review_notes_status_keeps_unknown_resolution_labels_fail_closed(tmp_path):
+    notes_path = write_public_ux_review_notes(tmp_path)
+    for page, *_ in PUBLIC_ROUTES:
+        for viewport in ("desktop", "phone"):
+            classification = (
+                "resolved_typo" if page == "Single-Stock Report" and viewport == "phone" else "resolved"
+            )
+            record_public_ux_review_note(
+                notes_path=notes_path,
+                page=page,
+                viewport=viewport,
+                first_answer_visible="yes",
+                primary_next_action_visible="yes",
+                advanced_details_collapsed="yes",
+                classification=classification,
+                notes=f"{page} {viewport} reviewed.",
+            )
+
+    status = public_ux_review_notes_status(notes_path)
+
+    assert status["status"] == "review_has_deferred_or_limited_items"
+    assert status["share_review_gate"] == "review_limited"
+    assert status["problem_rows"][0]["classification"] == "resolved_typo"
 
 
 def test_record_public_ux_review_note_updates_one_row_and_advances_queue(tmp_path):

@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 import pandas as pd
+from src.profile_context import active_readiness_inspection_route
 
 
 PUBLIC_STATUS_LABELS = {
@@ -37,6 +38,15 @@ def _format_missing(value: object, fallback: str = "Not available") -> str:
     if not text or text.lower() in {"nan", "none", "null", "<na>"}:
         return fallback
     return text
+
+
+def single_stock_peer_valuation_ready(snapshot: dict[str, object]) -> bool:
+    """Keep peer-valuation readiness independent from broader peer uses."""
+
+    explicit = _format_missing(snapshot.get("peer_valuation_comparison_ready"), "").lower()
+    if explicit:
+        return explicit in {"true", "1", "yes", "y", "ready"}
+    return bool(snapshot.get("peer_ready"))
 
 
 def _normalize_operator_command(command: object) -> str:
@@ -120,7 +130,7 @@ def single_stock_next_command(snapshot: dict[str, object]) -> str:
         return f"make focus-price TICKER={ticker}"
     if dcf_status == "blocked":
         return f"make focus-fundamentals TICKER={ticker}"
-    if dcf_status == "ready" and not snapshot.get("peer_ready") and "peer" in _format_missing(snapshot.get("missing_data"), "").lower():
+    if dcf_status == "ready" and not single_stock_peer_valuation_ready(snapshot) and "peer" in _format_missing(snapshot.get("missing_data"), "").lower():
         return f"make focus-peers TICKER={ticker}"
     if not snapshot.get("earnings_ready") or not snapshot.get("analyst_estimates_ready"):
         return "make optional-context-worklist TOP_N=25"
@@ -183,12 +193,14 @@ def single_stock_report_data_health_route(
 def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     """Return a compact loop summary before single-stock details."""
 
+    inspection_command, inspection_note = active_readiness_inspection_route()
     ticker = _format_missing(snapshot.get("ticker"), "TICKER").upper()
     state = _public_status_label(snapshot.get("status"))
     decision = _format_missing(snapshot.get("decision_subtype") or snapshot.get("decision_bucket"), "Not classified")
     dcf_status = _format_missing(snapshot.get("dcf_status"), "blocked").lower()
     asset_type = _format_missing(snapshot.get("asset_type"), "").lower()
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
+    peer_valuation_ready = single_stock_peer_valuation_ready(snapshot)
     command = single_stock_next_command(snapshot)
 
     if not snapshot or snapshot.get("status") == "missing":
@@ -207,7 +219,7 @@ def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[s
         next_step = "Route fundamentals, shares, market-cap, or DCF blockers to Data Health source review."
         stop_rule = "Stop if valuation inputs would be inferred or placeholder-backed."
         badges = ["fundamentals gate", "source proof"]
-    elif dcf_status == "ready" and not snapshot.get("peer_ready"):
+    elif dcf_status == "ready" and not peer_valuation_ready:
         next_step = "Review standalone DCF now; route peer-relative context to the peers lane."
         stop_rule = "Stop if peer mappings or peer inputs lack source-backed rows."
         badges = ["DCF reviewable", "peer gated"]
@@ -238,9 +250,9 @@ def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[s
         {
             "kicker": "STOP RULE",
             "title": "No trusted input, no conclusion",
-            "body": f"{stop_rule} Locked, partial, and excluded sections stay visible until proof changes the state.",
+            "body": f"{stop_rule} Locked, partial, and excluded sections stay visible until proof changes the state. {inspection_note}",
             "badges": ["research-only", "blocked stays blocked"],
-            "command": "make readiness",
+            "command": inspection_command,
         },
     ]
 
@@ -248,6 +260,7 @@ def single_stock_workflow_loop_cards(snapshot: dict[str, object]) -> list[dict[s
 def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     """Return ticker workflow cards for the Single-Stock page before raw detail."""
 
+    inspection_command, inspection_note = active_readiness_inspection_route()
     ticker = _format_missing(snapshot.get("ticker"), "TICKER").upper()
     state = _public_status_label(snapshot.get("status"))
     decision = _format_missing(snapshot.get("decision_subtype") or snapshot.get("decision_bucket"), "Not classified")
@@ -255,7 +268,7 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
     asset_type = _format_missing(snapshot.get("asset_type"), "").lower()
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     command = single_stock_next_command(snapshot)
@@ -283,9 +296,9 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
             {
                 "kicker": "STOP RULE",
                 "title": "No local row, no interpretation",
-                "body": "Do not use a typed ticker as proof. Keep the page blocked until local readiness outputs include the ticker.",
+                "body": f"Do not use a typed ticker as proof. Keep the page blocked until local readiness outputs include the ticker. {inspection_note}",
                 "badges": ["blocked visible", "no inference"],
-                "command": "make readiness",
+                "command": inspection_command,
             },
         ]
 
@@ -354,9 +367,9 @@ def single_stock_workflow_fit_cards(snapshot: dict[str, object]) -> list[dict[st
         {
             "kicker": "STOP RULE",
             "title": "Stop before interpretation",
-            "body": "Do not treat locked, partial, or excluded sections as conclusions. Reopen this report only after the matching source-proof gate passes.",
+            "body": f"Do not treat locked, partial, or excluded sections as conclusions. Reopen this report only after the matching source-proof gate passes. {inspection_note}",
             "badges": ["research only", "proof first"],
-            "command": "make readiness",
+            "command": inspection_command,
         },
     ]
 
@@ -368,7 +381,7 @@ def single_stock_one_answer_frame(snapshot: dict[str, object]) -> pd.DataFrame:
     dcf_status = _format_missing(snapshot.get("dcf_status"), "blocked").lower()
     asset_type = _format_missing(snapshot.get("asset_type"), "").lower()
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
@@ -443,12 +456,13 @@ def single_stock_one_answer_frame(snapshot: dict[str, object]) -> pd.DataFrame:
 def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[dict[str, object]]:
     """Return a compact route-focused handoff from one ticker back to Data Health."""
 
+    inspection_command, inspection_note = active_readiness_inspection_route()
     ticker = _format_missing(snapshot.get("ticker"), "TICKER").upper()
     state = _public_status_label(snapshot.get("status"))
     dcf_status = _format_missing(snapshot.get("dcf_status"), "blocked").lower()
     asset_type = _format_missing(snapshot.get("asset_type"), "").lower()
     price_ready = bool(snapshot.get("price_ready"))
-    peer_ready = bool(snapshot.get("peer_ready"))
+    peer_ready = single_stock_peer_valuation_ready(snapshot)
     earnings_ready = bool(snapshot.get("earnings_ready"))
     estimates_ready = bool(snapshot.get("analyst_estimates_ready"))
     monitor_context = dcf_status == "excluded" or asset_type in {"etf", "index_proxy", "fund"}
@@ -538,9 +552,9 @@ def single_stock_data_health_handoff_cards(snapshot: dict[str, object]) -> list[
         {
             "kicker": "STOP RULE",
             "title": "Return only after proof changes",
-            "body": f"{stop_rule} Do not turn missing, partial, locked, or excluded inputs into conclusions.",
+            "body": f"{stop_rule} Do not turn missing, partial, locked, or excluded inputs into conclusions. {inspection_note}",
             "badges": ["research only", "proof first"],
-            "command": "make readiness",
+            "command": inspection_command,
         },
     ]
 

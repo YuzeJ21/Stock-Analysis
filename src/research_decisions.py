@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import pandas as pd
 
@@ -248,7 +250,7 @@ def _decision_next_action(ticker: str, primary_blocker: str, next_action: Any) -
             f"{prefix} Inspect make focus-fundamentals TICKER={ticker}; use make sec-stage TICKERS={ticker} "
             "when SEC_USER_AGENT is configured or stage trusted manual rows in data/imports/fundamentals.csv; "
             f"then run make imports-validate IMPORT_TICKERS={ticker}, make imports-preview IMPORT_TICKERS={ticker}, "
-            f"make imports-apply IMPORT_TICKERS={ticker}, make dcf-readiness, and make readiness "
+            f"make imports-apply IMPORT_TICKERS={ticker}, make dcf-readiness, and make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> "
             "before reading DCF output."
         )
     return text
@@ -725,12 +727,29 @@ def _missing_data_summary(blocked: list[str], excluded: list[str], missing_data:
     return "No major missing required inputs are listed by the current readiness report."
 
 
-def _source_freshness_summary(row: pd.Series) -> str:
+def _source_freshness_summary(
+    row: pd.Series,
+    source_mode: Literal["saved_csv", "in_memory"],
+) -> str:
     updated = _text_value(row.get("updated_at"), "not available")
-    return f"Based on current local CSV readiness outputs; readiness row updated {updated}. Verify source readiness before relying on stale imported data."
+    if source_mode == "saved_csv":
+        return f"Based on current local CSV readiness outputs; readiness row updated {updated}. Verify source readiness before relying on stale imported data."
+    if source_mode == "in_memory":
+        return (
+            "Based on the current in-memory readiness composition; readiness row updated "
+            f"{updated}. No readiness CSV was read or written for this decision view."
+        )
+    raise ValueError(f"Unsupported research decision source mode: {source_mode}")
 
 
-def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.DataFrame | None = None) -> pd.DataFrame:
+def build_research_decisions_frame(
+    readiness: pd.DataFrame,
+    final_watchlist: pd.DataFrame | None = None,
+    *,
+    source_mode: Literal["saved_csv", "in_memory"] = "saved_csv",
+) -> pd.DataFrame:
+    if source_mode not in {"saved_csv", "in_memory"}:
+        raise ValueError(f"Unsupported research decision source mode: {source_mode}")
     final_watchlist = final_watchlist if final_watchlist is not None else pd.DataFrame()
     if not final_watchlist.empty:
         final_watchlist = final_watchlist.copy()
@@ -844,7 +863,7 @@ def build_research_decisions_frame(readiness: pd.DataFrame, final_watchlist: pd.
                 "risk_view": risk_view,
                 "missing_data_summary": _missing_data_summary(blocked, excluded, row.get("missing_data", "")),
                 "next_research_step": next_research_step,
-                "source_freshness_summary": _source_freshness_summary(row),
+                "source_freshness_summary": _source_freshness_summary(row, source_mode),
                 "analysis_score": round(float(analysis_score_normalized), 3),
                 "decision_score": decision_score,
                 "purpose_thesis": _purpose_thesis(asset_type, watch_row, ready, blocked),

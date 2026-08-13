@@ -19,15 +19,18 @@ terminal proof commands only when you need local evidence behind the page:
 ```bash
 make demo
 make dashboard
+make readiness-ops-center
 make status-check TOP_N=5
 make project-status
 make stock-report-md TICKER=NVDA
 ```
 
+`make readiness-ops-center` reports current selected-profile readiness and lane truth. `make status-check TOP_N=5` inspects a saved generated snapshot and can be stale.
+
 If you only want a fast health check:
 
 ```bash
-make status-check TOP_N=5
+make readiness-ops-center
 make dashboard-smoke
 ```
 
@@ -68,21 +71,23 @@ CONFIRM_REVIEWED=1 make thesis-journal-record ...
 
 Never convert generated `purpose_thesis`, invalidation prompts, Change Monitor tasks, or candidate context into reviewed journal history automatically. A journal record does not refresh providers, apply imports, rebuild readiness, resolve a change event, stage files, commit, push, or create a transaction instruction.
 
-Rebuild local outputs only after changing source data, imports, or pipeline code:
+Inspect readiness impact after changing reviewed source data or imports; do not regenerate tracked release artifacts through a composite command:
 
 ```bash
-make pipeline
-make readiness
-make project-status
+make pipeline  # no-write guarded composite verification
+make readiness-preview TOP_N=20
+make project-status-check
 ```
+
+An optional ignored local package requires explicit authorization through `CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local>` and is not tracked release evidence. `make readiness-release-review TOP_N=20` applies only when an exact existing tracked 18-file candidate has been separately identified for review.
 
 `make project-status` also writes `outputs/project_status_remaining_stages.csv`. Use that stage map when deciding what is truly next after the public package is ready: LinkedIn manual share, hosted Streamlit deployment, FMP provider activation, peer readiness upgrade, optional earnings/estimate context, source-proof queue exhaustion, coverage-depth gaps, UX polish, and generated-artifact hygiene. The stage map is read-only; it separates actionable pending dependencies (`awaiting_external_setup`, `awaiting_reviewed_source`, and `awaiting_source_change`) from ready, manual-verification, and excluded states. These pending states do not turn the overall roadmap terminal: preserve their evidence, continue another executable product/share item, and resume only when the dependency changes. Lower-level tools may still report precise diagnostics such as `external_account_required` or `external_key_required`.
 
 ## What To Open First
 
 - Open `make dashboard` for the product page.
-- Start on `Home` to see readiness, blockers, and next safe commands.
-- Open the Home page `Example reports` section to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples without opening data files first.
+- Personal Research is the root default at `http://localhost:8501/`; enter Operator explicitly at `http://localhost:8501/?mode=operator` for source/proof work.
+- Open the Home page `Example reports` section to compare richer company, standalone DCF, price/setup gated, monitor-only, and blocked-data examples without opening data files first, only after entering explicit Operator mode. Operator warnings precede advanced detail; Monthly Picks, Momentum Leaders, Portfolio Review, Value / Re-rating, and Final Watchlist remain compatibility utilities, never primary workflow routes or research recommendations.
 - Open `Single-Stock Report` for one ticker when you want the clearest stock-level explanation.
 - Open `Data Health` when the app says analysis is blocked by missing local data.
 
@@ -127,6 +132,53 @@ The dashboard and single-stock report use plain modes before showing detailed ta
 
 ## Data Proof Workflows
 
+### Prospective Per-Field Proof
+
+The Stage A ledger is prospective-only. It preserves one exact reviewed ticker/field identity and revision chain without treating older batch narratives as structured evidence: legacy narrative proof is not upgraded. No sample field-proof rows are checked in, and an absent ledger is a valid empty state. A present empty, header-only, malformed, forked, or otherwise invalid ledger fails closed.
+
+Inspect status first, then preview one separately supplied reviewed CSV:
+
+```bash
+make prospective-field-proof-status
+make prospective-field-proof-audit
+make prospective-field-proof-preview INPUT=<reviewed_field_proof.csv> AS_OF=<utc-cutoff>
+```
+
+These inspection commands are read-only. Preview reports `technical_write_eligible` and `commercial_evidence_eligible` independently, so research-mode technical recording cannot be mistaken for commercial permission. The preview receipt binds ledger, input, cutoff, commercial mode, and source-rights registry. Review the proposed identities, timestamps, revision chain, source reference, payload digest, reviewer disposition, rights decision, registered field scope, and both blocker lists before recording.
+
+The Stage B audit is also read-only. It explains append order, normalized scopes, revision numbers, current versus superseded rows, reviewer dispositions, active-head blocker categories, and latest review time. It reports `preview_receipt_persisted=false` and `receipt_revalidation_required=true`: save the exact stdout receipt with the reviewed input if a later explicit record is intended. Audit does not activate readiness, does not update canonical data, and does not activate Company Workbench. It creates no report or JSON file; `JSON=1` writes structured output to stdout only.
+
+Record only the exact reviewed preview:
+
+```bash
+make prospective-field-proof-record INPUT=<same-reviewed-field-proof.csv> AS_OF=<same-utc-cutoff> PREVIEW_RECEIPT=<exact-receipt> CONFIRM_REVIEWED=1
+```
+
+Record is an explicit append. It repeats validation and rejects any changed ledger, input, cutoff, commercial mode, or source-rights registry. Recording uses cooperative local locking for writers that follow this protocol. It is not crash-safe, not a database transaction, and does not protect against writers that do not cooperate or replace the path outside the protocol.
+
+This primitive does not activate readiness, does not update canonical data, does not update proof-readiness reconciliation, and does not activate Company Workbench, dashboards, reports, or legacy ledgers. A proof identity does not establish payload truth, source rights, commercial eligibility, freshness, or reviewer independence. Any readiness, reconciliation, canonical, or Workbench mapping requires a separate design.
+
+Before reusing any historical `supported`, `auto_supported`, or `human_reviewed_supported` batch outcome as evidence for current work, reconcile it with current saved readiness:
+
+```bash
+make proof-readiness-reconciliation TOP_N=20
+make proof-readiness-reconciliation TICKERS=ARCT TOP_N=20
+```
+
+`historical_supported_currently_blocked` means the older proof outcome and the current saved state disagree. Current saved readiness remains authoritative: inspect fresh source evidence before restarting that lane. `explicit_ticker_change` means the latest supporting proof explicitly names the ticker in `changed_tickers`. Scope membership alone is not ticker-level support. `current_canonical_row_missing` and other current blocker codes describe current saved inputs. Current blocker diagnosis does not establish the historical cause. The command is read-only and does not restore canonical data, rewrite proof history, promote readiness, fetch a provider, validate payload truth, or prove source rights, field scope, provenance, or commercial use. Its counts describe the current local snapshot only.
+
+### Calibration Evidence-Bundle Preview
+
+Preview one explicitly supplied immutable UTF-8 JSON bundle, no larger than 16 MiB:
+
+```bash
+make calibration-evidence-bundle-preview BUNDLE=<path>
+```
+
+The strict schema rejects missing or unknown fields, duplicate JSON keys, malformed identities, non-finite values, policy overrides, and incomplete source references. The command prints aggregate-only evidence to stdout and writes no CSV, JSON, report, readiness, ledger, or receipt file. Direct CLI consumers may request stdout JSON with `python3 -m src.calibration_evidence_bundle preview --bundle <path> --format json`.
+
+`invalid` returns exit code 2. `blocked` and `contract_consistent_review_required` return exit code 0 so an operator can inspect their gates. The latter proves only that the supplied objects satisfy supported local consistency checks. It does not activate readiness, authenticate sources, establish rights, persist evidence, or authorize a numerical Beat/Miss result. External source and independent review remain required, and probability remains withheld.
+
 Use targeted proof commands instead of broad refreshes by default:
 
 ```bash
@@ -170,7 +222,7 @@ For larger price refreshes, dry-run first and keep batches capped:
 ```bash
 make price-refresh-loop DRY_RUN=1
 make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto
-make readiness-snapshot
+make readiness-snapshot PROFILE=<default|demo|local>
 make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30
 make diff-hygiene
 ```
@@ -220,3 +272,19 @@ See `docs/analysis_capability_audit.md` for the deeper function-quality and prov
 The shipped analysis comes from project code under `src/` plus trusted local CSV inputs. Standard Python libraries support data handling, UI, and tests; optional `yfinance` is only a research-grade adapter.
 
 Support tools and libraries are not the stock-analysis rules. The shipped readiness gates, valuation gates, decision buckets, and research-only guardrails come from project code under `src/` plus trusted local CSV inputs.
+
+## Review A Readiness Release Candidate
+
+Run the exact default-profile sequence:
+
+```bash
+make readiness-release-review TOP_N=20
+make readiness-release-record PREVIEW_RECEIPT=<exact_receipt> REVIEWER=<named_reviewer> REVIEW_DATE=<yyyy-mm-dd> TECHNICAL_DECISION=<approved|rejected> DISTRIBUTION_DECISION=<approved|rejected|external_review_required> CONFIRM_REVIEWED=1
+make readiness-release-guard RECORD_ID=<record_id>
+```
+
+Review and guard are read-only. Record is the only writer and appends one exact-receipt-bound row to `data/readiness_release_reviews.csv`. Use `rejected` or `external_review_required` when that is the evidence; those decisions remain blocked. Never rerun record blindly after an uncertain write result—reload the printed record ID first.
+
+Stop and rerun review if any candidate byte, source input, rights registry, proof ledger, Git head, path set, review axis, decision, or staged state changes. A passing guard prints the exact named candidate and record paths; inspect those paths before staging.
+
+This workflow does not change readiness and does not grant source rights. It does not replace independent review, legal or distribution approval, source-owner evidence, current-market data, accessibility review, hosted validation, calibration, or pilot evidence.

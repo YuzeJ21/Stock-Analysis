@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import os
 from pathlib import Path
@@ -196,17 +198,28 @@ def _first_company_blocker(frame: pd.DataFrame) -> str:
     return _text(company_blockers.iloc[0].get("ticker"), "TICKER").upper()
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Write deterministic DCF readiness diagnostics.")
     parser.add_argument("--project-root", help="Project root. Defaults to this repository.")
     parser.add_argument("--data-dir", help="Optional data directory. Relative paths resolve from project root.")
     parser.add_argument("--top-n", type=int, default=20, help="Number of not-ready rows to print.")
-    args = parser.parse_args()
+    parser.add_argument("--read-only", action="store_true", help="Build and print DCF readiness without writing a report.")
+    args = parser.parse_args(argv)
     root = resolve_project_root(args.project_root)
     data_path = resolve_data_dir(args.data_dir, root)
-    frame = build_dcf_readiness_report(root, data_dir=data_path)
+    if args.read_only:
+        frame = build_dcf_readiness_frame(
+            universe=_read_csv(data_path / "universe.csv"),
+            fundamentals=_read_csv(data_path / "fundamentals.csv"),
+            prices=_read_csv(data_path / "prices.csv"),
+        )
+    else:
+        frame = build_dcf_readiness_report(root, data_dir=data_path)
     print(format_path_context(root, data_path, root / "outputs"))
-    print(f"Wrote: {data_path / 'dcf_readiness.csv'}")
+    if args.read_only:
+        print("Read-only DCF readiness preview; no files written.")
+    else:
+        print(f"Wrote: {data_path / 'dcf_readiness.csv'}")
     print(f"DCF-ready tickers: {int(frame['is_dcf_ready'].sum())}/{len(frame)}")
     company_mask = frame.get("asset_type", pd.Series("", index=frame.index)).astype(str).str.lower().eq("company")
     blocked_company_count = int((company_mask & ~frame["is_dcf_ready"].astype(bool)).sum())
@@ -230,14 +243,17 @@ def main() -> None:
         "- Validate/apply/prove: "
         f"make imports-validate IMPORT_TICKERS={first_blocker} -> "
         f"make imports-preview IMPORT_TICKERS={first_blocker} -> "
-        f"make imports-apply IMPORT_TICKERS={first_blocker} -> make dcf-readiness -> make readiness"
+        f"make imports-apply IMPORT_TICKERS={first_blocker} -> make dcf-readiness -> "
+        f"make reviewed-batch-compare PROFILE={resolve_readiness_proof_profile()} LANE=fundamentals "
+        "BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>"
     )
     missing = frame.loc[~frame["is_dcf_ready"].astype(bool), ["ticker", "reason_not_ready"]]
     for _, row in missing.head(max(args.top_n, 0)).iterrows():
         print(f"- {row['ticker']}: {row['reason_not_ready']}")
     if len(missing) > max(args.top_n, 0):
         print(f"- {len(missing) - max(args.top_n, 0)} additional not-ready tickers suppressed; inspect data/dcf_readiness.csv.")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

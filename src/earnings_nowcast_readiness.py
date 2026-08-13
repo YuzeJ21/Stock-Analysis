@@ -8,6 +8,7 @@ from src.earnings_nowcast_contract import (
     FreshnessState,
     NowcastState,
     QuarterlyActual,
+    eps_split_basis_verified,
     parse_utc_timestamp,
 )
 
@@ -87,23 +88,69 @@ def _metric_definition(row: QuarterlyActual | ConsensusSnapshot, metric: str) ->
     )
 
 
-def _canonical_period_row(rows: Sequence[QuarterlyActual], metric: str) -> tuple[QuarterlyActual | None, tuple[str, ...]]:
+def _previous_period(period: str) -> str:
+    year, quarter = period.split("-Q", 1)
+    return f"{int(year) - 1}-Q4" if quarter == "1" else f"{year}-Q{int(quarter) - 1}"
+
+
+def contiguous_metric_window(
+    rows: Sequence[QuarterlyActual],
+    target_period: str,
+    metric: str,
+    minimum_quarters: int,
+) -> tuple[QuarterlyActual, ...]:
+    value_field = f"{metric}_actual"
+    rows_by_period = {
+        row.fiscal_period: row
+        for row in rows
+        if getattr(row, value_field) is not None
+    }
+    expected_period = _previous_period(target_period)
+    window: list[QuarterlyActual] = []
+    for _ in range(minimum_quarters):
+        row = rows_by_period.get(expected_period)
+        if row is None:
+            return ()
+        window.append(row)
+        expected_period = _previous_period(expected_period)
+    return tuple(reversed(window))
+
+
+def _canonical_period_row(
+    rows: Sequence[QuarterlyActual],
+    metric: str,
+    *,
+    lineage_rows: Sequence[QuarterlyActual] | None = None,
+) -> tuple[QuarterlyActual | None, tuple[str, ...]]:
     value_field = f"{metric}_actual"
     ordered = sorted(rows, key=lambda row: (parse_utc_timestamp(row.reported_at), parse_utc_timestamp(row.retrieved_at), row.source_ref))
     values = {float(getattr(row, value_field)) for row in ordered}
     if len(values) == 1:
         return ordered[-1], ()
     latest = ordered[-1]
-    earlier_by_ref = {row.source_ref: row for row in ordered[:-1]}
-    superseded = earlier_by_ref.get(latest.supersedes_source_ref or "")
-    if superseded is not None and float(getattr(superseded, value_field)) != float(getattr(latest, value_field)):
-        unresolved = [
-            row
-            for row in ordered[:-1]
-            if row.source_ref != superseded.source_ref
-            and float(getattr(row, value_field)) != float(getattr(latest, value_field))
-        ]
-        if not unresolved:
+    ordered_lineage = sorted(
+        lineage_rows if lineage_rows is not None else rows,
+        key=lambda row: (
+            parse_utc_timestamp(row.reported_at),
+            parse_utc_timestamp(row.retrieved_at),
+            row.source_ref,
+        ),
+    )
+    by_ref = {row.source_ref: row for row in ordered_lineage}
+    if len(by_ref) == len(ordered_lineage):
+        position_by_ref = {row.source_ref: index for index, row in enumerate(ordered_lineage)}
+        visited: set[str] = set()
+        current = latest
+        while current.source_ref not in visited:
+            visited.add(current.source_ref)
+            supersedes = current.supersedes_source_ref
+            if not supersedes:
+                break
+            prior = by_ref.get(supersedes)
+            if prior is None or position_by_ref[prior.source_ref] >= position_by_ref[current.source_ref]:
+                break
+            current = prior
+        if {row.source_ref for row in ordered}.issubset(visited):
             return latest, ()
     return None, tuple(sorted(row.source_ref for row in ordered))
 
@@ -118,19 +165,44 @@ def canonicalize_actuals(
     for metric in ("revenue", "eps"):
         by_period: dict[str, list[QuarterlyActual]] = {}
         for row in rows:
-            if getattr(row, f"{metric}_actual") is not None:
-                by_period.setdefault(row.fiscal_period, []).append(row)
+            by_period.setdefault(row.fiscal_period, []).append(row)
         expected_definition = _metric_definition(consensus, metric) if consensus is not None else None
         for period, period_rows in sorted(by_period.items()):
-            definitions = {_metric_definition(row, metric) for row in period_rows}
+            metric_rows = [
+                row
+                for row in period_rows
+                if getattr(row, f"{metric}_actual") is not None
+            ]
+            if not metric_rows:
+                continue
+            definitions = {_metric_definition(row, metric) for row in metric_rows}
             if expected_definition is None:
-                compatible = period_rows if len(definitions) == 1 else []
+                compatible = metric_rows if len(definitions) == 1 else []
             else:
-                compatible = [row for row in period_rows if _metric_definition(row, metric) == expected_definition]
+                compatible = [
+                    row
+                    for row in metric_rows
+                    if _metric_definition(row, metric) == expected_definition
+                ]
+            if metric == "eps":
+                consensus_unverified = (
+                    consensus is not None
+                    and not eps_split_basis_verified(consensus.split_adjustment_basis)
+                )
+                compatible = [
+                    row
+                    for row in compatible
+                    if not consensus_unverified
+                    and eps_split_basis_verified(row.split_adjustment_basis)
+                ]
             if not compatible:
                 incompatible[metric].append(period)
                 continue
-            chosen, period_conflicts = _canonical_period_row(compatible, metric)
+            chosen, period_conflicts = _canonical_period_row(
+                compatible,
+                metric,
+                lineage_rows=period_rows,
+            )
             if chosen is None:
                 conflicts[metric].extend(period_conflicts)
             else:
@@ -198,21 +270,37 @@ def assess_nowcast_readiness(
         row
         for row in matching_actuals
         if parse_utc_timestamp(row.reported_at) <= parse_utc_timestamp(normalized_cutoff)
+        and parse_utc_timestamp(row.retrieved_at) <= parse_utc_timestamp(normalized_cutoff)
         and row.fiscal_period != normalized_period
     ]
     available_consensus = [
         row
         for row in matching_consensus
         if parse_utc_timestamp(row.snapshot_at) <= parse_utc_timestamp(normalized_cutoff)
+        and parse_utc_timestamp(row.retrieved_at) <= parse_utc_timestamp(normalized_cutoff)
     ]
     available_actuals.sort(key=lambda row: (row.period_end_date, row.reported_at, row.source_ref))
     selected_consensus = _latest_consensus(available_consensus)
     canonical = canonicalize_actuals(available_actuals, selected_consensus)
 
-    revenue_history = [row.revenue_actual for row in canonical.revenue_rows]
-    eps_history = [row.eps_actual for row in canonical.eps_rows]
-    enough_revenue_history = len(revenue_history) >= minimum_history_quarters
-    enough_eps_history = len(eps_history) >= minimum_history_quarters
+    revenue_window = contiguous_metric_window(
+        canonical.revenue_rows,
+        normalized_period,
+        "revenue",
+        minimum_history_quarters,
+    )
+    eps_window = contiguous_metric_window(
+        canonical.eps_rows,
+        normalized_period,
+        "eps",
+        minimum_history_quarters,
+    )
+    revenue_history = [row.revenue_actual for row in revenue_window]
+    eps_history = [row.eps_actual for row in eps_window]
+    enough_revenue_history = len(revenue_window) == minimum_history_quarters
+    enough_eps_history = len(eps_window) == minimum_history_quarters
+    revenue_history_gap = bool(canonical.revenue_rows) and not enough_revenue_history
+    eps_history_gap = bool(canonical.eps_rows) and not enough_eps_history
     stable_eps_history = enough_eps_history and _sign_changes(float(value) for value in eps_history) <= 1
 
     freshness_state = (
@@ -252,6 +340,8 @@ def assess_nowcast_readiness(
         missing.append("post_cutoff_evidence")
     if not enough_revenue_history:
         missing.append("quarterly_actual_history")
+    if revenue_history_gap or eps_history_gap:
+        missing.append("quarter_history_gap")
     if canonical.revenue_conflict_source_ids:
         missing.append("conflicting_quarterly_revenue")
     if canonical.eps_conflict_source_ids:
@@ -272,7 +362,7 @@ def assess_nowcast_readiness(
         missing.append("current_consensus")
 
     state = NowcastState.BASELINE_READY if revenue_ready or eps_ready else NowcastState.BLOCKED
-    source_ids = tuple(row.source_ref for row in (*canonical.revenue_rows, *canonical.eps_rows))
+    source_ids = tuple(row.source_ref for row in (*revenue_window, *eps_window))
     if selected_consensus is not None:
         source_ids += (
             selected_consensus.source_ref

@@ -1,0 +1,6 @@
+schema_version,ticker,fiscal_period,period_end_date,reported_at,revenue_actual,eps_actual,source,source_ref,retrieved_at,revenue_currency,revenue_unit_scale,revenue_basis,eps_currency,eps_basis,eps_share_basis,eps_operations_basis,split_adjustment_basis,supersedes_source_ref
+earnings-nowcast-evidence-v2,SYN1,2024-Q4,2024-12-31,2025-01-20T21:00:00Z,96,0.80,synthetic_test_fixture,fixture://actual/SYN1/2024-Q4,2025-01-20T21:00:00Z,USD,1,reported,USD,gaap,diluted,reported,as_reported,
+earnings-nowcast-evidence-v2,SYN1,2025-Q1,2025-03-31,2025-04-20T21:00:00Z,100,0.85,synthetic_test_fixture,fixture://actual/SYN1/2025-Q1,2025-04-20T21:00:00Z,USD,1,reported,USD,gaap,diluted,reported,as_reported,
+earnings-nowcast-evidence-v2,SYN1,2025-Q2,2025-06-30,2025-07-20T21:00:00Z,104,0.90,synthetic_test_fixture,fixture://actual/SYN1/2025-Q2,2025-07-20T21:00:00Z,USD,1,reported,USD,gaap,diluted,reported,as_reported,
+earnings-nowcast-evidence-v2,SYN1,2025-Q3,2025-09-30,2025-10-20T21:00:00Z,108,0.95,synthetic_test_fixture,fixture://actual/SYN1/2025-Q3,2025-10-20T21:00:00Z,USD,1,reported,USD,gaap,diluted,reported,as_reported,
+earnings-nowcast-evidence-v2,SYN1,2025-Q4,2025-12-31,2026-01-20T21:00:00Z,112,1.00,synthetic_test_fixture,fixture://actual/SYN1/2025-Q4,2026-01-20T21:00:00Z,USD,1,reported,USD,gaap,diluted,reported,as_reported,

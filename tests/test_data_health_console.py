@@ -85,6 +85,6 @@ def test_data_health_console_stale_and_detail_modes_gate_next_action():
         batch_preflight=preflight,
     )
 
-    assert stale_action == "make readiness"
+    assert stale_action == "make readiness-preview TOP_N=20"
     assert proof_action == "Open Proof review details."
     assert batch_action == "DRY_RUN=1 make reviewed-batch LANE=peers TOP_N=10"

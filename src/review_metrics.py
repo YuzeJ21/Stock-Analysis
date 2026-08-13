@@ -3,16 +3,20 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import asdict, dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
 from src.config import AppConfig
+from src.observation_recency import ObservationRecency
 from src.paths import resolve_data_dir, resolve_project_root
 from src.providers.local_market_data import LocalCSVMarketDataProvider
 from src.providers.market_data import FinancialSnapshot, MarketDataProvider
+from src.quant_interpretation_eligibility import QuantEvidenceAssessment
 from src.reviewed_batch import readiness_freshness_status
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 
 
 READY = "ready"
@@ -21,6 +25,13 @@ BLOCKED = "blocked"
 EXCLUDED = "excluded"
 TRADING_DAYS = 252
 DEFAULT_RISK_FREE_RATE = 0.0
+_QUANT_CALCULATION_STATES = {
+    READY: "available",
+    PARTIAL: "partial",
+    BLOCKED: "unavailable",
+    EXCLUDED: "excluded",
+}
+_OBSERVATION_PRIORITY = {"current": 0, "stale_review_only": 1, "unavailable": 2}
 
 
 @dataclass
@@ -37,6 +48,81 @@ class ReviewMetric:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+def review_metric_quant_assessment(
+    metric: ReviewMetric,
+    *,
+    ticker: str,
+    observation: ObservationRecency,
+    benchmark_observation: ObservationRecency | None,
+    provenance_state: str,
+    rights_state: str,
+    field_scope_state: str,
+) -> QuantEvidenceAssessment:
+    """Adapt a review metric without treating source context as provenance."""
+    normalized_ticker = _normalized_scope(ticker)
+    if not normalized_ticker:
+        raise ValueError("ticker must be non-empty")
+    if _normalized_scope(observation.scope) != normalized_ticker:
+        raise ValueError("observation scope must match the review metric ticker")
+
+    composed_observation = observation
+    benchmark = _normalized_scope(metric.benchmark)
+    if benchmark:
+        if benchmark_observation is None:
+            raise ValueError("benchmarked review metric requires a benchmark observation")
+        if _normalized_scope(benchmark_observation.scope) != benchmark:
+            raise ValueError("benchmark observation scope must match the review metric benchmark")
+        composed_observation = _strictest_observation(observation, benchmark_observation)
+
+    return QuantEvidenceAssessment(
+        family="review_metric",
+        scope=f"{normalized_ticker}:{metric.name}",
+        calculation_state=_QUANT_CALCULATION_STATES.get(metric.state, "unavailable"),
+        observation_state=composed_observation.state,
+        observation_through_date=composed_observation.through_date,
+        provenance_state=provenance_state,
+        rights_state=rights_state,
+        field_scope_state=field_scope_state,
+        evidence_notes=tuple(metric.notes),
+    )
+
+
+def _normalized_scope(value: object) -> str:
+    return value.strip().upper() if isinstance(value, str) else ""
+
+
+def _strictest_observation(
+    observation: ObservationRecency,
+    benchmark_observation: ObservationRecency,
+) -> ObservationRecency:
+    if _has_rejected_through_date(observation) or _has_rejected_through_date(
+        benchmark_observation
+    ):
+        return ObservationRecency(
+            observation.scope,
+            "",
+            None,
+            "unavailable",
+            "A required observation date is invalid for quantitative interpretation.",
+        )
+    observation_priority = _OBSERVATION_PRIORITY.get(observation.state, 3)
+    benchmark_priority = _OBSERVATION_PRIORITY.get(benchmark_observation.state, 3)
+    if benchmark_priority > observation_priority:
+        return benchmark_observation
+    if observation_priority > benchmark_priority:
+        return observation
+    return min((observation, benchmark_observation), key=lambda item: item.through_date)
+
+
+def _has_rejected_through_date(observation: ObservationRecency) -> bool:
+    if observation.state == "unavailable":
+        return False
+    try:
+        return date.fromisoformat(observation.through_date) > date.today()
+    except (TypeError, ValueError):
+        return True
 
 
 @dataclass
@@ -988,7 +1074,7 @@ def build_metric_readiness_board(
                     next_action=row.next_action,
                     freshness=freshness.get("status", "unknown"),
                     freshness_message=freshness.get("message", ""),
-                    refresh_command=freshness.get("refresh_command", "make readiness"),
+                    refresh_command=freshness.get("refresh_command", READINESS_PREVIEW_COMMAND),
                 )
             )
     return rows
@@ -1013,7 +1099,7 @@ def metric_readiness_board_next_safe_action(rows: list[MetricReadinessBoardRow])
         for row in rows:
             if row.freshness in {"missing", "stale"} and row.refresh_command:
                 return row.refresh_command
-        return "make readiness"
+        return READINESS_PREVIEW_COMMAND
     if status == "blocked_no_rows":
         return "make metric-readiness-board TOP_N=10 BENCHMARKS=SPY,QQQ"
     for row in rows:
@@ -1055,7 +1141,7 @@ def format_metric_readiness_summary_text(rows: list[MetricReadinessRow], freshne
         f"Freshness: {freshness.get('status', 'unknown')} - {freshness.get('message', 'No freshness context available.')}",
     ]
     if freshness.get("status") in {"missing", "stale"}:
-        lines.append(f"Refresh before relying on final counts: {freshness.get('refresh_command', 'make readiness')}")
+        lines.append(f"Inspect before relying on final counts: {freshness.get('refresh_command', READINESS_PREVIEW_COMMAND)}. {READINESS_PREVIEW_NOTE}")
     if not rows:
         lines.append("No tickers were available for metric-readiness review.")
         return "\n".join(lines)
@@ -1100,7 +1186,7 @@ def format_metric_readiness_board_text(rows: list[MetricReadinessBoardRow]) -> s
     refresh_commands = list(dict.fromkeys(row.refresh_command for row in rows if row.refresh_command))
     lines.append(f"Freshness: {freshness}")
     if any(row.freshness in {"missing", "stale"} for row in rows):
-        lines.append(f"Refresh before relying on final counts: {refresh_commands[0] if refresh_commands else 'make readiness'}")
+        lines.append(f"Inspect before relying on final counts: {refresh_commands[0] if refresh_commands else READINESS_PREVIEW_COMMAND}. {READINESS_PREVIEW_NOTE}")
         lines.append("Blocked preflight: refresh readiness before treating metric-readiness rows as current coverage proof.")
 
     family_counts: dict[str, int] = {}

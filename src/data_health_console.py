@@ -8,6 +8,7 @@ refresh, import, or infer market data.
 from __future__ import annotations
 
 import html
+from src.profile_context import active_readiness_inspection_route
 
 
 DATA_HEALTH_OPERATOR_LANES = {
@@ -114,7 +115,8 @@ def data_health_current_mode_next_action(
 ) -> str:
     freshness_status = str(getattr(readiness_freshness, "status", "") or "")
     if freshness_status in {"missing", "stale"}:
-        return str(getattr(readiness_freshness, "refresh_command", "") or "make readiness")
+        inspection_command, _ = active_readiness_inspection_route()
+        return inspection_command
     if source_gate_next_action and selected_lane_key in DATA_HEALTH_BATCH_LANES:
         return source_gate_next_action
     if selected_lane_key == "metrics":
@@ -151,6 +153,10 @@ def data_health_current_mode_strip_html(
     freshness_status = getattr(readiness_freshness, "status", "unknown") or "unknown"
     freshness_value = str(freshness_status).replace("_", " ").title()
     freshness_message = _compact_fragment(getattr(readiness_freshness, "message", "Not available"), max_chars=88)
+    if str(freshness_status) in {"missing", "stale", "mixed"}:
+        _, inspection_note = active_readiness_inspection_route()
+        if inspection_note not in freshness_message:
+            freshness_message = f"{freshness_message} {inspection_note}"
     next_action = data_health_current_mode_next_action(
         selected_lane_key,
         batch_details_requested=batch_details_requested,

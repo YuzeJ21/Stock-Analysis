@@ -1,0 +1,1 @@
+schema_version,snapshot_id,ticker,fiscal_period,snapshot_at,retrieved_at,source,source_ref,revenue_consensus,eps_consensus,revenue_currency,revenue_unit_scale,revenue_basis,eps_currency,eps_basis,eps_share_basis,eps_operations_basis,split_adjustment_basis,expected_report_date,review_state,supersedes_snapshot_id

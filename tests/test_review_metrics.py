@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from src.providers.market_data import (
     AnalystEstimateSummary,
@@ -10,11 +11,15 @@ from src.providers.market_data import (
     QuoteSnapshot,
     make_source_metadata,
 )
+from src.observation_recency import ObservationRecency
+from src.quant_interpretation_eligibility import evaluate_quant_interpretation
 from src.review_metrics import (
     BLOCKED,
+    EXCLUDED,
     PARTIAL,
     READY,
     MetricReadinessBoardRow,
+    ReviewMetric,
     beta_vs_benchmark,
     build_metric_readiness_board,
     build_metric_readiness_summary,
@@ -26,10 +31,89 @@ from src.review_metrics import (
     max_drawdown,
     metric_readiness_board_next_safe_action,
     metric_readiness_board_status,
+    review_metric_quant_assessment,
     rolling_volatility,
     sharpe_ratio,
     sortino_ratio,
 )
+
+
+def _recency(scope: str, state: str, through_date: str) -> ObservationRecency:
+    return ObservationRecency(scope, through_date, 1, state, "test observation")
+
+
+def test_ready_review_metric_does_not_imply_current_context():
+    metric = ReviewMetric("max_drawdown", "ready", -0.22, "percent")
+
+    assessment = review_metric_quant_assessment(
+        metric,
+        ticker="NVDA",
+        observation=_recency("NVDA", "current", "2026-07-27"),
+        benchmark_observation=None,
+        provenance_state="unverified",
+        rights_state="unverified",
+        field_scope_state="unverified",
+    )
+
+    assert assessment.calculation_state == "available"
+    assert evaluate_quant_interpretation(
+        assessment
+    ).interpretation_state == "historical_review_only"
+
+
+@pytest.mark.parametrize(
+    ("state", "calculation_state"),
+    [
+        (READY, "available"),
+        (PARTIAL, "partial"),
+        (BLOCKED, "unavailable"),
+        (EXCLUDED, "excluded"),
+        ("unknown", "unavailable"),
+    ],
+)
+def test_review_metric_adapter_maps_metric_states(state, calculation_state):
+    assessment = review_metric_quant_assessment(
+        ReviewMetric("max_drawdown", state, -0.22, "percent"),
+        ticker="NVDA",
+        observation=_recency("NVDA", "current", "2026-07-27"),
+        benchmark_observation=None,
+        provenance_state="verified",
+        rights_state="permitted",
+        field_scope_state="permitted",
+    )
+
+    assert assessment.calculation_state == calculation_state
+
+
+def test_review_metric_requires_matching_benchmark_evidence_only_for_benchmarked_metrics():
+    metric = ReviewMetric("beta_vs_benchmark", READY, 1.1, "ratio", benchmark="SPY")
+
+    with pytest.raises(ValueError, match="benchmark observation scope"):
+        review_metric_quant_assessment(
+            metric,
+            ticker="NVDA",
+            observation=_recency("NVDA", "current", "2026-07-27"),
+            benchmark_observation=_recency("QQQ", "current", "2026-07-27"),
+            provenance_state="verified",
+            rights_state="permitted",
+            field_scope_state="permitted",
+        )
+
+
+@pytest.mark.parametrize("benchmark_through_date", ["2099-01-01", "malformed"])
+def test_benchmarked_review_metric_withholds_when_benchmark_date_is_rejected(benchmark_through_date):
+    assessment = review_metric_quant_assessment(
+        ReviewMetric("beta_vs_benchmark", READY, 1.1, "ratio", benchmark="SPY"),
+        ticker="NVDA",
+        observation=_recency("NVDA", "current", "2026-07-27"),
+        benchmark_observation=_recency("SPY", "current", benchmark_through_date),
+        provenance_state="verified",
+        rights_state="permitted",
+        field_scope_state="permitted",
+    )
+
+    assert assessment.observation_state == "unavailable"
+    assert evaluate_quant_interpretation(assessment).interpretation_state == "withheld"
 
 
 class FakeMetricsProvider:

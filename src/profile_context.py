@@ -6,6 +6,7 @@ import argparse
 import csv
 import hashlib
 import json
+import subprocess
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -35,6 +36,31 @@ SOURCE_DATE_COLUMNS: dict[Path, tuple[str, tuple[str, ...]]] = {
     ),
 }
 IDENTITY_FILES = (*READINESS_FILES, *SOURCE_DATE_COLUMNS.keys())
+READINESS_PREVIEW_COMMAND = "make readiness-preview TOP_N=20"
+READINESS_PREVIEW_NOTE = "In-memory preview only; it does not refresh or persist saved readiness."
+
+
+def readiness_inspection_route(profile_key: str, profile_label: str, data_dir: Path) -> tuple[str, str]:
+    if profile_key == "default":
+        return READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
+    unavailable = (
+        f"Unavailable for {profile_label} ({profile_key}): Slice 1 readiness preview inspects only "
+        f"Default (default) inputs in data; selected profile inputs are {data_dir.as_posix()}."
+    )
+    return unavailable, f"{unavailable} {READINESS_PREVIEW_NOTE}"
+
+
+def active_readiness_inspection_route(
+    project_root: Path | str | None = None,
+) -> tuple[str, str]:
+    """Return inspection guidance for the profile selected by the environment."""
+
+    profile = resolve_data_profile(project_root=project_root)
+    return readiness_inspection_route(
+        profile.name,
+        profile_display_label(profile.name),
+        profile.data_dir,
+    )
 
 
 @dataclass(frozen=True)
@@ -62,6 +88,8 @@ class ProfileContext:
     coverage: CoverageCounts
     lane_source_dates: tuple[tuple[str, str], ...]
     snapshot_inputs: tuple[str, ...]
+    readiness_evidence_state: str = "unverified"
+    readiness_evidence_message: str = "Readiness evidence origin was not evaluated."
 
 
 def _read_csv(path: Path) -> list[dict[str, str]]:
@@ -202,39 +230,99 @@ def _local_identity(data_dir: Path) -> tuple[str, tuple[str, ...]]:
     return hashlib.sha256(encoded).hexdigest(), tuple(inputs)
 
 
-def _freshness(data_dir: Path) -> tuple[str, str, str]:
+def _readiness_evidence(
+    project_root: Path,
+    data_dir: Path,
+    *,
+    profile_key: str,
+) -> tuple[str, str]:
+    """Classify tracked release evidence independently from date freshness."""
+
+    if profile_key != "default" or data_dir != (project_root / "data").resolve():
+        return "not_applicable", "Tracked release-evidence comparison applies only to the default data profile."
+    try:
+        relative_paths = [(data_dir / path).relative_to(project_root).as_posix() for path in READINESS_FILES]
+    except ValueError:
+        return "unverified", "Readiness artifacts are outside the project root and cannot be compared with HEAD."
+    try:
+        repository_check = subprocess.run(
+            ["git", "-C", str(project_root), "rev-parse", "--is-inside-work-tree"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        stderr = str(exc.stderr or "").lower()
+        if "not a git repository" in stderr:
+            return "not_applicable", "Tracked release-evidence comparison is unavailable outside a Git worktree."
+        return "unverified", "Readiness artifacts could not be compared with tracked HEAD evidence."
+    except OSError:
+        return "unverified", "Readiness artifacts could not be compared with tracked HEAD evidence."
+    if repository_check.stdout.strip().lower() != "true":
+        return "not_applicable", "Tracked release-evidence comparison is unavailable outside a Git worktree."
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(project_root),
+                "status",
+                "--porcelain=v1",
+                "--untracked-files=all",
+                "--",
+                *relative_paths,
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return "unverified", "Readiness artifacts could not be compared with tracked HEAD evidence."
+    if result.stdout.strip():
+        return (
+            "working_artifact_uncommitted",
+            "Readiness artifacts differ from HEAD and are not tracked release evidence.",
+        )
+    return "tracked", "Readiness artifacts match tracked HEAD evidence."
+
+
+def _freshness(data_dir: Path, *, profile_key: str, profile_label: str) -> tuple[str, str, str]:
+    inspection_action, inspection_note = readiness_inspection_route(profile_key, profile_label, data_dir)
     readiness_paths = [data_dir / path for path in READINESS_FILES]
     readiness_present = [path for path in readiness_paths if path.exists()]
     if not readiness_present:
-        return "missing", "Selected-profile readiness artifacts are missing.", "make readiness"
+        return "missing", f"Selected-profile readiness artifacts are missing. {inspection_note}", inspection_action
     if len(readiness_present) != len(readiness_paths):
-        return "mixed", "Only some selected-profile readiness artifacts are available.", "make readiness"
+        return "mixed", f"Only some selected-profile readiness artifacts are available. {inspection_note}", inspection_action
 
     source_paths = [data_dir / path for path in SOURCE_DATE_COLUMNS if (data_dir / path).exists()]
     if not source_paths:
-        return "mixed", "Readiness exists but selected-profile canonical source files are missing.", "make readiness"
-    oldest_readiness = min(path.stat().st_mtime for path in readiness_present)
-    if any(path.stat().st_mtime > oldest_readiness for path in source_paths):
-        return "stale", "Selected-profile source files are newer than saved readiness.", "make readiness"
+        return "mixed", f"Readiness exists but selected-profile canonical source files are missing. {inspection_note}", inspection_action
     return "current", "Selected-profile readiness is current for the saved source files.", ""
 
 
 def build_profile_context(
     project_root: Path | str | None = None,
     *,
+    profile: str | None = None,
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
     now: datetime | None = None,
 ) -> ProfileContext:
     root = resolve_project_root(project_root)
-    profile = resolve_data_profile(project_root=root)
-    data_path = resolve_data_dir(data_dir, root)
-    output_path = resolve_outputs_dir(output_dir, root)
+    selected_profile = resolve_data_profile(profile, project_root=root)
+    data_path = selected_profile.data_dir if data_dir is None else resolve_data_dir(data_dir, root)
+    output_path = selected_profile.outputs_dir if output_dir is None else resolve_outputs_dir(output_dir, root)
+    if profile is not None and (
+        data_path != selected_profile.data_dir
+        or output_path != selected_profile.outputs_dir
+    ):
+        raise ValueError("explicit overrides must match the selected profile paths")
     current = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     lanes = _lane_source_dates(data_path, today=current.date())
     source_as_of = max((value for _, value in lanes), default="")
 
-    if profile.name == "demo" and data_dir is None:
+    if selected_profile.name == "demo" and data_dir is None:
         identity, manifest_date = _manifest_identity(data_path / "manifest.json")
         if manifest_date:
             source_as_of = manifest_date
@@ -243,7 +331,16 @@ def build_profile_context(
         identity, snapshot_inputs = _local_identity(data_path)
 
     readiness_built_at = _readiness_built_at(data_path)
-    freshness_state, freshness_message, refresh_command = _freshness(data_path)
+    freshness_state, freshness_message, refresh_command = _freshness(
+        data_path,
+        profile_key=selected_profile.name,
+        profile_label=profile_display_label(selected_profile.name),
+    )
+    readiness_evidence_state, readiness_evidence_message = _readiness_evidence(
+        root,
+        data_path,
+        profile_key=selected_profile.name,
+    )
     source_date = _parse_date(source_as_of)
     readiness_time = _parse_datetime(readiness_built_at)
     if (
@@ -253,15 +350,17 @@ def build_profile_context(
         and source_date > readiness_time.date()
     ):
         freshness_state = "stale"
-        freshness_message = "Selected-profile source dates are newer than the saved readiness snapshot."
-        refresh_command = "make readiness"
-    if profile.name == "demo" and data_dir is None and not identity:
+        refresh_command, inspection_note = readiness_inspection_route(
+            selected_profile.name, profile_display_label(selected_profile.name), data_path
+        )
+        freshness_message = f"Selected-profile source dates are newer than the saved readiness snapshot. {inspection_note}"
+    if selected_profile.name == "demo" and data_dir is None and not identity:
         freshness_state = "mixed" if (data_path / READINESS_FILES[0]).exists() else "missing"
         freshness_message = "The selected demo manifest is missing or invalid."
 
     return ProfileContext(
-        profile_key=profile.name,
-        profile_label=profile_display_label(profile.name),
+        profile_key=selected_profile.name,
+        profile_label=profile_display_label(selected_profile.name),
         data_dir=data_path,
         outputs_dir=output_path,
         source_as_of=source_as_of,
@@ -274,6 +373,8 @@ def build_profile_context(
         coverage=_coverage_counts(data_path / READINESS_FILES[0]),
         lane_source_dates=lanes,
         snapshot_inputs=snapshot_inputs,
+        readiness_evidence_state=readiness_evidence_state,
+        readiness_evidence_message=readiness_evidence_message,
     )
 
 
@@ -286,6 +387,10 @@ def render_profile_context_text(context: ProfileContext) -> str:
             f"Readiness built: {context.readiness_built_at or 'unavailable'}",
             f"Snapshot: {context.snapshot_identity_short or 'unavailable'}",
             f"Freshness: {context.freshness_state} - {context.freshness_message}",
+            (
+                "Readiness evidence: "
+                f"{context.readiness_evidence_state} - {context.readiness_evidence_message}"
+            ),
             (
                 f"Saved readiness coverage: price={coverage.price_ready}/{coverage.total}; "
                 f"fundamentals={coverage.fundamentals_ready}/{coverage.total}; "

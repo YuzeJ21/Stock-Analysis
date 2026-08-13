@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 import pandas as pd
+from src.profile_context import active_readiness_inspection_route
 
 
 def _format_missing(value: object, fallback: str = "Not available") -> str:
@@ -569,10 +570,15 @@ def operations_cockpit_cards(
     estimate_total = 0 if analyst_readiness_frame is None else len(analyst_readiness_frame)
     optional_locked = max(earnings_total - earnings_ready, 0) + max(estimate_total - estimate_ready, 0)
     freshness_title = _public_status_label(freshness.status).title()
+    inspection_command, inspection_note = active_readiness_inspection_route()
+    freshness_command = _format_missing(freshness.refresh_command, inspection_command)
+    if freshness.status in {"missing", "stale", "mixed"}:
+        freshness_command = inspection_command
     freshness_body = (
         f"{freshness.message} "
         "Refresh readiness before relying on exact counts when artifacts are missing or stale. "
-        "Treat stale or missing readiness artifacts as a stop sign before relying on final counts."
+        "Treat stale or missing readiness artifacts as a stop sign before relying on final counts. "
+        f"{inspection_note if freshness_command == inspection_command else ''}"
     )
     freshness_badges = [freshness.status, "refresh before counts"] if freshness.status in {"missing", "stale"} else [freshness.status, "counts usable"]
 
@@ -582,7 +588,7 @@ def operations_cockpit_cards(
             "title": freshness_title,
             "body": freshness_body,
             "badges": freshness_badges,
-            "command": freshness.refresh_command,
+            "command": freshness_command,
         },
         lane_answer_card(ops_frame),
         {
@@ -644,6 +650,20 @@ def auto_refresh_status_cards(status_payload: dict[str, object] | None) -> list[
         "Generated CSV/JSON/report churn stays excluded unless intentionally reviewed evidence.",
         max_chars=190,
     )
+    continuation_gate = payload.get("continuation_gate", {})
+    inspection_only = bool(
+        isinstance(continuation_gate, dict) and continuation_gate.get("suppress_execution")
+    )
+    next_card_command = next_command if inspection_only else next_runbook
+    next_card_body = (
+        "Inspect the saved-versus-proposed readiness impact without writing files. Scheduled operations remain "
+        "planning context until readiness is current and tracked, or a separate reviewed readiness decision is authorized."
+        if inspection_only
+        else (
+            "Use the compact runbook for the selected schedule. It keeps validation, preview, apply boundary, "
+            "proof, and pivot rules visible before any data-changing step."
+        )
+    )
 
     return [
         {
@@ -669,12 +689,9 @@ def auto_refresh_status_cards(status_payload: dict[str, object] | None) -> list[
         {
             "kicker": "NEXT SCHEDULER STEP",
             "title": next_command,
-            "body": (
-                "Use the compact runbook for the selected schedule. It keeps validation, preview, apply boundary, "
-                "proof, and pivot rules visible before any data-changing step."
-            ),
+            "body": next_card_body,
             "badges": ["runbook", "no broad retry loops"],
-            "command": next_runbook,
+            "command": next_card_command,
         },
     ]
 
@@ -1196,11 +1213,16 @@ def source_readiness_guidance_cards(
 ) -> list[dict[str, object]]:
     """Return the compact source-readiness strip shown before interpretation."""
 
+    inspection_command, inspection_note = active_readiness_inspection_route()
     import_summary = import_summary or {}
     research_health_summary = research_health_summary or {}
     freshness_status = _public_status_label(getattr(freshness, "status", ""), fallback="Unknown")
     freshness_message = _compact_fragment(getattr(freshness, "message", ""), "No freshness message available.", max_chars=190)
-    freshness_command = _format_missing(getattr(freshness, "refresh_command", ""), "make status-check TOP_N=5")
+    freshness_command = _format_missing(getattr(freshness, "refresh_command", ""), inspection_command)
+    if freshness_status.lower() in {"missing", "stale", "mixed"}:
+        freshness_command = inspection_command
+    if freshness_command == inspection_command and inspection_note not in freshness_message:
+        freshness_message = f"{freshness_message} {inspection_note}"
     rejected_rows = int(import_summary.get("rejected_rows") or 0)
     missing_reports = int(import_summary.get("missing_reports") or 0)
     staged_files = int(import_summary.get("staged_files") or 0)
@@ -1257,6 +1279,7 @@ def source_readiness_guidance_cards(
 
 
 def freshness_routine_cards(readiness_summary: dict[str, object]) -> list[dict[str, object]]:
+    inspection_command, inspection_note = active_readiness_inspection_route()
     master = int(readiness_summary.get("master_universe") or readiness_summary.get("universe_count") or 0)
     price_ready = int(readiness_summary.get("price_ready") or 0)
     missing_prices = max(master - price_ready, 0) if master else 0
@@ -1266,11 +1289,12 @@ def freshness_routine_cards(readiness_summary: dict[str, object]) -> list[dict[s
             "kicker": "READ-ONLY ROUTINE",
             "title": "Start without changing files",
             "body": (
-                "Use status, readiness, dashboard smoke, and a price-loop dry run as the normal freshness check. "
+                f"Use status, {inspection_command}, dashboard smoke, and a price-loop dry run as the normal freshness check. "
+                f"{inspection_note} "
                 "This keeps the app useful without hand-refreshing every ticker every day."
             ),
             "badges": ["safe default", "no file changes"],
-            "command": "make status-check TOP_N=5 && make readiness && make dashboard-smoke && make price-refresh-loop DRY_RUN=1",
+            "command": f"make status-check TOP_N=5 && {inspection_command} && make dashboard-smoke && make price-refresh-loop DRY_RUN=1",
         },
         {
             "kicker": "PRICE FRESHNESS",

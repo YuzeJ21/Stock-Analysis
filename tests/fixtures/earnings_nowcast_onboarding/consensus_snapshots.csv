@@ -1,0 +1,2 @@
+schema_version,ticker,fiscal_period,snapshot_at,revenue_consensus,eps_consensus,source,source_ref,retrieved_at,revenue_currency,revenue_unit_scale,revenue_basis,eps_currency,eps_basis,eps_share_basis,eps_operations_basis,split_adjustment_basis,expected_report_date
+earnings-nowcast-evidence-v2,SYN1,2026-Q1,2026-01-25T12:00:00Z,112,1.00,synthetic_test_fixture,fixture://consensus/SYN1/2026-Q1/2026-01-25,2026-01-25T12:01:00Z,USD,1,reported,USD,gaap,diluted,reported,as_reported,2026-04-20

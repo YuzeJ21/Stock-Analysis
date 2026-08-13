@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 
+from src.peer_evidence_quality import assess_peer_evidence, is_valuation_anchor_eligible
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.market_data import (
     AnalystEstimateSummary,
@@ -316,6 +317,7 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         for _, relationship in peer_rows.iterrows():
             peer_ticker = str(relationship.get("peer_ticker") or "").strip().upper()
             peer_result = self.get_earnings(peer_ticker).to_dict() if peer_ticker else {}
+            evidence_quality = assess_peer_evidence(relationship.to_dict())
             trusted_relationships.append(
                 {
                     key: _peer_evidence_value(relationship.get(key))
@@ -325,13 +327,24 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
                         "peer_group",
                         "sector",
                         "industry",
+                        "peer_role",
                         "relationship_rationale",
+                        "comparability_basis",
+                        "valuation_anchor_eligible",
                         "source",
                         "as_of_date",
                     )
                     if key in relationship.index and pd.notna(relationship.get(key))
                 }
-                | {"peer_result": peer_result}
+                | {
+                    "peer_result": peer_result,
+                    "peer_role": evidence_quality.peer_role,
+                    "relationship_evidence_state": evidence_quality.relationship_state,
+                    "role_state": evidence_quality.role_state,
+                    "comparability_state": evidence_quality.comparability_state,
+                    "valuation_anchor_state": evidence_quality.valuation_anchor_state,
+                    "evidence_quality_blockers": list(evidence_quality.blockers),
+                }
             )
         candidate_relationships = [
             {
@@ -418,6 +431,8 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             return peer_inputs
         for peer_ticker in peer_rows["peer_ticker"].dropna().astype(str).str.upper().str.strip().tolist():
             peer_row = peer_rows.loc[peer_rows["peer_ticker"] == peer_ticker].iloc[-1]
+            if not is_valuation_anchor_eligible(peer_row.to_dict()):
+                continue
             financials = self.get_financials(peer_ticker)
             try:
                 quote = self.get_quote(peer_ticker)
@@ -441,6 +456,10 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
                     "peer_group": self._string_value(peer_row, "peer_group"),
                     "sector": self._string_value(peer_row, "sector"),
                     "industry": self._string_value(peer_row, "industry"),
+                    "peer_role": self._string_value(peer_row, "peer_role"),
+                    "relationship_rationale": self._string_value(peer_row, "relationship_rationale"),
+                    "comparability_basis": self._string_value(peer_row, "comparability_basis"),
+                    "valuation_anchor_eligible": self._string_value(peer_row, "valuation_anchor_eligible"),
                     "mapping_source": self._string_value(peer_row, "source"),
                     "mapping_as_of_date": self._string_value(peer_row, "as_of_date"),
                     "source_metadata": [

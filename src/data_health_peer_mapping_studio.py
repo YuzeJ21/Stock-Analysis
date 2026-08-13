@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+from src.profile_context import active_readiness_inspection_route
 
 from src.data_health_summary import bool_series
 
@@ -9,14 +10,15 @@ def peer_mapping_studio_summary_cards(
     peer_readiness_frame: pd.DataFrame | None,
     ticker_readiness_frame: pd.DataFrame | None = None,
 ) -> list[dict[str, object]]:
+    inspection_command, inspection_note = active_readiness_inspection_route()
     if peer_readiness_frame is None or peer_readiness_frame.empty:
         return [
             {
                 "kicker": "PEER STUDIO",
                 "title": "Peer readiness not ready yet",
-                "body": "Build peer readiness proof before using the mapping studio.",
+                "body": f"Inspect peer readiness before using the mapping studio. {inspection_note}",
                 "badges": ["blocked"],
-                "command": "make readiness",
+                "command": inspection_command,
             }
         ]
 
@@ -75,9 +77,9 @@ def peer_mapping_studio_summary_cards(
         {
             "kicker": "TREND POSSIBLE",
             "title": f"{int(trend_ready.sum())} tickers",
-            "body": "Peer trend comparison can be reviewed before peer valuation is fully unlocked.",
+            "body": f"Peer trend comparison can be reviewed before peer valuation is fully unlocked. {inspection_note}",
             "badges": ["trend ready", "not valuation"],
-            "command": "make readiness",
+            "command": inspection_command,
         },
         {
             "kicker": "VALUATION BLOCKED",

@@ -7,9 +7,12 @@ from src.providers.sec_submissions import (
     build_sec_filing_share_count_evidence,
     build_sec_submission_metadata_packet,
     build_sec_submission_metadata,
+    extract_filing_exhibits,
     extract_share_count_from_inline_xbrl,
     fetch_sec_submission,
     latest_filing_document,
+    read_cached_sec_submission,
+    sec_filing_index_url,
     sec_filing_document_url,
     sec_submission_url,
 )
@@ -38,6 +41,37 @@ def _sample_submission_payload() -> dict[str, object]:
 
 def test_sec_submission_url_zero_pads_cik():
     assert sec_submission_url("1045810") == SEC_SUBMISSIONS_URL_TEMPLATE.format(cik="0001045810")
+
+
+def test_sec_filing_index_url_uses_archive_accession_path():
+    assert sec_filing_index_url("0001045810", "0001045810-26-000021") == (
+        "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/0001045810-26-000021-index.html"
+    )
+
+
+def test_extract_filing_exhibits_discovers_only_allowlisted_ex_99_links():
+    index_html = """
+    <table>
+      <tr><th>Document</th><th>Description</th><th>Type</th></tr>
+      <tr><td><a href="nvda-ex99.htm">nvda-ex99.htm</a></td><td>Release</td><td>EX-99</td></tr>
+      <tr><td><a href="nvda-ex991.htm">nvda-ex991.htm</a></td><td>Earnings release</td><td>EX-99.1</td></tr>
+      <tr><td><a href="nvda-ex992.htm">nvda-ex992.htm</a></td><td>Supplement</td><td>EX-99.2</td></tr>
+      <tr><td><a href="nvda-ex993.htm">nvda-ex993.htm</a></td><td>Other exhibit</td><td>EX-99.3</td></tr>
+      <tr><td><a href="nvda-ex9917.htm">nvda-ex9917.htm</a></td><td>Other exhibit</td><td>EX-99.17</td></tr>
+      <tr><td><a href="not-an-exhibit.htm">not-an-exhibit.htm</a></td><td>Primary</td><td>8-K</td></tr>
+    </table>
+    """
+
+    exhibits = extract_filing_exhibits(index_html, cik="0001045810", accession="0001045810-26-000021")
+
+    assert [(exhibit.document_type, exhibit.document_name) for exhibit in exhibits] == [
+        ("EX-99", "nvda-ex99.htm"),
+        ("EX-99.1", "nvda-ex991.htm"),
+        ("EX-99.2", "nvda-ex992.htm"),
+    ]
+    assert exhibits[1].source_ref == (
+        "https://www.sec.gov/Archives/edgar/data/1045810/000104581026000021/nvda-ex991.htm"
+    )
 
 
 def test_build_sec_submission_metadata_maps_entity_industry_and_latest_filing():
@@ -98,6 +132,13 @@ def test_fetch_sec_submission_requires_user_agent(monkeypatch):
 
     with pytest.raises(ValueError, match="SEC requests require"):
         fetch_sec_submission("1045810", user_agent=None)
+
+
+def test_read_cached_sec_submission_does_not_create_missing_cache_directory(tmp_path: Path):
+    cache_dir = tmp_path / "cache"
+
+    assert read_cached_sec_submission("1045810", cache_dir=cache_dir) is None
+    assert not cache_dir.exists()
 
 
 def test_build_sec_submission_metadata_packet_uses_cached_submission_without_network(tmp_path: Path):

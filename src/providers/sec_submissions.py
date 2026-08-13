@@ -4,14 +4,18 @@ import json
 import os
 import re
 import time
+from dataclasses import dataclass
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Callable, Iterable
+from urllib.parse import urljoin
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
 SEC_SUBMISSIONS_URL_TEMPLATE = "https://data.sec.gov/submissions/CIK{cik}.json"
 SEC_FILING_DOCUMENT_URL_TEMPLATE = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession}/{primary_document}"
+SEC_FILING_INDEX_URL_TEMPLATE = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession_path}/{accession}-index.html"
 SEC_SUBMISSIONS_METADATA_BOUNDARY = (
     "SEC submissions metadata supports ticker/entity/SIC/filing-recency evidence only; "
     "it does not unlock fundamentals, share count, DCF, valuation, earnings, or analyst estimates."
@@ -23,6 +27,16 @@ SEC_FILING_SHARE_COUNT_BOUNDARY = (
 )
 SHARE_COUNT_FACT_NAME = "dei:EntityCommonStockSharesOutstanding"
 SHARE_COUNT_FILING_FORMS = ("10-K", "10-K/A", "10-Q", "10-Q/A", "20-F", "20-F/A", "40-F", "40-F/A")
+Q4_EARNINGS_EXHIBIT_TYPES = frozenset(("EX-99", "EX-99.1", "EX-99.2"))
+
+
+@dataclass(frozen=True)
+class FiledExhibit:
+    document_type: str
+    document_name: str
+    source_ref: str
+    cik: str = ""
+    accession: str = ""
 
 
 def normalize_cik(cik: str | int) -> str:
@@ -54,6 +68,82 @@ def sec_filing_document_url(cik: str | int, accession: str, primary_document: st
     )
 
 
+def sec_filing_index_url(cik: str | int, accession: str) -> str:
+    normalized_cik = normalize_cik(cik).lstrip("0")
+    accession_text = _accession_no_dashes(accession)
+    accession_display = str(accession or "").strip()
+    if not accession_text or not accession_display:
+        raise ValueError("SEC filing index URL requires an accession.")
+    return SEC_FILING_INDEX_URL_TEMPLATE.format(
+        cik=normalized_cik,
+        accession_path=accession_text,
+        accession=accession_display,
+    )
+
+
+class _FilingIndexParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.rows: list[list[tuple[str, str]]] = []
+        self._row: list[tuple[str, str]] | None = None
+        self._cell_text: list[str] | None = None
+        self._cell_href = ""
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() == "tr":
+            self._row = []
+        elif tag.lower() in {"td", "th"} and self._row is not None:
+            self._cell_text = []
+            self._cell_href = ""
+        elif tag.lower() == "a" and self._cell_text is not None:
+            self._cell_href = dict(attrs).get("href") or ""
+
+    def handle_data(self, data: str) -> None:
+        if self._cell_text is not None:
+            self._cell_text.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        lowered = tag.lower()
+        if lowered in {"td", "th"} and self._row is not None and self._cell_text is not None:
+            self._row.append((" ".join(self._cell_text).strip(), self._cell_href))
+            self._cell_text = None
+            self._cell_href = ""
+        elif lowered == "tr" and self._row is not None:
+            if self._row:
+                self.rows.append(self._row)
+            self._row = None
+
+
+def extract_filing_exhibits(index_html: str, *, cik: str, accession: str) -> tuple[FiledExhibit, ...]:
+    parser = _FilingIndexParser()
+    parser.feed(index_html or "")
+    base_url = sec_filing_index_url(cik, accession)
+    exhibits: list[FiledExhibit] = []
+    seen: set[tuple[str, str]] = set()
+    for row in parser.rows:
+        document_type = next((text.upper() for text, _href in row if text.upper() in Q4_EARNINGS_EXHIBIT_TYPES), "")
+        if not document_type:
+            continue
+        document_name = next((href or text for text, href in row if href or text.lower().endswith((".htm", ".html"))), "")
+        if not document_name:
+            continue
+        source_ref = urljoin(base_url, document_name)
+        key = (document_type, source_ref)
+        if key in seen:
+            continue
+        seen.add(key)
+        exhibits.append(
+            FiledExhibit(
+                document_type=document_type,
+                document_name=document_name,
+                source_ref=source_ref,
+                cik=normalize_cik(cik),
+                accession=str(accession).strip(),
+            )
+        )
+    return tuple(exhibits)
+
+
 def _require_user_agent(user_agent: str | None = None) -> str:
     resolved = (user_agent or os.environ.get("SEC_USER_AGENT", "")).strip()
     if not resolved:
@@ -65,15 +155,19 @@ def _require_user_agent(user_agent: str | None = None) -> str:
 
 
 def _submissions_cache_path(cache_dir: Path, cik: str) -> Path:
-    path = cache_dir / "submissions"
-    path.mkdir(parents=True, exist_ok=True)
-    return path / f"CIK{cik}.json"
+    return cache_dir / "submissions" / f"CIK{cik}.json"
 
 
 def _filing_document_cache_path(cache_dir: Path, cik: str, accession: str, primary_document: str) -> Path:
     path = cache_dir / "filing_documents" / f"CIK{normalize_cik(cik)}" / _accession_no_dashes(accession)
     path.mkdir(parents=True, exist_ok=True)
     return path / str(primary_document).strip()
+
+
+def _filing_index_cache_path(cache_dir: Path, cik: str, accession: str) -> Path:
+    path = cache_dir / "filing_indexes" / f"CIK{normalize_cik(cik)}" / _accession_no_dashes(accession)
+    path.mkdir(parents=True, exist_ok=True)
+    return path / "index.html"
 
 
 def read_cached_sec_submission(cik: str | int, *, cache_dir: str | Path = "data/cache/sec") -> dict[str, Any] | None:
@@ -124,6 +218,7 @@ def fetch_sec_submission(
     if not isinstance(payload, dict):
         raise RuntimeError(f"SEC submissions metadata for CIK {normalized_cik} was not a JSON object.")
     if cache:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
         cache_path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return payload
 
@@ -303,6 +398,28 @@ def fetch_sec_filing_document(
         resolved_user_agent,
         sleep_seconds,
     )
+    if cache:
+        cache_path.write_text(text, encoding="utf-8")
+    return text
+
+
+def fetch_sec_filing_index(
+    cik: str | int,
+    accession: str,
+    user_agent: str | None = None,
+    *,
+    cache: bool = True,
+    refresh: bool = False,
+    cache_dir: str | Path = "data/cache/sec",
+    sleep_seconds: float = 0.2,
+    fetcher: Callable[[str, str, float], str] | None = None,
+) -> str:
+    resolved_user_agent = _require_user_agent(user_agent)
+    normalized_cik = normalize_cik(cik)
+    cache_path = _filing_index_cache_path(Path(cache_dir), normalized_cik, accession)
+    if cache and cache_path.exists() and not refresh:
+        return cache_path.read_text(encoding="utf-8", errors="replace")
+    text = (fetcher or _fetch_text)(sec_filing_index_url(normalized_cik, accession), resolved_user_agent, sleep_seconds)
     if cache:
         cache_path.write_text(text, encoding="utf-8")
     return text

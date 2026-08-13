@@ -20,9 +20,23 @@ CURL_LOG="${TMPDIR:-/tmp}/stock-research-dashboard-smoke-${PORT}-curl.log"
 
 echo "Repo root: ${REPO_ROOT}"
 cd "${REPO_ROOT}"
+export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+
+PYTHONDONTWRITEBYTECODE=1 REPO_ROOT="${REPO_ROOT}" python3 - <<'PY'
+import os
+from pathlib import Path
+
+import src.dashboard as dashboard
+
+root = Path(os.environ["REPO_ROOT"]).resolve()
+module_path = Path(dashboard.__file__).resolve()
+if root not in module_path.parents:
+    raise SystemExit(f"Dashboard import escaped the selected checkout: {module_path}")
+print(f"Dashboard import check passed: {module_path}")
+PY
 
 echo "Starting fresh Streamlit dashboard smoke check on isolated port ${PORT}"
-streamlit run src/dashboard.py --server.headless true --server.fileWatcherType none --server.port "${PORT}" >"${LOG_FILE}" 2>&1 &
+PYTHONDONTWRITEBYTECODE=1 streamlit run src/dashboard.py --server.headless true --server.fileWatcherType none --server.port "${PORT}" >"${LOG_FILE}" 2>&1 &
 SERVER_PID="$!"
 
 cleanup() {

@@ -2,6 +2,235 @@
 
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
+## 2026-08-11 Calm Institutional Workspace acceptance contract
+
+Personal Research now has one in-content workflow navigation for Research Desk,
+Discover, Company Workbench, and Monitor. The same DOM becomes a compact desktop
+rail and a wrapped phone grid; its Workspace mode disclosure replaces the
+retired sidebar selector. Public uses one explicit five-step workflow nav.
+Operator alone retains native sidebar workspace and route controls, and its
+operator or compatibility warning precedes detail. Canonical mode isolation
+fails disallowed links closed while preserving permitted ticker/evidence state.
+
+Final local acceptance requires one ordered 15-route x 3-viewport x 2-zoom,
+90-cell matrix at `1280x720`, `1440x1024`, and `390x844`, with 100% and 200% zoom.
+Each result records structured region/control geometry, an idle `notRunning`
+Streamlit state, console/page errors, and the bounded commit/worktree snapshot.
+Passing automation remains engineering evidence only, not data freshness, source
+rights, hosted behavior, WCAG conformance, independent review, or market validity.
+
+At implementation anchor `2bc374ab8`, the clean read-only accessibility browser
+gate passed all six routes at `1280x720` and `390x844`. It verified the labelled
+top navigation on the four primary routes, exact route/H1/main identity, skip
+focus, same-document rerun and away/return route preservation, forced-colors and
+reduced-motion signals, route-owned primary answer markers, no horizontal
+overflow, no browser or runtime errors, and unchanged repository state. The
+same 18 generated data/output modifications were excluded. This is automated
+local engineering evidence only, not independent-human, screen-reader, WCAG,
+hosted, or market validation.
+
+## 2026-08-05 Research Desk Today's Brief
+
+Research Desk now renders one primary **Today's Research Brief** instead of a
+weekly-card row plus four overlapping question cards. The brief asks **What
+needs my attention today?**, gives one saved-evidence answer and reason, exposes
+the saved-readiness warning, and provides one Monitor-or-Discover action. Its
+stop rule says the answer is saved-workspace evidence rather than a
+market-complete event feed, recommendation, or trade instruction. Weekly,
+cohort, observation, coverage, and source-change detail remains available under
+collapsed **Advanced Evidence**.
+
+At implementation anchor `5a2aaf2a44dc7ae371161bb8642ab7f0755ad019`, the
+read-only accessibility browser gate passed all six Research routes at
+`1280x720` and `390x844`. The Desk brief and action were visible in normal,
+forced-colors, and reduced-motion observations; the route had no horizontal
+overflow, browser error, rendered traceback, or repository write. The gate
+classified and excluded the same 18 generated data/output modifications. This
+is local automated engineering evidence only, not independent-human,
+screen-reader, WCAG, hosted, or market validation.
+
+## 2026-08-05 Monitor Follow-up Queue
+
+Exact local runtime anchor `199fa94b266a8bb325bfc4a4df1742158282d47a`
+passed the automated direct-browser gate at `1280x720` and `390x844` across all
+six Personal Research routes. Monitor exposed five visible labels — **SINCE LAST
+REVIEW**, **NEEDS VERIFICATION**, **WAITING ON EVIDENCE**, **SCHEDULED CONTEXT**,
+and **EVIDENCE FRESHNESS** — in a desktop two-column grid and a phone one-column
+layout. The old Evidence Monitor Brief, Research Discipline Review, and Research
+change monitor no longer compete as separate primary summaries. A controlled
+empty state appears once, preserves the external-event boundary, and exposes
+one Open Discover action. Complete stable-order process rows, identities, and
+source-change evidence remain available in **Advanced: Monitor evidence**.
+Neither viewport had horizontal overflow, a rendered traceback, console/page
+errors, or server runtime errors. The same 18 protected generated working-tree
+paths remained unchanged and unstaged after the gate.
+
+This is automated local engineering evidence only. It does not establish human
+or screen-reader accessibility, source rights, current-market validity, hosted
+operation, independent workflow validation, probability calibration, or market
+validation.
+
+## 2026-08-01 Company Workbench HTML Research Brief
+
+Open `?mode=research&page=company-workbench&ticker=<ticker>` with an explicit selected
+ticker. Company Workbench displays **Download HTML Research Brief** only after
+preparing the same session evidence and Scenario Lab result used by the visible
+research answer. The download preserves complete, partial, and withheld states;
+unsupported fields remain withheld independently and the brief stays
+research-only.
+
+Run `make company-workbench-html-browser-check` for the direct actual-byte
+complete/partial/withheld browser, keyboard, responsive, print, media-
+preference, PDF-in-memory, CSP, and repository-fingerprint matrix. No HTML, PDF, screenshot, JSON, timing, readiness, canonical-data, or report artifact is written. This command does not refresh data, acquire a source, activate readiness, or establish human/screen-reader accessibility.
+
+This historical pre-fix matrix was recorded on 2026-08-01: commits `b10ebcfbd`, `923fa850e`, `9ce1a6ce4`, `84562a7f6`, and `8218af401` passed the 101-test HTML-browser matrix, while the six modal-passive reproductions were withheld. It is not current-head evidence. Exact-head repair evidence: commit `b69badfc80424d3a97fae5f77706aa6ed1533167` passed the 5,828-test full suite, the required dashboard, render, HTML, accessibility, public, and hygiene gates, branch/PR synchronization, and exact-head GitHub Actions run `30726301045`. This remains automated engineering evidence only and does not establish human or screen-reader accessibility.
+
+Local engineering evidence does not establish source rights, current-market data, readiness activation, a new or professional line-item model, hosted operation, human or screen-reader conformance, independent validation, market fit, screening alpha, or probability calibration.
+
+## 2026-07-18 Personal Research Evidence Detour Continuity
+
+Read-only AppTest coverage now verifies six Personal Research surfaces: Research Desk, Discover, Company Workbench, Monitor, Research Data Health, and Research Proof History. Data Health and Proof History stay inside Personal Research mode when opened from Company Workbench Advanced Evidence, preserve the selected ticker, and show **Return to Company Workbench** before existing evidence content.
+
+The same-mode detour does not change readiness or evidence state, add a route, expose Operator commands, refresh data, record a review outcome, or treat Proof History as an unlock. The active continuation contract prohibited new screenshots, so this pass proves route and render continuity only; it does not prove visual spacing, focus order, contrast, assistive-technology behavior, hosted behavior, or accessibility compliance.
+
+## Company Workbench Authoritative Task Contract
+
+Company Workbench renders one overall `ONE NEXT TASK` card. The change-answer contract explicitly distinguishes `none`, `snapshot_only`, and `source_backed`: no matching change renders a neutral no-queued-change badge, snapshot-only context renders only its own badge, and eligible source-backed context renders the source-backed badge. A change can win only when its answer also carries strict source-backed eligibility. Open items keep their suggested review task; still-blocked and intentionally deferred items preserve their existing wait and monitor routing plus the recorded wait condition. Forward View keeps lane-specific guidance and is not a competing overall task. This composition does not alter readiness or evidence states, which remain independent.
+
+A focused Streamlit AppTest regression renders the normal AVGO Company Workbench route with zero exceptions, a scoped no-queued-change Evidence Change card without a snapshot-only badge, exactly one `ONE NEXT TASK` marker, the current peer-evidence priority `Add peer mappings`, and one `FORWARD-VIEW LANE UNBLOCK` marker. It rejects the retired uppercase `NEXT RESEARCH TASK` kicker while retaining the established title-case `Next Research Task` section heading. This is deterministic local render evidence only, not current-data, source-rights, hosted, or visual-browser evidence.
+
+## Readiness Continuation Gate
+
+When the selected profile is stale, incomplete, unverified, or current but untracked, the readiness continuation gate makes `make readiness-preview TOP_N=20` the only continuation-safe action. Project-status next steps are suppressed, while provider setup details, coverage rankings, scheduled-operation details, and Advanced Data Health cards remain planning context only. Advanced Data Health cards derive the gate from the selected profile even when their cached preflight predates the gate. After explicit source and artifact authorization, `CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local>` may create an ignored local snapshot; release eligibility is separately checked with `make readiness-release-review TOP_N=20`, recorded with `make readiness-release-record ...`, and enforced with `make readiness-release-guard RECORD_ID=<record_id>`. The UI and CLI must not imply that preview refreshes data, makes saved readiness current or tracked, or authorizes source execution.
+
+## 2026-07-18 Monitor Answer-First Live Review
+
+The default-profile Monitor route was reviewed before and after the hierarchy
+change at `1280x720` and `390x844`. Before the change, five-company Earnings
+Nowcast readiness interrupted the path between the weekly summary and the
+actual research-change answer. After the change, the weekly summary is followed
+by `Research change monitor`, the neutral empty-queue answer, and one Open
+Discover action. Five-company readiness cards and full rows remain unchanged
+inside the collapsed `Advanced: five-company Earnings Nowcast readiness`
+drawer.
+
+At both widths, no details element was expanded, the technical readiness card
+was absent from visible text while Advanced was closed, and the document width
+matched the viewport exactly (`1280px` and `390px`). The browser recorded no
+errors. The phone review confirmed the answer, Open Discover action, and all
+three Advanced drawers in reading order without horizontal overflow. Computed
+styles confirmed the primary action and its nested text use a white foreground
+on the existing primary-button background; the action measured approximately
+`110x40px`.
+
+Reviewed before/after screenshots were saved outside the repository and remain
+unstaged. They prove local route hierarchy, responsive reflow, and visible
+control styling only; they do not prove current market data, source rights,
+hosted behavior, full keyboard or assistive-technology support, or predictive
+validity.
+
+## 2026-07-18 Research Desk Answer-First Live Review
+
+The live default-profile Research Desk route was reviewed at `1280x720` and
+`390x844`. The workspace boundary and Discover next action were followed by the
+weekly research summary, four direct research answers, and the Open Discover
+action. Focused-cohort scope, concise lane coverage, full matrices, and weekly
+rows remained available inside the existing collapsed `Advanced Evidence`
+drawer.
+
+At both widths, no details element was expanded by default and the hidden cohort
+cards were absent from rendered visible text. The weekly summary, `What should I
+review next?`, Open Discover, and Advanced Evidence remained present. The
+document width matched the viewport exactly (`1280px` and `390px`), with no
+horizontal overflow, and the browser recorded no errors.
+
+Reviewed screenshots were saved outside the repository in the temporary review
+workspace and remain unstaged. They prove local layout and route composition
+only; they do not prove current data, source rights, hosted behavior, or
+predictive validity.
+
+## 2026-07-18 Company Workbench Answer-First Live Review
+
+The live default-profile Company Workbench route for NVDA was reviewed at
+`1280x720` and `390x844`. The route rendered the workspace boundary and one
+next action, then kept selected-company lane cards closed under
+`Advanced: selected-company lane coverage`. The unchanged selected-ticker
+answer remained visible and the full review continued through What Changed,
+Business Trend, Valuation, Forward View, What Remains Withheld, Research
+Conclusion, and Next Research Task.
+
+At both widths, no details element was expanded by default and the hidden lane
+cards were absent from rendered visible text. The document width matched the
+viewport exactly (`1280px` and `390px`), with no horizontal overflow. The phone
+first view retained the research-only boundary and primary next action before
+the selected-company content continued below it.
+
+Reviewed screenshots were saved outside the repository in the temporary review
+workspace and remain unstaged. They prove local layout and route composition
+only; they do not prove current data, source rights, hosted behavior, or
+predictive validity.
+
+## 2026-08-01 Personal Research Workflow Peer-Readiness Review
+
+The live local workflow was reviewed in order through Research Desk, Discover,
+AVGO Company Workbench, and Monitor. Research Desk exposed one next action;
+Discover kept the empty strict Momentum & Valuation queue separate from its
+alphabetical readiness-backed review rows; Monitor preserved process timing as
+non-ranking context. The first AVGO Workbench load exposed a contradictory peer
+projection: broad peer trend readiness briefly unlocked peer-input wording even
+though `peer_valuation_comparison_ready` was false and the settled report
+withheld peer-relative valuation.
+
+The selected answer, next-step routing, reader guide, quick read, methodology,
+and source audit now use peer-valuation readiness for valuation claims while
+retaining independently ready peer-trend context. A fresh server session showed
+the same fail-closed AVGO answer before and after the saved report settled:
+standalone DCF reviewable, peer trend context separately available, and
+peer-relative valuation still withheld. Audit screenshots remain under
+`/tmp/stock-research-workflow-audit-2026-08-01` and are not repository evidence.
+This local review does not prove source rights, current data, hosted behavior,
+human accessibility, independent understanding, or predictive validity.
+
+## 2026-07-18 Discover Answer-First Live Review
+
+The live demo-profile Discover route was reviewed from the selected worktree at
+`1280x720` and `390x844`. In both viewports, the Personal Research header and
+research-only boundary are followed directly by `Which stock can I review?`,
+the readiness-backed search control, and the existing Company Workbench actions.
+Focused-cohort scope and lane-coverage cards now remain closed under
+`Advanced: cohort readiness context` after the selection task.
+
+The phone viewport reported a `390px` document width at a `390px` viewport,
+with no horizontal overflow and no details element expanded by default. The
+selector remained limited to the same deterministic cohort, and its links
+continued to target Company Workbench in Personal Research mode. This was a
+presentation-order change only; no readiness, data, ranking, or route contract
+changed.
+
+Reviewed screenshots were saved outside the repository in the temporary review
+workspace and remain unstaged. They are product-layout evidence only;
+they do not prove data freshness, source rights, hosted behavior, or predictive
+validity.
+
+## 2026-07-17 Commercial Beta Research Workflow Live Review
+
+The live local Streamlit app was reviewed in the in-app browser at `1280x720`
+and `390x844` across Research Desk, Discover, Company Workbench, and Monitor.
+Each route rendered from the selected worktree, kept the research-only boundary
+visible, preserved one next action, kept Advanced evidence closed, and showed no horizontal overflow at either viewport.
+
+The first settled Company Workbench review exposed a real `ArrowInvalid`
+failure when immutable Forward View evidence reached the display table. The
+display adapter now serializes that immutable nested evidence into deterministic
+JSON text. A fresh server restart and repeat NVDA review completed through
+Research Conclusion and Next Research Task without traceback text. Focused and
+full tests plus the dashboard and public gates cover the corrected contract.
+
+This live review is product evidence only. It does not prove hosted behavior,
+data freshness, licensed commercial source operation, external reviewer
+success, or predictive validity. No screenshot from this session is committed;
+generated capture output remains excluded.
+
 ## 2026-07-11 Public Workflow Modernization
 
 The current public first-view contract is intentionally simpler than older
@@ -34,6 +263,126 @@ exact current wording.
 | `docs/assets/operator-data-health-queue-routing-real.jpg` | Ready | Operator queue drawer routing proof from source proof to comparison, proof record, and artifact hygiene. |
 
 Screenshot evidence is product evidence only. It does not refresh data, apply imports, unlock blocked fundamentals, peers, earnings, analyst estimates, valuation inputs, or prove current readiness counts.
+
+## 2026-07-21 Public Desktop And Phone Workflow Review
+
+A fresh local review covered all five public pages—Home, Stock Selector,
+Single-Stock Report, Data Health, and Proof History—at desktop and `390x844`
+phone viewports. Every page passed its current review with its first answer and
+primary handoff visible, Advanced/raw detail collapsed, no horizontal overflow,
+and no traceback.
+
+Only the Single-Stock Report needed a later regression correction. Its
+direct-open loading state placed three large quick-read cards before the
+evidence handoff even though the completed report used the compact answer.
+The loading state now renders the same compact selected-ticker answer before
+provider and report work, preserving Selected ticker -> `Use now` -> `Still
+withheld` -> `Open Data Health`. Browser measurement at `390x844` verified the
+44px handoff fully inside the viewport with at least 50px of bottom clearance,
+no horizontal overflow, and no traceback. Desktop remains a four-column layout
+with the same handoff visible.
+
+### 2026-08-02 Complete Stop-Rule Follow-Up
+
+A current-head recapture found a narrower follow-up regression: the 44px
+handoff still fit, but the complete two-line research-only stop rule ended
+27.9px below the `390x844` first viewport. The phone action block inherited
+both its desktop grid gap and stop-rule top margin, and the selected-ticker
+summary still inherited its desktop top margin. Commit
+`34b08ea867316ae3683a9a769d1ed37bd62d61ce` removes that duplicate phone-only
+spacing without changing copy, reading order, research state, or desktop
+layout.
+
+Fresh live phone geometry reported `stop_top=811.4609375`,
+`stop_bottom=843.4296875`, `stop_clearance=0.5703125`,
+`action_height=44`, `action_clearance=78.8203125`, and `scroll_width=390`.
+The viewport was exactly `390x844`; Advanced details open count was zero and
+no traceback was visible.
+The summary began 2.2265625px after the trust strip, so the correction did not
+overlap the preceding evidence. At `1280x720`, the summary retained four
+computed columns (`128px 378.859px 378.859px 303.094px`), the action remained
+44px high, `scroll_width=1280`, and no traceback was visible. The live screen
+was inspected, but no screenshot file was created. This is local
+product-layout evidence only; it does not prove data freshness, source rights,
+hosted behavior, accessibility conformance, external review, demand, or market
+validation.
+
+### 2026-08-08 Zero-Scroll Supersession
+
+A fresh top-of-page audit supersedes the 2026-08-02 first-viewport conclusion.
+The earlier evidence did not record the scroll position, so its
+`stop_bottom=843.4296875` result cannot prove that the complete stop rule was
+inside the initial viewport. The new audit explicitly recorded
+`window.scrollY=0`, document and body scroll offsets of zero, and
+`stMain.scrollTop=0`.
+
+At `390x844`, both the archived evidence tree
+`60492ffa5475fc00cebbc2d4c2dff0c2b140c467` and audited product head
+`2e58e00bb6ddff6791299a514b562c96ce911196` rendered pixel-identical
+first-answer geometry in both controlled browser surfaces. The primary action
+remained fully visible with `action_top=764.0625`, `action_bottom=808.0625`,
+`action_height=44`, and `action_clearance=35.9375`; the complete stop rule
+reported `stop_top=854.34375`, `stop_bottom=886.3125`, and
+`stop_clearance=-42.3125`. Document width remained `390` with no horizontal
+overflow or traceback. The `42.8828125px` difference from the earlier recorded
+stop bottom is consistent with an unrecorded scroll offset, but the prior run
+did not capture that value and its exact cause is therefore not asserted.
+
+This proves that no later tracked product change introduced the current
+failure and that the existing selector-local spacing rules still render as
+implemented. It does not prove that the complete safety boundary is visible at
+the top of the phone route. The phone result is `blocked_with_evidence` until
+an owner-approved responsive repair is implemented and remeasured with an
+explicit zero-scroll assertion. No product code, readiness, source, research,
+or generated artifact changed during this reconciliation.
+
+### 2026-08-08 Owner-Approved Zero-Scroll Repair
+
+The owner-approved implementation at anchor
+`18417d90766e9aeb629eef6bb1ef4fc40805773c` keeps Home's direct answer and the
+Single-Stock Report direct-open loading state inside the initial phone
+viewport without changing copy or the shared Public shell. The selected answer
+still reads Selected ticker -> `Use now` -> `Still withheld` -> `Open Data
+Health`, and both primary actions remain 44px high.
+
+Fresh zero-scroll `resolved_post_fix` evidence at `390x844` recorded Home
+`stop_bottom=843.609375`, `action_height=44`, and `visible_stops=1`; the one
+visible stop rule follows the primary action and precedes metrics in both DOM
+and visual order. Single-Stock Report `stop_bottom=836.421875`,
+`action_height=44`, and `trust_gap=2.21875`. Both routes recorded
+`scroll_width=390`; all four measured scroll offsets were zero, Advanced open
+count was zero, and there was no horizontal overflow, no traceback, console
+warning, or page error.
+
+At `1280x720`, desktop retained two Home grid tracks and four Single-Stock
+Report grid tracks. Home showed only the desktop stop across the second row;
+Single Stock preserved its four-column answer; both actions remained 44px and
+both routes had zero scroll offsets, matching client/document widths, and no
+runtime error. The repair changed no readiness, source, research, or
+generated-artifact state and wrote no screenshot, timing, report, or data
+artifact.
+
+Data Health and Proof History remain answer/evidence destinations. This review
+adds no invented calls to action, does not turn either route into a readiness
+unlock, and does not change readiness, source, research, or generated-artifact
+state. The earlier screenshots predate this regression fix and remain
+historical presentation evidence only; their old measurements do not prove the
+corrected loading state. The later result was verified through live browser
+layout measurement, and no new screenshot artifact was created. Neither form
+of local presentation evidence proves data freshness, source rights, hosted
+behavior, accessibility compliance, external reviewer behavior, or predictive
+validity.
+
+The review-note gate preserves the corrective history without understating the
+finished audit. `resolved` is a direct successful review;
+`resolved_post_fix` is a successful fresh recapture after a correction. The
+current raw counts are eight `resolved` rows and two `resolved_post_fix` rows,
+while the aggregate gate reports `10/10` and `share_review_ready`. Only those
+two explicit labels are successful. Unknown labels—including values that merely
+start with `resolved`—and deferred, environment-limited, skipped, blocked, or
+pending rows remain fail closed. This is screenshot-based local workflow QA,
+not WCAG, keyboard, screen-reader, hosted, external-reviewer, freshness, or
+market-validation evidence.
 
 ## V1 Public UI Replacement QA
 
@@ -157,9 +506,8 @@ Capture limitation:
 
 Checked with fresh real Streamlit captures at desktop and phone widths:
 
-- The public shell now uses a compact `Saved readiness` status strip, a numbered
-  five-step rail, the page's literal question, and the `Research-only` boundary.
-  Sidebar navigation remains the single public route chooser.
+- The public shell now uses a compact `Saved readiness` status strip, the page's
+  literal question, and the `Research-only` boundary. The in-content public workflow navigation is the route chooser; this supersedes the retired sidebar chooser described by older captures.
 - The Home, Single-Stock Report, Data Health, and Proof History first views no
   longer repeat a generic current-question / primary-next-step / stop-rule card
   set. Each page shows its own answer before Advanced details.

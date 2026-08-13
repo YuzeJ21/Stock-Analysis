@@ -77,6 +77,31 @@ def test_evidence_writer_ready_state_still_keeps_apply_gated():
     assert "sell" not in rendered
 
 
+def test_trusted_fundamentals_proof_sequence_snapshots_before_apply():
+    source_review = _source_review_frame(
+        **{
+            "Missing Source-Review Fields": "-",
+            "Source Guard Status": "ready_for_guard",
+            "Import Row Scaffold": "AACB,<reviewed_period>,100,20,0.20,1000,source,2026-06-01",
+        }
+    )
+
+    proof = trusted_fundamentals_evidence_writer_frame(source_review).iloc[0][
+        "Post-Run Proof Command"
+    ]
+    steps = proof.split(" && ")
+
+    assert steps[:4] == [
+        "make readiness-snapshot PROFILE=default",
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-validate IMPORT_TICKERS=AACB",
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-preview IMPORT_TICKERS=AACB",
+        "STOCK_RESEARCH_DATA_PROFILE=default make imports-apply IMPORT_TICKERS=AACB",
+    ]
+    assert steps.index("STOCK_RESEARCH_DATA_PROFILE=default make dcf-readiness") < next(
+        index for index, step in enumerate(steps) if step.startswith("make reviewed-batch-compare ")
+    )
+
+
 def test_apply_decision_gate_rejects_invalid_outcome_before_proof_record():
     source_review = _source_review_frame(
         **{

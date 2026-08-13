@@ -440,7 +440,7 @@ def test_decision_proof_queue_writer_blocks_stale_readiness(tmp_path):
     (reports / "ticker_readiness_report.csv").write_text("ticker,updated_at\nA,2026-06-01\n", encoding="utf-8")
     (reports / "feature_readiness_summary.csv").write_text("feature,status\nprice,ready\n", encoding="utf-8")
     source = data / "prices.csv"
-    source.write_text("ticker,date,close\nA,2026-01-01,1\n", encoding="utf-8")
+    source.write_text("ticker,date,close\nA,2026-06-02,1\n", encoding="utf-8")
     for path in [
         data / "fundamentals.csv",
         data / "peers.csv",
@@ -457,8 +457,8 @@ def test_decision_proof_queue_writer_blocks_stale_readiness(tmp_path):
     result = write_decision_proof_queue(tmp_path)
 
     assert result.status == "stale"
-    assert "Run make readiness" in result.message
-    assert result.refresh_command == "make readiness"
+    assert "In-memory preview only" in result.message
+    assert result.refresh_command == "make readiness-preview TOP_N=20"
     assert not (tmp_path / DEFAULT_QUEUE_CSV).exists()
 
 
@@ -472,7 +472,7 @@ def test_decision_proof_queue_cli_prints_blocked_guidance(tmp_path, capsys):
     (reports / "ticker_readiness_report.csv").write_text("ticker,updated_at\nA,2026-06-01\n", encoding="utf-8")
     (reports / "feature_readiness_summary.csv").write_text("feature,status\nprice,ready\n", encoding="utf-8")
     source = data / "prices.csv"
-    source.write_text("ticker,date,close\nA,2026-01-01,1\n", encoding="utf-8")
+    source.write_text("ticker,date,close\nA,2026-06-02,1\n", encoding="utf-8")
     for path in [
         data / "fundamentals.csv",
         data / "peers.csv",

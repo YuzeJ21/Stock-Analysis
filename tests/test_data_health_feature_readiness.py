@@ -52,9 +52,9 @@ def test_feature_readiness_cards_use_plain_missing_output_language():
     body = str(cards[0]["body"]).lower()
 
     assert cards[0]["title"] == "Feature readiness not ready yet"
-    assert cards[0]["command"] == "make readiness"
-    assert "build feature readiness proof" in body
-    assert "open operator details" in body
+    assert cards[0]["command"] == "make readiness-preview TOP_N=20"
+    assert "does not refresh or persist saved readiness" in body
+    assert "inspect feature readiness" in body
     assert "copy-only command" not in body
     assert "make " not in body
     assert "data/reports/feature_readiness_summary.csv" not in body

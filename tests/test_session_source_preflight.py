@@ -6,6 +6,8 @@ from urllib.error import URLError
 
 import pandas as pd
 
+import src.session_source_preflight as session_source_preflight
+from src.continuation_gate import ContinuationGate
 from src.session_source_preflight import (
     build_source_actionability,
     build_session_source_preflight,
@@ -17,6 +19,45 @@ from src.session_source_preflight import (
     render_session_source_preflight,
     session_source_preflight_output_path,
 )
+
+
+def test_session_source_preflight_overlays_stale_routing_without_changing_source_evidence():
+    preflight = {
+        "sources": {"sec": {"status": "available"}},
+        "source_activation_console_v2": {
+            "next_executable_lane": "sec_fundamentals_share_count",
+            "next_executable_command": "make coverage-frontier TOP_N=10",
+            "operator_summary": {
+                "can_run_now": ["sec_fundamentals_share_count"],
+                "needs_setup": ["fmp"],
+                "avoid_repeating": ["fundamentals_share_count_source_ladder"],
+                "next_step": "make coverage-frontier TOP_N=10",
+                "next_step_reason": "Use the next source lane.",
+            },
+        },
+    }
+    gate = ContinuationGate(
+        state="inspection_only",
+        next_safe_command="make readiness-preview TOP_N=20",
+        reason="Selected-profile source dates are newer than saved readiness.",
+        rebuild_command="make readiness",
+        stop_rule="Do not start broad refresh or source-proof work.",
+        suppress_execution=True,
+    )
+
+    overlaid = session_source_preflight.apply_continuation_gate(preflight, gate)
+    assert preflight["source_activation_console_v2"]["next_executable_command"] == "make coverage-frontier TOP_N=10"
+    assert overlaid["sources"] == preflight["sources"]
+    assert overlaid["continuation_gate"]["state"] == "inspection_only"
+    assert overlaid["source_activation_console_v2"]["next_executable_lane"] == "inspection_only"
+    assert overlaid["source_activation_console_v2"]["next_executable_command"] == "make readiness-preview TOP_N=20"
+    assert overlaid["source_activation_console_v2"]["operator_summary"]["needs_setup"] == ["fmp"]
+    assert overlaid["source_activation_console_v2"]["operator_summary"]["avoid_repeating"] == [
+        "fundamentals_share_count_source_ladder",
+        "broad_refresh",
+        "source_proof",
+        "readiness_rebuild",
+    ]
 
 
 def _write_fundamentals(root: Path, rows: list[dict[str, object]]) -> None:
@@ -254,6 +295,20 @@ def test_session_source_preflight_pivots_to_peer_lane_when_no_source_path_is_ava
     assert "do not run broad coverage batches" in rendered
     assert "Run the price dry run first" not in rendered
 
+    gate = ContinuationGate(
+        state="inspection_only",
+        next_safe_command="make readiness-preview TOP_N=20",
+        reason="Readiness artifacts differ from HEAD and are not tracked release evidence.",
+        rebuild_command="make readiness-preview TOP_N=20",
+        stop_rule="Do not start broad source-proof work from uncommitted readiness evidence.",
+        suppress_execution=True,
+    )
+    gated_rendered = render_session_source_preflight(
+        session_source_preflight.apply_continuation_gate(preflight, gate)
+    )
+    assert "Readiness continuation gate: inspection_only" in gated_rendered
+    assert "Stale readiness continuation gate" not in gated_rendered
+
 
 def test_session_source_preflight_reports_sec_submissions_as_metadata_only(tmp_path: Path, monkeypatch):
     _clear_provider_env(monkeypatch)
@@ -376,6 +431,12 @@ def test_session_source_preflight_reports_ibkr_read_only_price_provider(tmp_path
             "reason_code": "network_error",
             "detail": "dns failed",
             "next_action": "Do not retry SEC-backed fundamentals in this session.",
+        },
+        sec_submissions_probe=lambda _user_agent: {
+            "status": "available",
+            "reason_code": "ok",
+            "detail": "Deterministic SEC submissions fixture.",
+            "next_action": "",
         },
         yfinance_import_probe=lambda: {
             "status": "unavailable",

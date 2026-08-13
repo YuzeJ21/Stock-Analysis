@@ -1,5 +1,6 @@
 import csv
 import os
+import subprocess
 from pathlib import Path
 
 from src.reviewed_batch import (
@@ -109,28 +110,20 @@ def test_reviewed_batch_reports_missing_readiness_artifacts(tmp_path: Path):
     rendered = render_packet_markdown(packet)
 
     assert status.status == "missing"
-    assert "Missing readiness artifact" in rendered
-    assert "Run make readiness" in rendered
+    assert packet.freshness.status == "not_used"
+    assert "Missing readiness artifact" not in rendered
+    assert "Run make readiness" not in rendered
     assert "Do not proceed if" in rendered
 
 
-def test_reviewed_batch_reports_stale_readiness_artifacts(tmp_path: Path):
+def test_reviewed_batch_ignores_mtime_only_changes_when_declared_dates_are_current(tmp_path: Path):
     root = _sample_root(tmp_path)
     source = root / "data" / "prices.csv"
     os.utime(source, (source.stat().st_atime + 1000, source.stat().st_mtime + 1000))
 
-    packet = build_reviewed_batch_packet(root, lane="prices", top_n=2)
-    rendered = render_packet_markdown(packet)
+    status = readiness_freshness_status(root)
 
-    assert packet.freshness.status == "stale"
-    assert reviewed_batch_packet_status(packet) == "blocked_by_freshness"
-    assert reviewed_batch_next_safe_action(packet) == "make readiness"
-    assert "Readiness artifacts may be stale" in rendered
-    assert "make readiness before relying on final counts" in rendered
-    assert "Packet status: `blocked_by_freshness`" in rendered
-    assert "Next safe action: `make readiness`" in rendered
-    assert "## Blocked Preflight" in rendered
-    assert "Treat this packet as a stale-readiness scaffold, not execution approval." in rendered
+    assert status.status == "current"
 
 
 def test_readiness_freshness_uses_explicit_selected_profile_paths(tmp_path: Path):
@@ -160,6 +153,103 @@ def test_readiness_freshness_uses_explicit_selected_profile_paths(tmp_path: Path
     assert status.status == "current"
 
 
+def test_readiness_freshness_explicit_profile_controls_omitted_paths(tmp_path: Path, monkeypatch):
+    default_root = _sample_root(tmp_path)
+    local_data = tmp_path / "data/local"
+    local_data.mkdir(parents=True)
+    for source in (default_root / "data").iterdir():
+        if source.name == "local":
+            continue
+        destination = local_data / source.name
+        if source.is_dir():
+            destination.mkdir(parents=True, exist_ok=True)
+            for child in source.iterdir():
+                if child.is_file():
+                    (destination / child.name).write_bytes(child.read_bytes())
+        elif source.is_file():
+            destination.write_bytes(source.read_bytes())
+    for path in [
+        local_data / "reports/ticker_readiness_report.csv",
+        local_data / "reports/feature_readiness_summary.csv",
+    ]:
+        os.utime(path, (path.stat().st_atime + 2000, path.stat().st_mtime + 2000))
+    (tmp_path / "data/reports/ticker_readiness_report.csv").unlink()
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+
+    status = readiness_freshness_status(tmp_path, profile="local")
+
+    assert status.status == "current"
+
+
+def test_reviewed_batch_blocks_uncommitted_default_readiness_evidence(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _mark_readiness_current(root)
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "add", "data"], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(root),
+            "-c",
+            "user.name=Codex Test",
+            "-c",
+            "user.email=codex@example.invalid",
+            "commit",
+            "-qm",
+            "fixture",
+        ],
+        check=True,
+    )
+    with (root / "data/reports/ticker_readiness_report.csv").open("a", encoding="utf-8") as handle:
+        handle.write("DDD,company,true,true,true,false,false,false,partial,peer,,,\n")
+
+    packet = build_reviewed_batch_packet(root, lane="prices", top_n=2)
+    rendered = render_packet_markdown(packet)
+
+    assert packet.freshness.status == "not_used"
+    assert reviewed_batch_packet_status(packet) == "ready_for_review"
+    assert reviewed_batch_next_safe_action(packet) == "make readiness-snapshot PROFILE=default"
+    assert "tracked-current saved-artifact freshness is not used" in packet.freshness.message.lower()
+    assert "Packet status: `ready_for_review`" in rendered
+    assert "## Blocked Preflight" not in rendered
+    assert "`make readiness`" not in rendered
+    assert "make readiness &&" not in rendered
+
+
+def test_readiness_freshness_blocks_newer_declared_source_date_when_file_mtimes_are_current(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _write(
+        root / "data" / "fundamentals.csv",
+        (
+            "ticker,source,revenue,free_cash_flow,fcf_margin,shares_outstanding,as_of_date\n"
+            "AAA,manual,100,20,0.20,,2026-07-16\n"
+        ),
+    )
+    _write(
+        root / "data" / "reports" / "ticker_readiness_report.csv",
+        (
+            "ticker,price_ready,fundamentals_ready,dcf_ready,peer_ready,generated_at\n"
+            "AAA,true,true,false,false,2026-07-15T19:30:00+00:00\n"
+        ),
+    )
+    _write(
+        root / "data" / "reports" / "feature_readiness_summary.csv",
+        (
+            "feature,ready_count,blocked_count,total_count,generated_at\n"
+            "fundamentals,1,0,1,2026-07-15T19:30:00+00:00\n"
+        ),
+    )
+    _mark_readiness_current(root)
+
+    status = readiness_freshness_status(root)
+
+    assert status.status == "stale"
+    assert "source dates are newer" in status.message.lower()
+    assert status.refresh_command == "make readiness-preview TOP_N=20"
+    assert "does not refresh or persist saved readiness" in status.message
+
+
 def test_reviewed_batch_lane_selection_and_top_n_cap(tmp_path: Path):
     root = _sample_root(tmp_path)
     _mark_readiness_current(root)
@@ -169,7 +259,7 @@ def test_reviewed_batch_lane_selection_and_top_n_cap(tmp_path: Path):
 
     assert packet.selected_scope == "fundamentals_dcf"
     assert reviewed_batch_packet_status(packet) == "ready_for_review"
-    assert reviewed_batch_next_safe_action(packet) == "make sec-stage-queue TOP_N=1"
+    assert reviewed_batch_next_safe_action(packet) == "make readiness-snapshot PROFILE=default"
     assert "Packet status: `ready_for_review`" in rendered
     assert len(packet.actions) == 1
     assert packet.actions[0].proposed_ticker == "AAA"
@@ -179,7 +269,7 @@ def test_reviewed_batch_lane_selection_and_top_n_cap(tmp_path: Path):
     assert "make imports-apply only after reviewed trusted fundamentals rows pass preview" == packet.actions[0].apply_command
     assert "data/rejected/fundamentals_import_rejected.csv" in packet.actions[0].expected_artifacts
     assert "SEC_USER_AGENT is not configured" in packet.actions[0].do_not_proceed_if
-    assert "make fundamentals-batch-proof TOP_N=<n>" in rendered
+    assert "make fundamentals-batch-proof PROFILE=default TOP_N=<n>" in rendered
     assert "make sec-stage TICKERS=<scope> only when SEC_USER_AGENT is configured" in rendered
     assert "rejected-row reports must be clear or explained" in rendered
 
@@ -193,7 +283,7 @@ def test_reviewed_batch_share_count_lane_uses_first_class_proof_queue(tmp_path: 
 
     assert packet.selected_scope == "share_count_proof"
     assert reviewed_batch_packet_status(packet) == "ready_for_review"
-    assert reviewed_batch_next_safe_action(packet) == "make share-count-proof-queue TOP_N=1"
+    assert reviewed_batch_next_safe_action(packet) == "make readiness-snapshot PROFILE=default"
     assert len(packet.actions) == 1
     action = packet.actions[0]
     assert action.lane == "share_count_proof"
@@ -201,7 +291,7 @@ def test_reviewed_batch_share_count_lane_uses_first_class_proof_queue(tmp_path: 
     assert action.proposed_ticker == "AAA"
     assert action.dry_run_command == "make share-count-proof-queue TOP_N=1"
     assert "shares_outstanding rows pass preview" in action.apply_command
-    assert "make reviewed-batch-compare LANE=share_count" in action.readiness_comparison_command
+    assert "make reviewed-batch-compare PROFILE=default LANE=share_count" in action.readiness_comparison_command
     assert "SEC/manual source proof does not explicitly verify shares_outstanding" in action.do_not_proceed_if
     assert "do not infer it from market cap, price, peers, or placeholders" in rendered
     assert "make dcf-readiness" in rendered
@@ -225,7 +315,7 @@ def test_reviewed_batch_fundamentals_lane_prefers_local_dcf_queue_when_session_s
     packet = build_reviewed_batch_packet(root, lane="fundamentals", top_n=1)
     action = packet.actions[0]
 
-    assert reviewed_batch_next_safe_action(packet) == "make dcf-input-proof-queue TOP_N=1"
+    assert reviewed_batch_next_safe_action(packet) == "make readiness-snapshot PROFILE=default"
     assert action.dry_run_command == "make dcf-input-proof-queue TOP_N=1"
     assert "place only reviewed trusted fundamentals rows in data/imports/fundamentals.csv" in action.capped_execution_command
 
@@ -302,17 +392,17 @@ def test_reviewed_batch_packet_includes_v2_proof_ledger_fields_and_peer_sub_lane
     assert "final_outcome" in rendered
     assert "supported, still_blocked, skipped, excluded" in rendered
     assert "data/reviewed_batch_proofs.csv" in rendered
-    assert "make reviewed-batch-compare LANE=peers" in rendered
+    assert "make reviewed-batch-compare PROFILE=default LANE=peers" in rendered
     assert "make reviewed-batch-proof-record" in rendered
     assert "CHANGED_READINESS_COUNTS" in rendered
     assert "CHANGED_TICKERS" in rendered
     assert "record peer_mapping_ready, peer_price_ready, peer_momentum_ready" in lowered
     assert "peer_valuation_comparison_ready" in rendered
     assert "sector or industry fallback as context only" in lowered
-    assert "Peer mapping import schema: ticker, peer_ticker, peer_group, sector, industry, source, as_of_date" in rendered
+    assert "Peer mapping import schema: ticker, peer_ticker, peer_group, sector, industry, peer_role, relationship_rationale, comparability_basis, valuation_anchor_eligible, source, as_of_date" in rendered
     assert "source must name the peer relationship or comparable business context" in rendered
     assert "do not use memory, popularity, or row-count convenience as proof" in rendered
-    assert "make peer-batch-proof TOP_N=<n>" in rendered
+    assert "make peer-batch-proof PROFILE=default TOP_N=<n>" in rendered
     assert set(actions_by_lane) == {"peer_mapping", "peer_valuation_inputs"}
     assert "source-backed peer mapping rows" in actions_by_lane["peer_mapping"].apply_command
     assert "reviewed mapped-peer fundamentals, price, market-cap, or valuation-input rows" in actions_by_lane["peer_valuation_inputs"].apply_command
@@ -379,9 +469,9 @@ def test_reviewed_batch_writes_markdown_and_csv_without_advice(tmp_path: Path):
     assert rows
     assert rows[0]["batch_id"] == packet.batch_id
     assert rows[0]["dry_run_command"] == "make peer-mapping-queue TOP_N=2"
-    assert rows[0]["readiness_comparison_command"].startswith("make reviewed-batch-compare LANE=peers")
+    assert rows[0]["readiness_comparison_command"].startswith("make reviewed-batch-compare PROFILE=default LANE=peers")
     assert rows[0]["proof_record_command"].startswith("make reviewed-batch-proof-record")
-    assert rows[0]["pre_run_readiness_snapshot"].startswith("record saved counts")
+    assert rows[0]["pre_run_readiness_snapshot"] == "make readiness-snapshot PROFILE=default"
     assert rows[0]["changed_readiness_counts"] == "<before -> after counts, or none>"
     assert rows[0]["generated_artifacts_reviewed"] == "<kept evidence or excluded local churn>"
     assert rows[0]["final_outcome"] == "supported|candidate_context_only|still_blocked|skipped|excluded"
@@ -410,8 +500,27 @@ def test_reviewed_batch_preview_shows_next_action_without_writing_outputs(tmp_pa
 
 def test_reviewed_batch_cli_prints_packet_status_and_next_safe_action(tmp_path: Path, capsys):
     root = _sample_root(tmp_path)
-    source = root / "data" / "prices.csv"
-    os.utime(source, (source.stat().st_atime + 1000, source.stat().st_mtime + 1000))
+    _write(
+        root / "data" / "fundamentals.csv",
+        (
+            "ticker,source,revenue,free_cash_flow,fcf_margin,shares_outstanding,as_of_date\n"
+            "AAA,manual,100,20,0.20,,2026-07-16\n"
+        ),
+    )
+    _write(
+        root / "data" / "reports" / "ticker_readiness_report.csv",
+        (
+            "ticker,price_ready,fundamentals_ready,dcf_ready,peer_ready,generated_at\n"
+            "AAA,true,true,false,false,2026-07-15T19:30:00+00:00\n"
+        ),
+    )
+    _write(
+        root / "data" / "reports" / "feature_readiness_summary.csv",
+        (
+            "feature,ready_count,blocked_count,total_count,generated_at\n"
+            "fundamentals,1,0,1,2026-07-15T19:30:00+00:00\n"
+        ),
+    )
 
     rc = main(
         [
@@ -430,8 +539,8 @@ def test_reviewed_batch_cli_prints_packet_status_and_next_safe_action(tmp_path: 
     output = capsys.readouterr().out
 
     assert rc == 0
-    assert "Packet status: blocked_by_freshness" in output
-    assert "Next safe action: make readiness" in output
+    assert "Packet status: ready_for_review" in output
+    assert "Next safe action: make readiness-snapshot PROFILE=default" in output
 
 
 def test_reviewed_batch_cli_dry_run_does_not_write_packet_artifacts(tmp_path: Path, capsys):
@@ -466,3 +575,24 @@ def test_reviewed_batch_cli_dry_run_does_not_write_packet_artifacts(tmp_path: Pa
     assert not csv_output.exists()
     assert "buy" not in lowered
     assert "sell" not in lowered
+
+
+def test_reviewed_batch_current_proof_commands_bind_one_profile_and_skip_legacy_writer(tmp_path: Path):
+    root = _sample_root(tmp_path)
+    _mark_readiness_current(root)
+
+    packet = build_reviewed_batch_packet(root, lane="share_count", top_n=1, profile="default")
+    action = packet.actions[0]
+    rendered = render_packet_markdown(packet)
+
+    assert action.pre_run_readiness_snapshot == "make readiness-snapshot PROFILE=default"
+    assert action.readiness_comparison_command.startswith(
+        "make reviewed-batch-compare PROFILE=default LANE=share_count"
+    )
+    assert action.post_run_verification.startswith(
+        "make reviewed-batch-compare PROFILE=default LANE=share_count"
+    )
+    assert "make readiness &&" not in action.post_run_verification
+    assert "make readiness &&" not in rendered
+    assert "make readiness-snapshot PROFILE=default" in rendered
+    assert "make reviewed-batch-compare PROFILE=default" in rendered

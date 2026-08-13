@@ -12,6 +12,27 @@ from typing import Any, Iterable
 
 _FISCAL_PERIOD_PATTERN = re.compile(r"^\d{4}-Q[1-4]$")
 _HEX_64_PATTERN = re.compile(r"^[0-9a-f]{64}$")
+COMPANYFACTS_SPLIT_BASIS_UNVERIFIED = "companyfacts_split_basis_unverified"
+PRIMARY_SPLIT_BASIS_UNVERIFIED = "primary_split_basis_unverified"
+
+
+def eps_split_basis_verified(value: object) -> bool:
+    """Accept only declared basis states; explicit unverified sentinels fail closed."""
+
+    normalized = str(value or "").strip().lower()
+    if normalized in {
+        COMPANYFACTS_SPLIT_BASIS_UNVERIFIED,
+        PRIMARY_SPLIT_BASIS_UNVERIFIED,
+    }:
+        return False
+    if normalized in {"as_reported", "pre_split"}:
+        return True
+    return bool(
+        re.fullmatch(
+            r"(?:post_split|split_adjusted)_20\d{2}(?:_|-)\d{2}(?:_|-)\d{2}",
+            normalized,
+        )
+    )
 
 
 class NowcastState(StrEnum):
@@ -168,9 +189,12 @@ class QuarterlyActual:
         object.__setattr__(self, "supersedes_source_ref", _optional_text(self.supersedes_source_ref))
         if self.revenue_actual is None and self.eps_actual is None:
             raise ValueError("at least one quarterly actual metric is required")
+        if parse_utc_timestamp(self.reported_at) > parse_utc_timestamp(self.retrieved_at):
+            raise ValueError("reported_at cannot be after retrieved_at")
 
     def available_at(self, cutoff: object) -> bool:
-        return validate_cutoff(self.reported_at, cutoff, label="quarterly actual")
+        validate_cutoff(self.reported_at, cutoff, label="quarterly actual")
+        return validate_cutoff(self.retrieved_at, cutoff, label="quarterly actual retrieval")
 
 
 @dataclass(frozen=True)
@@ -221,9 +245,12 @@ class ConsensusSnapshot:
         )
         if self.revenue_consensus is None and self.eps_consensus is None:
             raise ValueError("at least one consensus metric is required")
+        if parse_utc_timestamp(self.snapshot_at) > parse_utc_timestamp(self.retrieved_at):
+            raise ValueError("snapshot_at cannot be after retrieved_at")
 
     def available_at(self, cutoff: object) -> bool:
-        return validate_cutoff(self.snapshot_at, cutoff, label="consensus snapshot")
+        validate_cutoff(self.snapshot_at, cutoff, label="consensus snapshot")
+        return validate_cutoff(self.retrieved_at, cutoff, label="consensus snapshot retrieval")
 
 
 @dataclass(frozen=True)

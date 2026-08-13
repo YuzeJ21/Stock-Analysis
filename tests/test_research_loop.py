@@ -56,7 +56,9 @@ def test_research_loop_contexts_keep_home_single_stock_and_data_health_connected
     assert home["current_step"] == "Home workflow start"
     assert home["current_note"] == "3,538 price-ready / 59 DCF-ready / 26 peer-ready"
     assert home["next_action"] == "Open a Single-Stock Report"
-    assert home_stale["proof_note"] == "make readiness"
+    assert home_stale["proof_note"] == (
+        "make readiness. In-memory preview only; it does not refresh or persist saved readiness."
+    )
     assert pre_report["current_step"] == "Single-Stock Report"
     assert pre_report["next_action"] == "Open Review"
     assert loaded_report["current_step"] == "NVDA report review"
@@ -90,6 +92,19 @@ def test_research_loop_contexts_keep_home_single_stock_and_data_health_connected
     assert "copy-only" not in public_rendered
     assert "validate and preview" not in public_rendered
     assert "evidence stays collapsed" in public_rendered
+
+    personal_data_health = research_loop.data_health_research_loop_context(
+        selected_lane_key="peers",
+        readiness_freshness=current,
+        next_action="Open the research evidence drawer",
+        public_mode=True,
+        workspace_mode="research",
+    )
+    personal_rendered = " ".join(personal_data_health.values()).lower()
+    assert "personal research readiness summary" in personal_rendered
+    assert "?mode=research&page=data-health" in personal_rendered
+    assert "?mode=public" not in personal_rendered
+    assert "public page" not in personal_rendered
 
 
 def test_data_health_research_loop_action_href_respects_copy_only_commands():

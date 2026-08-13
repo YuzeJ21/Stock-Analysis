@@ -7,7 +7,7 @@ import re
 from collections import Counter
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Any
+from typing import Any, Collection
 
 import pandas as pd
 
@@ -1403,6 +1403,7 @@ def build_ticker_coverage(
     data_dir: Path | str | None = None,
     output_dir: Path | str | None = None,
     tickers: list[str] | None = None,
+    analysis_output_tickers: Collection[str] | None = None,
 ) -> list[TickerCoverage]:
     root = resolve_project_root(project_root)
     data_path = resolve_data_dir(data_dir, root)
@@ -1415,8 +1416,6 @@ def build_ticker_coverage(
     staged_peers = _load_staged_import_frame(data_path, "peers.csv")
     earnings = _load_frame(catalog, "earnings")
     estimates = _load_frame(catalog, "analyst_estimates")
-    final_watchlist = _load_frame(catalog, "final_watchlist")
-    momentum = _load_frame(catalog, "momentum_leaders")
     asset_type_map = _load_asset_type_map(data_path)
 
     price_history_by_ticker = _ticker_count_lookup(prices)
@@ -1434,7 +1433,16 @@ def build_ticker_coverage(
     estimate_tickers = _ticker_set(estimates)
     peer_subject_tickers = set(peer_lookup)
     staged_peer_subject_tickers = set(staged_peer_lookup)
-    output_tickers = _ticker_set(final_watchlist) | _ticker_set(momentum)
+    if analysis_output_tickers is None:
+        final_watchlist = _load_frame(catalog, "final_watchlist")
+        momentum = _load_frame(catalog, "momentum_leaders")
+        output_tickers = _ticker_set(final_watchlist) | _ticker_set(momentum)
+    else:
+        output_tickers = {
+            str(ticker).upper().strip()
+            for ticker in analysis_output_tickers
+            if str(ticker).strip()
+        }
 
     rows: list[TickerCoverage] = []
     for ticker in _discover_tickers(catalog, tickers):

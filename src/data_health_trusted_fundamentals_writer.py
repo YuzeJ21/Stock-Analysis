@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from src.reviewed_batch_proof import (
+    profile_bound_reviewed_write_proof_sequence,
+    resolve_readiness_proof_profile,
+)
+
 import pandas as pd
 
 from src.data_health_proof_ctas import card_sentence, compact_card_fragment, format_missing
@@ -25,6 +30,7 @@ def trusted_fundamentals_evidence_writer_frame(frame: pd.DataFrame | None) -> pd
         "Proof Record Dry-Run Command",
         "Stop Rule",
     ]
+    selected_profile = resolve_readiness_proof_profile()
     if frame is None or frame.empty:
         return pd.DataFrame(
             [
@@ -40,7 +46,7 @@ def trusted_fundamentals_evidence_writer_frame(frame: pd.DataFrame | None) -> pd
                     "Validate Command": "make imports-validate",
                     "Preview Command": "make imports-preview",
                     "Apply Boundary": "Do not apply imports without reviewed source proof.",
-                    "Post-Run Proof Command": "make dcf-readiness && make readiness",
+                    "Post-Run Proof Command": "blocked until source-review scope and guard readiness exist",
                     "Proof Record Dry-Run Command": "Finish source review before proof-record dry run.",
                     "Stop Rule": "Run the trusted fundamentals source-review drawer before building an evidence writer packet.",
                 }
@@ -73,7 +79,23 @@ def trusted_fundamentals_evidence_writer_frame(frame: pd.DataFrame | None) -> pd
                 "Validate Command": "make imports-validate",
                 "Preview Command": "make imports-preview",
                 "Apply Boundary": format_missing(row.get("Apply Boundary"), "Do not apply rows without reviewed source proof."),
-                "Post-Run Proof Command": format_missing(row.get("Post-Run Proof"), "make dcf-readiness && make readiness"),
+                "Post-Run Proof Command": (
+                    profile_bound_reviewed_write_proof_sequence(
+                        profile=selected_profile,
+                        lane="fundamentals",
+                        reviewed_steps=(
+                            f"make imports-validate IMPORT_TICKERS={ticker or '<ticker>'}",
+                            f"make imports-preview IMPORT_TICKERS={ticker or '<ticker>'}",
+                            f"make imports-apply IMPORT_TICKERS={ticker or '<ticker>'}",
+                            "make dcf-readiness",
+                        ),
+                        after_compare_steps=(
+                            f"make stock-report-md TICKER={ticker or '<ticker>'}",
+                        ),
+                    )
+                    if ready
+                    else "blocked until reviewed source fields pass the source guard"
+                ),
                 "Proof Record Dry-Run Command": format_missing(
                     row.get("Proof Record Dry-Run Boundary"),
                     "Finish source review before proof-record dry run.",

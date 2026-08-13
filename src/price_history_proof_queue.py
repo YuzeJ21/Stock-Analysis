@@ -7,6 +7,8 @@ or review-metric workflows when the verified local history is too short.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import csv
 import re
@@ -163,6 +165,7 @@ def build_price_history_proof_queue_from_payload(
     rows: list[PriceHistoryProofRow] = []
     command_top_n = max(top_n, 1) if top_n is not None else 1
     dry_run_command = f"make price-refresh-loop DRY_RUN=1 MAX_CANDIDATES=3500 TOP_N={command_top_n} PROVIDER=auto"
+    selected_profile: str | None = None
     for raw in payload.get("price_import_worklist", []):
         ticker = str(raw.get("ticker") or "").strip().upper()
         if not ticker or (wanted and ticker not in wanted):
@@ -174,6 +177,8 @@ def build_price_history_proof_queue_from_payload(
         is_reviewed_non_actionable = ticker in reviewed_non_actionable_tickers
         if include_reviewed != is_reviewed_non_actionable:
             continue
+        if selected_profile is None:
+            selected_profile = resolve_readiness_proof_profile()
         row_data = {
             "has_prices": raw.get("has_prices"),
             "current_history_rows": current_rows,
@@ -206,7 +211,7 @@ def build_price_history_proof_queue_from_payload(
                 next_safe_command=next_safe_command,
                 dry_run_batch_command=dry_run_command,
                 validate_preview_apply_gate="make price-validate -> make price-preview -> make price-apply only after reviewed source rows",
-                post_run_proof_command=f"make readiness && make status-check TOP_N={command_top_n} && make focus-price TICKER={ticker}",
+                post_run_proof_command=f"make readiness-snapshot PROFILE={selected_profile} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make status-check TOP_N={command_top_n} && make focus-price TICKER={ticker}",
                 stop_rule=(
                     "Stop if the provider/manual source cannot verify enough OHLCV history; keep the short-history "
                     "state visible and do not infer missing dates or prices."
@@ -367,7 +372,8 @@ def render_price_history_proof_queue(
         if "reviewed proof ledger already records" in row.source_note.lower():
             lines.append(f"- Follow-up: {row.next_safe_command}.")
         elif price_rows_complete:
-            lines.append(f"- Targeted provider history check: {targeted_history_command} after make readiness-snapshot.")
+            selected_profile = resolve_readiness_proof_profile()
+            lines.append(f"- Targeted provider history check: {targeted_history_command} after make readiness-snapshot PROFILE={selected_profile}.")
             lines.append("- This is not the missing-price batch loop; inspect the source result before relying on added history.")
             lines.append(f"- Import gate: {row.validate_preview_apply_gate}.")
             lines.append(f"- Rebuild proof: {row.post_run_proof_command}.")

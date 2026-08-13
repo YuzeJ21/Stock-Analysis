@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import shutil
 import subprocess
@@ -25,6 +26,60 @@ def test_fixture_packet_is_reproducible_and_never_claims_real_company_evidence()
     assert "investment advice" in rendered.lower()
     assert "beat probability" not in rendered.lower()
     assert first["calibration"]["probability_available"] is False
+
+
+def test_real_company_packet_requires_exact_fiscal_period(tmp_path):
+    input_root = tmp_path / "earnings_nowcast"
+    shutil.copytree(FIXTURE_ROOT, input_root)
+    for path in input_root.glob("*.csv"):
+        path.write_text(
+            path.read_text(encoding="utf-8")
+            .replace("SYN1", "AAA")
+            .replace("synthetic_test_fixture", "licensed_consensus"),
+            encoding="utf-8",
+        )
+
+    with pytest.raises(ValueError, match="fiscal_period is required"):
+        build_nowcast_packet(input_root, ticker="AAA", as_of_timestamp=CUTOFF)
+
+
+def test_exact_fiscal_period_selects_latest_pre_cutoff_revision(tmp_path):
+    fixture_copy = tmp_path / "earnings_nowcast"
+    shutil.copytree(FIXTURE_ROOT, fixture_copy)
+    consensus_path = fixture_copy / "consensus_snapshots.csv"
+    with consensus_path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    base = next(row for row in rows if row["ticker"] == "SYN1")
+    rows.extend(
+        [
+            {
+                **base,
+                "snapshot_at": "2026-01-30T00:00:00Z",
+                "retrieved_at": "2026-01-30T00:01:00Z",
+                "eps_consensus": "9.25",
+            },
+            {
+                **base,
+                "snapshot_at": "2026-02-01T00:00:00Z",
+                "retrieved_at": "2026-02-01T00:01:00Z",
+                "eps_consensus": "99.0",
+            },
+        ]
+    )
+    with consensus_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+
+    packet = build_nowcast_packet(
+        fixture_copy,
+        ticker="SYN1",
+        fiscal_period=base["fiscal_period"],
+        as_of_timestamp=CUTOFF,
+    )
+
+    assert packet["fiscal_period"] == base["fiscal_period"]
+    assert packet["forecast"]["consensus_eps"] == 9.25
 
 
 def test_fixture_packet_contains_readiness_forecast_provenance_and_signal_boundaries():
@@ -87,6 +142,23 @@ def test_packet_selects_latest_consensus_available_at_cutoff_not_a_later_revisio
 
     assert packet["forecast"]["consensus_revenue"] == 112.0
     assert packet["forecast"]["consensus_eps"] == 1.0
+
+
+def test_packet_cannot_become_ready_from_actual_retrieved_after_cutoff(tmp_path):
+    fixture_copy = tmp_path / "nowcast"
+    shutil.copytree(FIXTURE_ROOT, fixture_copy)
+    actuals_path = fixture_copy / "quarterly_actuals.csv"
+    with actuals_path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    target = next(row for row in rows if row["ticker"] == "SYN1" and row["fiscal_period"] == "2025-Q4")
+    target["retrieved_at"] = "2026-02-01T00:00:00Z"
+    with actuals_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
+        writer.writeheader()
+        writer.writerows(rows)
+
+    with pytest.raises(ValueError, match="Nowcast is blocked: post_cutoff_evidence"):
+        build_nowcast_packet(fixture_copy, ticker="SYN1", as_of_timestamp=CUTOFF)
 
 
 def test_fixture_walkthrough_covers_six_distinct_test_only_scenarios():

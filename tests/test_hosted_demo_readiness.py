@@ -7,7 +7,7 @@ from src.hosted_demo_readiness import build_hosted_demo_readiness, render_hosted
 def test_hosted_demo_readiness_reports_deployable_package_and_external_blocker(tmp_path: Path):
     (tmp_path / "dashboard.py").write_text("from src.dashboard import main\n", encoding="utf-8")
     (tmp_path / "requirements.txt").write_text(
-        "streamlit>=1.44\npandas>=2.2\nnumpy>=1.26\nPyYAML>=6.0\n",
+        "streamlit>=1.52,<2\npandas>=2.2\nnumpy>=1.26\nPyYAML>=6.0\n",
         encoding="utf-8",
     )
     (tmp_path / "docs").mkdir()
@@ -57,7 +57,7 @@ def test_hosted_demo_readiness_reports_deployable_package_and_external_blocker(t
 def test_hosted_demo_readiness_reports_configured_url_as_manual_verification_gate(tmp_path: Path):
     (tmp_path / "dashboard.py").write_text("from src.dashboard import main\n", encoding="utf-8")
     (tmp_path / "requirements.txt").write_text(
-        "streamlit>=1.44\npandas>=2.2\nnumpy>=1.26\nPyYAML>=6.0\n",
+        "streamlit>=1.52,<2\npandas>=2.2\nnumpy>=1.26\nPyYAML>=6.0\n",
         encoding="utf-8",
     )
     (tmp_path / "docs").mkdir()
@@ -97,7 +97,7 @@ def test_hosted_demo_readiness_accepts_hosted_url_from_environment(
 ):
     (tmp_path / "dashboard.py").write_text("from src.dashboard import main\n", encoding="utf-8")
     (tmp_path / "requirements.txt").write_text(
-        "streamlit>=1.44\npandas>=2.2\nnumpy>=1.26\nPyYAML>=6.0\n",
+        "streamlit>=1.52,<2\npandas>=2.2\nnumpy>=1.26\nPyYAML>=6.0\n",
         encoding="utf-8",
     )
     (tmp_path / "docs").mkdir()

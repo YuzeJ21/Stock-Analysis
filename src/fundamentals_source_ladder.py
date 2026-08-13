@@ -55,7 +55,9 @@ def _ingest_result(
     for summary in result.get("row_summaries", []):
         ticker = str(summary.get("ticker", "")).upper().strip()
         if ticker and ticker in rows_by_ticker:
-            row_summaries.append(summary)
+            source_backed_summary = dict(summary)
+            source_backed_summary.setdefault("source", rows_by_ticker[ticker].get("source", ""))
+            row_summaries.append(source_backed_summary)
     return [ticker for ticker in remaining if ticker not in rows_by_ticker]
 
 

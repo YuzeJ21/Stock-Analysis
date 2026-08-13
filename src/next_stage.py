@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from src.continuation_gate import build_continuation_gate
 from src.hosted_demo_readiness import build_hosted_demo_readiness
 from src.paths import resolve_project_root
+from src.profile_context import build_profile_context
 from src.project_status import build_project_status_payload
 from src.source_activation_guide import build_provider_setup_checklist
 
@@ -84,6 +87,68 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
         workflow_continuation = {}
     continuation_state = str(workflow_continuation.get("State") or "unknown").strip()
     continuation_evidence = str(workflow_continuation.get("Evidence") or "").strip()
+    continuation_gate = project_status.get("continuation_gate", {})
+    if not isinstance(continuation_gate, dict):
+        continuation_gate = {}
+    if not continuation_gate:
+        continuation_gate = asdict(build_continuation_gate(build_profile_context(project_root)))
+    suppress_execution = bool(continuation_gate.get("suppress_execution"))
+    next_safe_command = str(
+        continuation_gate.get("next_safe_command") or "make project-status-check"
+    ).strip()
+
+    if suppress_execution:
+        executable_lines = [f"- Readiness inspection: {next_safe_command}"]
+        external_heading = "External unblock conditions (not executable now):"
+        external_lines = [
+            f"- Hosted account/environment: {hosted_status}",
+            f"- Provider credentials: configured={configured_keys}; missing={missing_keys}; reviewed smoke after authorization={smoke_command}",
+            "- Source rights, independent reviewers, and supplied point-in-time evidence remain separate external gates.",
+        ]
+        decision_lines = [
+            f"1. Readiness inspection: {next_safe_command}",
+            "   This is the sole executable continuation action until readiness evidence is tracked or separately reviewed.",
+            "2. Owner gate: remote synchronization and public sharing require separate authorization.",
+            "3. External gates: hosted operation, credentials, source rights, reviewers, and supplied evidence remain unavailable until their state changes.",
+            "4. Stop rule: Do not run broad proof queues while the continuation gate suppresses execution.",
+            "5. Artifact rule: Generated churn stays excluded unless one exact artifact is reviewed evidence.",
+        ]
+    else:
+        executable_lines = [
+            "- First safe status read: make project-status-check",
+            "- Public share verification: make public-check",
+        ]
+        external_heading = "Remaining external unblock conditions:"
+        external_lines = [
+            "- Source rights, independent reviewers, and supplied point-in-time evidence remain separate external gates.",
+        ]
+        if hosted_status.startswith("manual_verify_required;"):
+            executable_lines.append(_hosted_next_action(hosted_status))
+        else:
+            external_lines.append(f"- Hosted account/environment: {hosted_status}")
+        if configured_keys != "-":
+            executable_lines.append(
+                f"- After separate reviewed authorization, run one configured-provider smoke: {smoke_command}"
+            )
+        elif missing_keys != "-":
+            external_lines.append(
+                f"- Provider credentials: configured={configured_keys}; missing={missing_keys}; reviewed smoke after authorization={smoke_command}"
+            )
+        decision_lines = [
+            "1. Current truth: make project-status-check",
+            "   Use this before reopening any proof queue or quoting coverage.",
+            "2. Public share gate: make public-check",
+            "   Use this before sharing the GitHub link or LinkedIn Featured card.",
+            "3. Hosted app gate: make hosted-demo-readiness",
+            _hosted_gate_instruction(hosted_status),
+            "4. Provider key gate: make provider-setup-checklist",
+            "   Run at most one configured-provider smoke after separate reviewed authorization; setup alone does not make evidence reviewable.",
+            "5. Stop rule: Do not run broad proof queues unless project-status-check shows executable source-backed candidates.",
+            "6. Artifact rule: Generated churn stays excluded unless one exact artifact is reviewed evidence.",
+        ]
+
+    if linkedin_next:
+        external_lines.append(f"- Remote/public owner gate: {linkedin_next}")
 
     lines = [
         "Stock Research Command Center next-stage ladder",
@@ -97,32 +162,23 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
         f"- Current counts: prices {summary['tickers_with_prices']}/{summary['tickers_total']}; fundamentals/input {summary.get('tickers_fundamentals_ready', 0)}/{summary['tickers_total']}; DCF {summary['tickers_dcf_ready']}/{summary['tickers_total']}; peers {summary['tickers_peer_ready']}/{summary['tickers_total']}",
         "",
         "Next executable repo-side item:",
-        f"- First safe status read: make project-status-check",
-        f"- Public share verification: make public-check",
-        _hosted_next_action(hosted_status),
-        f"- If you want more source-backed coverage: configure at most one missing keyed provider outside the repo, then run one reviewed ticker smoke: {smoke_command}",
+        *executable_lines,
+        "",
+        external_heading,
+        *external_lines,
         "",
         f"Hosted demo status: {hosted_status}",
         f"Provider key status: configured={configured_keys}; missing={missing_keys}",
         f"Source-proof queue status: {source_state}; {source_evidence or source_next or 'run make project-status-check'}",
         "",
         "Decision ladder:",
-        "1. Current truth: make project-status-check",
-        "   Use this before reopening any proof queue or quoting coverage.",
-        "2. Public share gate: make public-check",
-        "   Use this before sharing the GitHub link or LinkedIn Featured card.",
-        "3. Hosted app gate: make hosted-demo-readiness",
-        _hosted_gate_instruction(hosted_status),
-        "4. Provider key gate: make provider-setup-checklist",
-        "   Missing keyed providers are awaiting external setup; keep working on another executable product/share item until a key is configured outside the repo and one reviewed ticker smoke passes.",
-        "5. Stop rule: Do not run broad proof queues unless project-status-check shows executable source-backed candidates.",
-        "6. Artifact rule: Generated churn stays excluded unless one exact artifact is reviewed evidence.",
+        *decision_lines,
         "",
         "Boundary:",
         "- Research-only: no investment advice, no broker trading, no order routing, no auto-trading, and no direct buy/sell instructions.",
         "- Missing fundamentals, shares, peers, earnings, estimates, valuation inputs, and metrics stay blocked until source proof and validate/preview/apply gates pass.",
     ]
-    if linkedin_next:
+    if linkedin_next and not suppress_execution:
         lines.append(f"- LinkedIn/manual share next action: {linkedin_next}")
     if generated_next:
         lines.append(f"- Artifact hygiene next action: {generated_next}")

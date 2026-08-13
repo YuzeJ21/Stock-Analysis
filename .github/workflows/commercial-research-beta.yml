@@ -1,0 +1,52 @@
+name: Commercial Research Beta
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  local-engineering-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Check out pull request revision
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: python3 -m pip install -e '.[dev]'
+
+      - name: Install Playwright Chromium
+        run: python3 -m playwright install --with-deps chromium
+
+      - name: Run full test suite
+        run: make test
+
+      - name: Smoke-test dashboard startup
+        run: make dashboard-smoke
+
+      - name: Render Personal Research routes
+        run: make research-dashboard-render-smoke
+
+      - name: Check public wording
+        run: make public-wording-check
+
+      - name: Check generated-artifact hygiene
+        run: make pr-range-hygiene-check BASE_SHA="$PR_BASE_SHA" HEAD_SHA="$PR_HEAD_SHA"
+
+      - name: Check whitespace
+        run: git diff --check "$PR_BASE_SHA...$PR_HEAD_SHA"

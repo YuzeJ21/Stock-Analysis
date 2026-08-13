@@ -114,7 +114,9 @@ make stock-report-md TICKER=<ticker>
 
 Coverage gate: No broad coverage batch should run from setup alone. Provider setup is only an activation boundary: it can activate a source, but readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence. Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.
 
-Use 5 to 10 operating companies for the controlled pilot. ETF/index examples such as QQQ and SMH are useful monitor-context demos, but they are not operating-company DCF targets.
+Use 5 to 10 operating companies as the fixed research cohort and run 10 to 20 task-based reviewer sessions. ETF/index examples such as QQQ and SMH are useful monitor-context demos, but they are not operating-company DCF targets.
+
+Measure each session with the privacy-safe feedback template: **Task success**, **Time to first answer** (specifically, the first useful research answer), **Readiness comprehension**, **Evidence trace**, **Authoring friction**, **Misuse risk**, **Trust in evidence**, **Perceived performance**, **Repeat-use case and intent**, and **Most important missing workflow**. Before starting, confirm voluntary participation, withdrawal rights, minimal anonymous capture, and a working-note deletion date. These measures test workflow value and comprehension only; they do not validate market data, model accuracy, demand, or investment outcomes.
 
 ## 5. Refresh Data Safely
 
@@ -123,9 +125,10 @@ Prices:
 ```bash
 make price-history-proof-queue TOP_N=25
 make price-refresh-loop DRY_RUN=1
-make readiness-snapshot
+make readiness-snapshot PROFILE=default
 make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30
-make readiness
+make readiness-preview TOP_N=20
+make reviewed-batch-compare PROFILE=default LANE=prices BATCH_ID=<id> REVIEW_DATE=<yyyy-mm-dd>
 make status-check TOP_N=5
 make diff-hygiene
 ```
@@ -174,7 +177,7 @@ Apply only after source proof, validation, preview, and rejected-row review:
 ```bash
 make imports-apply IMPORT_TICKERS=<ticker>
 make dcf-readiness
-make readiness
+make readiness-preview TOP_N=20
 make stock-report-md TICKER=<ticker>
 ```
 
@@ -189,9 +192,9 @@ make imports-validate IMPORT_TICKERS=<ticker>
 make imports-preview IMPORT_TICKERS=<ticker>
 ```
 
-For a 25-50 company peer pilot, keep the working source-review sheet outside Git until rows are reviewed. The template is a collection aid only: candidate/context rows stay `candidate_context_only`, and only source-backed relationships that pass `peer-mapping-writeback-guard`, validation, preview, rejected-row review, rebuilt readiness, and proof recording can become trusted peer mappings.
+For a 25-50 company peer pilot, keep the working source-review sheet outside Git until rows are reviewed. The template is a collection aid only: candidate/context rows stay `candidate_context_only`, and only source-backed relationships with a reviewed peer role, relationship rationale, economic comparability basis, and explicit valuation-anchor decision that pass `peer-mapping-writeback-guard`, validation, preview, rejected-row review, rebuilt readiness, and proof recording can become trusted peer mappings. Only reviewed `core_peer` and `secondary_peer` rows marked `valuation_anchor_eligible=yes` may enter peer medians; all other roles remain context-only.
 
-Use the extra template fields (`source_type`, `source_title`, `source_accessed_date`, and `source_evidence_note`) to keep reviewer evidence defensible before copy/paste into the import guard. They are review-only fields, not import columns. The guard still accepts only the trusted peer mapping fields needed for `data/imports/peers.csv`; do not bypass it by pasting the full review sheet into the import file.
+Use `peer_role`, `relationship_rationale`, `comparability_basis`, and `valuation_anchor_eligible` as import fields so the reviewed decision survives into Company Workbench and valuation readiness. The extra source-document fields (`source_type`, `source_title`, `source_accessed_date`, and `source_evidence_note`) remain review-only. Do not bypass the guard by pasting the full review sheet into the import file.
 
 Earnings and analyst estimates:
 
@@ -223,11 +226,11 @@ Keep optional context locked until trusted local or reviewed provider-assisted r
 Before calling any lane supported, confirm:
 
 ```bash
-make readiness-snapshot
+make readiness-snapshot PROFILE=<default|demo|local>
 make imports-validate
 make imports-preview
-make readiness
-make reviewed-batch-compare LANE=<lane> BATCH_ID=<id> REVIEW_DATE=<yyyy-mm-dd>
+make readiness-preview TOP_N=20
+make reviewed-batch-compare PROFILE=<default|demo|local> LANE=<lane> BATCH_ID=<id> REVIEW_DATE=<yyyy-mm-dd>
 DRY_RUN=1 make reviewed-batch-proof-record BATCH_ID=<id> LANE=<lane> REVIEW_DATE=<yyyy-mm-dd> FINAL_OUTCOME=<supported|candidate_context_only|still_blocked|skipped|excluded>
 ```
 
@@ -297,7 +300,7 @@ If `make dashboard-smoke` cannot bind a local socket in a restricted environment
 
 Exit the controlled pilot when:
 
-- 5 to 10 selected operating-company packets have outcome states recorded as `supported`, `candidate_context_only`, `still_blocked`, `skipped`, or `excluded`.
+- The fixed 5 to 10 operating-company cohort has truthful outcome states and 10 to 20 anonymous task-based reviewer sessions are completed or explicitly `awaiting_external_review`.
 - Every supported lane has source proof, validation, preview, rejected-row review, rebuilt readiness, regenerated report, and proof-ledger evidence.
 - Operators can complete the workflow from dashboard, runbook, and CLI commands without guessing the next gate.
 - Public/release checks pass in the target environment.

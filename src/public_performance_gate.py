@@ -10,6 +10,7 @@ import platform
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 from dataclasses import asdict, dataclass
@@ -37,6 +38,7 @@ class PublicRouteSpec:
     first_useful_marker: str
     full_markers: tuple[str, ...]
     critical: bool
+    full_reveal_action: str = ""
 
 
 @dataclass(frozen=True)
@@ -104,8 +106,76 @@ DEFAULT_ROUTE_SPECS: tuple[PublicRouteSpec, ...] = (
         "Proof History",
         "/?mode=public&page=proof-history",
         "What evidence changed a readiness state?",
-        ("Latest evidence", "Advanced: proof ledger details", "Research-only"),
+        ("Newest reviewed evidence", "Advanced: proof ledger details", "Research-only"),
         False,
+    ),
+)
+
+
+RESEARCH_ROUTE_SPECS: tuple[PublicRouteSpec, ...] = (
+    PublicRouteSpec(
+        "Research Desk",
+        "/?mode=research&page=research-desk",
+        "What needs my attention today?",
+        (
+            "What needs my attention today?",
+            "Freshness",
+            "Open Discover",
+            "market-complete event feed",
+            "Research-only",
+        ),
+        True,
+    ),
+    PublicRouteSpec(
+        "Discover",
+        "/?mode=research&page=discover",
+        "Find a Company",
+        (
+            "Discover",
+            "Screen eligibility — when supported",
+            "Browse saved companies",
+            "Search saved companies",
+            "Advanced: cohort readiness context",
+            "Research-only",
+        ),
+        True,
+    ),
+    PublicRouteSpec(
+        "Company Workbench",
+        "/?mode=research&page=company-workbench&ticker=NVDA&open=1",
+        "USE NOW",
+        (
+            "Company Workbench",
+            "Advanced: selected-company lane coverage",
+            "WHAT CHANGED",
+            "Research Decision Lab",
+            "Business Trend",
+            "Valuation",
+            "Forward View",
+            "What Remains Withheld",
+            "Research Conclusion",
+            "NEXT RESEARCH TASK",
+            "Research-only",
+        ),
+        True,
+        "Open evidence and analysis modules",
+    ),
+    PublicRouteSpec(
+        "Monitor",
+        "/?mode=research&page=monitor",
+        "Follow-up Queue",
+        (
+            "Follow-up Queue",
+            "SINCE LAST REVIEW",
+            "NEEDS VERIFICATION",
+            "WAITING ON EVIDENCE",
+            "SCHEDULED CONTEXT",
+            "EVIDENCE FRESHNESS",
+            "Advanced: Monitor evidence",
+            "Advanced: five-company Earnings Nowcast readiness",
+            "Research-only",
+        ),
+        True,
     ),
 )
 
@@ -154,19 +224,29 @@ def summarize_route_timings(samples: Iterable[RouteTimingSample]) -> list[dict[s
     rows: list[dict[str, object]] = []
     for (route, viewport), group in sorted(grouped.items()):
         failures = [sample for sample in group if not sample.success]
-        shell = _timing_values(group, run_kind=None, field="shell_seconds")
-        first_useful = _timing_values(group, run_kind=None, field="first_useful_seconds")
+        warm_shell = _timing_values(group, run_kind="warm", field="shell_seconds")
+        cold_shell = _timing_values(group, run_kind="cold", field="shell_seconds")
+        warm_first_useful = _timing_values(group, run_kind="warm", field="first_useful_seconds")
+        cold_first_useful = _timing_values(group, run_kind="cold", field="first_useful_seconds")
         warm_full = _timing_values(group, run_kind="warm", field="full_settle_seconds")
         cold_full = _timing_values(group, run_kind="cold", field="full_settle_seconds")
+        warm_run_count = sum(sample.success and sample.run_kind == "warm" for sample in group)
+        cold_run_count = sum(sample.success and sample.run_kind == "cold" for sample in group)
         rows.append(
             {
                 "route": route,
                 "viewport": viewport,
                 "run_count": len(group),
                 "failure_count": len(failures),
+                "warm_run_count": warm_run_count,
+                "cold_run_count": cold_run_count,
                 "success": not failures,
-                "shell_p90_seconds": nearest_rank_percentile(shell, 90) if shell else None,
-                "first_useful_p90_seconds": nearest_rank_percentile(first_useful, 90) if first_useful else None,
+                "warm_shell_p90_seconds": nearest_rank_percentile(warm_shell, 90) if warm_shell else None,
+                "cold_shell_max_seconds": max(cold_shell) if cold_shell else None,
+                "warm_first_useful_p90_seconds": (
+                    nearest_rank_percentile(warm_first_useful, 90) if warm_first_useful else None
+                ),
+                "cold_first_useful_max_seconds": max(cold_first_useful) if cold_first_useful else None,
                 "warm_full_settle_p90_seconds": nearest_rank_percentile(warm_full, 90) if warm_full else None,
                 "cold_full_settle_max_seconds": max(cold_full) if cold_full else None,
                 "failures": tuple(sample.failure for sample in failures if sample.failure),
@@ -180,6 +260,8 @@ def evaluate_performance_gate(
     *,
     critical_routes: set[str],
     thresholds: PerformanceThresholds,
+    min_warm_runs: int = 0,
+    min_cold_runs: int = 0,
 ) -> PerformanceGateResult:
     failures: list[str] = []
     for row in summary:
@@ -189,9 +271,25 @@ def evaluate_performance_gate(
         failure_count = int(row.get("failure_count", 0))
         if failure_count:
             failures.append(f"{route}: {failure_count} failed timing run(s)")
+        warm_run_count = int(row.get("warm_run_count", 0))
+        cold_run_count = int(row.get("cold_run_count", 0))
+        if warm_run_count < min_warm_runs:
+            failures.append(f"{route}: warm sample count {warm_run_count} is below {min_warm_runs}")
+        if cold_run_count < min_cold_runs:
+            failures.append(f"{route}: cold sample count {cold_run_count} is below {min_cold_runs}")
         checks = (
-            ("shell_p90_seconds", thresholds.shell_seconds, "shell p90"),
-            ("first_useful_p90_seconds", thresholds.first_useful_seconds, "first-useful p90"),
+            ("warm_shell_p90_seconds", thresholds.shell_seconds, "warm shell p90"),
+            ("cold_shell_max_seconds", thresholds.shell_seconds, "cold shell max"),
+            (
+                "warm_first_useful_p90_seconds",
+                thresholds.first_useful_seconds,
+                "warm first-useful p90",
+            ),
+            (
+                "cold_first_useful_max_seconds",
+                thresholds.first_useful_seconds,
+                "cold first-useful max",
+            ),
             ("warm_full_settle_p90_seconds", thresholds.warm_full_settle_seconds, "warm full-settle p90"),
             ("cold_full_settle_max_seconds", thresholds.cold_full_settle_seconds, "cold full-settle max"),
         )
@@ -240,17 +338,27 @@ def performance_result_payload(
     environment: str,
     critical_routes: set[str] | None = None,
     thresholds: PerformanceThresholds | None = None,
+    workflow: str = "public",
+    min_warm_runs: int = 0,
+    min_cold_runs: int = 0,
 ) -> dict[str, object]:
     sample_rows = list(samples)
     limits = thresholds or PerformanceThresholds()
     summary = summarize_route_timings(sample_rows)
     critical = critical_routes or {route.name for route in DEFAULT_ROUTE_SPECS if route.critical}
     if sample_rows:
-        gate = evaluate_performance_gate(summary, critical_routes=critical, thresholds=limits)
+        gate = evaluate_performance_gate(
+            summary,
+            critical_routes=critical,
+            thresholds=limits,
+            min_warm_runs=min_warm_runs,
+            min_cold_runs=min_cold_runs,
+        )
     else:
         gate = PerformanceGateResult("failed", ("No browser timing samples were recorded",))
     return {
         "mode": "browser",
+        "workflow": workflow,
         "verdict": gate.verdict,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "commit": commit,
@@ -276,13 +384,20 @@ def performance_progress_line(sample: RouteTimingSample, *, index: int, total: i
     return f"{prefix}: passed; first={first}; full={full}"
 
 
-def performance_contract_payload(base_dir: Path | str | None = None) -> dict[str, object]:
+def performance_contract_payload(
+    base_dir: Path | str | None = None,
+    *,
+    route_specs: Iterable[PublicRouteSpec] = DEFAULT_ROUTE_SPECS,
+    workflow: str = "public",
+) -> dict[str, object]:
     thresholds = PerformanceThresholds()
+    routes = tuple(route_specs)
     return {
         "mode": "contract_only",
+        "workflow": workflow,
         "browser_requirement": "playwright plus a local chrome-compatible executable",
         "demo_snapshot": demo_snapshot_identity(base_dir),
-        "routes": [asdict(route) for route in DEFAULT_ROUTE_SPECS],
+        "routes": [asdict(route) for route in routes],
         "viewports": [asdict(viewport) for viewport in DEFAULT_VIEWPORTS],
         "thresholds": asdict(thresholds),
         "boundary": (
@@ -292,14 +407,23 @@ def performance_contract_payload(base_dir: Path | str | None = None) -> dict[str
     }
 
 
-def _browser_unavailable_payload(base_dir: Path | str | None = None) -> dict[str, object]:
-    payload = performance_contract_payload(base_dir)
+def _browser_unavailable_payload(
+    base_dir: Path | str | None = None,
+    *,
+    route_specs: Iterable[PublicRouteSpec] = DEFAULT_ROUTE_SPECS,
+    workflow: str = "public",
+) -> dict[str, object]:
+    payload = performance_contract_payload(base_dir, route_specs=route_specs, workflow=workflow)
     payload.update(
         {
             "mode": "browser",
             "verdict": "environment_limited",
             "detail": "The optional Playwright dependency is unavailable; no browser timings were recorded.",
-            "next": "Install the development dependency, then rerun make public-performance-gate.",
+            "next": (
+                "Install the development dependency, then rerun make commercial-beta-performance-gate."
+                if workflow == "research"
+                else "Install the development dependency, then rerun make public-performance-gate."
+            ),
         }
     )
     return payload
@@ -344,38 +468,53 @@ def _local_demo_server(root: Path, *, port: int | None = None, timeout_seconds: 
     base_url = f"http://127.0.0.1:{selected_port}"
     env = os.environ.copy()
     env["STOCK_RESEARCH_DATA_PROFILE"] = "demo"
-    process = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "streamlit",
-            "run",
-            "src/dashboard.py",
-            "--server.headless",
-            "true",
-            "--server.fileWatcherType",
-            "none",
-            "--client.toolbarMode",
-            "viewer",
-            "--server.port",
-            str(selected_port),
-        ],
-        cwd=root,
-        env=env,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.STDOUT,
-        start_new_session=True,
-    )
-    try:
-        _wait_for_health(base_url, timeout_seconds=timeout_seconds)
-        yield base_url
-    finally:
-        process.terminate()
+    with tempfile.SpooledTemporaryFile(max_size=1_000_000, mode="w+b") as server_log:
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-m",
+                "streamlit",
+                "run",
+                "src/dashboard.py",
+                "--server.headless",
+                "true",
+                "--server.fileWatcherType",
+                "none",
+                "--client.toolbarMode",
+                "viewer",
+                "--browser.gatherUsageStats",
+                "false",
+                "--server.port",
+                str(selected_port),
+            ],
+            cwd=root,
+            env=env,
+            stdout=server_log,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        raised: BaseException | None = None
         try:
-            process.wait(timeout=8)
-        except subprocess.TimeoutExpired:  # pragma: no cover - defensive process cleanup
-            process.kill()
-            process.wait(timeout=5)
+            _wait_for_health(base_url, timeout_seconds=timeout_seconds)
+            yield base_url
+        except BaseException as exc:
+            raised = exc
+            raise
+        finally:
+            process.terminate()
+            try:
+                process.wait(timeout=8)
+            except subprocess.TimeoutExpired:  # pragma: no cover - defensive process cleanup
+                process.kill()
+                process.wait(timeout=5)
+            if raised is not None:
+                server_log.flush()
+                server_log.seek(0)
+                log_tail = server_log.read().decode("utf-8", errors="replace")[-4_000:].strip()
+                raised.add_note(
+                    "Local Streamlit server log:\n"
+                    + (log_tail or "No server output was captured.")
+                )
 
 
 def _wait_for_dom_stability(page, *, timeout_seconds: float, stable_checks: int = 3) -> None:
@@ -405,7 +544,23 @@ def _wait_for_visible_text(page, marker: str, *, timeout_seconds: float) -> None
             timeout=int(timeout_seconds * 1000),
         )
     except Exception as exc:
-        raise TimeoutError(f"visible marker not found before timeout: {marker}") from exc
+        url = str(getattr(page, "url", "unavailable") or "unavailable")
+        try:
+            body = page.locator("body").inner_text(timeout=2_000)
+        except Exception:
+            body = "visible body unavailable"
+        body_snapshot = " ".join(str(body or "").split())[:1_000] or "visible body empty"
+        raise TimeoutError(
+            f"visible marker not found before timeout: {marker}; "
+            f"url={url}; visible_body={body_snapshot!r}"
+        ) from exc
+
+
+def _horizontal_overflow_pixels(page) -> int:
+    value = page.evaluate(
+        "Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth)"
+    )
+    return max(0, int(value or 0))
 
 
 def _measure_route(
@@ -436,9 +591,18 @@ def _measure_route(
         shell_seconds = time.perf_counter() - started
         _wait_for_visible_text(page, route.first_useful_marker, timeout_seconds=timeout_seconds)
         first_useful_seconds = time.perf_counter() - started
+        if route.full_reveal_action:
+            page.get_by_role(
+                "button",
+                name=route.full_reveal_action,
+                exact=True,
+            ).click(timeout=int(timeout_seconds * 1000))
         for marker in route.full_markers:
             _wait_for_visible_text(page, marker, timeout_seconds=timeout_seconds)
         _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+        overflow_pixels = _horizontal_overflow_pixels(page)
+        if overflow_pixels > 1:
+            raise RuntimeError(f"horizontal overflow: {overflow_pixels}px")
         full_settle_seconds = time.perf_counter() - started
         return RouteTimingSample(
             route.name,
@@ -474,21 +638,24 @@ def run_browser_performance_gate(
     base_url: str = "",
     chrome_executable: Path | None = None,
     progress: Callable[[str], None] | None = None,
+    route_specs: Iterable[PublicRouteSpec] = DEFAULT_ROUTE_SPECS,
+    workflow: str = "public",
 ) -> dict[str, object]:
     root = resolve_project_root(base_dir)
+    routes = tuple(route_specs)
     chrome = chrome_executable or find_chrome_executable()
     if chrome is None:
-        payload = _browser_unavailable_payload(root)
+        payload = _browser_unavailable_payload(root, route_specs=routes, workflow=workflow)
         payload["detail"] = "No executable Chrome-compatible browser was found; no timings were recorded."
         return payload
 
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
-        return _browser_unavailable_payload(root)
+        return _browser_unavailable_payload(root, route_specs=routes, workflow=workflow)
 
     samples: list[RouteTimingSample] = []
-    total_samples = len(DEFAULT_ROUTE_SPECS) * len(DEFAULT_VIEWPORTS) * (cold_runs + warm_runs)
+    total_samples = len(routes) * len(DEFAULT_VIEWPORTS) * (cold_runs + warm_runs)
 
     def record(sample: RouteTimingSample) -> None:
         samples.append(sample)
@@ -499,7 +666,7 @@ def run_browser_performance_gate(
         browser = playwright.chromium.launch(executable_path=str(chrome), headless=True)
         try:
             if cold_runs:
-                for route in DEFAULT_ROUTE_SPECS:
+                for route in routes:
                     for viewport in DEFAULT_VIEWPORTS:
                         for _ in range(cold_runs):
                             if base_url:
@@ -532,7 +699,7 @@ def run_browser_performance_gate(
                     timeout_seconds=timeout_seconds,
                 )
                 with server_context as active_url:
-                    for route in DEFAULT_ROUTE_SPECS:
+                    for route in routes:
                         for viewport in DEFAULT_VIEWPORTS:
                             _measure_route(
                                 browser,
@@ -561,6 +728,10 @@ def run_browser_performance_gate(
         samples,
         commit=_git_commit(root),
         environment=f"{platform.system()} {platform.machine()} | Chrome: {chrome}",
+        critical_routes={route.name for route in routes if route.critical},
+        workflow=workflow,
+        min_warm_runs=warm_runs,
+        min_cold_runs=cold_runs,
     )
 
 
@@ -570,6 +741,12 @@ def main() -> int:
     mode.add_argument("--contract", action="store_true", help="Print the read-only route and threshold contract.")
     mode.add_argument("--browser", action="store_true", help="Run the optional real-browser performance gate.")
     parser.add_argument("--root", default=".", help="Project root containing data/demo/manifest.json.")
+    parser.add_argument(
+        "--workflow",
+        choices=("public", "research"),
+        default="public",
+        help="Route workflow to measure.",
+    )
     parser.add_argument("--json", action="store_true", help="Print machine-readable output.")
     parser.add_argument("--warm-runs", type=int, default=5, help="Recorded warm runs per route and viewport.")
     parser.add_argument("--cold-runs", type=int, default=1, help="Recorded cold runs per route and viewport.")
@@ -584,6 +761,7 @@ def main() -> int:
     args = parser.parse_args()
 
     root = Path(args.root)
+    route_specs = RESEARCH_ROUTE_SPECS if args.workflow == "research" else DEFAULT_ROUTE_SPECS
     if args.browser:
         payload = run_browser_performance_gate(
             root,
@@ -593,6 +771,8 @@ def main() -> int:
             base_url=args.base_url,
             chrome_executable=Path(args.chrome) if args.chrome else None,
             progress=lambda line: print(line, file=sys.stderr, flush=True),
+            route_specs=route_specs,
+            workflow=args.workflow,
         )
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -604,14 +784,15 @@ def main() -> int:
             return 2
         return 1
 
-    payload = performance_contract_payload(root)
+    payload = performance_contract_payload(root, route_specs=route_specs, workflow=args.workflow)
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
     else:
-        print("Public Performance Contract")
+        title = "Commercial Beta Performance Contract" if args.workflow == "research" else "Public Performance Contract"
+        print(title)
         print(payload["boundary"])
         print(f"Demo snapshot: {payload['demo_snapshot']['sha256']}")
-        for route in DEFAULT_ROUTE_SPECS:
+        for route in route_specs:
             critical = "critical" if route.critical else "regression"
             print(f"- {route.name}: {critical} | {route.route} | first useful: {route.first_useful_marker}")
         print("Thresholds:")

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+from src.profile_context import READINESS_PREVIEW_COMMAND, READINESS_PREVIEW_NOTE
 from urllib.parse import quote
 
 import pandas as pd
@@ -98,7 +99,7 @@ def home_research_loop_context(summary: dict[str, object], freshness: object) ->
     current_state = f"{int(summary.get('price_ready') or 0):,} price-ready / {dcf_ready:,} DCF-ready / {peer_ready:,} peer-ready"
     freshness_status = getattr(freshness, "status", "")
     proof_state = "Saved readiness snapshot is current" if freshness_status == "current" else "Saved readiness snapshot needs refresh"
-    proof_note = "Use this snapshot before opening ticker pages." if freshness_status == "current" else str(getattr(freshness, "refresh_command", "make readiness"))
+    proof_note = "Use this snapshot before opening ticker pages." if freshness_status == "current" else f"{getattr(freshness, 'refresh_command', '') or READINESS_PREVIEW_COMMAND}. {READINESS_PREVIEW_NOTE}"
     next_action = "Open a Single-Stock Report"
     if dcf_ready <= 0:
         next_action = "Open Data Health lane answers"
@@ -190,27 +191,38 @@ def data_health_research_loop_context(
     readiness_freshness: object,
     next_action: str,
     public_mode: bool,
+    workspace_mode: str | None = None,
 ) -> dict[str, str]:
     lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, DATA_HEALTH_OPERATOR_LANES["prices"])
+    personal_research_mode = public_mode and workspace_mode == "research"
+    read_only_mode = "research" if personal_research_mode else "public"
     if public_mode:
-        lane_label = "Public readiness summary"
+        lane_label = (
+            "Personal Research readiness summary"
+            if personal_research_mode
+            else "Public readiness summary"
+        )
     elif selected_lane_key != "proof":
         lane_label = f"{lane_label} ROUTE MAP; navigation-only; artifact hygiene before staging"
     freshness_status = getattr(readiness_freshness, "status", "")
     proof_state = "Readiness snapshot is current" if freshness_status == "current" else "Readiness snapshot needs refresh"
     current_href = (
-        "?mode=public&page=data-health"
+        f"?mode={read_only_mode}&page=data-health&lane={selected_lane_key}"
         if public_mode
         else f"?mode=operator&page=data-health&lane={selected_lane_key}"
     )
     proof_href = (
-        "?mode=public&page=data-health&drawer=proof"
+        f"?mode={read_only_mode}&page=data-health&lane={selected_lane_key}&drawer=proof"
         if public_mode
         else "?mode=operator&page=data-health&lane=proof&drawer=proof"
     )
     current_step = "Proof lane shell" if selected_lane_key == "proof" else "Data Health lane answer"
     action_note = (
-        "Evidence stays collapsed on the public page; open proof when you need source status before reading deeper sections."
+        (
+            "Evidence stays collapsed on the Personal Research page; open proof when you need source status before reading deeper sections."
+            if personal_research_mode
+            else "Evidence stays collapsed on the public page; open proof when you need source status before reading deeper sections."
+        )
         if public_mode
         else "Commands stay copy-only and collapsed; validate and preview before any reviewed apply step."
     )
@@ -222,7 +234,11 @@ def data_health_research_loop_context(
         "proof_note": str(getattr(readiness_freshness, "message", "")),
         "proof_href": proof_href,
         "next_action": _friendly_card_copy(next_action),
-        "action_href": data_health_research_loop_action_href(selected_lane_key, next_action, public_mode),
+        "action_href": (
+            proof_href
+            if personal_research_mode
+            else data_health_research_loop_action_href(selected_lane_key, next_action, public_mode)
+        ),
         "action_note": action_note,
         "stop_rule": "Stop before apply without reviewed proof",
         "stop_note": "Missing source rows, stale snapshots, rejected rows, or placeholder fields keep the lane blocked.",

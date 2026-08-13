@@ -7,6 +7,8 @@ apply imports, infer missing inputs, or create investment conclusions.
 
 from __future__ import annotations
 
+from src.reviewed_batch_proof import resolve_readiness_proof_profile
+
 import argparse
 import re
 from dataclasses import asdict, dataclass
@@ -528,10 +530,10 @@ def _validation_sequence(family: str) -> str:
     return "make imports-validate IMPORT_TICKERS=<ticker> -> make imports-preview IMPORT_TICKERS=<ticker> -> rejected-row review -> make imports-apply IMPORT_TICKERS=<ticker>"
 
 
-def _proof_after_update(ticker: str, family: str) -> str:
+def _proof_after_update(ticker: str, family: str, *, selected_profile: str) -> str:
     if family == "price":
-        return f"make price-coverage TOP_N=25 && make readiness && make stock-report-md TICKER={ticker}"
-    return f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}"
+        return f"make readiness-snapshot PROFILE={selected_profile} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}"
+    return f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}"
 
 
 def _stop_rule(family: str) -> str:
@@ -584,11 +586,11 @@ def _family_apply_boundary(family: str) -> str:
     return "Reviewed boundary: run make imports-apply only after source proof, validation, preview, and rejected-row review."
 
 
-def _family_post_run_proof_command(tickers: list[str], family: str) -> str:
+def _family_post_run_proof_command(tickers: list[str], family: str, *, selected_profile: str) -> str:
     ticker = tickers[0] if tickers else "<reviewed_ticker>"
     if family == "price":
-        return f"make price-coverage TOP_N=25 && make readiness && make stock-report-md TICKER={ticker}"
-    return f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}"
+        return f"make readiness-snapshot PROFILE={selected_profile} && make price-validate && make price-preview && make price-apply && make reviewed-batch-compare PROFILE={selected_profile} LANE=prices BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}"
+    return f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}"
 
 
 def _proof_record_scaffold(*, lane: str, tickers: list[str], command_run: str) -> str:
@@ -803,8 +805,12 @@ def build_dcf_input_proof_queue_from_dcf_frame(
             reviewed_non_actionable=reviewed_non_actionable,
         ),
     )
+    selected_rows = ranked[: max(top_n, 0)]
+    if not selected_rows:
+        return []
+    selected_profile = resolve_readiness_proof_profile()
     rows: list[DcfInputProofRow] = []
-    for row in ranked[: max(top_n, 0)]:
+    for row in selected_rows:
         ticker = str(row.get("ticker", "")).upper().strip()
         fields = _split_fields(row.get("missing_dcf_fields"))
         ready = _ready_inputs(row)
@@ -835,7 +841,7 @@ def build_dcf_input_proof_queue_from_dcf_frame(
                 next_safe_command=_next_safe_command(ticker, family),
                 proof_packet_command=_proof_packet_command(ticker, family),
                 validation_sequence=_validation_sequence(family),
-                proof_after_update=_proof_after_update(ticker, family),
+                proof_after_update=_proof_after_update(ticker, family, selected_profile=selected_profile),
                 stop_rule=_stop_rule(family),
                 source_note=source_note,
             )
@@ -901,7 +907,9 @@ def build_dcf_input_proof_handoff(
     *,
     family: str | None = None,
     limit: int = 10,
+    _selected_profile: str | None = None,
 ) -> DcfInputProofHandoff:
+    selected_profile = _selected_profile or resolve_readiness_proof_profile()
     family_key = str(family or "").strip()
     if not family_key and rows:
         family_key = rows[0].missing_input_family
@@ -919,8 +927,10 @@ def build_dcf_input_proof_handoff(
             validation_command="make imports-validate",
             preview_command="make imports-preview",
             apply_boundary="Reviewed boundary: do not apply rows until source proof, validation, preview, and rejected-row review exist.",
-            post_run_proof_command="make dcf-readiness && make readiness",
-            compare_command="make reviewed-batch-compare LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+            post_run_proof_command=(
+                "blocked until the selected DCF input family has queued rows and reviewed source proof"
+            ),
+            compare_command=f"make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
             proof_record_scaffold=_proof_record_scaffold(lane="fundamentals", tickers=[], command_run=command_run),
             stop_rule="Stop if the selected DCF input family has no queued blockers or source proof is unavailable.",
             record_boundary="Preview only; do not record proof until required fields replace placeholders and readiness comparison is reviewed.",
@@ -940,8 +950,12 @@ def build_dcf_input_proof_handoff(
         validation_command=_family_validation_command(input_family),
         preview_command=_family_preview_command(input_family),
         apply_boundary=_family_apply_boundary(input_family),
-        post_run_proof_command=_family_post_run_proof_command(tickers, input_family),
-        compare_command=f"make reviewed-batch-compare LANE={lane} BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
+        post_run_proof_command=_family_post_run_proof_command(
+            tickers,
+            input_family,
+            selected_profile=selected_profile,
+        ),
+        compare_command=f"make reviewed-batch-compare PROFILE={selected_profile} LANE={lane} BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd>",
         proof_record_scaffold=_proof_record_scaffold(lane=lane, tickers=tickers, command_run=command_run),
         stop_rule=stop_rules[0] if stop_rules else _stop_rule(input_family),
         record_boundary="Copy the proof-record command only after packet review, validate/preview/apply decision, rebuilt readiness, comparison, source files, and generated-artifact review.",
@@ -1062,14 +1076,24 @@ def build_dcf_input_source_command_plan(
     first = review_rows[0]
     family_key = first.input_family
     ticker = first.ticker
+    ticker_scope = ",".join(dict.fromkeys(row.ticker for row in review_rows if row.ticker))
+    selected_profile = resolve_readiness_proof_profile()
     guard_command = f"make dcf-input-source-guard {_make_assignments(_reviewed_value_assignments(first))}"
-    handoff = build_dcf_input_proof_handoff(rows, family=family_key, limit=limit)
+    handoff = build_dcf_input_proof_handoff(
+        rows,
+        family=family_key,
+        limit=limit,
+        _selected_profile=selected_profile,
+    )
     missing_fields = first.missing_review_fields or "reviewed source fields"
     return [
         DcfInputSourceCommandPlan(
             step="1. Open source-review intake",
             status=first.completion_status,
-            command=f"make dcf-input-source-review FAMILY={family_key} TOP_N={max(limit, 0) or 10}",
+            command=(
+                f"make dcf-input-source-review FAMILY={family_key} "
+                f"TICKERS={ticker_scope} TOP_N={max(limit, 0) or 10}"
+            ),
             fields_to_fill=missing_fields,
             review_boundary="Use this first to see source fields before editing import rows or proof records.",
         ),
@@ -1104,14 +1128,17 @@ def build_dcf_input_source_command_plan(
         DcfInputSourceCommandPlan(
             step="6. Rebuild DCF proof",
             status="copy_only_after_apply_or_skip",
-            command=f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker}",
+            command=f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS={ticker} && make imports-preview IMPORT_TICKERS={ticker} && make imports-apply IMPORT_TICKERS={ticker} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker}",
             fields_to_fill="post-run readiness proof",
             review_boundary="A supported outcome needs rebuilt readiness proof; skipped or still-blocked outcomes should stay honest.",
         ),
         DcfInputSourceCommandPlan(
             step="7. Proof handoff",
             status="dry_run_first",
-            command=f"make dcf-input-proof-handoff FAMILY={family_key} TOP_N={max(limit, 0) or 10}",
+            command=(
+                f"make dcf-input-proof-handoff FAMILY={family_key} "
+                f"TICKERS={ticker_scope} TOP_N={max(limit, 0) or 10}"
+            ),
             fields_to_fill="changed counts, changed tickers, source files, generated artifact review",
             review_boundary=handoff.record_boundary,
         ),
@@ -1202,6 +1229,7 @@ def build_dcf_input_source_guard(
     }
     csv_header = _csv_row(list(FUNDAMENTALS_IMPORT_COLUMNS))
     csv_row = _csv_row([row_values[column] for column in FUNDAMENTALS_IMPORT_COLUMNS]) if status == "ready_for_validate_preview" else ""
+    selected_profile = resolve_readiness_proof_profile()
     return DcfInputSourceGuard(
         status=status,
         ticker=ticker_key or "<ticker>",
@@ -1217,7 +1245,7 @@ def build_dcf_input_source_guard(
             if status == "ready_for_validate_preview"
             else "Do not edit or apply data/imports/fundamentals.csv until blocking reasons are resolved."
         ),
-        post_apply_proof=f"make dcf-readiness && make readiness && make stock-report-md TICKER={ticker_key or '<ticker>'}",
+        post_apply_proof=f"make readiness-snapshot PROFILE={selected_profile} && make imports-validate IMPORT_TICKERS={ticker_key or '<ticker>'} && make imports-preview IMPORT_TICKERS={ticker_key or '<ticker>'} && make imports-apply IMPORT_TICKERS={ticker_key or '<ticker>'} && make dcf-readiness && make reviewed-batch-compare PROFILE={selected_profile} LANE=fundamentals BATCH_ID=<reviewed_batch_id> REVIEW_DATE=<yyyy-mm-dd> && make stock-report-md TICKER={ticker_key or '<ticker>'}",
         proof_record_boundary=(
             "After rebuilt readiness and comparison are reviewed, use DRY_RUN=1 make reviewed-batch-proof-record with source files and artifact review filled."
         ),

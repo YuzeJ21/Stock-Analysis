@@ -1,5 +1,6 @@
 from pathlib import Path
 import csv
+import subprocess
 
 
 def test_pilot_review_feedback_template_keeps_clarity_feedback_separate_from_data_proof():
@@ -57,7 +58,8 @@ def test_pilot_review_feedback_make_target_is_read_only_and_discoverable():
     assert "docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md" in target
     assert "docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv" in target
     assert "cp docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv /tmp/stock-command-center-pilot-feedback.csv" in target
-    assert "5-10 external reviewers" in target
+    assert "10-20 external reviewers" in target
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in target
     assert "not data proof" in target.lower()
     assert "does not refresh data, import rows, stage files, commit, push, or deploy" in target
     assert "Commit a feedback log only after removing personal information" in target
@@ -66,6 +68,25 @@ def test_pilot_review_feedback_make_target_is_read_only_and_discoverable():
     assert "environment_limited" in closeout_target
     assert "intentionally_deferred" in closeout_target
     assert "does not refresh data, import rows, stage files, commit, push, deploy, or publish feedback" in closeout_target
+
+
+def test_pilot_review_feedback_command_prints_current_workflow_and_complete_scorecard():
+    result = subprocess.run(
+        ["make", "pilot-review-feedback"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in result.stdout
+    assert "Evidence trace" in result.stdout
+    assert "Authoring friction" in result.stdout
+    assert "Repeat-use intent" in result.stdout
+    assert "Most important missing workflow" in result.stdout
+    assert "voluntary participation" in result.stdout
+    assert "withdrawal" in result.stdout
+    assert "deletion date" in result.stdout
+    assert "Home -> Stock Selector -> Single-Stock Report" not in result.stdout
 
 
 def test_pilot_review_feedback_log_template_is_anonymous_and_comparable():
@@ -113,6 +134,30 @@ def test_pilot_review_feedback_log_template_is_anonymous_and_comparable():
     assert "sell" not in body.lower()
 
 
+def test_commercial_beta_feedback_log_captures_complete_validation_and_consent_contract():
+    path = Path("docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv")
+    rows = list(csv.DictReader(path.read_text(encoding="utf-8").splitlines()))
+
+    assert rows
+    header = rows[0].keys()
+    for column in (
+        "consent_confirmed",
+        "consent_withdrawn",
+        "retention_delete_after",
+        "evidence_trace_result",
+        "authoring_friction",
+        "repeat_use_intent",
+        "most_important_missing_workflow",
+    ):
+        assert column in header
+
+    example = rows[0]
+    assert example["consent_confirmed"] == "yes / no"
+    assert example["consent_withdrawn"] == "yes / no"
+    assert example["evidence_trace_result"] == "completed / completed_with_help / not_completed"
+    assert example["repeat_use_intent"] == "yes / maybe / no"
+
+
 def test_pilot_feedback_closeout_checklist_keeps_feedback_out_of_data_gates():
     body = Path("docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md").read_text(encoding="utf-8")
     readme = Path("README.md").read_text(encoding="utf-8")
@@ -141,7 +186,7 @@ def test_pilot_review_invitation_is_a_short_privacy_safe_entry_point():
     readme = Path("README.md").read_text(encoding="utf-8")
     linkedin_brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
 
-    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in invitation
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in invitation
     assert "under three minutes" in invitation
     assert "Where did you start?" in invitation
     assert "What could you use now?" in invitation
@@ -153,3 +198,47 @@ def test_pilot_review_invitation_is_a_short_privacy_safe_entry_point():
     assert "not data proof" in invitation.lower()
     assert "docs/PILOT_REVIEW_INVITATION.md" in readme
     assert "docs/PILOT_REVIEW_INVITATION.md" in linkedin_brief
+
+
+def test_commercial_beta_pilot_contract_is_task_based_and_truthful():
+    roadmap = Path("ROADMAP.md").read_text(encoding="utf-8")
+    readme = Path("README.md").read_text(encoding="utf-8")
+    runbook = Path("docs/PILOT_RUNBOOK.md").read_text(encoding="utf-8")
+    decision = Path("docs/PRODUCT_DIRECTION_DECISION.md").read_text(encoding="utf-8")
+
+    assert "## Now: Commercial Research Beta Foundation" in roadmap
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in roadmap
+    assert "local Commercial Research Beta foundation" in readme
+    assert "not a hosted or commercially launched product" in readme
+    assert "10 to 20" in runbook
+    for metric in (
+        "Task success",
+        "Time to first answer",
+        "Readiness comprehension",
+        "Misuse risk",
+        "Trust in evidence",
+        "Perceived performance",
+        "Repeat-use case",
+    ):
+        assert metric in runbook
+    assert "awaiting_external_review" in decision
+    assert "awaiting_reviewed_source" in decision
+    assert "external_account_required" in decision
+
+
+def test_commercial_beta_pilot_uses_the_research_workflow_and_nine_tasks():
+    template = Path("docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md").read_text(encoding="utf-8")
+
+    assert "## Commercial Research Beta Tasks" in template
+    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in template
+    for task in (
+        "Identify the focused cohort and freshness state",
+        "Use Discover to select one reviewable company",
+        "Explain what can be used now",
+        "Identify one withheld input",
+        "Review Business Trend, Valuation, and Forward View boundaries",
+        "Use Monitor to determine whether verified evidence changed",
+        "State why the product is research-only",
+    ):
+        assert task in template
+    assert "Do not fabricate reviewer sessions, completion rates, quotes, or findings" in template
