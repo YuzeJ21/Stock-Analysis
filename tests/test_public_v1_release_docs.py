@@ -1820,6 +1820,14 @@ def test_accessibility_evidence_records_same_page_skip_fix_without_overclaim():
     assert "`Open Data Health` at `102x24`" in evidence
     assert "does not prove pointer-spacing exceptions" in evidence
     assert "Priority 7 remains incomplete" in evidence
+    for text in (roadmap, evidence, prompt):
+        assert "pointer activation remains unproved" in text.lower()
+    assert (
+        "met the measured size and non-overlap portions of the local target contract"
+        in prompt
+    )
+    assert "pointer activation remains unproved" in prompt.lower()
+    assert "met the existing local target contract" not in prompt
 
 
 def test_priority_three_release_docs_record_controller_runtime_evidence_without_claiming_production_persistence():

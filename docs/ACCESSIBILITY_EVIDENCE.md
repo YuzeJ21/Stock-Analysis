@@ -4,6 +4,54 @@ This document records direct local accessibility evidence for supported Personal
 Research, Public, evidence, Operator, and compatibility routes. It is an evidence
 log, not a WCAG conformance claim.
 
+## 2026-08-13 bounded framework-control follow-up
+
+Scope:
+
+- Current local Product Research Company Workbench for `AVGO` at exact source
+  anchor `14025b2eb9d0393e5d00aeaedf4752fdbc1519b1`.
+- Desktop `1280x720` and phone `390x844` CSS viewports in an in-app Chromium
+  browser against a loopback-only, telemetry-disabled Streamlit server.
+- The existing detailed modules, quarterly evidence disclosure, and reviewed
+  research-record disclosure were opened only to expose current controls. No
+  record was previewed or saved; no readiness, source, or generated data changed.
+
+Observed engineering evidence:
+
+- The current primary Research flow exposed no framework help button in the
+  inspected states, so no absent control is credited or treated as a defect.
+- Exposed dataframe toolbar actions measured exactly `24x24` CSS pixels on
+  desktop and phone. Their adjacent boxes met at their edges without overlap.
+- Disclosure summaries measured at least `37.6px` high. Phone route choices
+  measured `49.1px` high, mode links `44px`, the composite-select controls
+  `32x38` or larger, text inputs `44px` high, and the authoring action `44px`
+  high.
+- Document `scrollWidth` equaled `clientWidth` at both `1280` and `390` CSS
+  pixels. The inspected phone disclosure, dataframe, and authoring controls did
+  not overlap an adjacent material control.
+- No current app-owned or reliably styleable size or non-overlap defect
+  reproduced, so no product code or shared presentation rule was changed.
+  Pointer activation remains unproved.
+
+Temporary current-run screenshots:
+
+- `/tmp/stock-priority7-desktop-controls-20260813.jpg`, SHA-256
+  `185823293d5c404f18fdad62c48c7ca8991e9653a0acc1d8681e9a3785a5a9ab`.
+- `/tmp/stock-priority7-phone-controls-hover-20260813.jpg`, SHA-256
+  `3fce087ed3421069150a86409bac92aae272ae503c30728f73c228f199dcc181`.
+- `/tmp/stock-priority7-phone-authoring-20260813.jpg`, SHA-256
+  `ccb3d18e03b15b295f44f73aba46d7f34922d5f62432c1a36b2c3019bc05ff4f`.
+
+Evidence boundary and unblock condition:
+
+- This is one bounded automated/direct-browser engineering audit. It does not
+  establish pointer activation, true zoom, platform forced colors or reduced
+  motion, independent-human keyboard use, screen-reader or assistive-technology
+  usability, hosted behavior, or WCAG conformance.
+- Priority 7 remains open. Provide a suitable independent-human and
+  assistive-technology environment, complete the applicable task protocol, and
+  retest any material defect before claiming further accessibility completion.
+
 ## 2026-08-11 workspace modernization acceptance boundary
 
 The current engineering acceptance covers an ordered 90-cell browser matrix:
