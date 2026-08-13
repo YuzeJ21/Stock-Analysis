@@ -257,8 +257,12 @@ def resolve_workspace_route(
         and (not mode_switched or requested_page in {"Data Health", PROOF_HISTORY_PATH_TITLE})
     )
     page = requested_page if allowed else _workspace_fallback_page(mode)
-    redirected = not allowed or mode_switched
     canonical_query = canonical_workspace_query(mode, page, query_params)
+    query_requires_canonicalization = (
+        mode in {PUBLIC_DEMO_MODE, RESEARCH_MODE}
+        and _normalized_query_mapping(query_params) != canonical_query
+    )
+    redirected = not allowed or mode_switched or query_requires_canonicalization
     if mode == OPERATOR_DEMO_MODE and redirected:
         canonical_query = {"mode": mode, "page": dashboard_page_slug(page)}
     return WorkspaceRouteResolution(

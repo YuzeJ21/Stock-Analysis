@@ -422,6 +422,7 @@ from src.research_workspace import (
     research_accessibility_media_preferences_css,
     research_evidence_return_link,
     research_monitor_frame,
+    monitor_freshness_condition_label,
     monitor_primary_answer,
     saved_readiness_display_label,
     research_workflow_navigation_html,
@@ -7305,14 +7306,20 @@ def render_public_shell_mode_styles() -> None:
             font-size: 0.74rem;
           }
           .public-app-nav {
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            row-gap: 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+            gap: 0.1rem;
+            overflow: visible;
           }
           .public-app-nav a {
-            flex: 0 0 auto;
+            justify-content: center;
+            min-width: 0;
             padding: 0.34rem 0.42rem 0.4rem;
             font-size: 0.7rem;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+            text-align: center;
+            white-space: normal;
           }
           .public-page-intro {
             gap: 0.3rem;
@@ -7341,15 +7348,15 @@ def render_public_shell_mode_styles() -> None:
           .profile-trust-primary { padding-left: 0; }
           .profile-trust-strip small,
           .profile-trust-label { font-size: 0.58rem; }
-          .sr-answer-panel {
-            gap: 0.5rem;
+          .stApp:has(.public-app-shell) .sr-answer-panel {
+            gap: 0.35rem;
             margin-bottom: 0.5rem;
-            padding: 0.85rem;
+            padding: 0.65rem;
             border-radius: 8px;
           }
           .sr-answer-question { font-size: 0.75rem; }
-          .sr-answer-panel h2 { font-size: 1.08rem; line-height: 1.3; }
-          .sr-answer-reason { font-size: 0.84rem; line-height: 1.35; }
+          .stApp:has(.public-app-shell) .sr-answer-panel h2 { font-size: 1rem; line-height: 1.25; }
+          .stApp:has(.public-app-shell) .sr-answer-reason { font-size: 0.82rem; line-height: 1.3; }
           .research-change-summary { grid-template-columns: 1fr; }
           .research-change-action {
             max-width: none;
@@ -8035,7 +8042,11 @@ def single_stock_public_summary_html(frame: pd.DataFrame, *, target_mode: str = 
     safe_mode = RESEARCH_MODE if target_mode == RESEARCH_MODE else PUBLIC_DEMO_MODE
     summary_class = "public-ticker-summary research" if safe_mode == RESEARCH_MODE else "public-ticker-summary"
     encoded_ticker = quote(ticker, safe="")
-    href = html.escape(f"?mode={safe_mode}&page=data-health&ticker={encoded_ticker}", quote=True)
+    lane_query = "&lane=peers" if "peer" in next_action.casefold() else ""
+    href = html.escape(
+        f"?mode={safe_mode}&page=data-health&ticker={encoded_ticker}{lane_query}&drawer=proof",
+        quote=True,
+    )
     if safe_mode == RESEARCH_MODE:
         return (
             f"<section class='{summary_class}' aria-label='Selected ticker answer'>"
@@ -8284,7 +8295,11 @@ def command_center_header_html(
     )
     compact_class = " compact" if compact else ""
     data_health_current_attr = " aria-current='page'" if normalized_current_page == "Data Health" else ""
-    data_health_mode = RESEARCH_MODE if current_mode == RESEARCH_MODE else PUBLIC_DEMO_MODE
+    data_health_mode = (
+        current_mode
+        if current_mode in {RESEARCH_MODE, OPERATOR_DEMO_MODE}
+        else PUBLIC_DEMO_MODE
+    )
     data_health_href = f"?mode={data_health_mode}&page=data-health"
     topbar_html = (
         f"<header class='command-shell{compact_class}'>"
@@ -12439,6 +12454,8 @@ def data_health_public_lane_list_html(
     readiness_summary: dict[str, object],
     peer_readiness_frame: pd.DataFrame | None = None,
     root: Path | None = None,
+    *,
+    research_mode: bool = False,
 ) -> str:
     """Render four public readiness lanes as a comparable decision list."""
 
@@ -12458,7 +12475,11 @@ def data_health_public_lane_list_html(
         {
             "lane": "Optional inputs",
             "state": "optional / locked" if optional_ready <= 0 else "optional context",
-            "one_clear_answer": "No earnings or analyst-estimate input is used in the public review.",
+            "one_clear_answer": (
+                "No earnings or analyst-estimate input is used in the saved research review."
+                if research_mode
+                else "No earnings or analyst-estimate input is used in the public review."
+            ),
             "ready_coverage": "Not analysis-ready",
             "why_blocked_or_limited": "Trusted source-backed earnings and estimate rows are still required.",
             "ready_count": optional_ready,
@@ -12502,9 +12523,16 @@ def data_health_public_lane_list_html(
 def render_data_health_public_lane_list(
     readiness_summary: dict[str, object],
     peer_readiness_frame: pd.DataFrame | None = None,
+    *,
+    research_mode: bool = False,
 ) -> None:
     st.markdown(
-        data_health_public_lane_list_html(readiness_summary, peer_readiness_frame, root=BASE_DIR),
+        data_health_public_lane_list_html(
+            readiness_summary,
+            peer_readiness_frame,
+            root=BASE_DIR,
+            research_mode=research_mode,
+        ),
         unsafe_allow_html=True,
     )
 
@@ -12550,9 +12578,14 @@ def render_data_health_coverage_summary(
     peer_readiness_frame: pd.DataFrame | None = None,
     *,
     public_mode: bool = False,
+    research_mode: bool = False,
 ) -> None:
     if public_mode:
-        render_data_health_public_lane_list(readiness_summary, peer_readiness_frame)
+        render_data_health_public_lane_list(
+            readiness_summary,
+            peer_readiness_frame,
+            research_mode=research_mode,
+        )
         return
     render_section_header(
         "Coverage Summary / What Can I Use?",
@@ -15317,13 +15350,13 @@ def proof_history_public_summary_html(proof_timeline: pd.DataFrame | None, batch
         "<div class='public-proof-history'>"
         "<div class='public-proof-summary-card'>"
         "<div class='public-proof-kicker'>Proof History</div>"
-        "<div class='public-proof-title'>Latest source-proof trail</div>"
-        f"<div class='public-proof-body'>{html.escape(str(proof_count))} reviewed lane proof records. Latest lane: {html.escape(latest_proof_lane)}. Outcome: {html.escape(latest_proof_outcome)}. {html.escape(latest_proof_change)}</div>"
+        "<div class='public-proof-title'>Saved source-proof trail</div>"
+        f"<div class='public-proof-body'>{html.escape(str(proof_count))} reviewed lane proof records. Saved lane: {html.escape(latest_proof_lane)}. Outcome: {html.escape(latest_proof_outcome)}. {html.escape(latest_proof_change)}</div>"
         "</div>"
         "<div class='public-proof-summary-card'>"
         "<div class='public-proof-kicker'>Reviewed Batch Proof</div>"
         "<div class='public-proof-title'>Changed readiness needs durable proof</div>"
-        f"<div class='public-proof-body'>{html.escape(str(batch_count))} reviewed batch proof records. Latest lane: {html.escape(latest_batch_lane)}. Outcome: {html.escape(latest_batch_outcome)}. {html.escape(latest_batch_change)}</div>"
+        f"<div class='public-proof-body'>{html.escape(str(batch_count))} reviewed batch proof records. Saved lane: {html.escape(latest_batch_lane)}. Outcome: {html.escape(latest_batch_outcome)}. {html.escape(latest_batch_change)}</div>"
         "</div>"
         "</div>"
     )
@@ -15356,14 +15389,14 @@ def proof_history_first_answer_frame(
                 "Boundary": "Proof History does not change local data, record outcomes, or unlock blocked inputs.",
             },
             {
-                "Question": f"Latest reviewed outcome: {latest_proof_lane}",
+                "Question": f"Saved reviewed outcome: {latest_proof_lane}",
                 "Answer": f"{latest_proof_outcome}. {latest_proof_change}.",
                 "Next Safe Destination": "Single-Stock Report for interpretation.",
                 "Boundary": "Evidence only; this does not change local data or unlock blocked inputs.",
             },
             {
                 "Question": "What is still blocked or context only?",
-                "Answer": f"{latest_proof_blocker} Latest batch {latest_batch_lane}: {latest_batch_outcome}.",
+                "Answer": f"{latest_proof_blocker} Saved batch {latest_batch_lane}: {latest_batch_outcome}.",
                 "Next Safe Destination": "Data Health only if the blocker still matters.",
                 "Boundary": "Blocked, context-only, skipped, and excluded states stay visible until source proof changes.",
             },
@@ -15552,6 +15585,7 @@ def evidence_route_answer_html(
     *,
     workspace_mode: str,
     ticker: str = "",
+    selected_lane_label: str = "",
 ) -> str:
     """Return one mode-correct evidence answer without changing route evidence."""
 
@@ -15578,7 +15612,16 @@ def evidence_route_answer_html(
         )
     if page_title == "Data Health":
         question = "What can I use and what stays unavailable?"
-        answer = "Readiness stays lane-specific: usable inputs remain separate from blocked or context-only evidence."
+        lane_prefix = (
+            f"Selected Lane Answer — {str(selected_lane_label).strip()}. "
+            if str(selected_lane_label).strip()
+            else ""
+        )
+        answer = (
+            f"{lane_prefix}Usable, blocked, and context-only evidence stay separate."
+            if lane_prefix
+            else "Readiness stays lane-specific: usable inputs remain separate from blocked or context-only evidence."
+        )
         reason = (
             "Use the lane cards before opening advanced proof details: usable now, context only, "
             "blocked, skipped or excluded, and the next proof boundary."
@@ -15646,7 +15689,7 @@ def proof_history_timeline_records(
     proof_timeline: pd.DataFrame | None,
     batch_proof_frame: pd.DataFrame | None,
 ) -> tuple[TimelineRecord, ...]:
-    """Adapt authoritative lane order followed by authoritative batch order."""
+    """Return every authoritative proof record in stable newest-first order."""
 
     records: list[TimelineRecord] = []
     for frame, source_label, id_columns, date_columns, note_columns in (
@@ -15709,25 +15752,47 @@ def proof_history_timeline_records(
                     summary=note,
                 )
             )
-    return tuple(records)
+    indexed_records = tuple(enumerate(records))
+
+    def newest_first(item: tuple[int, TimelineRecord]) -> tuple[int, int, int]:
+        position, record = item
+        parsed = pd.to_datetime(record.timestamp, utc=True, errors="coerce")
+        if pd.isna(parsed):
+            return (1, 0, position)
+        return (0, -int(parsed.value), position)
+
+    return tuple(record for _, record in sorted(indexed_records, key=newest_first))
+
+
+PROOF_HISTORY_INITIAL_RECORD_LIMIT = 20
 
 
 def proof_history_public_timeline_html(
     proof_timeline: pd.DataFrame | None,
     batch_proof_frame: pd.DataFrame | None,
 ) -> str:
-    """Render every authoritative proof row without truncation, deduplication, or sorting."""
+    """Render a bounded newest-first summary while the full saved ledger stays available."""
 
+    records = proof_history_timeline_records(proof_timeline, batch_proof_frame)
+    visible_records = records[:PROOF_HISTORY_INITIAL_RECORD_LIMIT]
     timeline = evidence_timeline_html(
-        proof_history_timeline_records(proof_timeline, batch_proof_frame),
+        visible_records,
         empty_title="No reviewed proof event is available yet",
         empty_body=(
             "Blocked inputs remain unavailable until a reviewed source path changes."
         ),
-        heading="Latest evidence",
-        aria_label="Latest evidence",
+        heading="Newest reviewed evidence",
+        aria_label="Newest reviewed evidence",
     ).value
-    return f"<div class='public-proof-timeline'>{timeline}</div>"
+    summary = ""
+    if records:
+        summary = (
+            "<p class='public-proof-timeline-summary'>"
+            f"Showing {len(visible_records)} of {len(records)} reviewed records in newest-first order. "
+            "Open Advanced proof ledger details for all authoritative rows."
+            "</p>"
+        )
+    return f"<div class='public-proof-timeline'>{summary}{timeline}</div>"
 
 
 def proof_history_public_detail_cards(
@@ -15757,7 +15822,7 @@ def proof_history_public_detail_cards(
     batch_count = 0 if batch_proof_frame is None else len(batch_proof_frame)
     return [
         {
-            "kicker": "LATEST LANE PROOF",
+            "kicker": "SAVED LANE PROOF",
             "title": f"{latest_proof_lane}: {latest_proof_outcome}",
             "body": (
                 f"{card_sentence('What changed', latest_proof_change)} "
@@ -15773,14 +15838,14 @@ def proof_history_public_detail_cards(
                 "Evidence only; not a second dashboard. "
                 "What this proves: reviewed source-proof outcomes by lane or batch. "
                 "What it does not prove: Proof History does not change local data, record outcomes, or unlock blocked inputs. "
-                "Evidence review only: read the latest lane and batch outcome; open Data Health only if a blocker remains. "
+                "Evidence review only: read a saved lane or batch outcome; open Data Health only if a blocker remains. "
                 "Detailed proof ledgers and evidence scaffolds stay collapsed."
             ),
             "badges": ["evidence trail", "reviewed changes"],
             "command": "",
         },
         {
-            "kicker": "LATEST BATCH PROOF",
+            "kicker": "SAVED BATCH PROOF",
             "title": f"{latest_batch_lane}: {latest_batch_outcome}",
             "body": (
                 f"{card_sentence('Changed tickers', latest_batch_tickers_summary)} "
@@ -15832,7 +15897,7 @@ def render_proof_history(
         render_signal_cards(proof_cards, show_commands=False, variant="queue")
         render_context_note(
             "Evidence boundary.",
-            "Review the latest lane or batch outcome here. Use Data Health only when a remaining blocker needs investigation; Proof History never changes readiness.",
+            "Review a saved lane or batch outcome here. Use Data Health only when a remaining blocker needs investigation; Proof History never changes readiness.",
             tone="success",
         )
         with st.expander("Advanced: evidence summary", expanded=False):
@@ -24798,16 +24863,23 @@ def data_health_selected_lane_answer_cards(
     """Return one plain-language answer for the selected Data Health lane."""
 
     lane_label = DATA_HEALTH_OPERATOR_LANES.get(selected_lane_key, "Prices")
-    project_summary = (
+    project_summary_value = (
         project_status_payload.get("summary", {})
         if isinstance(project_status_payload, dict)
         else {}
     )
-    summary = (
-        project_summary
-        if isinstance(project_summary, dict) and project_summary
-        else dict(saved_readiness_summary or {})
+    project_summary = (
+        project_summary_value
+        if isinstance(project_summary_value, Mapping)
+        else {}
     )
+    saved_summary = dict(saved_readiness_summary or {})
+
+    def resolved_count(*keys: str) -> int | None:
+        project_count = _summary_optional_count(project_summary, *keys)
+        if project_count is not None:
+            return project_count
+        return _summary_optional_count(saved_summary, *keys)
     recommended_rows = (
         project_status_payload.get("recommended_next_command_rows", [])
         if isinstance(project_status_payload, dict)
@@ -24880,12 +24952,19 @@ def data_health_selected_lane_answer_cards(
         or "project-status" in source_gate_command
     )
 
-    price_ready = _summary_count(summary, "price_ready", "tickers_with_prices")
-    fundamentals_ready = _summary_count(summary, "fundamentals_ready", "input_ready", "tickers_fundamentals_ready")
-    dcf_ready = _summary_count(summary, "dcf_ready", "operating_company_dcf_ready", "tickers_dcf_ready")
-    peer_ready = _summary_count(summary, "peer_ready", "tickers_peer_ready")
-    data_gaps = _summary_count(
-        summary,
+    price_ready = resolved_count("price_ready", "tickers_with_prices")
+    fundamentals_ready = resolved_count(
+        "fundamentals_ready",
+        "input_ready",
+        "tickers_fundamentals_ready",
+    )
+    dcf_ready = resolved_count(
+        "dcf_ready",
+        "operating_company_dcf_ready",
+        "tickers_dcf_ready",
+    )
+    peer_ready = resolved_count("peer_ready", "tickers_peer_ready")
+    data_gaps = resolved_count(
         "data_gaps",
         "locked_input_rows",
         "blocked_by_data",
@@ -24893,20 +24972,45 @@ def data_health_selected_lane_answer_cards(
     )
     freshness_status = saved_readiness_display_label(readiness_freshness.status)
     source_setup_note = ""
-    if isinstance(summary, dict):
-        source_total = _summary_count(summary, "data_sources_total")
-        source_available = _summary_count(summary, "data_sources_available")
-        optional_locked = _summary_count(summary, "data_sources_optional_locked")
-        required_attention = _summary_count(summary, "data_sources_needing_attention")
-        if source_total or source_available or optional_locked or required_attention:
+    source_total = resolved_count("data_sources_total")
+    source_available = resolved_count("data_sources_available")
+    optional_locked = resolved_count("data_sources_optional_locked")
+    required_attention = resolved_count("data_sources_needing_attention")
+    source_counts = (source_total, source_available, optional_locked, required_attention)
+    if any(count is not None for count in source_counts):
+        if all(count is not None for count in source_counts):
             source_setup_note = (
                 f"\nSource setup: {source_available:,}/{source_total:,} data sources available; "
                 f"{optional_locked:,} optional provider gap(s); {required_attention:,} required gap(s)."
             )
+        else:
+            source_setup_note = (
+                "\nSource setup counts are unavailable until complete saved source-status evidence is present."
+            )
 
+    price_lane_answer = (
+        f"{price_ready:,} tickers have price rows."
+        if price_ready is not None
+        else "Price-row count is unavailable."
+    )
+    fundamentals_lane_answer = (
+        f"{dcf_ready:,} DCF-ready and {fundamentals_ready:,} fundamentals-ready tickers can use source-backed company inputs."
+        if dcf_ready is not None and fundamentals_ready is not None
+        else "DCF-ready and fundamentals-ready counts are unavailable; source-backed company inputs stay withheld until saved evidence is available."
+    )
+    peer_lane_answer = (
+        f"{peer_ready:,} tickers have trusted peer context."
+        if peer_ready is not None
+        else "Trusted peer count is unavailable."
+    )
+    locked_input_answer = (
+        f"{data_gaps:,} locked input row(s) remain visible instead of being inferred."
+        if data_gaps is not None
+        else "Locked input count is unavailable; missing inputs remain visible instead of being inferred."
+    )
     lane_answers = {
         "prices": (
-            f"{price_ready:,} tickers have price rows. Price context is usable where history depth is ready; short-history rows stay partial.",
+            f"{price_lane_answer} Price context is usable where history depth is ready; short-history rows stay partial.",
             "Price gaps or short history do not unlock fundamentals, DCF, peers, earnings, or estimates.",
             "Context only: liquidity, correlation, and setup rows stay historical context until their proof gates pass.",
             "Excluded/not applicable: operating-company DCF stays excluded for ETF/index/fund monitor rows.",
@@ -24914,7 +25018,7 @@ def data_health_selected_lane_answer_cards(
             "Stop: do not use price rows as fundamentals, valuation, peer, earnings, or estimate proof.",
         ),
         "fundamentals": (
-            f"{dcf_ready:,} DCF-ready and {fundamentals_ready:,} fundamentals-ready tickers can use source-backed company inputs.",
+            fundamentals_lane_answer,
             "Source proof remains blocked where revenue, cash flow, margins, shares, or related DCF inputs are missing.",
             "Context only: metadata, candidate peers, universe membership, and optional rows stay separate from trusted fundamentals proof.",
             "Excluded/not applicable: ETF/index/fund rows keep operating-company DCF excluded instead of failed.",
@@ -24922,7 +25026,7 @@ def data_health_selected_lane_answer_cards(
             "Stop: do not interpret missing source proof as a weak-company conclusion.",
         ),
         "peers": (
-            f"{peer_ready:,} tickers have trusted peer context. Candidate peers remain context only until source-backed mapping proof exists.",
+            f"{peer_lane_answer} Candidate peers remain context only until source-backed mapping proof exists.",
             "Peer-relative analysis stays blocked when trusted mappings or mapped-peer inputs are missing.",
             "Context only: candidate peers can guide review but are not trusted peer proof.",
             "Excluded/not applicable: ETF/index/fund rows keep operating-company peer valuation excluded instead of failed.",
@@ -25001,7 +25105,7 @@ def data_health_selected_lane_answer_cards(
         {
             "kicker": "BLOCKER",
             "title": "What stays locked",
-            "body": f"{blocked} {data_gaps:,} locked input row(s) remain visible instead of being inferred.",
+            "body": f"{blocked} {locked_input_answer}",
             "badges": ["blocked visible", "no inference"],
         },
         next_action_card,
@@ -29693,6 +29797,23 @@ def _summary_count(summary: dict[str, object] | None, *keys: str) -> int:
     return 0
 
 
+def _summary_optional_count(
+    summary: Mapping[str, object] | None,
+    *keys: str,
+) -> int | None:
+    """Return an explicit saved count without turning absent evidence into zero."""
+
+    summary = summary or {}
+    for key in keys:
+        if key not in summary or summary.get(key) in (None, ""):
+            continue
+        try:
+            return int(summary.get(key))
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
 def research_cockpit_summary_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
     summary = summary or {}
     universe = _summary_count(summary, "master_universe", "master_count", "universe_count")
@@ -33488,6 +33609,24 @@ def render_market_command_center(
             st.dataframe(clean_display_frame(detail_frame), width="stretch", hide_index=True)
 
 
+def data_health_read_only_presentation(workspace_mode: str) -> dict[str, str]:
+    """Return mode-specific labels for the shared read-only Data Health shell."""
+
+    if workspace_mode == RESEARCH_MODE:
+        return {
+            "drawer_label": "Research evidence drawer",
+            "path_options_label": "Research path options",
+            "proof_translation": "translated for the saved research workflow",
+            "mode_note": "Personal Research keeps this route read-only and company-centered.",
+        }
+    return {
+        "drawer_label": "Public evidence drawer",
+        "path_options_label": "Public path options",
+        "proof_translation": "translated for the public workflow",
+        "mode_note": "Public mode keeps the story readable for visitors.",
+    }
+
+
 def render_data_health(
     provider,
     project_status_payload: dict[str, Any] | None = None,
@@ -33566,6 +33705,7 @@ def render_data_health(
         ticker_readiness_frame,
     )
     selected_lane_key = data_health_operator_lane_from_query(st.query_params.get("lane"))
+    selected_lane_requested = bool(str(st.query_params.get("lane") or "").strip())
     selected_drawer = data_health_drawer_from_query(st.query_params.get("drawer"), selected_lane_key)
     registered_tickers = provider.list_local_tickers() if hasattr(provider, "list_local_tickers") else []
     public_focus_ticker = data_health_focus_ticker(st.query_params.get("ticker"), registered_tickers)
@@ -33597,6 +33737,11 @@ def render_data_health(
     readiness_freshness = data_health_freshness_status(BASE_DIR)
     public_readiness_freshness = public_freshness_status(readiness_freshness) if public_mode else readiness_freshness
     if public_mode:
+        personal_research_mode = workspace_mode == RESEARCH_MODE
+        presentation = data_health_read_only_presentation(workspace_mode)
+        evidence_drawer_label = presentation["drawer_label"]
+        path_options_label = presentation["path_options_label"]
+        proof_translation = presentation["proof_translation"]
         if public_loading_placeholder is not None:
             public_loading_placeholder.empty()
         st.markdown(
@@ -33604,6 +33749,11 @@ def render_data_health(
                 "Data Health",
                 workspace_mode=workspace_mode,
                 ticker=public_focus_ticker,
+                selected_lane_label=(
+                    DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
+                    if selected_lane_requested
+                    else ""
+                ),
             ),
             unsafe_allow_html=True,
         )
@@ -33625,11 +33775,7 @@ def render_data_health(
             ).value,
             unsafe_allow_html=True,
         )
-        if workspace_mode == RESEARCH_MODE and selected_lane_key != "prices":
-            render_section_header(
-                "Selected Lane Answer",
-                "Read-only lane evidence from the exact Company Workbench handoff.",
-            )
+        if selected_lane_requested:
             render_signal_cards(
                 data_health_selected_lane_answer_cards(
                     selected_lane_key,
@@ -33640,7 +33786,12 @@ def render_data_health(
                 show_commands=False,
                 variant="queue",
             )
-        render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)
+        render_data_health_coverage_summary(
+            readiness_summary,
+            peer_readiness_frame,
+            public_mode=True,
+            research_mode=personal_research_mode,
+        )
         render_signal_cards([nowcast_data_health_card(None, ticker=public_focus_ticker or "Selected ticker")], show_commands=False, variant="queue")
         st.markdown(advanced_detail_marker_html().value, unsafe_allow_html=True)
         if public_mode and project_status_payload is None:
@@ -33664,19 +33815,22 @@ def render_data_health(
             )
             render_signal_cards(data_health_public_source_boundary_cards(project_status_payload), show_commands=False, variant="queue")
             render_signal_cards(data_health_orientation_cards(readiness_summary), show_commands=False)
-            render_signal_cards(data_health_public_first_30_second_cards(readiness_summary), show_commands=False, variant="queue")
+            if not personal_research_mode:
+                render_signal_cards(data_health_public_first_30_second_cards(readiness_summary), show_commands=False, variant="queue")
             render_research_loop_strip(
                 **data_health_research_loop_context(
                     selected_lane_key=selected_lane_key,
                     readiness_freshness=public_readiness_freshness,
-                    next_action="Open the public evidence drawer",
+                    next_action=f"Open the {evidence_drawer_label.lower()}",
                     public_mode=True,
+                    workspace_mode=workspace_mode,
                 )
             )
-            render_section_header("Public path options", "Use these only when the lane answer does not resolve the current question.")
-            render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
+            if not personal_research_mode:
+                render_section_header(path_options_label, "Use these only when the lane answer does not resolve the current question.")
+                render_action_cards(data_health_public_visitor_path_cards(readiness_summary))
         public_evidence_drawer_expanded = selected_drawer == "proof"
-        with st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded):
+        with st.expander(evidence_drawer_label, expanded=public_evidence_drawer_expanded):
             render_section_header("Data Health Quick Read", "Which proof path should you inspect first, before opening detailed sections.")
             render_signal_cards(data_health_quick_read_cards(readiness_summary), show_commands=False)
             render_section_header("Universe Scope Legend", "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts.")
@@ -33707,7 +33861,10 @@ def render_data_health(
             render_signal_cards(freshness_cards, show_commands=False)
             render_section_header("Review Metrics Readiness", "Benchmark, risk, fundamentals trend, valuation, and peer dispersion metrics stay readiness-gated.")
             render_signal_cards(data_health_review_metric_readiness_cards(), show_commands=False)
-            render_section_header("Latest Reviewed Proof", "Durable reviewed outcomes for lane and batch proof, translated for the public workflow.")
+            render_section_header(
+                "Saved Reviewed Proof",
+                f"Durable reviewed outcomes for lane and batch proof, {proof_translation}.",
+            )
             render_signal_cards(
                 proof_history_public_detail_cards(
                     data_health_reviewed_proof_timeline_frame(),
@@ -33718,7 +33875,10 @@ def render_data_health(
             )
             render_context_note(
                 "Operator details are hidden.",
-                "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode. Public mode keeps the story readable for visitors.",
+                (
+                    "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks remain in Operator mode. "
+                    f"{presentation['mode_note']}"
+                ),
             )
         return
     selected_lane = DATA_HEALTH_OPERATOR_LANES[selected_lane_key]
@@ -33754,6 +33914,7 @@ def render_data_health(
             selected_lane_key,
             readiness_freshness,
             project_status_payload=project_status_payload,
+            saved_readiness_summary=readiness_summary,
         ),
         show_commands=False,
         variant="queue",
@@ -36871,9 +37032,9 @@ def render_research_monitor(
     elif queue.has_freshness_attention:
         st.markdown(
             supporting_detail_html(
-                title="Saved-source freshness condition",
+                title=monitor_freshness_condition_label(queue).capitalize(),
                 body=(
-                    "Saved readiness or market-observation freshness needs Data Health "
+                    "The named saved-readiness or market-observation condition needs Data Health "
                     "review; this is not a saved follow-up item or a live alert."
                 ),
             ).value,

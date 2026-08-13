@@ -454,6 +454,20 @@ def _git_status_line(root: Path) -> str:
 def _linkedin_stage_from_git_status(git_status_line: str | None) -> dict[str, str]:
     line = str(git_status_line or "").strip()
     lowered = line.lower()
+    branch = ""
+    upstream = ""
+    if line.startswith("## "):
+        branch_token = line[3:].split(" ", 1)[0].strip()
+        branch, separator, upstream = branch_token.partition("...")
+        branch = branch.strip()
+        upstream = upstream.strip() if separator else ""
+    if not branch:
+        return {
+            "State": "needs_git_status_review",
+            "Evidence": "Git branch/upstream status is unavailable or unrecognized; synchronization is not proven.",
+            "Next Action": "Inspect the current branch and upstream before preparing any public share.",
+            "Completion Gate": "A recognized aligned default-branch status and separate owner share approval are present.",
+        }
     if "behind" in lowered or "diverged" in lowered:
         return {
             "State": "needs_git_sync_review",
@@ -462,9 +476,6 @@ def _linkedin_stage_from_git_status(git_status_line: str | None) -> dict[str, st
             "Completion Gate": "GitHub branch is synced and public gates pass.",
         }
     if "ahead" in lowered:
-        branch = ""
-        if line.startswith("## "):
-            branch = line[3:].split("...", 1)[0].split(" ", 1)[0].strip()
         branch_label = branch or "the reviewed current branch"
         return {
             "State": "needs_github_sync",
@@ -474,6 +485,31 @@ def _linkedin_stage_from_git_status(git_status_line: str | None) -> dict[str, st
                 "without inferring main, then rerun public-check."
             ),
             "Completion Gate": "GitHub includes the latest reviewed current-branch commit and public gates pass.",
+        }
+    upstream_matches_branch = bool(
+        upstream and (upstream == branch or upstream.endswith(f"/{branch}"))
+    )
+    if not upstream_matches_branch or "[" in line:
+        return {
+            "State": "needs_git_status_review",
+            "Evidence": "Git upstream alignment is unavailable or unrecognized; synchronization is not proven.",
+            "Next Action": "Inspect the current branch and upstream before preparing any public share.",
+            "Completion Gate": "A recognized aligned default-branch status and separate owner share approval are present.",
+        }
+    if branch and branch not in {"main", "master"}:
+        return {
+            "State": "draft_engineering_preview",
+            "Evidence": (
+                f"Draft engineering preview: {branch} is aligned with its upstream, but feature-branch sync "
+                "does not establish default-branch presence or owner review approval."
+            ),
+            "Next Action": (
+                "Keep the GitHub share explicitly labelled Draft engineering preview until owner review and "
+                "default-branch release gates are complete."
+            ),
+            "Completion Gate": (
+                "The reviewed feature is present on the default branch and the owner separately authorizes stable sharing."
+            ),
         }
     return {
         "State": "ready_for_manual_share",

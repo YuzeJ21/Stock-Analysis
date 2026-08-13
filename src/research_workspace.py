@@ -67,6 +67,8 @@ class MonitorFollowUpQueue:
     scheduled_rows: tuple[ResearchDisciplineRow, ...]
     monitor_count: int
     has_saved_follow_up: bool
+    has_readiness_attention: bool
+    has_observation_attention: bool
     has_freshness_attention: bool
     freshness_attention_only: bool
     has_attention: bool
@@ -325,9 +327,10 @@ def build_monitor_follow_up_queue(
         ),
     )
 
+    has_readiness_attention = normalized_readiness.casefold() not in _CURRENT_SAVED_STATES
+    has_observation_attention = normalized_observation.casefold() not in _CURRENT_SAVED_STATES
     freshness_attention_count = sum(
-        state.casefold() not in _CURRENT_SAVED_STATES
-        for state in (normalized_readiness, normalized_observation)
+        (has_readiness_attention, has_observation_attention)
     )
     has_saved_follow_up = bool(
         saved_research_item_count(summary)
@@ -400,6 +403,8 @@ def build_monitor_follow_up_queue(
         scheduled_rows=scheduled_rows,
         monitor_count=monitor_count,
         has_saved_follow_up=has_saved_follow_up,
+        has_readiness_attention=has_readiness_attention,
+        has_observation_attention=has_observation_attention,
         has_freshness_attention=has_freshness_attention,
         freshness_attention_only=(has_freshness_attention and not has_saved_follow_up),
         has_attention=has_attention,
@@ -416,11 +421,34 @@ def monitor_primary_answer(queue: MonitorFollowUpQueue) -> str:
     if queue.is_empty:
         return queue.empty_title
     if queue.freshness_attention_only:
+        verb = (
+            "need"
+            if queue.has_readiness_attention and queue.has_observation_attention
+            else "needs"
+        )
         return (
-            "No saved research item is due. A separate saved-source freshness "
-            "condition needs Data Health review."
+            "No saved research item is due. "
+            f"{monitor_freshness_condition_label(queue, sentence_case=True)} "
+            f"{verb} Data Health review."
         )
     return "Saved follow-up evidence needs attention."
+
+
+def monitor_freshness_condition_label(
+    queue: MonitorFollowUpQueue,
+    *,
+    sentence_case: bool = False,
+) -> str:
+    """Name the exact saved-readiness and/or market-observation condition."""
+
+    if queue.has_readiness_attention and queue.has_observation_attention:
+        label = "saved-readiness and market-observation freshness conditions"
+    elif queue.has_readiness_attention:
+        label = "saved-readiness freshness condition"
+    else:
+        label = "market-observation freshness condition"
+    prefix = "A separate " if sentence_case else ""
+    return f"{prefix}{label}"
 
 
 def build_evidence_monitor_brief(

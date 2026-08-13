@@ -6,7 +6,7 @@ This file records lightweight browser QA evidence for public-facing dashboard po
 
 Personal Research now has one in-content workflow navigation for Research Desk,
 Discover, Company Workbench, and Monitor. The same DOM becomes a compact desktop
-rail and a contained phone strip; its Workspace mode disclosure replaces the
+rail and a wrapped phone grid; its Workspace mode disclosure replaces the
 retired sidebar selector. Public uses one explicit five-step workflow nav.
 Operator alone retains native sidebar workspace and route controls, and its
 operator or compatibility warning precedes detail. Canonical mode isolation

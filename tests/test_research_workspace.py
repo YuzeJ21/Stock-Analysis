@@ -268,8 +268,10 @@ def test_desk_and_monitor_distinguish_zero_saved_items_from_stale_observation():
     assert monitor.has_saved_follow_up is False
     assert monitor.has_freshness_attention is True
     assert monitor.freshness_attention_only is True
+    assert monitor.has_readiness_attention is False
+    assert monitor.has_observation_attention is True
     assert monitor_primary_answer(monitor) == (
-        "No saved research item is due. A separate saved-source freshness condition needs Data Health review."
+        "No saved research item is due. A separate market-observation freshness condition needs Data Health review."
     )
 
 

@@ -164,7 +164,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
     ResearchRoute(
         "Research Proof History",
         "/?mode=research&page=proof-history&ticker=NVDA",
-        "Latest evidence",
+        "Newest reviewed evidence",
         "Proof History",
         ".public-proof-timeline",
         "[data-sr-region='primary-action']",

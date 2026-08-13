@@ -201,6 +201,40 @@ def test_allowed_direct_request_is_not_rewritten_and_shared_evidence_mode_switch
     assert switched.canonical_query == {"mode": "public", "page": "data-health", "ticker": "BRK/B", "lane": "peers"}
 
 
+@pytest.mark.parametrize(
+    ("mode", "page", "query", "expected"),
+    (
+        ("public", "home", {"mode": "public", "page": "home", "ticker": "NVDA"}, {"mode": "public"}),
+        ("public", "stock-selector", {"mode": "public", "page": "stock-selector", "open": "1"}, {"mode": "public", "page": "stock-selector"}),
+        ("public", "single-stock-report", {"mode": "public", "page": "single-stock-report", "ticker": "AVGO", "lane": "peers"}, {"mode": "public", "page": "single-stock-report", "ticker": "AVGO"}),
+        ("public", "data-health", {"mode": "public", "page": "data-health", "ticker": "AVGO", "lane": "peers", "cash_preview": "1"}, {"mode": "public", "page": "data-health", "ticker": "AVGO", "lane": "peers"}),
+        ("public", "proof-history", {"mode": "public", "page": "proof-history", "ticker": "AVGO", "drawer": "proof"}, {"mode": "public", "page": "proof-history", "ticker": "AVGO"}),
+        ("research", "research-desk", {"mode": "research", "page": "research-desk", "ticker": "NVDA", "open": "1", "lane": "peers"}, {"mode": "research", "page": "research-desk"}),
+        ("research", "discover", {"mode": "research", "page": "discover", "ticker": "NVDA"}, {"mode": "research", "page": "discover"}),
+        ("research", "company-workbench", {"mode": "research", "page": "company-workbench", "ticker": "AVGO", "drawer": "proof"}, {"mode": "research", "page": "company-workbench", "ticker": "AVGO"}),
+        ("research", "monitor", {"mode": "research", "page": "monitor", "ticker": "NVDA", "cash_preview": "1"}, {"mode": "research", "page": "monitor"}),
+        ("research", "data-health", {"mode": "research", "page": "data-health", "ticker": "AVGO", "lane": "peers", "cash_preview": "1"}, {"mode": "research", "page": "data-health", "ticker": "AVGO", "lane": "peers"}),
+        ("research", "proof-history", {"mode": "research", "page": "proof-history", "ticker": "AVGO", "open": "1"}, {"mode": "research", "page": "proof-history", "ticker": "AVGO"}),
+    ),
+)
+def test_allowed_public_and_personal_routes_canonicalize_forbidden_query_state(
+    mode, page, query, expected
+):
+    """Catches route-specific state leaking into an otherwise valid workspace page."""
+
+    result = nav.resolve_workspace_route(
+        mode,
+        page,
+        query,
+        dashboard.USER_PAGE_TITLES,
+        dashboard.ADVANCED_PAGE_TITLES,
+    )
+
+    assert result.allowed is True
+    assert result.redirected is True
+    assert result.canonical_query == expected
+
+
 def test_non_evidence_mode_switch_opens_the_target_mode_home_without_route_state():
     """Catches a mode switch carrying a target-mode page and its ticker state across shells."""
 

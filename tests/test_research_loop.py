@@ -93,6 +93,19 @@ def test_research_loop_contexts_keep_home_single_stock_and_data_health_connected
     assert "validate and preview" not in public_rendered
     assert "evidence stays collapsed" in public_rendered
 
+    personal_data_health = research_loop.data_health_research_loop_context(
+        selected_lane_key="peers",
+        readiness_freshness=current,
+        next_action="Open the research evidence drawer",
+        public_mode=True,
+        workspace_mode="research",
+    )
+    personal_rendered = " ".join(personal_data_health.values()).lower()
+    assert "personal research readiness summary" in personal_rendered
+    assert "?mode=research&page=data-health" in personal_rendered
+    assert "?mode=public" not in personal_rendered
+    assert "public page" not in personal_rendered
+
 
 def test_data_health_research_loop_action_href_respects_copy_only_commands():
     assert research_loop.data_health_research_loop_action_href(

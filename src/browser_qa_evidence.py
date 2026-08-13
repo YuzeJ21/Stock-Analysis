@@ -233,7 +233,7 @@ DEFAULT_BROWSER_QA_ROUTE_CHECKS: tuple[BrowserQaRouteCheck, ...] = (
             "What evidence changed a readiness state?",
             "Research-only",
             "Review evidence only; proof records do not refresh or unlock data.",
-            "Latest evidence",
+            "Newest reviewed evidence",
             "Advanced: proof ledger details",
         ),
         details_boundary="Proof History starts with the latest reviewed outcome; raw ledger rows stay collapsed under proof details.",

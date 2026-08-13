@@ -496,6 +496,18 @@ def test_readiness_ops_cli_uses_selected_profile_context_and_lane_counts(tmp_pat
     (tmp_path / "data").mkdir()
     local_staging.rename(tmp_path / "data/local")
     monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+    monkeypatch.setattr(
+        readiness_ops_module,
+        "build_continuation_gate",
+        lambda _context: ContinuationGate(
+            state="inspection_only",
+            next_safe_command="make readiness-preview TOP_N=20",
+            reason="Working readiness is not tracked release evidence.",
+            rebuild_command="",
+            stop_rule="Do not start broad refresh or source-proof work.",
+            suppress_execution=True,
+        ),
+    )
 
     assert readiness_ops_module.main(["--root", str(tmp_path)]) == 0
     output = capsys.readouterr().out
@@ -504,6 +516,11 @@ def test_readiness_ops_cli_uses_selected_profile_context_and_lane_counts(tmp_pat
     assert "Saved readiness coverage: price=2/3; fundamentals=1/3; DCF=1/3; peers=0/3" in output
     assert "Price Coverage | partial" in output
     assert "counts: ready=2; partial=0; blocked=1; excluded=0; total=3" in output
+    assert "Readiness continuation gate: inspection_only" in output
+    assert "Next safe preview: make readiness-preview TOP_N=20" in output
+    assert "Lane commands below are planning context only" in output
+    assert output.count("next_safe_command: make readiness-preview TOP_N=20") == 1
+    assert "planning_command: make price-refresh-loop DRY_RUN=1" in output
 
 
 def test_peer_readiness_summary_separates_mapping_trend_and_valuation_inputs(tmp_path: Path):

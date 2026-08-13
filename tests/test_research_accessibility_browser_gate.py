@@ -278,7 +278,7 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
         ),
         (
             "/?mode=research&page=proof-history&ticker=NVDA",
-            "Latest evidence",
+            "Newest reviewed evidence",
             "Proof History",
             True,
         ),

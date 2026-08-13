@@ -1189,7 +1189,9 @@ def test_release_docs_distinguish_tracked_and_excluded_readiness_snapshots():
     assert "`make pilot-readiness-packet` is not read-only" in readme
 
     assert "tracked June 7 readiness snapshot" in roadmap
-    assert "excluded July 21 local generated working-data snapshot" in roadmap
+    assert "excluded local generated working-data snapshot" in roadmap
+    assert "declared dates reported by the current read-only commands" in roadmap
+    assert "excluded July 21 local generated working-data snapshot" not in roadmap
     assert "remains stale under this roadmap's declared-date policy" in roadmap
     assert "zero stable readiness changes" in roadmap
     assert "not committed PR evidence" in roadmap
@@ -1208,6 +1210,110 @@ def test_release_docs_distinguish_tracked_and_excluded_readiness_snapshots():
         re.IGNORECASE,
     )
     assert not volatile_observation.search(roadmap)
+
+
+def test_active_maturity_handoff_matches_current_sync_priority_and_ui_contracts():
+    readme = _read("README.md")
+    roadmap = _read("ROADMAP.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+    next_stage = _read("docs/NEXT_STAGE_ROADMAP.md")
+    personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
+    checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
+    dashboard_qa = _read("docs/DASHBOARD_QA.md")
+
+    for text in (roadmap, continuation):
+        assert "working_artifact_uncommitted" in text
+        assert "independent human review" in text
+
+    assert "d96d7af8f10c8e6c63096355d2abbf109de4f1f2" in continuation
+    assert "PR #113" in continuation
+    assert "31612484529" in continuation
+
+    assert (
+        "One permitted independently reviewed real point-in-time universe package, "
+        "one permitted point-in-time consensus source"
+    ) in roadmap
+    assert (
+        "The first external data unblock remains Priority 4's bounded permitted "
+        "point-in-time benchmark/universe package; Priority 5's permitted consensus"
+    ) in continuation
+
+    assert "exact-head CI is green" in continuation
+    assert "Remote synchronization, draft-PR update, exact-head CI" not in continuation
+    assert "next external data unblock remains one bounded permitted price-history" not in continuation
+    assert "automated media-preference" in roadmap.lower()
+    assert "direct-platform, independent-human, screen-reader, and assistive-technology" in roadmap
+    assert (
+        "If the current branch head lacks direct local matrix, branch synchronization, "
+        "draft-PR update, or exact-head CI evidence"
+    ) in next_stage
+
+    assert "contained horizontal phone strip" not in personal
+    assert "wrapped phone grid" in personal
+    assert "contained phone strip" not in roadmap
+    assert "wrapped phone grid" in roadmap
+    for text in (readme, dashboard_qa):
+        assert "contained phone strip" not in text
+        assert "wrapped phone grid" in text
+    assert "canonical query allowlists strip unsupported route state" in personal.lower()
+    assert "Operator mode keeps Operator Data Health links in Operator mode" in personal
+
+    assert "Newest reviewed evidence" in checklist
+    assert "first 20" in checklist
+    assert "full authoritative ledger remains under collapsed Advanced details" in checklist
+    assert "Draft engineering preview" in checklist
+
+
+def test_priority_ten_proposal_is_design_only_isolated_and_owner_gated():
+    proposal_path = Path(
+        "docs/superpowers/specs/2026-08-12-hypothetical-paper-position-laboratory-design.md"
+    )
+    assert proposal_path.exists()
+    proposal = proposal_path.read_text(encoding="utf-8")
+    roadmap = _read("ROADMAP.md")
+    continuation = _read(
+        "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
+    )
+
+    assert "Proposal — not approved; implementation unauthorized" in proposal
+    for heading in (
+        "## Research Purpose And User Workflow",
+        "## Isolation Contract",
+        "## Private-Data Policy",
+        "## Safe Language Contract",
+        "## Misuse And Threat Analysis",
+        "## Storage, Retention, Export, And Deletion Choices",
+        "## Acceptance Criteria",
+        "## Explicit Non-Goals",
+        "## Owner Decisions Required",
+    ):
+        assert heading in proposal
+    for fail_closed_anchor in (
+        "No storage choice is approved by this proposal.",
+        "Forbidden product language includes or implies:",
+        "Implementation could be considered only after separate owner approval",
+        "This proposal does not authorize or design:",
+        "Until those decisions are recorded, implementation remains unauthorized.",
+    ):
+        assert fail_closed_anchor in proposal
+    for forbidden in (
+        "model-generated position size",
+        "recommended allocation",
+        "broker connection",
+        "order routing",
+        "auto-trading",
+        "stop-loss instruction",
+        "take-profit instruction",
+        "investment-performance claim",
+    ):
+        assert forbidden in proposal
+    assert "No implementation plan" in proposal
+    assert "owner approval remains open" in roadmap.lower()
+    assert proposal_path.name in roadmap
+    assert proposal_path.name in continuation
+    assert "implementation remains unauthorized" in continuation.lower()
 
 
 def test_public_make_help_marks_legacy_readiness_guard_and_profile_bound_writers():

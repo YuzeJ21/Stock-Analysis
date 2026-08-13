@@ -2901,7 +2901,7 @@ def test_tickerless_public_single_stock_navigate_away_and_back_does_not_reuse_or
     }
 
 
-def test_public_proof_timeline_preserves_every_authoritative_row_and_undated_position():
+def test_public_proof_timeline_orders_all_authoritative_rows_newest_first_stably():
     proof_timeline = pd.DataFrame(
         [
             {
@@ -2957,11 +2957,11 @@ def test_public_proof_timeline_preserves_every_authoritative_row_and_undated_pos
 
     expected_ids = (
         "lane-z",
-        "lane-undated",
         "lane-a",
         "batch-z",
-        "batch-undated",
         "batch-a",
+        "lane-undated",
+        "batch-undated",
     )
     indexes = [rendered.index(f"data-timeline-record-id='{record_id}'") for record_id in expected_ids]
 
@@ -2970,7 +2970,39 @@ def test_public_proof_timeline_preserves_every_authoritative_row_and_undated_pos
     assert rendered.count("Timestamp unavailable") == 2
     assert rendered.count("Repeated note retained.") == 3
     assert "No date recorded" not in rendered
-    assert "Latest evidence" in rendered
+    assert "Newest reviewed evidence" in rendered
+
+
+def test_public_proof_timeline_bounds_initial_tree_without_dropping_full_record_order():
+    proof_timeline = pd.DataFrame(
+        [
+            {
+                "Proof ID": f"lane-{day:02d}",
+                "Proof Date": f"2026-07-{day:02d}",
+                "Lane": "fundamentals",
+                "Final Outcome": "supported",
+                "What Changed": f"Reviewed lane event {day}.",
+            }
+            for day in range(1, 26)
+        ]
+    )
+
+    records = dashboard.proof_history_timeline_records(proof_timeline, pd.DataFrame())
+    rendered = dashboard.proof_history_public_timeline_html(proof_timeline, pd.DataFrame())
+
+    assert len(records) == 25
+    assert tuple(record.record_id for record in records[:3]) == (
+        "lane-25",
+        "lane-24",
+        "lane-23",
+    )
+    assert tuple(record.record_id for record in records[-2:]) == ("lane-02", "lane-01")
+    assert rendered.count("data-timeline-record-id=") == 20
+    assert "Showing 20 of 25 reviewed records in newest-first order." in rendered
+    assert "Open Advanced proof ledger details for all authoritative rows." in rendered
+    assert "data-timeline-record-id='lane-25'" in rendered
+    assert "data-timeline-record-id='lane-06'" in rendered
+    assert "data-timeline-record-id='lane-05'" not in rendered
 
 
 def test_proof_timeline_timestamp_uses_secondary_date_and_normalizes_dash_sentinel():
@@ -5136,6 +5168,33 @@ def test_operator_route_shell_css_keeps_title_warning_and_shortcut_complete():
     assert ".command-topbar.compact .command-top-link" in css
     assert "min-width: 44px" in css
     assert "min-height: 44px" in css
+
+
+def test_personal_mobile_navigation_exposes_every_destination_without_horizontal_scroll():
+    css = visual.dashboard_visual_system_css()
+    mobile_start = css.index("@media (max-width: 640px)")
+    mobile_css = css[mobile_start : css.index("@media (max-width: 360px)", mobile_start)]
+
+    nav_start = mobile_css.index(".research-workflow-navigation {")
+    nav_rule = mobile_css[nav_start : mobile_css.index("}", nav_start)]
+    routes_start = mobile_css.index(".research-workflow-routes")
+    routes_rule = mobile_css[routes_start : mobile_css.index("}", routes_start)]
+    mode_start = mobile_css.index(".research-workspace-mode {")
+    mode_rule = mobile_css[mode_start : mobile_css.index("}", mode_start)]
+    mode_label_start = mobile_css.index(".research-workspace-mode > span")
+    mode_label_rule = mobile_css[
+        mode_label_start : mobile_css.index("}", mode_label_start)
+    ]
+
+    assert "display: grid" in nav_rule
+    assert "overflow: visible" in nav_rule
+    assert "overflow-x: auto" not in nav_rule
+    assert "gap: 2px" in nav_rule
+    assert "padding: 4px" in nav_rule
+    assert "grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr))" in routes_rule
+    assert "display: grid" in mode_rule
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in mode_rule
+    assert "grid-column: 1 / -1" in mode_label_rule
 
 
 def test_normalize_public_labels_preserves_valuation_avoid_category():
@@ -17068,6 +17127,47 @@ def test_public_proof_history_summary_is_evidence_first_without_raw_tables():
     assert "broker" not in lowered
 
 
+def test_proof_history_operator_summaries_do_not_call_unsorted_saved_rows_latest():
+    lane = pd.DataFrame(
+        [
+            {
+                "Proof Date": "2026-06-01",
+                "Lane": "older lane",
+                "Final Outcome": "supported",
+                "What Changed": "Older saved row.",
+            },
+            {
+                "Proof Date": "2026-08-01",
+                "Lane": "newer lane",
+                "Final Outcome": "supported",
+                "What Changed": "Newer saved row.",
+            },
+        ]
+    )
+    batch = pd.DataFrame(
+        [
+            {
+                "Review Date": "2026-05-01",
+                "Lane": "older batch",
+                "Final Outcome": "still_blocked",
+            },
+            {
+                "Review Date": "2026-08-02",
+                "Lane": "newer batch",
+                "Final Outcome": "supported",
+            },
+        ]
+    )
+
+    summary = dashboard.proof_history_public_summary_html(lane, batch)
+    answer_frame = dashboard.proof_history_first_answer_frame(lane, batch)
+    rendered = f"{summary} {' '.join(answer_frame.astype(str).to_numpy().ravel())}".casefold()
+
+    assert "saved source-proof trail" in rendered
+    assert "saved lane:" in rendered
+    assert "latest" not in rendered
+
+
 def test_public_proof_history_cards_hide_command_language_from_first_read():
     proof_timeline = pd.DataFrame(
         [
@@ -17110,7 +17210,7 @@ def test_public_proof_history_cards_hide_command_language_from_first_read():
         card for card in dashboard.proof_history_public_detail_cards(proof_timeline, batch_proof) if card["kicker"] == "PROOF HISTORY"
     )
 
-    assert "latest lane proof" in rendered
+    assert "saved lane proof" in rendered
     assert "evidence only" in rendered
     assert "not a second dashboard" in rendered
     assert "not another command center" not in rendered
@@ -17122,7 +17222,7 @@ def test_public_proof_history_cards_hide_command_language_from_first_read():
     assert "detailed proof ledgers and evidence scaffolds stay collapsed" in rendered
     assert "peer valuation inputs" in rendered
     assert "still blocked" in rendered
-    assert "latest batch proof" in rendered
+    assert "saved batch proof" in rendered
     assert "company-level valuation support available after source rows reviewed" in rendered
     assert "source-backed share count and free cash flow reviewed" in rendered
     assert "share count" in rendered
@@ -17215,14 +17315,14 @@ def test_proof_history_first_answer_frame_separates_outcome_blocker_evidence_and
             "Boundary": "Proof History does not change local data, record outcomes, or unlock blocked inputs.",
         },
         {
-            "Question": "Latest reviewed outcome: peer mapping",
+                "Question": "Saved reviewed outcome: peer mapping",
             "Answer": "human reviewed supported. trusted peer rows reviewed.",
             "Next Safe Destination": "Single-Stock Report for interpretation.",
             "Boundary": "Evidence only; this does not change local data or unlock blocked inputs.",
         },
         {
             "Question": "What is still blocked or context only?",
-            "Answer": "No remaining peer mapping blocker for reviewed rows. Latest batch optional context: candidate context only.",
+                "Answer": "No remaining peer mapping blocker for reviewed rows. Saved batch optional context: candidate context only.",
             "Next Safe Destination": "Data Health only if the blocker still matters.",
             "Boundary": "Blocked, context-only, skipped, and excluded states stay visible until source proof changes.",
         },
@@ -18129,10 +18229,10 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     provider_none_index = source.index("if provider is None:", function_index)
     validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", provider_none_index)
     public_header_index = source.index("if public_mode:", validation_load_index)
-    coverage_summary_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)", validation_load_index)
+    coverage_summary_index = source.index("render_data_health_coverage_summary(", validation_load_index)
     proof_map_index = source.index("data_health_public_proof_map_cards(readiness_summary, readiness_freshness)", coverage_summary_index)
     assert provider_none_index < validation_load_index < public_header_index < coverage_summary_index < proof_map_index
-    assert source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)", public_header_index) < source.index(
+    assert source.index("render_data_health_coverage_summary(", public_header_index) < source.index(
         'render_section_header("Proof Map"', public_header_index
     )
     assert "if public_mode and project_status_payload is None:" in source
@@ -18141,7 +18241,9 @@ def test_data_health_page_header_frames_unlock_workflow_not_diagnostics():
     assert refresh_note_index < quick_read_index
     assert 'st.expander("Refresh status note", expanded=False)' in source
     assert 'public_evidence_drawer_expanded = selected_drawer == "proof"' in source
-    assert 'st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded)' in source
+    assert 'with st.expander(evidence_drawer_label, expanded=public_evidence_drawer_expanded)' in source
+    assert '"drawer_label": "Public evidence drawer"' in source
+    assert '"drawer_label": "Research evidence drawer"' in source
     assert "One clear answer per lane before selected-lane operations" in source
     assert "Data Health Quick Read" in source
     assert "Which proof path should you inspect first, before opening detailed sections." in source
@@ -22141,12 +22243,12 @@ def test_data_health_coverage_summary_renders_before_public_and_operator_details
     assert 'render_section_header(\n            "Data Health"' not in public_intro_chunk
     public_index = source.index("if public_mode:", provider_none_index)
     public_coverage_index = source.index(
-        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)",
+        "render_data_health_coverage_summary(",
         public_index,
     )
     first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_coverage_index)
     guidance_expander_index = source.index('st.expander("Advanced: how readiness works", expanded=False)', public_coverage_index)
-    visitor_paths_index = source.index('render_section_header("Public path options"', first_30_index)
+    visitor_paths_index = source.index("render_section_header(path_options_label", first_30_index)
     public_lead_in_chunk = source[public_index:guidance_expander_index]
     assert '"Data Quality / Readiness"' not in public_lead_in_chunk
     public_return_index = source.index("return", source.index("Operator details are hidden."))
@@ -22208,7 +22310,7 @@ def test_data_health_public_mode_has_loading_placeholder_before_table_loads():
     validation_load_index = source.index("validation_rows = pd.DataFrame(provider.get_local_data_validation())", placeholder_index)
     clear_placeholder_index = source.index("public_loading_placeholder.empty()", validation_load_index)
     coverage_summary_index = source.index(
-        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)",
+        "render_data_health_coverage_summary(",
         clear_placeholder_index,
     )
     coverage_summary_function_index = source.index("def render_data_health_coverage_summary(")
@@ -22261,7 +22363,7 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
 
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
     guidance_expander_index = source.index('st.expander("Advanced: how readiness works", expanded=False)', public_index)
-    visitor_paths_index = source.index('render_section_header("Public path options"', guidance_expander_index)
+    visitor_paths_index = source.index("render_section_header(path_options_label", guidance_expander_index)
     visitor_cards_index = source.index("render_action_cards(data_health_public_visitor_path_cards(readiness_summary))", visitor_paths_index)
     quick_read_index = source.index('render_section_header("Data Health Quick Read"', visitor_cards_index)
     scope_index = source.index('render_section_header("Universe Scope Legend"', quick_read_index)
@@ -22279,6 +22381,8 @@ def test_data_health_scope_legend_reuses_universe_layer_cards_before_operations(
     assert "Use these only when the lane answer does not resolve the current question." in source
     assert "Separate tracked rows, focused research rows, and analysis-ready subsets before reading counts." in source
     assert "Choose a scoped review set before treating liquidity, correlation, or proxy-risk rows as usable context." in source
+    public_slice = source[public_index:public_return_index]
+    assert public_slice.count("render_section_header(path_options_label") == 1
 
 
 def test_data_health_operator_surfaces_scope_risk_pivot_before_source_setup():
@@ -25466,6 +25570,90 @@ def test_data_health_peer_lane_hides_top_level_auto_context():
     assert "data_health_lane_auto_context_cards(selected_lane_key, readiness_freshness)" not in top_level_segment
     assert peer_lane_index < operator_console_index < drawer_index < answer_index < answer_cards_index
     assert answer_cards_index < drawer_context_index < summary_index
+
+
+def test_public_single_stock_peer_handoff_targets_a_visible_read_only_lane():
+    """Catches an exact peer-lane promise landing on generic Data Health."""
+
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "AVGO",
+                "Use Now": "Review saved price and company evidence.",
+                "Still Blocked": "Peer valuation remains blocked.",
+                "Context Only": "Candidate peers are context only.",
+                "Next Safe Action": "Open Data Health peer lane.",
+                "Review Boundary": "Do not infer missing peer proof.",
+            }
+        ]
+    )
+
+    public_html = dashboard.single_stock_public_summary_html(frame, target_mode="public")
+    research_html = dashboard.single_stock_public_summary_html(frame, target_mode="research")
+
+    for rendered in (public_html, research_html):
+        assert "page=data-health" in rendered
+        assert "ticker=AVGO" in rendered
+        assert "lane=peers" in rendered
+        assert "drawer=proof" in rendered
+
+
+def test_public_single_stock_non_peer_handoff_does_not_invent_a_peer_route():
+    """Catches a generic or optional blocker being mislabeled as peer evidence."""
+
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "AVGO",
+                "Use Now": "Review saved price and company evidence.",
+                "Still Blocked": "Optional inputs remain unavailable.",
+                "Context Only": "Candidate estimates are context only.",
+                "Next Safe Action": "Open Data Health only if a field is blocked.",
+                "Review Boundary": "Do not infer missing optional inputs.",
+            }
+        ]
+    )
+
+    rendered = dashboard.single_stock_public_summary_html(frame, target_mode="public")
+
+    assert "page=data-health" in rendered
+    assert "ticker=AVGO" in rendered
+    assert "lane=peers" not in rendered
+    assert "drawer=proof" in rendered
+
+
+def test_operator_header_data_health_shortcut_preserves_operator_mode():
+    """Catches the persistent Operator shortcut crossing into Public mode."""
+
+    rendered = dashboard.command_center_header_html(
+        {"master_universe": 10, "price_ready": 2, "dcf_ready": 1, "peer_ready": 1},
+        tickers=10,
+        final_count=0,
+        latest_price="2026-06-05",
+        compact=True,
+        current_page="Overview",
+        current_mode="operator",
+    )
+
+    assert "href='?mode=operator&page=data-health'" in rendered
+    assert "href='?mode=public&page=data-health'" not in rendered
+
+
+def test_data_health_read_only_presentation_is_mode_specific():
+    """Catches Personal Research inheriting Public-only labels from shared evidence UI."""
+
+    personal = dashboard.data_health_read_only_presentation("research")
+    public = dashboard.data_health_read_only_presentation("public")
+
+    assert personal == {
+        "drawer_label": "Research evidence drawer",
+        "path_options_label": "Research path options",
+        "proof_translation": "translated for the saved research workflow",
+        "mode_note": "Personal Research keeps this route read-only and company-centered.",
+    }
+    assert public["drawer_label"] == "Public evidence drawer"
+    assert public["path_options_label"] == "Public path options"
+    assert "public workflow" in public["proof_translation"]
 
 
 def test_data_health_peer_drawer_hides_summary_commands_by_default():
@@ -29183,6 +29371,144 @@ def test_data_health_peer_lane_uses_saved_readiness_counts_when_project_status_i
     assert "freshness: current for saved sources" in rendered
 
 
+def test_data_health_peer_lane_overlays_partial_project_status_on_saved_readiness_counts():
+    """Catches a partial status payload replacing known saved counts with false zeroes."""
+
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus(
+            "current",
+            "Saved readiness artifacts are current.",
+            "make readiness-preview TOP_N=20",
+        ),
+        project_status_payload={
+            "summary": {
+                "data_sources_total": 10,
+                "data_sources_available": 5,
+            }
+        },
+        saved_readiness_summary={
+            "peer_ready": 9,
+            "blocked_by_data": 3276,
+        },
+    )
+    rendered = " ".join(
+        str(value) for card in cards for value in card.values()
+    ).lower()
+
+    assert "9 tickers have trusted peer context" in rendered
+    assert "3,276 locked input row(s)" in rendered
+    assert "0 tickers have trusted peer context" not in rendered
+
+
+def test_data_health_peer_lane_prefers_newer_project_status_alias_counts():
+    """Catches saved canonical keys winning over newer project-status aliases."""
+
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus(
+            "current",
+            "Saved readiness artifacts are current.",
+            "make readiness-preview TOP_N=20",
+        ),
+        project_status_payload={
+            "summary": {
+                "tickers_peer_ready": 12,
+                "data_gaps": 5,
+            }
+        },
+        saved_readiness_summary={
+            "peer_ready": 9,
+            "blocked_by_data": 3276,
+        },
+    )
+    rendered = " ".join(
+        str(value) for card in cards for value in card.values()
+    ).lower()
+
+    assert "12 tickers have trusted peer context" in rendered
+    assert "5 locked input row(s)" in rendered
+    assert "9 tickers have trusted peer context" not in rendered
+
+
+def test_data_health_peer_lane_falls_back_when_project_summary_shape_is_invalid():
+    """Catches malformed saved status JSON crashing the read-only evidence route."""
+
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus(
+            "current",
+            "Saved readiness artifacts are current.",
+            "make readiness-preview TOP_N=20",
+        ),
+        project_status_payload={"summary": "peer_ready"},
+        saved_readiness_summary={
+            "peer_ready": 9,
+            "blocked_by_data": 175,
+        },
+    )
+    rendered = " ".join(
+        str(value) for card in cards for value in card.values()
+    ).lower()
+
+    assert "9 tickers have trusted peer context" in rendered
+    assert "175 locked input row(s)" in rendered
+
+
+def test_data_health_peer_lane_does_not_invent_absent_source_status_zeroes():
+    """Catches a partial source summary being completed with unsupported zeroes."""
+
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus(
+            "missing",
+            "Saved readiness evidence is unavailable.",
+            "make readiness-preview TOP_N=20",
+        ),
+        project_status_payload={
+            "summary": {"data_sources_total": 10},
+            "recommended_next_command_rows": [
+                {
+                    "Command": "make provider-setup-checklist",
+                    "Reason": "Current source-proof queues have no unreviewed executable company candidates.",
+                }
+            ],
+        },
+        saved_readiness_summary={},
+    )
+    rendered = " ".join(
+        str(value) for card in cards for value in card.values()
+    ).lower()
+
+    assert "source setup counts are unavailable" in rendered
+    assert "0/10 data sources available" not in rendered
+    assert "0 optional provider gap" not in rendered
+    assert "0 required gap" not in rendered
+
+
+def test_data_health_peer_lane_does_not_turn_absent_counts_into_factual_zeroes():
+    """Catches unknown peer coverage being presented as authoritative zero coverage."""
+
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus(
+            "missing",
+            "Saved readiness evidence is unavailable.",
+            "make readiness-preview TOP_N=20",
+        ),
+        project_status_payload={"summary": {}},
+        saved_readiness_summary={},
+    )
+    rendered = " ".join(
+        str(value) for card in cards for value in card.values()
+    ).lower()
+
+    assert "trusted peer count is unavailable" in rendered
+    assert "locked input count is unavailable" in rendered
+    assert "0 tickers have trusted peer context" not in rendered
+    assert "0 locked input row(s)" not in rendered
+
+
 def test_data_health_selected_lane_answer_cards_pivots_when_source_queues_are_exhausted():
     cards = dashboard.data_health_selected_lane_answer_cards(
         "fundamentals",
@@ -30830,15 +31156,28 @@ def test_public_app_shell_has_compact_mobile_rules():
     assert ".public-page-boundary" in mobile_chunk
     nav_start = mobile_chunk.index(".public-app-nav {")
     nav_rule = mobile_chunk[nav_start : mobile_chunk.index("}", nav_start)]
-    assert "flex-wrap: nowrap" in nav_rule
-    assert "overflow-x: auto" in nav_rule
+    assert "display: grid" in nav_rule
+    assert "grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr))" in nav_rule
+    assert "overflow: visible" in nav_rule
+    assert "overflow-x: auto" not in nav_rule
     trust_start = mobile_chunk.index(".profile-trust-strip.compact {")
     trust_rule = mobile_chunk[trust_start : mobile_chunk.index("}", trust_start)]
     assert "grid-template-columns: repeat(5, minmax(0, 1fr))" in trust_rule
+    assert ".stApp:has(.public-app-shell) .sr-answer-panel {" in mobile_chunk
+    assert ".stApp:has(.public-app-shell) .sr-answer-panel h2 {" in mobile_chunk
+    assert ".stApp:has(.public-app-shell) .sr-answer-reason {" in mobile_chunk
     answer_start = mobile_chunk.index(".sr-answer-panel {")
     answer_rule = mobile_chunk[answer_start : mobile_chunk.index("}", answer_start)]
-    assert "padding: 0.85rem" in answer_rule
-    assert "gap: 0.5rem" in answer_rule
+    assert "padding: 0.65rem" in answer_rule
+    assert "gap: 0.35rem" in answer_rule
+    heading_start = mobile_chunk.index(".sr-answer-panel h2 {")
+    heading_rule = mobile_chunk[heading_start : mobile_chunk.index("}", heading_start)]
+    reason_start = mobile_chunk.index(".sr-answer-reason {")
+    reason_rule = mobile_chunk[reason_start : mobile_chunk.index("}", reason_start)]
+    assert "font-size: 1rem" in heading_rule
+    assert "line-height: 1.25" in heading_rule
+    assert "font-size: 0.82rem" in reason_rule
+    assert "line-height: 1.3" in reason_rule
 
 
 def test_public_app_shell_has_short_desktop_density_without_hiding_copy(monkeypatch):
@@ -31020,7 +31359,7 @@ def test_public_task_pages_do_not_render_duplicate_readiness_preview_cards():
 
 def test_public_data_health_moves_secondary_maps_behind_advanced_guidance():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
-    public_mode_index = source.index("if public_mode:\n        if public_loading_placeholder is not None:", source.index("def render_data_health("))
+    public_mode_index = source.index("if public_mode:\n        personal_research_mode", source.index("def render_data_health("))
     coverage_index = source.index("render_data_health_coverage_summary", public_mode_index)
     advanced_index = source.index('with st.expander("Advanced: how readiness works", expanded=False):', coverage_index)
     proof_map_index = source.index('render_section_header("Proof Map"', advanced_index)
@@ -31458,7 +31797,7 @@ def test_stock_selector_search_and_data_health_keep_public_answers_before_advanc
     health_index = source.index("def render_data_health(")
     health_public_index = source.index("if public_mode:", health_index)
     health_clear_index = source.index("public_loading_placeholder.empty()", health_public_index)
-    health_cards_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)", health_clear_index)
+    health_cards_index = source.index("render_data_health_coverage_summary(", health_clear_index)
     health_coverage_index = source.index(
         "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame)",
         health_cards_index,
@@ -31488,7 +31827,7 @@ def test_public_data_health_places_selected_ticker_context_before_universe_lane_
     answer_index = source.index("evidence_route_answer_html(", public_index)
     supporting_index = source.index("supporting_detail_html(", answer_index)
     coverage_index = source.index(
-        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)",
+        "render_data_health_coverage_summary(",
         public_index,
     )
 
@@ -32358,20 +32697,20 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
-    coverage_index = source.index("render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)", public_index)
+    coverage_index = source.index("render_data_health_coverage_summary(", public_index)
     proof_map_index = source.index("data_health_public_proof_map_cards(readiness_summary, readiness_freshness)", coverage_index)
     source_boundary_index = source.index('"Source Boundary"', proof_map_index)
     source_boundary_cards_index = source.index("data_health_public_source_boundary_cards(project_status_payload)", source_boundary_index)
     guidance_expander_index = source.index('st.expander("Advanced: how readiness works", expanded=False)', public_index)
     first_30_index = source.index("data_health_public_first_30_second_cards(readiness_summary)", public_index)
-    visitor_paths_index = source.index('render_section_header("Public path options"', first_30_index)
+    visitor_paths_index = source.index("render_section_header(path_options_label", first_30_index)
     drawer_open_state_index = source.index('public_evidence_drawer_expanded = selected_drawer == "proof"', public_index)
     drawer_index = source.index(
-        'st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded)',
+        "with st.expander(evidence_drawer_label, expanded=public_evidence_drawer_expanded)",
         drawer_open_state_index,
     )
     freshness_index = source.index('render_section_header("Readiness Freshness"', drawer_index)
-    proof_index = source.index('render_section_header("Latest Reviewed Proof"', freshness_index)
+    proof_index = source.index('"Saved Reviewed Proof"', freshness_index)
     public_cards_index = source.index("proof_history_public_detail_cards(", proof_index)
     hidden_index = source.index("Operator details are hidden.", public_cards_index)
     return_index = source.index("return", hidden_index)
@@ -32397,7 +32736,7 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
         < ops_index
         < batch_execution_index
     )
-    assert "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks are available in Operator mode." in source
+    assert "Detailed proof rows, lane operations boards, coverage frontier tables, and import runbooks remain in Operator mode." in source
     assert "Operator details are hidden." in source
     assert "Provider setup, screenshots, and source reachability do not unlock blocked inputs." in source
     assert "Evidence details stay collapsed by default" in source
@@ -32409,7 +32748,7 @@ def test_data_health_public_mode_keeps_proof_summary_before_operator_boards():
 def test_data_health_public_proof_drawer_uses_public_proof_cards():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     public_index = source.index("if public_mode:", source.index("def render_data_health("))
-    drawer_index = source.index('st.expander("Public evidence drawer", expanded=public_evidence_drawer_expanded)', public_index)
+    drawer_index = source.index("with st.expander(evidence_drawer_label, expanded=public_evidence_drawer_expanded)", public_index)
     return_index = source.index("return", drawer_index)
     drawer_source = source[drawer_index:return_index]
 
@@ -32770,7 +33109,7 @@ def test_data_health_public_ticker_query_adds_proof_focus_context():
     )
     public_render_index = source.index("if public_mode:", focus_assignment_index)
     focus_note_index = source.index('"Ticker proof focus."', focus_assignment_index)
-    drawer_index = source.index('st.expander("Public evidence drawer"', focus_note_index)
+    drawer_index = source.index("with st.expander(evidence_drawer_label", focus_note_index)
 
     assert focus_assignment_index < public_render_index < focus_note_index < drawer_index
 

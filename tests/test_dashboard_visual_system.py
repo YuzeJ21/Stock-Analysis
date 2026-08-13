@@ -154,7 +154,10 @@ def test_dashboard_visual_css_uses_local_fonts_tokens_and_responsive_complete_co
     assert 'Inter, "SF Pro Text", "Segoe UI", system-ui, sans-serif' in css
     assert "url(" not in css.lower()
     assert "min-height: 44px" in css
-    assert "overflow-x: auto" in css
+    mobile = css[css.index("@media (max-width: 640px)") :]
+    assert "overflow-x: auto" not in mobile
+    assert "grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr))" in mobile
+    assert "overflow: visible" in mobile
     assert "text-overflow: ellipsis" not in css
     assert "line-clamp" not in css
     assert "@media (forced-colors: active)" in css

@@ -23,6 +23,9 @@ def test_default_performance_contract_covers_the_guided_public_workflow():
     ]
     assert all(route.first_useful_marker for route in DEFAULT_ROUTE_SPECS)
     assert all(route.full_markers for route in DEFAULT_ROUTE_SPECS)
+    proof_history = next(route for route in DEFAULT_ROUTE_SPECS if route.name == "Proof History")
+    assert "Newest reviewed evidence" in proof_history.full_markers
+    assert "Latest evidence" not in proof_history.full_markers
 
 
 def test_research_performance_contract_covers_the_commercial_beta_workflow():

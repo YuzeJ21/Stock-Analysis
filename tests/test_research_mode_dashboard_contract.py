@@ -1248,8 +1248,8 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
     dashboard.render_research_monitor(
         {"queue": ()},
         SimpleNamespace(
-            freshness_state="stale",
-            freshness_message="Saved readiness needs review.",
+            freshness_state="current",
+            freshness_message="Saved readiness is current for saved sources.",
         ),
         WeeklyResearchSummary(
             status="no_changes",
@@ -1262,20 +1262,21 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
         object(),
         SimpleNamespace(
             profile_price_lane=SimpleNamespace(
-                state="current",
-                message="Market observation is current.",
+                state="stale",
+                message="Saved market observation ends before the review date.",
             )
         ),
     )
 
     copy = " ".join(rendered)
     assert (
-        "No saved research item is due. A separate saved-source freshness condition needs Data Health review."
+        "No saved research item is due. A separate market-observation freshness condition needs Data Health review."
         in copy
     )
     assert "Saved follow-up evidence needs attention." not in copy
     assert "Saved follow-up evidence" not in copy
-    assert "Saved-source freshness condition" in copy
+    assert "Market-observation freshness condition" in copy
+    assert "saved-source freshness condition" not in copy.lower()
     assert "1 saved follow-up item" not in copy
     assert "Open Data Health" in copy
     assert len(cards) == 5
@@ -2293,12 +2294,9 @@ def test_public_and_evidence_route_renderers_adopt_one_shared_hierarchy_without_
     report_end = source.index("\ndef render_data_health(", report_start)
     report = source[report_start:report_end]
 
-    assert data_health.index("evidence_route_answer_html(") < data_health.index(
-        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)"
-    )
-    assert data_health.index("supporting_detail_html(") < data_health.index(
-        "render_data_health_coverage_summary(readiness_summary, peer_readiness_frame, public_mode=True)"
-    )
+    coverage_summary_index = data_health.index("render_data_health_coverage_summary(")
+    assert data_health.index("evidence_route_answer_html(") < coverage_summary_index
+    assert data_health.index("supporting_detail_html(") < coverage_summary_index
     assert data_health.index("advanced_detail_marker_html()") < data_health.index(
         'st.expander("Advanced: how readiness works", expanded=False)'
     )

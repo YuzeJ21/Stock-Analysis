@@ -745,6 +745,12 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   list-style: none;
   border-top: 1px solid var(--sr-border);
 }}
+.public-proof-timeline-summary {{
+  margin: 0 0 8px;
+  color: var(--sr-muted);
+  font-size: .8125rem;
+  line-height: 1.5;
+}}
 .sr-timeline-record, .sr-timeline-empty {{
   display: grid;
   grid-template-columns: minmax(9rem, auto) minmax(10rem, .8fr) minmax(0, 2fr);
@@ -880,21 +886,27 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   }}
   .research-workflow-navigation {{
     position: static !important;
-    display: flex !important;
+    display: grid !important;
     align-items: stretch;
+    gap: 2px !important;
     width: 100% !important;
     max-width: 100% !important;
     min-height: 44px;
-    padding: 8px !important;
-    overflow-x: auto;
-    overflow-y: visible;
+    padding: 4px !important;
+    overflow: visible;
     border-radius: 10px;
   }}
-  .research-workspace-brand {{ flex: 0 0 10rem; }}
-  .research-workflow-routes, .research-workspace-mode {{ display: flex; gap: 4px; flex: 0 0 auto; }}
-  .research-workspace-mode {{ padding: 0 0 0 8px; border-top: 0; border-left: 1px solid rgba(248, 250, 252, .24); }}
-  .research-workspace-mode > span {{ align-self: center; padding: 0 4px; }}
-  .research-workflow-navigation .research-workflow-link, .research-workflow-disabled, .research-workspace-mode a {{ flex: 0 0 auto !important; max-width: 11rem; }}
+  .research-workspace-brand {{ width: 100%; }}
+  .research-workflow-routes {{
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
+    gap: 4px;
+    width: 100%;
+  }}
+  .research-workspace-mode {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; padding: 8px 0 0; border-top: 1px solid rgba(248, 250, 252, .24); }}
+  .research-workspace-mode > span {{ grid-column: 1 / -1; align-self: center; padding: 0 4px; }}
+  .research-workflow-navigation .research-workflow-link, .research-workflow-disabled {{ justify-content: center; min-width: 0; max-width: none; padding: 6px; text-align: center; }}
+  .research-workspace-mode a {{ justify-content: center; min-width: 44px; max-width: none; }}
   .sr-context-bar {{ gap: 8px 16px; }}
   .sr-context-item {{ min-width: min(9rem, 100%); }}
   .sr-page-title h1 {{ font-size: 1.375rem; }}

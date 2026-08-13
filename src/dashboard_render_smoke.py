@@ -81,7 +81,7 @@ PUBLIC_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     DashboardRenderRoute(
         name="Proof History",
         query_params=(("mode", "public"), ("page", "proof-history")),
-        required_markers=("Latest evidence",),
+        required_markers=("Newest reviewed evidence",),
     ),
 )
 
@@ -181,6 +181,7 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
             "Proof History",
             "What evidence changed a readiness state?",
             "Return to Company Workbench",
+            "Newest reviewed evidence",
             "Research-only",
         ),
         required_regions=(

@@ -470,35 +470,39 @@ commercial-beta-performance-gate:
 
 research-accessibility-browser-check:
 	@python3 -m src.research_accessibility_browser_gate --root . --timeout-seconds $(or $(TIMEOUT_SECONDS),45) \
+		--allow-dirty-path src/browser_qa_evidence.py \
 		--allow-dirty-path src/dashboard.py \
-		--allow-dirty-path src/dashboard_visual_system.py \
 		--allow-dirty-path src/dashboard_navigation.py \
-		--allow-dirty-path src/research_workspace.py \
-		--allow-dirty-path src/research_accessibility_browser_gate.py \
-		--allow-dirty-path src/public_performance_gate.py \
-		--allow-dirty-path src/workspace_visual_browser_gate.py \
 		--allow-dirty-path src/dashboard_render_smoke.py \
-		--allow-dirty-path tests/test_research_accessibility_browser_gate.py \
-		--allow-dirty-path tests/test_public_performance_gate.py \
-		--allow-dirty-path tests/test_workspace_visual_browser_gate.py \
-		--allow-dirty-path tests/test_dashboard_render_smoke.py \
+		--allow-dirty-path src/dashboard_visual_system.py \
+		--allow-dirty-path src/project_status.py \
+		--allow-dirty-path src/public_performance_gate.py \
+		--allow-dirty-path src/readiness_ops.py \
+		--allow-dirty-path src/research_accessibility_browser_gate.py \
+		--allow-dirty-path src/research_loop.py \
+		--allow-dirty-path src/research_workspace.py \
+		--allow-dirty-path src/workspace_visual_browser_gate.py \
+		--allow-dirty-path tests/test_browser_qa_evidence.py \
 		--allow-dirty-path tests/test_dashboard_helpers.py \
-		--allow-dirty-path tests/test_dashboard_visual_system.py \
-		--allow-dirty-path tests/test_public_v1_release_docs.py \
-		--allow-dirty-path tests/test_launchers.py \
-		--allow-dirty-path tests/test_research_mode_dashboard_contract.py \
 		--allow-dirty-path tests/test_dashboard_navigation.py \
+		--allow-dirty-path tests/test_dashboard_render_smoke.py \
+		--allow-dirty-path tests/test_dashboard_visual_system.py \
+		--allow-dirty-path tests/test_project_status.py \
+		--allow-dirty-path tests/test_public_performance_gate.py \
+		--allow-dirty-path tests/test_public_v1_release_docs.py \
+		--allow-dirty-path tests/test_readiness_ops.py \
+		--allow-dirty-path tests/test_research_accessibility_browser_gate.py \
+		--allow-dirty-path tests/test_research_loop.py \
+		--allow-dirty-path tests/test_research_mode_dashboard_contract.py \
 		--allow-dirty-path tests/test_research_workspace.py \
+		--allow-dirty-path tests/test_workspace_visual_browser_gate.py \
+		--allow-dirty-path tests/test_launchers.py \
 		--allow-dirty-path README.md \
 		--allow-dirty-path ROADMAP.md \
-		--allow-dirty-path docs/PERSONAL_RESEARCH_MODE.md \
-		--allow-dirty-path docs/PUBLIC_DEMO_WALKTHROUGH.md \
 		--allow-dirty-path docs/DASHBOARD_QA.md \
-		--allow-dirty-path docs/ACCESSIBILITY_EVIDENCE.md \
-		--allow-dirty-path docs/OPERATOR_GUIDE.md \
+		--allow-dirty-path docs/PERSONAL_RESEARCH_MODE.md \
 		--allow-dirty-path docs/PUBLIC_RELEASE_CHECKLIST.md \
-		--allow-dirty-path docs/DATA_STRATEGY.md \
-		--allow-dirty-path docs/PILOT_READINESS_AUDIT.md \
+		--allow-dirty-path docs/superpowers/specs/2026-08-12-hypothetical-paper-position-laboratory-design.md \
 		--allow-dirty-path docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md \
 		--allow-dirty-path Makefile \
 		$(if $(BASE_URL),--base-url "$(BASE_URL)",) $(if $(CHROME),--chrome "$(CHROME)",)

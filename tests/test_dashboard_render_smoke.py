@@ -34,6 +34,130 @@ def test_public_routes_render_without_exceptions_and_keep_core_markers():
     assert all(result.expanded_advanced == () for result in results)
 
 
+def test_operator_peer_lane_uses_the_same_saved_counts_as_personal_data_health():
+    """Catches Operator dropping saved peer coverage and rendering false zeroes."""
+
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    route = DashboardRenderRoute(
+        name="Operator peer lane saved-count parity",
+        query_params=(
+            ("mode", "operator"),
+            ("page", "data-health"),
+            ("lane", "peers"),
+            ("drawer", "proof"),
+        ),
+        required_markers=("Selected Lane Answer", "Peers", "9 tickers have trusted peer context"),
+    )
+
+    result = render_public_routes(Path("."), routes=(route,))[0]
+    rendered = "\n".join(result.rendered_blocks)
+
+    assert result.exceptions == ()
+    assert result.missing_markers == ()
+    assert result.forbidden_markers == ()
+    assert "3,276 locked input rows" in rendered
+    assert "0 tickers have trusted peer context" not in rendered
+    assert "0 locked input row(s)" not in rendered
+
+
+def test_public_peer_lane_arrival_renders_the_promised_selected_answer():
+    """Catches a Public peer handoff landing on only generic Data Health content."""
+
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    route = DashboardRenderRoute(
+        name="Public peer lane arrival",
+        query_params=(
+            ("mode", "public"),
+            ("page", "data-health"),
+            ("ticker", "AVGO"),
+            ("lane", "peers"),
+            ("drawer", "proof"),
+        ),
+        required_markers=("Selected Lane Answer", "9 tickers have trusted peer context"),
+    )
+
+    result = render_public_routes(Path("."), routes=(route,))[0]
+    rendered = "\n".join(result.rendered_blocks)
+
+    assert result.exceptions == ()
+    assert result.missing_markers == ()
+    assert (
+        rendered.index("data-sr-region='primary-answer'")
+        < rendered.index("Selected Lane Answer")
+        < rendered.index("data-sr-region='primary-action'")
+    )
+    assert rendered.index("Selected Lane Answer") < rendered.index("Optional inputs")
+
+
+def test_personal_data_health_uses_personal_labels_and_selected_lane_first():
+    """Catches the shared read-only implementation leaking Public presentation."""
+
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    route = DashboardRenderRoute(
+        name="Personal peer lane presentation",
+        query_params=(
+            ("mode", "research"),
+            ("page", "data-health"),
+            ("ticker", "AVGO"),
+            ("lane", "peers"),
+            ("drawer", "proof"),
+        ),
+        required_markers=("Selected Lane Answer", "translated for the saved research workflow"),
+    )
+
+    result = render_public_routes(Path("."), routes=(route,))[0]
+    rendered = "\n".join(result.rendered_blocks)
+
+    assert result.exceptions == ()
+    assert result.missing_markers == ()
+    assert (
+        rendered.index("data-sr-region='primary-answer'")
+        < rendered.index("Selected Lane Answer")
+        < rendered.index("data-sr-region='primary-action'")
+    )
+    assert rendered.index("Selected Lane Answer") < rendered.index("Optional inputs")
+    for public_only in (
+        "public review",
+        "Public evidence drawer",
+        "translated for the public workflow",
+        "Public mode keeps the story readable",
+        "Public path options",
+        "Visitors should",
+        "the public page",
+        "Public mode shows the product concept",
+    ):
+        assert public_only not in rendered
+
+
+@pytest.mark.parametrize("mode", ("public", "research"))
+def test_explicit_prices_lane_arrival_names_the_selected_lane(mode):
+    """Catches the default lane being visually anonymous when explicitly requested."""
+
+    from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
+
+    route = DashboardRenderRoute(
+        name=f"{mode} prices lane arrival",
+        query_params=(
+            ("mode", mode),
+            ("page", "data-health"),
+            ("ticker", "AVGO"),
+            ("lane", "prices"),
+            ("drawer", "proof"),
+        ),
+        required_markers=("Selected Lane Answer — Prices",),
+    )
+
+    result = render_public_routes(Path("."), routes=(route,))[0]
+    rendered = "\n".join(result.rendered_blocks)
+
+    assert result.exceptions == ()
+    assert result.missing_markers == ()
+    assert rendered.index("Selected Lane Answer — Prices") < rendered.index("data-sr-region='primary-action'")
+
+
 def test_company_workbench_renders_independent_observation_states_for_avgo_spy_and_qqq():
     from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
 
@@ -231,6 +355,11 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         "Research Data Health",
         "Research Proof History",
     ]
+    proof_route = next(
+        route for route in RESEARCH_RENDER_ROUTES if route.name == "Research Proof History"
+    )
+    assert "Newest reviewed evidence" in proof_route.required_markers
+    assert "Latest evidence" not in proof_route.required_markers
     desk_route = next(
         route for route in RESEARCH_RENDER_ROUTES if route.name == "Research Desk"
     )

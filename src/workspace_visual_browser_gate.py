@@ -8,6 +8,7 @@ import json
 import math
 import os
 import platform
+import re
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -117,7 +118,7 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
         "public-proof-history",
         "Public Proof History",
         "/?mode=public&page=proof-history&ticker=AVGO",
-        "Latest evidence",
+        "Newest reviewed evidence",
         "What evidence changed a readiness state?",
         "public",
     ),
@@ -133,7 +134,7 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
         "personal-proof-history",
         "Personal Proof History",
         "/?mode=research&page=proof-history&ticker=AVGO",
-        "Latest evidence",
+        "Newest reviewed evidence",
         "Proof History",
         "research",
     ),
@@ -187,6 +188,63 @@ def evaluate_scroll_width(*, scroll_width: float, client_width: float) -> Browse
     return BrowserEvaluation(
         passed,
         f"scroll width {scroll_width:.1f} versus client width {client_width:.1f}",
+    )
+
+
+def evaluate_mobile_navigation_discoverability(
+    *,
+    phone_media_matches: bool,
+    expected_total: int,
+    total: int,
+    visible: int,
+    fully_visible: int,
+    scroll_width: float,
+    client_width: float,
+) -> BrowserEvaluation:
+    """Require every primary destination to be visible without a hidden phone scroller."""
+
+    if not phone_media_matches:
+        return BrowserEvaluation(True, "desktop navigation is outside the phone-wrap contract")
+    passed = (
+        expected_total > 0
+        and total == expected_total
+        and visible == expected_total
+        and fully_visible == expected_total
+        and client_width > 0
+        and scroll_width <= client_width + 1
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            f"phone links total={total}/{expected_total}; visible={visible}; "
+            f"fully_visible={fully_visible}; scroll={scroll_width:.1f}/{client_width:.1f}"
+        ),
+    )
+
+
+def evaluate_proof_history_initial_tree(
+    *,
+    record_count: int,
+    summary: str,
+) -> BrowserEvaluation:
+    """Require a bounded, explicitly newest-first initial proof-history tree."""
+
+    normalized = " ".join(str(summary or "").split()).casefold()
+    match = re.search(
+        r"\bshowing\s+(\d+)\s+of\s+(\d+)\s+reviewed records in newest-first order\b",
+        normalized,
+    )
+    shown = int(match.group(1)) if match else -1
+    total = int(match.group(2)) if match else -1
+    passed = (
+        match is not None
+        and total >= 1
+        and shown == record_count
+        and record_count == min(20, total)
+    )
+    return BrowserEvaluation(
+        passed,
+        f"initial proof records={record_count}; summary={normalized!r}",
     )
 
 
@@ -1373,6 +1431,38 @@ def _browser_observation(page: Any) -> dict[str, object]:
   const researchWorkflowNav = document.querySelector(".research-workflow-navigation");
   const doc = document.documentElement;
   const body = document.body;
+  const navigationLinkMetrics = (nav, links) => {
+    const navBox = nav ? nav.getBoundingClientRect() : null;
+    const visibleLinks = links.filter(visible);
+    const fullyVisibleLinks = visibleLinks.filter((node) => {
+      const box = node.getBoundingClientRect();
+      return Boolean(
+        navBox &&
+        box.left >= Math.max(0, navBox.left) - 1 &&
+        box.right <= Math.min(doc.clientWidth, navBox.right) + 1
+      );
+    });
+    return {
+      total: links.length,
+      visible: visibleLinks.length,
+      fully_visible: fullyVisibleLinks.length,
+      scroll_width: nav ? nav.scrollWidth : 0,
+      client_width: nav ? nav.clientWidth : 0,
+    };
+  };
+  const publicNavLinkMetrics = navigationLinkMetrics(
+    publicAppNav,
+    [...document.querySelectorAll(".public-app-nav a")]
+  );
+  const researchNavLinkMetrics = navigationLinkMetrics(
+    researchWorkflowNav,
+    [...document.querySelectorAll(
+      ".research-workflow-routes .research-workflow-link, " +
+      ".research-workflow-routes .research-workflow-disabled"
+    )]
+  );
+  const proofTimelineRecords = [...document.querySelectorAll(".public-proof-timeline .sr-timeline-record")];
+  const proofTimelineSummary = document.querySelector(".public-proof-timeline-summary");
   const regions = boxes("[data-sr-region]");
   if (nativePrimaryAction && visible(nativePrimaryAction)) {
     regions.push(boxFor(nativePrimaryAction, "primary-action"));
@@ -1510,6 +1600,18 @@ def _browser_observation(page: Any) -> dict[str, object]:
     public_app_nav_scroll_left: publicAppNav ? publicAppNav.scrollLeft : 0,
     research_workflow_nav_scroll_left: researchWorkflowNav ? researchWorkflowNav.scrollLeft : 0,
     research_workflow_nav_scroll_top: researchWorkflowNav ? researchWorkflowNav.scrollTop : 0,
+    public_nav_link_count: publicNavLinkMetrics.total,
+    public_nav_link_visible_count: publicNavLinkMetrics.visible,
+    public_nav_link_fully_visible_count: publicNavLinkMetrics.fully_visible,
+    public_nav_scroll_width: publicNavLinkMetrics.scroll_width,
+    public_nav_client_width: publicNavLinkMetrics.client_width,
+    research_nav_link_count: researchNavLinkMetrics.total,
+    research_nav_link_visible_count: researchNavLinkMetrics.visible,
+    research_nav_link_fully_visible_count: researchNavLinkMetrics.fully_visible,
+    research_nav_scroll_width: researchNavLinkMetrics.scroll_width,
+    research_nav_client_width: researchNavLinkMetrics.client_width,
+    proof_timeline_record_count: proofTimelineRecords.length,
+    proof_timeline_summary: proofTimelineSummary ? proofTimelineSummary.textContent.trim() : "",
     app_state: document.querySelector('[data-testid="stApp"]')
       ?.getAttribute("data-test-script-state") || "",
     home_action_area: homeActionArea && visible(homeActionArea)
@@ -1866,6 +1968,30 @@ def _evaluate_observation(
             operator_radio_visible=int(observation.get("operator_radio_visible_count") or 0),
         ),
     )
+    if route.mode in {"public", "research"}:
+        prefix = "public" if route.mode == "public" else "research"
+        add(
+            "mobile_navigation_discoverability",
+            evaluate_mobile_navigation_discoverability(
+                phone_media_matches=bool(observation.get("phone_media_matches")),
+                expected_total=5 if route.mode == "public" else 4,
+                total=int(observation.get(f"{prefix}_nav_link_count") or 0),
+                visible=int(observation.get(f"{prefix}_nav_link_visible_count") or 0),
+                fully_visible=int(
+                    observation.get(f"{prefix}_nav_link_fully_visible_count") or 0
+                ),
+                scroll_width=float(observation.get(f"{prefix}_nav_scroll_width") or 0),
+                client_width=float(observation.get(f"{prefix}_nav_client_width") or 0),
+            ),
+        )
+    if route.slug in {"public-proof-history", "personal-proof-history"}:
+        add(
+            "proof_history_initial_tree",
+            evaluate_proof_history_initial_tree(
+                record_count=int(observation.get("proof_timeline_record_count") or 0),
+                summary=str(observation.get("proof_timeline_summary") or ""),
+            ),
+        )
     if route.mode == "operator":
         expected_kind = (
             "compatibility"

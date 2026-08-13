@@ -1175,6 +1175,11 @@ def test_project_status_stage_map_classifies_remaining_public_items(
     capsys: pytest.CaptureFixture[str],
 ):
     _write_fast_status_artifacts(tmp_path)
+    monkeypatch.setattr(
+        project_status,
+        "_git_status_line",
+        lambda _root: "## main...origin/main",
+    )
     monkeypatch.setattr(project_status, "_dcf_source_ladder_has_unreviewed_rows", lambda _root, _data_path: False)
     monkeypatch.setattr(project_status, "_trusted_data_pilot_has_candidates", lambda _root, top_n=10: False)
     monkeypatch.setattr(project_status, "_price_coverage_complete", lambda _summary: True)
@@ -1264,6 +1269,51 @@ def test_project_status_stage_map_does_not_call_github_synced_when_branch_is_ahe
     assert "separate owner authorization" in linkedin_row["Next Action"]
     assert "git push origin main" not in linkedin_row["Next Action"]
     assert "GitHub is synced" not in linkedin_row["Evidence"]
+
+
+def test_project_status_labels_an_aligned_feature_branch_as_draft_engineering_preview():
+    """Catches feature-branch sync being promoted as a stable default-branch share."""
+
+    stage = project_status._linkedin_stage_from_git_status(
+        "## codex/personal-research-mode-mvp...origin/codex/personal-research-mode-mvp"
+    )
+
+    assert stage["State"] == "draft_engineering_preview"
+    assert "Draft engineering preview" in stage["Evidence"]
+    assert "default branch" in stage["Completion Gate"]
+    assert "Post or update LinkedIn" not in stage["Next Action"]
+    assert "ready_for_manual_share" not in stage.values()
+
+
+def test_project_status_keeps_an_aligned_default_branch_share_eligible():
+    """Catches the fail-closed feature-branch rule blocking an actual stable branch."""
+
+    stage = project_status._linkedin_stage_from_git_status("## main...origin/main")
+
+    assert stage["State"] == "ready_for_manual_share"
+    assert "use GitHub link" in stage["Evidence"]
+
+
+@pytest.mark.parametrize(
+    "git_status_line",
+    (
+        None,
+        "",
+        "not a porcelain branch line",
+        "## main",
+        "## main...",
+        "## main...origin/other",
+        "## main...origin/main [gone]",
+    ),
+)
+def test_project_status_fails_closed_when_git_branch_status_is_unavailable(git_status_line):
+    """Catches unreadable or malformed Git state being called share-ready."""
+
+    stage = project_status._linkedin_stage_from_git_status(git_status_line)
+
+    assert stage["State"] == "needs_git_status_review"
+    assert "unavailable" in stage["Evidence"].lower()
+    assert "ready_for_manual_share" not in stage.values()
 
 
 def test_project_status_never_labels_readiness_preview_as_a_reviewed_write(capsys):

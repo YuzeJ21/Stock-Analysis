@@ -590,7 +590,7 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     assert "one coverage answer per lane" in str(public_data_health["Details Boundary"])
     assert "provider setup" in str(public_data_health["Stop Rule"])
     proof_history = next(row for row in rows if row["Route Check"] == "Public proof history evidence view")
-    assert "Latest evidence" in str(proof_history["First View Markers"])
+    assert "Newest reviewed evidence" in str(proof_history["First View Markers"])
     assert "Advanced: proof ledger details" in str(proof_history["First View Markers"])
     assert "latest proof evidence" not in str(proof_history["First View Markers"]).lower()
     fast_view = next(row for row in rows if row["Route Check"] == "Data Health operator fast view")

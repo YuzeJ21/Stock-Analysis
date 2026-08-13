@@ -106,7 +106,7 @@ DEFAULT_ROUTE_SPECS: tuple[PublicRouteSpec, ...] = (
         "Proof History",
         "/?mode=public&page=proof-history",
         "What evidence changed a readiness state?",
-        ("Latest evidence", "Advanced: proof ledger details", "Research-only"),
+        ("Newest reviewed evidence", "Advanced: proof ledger details", "Research-only"),
         False,
     ),
 )

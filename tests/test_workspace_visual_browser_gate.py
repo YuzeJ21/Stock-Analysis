@@ -36,6 +36,14 @@ def test_route_fixtures_cover_the_literal_workspace_matrix_in_declared_order():
     assert next(route for route in ROUTE_FIXTURES if route.slug == "personal-data-health").route == (
         "/?mode=research&page=data-health&ticker=AVGO&lane=peers&drawer=proof"
     )
+    assert {
+        route.slug: route.marker
+        for route in ROUTE_FIXTURES
+        if route.slug in {"public-proof-history", "personal-proof-history"}
+    } == {
+        "public-proof-history": "Newest reviewed evidence",
+        "personal-proof-history": "Newest reviewed evidence",
+    }
 
 
 def test_default_viewports_are_the_literal_desktop_and_phone_contract():
@@ -83,6 +91,87 @@ def test_pure_browser_evaluators_use_one_pixel_tolerance_and_44_pixel_targets():
         fragment="",
         active_id="research-main",
     ).passed
+
+
+def test_mobile_navigation_discoverability_requires_every_primary_link_inside_the_phone_view():
+    from src.workspace_visual_browser_gate import evaluate_mobile_navigation_discoverability
+
+    assert evaluate_mobile_navigation_discoverability(
+        phone_media_matches=False,
+        expected_total=5,
+        total=0,
+        visible=0,
+        fully_visible=0,
+        scroll_width=0,
+        client_width=0,
+    ).passed
+    assert evaluate_mobile_navigation_discoverability(
+        phone_media_matches=True,
+        expected_total=5,
+        total=5,
+        visible=5,
+        fully_visible=5,
+        scroll_width=350,
+        client_width=350,
+    ).passed
+    for mutation in (
+        {"total": 4},
+        {"visible": 4},
+        {"fully_visible": 4},
+        {"scroll_width": 351.1},
+    ):
+        values = {
+            "phone_media_matches": True,
+            "expected_total": 5,
+            "total": 5,
+            "visible": 5,
+            "fully_visible": 5,
+            "scroll_width": 350,
+            "client_width": 350,
+            **mutation,
+        }
+        assert not evaluate_mobile_navigation_discoverability(**values).passed
+
+
+def test_proof_history_initial_tree_is_bounded_and_truthfully_summarized():
+    from src.workspace_visual_browser_gate import evaluate_proof_history_initial_tree
+
+    assert evaluate_proof_history_initial_tree(
+        record_count=20,
+        summary="Showing 20 of 1343 reviewed records in newest-first order.",
+    ).passed
+    assert evaluate_proof_history_initial_tree(
+        record_count=5,
+        summary="Showing 5 of 5 reviewed records in newest-first order.",
+    ).passed
+    assert not evaluate_proof_history_initial_tree(
+        record_count=5,
+        summary="Showing 5 of 1343 reviewed records in newest-first order.",
+    ).passed
+    assert not evaluate_proof_history_initial_tree(
+        record_count=20,
+        summary="Showing 20 of 5 reviewed records in newest-first order.",
+    ).passed
+    assert not evaluate_proof_history_initial_tree(
+        record_count=1343,
+        summary="Showing every record.",
+    ).passed
+    assert not evaluate_proof_history_initial_tree(
+        record_count=20,
+        summary="Showing 20 records.",
+    ).passed
+
+
+def test_browser_evaluation_wires_phone_navigation_and_proof_tree_contracts():
+    from pathlib import Path
+
+    source = Path("src/workspace_visual_browser_gate.py").read_text(encoding="utf-8")
+    evaluation = source[source.index("def _evaluate_observation(") : source.index("def _chromium_zoom_preferences(")]
+
+    assert "evaluate_mobile_navigation_discoverability(" in evaluation
+    assert '"mobile_navigation_discoverability"' in evaluation
+    assert "evaluate_proof_history_initial_tree(" in evaluation
+    assert '"proof_history_initial_tree"' in evaluation
 
 
 @pytest.mark.parametrize(
@@ -173,6 +262,13 @@ def test_browser_observation_collects_operator_semantics_and_shortcut_geometry()
     assert ".profile-trust-strip.compact" in script
     assert "[data-sr-role='analytic']" in script
     assert "[data-sr-role='legacy']" in script
+    assert ".public-app-nav a" in script
+    assert ".research-workflow-routes .research-workflow-link" in script
+    assert ".research-workflow-routes .research-workflow-disabled" in script
+    assert "public_nav_link_fully_visible_count" in script
+    assert "research_nav_link_fully_visible_count" in script
+    assert "proof_timeline_record_count" in script
+    assert "public-proof-timeline-summary" in script
 
 
 @pytest.mark.parametrize(

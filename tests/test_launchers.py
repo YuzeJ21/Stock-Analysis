@@ -3253,7 +3253,7 @@ def test_makefile_exposes_direct_html_research_brief_browser_gate():
     assert "tests/test_company_workbench_html_browser_gate.py" in target
 
 
-def test_accessibility_browser_gate_allows_the_exact_task6_review_paths():
+def test_accessibility_browser_gate_allows_the_exact_current_maturity_paths():
     makefile = Path("Makefile").read_text(encoding="utf-8")
     target = makefile.split("research-accessibility-browser-check:", 1)[1].split(
         "\n\n", 1
@@ -3265,35 +3265,39 @@ def test_accessibility_browser_gate_allows_the_exact_task6_review_paths():
     }
 
     assert allowed == {
+        "src/browser_qa_evidence.py",
         "src/dashboard.py",
-        "src/dashboard_visual_system.py",
         "src/dashboard_navigation.py",
-        "src/research_workspace.py",
-        "src/research_accessibility_browser_gate.py",
-        "src/public_performance_gate.py",
-        "src/workspace_visual_browser_gate.py",
         "src/dashboard_render_smoke.py",
-        "tests/test_research_accessibility_browser_gate.py",
-        "tests/test_public_performance_gate.py",
-        "tests/test_workspace_visual_browser_gate.py",
-        "tests/test_dashboard_render_smoke.py",
+        "src/dashboard_visual_system.py",
+        "src/project_status.py",
+        "src/public_performance_gate.py",
+        "src/readiness_ops.py",
+        "src/research_accessibility_browser_gate.py",
+        "src/research_loop.py",
+        "src/research_workspace.py",
+        "src/workspace_visual_browser_gate.py",
+        "tests/test_browser_qa_evidence.py",
         "tests/test_dashboard_helpers.py",
-        "tests/test_dashboard_visual_system.py",
-        "tests/test_public_v1_release_docs.py",
-        "tests/test_launchers.py",
-        "tests/test_research_mode_dashboard_contract.py",
         "tests/test_dashboard_navigation.py",
+        "tests/test_dashboard_render_smoke.py",
+        "tests/test_dashboard_visual_system.py",
+        "tests/test_project_status.py",
+        "tests/test_public_performance_gate.py",
+        "tests/test_public_v1_release_docs.py",
+        "tests/test_readiness_ops.py",
+        "tests/test_research_accessibility_browser_gate.py",
+        "tests/test_research_loop.py",
+        "tests/test_research_mode_dashboard_contract.py",
         "tests/test_research_workspace.py",
+        "tests/test_workspace_visual_browser_gate.py",
+        "tests/test_launchers.py",
         "README.md",
         "ROADMAP.md",
-        "docs/PERSONAL_RESEARCH_MODE.md",
-        "docs/PUBLIC_DEMO_WALKTHROUGH.md",
         "docs/DASHBOARD_QA.md",
-        "docs/ACCESSIBILITY_EVIDENCE.md",
-        "docs/OPERATOR_GUIDE.md",
+        "docs/PERSONAL_RESEARCH_MODE.md",
         "docs/PUBLIC_RELEASE_CHECKLIST.md",
-        "docs/DATA_STRATEGY.md",
-        "docs/PILOT_READINESS_AUDIT.md",
+        "docs/superpowers/specs/2026-08-12-hypothetical-paper-position-laboratory-design.md",
         "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md",
         "Makefile",
     }

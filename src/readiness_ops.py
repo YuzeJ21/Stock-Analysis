@@ -1611,21 +1611,41 @@ def render_fundamentals_peer_metrics_queue(rows: list[ReadinessQueueRow]) -> str
     return "\n".join(lines)
 
 
-def render_readiness_ops_center(lanes: list[ReadinessLane]) -> str:
+def render_readiness_ops_center(
+    lanes: list[ReadinessLane],
+    *,
+    continuation_gate: ContinuationGate | None = None,
+) -> str:
     lines = [
         "Data Readiness Operations Center",
         "Read-only: lane-level operations view. It does not refresh, import, apply, or rewrite local data.",
         "Research-only: lanes show data readiness and proof commands, not investment advice or trade instructions.",
         "",
     ]
+    inspection_only = bool(
+        continuation_gate is not None and continuation_gate.suppress_execution
+    )
+    if inspection_only:
+        lines.extend(
+            [
+                f"{READINESS_CONTINUATION_GATE_HEADING}: {continuation_gate.state}",
+                f"- Next safe preview: {continuation_gate.next_safe_command}",
+                f"- Reason: {continuation_gate.reason}",
+                "- Lane commands below are planning context only; do not execute source, refresh, apply, or proof commands from working readiness.",
+                f"  next_safe_command: {continuation_gate.next_safe_command}",
+                f"- Stop rule: {continuation_gate.stop_rule}",
+                "",
+            ]
+        )
     for lane in lanes:
+        command_label = "planning_command" if inspection_only else "next_safe_command"
         lines.extend(
             [
                 f"- {lane.label} | {lane.readiness_state} | {lane.workflow_mode}",
                 f"  counts: ready={lane.ready_count}; partial={lane.partial_count}; blocked={lane.blocked_count}; excluded={lane.excluded_count}; total={lane.total_count}",
                 f"  unlock_impact: {lane.unlock_impact}",
                 f"  source_lane: {lane.source_lane}; source_readiness: {lane.source_readiness}",
-                f"  next_safe_command: {lane.next_safe_command}",
+                f"  {command_label}: {lane.next_safe_command}",
                 f"  proof_command: {lane.proof_command}",
                 f"  generated_churn_policy: {lane.generated_churn_policy}",
                 f"  proof_freshness: {lane.stale_proof_warning}",
@@ -1753,7 +1773,12 @@ def main(argv: list[str] | None = None) -> int:
         print(render_coverage_frontier(frontier, continuation_gate=build_continuation_gate(context)))
     else:
         lanes = build_readiness_ops_lanes(root, profile=profile, data_dir=data_path, output_dir=output_path)
-        print(render_readiness_ops_center(lanes))
+        print(
+            render_readiness_ops_center(
+                lanes,
+                continuation_gate=build_continuation_gate(context),
+            )
+        )
     return 0
 
 
