@@ -1,3 +1,4 @@
+import re
 from datetime import date, datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -10,7 +11,6 @@ from src.company_workbench_cash_generation_preview import (
     CompanyWorkbenchCashGenerationPreview,
 )
 from src.observation_recency import load_observation_recency
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DASHBOARD_APP = PROJECT_ROOT / "src/dashboard.py"
@@ -39,26 +39,52 @@ def test_operator_peer_lane_uses_the_same_saved_counts_as_personal_data_health()
 
     from src.dashboard_render_smoke import DashboardRenderRoute, render_public_routes
 
-    route = DashboardRenderRoute(
-        name="Operator peer lane saved-count parity",
-        query_params=(
-            ("mode", "operator"),
-            ("page", "data-health"),
-            ("lane", "peers"),
-            ("drawer", "proof"),
+    routes = (
+        DashboardRenderRoute(
+            name="Operator peer lane saved-count parity",
+            query_params=(
+                ("mode", "operator"),
+                ("page", "data-health"),
+                ("lane", "peers"),
+                ("drawer", "proof"),
+            ),
+            required_markers=("Selected Lane Answer", "Peers"),
         ),
-        required_markers=("Selected Lane Answer", "Peers", "9 tickers have trusted peer context"),
+        DashboardRenderRoute(
+            name="Personal peer lane saved-count authority",
+            query_params=(
+                ("mode", "research"),
+                ("page", "data-health"),
+                ("ticker", "AVGO"),
+                ("lane", "peers"),
+                ("drawer", "proof"),
+            ),
+            required_markers=("Selected Lane Answer", "Peers"),
+        ),
     )
 
-    result = render_public_routes(Path("."), routes=(route,))[0]
-    rendered = "\n".join(result.rendered_blocks)
+    operator_result, personal_result = render_public_routes(Path("."), routes=routes)
+    operator_rendered = "\n".join(operator_result.rendered_blocks)
+    personal_rendered = "\n".join(personal_result.rendered_blocks)
+    peer_count_pattern = re.compile(r"([1-9][0-9,]*) tickers have trusted peer context")
+    locked_count_pattern = re.compile(r"([1-9][0-9,]*) locked input rows? remain visible")
+    operator_peer_count = peer_count_pattern.search(operator_rendered)
+    personal_peer_count = peer_count_pattern.search(personal_rendered)
+    operator_count = locked_count_pattern.search(operator_rendered)
+    personal_count = locked_count_pattern.search(personal_rendered)
 
-    assert result.exceptions == ()
-    assert result.missing_markers == ()
-    assert result.forbidden_markers == ()
-    assert "3,276 locked input rows" in rendered
-    assert "0 tickers have trusted peer context" not in rendered
-    assert "0 locked input row(s)" not in rendered
+    for result in (operator_result, personal_result):
+        assert result.exceptions == ()
+        assert result.missing_markers == ()
+        assert result.forbidden_markers == ()
+    assert operator_peer_count is not None
+    assert personal_peer_count is not None
+    assert operator_peer_count.group(1) == personal_peer_count.group(1)
+    assert operator_count is not None
+    assert personal_count is not None
+    assert operator_count.group(1) == personal_count.group(1)
+    assert "0 tickers have trusted peer context" not in operator_rendered
+    assert "0 locked input row(s)" not in operator_rendered
 
 
 def test_public_peer_lane_arrival_renders_the_promised_selected_answer():
