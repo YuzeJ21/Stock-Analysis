@@ -275,6 +275,40 @@ def test_desk_and_monitor_distinguish_zero_saved_items_from_stale_observation():
     )
 
 
+def test_desk_and_monitor_name_combined_freshness_without_plural_mismatch():
+    summary = _weekly_summary()
+    desk = build_research_desk_brief(
+        summary,
+        change_status="no_changes",
+        review_items=(),
+        freshness_state="stale",
+        freshness_message="Saved readiness is stale.",
+        observation_state="stale",
+        observation_message="Saved market observation is stale.",
+    )
+    monitor = build_monitor_follow_up_queue(
+        summary,
+        (),
+        readiness_state="stale",
+        readiness_message="Saved readiness is stale.",
+        observation_state="stale",
+        observation_message="Saved market observation is stale.",
+    )
+
+    assert desk.reason == (
+        "No saved research item is due. Saved-readiness and market-observation "
+        "freshness both need Data Health review; neither is a saved research item "
+        "or a live-market alert."
+    )
+    assert monitor_primary_answer(monitor) == (
+        "No saved research item is due. Saved-readiness and market-observation "
+        "freshness both need Data Health review."
+    )
+    assert research_workspace.monitor_freshness_condition_label(monitor) == (
+        "saved-readiness and market-observation freshness"
+    )
+
+
 @pytest.mark.parametrize(
     ("unique_event_count", "item_count"),
     [(0, 1), (1, 2)],

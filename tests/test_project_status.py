@@ -1209,7 +1209,10 @@ def test_project_status_stage_map_classifies_remaining_public_items(
         "FMP provider activation",
         "Peer readiness upgrade",
     ]
-    assert stage_rows[0]["State"] == "ready_for_manual_share"
+    assert stage_rows[0]["State"] == "manual_share_verification_required"
+    assert "make public-check" in stage_rows[0]["Next Action"]
+    assert "separate owner authorization" in stage_rows[0]["Next Action"]
+    assert "ready_for_manual_share" not in stage_rows[0].values()
     assert stage_rows[1]["State"] == "awaiting_external_setup"
     assert stage_rows[1]["Diagnostic State"] == "external_account_required"
     assert stage_rows[2]["State"] == "awaiting_external_setup"
@@ -1285,13 +1288,17 @@ def test_project_status_labels_an_aligned_feature_branch_as_draft_engineering_pr
     assert "ready_for_manual_share" not in stage.values()
 
 
-def test_project_status_keeps_an_aligned_default_branch_share_eligible():
-    """Catches the fail-closed feature-branch rule blocking an actual stable branch."""
+def test_project_status_requires_public_gate_and_owner_review_on_aligned_default_branch():
+    """Catches Git alignment alone being promoted into public-share readiness."""
 
     stage = project_status._linkedin_stage_from_git_status("## main...origin/main")
 
-    assert stage["State"] == "ready_for_manual_share"
-    assert "use GitHub link" in stage["Evidence"]
+    assert stage["State"] == "manual_share_verification_required"
+    assert "default branch" in stage["Evidence"]
+    assert "does not prove" in stage["Evidence"]
+    assert "make public-check" in stage["Next Action"]
+    assert "separate owner authorization" in stage["Next Action"]
+    assert "ready_for_manual_share" not in stage.values()
 
 
 @pytest.mark.parametrize(

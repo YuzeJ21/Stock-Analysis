@@ -160,19 +160,22 @@ def build_research_desk_brief(
             else "A comparable saved before-and-after research snapshot is not available yet."
         )
         if freshness_attention:
-            condition = (
-                "saved readiness and market-observation freshness conditions"
-                if readiness_attention and observation_attention
-                else (
+            if readiness_attention and observation_attention:
+                reason = (
+                    "No saved research item is due. Saved-readiness and market-observation "
+                    "freshness both need Data Health review; neither is a saved research item "
+                    "or a live-market alert."
+                )
+            else:
+                condition = (
                     "a separate saved-readiness freshness condition"
                     if readiness_attention
                     else "a separate saved market-observation freshness condition"
                 )
-            )
-            reason = (
-                f"No saved research item is due. {condition.capitalize()} still needs "
-                "Data Health review; it is not a saved research item or a live-market alert."
-            )
+                reason = (
+                    f"No saved research item is due. {condition.capitalize()} still needs "
+                    "Data Health review; it is not a saved research item or a live-market alert."
+                )
             next_action_label = "Open Data Health"
             next_action_url = "?mode=research&page=data-health"
         else:
@@ -422,7 +425,7 @@ def monitor_primary_answer(queue: MonitorFollowUpQueue) -> str:
         return queue.empty_title
     if queue.freshness_attention_only:
         verb = (
-            "need"
+            "both need"
             if queue.has_readiness_attention and queue.has_observation_attention
             else "needs"
         )
@@ -442,7 +445,8 @@ def monitor_freshness_condition_label(
     """Name the exact saved-readiness and/or market-observation condition."""
 
     if queue.has_readiness_attention and queue.has_observation_attention:
-        label = "saved-readiness and market-observation freshness conditions"
+        label = "saved-readiness and market-observation freshness"
+        return label.capitalize() if sentence_case else label
     elif queue.has_readiness_attention:
         label = "saved-readiness freshness condition"
     else:

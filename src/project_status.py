@@ -512,10 +512,19 @@ def _linkedin_stage_from_git_status(git_status_line: str | None) -> dict[str, st
             ),
         }
     return {
-        "State": "ready_for_manual_share",
-        "Evidence": "Public share gates pass; GitHub is synced; use GitHub link and curated screenshot.",
-        "Next Action": "Post or update LinkedIn manually using docs/LINKEDIN_PROJECT_BRIEF.md.",
-        "Completion Gate": "LinkedIn profile/card is updated by the account owner.",
+        "State": "manual_share_verification_required",
+        "Evidence": (
+            "The reviewed feature is present on the aligned default branch, but Git alignment alone "
+            "does not prove current public-share checks or owner approval."
+        ),
+        "Next Action": (
+            "Run make public-check, review docs/LINKEDIN_PROJECT_BRIEF.md, and proceed only after "
+            "separate owner authorization for the external profile update."
+        ),
+        "Completion Gate": (
+            "Current-head public-check passes and the account owner separately approves and completes "
+            "the LinkedIn profile/card update."
+        ),
     }
 
 
