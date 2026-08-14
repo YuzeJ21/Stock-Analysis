@@ -4,7 +4,7 @@
 
 **Goal:** Make Personal and Operator selected Data Health lanes use current saved readiness counts before older project-status counts, without changing readiness data or operating context.
 
-**Architecture:** Keep the existing two inputs to `data_health_selected_lane_answer_cards()`. Change only its local `resolved_count()` precedence so parseable selected-profile saved counts win, including zero, while project status remains the fallback and continues to provide source-setup and next-step context.
+**Architecture:** Keep the existing two inputs to `data_health_selected_lane_answer_cards()`. Make `dashboard_readiness_summary()` record count-level source-column provenance, then make the local resolver prefer only parseable, evidence-backed selected-profile counts, including zero. Project status remains the fallback and continues to provide source-setup and next-step context.
 
 **Tech Stack:** Python 3.12, Streamlit, pytest, existing AppTest/render-smoke and browser-gate infrastructure.
 
@@ -23,6 +23,7 @@
 **Files:**
 - Modify: `tests/test_dashboard_helpers.py`
 - Modify: `src/dashboard.py:24856-24885`
+- Modify: `src/data_health_summary.py:26-130`
 
 **Interfaces:**
 - Consumes: `data_health_selected_lane_answer_cards(selected_lane_key, readiness_freshness, project_status_payload=None, saved_readiness_summary=None)`.
@@ -94,17 +95,28 @@ Expected: both tests fail because the current helper renders the project-status 
 
 - [ ] **Step 3: Implement the minimal precedence change**
 
-Change the nested resolver only:
+Record the count keys whose source columns are present in
+`dashboard_readiness_summary()` as `_count_evidence_keys`. Then change the
+nested resolver so adapter-produced summaries use a saved count only when its
+requested key is evidence-backed; explicit caller-supplied mappings without
+metadata retain their current literal semantics:
 
 ```python
 def resolved_count(*keys: str) -> int | None:
-    saved_count = _summary_optional_count(saved_summary, *keys)
+    saved_count = (
+        _summary_optional_count(saved_summary, *keys)
+        if saved_count_evidence is None
+        or any(key in saved_count_evidence for key in keys)
+        else None
+    )
     if saved_count is not None:
         return saved_count
     return _summary_optional_count(project_summary, *keys)
 ```
 
-Do not alter source-setup counts, recommendations, lane copy, or the function signature.
+Resolve `data_sources_*` directly from `project_summary`; do not route those
+operating-context counts through the saved-readiness resolver. Do not alter
+recommendations, lane copy, or the function signature.
 
 - [ ] **Step 4: Verify focused GREEN and existing fallbacks**
 

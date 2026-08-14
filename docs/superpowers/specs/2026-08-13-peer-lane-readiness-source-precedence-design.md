@@ -22,8 +22,10 @@ readiness-owned count over a present saved readiness value.
 in this order:
 
 1. Use the selected saved readiness summary when any requested canonical or
-   alias key is present and parseable. A saved value of zero is authoritative;
-   it must not be treated as missing.
+   alias key is present, parseable, and backed by the corresponding source
+   column. The summary adapter records count-level evidence keys so a missing
+   column cannot become authoritative zero. A source-backed saved value of zero
+   is authoritative; it must not be treated as missing.
 2. Fall back to the saved project-status summary only when the selected saved
    readiness summary does not provide the requested count.
 3. Report the count as unavailable when neither source provides it.
@@ -49,7 +51,8 @@ readiness to resolve the disagreement.
 
 ## Implementation Boundary
 
-- Modify only the selected-lane count-resolution helper and focused tests.
+- Modify the selected-lane count-resolution helper, the readiness-summary
+  adapter that supplies count-level provenance, and focused tests only.
 - Do not edit `data/`, `outputs/`, source-rights decisions, thresholds, or
   readiness calculations.
 - Do not refactor unrelated Data Health presentation or navigation.
@@ -62,6 +65,8 @@ Focused regressions must prove:
 - a conflicting project-status peer count cannot override a present saved
   readiness peer count;
 - a saved zero remains zero and cannot fall through to a larger project count;
+- a nonempty saved report missing the requested count column falls back instead
+  of promoting its synthesized zero;
 - project status remains a fallback when saved readiness omits the count;
 - missing counts remain unavailable rather than becoming factual zeroes;
 - Personal and Operator selected peer-lane rendering use the same corrected

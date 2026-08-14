@@ -30,6 +30,37 @@ def dashboard_readiness_summary(
     analyst_readiness_frame: pd.DataFrame | None,
     ticker_readiness_frame: pd.DataFrame | None = None,
 ) -> dict[str, object]:
+    ticker_columns = (
+        set(ticker_readiness_frame.columns)
+        if ticker_readiness_frame is not None and not ticker_readiness_frame.empty
+        else set()
+    )
+    coverage_columns = (
+        set(coverage_frame.columns)
+        if coverage_frame is not None and not coverage_frame.empty
+        else set()
+    )
+    count_evidence_keys: set[str] = set()
+    if ticker_columns:
+        if "price_ready" in ticker_columns:
+            count_evidence_keys.add("price_ready")
+        if "fundamentals_ready" in ticker_columns:
+            count_evidence_keys.add("fundamentals_ready")
+        if "peer_ready" in ticker_columns:
+            count_evidence_keys.add("peer_ready")
+    else:
+        if coverage_columns.intersection({"has_prices", "price_ready"}):
+            count_evidence_keys.add("price_ready")
+        if "peer_ready" in coverage_columns:
+            count_evidence_keys.add("peer_ready")
+    if "dcf_ready" in ticker_columns or (
+        dcf_readiness_frame is not None
+        and not dcf_readiness_frame.empty
+        and "is_dcf_ready" in dcf_readiness_frame.columns
+    ):
+        count_evidence_keys.add("dcf_ready")
+    if "overall_readiness_state" in ticker_columns:
+        count_evidence_keys.update({"blocked", "blocked_by_data"})
     universe_count = 0 if coverage_frame is None or coverage_frame.empty else len(coverage_frame)
     master_count = 0 if ticker_readiness_frame is None or ticker_readiness_frame.empty else int(bool_series(ticker_readiness_frame, "in_master_universe").sum())
     active_count = 0 if ticker_readiness_frame is None or ticker_readiness_frame.empty else int(bool_series(ticker_readiness_frame, "in_active_universe").sum())
@@ -124,6 +155,7 @@ def dashboard_readiness_summary(
         "excluded_count": excluded_count or dcf_excluded,
         "missing_credentials": missing_credentials,
         "configured_credentials": configured_credentials,
+        "_count_evidence_keys": sorted(count_evidence_keys),
         "updated_at": updated_at,
         "manual_import_paths": [
             "Price import file folder: data/staged/prices/ -> make import-prices",
