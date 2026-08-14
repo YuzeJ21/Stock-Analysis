@@ -29365,9 +29365,9 @@ def test_data_health_peer_lane_uses_saved_readiness_counts_when_project_status_i
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "9 tickers have trusted peer context" in rendered
+    assert "9 tickers have mapped peer trend context" in rendered
     assert "175 locked input row(s)" in rendered
-    assert "0 tickers have trusted peer context" not in rendered
+    assert "trusted peer context" not in rendered
     assert "freshness: current for saved sources" in rendered
 
 
@@ -29396,9 +29396,9 @@ def test_data_health_peer_lane_overlays_partial_project_status_on_saved_readines
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "9 tickers have trusted peer context" in rendered
+    assert "9 tickers have mapped peer trend context" in rendered
     assert "3,276 locked input row(s)" in rendered
-    assert "0 tickers have trusted peer context" not in rendered
+    assert "0 tickers have mapped peer trend context" not in rendered
 
 
 def test_data_health_peer_lane_prefers_authoritative_saved_readiness_counts():
@@ -29426,9 +29426,9 @@ def test_data_health_peer_lane_prefers_authoritative_saved_readiness_counts():
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "9 tickers have trusted peer context" in rendered
+    assert "9 tickers have mapped peer trend context" in rendered
     assert "175 locked input row(s)" in rendered
-    assert "29 tickers have trusted peer context" not in rendered
+    assert "29 tickers have mapped peer trend context" not in rendered
     assert "207 locked input row(s)" not in rendered
 
 
@@ -29459,9 +29459,9 @@ def test_data_health_peer_lane_treats_saved_zero_as_authoritative():
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "0 tickers have trusted peer context" in rendered
+    assert "0 tickers have mapped peer trend context" in rendered
     assert "0 locked input row(s)" in rendered
-    assert "29 tickers have trusted peer context" not in rendered
+    assert "29 tickers have mapped peer trend context" not in rendered
 
 
 def test_data_health_peer_lane_ignores_synthesized_zeroes_when_saved_evidence_is_missing():
@@ -29493,9 +29493,9 @@ def test_data_health_peer_lane_ignores_synthesized_zeroes_when_saved_evidence_is
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "29 tickers have trusted peer context" in rendered
+    assert "29 tickers have mapped peer trend context" in rendered
     assert "207 locked input row(s)" in rendered
-    assert "0 tickers have trusted peer context" not in rendered
+    assert "0 tickers have mapped peer trend context" not in rendered
     assert "0 locked input row(s)" not in rendered
 
 
@@ -29537,9 +29537,9 @@ def test_data_health_peer_lane_ignores_zeroes_synthesized_from_missing_count_col
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "29 tickers have trusted peer context" in rendered
+    assert "29 tickers have mapped peer trend context" in rendered
     assert "207 locked input row(s)" in rendered
-    assert "0 tickers have trusted peer context" not in rendered
+    assert "0 tickers have mapped peer trend context" not in rendered
     assert "0 locked input row(s)" not in rendered
 
 
@@ -29587,9 +29587,9 @@ def test_data_health_peer_lane_falls_back_when_ticker_report_omits_count_column(
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "29 tickers have trusted peer context" in rendered
-    assert "0 tickers have trusted peer context" not in rendered
-    assert "1 tickers have trusted peer context" not in rendered
+    assert "29 tickers have mapped peer trend context" in rendered
+    assert "0 tickers have mapped peer trend context" not in rendered
+    assert "1 tickers have mapped peer trend context" not in rendered
 
 
 def test_data_health_peer_lane_falls_back_when_project_summary_shape_is_invalid():
@@ -29612,7 +29612,7 @@ def test_data_health_peer_lane_falls_back_when_project_summary_shape_is_invalid(
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "9 tickers have trusted peer context" in rendered
+    assert "9 tickers have mapped peer trend context" in rendered
     assert "175 locked input row(s)" in rendered
 
 
@@ -29703,9 +29703,10 @@ def test_data_health_peer_lane_does_not_turn_absent_counts_into_factual_zeroes()
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "trusted peer count is unavailable" in rendered
+    assert "mapped peer trend count is unavailable" in rendered
+    assert "trusted peer count" not in rendered
     assert "locked input count is unavailable" in rendered
-    assert "0 tickers have trusted peer context" not in rendered
+    assert "0 tickers have mapped peer trend context" not in rendered
     assert "0 locked input row(s)" not in rendered
 
 

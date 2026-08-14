@@ -51,9 +51,9 @@ def test_data_health_peer_lane_prefers_authoritative_saved_readiness_counts():
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "9 tickers have trusted peer context" in rendered
+    assert "9 tickers have mapped peer trend context" in rendered
     assert "175 locked input row(s)" in rendered
-    assert "29 tickers have trusted peer context" not in rendered
+    assert "29 tickers have mapped peer trend context" not in rendered
     assert "207 locked input row(s)" not in rendered
 
 
@@ -74,9 +74,9 @@ def test_data_health_peer_lane_treats_saved_zero_as_authoritative():
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "0 tickers have trusted peer context" in rendered
+    assert "0 tickers have mapped peer trend context" in rendered
     assert "0 locked input row(s)" in rendered
-    assert "29 tickers have trusted peer context" not in rendered
+    assert "29 tickers have mapped peer trend context" not in rendered
 ```
 
 The production mutation these tests catch is reversing the source order back to project-status-first or treating saved zero as absent.
@@ -159,8 +159,8 @@ Expected: all tests pass with only known third-party warnings.
 Use the existing route/render harness on the two exact peer URLs. Assert each rendered result contains:
 
 - `Selected Lane Answer — Peers`;
-- `9 tickers have trusted peer context`;
-- no `29 tickers have trusted peer context`;
+- `9 tickers have mapped peer trend context`;
+- no `29 tickers have mapped peer trend context`;
 - the correct Personal or Operator mode boundary;
 - no exception or traceback;
 - no recommendation, ranking, sizing, allocation, transaction, or performance claim.

@@ -7,7 +7,7 @@
 The selected Data Health peer lane can display a stale count from
 `outputs/project_status.json` even when the selected profile's saved readiness
 summary contains a newer authoritative peer-readiness count. The current local
-case renders `29 tickers have trusted peer context` from an older 3,541-row
+case renders `29 tickers have mapped peer trend context` from an older 3,541-row
 project-status snapshot while the saved readiness report records 9 peer-ready
 rows across 3,538 tickers.
 
@@ -43,6 +43,12 @@ saved peer-ready count of 9 rather than the stale project-status count of 29.
 Candidate peers remain context only, and the answer must continue to avoid
 recommendation, ranking, allocation, sizing, transaction, or performance
 language.
+
+The visible label is deliberately **mapped peer trend context**, not “trusted
+peer context.” The `peer_ready` field reflects mapped-price trend readiness;
+it does not prove a genuinely reviewed peer relationship or unlock peer
+valuation. Those gates remain independent and withheld until their direct
+evidence exists.
 
 If saved readiness is missing, the route may use a complete available
 project-status count. If both are missing or malformed, it must fail closed to

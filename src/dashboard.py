@@ -25010,9 +25010,9 @@ def data_health_selected_lane_answer_cards(
         else "DCF-ready and fundamentals-ready counts are unavailable; source-backed company inputs stay withheld until saved evidence is available."
     )
     peer_lane_answer = (
-        f"{peer_ready:,} tickers have trusted peer context."
+        f"{peer_ready:,} tickers have mapped peer trend context."
         if peer_ready is not None
-        else "Trusted peer count is unavailable."
+        else "Mapped peer trend count is unavailable."
     )
     locked_input_answer = (
         f"{data_gaps:,} locked input row(s) remain visible instead of being inferred."
