@@ -2328,9 +2328,8 @@ def test_broad_review_docs_use_durable_release_routing_and_fail_closed_boundarie
     for document in (readme,):
         assert "Complete the direct local matrix and current-head local evidence first" in document
         assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in document
-    assert "PR #113 merged the verified engineering closure into `main`" in roadmap
-    assert "exact-head CI run `31704776477` passed" in roadmap
-    assert "Do not rerun or resynchronize that completed slice" in roadmap
+    assert "The prior engineering closure is incorporated in the default branch" in roadmap
+    assert "Do not repeat that completed engineering slice" in roadmap
     assert "Complete the direct local matrix and current-head local evidence first" not in roadmap
     assert "The Calm Institutional Workspace local engineering closure is complete" in continuation
     assert "49123a989dae263e8c125ad3032bf96d0107853d" in continuation
@@ -2499,8 +2498,8 @@ def test_workspace_modernization_docs_share_one_default_and_explicit_mode_contra
     assert release_first_claim not in roadmap
     assert "Complete the direct local matrix and current-head local evidence first" in readme
     assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in readme
-    assert "PR #113 merged the verified engineering closure into `main`" in roadmap
-    assert "Do not rerun or resynchronize that completed slice" in roadmap
+    assert "The prior engineering closure is incorporated in the default branch" in roadmap
+    assert "Do not repeat that completed engineering slice" in roadmap
     assert "Sidebar navigation remains the single public route chooser" not in dashboard_qa
     assert "in-content public workflow navigation is the route chooser" in dashboard_qa
     for stale_claim in (

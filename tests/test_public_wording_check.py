@@ -98,6 +98,15 @@ def test_public_wording_scan_scope_is_public_but_not_tests_or_generated_csvs():
     assert "data/reports/ticker_readiness_report.csv" not in paths
 
 
+def test_public_wording_repository_scan_has_no_forbidden_public_copy():
+    module = load_public_wording_module()
+
+    scanned_count, matches = module.scan_public_files(Path("."))
+
+    assert scanned_count > 0
+    assert matches == [], module.build_report(scanned_count, matches)
+
+
 def test_dashboard_preview_asset_uses_three_public_paths_in_order():
     svg = Path("docs/assets/dashboard-preview.svg").read_text(encoding="utf-8")
 
