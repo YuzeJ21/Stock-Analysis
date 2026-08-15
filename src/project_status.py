@@ -628,7 +628,7 @@ def _remaining_public_stage_rows(
         for item in source_operator_summary.get("avoid_repeating", [])
         if str(item).strip()
     ]
-    first_setup = _source_operator_first_setup_guidance(source_operator_summary)
+    first_setup = _source_operator_first_setup_guidance({"needs_setup": needs_setup})
     total = int(summary.get("tickers_total") or 0)
     with_prices = int(summary.get("tickers_with_prices") or 0)
     price_ready = int(summary.get("tickers_price_ready") or with_prices)

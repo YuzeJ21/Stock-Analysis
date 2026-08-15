@@ -1171,7 +1171,14 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
 
 @pytest.mark.parametrize(
     "source_operator_summary",
-    (None, {}, {"needs_setup": "fmp"}),
+    (
+        None,
+        {},
+        {"needs_setup": "fmp"},
+        {"needs_setup": None},
+        {"needs_setup": 0},
+        {"needs_setup": False},
+    ),
 )
 def test_project_status_fmp_stage_fails_closed_without_recorded_provider_state(
     source_operator_summary,
