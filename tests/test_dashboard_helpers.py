@@ -31285,6 +31285,8 @@ def test_public_home_overview_keeps_one_start_action_and_compact_readiness_snaps
     assert "3,540" in html
     assert "2,693" in html
     assert "29" in html
+    assert "<dt>Mapped peer trend</dt><dd>29</dd>" in html
+    assert "Trusted peers" not in html
     assert "No data, no conclusion" in html
 
 

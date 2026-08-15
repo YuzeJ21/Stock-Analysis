@@ -6676,7 +6676,7 @@ def public_home_overview_html(summary: dict[str, object]) -> str:
         f"<div><dt>Tracked names</dt><dd>{master:,}</dd></div>"
         f"<div><dt>Price-ready</dt><dd>{price_ready:,}</dd></div>"
         f"<div><dt>DCF-ready</dt><dd>{dcf_ready:,}</dd></div>"
-        f"<div><dt>Trusted peers</dt><dd>{peer_ready:,}</dd></div>"
+        f"<div><dt>Mapped peer trend</dt><dd>{peer_ready:,}</dd></div>"
         "</dl>"
         "</section>"
         f"{advanced_detail_marker_html().value}"
