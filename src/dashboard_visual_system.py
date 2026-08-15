@@ -970,6 +970,15 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   grid-template-columns: repeat(4, minmax(0, 1fr));
   border-top: 1px solid var(--sr-border);
 }}
+.stApp:has(.st-key-company-workbench-document) [data-testid="stBaseButton-primary"] {{
+  min-height: 44px;
+  color: var(--sr-nav-text) !important;
+  background: var(--sr-forest) !important;
+  border-color: var(--sr-forest) !important;
+}}
+.stApp:has(.st-key-company-workbench-document) [data-testid="stBaseButton-primary"] * {{
+  color: var(--sr-nav-text) !important;
+}}
 @media (max-width: 1099px) {{
   .stApp:has(.st-key-company-workbench-document) .research-workflow-navigation {{
     grid-template-columns: 1fr;
@@ -1137,6 +1146,14 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-heading,
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane {{
     border-color: CanvasText !important;
+  }}
+  .stApp:has(.st-key-company-workbench-document) [data-testid="stBaseButton-primary"] {{
+    color: ButtonText !important;
+    background: ButtonFace !important;
+    border-color: ButtonText !important;
+  }}
+  .stApp:has(.st-key-company-workbench-document) [data-testid="stBaseButton-primary"] * {{
+    color: ButtonText !important;
   }}
 }}
 @media (prefers-reduced-motion: reduce) {{

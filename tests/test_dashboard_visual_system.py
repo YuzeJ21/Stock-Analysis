@@ -266,6 +266,32 @@ def test_company_workbench_evidence_rail_uses_explicit_readable_dark_surface_tok
     assert "color: CanvasText !important;" in forced
 
 
+def test_company_workbench_primary_module_gate_uses_explicit_readable_button_tokens():
+    """Catches Streamlit's nested button label inheriting low-contrast body copy."""
+
+    css = visual.dashboard_visual_system_css()
+    scope = ".stApp:has(.st-key-company-workbench-document)"
+    tokens = visual.visual_tokens()
+    button_selector = f'{scope} [data-testid="stBaseButton-primary"]'
+    label_selector = f'{button_selector} *'
+
+    assert _contrast(tokens["--sr-nav-text"], tokens["--sr-forest"]) >= 4.5
+    button_start = css.index(f"{button_selector} {{")
+    button_rule = css[button_start : css.index("\n}", button_start) + 2]
+    label_start = css.index(f"{label_selector} {{")
+    label_rule = css[label_start : css.index("\n}", label_start) + 2]
+
+    assert "min-height: 44px;" in button_rule
+    assert "background: var(--sr-forest) !important;" in button_rule
+    assert "border-color: var(--sr-forest) !important;" in button_rule
+    assert "color: var(--sr-nav-text) !important;" in label_rule
+    forced = css[css.index("@media (forced-colors: active) {") :]
+    assert button_selector in forced
+    assert label_selector in forced
+    assert "background: ButtonFace !important;" in forced
+    assert "color: ButtonText !important;" in forced
+
+
 def test_company_workbench_phone_lanes_compact_only_internal_spacing_before_the_action():
     """Catches the mobile brief pushing its required Data Health action below 390x844."""
 

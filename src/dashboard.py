@@ -30101,6 +30101,17 @@ def single_stock_detail_sections_visible(ticker: object) -> bool:
     return bool(st.session_state.get(single_stock_detail_sections_key(ticker), False))
 
 
+def render_company_workbench_module_gate(ticker: object) -> None:
+    detail_sections_key = single_stock_detail_sections_key(ticker)
+    if st.button(
+        "Open evidence and analysis modules",
+        key=f"{detail_sections_key}:research-open",
+        type="primary",
+    ):
+        st.session_state[detail_sections_key] = True
+        st.rerun()
+
+
 def discover_saved_company_browse_frame(
     ticker_readiness_frame: pd.DataFrame | None,
     *,
@@ -32377,12 +32388,7 @@ def render_single_stock_report(
                     "Detailed company modules stay closed.",
                     "Open them only when you need trend, valuation, scenarios, authoring, methodology, or raw evidence behind the Company Brief.",
                 )
-                if st.button(
-                    "Open evidence and analysis modules",
-                    key=f"{single_stock_detail_sections_key(ticker)}:research-open",
-                ):
-                    st.session_state[single_stock_detail_sections_key(ticker)] = True
-                    st.rerun()
+                render_company_workbench_module_gate(ticker)
                 return
             quant_interpretation_cards = stock_report_quant_interpretation_cards(report_payload)
             quant_interpretation_evidence = stock_report_quant_interpretation_evidence_frame(

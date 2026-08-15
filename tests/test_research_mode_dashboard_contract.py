@@ -2236,6 +2236,51 @@ def test_company_workbench_html_brief_is_research_only_and_follows_the_module_ga
     assert 'key=f"company-workbench-html:{selected_context.profile_key}:{ticker}"' in report[brief:detail_gate]
 
 
+def test_company_workbench_module_gate_uses_primary_button_and_preserves_open_semantics(
+    monkeypatch,
+):
+    """Catches an enabled module gate inheriting the low-contrast secondary style."""
+
+    calls: list[tuple[str, dict[str, object]]] = []
+    reruns: list[bool] = []
+    session_state: dict[str, object] = {}
+    clicked = False
+
+    def button(label: str, **kwargs: object) -> bool:
+        calls.append((label, kwargs))
+        return clicked
+
+    monkeypatch.setattr(
+        dashboard,
+        "st",
+        SimpleNamespace(
+            button=button,
+            session_state=session_state,
+            rerun=lambda: reruns.append(True),
+        ),
+    )
+
+    dashboard.render_company_workbench_module_gate("aapl")
+
+    assert calls == [
+        (
+            "Open evidence and analysis modules",
+            {
+                "key": "single-stock-detail-sections:AAPL:research-open",
+                "type": "primary",
+            },
+        )
+    ]
+    assert session_state == {}
+    assert reruns == []
+
+    clicked = True
+    dashboard.render_company_workbench_module_gate("aapl")
+
+    assert session_state == {"single-stock-detail-sections:AAPL": True}
+    assert reruns == [True]
+
+
 def test_company_workbench_change_badge_uses_explicit_change_context_kind():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     change_start = source.index('change_answer = company_change_answer(ticker, research_review_items)')
