@@ -18866,6 +18866,47 @@ def test_stock_report_technical_context_cards_do_not_append_units_to_missing_vol
     assert "nan" not in rendered
 
 
+def test_stock_report_technical_context_reads_real_lowercase_screener_payload():
+    payload = {
+        "screener_context": {
+            "momentum_leaders": {
+                "setupstatus": "Setup Forming",
+                "rspercentile": 87,
+                "relativereturnvsspy": 0.12,
+                "relativereturnvsqqq": 0.08,
+                "distancefrom10ema": 0.0267,
+                "distancefrom21ema": 0.0572,
+                "distancefrom50sma": 0.139,
+                "avgvolume20d": 48_364_661,
+                "volumeratio": 0.68,
+                "atrorvolatilitypct": 0.0171,
+            },
+            "final_watchlist": {
+                "finalstate": "Setup Forming",
+                "setupstatus": "Setup Forming",
+            },
+        }
+    }
+
+    cards = dashboard.stock_report_technical_context_cards(payload)
+    rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
+    frame = dashboard.stock_report_technical_context_frame(payload).set_index("Metric")["Value"]
+
+    assert "setup forming" in rendered
+    assert "vs spy 12.0%" in rendered
+    assert "above 10 ema" in rendered
+    assert "volume 0.68x" in rendered
+    assert "1.7%" in rendered
+    assert frame["Setup Status"] == "Setup Forming"
+    assert frame["Final State"] == "Setup Forming"
+    assert frame["10 EMA Distance"] == "2.7%"
+    assert frame["21 EMA Distance"] == "5.7%"
+    assert frame["50 SMA Distance"] == "13.9%"
+    assert frame["Average Volume 20D"] == "48,364,661"
+    assert frame["Volume Ratio"] == "0.68"
+    assert frame["ATR / Volatility Proxy"] == "1.7%"
+
+
 def test_stock_report_technical_context_frame_formats_missing_values_cleanly():
     frame = dashboard.stock_report_technical_context_frame({"screener_context": {}})
 
