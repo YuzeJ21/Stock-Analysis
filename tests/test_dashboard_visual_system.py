@@ -228,6 +228,35 @@ def test_company_workbench_primary_lanes_use_a_real_grid_before_mobile_reset():
     assert "grid-template-columns: 1fr;" in phone
 
 
+def test_company_workbench_primary_title_is_one_editorial_display_heading():
+    """Catches the semantic brief title shrinking into legacy label styling."""
+
+    css = visual.dashboard_visual_system_css()
+    scope = ".stApp:has(.st-key-company-workbench-document)"
+    selector = f"{scope} .company-workbench-primary-heading h2"
+    start = css.index(f"{selector} {{")
+    title_rule = css[start : css.index("\n}", start) + 2]
+
+    assert 'font-family: Georgia, "Times New Roman", serif;' in title_rule
+    assert "font-size: clamp(1.5rem, 3.2vw, 2.75rem);" in title_rule
+    assert "font-weight: 600;" in title_rule
+    assert "letter-spacing: -.03em;" in title_rule
+    assert "line-height: 1.05;" in title_rule
+    assert "margin: 0;" in title_rule
+    assert "text-transform: none;" in title_rule
+
+    streamlit_text_selector = f"{selector} > span:first-child"
+    assert f"{streamlit_text_selector} {{" in css
+    streamlit_text_start = css.index(f"{streamlit_text_selector} {{")
+    streamlit_text_rule = css[
+        streamlit_text_start : css.index("\n}", streamlit_text_start) + 2
+    ]
+    assert "color: inherit !important;" in streamlit_text_rule
+    assert "font: inherit;" in streamlit_text_rule
+    assert "letter-spacing: inherit;" in streamlit_text_rule
+    assert "text-transform: none;" in streamlit_text_rule
+
+
 def test_company_workbench_evidence_rail_uses_explicit_readable_dark_surface_tokens():
     """Catches the dark Workbench rail inheriting unreadable application text colors."""
 

@@ -966,7 +966,7 @@ def company_workbench_evidence_status_html(
         )
 
     return (
-        "<section class='company-workbench-evidence-status' "
+        "<aside class='company-workbench-evidence-status' "
         "data-sr-region='evidence-status' aria-label='Company evidence status'>"
         "<div class='company-workbench-evidence-heading'>"
         "<h2>Company evidence status</h2>"
@@ -975,7 +975,7 @@ def company_workbench_evidence_status_html(
         "<div class='company-workbench-evidence-lanes'>"
         + "".join(lane_html)
         + "</div>"
-        "</section>"
+        "</aside>"
     )
 
 
@@ -1010,8 +1010,6 @@ def company_workbench_primary_brief_html(brief: Mapping[str, object]) -> str:
         "aria-label='Company Brief'>"
         "<div class='company-workbench-primary-heading'>"
         f"<h2>{escaped('ticker', 'Selected company')} Company Brief</h2>"
-        "<span>Company Brief</span>"
-        f"<strong>{escaped('ticker', 'Selected company')}</strong>"
         "</div>"
         "<div class='company-workbench-primary-grid'>"
         "<article class='company-workbench-primary-answer use-now' data-workbench-lane='usable'>"

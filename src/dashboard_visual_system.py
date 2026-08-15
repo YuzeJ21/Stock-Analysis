@@ -963,7 +963,20 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   border-radius: 0;
 }}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading h2 {{
+  color: var(--sr-ink) !important;
   font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.5rem, 3.2vw, 2.75rem);
+  font-weight: 600;
+  letter-spacing: -.03em;
+  line-height: 1.05;
+  margin: 0;
+  text-transform: none;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading h2 > span:first-child {{
+  color: inherit !important;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: none;
 }}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-grid {{
   display: grid;

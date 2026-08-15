@@ -923,6 +923,21 @@ def test_company_workbench_evidence_status_projects_independent_reviewable_lanes
     assert "href=" not in rendered
 
 
+def test_company_workbench_evidence_status_is_one_labelled_complementary_landmark():
+    rendered = company_workbench_evidence_status_html(
+        ticker="AVGO",
+        readiness={"fundamentals_ready": True},
+        freshness_label="Current",
+    )
+
+    assert rendered.count(
+        "<aside class='company-workbench-evidence-status' "
+        "data-sr-region='evidence-status' aria-label='Company evidence status'>"
+    ) == 1
+    assert rendered.endswith("</aside>")
+    assert "<section class='company-workbench-evidence-status'" not in rendered
+
+
 def test_company_workbench_evidence_status_fails_closed_for_missing_or_empty_readiness():
     assert canonical_lane_states(
         company_workbench_evidence_status_html(
@@ -1035,6 +1050,11 @@ def test_company_workbench_primary_brief_exposes_editorial_title_and_authoritati
     rendered = company_workbench_primary_brief_html(brief)
 
     assert "<h2>AVGO Company Brief</h2>" in rendered
+    heading = re.search(
+        r"<div class='company-workbench-primary-heading'>(.*?)</div>", rendered
+    )
+    assert heading is not None
+    assert heading.group(1) == "<h2>AVGO Company Brief</h2>"
     for label in ("Use now", "Still withheld", "What changed", "Next research task"):
         assert rendered.count(f"<span>{label}</span>") == 1
     assert rendered.count("class='public-primary-action'") == 1
