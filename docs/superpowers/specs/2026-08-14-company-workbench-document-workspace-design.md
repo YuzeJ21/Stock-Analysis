@@ -46,8 +46,8 @@ The redesign must retain all current Company Workbench behavior:
 - no inferred ticker when the route has no registered saved company;
 - the four-part Company Brief: Use now, Still withheld, What changed, and Next
   research task;
-- exactly one authoritative Data Health handoff, including the peer-lane query
-  when peers are the blocker;
+- exactly one authoritative Data Health handoff in the Company Brief, including
+  the peer-lane query when peers are the blocker;
 - the research-only stop rule before detailed modules;
 - the traceable-change timeline and truthful no-change state;
 - collapsed Review path, selected-company lane coverage, observation-recency,
@@ -73,10 +73,12 @@ gate.
 
 ### Personal Research navigation
 
-At desktop widths, the existing single Personal Research navigation DOM becomes
-a compact horizontal header. It retains Research Desk, Discover, Company
-Workbench, Monitor, the disabled Workbench state when no ticker exists, current
-route semantics, Public and Operator mode links, and the existing focus order.
+At desktop widths on Company Workbench only, the existing single Personal
+Research navigation DOM becomes a compact horizontal header. It retains
+Research Desk, Discover, Company Workbench, Monitor, the disabled Workbench
+state when no ticker exists, current route semantics, Public and Operator mode
+links, and the existing focus order. The other Personal Research routes retain
+their current shell in this bounded slice.
 
 At phone width and 200% zoom, the same DOM uses the existing wrapped route grid.
 No duplicate desktop/mobile navigation is introduced.
@@ -109,11 +111,12 @@ readiness map. It contains exactly these lanes:
 - Estimates — `analyst_estimates_available` or
   `analyst_estimates_ready`.
 
-Each lane renders `Supported` only when its exact boolean is true. False or
+Each lane renders `Reviewable` only when its exact boolean is true. False or
 missing values render `Withheld`; missing report state renders `Unavailable`.
 One lane can never inherit another lane's state. The rail also shows the saved
-readiness freshness using the established saved-source label and provides the
-same authoritative Data Health href as the Company Brief.
+readiness freshness using the established saved-source label. It contains no
+second Data Health control; the existing Company Brief action remains the one
+authoritative handoff.
 
 The rail does not show invented update dates, notes, counts, recommendations,
 scores, confidence, or current-market claims.
@@ -131,8 +134,8 @@ content with prose from the mock.
 
 `src/research_workspace.py` owns a pure, escaped
 `company_workbench_evidence_status_html(...)` projection. It accepts the
-existing readiness mapping, saved freshness label, ticker, and Data Health href
-and performs no loading or state mutation.
+existing readiness mapping, saved freshness label, and ticker and performs no
+loading or state mutation.
 
 `src/dashboard.py` creates one keyed Company Workbench overview container with
 two Streamlit columns. The left column owns the existing primary-answer and
@@ -143,8 +146,9 @@ not available, it fills the rail with unavailable states. All downstream report
 rendering remains outside the two-column overview so phone reflow never places
 the rail after thousands of pixels of detail.
 
-CSS remains scoped to Personal Research and the keyed Workbench container. No
-Operator or Public selector is changed.
+CSS remains scoped to the keyed Workbench container and its containing
+Personal Research application. No other Personal route, Operator selector, or
+Public selector is changed.
 
 ## Responsive And Accessibility Contract
 
