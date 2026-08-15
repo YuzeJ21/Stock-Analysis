@@ -253,6 +253,139 @@ def evaluate_control_target(*, width: float, height: float) -> BrowserEvaluation
     return BrowserEvaluation(passed, f"control target {width:.1f}x{height:.1f}")
 
 
+def evaluate_company_workbench_document_contract(
+    *,
+    viewport_width: float,
+    zoom: int,
+    phone_layout: bool,
+    h1_count: int,
+    display_title_count: int,
+    display_title_text: str,
+    navigation_count: int,
+    navigation_labelled_count: int,
+    brief_count: int,
+    brief_visible_count: int,
+    brief_labelled_count: int,
+    aside_count: int,
+    aside_visible_count: int,
+    aside_labelled_count: int,
+    evidence_lane_count: int,
+    positive_tabindex_count: int,
+    primary_action_count: int,
+    primary_action_visible_count: int,
+    primary_action_width: float,
+    primary_action_height: float,
+    module_gate_count: int,
+    module_gate_visible_count: int,
+    brief_box: dict[str, object],
+    aside_box: dict[str, object],
+    module_gate_box: dict[str, object],
+    brief_lane_boxes: tuple[dict[str, object], ...],
+) -> BrowserEvaluation:
+    """Require the Workbench's document/aside hierarchy across reflow states."""
+
+    def coordinates(box: dict[str, object]) -> tuple[float, float, float, float] | None:
+        try:
+            left = float(box.get("left", math.nan))
+            right = float(box.get("right", math.nan))
+            top = float(box.get("top", math.nan))
+            bottom = float(box.get("bottom", math.nan))
+        except (TypeError, ValueError):
+            return None
+        values = (left, right, top, bottom)
+        if not all(math.isfinite(value) for value in values):
+            return None
+        if right <= left or bottom <= top:
+            return None
+        return values
+
+    brief = coordinates(brief_box)
+    aside = coordinates(aside_box)
+    module_gate = coordinates(module_gate_box)
+    action_target = evaluate_control_target(
+        width=primary_action_width,
+        height=primary_action_height,
+    )
+    semantic_structure = (
+        h1_count == 1
+        and display_title_count == 1
+        and str(display_title_text or "").strip().endswith(" Company Brief")
+        and navigation_count == 1
+        and navigation_labelled_count == 1
+        and brief_count == 1
+        and brief_visible_count == 1
+        and brief_labelled_count == 1
+        and aside_count == 1
+        and aside_visible_count == 1
+        and aside_labelled_count == 1
+        and evidence_lane_count == 5
+        and positive_tabindex_count == 0
+        and primary_action_count == 1
+        and primary_action_visible_count == 1
+        and action_target.passed
+        and module_gate_count == 1
+        and module_gate_visible_count == 1
+    )
+
+    reflowed = zoom == 2 or viewport_width < 1100
+    geometry_passed = False
+    if brief is not None and aside is not None and module_gate is not None:
+        brief_left, brief_right, brief_top, brief_bottom = brief
+        aside_left, aside_right, aside_top, aside_bottom = aside
+        _gate_left, _gate_right, gate_top, _gate_bottom = module_gate
+        if reflowed:
+            geometry_passed = (
+                brief_bottom <= aside_top + 1
+                and aside_bottom <= gate_top + 1
+            )
+        else:
+            vertical_overlap = min(brief_bottom, aside_bottom) - max(
+                brief_top, aside_top
+            )
+            geometry_passed = (
+                brief_right <= aside_left + 1
+                and vertical_overlap > 1
+                and max(brief_bottom, aside_bottom) <= gate_top + 1
+            )
+
+    phone_lanes_passed = True
+    if phone_layout:
+        lanes = tuple(coordinates(dict(box)) for box in brief_lane_boxes)
+        if brief is None or len(lanes) != 4 or any(lane is None for lane in lanes):
+            phone_lanes_passed = False
+        else:
+            assert all(lane is not None for lane in lanes)
+            normalized_lanes = tuple(lane for lane in lanes if lane is not None)
+            brief_left, brief_right, _brief_top, _brief_bottom = brief
+            phone_lanes_passed = all(
+                previous[3] <= current[2] + 1
+                for previous, current in zip(
+                    normalized_lanes, normalized_lanes[1:]
+                )
+            ) and all(
+                lane[0] >= brief_left - 1 and lane[1] <= brief_right + 1
+                for lane in normalized_lanes
+            )
+
+    passed = semantic_structure and geometry_passed and phone_lanes_passed
+    return BrowserEvaluation(
+        passed,
+        (
+            f"viewport_width={viewport_width:.1f}; zoom={zoom}; phone={phone_layout}; "
+            f"h1={h1_count}; display_title={display_title_count}/{display_title_text!r}; "
+            f"navigation={navigation_labelled_count}/{navigation_count}; "
+            f"brief={brief_visible_count}/{brief_count} labelled={brief_labelled_count}; "
+            f"aside={aside_visible_count}/{aside_count} labelled={aside_labelled_count} "
+            f"lanes={evidence_lane_count}; positive_tabindex={positive_tabindex_count}; "
+            f"primary_action={primary_action_visible_count}/{primary_action_count} "
+            f"{primary_action_width:.1f}x{primary_action_height:.1f}; "
+            f"module_gate={module_gate_visible_count}/{module_gate_count}; "
+            f"reflowed={reflowed}; geometry={geometry_passed}; "
+            f"phone_lanes={phone_lanes_passed}"
+        ),
+    )
+
+
 def evaluate_runtime_capture(
     *,
     app_state: str,
@@ -1469,6 +1602,35 @@ def _browser_observation(page: Any) -> dict[str, object]:
   }
   const publicNavs = [...document.querySelectorAll("nav[aria-label='Public workflow']")];
   const researchNavs = [...document.querySelectorAll("nav[aria-label='Personal research workflow']")];
+  const workbenchNavigationShells = [...document.querySelectorAll(".research-workflow-navigation")];
+  const workbenchBriefs = [...document.querySelectorAll(".company-workbench-primary-brief")];
+  const visibleWorkbenchBriefs = workbenchBriefs.filter(visible);
+  const firstWorkbenchBrief = visibleWorkbenchBriefs[0] || null;
+  const workbenchDisplayTitles = [...document.querySelectorAll(
+    ".company-workbench-primary-heading h2"
+  )].filter(visible);
+  const workbenchAsides = [...document.querySelectorAll(
+    "aside.company-workbench-evidence-status[aria-label]"
+  )];
+  const visibleWorkbenchAsides = workbenchAsides.filter(visible);
+  const firstWorkbenchAside = visibleWorkbenchAsides[0] || null;
+  const workbenchEvidenceLanes = firstWorkbenchAside
+    ? [...firstWorkbenchAside.querySelectorAll(".company-workbench-evidence-lane")].filter(visible)
+    : [];
+  const workbenchPrimaryActions = firstWorkbenchBrief
+    ? [...firstWorkbenchBrief.querySelectorAll("a.public-primary-action")].filter(visible)
+    : [];
+  const workbenchModuleGates = [...document.querySelectorAll("button")]
+    .filter((node) => node.textContent.trim() === "Open evidence and analysis modules")
+    .filter(visible);
+  const firstWorkbenchPrimaryActionBox = workbenchPrimaryActions[0]
+    ? workbenchPrimaryActions[0].getBoundingClientRect()
+    : null;
+  const workbenchBriefLaneBoxes = firstWorkbenchBrief
+    ? [...firstWorkbenchBrief.querySelectorAll(".company-workbench-primary-answer")]
+      .filter(visible)
+      .map((node) => boxFor(node, node.getAttribute("data-workbench-lane") || "lane"))
+    : [];
   const operatorRadios = [...document.querySelectorAll("[data-testid='stSidebar'] [role='radiogroup']")];
   const operatorShells = [...document.querySelectorAll("[role='main'] .sr-operator-route-shell")];
   const operatorWarnings = [...document.querySelectorAll("[role='main'] .sr-operator-warning")];
@@ -1624,6 +1786,48 @@ def _browser_observation(page: Any) -> dict[str, object]:
     public_nav_visible_count: publicNavs.filter(visible).length,
     research_nav_count: researchNavs.length,
     research_nav_visible_count: researchNavs.filter(visible).length,
+    workbench_navigation_count: workbenchNavigationShells.length,
+    workbench_navigation_labelled_count: workbenchNavigationShells.filter(
+      (node) => Boolean(node.getAttribute("aria-label")?.trim())
+    ).length,
+    workbench_brief_count: workbenchBriefs.length,
+    workbench_brief_visible_count: visibleWorkbenchBriefs.length,
+    workbench_brief_labelled_count: workbenchBriefs.filter(
+      (node) => Boolean(node.getAttribute("aria-label")?.trim())
+    ).length,
+    workbench_display_title_count: workbenchDisplayTitles.length,
+    workbench_display_title_text: workbenchDisplayTitles.length === 1
+      ? workbenchDisplayTitles[0].textContent.trim()
+      : "",
+    workbench_aside_count: workbenchAsides.length,
+    workbench_aside_visible_count: visibleWorkbenchAsides.length,
+    workbench_aside_labelled_count: workbenchAsides.filter(
+      (node) => Boolean(node.getAttribute("aria-label")?.trim())
+    ).length,
+    workbench_evidence_lane_count: workbenchEvidenceLanes.length,
+    workbench_primary_action_count: firstWorkbenchBrief
+      ? firstWorkbenchBrief.querySelectorAll("a.public-primary-action").length
+      : 0,
+    workbench_primary_action_visible_count: workbenchPrimaryActions.length,
+    workbench_primary_action_width: firstWorkbenchPrimaryActionBox
+      ? firstWorkbenchPrimaryActionBox.width
+      : 0,
+    workbench_primary_action_height: firstWorkbenchPrimaryActionBox
+      ? firstWorkbenchPrimaryActionBox.height
+      : 0,
+    workbench_module_gate_count: [...document.querySelectorAll("button")]
+      .filter((node) => node.textContent.trim() === "Open evidence and analysis modules").length,
+    workbench_module_gate_visible_count: workbenchModuleGates.length,
+    workbench_brief_box: firstWorkbenchBrief
+      ? boxFor(firstWorkbenchBrief, "company-brief")
+      : null,
+    workbench_aside_box: firstWorkbenchAside
+      ? boxFor(firstWorkbenchAside, "company-evidence-status")
+      : null,
+    workbench_module_gate_box: workbenchModuleGates[0]
+      ? boxFor(workbenchModuleGates[0], "module-gate")
+      : null,
+    workbench_brief_lane_boxes: workbenchBriefLaneBoxes,
     research_current_count: document.querySelectorAll("nav[aria-label='Personal research workflow'] [aria-current='page']").length,
     operator_radio_count: operatorRadios.length,
     operator_radio_visible_count: operatorRadios.filter(visible).length,
@@ -2152,6 +2356,79 @@ def _evaluate_observation(
                 ),
                 legacy_pre_answer_action_count=int(
                     observation.get("legacy_pre_answer_action_count") or 0
+                ),
+            ),
+        )
+    if route.slug == "company-workbench":
+        add(
+            "company_workbench_document_contract",
+            evaluate_company_workbench_document_contract(
+                viewport_width=float(
+                    observation.get("visual_viewport_width")
+                    or observation.get("client_width")
+                    or 0
+                ),
+                zoom=zoom,
+                phone_layout=observation.get("phone_media_matches") is True,
+                h1_count=int(observation.get("h1_count") or 0),
+                display_title_count=int(
+                    observation.get("workbench_display_title_count") or 0
+                ),
+                display_title_text=str(
+                    observation.get("workbench_display_title_text") or ""
+                ),
+                navigation_count=int(
+                    observation.get("workbench_navigation_count") or 0
+                ),
+                navigation_labelled_count=int(
+                    observation.get("workbench_navigation_labelled_count") or 0
+                ),
+                brief_count=int(observation.get("workbench_brief_count") or 0),
+                brief_visible_count=int(
+                    observation.get("workbench_brief_visible_count") or 0
+                ),
+                brief_labelled_count=int(
+                    observation.get("workbench_brief_labelled_count") or 0
+                ),
+                aside_count=int(observation.get("workbench_aside_count") or 0),
+                aside_visible_count=int(
+                    observation.get("workbench_aside_visible_count") or 0
+                ),
+                aside_labelled_count=int(
+                    observation.get("workbench_aside_labelled_count") or 0
+                ),
+                evidence_lane_count=int(
+                    observation.get("workbench_evidence_lane_count") or 0
+                ),
+                positive_tabindex_count=int(
+                    observation.get("positive_tabindex_count") or 0
+                ),
+                primary_action_count=int(
+                    observation.get("workbench_primary_action_count") or 0
+                ),
+                primary_action_visible_count=int(
+                    observation.get("workbench_primary_action_visible_count") or 0
+                ),
+                primary_action_width=float(
+                    observation.get("workbench_primary_action_width") or 0
+                ),
+                primary_action_height=float(
+                    observation.get("workbench_primary_action_height") or 0
+                ),
+                module_gate_count=int(
+                    observation.get("workbench_module_gate_count") or 0
+                ),
+                module_gate_visible_count=int(
+                    observation.get("workbench_module_gate_visible_count") or 0
+                ),
+                brief_box=dict(observation.get("workbench_brief_box") or {}),
+                aside_box=dict(observation.get("workbench_aside_box") or {}),
+                module_gate_box=dict(
+                    observation.get("workbench_module_gate_box") or {}
+                ),
+                brief_lane_boxes=tuple(
+                    dict(row)
+                    for row in observation.get("workbench_brief_lane_boxes") or ()
                 ),
             ),
         )

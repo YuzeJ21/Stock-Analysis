@@ -93,6 +93,110 @@ def test_pure_browser_evaluators_use_one_pixel_tolerance_and_44_pixel_targets():
     ).passed
 
 
+def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_layout():
+    """Catches a rail, title, action, or responsive order drifting from the brief."""
+
+    from src.workspace_visual_browser_gate import (
+        evaluate_company_workbench_document_contract,
+    )
+
+    desktop = {
+        "viewport_width": 1440,
+        "zoom": 1,
+        "phone_layout": False,
+        "h1_count": 1,
+        "display_title_count": 1,
+        "display_title_text": "AVGO Company Brief",
+        "navigation_count": 1,
+        "navigation_labelled_count": 1,
+        "brief_count": 1,
+        "brief_visible_count": 1,
+        "brief_labelled_count": 1,
+        "aside_count": 1,
+        "aside_visible_count": 1,
+        "aside_labelled_count": 1,
+        "evidence_lane_count": 5,
+        "positive_tabindex_count": 0,
+        "primary_action_count": 1,
+        "primary_action_visible_count": 1,
+        "primary_action_width": 180,
+        "primary_action_height": 44,
+        "module_gate_count": 1,
+        "module_gate_visible_count": 1,
+        "brief_box": {"left": 16, "right": 1030, "top": 220, "bottom": 620},
+        "aside_box": {"left": 1060, "right": 1424, "top": 220, "bottom": 650},
+        "module_gate_box": {"left": 16, "right": 1030, "top": 680, "bottom": 724},
+        "brief_lane_boxes": (
+            {"left": 16, "right": 260, "top": 300, "bottom": 460},
+            {"left": 270, "right": 514, "top": 300, "bottom": 460},
+            {"left": 524, "right": 768, "top": 300, "bottom": 460},
+            {"left": 778, "right": 1030, "top": 300, "bottom": 460},
+        ),
+    }
+    assert evaluate_company_workbench_document_contract(**desktop).passed
+
+    phone = {
+        **desktop,
+        "viewport_width": 390,
+        "phone_layout": True,
+        "brief_box": {"left": 12, "right": 378, "top": 340, "bottom": 1040},
+        "aside_box": {"left": 12, "right": 378, "top": 1060, "bottom": 1540},
+        "module_gate_box": {"left": 12, "right": 378, "top": 1560, "bottom": 1604},
+        "brief_lane_boxes": (
+            {"left": 12, "right": 378, "top": 430, "bottom": 550},
+            {"left": 12, "right": 378, "top": 560, "bottom": 680},
+            {"left": 12, "right": 378, "top": 690, "bottom": 810},
+            {"left": 12, "right": 378, "top": 820, "bottom": 980},
+        ),
+    }
+    assert evaluate_company_workbench_document_contract(**phone).passed
+
+    zoomed_desktop = {
+        **phone,
+        "viewport_width": 720,
+        "zoom": 2,
+        "phone_layout": False,
+    }
+    assert evaluate_company_workbench_document_contract(**zoomed_desktop).passed
+
+    mutations = (
+        {"evidence_lane_count": 4},
+        {"display_title_count": 0},
+        {"navigation_labelled_count": 0},
+        {"brief_labelled_count": 0},
+        {"aside_count": 0},
+        {"aside_visible_count": 0},
+        {"aside_labelled_count": 0},
+        {"positive_tabindex_count": 1},
+        {"primary_action_height": 43.9},
+        {"module_gate_visible_count": 0},
+        {"brief_box": {"left": 16, "right": 1200, "top": 220, "bottom": 620}},
+    )
+    for mutation in mutations:
+        assert not evaluate_company_workbench_document_contract(
+            **{**desktop, **mutation}
+        ).passed
+
+    wrong_reflow = {
+        **zoomed_desktop,
+        "aside_box": {"left": 12, "right": 708, "top": 900, "bottom": 1540},
+    }
+    assert not evaluate_company_workbench_document_contract(**wrong_reflow).passed
+
+    overlapping_phone_lanes = {
+        **phone,
+        "brief_lane_boxes": (
+            {"left": 12, "right": 378, "top": 430, "bottom": 550},
+            {"left": 12, "right": 378, "top": 540, "bottom": 680},
+            {"left": 12, "right": 378, "top": 690, "bottom": 810},
+            {"left": 12, "right": 378, "top": 820, "bottom": 980},
+        ),
+    }
+    assert not evaluate_company_workbench_document_contract(
+        **overlapping_phone_lanes
+    ).passed
+
+
 def test_mobile_navigation_discoverability_requires_every_primary_link_inside_the_phone_view():
     from src.workspace_visual_browser_gate import evaluate_mobile_navigation_discoverability
 
@@ -269,6 +373,24 @@ def test_browser_observation_collects_operator_semantics_and_shortcut_geometry()
     assert "research_nav_link_fully_visible_count" in script
     assert "proof_timeline_record_count" in script
     assert "public-proof-timeline-summary" in script
+
+
+def test_browser_observation_requires_a_labelled_semantic_workbench_aside():
+    """Prevents a labelled generic section from masquerading as the required aside."""
+
+    from src import workspace_visual_browser_gate as gate
+
+    captured: list[str] = []
+
+    class CapturingPage:
+        def evaluate(self, script):
+            captured.append(script)
+            return {}
+
+    assert gate._browser_observation(CapturingPage()) == {}
+    script = captured[0]
+    assert 'aside.company-workbench-evidence-status[aria-label]' in script
+    assert 'querySelectorAll(\n+    ".company-workbench-evidence-status"\n+  )' not in script
 
 
 @pytest.mark.parametrize(

@@ -317,7 +317,7 @@ def test_company_workbench_primary_brief_contract_fails_closed_per_requirement()
     passing = {
         "brief_count": 1,
         "brief_visible": True,
-        "ticker": "NVDA",
+        "display_title": "NVDA Company Brief",
         "answer_labels": (
             "Use now",
             "Still withheld",
@@ -364,8 +364,10 @@ def test_company_workbench_primary_brief_contract_fails_closed_per_requirement()
     mutations = (
         {"brief_count": 2},
         {"brief_visible": False},
-        {"ticker": ""},
-        {"ticker": "AVGO"},
+        {"display_title": ""},
+        {"display_title": "NVDA"},
+        {"display_title": "AVGO Company Brief"},
+        {"display_title": "NVDA COMPANY BRIEF"},
         {"answer_labels": ("Use now", "Still withheld")},
         {"answer_texts": ("Saved evidence can be reviewed.", "", "No queued change.", "Review source gaps.")},
         {"stop_count": 0},
@@ -423,6 +425,58 @@ def test_company_workbench_primary_answer_text_accepts_one_direct_paragraph_or_s
     assert (
         _company_workbench_primary_answer_text(
             FakeAnswer(("first body", "ambiguous second body"))
+        )
+        == ""
+    )
+
+
+def test_company_workbench_display_title_collector_requires_one_semantic_h2():
+    from src.research_accessibility_browser_gate import (
+        _company_workbench_display_title,
+    )
+
+    selector = ".company-workbench-primary-heading h2"
+    observed_selectors: list[str] = []
+
+    class FakeTitleLocator:
+        def __init__(self, texts):
+            self._texts = tuple(texts)
+
+        def count(self):
+            return len(self._texts)
+
+        @property
+        def first(self):
+            return self
+
+        def inner_text(self):
+            return self._texts[0]
+
+    class FakePrimary:
+        def __init__(self, texts):
+            self._texts = tuple(texts)
+
+        def locator(self, requested_selector):
+            observed_selectors.append(requested_selector)
+            return FakeTitleLocator(self._texts)
+
+    assert (
+        _company_workbench_display_title(
+            FakePrimary(("  NVDA Company Brief  ",)), brief_count=1
+        )
+        == "NVDA Company Brief"
+    )
+    assert observed_selectors == [selector]
+    assert _company_workbench_display_title(FakePrimary(()), brief_count=1) == ""
+    assert (
+        _company_workbench_display_title(
+            FakePrimary(("NVDA Company Brief", "duplicate")), brief_count=1
+        )
+        == ""
+    )
+    assert (
+        _company_workbench_display_title(
+            FakePrimary(("NVDA Company Brief",)), brief_count=2
         )
         == ""
     )

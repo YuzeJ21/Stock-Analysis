@@ -453,7 +453,9 @@ def evaluate_company_workbench_primary_brief(
         except (TypeError, ValueError):
             return 0.0
 
-    ticker = str(observation.get("ticker") or "").strip().upper()
+    expected_ticker_normalized = expected_ticker.strip().upper()
+    expected_display_title = f"{expected_ticker_normalized} Company Brief"
+    display_title = str(observation.get("display_title") or "").strip()
     answer_labels = tuple(
         str(value or "").strip()
         for value in observation.get("answer_labels", ())
@@ -480,9 +482,10 @@ def evaluate_company_workbench_primary_brief(
 
     if number("brief_count") != 1 or observation.get("brief_visible") is not True:
         failures.append("expected exactly one visible Company Brief")
-    if ticker != expected_ticker.strip().upper():
+    if display_title != expected_display_title:
         failures.append(
-            f"expected ticker {expected_ticker.strip().upper()}, found {ticker or 'missing'}"
+            f"expected display title {expected_display_title!r}, "
+            f"found {display_title or 'missing'!r}"
         )
     normalized_answer_labels = tuple(label.casefold() for label in answer_labels)
     normalized_expected_labels = tuple(label.casefold() for label in expected_labels)
@@ -502,7 +505,7 @@ def evaluate_company_workbench_primary_brief(
         or number("data_health_action_height") < 44
         or action_mode != "research"
         or action_page != "data-health"
-        or action_ticker != ticker
+        or action_ticker != expected_ticker_normalized
     ):
         failures.append("expected one visible 44px ticker-bound Data Health action")
     if (
@@ -2514,6 +2517,15 @@ def _company_workbench_primary_answer_text(answer: Any) -> str:
     return body.first.inner_text().strip() if body.count() == 1 else ""
 
 
+def _company_workbench_display_title(primary: Any, *, brief_count: int) -> str:
+    """Read the one semantic Company Brief H2 without legacy decoration fallback."""
+
+    title = primary.locator(".company-workbench-primary-heading h2")
+    if brief_count != 1 or title.count() != 1:
+        return ""
+    return title.first.inner_text().strip()
+
+
 def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
     brief = page.locator(
         ".company-workbench-primary-brief[aria-label='Company Brief']"
@@ -2566,16 +2578,9 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
         {
             "brief_count": brief_count,
             "brief_visible": brief_count == 1 and primary.is_visible(),
-            "ticker": (
-                primary.locator(".company-workbench-primary-heading strong")
-                .first.inner_text()
-                .strip()
-                if brief_count == 1
-                and primary.locator(
-                    ".company-workbench-primary-heading strong"
-                ).count()
-                == 1
-                else ""
+            "display_title": _company_workbench_display_title(
+                primary,
+                brief_count=brief_count,
             ),
             "answer_labels": tuple(answer_labels),
             "answer_texts": tuple(answer_texts),
