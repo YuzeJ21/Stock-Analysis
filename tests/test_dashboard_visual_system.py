@@ -189,9 +189,43 @@ def test_company_workbench_document_css_scopes_horizontal_navigation_and_evidenc
     assert f"{scope} .research-workflow-navigation {{" in tablet
     assert "grid-template-columns: 1fr;" in tablet
     assert f"{scope} .st-key-company-workbench-document [data-testid=\"stHorizontalBlock\"] {{" in tablet
-    assert "grid-template-columns: 1fr !important;" in tablet
+    assert "flex-direction: column !important;" in tablet
     assert f"{scope} .research-workflow-routes {{" in phone
     assert "grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));" in phone
+
+
+def test_company_workbench_tablet_layout_resets_streamlit_flex_columns_to_one_stack():
+    """Catches a grid-only reset that cannot affect Streamlit's horizontal flex block."""
+
+    css = visual.dashboard_visual_system_css()
+    scope = ".stApp:has(.st-key-company-workbench-document)"
+    tablet_start = css.index("@media (max-width: 1099px) {")
+    tablet_end = css.index(".public-app-shell, .research-workspace-header", tablet_start)
+    tablet = css[tablet_start:tablet_end]
+
+    assert f"{scope} .st-key-company-workbench-document [data-testid=\"stHorizontalBlock\"] {{" in tablet
+    assert "display: flex !important;" in tablet
+    assert "flex-direction: column !important;" in tablet
+    assert f"{scope} .st-key-company-workbench-document [data-testid=\"stColumn\"] {{" in tablet
+    assert "flex: 1 1 100% !important;" in tablet
+    assert "width: 100% !important;" in tablet
+    assert "min-width: 0 !important;" in tablet
+
+
+def test_company_workbench_primary_lanes_use_a_real_grid_before_mobile_reset():
+    """Catches primary-lane column declarations on a non-grid block container."""
+
+    css = visual.dashboard_visual_system_css()
+    scope = ".stApp:has(.st-key-company-workbench-document)"
+    desktop_start = css.index(f"{scope} .company-workbench-primary-grid {{")
+    desktop_end = css.index("@media (max-width: 1099px) {", desktop_start)
+    desktop = css[desktop_start:desktop_end]
+    phone = css[css.index("@media (max-width: 640px) {") :]
+
+    assert "display: grid;" in desktop
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in desktop
+    assert f"{scope} .company-workbench-primary-grid {{" in phone
+    assert "grid-template-columns: 1fr;" in phone
 
 
 def test_research_desk_evidence_layout_reserves_reason_width_and_resets_on_phone():

@@ -918,6 +918,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   font-family: Georgia, "Times New Roman", serif;
 }}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-grid {{
+  display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   border-top: 1px solid var(--sr-border);
 }}
@@ -926,7 +927,14 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
     grid-template-columns: 1fr;
   }}
   .stApp:has(.st-key-company-workbench-document) .st-key-company-workbench-document [data-testid="stHorizontalBlock"] {{
-    grid-template-columns: 1fr !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .st-key-company-workbench-document [data-testid="stColumn"] {{
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0 !important;
   }}
   .stApp:has(.st-key-company-workbench-document) .st-key-company-workbench-document [data-testid="stColumn"]:last-child {{
     position: static;
