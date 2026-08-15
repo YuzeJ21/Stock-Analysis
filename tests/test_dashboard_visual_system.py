@@ -228,6 +228,44 @@ def test_company_workbench_primary_lanes_use_a_real_grid_before_mobile_reset():
     assert "grid-template-columns: 1fr;" in phone
 
 
+def test_company_workbench_evidence_rail_uses_explicit_readable_dark_surface_tokens():
+    """Catches the dark Workbench rail inheriting unreadable application text colors."""
+
+    css = visual.dashboard_visual_system_css()
+    scope = ".stApp:has(.st-key-company-workbench-document)"
+    tokens = visual.visual_tokens()
+
+    def scoped_rule(selector: str) -> str:
+        start = css.index(f"{scope} {selector} {{")
+        return css[start : css.index("\n}", start) + 2]
+
+    assert _contrast(tokens["--sr-nav-text"], tokens["--sr-nav"]) >= 4.5
+    assert _contrast(tokens["--sr-nav-muted"], tokens["--sr-nav"]) >= 4.5
+    rail = scoped_rule(".company-workbench-evidence-status")
+    heading = scoped_rule(".company-workbench-evidence-heading h2")
+    heading_content = scoped_rule(".company-workbench-evidence-heading h2 *")
+    meta = scoped_rule(".company-workbench-evidence-heading > span")
+    lane = scoped_rule(".company-workbench-evidence-lane")
+    label = scoped_rule(".company-workbench-evidence-lane span")
+    state = scoped_rule(".company-workbench-evidence-lane strong")
+
+    assert "display: grid;" in rail
+    assert "gap: 12px;" in rail
+    assert "color: var(--sr-nav-text);" in rail
+    assert "color: var(--sr-nav-text) !important;" in heading
+    assert "color: var(--sr-nav-text) !important;" in heading_content
+    assert "color: var(--sr-nav-muted) !important;" in meta
+    assert "display: grid;" in lane
+    assert "grid-template-columns: minmax(0, 1fr) auto;" in lane
+    assert "border-bottom: 1px solid rgba(248, 250, 252, .24);" in lane
+    assert "color: var(--sr-nav-muted) !important;" in label
+    assert "color: var(--sr-nav-text) !important;" in state
+    forced = css[css.index("@media (forced-colors: active) {") :]
+    assert f"{scope} .company-workbench-evidence-status" in forced
+    assert f"{scope} .company-workbench-evidence-heading h2 *" in forced
+    assert "color: CanvasText !important;" in forced
+
+
 def test_company_workbench_phone_lanes_compact_only_internal_spacing_before_the_action():
     """Catches the mobile brief pushing its required Data Health action below 390x844."""
 

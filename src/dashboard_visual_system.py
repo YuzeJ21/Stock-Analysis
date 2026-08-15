@@ -908,6 +908,54 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   background: var(--sr-nav);
   border-top: 3px solid var(--sr-teal);
 }}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-status {{
+  display: grid;
+  gap: 12px;
+  color: var(--sr-nav-text);
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-heading {{
+  display: grid;
+  gap: 4px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(248, 250, 252, .24);
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-heading h2 {{
+  margin: 0;
+  color: var(--sr-nav-text) !important;
+  font-size: 1.125rem;
+  line-height: 1.25;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-heading h2 * {{
+  color: var(--sr-nav-text) !important;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-heading > span {{
+  color: var(--sr-nav-muted) !important;
+  font-size: .8125rem;
+  line-height: 1.35;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lanes {{
+  display: grid;
+  gap: 0;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane {{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(248, 250, 252, .24);
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane span {{
+  color: var(--sr-nav-muted) !important;
+  font-size: .8125rem;
+  line-height: 1.35;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane strong {{
+  color: var(--sr-nav-text) !important;
+  font-size: .8125rem;
+  line-height: 1.35;
+  text-align: right;
+}}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-brief {{
   margin-top: 0;
   padding: 0;
@@ -1077,6 +1125,18 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   }}
   .public-skip-link:focus-visible, a:focus-visible, button:focus-visible {{
     outline: 3px solid Highlight !important;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-status,
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-heading h2,
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-heading h2 *,
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-heading > span,
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane span,
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane strong {{
+    color: CanvasText !important;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-heading,
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane {{
+    border-color: CanvasText !important;
   }}
 }}
 @media (prefers-reduced-motion: reduce) {{
