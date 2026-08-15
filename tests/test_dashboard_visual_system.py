@@ -228,6 +228,49 @@ def test_company_workbench_primary_lanes_use_a_real_grid_before_mobile_reset():
     assert "grid-template-columns: 1fr;" in phone
 
 
+def test_company_workbench_phone_lanes_compact_only_internal_spacing_before_the_action():
+    """Catches the mobile brief pushing its required Data Health action below 390x844."""
+
+    css = visual.dashboard_visual_system_css()
+    scope = ".stApp:has(.st-key-company-workbench-document)"
+    phone = css[css.index("@media (max-width: 640px) {") :]
+
+    assert (
+        f"{scope} .company-workbench-primary-grid {{\n"
+        "    grid-template-columns: 1fr;\n"
+        "    gap: 0;\n"
+        "  }"
+    ) in phone
+    assert (
+        f"{scope} .company-workbench-primary-answer {{\n"
+        "    padding-top: 0;\n"
+        "  }"
+    ) in phone
+    assert (
+        f"{scope} .company-workbench-primary-answer .public-primary-action {{\n"
+        "    margin-top: 0 !important;\n"
+        "    min-height: 44px;\n"
+        "  }"
+    ) in phone
+    assert (
+        f"{scope} .company-workbench-primary-heading {{\n"
+        "    margin-bottom: 0 !important;\n"
+        "  }"
+    ) in phone
+    assert (
+        f"{scope} .company-workbench-primary-answer p,\n"
+        f"  {scope} .company-workbench-primary-answer strong,\n"
+        f"  {scope} .company-workbench-primary-answer small {{\n"
+        "    margin-top: 0 !important;\n"
+        "  }"
+    ) in phone
+    assert (
+        f"{scope} .company-workbench-primary-answer p {{\n"
+        "    line-height: 1.15;\n"
+        "  }"
+    ) in phone
+
+
 def test_research_desk_evidence_layout_reserves_reason_width_and_resets_on_phone():
     css = visual.dashboard_visual_system_css()
     desktop = css[

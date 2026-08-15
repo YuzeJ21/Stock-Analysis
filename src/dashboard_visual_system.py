@@ -1010,6 +1010,25 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   }}
   .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-grid {{
     grid-template-columns: 1fr;
+    gap: 0;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer {{
+    padding-top: 0;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer p,
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer strong,
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer small {{
+    margin-top: 0 !important;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer p {{
+    line-height: 1.15;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer .public-primary-action {{
+    margin-top: 0 !important;
+    min-height: 44px;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading {{
+    margin-bottom: 0 !important;
   }}
   .sr-context-bar {{ gap: 8px 16px; }}
   .sr-context-item {{ min-width: min(9rem, 100%); }}
