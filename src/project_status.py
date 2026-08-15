@@ -2040,9 +2040,10 @@ def _print_human(
     print(f"- Data sources: {summary['data_sources_available']}/{summary['data_sources_total']} available")
     print(f"- Required data sources needing attention: {summary['data_sources_needing_attention']}")
     source_operator_summary = payload.get("source_operator_summary", {})
+    raw_needs_setup = source_operator_summary.get("needs_setup") if isinstance(source_operator_summary, dict) else None
     source_needs_setup = (
-        [str(item).strip() for item in source_operator_summary.get("needs_setup", []) if str(item).strip()]
-        if isinstance(source_operator_summary, dict)
+        [str(item).strip() for item in raw_needs_setup if str(item).strip()]
+        if isinstance(raw_needs_setup, list)
         else []
     )
     if source_needs_setup:
@@ -2132,7 +2133,7 @@ def _print_human(
         free_tier_limits = _source_operator_free_tier_limit_summary(source_operator_summary)
         if free_tier_limits:
             print(f"- Free-tier limits: {free_tier_limits}.")
-        first_setup = _source_operator_first_setup_guidance(source_operator_summary)
+        first_setup = _source_operator_first_setup_guidance({"needs_setup": source_needs_setup})
         if first_setup:
             print(f"- Configure first provider: {first_setup['setup_env']}.")
             print(f"- Reviewed one-ticker smoke after setup: {first_setup['smoke_command']}.")

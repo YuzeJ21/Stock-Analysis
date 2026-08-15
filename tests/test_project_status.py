@@ -1239,6 +1239,53 @@ def test_project_status_fmp_stage_preserves_explicit_saved_provider_states(
     assert stage["Diagnostic State"] == expected_diagnostic
 
 
+@pytest.mark.parametrize("needs_setup", (None, 0, False))
+def test_project_status_human_output_fails_closed_on_malformed_saved_provider_state(
+    needs_setup,
+    capsys: pytest.CaptureFixture[str],
+):
+    payload = {
+        "summary": {
+            "data_sources_available": 0,
+            "data_sources_total": 0,
+            "data_sources_needing_attention": 0,
+            "data_sources_optional_locked": 0,
+            "data_gaps": 0,
+            "tickers_with_prices": 0,
+            "tickers_total": 0,
+            "tickers_usable_for_momentum": 0,
+            "tickers_fundamentals_ready": 0,
+            "tickers_dcf_ready": 0,
+            "tickers_peer_ready": 0,
+            "onboarding_actions": 0,
+            "critical_actions": 0,
+            "purpose_evaluation_groups": 0,
+            "purpose_evaluation_active_groups": 0,
+        },
+        "warnings": [],
+        "source_operator_summary": {"needs_setup": needs_setup},
+        "remaining_public_stage_rows": [
+            {
+                "Stage": "FMP provider activation",
+                "State": "source_status_review_required",
+                "Diagnostic State": "source_status_unavailable",
+                "Evidence": "FMP configuration is not established from saved session status.",
+                "Next Action": "Run make provider-setup-checklist to inspect current local setup.",
+            }
+        ],
+        "workflow_continuation": {},
+        "recommended_next_command_rows": [],
+        "top_onboarding_actions": [],
+    }
+
+    project_status._print_human(payload)
+    output = capsys.readouterr().out.lower()
+
+    assert "optional provider setup gaps:" not in output
+    assert "source setup to unlock more:" not in output
+    assert "fmp provider activation: source_status_review_required" in output
+
+
 def test_project_status_stage_map_classifies_remaining_public_items(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
