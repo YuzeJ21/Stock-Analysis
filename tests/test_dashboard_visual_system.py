@@ -166,6 +166,25 @@ def test_dashboard_visual_css_uses_local_fonts_tokens_and_responsive_complete_co
     assert "@media (max-width: 360px)" in css
 
 
+def test_research_desk_evidence_layout_reserves_reason_width_and_resets_on_phone():
+    css = visual.dashboard_visual_system_css()
+    desktop = css[
+        css.index(".research-desk-brief .sr-evidence-row {") :
+        css.index(".sr-status-chip {")
+    ]
+    mobile = css[css.index("@media (max-width: 640px)") :]
+
+    assert "grid-template-columns: minmax(12rem, .75fr) minmax(0, 2fr)" in desktop
+    assert ".research-desk-brief .sr-evidence-count" in desktop
+    assert "overflow-wrap: anywhere" in desktop
+    assert ".research-desk-brief .sr-evidence-row p" in desktop
+    assert "grid-column: 2" in desktop
+    assert ".research-desk-brief .sr-evidence-row" in mobile
+    assert "grid-template-columns: 1fr" in mobile
+    assert "grid-column: 1" in mobile
+    assert "grid-row: auto" in mobile
+
+
 def test_typed_components_escape_every_text_and_attribute_boundary():
     action = visual.SafeRouteAction(
         label="Open <Desk>",

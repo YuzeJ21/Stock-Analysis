@@ -706,6 +706,17 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
 .sr-evidence-lane {{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }}
 .sr-evidence-row p {{ margin: 0; color: var(--sr-text); overflow-wrap: anywhere; font-size: .8125rem; line-height: 1.5; }}
 .sr-evidence-count {{ color: var(--sr-muted); font: .8125rem ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }}
+.research-desk-brief .sr-evidence-row {{
+  grid-template-columns: minmax(12rem, .75fr) minmax(0, 2fr);
+  align-items: start;
+}}
+.research-desk-brief .sr-evidence-lane {{ grid-row: 1 / span 2; }}
+.research-desk-brief .sr-evidence-count {{
+  grid-column: 2;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}}
+.research-desk-brief .sr-evidence-row p {{ grid-column: 2; }}
 .sr-status-chip {{
   display: inline-flex;
   align-items: center;
@@ -926,6 +937,13 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   .sr-answer-panel h2 {{ font-size: 1.0625rem; }}
   .sr-primary-action, .public-primary-action {{ width: 100%; }}
   .sr-evidence-row, .sr-timeline-record {{ grid-template-columns: 1fr; }}
+  .research-desk-brief .sr-evidence-row {{ grid-template-columns: 1fr; }}
+  .research-desk-brief .sr-evidence-lane,
+  .research-desk-brief .sr-evidence-count,
+  .research-desk-brief .sr-evidence-row p {{
+    grid-column: 1;
+    grid-row: auto;
+  }}
 }}
 @media (max-width: 360px) {{
   .research-discover-browser-jump {{

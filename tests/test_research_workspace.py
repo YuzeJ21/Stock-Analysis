@@ -1568,6 +1568,8 @@ def test_research_desk_brief_and_advanced_evidence_html_stay_answer_first_and_co
         "data-sr-region='supporting-evidence'"
     )
     assert "What needs my attention today?" in desk_html
+    assert "Saved readiness is current." in desk_html
+    assert "No unresolved saved source-change item is available." in desk_html
     assert "Freshness" in desk_html
     assert "Current for saved sources" in desk_html
     assert ">current<" not in desk_html.casefold()
