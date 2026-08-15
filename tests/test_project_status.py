@@ -1169,6 +1169,123 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
     assert "avoid repeating now: fundamentals_share_count_source_ladder" not in output
 
 
+@pytest.mark.parametrize(
+    "source_operator_summary",
+    (
+        None,
+        {},
+        {"needs_setup": "fmp"},
+        {"needs_setup": None},
+        {"needs_setup": 0},
+        {"needs_setup": False},
+    ),
+)
+def test_project_status_fmp_stage_fails_closed_without_recorded_provider_state(
+    source_operator_summary,
+):
+    rows = project_status._remaining_public_stage_rows(
+        {
+            "tickers_total": 10,
+            "tickers_with_prices": 2,
+            "tickers_usable_for_momentum": 2,
+            "tickers_fundamentals_ready": 1,
+            "tickers_dcf_ready": 1,
+            "tickers_peer_ready": 0,
+            "data_gaps": 8,
+            "data_sources_optional_locked": 3,
+        },
+        source_operator_summary=source_operator_summary,
+        git_status_line="## main...origin/main",
+    )
+    stage = next(row for row in rows if row["Stage"] == "FMP provider activation")
+
+    assert stage["State"] == "source_status_review_required"
+    assert stage["Diagnostic State"] == "source_status_unavailable"
+    assert "not established from saved session status" in stage["Evidence"]
+    assert stage["Next Action"] == "Run make provider-setup-checklist to inspect current local setup."
+    assert "appears configured" not in " ".join(stage.values())
+
+
+@pytest.mark.parametrize(
+    ("needs_setup", "expected_state", "expected_diagnostic"),
+    (
+        (["fmp", "alpha_vantage", "finnhub"], "awaiting_external_setup", "external_key_required"),
+        (["alpha_vantage", "finnhub"], "configured_smoke_required", "configured_smoke_required"),
+        ([], "configured_smoke_required", "configured_smoke_required"),
+    ),
+)
+def test_project_status_fmp_stage_preserves_explicit_saved_provider_states(
+    needs_setup,
+    expected_state,
+    expected_diagnostic,
+):
+    rows = project_status._remaining_public_stage_rows(
+        {
+            "tickers_total": 10,
+            "tickers_with_prices": 2,
+            "tickers_usable_for_momentum": 2,
+            "tickers_fundamentals_ready": 1,
+            "tickers_dcf_ready": 1,
+            "tickers_peer_ready": 0,
+            "data_gaps": 8,
+            "data_sources_optional_locked": 3,
+        },
+        source_operator_summary={"needs_setup": needs_setup},
+        git_status_line="## main...origin/main",
+    )
+    stage = next(row for row in rows if row["Stage"] == "FMP provider activation")
+
+    assert stage["State"] == expected_state
+    assert stage["Diagnostic State"] == expected_diagnostic
+
+
+@pytest.mark.parametrize("needs_setup", (None, 0, False))
+def test_project_status_human_output_fails_closed_on_malformed_saved_provider_state(
+    needs_setup,
+    capsys: pytest.CaptureFixture[str],
+):
+    payload = {
+        "summary": {
+            "data_sources_available": 0,
+            "data_sources_total": 0,
+            "data_sources_needing_attention": 0,
+            "data_sources_optional_locked": 0,
+            "data_gaps": 0,
+            "tickers_with_prices": 0,
+            "tickers_total": 0,
+            "tickers_usable_for_momentum": 0,
+            "tickers_fundamentals_ready": 0,
+            "tickers_dcf_ready": 0,
+            "tickers_peer_ready": 0,
+            "onboarding_actions": 0,
+            "critical_actions": 0,
+            "purpose_evaluation_groups": 0,
+            "purpose_evaluation_active_groups": 0,
+        },
+        "warnings": [],
+        "source_operator_summary": {"needs_setup": needs_setup},
+        "remaining_public_stage_rows": [
+            {
+                "Stage": "FMP provider activation",
+                "State": "source_status_review_required",
+                "Diagnostic State": "source_status_unavailable",
+                "Evidence": "FMP configuration is not established from saved session status.",
+                "Next Action": "Run make provider-setup-checklist to inspect current local setup.",
+            }
+        ],
+        "workflow_continuation": {},
+        "recommended_next_command_rows": [],
+        "top_onboarding_actions": [],
+    }
+
+    project_status._print_human(payload)
+    output = capsys.readouterr().out.lower()
+
+    assert "optional provider setup gaps:" not in output
+    assert "source setup to unlock more:" not in output
+    assert "fmp provider activation: source_status_review_required" in output
+
+
 def test_project_status_stage_map_classifies_remaining_public_items(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -1209,7 +1326,10 @@ def test_project_status_stage_map_classifies_remaining_public_items(
         "FMP provider activation",
         "Peer readiness upgrade",
     ]
-    assert stage_rows[0]["State"] == "ready_for_manual_share"
+    assert stage_rows[0]["State"] == "manual_share_verification_required"
+    assert "make public-check" in stage_rows[0]["Next Action"]
+    assert "separate owner authorization" in stage_rows[0]["Next Action"]
+    assert "ready_for_manual_share" not in stage_rows[0].values()
     assert stage_rows[1]["State"] == "awaiting_external_setup"
     assert stage_rows[1]["Diagnostic State"] == "external_account_required"
     assert stage_rows[2]["State"] == "awaiting_external_setup"
@@ -1285,13 +1405,17 @@ def test_project_status_labels_an_aligned_feature_branch_as_draft_engineering_pr
     assert "ready_for_manual_share" not in stage.values()
 
 
-def test_project_status_keeps_an_aligned_default_branch_share_eligible():
-    """Catches the fail-closed feature-branch rule blocking an actual stable branch."""
+def test_project_status_requires_public_gate_and_owner_review_on_aligned_default_branch():
+    """Catches Git alignment alone being promoted into public-share readiness."""
 
     stage = project_status._linkedin_stage_from_git_status("## main...origin/main")
 
-    assert stage["State"] == "ready_for_manual_share"
-    assert "use GitHub link" in stage["Evidence"]
+    assert stage["State"] == "manual_share_verification_required"
+    assert "default branch" in stage["Evidence"]
+    assert "does not prove" in stage["Evidence"]
+    assert "make public-check" in stage["Next Action"]
+    assert "separate owner authorization" in stage["Next Action"]
+    assert "ready_for_manual_share" not in stage.values()
 
 
 @pytest.mark.parametrize(

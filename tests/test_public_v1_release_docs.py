@@ -812,6 +812,12 @@ def test_commercial_beta_continuation_prompt_is_persistent_but_evidence_bound():
 
     assert "Commercial Research Beta Continuation Contract" in roadmap
     assert "/goal" in prompt
+    active_path = prompt.split("Continue the Stock Research Command Center in:", 1)[1].split(
+        "Objective:", 1
+    )[0]
+    assert "/Users/yjian070/Documents/New project" in active_path
+    assert ".worktrees/personal-research-mode-mvp" not in active_path
+    assert "fresh worktree from current `main`" in prompt
     assert "codex/personal-research-mode-mvp" in prompt
     assert "pull/113" in prompt
     assert "commit `781ba2481` or a later verified descendant" in prompt
@@ -823,8 +829,14 @@ def test_commercial_beta_continuation_prompt_is_persistent_but_evidence_bound():
     assert "Stage 1 — Answer-first workflow hardening" in prompt
     assert "Stage 6 — Operating maturity and product direction" in prompt
     assert "Never use `git add -A`" in prompt
-    assert "Keep PR #113 draft" in prompt
-    assert "Do not merge into main or deploy publicly without explicit approval" in prompt
+    assert "PR #113 merged into `main`" in prompt
+    assert "`0e2c984ac6fd357f891feb0a6864230892a76095`" in prompt
+    assert "`f5cb33c2de9e8341d71ceaa69e279e30d269ca14`" in prompt
+    assert "`31704776477`" in prompt
+    assert "6,719" in prompt
+    assert "PR #113 must remain open and draft" not in prompt
+    assert "Keep PR #113 draft" not in prompt
+    assert "the feature is not on the default branch" not in prompt
     assert "Generated CSV, JSON" in prompt
     assert "Point-in-time consensus and rights: `permitted_point_in_time_consensus_and_rights_required`" in prompt
     assert "Hosted account and controls: `hosted_account_and_controls_required`" in prompt
@@ -1227,9 +1239,12 @@ def test_active_maturity_handoff_matches_current_sync_priority_and_ui_contracts(
         assert "working_artifact_uncommitted" in text
         assert "independent human review" in text
 
-    assert "d96d7af8f10c8e6c63096355d2abbf109de4f1f2" in continuation
+    assert "f5cb33c2de9e8341d71ceaa69e279e30d269ca14" in continuation
+    assert "0e2c984ac6fd357f891feb0a6864230892a76095" in continuation
     assert "PR #113" in continuation
-    assert "31612484529" in continuation
+    assert "31704776477" in continuation
+    assert "6,719" in continuation
+    assert "PR #113 is merged" in continuation
 
     assert (
         "One permitted independently reviewed real point-in-time universe package, "
@@ -1515,7 +1530,8 @@ def test_external_dependency_entries_own_distinct_conditions_and_last_observed_e
         assert hosted_only not in operated
 
     reviewers = bullets["Independent reviewers"]
-    assert "independent human GitHub review of PR #113" in reviewers
+    assert "genuine independent review of the current default-branch engineering state" in reviewers
+    assert "later reviewed pull request" in reviewers
     assert "when a human submits review evidence" not in reviewers
     assert "generic human review evidence" not in reviewers.lower()
 
@@ -2309,13 +2325,17 @@ def test_broad_review_docs_use_durable_release_routing_and_fail_closed_boundarie
         assert durable_routing in document
     for document in (readme, roadmap, continuation):
         assert durable_routing not in document
-    for document in (readme, roadmap):
+    for document in (readme,):
         assert "Complete the direct local matrix and current-head local evidence first" in document
         assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in document
+    assert "The prior engineering closure is incorporated in the default branch" in roadmap
+    assert "Do not repeat that completed engineering slice" in roadmap
+    assert "Complete the direct local matrix and current-head local evidence first" not in roadmap
     assert "The Calm Institutional Workspace local engineering closure is complete" in continuation
     assert "49123a989dae263e8c125ad3032bf96d0107853d" in continuation
     assert "awaiting local quality closure" not in continuation
-    assert "A push, draft-PR update, merge, deploy, remote synchronization, or exact-head CI run requires separate owner authorization" in continuation
+    assert "that completed synchronization does not authorize another push" in continuation
+    assert "No new push, pull request, deploy, publication, or release" in continuation
     broad_review_boundary = (
         "Broad-review repairs must be evaluated only through direct current-head local "
         "and exact-head CI evidence; their presence alone establishes neither gate."
@@ -2476,9 +2496,10 @@ def test_workspace_modernization_docs_share_one_default_and_explicit_mode_contra
     )
     assert release_first_claim not in readme
     assert release_first_claim not in roadmap
-    for document in (readme, roadmap):
-        assert "Complete the direct local matrix and current-head local evidence first" in document
-        assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in document
+    assert "Complete the direct local matrix and current-head local evidence first" in readme
+    assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in readme
+    assert "The prior engineering closure is incorporated in the default branch" in roadmap
+    assert "Do not repeat that completed engineering slice" in roadmap
     assert "Sidebar navigation remains the single public route chooser" not in dashboard_qa
     assert "in-content public workflow navigation is the route chooser" in dashboard_qa
     for stale_claim in (
@@ -2491,8 +2512,8 @@ def test_workspace_modernization_docs_share_one_default_and_explicit_mode_contra
         assert stale_claim not in continuation
     assert "one in-content Personal research workflow navigation" in continuation
     assert "Public and Operator remain explicit modes" in continuation
-    assert "No push, draft-PR update, merge, or deploy is part of this modernization task" in continuation
-    assert "Remote synchronization, a draft-PR update, and exact-head CI remain separate owner-authorized work" in continuation
+    assert "No new push, pull request, deploy, publication, or release is part of this continuation" in continuation
+    assert "The PR #113 synchronization and exact-head CI are completed historical evidence" in continuation
     for document in (readme, roadmap, personal, public, dashboard_qa, accessibility, operator, continuation):
         lowered = document.lower()
         assert "research-only" in lowered
@@ -2612,7 +2633,7 @@ def test_html_research_brief_continuation_contract_preserves_anchor_and_exclusio
     assert "Company Workbench HTML Research Brief implementation anchors:" in continuation
     assert "`6ad7f34310652f1b172525a0b8f00becf874c44c`" in continuation
     assert "`8218af401`" in continuation
-    assert "Keep PR #113 open and draft" in continuation
+    assert "PR #113 is merged historical evidence" in continuation
     assert "The same 18 protected generated paths remain excluded" in continuation
     for path in (
         "data/analyst_estimates_readiness.csv",
@@ -2677,7 +2698,7 @@ def test_active_personal_research_docs_route_saved_items_freshness_and_zero_trut
         "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
     )
     assert "Base workspace product slice completed at `49123a989" in continuation
-    assert "current descendant worktree refines that routing" in continuation
+    assert "Later descendants refined that routing" in continuation
     personal = _read("docs/PERSONAL_RESEARCH_MODE.md")
     assert "no saved research item is due but a saved-source freshness condition" in personal
     assert "Open Data Health" in personal

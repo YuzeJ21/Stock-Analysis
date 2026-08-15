@@ -66,7 +66,7 @@ def test_operator_peer_lane_uses_the_same_saved_counts_as_personal_data_health()
     operator_result, personal_result = render_public_routes(Path("."), routes=routes)
     operator_rendered = "\n".join(operator_result.rendered_blocks)
     personal_rendered = "\n".join(personal_result.rendered_blocks)
-    peer_count_pattern = re.compile(r"([1-9][0-9,]*) tickers have trusted peer context")
+    peer_count_pattern = re.compile(r"([1-9][0-9,]*) tickers have mapped peer trend context")
     locked_count_pattern = re.compile(r"([1-9][0-9,]*) locked input rows? remain visible")
     operator_peer_count = peer_count_pattern.search(operator_rendered)
     personal_peer_count = peer_count_pattern.search(personal_rendered)
@@ -83,7 +83,8 @@ def test_operator_peer_lane_uses_the_same_saved_counts_as_personal_data_health()
     assert operator_count is not None
     assert personal_count is not None
     assert operator_count.group(1) == personal_count.group(1)
-    assert "0 tickers have trusted peer context" not in operator_rendered
+    assert "0 tickers have mapped peer trend context" not in operator_rendered
+    assert "trusted peer context" not in operator_rendered.lower()
     assert "0 locked input row(s)" not in operator_rendered
 
 
@@ -101,7 +102,7 @@ def test_public_peer_lane_arrival_renders_the_promised_selected_answer():
             ("lane", "peers"),
             ("drawer", "proof"),
         ),
-        required_markers=("Selected Lane Answer", "9 tickers have trusted peer context"),
+        required_markers=("Selected Lane Answer", "9 tickers have mapped peer trend context"),
     )
 
     result = render_public_routes(Path("."), routes=(route,))[0]

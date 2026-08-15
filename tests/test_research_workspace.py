@@ -275,6 +275,40 @@ def test_desk_and_monitor_distinguish_zero_saved_items_from_stale_observation():
     )
 
 
+def test_desk_and_monitor_name_combined_freshness_without_plural_mismatch():
+    summary = _weekly_summary()
+    desk = build_research_desk_brief(
+        summary,
+        change_status="no_changes",
+        review_items=(),
+        freshness_state="stale",
+        freshness_message="Saved readiness is stale.",
+        observation_state="stale",
+        observation_message="Saved market observation is stale.",
+    )
+    monitor = build_monitor_follow_up_queue(
+        summary,
+        (),
+        readiness_state="stale",
+        readiness_message="Saved readiness is stale.",
+        observation_state="stale",
+        observation_message="Saved market observation is stale.",
+    )
+
+    assert desk.reason == (
+        "No saved research item is due. Saved-readiness and market-observation "
+        "freshness both need Data Health review; neither is a saved research item "
+        "or a live-market alert."
+    )
+    assert monitor_primary_answer(monitor) == (
+        "No saved research item is due. Saved-readiness and market-observation "
+        "freshness both need Data Health review."
+    )
+    assert research_workspace.monitor_freshness_condition_label(monitor) == (
+        "saved-readiness and market-observation freshness"
+    )
+
+
 @pytest.mark.parametrize(
     ("unique_event_count", "item_count"),
     [(0, 1), (1, 2)],
@@ -1534,6 +1568,8 @@ def test_research_desk_brief_and_advanced_evidence_html_stay_answer_first_and_co
         "data-sr-region='supporting-evidence'"
     )
     assert "What needs my attention today?" in desk_html
+    assert "Saved readiness is current." in desk_html
+    assert "No unresolved saved source-change item is available." in desk_html
     assert "Freshness" in desk_html
     assert "Current for saved sources" in desk_html
     assert ">current<" not in desk_html.casefold()

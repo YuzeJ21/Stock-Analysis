@@ -29365,9 +29365,9 @@ def test_data_health_peer_lane_uses_saved_readiness_counts_when_project_status_i
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "9 tickers have trusted peer context" in rendered
+    assert "9 tickers have mapped peer trend context" in rendered
     assert "175 locked input row(s)" in rendered
-    assert "0 tickers have trusted peer context" not in rendered
+    assert "trusted peer context" not in rendered
     assert "freshness: current for saved sources" in rendered
 
 
@@ -29396,13 +29396,13 @@ def test_data_health_peer_lane_overlays_partial_project_status_on_saved_readines
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "9 tickers have trusted peer context" in rendered
+    assert "9 tickers have mapped peer trend context" in rendered
     assert "3,276 locked input row(s)" in rendered
-    assert "0 tickers have trusted peer context" not in rendered
+    assert "0 tickers have mapped peer trend context" not in rendered
 
 
-def test_data_health_peer_lane_prefers_newer_project_status_alias_counts():
-    """Catches saved canonical keys winning over newer project-status aliases."""
+def test_data_health_peer_lane_prefers_authoritative_saved_readiness_counts():
+    """Catches stale project status widening current saved readiness."""
 
     cards = dashboard.data_health_selected_lane_answer_cards(
         "peers",
@@ -29413,22 +29413,183 @@ def test_data_health_peer_lane_prefers_newer_project_status_alias_counts():
         ),
         project_status_payload={
             "summary": {
-                "tickers_peer_ready": 12,
-                "data_gaps": 5,
+                "tickers_peer_ready": 29,
+                "data_gaps": 207,
             }
         },
         saved_readiness_summary={
             "peer_ready": 9,
-            "blocked_by_data": 3276,
+            "blocked_by_data": 175,
         },
     )
     rendered = " ".join(
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "12 tickers have trusted peer context" in rendered
-    assert "5 locked input row(s)" in rendered
-    assert "9 tickers have trusted peer context" not in rendered
+    assert "9 tickers have mapped peer trend context" in rendered
+    assert "175 locked input row(s)" in rendered
+    assert "29 tickers have mapped peer trend context" not in rendered
+    assert "207 locked input row(s)" not in rendered
+
+
+def test_data_health_peer_lane_treats_saved_zero_as_authoritative():
+    """Catches zero saved readiness falling through to stale positive counts."""
+
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus(
+            "current",
+            "Saved readiness artifacts are current.",
+            "make readiness-preview TOP_N=20",
+        ),
+        project_status_payload={
+            "summary": {
+                "tickers_peer_ready": 29,
+                "data_gaps": 207,
+            }
+        },
+        saved_readiness_summary={
+            "master_count": 3538,
+            "peer_ready": 0,
+            "blocked_by_data": 0,
+            "updated_at": "2026-08-02T00:00:00Z",
+        },
+    )
+    rendered = " ".join(
+        str(value) for card in cards for value in card.values()
+    ).lower()
+
+    assert "0 tickers have mapped peer trend context" in rendered
+    assert "0 locked input row(s)" in rendered
+    assert "29 tickers have mapped peer trend context" not in rendered
+
+
+def test_data_health_peer_lane_ignores_synthesized_zeroes_when_saved_evidence_is_missing():
+    """Catches an absent saved report suppressing a valid project-status fallback."""
+
+    missing_saved_summary = dashboard.dashboard_readiness_summary(
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus(
+            "missing",
+            "Saved readiness evidence is unavailable.",
+            "make readiness-preview TOP_N=20",
+        ),
+        project_status_payload={
+            "summary": {
+                "tickers_peer_ready": 29,
+                "data_gaps": 207,
+            }
+        },
+        saved_readiness_summary=missing_saved_summary,
+    )
+    rendered = " ".join(
+        str(value) for card in cards for value in card.values()
+    ).lower()
+
+    assert "29 tickers have mapped peer trend context" in rendered
+    assert "207 locked input row(s)" in rendered
+    assert "0 tickers have mapped peer trend context" not in rendered
+    assert "0 locked input row(s)" not in rendered
+
+
+def test_data_health_peer_lane_ignores_zeroes_synthesized_from_missing_count_columns():
+    """Catches aggregate evidence being mistaken for peer/state count evidence."""
+
+    incomplete_ticker_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "AVGO",
+                "in_master_universe": True,
+                "updated_at": "2026-08-02T00:00:00Z",
+            }
+        ]
+    )
+    incomplete_saved_summary = dashboard.dashboard_readiness_summary(
+        None,
+        None,
+        None,
+        None,
+        incomplete_ticker_readiness,
+    )
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus(
+            "current",
+            "Saved readiness artifacts are current.",
+            "make readiness-preview TOP_N=20",
+        ),
+        project_status_payload={
+            "summary": {
+                "tickers_peer_ready": 29,
+                "data_gaps": 207,
+            }
+        },
+        saved_readiness_summary=incomplete_saved_summary,
+    )
+    rendered = " ".join(
+        str(value) for card in cards for value in card.values()
+    ).lower()
+
+    assert "29 tickers have mapped peer trend context" in rendered
+    assert "207 locked input row(s)" in rendered
+    assert "0 tickers have mapped peer trend context" not in rendered
+    assert "0 locked input row(s)" not in rendered
+
+
+def test_data_health_peer_lane_falls_back_when_ticker_report_omits_count_column():
+    """Catches an unrelated coverage frame widening an incomplete saved report."""
+
+    coverage = pd.DataFrame(
+        [
+            {
+                "ticker": "AVGO",
+                "has_prices": True,
+                "usable_for_momentum": True,
+                "peer_ready": True,
+            }
+        ]
+    )
+    incomplete_ticker_readiness = pd.DataFrame(
+        [
+            {
+                "ticker": "AVGO",
+                "in_master_universe": True,
+                "updated_at": "2026-08-02T00:00:00Z",
+            }
+        ]
+    )
+    saved_summary = dashboard.dashboard_readiness_summary(
+        coverage,
+        None,
+        None,
+        None,
+        incomplete_ticker_readiness,
+    )
+    assert saved_summary["momentum_ready"] == 0
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus(
+            "current",
+            "Saved readiness artifacts are current.",
+            "make readiness-preview TOP_N=20",
+        ),
+        project_status_payload={"summary": {"tickers_peer_ready": 29}},
+        saved_readiness_summary=saved_summary,
+    )
+    rendered = " ".join(
+        str(value) for card in cards for value in card.values()
+    ).lower()
+
+    assert "29 tickers have mapped peer trend context" in rendered
+    assert "0 tickers have mapped peer trend context" not in rendered
+    assert "1 tickers have mapped peer trend context" not in rendered
 
 
 def test_data_health_peer_lane_falls_back_when_project_summary_shape_is_invalid():
@@ -29451,8 +29612,47 @@ def test_data_health_peer_lane_falls_back_when_project_summary_shape_is_invalid(
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "9 tickers have trusted peer context" in rendered
+    assert "9 tickers have mapped peer trend context" in rendered
     assert "175 locked input row(s)" in rendered
+
+
+def test_data_health_source_setup_counts_remain_project_status_only():
+    """Catches readiness precedence leaking into project-status source context."""
+
+    cards = dashboard.data_health_selected_lane_answer_cards(
+        "peers",
+        dashboard.FreshnessStatus(
+            "current",
+            "Saved readiness artifacts are current.",
+            "make readiness-preview TOP_N=20",
+        ),
+        project_status_payload={
+            "summary": {
+                "data_sources_total": 10,
+                "data_sources_available": 7,
+                "data_sources_optional_locked": 3,
+                "data_sources_needing_attention": 0,
+                "tickers_peer_ready": 29,
+                "data_gaps": 207,
+            }
+        },
+        saved_readiness_summary={
+            "peer_ready": 9,
+            "blocked_by_data": 175,
+            "data_sources_total": 99,
+            "data_sources_available": 98,
+            "data_sources_optional_locked": 1,
+            "data_sources_needing_attention": 4,
+        },
+    )
+    rendered = " ".join(
+        str(value) for card in cards for value in card.values()
+    ).lower()
+
+    assert "source setup: 7/10 data sources available" in rendered
+    assert "3 optional provider gap(s)" in rendered
+    assert "0 required gap(s)" in rendered
+    assert "98/99 data sources available" not in rendered
 
 
 def test_data_health_peer_lane_does_not_invent_absent_source_status_zeroes():
@@ -29503,9 +29703,10 @@ def test_data_health_peer_lane_does_not_turn_absent_counts_into_factual_zeroes()
         str(value) for card in cards for value in card.values()
     ).lower()
 
-    assert "trusted peer count is unavailable" in rendered
+    assert "mapped peer trend count is unavailable" in rendered
+    assert "trusted peer count" not in rendered
     assert "locked input count is unavailable" in rendered
-    assert "0 tickers have trusted peer context" not in rendered
+    assert "0 tickers have mapped peer trend context" not in rendered
     assert "0 locked input row(s)" not in rendered
 
 
@@ -31084,6 +31285,8 @@ def test_public_home_overview_keeps_one_start_action_and_compact_readiness_snaps
     assert "3,540" in html
     assert "2,693" in html
     assert "29" in html
+    assert "<dt>Mapped peer trend</dt><dd>29</dd>" in html
+    assert "Trusted peers" not in html
     assert "No data, no conclusion" in html
 
 

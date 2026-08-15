@@ -6676,7 +6676,7 @@ def public_home_overview_html(summary: dict[str, object]) -> str:
         f"<div><dt>Tracked names</dt><dd>{master:,}</dd></div>"
         f"<div><dt>Price-ready</dt><dd>{price_ready:,}</dd></div>"
         f"<div><dt>DCF-ready</dt><dd>{dcf_ready:,}</dd></div>"
-        f"<div><dt>Trusted peers</dt><dd>{peer_ready:,}</dd></div>"
+        f"<div><dt>Mapped peer trend</dt><dd>{peer_ready:,}</dd></div>"
         "</dl>"
         "</section>"
         f"{advanced_detail_marker_html().value}"
@@ -24874,12 +24874,23 @@ def data_health_selected_lane_answer_cards(
         else {}
     )
     saved_summary = dict(saved_readiness_summary or {})
+    saved_count_evidence_value = saved_summary.get("_count_evidence_keys")
+    saved_count_evidence = (
+        {str(key) for key in saved_count_evidence_value}
+        if isinstance(saved_count_evidence_value, (list, tuple, set, frozenset))
+        else None
+    )
 
     def resolved_count(*keys: str) -> int | None:
-        project_count = _summary_optional_count(project_summary, *keys)
-        if project_count is not None:
-            return project_count
-        return _summary_optional_count(saved_summary, *keys)
+        saved_count = (
+            _summary_optional_count(saved_summary, *keys)
+            if saved_count_evidence is None
+            or any(key in saved_count_evidence for key in keys)
+            else None
+        )
+        if saved_count is not None:
+            return saved_count
+        return _summary_optional_count(project_summary, *keys)
     recommended_rows = (
         project_status_payload.get("recommended_next_command_rows", [])
         if isinstance(project_status_payload, dict)
@@ -24972,10 +24983,10 @@ def data_health_selected_lane_answer_cards(
     )
     freshness_status = saved_readiness_display_label(readiness_freshness.status)
     source_setup_note = ""
-    source_total = resolved_count("data_sources_total")
-    source_available = resolved_count("data_sources_available")
-    optional_locked = resolved_count("data_sources_optional_locked")
-    required_attention = resolved_count("data_sources_needing_attention")
+    source_total = _summary_optional_count(project_summary, "data_sources_total")
+    source_available = _summary_optional_count(project_summary, "data_sources_available")
+    optional_locked = _summary_optional_count(project_summary, "data_sources_optional_locked")
+    required_attention = _summary_optional_count(project_summary, "data_sources_needing_attention")
     source_counts = (source_total, source_available, optional_locked, required_attention)
     if any(count is not None for count in source_counts):
         if all(count is not None for count in source_counts):
@@ -24999,9 +25010,9 @@ def data_health_selected_lane_answer_cards(
         else "DCF-ready and fundamentals-ready counts are unavailable; source-backed company inputs stay withheld until saved evidence is available."
     )
     peer_lane_answer = (
-        f"{peer_ready:,} tickers have trusted peer context."
+        f"{peer_ready:,} tickers have mapped peer trend context."
         if peer_ready is not None
-        else "Trusted peer count is unavailable."
+        else "Mapped peer trend count is unavailable."
     )
     locked_input_answer = (
         f"{data_gaps:,} locked input row(s) remain visible instead of being inferred."
