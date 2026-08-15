@@ -356,6 +356,7 @@ help-full:
 	@echo "Preview-first fundamentals and universe imports:"
 	@echo "  export SEC_USER_AGENT='Name email@example.com'"
 	@echo "  make sec-stage TICKERS=NVDA,MSFT"
+	@echo "  make sec-fundamentals-preview TICKERS=AAPL,AMZN,GOOG Official SEC annual comparison; max five explicit tickers; no cache, staging, or apply writes"
 	@echo "  make yfinance-stage TICKERS=NVDA"
 	@echo "  make fundamentals-source-ladder TICKERS=NVDA"
 	@echo "                        Try SEC, yfinance, FMP, Alpha Vantage, then Finnhub before stopping at reviewed blocker evidence"
@@ -1270,6 +1271,13 @@ endif
 		--accession "$(or $(ACCESSION),0001045810-26-000052)" \
 		--primary-document "$(or $(PRIMARY_DOCUMENT),nvda-20260426.htm)" \
 		--as-of "$(AS_OF)"
+
+.PHONY: sec-fundamentals-preview
+sec-fundamentals-preview:
+ifndef TICKERS
+	$(error TICKERS is required, for example: make sec-fundamentals-preview TICKERS=AAPL,AMZN,GOOG)
+endif
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.sec_fundamentals_preview --tickers "$(TICKERS)"
 
 demo-dashboard-render-smoke:
 	@STOCK_RESEARCH_DATA_PROFILE=demo python3 -m src.dashboard_render_smoke

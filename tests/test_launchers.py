@@ -368,6 +368,36 @@ def test_full_help_keeps_the_five_primary_readiness_boundaries_separate():
         assert boundary in advanced_readiness
 
 
+def test_sec_fundamentals_preview_is_explicit_capped_and_no_write():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+    block = _make_target_block(makefile, "sec-fundamentals-preview")
+
+    assert "TICKERS is required" in block
+    assert (
+        'PYTHONDONTWRITEBYTECODE=1 python3 -m src.sec_fundamentals_preview --tickers "$(TICKERS)"'
+        in block
+    )
+    assert "--output" not in block
+    for forbidden in (
+        "sec-stage",
+        "imports-apply",
+        "readiness-materialize",
+        "readiness-release-record",
+        "yfinance",
+        "yahoo",
+        "stooq",
+        "fmp",
+        "alpha_vantage",
+        "finnhub",
+    ):
+        assert forbidden not in block
+
+    assert (
+        "make sec-fundamentals-preview TICKERS=AAPL,AMZN,GOOG Official SEC annual comparison; max five explicit tickers; no cache, staging, or apply writes"
+        in makefile
+    )
+
+
 def test_reviewed_batch_packet_targets_forward_one_named_profile():
     makefile = Path("Makefile").read_text(encoding="utf-8")
     for target in ("reviewed-batch", "fundamentals-batch-proof", "peer-batch-proof"):
