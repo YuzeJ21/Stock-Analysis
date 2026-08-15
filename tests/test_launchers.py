@@ -1245,12 +1245,16 @@ def test_price_refresh_loop_dry_run_reads_local_provider_env_files(tmp_path):
     assert "fmp-from-file" not in result.stdout
 
 
-def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_writes():
+def test_price_refresh_loop_dry_run_calculates_broad_universe_plan_without_writes(
+    tmp_path: Path,
+):
+    script = Path(__file__).resolve().parents[1] / "scripts" / "price_refresh_loop.sh"
     result = subprocess.run(
-        ["sh", "scripts/price_refresh_loop.sh"],
+        ["sh", str(script)],
         check=True,
         capture_output=True,
         text=True,
+        cwd=tmp_path,
         env={
             "BATCHES": "5",
             "TOP_N": "100",

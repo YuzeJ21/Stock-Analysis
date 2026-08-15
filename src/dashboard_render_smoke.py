@@ -160,7 +160,7 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
             "What can I use and what stays unavailable?",
             "Return to Company Workbench",
             "Selected Lane Answer",
-            "trusted peer mapping proof",
+            "source-backed mapping proof",
             "Research-only",
         ),
         required_regions=(

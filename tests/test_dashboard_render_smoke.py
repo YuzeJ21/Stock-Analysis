@@ -408,6 +408,8 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     assert ("lane", "peers") in data_health_route.query_params
     assert ("drawer", "proof") in data_health_route.query_params
     assert "Selected Lane Answer" in data_health_route.required_markers
+    assert "source-backed mapping proof" in data_health_route.required_markers
+    assert "trusted peer mapping proof" not in data_health_route.required_markers
     workbench_route = next(
         route for route in RESEARCH_RENDER_ROUTES if route.name == "Company Workbench"
     )
