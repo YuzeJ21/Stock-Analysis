@@ -966,26 +966,32 @@ def unavailable_report(*args, **kwargs):
     build_calls.append((args, kwargs))
     raise RuntimeError('controlled unavailable report')
 
-dashboard.build_provider = lambda *args, **kwargs: SimpleNamespace()
-dashboard.build_stock_report = unavailable_report
-provider = SimpleNamespace(
-    list_local_tickers=lambda: ['AVGO'],
-    get_ticker_dataset_coverage=lambda ticker: [],
-    get_peer_summary=lambda ticker: {
-        'peer_dataset_present': False,
-        'peer_count': 0,
-        'candidate_peer_count': 0,
-        'peer_fundamentals_available': 0,
-        'peer_market_context_available': 0,
-    },
-)
-evidence_target = st.empty()
-dashboard.render_single_stock_report(
-    provider,
-    False,
-    public_mode=True,
-    selected_evidence_target=evidence_target,
-)
+original_build_provider = dashboard.build_provider
+original_build_stock_report = dashboard.build_stock_report
+try:
+    dashboard.build_provider = lambda *args, **kwargs: SimpleNamespace()
+    dashboard.build_stock_report = unavailable_report
+    provider = SimpleNamespace(
+        list_local_tickers=lambda: ['AVGO'],
+        get_ticker_dataset_coverage=lambda ticker: [],
+        get_peer_summary=lambda ticker: {
+            'peer_dataset_present': False,
+            'peer_count': 0,
+            'candidate_peer_count': 0,
+            'peer_fundamentals_available': 0,
+            'peer_market_context_available': 0,
+        },
+    )
+    evidence_target = st.empty()
+    dashboard.render_single_stock_report(
+        provider,
+        False,
+        public_mode=True,
+        selected_evidence_target=evidence_target,
+    )
+finally:
+    dashboard.build_provider = original_build_provider
+    dashboard.build_stock_report = original_build_stock_report
 st.caption(f'controlled builder calls: {len(build_calls)}')
 """,
         default_timeout=120,
@@ -1002,6 +1008,17 @@ st.caption(f'controlled builder calls: {len(build_calls)}')
     assert len(rails) == 1
     assert rails[0].count("Unavailable") == 6
     assert "controlled builder calls: 1" in [item.value for item in app.caption]
+
+
+def test_company_workbench_unavailable_rail_restores_the_normal_report_builders():
+    """Catches an unavailable-rail AppTest leaking its controlled builders into later render tests."""
+
+    from src import dashboard
+
+    provider = dashboard.build_provider("local", base_dir=Path("."))
+    report = dashboard.build_stock_report("NVDA", provider)
+
+    assert report.to_dict()["ticker"] == "NVDA"
 
 
 def _html_brief_app(*, mode: str = "research", ticker: str = "NVDA", open_report: bool = True) -> AppTest:
