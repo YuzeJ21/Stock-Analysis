@@ -7,6 +7,7 @@ import pytest
 from src import dashboard
 from src import dashboard_navigation as nav
 from src import dashboard_visual_system as visual
+from src import research_workspace
 from src.catalyst_evidence_timeline import CatalystEvent, append_reviewed_event
 from src.daily_research_queue import (
     DailyQueueEvidence,
@@ -76,6 +77,39 @@ def test_research_workflow_navigation_rendering_scopes_primary_and_secondary_rou
     assert len(rendered) == 2
     assert all("Personal research workflow" in html for html in rendered)
     assert all(html.count("aria-current='page'") == 0 for html in rendered)
+
+
+def test_research_workflow_navigation_keeps_canonical_routes_modes_and_tickerless_workbench_gate():
+    """Catches document-layout work changing the single navigation's real route behavior."""
+
+    active = research_workspace.research_workflow_navigation_html(
+        active_page="Company Workbench",
+        ticker="AVGO",
+    )
+    tickerless = research_workspace.research_workflow_navigation_html(
+        active_page="Discover",
+    )
+
+    assert active.count("<nav class='research-workflow-navigation'") == 1
+    assert active.count("aria-current='page'") == 1
+    assert "Company Workbench</a>" in active
+    for label, href in (
+        ("Research Desk", "?mode=research&amp;page=research-desk"),
+        ("Discover", "?mode=research&amp;page=discover"),
+        (
+            "Company Workbench",
+            "?mode=research&amp;page=company-workbench&amp;ticker=AVGO&amp;open=1",
+        ),
+        ("Monitor", "?mode=research&amp;page=monitor"),
+    ):
+        assert label in active
+        assert f"href='{href}'" in active
+    assert "?mode=public" in active
+    assert "?mode=operator" in active
+    assert "aria-disabled='true'" in tickerless
+    assert "Choose a company in Discover first" in tickerless
+    assert "Company Workbench<span" in tickerless
+    assert "page=company-workbench" not in tickerless
 
 
 def test_public_and_research_use_route_state_without_sidebar_navigation_controls():
@@ -1382,6 +1416,8 @@ def test_direct_registered_company_workbench_without_open_preserves_query_and_re
             query_params=query,
             markdown=lambda *args, **kwargs: None,
             empty=lambda: target,
+            container=lambda *args, **kwargs: Expander(),
+            columns=lambda *args, **kwargs: (Expander(), Expander()),
             expander=lambda *args, **kwargs: Expander(),
             caption=lambda *args, **kwargs: None,
         ),
@@ -1409,6 +1445,84 @@ def test_direct_registered_company_workbench_without_open_preserves_query_and_re
     assert reports[0]["research_mode"] is True
     assert reports[0]["selected_answer_target"] is target
     assert reports[0]["selected_detail_target"] is target
+
+
+def test_registered_company_workbench_renders_one_document_overview_with_evidence_placeholder(
+    monkeypatch,
+):
+    """Catches a Workbench overview rendered outside its document grid or without its evidence rail."""
+
+    calls: list[tuple[str, object, object]] = []
+    contexts: list[str] = []
+
+    class RecordedContext:
+        def __init__(self, name: str):
+            self.name = name
+
+        def __enter__(self):
+            contexts.append(self.name)
+            return self
+
+        def __exit__(self, *args):
+            contexts.pop()
+            return False
+
+    class RecordingStreamlit:
+        query_params = {"ticker": "AVGO", "cash_preview": "0"}
+
+        def container(self, *args, **kwargs):
+            calls.append(("container", kwargs.get("key"), contexts[-1] if contexts else None))
+            return RecordedContext("document")
+
+        def columns(self, spec):
+            calls.append(("columns", spec, contexts[-1] if contexts else None))
+            return (RecordedContext("overview"), RecordedContext("evidence"))
+
+        def empty(self):
+            calls.append(("empty", None, contexts[-1] if contexts else None))
+            return SimpleNamespace()
+
+        def markdown(self, value, **kwargs):
+            calls.append(("markdown", value, contexts[-1] if contexts else None))
+
+        def expander(self, label, **kwargs):
+            calls.append(("expander", label, contexts[-1] if contexts else None))
+            return RecordedContext(f"expander:{label}")
+
+        def caption(self, value, **kwargs):
+            calls.append(("caption", value, contexts[-1] if contexts else None))
+
+    monkeypatch.setattr(dashboard, "st", RecordingStreamlit())
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "focused_ticker_coverage_cards", lambda *args, **kwargs: [])
+    monkeypatch.setattr(dashboard, "load_dashboard_quarterly_trend", lambda ticker: None)
+    monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_single_stock_report", lambda *args, **kwargs: None)
+
+    dashboard.render_company_workbench(
+        SimpleNamespace(list_local_tickers=lambda: ["AVGO"]),
+        SimpleNamespace(),
+        {},
+        object(),
+    )
+
+    assert [call for call in calls if call[0] == "container"] == [
+        ("container", "company-workbench-document", None)
+    ]
+    assert [call for call in calls if call[0] == "columns"] == [
+        ("columns", [3, 1], "document")
+    ]
+    assert [call for call in calls if call == ("empty", None, "evidence")] == [
+        ("empty", None, "evidence")
+    ]
+    assert ("empty", None, "overview") in calls
+    assert any(
+        call[0] == "markdown" and "sr-evidence-timeline" in str(call[1]) and call[2] == "overview"
+        for call in calls
+    )
+    assert ("expander", "Review path", "overview") in calls
+    assert ("expander", "Advanced: selected-company lane coverage", "overview") in calls
 
 
 def test_research_workbench_report_is_internally_open_without_changing_public_open_semantics():

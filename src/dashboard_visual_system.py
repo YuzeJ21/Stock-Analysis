@@ -858,6 +858,81 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   color: var(--sr-nav-text) !important;
   font-size: .8125rem;
 }}
+.stApp:has(.st-key-company-workbench-document) [data-testid="stMainBlockContainer"] {{
+  padding-left: 16px !important;
+}}
+.stApp:has(.st-key-company-workbench-document) .research-workflow-navigation {{
+  position: static !important;
+  z-index: auto;
+  display: grid !important;
+  grid-template-columns: minmax(12rem, 1.1fr) minmax(0, 2fr) minmax(8rem, .7fr);
+  align-items: start;
+  width: 100% !important;
+  max-height: none;
+  margin: 0 0 16px;
+  padding: 12px 16px !important;
+  overflow: visible;
+  border-radius: 0 !important;
+}}
+.stApp:has(.st-key-company-workbench-document) .research-workflow-routes {{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+}}
+.stApp:has(.st-key-company-workbench-document) .research-workflow-navigation .research-workflow-link,
+.stApp:has(.st-key-company-workbench-document) .research-workflow-disabled {{
+  justify-content: center;
+  min-width: 0;
+  padding: 8px;
+  text-align: center;
+}}
+.stApp:has(.st-key-company-workbench-document) .research-workspace-mode {{
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 8px;
+  padding-top: 0;
+  border-top: 0;
+}}
+.stApp:has(.st-key-company-workbench-document) .research-workspace-mode > span {{
+  grid-column: 1 / -1;
+}}
+.stApp:has(.st-key-company-workbench-document) .st-key-company-workbench-document [data-testid="stHorizontalBlock"] {{
+  align-items: start;
+}}
+.stApp:has(.st-key-company-workbench-document) .st-key-company-workbench-document [data-testid="stColumn"]:last-child {{
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  min-height: 8rem;
+  padding: 12px;
+  color: var(--sr-nav-text);
+  background: var(--sr-nav);
+  border-top: 3px solid var(--sr-teal);
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-brief {{
+  margin-top: 0;
+  padding: 0;
+  border-width: 1px 0;
+  border-radius: 0;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading h2 {{
+  font-family: Georgia, "Times New Roman", serif;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-grid {{
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--sr-border);
+}}
+@media (max-width: 1099px) {{
+  .stApp:has(.st-key-company-workbench-document) .research-workflow-navigation {{
+    grid-template-columns: 1fr;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .st-key-company-workbench-document [data-testid="stHorizontalBlock"] {{
+    grid-template-columns: 1fr !important;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .st-key-company-workbench-document [data-testid="stColumn"]:last-child {{
+    position: static;
+    min-height: 44px;
+  }}
+}}
 .public-app-shell, .research-workspace-header, .research-desk-brief {{ box-shadow: none !important; }}
 .research-workspace-header {{
   margin-bottom: 16px !important;
@@ -918,6 +993,16 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   .research-workspace-mode > span {{ grid-column: 1 / -1; align-self: center; padding: 0 4px; }}
   .research-workflow-navigation .research-workflow-link, .research-workflow-disabled {{ justify-content: center; min-width: 0; max-width: none; padding: 6px; text-align: center; }}
   .research-workspace-mode a {{ justify-content: center; min-width: 44px; max-width: none; }}
+  .stApp:has(.st-key-company-workbench-document) .research-workflow-navigation {{
+    margin-bottom: 8px;
+    padding: 4px !important;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .research-workflow-routes {{
+    grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
+  }}
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-grid {{
+    grid-template-columns: 1fr;
+  }}
   .sr-context-bar {{ gap: 8px 16px; }}
   .sr-context-item {{ min-width: min(9rem, 100%); }}
   .sr-page-title h1 {{ font-size: 1.375rem; }}

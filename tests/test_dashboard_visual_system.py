@@ -166,6 +166,34 @@ def test_dashboard_visual_css_uses_local_fonts_tokens_and_responsive_complete_co
     assert "@media (max-width: 360px)" in css
 
 
+def test_company_workbench_document_css_scopes_horizontal_navigation_and_evidence_aside():
+    """Catches a Workbench document layout drifting back into the fixed rail shell."""
+
+    css = visual.dashboard_visual_system_css()
+    scope = ".stApp:has(.st-key-company-workbench-document)"
+    desktop_start = css.index(f"{scope} .research-workflow-navigation {{")
+    desktop_end = css.index(".public-app-shell, .research-workspace-header", desktop_start)
+    desktop = css[desktop_start:desktop_end]
+    tablet_start = css.index("@media (max-width: 1099px) {")
+    phone_start = css.index("@media (max-width: 640px) {")
+    tablet = css[tablet_start:phone_start]
+    phone = css[phone_start:]
+
+    assert "position: static !important;" in desktop
+    assert "grid-template-columns: minmax(12rem, 1.1fr) minmax(0, 2fr) minmax(8rem, .7fr);" in desktop
+    assert f"{scope} .research-workflow-routes {{" in desktop
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in desktop
+    assert f"{scope} .st-key-company-workbench-document [data-testid=\"stColumn\"]:last-child {{" in desktop
+    assert "position: sticky;" in desktop
+    assert "top: 1rem;" in desktop
+    assert f"{scope} .research-workflow-navigation {{" in tablet
+    assert "grid-template-columns: 1fr;" in tablet
+    assert f"{scope} .st-key-company-workbench-document [data-testid=\"stHorizontalBlock\"] {{" in tablet
+    assert "grid-template-columns: 1fr !important;" in tablet
+    assert f"{scope} .research-workflow-routes {{" in phone
+    assert "grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));" in phone
+
+
 def test_research_desk_evidence_layout_reserves_reason_width_and_resets_on_phone():
     css = visual.dashboard_visual_system_css()
     desktop = css[

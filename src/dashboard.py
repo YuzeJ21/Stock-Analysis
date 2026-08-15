@@ -37173,55 +37173,60 @@ def render_company_workbench(
     cash_generation_preview = None
     if company_workbench_cash_preview_requested(st.query_params.get("cash_preview")):
         cash_generation_preview = load_company_workbench_cash_generation_preview(ticker)
-    selected_answer_target = st.empty()
-    timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
-    st.markdown(
-        evidence_timeline_html(
-            tuple(
-                TimelineRecord(
-                    record_id=str(row.get("event_id") or ""),
-                    timestamp=str(row.get("detected_at") or "").strip() or None,
-                    label=str(row.get("change") or "Evidence change"),
-                    summary=(
-                        f"{str(row.get('evidence_status') or 'unavailable').replace('_', ' ')}. "
-                        f"{str(row.get('research_task') or 'No saved research task is available.')}"
+    with st.container(key="company-workbench-document"):
+        overview_column, evidence_column = st.columns([3, 1])
+        with overview_column:
+            selected_answer_target = st.empty()
+            timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
+            st.markdown(
+                evidence_timeline_html(
+                    tuple(
+                        TimelineRecord(
+                            record_id=str(row.get("event_id") or ""),
+                            timestamp=str(row.get("detected_at") or "").strip() or None,
+                            label=str(row.get("change") or "Evidence change"),
+                            summary=(
+                                f"{str(row.get('evidence_status') or 'unavailable').replace('_', ' ')}. "
+                                f"{str(row.get('research_task') or 'No saved research task is available.')}"
+                            ),
+                        )
+                        for row in timeline
                     ),
+                    empty_title="No traceable saved change for this company",
+                    empty_body=(
+                        "No authoritative saved change row is available. This does not prove that "
+                        "no external event occurred."
+                    ),
+                ).value,
+                unsafe_allow_html=True,
+            )
+            section_names = [section["title"] for section in company_workbench_section_contract()]
+            with st.expander("Review path", expanded=False):
+                st.caption(" -> ".join(section_names[:-1]))
+            with st.expander("Advanced: selected-company lane coverage", expanded=False):
+                render_signal_cards(
+                    focused_ticker_coverage_cards(coverage, ticker),
+                    show_commands=False,
+                    variant="queue",
                 )
-                for row in timeline
-            ),
-            empty_title="No traceable saved change for this company",
-            empty_body=(
-                "No authoritative saved change row is available. This does not prove that "
-                "no external event occurred."
-            ),
-        ).value,
-        unsafe_allow_html=True,
-    )
+                st.caption(
+                    "Lane coverage is technical evidence only; blocked and candidate-only states remain separate."
+                )
+                if observation_recency is not None:
+                    st.markdown(
+                        observation_recency_summary_html(
+                            observation_recency,
+                            include_selected=True,
+                        ),
+                        unsafe_allow_html=True,
+                    )
+                    st.markdown(
+                        observation_recency_evidence_html(observation_recency),
+                        unsafe_allow_html=True,
+                    )
+        with evidence_column:
+            evidence_status_target = st.empty()
     selected_detail_target = st.empty()
-    section_names = [section["title"] for section in company_workbench_section_contract()]
-    with st.expander("Review path", expanded=False):
-        st.caption(" -> ".join(section_names[:-1]))
-    with st.expander("Advanced: selected-company lane coverage", expanded=False):
-        render_signal_cards(
-            focused_ticker_coverage_cards(coverage, ticker),
-            show_commands=False,
-            variant="queue",
-        )
-        st.caption(
-            "Lane coverage is technical evidence only; blocked and candidate-only states remain separate."
-        )
-        if observation_recency is not None:
-            st.markdown(
-                observation_recency_summary_html(
-                    observation_recency,
-                    include_selected=True,
-                ),
-                unsafe_allow_html=True,
-            )
-            st.markdown(
-                observation_recency_evidence_html(observation_recency),
-                unsafe_allow_html=True,
-            )
     render_single_stock_report(
         provider,
         False,
