@@ -466,13 +466,23 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     workbench = next(result for result in results if result.name == "Company Workbench")
     workbench_blocks = "\n".join(workbench.rendered_blocks)
     assert "Open evidence and analysis modules" in workbench_blocks
-    for secondary in (
+    for gated_heading in (
         "## Research Decision Lab",
         "## Business Trend",
+        "## Valuation",
         "## Forward View",
-        "This brief is a snapshot of current saved evidence",
+        "## What Remains Withheld",
+        "## Research Conclusion",
     ):
-        assert secondary not in workbench_blocks
+        assert gated_heading not in workbench_blocks
+    assert "HTML Research Brief" not in workbench_blocks
+    for retained_detail in (
+        "Full Company Brief evidence",
+        "What changed",
+        "No unresolved source-backed change is queued for this company.",
+        "Research-only: this brief is not a recommendation",
+    ):
+        assert retained_detail in workbench_blocks
     for evidence_name in ("Research Data Health", "Research Proof History"):
         evidence_blocks = "\n".join(
             next(result for result in results if result.name == evidence_name).rendered_blocks
@@ -507,9 +517,19 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
         for item in getattr(app, collection)
     )
     assert not app.exception
-    assert "## Research Decision Lab" in rendered
-    assert "## Business Trend" in rendered
-    assert "## Forward View" in rendered
+    headings = (
+        "## Research Decision Lab",
+        "## Business Trend",
+        "## Valuation",
+        "## Forward View",
+        "## What Remains Withheld",
+        "## Research Conclusion",
+    )
+    assert all(heading in rendered for heading in headings)
+    assert [rendered.index(heading) for heading in headings] == sorted(
+        rendered.index(heading) for heading in headings
+    )
+    assert [item.label for item in app.expander].count("HTML Research Brief") == 1
     assert "This brief is a snapshot of current saved evidence" in rendered
     assert rendered.count("aria-label='Company Brief'") == 1
     assert "Open evidence and analysis modules" not in [
@@ -875,6 +895,113 @@ def test_authoring_composer_renders_once_only_after_workbench_modules_open():
 
     assert not operator_report.exception
     assert not any(item.label == "Add a reviewed research record" for item in operator_report.expander)
+
+
+def test_company_workbench_single_stock_report_projects_complete_readiness_to_the_selected_evidence_target():
+    """Catches the Workbench rail losing the report's authoritative five-lane readiness map."""
+
+    app = AppTest.from_string(
+        """
+from pathlib import Path
+import streamlit as st
+from src.dashboard import (
+    build_profile_context,
+    build_provider,
+    build_stock_report,
+    render_single_stock_report,
+)
+
+context = build_profile_context(project_root=Path('.'))
+provider = build_provider('local', base_dir=Path('.'))
+report = build_stock_report('NVDA', provider).to_dict()
+report['readiness'] = {
+    'fundamentals_ready': True,
+    'dcf_ready': True,
+    'peer_ready': True,
+    'earnings_available': True,
+    'analyst_estimates_available': True,
+}
+report['valuation_readiness'] = {'dcf_ready': True}
+st.session_state['single_stock_report_payload'] = report
+st.session_state['single_stock_report_ticker'] = 'NVDA'
+st.session_state['single_stock_report_provider'] = 'local'
+evidence_target = st.empty()
+render_single_stock_report(
+    None,
+    False,
+    public_mode=True,
+    profile_context=context,
+    research_mode=True,
+    selected_evidence_target=evidence_target,
+)
+""",
+        default_timeout=120,
+    )
+    app.query_params.update({"ticker": "NVDA", "open": "1"})
+    app.run(timeout=120)
+
+    rails = [
+        str(item.value)
+        for item in app.markdown
+        if "company-workbench-evidence-status" in str(item.value)
+    ]
+    assert not app.exception
+    assert len(rails) == 1
+    assert rails[0].count("Reviewable") == 5
+    assert "Withheld" not in rails[0]
+    assert "Unavailable" not in rails[0]
+
+
+def test_company_workbench_single_stock_report_projects_an_unavailable_evidence_rail_when_report_build_fails():
+    """Catches a missing payload leaving the existing Workbench evidence target blank."""
+
+    app = AppTest.from_string(
+        """
+from types import SimpleNamespace
+import streamlit as st
+from src import dashboard
+
+build_calls = []
+def unavailable_report(*args, **kwargs):
+    build_calls.append((args, kwargs))
+    raise RuntimeError('controlled unavailable report')
+
+dashboard.build_provider = lambda *args, **kwargs: SimpleNamespace()
+dashboard.build_stock_report = unavailable_report
+provider = SimpleNamespace(
+    list_local_tickers=lambda: ['AVGO'],
+    get_ticker_dataset_coverage=lambda ticker: [],
+    get_peer_summary=lambda ticker: {
+        'peer_dataset_present': False,
+        'peer_count': 0,
+        'candidate_peer_count': 0,
+        'peer_fundamentals_available': 0,
+        'peer_market_context_available': 0,
+    },
+)
+evidence_target = st.empty()
+dashboard.render_single_stock_report(
+    provider,
+    False,
+    public_mode=True,
+    selected_evidence_target=evidence_target,
+)
+st.caption(f'controlled builder calls: {len(build_calls)}')
+""",
+        default_timeout=120,
+    )
+    app.query_params.update({"ticker": "AVGO", "open": "1"})
+    app.run(timeout=120)
+
+    rails = [
+        str(item.value)
+        for item in app.markdown
+        if "company-workbench-evidence-status" in str(item.value)
+    ]
+    assert not app.exception
+    assert len(rails) == 1
+    assert rails[0].count("Unavailable") == 6
+    assert "controlled builder calls: 1" in [item.value for item in app.caption]
 
 
 def _html_brief_app(*, mode: str = "research", ticker: str = "NVDA", open_report: bool = True) -> AppTest:

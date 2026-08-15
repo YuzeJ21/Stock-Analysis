@@ -1425,6 +1425,11 @@ def test_direct_registered_company_workbench_without_open_preserves_query_and_re
     monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard, "focused_ticker_coverage_cards", lambda *args, **kwargs: [])
+    monkeypatch.setattr(
+        dashboard,
+        "load_company_workbench_cash_generation_preview",
+        lambda ticker: pytest.fail("cash_preview=0 must not load the preview"),
+    )
     monkeypatch.setattr(dashboard, "load_dashboard_quarterly_trend", lambda ticker: None)
     monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
     monkeypatch.setattr(
@@ -1445,6 +1450,7 @@ def test_direct_registered_company_workbench_without_open_preserves_query_and_re
     assert reports[0]["research_mode"] is True
     assert reports[0]["selected_answer_target"] is target
     assert reports[0]["selected_detail_target"] is target
+    assert reports[0]["selected_evidence_target"] is target
 
 
 def test_registered_company_workbench_renders_one_document_overview_with_evidence_placeholder(

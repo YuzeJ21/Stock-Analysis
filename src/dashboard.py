@@ -410,6 +410,7 @@ from src.research_workspace import (
     company_change_answer,
     company_next_research_task,
     company_workbench_detail_disclosure_html,
+    company_workbench_evidence_status_html,
     company_workbench_primary_brief,
     company_workbench_primary_brief_html,
     company_workbench_section_contract,
@@ -32023,6 +32024,7 @@ def render_single_stock_report(
     observation_recency: ObservationRecencySet | None = None,
     selected_answer_target=None,
     selected_detail_target=None,
+    selected_evidence_target=None,
 ) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -32214,6 +32216,30 @@ def render_single_stock_report(
             "Open Review shows the selected ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
         )
         open_review_clicked = st.button("Open Review", key="single-stock-report-button")
+    report_readiness = (
+        _stock_report_payload_readiness(report_payload)
+        if isinstance(report_payload, dict)
+        else None
+    )
+    if selected_evidence_target is not None:
+        evidence_ticker = (
+            str(report_payload.get("ticker") or ticker)
+            if isinstance(report_payload, dict)
+            else ticker
+        )
+        evidence_freshness = (
+            saved_readiness_display_label(profile_context.freshness_state)
+            if profile_context is not None
+            else "Unavailable"
+        )
+        selected_evidence_target.markdown(
+            company_workbench_evidence_status_html(
+                ticker=evidence_ticker,
+                readiness=report_readiness,
+                freshness_label=evidence_freshness,
+            ),
+            unsafe_allow_html=True,
+        )
     if report_payload:
         readiness = report_payload.get("valuation_readiness", {})
         if not public_mode:
@@ -32221,7 +32247,7 @@ def render_single_stock_report(
                 f"{format_missing(report_payload.get('ticker'), 'Selected ticker')}: What can be read now",
                 "Start with the current supported, withheld, and next-step answers; detailed evidence stays closed below.",
             )
-        report_readiness = _stock_report_payload_readiness(report_payload)
+        report_readiness = report_readiness or {}
         report_valuation = report_payload.get("valuation_snapshot", {}) or {}
         report_one_answer_snapshot = {
             "ticker": report_payload.get("ticker"),
@@ -37239,6 +37265,7 @@ def render_company_workbench(
         observation_recency=observation_recency,
         selected_answer_target=selected_answer_target,
         selected_detail_target=selected_detail_target,
+        selected_evidence_target=evidence_status_target,
     )
     st.markdown("## Advanced Evidence")
     with st.expander("Advanced Evidence", expanded=False):
