@@ -1169,6 +1169,69 @@ def test_project_status_human_output_uses_workflow_evidence_when_proof_queues_ar
     assert "avoid repeating now: fundamentals_share_count_source_ladder" not in output
 
 
+@pytest.mark.parametrize(
+    "source_operator_summary",
+    (None, {}, {"needs_setup": "fmp"}),
+)
+def test_project_status_fmp_stage_fails_closed_without_recorded_provider_state(
+    source_operator_summary,
+):
+    rows = project_status._remaining_public_stage_rows(
+        {
+            "tickers_total": 10,
+            "tickers_with_prices": 2,
+            "tickers_usable_for_momentum": 2,
+            "tickers_fundamentals_ready": 1,
+            "tickers_dcf_ready": 1,
+            "tickers_peer_ready": 0,
+            "data_gaps": 8,
+            "data_sources_optional_locked": 3,
+        },
+        source_operator_summary=source_operator_summary,
+        git_status_line="## main...origin/main",
+    )
+    stage = next(row for row in rows if row["Stage"] == "FMP provider activation")
+
+    assert stage["State"] == "source_status_review_required"
+    assert stage["Diagnostic State"] == "source_status_unavailable"
+    assert "not established from saved session status" in stage["Evidence"]
+    assert stage["Next Action"] == "Run make provider-setup-checklist to inspect current local setup."
+    assert "appears configured" not in " ".join(stage.values())
+
+
+@pytest.mark.parametrize(
+    ("needs_setup", "expected_state", "expected_diagnostic"),
+    (
+        (["fmp", "alpha_vantage", "finnhub"], "awaiting_external_setup", "external_key_required"),
+        (["alpha_vantage", "finnhub"], "configured_smoke_required", "configured_smoke_required"),
+        ([], "configured_smoke_required", "configured_smoke_required"),
+    ),
+)
+def test_project_status_fmp_stage_preserves_explicit_saved_provider_states(
+    needs_setup,
+    expected_state,
+    expected_diagnostic,
+):
+    rows = project_status._remaining_public_stage_rows(
+        {
+            "tickers_total": 10,
+            "tickers_with_prices": 2,
+            "tickers_usable_for_momentum": 2,
+            "tickers_fundamentals_ready": 1,
+            "tickers_dcf_ready": 1,
+            "tickers_peer_ready": 0,
+            "data_gaps": 8,
+            "data_sources_optional_locked": 3,
+        },
+        source_operator_summary={"needs_setup": needs_setup},
+        git_status_line="## main...origin/main",
+    )
+    stage = next(row for row in rows if row["Stage"] == "FMP provider activation")
+
+    assert stage["State"] == expected_state
+    assert stage["Diagnostic State"] == expected_diagnostic
+
+
 def test_project_status_stage_map_classifies_remaining_public_items(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

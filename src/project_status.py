@@ -616,9 +616,11 @@ def _remaining_public_stage_rows(
 ) -> list[dict[str, str]]:
     """Classify the remaining public/product stages without unlocking data."""
     source_operator_summary = source_operator_summary if isinstance(source_operator_summary, dict) else {}
+    raw_needs_setup = source_operator_summary.get("needs_setup")
+    provider_status_recorded = isinstance(raw_needs_setup, list)
     needs_setup = [
         str(item).strip().lower()
-        for item in source_operator_summary.get("needs_setup", [])
+        for item in (raw_needs_setup if provider_status_recorded else [])
         if str(item).strip()
     ]
     avoid_repeating = [
@@ -639,6 +641,27 @@ def _remaining_public_stage_rows(
 
     fmp_missing = "fmp" in needs_setup
     first_provider = first_setup.get("setup_env") or "FMP_API_KEY"
+    if not provider_status_recorded:
+        fmp_stage = {
+            "State": "source_status_review_required",
+            "Diagnostic State": "source_status_unavailable",
+            "Evidence": "FMP configuration is not established from saved session status.",
+            "Next Action": "Run make provider-setup-checklist to inspect current local setup.",
+        }
+    elif fmp_missing:
+        fmp_stage = {
+            "State": "awaiting_external_setup",
+            "Diagnostic State": "external_key_required",
+            "Evidence": "FMP_API_KEY is not configured in the saved session source status.",
+            "Next Action": "Set FMP_API_KEY outside the repo, then run one reviewed ticker smoke.",
+        }
+    else:
+        fmp_stage = {
+            "State": "configured_smoke_required",
+            "Diagnostic State": "configured_smoke_required",
+            "Evidence": "Saved session source status records FMP as configured; provider setup still needs a reviewed one-ticker smoke.",
+            "Next Action": "Run make fmp-smoke TICKER=<ticker>.",
+        }
     source_queues_exhausted = trusted_data_pilot_has_candidates is False and price_coverage_complete
     avoid_source_ladder = "fundamentals_share_count_source_ladder" in avoid_repeating
     linkedin_stage = _linkedin_stage_from_git_status(git_status_line)
@@ -684,18 +707,10 @@ def _remaining_public_stage_rows(
         },
         {
             "Stage": "FMP provider activation",
-            "State": "awaiting_external_setup" if fmp_missing else "configured_smoke_required",
-            "Diagnostic State": "external_key_required" if fmp_missing else "configured_smoke_required",
-            "Evidence": (
-                "FMP_API_KEY is not configured."
-                if fmp_missing
-                else "FMP_API_KEY appears configured; provider setup still needs a reviewed one-ticker smoke."
-            ),
-            "Next Action": (
-                "Set FMP_API_KEY outside the repo, then run one reviewed ticker smoke."
-                if fmp_missing
-                else "Run make fmp-smoke TICKER=<ticker>."
-            ),
+            "State": fmp_stage["State"],
+            "Diagnostic State": fmp_stage["Diagnostic State"],
+            "Evidence": fmp_stage["Evidence"],
+            "Next Action": fmp_stage["Next Action"],
             "Completion Gate": (
                 f"{first_provider} is configured locally; one ticker validates, previews narrowly, has zero rejected rows, and source provenance is present."
             ),
