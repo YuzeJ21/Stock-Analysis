@@ -1,9 +1,21 @@
 from types import SimpleNamespace
+import re
 
 import pandas as pd
 import pytest
 
 from src import research_workspace
+from src.company_workbench_cash_generation_preview import (
+    CashGenerationPreviewComponent,
+    CashGenerationPreviewMetric,
+    CompanyWorkbenchCashGenerationPreview,
+    blocked_company_workbench_cash_generation_preview,
+)
+from src.earnings_nowcast_contract import QuarterlyActual
+from src.focused_research_cohort import FocusedCohort, FocusedCohortMember
+from src.focused_cohort_coverage import FocusedCohortCoverage, FocusedCohortCoverageRow
+from src.quarterly_business_trend import build_quarterly_trend_packet
+from src.quarterly_cash_generation import QuarterlyBusinessObservation
 from src.research_decision_lab import ResearchDisciplineRow
 from src.research_workspace import (
     advanced_evidence_links,
@@ -17,6 +29,7 @@ from src.research_workspace import (
     company_next_research_task,
     company_workbench_primary_brief,
     company_workbench_primary_brief_html,
+    company_workbench_evidence_status_html,
     focused_cohort_cards,
     focused_cohort_coverage_cards,
     focused_ticker_coverage_cards,
@@ -31,18 +44,18 @@ from src.research_workspace import (
     saved_research_item_count,
     weekly_summary_cards,
 )
-from src.company_workbench_cash_generation_preview import (
-    CashGenerationPreviewComponent,
-    CashGenerationPreviewMetric,
-    CompanyWorkbenchCashGenerationPreview,
-    blocked_company_workbench_cash_generation_preview,
-)
-from src.focused_cohort_coverage import FocusedCohortCoverage, FocusedCohortCoverageRow
-from src.focused_research_cohort import FocusedCohort, FocusedCohortMember
-from src.earnings_nowcast_contract import QuarterlyActual
-from src.quarterly_business_trend import build_quarterly_trend_packet
-from src.quarterly_cash_generation import QuarterlyBusinessObservation
 from src.weekly_research_summary import WeeklyResearchSummary, WeeklySummaryItem
+
+
+def canonical_lane_states(rendered: str) -> dict[str, str]:
+    return dict(
+        re.findall(
+            r"data-evidence-lane='(fundamentals|dcf|peers|earnings|estimates)'[^>]*>"
+            r".*?<strong[^>]*>(Reviewable|Withheld|Unavailable)</strong>",
+            rendered,
+            flags=re.DOTALL,
+        )
+    )
 
 
 def _discipline_row(order: int, ticker: str, state: str, label: str, reason: str):
@@ -884,6 +897,150 @@ def test_company_workbench_primary_brief_fails_closed_for_missing_inputs():
         assert prohibited not in brief
 
 
+def test_company_workbench_evidence_status_projects_independent_reviewable_lanes():
+    rendered = company_workbench_evidence_status_html(
+        ticker="AVGO",
+        readiness={
+            "fundamentals_ready": True,
+            "dcf_ready": False,
+            "peer_ready": False,
+            "earnings_available": True,
+            "analyst_estimates_available": False,
+        },
+        freshness_label="Stale",
+    )
+
+    assert canonical_lane_states(rendered) == {
+        "fundamentals": "Reviewable",
+        "dcf": "Withheld",
+        "peers": "Withheld",
+        "earnings": "Reviewable",
+        "estimates": "Withheld",
+    }
+    assert "Company evidence status" in rendered
+    assert "AVGO" in rendered
+    assert "Stale" in rendered
+    assert "href=" not in rendered
+
+
+def test_company_workbench_evidence_status_fails_closed_for_missing_or_empty_readiness():
+    assert canonical_lane_states(
+        company_workbench_evidence_status_html(
+            ticker="AVGO", readiness=None, freshness_label="Unavailable"
+        )
+    ) == {
+        "fundamentals": "Unavailable",
+        "dcf": "Unavailable",
+        "peers": "Unavailable",
+        "earnings": "Unavailable",
+        "estimates": "Unavailable",
+    }
+    assert canonical_lane_states(
+        company_workbench_evidence_status_html(
+            ticker="AVGO", readiness={}, freshness_label="Stale"
+        )
+    ) == {
+        "fundamentals": "Withheld",
+        "dcf": "Withheld",
+        "peers": "Withheld",
+        "earnings": "Withheld",
+        "estimates": "Withheld",
+    }
+
+
+@pytest.mark.parametrize(
+    ("field", "lane"),
+    [
+        ("fundamentals_ready", "fundamentals"),
+        ("dcf_ready", "dcf"),
+        ("peer_ready", "peers"),
+        ("earnings_available", "earnings"),
+        ("analyst_estimates_available", "estimates"),
+    ],
+)
+def test_company_workbench_evidence_status_requires_exact_boolean_true(field, lane):
+    for value in (1, "true"):
+        rendered = company_workbench_evidence_status_html(
+            ticker="AVGO", readiness={field: value}, freshness_label="Current"
+        )
+        assert canonical_lane_states(rendered)[lane] == "Withheld"
+
+    rendered = company_workbench_evidence_status_html(
+        ticker="AVGO", readiness={field: True}, freshness_label="Current"
+    )
+    assert canonical_lane_states(rendered)[lane] == "Reviewable"
+
+
+def test_company_workbench_evidence_status_uses_exact_boolean_or_aliases():
+    assert canonical_lane_states(
+        company_workbench_evidence_status_html(
+            ticker="AVGO",
+            readiness={"earnings_available": False, "earnings_ready": True},
+            freshness_label="Current",
+        )
+    )["earnings"] == "Reviewable"
+    assert canonical_lane_states(
+        company_workbench_evidence_status_html(
+            ticker="AVGO",
+            readiness={"earnings_available": True, "earnings_ready": False},
+            freshness_label="Current",
+        )
+    )["earnings"] == "Reviewable"
+    assert canonical_lane_states(
+        company_workbench_evidence_status_html(
+            ticker="AVGO",
+            readiness={"analyst_estimates_available": False, "analyst_estimates_ready": True},
+            freshness_label="Current",
+        )
+    )["estimates"] == "Reviewable"
+    assert canonical_lane_states(
+        company_workbench_evidence_status_html(
+            ticker="AVGO",
+            readiness={"analyst_estimates_available": True, "analyst_estimates_ready": False},
+            freshness_label="Current",
+        )
+    )["estimates"] == "Reviewable"
+
+
+def test_company_workbench_evidence_status_has_unique_ids_and_escapes_dynamic_values():
+    rendered = company_workbench_evidence_status_html(
+        ticker="AVGO\"><script>alert(1)</script>",
+        readiness={"fundamentals_ready": True},
+        freshness_label="Fresh & <unsafe>",
+    )
+
+    lane_ids = re.findall(r"id='([^']+)'", rendered)
+    assert lane_ids == [
+        "fundamentals",
+        "dcf",
+        "peers",
+        "earnings",
+        "estimates",
+    ]
+    assert len(lane_ids) == len(set(lane_ids)) == 5
+    assert "AVGO\"><script>" not in rendered
+    assert "AVGO&quot;&gt;&lt;script&gt;" in rendered
+    assert "Fresh &amp; &lt;unsafe&gt;" in rendered
+    assert rendered.count("<article ") == 5
+    assert "<script>" not in rendered
+
+
+def test_company_workbench_primary_brief_exposes_editorial_title_and_authoritative_action():
+    brief = company_workbench_primary_brief(
+        pd.DataFrame([{"Ticker": "AVGO"}]),
+        {},
+        {},
+    )
+
+    rendered = company_workbench_primary_brief_html(brief)
+
+    assert "<h2>AVGO Company Brief</h2>" in rendered
+    for label in ("Use now", "Still withheld", "What changed", "Next research task"):
+        assert rendered.count(f"<span>{label}</span>") == 1
+    assert rendered.count("class='public-primary-action'") == 1
+    assert "href='?mode=research&amp;page=data-health&amp;ticker=AVGO'" in rendered
+
+
 def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_region():
     brief = company_workbench_primary_brief(
         pd.DataFrame(
@@ -911,6 +1068,7 @@ def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_regio
 
     rendered = company_workbench_primary_brief_html(brief)
 
+    assert "<h2>NVDA&lt;SCRIPT&gt; Company Brief</h2>" in rendered
     assert rendered.count("aria-label='Company Brief'") == 1
     for label in ("Use now", "Still withheld", "What changed", "Next research task"):
         assert rendered.count(f"<span>{label}</span>") == 1

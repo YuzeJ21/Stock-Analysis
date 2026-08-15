@@ -915,6 +915,70 @@ def company_workbench_primary_brief(
     }
 
 
+def company_workbench_evidence_status_html(
+    *,
+    ticker: str,
+    readiness: Mapping[str, object] | None,
+    freshness_label: str,
+) -> str:
+    """Render the selected company's read-only five-lane evidence status rail."""
+
+    def safe_text(value: object, fallback: str) -> str:
+        if value is None:
+            return fallback
+        text = str(value).strip()
+        return text or fallback
+
+    safe_ticker = html.escape(safe_text(ticker, "Selected company"))
+    safe_freshness = html.escape(safe_text(freshness_label, "Unavailable"))
+    is_missing = readiness is None
+    safe_readiness = readiness if isinstance(readiness, Mapping) else {}
+
+    lanes = (
+        ("fundamentals", "Fundamentals", ("fundamentals_ready",)),
+        ("dcf", "DCF", ("dcf_ready",)),
+        ("peers", "Peers", ("peer_ready",)),
+        ("earnings", "Earnings", ("earnings_available", "earnings_ready")),
+        (
+            "estimates",
+            "Estimates",
+            ("analyst_estimates_available", "analyst_estimates_ready"),
+        ),
+    )
+
+    lane_html: list[str] = []
+    for lane_id, label, readiness_keys in lanes:
+        if is_missing:
+            state = "Unavailable"
+        else:
+            state = (
+                "Reviewable"
+                if any(safe_readiness.get(key) is True for key in readiness_keys)
+                else "Withheld"
+            )
+        lane_html.append(
+            "<article "
+            f"id='{lane_id}' class='company-workbench-evidence-lane' "
+            f"data-evidence-lane='{html.escape(lane_id, quote=True)}'>"
+            f"<span>{html.escape(label)}</span>"
+            f"<strong>{html.escape(state)}</strong>"
+            "</article>"
+        )
+
+    return (
+        "<section class='company-workbench-evidence-status' "
+        "data-sr-region='evidence-status' aria-label='Company evidence status'>"
+        "<div class='company-workbench-evidence-heading'>"
+        "<h2>Company evidence status</h2>"
+        f"<span>{safe_ticker} · {safe_freshness}</span>"
+        "</div>"
+        "<div class='company-workbench-evidence-lanes'>"
+        + "".join(lane_html)
+        + "</div>"
+        "</section>"
+    )
+
+
 def company_workbench_primary_brief_html(brief: Mapping[str, object]) -> str:
     """Render one escaped Company Brief region from the pure composition contract."""
 
@@ -945,6 +1009,7 @@ def company_workbench_primary_brief_html(brief: Mapping[str, object]) -> str:
         "<section class='company-workbench-primary-brief' data-sr-region='primary-answer' "
         "aria-label='Company Brief'>"
         "<div class='company-workbench-primary-heading'>"
+        f"<h2>{escaped('ticker', 'Selected company')} Company Brief</h2>"
         "<span>Company Brief</span>"
         f"<strong>{escaped('ticker', 'Selected company')}</strong>"
         "</div>"
