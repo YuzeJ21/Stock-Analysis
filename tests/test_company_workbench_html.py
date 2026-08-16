@@ -2509,6 +2509,7 @@ def test_one_pager_projection_failure_cannot_suppress_full_report(monkeypatch):
         {"review_cutoff": "not recorded"},
         {"identity": ""},
         {"identity": "not-a-sha256"},
+        {"identity": "0" * 64},
     ),
 )
 def test_invalid_summary_scope_fails_closed_without_suppressing_full_report(changes):
