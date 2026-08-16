@@ -1595,12 +1595,126 @@ def _summary_scope_observation(page) -> dict[str, object]:
                 if (!(node instanceof Element)) return false;
                 const rect = node.getBoundingClientRect();
                 if (rect.width <= 1 || rect.height <= 1 || node.getClientRects().length === 0) return false;
+                let left = rect.left;
+                let right = rect.right;
+                let top = rect.top;
+                let bottom = rect.bottom;
+                let cumulativeOpacity = 1;
+                let hitTestEligible = true;
+                let documentScrollEligible = true;
                 for (let current = node; current instanceof Element; current = current.parentElement) {
                     const style = getComputedStyle(current);
                     const opacity = Number.parseFloat(style.opacity || '1');
                     if (style.display === 'none' || style.visibility === 'hidden' ||
                         style.visibility === 'collapse' || style.contentVisibility === 'hidden' ||
-                        !Number.isFinite(opacity) || opacity <= 0.01) return false;
+                        !Number.isFinite(opacity) || style.clipPath !== 'none' ||
+                        style.clip !== 'auto') return false;
+                    cumulativeOpacity *= opacity;
+                    if (style.position === 'fixed') documentScrollEligible = false;
+                    if (current !== node) {
+                        const ancestorRect = current.getBoundingClientRect();
+                        const constrain = (
+                            start, end, ancestorStart, ancestorEnd,
+                            overflow, scrollSize, clientSize, scrollOffset
+                        ) => {
+                            if (!['auto', 'clip', 'hidden', 'scroll'].includes(overflow)) {
+                                return [start, end];
+                            }
+                            const clippedStart = Math.max(start, ancestorStart);
+                            const clippedEnd = Math.min(end, ancestorEnd);
+                            if (clippedEnd - clippedStart > 1) {
+                                return [clippedStart, clippedEnd];
+                            }
+                            const scrollReachable = ['auto', 'scroll'].includes(overflow) &&
+                                scrollSize > clientSize + 1;
+                            if (!scrollReachable) return null;
+                            const contentStart = start - ancestorStart + scrollOffset;
+                            const contentEnd = end - ancestorStart + scrollOffset;
+                            if (Math.min(contentEnd, scrollSize) -
+                                Math.max(contentStart, 0) <= 1) return null;
+                            hitTestEligible = false;
+                            return [ancestorStart, ancestorEnd];
+                        };
+                        if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowX)) {
+                            const constrained = constrain(
+                                left,
+                                right,
+                                ancestorRect.left + current.clientLeft,
+                                ancestorRect.left + current.clientLeft + current.clientWidth,
+                                style.overflowX,
+                                current.scrollWidth,
+                                current.clientWidth,
+                                current.scrollLeft
+                            );
+                            if (!constrained) return false;
+                            [left, right] = constrained;
+                        }
+                        if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowY)) {
+                            const constrained = constrain(
+                                top,
+                                bottom,
+                                ancestorRect.top + current.clientTop,
+                                ancestorRect.top + current.clientTop + current.clientHeight,
+                                style.overflowY,
+                                current.scrollHeight,
+                                current.clientHeight,
+                                current.scrollTop
+                            );
+                            if (!constrained) return false;
+                            [top, bottom] = constrained;
+                        }
+                        if (right - left <= 1 || bottom - top <= 1) return false;
+                    }
+                }
+                if (Math.abs(cumulativeOpacity - 1) > 0.001) return false;
+                const scrollingElement = document.scrollingElement || document.documentElement;
+                const constrainToDocument = (
+                    start, end, viewportSize, scrollOffset, scrollSize
+                ) => {
+                    const clippedStart = Math.max(0, start);
+                    const clippedEnd = Math.min(viewportSize, end);
+                    if (clippedEnd - clippedStart > 1) {
+                        return [clippedStart, clippedEnd];
+                    }
+                    if (!documentScrollEligible) return null;
+                    const contentStart = start + scrollOffset;
+                    const contentEnd = end + scrollOffset;
+                    if (Math.min(contentEnd, scrollSize) -
+                        Math.max(contentStart, 0) <= 1) return null;
+                    hitTestEligible = false;
+                    return [0, viewportSize];
+                };
+                const horizontal = constrainToDocument(
+                    left,
+                    right,
+                    window.innerWidth,
+                    window.scrollX,
+                    scrollingElement.scrollWidth
+                );
+                const vertical = constrainToDocument(
+                    top,
+                    bottom,
+                    window.innerHeight,
+                    window.scrollY,
+                    scrollingElement.scrollHeight
+                );
+                if (!horizontal || !vertical) return false;
+                const [viewportLeft, viewportRight] = horizontal;
+                const [viewportTop, viewportBottom] = vertical;
+                if (hitTestEligible && viewportRight - viewportLeft > 1 && viewportBottom - viewportTop > 1) {
+                    const points = [
+                        [(viewportLeft + viewportRight) / 2, (viewportTop + viewportBottom) / 2],
+                        [viewportLeft + 0.5, viewportTop + 0.5],
+                        [viewportRight - 0.5, viewportTop + 0.5],
+                        [viewportLeft + 0.5, viewportBottom - 0.5],
+                        [viewportRight - 0.5, viewportBottom - 0.5],
+                    ];
+                    if (!points.some(([x, y]) => {
+                        const hit = document.elementFromPoint(x, y);
+                        return hit && (
+                            hit === node || node.contains(hit)
+                        );
+                    })) return false;
                 }
                 return true;
             };
@@ -1644,7 +1758,7 @@ def _summary_scope_observation(page) -> dict[str, object]:
                 child => child.nodeType === Node.TEXT_NODE && String(child.textContent || '').trim()
             );
             const minimumTextContrast = root => {
-                if (!root) return -1;
+                if (!root || !visible(root)) return -1;
                 const ratios = [root, ...root.querySelectorAll('*')]
                     .filter(node => visible(node) && (hasDirectText(node) || node.matches('a')) && String(node.innerText || '').trim())
                     .map(node => contrastRatio(color(getComputedStyle(node).color), background(node)))
@@ -1652,7 +1766,9 @@ def _summary_scope_observation(page) -> dict[str, object]:
                 return ratios.length ? Math.min(...ratios) : -1;
             };
             const minimumBoundaryContrast = root => {
-                if (!root) return {ratio: -1, sample: {kind: 'missing-root'}};
+                if (!root || !visible(root)) {
+                    return {ratio: -1, sample: {kind: 'missing-or-hidden-root'}};
+                }
                 const ratios = [];
                 for (const grid of root.querySelectorAll('.srcc-one-pager-grid')) {
                     if (!visible(grid)) continue;
@@ -1724,9 +1840,10 @@ def _summary_scope_observation(page) -> dict[str, object]:
             const provenanceRows = provenance
                 ? [...provenance.querySelectorAll('tbody')].filter(visible)
                 : [];
+            const onePagerVisible = visible(onePager);
             const boundaryContrast = minimumBoundaryContrast(onePager);
             return {
-                one_pager_visible: visible(onePager),
+                one_pager_visible: onePagerVisible,
                 page_header_count: document.querySelectorAll('body > header').length,
                 one_pager_header_count: onePager
                     ? onePager.querySelectorAll(':scope > header').length
@@ -1756,7 +1873,8 @@ def _summary_scope_observation(page) -> dict[str, object]:
                 one_pager_state_node_count: stateNodes.length,
                 one_pager_state_role_count: stateRoleNodes.length,
                 one_pager_unique_state_role_count: new Set(stateRoles).size,
-                one_pager_provenance_caption_visible: visible(provenanceCaption),
+                one_pager_provenance_caption_visible: onePagerVisible &&
+                    visible(provenanceCaption),
                 one_pager_min_text_contrast_ratio: minimumTextContrast(onePager),
                 one_pager_min_boundary_contrast_ratio: boundaryContrast.ratio,
                 one_pager_boundary_contrast_sample: JSON.stringify(boundaryContrast.sample),
@@ -1771,18 +1889,20 @@ def _summary_scope_observation(page) -> dict[str, object]:
                             .map(node => Math.max(0, node.scrollWidth - node.clientWidth))
                     )
                     : -1,
-                one_pager_provenance_visible: visible(provenanceCaption) && provenanceRows.length > 0,
-                one_pager_blockers_visible: onePager
+                one_pager_provenance_visible: onePagerVisible &&
+                    visible(provenanceCaption) && provenanceRows.length > 0,
+                one_pager_blockers_visible: onePagerVisible && onePager
                     ? [...onePager.querySelectorAll('.srcc-blockers')].some(visible)
                     : false,
-                one_pager_assumptions_visible: scenarios.length === 3 && scenarios.every(node => {
+                one_pager_assumptions_visible: onePagerVisible &&
+                    scenarios.length === 3 && scenarios.every(node => {
                     const state = node.querySelector('.srcc-state');
                     const assumption = node.querySelector(':scope > p');
                     return visible(node) && visible(state) && visible(assumption) &&
                         String(state.innerText || '').trim().length > 0 &&
                         String(assumption.innerText || '').trim().length > 0;
                 }),
-                one_pager_handoff_visible: visible(
+                one_pager_handoff_visible: onePagerVisible && visible(
                     onePager?.querySelector('[data-section="one-pager-handoff"]')
                 ),
                 inner_width: window.innerWidth,
@@ -1804,11 +1924,127 @@ def _summary_forced_colors_cues(page) -> bool:
                 const visible = node => {
                     if (!(node instanceof Element)) return false;
                     const rect = node.getBoundingClientRect();
-                    if (rect.width <= 1 || rect.height <= 1) return false;
+                    if (rect.width <= 1 || rect.height <= 1 || node.getClientRects().length === 0) return false;
+                    let left = rect.left;
+                    let right = rect.right;
+                    let top = rect.top;
+                    let bottom = rect.bottom;
+                    let cumulativeOpacity = 1;
+                    let hitTestEligible = true;
+                    let documentScrollEligible = true;
                     for (let current = node; current instanceof Element; current = current.parentElement) {
                         const style = getComputedStyle(current);
+                        const opacity = Number.parseFloat(style.opacity || '1');
                         if (style.display === 'none' || style.visibility === 'hidden' ||
-                            Number.parseFloat(style.opacity || '1') <= 0.01) return false;
+                            style.visibility === 'collapse' || style.contentVisibility === 'hidden' ||
+                            !Number.isFinite(opacity) || style.clipPath !== 'none' ||
+                            style.clip !== 'auto') return false;
+                        cumulativeOpacity *= opacity;
+                        if (style.position === 'fixed') documentScrollEligible = false;
+                        if (current !== node) {
+                            const ancestorRect = current.getBoundingClientRect();
+                            const constrain = (
+                                start, end, ancestorStart, ancestorEnd,
+                                overflow, scrollSize, clientSize, scrollOffset
+                            ) => {
+                                if (!['auto', 'clip', 'hidden', 'scroll'].includes(overflow)) {
+                                    return [start, end];
+                                }
+                                const clippedStart = Math.max(start, ancestorStart);
+                                const clippedEnd = Math.min(end, ancestorEnd);
+                                if (clippedEnd - clippedStart > 1) {
+                                    return [clippedStart, clippedEnd];
+                                }
+                                const scrollReachable = ['auto', 'scroll'].includes(overflow) &&
+                                    scrollSize > clientSize + 1;
+                                if (!scrollReachable) return null;
+                                const contentStart = start - ancestorStart + scrollOffset;
+                                const contentEnd = end - ancestorStart + scrollOffset;
+                                if (Math.min(contentEnd, scrollSize) -
+                                    Math.max(contentStart, 0) <= 1) return null;
+                                hitTestEligible = false;
+                                return [ancestorStart, ancestorEnd];
+                            };
+                            if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowX)) {
+                                const constrained = constrain(
+                                    left,
+                                    right,
+                                    ancestorRect.left + current.clientLeft,
+                                    ancestorRect.left + current.clientLeft + current.clientWidth,
+                                    style.overflowX,
+                                    current.scrollWidth,
+                                    current.clientWidth,
+                                    current.scrollLeft
+                                );
+                                if (!constrained) return false;
+                                [left, right] = constrained;
+                            }
+                            if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowY)) {
+                                const constrained = constrain(
+                                    top,
+                                    bottom,
+                                    ancestorRect.top + current.clientTop,
+                                    ancestorRect.top + current.clientTop + current.clientHeight,
+                                    style.overflowY,
+                                    current.scrollHeight,
+                                    current.clientHeight,
+                                    current.scrollTop
+                                );
+                                if (!constrained) return false;
+                                [top, bottom] = constrained;
+                            }
+                            if (right - left <= 1 || bottom - top <= 1) return false;
+                        }
+                    }
+                    if (Math.abs(cumulativeOpacity - 1) > 0.001) return false;
+                    const scrollingElement = document.scrollingElement || document.documentElement;
+                    const constrainToDocument = (
+                        start, end, viewportSize, scrollOffset, scrollSize
+                    ) => {
+                        const clippedStart = Math.max(0, start);
+                        const clippedEnd = Math.min(viewportSize, end);
+                        if (clippedEnd - clippedStart > 1) {
+                            return [clippedStart, clippedEnd];
+                        }
+                        if (!documentScrollEligible) return null;
+                        const contentStart = start + scrollOffset;
+                        const contentEnd = end + scrollOffset;
+                        if (Math.min(contentEnd, scrollSize) -
+                            Math.max(contentStart, 0) <= 1) return null;
+                        hitTestEligible = false;
+                        return [0, viewportSize];
+                    };
+                    const horizontal = constrainToDocument(
+                        left,
+                        right,
+                        window.innerWidth,
+                        window.scrollX,
+                        scrollingElement.scrollWidth
+                    );
+                    const vertical = constrainToDocument(
+                        top,
+                        bottom,
+                        window.innerHeight,
+                        window.scrollY,
+                        scrollingElement.scrollHeight
+                    );
+                    if (!horizontal || !vertical) return false;
+                    const [viewportLeft, viewportRight] = horizontal;
+                    const [viewportTop, viewportBottom] = vertical;
+                    if (hitTestEligible && viewportRight - viewportLeft > 1 && viewportBottom - viewportTop > 1) {
+                        const points = [
+                            [(viewportLeft + viewportRight) / 2, (viewportTop + viewportBottom) / 2],
+                            [viewportLeft + 0.5, viewportTop + 0.5],
+                            [viewportRight - 0.5, viewportTop + 0.5],
+                            [viewportLeft + 0.5, viewportBottom - 0.5],
+                            [viewportRight - 0.5, viewportBottom - 0.5],
+                        ];
+                        if (!points.some(([x, y]) => {
+                            const hit = document.elementFromPoint(x, y);
+                            return hit && (
+                                hit === node || node.contains(hit)
+                            );
+                        })) return false;
                     }
                     return true;
                 };

@@ -4,6 +4,8 @@ from copy import deepcopy
 from pathlib import Path
 import subprocess
 
+import pytest
+
 
 _ONE_PAGER_REQUIRED_STATE_ROLES = (
     "answers-next-research-task",
@@ -860,6 +862,137 @@ def test_actual_company_workbench_one_pager_in_app_contract():
         "download_height": observation.get("download_button_height"),
         "state_text_matches": observation.get("one_pager_state_text_matches"),
     }
+
+
+@pytest.mark.parametrize(
+    "mutation_css",
+    (
+        '[data-section="evidence-one-pager"] { clip-path: inset(50%) !important; }',
+        '[data-section="evidence-one-pager"] { position: fixed !important; top: -10000px !important; left: 50px !important; width: 1000px !important; }',
+        "body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: auto; }",
+    ),
+    ids=("clip-path", "fixed-above-document", "opaque-fixed-cover"),
+)
+def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_with_outside_blockers(
+    mutation_css,
+):
+    import src.research_accessibility_browser_gate as gate
+    from playwright.sync_api import sync_playwright
+
+    chrome = gate.find_chrome_executable()
+    assert chrome is not None
+    external_requests = []
+    with gate._captured_local_demo_server(
+        Path.cwd(),
+        timeout_seconds=45,
+    ) as server:
+        active_origin = gate._exact_http_origin(server.base_url)
+        assert active_origin is not None
+        hostname = gate.urlparse(server.base_url).hostname
+        assert hostname
+        with gate.tempfile.TemporaryDirectory(
+            prefix="stock-research-workbench-one-pager-clipped-",
+            dir="/tmp",
+        ) as profile_directory:
+            preferences = Path(profile_directory) / "Default" / "Preferences"
+            preferences.parent.mkdir(parents=True)
+            preferences.write_text(
+                gate.json.dumps(
+                    gate._chromium_zoom_preferences(host=hostname, zoom=1),
+                    sort_keys=True,
+                ),
+                encoding="utf-8",
+            )
+            with sync_playwright() as playwright:
+                context = playwright.chromium.launch_persistent_context(
+                    user_data_dir=profile_directory,
+                    executable_path=str(chrome),
+                    headless=True,
+                    viewport={"width": 1280, "height": 720},
+                    screen={"width": 1280, "height": 720},
+                    service_workers="block",
+                )
+
+                def intercept(route, request):
+                    request_origin = gate._exact_http_origin(str(request.url))
+                    if request_origin is not None and request_origin != active_origin:
+                        external_requests.append(str(request.url))
+                        route.abort()
+                    else:
+                        route.continue_()
+
+                context.route("**/*", intercept)
+                page = context.pages[0] if context.pages else context.new_page()
+                try:
+                    workbench = next(
+                        route
+                        for route in gate.RESEARCH_ROUTES
+                        if route.name == "Company Workbench"
+                    )
+                    page.goto(
+                        f"{server.base_url.rstrip('/')}{workbench.route}",
+                        wait_until="domcontentloaded",
+                        timeout=45_000,
+                    )
+                    gate._wait_for_visible_text(
+                        page,
+                        workbench.marker,
+                        timeout_seconds=45,
+                    )
+                    gate._wait_for_dom_stability(page, timeout_seconds=45)
+                    gate._wait_for_route_heading(
+                        page,
+                        workbench,
+                        timeout_seconds=45,
+                    )
+                    assert gate._open_company_workbench_modules(
+                        page,
+                        timeout_seconds=45,
+                    )["passed"] is True
+                    assert gate._open_company_workbench_html_brief(
+                        page,
+                        timeout_seconds=45,
+                    )["passed"] is True
+                    page.evaluate(
+                        """css => {
+                            const style = document.createElement('style');
+                            style.textContent = css;
+                            document.head.appendChild(style);
+                            const outside = document.createElement('div');
+                            outside.className = 'srcc-blockers';
+                            outside.textContent = 'Outside summary blockers must not count.';
+                            document.body.appendChild(outside);
+                        }""",
+                        mutation_css,
+                    )
+                    page.evaluate(
+                        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+                    )
+                    outside_visible = page.locator(
+                        "body > .srcc-blockers:visible"
+                    ).count()
+                    observation = gate._company_workbench_one_pager_dom_observation(
+                        page
+                    )
+                finally:
+                    context.close()
+
+    assert external_requests == []
+    assert outside_visible == 1
+    assert (
+        observation["one_pager_visible"] is False
+        and observation["one_pager_visible_count"] == 0
+        and observation["one_pager_min_text_contrast_ratio"] < 0
+        and observation["one_pager_min_boundary_contrast_ratio"] < 0
+        and observation["one_pager_provenance_visible"] is False
+        and observation["one_pager_blockers_visible"] is False
+        and observation["one_pager_assumptions_visible"] is False
+        and observation["one_pager_handoff_visible"] is False
+        and observation["one_pager_state_text_matches"] is False
+        and observation["one_pager_share_basis_visible_count"] == 0
+        and observation["advanced_evidence_count"] == 1
+        and observation["advanced_evidence_after_one_pager"] is True
+    ), observation
 
 
 def test_proof_history_media_marker_selects_the_rendered_public_timeline():

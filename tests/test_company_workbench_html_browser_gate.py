@@ -863,6 +863,12 @@ def test_synthetic_fixture_contract_numeric_layout_and_suppression_are_independe
     ]
     assert "777,777" not in withheld_summary
     assert all(scenario.bridge.per_share_state == "stale" for scenario in stale.scenarios)
+    stale_rendered = _synthetic_brief("stale").decode("utf-8")
+    stale_summary = stale_rendered[
+        stale_rendered.index('data-section="evidence-one-pager"') :
+        stale_rendered.index('data-section="overview"')
+    ]
+    assert "555,555" not in stale_summary
 
 
 @pytest.mark.parametrize(
@@ -1076,6 +1082,210 @@ def test_summary_browser_collector_contract_rejects_scoped_contrast_mutations(
     result = _run_summary_cell(_append_test_css(document, css))
 
     assert expected_assertion in _failed_assertion_names(result)
+
+
+@pytest.mark.parametrize(
+    ("css", "expected_assertions"),
+    (
+        (
+            "@media screen { body.srcc-html-document .srcc-one-pager { opacity: .1 !important; } }",
+            {
+                "one_pager_visible",
+                "one_pager_text_contrast",
+                "one_pager_boundary_contrast",
+                "one_pager_screen_content_visible",
+            },
+        ),
+        (
+            "@media screen { body.srcc-html-document #research-brief-main { opacity: .1 !important; } }",
+            {
+                "one_pager_visible",
+                "one_pager_text_contrast",
+                "one_pager_boundary_contrast",
+                "one_pager_screen_content_visible",
+            },
+        ),
+        (
+            "@media print { body.srcc-html-document .srcc-one-pager { opacity: .1 !important; } }",
+            {
+                "one_pager_print_text_contrast",
+                "one_pager_print_boundary_contrast",
+                "one_pager_print_content_visible",
+            },
+        ),
+        (
+            "@media print { body.srcc-html-document #research-brief-main { opacity: .1 !important; } }",
+            {
+                "one_pager_print_text_contrast",
+                "one_pager_print_boundary_contrast",
+                "one_pager_print_content_visible",
+            },
+        ),
+    ),
+)
+def test_summary_browser_collector_contract_rejects_root_or_ancestor_opacity(
+    css,
+    expected_assertions,
+):
+    result = _run_summary_cell(
+        _append_test_css(_synthetic_brief("complete"), css)
+    )
+    failures = _failed_assertion_names(result)
+
+    assert expected_assertions <= failures, {
+        "missing": sorted(expected_assertions - failures),
+        "observed_failures": sorted(failures),
+        "contrast_evidence": {
+            assertion.name: assertion.evidence
+            for assertion in result.assertions
+            if "contrast" in assertion.name
+        },
+    }
+
+
+def test_summary_browser_collector_contract_rejects_fully_clipped_summary_with_outside_blockers():
+    document = _append_test_css(
+        _synthetic_brief("complete"),
+        "body.srcc-html-document .srcc-one-pager { clip-path: inset(50%) !important; }",
+    )
+    document = _replace_once(
+        document,
+        b"</main><footer",
+        (
+            b'</main><div class="srcc-blockers">Outside summary blockers must not count.</div>'
+            b"<footer"
+        ),
+    )
+
+    result = _run_summary_cell(document)
+    failures = _failed_assertion_names(result)
+    expected = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+        "one_pager_print_text_contrast",
+        "one_pager_print_boundary_contrast",
+        "one_pager_print_content_visible",
+        "one_pager_forced_colors_non_color_cue",
+    }
+
+    assert expected <= failures, {
+        "missing": sorted(expected - failures),
+        "observed_failures": sorted(failures),
+    }
+
+
+def _wrap_one_pager_in_test_scroll(document):
+    document = _replace_once(
+        document,
+        b'<section class="srcc-one-pager"',
+        (
+            b'<div class="test-scroll"><div class="test-spacer"></div>'
+            b'<section class="srcc-one-pager"'
+        ),
+    )
+    return _replace_once(
+        document,
+        b'<section class="srcc-section" data-section="overview">',
+        b'</div><section class="srcc-section" data-section="overview">',
+    )
+
+
+@pytest.mark.parametrize(
+    "document",
+    (
+        _append_test_css(
+            _wrap_one_pager_in_test_scroll(_synthetic_brief("complete")),
+            """
+            @media screen {
+              .test-scroll { height: 100px !important; overflow: hidden !important; }
+              .test-spacer { height: 1000px !important; }
+            }
+            """,
+        ),
+        _append_test_css(
+            _wrap_one_pager_in_test_scroll(_synthetic_brief("complete")),
+            """
+            @media screen {
+              .test-scroll { position: relative !important; height: 100px !important; overflow: auto !important; }
+              .test-spacer { height: 1000px !important; }
+              .test-scroll > .srcc-one-pager { position: absolute !important; top: -10000px !important; left: 0 !important; right: 0 !important; }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              .srcc-one-pager { position: fixed !important; top: -10000px !important; left: 50px !important; width: 1000px !important; }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            "@media screen { .srcc-one-pager { transform: translateX(-10000px) !important; } }",
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: auto; }
+            }
+            """,
+        ),
+    ),
+    ids=(
+        "overflow-hidden-ancestor",
+        "unreachable-auto-scroll",
+        "fixed-above-document",
+        "translated-left-of-document",
+        "opaque-fixed-cover",
+    ),
+)
+def test_summary_browser_collector_contract_rejects_unreachable_or_occluded_summary(
+    document,
+):
+    result = _run_summary_cell(document)
+    failures = _failed_assertion_names(result)
+    expected = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected <= failures, {
+        "missing": sorted(expected - failures),
+        "observed_failures": sorted(failures),
+    }
+
+
+def test_summary_browser_collector_contract_accepts_scroll_reachable_summary():
+    document = _append_test_css(
+        _wrap_one_pager_in_test_scroll(_synthetic_brief("complete")),
+        """
+        @media screen {
+          .test-scroll { height: 100px !important; overflow: auto !important; }
+          .test-spacer { height: 200px !important; }
+        }
+        """,
+    )
+
+    result = _run_summary_cell(document)
+    failures = _failed_assertion_names(result)
+    expected_green = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+        "one_pager_forced_colors_non_color_cue",
+    }
+
+    assert not expected_green & failures, {
+        "unexpected": sorted(expected_green & failures),
+        "observed_failures": sorted(failures),
+    }
 
 
 @pytest.mark.parametrize(

@@ -3139,12 +3139,126 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                 if (!(node instanceof Element)) return false;
                 const rect = node.getBoundingClientRect();
                 if (rect.width <= 1 || rect.height <= 1 || node.getClientRects().length === 0) return false;
+                let left = rect.left;
+                let right = rect.right;
+                let top = rect.top;
+                let bottom = rect.bottom;
+                let cumulativeOpacity = 1;
+                let hitTestEligible = true;
+                let documentScrollEligible = true;
                 for (let current = node; current instanceof Element; current = current.parentElement) {
                     const style = getComputedStyle(current);
                     const opacity = Number.parseFloat(style.opacity || '1');
                     if (style.display === 'none' || style.visibility === 'hidden' ||
                         style.visibility === 'collapse' || style.contentVisibility === 'hidden' ||
-                        !Number.isFinite(opacity) || opacity <= 0.01) return false;
+                        !Number.isFinite(opacity) || style.clipPath !== 'none' ||
+                        style.clip !== 'auto') return false;
+                    cumulativeOpacity *= opacity;
+                    if (style.position === 'fixed') documentScrollEligible = false;
+                    if (current !== node) {
+                        const ancestorRect = current.getBoundingClientRect();
+                        const constrain = (
+                            start, end, ancestorStart, ancestorEnd,
+                            overflow, scrollSize, clientSize, scrollOffset
+                        ) => {
+                            if (!['auto', 'clip', 'hidden', 'scroll'].includes(overflow)) {
+                                return [start, end];
+                            }
+                            const clippedStart = Math.max(start, ancestorStart);
+                            const clippedEnd = Math.min(end, ancestorEnd);
+                            if (clippedEnd - clippedStart > 1) {
+                                return [clippedStart, clippedEnd];
+                            }
+                            const scrollReachable = ['auto', 'scroll'].includes(overflow) &&
+                                scrollSize > clientSize + 1;
+                            if (!scrollReachable) return null;
+                            const contentStart = start - ancestorStart + scrollOffset;
+                            const contentEnd = end - ancestorStart + scrollOffset;
+                            if (Math.min(contentEnd, scrollSize) -
+                                Math.max(contentStart, 0) <= 1) return null;
+                            hitTestEligible = false;
+                            return [ancestorStart, ancestorEnd];
+                        };
+                        if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowX)) {
+                            const constrained = constrain(
+                                left,
+                                right,
+                                ancestorRect.left + current.clientLeft,
+                                ancestorRect.left + current.clientLeft + current.clientWidth,
+                                style.overflowX,
+                                current.scrollWidth,
+                                current.clientWidth,
+                                current.scrollLeft
+                            );
+                            if (!constrained) return false;
+                            [left, right] = constrained;
+                        }
+                        if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowY)) {
+                            const constrained = constrain(
+                                top,
+                                bottom,
+                                ancestorRect.top + current.clientTop,
+                                ancestorRect.top + current.clientTop + current.clientHeight,
+                                style.overflowY,
+                                current.scrollHeight,
+                                current.clientHeight,
+                                current.scrollTop
+                            );
+                            if (!constrained) return false;
+                            [top, bottom] = constrained;
+                        }
+                        if (right - left <= 1 || bottom - top <= 1) return false;
+                    }
+                }
+                if (Math.abs(cumulativeOpacity - 1) > 0.001) return false;
+                const scrollingElement = document.scrollingElement || document.documentElement;
+                const constrainToDocument = (
+                    start, end, viewportSize, scrollOffset, scrollSize
+                ) => {
+                    const clippedStart = Math.max(0, start);
+                    const clippedEnd = Math.min(viewportSize, end);
+                    if (clippedEnd - clippedStart > 1) {
+                        return [clippedStart, clippedEnd];
+                    }
+                    if (!documentScrollEligible) return null;
+                    const contentStart = start + scrollOffset;
+                    const contentEnd = end + scrollOffset;
+                    if (Math.min(contentEnd, scrollSize) -
+                        Math.max(contentStart, 0) <= 1) return null;
+                    hitTestEligible = false;
+                    return [0, viewportSize];
+                };
+                const horizontal = constrainToDocument(
+                    left,
+                    right,
+                    window.innerWidth,
+                    window.scrollX,
+                    scrollingElement.scrollWidth
+                );
+                const vertical = constrainToDocument(
+                    top,
+                    bottom,
+                    window.innerHeight,
+                    window.scrollY,
+                    scrollingElement.scrollHeight
+                );
+                if (!horizontal || !vertical) return false;
+                const [viewportLeft, viewportRight] = horizontal;
+                const [viewportTop, viewportBottom] = vertical;
+                if (hitTestEligible && viewportRight - viewportLeft > 1 && viewportBottom - viewportTop > 1) {
+                    const points = [
+                        [(viewportLeft + viewportRight) / 2, (viewportTop + viewportBottom) / 2],
+                        [viewportLeft + 0.5, viewportTop + 0.5],
+                        [viewportRight - 0.5, viewportTop + 0.5],
+                        [viewportLeft + 0.5, viewportBottom - 0.5],
+                        [viewportRight - 0.5, viewportBottom - 0.5],
+                    ];
+                    if (!points.some(([x, y]) => {
+                        const hit = document.elementFromPoint(x, y);
+                        return hit && (
+                            hit === node || node.contains(hit)
+                        );
+                    })) return false;
                 }
                 return true;
             };
@@ -3172,7 +3286,9 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                 not_recorded: 'state: not recorded',
                 excluded: 'state: excluded',
             };
-            const stateTextMatches = stateNodes.length > 0 && stateNodes.every(node => {
+            const onePagerVisible = visible(onePager);
+            const stateTextMatches = onePagerVisible &&
+                stateNodes.length > 0 && stateNodes.every(node => {
                 const expected = labels[String(node.dataset.state || '').trim().toLowerCase()];
                 const direct = [...node.children].find(child => child.matches('.srcc-state'));
                 const stateText = direct || node.querySelector('.srcc-state');
@@ -3182,7 +3298,9 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
             const shareBasisNodes = onePager
                 ? [...onePager.querySelectorAll('[data-share-basis-role][data-share-basis-state]')]
                 : [];
-            const shareBasisVisible = shareBasisNodes.filter(visible);
+            const shareBasisVisible = onePagerVisible
+                ? shareBasisNodes.filter(visible)
+                : [];
             const shareBasisTextMatches = shareBasisNodes.length > 0 && shareBasisNodes.every(node =>
                 String(node.innerText || '').trim().toLowerCase() ===
                     `share basis state: ${String(node.dataset.shareBasisState || '').trim().toLowerCase()}`
