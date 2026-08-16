@@ -85,6 +85,19 @@ def _valuation_payload() -> dict[str, object]:
     return valuation.to_dict()
 
 
+def _change(**changes: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "state": "review_now",
+        "answer": "1 unresolved source-backed change needs review.",
+        "next_task": "Review the changed filing evidence.",
+        "source_refs": ("https://sec.example/change",),
+        "source_backed_eligible": True,
+        "change_context_kind": "source_backed",
+    }
+    row.update(changes)
+    return row
+
+
 def _inputs(report: dict[str, object] | None = None, **changes: object) -> CompanyWorkbenchHtmlInputs:
     valuation = _valuation_payload()
     default_report = {
@@ -98,9 +111,135 @@ def _inputs(report: dict[str, object] | None = None, **changes: object) -> Compa
     }
     selected = {"Ticker": "NVDA", "Use Now": "Saved, source-backed context.", "Still Blocked": "No live consensus.", "state": "ready"}
     recency = ObservationRecencySet(ObservationRecency("NVDA", "2026-07-30", 1, "current", "Current"), ObservationRecency("profile", "2026-07-30", 1, "current", "Current"), (), 7, "/private/prices.csv", "2026-07-31")
-    values = dict(report_payload=default_report if report is None else report, profile_context=_profile(), observation_recency=recency, selected_answer=selected, authoritative_task={"title": "Review evidence", "body": "Confirm source scope.", "state": "blocked", "badges": ("Research",)}, scenario_lab_result=None, nowcast_packet=None, decision_lab_state=_decision(), quarterly_trend=_quarterly(), forward_view=_forward(), journal_state=None, valuation_regime=_regime(), catalyst_timeline=_catalysts())
+    values = dict(report_payload=default_report if report is None else report, profile_context=_profile(), observation_recency=recency, selected_answer=selected, authoritative_task={"title": "Review evidence", "body": "Confirm source scope.", "state": "blocked", "badges": ("Research",)}, scenario_lab_result=None, nowcast_packet=None, decision_lab_state=_decision(), quarterly_trend=_quarterly(), forward_view=_forward(), journal_state=None, valuation_regime=_regime(), catalyst_timeline=_catalysts(), change_answer=_change(), change_ticker="NVDA", change_profile_key="demo")
     values.update(changes)
     return CompanyWorkbenchHtmlInputs(**values)
+
+
+def test_snapshot_freezes_four_scoped_answers_without_promoting_source_backed_change():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+
+    assert [answer.label for answer in snapshot.answers] == [
+        "Use now",
+        "Still withheld",
+        "What changed",
+        "Next research task",
+    ]
+    changed = snapshot.answers[2]
+    assert changed.state == "partial"
+    assert changed.title == "1 unresolved source-backed change needs review."
+    assert changed.body == "Review the changed filing evidence."
+    assert [reference.href for reference in changed.source_refs] == [
+        "https://sec.example/change"
+    ]
+    assert any("portable publication" in blocker.lower() for blocker in changed.blockers)
+
+
+@pytest.mark.parametrize(
+    ("kind", "eligible", "expected"),
+    (
+        ("none", False, "not_recorded"),
+        ("snapshot_only", False, "partial"),
+        ("source_backed", True, "partial"),
+        ("unknown", True, "withheld"),
+    ),
+)
+def test_snapshot_maps_change_context_without_inheriting_workflow_state(kind, eligible, expected):
+    inputs = _inputs(change_answer=_change(change_context_kind=kind, source_backed_eligible=eligible))
+    assert build_company_workbench_html_snapshot(inputs).answers[2].state == expected
+
+
+@pytest.mark.parametrize("kind", ("none", "unknown"))
+def test_snapshot_clears_claim_and_references_for_none_or_unknown_context(kind):
+    changed = build_company_workbench_html_snapshot(
+        _inputs(change_answer=_change(change_context_kind=kind))
+    ).answers[2]
+    assert changed.title == "No portable change answer."
+    assert changed.body == "No scoped saved change answer is available."
+    assert changed.source_refs == ()
+    assert "unresolved source-backed" not in repr(changed).lower()
+
+
+@pytest.mark.parametrize(
+    ("ticker", "profile"),
+    (("AMD", "demo"), ("NVDA", "other"), ("", "demo")),
+)
+def test_snapshot_rejects_unscoped_or_mismatched_change_answer(ticker, profile):
+    snapshot = build_company_workbench_html_snapshot(
+        _inputs(change_ticker=ticker, change_profile_key=profile)
+    )
+    changed = snapshot.answers[2]
+    assert changed.state == "not_recorded"
+    assert changed.source_refs == ()
+    assert "changed filing" not in repr(changed).lower()
+
+
+def test_snapshot_sanitizes_change_copy_state_and_references():
+    snapshot = build_company_workbench_html_snapshot(
+        _inputs(
+            change_answer=_change(
+                state="invented-state<script>",
+                answer="<script>alert(1)</script>",
+                next_task="buy this stock now",
+                source_refs=(
+                    "javascript:alert(1)",
+                    "https://sec.example/change",
+                ),
+            )
+        )
+    )
+    changed = snapshot.answers[2]
+    assert changed.state == "withheld"
+    assert changed.badges == ()
+    assert "<script" not in repr(changed).lower()
+    assert "buy this stock" not in repr(changed).lower()
+    assert changed.source_refs == ()
+    assert changed.title == "No portable change answer."
+
+
+@pytest.mark.parametrize(
+    "source_ref",
+    (
+        "sec:accession",
+        "sec-accession:0001045810-26-000021",
+        "consensus://nvda/fy2027-q2/2026-07-15",
+        "sec_companyfacts",
+        "sec_companyfacts; sec_filing_document",
+        "yfinance_research_grade; sec_filing_document",
+    ),
+)
+def test_snapshot_keeps_real_opaque_source_ref_partial_but_does_not_expose_it(
+    source_ref,
+):
+    changed = build_company_workbench_html_snapshot(
+        _inputs(change_answer=_change(source_refs=(source_ref,)))
+    ).answers[2]
+    assert changed.state == "partial"
+    assert changed.source_refs == ()
+    assert any("reference is incomplete" in blocker.lower() for blocker in changed.blockers)
+
+
+@pytest.mark.parametrize(
+    "unsafe_ref",
+    (
+        "http://example.com/change",
+        "/etc/passwd",
+        "src/private-change.txt",
+        "file:///tmp/change",
+        "consensus://nvda/../../private",
+    ),
+)
+def test_snapshot_withholds_mixed_valid_and_unsafe_change_references(unsafe_ref):
+    changed = build_company_workbench_html_snapshot(
+        _inputs(
+            change_answer=_change(
+                source_refs=("https://sec.example/change", unsafe_ref)
+            )
+        )
+    ).answers[2]
+    assert changed.state == "withheld"
+    assert changed.source_refs == ()
+    assert changed.title == "No portable change answer."
 
 
 def _base(snapshot):

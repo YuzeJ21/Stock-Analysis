@@ -8,10 +8,10 @@ import json
 import math
 import re
 import unicodedata
-from dataclasses import asdict, dataclass, is_dataclass, replace
+from dataclasses import asdict, dataclass, field, is_dataclass, replace
 from datetime import datetime, timezone
 from typing import Mapping
-from urllib.parse import unquote, urlparse
+from urllib.parse import unquote, urlparse, urlsplit
 
 from src.catalyst_evidence_timeline import CatalystTimeline
 from src.forward_view import ForwardViewPacket
@@ -61,6 +61,8 @@ class HtmlBriefAnswer:
     body: str
     state: str
     badges: tuple[str, ...]
+    source_refs: tuple[HtmlBriefSafeReference, ...] = ()
+    blockers: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -151,6 +153,9 @@ class CompanyWorkbenchHtmlInputs:
     journal_state: JournalState | None
     valuation_regime: ValuationRegimePacket
     catalyst_timeline: CatalystTimeline
+    change_answer: Mapping[str, object] = field(default_factory=dict)
+    change_ticker: str = ""
+    change_profile_key: str = ""
 
 
 @dataclass(frozen=True)
@@ -232,6 +237,178 @@ def safe_html_brief_reference(value: object) -> HtmlBriefSafeReference:
         if parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment and not unsafe_path:
             href = candidate.strip()
     return HtmlBriefSafeReference(label, href)
+
+
+def _neutral_change_answer(*, state: str, blocker: str) -> HtmlBriefAnswer:
+    return HtmlBriefAnswer(
+        "What changed",
+        "No portable change answer.",
+        "No scoped saved change answer is available.",
+        state,
+        (),
+        (),
+        (blocker,),
+    )
+
+
+def _portable_change_text(value: object) -> str:
+    if not isinstance(value, str):
+        return ""
+    raw = value.strip()
+    if not raw or "<" in raw or ">" in raw:
+        return ""
+    safe = safe_html_brief_text(raw)
+    return "" if not safe or safe == _WITHHELD_ACTION else safe
+
+
+def _benign_incomplete_change_reference(raw: str) -> bool:
+    if len(raw) > 512:
+        return False
+    if re.fullmatch(r"sec:[A-Za-z0-9][A-Za-z0-9._-]{0,127}", raw):
+        return True
+    if re.fullmatch(
+        r"sec-accession:[A-Za-z0-9][A-Za-z0-9._-]{0,127}", raw
+    ):
+        return True
+    source_tokens = tuple(part.strip() for part in raw.split(";"))
+    if 1 <= len(source_tokens) <= 8 and all(
+        re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", part)
+        for part in source_tokens
+    ):
+        return True
+    try:
+        parsed = urlsplit(raw)
+        path_parts = tuple(part for part in parsed.path.split("/") if part)
+        return bool(
+            parsed.scheme == "consensus"
+            and parsed.hostname
+            and re.fullmatch(
+                r"[A-Za-z0-9][A-Za-z0-9.-]{0,127}", parsed.hostname
+            )
+            and not parsed.username
+            and not parsed.password
+            and parsed.port is None
+            and not parsed.query
+            and not parsed.fragment
+            and path_parts
+            and all(
+                part not in {".", ".."}
+                and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", part)
+                for part in path_parts
+            )
+        )
+    except ValueError:
+        return False
+
+
+def _change_reference_is_unsafe(value: object) -> bool:
+    if not isinstance(value, str):
+        return True
+    raw = value.strip()
+    if not raw or "<" in raw or ">" in raw or "\\" in raw:
+        return True
+    if any(unicodedata.category(char) == "Cc" for char in raw):
+        return True
+    if _SECRET_PATTERN.search(raw):
+        return True
+    if _benign_incomplete_change_reference(raw):
+        return False
+    return not bool(
+        safe_html_brief_reference(
+            {"label": "Change source", "href": raw}
+        ).href
+    )
+
+
+def _portable_change_answer(
+    inputs: CompanyWorkbenchHtmlInputs,
+    ticker: str,
+) -> HtmlBriefAnswer:
+    scoped = _ticker_matches(inputs.change_ticker, ticker) and _profile_matches(
+        inputs.change_profile_key,
+        inputs.profile_context.profile_key,
+    )
+    change = _mapping(inputs.change_answer)
+    if not scoped or not change:
+        return _neutral_change_answer(
+            state="not_recorded",
+            blocker="Portable change scope is absent or mismatched.",
+        )
+
+    raw_context_kind = str(change.get("change_context_kind") or "").strip().lower()
+    if raw_context_kind == "none":
+        return _neutral_change_answer(
+            state="not_recorded",
+            blocker="No source-backed or snapshot-only change is recorded.",
+        )
+    if raw_context_kind not in {"snapshot_only", "source_backed"}:
+        return _neutral_change_answer(
+            state="withheld",
+            blocker="Portable change context is unsupported.",
+        )
+
+    raw_workflow_state = str(change.get("state") or "").strip().lower()
+    title = _portable_change_text(change.get("answer"))
+    body = _portable_change_text(change.get("next_task"))
+    refs: list[HtmlBriefSafeReference] = []
+    refs_incomplete = False
+    raw_refs = change.get("source_refs")
+    refs_unsafe = raw_refs is not None and not isinstance(raw_refs, (list, tuple))
+    for index, raw in enumerate(
+        raw_refs if isinstance(raw_refs, (list, tuple)) else ()
+    ):
+        if _change_reference_is_unsafe(raw):
+            refs_unsafe = True
+            continue
+        safe = safe_html_brief_reference(
+            {"label": f"Change source {index + 1}", "href": raw}
+        )
+        if safe.href and safe not in refs:
+            refs.append(safe)
+        elif not safe.href:
+            refs_incomplete = True
+
+    content_safe = (
+        raw_workflow_state in {"monitor", "review_now", "wait_for_evidence"}
+        and bool(title)
+        and bool(body)
+        and not refs_unsafe
+    )
+    if not content_safe:
+        return _neutral_change_answer(
+            state="withheld",
+            blocker="Portable change content, workflow state, or reference is unsafe.",
+        )
+
+    if raw_context_kind == "snapshot_only":
+        state = "partial"
+        refs = []
+        blockers = ("Change context is snapshot-only.",)
+    else:
+        state = "partial"
+        blockers = (
+            "Portable publication and retrieval dates, rights, field scope, and cutoff proof are not frozen."
+            if (
+                change.get("source_backed_eligible") is True
+                and refs
+                and not refs_incomplete
+            )
+            else "Portable source-backed change eligibility or reference is incomplete.",
+        )
+
+    return HtmlBriefAnswer(
+        "What changed",
+        title,
+        body,
+        state,
+        tuple(
+            safe_html_brief_text(item)
+            for item in (raw_workflow_state, raw_context_kind)
+            if safe_html_brief_text(item)
+        ),
+        tuple(refs),
+        blockers,
+    )
 
 
 def _mapping(value: object) -> Mapping[str, object]:
@@ -592,8 +769,9 @@ def build_company_workbench_html_snapshot(inputs: CompanyWorkbenchHtmlInputs) ->
     selected_use_now = _clean_text(inputs.selected_answer.get("Use Now"), "No portable answer.") if selected_matches else "No portable answer."
     selected_blocked = _clean_text(inputs.selected_answer.get("Still Blocked"), "No portable blocker.") if selected_matches else "No portable blocker."
     answers = (
-        HtmlBriefAnswer("Usable now", "Usable now", selected_use_now, normalize_html_brief_state(selected_state), ()),
+        HtmlBriefAnswer("Use now", "Use now", selected_use_now, normalize_html_brief_state(selected_state), ()),
         HtmlBriefAnswer("Still withheld", "Still withheld", selected_blocked, "withheld", ()),
+        _portable_change_answer(inputs, ticker),
         HtmlBriefAnswer("Next research task", _clean_text(inputs.authoritative_task.get("title"), "Next research task"), _clean_text(inputs.authoritative_task.get("body"), "No portable task."), normalize_html_brief_state(inputs.authoritative_task.get("state")), tuple(safe_html_brief_text(item) for item in inputs.authoritative_task.get("badges", ()) if safe_html_brief_text(item)) if isinstance(inputs.authoritative_task.get("badges"), (list, tuple)) else ()),
     )
     evidence = _evidence_rows(inputs, accepted)
