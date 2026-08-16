@@ -949,7 +949,7 @@ def _html_brief_css(root: str) -> str:
   {root} .srcc-one-pager-card {{ background: #fff !important; }}
   {root} .srcc-one-pager .srcc-state,
   {root} .srcc-one-pager .srcc-boundary,
-  {root} .srcc-one-pager [data-section="one-pager-provenance"],
+  {root} .srcc-one-pager [data-section='one-pager-provenance'],
   {root} .srcc-one-pager .srcc-table th,
   {root} .srcc-one-pager .srcc-table td,
   {root} .srcc-one-pager-card {{
@@ -1439,29 +1439,51 @@ def _html_evidence_one_pager(
     )
 
 
+def _evidence_one_pager_scope_valid(
+    snapshot: CompanyWorkbenchHtmlSnapshot,
+) -> bool:
+    """Validate only the frozen identity and fields required by the summary."""
+    if not isinstance(snapshot, CompanyWorkbenchHtmlSnapshot):
+        return False
+    profile_label = safe_html_brief_text(
+        html.unescape(str(snapshot.profile_label))
+    )
+    expected_identity = hashlib.sha256(
+        json.dumps(
+            asdict(replace(snapshot, identity="")),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    return bool(
+        _ticker(snapshot.ticker)
+        and profile_label
+        and profile_label.lower() != "not recorded"
+        and profile_label != _WITHHELD_ACTION
+        and _iso(snapshot.review_cutoff)
+        and str(snapshot.identity or "") == expected_identity
+    )
+
+
 def _html_evidence_one_pager_or_unavailable(
     snapshot: CompanyWorkbenchHtmlSnapshot,
+    *,
     heading_level: int,
 ) -> str:
     """Fail closed to an explicit summary state without affecting the full report."""
     try:
-        return _html_evidence_one_pager(snapshot, heading_level)
-    except Exception:
-        level = max(1, min(6, int(heading_level)))
-        heading = f"h{level}"
-        card_heading = f"h{min(6, level + 1)}"
-        unavailable = _html_one_pager_section_card(
-            None,
-            role=_html_one_pager_role("summary", "unavailable"),
-            heading=card_heading,
-        )
+        if not _evidence_one_pager_scope_valid(snapshot):
+            raise ValueError("one-pager scope is incomplete or unsafe")
+        return _html_evidence_one_pager(snapshot, heading_level=heading_level)
+    except (TypeError, ValueError):
+        heading = f"h{heading_level}"
         return (
-            '<section class="srcc-one-pager" data-section="evidence-one-pager" '
-            'aria-labelledby="evidence-one-pager-unavailable-title">'
-            '<header data-section="one-pager-header">'
-            f'<{heading} id="evidence-one-pager-unavailable-title">'
-            f"Evidence One-Pager unavailable</{heading}></header>"
-            f"{unavailable}</section>"
+            '<section class="srcc-one-pager" '
+            'data-section="evidence-one-pager-unavailable">'
+            f"<{heading}>Evidence One-Pager unavailable</{heading}>"
+            '<p class="srcc-boundary">The compact summary could not be formatted. '
+            "Continue to the full evidence report below.</p></section>"
         )
 
 
@@ -1594,12 +1616,14 @@ def _html_brief_content(snapshot: CompanyWorkbenchHtmlSnapshot, *, heading_level
 def render_company_workbench_html_fragment(snapshot: CompanyWorkbenchHtmlSnapshot) -> str:
     """Render a self-contained, scoped HTML fragment from a frozen snapshot only."""
     title = f"{_html_brief_text(snapshot.ticker, 'Research')} research brief"
+    summary = _html_evidence_one_pager_or_unavailable(snapshot, heading_level=3)
+    full_report = _html_brief_content(snapshot, heading_level=3)
     return (
         f"<style>{_html_brief_css('.srcc-html-brief')}</style>"
         '<article class="srcc-html-brief" aria-labelledby="srcc-brief-title"><div class="srcc-brief-shell">'
         f'<h2 id="srcc-brief-title" class="srcc-brief-title">{title}</h2>'
         f'<p class="srcc-boundary">{_html_brief_text(snapshot.boundary)}</p>'
-        f"{_html_brief_content(snapshot, heading_level=3)}"
+        f"{summary}{full_report}"
         "</div></article>"
     )
 
@@ -1607,6 +1631,8 @@ def render_company_workbench_html_fragment(snapshot: CompanyWorkbenchHtmlSnapsho
 def render_company_workbench_html_document(snapshot: CompanyWorkbenchHtmlSnapshot) -> str:
     """Render a deterministic, offline full document from a frozen snapshot only."""
     title = f"{_html_brief_text(snapshot.ticker, 'Research')} research brief"
+    summary = _html_evidence_one_pager_or_unavailable(snapshot, heading_level=2)
+    full_report = _html_brief_content(snapshot, heading_level=2)
     return (
         "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
         f"<meta http-equiv=\"Content-Security-Policy\" content=\"{_HTML_BRIEF_CSP}\">"
@@ -1615,7 +1641,7 @@ def render_company_workbench_html_document(snapshot: CompanyWorkbenchHtmlSnapsho
         '<body class="srcc-html-document"><a class="srcc-skip-link" href="#research-brief-main">Skip to research brief</a>'
         '<header class="srcc-brief-shell"><h1 class="srcc-brief-title">'
         f"{title}</h1><p class=\"srcc-boundary\">{_html_brief_text(snapshot.boundary)}</p></header>"
-        f'<main id="research-brief-main" tabindex="-1" class="srcc-brief-shell">{_html_brief_content(snapshot, heading_level=2)}</main>'
+        f'<main id="research-brief-main" tabindex="-1" class="srcc-brief-shell">{summary}{full_report}</main>'
         '<footer class="srcc-brief-shell"><p>Portable offline research brief. Review source evidence and stated boundaries.</p></footer>'
         "</body></html>"
     )

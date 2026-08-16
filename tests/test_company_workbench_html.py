@@ -2412,13 +2412,9 @@ def test_evidence_one_pager_unavailable_fallback_has_labelled_summary_header():
         None,
         heading_level=2,
     )
-    parser = _OnePagerHtmlParser()
-    parser.feed(rendered)
-
-    assert parser.tags[:2] == ["section", "header"]
-    assert parser.labelled_sections == ["evidence-one-pager-unavailable-title"]
-    assert parser.headings[0] == ("h2", "Evidence One-Pager unavailable")
-    assert rendered.count('id="evidence-one-pager-unavailable-title"') == 1
+    assert 'data-section="evidence-one-pager-unavailable"' in rendered
+    assert '<h2>Evidence One-Pager unavailable</h2>' in rendered
+    assert "Continue to the full evidence report below." in rendered
 
 
 def test_evidence_one_pager_escapes_and_withholds_unsafe_answer_content():
@@ -2468,6 +2464,73 @@ def test_renderer_has_fixed_research_section_order_and_uses_only_snapshot_values
     assert "net debt" not in rendered.lower() or str(next(row for row in snapshot.scenarios if row.name == "Base").bridge.net_debt) in rendered
 
 
+def test_fragment_and_document_place_one_pager_before_unchanged_full_report_order():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    fragment = html_brief.render_company_workbench_html_fragment(snapshot)
+    document = html_brief.render_company_workbench_html_document(snapshot)
+
+    for rendered in (fragment, document):
+        assert rendered.index('data-section="evidence-one-pager"') < rendered.index(
+            'data-section="one-pager-provenance"'
+        ) < rendered.index('data-section="one-pager-handoff"') < rendered.index(
+            'data-section="overview"'
+        )
+        assert rendered.index('data-section="overview"') < rendered.index(
+            'data-section="answers"'
+        ) < rendered.index('data-section="scenarios"') < rendered.index(
+            'data-section="advanced-evidence"'
+        )
+
+
+def test_one_pager_projection_failure_cannot_suppress_full_report(monkeypatch):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+
+    def fail(*args, **kwargs):
+        raise ValueError("summary formatting failed")
+
+    monkeypatch.setattr(html_brief, "_html_evidence_one_pager", fail)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert 'data-section="evidence-one-pager-unavailable"' in rendered
+    assert "Evidence One-Pager unavailable" in rendered
+    assert 'data-section="overview"' in rendered
+    assert 'data-section="advanced-evidence"' in rendered
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"ticker": ""},
+        {"ticker": "NVDA<script>"},
+        {"profile_label": ""},
+        {"profile_label": "not recorded"},
+        {"profile_label": "/private/profile"},
+        {"profile_label": "Different reviewed profile"},
+        {"review_cutoff": "not recorded"},
+        {"identity": ""},
+        {"identity": "not-a-sha256"},
+    ),
+)
+def test_invalid_summary_scope_fails_closed_without_suppressing_full_report(changes):
+    snapshot = replace(build_company_workbench_html_snapshot(_inputs()), **changes)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+    assert 'data-section="evidence-one-pager"' not in rendered
+    assert 'data-section="evidence-one-pager-unavailable"' in rendered
+    assert 'data-section="overview"' in rendered
+    assert 'data-section="advanced-evidence"' in rendered
+
+
+def test_download_contract_remains_one_deterministic_html_artifact():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    first = html_brief.company_workbench_html_download_spec(snapshot)
+    second = html_brief.company_workbench_html_download_spec(snapshot)
+    assert first == second
+    assert first.file_name == "NVDA-2026-07-30-research-brief.html"
+    assert first.mime == "text/html; charset=utf-8"
+    assert first.data.count(b'data-section="evidence-one-pager"') == 1
+    assert first.data.count(b'data-section="advanced-evidence"') == 1
+
+
 def test_document_and_fragment_have_distinct_semantic_wrappers():
     snapshot = _render_snapshot()
     document = html_brief.render_company_workbench_html_document(snapshot)
@@ -2485,7 +2548,7 @@ def test_document_and_fragment_have_distinct_semantic_wrappers():
     assert "Skip to research brief" in document
     assert fragment.count('<article class="srcc-html-brief"') == 1
     assert ("h2", "NVDA research brief") in embedded.headings
-    assert not {"html", "head", "body", "header", "main", "footer", "script"} & set(embedded.tags)
+    assert not {"html", "head", "body", "main", "footer", "script"} & set(embedded.tags)
     assert "Skip to research brief" not in fragment
     assert "Content-Security-Policy" not in fragment
 
