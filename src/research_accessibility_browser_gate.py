@@ -3165,12 +3165,12 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
             const advanced = advancedNodes.length === 1 ? advancedNodes[0] : null;
             const stateNodes = onePager ? [...onePager.querySelectorAll('[data-state]')] : [];
             const labels = {
-                available: 'complete',
-                partial: 'partial',
-                withheld: 'withheld',
-                stale: 'stale',
-                not_recorded: 'not recorded',
-                excluded: 'excluded',
+                available: 'state: complete',
+                partial: 'state: partial',
+                withheld: 'state: withheld',
+                stale: 'state: stale',
+                not_recorded: 'state: not recorded',
+                excluded: 'state: excluded',
             };
             const stateTextMatches = stateNodes.length > 0 && stateNodes.every(node => {
                 const expected = labels[String(node.dataset.state || '').trim().toLowerCase()];

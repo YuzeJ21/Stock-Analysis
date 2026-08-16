@@ -828,6 +828,40 @@ def test_one_pager_payload_contract_rejects_missing_duplicate_zoom_overflow_requ
         assert evaluated["detail"]
 
 
+def test_actual_company_workbench_one_pager_in_app_contract():
+    import src.research_accessibility_browser_gate as gate
+    from playwright.sync_api import sync_playwright
+
+    chrome = gate.find_chrome_executable()
+    assert chrome is not None
+    with gate._captured_local_demo_server(
+        Path.cwd(),
+        timeout_seconds=45,
+    ) as server:
+        with sync_playwright() as playwright:
+            result = gate._measure_company_workbench_one_pager_cell(
+                playwright.chromium,
+                chrome_executable=Path(chrome),
+                base_url=server.base_url,
+                cell=(1280, 720, 1),
+                timeout_seconds=45,
+                server_deprecated_warning_count=(
+                    server.deprecated_warning_count
+                ),
+                server_runtime_output_status=server.capture_status,
+            )
+    observation = result["observation"]
+    assert (
+        observation["one_pager_min_text_contrast_ratio"] >= 4.5
+        and observation["download_button_height"] >= 44
+        and observation["one_pager_state_text_matches"] is True
+    ), {
+        "contrast": observation.get("one_pager_min_text_contrast_ratio"),
+        "download_height": observation.get("download_button_height"),
+        "state_text_matches": observation.get("one_pager_state_text_matches"),
+    }
+
+
 def test_proof_history_media_marker_selects_the_rendered_public_timeline():
     from src.dashboard import proof_history_public_timeline_html
     from src.research_accessibility_browser_gate import RESEARCH_ROUTES
