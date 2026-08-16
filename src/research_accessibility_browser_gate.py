@@ -12,11 +12,12 @@ import os
 import platform
 import subprocess
 import sys
+import tempfile
 import threading
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import parse_qs, urlparse
 
 from scripts.diff_hygiene import (
@@ -26,6 +27,11 @@ from scripts.diff_hygiene import (
     load_status,
 )
 from src.paths import resolve_project_root
+from src.company_workbench_html_browser_gate import (
+    _chromium_zoom_preferences,
+    _summary_scope_observation,
+    evaluate_html_brief_browser_zoom,
+)
 from src.public_performance_gate import (
     _git_commit,
     _free_port,
@@ -38,6 +44,11 @@ from src.public_performance_gate import (
 
 
 VIEWPORTS: tuple[tuple[int, int], ...] = ((1280, 720), (390, 844))
+COMPANY_WORKBENCH_ONE_PAGER_CELLS: tuple[tuple[int, int, int], ...] = (
+    (1280, 720, 1),
+    (1280, 720, 2),
+    (390, 844, 1),
+)
 DATA_PROFILE_CONTRACT = ("STOCK_RESEARCH_DATA_PROFILE", "demo")
 EXPECTED_APP_TITLE = "Stock Research Command Center"
 EXPECTED_PROFILE_LABEL = "Demo"
@@ -53,6 +64,56 @@ STATE_HARNESS_TRANSITIONS: tuple[tuple[str, str], ...] = (
     ("draft_changed", "Draft changed"),
     ("save_reloaded", "Record saved"),
     ("save_reload_unverified", "Save verification incomplete"),
+)
+
+_ONE_PAGER_REQUIRED_STATE_ROLES = frozenset(
+    {
+        "answers-next-research-task",
+        "answers-still-withheld",
+        "answers-use-now",
+        "answers-what-changed",
+        "break-case-decision-invalidation",
+        "break-case-research-risks",
+        "header-freshness-state",
+        "header-rights-state",
+        "operating-valuation-base-bridge-cash",
+        "operating-valuation-base-bridge-debt",
+        "operating-valuation-base-bridge-discounted-explicit-total",
+        "operating-valuation-base-bridge-discounted-terminal-value",
+        "operating-valuation-base-bridge-enterprise-value",
+        "operating-valuation-base-bridge-equity-value",
+        "operating-valuation-base-bridge-net-debt",
+        "operating-valuation-base-bridge-supplied-shares",
+        "operating-valuation-base-bridge-supplied-value-per-share",
+        "operating-valuation-base-bridge-terminal-value",
+        "operating-valuation-research-business-trend",
+        "operating-valuation-research-key-drivers",
+        "operating-valuation-research-valuation-regime",
+        "provenance-freshness-state",
+        "provenance-rights-state",
+        "questions-answer-next-research-task",
+        "questions-decision-review-trigger",
+        "questions-research-evidence-gaps",
+        "research-case-decision-evidence",
+        "research-case-decision-plan",
+        "research-case-research-business-trend",
+        "research-case-research-key-drivers",
+        "scenarios-base",
+        "scenarios-base-value-per-share",
+        "scenarios-bear",
+        "scenarios-bear-value-per-share",
+        "scenarios-bull",
+        "scenarios-bull-value-per-share",
+    }
+)
+_ONE_PAGER_ALLOWED_STATES = frozenset(
+    {"available", "partial", "withheld", "stale", "not_recorded", "excluded"}
+)
+_ONE_PAGER_EXPECTED_SHARE_BASIS_TOKENS = (
+    "operating-valuation-base-bridge-share-basis=unverified",
+    "scenarios-base-share-basis=unverified",
+    "scenarios-bear-share-basis=unverified",
+    "scenarios-bull-share-basis=unverified",
 )
 
 
@@ -918,6 +979,314 @@ def _safe_float(value: object) -> float | None:
     except (TypeError, ValueError, OverflowError):
         return None
     return converted if math.isfinite(converted) else None
+
+
+def _exact_http_origin(url: object) -> str | None:
+    try:
+        parsed = urlparse(str(url or ""))
+        port = parsed.port
+    except ValueError:
+        return None
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return None
+    default_port = 80 if parsed.scheme == "http" else 443
+    display_host = (
+        f"[{parsed.hostname.lower()}]"
+        if ":" in parsed.hostname
+        else parsed.hostname.lower()
+    )
+    suffix = "" if (port or default_port) == default_port else f":{port}"
+    return f"{parsed.scheme}://{display_host}{suffix}"
+
+
+def evaluate_company_workbench_one_pager_observation(
+    observation: Mapping[str, object],
+) -> list[dict[str, object]]:
+    """Fail closed on the scoped in-app one-pager observation contract."""
+
+    def integer(name: str) -> int | None:
+        return _safe_int(observation.get(name))
+
+    def number(name: str) -> float | None:
+        return _safe_float(observation.get(name))
+
+    state_tokens_value = observation.get("one_pager_state_tokens", ())
+    state_tokens = (
+        tuple(state_tokens_value)
+        if isinstance(state_tokens_value, (tuple, list))
+        and all(isinstance(value, str) for value in state_tokens_value)
+        else ()
+    )
+    parsed_state_tokens: list[tuple[str, str]] = []
+    for token in state_tokens:
+        role, separator, state = token.partition("=")
+        if separator and role and state and "=" not in state:
+            parsed_state_tokens.append((role, state))
+    state_roles = tuple(role for role, _state in parsed_state_tokens)
+    state_values = tuple(state for _role, state in parsed_state_tokens)
+    provenance_roles = tuple(
+        role for role in state_roles if role.startswith("provenance-row-")
+    )
+    unexpected_roles = set(state_roles).difference(
+        _ONE_PAGER_REQUIRED_STATE_ROLES,
+        provenance_roles,
+    )
+    state_count = integer("one_pager_state_node_count")
+    state_role_count = integer("one_pager_state_role_count")
+    unique_state_role_count = integer("one_pager_unique_state_role_count")
+    state_roles_passed = (
+        len(parsed_state_tokens) == len(state_tokens)
+        and state_count == len(state_tokens)
+        and state_role_count == len(state_tokens)
+        and unique_state_role_count == len(set(state_roles)) == len(state_tokens)
+        and _ONE_PAGER_REQUIRED_STATE_ROLES.issubset(state_roles)
+        and bool(provenance_roles)
+        and not unexpected_roles
+        and all(state in _ONE_PAGER_ALLOWED_STATES for state in state_values)
+        and observation.get("one_pager_state_text_matches") is True
+    )
+
+    share_tokens_value = observation.get("one_pager_share_basis_tokens", ())
+    share_tokens = (
+        tuple(share_tokens_value)
+        if isinstance(share_tokens_value, (tuple, list))
+        and all(isinstance(value, str) for value in share_tokens_value)
+        else ()
+    )
+    request_urls_value = observation.get("request_urls", ())
+    request_urls = (
+        tuple(request_urls_value)
+        if isinstance(request_urls_value, (tuple, list))
+        and all(isinstance(value, str) for value in request_urls_value)
+        else ()
+    )
+    active_origin = _exact_http_origin(observation.get("active_origin"))
+    request_origins = tuple(_exact_http_origin(url) for url in request_urls)
+    network_passed = (
+        observation.get("request_audit_complete") is True
+        and active_origin is not None
+        and integer("external_request_count") == 0
+        and all(origin == active_origin for origin in request_origins)
+    )
+
+    overflow_values = (
+        number("document_overflow_px"),
+        number("one_pager_overflow_px"),
+        number("one_pager_max_descendant_overflow_px"),
+    )
+    contrast_values = (
+        number("one_pager_min_text_contrast_ratio"),
+        number("one_pager_min_boundary_contrast_ratio"),
+    )
+    console_errors = observation.get("console_errors")
+    page_errors = observation.get("page_errors")
+    return [
+        _assertion(
+            "one_pager_module_gate",
+            observation.get("one_pager_absent_before_open") is True,
+            f"absent_before_open={observation.get('one_pager_absent_before_open')!r}",
+        ),
+        _assertion(
+            "one_pager_disclosure",
+            integer("html_brief_details_count") == 1
+            and observation.get("html_brief_details_open") is True,
+            (
+                f"details_count={observation.get('html_brief_details_count')!r}; "
+                f"open={observation.get('html_brief_details_open')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_unique_visible",
+            integer("one_pager_count") == 1
+            and integer("one_pager_visible_count") == 1
+            and observation.get("one_pager_inside_html_brief") is True,
+            (
+                f"count={observation.get('one_pager_count')!r}; "
+                f"visible_count={observation.get('one_pager_visible_count')!r}; "
+                f"inside_html_brief="
+                f"{observation.get('one_pager_inside_html_brief')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_order",
+            observation.get("one_pager_before_overview") is True
+            and integer("overview_count") == 1,
+            (
+                f"before_overview={observation.get('one_pager_before_overview')!r}; "
+                f"overview_count={observation.get('overview_count')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_full_report",
+            integer("advanced_evidence_count") == 1
+            and observation.get("advanced_evidence_after_one_pager") is True
+            and observation.get("advanced_evidence_visible") is True,
+            (
+                f"advanced_count={observation.get('advanced_evidence_count')!r}; "
+                f"after={observation.get('advanced_evidence_after_one_pager')!r}; "
+                f"visible={observation.get('advanced_evidence_visible')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_zoom",
+            integer("requested_zoom") in {1, 2}
+            and observation.get("actual_browser_zoom") is True,
+            (
+                f"requested_zoom={observation.get('requested_zoom')!r}; "
+                f"actual={observation.get('actual_browser_zoom')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_no_overflow",
+            all(value is not None and value <= 1 for value in overflow_values),
+            (
+                f"document/summary/descendant overflow={overflow_values!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_contrast",
+            contrast_values[0] is not None
+            and contrast_values[0] >= 4.5
+            and contrast_values[1] is not None
+            and contrast_values[1] >= 3.0,
+            f"text-link/boundary contrast={contrast_values!r}",
+        ),
+        _assertion(
+            "one_pager_lists",
+            integer("one_pager_answer_item_count") == 4
+            and integer("one_pager_scenario_item_count") == 3,
+            (
+                f"answers={observation.get('one_pager_answer_item_count')!r}; "
+                f"scenarios={observation.get('one_pager_scenario_item_count')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_state_roles",
+            state_roles_passed,
+            (
+                f"nodes/roles/unique={state_count!r}/{state_role_count!r}/"
+                f"{unique_state_role_count!r}; roles={state_roles!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_share_basis",
+            tuple(sorted(share_tokens))
+            == _ONE_PAGER_EXPECTED_SHARE_BASIS_TOKENS
+            and integer("one_pager_share_basis_visible_count") == 4
+            and observation.get("one_pager_share_basis_text_matches") is True,
+            (
+                f"tokens={share_tokens!r}; "
+                f"visible={observation.get('one_pager_share_basis_visible_count')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_content_visible",
+            all(
+                observation.get(name) is True
+                for name in (
+                    "one_pager_provenance_caption_visible",
+                    "one_pager_provenance_visible",
+                    "one_pager_blockers_visible",
+                    "one_pager_assumptions_visible",
+                    "one_pager_handoff_visible",
+                )
+            ),
+            "provenance/caption/blockers/assumptions/handoff remain visible",
+        ),
+        _assertion(
+            "one_pager_download_target",
+            integer("download_button_count") == 1
+            and observation.get("download_button_label")
+            == "Download HTML Research Brief"
+            and observation.get("download_button_visible") is True
+            and number("download_button_height") is not None
+            and number("download_button_height") >= 44,
+            (
+                f"count={observation.get('download_button_count')!r}; "
+                f"label={observation.get('download_button_label')!r}; "
+                f"height={observation.get('download_button_height')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_runtime",
+            isinstance(console_errors, (tuple, list))
+            and isinstance(page_errors, (tuple, list))
+            and not console_errors
+            and not page_errors
+            and observation.get("server_runtime_output_status")
+            == "captured_local_server"
+            and integer("server_deprecated_warning_count") == 0,
+            (
+                f"console_errors={console_errors!r}; page_errors={page_errors!r}; "
+                f"server_status={observation.get('server_runtime_output_status')!r}; "
+                f"deprecated_warning_count="
+                f"{observation.get('server_deprecated_warning_count')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_exact_origin_network",
+            network_passed,
+            (
+                f"active_origin={active_origin!r}; requests={request_urls!r}; "
+                f"external_count={observation.get('external_request_count')!r}; "
+                f"audit_complete={observation.get('request_audit_complete')!r}"
+            ),
+        ),
+    ]
+
+
+def evaluate_company_workbench_one_pager_payload(
+    results: Iterable[Mapping[str, object]],
+) -> dict[str, object]:
+    """Require the exact bounded Workbench matrix and every scoped assertion."""
+
+    expected = {
+        (f"{width}x{height}", zoom)
+        for width, height, zoom in COMPANY_WORKBENCH_ONE_PAGER_CELLS
+    }
+    observed: list[tuple[str, int | None]] = []
+    failures: list[str] = []
+    for index, result in enumerate(tuple(results), start=1):
+        viewport = str(result.get("viewport") or "")
+        zoom = _safe_int(result.get("zoom"))
+        key = (viewport, zoom)
+        observed.append(key)
+        observation = result.get("observation")
+        assertions = result.get("assertions")
+        if not isinstance(observation, Mapping):
+            failures.append(f"cell {index} observation is missing")
+            continue
+        evaluated = evaluate_company_workbench_one_pager_observation(observation)
+        if (
+            observation.get("viewport") != viewport
+            or _safe_int(observation.get("requested_zoom")) != zoom
+        ):
+            failures.append(f"cell {index} identity does not match its observation")
+        if result.get("passed") is not True or not all(
+            assertion["passed"] for assertion in evaluated
+        ):
+            failures.append(f"cell {index} did not pass the scoped observation")
+        if not isinstance(assertions, (tuple, list)) or not assertions or not all(
+            isinstance(assertion, Mapping) and assertion.get("passed") is True
+            for assertion in assertions
+        ):
+            failures.append(f"cell {index} contains a failed or missing assertion")
+    actual = set(observed)
+    if len(observed) != len(actual):
+        failures.append("duplicate Workbench one-pager cell")
+    if actual != expected:
+        failures.append(
+            f"Workbench one-pager cells mismatch: actual={sorted(actual)!r}; "
+            f"expected={sorted(expected)!r}"
+        )
+    return {
+        "passed": not failures,
+        "detail": (
+            "exact three-cell Workbench one-pager matrix passed"
+            if not failures
+            else "; ".join(failures)
+        ),
+    }
 
 
 def evaluate_forced_colors_observation(
@@ -2699,6 +3068,234 @@ def _open_company_workbench_modules(
     )
 
 
+def _open_company_workbench_html_brief(
+    page: Any,
+    *,
+    timeout_seconds: float,
+) -> dict[str, object]:
+    """Open the one native HTML Research Brief disclosure after module activation."""
+
+    details = page.locator("details").filter(
+        has=page.get_by_text("HTML Research Brief", exact=True)
+    )
+    if details.count() != 1:
+        return _assertion(
+            "company_workbench_html_brief_open",
+            False,
+            f"expected one HTML Research Brief disclosure, found {details.count()}",
+        )
+    summary = details.first.locator(":scope > summary")
+    if (
+        summary.count() != 1
+        or summary.first.inner_text().strip() != "HTML Research Brief"
+        or not summary.first.is_visible()
+    ):
+        return _assertion(
+            "company_workbench_html_brief_open",
+            False,
+            "HTML Research Brief must expose one visible native summary control",
+        )
+    if details.first.get_attribute("open") is None:
+        summary.first.click()
+    one_pager = details.first.locator('[data-section="evidence-one-pager"]')
+    try:
+        one_pager.first.wait_for(
+            state="visible",
+            timeout=int(timeout_seconds * 1000),
+        )
+        _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+    except Exception as exc:
+        return _assertion(
+            "company_workbench_html_brief_open",
+            False,
+            f"HTML Research Brief did not expose its one-pager: {type(exc).__name__}: {exc}",
+        )
+    passed = (
+        details.first.get_attribute("open") is not None
+        and one_pager.count() == 1
+        and one_pager.first.is_visible()
+    )
+    return _assertion(
+        "company_workbench_html_brief_open",
+        passed,
+        (
+            "native HTML Research Brief summary opened one visible one-pager"
+            if passed
+            else (
+                f"details_open={details.first.get_attribute('open') is not None}; "
+                f"one_pager_count={one_pager.count()}"
+            )
+        ),
+    )
+
+
+def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]:
+    """Collect summary-scoped evidence from the opened in-app HTML fragment."""
+
+    summary = _summary_scope_observation(page)
+    scoped = page.evaluate(
+        r"""() => {
+            const visible = node => {
+                if (!(node instanceof Element)) return false;
+                const rect = node.getBoundingClientRect();
+                if (rect.width <= 1 || rect.height <= 1 || node.getClientRects().length === 0) return false;
+                for (let current = node; current instanceof Element; current = current.parentElement) {
+                    const style = getComputedStyle(current);
+                    const opacity = Number.parseFloat(style.opacity || '1');
+                    if (style.display === 'none' || style.visibility === 'hidden' ||
+                        style.visibility === 'collapse' || style.contentVisibility === 'hidden' ||
+                        !Number.isFinite(opacity) || opacity <= 0.01) return false;
+                }
+                return true;
+            };
+            const detailsNodes = [...document.querySelectorAll('details')].filter(node =>
+                String(node.querySelector(':scope > summary')?.innerText || '').trim() === 'HTML Research Brief'
+            );
+            const details = detailsNodes.length === 1 ? detailsNodes[0] : null;
+            const allOnePagers = [...document.querySelectorAll('[data-section="evidence-one-pager"]')];
+            const onePager = allOnePagers.length === 1 ? allOnePagers[0] : null;
+            const surface = onePager?.closest('.srcc-html-brief');
+            const overviewNodes = surface
+                ? [...surface.querySelectorAll('[data-section="overview"]')]
+                : [];
+            const advancedNodes = surface
+                ? [...surface.querySelectorAll('[data-section="advanced-evidence"]')]
+                : [];
+            const overview = overviewNodes.length === 1 ? overviewNodes[0] : null;
+            const advanced = advancedNodes.length === 1 ? advancedNodes[0] : null;
+            const stateNodes = onePager ? [...onePager.querySelectorAll('[data-state]')] : [];
+            const labels = {
+                available: 'complete',
+                partial: 'partial',
+                withheld: 'withheld',
+                stale: 'stale',
+                not_recorded: 'not recorded',
+                excluded: 'excluded',
+            };
+            const stateTextMatches = stateNodes.length > 0 && stateNodes.every(node => {
+                const expected = labels[String(node.dataset.state || '').trim().toLowerCase()];
+                const direct = [...node.children].find(child => child.matches('.srcc-state'));
+                const stateText = direct || node.querySelector('.srcc-state');
+                return Boolean(expected) && visible(stateText) &&
+                    String(stateText.innerText || '').trim().toLowerCase() === expected;
+            });
+            const shareBasisNodes = onePager
+                ? [...onePager.querySelectorAll('[data-share-basis-role][data-share-basis-state]')]
+                : [];
+            const shareBasisVisible = shareBasisNodes.filter(visible);
+            const shareBasisTextMatches = shareBasisNodes.length > 0 && shareBasisNodes.every(node =>
+                String(node.innerText || '').trim().toLowerCase() ===
+                    `share basis state: ${String(node.dataset.shareBasisState || '').trim().toLowerCase()}`
+            );
+            return {
+                html_brief_details_count: detailsNodes.length,
+                html_brief_details_open: Boolean(details?.open),
+                one_pager_count: allOnePagers.length,
+                one_pager_visible_count: allOnePagers.filter(visible).length,
+                one_pager_inside_html_brief: Boolean(details && onePager && details.contains(onePager)),
+                overview_count: overviewNodes.length,
+                advanced_evidence_count: advancedNodes.length,
+                advanced_evidence_after_one_pager: Boolean(
+                    onePager && advanced &&
+                    (onePager.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING)
+                ),
+                advanced_evidence_visible: visible(advanced),
+                one_pager_state_text_matches: stateTextMatches,
+                one_pager_share_basis_visible_count: shareBasisVisible.length,
+                one_pager_share_basis_text_matches: shareBasisTextMatches,
+                document_overflow_px: Math.max(
+                    0,
+                    document.documentElement.scrollWidth - window.innerWidth
+                ),
+                inner_width: window.innerWidth,
+                inner_height: window.innerHeight,
+                device_pixel_ratio: window.devicePixelRatio,
+                visual_viewport_width: window.visualViewport?.width || 0,
+                visual_viewport_height: window.visualViewport?.height || 0,
+                visual_viewport_scale: window.visualViewport?.scale || 0,
+            };
+        }"""
+    )
+    return {**summary, **scoped}
+
+
+def _company_workbench_one_pager_observation(
+    page: Any,
+    *,
+    width: int,
+    height: int,
+    requested_zoom: int,
+    absent_before_open: bool,
+    active_origin: str,
+    request_urls: Iterable[str],
+    external_request_count: int,
+    console_errors: Iterable[str],
+    page_errors: Iterable[str],
+    server_runtime_output_status: str,
+    server_deprecated_warning_count: int,
+) -> dict[str, object]:
+    observed = _company_workbench_one_pager_dom_observation(page)
+    screenshot = page.screenshot(full_page=False, scale="device")
+    if screenshot[:8] != b"\x89PNG\r\n\x1a\n" or len(screenshot) < 24:
+        raise RuntimeError("Workbench one-pager screenshot did not produce a PNG")
+    screenshot_width = int.from_bytes(screenshot[16:20], "big")
+    screenshot_height = int.from_bytes(screenshot[20:24], "big")
+    zoom_assertion = evaluate_html_brief_browser_zoom(
+        requested_zoom=requested_zoom,
+        declared_width=float(width),
+        declared_height=float(height),
+        screenshot_width=float(screenshot_width),
+        screenshot_height=float(screenshot_height),
+        inner_width=float(observed["inner_width"]),
+        inner_height=float(observed["inner_height"]),
+        visual_viewport_width=float(observed["visual_viewport_width"]),
+        visual_viewport_height=float(observed["visual_viewport_height"]),
+        device_pixel_ratio=float(observed["device_pixel_ratio"]),
+        visual_viewport_scale=float(observed["visual_viewport_scale"]),
+    )
+    details = page.locator("details").filter(
+        has=page.get_by_text("HTML Research Brief", exact=True)
+    )
+    download = details.first.get_by_role(
+        "button",
+        name="Download HTML Research Brief",
+        exact=True,
+    ) if details.count() == 1 else page.locator("button[data-never-match]")
+    download_box = (
+        download.first.bounding_box()
+        if download.count() == 1 and download.first.is_visible()
+        else None
+    )
+    return {
+        **observed,
+        "viewport": f"{width}x{height}",
+        "requested_zoom": requested_zoom,
+        "actual_browser_zoom": zoom_assertion.passed,
+        "actual_browser_zoom_evidence": zoom_assertion.evidence,
+        "one_pager_absent_before_open": absent_before_open,
+        "one_pager_state_tokens": tuple(observed["one_pager_state_tokens"]),
+        "one_pager_share_basis_tokens": tuple(
+            observed["one_pager_share_basis_tokens"]
+        ),
+        "download_button_count": download.count(),
+        "download_button_label": (
+            download.first.inner_text().strip() if download.count() == 1 else ""
+        ),
+        "download_button_visible": (
+            download.count() == 1 and download.first.is_visible()
+        ),
+        "download_button_height": (download_box or {}).get("height", 0),
+        "console_errors": tuple(console_errors),
+        "page_errors": tuple(page_errors),
+        "server_runtime_output_status": server_runtime_output_status,
+        "server_deprecated_warning_count": server_deprecated_warning_count,
+        "active_origin": active_origin,
+        "request_urls": tuple(request_urls),
+        "external_request_count": external_request_count,
+        "request_audit_complete": True,
+    }
+
+
 def _summary_focus_assertion(page: Any) -> dict[str, object]:
     summaries = page.locator("summary:visible")
     count = summaries.count()
@@ -3282,6 +3879,187 @@ def _measure_route(
     }
 
 
+def _measure_company_workbench_one_pager_cell(
+    chromium: Any,
+    *,
+    chrome_executable: Path,
+    base_url: str,
+    cell: tuple[int, int, int],
+    timeout_seconds: float,
+    server_deprecated_warning_count: int | Callable[[], int],
+    server_runtime_output_status: str,
+) -> dict[str, object]:
+    """Measure one isolated Workbench viewport/zoom cell after explicit open."""
+
+    width, height, zoom = cell
+    viewport = f"{width}x{height}"
+    active_origin = _exact_http_origin(base_url)
+    hostname = str(urlparse(base_url).hostname or "")
+    request_urls: list[str] = []
+    external_requests: list[str] = []
+    console_errors: list[str] = []
+    page_errors: list[str] = []
+    assertions: list[dict[str, object]] = []
+    observation: dict[str, object] = {
+        "viewport": viewport,
+        "requested_zoom": zoom,
+        "active_origin": active_origin or "",
+        "request_urls": (),
+        "external_request_count": 0,
+        "request_audit_complete": False,
+    }
+    if active_origin is None or not hostname:
+        assertions.append(
+            _assertion(
+                "company_workbench_one_pager_origin",
+                False,
+                f"invalid active origin: {base_url!r}",
+            )
+        )
+        return {
+            "viewport": viewport,
+            "zoom": zoom,
+            "passed": False,
+            "assertions": assertions,
+            "observation": observation,
+        }
+
+    with tempfile.TemporaryDirectory(
+        prefix="stock-research-workbench-one-pager-zoom-",
+        dir="/tmp",
+    ) as profile_directory:
+        profile = Path(profile_directory)
+        preferences = profile / "Default" / "Preferences"
+        preferences.parent.mkdir(parents=True)
+        preferences.write_text(
+            json.dumps(
+                _chromium_zoom_preferences(host=hostname, zoom=zoom),
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        context = chromium.launch_persistent_context(
+            user_data_dir=profile,
+            executable_path=str(chrome_executable),
+            headless=True,
+            viewport={"width": width, "height": height},
+            screen={"width": width, "height": height},
+            service_workers="block",
+        )
+
+        def intercept(route: Any, request: Any) -> None:
+            request_url = str(request.url)
+            parsed = urlparse(request_url)
+            if parsed.scheme in {"http", "https"}:
+                request_urls.append(request_url)
+                if _exact_http_origin(request_url) != active_origin:
+                    external_requests.append(request_url)
+                    route.abort()
+                    return
+            route.continue_()
+
+        context.route("**/*", intercept)
+        page = context.pages[0] if context.pages else context.new_page()
+
+        def capture_console_message(message: Any) -> None:
+            if str(message.type).lower() == "error":
+                console_errors.append(f"console error: {message.text}")
+
+        def capture_page_error(error: Any) -> None:
+            page_errors.append(f"page error: {error}")
+
+        page.on("console", capture_console_message)
+        page.on("pageerror", capture_page_error)
+        try:
+            route = next(
+                route
+                for route in RESEARCH_ROUTES
+                if route.name == "Company Workbench"
+            )
+            expected_url = f"{base_url.rstrip('/')}{route.route}"
+            page.goto(
+                expected_url,
+                wait_until="domcontentloaded",
+                timeout=int(timeout_seconds * 1000),
+            )
+            _wait_for_visible_text(
+                page,
+                route.marker,
+                timeout_seconds=timeout_seconds,
+            )
+            _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+            _wait_for_route_heading(
+                page,
+                route,
+                timeout_seconds=timeout_seconds,
+            )
+            assertions.append(
+                evaluate_exact_route_url(
+                    actual_url=page.url,
+                    expected_url=expected_url,
+                    phase=f"one_pager_{viewport}_{zoom}",
+                )
+            )
+            assertions.append(_company_workbench_primary_brief_assertion(page))
+            absent_before_open = (
+                page.locator('[data-section="evidence-one-pager"]').count() == 0
+            )
+            module_open = _open_company_workbench_modules(
+                page,
+                timeout_seconds=timeout_seconds,
+            )
+            assertions.append(module_open)
+            if module_open["passed"]:
+                html_brief_open = _open_company_workbench_html_brief(
+                    page,
+                    timeout_seconds=timeout_seconds,
+                )
+                assertions.append(html_brief_open)
+                if html_brief_open["passed"]:
+                    warning_count = (
+                        server_deprecated_warning_count()
+                        if callable(server_deprecated_warning_count)
+                        else server_deprecated_warning_count
+                    )
+                    observation = _company_workbench_one_pager_observation(
+                        page,
+                        width=width,
+                        height=height,
+                        requested_zoom=zoom,
+                        absent_before_open=absent_before_open,
+                        active_origin=active_origin,
+                        request_urls=request_urls,
+                        external_request_count=len(external_requests),
+                        console_errors=console_errors,
+                        page_errors=page_errors,
+                        server_runtime_output_status=server_runtime_output_status,
+                        server_deprecated_warning_count=warning_count,
+                    )
+                    assertions.extend(
+                        evaluate_company_workbench_one_pager_observation(
+                            observation
+                        )
+                    )
+        except Exception as exc:
+            assertions.append(
+                _assertion(
+                    "company_workbench_one_pager_execution",
+                    False,
+                    f"{type(exc).__name__}: {exc}",
+                )
+            )
+        finally:
+            context.close()
+    return {
+        "viewport": viewport,
+        "zoom": zoom,
+        "passed": bool(assertions)
+        and all(bool(assertion["passed"]) for assertion in assertions),
+        "assertions": assertions,
+        "observation": observation,
+    }
+
+
 def _repository_content_snapshot(root: Path) -> str:
     """Hash status plus every dirty/untracked path's current content."""
 
@@ -3508,6 +4286,7 @@ def _failed_payload(
         "viewports": [f"{width}x{height}" for width, height in VIEWPORTS],
         "routes": [route.name for route in RESEARCH_ROUTES],
         "results": [],
+        "company_workbench_one_pager": [],
         "state_harness": {
             "passed": False,
             "results": [],
@@ -3593,6 +4372,7 @@ def run_research_accessibility_browser_gate(
         capture_status="unverified",
     )
     state_results: list[dict[str, object]] = []
+    one_pager_results: list[dict[str, object]] = []
     state_repository_snapshot = _assertion(
         "repository_snapshot_unchanged",
         False,
@@ -3649,6 +4429,22 @@ def run_research_accessibility_browser_gate(
                         )
                         for viewport in VIEWPORTS
                         for route in RESEARCH_ROUTES
+                    ]
+                    one_pager_results = [
+                        _measure_company_workbench_one_pager_cell(
+                            playwright.chromium,
+                            chrome_executable=Path(chrome),
+                            base_url=verified_active_url,
+                            cell=cell,
+                            timeout_seconds=max(5.0, timeout_seconds),
+                            server_deprecated_warning_count=(
+                                active_server.deprecated_warning_count
+                            ),
+                            server_runtime_output_status=(
+                                active_server.capture_status
+                            ),
+                        )
+                        for cell in COMPANY_WORKBENCH_ONE_PAGER_CELLS
                     ]
                 repository_before_state_harness = _repository_status_snapshot(root)
                 with _captured_local_state_harness_server(
@@ -3716,6 +4512,23 @@ def run_research_accessibility_browser_gate(
         for result in state_results
         if not result["passed"]
     )
+    failures.extend(
+        (
+            f"Company Workbench one-pager {result['viewport']}@{result['zoom']}: "
+            + "; ".join(
+                str(assertion["detail"])
+                for assertion in result["assertions"]
+                if not assertion["passed"]
+            )
+        )
+        for result in one_pager_results
+        if not result["passed"]
+    )
+    one_pager_payload = evaluate_company_workbench_one_pager_payload(
+        one_pager_results
+    )
+    if not one_pager_payload["passed"]:
+        failures.append(str(one_pager_payload["detail"]))
     if not server_runtime_output["passed"]:
         failures.append(str(server_runtime_output["detail"]))
     if not state_server_runtime_output["passed"]:
@@ -3734,6 +4547,7 @@ def run_research_accessibility_browser_gate(
         "viewports": [f"{width}x{height}" for width, height in VIEWPORTS],
         "routes": [route.name for route in RESEARCH_ROUTES],
         "results": results,
+        "company_workbench_one_pager": one_pager_results,
         "state_harness": {
             "passed": (
                 bool(state_results)

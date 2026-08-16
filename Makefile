@@ -527,7 +527,14 @@ endif
 		--output-dir "$(OUTPUT_DIR)"
 
 company-workbench-html-browser-check:
-	@PYTHONDONTWRITEBYTECODE=1 python3 -m pytest tests/test_company_workbench_html_browser_gate.py -q
+	@packet_dir="$$(mktemp -d /tmp/stock-company-workbench-html-browser.XXXXXX)" && \
+		HTML_BRIEF_BROWSER_OUTPUT_DIR="$$packet_dir" PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider tests/test_company_workbench_html_browser_gate.py && \
+		test -s "$$packet_dir/results.json" && \
+		test -s "$$packet_dir/source-hashes.json" && \
+		for packet in "$$packet_dir/results.json" "$$packet_dir/source-hashes.json"; do \
+			packet_hash="$$(shasum -a 256 "$$packet" | awk '{print $$1}')"; \
+			printf '%s %s\n' "$$packet" "$$packet_hash"; \
+		done
 
 public-ux-review-checklist:
 	@python3 -m src.public_ux_review_checklist

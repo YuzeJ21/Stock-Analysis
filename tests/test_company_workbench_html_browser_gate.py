@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import os
+import re
 import socket
 import subprocess
 import tempfile
+import urllib.error
+import urllib.request
+from dataclasses import asdict, replace
+from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
@@ -58,13 +65,127 @@ ASSERTION_NAMES = {
     "no_console_errors",
     "no_page_errors",
     "pdf_in_memory",
+    "actual_browser_zoom",
+    "one_pager_visible",
+    "one_pager_before_overview",
+    "one_pager_structure",
+    "one_pager_lists",
+    "one_pager_state_truth",
+    "one_pager_state_role_integrity",
+    "one_pager_share_basis_disclosure",
+    "one_pager_provenance_caption_visible",
+    "one_pager_text_contrast",
+    "one_pager_boundary_contrast",
+    "one_pager_no_overflow",
+    "one_pager_no_descendant_overflow",
+    "one_pager_screen_content_visible",
+    "one_pager_forced_colors_non_color_cue",
+    "one_pager_print_text_contrast",
+    "one_pager_print_boundary_contrast",
+    "one_pager_print_content_visible",
 }
+
+SYNTHETIC_STATE_ROLES = (
+    "answers-next-research-task",
+    "answers-still-withheld",
+    "answers-use-now",
+    "answers-what-changed",
+    "break-case-decision-invalidation",
+    "break-case-research-risks",
+    "header-freshness-state",
+    "header-rights-state",
+    "operating-valuation-base-bridge-cash",
+    "operating-valuation-base-bridge-debt",
+    "operating-valuation-base-bridge-discounted-explicit-total",
+    "operating-valuation-base-bridge-discounted-terminal-value",
+    "operating-valuation-base-bridge-enterprise-value",
+    "operating-valuation-base-bridge-equity-value",
+    "operating-valuation-base-bridge-net-debt",
+    "operating-valuation-base-bridge-supplied-shares",
+    "operating-valuation-base-bridge-supplied-value-per-share",
+    "operating-valuation-base-bridge-terminal-value",
+    "operating-valuation-research-business-trend",
+    "operating-valuation-research-key-drivers",
+    "operating-valuation-research-valuation-regime",
+    "provenance-freshness-state",
+    "provenance-rights-state",
+    "provenance-row-1-synthetic-provenance-synthetic-test-source",
+    "questions-answer-next-research-task",
+    "questions-decision-review-trigger",
+    "questions-research-evidence-gaps",
+    "research-case-decision-evidence",
+    "research-case-decision-plan",
+    "research-case-research-business-trend",
+    "research-case-research-key-drivers",
+    "scenarios-base",
+    "scenarios-base-value-per-share",
+    "scenarios-bear",
+    "scenarios-bear-value-per-share",
+    "scenarios-bull",
+    "scenarios-bull-value-per-share",
+)
+
+
+def _literal_state_tokens(
+    default: str,
+    overrides: dict[str, str] | None = None,
+) -> tuple[str, ...]:
+    supplied = overrides or {}
+    return tuple(
+        sorted(f"{role}={supplied.get(role, default)}" for role in SYNTHETIC_STATE_ROLES)
+    )
+
+
+SYNTHETIC_EXPECTED_STATE_ROLE_TOKENS = {
+    "complete": _literal_state_tokens(
+        "available",
+        {
+            "answers-still-withheld": "withheld",
+            "answers-what-changed": "partial",
+        },
+    ),
+    "partial": _literal_state_tokens(
+        "partial",
+        {
+            "answers-still-withheld": "withheld",
+            "answers-what-changed": "partial",
+            "scenarios-bear-value-per-share": "available",
+            "scenarios-base-value-per-share": "available",
+            "scenarios-bull-value-per-share": "available",
+            "operating-valuation-base-bridge-discounted-explicit-total": "available",
+            "operating-valuation-base-bridge-terminal-value": "available",
+            "operating-valuation-base-bridge-discounted-terminal-value": "available",
+            "operating-valuation-base-bridge-enterprise-value": "available",
+            "operating-valuation-base-bridge-supplied-shares": "available",
+            "operating-valuation-base-bridge-supplied-value-per-share": "available",
+        },
+    ),
+    "stale": _literal_state_tokens(
+        "stale",
+        {
+            "answers-still-withheld": "withheld",
+            "answers-what-changed": "partial",
+        },
+    ),
+    "withheld": _literal_state_tokens("withheld"),
+}
+
+SYNTHETIC_EXPECTED_SHARE_BASIS_TOKENS = (
+    "operating-valuation-base-bridge-share-basis=unverified",
+    "scenarios-base-share-basis=unverified",
+    "scenarios-bear-share-basis=unverified",
+    "scenarios-bull-share-basis=unverified",
+)
 
 DEPENDENT_ASSERTIONS = {
     "state": set(),
     "viewport": set(),
+    "requested_zoom": {"actual_browser_zoom"},
+    "actual_browser_zoom": {"actual_browser_zoom"},
     "h1_count": {"one_h1"},
     "header_count": {"semantic_landmarks"},
+    "page_header_count": {"semantic_landmarks"},
+    "one_pager_header_count": {"semantic_landmarks"},
     "main_count": {"semantic_landmarks"},
     "footer_count": {"semantic_landmarks"},
     "section_count": {"semantic_landmarks"},
@@ -91,6 +212,47 @@ DEPENDENT_ASSERTIONS = {
     "page_errors": {"no_page_errors"},
     "pdf_byte_length": {"pdf_in_memory"},
     "pdf_header": {"pdf_in_memory"},
+    "one_pager_visible": {"one_pager_visible"},
+    "one_pager_before_overview": {"one_pager_before_overview"},
+    "one_pager_heading_count": {"one_pager_structure"},
+    "one_pager_section_count": {"one_pager_structure"},
+    "one_pager_answer_item_count": {"one_pager_lists"},
+    "one_pager_scenario_item_count": {"one_pager_lists"},
+    "one_pager_state_tokens": {"one_pager_state_truth"},
+    "one_pager_share_basis_tokens": {"one_pager_share_basis_disclosure"},
+    "one_pager_state_node_count": {"one_pager_state_role_integrity"},
+    "one_pager_state_role_count": {"one_pager_state_role_integrity"},
+    "one_pager_unique_state_role_count": {"one_pager_state_role_integrity"},
+    "one_pager_provenance_caption_visible": {
+        "one_pager_provenance_caption_visible"
+    },
+    "one_pager_min_text_contrast_ratio": {"one_pager_text_contrast"},
+    "one_pager_min_boundary_contrast_ratio": {"one_pager_boundary_contrast"},
+    "one_pager_overflow_px": {"one_pager_no_overflow"},
+    "one_pager_max_descendant_overflow_px": {
+        "one_pager_no_descendant_overflow"
+    },
+    "one_pager_provenance_visible": {"one_pager_screen_content_visible"},
+    "one_pager_blockers_visible": {"one_pager_screen_content_visible"},
+    "one_pager_assumptions_visible": {"one_pager_screen_content_visible"},
+    "one_pager_handoff_visible": {"one_pager_screen_content_visible"},
+    "one_pager_forced_colors_non_color_cue": {
+        "one_pager_forced_colors_non_color_cue"
+    },
+    "one_pager_print_min_text_contrast_ratio": {
+        "one_pager_print_text_contrast"
+    },
+    "one_pager_print_min_boundary_contrast_ratio": {
+        "one_pager_print_boundary_contrast"
+    },
+    "one_pager_print_provenance_visible": {
+        "one_pager_print_content_visible"
+    },
+    "one_pager_print_blockers_visible": {"one_pager_print_content_visible"},
+    "one_pager_print_assumptions_visible": {
+        "one_pager_print_content_visible"
+    },
+    "one_pager_print_handoff_visible": {"one_pager_print_content_visible"},
 }
 
 
@@ -98,8 +260,12 @@ def _complete_observation() -> dict[str, object]:
     return {
         "state": "complete",
         "viewport": "1280x720",
+        "requested_zoom": 1,
+        "actual_browser_zoom": True,
         "h1_count": 1,
-        "header_count": 1,
+        "header_count": 2,
+        "page_header_count": 1,
+        "one_pager_header_count": 1,
         "main_count": 1,
         "footer_count": 1,
         "section_count": 2,
@@ -126,6 +292,33 @@ def _complete_observation() -> dict[str, object]:
         "page_errors": (),
         "pdf_byte_length": 512,
         "pdf_header": "%PDF",
+        "one_pager_visible": True,
+        "one_pager_before_overview": True,
+        "one_pager_heading_count": 8,
+        "one_pager_section_count": 7,
+        "one_pager_answer_item_count": 4,
+        "one_pager_scenario_item_count": 3,
+        "one_pager_state_tokens": SYNTHETIC_EXPECTED_STATE_ROLE_TOKENS["complete"],
+        "one_pager_share_basis_tokens": SYNTHETIC_EXPECTED_SHARE_BASIS_TOKENS,
+        "one_pager_state_node_count": len(SYNTHETIC_STATE_ROLES),
+        "one_pager_state_role_count": len(SYNTHETIC_STATE_ROLES),
+        "one_pager_unique_state_role_count": len(SYNTHETIC_STATE_ROLES),
+        "one_pager_provenance_caption_visible": True,
+        "one_pager_min_text_contrast_ratio": 7.0,
+        "one_pager_min_boundary_contrast_ratio": 3.5,
+        "one_pager_overflow_px": 0.0,
+        "one_pager_max_descendant_overflow_px": 0.0,
+        "one_pager_provenance_visible": True,
+        "one_pager_blockers_visible": True,
+        "one_pager_assumptions_visible": True,
+        "one_pager_handoff_visible": True,
+        "one_pager_forced_colors_non_color_cue": True,
+        "one_pager_print_min_text_contrast_ratio": 21.0,
+        "one_pager_print_min_boundary_contrast_ratio": 21.0,
+        "one_pager_print_provenance_visible": True,
+        "one_pager_print_blockers_visible": True,
+        "one_pager_print_assumptions_visible": True,
+        "one_pager_print_handoff_visible": True,
     }
 
 
@@ -138,107 +331,329 @@ def _synthetic_snapshot(state: str) -> CompanyWorkbenchHtmlSnapshot:
     normalized = {
         "complete": "available",
         "partial": "partial",
+        "stale": "stale",
         "withheld": "withheld",
     }[state]
-    blocker = ("Synthetic unavailable input remains withheld.",)
+    blocker = ("Synthetic evidence limitation remains visible.",)
+    if state == "complete":
+        enterprise_state = equity_state = per_share_state = explicit_state = (
+            "available"
+        )
+        bridge_values = {
+            "discounted_explicit_total": 1_000.0,
+            "terminal_value": 2_000.0,
+            "discounted_terminal_value": 1_500.0,
+            "enterprise_value": 2_500.0,
+            "cash": 400.0,
+            "debt": 200.0,
+            "net_debt": -200.0,
+            "equity_value": 2_700.0,
+            "shares_outstanding": 100.0,
+            "scenario_value_per_share": 27.0,
+        }
+    elif state == "partial":
+        enterprise_state = per_share_state = explicit_state = "available"
+        equity_state = "partial"
+        bridge_values = {
+            "discounted_explicit_total": 1_100.0,
+            "terminal_value": 2_100.0,
+            "discounted_terminal_value": 1_600.0,
+            "enterprise_value": 2_700.0,
+            "cash": 999_999.0,
+            "debt": 999_998.0,
+            "net_debt": 999_997.0,
+            "equity_value": 999_996.0,
+            "shares_outstanding": 100.0,
+            "scenario_value_per_share": 27.0,
+        }
+    elif state == "stale":
+        enterprise_state = equity_state = per_share_state = explicit_state = "stale"
+        bridge_values = {
+            key: 555_555.0
+            for key in (
+                "discounted_explicit_total",
+                "terminal_value",
+                "discounted_terminal_value",
+                "enterprise_value",
+                "cash",
+                "debt",
+                "net_debt",
+                "equity_value",
+                "shares_outstanding",
+                "scenario_value_per_share",
+            )
+        }
+    else:
+        enterprise_state = equity_state = per_share_state = explicit_state = (
+            "withheld"
+        )
+        bridge_values = {
+            key: 777_777.0
+            for key in (
+                "discounted_explicit_total",
+                "terminal_value",
+                "discounted_terminal_value",
+                "enterprise_value",
+                "cash",
+                "debt",
+                "net_debt",
+                "equity_value",
+                "shares_outstanding",
+                "scenario_value_per_share",
+            )
+        }
     bridge = HtmlBriefDcfBridge(
         state=normalized,
-        enterprise_state=normalized,
-        equity_state=normalized,
-        per_share_state=normalized,
-        explicit_total_state=normalized,
+        enterprise_state=enterprise_state,
+        equity_state=equity_state,
+        per_share_state=per_share_state,
+        explicit_total_state=explicit_state,
         projected_fcfs=(),
         discounted_fcfs=(),
-        discounted_explicit_total=None,
-        terminal_value=None,
-        discounted_terminal_value=None,
-        enterprise_value=None,
-        cash=None,
-        debt=None,
-        net_debt=None,
-        equity_value=None,
-        shares_outstanding=None,
+        discounted_explicit_total=bridge_values["discounted_explicit_total"],
+        terminal_value=bridge_values["terminal_value"],
+        discounted_terminal_value=bridge_values["discounted_terminal_value"],
+        enterprise_value=bridge_values["enterprise_value"],
+        cash=bridge_values["cash"],
+        debt=bridge_values["debt"],
+        net_debt=bridge_values["net_debt"],
+        equity_value=bridge_values["equity_value"],
+        shares_outstanding=bridge_values["shares_outstanding"],
         shares_label="Synthetic share basis",
-        share_basis_state=normalized,
-        scenario_value_per_share=None,
-        currency="",
+        share_basis_state="unverified",
+        scenario_value_per_share=bridge_values["scenario_value_per_share"],
+        currency="USD",
         blockers=blocker,
+    )
+    assumptions = (
+        {
+            "revenue_growth": 0.08,
+            "fcf_margin": 0.22,
+            "wacc": 0.09,
+            "terminal_growth": 0.025,
+            "forecast_years": 5,
+        }
+        if state == "complete"
+        else {
+            "revenue_growth": None,
+            "fcf_margin": None,
+            "wacc": None,
+            "terminal_growth": None,
+            "forecast_years": None,
+        }
     )
     scenarios = tuple(
         HtmlBriefScenario(
             name=name,
             state=normalized,
-            modified=False,
+            modified=name == "Base",
             method_name="Synthetic test method",
-            revenue_growth=None,
-            fcf_margin=None,
-            wacc=None,
-            terminal_growth=None,
-            forecast_years=None,
+            revenue_growth=assumptions["revenue_growth"],
+            fcf_margin=assumptions["fcf_margin"],
+            wacc=assumptions["wacc"],
+            terminal_growth=assumptions["terminal_growth"],
+            forecast_years=assumptions["forecast_years"],
             bridge=bridge,
         )
         for name in ("Bear", "Base", "Bull")
     )
-    section = HtmlBriefSection(
-        key="synthetic",
-        title="Synthetic evidence state",
-        state=normalized,
-        answer="Synthetic test evidence only.",
-        facts=(),
-        blockers=blocker,
+
+    def section(key: str, title: str) -> HtmlBriefSection:
+        return HtmlBriefSection(
+            key=key,
+            title=title,
+            state=normalized,
+            answer=f"Synthetic {title.lower()} evidence.",
+            facts=(("Scope", "Synthetic browser contract"),),
+            blockers=blocker,
+        )
+
+    decision_lanes = tuple(
+        section(key, title)
+        for key, title in (
+            ("plan", "Research plan"),
+            ("evidence", "Evidence review"),
+            ("invalidation", "Invalidation evidence"),
+            ("review-trigger", "Review trigger"),
+        )
+    )
+    research_sections = tuple(
+        section(key, title)
+        for key, title in (
+            ("business-trend", "Business trend"),
+            ("key-drivers", "Key drivers"),
+            ("valuation-regime", "Valuation regime"),
+            ("risks", "Risks"),
+            ("evidence-gaps", "Evidence gaps"),
+        )
     )
     evidence = HtmlBriefEvidenceRow(
         section="Synthetic provenance",
         state=normalized,
         source_id="synthetic-test-source",
         source_ref=HtmlBriefSafeReference("Synthetic source", ""),
-        as_of="not recorded",
-        retrieved_at="not recorded",
+        as_of="2026-08-15T17:00:00-04:00",
+        retrieved_at="2026-08-16T08:30:00-04:00",
         rights_state=normalized,
         field_scope_state=normalized,
         model_identity="synthetic-model",
         input_identity="synthetic-input",
         blockers=blocker,
     )
-    return CompanyWorkbenchHtmlSnapshot(
+    answer_states = {
+        "Use now": normalized,
+        "Still withheld": "withheld",
+        "What changed": "partial",
+        "Next research task": normalized,
+    }
+    if state == "withheld":
+        answer_states = {label: "withheld" for label in answer_states}
+    answers = tuple(
+        HtmlBriefAnswer(
+            label,
+            title,
+            body,
+            answer_states[label],
+            (),
+            (),
+            blocker,
+        )
+        for label, title, body in (
+            ("Use now", "Evidence ready to inspect", "Review the saved evidence state."),
+            ("Still withheld", "Evidence remains withheld", "The named gap remains visible."),
+            ("What changed", "Saved evidence delta", "Only the frozen test scope is compared."),
+            ("Next research task", "Next evidence task", "Review the synthetic provenance row."),
+        )
+    )
+    snapshot = CompanyWorkbenchHtmlSnapshot(
         ticker="TEST",
         profile_label="Synthetic test profile",
-        review_cutoff="not recorded",
-        source_as_of="not recorded",
-        generated_at="not recorded",
+        review_cutoff="2026-08-16T09:00:00-04:00",
+        source_as_of="2026-08-15T17:00:00-04:00",
+        generated_at="2026-08-16T09:00:00-04:00",
         model_version="synthetic-test-v1",
         freshness_state=normalized,
         rights_state=normalized,
-        boundary="Research-only, fail-closed portable brief; no recommendation, probability, or transaction action.",
-        answers=(
-            HtmlBriefAnswer(
-                "Synthetic answer",
-                "Synthetic answer",
-                "Synthetic test answer only.",
-                normalized,
-                (),
-            ),
-        ),
-        recency=section,
-        readiness_lanes=(section,),
+        boundary="Research-only, fail-closed portable evidence brief.",
+        answers=answers,
+        recency=section("recency", "Recency evidence"),
+        readiness_lanes=(section("readiness", "Readiness evidence"),),
         scenarios=scenarios,
         sensitivity=HtmlBriefSensitivity(normalized, (), (), (), blocker),
-        research_sections=(section,),
-        decision_lanes=(section,),
+        research_sections=research_sections,
+        decision_lanes=decision_lanes,
         evidence_rows=(evidence,),
         blockers=blocker,
-        identity=f"synthetic-{state}",
+        identity="",
     )
+    identity = hashlib.sha256(
+        json.dumps(
+            asdict(snapshot),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+    ).hexdigest()
+    return replace(snapshot, identity=identity)
 
 
 def _synthetic_brief(state: str) -> bytes:
     return company_workbench_html_bytes(_synthetic_snapshot(state))
 
 
+class _SummaryContractParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.depth = 0
+        self.answer_count = 0
+        self.scenario_count = 0
+        self.caption_count = 0
+        self.state_tokens: list[str] = []
+        self.share_basis_tokens: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if not self.depth:
+            if attributes.get("data-section") != "evidence-one-pager":
+                return
+            self.depth = 1
+        else:
+            self.depth += 1
+        if attributes.get("data-answer-item") is not None:
+            self.answer_count += 1
+        if attributes.get("data-scenario-item") is not None:
+            self.scenario_count += 1
+        if tag == "caption":
+            self.caption_count += 1
+        if "data-state" in attributes or "data-state-role" in attributes:
+            self.state_tokens.append(
+                f"{attributes.get('data-state-role', '')}={attributes.get('data-state', '')}"
+            )
+        if (
+            "data-share-basis-role" in attributes
+            or "data-share-basis-state" in attributes
+        ):
+            self.share_basis_tokens.append(
+                f"{attributes.get('data-share-basis-role', '')}={attributes.get('data-share-basis-state', '')}"
+            )
+
+    def handle_endtag(self, tag):
+        if self.depth:
+            self.depth -= 1
+
+
 def _append_test_css(document: bytes, css: str) -> bytes:
     marker = b"</style>"
     assert document.count(marker) == 1
     return document.replace(marker, css.encode("utf-8") + marker, 1)
+
+
+def _replace_once(document: bytes, old: bytes, new: bytes) -> bytes:
+    assert document.count(old) >= 1
+    return document.replace(old, new, 1)
+
+
+def _remove_marked_list_item(document: bytes, marker: bytes) -> bytes:
+    marker_start = document.index(marker)
+    item_start = document.rfind(b"<li", 0, marker_start)
+    assert item_start >= 0
+    depth = 0
+    for match in re.finditer(rb"<li(?:\s|>)|</li>", document[item_start:]):
+        if match.group().startswith(b"<li"):
+            depth += 1
+            continue
+        depth -= 1
+        if depth == 0:
+            item_end = item_start + match.end()
+            return document[:item_start] + document[item_end:]
+    raise AssertionError("marked list item did not have a balanced closing tag")
+
+
+def _move_one_pager_after_overview(document: bytes) -> bytes:
+    start = document.index(b'<section class="srcc-one-pager"')
+    overview = document.index(b'<section class="srcc-section" data-section="overview">')
+    summary = document[start:overview]
+    without = document[:start] + document[overview:]
+    overview_start = without.index(
+        b'<section class="srcc-section" data-section="overview">'
+    )
+    overview_end = without.index(b"</section>", overview_start) + len(b"</section>")
+    return without[:overview_end] + summary + without[overview_end:]
+
+
+def _run_summary_cell(
+    document: bytes,
+    *,
+    state: str = "complete",
+    cells: tuple[tuple[int, int, int], ...] = ((1280, 720, 1),),
+):
+    results = run_company_workbench_html_browser_gate(
+        {state: document},
+        repo_root=Path.cwd(),
+        cells=cells,
+    )
+    assert len(results) == 1
+    return results[0]
 
 
 def _wrap_skip_link_in_overflow(document: bytes, overflow: str) -> bytes:
@@ -313,6 +728,451 @@ def _static_shadow_with_unsupported_focus_addition(
 
 def _failed_assertion_names(result) -> set[str]:
     return {assertion.name for assertion in result.assertions if not assertion.passed}
+
+
+def test_injected_server_contract_serves_exact_bytes_and_explicit_favicon():
+    payload = b"<!doctype html><html><body>exact \xe2\x98\x83 bytes</body></html>"
+
+    with browser_gate._injected_brief_server({"complete": payload}) as origin:
+        with urllib.request.urlopen(f"{origin}/complete.html", timeout=2) as response:
+            assert response.status == 200
+            assert response.headers["Content-Type"] == "text/html; charset=utf-8"
+            assert int(response.headers["Content-Length"]) == len(payload)
+            assert response.read() == payload
+        with urllib.request.urlopen(f"{origin}/favicon.ico", timeout=2) as response:
+            assert response.status == 204
+            assert response.read() == b""
+
+
+def test_injected_server_contract_rejects_an_unknown_state_without_writing():
+    with browser_gate._injected_brief_server({"complete": b"complete"}) as origin:
+        with pytest.raises(urllib.error.HTTPError) as captured:
+            urllib.request.urlopen(f"{origin}/unknown.html", timeout=2)
+
+    assert captured.value.code == 404
+
+
+def test_external_origin_policy_contract_allows_only_the_exact_active_origin():
+    active = "http://127.0.0.1:43210"
+    expected = {
+        "http://127.0.0.1:43210/complete.html": ("allow", False),
+        "http://127.0.0.1:43210/favicon.ico": ("allow", False),
+        "http://127.0.0.1:43211/complete.html": ("abort", True),
+        "http://localhost:43210/complete.html": ("abort", True),
+        "https://127.0.0.1:43210/complete.html": ("abort", True),
+        "http://[malformed": ("abort", True),
+        "data:text/plain,local": ("allow", False),
+        "blob:http://127.0.0.1:43210/token": ("allow", False),
+        "about:blank": ("allow", False),
+    }
+
+    assert {
+        url: browser_gate.evaluate_html_brief_request_origin(
+            request_url=url,
+            active_origin=active,
+        )
+        for url in expected
+    } == expected
+
+
+def test_synthetic_fixture_contract_has_four_substantive_scope_valid_cases():
+    for state in ("complete", "partial", "stale", "withheld"):
+        snapshot = _synthetic_snapshot(state)
+        identity_payload = json.dumps(
+            asdict(replace(snapshot, identity="")),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+        assert snapshot.identity == hashlib.sha256(identity_payload).hexdigest()
+        assert snapshot.review_cutoff == "2026-08-16T09:00:00-04:00"
+        assert tuple(answer.label for answer in snapshot.answers) == (
+            "Use now",
+            "Still withheld",
+            "What changed",
+            "Next research task",
+        )
+        assert {section.key for section in snapshot.decision_lanes} == {
+            "plan",
+            "evidence",
+            "invalidation",
+            "review-trigger",
+        }
+        assert {section.key for section in snapshot.research_sections} == {
+            "business-trend",
+            "key-drivers",
+            "valuation-regime",
+            "risks",
+            "evidence-gaps",
+        }
+        assert tuple(scenario.name for scenario in snapshot.scenarios) == (
+            "Bear",
+            "Base",
+            "Bull",
+        )
+        assert len(snapshot.evidence_rows) == 1
+        assert all(
+            scenario.bridge.share_basis_state == "unverified"
+            for scenario in snapshot.scenarios
+        )
+
+        rendered = _synthetic_brief(state).decode("utf-8")
+        assert 'data-section="evidence-one-pager"' in rendered
+        assert 'data-section="evidence-one-pager-unavailable"' not in rendered
+        parser = _SummaryContractParser()
+        parser.feed(rendered)
+        assert parser.answer_count == 4
+        assert parser.scenario_count == 3
+        assert parser.caption_count >= 1
+        assert tuple(sorted(parser.state_tokens)) == (
+            SYNTHETIC_EXPECTED_STATE_ROLE_TOKENS[state]
+        )
+        assert tuple(sorted(parser.share_basis_tokens)) == (
+            SYNTHETIC_EXPECTED_SHARE_BASIS_TOKENS
+        )
+
+
+def test_synthetic_fixture_contract_numeric_layout_and_suppression_are_independent():
+    complete = _synthetic_snapshot("complete")
+    partial = _synthetic_snapshot("partial")
+    stale = _synthetic_snapshot("stale")
+    withheld = _synthetic_snapshot("withheld")
+
+    assert all(
+        scenario.revenue_growth is not None
+        and scenario.bridge.scenario_value_per_share is not None
+        for scenario in complete.scenarios
+    )
+    assert partial.scenarios[1].bridge.enterprise_state == "available"
+    assert partial.scenarios[1].bridge.equity_state == "partial"
+    assert partial.scenarios[1].bridge.cash == 999_999.0
+    partial_rendered = _synthetic_brief("partial").decode("utf-8")
+    partial_summary = partial_rendered[
+        partial_rendered.index('data-section="evidence-one-pager"') :
+        partial_rendered.index('data-section="overview"')
+    ]
+    assert "999,999" not in partial_summary
+    assert all(
+        scenario.bridge.scenario_value_per_share is not None
+        for scenario in withheld.scenarios
+    )
+    withheld_rendered = _synthetic_brief("withheld").decode("utf-8")
+    withheld_summary = withheld_rendered[
+        withheld_rendered.index('data-section="evidence-one-pager"') :
+        withheld_rendered.index('data-section="overview"')
+    ]
+    assert "777,777" not in withheld_summary
+    assert all(scenario.bridge.per_share_state == "stale" for scenario in stale.scenarios)
+
+
+@pytest.mark.parametrize(
+    ("requested_zoom", "geometry", "expected"),
+    (
+        (
+            1,
+            {
+                "screenshot_width": 1280,
+                "screenshot_height": 720,
+                "inner_width": 1280,
+                "inner_height": 720,
+                "visual_viewport_width": 1280,
+                "visual_viewport_height": 720,
+                "device_pixel_ratio": 1,
+                "visual_viewport_scale": 1,
+            },
+            True,
+        ),
+        (
+            2,
+            {
+                "screenshot_width": 1280,
+                "screenshot_height": 720,
+                "inner_width": 640,
+                "inner_height": 360,
+                "visual_viewport_width": 640,
+                "visual_viewport_height": 360,
+                "device_pixel_ratio": 2,
+                "visual_viewport_scale": 1,
+            },
+            True,
+        ),
+        (
+            4,
+            {
+                "screenshot_width": 1440,
+                "screenshot_height": 1024,
+                "inner_width": 360,
+                "inner_height": 256,
+                "visual_viewport_width": 360,
+                "visual_viewport_height": 256,
+                "device_pixel_ratio": 4,
+                "visual_viewport_scale": 1,
+            },
+            True,
+        ),
+        (
+            4,
+            {
+                "screenshot_width": 1440,
+                "screenshot_height": 1024,
+                "inner_width": 1440,
+                "inner_height": 1024,
+                "visual_viewport_width": 1440,
+                "visual_viewport_height": 1024,
+                "device_pixel_ratio": 1,
+                "visual_viewport_scale": 1,
+            },
+            False,
+        ),
+    ),
+)
+def test_zoom_contract_requires_matching_real_chrome_geometry(
+    requested_zoom,
+    geometry,
+    expected,
+):
+    result = browser_gate.evaluate_html_brief_browser_zoom(
+        requested_zoom=requested_zoom,
+        declared_width=1280 if requested_zoom != 4 else 1440,
+        declared_height=720 if requested_zoom != 4 else 1024,
+        **geometry,
+    )
+
+    assert result.passed is expected
+    assert result.evidence
+
+
+def test_summary_browser_collector_contract_accepts_the_substantive_baseline():
+    result = _run_summary_cell(_synthetic_brief("complete"))
+
+    assert result.zoom == 1
+    if not result.passed:
+        pytest.fail(
+            "\n".join(
+                f"{assertion.name}: {assertion.evidence}"
+                for assertion in result.assertions
+                if not assertion.passed
+            ),
+            pytrace=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_assertion"),
+    (
+        (
+            lambda document: _append_test_css(
+                document,
+                "body.srcc-html-document .srcc-one-pager { display: none !important; }",
+            ),
+            "one_pager_visible",
+        ),
+        (
+            lambda document: _move_one_pager_after_overview(document),
+            "one_pager_before_overview",
+        ),
+        (
+            lambda document: _replace_once(
+                document,
+                b"<caption>Portable evidence provenance</caption>",
+                b"",
+            ),
+            "one_pager_provenance_caption_visible",
+        ),
+        (
+            lambda document: _remove_marked_list_item(
+                document,
+                b' data-answer-item=""',
+            ),
+            "one_pager_lists",
+        ),
+        (
+            lambda document: _remove_marked_list_item(
+                document,
+                b' data-scenario-item=""',
+            ),
+            "one_pager_lists",
+        ),
+        (
+            lambda document: _replace_once(
+                document,
+                b' data-state-role="answers-use-now"',
+                b"",
+            ),
+            "one_pager_state_role_integrity",
+        ),
+        (
+            lambda document: _replace_once(
+                document,
+                b'data-state-role="answers-use-now"',
+                b'data-state-role="answers-still-withheld"',
+            ),
+            "one_pager_state_role_integrity",
+        ),
+        (
+            lambda document: _append_test_css(
+                document,
+                """
+body.srcc-html-document .srcc-one-pager { overflow-x: hidden !important; }
+body.srcc-html-document .srcc-one-pager [data-section='one-pager-handoff'] {
+  width: 100% !important;
+  overflow-x: auto !important;
+}
+body.srcc-html-document .srcc-one-pager [data-section='one-pager-handoff'] p {
+  min-width: 2000px !important;
+}
+""",
+            ),
+            "one_pager_no_descendant_overflow",
+        ),
+    ),
+)
+def test_summary_browser_collector_contract_rejects_scoped_structure_mutations(
+    mutation,
+    expected_assertion,
+):
+    result = _run_summary_cell(mutation(_synthetic_brief("complete")))
+
+    assert expected_assertion in _failed_assertion_names(result)
+
+
+def test_summary_browser_collector_contract_rejects_a_relabelled_case():
+    result = _run_summary_cell(_synthetic_brief("complete"), state="partial")
+
+    assert "one_pager_state_truth" in _failed_assertion_names(result)
+
+
+@pytest.mark.parametrize(
+    ("css", "expected_assertion"),
+    (
+        (
+            "body.srcc-html-document .srcc-one-pager p { color: #777 !important; background: #fff !important; }",
+            "one_pager_text_contrast",
+        ),
+        (
+            "body.srcc-html-document .srcc-one-pager a { color: #aaa !important; background: #fff !important; }",
+            "one_pager_text_contrast",
+        ),
+        (
+            "body.srcc-html-document .srcc-one-pager-grid { background: #0b1b2b !important; }",
+            "one_pager_boundary_contrast",
+        ),
+    ),
+)
+def test_summary_browser_collector_contract_rejects_scoped_contrast_mutations(
+    css,
+    expected_assertion,
+):
+    document = _synthetic_brief("complete")
+    if ".srcc-one-pager a" in css:
+        document = _replace_once(
+            document,
+            b"</header><section data-section=\"one-pager-answers\">",
+            (
+                b'<a href="#evidence-one-pager-title">Summary link contrast</a>'
+                b"</header><section data-section=\"one-pager-answers\">"
+            ),
+        )
+    result = _run_summary_cell(_append_test_css(document, css))
+
+    assert expected_assertion in _failed_assertion_names(result)
+
+
+@pytest.mark.parametrize(
+    "selector",
+    (
+        "[data-section='one-pager-provenance']",
+        ".srcc-blockers",
+        "[data-section='one-pager-scenarios']",
+        "[data-section='one-pager-handoff']",
+    ),
+)
+def test_summary_browser_collector_contract_rejects_print_only_hidden_content(
+    selector,
+):
+    document = _append_test_css(
+        _synthetic_brief("complete"),
+        f"@media print {{ body.srcc-html-document .srcc-one-pager {selector} {{ display: none !important; }} }}",
+    )
+    result = _run_summary_cell(document)
+
+    assert "one_pager_print_content_visible" in _failed_assertion_names(result)
+
+
+@pytest.mark.parametrize(
+    ("css", "expected_assertion"),
+    (
+        (
+            "@media print { body.srcc-html-document .srcc-one-pager p { color: #bbb !important; background: #fff !important; } }",
+            "one_pager_print_text_contrast",
+        ),
+        (
+            "@media print { body.srcc-html-document .srcc-one-pager-grid { background: #fff !important; } body.srcc-html-document .srcc-one-pager-card { border-color: #fff !important; } }",
+            "one_pager_print_boundary_contrast",
+        ),
+    ),
+)
+def test_summary_browser_collector_contract_rejects_print_only_contrast_loss(
+    css,
+    expected_assertion,
+):
+    result = _run_summary_cell(_append_test_css(_synthetic_brief("complete"), css))
+
+    assert expected_assertion in _failed_assertion_names(result)
+
+
+def test_summary_browser_collector_contract_rejects_forced_colors_border_loss():
+    document = _append_test_css(
+        _synthetic_brief("complete"),
+        """
+@media (forced-colors: active) {
+  body.srcc-html-document .srcc-one-pager,
+  body.srcc-html-document .srcc-one-pager [data-state],
+  body.srcc-html-document .srcc-one-pager [data-section='one-pager-provenance'] {
+    border: 0 !important;
+    outline: 0 !important;
+  }
+}
+""",
+    )
+    result = _run_summary_cell(document)
+
+    assert "one_pager_forced_colors_non_color_cue" in _failed_assertion_names(result)
+
+
+def test_summary_browser_collector_contract_rejects_wrong_real_zoom_geometry(
+    monkeypatch,
+):
+    original = browser_gate._chromium_zoom_preferences
+    monkeypatch.setattr(
+        browser_gate,
+        "_chromium_zoom_preferences",
+        lambda *, host, zoom: original(host=host, zoom=2),
+    )
+
+    result = _run_summary_cell(_synthetic_brief("complete"))
+
+    assert "actual_browser_zoom" in _failed_assertion_names(result)
+
+
+def test_summary_browser_collector_contract_aborts_external_origin_injection():
+    document = _replace_once(
+        _synthetic_brief("complete"),
+        b"img-src 'none'",
+        b"img-src http:",
+    )
+    document = _replace_once(
+        document,
+        b"</header><section data-section=\"one-pager-answers\">",
+        (
+            b'<img src="http://127.0.0.1:9/external.png" alt="external">'
+            b"</header><section data-section=\"one-pager-answers\">"
+        ),
+    )
+
+    result = _run_summary_cell(document)
+
+    assert "no_remote_requests" in _failed_assertion_names(result)
 
 
 def _run_actual_browser_page(document: bytes, operation):
@@ -455,6 +1315,175 @@ def test_evaluator_accepts_the_complete_typed_contract():
     assert result.viewport == "1280x720"
     assert result.passed
     assert all(assertion.evidence for assertion in result.assertions)
+
+
+@pytest.mark.parametrize(
+    ("assertion_name", "changes"),
+    (
+        ("actual_browser_zoom", {"requested_zoom": 3}),
+        ("actual_browser_zoom", {"actual_browser_zoom": False}),
+        ("one_pager_visible", {"one_pager_visible": False}),
+        ("one_pager_before_overview", {"one_pager_before_overview": False}),
+        ("semantic_landmarks", {"header_count": 1}),
+        ("semantic_landmarks", {"header_count": 3}),
+        ("semantic_landmarks", {"page_header_count": 0}),
+        ("semantic_landmarks", {"page_header_count": 2}),
+        ("semantic_landmarks", {"one_pager_header_count": 0}),
+        ("semantic_landmarks", {"one_pager_header_count": 2}),
+        ("one_pager_structure", {"one_pager_heading_count": 7}),
+        ("one_pager_structure", {"one_pager_section_count": 6}),
+        ("one_pager_lists", {"one_pager_answer_item_count": 3}),
+        ("one_pager_lists", {"one_pager_scenario_item_count": 2}),
+        (
+            "one_pager_state_truth",
+            {"one_pager_state_tokens": ("caller-supplied-pass=true",)},
+        ),
+        (
+            "one_pager_state_role_integrity",
+            {"one_pager_state_role_count": len(SYNTHETIC_STATE_ROLES) - 1},
+        ),
+        (
+            "one_pager_state_role_integrity",
+            {"one_pager_unique_state_role_count": len(SYNTHETIC_STATE_ROLES) - 1},
+        ),
+        (
+            "one_pager_share_basis_disclosure",
+            {
+                "one_pager_share_basis_tokens": (
+                    "scenarios-base-share-basis=available",
+                )
+            },
+        ),
+        (
+            "one_pager_provenance_caption_visible",
+            {"one_pager_provenance_caption_visible": False},
+        ),
+        ("one_pager_text_contrast", {"one_pager_min_text_contrast_ratio": 4.49}),
+        (
+            "one_pager_boundary_contrast",
+            {"one_pager_min_boundary_contrast_ratio": 2.99},
+        ),
+        ("one_pager_no_overflow", {"one_pager_overflow_px": 1.01}),
+        (
+            "one_pager_no_descendant_overflow",
+            {"one_pager_max_descendant_overflow_px": 1.01},
+        ),
+        (
+            "one_pager_screen_content_visible",
+            {"one_pager_provenance_visible": False},
+        ),
+        (
+            "one_pager_screen_content_visible",
+            {"one_pager_blockers_visible": False},
+        ),
+        (
+            "one_pager_screen_content_visible",
+            {"one_pager_assumptions_visible": False},
+        ),
+        (
+            "one_pager_screen_content_visible",
+            {"one_pager_handoff_visible": False},
+        ),
+        (
+            "one_pager_forced_colors_non_color_cue",
+            {"one_pager_forced_colors_non_color_cue": False},
+        ),
+        (
+            "one_pager_print_text_contrast",
+            {"one_pager_print_min_text_contrast_ratio": 4.49},
+        ),
+        (
+            "one_pager_print_boundary_contrast",
+            {"one_pager_print_min_boundary_contrast_ratio": 2.99},
+        ),
+        (
+            "one_pager_print_content_visible",
+            {"one_pager_print_provenance_visible": False},
+        ),
+        (
+            "one_pager_print_content_visible",
+            {"one_pager_print_blockers_visible": False},
+        ),
+        (
+            "one_pager_print_content_visible",
+            {"one_pager_print_assumptions_visible": False},
+        ),
+        (
+            "one_pager_print_content_visible",
+            {"one_pager_print_handoff_visible": False},
+        ),
+    ),
+)
+def test_observation_contract_rejects_each_summary_defect(assertion_name, changes):
+    observation = _complete_observation()
+    observation.update(changes)
+
+    result, assertions = _assertion_map(observation)
+
+    assert not result.passed
+    assert not assertions[assertion_name].passed
+
+
+@pytest.mark.parametrize("state", ("complete", "partial", "stale", "withheld"))
+def test_observation_contract_binds_state_to_independent_literal_role_tokens(state):
+    observation = _complete_observation()
+    observation.update(
+        state=state,
+        one_pager_state_tokens=SYNTHETIC_EXPECTED_STATE_ROLE_TOKENS[state],
+    )
+
+    result, assertions = _assertion_map(observation)
+
+    assert result.passed
+    relabeled = {**observation, "state": "withheld" if state != "withheld" else "complete"}
+    _, relabeled_assertions = _assertion_map(relabeled)
+    assert relabeled_assertions["one_pager_state_truth"].passed is False
+
+
+@pytest.mark.parametrize(
+    ("key", "wrong_value"),
+    (
+        ("requested_zoom", 1.0),
+        ("actual_browser_zoom", 1),
+        ("page_header_count", True),
+        ("one_pager_header_count", 1.0),
+        ("one_pager_visible", 1),
+        ("one_pager_before_overview", "true"),
+        ("one_pager_heading_count", 8.0),
+        ("one_pager_section_count", True),
+        ("one_pager_answer_item_count", 4.0),
+        ("one_pager_scenario_item_count", False),
+        ("one_pager_state_tokens", list(SYNTHETIC_EXPECTED_STATE_ROLE_TOKENS["complete"])),
+        ("one_pager_share_basis_tokens", list(SYNTHETIC_EXPECTED_SHARE_BASIS_TOKENS)),
+        ("one_pager_state_node_count", 37.0),
+        ("one_pager_state_role_count", True),
+        ("one_pager_unique_state_role_count", "37"),
+        ("one_pager_provenance_caption_visible", 1),
+        ("one_pager_min_text_contrast_ratio", 7),
+        ("one_pager_min_boundary_contrast_ratio", 3),
+        ("one_pager_overflow_px", 0),
+        ("one_pager_max_descendant_overflow_px", 0),
+        ("one_pager_provenance_visible", 1),
+        ("one_pager_blockers_visible", "true"),
+        ("one_pager_assumptions_visible", None),
+        ("one_pager_handoff_visible", 1),
+        ("one_pager_forced_colors_non_color_cue", 1),
+        ("one_pager_print_min_text_contrast_ratio", 21),
+        ("one_pager_print_min_boundary_contrast_ratio", 21),
+        ("one_pager_print_provenance_visible", 1),
+        ("one_pager_print_blockers_visible", "true"),
+        ("one_pager_print_assumptions_visible", None),
+        ("one_pager_print_handoff_visible", 1),
+    ),
+)
+def test_observation_contract_requires_exact_new_field_types(key, wrong_value):
+    observation = _complete_observation()
+    observation[key] = wrong_value
+
+    result, assertions = _assertion_map(observation)
+
+    assert not result.passed
+    assert assertions["observation_complete"].passed is False
 
 
 @pytest.mark.parametrize(
@@ -611,6 +1640,209 @@ def test_repository_fingerprint_detects_executable_bit_changes(tmp_path):
     assert repository_fingerprint(tmp_path) != before
 
 
+def _packet_results():
+    results = []
+    for state in ("complete", "partial", "stale", "withheld"):
+        for width, height, zoom in browser_gate.HTML_BRIEF_BROWSER_CELLS:
+            observation = _complete_observation()
+            observation.update(
+                state=state,
+                viewport=f"{width}x{height}",
+                requested_zoom=zoom,
+                actual_browser_zoom=True,
+                one_pager_state_tokens=(
+                    SYNTHETIC_EXPECTED_STATE_ROLE_TOKENS[state]
+                ),
+            )
+            results.append(evaluate_html_brief_observation(observation))
+    return results
+
+
+def _packet_source_paths(directory: Path) -> dict[str, Path]:
+    supplied = {
+        "src/company_workbench_html.py": b"renderer source\n",
+        "src/company_workbench_html_browser_gate.py": b"gate source\n",
+        "tests/test_company_workbench_html_browser_gate.py": b"test source\n",
+    }
+    paths = {}
+    for index, (label, payload) in enumerate(supplied.items()):
+        path = directory / f"source-{index}.py"
+        path.write_bytes(payload)
+        paths[label] = path
+    return paths
+
+
+def test_result_packet_contract_builds_exact_hashed_24_cell_schema(tmp_path):
+    from src.company_workbench_html_browser_gate import (
+        build_html_brief_browser_result_packet,
+    )
+
+    documents = {
+        state: _synthetic_brief(state)
+        for state in ("complete", "partial", "stale", "withheld")
+    }
+    source_paths = _packet_source_paths(tmp_path)
+
+    results_payload, source_payload = build_html_brief_browser_result_packet(
+        _packet_results(),
+        input_documents=documents,
+        source_paths=source_paths,
+    )
+
+    assert results_payload["schema_version"] == 1
+    assert results_payload["verdict"] == "passed"
+    assert results_payload["passed_cells"] == 24
+    assert results_payload["total_cells"] == 24
+    assert len(results_payload["cells"]) == 24
+    assert len(
+        {
+            (cell["state"], cell["viewport"], cell["zoom"])
+            for cell in results_payload["cells"]
+        }
+    ) == 24
+    assert {
+        item["state"]: item["sha256"]
+        for item in results_payload["input_documents"]
+    } == {
+        state: hashlib.sha256(payload).hexdigest()
+        for state, payload in documents.items()
+    }
+    assert source_payload == {
+        "schema_version": 1,
+        "sources": [
+            {
+                "path": label,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+            for label, path in sorted(source_paths.items())
+        ],
+    }
+    assert all(
+        cell["assertions"]
+        and all(
+            set(assertion) == {"name", "passed", "evidence"}
+            for assertion in cell["assertions"]
+        )
+        for cell in results_payload["cells"]
+    )
+
+
+def test_result_packet_contract_writes_deterministic_exact_files(tmp_path):
+    from src.company_workbench_html_browser_gate import (
+        write_html_brief_browser_result_packet,
+    )
+
+    documents = {
+        state: _synthetic_brief(state)
+        for state in ("complete", "partial", "stale", "withheld")
+    }
+    source_paths = _packet_source_paths(tmp_path)
+    with tempfile.TemporaryDirectory(prefix="packet-a-", dir="/tmp") as first_dir:
+        first = write_html_brief_browser_result_packet(
+            Path(first_dir),
+            _packet_results(),
+            input_documents=documents,
+            source_paths=source_paths,
+        )
+        first_bytes = {
+            path.name: path.read_bytes() for path in first
+        }
+    with tempfile.TemporaryDirectory(prefix="packet-b-", dir="/tmp") as second_dir:
+        second = write_html_brief_browser_result_packet(
+            Path(second_dir),
+            tuple(reversed(_packet_results())),
+            input_documents=dict(reversed(tuple(documents.items()))),
+            source_paths=dict(reversed(tuple(source_paths.items()))),
+        )
+        second_bytes = {
+            path.name: path.read_bytes() for path in second
+        }
+
+    assert set(first_bytes) == set(second_bytes) == {
+        "results.json",
+        "source-hashes.json",
+    }
+    assert first_bytes == second_bytes
+    assert all(payload.endswith(b"\n") for payload in first_bytes.values())
+
+
+def test_result_packet_contract_rejects_outside_tmp_and_nonempty_directory(tmp_path):
+    from src.company_workbench_html_browser_gate import (
+        write_html_brief_browser_result_packet,
+    )
+
+    documents = {
+        state: _synthetic_brief(state)
+        for state in ("complete", "partial", "stale", "withheld")
+    }
+    source_paths = _packet_source_paths(tmp_path)
+    with pytest.raises(ValueError, match="/tmp"):
+        write_html_brief_browser_result_packet(
+            tmp_path,
+            _packet_results(),
+            input_documents=documents,
+            source_paths=source_paths,
+        )
+    missing = Path("/tmp") / "stock-research-packet-missing-contract"
+    assert not missing.exists()
+    with pytest.raises(ValueError, match="existing"):
+        write_html_brief_browser_result_packet(
+            missing,
+            _packet_results(),
+            input_documents=documents,
+            source_paths=source_paths,
+        )
+    with tempfile.TemporaryDirectory(prefix="packet-nonempty-", dir="/tmp") as directory:
+        output = Path(directory)
+        (output / "already-present").write_text("owned", encoding="utf-8")
+        with pytest.raises(ValueError, match="empty"):
+            write_html_brief_browser_result_packet(
+                output,
+                _packet_results(),
+                input_documents=documents,
+                source_paths=source_paths,
+            )
+        assert [path.name for path in output.iterdir()] == ["already-present"]
+
+
+@pytest.mark.parametrize("mutation", ("missing", "duplicate", "unexpected"))
+def test_result_packet_contract_rejects_invalid_cell_set_before_write(
+    tmp_path,
+    mutation,
+):
+    from src.company_workbench_html_browser_gate import (
+        write_html_brief_browser_result_packet,
+    )
+
+    results = _packet_results()
+    if mutation == "missing":
+        results.pop()
+    elif mutation == "duplicate":
+        results[-1] = results[0]
+    else:
+        results[-1] = browser_gate.HtmlBriefBrowserResult(
+            "unexpected",
+            results[-1].viewport,
+            results[-1].zoom,
+            results[-1].assertions,
+        )
+    documents = {
+        state: _synthetic_brief(state)
+        for state in ("complete", "partial", "stale", "withheld")
+    }
+    source_paths = _packet_source_paths(tmp_path)
+    with tempfile.TemporaryDirectory(prefix="packet-invalid-", dir="/tmp") as directory:
+        output = Path(directory)
+        with pytest.raises(ValueError, match="cell"):
+            write_html_brief_browser_result_packet(
+                output,
+                results,
+                input_documents=documents,
+                source_paths=source_paths,
+            )
+        assert list(output.iterdir()) == []
+
+
 def test_repository_fingerprint_distinguishes_regular_fifo_and_socket():
     if not hasattr(os, "mkfifo") or not hasattr(socket, "AF_UNIX"):
         pytest.skip(
@@ -711,22 +1943,44 @@ def test_page_context_cleanup_survives_new_page_failure():
 
 def test_actual_browser_matrix_accepts_injected_bytes_without_writing_repo():
     cases = {
-        state: _synthetic_brief(state) for state in ("complete", "partial", "withheld")
+        state: _synthetic_brief(state)
+        for state in ("complete", "partial", "stale", "withheld")
     }
 
     results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
 
-    assert len(results) == 9
-    assert {(result.state, result.viewport) for result in results} == {
-        (state, viewport)
+    assert len(results) == 24
+    assert {(result.state, result.viewport, result.zoom) for result in results} == {
+        (state, f"{width}x{height}", zoom)
         for state in cases
-        for viewport in ("1280x720", "390x844", "640x900")
+        for width, height, zoom in browser_gate.HTML_BRIEF_BROWSER_CELLS
     }
     assert all(result.passed for result in results), [
-        (result.state, result.viewport, [a for a in result.assertions if not a.passed])
+        (
+            result.state,
+            result.viewport,
+            result.zoom,
+            [a for a in result.assertions if not a.passed],
+        )
         for result in results
         if not result.passed
     ]
+    output_directory = os.environ.get("HTML_BRIEF_BROWSER_OUTPUT_DIR")
+    if output_directory:
+        root = Path.cwd()
+        packet_paths = browser_gate.write_html_brief_browser_result_packet(
+            Path(output_directory),
+            results,
+            input_documents=cases,
+            source_paths={
+                label: root / label
+                for label in browser_gate.HTML_BRIEF_BROWSER_SOURCE_PATHS
+            },
+        )
+        assert tuple(path.name for path in packet_paths) == (
+            "results.json",
+            "source-hashes.json",
+        )
 
 
 def test_actual_browser_rejects_opacity_clipping_offscreen_and_print_hiding():
@@ -753,13 +2007,17 @@ def test_actual_browser_rejects_opacity_clipping_offscreen_and_print_hiding():
         ),
     }
 
-    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+    results = run_company_workbench_html_browser_gate(
+        cases,
+        repo_root=Path.cwd(),
+        cells=((1280, 720, 1),),
+    )
     failures = {
         (result.state, result.viewport): _failed_assertion_names(result)
         for result in results
     }
 
-    for viewport in ("1280x720", "390x844", "640x900"):
+    for viewport in ("1280x720",):
         assert "research_boundary_visible" in failures[("boundary-opacity", viewport)]
         assert (
             "provenance_visible" in failures[("provenance-ancestor-clipped", viewport)]
@@ -790,7 +2048,11 @@ def test_actual_browser_rejects_transparent_clipped_and_offscreen_focus_cues():
         ),
     }
 
-    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+    results = run_company_workbench_html_browser_gate(
+        cases,
+        repo_root=Path.cwd(),
+        cells=((1280, 720, 1),),
+    )
 
     assert all("visible_focus" in _failed_assertion_names(result) for result in results)
 
@@ -809,7 +2071,11 @@ def test_actual_browser_requires_a_focus_specific_change_and_rejects_overflow_cl
         "focus-overflow-scroll": _wrap_skip_link_in_overflow(original, "scroll"),
     }
 
-    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+    results = run_company_workbench_html_browser_gate(
+        cases,
+        repo_root=Path.cwd(),
+        cells=((1280, 720, 1),),
+    )
 
     assert all("visible_focus" in _failed_assertion_names(result) for result in results)
 
@@ -824,7 +2090,9 @@ def test_actual_browser_allows_a_visible_focus_specific_inside_cue():
     )
 
     results = run_company_workbench_html_browser_gate(
-        {"focus-inside-cue": inside_cue}, repo_root=Path.cwd()
+        {"complete": inside_cue},
+        repo_root=Path.cwd(),
+        cells=((1280, 720, 1),),
     )
 
     assert all(result.passed for result in results), [
@@ -846,9 +2114,13 @@ def test_actual_browser_rejects_fully_clipped_directional_focus_shadows():
         for overflow in ("auto", "scroll")
     }
 
-    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+    results = run_company_workbench_html_browser_gate(
+        cases,
+        repo_root=Path.cwd(),
+        cells=((1280, 720, 1),),
+    )
 
-    assert len(results) == 12
+    assert len(results) == 4
     assert all("visible_focus" in _failed_assertion_names(result) for result in results)
 
 
@@ -865,13 +2137,17 @@ def test_actual_browser_rejects_unchanged_shadow_plus_unsupported_focus_addition
         ),
     }
 
-    results = run_company_workbench_html_browser_gate(cases, repo_root=Path.cwd())
+    results = run_company_workbench_html_browser_gate(
+        cases,
+        repo_root=Path.cwd(),
+        cells=((1280, 720, 1),),
+    )
 
-    assert len(results) == 6
+    assert len(results) == 2
     assert all("visible_focus" in _failed_assertion_names(result) for result in results)
 
 
-def test_make_target_runs_only_the_browser_gate_without_artifact_options():
+def test_make_target_writes_only_a_fresh_tmp_result_packet():
     makefile = Path("Makefile").read_text(encoding="utf-8")
     target = makefile.split("company-workbench-html-browser-check:", 1)[1].split(
         "\n\n", 1
@@ -879,10 +2155,17 @@ def test_make_target_runs_only_the_browser_gate_without_artifact_options():
 
     assert "PYTHONDONTWRITEBYTECODE=1" in target
     assert (
-        "python3 -m pytest tests/test_company_workbench_html_browser_gate.py -q"
+        "python3 -m pytest -q -p no:cacheprovider "
+        "tests/test_company_workbench_html_browser_gate.py"
         in target
     )
     assert "tests/test_company_workbench_html_browser_gate.py tests/" not in target
+    assert "mktemp -d /tmp/stock-company-workbench-html-browser.XXXXXX" in target
+    assert 'HTML_BRIEF_BROWSER_OUTPUT_DIR="$$packet_dir"' in target
+    assert 'test -s "$$packet_dir/results.json"' in target
+    assert 'test -s "$$packet_dir/source-hashes.json"' in target
+    assert 'shasum -a 256 "$$packet"' in target
+    assert "rm " not in target
     assert not any(
         option in target
         for option in ("--output", "--screenshot", "--json", "--html", "--pdf")

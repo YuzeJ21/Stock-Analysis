@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import math
 import os
 import stat
 import subprocess
+import tempfile
+from contextlib import contextmanager
 from dataclasses import dataclass
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Callable, Mapping
+from threading import Thread
+from typing import Callable, Iterable, Iterator, Mapping
+from urllib.parse import quote, unquote, urlsplit
 
 from src.public_performance_gate import find_chrome_executable
 
@@ -21,8 +28,12 @@ EXACT_HTML_BRIEF_CSP = (
 REQUIRED_OBSERVATION_KEYS = (
     "state",
     "viewport",
+    "requested_zoom",
+    "actual_browser_zoom",
     "h1_count",
     "header_count",
+    "page_header_count",
+    "one_pager_header_count",
     "main_count",
     "footer_count",
     "section_count",
@@ -49,13 +60,44 @@ REQUIRED_OBSERVATION_KEYS = (
     "page_errors",
     "pdf_byte_length",
     "pdf_header",
+    "one_pager_visible",
+    "one_pager_before_overview",
+    "one_pager_heading_count",
+    "one_pager_section_count",
+    "one_pager_answer_item_count",
+    "one_pager_scenario_item_count",
+    "one_pager_state_tokens",
+    "one_pager_share_basis_tokens",
+    "one_pager_state_node_count",
+    "one_pager_state_role_count",
+    "one_pager_unique_state_role_count",
+    "one_pager_provenance_caption_visible",
+    "one_pager_min_text_contrast_ratio",
+    "one_pager_min_boundary_contrast_ratio",
+    "one_pager_overflow_px",
+    "one_pager_max_descendant_overflow_px",
+    "one_pager_provenance_visible",
+    "one_pager_blockers_visible",
+    "one_pager_assumptions_visible",
+    "one_pager_handoff_visible",
+    "one_pager_forced_colors_non_color_cue",
+    "one_pager_print_min_text_contrast_ratio",
+    "one_pager_print_min_boundary_contrast_ratio",
+    "one_pager_print_provenance_visible",
+    "one_pager_print_blockers_visible",
+    "one_pager_print_assumptions_visible",
+    "one_pager_print_handoff_visible",
 )
 
 _OBSERVATION_TYPES: Mapping[str, object] = {
     "state": str,
     "viewport": str,
+    "requested_zoom": int,
+    "actual_browser_zoom": bool,
     "h1_count": int,
     "header_count": int,
+    "page_header_count": int,
+    "one_pager_header_count": int,
     "main_count": int,
     "footer_count": int,
     "section_count": int,
@@ -82,7 +124,144 @@ _OBSERVATION_TYPES: Mapping[str, object] = {
     "page_errors": (tuple, str),
     "pdf_byte_length": int,
     "pdf_header": str,
+    "one_pager_visible": bool,
+    "one_pager_before_overview": bool,
+    "one_pager_heading_count": int,
+    "one_pager_section_count": int,
+    "one_pager_answer_item_count": int,
+    "one_pager_scenario_item_count": int,
+    "one_pager_state_tokens": (tuple, str),
+    "one_pager_share_basis_tokens": (tuple, str),
+    "one_pager_state_node_count": int,
+    "one_pager_state_role_count": int,
+    "one_pager_unique_state_role_count": int,
+    "one_pager_provenance_caption_visible": bool,
+    "one_pager_min_text_contrast_ratio": float,
+    "one_pager_min_boundary_contrast_ratio": float,
+    "one_pager_overflow_px": float,
+    "one_pager_max_descendant_overflow_px": float,
+    "one_pager_provenance_visible": bool,
+    "one_pager_blockers_visible": bool,
+    "one_pager_assumptions_visible": bool,
+    "one_pager_handoff_visible": bool,
+    "one_pager_forced_colors_non_color_cue": bool,
+    "one_pager_print_min_text_contrast_ratio": float,
+    "one_pager_print_min_boundary_contrast_ratio": float,
+    "one_pager_print_provenance_visible": bool,
+    "one_pager_print_blockers_visible": bool,
+    "one_pager_print_assumptions_visible": bool,
+    "one_pager_print_handoff_visible": bool,
 }
+
+_SYNTHETIC_STATE_ROLES = (
+    "answers-next-research-task",
+    "answers-still-withheld",
+    "answers-use-now",
+    "answers-what-changed",
+    "break-case-decision-invalidation",
+    "break-case-research-risks",
+    "header-freshness-state",
+    "header-rights-state",
+    "operating-valuation-base-bridge-cash",
+    "operating-valuation-base-bridge-debt",
+    "operating-valuation-base-bridge-discounted-explicit-total",
+    "operating-valuation-base-bridge-discounted-terminal-value",
+    "operating-valuation-base-bridge-enterprise-value",
+    "operating-valuation-base-bridge-equity-value",
+    "operating-valuation-base-bridge-net-debt",
+    "operating-valuation-base-bridge-supplied-shares",
+    "operating-valuation-base-bridge-supplied-value-per-share",
+    "operating-valuation-base-bridge-terminal-value",
+    "operating-valuation-research-business-trend",
+    "operating-valuation-research-key-drivers",
+    "operating-valuation-research-valuation-regime",
+    "provenance-freshness-state",
+    "provenance-rights-state",
+    "provenance-row-1-synthetic-provenance-synthetic-test-source",
+    "questions-answer-next-research-task",
+    "questions-decision-review-trigger",
+    "questions-research-evidence-gaps",
+    "research-case-decision-evidence",
+    "research-case-decision-plan",
+    "research-case-research-business-trend",
+    "research-case-research-key-drivers",
+    "scenarios-base",
+    "scenarios-base-value-per-share",
+    "scenarios-bear",
+    "scenarios-bear-value-per-share",
+    "scenarios-bull",
+    "scenarios-bull-value-per-share",
+)
+
+
+def _synthetic_state_tokens(
+    default: str,
+    overrides: Mapping[str, str] | None = None,
+) -> tuple[str, ...]:
+    supplied = overrides or {}
+    return tuple(
+        sorted(
+            f"{role}={supplied.get(role, default)}"
+            for role in _SYNTHETIC_STATE_ROLES
+        )
+    )
+
+
+SYNTHETIC_EXPECTED_STATE_ROLE_TOKENS: Mapping[str, tuple[str, ...]] = {
+    "complete": _synthetic_state_tokens(
+        "available",
+        {
+            "answers-still-withheld": "withheld",
+            "answers-what-changed": "partial",
+        },
+    ),
+    "partial": _synthetic_state_tokens(
+        "partial",
+        {
+            "answers-still-withheld": "withheld",
+            "answers-what-changed": "partial",
+            "scenarios-bear-value-per-share": "available",
+            "scenarios-base-value-per-share": "available",
+            "scenarios-bull-value-per-share": "available",
+            "operating-valuation-base-bridge-discounted-explicit-total": "available",
+            "operating-valuation-base-bridge-terminal-value": "available",
+            "operating-valuation-base-bridge-discounted-terminal-value": "available",
+            "operating-valuation-base-bridge-enterprise-value": "available",
+            "operating-valuation-base-bridge-supplied-shares": "available",
+            "operating-valuation-base-bridge-supplied-value-per-share": "available",
+        },
+    ),
+    "stale": _synthetic_state_tokens(
+        "stale",
+        {
+            "answers-still-withheld": "withheld",
+            "answers-what-changed": "partial",
+        },
+    ),
+    "withheld": _synthetic_state_tokens("withheld"),
+}
+
+SYNTHETIC_EXPECTED_SHARE_BASIS_TOKENS = (
+    "operating-valuation-base-bridge-share-basis=unverified",
+    "scenarios-base-share-basis=unverified",
+    "scenarios-bear-share-basis=unverified",
+    "scenarios-bull-share-basis=unverified",
+)
+
+HTML_BRIEF_BROWSER_CELLS = (
+    (1280, 720, 1),
+    (1280, 720, 2),
+    (1440, 1024, 1),
+    (1440, 1024, 2),
+    (1440, 1024, 4),
+    (390, 844, 1),
+)
+HTML_BRIEF_BROWSER_STATES = ("complete", "partial", "stale", "withheld")
+HTML_BRIEF_BROWSER_SOURCE_PATHS = (
+    "src/company_workbench_html.py",
+    "src/company_workbench_html_browser_gate.py",
+    "tests/test_company_workbench_html_browser_gate.py",
+)
 
 
 @dataclass(frozen=True)
@@ -96,6 +275,7 @@ class HtmlBriefBrowserAssertion:
 class HtmlBriefBrowserResult:
     state: str
     viewport: str
+    zoom: int
     assertions: tuple[HtmlBriefBrowserAssertion, ...]
 
     @property
@@ -103,6 +283,290 @@ class HtmlBriefBrowserResult:
         return bool(self.assertions) and all(
             assertion.passed for assertion in self.assertions
         )
+
+
+def build_html_brief_browser_result_packet(
+    results: Iterable[HtmlBriefBrowserResult],
+    *,
+    input_documents: Mapping[str, bytes],
+    source_paths: Mapping[str, Path],
+) -> tuple[dict[str, object], dict[str, object]]:
+    """Build deterministic standalone browser results and source-hash payloads."""
+
+    observed_results = tuple(results)
+    expected_cells = tuple(
+        (state, f"{width}x{height}", zoom)
+        for state in HTML_BRIEF_BROWSER_STATES
+        for width, height, zoom in HTML_BRIEF_BROWSER_CELLS
+    )
+    expected_cell_set = set(expected_cells)
+    observed_cells = tuple(
+        (result.state, result.viewport, result.zoom)
+        for result in observed_results
+    )
+    if (
+        len(observed_cells) != len(set(observed_cells))
+        or set(observed_cells) != expected_cell_set
+    ):
+        raise ValueError(
+            "HTML brief browser result cell set is missing, duplicate, or unexpected"
+        )
+    if set(input_documents) != set(HTML_BRIEF_BROWSER_STATES):
+        raise ValueError("HTML brief input document states do not match the cell set")
+    if any(type(payload) is not bytes for payload in input_documents.values()):
+        raise TypeError("HTML brief input documents must contain exact bytes")
+    if set(source_paths) != set(HTML_BRIEF_BROWSER_SOURCE_PATHS):
+        raise ValueError("HTML brief packet source paths are incomplete or unexpected")
+
+    source_records: list[dict[str, str]] = []
+    for label, supplied_path in sorted(source_paths.items()):
+        path = Path(supplied_path)
+        if not path.is_file():
+            raise ValueError(f"HTML brief packet source path is not a file: {label}")
+        source_records.append(
+            {
+                "path": label,
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+        )
+
+    cell_order = {cell: index for index, cell in enumerate(expected_cells)}
+    cell_records: list[dict[str, object]] = []
+    for result in sorted(
+        observed_results,
+        key=lambda item: cell_order[(item.state, item.viewport, item.zoom)],
+    ):
+        assertion_names = tuple(assertion.name for assertion in result.assertions)
+        if not assertion_names or len(assertion_names) != len(set(assertion_names)):
+            raise ValueError(
+                "HTML brief browser result cell assertions are missing or duplicate"
+            )
+        cell_records.append(
+            {
+                "state": result.state,
+                "viewport": result.viewport,
+                "zoom": result.zoom,
+                "passed": result.passed,
+                "assertions": [
+                    {
+                        "name": assertion.name,
+                        "passed": assertion.passed,
+                        "evidence": assertion.evidence,
+                    }
+                    for assertion in result.assertions
+                ],
+            }
+        )
+    passed_cells = sum(1 for record in cell_records if record["passed"])
+    results_payload: dict[str, object] = {
+        "schema_version": 1,
+        "verdict": (
+            "passed" if passed_cells == len(expected_cells) else "failed"
+        ),
+        "passed_cells": passed_cells,
+        "total_cells": len(expected_cells),
+        "cells": cell_records,
+        "input_documents": [
+            {
+                "state": state,
+                "sha256": hashlib.sha256(input_documents[state]).hexdigest(),
+            }
+            for state in HTML_BRIEF_BROWSER_STATES
+        ],
+    }
+    source_payload: dict[str, object] = {
+        "schema_version": 1,
+        "sources": source_records,
+    }
+    return results_payload, source_payload
+
+
+def _deterministic_json_bytes(payload: Mapping[str, object]) -> bytes:
+    return (
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
+def write_html_brief_browser_result_packet(
+    output_directory: Path | str,
+    results: Iterable[HtmlBriefBrowserResult],
+    *,
+    input_documents: Mapping[str, bytes],
+    source_paths: Mapping[str, Path],
+) -> tuple[Path, Path]:
+    """Write exactly two deterministic files to one fresh empty /tmp directory."""
+
+    supplied = Path(output_directory)
+    if not supplied.exists() or not supplied.is_dir():
+        raise ValueError("HTML brief packet output must be an existing directory")
+    resolved = supplied.resolve(strict=True)
+    temporary_root = Path("/tmp").resolve(strict=True)
+    if resolved == temporary_root or temporary_root not in resolved.parents:
+        raise ValueError("HTML brief packet output must resolve under /tmp")
+    if any(resolved.iterdir()):
+        raise ValueError("HTML brief packet output directory must be empty")
+    results_payload, source_payload = build_html_brief_browser_result_packet(
+        results,
+        input_documents=input_documents,
+        source_paths=source_paths,
+    )
+    targets = (
+        (resolved / "results.json", _deterministic_json_bytes(results_payload)),
+        (
+            resolved / "source-hashes.json",
+            _deterministic_json_bytes(source_payload),
+        ),
+    )
+    created: list[Path] = []
+    try:
+        for path, payload in targets:
+            with path.open("xb") as handle:
+                handle.write(payload)
+            created.append(path)
+    except Exception:
+        for path in created:
+            path.unlink(missing_ok=True)
+        raise
+    return tuple(path for path, _payload in targets)
+
+
+@contextmanager
+def _injected_brief_server(cases: Mapping[str, bytes]) -> Iterator[str]:
+    """Serve exact supplied HTML bytes from memory on one temporary loopback origin."""
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            path = unquote(urlsplit(self.path).path)
+            if path == "/favicon.ico":
+                self.send_response(204)
+                self.end_headers()
+                return
+            state = path.strip("/").removesuffix(".html")
+            payload = cases.get(state)
+            if payload is None:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def _normalized_http_origin(url: str) -> str | None:
+    try:
+        parsed = urlsplit(str(url))
+        if parsed.scheme not in {"http", "https"}:
+            return None
+        if not parsed.hostname or parsed.username is not None or parsed.password is not None:
+            return ""
+        port = parsed.port
+    except (TypeError, ValueError):
+        return ""
+    normalized_port = port or (443 if parsed.scheme == "https" else 80)
+    host = parsed.hostname.lower()
+    display_host = f"[{host}]" if ":" in host else host
+    return f"{parsed.scheme}://{display_host}:{normalized_port}"
+
+
+def evaluate_html_brief_request_origin(
+    *,
+    request_url: str,
+    active_origin: str,
+) -> tuple[str, bool]:
+    """Allow non-HTTP URLs and the exact active origin; abort every other HTTP URL."""
+
+    request_origin = _normalized_http_origin(request_url)
+    if request_origin is None:
+        return ("allow", False)
+    expected_origin = _normalized_http_origin(active_origin)
+    if request_origin and expected_origin and request_origin == expected_origin:
+        return ("allow", False)
+    return ("abort", True)
+
+
+def _chromium_zoom_preferences(*, host: str, zoom: int) -> dict[str, object]:
+    zoom_level = math.log(float(zoom), 1.2) if zoom > 0 else 0.0
+    return {
+        "partition": {
+            "per_host_zoom_levels": {
+                "x": {
+                    host: {
+                        "last_modified": "13300000000000000",
+                        "zoom_level": zoom_level,
+                    }
+                }
+            }
+        }
+    }
+
+
+def evaluate_html_brief_browser_zoom(
+    *,
+    requested_zoom: int,
+    declared_width: float,
+    declared_height: float,
+    screenshot_width: float,
+    screenshot_height: float,
+    inner_width: float,
+    inner_height: float,
+    visual_viewport_width: float,
+    visual_viewport_height: float,
+    device_pixel_ratio: float,
+    visual_viewport_scale: float,
+) -> HtmlBriefBrowserAssertion:
+    """Require real Chrome layout and device-scale geometry at 100/200/400 percent."""
+
+    expected_inner_width = declared_width / requested_zoom if requested_zoom > 0 else 0
+    expected_inner_height = declared_height / requested_zoom if requested_zoom > 0 else 0
+    width_ratio = declared_width / inner_width if inner_width > 0 else 0
+    height_ratio = declared_height / inner_height if inner_height > 0 else 0
+    passed = (
+        requested_zoom in (1, 2, 4)
+        and abs(screenshot_width - declared_width) <= 1
+        and abs(screenshot_height - declared_height) <= 1
+        and abs(inner_width - expected_inner_width) <= 1
+        and abs(inner_height - expected_inner_height) <= 1
+        and abs(visual_viewport_width - inner_width) <= 1
+        and abs(visual_viewport_height - inner_height) <= 1
+        and abs(width_ratio - requested_zoom) <= 0.08
+        and abs(height_ratio - requested_zoom) <= 0.08
+        and abs(device_pixel_ratio - requested_zoom) <= 0.08
+        and abs(visual_viewport_scale - 1) <= 0.01
+    )
+    return HtmlBriefBrowserAssertion(
+        "actual_browser_zoom",
+        passed,
+        (
+            f"requested={requested_zoom * 100}%; "
+            f"declared={declared_width:.0f}x{declared_height:.0f}; "
+            f"screenshot={screenshot_width:.0f}x{screenshot_height:.0f}; "
+            f"inner={inner_width:.0f}x{inner_height:.0f}; "
+            f"visual={visual_viewport_width:.0f}x{visual_viewport_height:.0f}; "
+            f"layout_ratio={width_ratio:.3f}x{height_ratio:.3f}; "
+            f"device_pixel_ratio={device_pixel_ratio:.3f}; "
+            f"visual_viewport_scale={visual_viewport_scale:.3f}"
+        ),
+    )
 
 
 def _has_exact_type(value: object, requirement: object) -> bool:
@@ -167,16 +631,26 @@ def evaluate_html_brief_observation(
         record(
             "semantic_landmarks",
             passes(
-                ("header_count", "main_count", "footer_count", "section_count"),
+                (
+                    "header_count",
+                    "page_header_count",
+                    "one_pager_header_count",
+                    "main_count",
+                    "footer_count",
+                    "section_count",
+                ),
                 lambda: (
-                    value("header_count")
-                    == value("main_count")
-                    == value("footer_count")
-                    == 1
+                    value("header_count") == 2
+                    and value("page_header_count") == 1
+                    and value("one_pager_header_count") == 1
+                    and value("main_count") == value("footer_count") == 1
                     and value("section_count") >= 1
                 ),
             ),
-            "header/main/footer must each occur once and at least one section must exist",
+            (
+                "document must contain two headers: one direct page header and one "
+                "direct one-pager header; main/footer must each occur once"
+            ),
         ),
         record(
             "logical_headings",
@@ -267,7 +741,10 @@ def evaluate_html_brief_observation(
         record(
             "reduced_motion_static",
             passes(("reduced_motion_static",), lambda: value("reduced_motion_static")),
-            f"static={observation.get('reduced_motion_static')!r}",
+            str(
+                observation.get("reduced_motion_evidence")
+                or f"static={observation.get('reduced_motion_static')!r}"
+            ),
         ),
         record(
             "print_boundary_visible",
@@ -301,10 +778,243 @@ def evaluate_html_brief_observation(
             ),
             f"byte_length={observation.get('pdf_byte_length')!r}; header={observation.get('pdf_header')!r}",
         ),
+        record(
+            "actual_browser_zoom",
+            passes(
+                ("requested_zoom", "actual_browser_zoom"),
+                lambda: value("requested_zoom") in (1, 2, 4)
+                and value("actual_browser_zoom"),
+            ),
+            str(
+                observation.get("actual_browser_zoom_evidence")
+                or (
+                    f"requested_zoom={observation.get('requested_zoom')!r}; "
+                    f"actual={observation.get('actual_browser_zoom')!r}"
+                )
+            ),
+        ),
+        record(
+            "one_pager_visible",
+            passes(("one_pager_visible",), lambda: value("one_pager_visible")),
+            f"visible={observation.get('one_pager_visible')!r}",
+        ),
+        record(
+            "one_pager_before_overview",
+            passes(
+                ("one_pager_before_overview",),
+                lambda: value("one_pager_before_overview"),
+            ),
+            f"before_overview={observation.get('one_pager_before_overview')!r}",
+        ),
+        record(
+            "one_pager_structure",
+            passes(
+                ("one_pager_heading_count", "one_pager_section_count"),
+                lambda: value("one_pager_heading_count") == 8
+                and value("one_pager_section_count") == 7,
+            ),
+            (
+                f"headings={observation.get('one_pager_heading_count')!r}; "
+                f"sections={observation.get('one_pager_section_count')!r}"
+            ),
+        ),
+        record(
+            "one_pager_lists",
+            passes(
+                (
+                    "one_pager_answer_item_count",
+                    "one_pager_scenario_item_count",
+                ),
+                lambda: value("one_pager_answer_item_count") == 4
+                and value("one_pager_scenario_item_count") == 3,
+            ),
+            (
+                f"answers={observation.get('one_pager_answer_item_count')!r}; "
+                f"scenarios={observation.get('one_pager_scenario_item_count')!r}"
+            ),
+        ),
+        record(
+            "one_pager_state_truth",
+            passes(
+                ("state", "one_pager_state_tokens"),
+                lambda: value("state") in SYNTHETIC_EXPECTED_STATE_ROLE_TOKENS
+                and value("one_pager_state_tokens")
+                == SYNTHETIC_EXPECTED_STATE_ROLE_TOKENS[value("state")],
+            ),
+            (
+                f"case={observation.get('state')!r}; "
+                f"tokens={observation.get('one_pager_state_tokens')!r}"
+            ),
+        ),
+        record(
+            "one_pager_state_role_integrity",
+            passes(
+                (
+                    "one_pager_state_node_count",
+                    "one_pager_state_role_count",
+                    "one_pager_unique_state_role_count",
+                ),
+                lambda: value("one_pager_state_node_count")
+                == value("one_pager_state_role_count")
+                == value("one_pager_unique_state_role_count")
+                == len(_SYNTHETIC_STATE_ROLES),
+            ),
+            (
+                f"state_nodes={observation.get('one_pager_state_node_count')!r}; "
+                f"paired_roles={observation.get('one_pager_state_role_count')!r}; "
+                f"unique_roles={observation.get('one_pager_unique_state_role_count')!r}"
+            ),
+        ),
+        record(
+            "one_pager_share_basis_disclosure",
+            passes(
+                ("one_pager_share_basis_tokens",),
+                lambda: value("one_pager_share_basis_tokens")
+                == SYNTHETIC_EXPECTED_SHARE_BASIS_TOKENS,
+            ),
+            f"tokens={observation.get('one_pager_share_basis_tokens')!r}",
+        ),
+        record(
+            "one_pager_provenance_caption_visible",
+            passes(
+                ("one_pager_provenance_caption_visible",),
+                lambda: value("one_pager_provenance_caption_visible"),
+            ),
+            (
+                "visible="
+                f"{observation.get('one_pager_provenance_caption_visible')!r}"
+            ),
+        ),
+        record(
+            "one_pager_text_contrast",
+            passes(
+                ("one_pager_min_text_contrast_ratio",),
+                lambda: value("one_pager_min_text_contrast_ratio") >= 4.5,
+            ),
+            f"minimum={observation.get('one_pager_min_text_contrast_ratio')!r}",
+        ),
+        record(
+            "one_pager_boundary_contrast",
+            passes(
+                ("one_pager_min_boundary_contrast_ratio",),
+                lambda: value("one_pager_min_boundary_contrast_ratio") >= 3.0,
+            ),
+            str(
+                observation.get("one_pager_boundary_contrast_evidence")
+                or (
+                    "minimum="
+                    f"{observation.get('one_pager_min_boundary_contrast_ratio')!r}"
+                )
+            ),
+        ),
+        record(
+            "one_pager_no_overflow",
+            passes(
+                ("one_pager_overflow_px",),
+                lambda: value("one_pager_overflow_px") <= 1.0,
+            ),
+            f"overflow_px={observation.get('one_pager_overflow_px')!r}",
+        ),
+        record(
+            "one_pager_no_descendant_overflow",
+            passes(
+                ("one_pager_max_descendant_overflow_px",),
+                lambda: value("one_pager_max_descendant_overflow_px") <= 1.0,
+            ),
+            (
+                "max_descendant_overflow_px="
+                f"{observation.get('one_pager_max_descendant_overflow_px')!r}"
+            ),
+        ),
+        record(
+            "one_pager_screen_content_visible",
+            passes(
+                (
+                    "one_pager_provenance_visible",
+                    "one_pager_blockers_visible",
+                    "one_pager_assumptions_visible",
+                    "one_pager_handoff_visible",
+                ),
+                lambda: all(
+                    value(key)
+                    for key in (
+                        "one_pager_provenance_visible",
+                        "one_pager_blockers_visible",
+                        "one_pager_assumptions_visible",
+                        "one_pager_handoff_visible",
+                    )
+                ),
+            ),
+            (
+                "provenance/blockers/assumptions/handoff="
+                f"{tuple(observation.get(key) for key in ('one_pager_provenance_visible', 'one_pager_blockers_visible', 'one_pager_assumptions_visible', 'one_pager_handoff_visible'))!r}"
+            ),
+        ),
+        record(
+            "one_pager_forced_colors_non_color_cue",
+            passes(
+                ("one_pager_forced_colors_non_color_cue",),
+                lambda: value("one_pager_forced_colors_non_color_cue"),
+            ),
+            (
+                "present="
+                f"{observation.get('one_pager_forced_colors_non_color_cue')!r}"
+            ),
+        ),
+        record(
+            "one_pager_print_text_contrast",
+            passes(
+                ("one_pager_print_min_text_contrast_ratio",),
+                lambda: value("one_pager_print_min_text_contrast_ratio") >= 4.5,
+            ),
+            (
+                "minimum="
+                f"{observation.get('one_pager_print_min_text_contrast_ratio')!r}"
+            ),
+        ),
+        record(
+            "one_pager_print_boundary_contrast",
+            passes(
+                ("one_pager_print_min_boundary_contrast_ratio",),
+                lambda: value("one_pager_print_min_boundary_contrast_ratio") >= 3.0,
+            ),
+            str(
+                observation.get("one_pager_print_boundary_contrast_evidence")
+                or (
+                    "minimum="
+                    f"{observation.get('one_pager_print_min_boundary_contrast_ratio')!r}"
+                )
+            ),
+        ),
+        record(
+            "one_pager_print_content_visible",
+            passes(
+                (
+                    "one_pager_print_provenance_visible",
+                    "one_pager_print_blockers_visible",
+                    "one_pager_print_assumptions_visible",
+                    "one_pager_print_handoff_visible",
+                ),
+                lambda: all(
+                    value(key)
+                    for key in (
+                        "one_pager_print_provenance_visible",
+                        "one_pager_print_blockers_visible",
+                        "one_pager_print_assumptions_visible",
+                        "one_pager_print_handoff_visible",
+                    )
+                ),
+            ),
+            (
+                "provenance/blockers/assumptions/handoff="
+                f"{tuple(observation.get(key) for key in ('one_pager_print_provenance_visible', 'one_pager_print_blockers_visible', 'one_pager_print_assumptions_visible', 'one_pager_print_handoff_visible'))!r}"
+            ),
+        ),
     )
     state = observation.get("state") if valid["state"] else "<invalid>"
     viewport = observation.get("viewport") if valid["viewport"] else "<invalid>"
-    return HtmlBriefBrowserResult(state, viewport, assertions)
+    zoom = observation.get("requested_zoom") if valid["requested_zoom"] else 0
+    return HtmlBriefBrowserResult(state, viewport, zoom, assertions)
 
 
 def repository_fingerprint(repo_root: Path) -> str:
@@ -874,17 +1584,293 @@ def _settle_media_css(
         )
 
 
+def _summary_scope_observation(page) -> dict[str, object]:
+    """Collect one-pager-only semantics, visibility, contrast, and overflow."""
+
+    return page.evaluate(
+        r"""() => {
+            const onePager = document.querySelector('[data-section="evidence-one-pager"]');
+            const overview = document.querySelector('[data-section="overview"]');
+            const visible = node => {
+                if (!(node instanceof Element)) return false;
+                const rect = node.getBoundingClientRect();
+                if (rect.width <= 1 || rect.height <= 1 || node.getClientRects().length === 0) return false;
+                for (let current = node; current instanceof Element; current = current.parentElement) {
+                    const style = getComputedStyle(current);
+                    const opacity = Number.parseFloat(style.opacity || '1');
+                    if (style.display === 'none' || style.visibility === 'hidden' ||
+                        style.visibility === 'collapse' || style.contentVisibility === 'hidden' ||
+                        !Number.isFinite(opacity) || opacity <= 0.01) return false;
+                }
+                return true;
+            };
+            const color = value => {
+                const values = String(value || '').match(/[0-9.]+/g) || [];
+                if (values.length < 3) return null;
+                const parsed = values.slice(0, 4).map(Number);
+                if (parsed.some(item => !Number.isFinite(item))) return null;
+                return [parsed[0], parsed[1], parsed[2], parsed.length > 3 ? parsed[3] : 1];
+            };
+            const background = node => {
+                for (let current = node; current instanceof Element; current = current.parentElement) {
+                    const parsed = color(getComputedStyle(current).backgroundColor);
+                    if (parsed && parsed[3] >= 0.99) return parsed;
+                }
+                return [255, 255, 255, 1];
+            };
+            const channel = value => {
+                const normalized = value / 255;
+                return normalized <= 0.04045
+                    ? normalized / 12.92
+                    : Math.pow((normalized + 0.055) / 1.055, 2.4);
+            };
+            const luminance = parsed => 0.2126 * channel(parsed[0]) +
+                0.7152 * channel(parsed[1]) + 0.0722 * channel(parsed[2]);
+            const contrastRatio = (left, right) => {
+                if (!left || !right) return 0;
+                const foreground = left[3] < 1
+                    ? [
+                        left[0] * left[3] + right[0] * (1 - left[3]),
+                        left[1] * left[3] + right[1] * (1 - left[3]),
+                        left[2] * left[3] + right[2] * (1 - left[3]),
+                        1,
+                    ]
+                    : left;
+                const first = luminance(foreground);
+                const second = luminance(right);
+                return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+            };
+            const hasDirectText = node => [...node.childNodes].some(
+                child => child.nodeType === Node.TEXT_NODE && String(child.textContent || '').trim()
+            );
+            const minimumTextContrast = root => {
+                if (!root) return -1;
+                const ratios = [root, ...root.querySelectorAll('*')]
+                    .filter(node => visible(node) && (hasDirectText(node) || node.matches('a')) && String(node.innerText || '').trim())
+                    .map(node => contrastRatio(color(getComputedStyle(node).color), background(node)))
+                    .filter(value => Number.isFinite(value) && value > 0);
+                return ratios.length ? Math.min(...ratios) : -1;
+            };
+            const minimumBoundaryContrast = root => {
+                if (!root) return {ratio: -1, sample: {kind: 'missing-root'}};
+                const ratios = [];
+                for (const grid of root.querySelectorAll('.srcc-one-pager-grid')) {
+                    if (!visible(grid)) continue;
+                    const gridColor = color(getComputedStyle(grid).backgroundColor);
+                    for (const child of grid.children) {
+                        if (!visible(child)) continue;
+                        const childBackground = background(child);
+                        ratios.push({
+                            ratio: contrastRatio(gridColor, childBackground),
+                            kind: 'grid-separator',
+                            tag: child.tagName,
+                            class_name: String(child.className || ''),
+                            boundary: gridColor,
+                            adjacent: childBackground,
+                        });
+                    }
+                }
+                for (const node of [root, ...root.querySelectorAll('*')]) {
+                    if (!visible(node)) continue;
+                    const style = getComputedStyle(node);
+                    const adjacent = background(node);
+                    for (const side of ['Top', 'Right', 'Bottom', 'Left']) {
+                        if (Number.parseFloat(style[`border${side}Width`] || '0') < 1 ||
+                            ['none', 'hidden'].includes(style[`border${side}Style`])) continue;
+                        const boundary = color(style[`border${side}Color`]);
+                        if (boundary && boundary[3] > 0.01) {
+                            ratios.push({
+                                ratio: contrastRatio(boundary, adjacent),
+                                kind: `border-${side.toLowerCase()}`,
+                                tag: node.tagName,
+                                class_name: String(node.className || ''),
+                                role: String(node.dataset?.stateRole || ''),
+                                boundary,
+                                adjacent,
+                            });
+                        }
+                    }
+                }
+                const usable = ratios
+                    .filter(item => Number.isFinite(item.ratio) && item.ratio > 0)
+                    .sort((left, right) => left.ratio - right.ratio);
+                return usable.length
+                    ? {ratio: usable[0].ratio, sample: usable[0]}
+                    : {ratio: -1, sample: {kind: 'no-boundaries'}};
+            };
+            const summaryTitle = onePager?.querySelector(':scope > header > h2, :scope > header > h3, :scope > header > h4, :scope > header > h5, :scope > header > h6');
+            const sections = onePager
+                ? [...onePager.children].filter(node =>
+                    node.matches('section, aside') &&
+                    node.querySelector(':scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6')
+                )
+                : [];
+            const headings = [
+                ...(summaryTitle ? [summaryTitle] : []),
+                ...sections.map(node => node.querySelector(':scope > h2, :scope > h3, :scope > h4, :scope > h5, :scope > h6')),
+            ].filter(Boolean);
+            const stateNodes = onePager ? [...onePager.querySelectorAll('[data-state]')] : [];
+            const stateRoleNodes = onePager
+                ? [...onePager.querySelectorAll('[data-state][data-state-role]')]
+                : [];
+            const stateRoles = stateRoleNodes
+                .map(node => String(node.dataset.stateRole || '').trim().toLowerCase())
+                .filter(Boolean);
+            const scenarios = onePager
+                ? [...onePager.querySelectorAll('[data-section="one-pager-scenarios"] > ol > li')]
+                : [];
+            const provenance = onePager?.querySelector('[data-section="one-pager-provenance"]');
+            const provenanceCaption = provenance?.querySelector('caption');
+            const provenanceRows = provenance
+                ? [...provenance.querySelectorAll('tbody')].filter(visible)
+                : [];
+            const boundaryContrast = minimumBoundaryContrast(onePager);
+            return {
+                one_pager_visible: visible(onePager),
+                page_header_count: document.querySelectorAll('body > header').length,
+                one_pager_header_count: onePager
+                    ? onePager.querySelectorAll(':scope > header').length
+                    : 0,
+                one_pager_before_overview: Boolean(
+                    onePager && overview &&
+                    (onePager.compareDocumentPosition(overview) & Node.DOCUMENT_POSITION_FOLLOWING)
+                ),
+                one_pager_heading_count: headings.length,
+                one_pager_section_count: sections.length,
+                one_pager_answer_item_count: onePager
+                    ? onePager.querySelectorAll('[data-section="one-pager-answers"] > ol > li').length
+                    : 0,
+                one_pager_scenario_item_count: scenarios.length,
+                one_pager_state_tokens: onePager
+                    ? stateRoleNodes
+                        .map(node => `${String(node.dataset.stateRole || '').trim().toLowerCase()}=${String(node.dataset.state || '').trim().toLowerCase()}`)
+                        .filter(token => !token.startsWith('=') && !token.endsWith('='))
+                        .sort()
+                    : [],
+                one_pager_share_basis_tokens: onePager
+                    ? [...onePager.querySelectorAll('[data-share-basis-role][data-share-basis-state]')]
+                        .map(node => `${String(node.dataset.shareBasisRole || '').trim().toLowerCase()}=${String(node.dataset.shareBasisState || '').trim().toLowerCase()}`)
+                        .filter(token => !token.startsWith('=') && !token.endsWith('='))
+                        .sort()
+                    : [],
+                one_pager_state_node_count: stateNodes.length,
+                one_pager_state_role_count: stateRoleNodes.length,
+                one_pager_unique_state_role_count: new Set(stateRoles).size,
+                one_pager_provenance_caption_visible: visible(provenanceCaption),
+                one_pager_min_text_contrast_ratio: minimumTextContrast(onePager),
+                one_pager_min_boundary_contrast_ratio: boundaryContrast.ratio,
+                one_pager_boundary_contrast_sample: JSON.stringify(boundaryContrast.sample),
+                one_pager_overflow_px: onePager
+                    ? Math.max(0, onePager.scrollWidth - onePager.clientWidth)
+                    : -1,
+                one_pager_max_descendant_overflow_px: onePager
+                    ? Math.max(
+                        0,
+                        ...[...onePager.querySelectorAll('*')]
+                            .filter(visible)
+                            .map(node => Math.max(0, node.scrollWidth - node.clientWidth))
+                    )
+                    : -1,
+                one_pager_provenance_visible: visible(provenanceCaption) && provenanceRows.length > 0,
+                one_pager_blockers_visible: onePager
+                    ? [...onePager.querySelectorAll('.srcc-blockers')].some(visible)
+                    : false,
+                one_pager_assumptions_visible: scenarios.length === 3 && scenarios.every(node => {
+                    const state = node.querySelector('.srcc-state');
+                    const assumption = node.querySelector(':scope > p');
+                    return visible(node) && visible(state) && visible(assumption) &&
+                        String(state.innerText || '').trim().length > 0 &&
+                        String(assumption.innerText || '').trim().length > 0;
+                }),
+                one_pager_handoff_visible: visible(
+                    onePager?.querySelector('[data-section="one-pager-handoff"]')
+                ),
+                inner_width: window.innerWidth,
+                inner_height: window.innerHeight,
+                device_pixel_ratio: window.devicePixelRatio,
+                visual_viewport_width: window.visualViewport?.width || 0,
+                visual_viewport_height: window.visualViewport?.height || 0,
+                visual_viewport_scale: window.visualViewport?.scale || 0,
+            };
+        }"""
+    )
+
+
+def _summary_forced_colors_cues(page) -> bool:
+    return bool(
+        page.evaluate(
+            r"""() => {
+                const root = document.querySelector('[data-section="evidence-one-pager"]');
+                const visible = node => {
+                    if (!(node instanceof Element)) return false;
+                    const rect = node.getBoundingClientRect();
+                    if (rect.width <= 1 || rect.height <= 1) return false;
+                    for (let current = node; current instanceof Element; current = current.parentElement) {
+                        const style = getComputedStyle(current);
+                        if (style.display === 'none' || style.visibility === 'hidden' ||
+                            Number.parseFloat(style.opacity || '1') <= 0.01) return false;
+                    }
+                    return true;
+                };
+                const hasOwnCue = node => {
+                    if (!visible(node)) return false;
+                    const style = getComputedStyle(node);
+                    const outline = Number.parseFloat(style.outlineWidth || '0') >= 1 &&
+                        !['none', 'hidden'].includes(style.outlineStyle);
+                    const border = ['Top', 'Right', 'Bottom', 'Left'].some(side =>
+                        Number.parseFloat(style[`border${side}Width`] || '0') >= 1 &&
+                        !['none', 'hidden'].includes(style[`border${side}Style`])
+                    );
+                    return outline || border;
+                };
+                const hasCue = node => [node, ...node.querySelectorAll('*')]
+                    .filter(visible)
+                    .some(hasOwnCue);
+                if (!root || !visible(root)) return false;
+                const states = [...root.querySelectorAll('[data-state]')];
+                const provenance = root.querySelector('[data-section="one-pager-provenance"]');
+                return states.length > 0 && states.every(node => {
+                    const stateText = node.querySelector('.srcc-state');
+                    return visible(stateText) && String(stateText.innerText || '').trim().length > 0 && hasCue(node);
+                }) && hasOwnCue(root) && hasOwnCue(provenance);
+            }"""
+        )
+    )
+
+
 def _browser_observation(
     page,
     *,
     state: str,
     viewport: str,
+    requested_zoom: int,
+    declared_width: int,
+    declared_height: int,
     remote_requests: list[str],
     console_errors: list[str],
     page_errors: list[str],
 ) -> dict[str, object]:
     structural = page.evaluate(
         """() => { const all = [...document.querySelectorAll('*')]; const headings = [...document.querySelectorAll('h1,h2,h3,h4,h5,h6')]; return { h1_count: document.querySelectorAll('h1').length, header_count: document.querySelectorAll('header').length, main_count: document.querySelectorAll('main').length, footer_count: document.querySelectorAll('footer').length, section_count: document.querySelectorAll('section').length, heading_levels: headings.map(node => Number(node.tagName.slice(1))), table_count: document.querySelectorAll('table').length, captioned_table_count: [...document.querySelectorAll('table')].filter(table => table.querySelector(':scope > caption')).length, csp: document.querySelector('meta[http-equiv="Content-Security-Policy"]')?.getAttribute('content') || '', script_count: document.querySelectorAll('script').length, event_handler_count: all.reduce((count, node) => count + [...node.attributes].filter(attr => attr.name.toLowerCase().startsWith('on')).length, 0), form_count: document.querySelectorAll('form').length, iframe_count: document.querySelectorAll('iframe').length, overflow_px: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth) }; }"""
+    )
+    summary_screen = _summary_scope_observation(page)
+    screenshot_bytes = page.screenshot(full_page=False, scale="device")
+    if screenshot_bytes[:8] != b"\x89PNG\r\n\x1a\n" or len(screenshot_bytes) < 24:
+        raise RuntimeError("HTML brief browser screenshot did not produce a PNG")
+    screenshot_width = int.from_bytes(screenshot_bytes[16:20], "big")
+    screenshot_height = int.from_bytes(screenshot_bytes[20:24], "big")
+    zoom_evaluation = evaluate_html_brief_browser_zoom(
+        requested_zoom=requested_zoom,
+        declared_width=float(declared_width),
+        declared_height=float(declared_height),
+        screenshot_width=float(screenshot_width),
+        screenshot_height=float(screenshot_height),
+        inner_width=float(summary_screen["inner_width"]),
+        inner_height=float(summary_screen["inner_height"]),
+        visual_viewport_width=float(summary_screen["visual_viewport_width"]),
+        visual_viewport_height=float(summary_screen["visual_viewport_height"]),
+        device_pixel_ratio=float(summary_screen["device_pixel_ratio"]),
+        visual_viewport_scale=float(summary_screen["visual_viewport_scale"]),
     )
     focus_before = _focus_cue_state(page)
     page.keyboard.press("Tab")
@@ -924,21 +1910,43 @@ def _browser_observation(
             ),
         )
     )
-    reduced_motion_static = bool(
+    one_pager_forced_colors_non_color_cue = bool(
         _settle_media_css(
             page,
             media="screen",
-            forced_colors="none",
-            reduced_motion="reduce",
+            forced_colors="active",
+            reduced_motion="no-preference",
             viewport=viewport,
-            boundary_selector=boundary_selector,
-            provenance_selector=provenance_selector,
-            operation=lambda settled_page: settled_page.evaluate(
-                """() => { const seconds = value => Math.max(...value.split(',').map(raw => { const text = raw.trim(); if (text.endsWith('ms')) return parseFloat(text) / 1000; if (text.endsWith('s')) return parseFloat(text); return 0; })); return document.getAnimations().length === 0 && [...document.querySelectorAll('*')].every(node => { const style = getComputedStyle(node); return seconds(style.animationDuration) <= 0.001 && seconds(style.transitionDuration) <= 0.001 && style.scrollBehavior !== 'smooth'; }); }"""
+            boundary_selector='[data-section="evidence-one-pager"]',
+            provenance_selector=(
+                '[data-section="evidence-one-pager"] '
+                '[data-section="one-pager-provenance"]'
             ),
+            operation=_summary_forced_colors_cues,
         )
     )
-    print_boundary_visible, print_provenance_visible, pdf_bytes = _settle_media_css(
+    _settle_media_css(
+        page,
+        media="screen",
+        forced_colors="none",
+        reduced_motion="reduce",
+        viewport=viewport,
+        boundary_selector=boundary_selector,
+        provenance_selector=provenance_selector,
+    )
+    reduced_motion_evidence = page.evaluate(
+        """() => { const seconds = value => Math.max(...value.split(',').map(raw => { const text = raw.trim(); if (text.endsWith('ms')) return parseFloat(text) / 1000; if (text.endsWith('s')) return parseFloat(text); return 0; })); const offenders = [...document.querySelectorAll('*')].map(node => { const style = getComputedStyle(node); return {tag: node.tagName, class_name: node.className || '', animation: seconds(style.animationDuration), transition: seconds(style.transitionDuration), scroll: style.scrollBehavior}; }).filter(item => item.animation > 0.001 || item.transition > 0.001 || item.scroll === 'smooth'); const animations = document.getAnimations(); const longAnimations = animations.filter(animation => { const timing = animation.effect?.getComputedTiming?.() || {}; return !Number.isFinite(Number(timing.endTime)) || Number(timing.endTime) > 1; }); return { animation_count: animations.length, long_animation_count: longAnimations.length, animation_sample: animations.slice(0, 3).map(animation => { const timing = animation.effect?.getComputedTiming?.() || {}; return {play_state: animation.playState, current_time: animation.currentTime, target: animation.effect?.target?.tagName || '', target_class: animation.effect?.target?.className || '', duration: timing.duration, end_time: timing.endTime}; }), offenders: offenders.slice(0, 12) }; }"""
+    )
+    reduced_motion_static = bool(
+        reduced_motion_evidence["long_animation_count"] == 0
+        and not reduced_motion_evidence["offenders"]
+    )
+    (
+        print_boundary_visible,
+        print_provenance_visible,
+        summary_print,
+        pdf_bytes,
+    ) = _settle_media_css(
         page,
         media="print",
         forced_colors="none",
@@ -949,14 +1957,20 @@ def _browser_observation(
         operation=lambda settled_page: (
             _visible(settled_page, boundary_selector),
             _visible(settled_page, provenance_selector),
+            _summary_scope_observation(settled_page),
             settled_page.pdf(),
         ),
     )
     return {
         "state": state,
         "viewport": viewport,
+        "requested_zoom": requested_zoom,
+        "actual_browser_zoom": zoom_evaluation.passed,
+        "actual_browser_zoom_evidence": zoom_evaluation.evidence,
         "h1_count": int(structural["h1_count"]),
         "header_count": int(structural["header_count"]),
+        "page_header_count": int(summary_screen["page_header_count"]),
+        "one_pager_header_count": int(summary_screen["one_pager_header_count"]),
         "main_count": int(structural["main_count"]),
         "footer_count": int(structural["footer_count"]),
         "section_count": int(structural["section_count"]),
@@ -977,12 +1991,92 @@ def _browser_observation(
         "overflow_px": float(structural["overflow_px"]),
         "forced_colors_non_color_cue": forced_colors_non_color_cue,
         "reduced_motion_static": reduced_motion_static,
+        "reduced_motion_evidence": repr(reduced_motion_evidence),
         "print_boundary_visible": print_boundary_visible,
         "print_provenance_visible": print_provenance_visible,
         "console_errors": tuple(console_errors),
         "page_errors": tuple(page_errors),
         "pdf_byte_length": len(pdf_bytes),
         "pdf_header": pdf_bytes[:4].decode("ascii", errors="replace"),
+        "one_pager_visible": bool(summary_screen["one_pager_visible"]),
+        "one_pager_before_overview": bool(
+            summary_screen["one_pager_before_overview"]
+        ),
+        "one_pager_heading_count": int(summary_screen["one_pager_heading_count"]),
+        "one_pager_section_count": int(summary_screen["one_pager_section_count"]),
+        "one_pager_answer_item_count": int(
+            summary_screen["one_pager_answer_item_count"]
+        ),
+        "one_pager_scenario_item_count": int(
+            summary_screen["one_pager_scenario_item_count"]
+        ),
+        "one_pager_state_tokens": tuple(summary_screen["one_pager_state_tokens"]),
+        "one_pager_share_basis_tokens": tuple(
+            summary_screen["one_pager_share_basis_tokens"]
+        ),
+        "one_pager_state_node_count": int(
+            summary_screen["one_pager_state_node_count"]
+        ),
+        "one_pager_state_role_count": int(
+            summary_screen["one_pager_state_role_count"]
+        ),
+        "one_pager_unique_state_role_count": int(
+            summary_screen["one_pager_unique_state_role_count"]
+        ),
+        "one_pager_provenance_caption_visible": bool(
+            summary_screen["one_pager_provenance_caption_visible"]
+        ),
+        "one_pager_min_text_contrast_ratio": float(
+            summary_screen["one_pager_min_text_contrast_ratio"]
+        ),
+        "one_pager_min_boundary_contrast_ratio": float(
+            summary_screen["one_pager_min_boundary_contrast_ratio"]
+        ),
+        "one_pager_boundary_contrast_evidence": (
+            f"minimum={summary_screen['one_pager_min_boundary_contrast_ratio']!r}; "
+            f"sample={summary_screen['one_pager_boundary_contrast_sample']}"
+        ),
+        "one_pager_overflow_px": float(summary_screen["one_pager_overflow_px"]),
+        "one_pager_max_descendant_overflow_px": float(
+            summary_screen["one_pager_max_descendant_overflow_px"]
+        ),
+        "one_pager_provenance_visible": bool(
+            summary_screen["one_pager_provenance_visible"]
+        ),
+        "one_pager_blockers_visible": bool(
+            summary_screen["one_pager_blockers_visible"]
+        ),
+        "one_pager_assumptions_visible": bool(
+            summary_screen["one_pager_assumptions_visible"]
+        ),
+        "one_pager_handoff_visible": bool(
+            summary_screen["one_pager_handoff_visible"]
+        ),
+        "one_pager_forced_colors_non_color_cue": (
+            one_pager_forced_colors_non_color_cue
+        ),
+        "one_pager_print_min_text_contrast_ratio": float(
+            summary_print["one_pager_min_text_contrast_ratio"]
+        ),
+        "one_pager_print_min_boundary_contrast_ratio": float(
+            summary_print["one_pager_min_boundary_contrast_ratio"]
+        ),
+        "one_pager_print_boundary_contrast_evidence": (
+            f"minimum={summary_print['one_pager_min_boundary_contrast_ratio']!r}; "
+            f"sample={summary_print['one_pager_boundary_contrast_sample']}"
+        ),
+        "one_pager_print_provenance_visible": bool(
+            summary_print["one_pager_provenance_visible"]
+        ),
+        "one_pager_print_blockers_visible": bool(
+            summary_print["one_pager_blockers_visible"]
+        ),
+        "one_pager_print_assumptions_visible": bool(
+            summary_print["one_pager_assumptions_visible"]
+        ),
+        "one_pager_print_handoff_visible": bool(
+            summary_print["one_pager_handoff_visible"]
+        ),
     }
 
 
@@ -991,10 +2085,34 @@ def run_company_workbench_html_browser_gate(
     *,
     repo_root: Path,
     chrome_executable: Path | None = None,
+    cells: tuple[tuple[int, int, int], ...] = HTML_BRIEF_BROWSER_CELLS,
 ) -> tuple[HtmlBriefBrowserResult, ...]:
     """Run the browser matrix on exact injected bytes and prove the repository was unchanged."""
     if not cases:
         raise ValueError("At least one injected HTML document is required")
+    if not cells:
+        raise ValueError("At least one HTML brief browser cell is required")
+    normalized_cells: list[tuple[int, int, int]] = []
+    for cell in cells:
+        if (
+            type(cell) is not tuple
+            or len(cell) != 3
+            or any(type(value) is not int for value in cell)
+        ):
+            raise TypeError("HTML brief browser cells must be (width, height, zoom) tuples")
+        if cell not in HTML_BRIEF_BROWSER_CELLS:
+            raise ValueError(f"Unsupported HTML brief browser cell: {cell!r}")
+        normalized_cells.append(cell)
+    if len(set(normalized_cells)) != len(normalized_cells):
+        raise ValueError("HTML brief browser cells must be unique")
+    normalized_cases: dict[str, bytes] = {}
+    for state, document_bytes in cases.items():
+        if type(state) is not str or type(document_bytes) is not bytes:
+            raise TypeError("Browser gate cases must map string states to exact bytes")
+        document = document_bytes.decode("utf-8", errors="strict")
+        if document.encode("utf-8") != document_bytes:
+            raise ValueError("Injected HTML failed the strict UTF-8 byte roundtrip")
+        normalized_cases[state] = document_bytes
     root = Path(repo_root).resolve()
     before = repository_fingerprint(root)
     results: list[HtmlBriefBrowserResult] = []
@@ -1005,93 +2123,117 @@ def run_company_workbench_html_browser_gate(
             raise RuntimeError(
                 "Playwright is required for the HTML research brief browser gate"
             ) from exc
-        with sync_playwright() as playwright:
-            executable = (
-                Path(chrome_executable)
-                if chrome_executable is not None
-                else find_chrome_executable()
-            )
-            if executable is None:
-                reported = Path(playwright.chromium.executable_path)
-                executable = (
-                    reported
-                    if reported.is_file() and os.access(reported, os.X_OK)
-                    else None
-                )
-            if (
-                executable is None
-                or not executable.is_file()
-                or not os.access(executable, os.X_OK)
-            ):
+        with _injected_brief_server(normalized_cases) as active_origin:
+            host = str(urlsplit(active_origin).hostname or "")
+            if host != "127.0.0.1":
                 raise RuntimeError(
-                    "No executable Chrome-compatible browser is available"
+                    f"Injected HTML browser server is not exact loopback: {active_origin!r}"
                 )
-            browser = playwright.chromium.launch(
-                executable_path=str(executable), headless=True
-            )
-            try:
-                for state, document_bytes in cases.items():
-                    if type(state) is not str or type(document_bytes) is not bytes:
-                        raise TypeError(
-                            "Browser gate cases must map string states to exact bytes"
-                        )
-                    document = document_bytes.decode("utf-8", errors="strict")
-                    if document.encode("utf-8") != document_bytes:
-                        raise ValueError(
-                            "Injected HTML failed the strict UTF-8 byte roundtrip"
-                        )
-                    for width, height in ((1280, 720), (390, 844), (640, 900)):
+            with sync_playwright() as playwright:
+                executable = (
+                    Path(chrome_executable)
+                    if chrome_executable is not None
+                    else find_chrome_executable()
+                )
+                if executable is None:
+                    reported = Path(playwright.chromium.executable_path)
+                    executable = (
+                        reported
+                        if reported.is_file() and os.access(reported, os.X_OK)
+                        else None
+                    )
+                if (
+                    executable is None
+                    or not executable.is_file()
+                    or not os.access(executable, os.X_OK)
+                ):
+                    raise RuntimeError(
+                        "No executable Chrome-compatible browser is available"
+                    )
+                for state in normalized_cases:
+                    for width, height, zoom in normalized_cells:
                         viewport = f"{width}x{height}"
                         remote_requests: list[str] = []
+                        request_audit: list[str] = []
                         console_errors: list[str] = []
                         page_errors: list[str] = []
-
-                        def observe(page):
-                            def observe_request(request):
-                                if request.url.startswith(("http://", "https://")):
-                                    remote_requests.append(request.url)
-
-                            def intercept(route, request):
-                                if request.url.startswith(("http://", "https://")):
-                                    route.abort()
-                                else:
-                                    route.continue_()
-
-                            page.route("**/*", intercept)
-                            page.on("request", observe_request)
-                            page.on(
-                                "console",
-                                lambda message: (
-                                    console_errors.append(message.text)
-                                    if message.type == "error"
-                                    else None
+                        with tempfile.TemporaryDirectory(
+                            prefix="stock-company-workbench-html-zoom-",
+                            dir="/tmp",
+                        ) as profile_directory:
+                            profile = Path(profile_directory)
+                            preferences = profile / "Default" / "Preferences"
+                            preferences.parent.mkdir(parents=True)
+                            preferences.write_text(
+                                json.dumps(
+                                    _chromium_zoom_preferences(host=host, zoom=zoom),
+                                    sort_keys=True,
                                 ),
+                                encoding="utf-8",
                             )
-                            page.on(
-                                "pageerror",
-                                lambda error: page_errors.append(str(error)),
+                            context = playwright.chromium.launch_persistent_context(
+                                user_data_dir=profile,
+                                executable_path=str(executable),
+                                headless=True,
+                                viewport={"width": width, "height": height},
+                                screen={"width": width, "height": height},
                             )
-                            page.set_content(document, wait_until="load")
-                            observation = _browser_observation(
-                                page,
-                                state=state,
-                                viewport=viewport,
-                                remote_requests=remote_requests,
-                                console_errors=console_errors,
-                                page_errors=page_errors,
-                            )
-                            return evaluate_html_brief_observation(observation)
+                            try:
+                                page = (
+                                    context.pages[0]
+                                    if context.pages
+                                    else context.new_page()
+                                )
 
-                        results.append(
-                            _run_page_in_context(
-                                browser,
-                                width=width,
-                                height=height,
-                                operation=observe,
-                            )
-                        )
-            finally:
-                browser.close()
+                                def intercept(route, request):
+                                    request_url = str(request.url)
+                                    action, external = evaluate_html_brief_request_origin(
+                                        request_url=request_url,
+                                        active_origin=active_origin,
+                                    )
+                                    request_audit.append(request_url)
+                                    if external:
+                                        remote_requests.append(request_url)
+                                    if action == "abort":
+                                        route.abort()
+                                    else:
+                                        route.continue_()
+
+                                page.route("**/*", intercept)
+                                page.on(
+                                    "console",
+                                    lambda message: (
+                                        console_errors.append(message.text)
+                                        if message.type == "error"
+                                        else None
+                                    ),
+                                )
+                                page.on(
+                                    "pageerror",
+                                    lambda error: page_errors.append(str(error)),
+                                )
+                                page.goto(
+                                    f"{active_origin}/{quote(state, safe='')}.html",
+                                    wait_until="load",
+                                    timeout=30_000,
+                                )
+                                observation = _browser_observation(
+                                    page,
+                                    state=state,
+                                    viewport=viewport,
+                                    requested_zoom=zoom,
+                                    declared_width=width,
+                                    declared_height=height,
+                                    remote_requests=remote_requests,
+                                    console_errors=console_errors,
+                                    page_errors=page_errors,
+                                )
+                                observation["request_audit"] = tuple(request_audit)
+                                results.append(
+                                    evaluate_html_brief_observation(observation)
+                                )
+                            finally:
+                                context.close()
     finally:
         after = repository_fingerprint(root)
         if after != before:

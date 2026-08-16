@@ -1,7 +1,119 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 import subprocess
+
+
+_ONE_PAGER_REQUIRED_STATE_ROLES = (
+    "answers-next-research-task",
+    "answers-still-withheld",
+    "answers-use-now",
+    "answers-what-changed",
+    "break-case-decision-invalidation",
+    "break-case-research-risks",
+    "header-freshness-state",
+    "header-rights-state",
+    "operating-valuation-base-bridge-cash",
+    "operating-valuation-base-bridge-debt",
+    "operating-valuation-base-bridge-discounted-explicit-total",
+    "operating-valuation-base-bridge-discounted-terminal-value",
+    "operating-valuation-base-bridge-enterprise-value",
+    "operating-valuation-base-bridge-equity-value",
+    "operating-valuation-base-bridge-net-debt",
+    "operating-valuation-base-bridge-supplied-shares",
+    "operating-valuation-base-bridge-supplied-value-per-share",
+    "operating-valuation-base-bridge-terminal-value",
+    "operating-valuation-research-business-trend",
+    "operating-valuation-research-key-drivers",
+    "operating-valuation-research-valuation-regime",
+    "provenance-freshness-state",
+    "provenance-rights-state",
+    "questions-answer-next-research-task",
+    "questions-decision-review-trigger",
+    "questions-research-evidence-gaps",
+    "research-case-decision-evidence",
+    "research-case-decision-plan",
+    "research-case-research-business-trend",
+    "research-case-research-key-drivers",
+    "scenarios-base",
+    "scenarios-base-value-per-share",
+    "scenarios-bear",
+    "scenarios-bear-value-per-share",
+    "scenarios-bull",
+    "scenarios-bull-value-per-share",
+)
+
+_ONE_PAGER_SHARE_BASIS_TOKENS = (
+    "operating-valuation-base-bridge-share-basis=unverified",
+    "scenarios-base-share-basis=unverified",
+    "scenarios-bear-share-basis=unverified",
+    "scenarios-bull-share-basis=unverified",
+)
+
+
+def _passing_one_pager_observation(
+    *,
+    width: int = 1280,
+    height: int = 720,
+    zoom: int = 1,
+) -> dict[str, object]:
+    state_tokens = tuple(
+        sorted(
+            [f"{role}=partial" for role in _ONE_PAGER_REQUIRED_STATE_ROLES]
+            + ["provenance-row-1-saved-evidence-demo-source=partial"]
+        )
+    )
+    return {
+        "viewport": f"{width}x{height}",
+        "requested_zoom": zoom,
+        "actual_browser_zoom": True,
+        "one_pager_absent_before_open": True,
+        "html_brief_details_count": 1,
+        "html_brief_details_open": True,
+        "one_pager_count": 1,
+        "one_pager_visible_count": 1,
+        "one_pager_inside_html_brief": True,
+        "one_pager_before_overview": True,
+        "overview_count": 1,
+        "advanced_evidence_count": 1,
+        "advanced_evidence_after_one_pager": True,
+        "advanced_evidence_visible": True,
+        "document_overflow_px": 0.0,
+        "one_pager_overflow_px": 0.0,
+        "one_pager_max_descendant_overflow_px": 0.0,
+        "one_pager_min_text_contrast_ratio": 7.0,
+        "one_pager_min_boundary_contrast_ratio": 3.2,
+        "one_pager_answer_item_count": 4,
+        "one_pager_scenario_item_count": 3,
+        "one_pager_state_tokens": state_tokens,
+        "one_pager_state_node_count": len(state_tokens),
+        "one_pager_state_role_count": len(state_tokens),
+        "one_pager_unique_state_role_count": len(state_tokens),
+        "one_pager_state_text_matches": True,
+        "one_pager_share_basis_tokens": _ONE_PAGER_SHARE_BASIS_TOKENS,
+        "one_pager_share_basis_visible_count": 4,
+        "one_pager_share_basis_text_matches": True,
+        "one_pager_provenance_caption_visible": True,
+        "one_pager_provenance_visible": True,
+        "one_pager_blockers_visible": True,
+        "one_pager_assumptions_visible": True,
+        "one_pager_handoff_visible": True,
+        "download_button_count": 1,
+        "download_button_label": "Download HTML Research Brief",
+        "download_button_visible": True,
+        "download_button_height": 44.0,
+        "console_errors": (),
+        "page_errors": (),
+        "server_runtime_output_status": "captured_local_server",
+        "server_deprecated_warning_count": 0,
+        "active_origin": "http://127.0.0.1:43123",
+        "request_urls": (
+            "http://127.0.0.1:43123/?mode=research&page=company-workbench&ticker=NVDA&open=1",
+        ),
+        "external_request_count": 0,
+        "request_audit_complete": True,
+    }
 
 
 def test_forced_colors_observation_fails_closed_for_each_required_signal():
@@ -493,6 +605,227 @@ def test_company_workbench_module_open_browser_check_supports_pointer_and_keyboa
     assert "button.first.click()" in helper
     assert 'button.first.press("Enter")' in helper
     assert "activation_attempts" in helper
+
+
+def test_one_pager_collector_contract_accepts_substantive_observation():
+    from src.research_accessibility_browser_gate import (
+        evaluate_company_workbench_one_pager_observation,
+    )
+
+    assertions = evaluate_company_workbench_one_pager_observation(
+        _passing_one_pager_observation()
+    )
+
+    assert assertions
+    assert all(assertion["passed"] for assertion in assertions)
+
+
+def test_one_pager_collector_contract_rejects_missing_duplicate_hidden_order_and_full_report():
+    from src.research_accessibility_browser_gate import (
+        evaluate_company_workbench_one_pager_observation,
+    )
+
+    mutations = (
+        ("one_pager_unique_visible", {"one_pager_count": 0}),
+        ("one_pager_unique_visible", {"one_pager_count": 2}),
+        ("one_pager_unique_visible", {"one_pager_visible_count": 0}),
+        ("one_pager_unique_visible", {"one_pager_inside_html_brief": False}),
+        ("one_pager_order", {"one_pager_before_overview": False}),
+        ("one_pager_order", {"overview_count": 0}),
+        ("one_pager_full_report", {"advanced_evidence_count": 0}),
+        ("one_pager_full_report", {"advanced_evidence_after_one_pager": False}),
+        ("one_pager_full_report", {"advanced_evidence_visible": False}),
+    )
+    for assertion_name, mutation in mutations:
+        assertions = evaluate_company_workbench_one_pager_observation(
+            {**_passing_one_pager_observation(), **mutation}
+        )
+        assert next(
+            assertion
+            for assertion in assertions
+            if assertion["name"] == assertion_name
+        )["passed"] is False
+
+
+def test_one_pager_collector_contract_rejects_zoom_overflow_state_share_target_runtime_and_requests():
+    from src.research_accessibility_browser_gate import (
+        evaluate_company_workbench_one_pager_observation,
+    )
+
+    passing = _passing_one_pager_observation()
+    state_tokens = tuple(passing["one_pager_state_tokens"])
+    mutations = (
+        ("one_pager_module_gate", {"one_pager_absent_before_open": False}),
+        ("one_pager_disclosure", {"html_brief_details_count": 2}),
+        ("one_pager_disclosure", {"html_brief_details_open": False}),
+        ("one_pager_zoom", {"actual_browser_zoom": False}),
+        ("one_pager_no_overflow", {"document_overflow_px": 2.0}),
+        ("one_pager_no_overflow", {"one_pager_overflow_px": 2.0}),
+        (
+            "one_pager_no_overflow",
+            {"one_pager_max_descendant_overflow_px": 2.0},
+        ),
+        ("one_pager_contrast", {"one_pager_min_text_contrast_ratio": 4.49}),
+        (
+            "one_pager_contrast",
+            {"one_pager_min_boundary_contrast_ratio": 2.99},
+        ),
+        ("one_pager_lists", {"one_pager_answer_item_count": 3}),
+        ("one_pager_lists", {"one_pager_scenario_item_count": 2}),
+        (
+            "one_pager_state_roles",
+            {
+                "one_pager_state_tokens": state_tokens[1:],
+                "one_pager_state_node_count": len(state_tokens) - 1,
+                "one_pager_state_role_count": len(state_tokens) - 1,
+                "one_pager_unique_state_role_count": len(state_tokens) - 1,
+            },
+        ),
+        (
+            "one_pager_state_roles",
+            {
+                "one_pager_state_tokens": state_tokens + (state_tokens[0],),
+                "one_pager_state_node_count": len(state_tokens) + 1,
+                "one_pager_state_role_count": len(state_tokens) + 1,
+            },
+        ),
+        ("one_pager_state_roles", {"one_pager_state_text_matches": False}),
+        (
+            "one_pager_share_basis",
+            {
+                "one_pager_share_basis_tokens": _ONE_PAGER_SHARE_BASIS_TOKENS[:-1],
+                "one_pager_share_basis_visible_count": 3,
+            },
+        ),
+        (
+            "one_pager_share_basis",
+            {"one_pager_share_basis_text_matches": False},
+        ),
+        (
+            "one_pager_content_visible",
+            {"one_pager_provenance_caption_visible": False},
+        ),
+        ("one_pager_content_visible", {"one_pager_blockers_visible": False}),
+        ("one_pager_content_visible", {"one_pager_assumptions_visible": False}),
+        ("one_pager_content_visible", {"one_pager_handoff_visible": False}),
+        ("one_pager_download_target", {"download_button_count": 0}),
+        (
+            "one_pager_download_target",
+            {"download_button_label": "Download report"},
+        ),
+        ("one_pager_download_target", {"download_button_height": 43.9}),
+        ("one_pager_runtime", {"console_errors": ("console error",)}),
+        ("one_pager_runtime", {"page_errors": ("page error",)}),
+        (
+            "one_pager_runtime",
+            {"server_runtime_output_status": "unverified"},
+        ),
+        ("one_pager_runtime", {"server_deprecated_warning_count": 1}),
+        (
+            "one_pager_exact_origin_network",
+            {
+                "request_urls": ("https://example.com/escaped",),
+                "external_request_count": 1,
+            },
+        ),
+        (
+            "one_pager_exact_origin_network",
+            {"request_audit_complete": False},
+        ),
+    )
+    for assertion_name, mutation in mutations:
+        assertions = evaluate_company_workbench_one_pager_observation(
+            {**passing, **mutation}
+        )
+        assert next(
+            assertion
+            for assertion in assertions
+            if assertion["name"] == assertion_name
+        )["passed"] is False
+
+
+def _passing_one_pager_payload_results() -> list[dict[str, object]]:
+    results: list[dict[str, object]] = []
+    for width, height, zoom in (
+        (1280, 720, 1),
+        (1280, 720, 2),
+        (390, 844, 1),
+    ):
+        results.append(
+            {
+                "viewport": f"{width}x{height}",
+                "zoom": zoom,
+                "passed": True,
+                "assertions": (
+                    {
+                        "name": "one_pager_unique_visible",
+                        "passed": True,
+                        "detail": "one visible summary",
+                    },
+                ),
+                "observation": _passing_one_pager_observation(
+                    width=width,
+                    height=height,
+                    zoom=zoom,
+                ),
+            }
+        )
+    return results
+
+
+def test_one_pager_payload_contract_accepts_exact_three_cell_slice():
+    from src.research_accessibility_browser_gate import (
+        COMPANY_WORKBENCH_ONE_PAGER_CELLS,
+        evaluate_company_workbench_one_pager_payload,
+    )
+
+    assert COMPANY_WORKBENCH_ONE_PAGER_CELLS == (
+        (1280, 720, 1),
+        (1280, 720, 2),
+        (390, 844, 1),
+    )
+    evaluated = evaluate_company_workbench_one_pager_payload(
+        _passing_one_pager_payload_results()
+    )
+
+    assert evaluated["passed"] is True
+    assert evaluated["detail"]
+
+
+def test_one_pager_payload_contract_rejects_missing_duplicate_zoom_overflow_request_or_assertion():
+    from src.research_accessibility_browser_gate import (
+        evaluate_company_workbench_one_pager_payload,
+    )
+
+    mutations = []
+    missing = _passing_one_pager_payload_results()
+    missing.pop()
+    mutations.append(missing)
+    duplicate = _passing_one_pager_payload_results()
+    duplicate.append(deepcopy(duplicate[0]))
+    mutations.append(duplicate)
+    false_zoom = _passing_one_pager_payload_results()
+    false_zoom[1]["observation"]["actual_browser_zoom"] = False
+    mutations.append(false_zoom)
+    overflow = _passing_one_pager_payload_results()
+    overflow[2]["observation"]["one_pager_max_descendant_overflow_px"] = 2.0
+    mutations.append(overflow)
+    external_request = _passing_one_pager_payload_results()
+    external_request[0]["observation"].update(
+        {
+            "request_urls": ("http://example.com/escaped",),
+            "external_request_count": 1,
+        }
+    )
+    mutations.append(external_request)
+    failed_assertion = _passing_one_pager_payload_results()
+    failed_assertion[0]["assertions"][0]["passed"] = False
+    mutations.append(failed_assertion)
+
+    for results in mutations:
+        evaluated = evaluate_company_workbench_one_pager_payload(results)
+        assert evaluated["passed"] is False
+        assert evaluated["detail"]
 
 
 def test_proof_history_media_marker_selects_the_rendered_public_timeline():

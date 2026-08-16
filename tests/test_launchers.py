@@ -3253,8 +3253,19 @@ def test_makefile_exposes_direct_html_research_brief_browser_gate():
     target = makefile.split("company-workbench-html-browser-check:", 1)[1].split(
         "\n\n", 1
     )[0]
+    assert "mktemp -d /tmp/stock-company-workbench-html-browser.XXXXXX" in target
+    assert "export HTML_BRIEF_BROWSER_OUTPUT_DIR" not in target
+    assert (
+        'HTML_BRIEF_BROWSER_OUTPUT_DIR="$$packet_dir" '
+        "PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -q -p no:cacheprovider "
+        "tests/test_company_workbench_html_browser_gate.py"
+    ) in target
     assert "PYTHONDONTWRITEBYTECODE=1" in target
     assert "tests/test_company_workbench_html_browser_gate.py" in target
+    assert 'test -s "$$packet_dir/results.json"' in target
+    assert 'test -s "$$packet_dir/source-hashes.json"' in target
+    assert 'shasum -a 256 "$$packet"' in target
+    assert "rm " not in target
 
 
 def test_accessibility_browser_gate_allows_the_exact_current_maturity_paths():
