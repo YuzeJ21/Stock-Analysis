@@ -36787,6 +36787,9 @@ def render_research_workspace_styles() -> None:
         div[data-testid="stButton"] > button {
             min-height: 44px;
         }
+        [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button {
+            min-height: 44px;
+        }
         .company-workbench-primary-stop {
             border-top: 1px solid #e5e9e7;
             color: #52615c;

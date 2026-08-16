@@ -2419,6 +2419,23 @@ def test_company_workbench_primary_actions_use_explicit_44px_browser_targets():
     ) in styles
 
 
+def test_company_workbench_html_brief_download_target_is_a_keyed_44px_control():
+    """Catches a sub-44px brief download target or a rule leaking into other routes."""
+
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    styles_start = source.index("def render_research_workspace_styles()")
+    styles_end = source.index("\ndef render_research_workspace_header(", styles_start)
+    styles = source[styles_start:styles_end]
+
+    selector = '[class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button'
+    assert styles.count('[data-testid="stDownloadButton"]') == 1
+    download_start = styles.index(selector)
+    download_end = styles.index("}", download_start)
+    download_rule = styles[download_start:download_end]
+
+    assert "min-height: 44px;" in download_rule
+
+
 def test_company_workbench_uses_two_mobile_lanes_then_one_at_two_hundred_percent():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     styles_start = source.index("def render_research_workspace_styles()")
