@@ -1996,6 +1996,7 @@ class _OnePagerHtmlParser(HTMLParser):
         self.state_role_pairs = []
         self.share_basis_pairs = []
         self.labelled_asides = []
+        self.labelled_sections = []
         self._depth = 0
         self._text_tag = None
         self._text_parts = []
@@ -2034,6 +2035,8 @@ class _OnePagerHtmlParser(HTMLParser):
             )
         if tag == "aside" and attributes.get("aria-labelledby"):
             self.labelled_asides.append(attributes["aria-labelledby"])
+        if tag == "section" and attributes.get("aria-labelledby"):
+            self.labelled_sections.append(attributes["aria-labelledby"])
 
     def handle_endtag(self, tag):
         if not self._depth:
@@ -2051,6 +2054,49 @@ class _OnePagerHtmlParser(HTMLParser):
     def handle_data(self, data):
         if self._depth and self._text_tag:
             self._text_parts.append(data)
+
+
+class _OnePagerStateHtmlParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.nodes = {}
+        self._depth = 0
+        self._active = []
+
+    def handle_starttag(self, tag, attrs):
+        self._depth += 1
+        attributes = dict(attrs)
+        role = attributes.get("data-state-role")
+        if role:
+            self.nodes[role] = {
+                "state": attributes.get("data-state", ""),
+                "text": [],
+            }
+            self._active.append((role, tag, self._depth))
+
+    def handle_endtag(self, tag):
+        self._active = [
+            item
+            for item in self._active
+            if not (item[1] == tag and item[2] == self._depth)
+        ]
+        self._depth -= 1
+
+    def handle_data(self, data):
+        for role, _, _ in self._active:
+            self.nodes[role]["text"].append(data)
+
+
+def _one_pager_state_nodes(rendered):
+    parser = _OnePagerStateHtmlParser()
+    parser.feed(rendered)
+    return {
+        role: {
+            "state": node["state"],
+            "text": " ".join("".join(node["text"]).split()),
+        }
+        for role, node in parser.nodes.items()
+    }
 
 
 def test_evidence_one_pager_renders_fixed_order_from_frozen_snapshot_only():
@@ -2143,6 +2189,90 @@ def test_evidence_one_pager_keeps_withheld_values_non_numeric():
         for value in sentinels
         if html_brief.format_html_brief_number(value) in html.unescape(rendered)
     ]
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    (None, True, float("nan"), float("inf"), float("-inf")),
+    ids=("missing", "boolean", "nan", "positive-infinity", "negative-infinity"),
+)
+def test_evidence_one_pager_downgrades_invalid_available_numeric_states(invalid):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = replace(
+        snapshot,
+        scenarios=tuple(
+            replace(
+                scenario,
+                bridge=replace(
+                    scenario.bridge,
+                    enterprise_state="available",
+                    per_share_state="available",
+                    enterprise_value=invalid,
+                    scenario_value_per_share=invalid,
+                ),
+            )
+            if scenario.name == "Base"
+            else scenario
+            for scenario in snapshot.scenarios
+        ),
+    )
+
+    rendered = html_brief._html_evidence_one_pager(changed, heading_level=2)
+    nodes = _one_pager_state_nodes(rendered)
+    for role in (
+        "scenarios-base-value-per-share",
+        "operating-valuation-base-bridge-enterprise-value",
+    ):
+        assert nodes[role]["state"] == "withheld"
+        assert "State: withheld" in nodes[role]["text"]
+        assert "State: complete" not in nodes[role]["text"]
+        assert "withheld" in nodes[role]["text"].lower()
+
+
+@pytest.mark.parametrize(
+    ("supplied_state", "expected_state", "expected_label"),
+    (
+        ("partial", "partial", "partial"),
+        ("not_recorded", "not_recorded", "not recorded"),
+        ("withheld", "withheld", "withheld"),
+    ),
+)
+def test_evidence_one_pager_never_promotes_or_leaks_nonavailable_finite_values(
+    supplied_state,
+    expected_state,
+    expected_label,
+):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = replace(
+        snapshot,
+        scenarios=tuple(
+            replace(
+                scenario,
+                bridge=replace(
+                    scenario.bridge,
+                    enterprise_state=supplied_state,
+                    per_share_state=supplied_state,
+                    enterprise_value=876543.21,
+                    scenario_value_per_share=987654.32,
+                ),
+            )
+            if scenario.name == "Base"
+            else scenario
+            for scenario in snapshot.scenarios
+        ),
+    )
+
+    rendered = html_brief._html_evidence_one_pager(changed, heading_level=2)
+    nodes = _one_pager_state_nodes(rendered)
+    for role in (
+        "scenarios-base-value-per-share",
+        "operating-valuation-base-bridge-enterprise-value",
+    ):
+        assert nodes[role]["state"] == expected_state
+        assert f"State: {expected_label}" in nodes[role]["text"]
+        assert "State: complete" not in nodes[role]["text"]
+    assert "876,543.21" not in html.unescape(rendered)
+    assert "987,654.32" not in html.unescape(rendered)
 
 
 def test_evidence_one_pager_preserves_share_basis_state_without_using_it_as_gate():
@@ -2275,6 +2405,20 @@ def test_evidence_one_pager_has_summary_scoped_semantics_and_dom_order():
     assert [rendered.index(marker) for marker in markers] == sorted(
         rendered.index(marker) for marker in markers
     )
+
+
+def test_evidence_one_pager_unavailable_fallback_has_labelled_summary_header():
+    rendered = html_brief._html_evidence_one_pager_or_unavailable(
+        None,
+        heading_level=2,
+    )
+    parser = _OnePagerHtmlParser()
+    parser.feed(rendered)
+
+    assert parser.tags[:2] == ["section", "header"]
+    assert parser.labelled_sections == ["evidence-one-pager-unavailable-title"]
+    assert parser.headings[0] == ("h2", "Evidence One-Pager unavailable")
+    assert rendered.count('id="evidence-one-pager-unavailable-title"') == 1
 
 
 def test_evidence_one_pager_escapes_and_withholds_unsafe_answer_content():

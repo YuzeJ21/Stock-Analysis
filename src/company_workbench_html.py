@@ -1103,19 +1103,20 @@ def _html_one_pager_answer_card(
     )
 
 
-def _html_one_pager_available_number(
+def _html_one_pager_numeric_display(
     value: object,
     state: object,
     *,
     currency: str = "",
-) -> str | None:
-    if normalize_html_brief_state(state) != "available":
-        return None
+) -> tuple[str, str | None]:
+    normalized = normalize_html_brief_state(state)
+    if normalized != "available":
+        return normalized, None
     if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
+        return "withheld", None
     if not math.isfinite(float(value)):
-        return None
-    return format_html_brief_number(value, currency=currency)
+        return "withheld", None
+    return normalized, format_html_brief_number(value, currency=currency)
 
 
 def _html_one_pager_share_basis(
@@ -1190,7 +1191,7 @@ def _html_evidence_one_pager(
     for scenario in snapshot.scenarios:
         scenario_role = _html_one_pager_role("scenarios", scenario.name)
         value_role = _html_one_pager_role("scenarios", scenario.name, "value-per-share")
-        value = _html_one_pager_available_number(
+        value_state, value = _html_one_pager_numeric_display(
             scenario.bridge.scenario_value_per_share,
             scenario.bridge.per_share_state,
             currency=scenario.bridge.currency,
@@ -1211,8 +1212,8 @@ def _html_evidence_one_pager(
             f"<dt>Forecast years</dt><dd>{format_html_brief_number(scenario.forecast_years)}</dd>"
             "</dl>"
             '<div class="srcc-card" '
-            f'{_html_one_pager_state_attributes(scenario.bridge.per_share_state, value_role)}>'
-            f"<p>{value_copy}</p>{_html_brief_state_markup(scenario.bridge.per_share_state)}</div>"
+            f'{_html_one_pager_state_attributes(value_state, value_role)}>'
+            f"<p>{value_copy}</p>{_html_brief_state_markup(value_state)}</div>"
             f"{_html_one_pager_share_basis(scenario.bridge.share_basis_state, role=_html_one_pager_role('scenarios', scenario.name, 'share-basis'))}"
             f"{_html_brief_blockers(scenario.bridge.blockers)}"
             "</li>"
@@ -1277,21 +1278,28 @@ def _html_evidence_one_pager(
             ("supplied-shares", base.bridge.shares_label, base.bridge.shares_outstanding, base.bridge.per_share_state),
             ("supplied-value-per-share", "Supplied value per share", base.bridge.scenario_value_per_share, base.bridge.per_share_state),
         )
-        bridge_rows = "".join(
-            '<tr '
-            f'{_html_one_pager_state_attributes(state, _html_one_pager_role("operating-valuation", "base-bridge", key))}>'
-            f'<th scope="row">{_html_brief_text(label)}</th><td>'
-            f"{_html_one_pager_available_number(value, state, currency=base.bridge.currency) or 'withheld'}"
-            f"{_html_brief_state_markup(state)}{_html_brief_blockers(base.bridge.blockers)}</td></tr>"
-            for key, label, value, state in bridge_values
-        )
+        bridge_rows = []
+        for key, label, value, state in bridge_values:
+            value_state, displayed_value = _html_one_pager_numeric_display(
+                value,
+                state,
+                currency=base.bridge.currency,
+            )
+            bridge_rows.append(
+                '<tr '
+                f'{_html_one_pager_state_attributes(value_state, _html_one_pager_role("operating-valuation", "base-bridge", key))}>'
+                f'<th scope="row">{_html_brief_text(label)}</th><td>'
+                f"{displayed_value or 'withheld'}"
+                f"{_html_brief_state_markup(value_state)}"
+                f"{_html_brief_blockers(base.bridge.blockers)}</td></tr>"
+            )
         bridge_markup = (
             '<div class="srcc-one-pager-card">'
             f"<{card_heading}>Supplied Base bridge values</{card_heading}>"
             '<div class="table-scroll"><table class="srcc-table">'
             "<caption>Supplied Base bridge values</caption>"
             "<thead><tr><th>Field</th><th>Recorded evidence</th></tr></thead>"
-            f"<tbody>{bridge_rows}</tbody></table></div>"
+            f"<tbody>{''.join(bridge_rows)}</tbody></table></div>"
             f"{_html_one_pager_share_basis(base.bridge.share_basis_state, role=_html_one_pager_role('operating-valuation', 'base-bridge', 'share-basis'))}"
             "</div>"
         )
@@ -1448,8 +1456,11 @@ def _html_evidence_one_pager_or_unavailable(
             heading=card_heading,
         )
         return (
-            '<section class="srcc-one-pager" data-section="evidence-one-pager">'
-            f"<{heading}>Evidence One-Pager unavailable</{heading}>"
+            '<section class="srcc-one-pager" data-section="evidence-one-pager" '
+            'aria-labelledby="evidence-one-pager-unavailable-title">'
+            '<header data-section="one-pager-header">'
+            f'<{heading} id="evidence-one-pager-unavailable-title">'
+            f"Evidence One-Pager unavailable</{heading}></header>"
             f"{unavailable}</section>"
         )
 
