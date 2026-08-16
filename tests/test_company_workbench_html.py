@@ -2635,6 +2635,28 @@ def test_one_pager_print_css_resets_nested_card_borders_without_global_override(
     assert f"{root} .srcc-card" not in black_border_selectors
 
 
+def test_one_pager_screen_text_css_resists_host_overrides_and_print_stays_black():
+    root = ".host-cascade-contract"
+    css = html_brief._html_brief_css(root)
+    screen_css, one_pager_print_css = css.rsplit("@media print {", 1)
+
+    def has_declaration(styles, selector, declaration):
+        return re.search(
+            rf"{re.escape(selector)}\s*\{{[^}}]*{re.escape(declaration)}[^}}]*\}}",
+            styles,
+        )
+
+    one_pager = f"{root} .srcc-one-pager"
+    descendants = f"{one_pager} *"
+    links = f"{one_pager} a"
+    assert has_declaration(screen_css, one_pager, "color: #f8fafc !important;")
+    assert has_declaration(screen_css, descendants, "color: #f8fafc !important;")
+    assert has_declaration(screen_css, links, "color: #67e8f9 !important;")
+    assert has_declaration(one_pager_print_css, one_pager, "background: #fff !important;")
+    assert has_declaration(one_pager_print_css, descendants, "color: #000 !important;")
+    assert has_declaration(one_pager_print_css, links, "color: #000 !important;")
+
+
 def test_document_bytes_and_download_spec_are_deterministic_and_pathless():
     snapshot = _render_snapshot()
 

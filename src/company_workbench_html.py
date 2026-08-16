@@ -888,12 +888,12 @@ def _html_brief_css(root: str) -> str:
   {root} .srcc-advanced-evidence, {root} .srcc-boundary {{ display: block; }}
 }}
 {root} .srcc-one-pager {{
-  color: #f8fafc;
+  color: #f8fafc !important;
   background: #0b1b2b;
   border-top: .35rem solid #f59e0b;
   padding: 1.25rem;
 }}
-{root} .srcc-one-pager * {{ color: inherit; }}
+{root} .srcc-one-pager * {{ color: #f8fafc !important; }}
 {root} .srcc-one-pager-grid {{
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -913,7 +913,7 @@ def _html_brief_css(root: str) -> str:
   margin: 0;
   padding: 0;
 }}
-{root} .srcc-one-pager a {{ color: #67e8f9; }}
+{root} .srcc-one-pager a {{ color: #67e8f9 !important; }}
 {root} .srcc-one-pager .srcc-boundary {{ border-color: #60a5fa; }}
 {root} .srcc-one-pager .srcc-state-available {{ border-color: #34d399; }}
 {root} .srcc-one-pager .srcc-state-partial {{ border-color: #fbbf24; }}
