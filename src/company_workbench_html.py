@@ -952,6 +952,7 @@ def _html_brief_css(root: str) -> str:
   {root} .srcc-one-pager [data-section='one-pager-provenance'],
   {root} .srcc-one-pager .srcc-table th,
   {root} .srcc-one-pager .srcc-table td,
+  {root} .srcc-one-pager .srcc-card,
   {root} .srcc-one-pager-card {{
     border-color: #000 !important;
   }}

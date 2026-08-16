@@ -2616,6 +2616,25 @@ def test_renderer_css_is_scoped_and_contains_offline_accessibility_and_print_con
     assert "body {" not in document_css
 
 
+def test_one_pager_print_css_resets_nested_card_borders_without_global_override():
+    root = ".print-contract"
+    css = html_brief._html_brief_css(root)
+    screen_css, one_pager_print_css = css.rsplit("@media print {", 1)
+    black_border_group = re.search(
+        r"([^{}]+)\{\s*border-color: #000 !important;\s*\}",
+        one_pager_print_css,
+    )
+
+    assert black_border_group is not None
+    black_border_selectors = {
+        selector.strip() for selector in black_border_group.group(1).split(",")
+    }
+    nested_card = f"{root} .srcc-one-pager .srcc-card"
+    assert nested_card in black_border_selectors
+    assert nested_card not in screen_css
+    assert f"{root} .srcc-card" not in black_border_selectors
+
+
 def test_document_bytes_and_download_spec_are_deterministic_and_pathless():
     snapshot = _render_snapshot()
 
