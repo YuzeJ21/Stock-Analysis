@@ -870,8 +870,17 @@ def test_actual_company_workbench_one_pager_in_app_contract():
         '[data-section="evidence-one-pager"] { clip-path: inset(50%) !important; }',
         '[data-section="evidence-one-pager"] { position: fixed !important; top: -10000px !important; left: 50px !important; width: 1000px !important; }',
         "body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: auto; }",
+        """
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: auto; }
+        """,
     ),
-    ids=("clip-path", "fixed-above-document", "opaque-fixed-cover"),
+    ids=(
+        "clip-path",
+        "fixed-above-document",
+        "opaque-fixed-cover",
+        "scroll-reachable-under-fixed-cover",
+    ),
 )
 def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_with_outside_blockers(
     mutation_css,
@@ -968,17 +977,36 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
                     page.evaluate(
                         "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
                     )
+                    scroll_state_script = """() => ({
+                        window: [window.scrollX, window.scrollY],
+                        nodes: [...document.querySelectorAll('*')]
+                            .map((node, index) => [
+                                index,
+                                node.scrollLeft,
+                                node.scrollTop,
+                                node.scrollWidth,
+                                node.scrollHeight,
+                                node.clientWidth,
+                                node.clientHeight,
+                            ])
+                            .filter(([, left, top, width, height, clientWidth, clientHeight]) =>
+                                left || top || width > clientWidth || height > clientHeight
+                            ),
+                    })"""
+                    scroll_state_before = page.evaluate(scroll_state_script)
                     outside_visible = page.locator(
                         "body > .srcc-blockers:visible"
                     ).count()
                     observation = gate._company_workbench_one_pager_dom_observation(
                         page
                     )
+                    scroll_state_after = page.evaluate(scroll_state_script)
                 finally:
                     context.close()
 
     assert external_requests == []
     assert outside_visible == 1
+    assert scroll_state_after == scroll_state_before
     assert (
         observation["one_pager_visible"] is False
         and observation["one_pager_visible_count"] == 0

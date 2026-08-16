@@ -1699,9 +1699,46 @@ def _summary_scope_observation(page) -> dict[str, object]:
                     scrollingElement.scrollHeight
                 );
                 if (!horizontal || !vertical) return false;
-                const [viewportLeft, viewportRight] = horizontal;
-                const [viewportTop, viewportBottom] = vertical;
-                if (hitTestEligible && viewportRight - viewportLeft > 1 && viewportBottom - viewportTop > 1) {
+                const strictCurrentHitTest = () => {
+                    const currentRect = node.getBoundingClientRect();
+                    let currentLeft = currentRect.left;
+                    let currentRight = currentRect.right;
+                    let currentTop = currentRect.top;
+                    let currentBottom = currentRect.bottom;
+                    for (let current = node.parentElement;
+                        current instanceof Element;
+                        current = current.parentElement) {
+                        const style = getComputedStyle(current);
+                        const ancestorRect = current.getBoundingClientRect();
+                        if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowX)) {
+                            currentLeft = Math.max(
+                                currentLeft,
+                                ancestorRect.left + current.clientLeft
+                            );
+                            currentRight = Math.min(
+                                currentRight,
+                                ancestorRect.left + current.clientLeft + current.clientWidth
+                            );
+                        }
+                        if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowY)) {
+                            currentTop = Math.max(
+                                currentTop,
+                                ancestorRect.top + current.clientTop
+                            );
+                            currentBottom = Math.min(
+                                currentBottom,
+                                ancestorRect.top + current.clientTop + current.clientHeight
+                            );
+                        }
+                        if (currentRight - currentLeft <= 1 ||
+                            currentBottom - currentTop <= 1) return false;
+                    }
+                    const viewportLeft = Math.max(0, currentLeft);
+                    const viewportRight = Math.min(window.innerWidth, currentRight);
+                    const viewportTop = Math.max(0, currentTop);
+                    const viewportBottom = Math.min(window.innerHeight, currentBottom);
+                    if (viewportRight - viewportLeft <= 1 ||
+                        viewportBottom - viewportTop <= 1) return false;
                     const points = [
                         [(viewportLeft + viewportRight) / 2, (viewportTop + viewportBottom) / 2],
                         [viewportLeft + 0.5, viewportTop + 0.5],
@@ -1709,14 +1746,78 @@ def _summary_scope_observation(page) -> dict[str, object]:
                         [viewportLeft + 0.5, viewportBottom - 0.5],
                         [viewportRight - 0.5, viewportBottom - 0.5],
                     ];
-                    if (!points.some(([x, y]) => {
+                    return points.some(([x, y]) => {
                         const hit = document.elementFromPoint(x, y);
                         return hit && (
                             hit === node || node.contains(hit)
                         );
-                    })) return false;
+                    });
+                };
+                if (hitTestEligible) return strictCurrentHitTest();
+                const scrollPositions = [];
+                const remembered = new Set();
+                const remember = element => {
+                    if (!(element instanceof Element) || remembered.has(element)) return;
+                    remembered.add(element);
+                    scrollPositions.push([element, element.scrollLeft, element.scrollTop]);
+                };
+                for (let current = node.parentElement;
+                    current instanceof Element;
+                    current = current.parentElement) remember(current);
+                remember(scrollingElement);
+                const originalWindowScroll = [window.scrollX, window.scrollY];
+                try {
+                    for (let current = node.parentElement;
+                        current instanceof Element;
+                        current = current.parentElement) {
+                        const style = getComputedStyle(current);
+                        const targetRect = node.getBoundingClientRect();
+                        const ancestorRect = current.getBoundingClientRect();
+                        const ancestorLeft = ancestorRect.left + current.clientLeft;
+                        const ancestorRight = ancestorLeft + current.clientWidth;
+                        const ancestorTop = ancestorRect.top + current.clientTop;
+                        const ancestorBottom = ancestorTop + current.clientHeight;
+                        if (['auto', 'scroll'].includes(style.overflowX) &&
+                            current.scrollWidth > current.clientWidth + 1) {
+                            if (targetRect.left < ancestorLeft) {
+                                current.scrollLeft += targetRect.left - ancestorLeft;
+                            } else if (targetRect.right > ancestorRight) {
+                                current.scrollLeft += targetRect.right - ancestorRight;
+                            }
+                        }
+                        if (['auto', 'scroll'].includes(style.overflowY) &&
+                            current.scrollHeight > current.clientHeight + 1) {
+                            if (targetRect.top < ancestorTop) {
+                                current.scrollTop += targetRect.top - ancestorTop;
+                            } else if (targetRect.bottom > ancestorBottom) {
+                                current.scrollTop += targetRect.bottom - ancestorBottom;
+                            }
+                        }
+                    }
+                    const targetRect = node.getBoundingClientRect();
+                    if (targetRect.left < 0) {
+                        scrollingElement.scrollLeft += targetRect.left;
+                    } else if (targetRect.right > window.innerWidth) {
+                        scrollingElement.scrollLeft += targetRect.right - window.innerWidth;
+                    }
+                    if (targetRect.top < 0) {
+                        scrollingElement.scrollTop += targetRect.top;
+                    } else if (targetRect.bottom > window.innerHeight) {
+                        scrollingElement.scrollTop += targetRect.bottom - window.innerHeight;
+                    }
+                    return strictCurrentHitTest();
+                } finally {
+                    for (const [element, scrollLeft, scrollTop] of
+                        [...scrollPositions].reverse()) {
+                        element.scrollLeft = scrollLeft;
+                        element.scrollTop = scrollTop;
+                    }
+                    window.scrollTo({
+                        left: originalWindowScroll[0],
+                        top: originalWindowScroll[1],
+                        behavior: 'instant',
+                    });
                 }
-                return true;
             };
             const color = value => {
                 const values = String(value || '').match(/[0-9.]+/g) || [];
@@ -2029,9 +2130,46 @@ def _summary_forced_colors_cues(page) -> bool:
                         scrollingElement.scrollHeight
                     );
                     if (!horizontal || !vertical) return false;
-                    const [viewportLeft, viewportRight] = horizontal;
-                    const [viewportTop, viewportBottom] = vertical;
-                    if (hitTestEligible && viewportRight - viewportLeft > 1 && viewportBottom - viewportTop > 1) {
+                    const strictCurrentHitTest = () => {
+                        const currentRect = node.getBoundingClientRect();
+                        let currentLeft = currentRect.left;
+                        let currentRight = currentRect.right;
+                        let currentTop = currentRect.top;
+                        let currentBottom = currentRect.bottom;
+                        for (let current = node.parentElement;
+                            current instanceof Element;
+                            current = current.parentElement) {
+                            const style = getComputedStyle(current);
+                            const ancestorRect = current.getBoundingClientRect();
+                            if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowX)) {
+                                currentLeft = Math.max(
+                                    currentLeft,
+                                    ancestorRect.left + current.clientLeft
+                                );
+                                currentRight = Math.min(
+                                    currentRight,
+                                    ancestorRect.left + current.clientLeft + current.clientWidth
+                                );
+                            }
+                            if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowY)) {
+                                currentTop = Math.max(
+                                    currentTop,
+                                    ancestorRect.top + current.clientTop
+                                );
+                                currentBottom = Math.min(
+                                    currentBottom,
+                                    ancestorRect.top + current.clientTop + current.clientHeight
+                                );
+                            }
+                            if (currentRight - currentLeft <= 1 ||
+                                currentBottom - currentTop <= 1) return false;
+                        }
+                        const viewportLeft = Math.max(0, currentLeft);
+                        const viewportRight = Math.min(window.innerWidth, currentRight);
+                        const viewportTop = Math.max(0, currentTop);
+                        const viewportBottom = Math.min(window.innerHeight, currentBottom);
+                        if (viewportRight - viewportLeft <= 1 ||
+                            viewportBottom - viewportTop <= 1) return false;
                         const points = [
                             [(viewportLeft + viewportRight) / 2, (viewportTop + viewportBottom) / 2],
                             [viewportLeft + 0.5, viewportTop + 0.5],
@@ -2039,14 +2177,78 @@ def _summary_forced_colors_cues(page) -> bool:
                             [viewportLeft + 0.5, viewportBottom - 0.5],
                             [viewportRight - 0.5, viewportBottom - 0.5],
                         ];
-                        if (!points.some(([x, y]) => {
+                        return points.some(([x, y]) => {
                             const hit = document.elementFromPoint(x, y);
                             return hit && (
                                 hit === node || node.contains(hit)
                             );
-                        })) return false;
+                        });
+                    };
+                    if (hitTestEligible) return strictCurrentHitTest();
+                    const scrollPositions = [];
+                    const remembered = new Set();
+                    const remember = element => {
+                        if (!(element instanceof Element) || remembered.has(element)) return;
+                        remembered.add(element);
+                        scrollPositions.push([element, element.scrollLeft, element.scrollTop]);
+                    };
+                    for (let current = node.parentElement;
+                        current instanceof Element;
+                        current = current.parentElement) remember(current);
+                    remember(scrollingElement);
+                    const originalWindowScroll = [window.scrollX, window.scrollY];
+                    try {
+                        for (let current = node.parentElement;
+                            current instanceof Element;
+                            current = current.parentElement) {
+                            const style = getComputedStyle(current);
+                            const targetRect = node.getBoundingClientRect();
+                            const ancestorRect = current.getBoundingClientRect();
+                            const ancestorLeft = ancestorRect.left + current.clientLeft;
+                            const ancestorRight = ancestorLeft + current.clientWidth;
+                            const ancestorTop = ancestorRect.top + current.clientTop;
+                            const ancestorBottom = ancestorTop + current.clientHeight;
+                            if (['auto', 'scroll'].includes(style.overflowX) &&
+                                current.scrollWidth > current.clientWidth + 1) {
+                                if (targetRect.left < ancestorLeft) {
+                                    current.scrollLeft += targetRect.left - ancestorLeft;
+                                } else if (targetRect.right > ancestorRight) {
+                                    current.scrollLeft += targetRect.right - ancestorRight;
+                                }
+                            }
+                            if (['auto', 'scroll'].includes(style.overflowY) &&
+                                current.scrollHeight > current.clientHeight + 1) {
+                                if (targetRect.top < ancestorTop) {
+                                    current.scrollTop += targetRect.top - ancestorTop;
+                                } else if (targetRect.bottom > ancestorBottom) {
+                                    current.scrollTop += targetRect.bottom - ancestorBottom;
+                                }
+                            }
+                        }
+                        const targetRect = node.getBoundingClientRect();
+                        if (targetRect.left < 0) {
+                            scrollingElement.scrollLeft += targetRect.left;
+                        } else if (targetRect.right > window.innerWidth) {
+                            scrollingElement.scrollLeft += targetRect.right - window.innerWidth;
+                        }
+                        if (targetRect.top < 0) {
+                            scrollingElement.scrollTop += targetRect.top;
+                        } else if (targetRect.bottom > window.innerHeight) {
+                            scrollingElement.scrollTop += targetRect.bottom - window.innerHeight;
+                        }
+                        return strictCurrentHitTest();
+                    } finally {
+                        for (const [element, scrollLeft, scrollTop] of
+                            [...scrollPositions].reverse()) {
+                            element.scrollLeft = scrollLeft;
+                            element.scrollTop = scrollTop;
+                        }
+                        window.scrollTo({
+                            left: originalWindowScroll[0],
+                            top: originalWindowScroll[1],
+                            behavior: 'instant',
+                        });
                     }
-                    return true;
                 };
                 const hasOwnCue = node => {
                     if (!visible(node)) return false;

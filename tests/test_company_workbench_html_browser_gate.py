@@ -1234,6 +1234,15 @@ def _wrap_one_pager_in_test_scroll(document):
             }
             """,
         ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              .srcc-one-pager { margin-top: 1000px !important; }
+              body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: auto; }
+            }
+            """,
+        ),
     ),
     ids=(
         "overflow-hidden-ancestor",
@@ -1241,6 +1250,7 @@ def _wrap_one_pager_in_test_scroll(document):
         "fixed-above-document",
         "translated-left-of-document",
         "opaque-fixed-cover",
+        "scroll-reachable-under-fixed-cover",
     ),
 )
 def test_summary_browser_collector_contract_rejects_unreachable_or_occluded_summary(
