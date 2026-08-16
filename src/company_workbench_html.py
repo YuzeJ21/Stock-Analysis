@@ -887,6 +887,79 @@ def _html_brief_css(root: str) -> str:
   {root} .srcc-section, {root} .srcc-card {{ break-inside: avoid; }}
   {root} .srcc-advanced-evidence, {root} .srcc-boundary {{ display: block; }}
 }}
+{root} .srcc-one-pager {{
+  color: #f8fafc;
+  background: #0b1b2b;
+  border-top: .35rem solid #f59e0b;
+  padding: 1.25rem;
+}}
+{root} .srcc-one-pager * {{ color: inherit; }}
+{root} .srcc-one-pager-grid {{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  background: #64748b;
+}}
+{root} .srcc-one-pager-card {{
+  min-width: 0;
+  background: #0b1b2b;
+  padding: 1rem;
+}}
+{root} .srcc-one-pager-scenarios {{
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}}
+{root} .srcc-one-pager a {{ color: #67e8f9; }}
+{root} .srcc-one-pager .srcc-boundary {{ border-color: #60a5fa; }}
+{root} .srcc-one-pager .srcc-state-available {{ border-color: #34d399; }}
+{root} .srcc-one-pager .srcc-state-partial {{ border-color: #fbbf24; }}
+{root} .srcc-one-pager .srcc-state-withheld {{ border-color: #f87171; }}
+{root} .srcc-one-pager .srcc-state-stale {{ border-color: #c4b5fd; }}
+{root} .srcc-one-pager .srcc-state-not_recorded {{ border-color: #94a3b8; }}
+{root} .srcc-one-pager .srcc-state-excluded {{ border-color: #7dd3fc; }}
+{root} .srcc-one-pager .table-scroll {{ overflow: visible; }}
+{root} .srcc-one-pager .srcc-table {{
+  min-width: 0;
+  table-layout: fixed;
+  width: 100%;
+}}
+{root} .srcc-one-pager .srcc-table th,
+{root} .srcc-one-pager .srcc-table td {{ overflow-wrap: anywhere; }}
+@media (max-width: 640px) {{
+  {root} .srcc-one-pager-grid,
+  {root} .srcc-one-pager-scenarios {{ grid-template-columns: 1fr; }}
+}}
+@media (forced-colors: active) {{
+  {root} .srcc-one-pager,
+  {root} .srcc-one-pager-card {{ border: 1px solid CanvasText; }}
+}}
+@media print {{
+  {root} .srcc-one-pager {{
+    color: #000 !important;
+    background: #fff !important;
+    border-color: #000 !important;
+    break-inside: auto;
+  }}
+  {root} .srcc-one-pager * {{ color: #000 !important; }}
+  {root} .srcc-one-pager-grid {{ background: #000 !important; }}
+  {root} .srcc-one-pager-card {{ background: #fff !important; }}
+  {root} .srcc-one-pager .srcc-state,
+  {root} .srcc-one-pager .srcc-boundary,
+  {root} .srcc-one-pager [data-section="one-pager-provenance"],
+  {root} .srcc-one-pager .srcc-table th,
+  {root} .srcc-one-pager .srcc-table td,
+  {root} .srcc-one-pager-card {{
+    border-color: #000 !important;
+  }}
+  {root} .srcc-one-pager a {{
+    color: #000 !important;
+    text-decoration: underline !important;
+  }}
+}}
 """.strip()
 
 
@@ -928,6 +1001,457 @@ def _html_brief_reference_markup(reference: HtmlBriefSafeReference) -> str:
     if safe.href:
         return f'<a href="{html.escape(safe.href, quote=True)}" rel="noreferrer noopener">{label}</a>'
     return label
+
+
+def _section_by_key(
+    sections: tuple[HtmlBriefSection, ...],
+    key: str,
+) -> HtmlBriefSection | None:
+    return next((section for section in sections if section.key == key), None)
+
+
+def _answer_by_label(
+    answers: tuple[HtmlBriefAnswer, ...],
+    label: str,
+) -> HtmlBriefAnswer | None:
+    return next((answer for answer in answers if answer.label == label), None)
+
+
+def _html_one_pager_role(*parts: object) -> str:
+    tokens = tuple(
+        token
+        for part in parts
+        for token in re.findall(r"[a-z0-9]+", str(part or "").lower())
+    )
+    return "-".join(tokens)[:120] or "one-pager-unavailable"
+
+
+def _html_one_pager_state_attributes(state: object, role: str) -> str:
+    normalized, _ = _html_brief_state(state)
+    return (
+        f'data-state="{normalized}" '
+        f'data-state-role="{html.escape(role, quote=True)}"'
+    )
+
+
+def _html_one_pager_references(
+    references: tuple[HtmlBriefSafeReference, ...],
+) -> str:
+    if not references:
+        return ""
+    items = "".join(
+        f"<li>{_html_brief_reference_markup(reference)}</li>"
+        for reference in references
+    )
+    return f"<p>Source references</p><ul>{items}</ul>"
+
+
+def _html_one_pager_unavailable_section() -> HtmlBriefSection:
+    return HtmlBriefSection(
+        key="unavailable",
+        title="Not recorded",
+        state="not_recorded",
+        answer="No portable evidence is recorded for this section.",
+        facts=(),
+        blockers=("The frozen snapshot does not contain this section.",),
+    )
+
+
+def _html_one_pager_section_card(
+    section: HtmlBriefSection | None,
+    *,
+    role: str,
+    heading: str,
+) -> str:
+    selected = section or _html_one_pager_unavailable_section()
+    facts = ""
+    if selected.facts:
+        facts = '<dl class="srcc-meta">' + "".join(
+            f"<dt>{_html_brief_text(label)}</dt><dd>{_html_brief_text(value)}</dd>"
+            for label, value in selected.facts
+        ) + "</dl>"
+    return (
+        '<article class="srcc-one-pager-card srcc-card" '
+        f'{_html_one_pager_state_attributes(selected.state, role)}>'
+        f"<{heading}>{_html_brief_text(selected.title)}</{heading}>"
+        f"{_html_brief_state_markup(selected.state)}"
+        f"<p>{_html_brief_text(selected.answer, 'No portable evidence recorded.')}</p>"
+        f"{facts}{_html_brief_blockers(selected.blockers)}"
+        "</article>"
+    )
+
+
+def _html_one_pager_answer_card(
+    answer: HtmlBriefAnswer,
+    *,
+    role: str,
+    heading: str,
+    answer_item: bool = False,
+    container: str = "li",
+) -> str:
+    item_attribute = ' data-answer-item=""' if answer_item else ""
+    return (
+        f'<{container} class="srcc-one-pager-card srcc-card"'
+        f'{item_attribute} {_html_one_pager_state_attributes(answer.state, role)}>'
+        f"<{heading}>{_html_brief_text(answer.label)}</{heading}>"
+        f"{_html_brief_state_markup(answer.state)}"
+        f"<p>{_html_brief_text(answer.title, 'No portable answer.')}</p>"
+        f"<p>{_html_brief_text(answer.body, 'No portable answer.')}</p>"
+        f"{_html_one_pager_references(answer.source_refs)}"
+        f"{_html_brief_blockers(answer.blockers)}"
+        f"</{container}>"
+    )
+
+
+def _html_one_pager_available_number(
+    value: object,
+    state: object,
+    *,
+    currency: str = "",
+) -> str | None:
+    if normalize_html_brief_state(state) != "available":
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if not math.isfinite(float(value)):
+        return None
+    return format_html_brief_number(value, currency=currency)
+
+
+def _html_one_pager_share_basis(
+    state: object,
+    *,
+    role: str,
+) -> str:
+    supplied = _html_brief_text(state, "not recorded")
+    return (
+        '<p class="srcc-boundary" '
+        f'data-share-basis-role="{html.escape(role, quote=True)}" '
+        f'data-share-basis-state="{html.escape(html.unescape(supplied), quote=True)}">'
+        f"Share basis state: {supplied}</p>"
+    )
+
+
+def _html_evidence_one_pager(
+    snapshot: CompanyWorkbenchHtmlSnapshot,
+    heading_level: int,
+) -> str:
+    """Project a summary from an already-frozen snapshot without side effects."""
+    level = max(1, min(6, int(heading_level)))
+    heading = f"h{level}"
+    section_heading = f"h{min(6, level + 1)}"
+    card_heading = f"h{min(6, level + 2)}"
+
+    header_state_rows = "".join(
+        '<div class="srcc-one-pager-card" '
+        f'{_html_one_pager_state_attributes(state, _html_one_pager_role("header", field))}>'
+        f"<p>{_html_brief_text(label)}</p>{_html_brief_state_markup(state)}</div>"
+        for field, label, state in (
+            ("freshness-state", "Freshness", snapshot.freshness_state),
+            ("rights-state", "Rights", snapshot.rights_state),
+        )
+    )
+    header = (
+        '<header data-section="one-pager-header">'
+        '<p>Saved evidence snapshot</p>'
+        f'<{heading} id="evidence-one-pager-title">'
+        f"{_html_brief_text(snapshot.ticker, 'Research')} Evidence One-Pager"
+        f"</{heading}>"
+        '<dl class="srcc-meta">'
+        f"<dt>Ticker</dt><dd>{_html_brief_text(snapshot.ticker)}</dd>"
+        f"<dt>Review cutoff</dt><dd>{_html_brief_text(snapshot.review_cutoff)}</dd>"
+        f"<dt>Source as of</dt><dd>{_html_brief_text(snapshot.source_as_of)}</dd>"
+        f"<dt>Model version</dt><dd>{_html_brief_text(snapshot.model_version)}</dd>"
+        f"<dt>Snapshot identity</dt><dd>{_html_brief_text(snapshot.identity)}</dd>"
+        "</dl>"
+        f'<div class="srcc-one-pager-grid">{header_state_rows}</div>'
+        f'<p class="srcc-boundary">{_html_brief_text(snapshot.boundary)}</p>'
+        f"{_html_brief_blockers(snapshot.blockers)}"
+        "</header>"
+    )
+
+    answer_items = "".join(
+        _html_one_pager_answer_card(
+            answer,
+            role=_html_one_pager_role("answers", answer.label),
+            heading=card_heading,
+            answer_item=True,
+        )
+        for answer in snapshot.answers
+    )
+    answers = (
+        '<section data-section="one-pager-answers">'
+        f"<{section_heading}>Company Brief</{section_heading}>"
+        f'<ol class="srcc-one-pager-grid">{answer_items}</ol>'
+        "</section>"
+    )
+
+    scenario_items = []
+    for scenario in snapshot.scenarios:
+        scenario_role = _html_one_pager_role("scenarios", scenario.name)
+        value_role = _html_one_pager_role("scenarios", scenario.name, "value-per-share")
+        value = _html_one_pager_available_number(
+            scenario.bridge.scenario_value_per_share,
+            scenario.bridge.per_share_state,
+            currency=scenario.bridge.currency,
+        )
+        value_copy = f"Scenario value: {value}" if value is not None else "Scenario value withheld"
+        scenario_items.append(
+            '<li class="srcc-one-pager-card srcc-card" data-scenario-item="" '
+            f'{_html_one_pager_state_attributes(scenario.state, scenario_role)}>'
+            f"<{card_heading}>{_html_brief_text(scenario.name)}</{card_heading}>"
+            f"{_html_brief_state_markup(scenario.state)}"
+            f"<p>{'Modified Base assumptions' if scenario.modified else 'Recorded assumptions'}</p>"
+            '<dl class="srcc-meta">'
+            f"<dt>Method</dt><dd>{_html_brief_text(scenario.method_name)}</dd>"
+            f"<dt>Revenue growth</dt><dd>{format_html_brief_number(scenario.revenue_growth, percent=True)}</dd>"
+            f"<dt>FCF margin</dt><dd>{format_html_brief_number(scenario.fcf_margin, percent=True)}</dd>"
+            f"<dt>WACC</dt><dd>{format_html_brief_number(scenario.wacc, percent=True)}</dd>"
+            f"<dt>Terminal growth</dt><dd>{format_html_brief_number(scenario.terminal_growth, percent=True)}</dd>"
+            f"<dt>Forecast years</dt><dd>{format_html_brief_number(scenario.forecast_years)}</dd>"
+            "</dl>"
+            '<div class="srcc-card" '
+            f'{_html_one_pager_state_attributes(scenario.bridge.per_share_state, value_role)}>'
+            f"<p>{value_copy}</p>{_html_brief_state_markup(scenario.bridge.per_share_state)}</div>"
+            f"{_html_one_pager_share_basis(scenario.bridge.share_basis_state, role=_html_one_pager_role('scenarios', scenario.name, 'share-basis'))}"
+            f"{_html_brief_blockers(scenario.bridge.blockers)}"
+            "</li>"
+        )
+    scenarios = (
+        '<section data-section="one-pager-scenarios">'
+        f"<{section_heading}>Scenarios under assumptions</{section_heading}>"
+        f'<ol class="srcc-one-pager-scenarios">{"".join(scenario_items)}</ol>'
+        "</section>"
+    )
+
+    research_case_sources = (
+        ("decision", "plan", _section_by_key(snapshot.decision_lanes, "plan")),
+        ("decision", "evidence", _section_by_key(snapshot.decision_lanes, "evidence")),
+        ("research", "business-trend", _section_by_key(snapshot.research_sections, "business-trend")),
+        ("research", "key-drivers", _section_by_key(snapshot.research_sections, "key-drivers")),
+    )
+    research_case_cards = "".join(
+        _html_one_pager_section_card(
+            section,
+            role=_html_one_pager_role("research-case", source, key),
+            heading=card_heading,
+        )
+        for source, key, section in research_case_sources
+    )
+    research_case = (
+        '<section data-section="one-pager-research-case">'
+        f"<{section_heading}>Research case</{section_heading}>"
+        f'<div class="srcc-one-pager-grid">{research_case_cards}</div>'
+        "</section>"
+    )
+
+    operating_sources = tuple(
+        (key, _section_by_key(snapshot.research_sections, key))
+        for key in ("business-trend", "key-drivers", "valuation-regime")
+    )
+    operating_cards = "".join(
+        _html_one_pager_section_card(
+            section,
+            role=_html_one_pager_role("operating-valuation", "research", key),
+            heading=card_heading,
+        )
+        for key, section in operating_sources
+    )
+    base = next((scenario for scenario in snapshot.scenarios if scenario.name == "Base"), None)
+    if base is None:
+        bridge_markup = _html_one_pager_section_card(
+            None,
+            role=_html_one_pager_role("operating-valuation", "base-bridge"),
+            heading=card_heading,
+        )
+    else:
+        bridge_values = (
+            ("discounted-explicit-total", "Discounted explicit total", base.bridge.discounted_explicit_total, base.bridge.explicit_total_state),
+            ("terminal-value", "Terminal value", base.bridge.terminal_value, base.bridge.enterprise_state),
+            ("discounted-terminal-value", "Discounted terminal value", base.bridge.discounted_terminal_value, base.bridge.enterprise_state),
+            ("enterprise-value", "Enterprise value", base.bridge.enterprise_value, base.bridge.enterprise_state),
+            ("cash", "Cash", base.bridge.cash, base.bridge.equity_state),
+            ("debt", "Debt", base.bridge.debt, base.bridge.equity_state),
+            ("net-debt", "Net debt", base.bridge.net_debt, base.bridge.equity_state),
+            ("equity-value", "Equity value", base.bridge.equity_value, base.bridge.equity_state),
+            ("supplied-shares", base.bridge.shares_label, base.bridge.shares_outstanding, base.bridge.per_share_state),
+            ("supplied-value-per-share", "Supplied value per share", base.bridge.scenario_value_per_share, base.bridge.per_share_state),
+        )
+        bridge_rows = "".join(
+            '<tr '
+            f'{_html_one_pager_state_attributes(state, _html_one_pager_role("operating-valuation", "base-bridge", key))}>'
+            f'<th scope="row">{_html_brief_text(label)}</th><td>'
+            f"{_html_one_pager_available_number(value, state, currency=base.bridge.currency) or 'withheld'}"
+            f"{_html_brief_state_markup(state)}{_html_brief_blockers(base.bridge.blockers)}</td></tr>"
+            for key, label, value, state in bridge_values
+        )
+        bridge_markup = (
+            '<div class="srcc-one-pager-card">'
+            f"<{card_heading}>Supplied Base bridge values</{card_heading}>"
+            '<div class="table-scroll"><table class="srcc-table">'
+            "<caption>Supplied Base bridge values</caption>"
+            "<thead><tr><th>Field</th><th>Recorded evidence</th></tr></thead>"
+            f"<tbody>{bridge_rows}</tbody></table></div>"
+            f"{_html_one_pager_share_basis(base.bridge.share_basis_state, role=_html_one_pager_role('operating-valuation', 'base-bridge', 'share-basis'))}"
+            "</div>"
+        )
+    operating = (
+        '<section data-section="one-pager-operating-valuation">'
+        f"<{section_heading}>Operating and valuation evidence</{section_heading}>"
+        f'<div class="srcc-one-pager-grid">{operating_cards}</div>{bridge_markup}'
+        "</section>"
+    )
+
+    break_sources = (
+        ("research", "risks", _section_by_key(snapshot.research_sections, "risks")),
+        ("decision", "invalidation", _section_by_key(snapshot.decision_lanes, "invalidation")),
+    )
+    break_cards = "".join(
+        _html_one_pager_section_card(
+            section,
+            role=_html_one_pager_role("break-case", source, key),
+            heading=card_heading,
+        )
+        for source, key, section in break_sources
+    )
+    break_case = (
+        '<section data-section="one-pager-break-case">'
+        f"<{section_heading}>What could break the research case</{section_heading}>"
+        f'<div class="srcc-one-pager-grid">{break_cards}</div>'
+        "</section>"
+    )
+
+    question_sections = (
+        ("decision", "review-trigger", _section_by_key(snapshot.decision_lanes, "review-trigger")),
+        ("research", "evidence-gaps", _section_by_key(snapshot.research_sections, "evidence-gaps")),
+    )
+    question_cards = "".join(
+        _html_one_pager_section_card(
+            section,
+            role=_html_one_pager_role("questions", source, key),
+            heading=card_heading,
+        )
+        for source, key, section in question_sections
+    )
+    next_task = _answer_by_label(snapshot.answers, "Next research task")
+    if next_task is None:
+        next_task = HtmlBriefAnswer(
+            "Next research task",
+            "Not recorded",
+            "No portable evidence is recorded for this section.",
+            "not_recorded",
+            (),
+            (),
+            ("The frozen snapshot does not contain this section.",),
+        )
+    next_task_card = _html_one_pager_answer_card(
+        next_task,
+        role=_html_one_pager_role("questions", "answer", "next-research-task"),
+        heading=card_heading,
+        container="div",
+    )
+    questions = (
+        '<section data-section="one-pager-questions">'
+        f"<{section_heading}>Questions still requiring evidence</{section_heading}>"
+        f'<div class="srcc-one-pager-grid">{question_cards}{next_task_card}</div>'
+        "</section>"
+    )
+
+    provenance_top_states = "".join(
+        '<div class="srcc-one-pager-card" '
+        f'{_html_one_pager_state_attributes(state, _html_one_pager_role("provenance", field))}>'
+        f"<p>{_html_brief_text(label)}</p>{_html_brief_state_markup(state)}</div>"
+        for field, label, state in (
+            ("freshness-state", "Freshness", snapshot.freshness_state),
+            ("rights-state", "Rights", snapshot.rights_state),
+        )
+    )
+    provenance_bodies = []
+    for ordinal, row in enumerate(snapshot.evidence_rows, start=1):
+        role = _html_one_pager_role(
+            "provenance", "row", ordinal, row.section, row.source_id
+        )
+        fields = (
+            ("State", _html_brief_state_markup(row.state)),
+            ("Section", _html_brief_text(row.section)),
+            ("Source ID", _html_brief_text(row.source_id)),
+            ("Reference", _html_brief_reference_markup(row.source_ref)),
+            ("As of", _html_brief_text(row.as_of)),
+            ("Retrieved", _html_brief_text(row.retrieved_at)),
+            ("Rights", _html_brief_text(row.rights_state)),
+            ("Field scope", _html_brief_text(row.field_scope_state)),
+            ("Model identity", _html_brief_text(row.model_identity)),
+            ("Input identity", _html_brief_text(row.input_identity)),
+            ("Blockers", _html_brief_blockers(row.blockers) or "None recorded"),
+        )
+        rows = "".join(
+            f'<tr><th scope="row">{label}</th><td>{value}</td></tr>'
+            for label, value in fields
+        )
+        provenance_bodies.append(
+            f'<tbody {_html_one_pager_state_attributes(row.state, role)}>{rows}</tbody>'
+        )
+    if not provenance_bodies:
+        unavailable = _html_one_pager_unavailable_section()
+        provenance_bodies.append(
+            '<tbody '
+            f'{_html_one_pager_state_attributes(unavailable.state, _html_one_pager_role("provenance", "no-portable-evidence"))}>'
+            '<tr><th scope="row">Evidence state</th><td>'
+            f"{_html_brief_state_markup(unavailable.state)}"
+            f"<p>{_html_brief_text(unavailable.answer)}</p>"
+            f"{_html_brief_blockers(unavailable.blockers)}</td></tr></tbody>"
+        )
+    provenance = (
+        '<aside class="srcc-one-pager-card" data-section="one-pager-provenance" '
+        'aria-labelledby="evidence-one-pager-provenance-title">'
+        f'<{section_heading} id="evidence-one-pager-provenance-title">'
+        f"Provenance and boundaries</{section_heading}>"
+        '<dl class="srcc-meta">'
+        f"<dt>Model version</dt><dd>{_html_brief_text(snapshot.model_version)}</dd>"
+        f"<dt>Snapshot identity</dt><dd>{_html_brief_text(snapshot.identity)}</dd>"
+        f"<dt>Boundary</dt><dd>{_html_brief_text(snapshot.boundary)}</dd>"
+        "</dl>"
+        f'<div class="srcc-one-pager-grid">{provenance_top_states}</div>'
+        '<div class="table-scroll"><table class="srcc-table">'
+        "<caption>Portable evidence provenance</caption>"
+        "<thead><tr><th>Field</th><th>Evidence</th></tr></thead>"
+        f"{''.join(provenance_bodies)}</table></div>"
+        "</aside>"
+    )
+    handoff = (
+        '<section data-section="one-pager-handoff">'
+        "<p>Continue to the full evidence report below.</p>"
+        "</section>"
+    )
+    return (
+        '<section class="srcc-one-pager" aria-labelledby="evidence-one-pager-title" '
+        'data-section="evidence-one-pager">'
+        f"{header}{answers}{scenarios}{research_case}{operating}{break_case}"
+        f"{questions}{provenance}{handoff}</section>"
+    )
+
+
+def _html_evidence_one_pager_or_unavailable(
+    snapshot: CompanyWorkbenchHtmlSnapshot,
+    heading_level: int,
+) -> str:
+    """Fail closed to an explicit summary state without affecting the full report."""
+    try:
+        return _html_evidence_one_pager(snapshot, heading_level)
+    except Exception:
+        level = max(1, min(6, int(heading_level)))
+        heading = f"h{level}"
+        card_heading = f"h{min(6, level + 1)}"
+        unavailable = _html_one_pager_section_card(
+            None,
+            role=_html_one_pager_role("summary", "unavailable"),
+            heading=card_heading,
+        )
+        return (
+            '<section class="srcc-one-pager" data-section="evidence-one-pager">'
+            f"<{heading}>Evidence One-Pager unavailable</{heading}>"
+            f"{unavailable}</section>"
+        )
 
 
 def _html_brief_content(snapshot: CompanyWorkbenchHtmlSnapshot, *, heading_level: int) -> str:

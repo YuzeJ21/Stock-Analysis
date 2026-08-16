@@ -1,4 +1,5 @@
 from dataclasses import replace
+import html
 from html.parser import HTMLParser
 from pathlib import Path
 import re
@@ -1980,6 +1981,321 @@ class _BriefHtmlParser(HTMLParser):
     def handle_data(self, data):
         if self._heading:
             self.headings.append((self._heading, data.strip()))
+
+
+class _OnePagerHtmlParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags = []
+        self.headings = []
+        self.captions = []
+        self.answer_item_count = 0
+        self.scenario_item_count = 0
+        self.state_nodes = []
+        self.state_roles = []
+        self.state_role_pairs = []
+        self.share_basis_pairs = []
+        self.labelled_asides = []
+        self._depth = 0
+        self._text_tag = None
+        self._text_parts = []
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if not self._depth:
+            if attributes.get("data-section") != "evidence-one-pager":
+                return
+            self._depth = 1
+        else:
+            self._depth += 1
+        self.tags.append(tag)
+        if tag in {"h1", "h2", "h3", "h4", "h5", "h6", "caption"}:
+            self._text_tag = tag
+            self._text_parts = []
+        if attributes.get("data-answer-item") is not None:
+            self.answer_item_count += 1
+        if attributes.get("data-scenario-item") is not None:
+            self.scenario_item_count += 1
+        if "data-state" in attributes or "data-state-role" in attributes:
+            state = attributes.get("data-state", "")
+            role = attributes.get("data-state-role", "")
+            self.state_nodes.append(tag)
+            self.state_roles.append(role)
+            self.state_role_pairs.append((role, state))
+        if (
+            "data-share-basis-role" in attributes
+            or "data-share-basis-state" in attributes
+        ):
+            self.share_basis_pairs.append(
+                (
+                    attributes.get("data-share-basis-role", ""),
+                    attributes.get("data-share-basis-state", ""),
+                )
+            )
+        if tag == "aside" and attributes.get("aria-labelledby"):
+            self.labelled_asides.append(attributes["aria-labelledby"])
+
+    def handle_endtag(self, tag):
+        if not self._depth:
+            return
+        if tag == self._text_tag:
+            text = "".join(self._text_parts).strip()
+            if tag == "caption":
+                self.captions.append(text)
+            else:
+                self.headings.append((tag, text))
+            self._text_tag = None
+            self._text_parts = []
+        self._depth -= 1
+
+    def handle_data(self, data):
+        if self._depth and self._text_tag:
+            self._text_parts.append(data)
+
+
+def test_evidence_one_pager_renders_fixed_order_from_frozen_snapshot_only():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    rendered = html_brief._html_evidence_one_pager(snapshot, heading_level=2)
+
+    markers = (
+        "Saved evidence snapshot",
+        "Company Brief",
+        "Scenarios under assumptions",
+        "Research case",
+        "Operating and valuation evidence",
+        "What could break the research case",
+        "Questions still requiring evidence",
+        "Provenance and boundaries",
+        "Continue to the full evidence report below.",
+    )
+    assert all(marker in rendered for marker in markers)
+    assert [rendered.index(marker) for marker in markers] == sorted(
+        rendered.index(marker) for marker in markers
+    )
+    assert rendered.count('data-section="evidence-one-pager"') == 1
+    assert rendered.count("Use now") >= 1
+    assert rendered.count("What changed") >= 1
+
+
+@pytest.mark.parametrize(
+    "forbidden",
+    (
+        "Certified",
+        "Why own it",
+        "Blue Sky",
+        "upside",
+        "target price",
+        "expected return",
+        "buy",
+        "sell",
+        "position size",
+    ),
+)
+def test_evidence_one_pager_never_adds_prohibited_claims(forbidden):
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(
+            build_company_workbench_html_snapshot(_inputs()),
+            heading_level=2,
+        )
+    )
+    assert forbidden.lower() not in rendered.lower()
+
+
+def test_evidence_one_pager_keeps_withheld_values_non_numeric():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    sentinels = tuple(101001.1 + index for index in range(12))
+    base = next(scenario for scenario in snapshot.scenarios if scenario.name == "Base")
+    withheld_bridge = replace(
+        base.bridge,
+        state="withheld",
+        enterprise_state="withheld",
+        equity_state="withheld",
+        per_share_state="withheld",
+        explicit_total_state="withheld",
+        projected_fcfs=(sentinels[0],),
+        discounted_fcfs=(sentinels[1],),
+        discounted_explicit_total=sentinels[2],
+        terminal_value=sentinels[3],
+        discounted_terminal_value=sentinels[4],
+        enterprise_value=sentinels[5],
+        cash=sentinels[6],
+        debt=sentinels[7],
+        net_debt=sentinels[8],
+        equity_value=sentinels[9],
+        shares_outstanding=sentinels[10],
+        scenario_value_per_share=sentinels[11],
+        blockers=("The supplied Base bridge is withheld.",),
+    )
+    withheld = replace(
+        snapshot,
+        scenarios=tuple(
+            replace(scenario, bridge=withheld_bridge)
+            if scenario.name == "Base"
+            else scenario
+            for scenario in snapshot.scenarios
+        ),
+    )
+    rendered = html_brief._html_evidence_one_pager(withheld, heading_level=2)
+    assert "Scenario value withheld" in rendered
+    assert "The supplied Base bridge is withheld." in html.unescape(rendered)
+    assert not [
+        value
+        for value in sentinels
+        if html_brief.format_html_brief_number(value) in html.unescape(rendered)
+    ]
+
+
+def test_evidence_one_pager_preserves_share_basis_state_without_using_it_as_gate():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    scenarios = tuple(
+        replace(
+            scenario,
+            bridge=replace(
+                scenario.bridge,
+                per_share_state="available",
+                share_basis_state="unverified",
+                scenario_value_per_share=31415.92,
+            ),
+        )
+        for scenario in snapshot.scenarios
+    )
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(
+            replace(snapshot, scenarios=scenarios), heading_level=2
+        )
+    )
+    assert html_brief.format_html_brief_number(31415.92) in rendered
+    assert rendered.count("Share basis state: unverified") >= 3
+
+
+def test_share_basis_state_cannot_override_withheld_per_share_gate():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = replace(
+        snapshot,
+        scenarios=tuple(
+            replace(
+                scenario,
+                bridge=replace(
+                    scenario.bridge,
+                    per_share_state="withheld",
+                    share_basis_state="available",
+                    scenario_value_per_share=27182.81,
+                ),
+            )
+            if scenario.name == "Base"
+            else scenario
+            for scenario in snapshot.scenarios
+        ),
+    )
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    assert html_brief.format_html_brief_number(27182.81) not in rendered
+    assert "Share basis state: available" in rendered
+
+
+@pytest.mark.parametrize(
+    ("state", "label"),
+    (
+        ("available", "complete"),
+        ("partial", "partial"),
+        ("stale", "stale"),
+        ("withheld", "withheld"),
+    ),
+)
+def test_evidence_one_pager_keeps_independent_state_text_visible(state, label):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = replace(
+        snapshot,
+        freshness_state=state,
+        answers=tuple(replace(answer, state=state) for answer in snapshot.answers),
+    )
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    assert f'data-state="{state}"' in rendered
+    assert f"State: {label}" in rendered
+
+
+def test_evidence_one_pager_formats_only_supplied_scenario_values():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    scenarios = tuple(
+        replace(
+            scenario,
+            revenue_growth=0.123,
+            fcf_margin=0.234,
+            wacc=0.087,
+            terminal_growth=0.031,
+            forecast_years=7,
+        )
+        for scenario in snapshot.scenarios
+    )
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(
+            replace(snapshot, scenarios=scenarios),
+            heading_level=2,
+        )
+    )
+    for supplied in ("12.3%", "23.4%", "8.7%", "3.1%", "7"):
+        assert supplied in rendered
+
+
+def test_evidence_one_pager_has_summary_scoped_semantics_and_dom_order():
+    rendered = html_brief._html_evidence_one_pager(
+        build_company_workbench_html_snapshot(_inputs()),
+        heading_level=2,
+    )
+    parser = _OnePagerHtmlParser()
+    parser.feed(rendered)
+    assert parser.tags[0] == "section"
+    assert {"header", "section", "ol", "table", "caption", "aside"} <= set(
+        parser.tags
+    )
+    assert not {"main", "footer", "script", "form", "iframe"} & set(parser.tags)
+    assert parser.headings[0] == ("h2", "NVDA Evidence One-Pager")
+    assert "Portable evidence provenance" in parser.captions
+    assert parser.labelled_asides == ["evidence-one-pager-provenance-title"]
+    assert parser.answer_item_count == 4
+    assert parser.scenario_item_count == 3
+    assert len(parser.state_nodes) == len(parser.state_roles)
+    assert len(parser.state_roles) == len(set(parser.state_roles))
+    assert all(role and state for role, state in parser.state_role_pairs)
+    assert len(parser.share_basis_pairs) == 4
+    markers = (
+        'data-section="one-pager-header"',
+        'data-section="one-pager-answers"',
+        'data-section="one-pager-scenarios"',
+        'data-section="one-pager-research-case"',
+        'data-section="one-pager-operating-valuation"',
+        'data-section="one-pager-break-case"',
+        'data-section="one-pager-questions"',
+        'data-section="one-pager-provenance"',
+        'data-section="one-pager-handoff"',
+    )
+    assert [rendered.index(marker) for marker in markers] == sorted(
+        rendered.index(marker) for marker in markers
+    )
+
+
+def test_evidence_one_pager_escapes_and_withholds_unsafe_answer_content():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    unsafe = replace(
+        snapshot.answers[0],
+        title="<script>alert(1)</script>",
+        body="/private/repository buy shares",
+    )
+    rendered = html_brief._html_evidence_one_pager(
+        replace(snapshot, answers=(unsafe,) + snapshot.answers[1:]),
+        heading_level=2,
+    )
+    parser = _OnePagerHtmlParser()
+    parser.feed(rendered)
+
+    assert "<script>" not in rendered
+    assert "alert(1)" not in html.unescape(rendered)
+    assert "/private/repository" not in html.unescape(rendered)
+    assert "buy shares" not in html.unescape(rendered).lower()
+    assert "script" not in parser.tags
 
 
 def _render_snapshot():
