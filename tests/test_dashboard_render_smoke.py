@@ -1061,11 +1061,18 @@ def test_company_workbench_html_brief_is_one_collapsed_research_only_in_memory_s
     assert expanders[0].proto.expanded is False
     assert len(buttons) == 1
     assert len(fragments) == 1
-    assert fragments[0].startswith("<style>")
-    assert '<article class="srcc-html-brief"' in fragments[0]
-    assert "<script" not in fragments[0].lower()
-    assert "file://" not in fragments[0].lower()
-    assert "/Users/" not in fragments[0]
+    fragment = fragments[0]
+    assert fragment.startswith("<style>")
+    assert '<article class="srcc-html-brief"' in fragment
+    assert "<script" not in fragment.lower()
+    assert "file://" not in fragment.lower()
+    assert "/Users/" not in fragment
+    assert fragment.count('data-section="evidence-one-pager"') == 1
+    assert fragment.count('data-section="overview"') == 1
+    assert fragment.count('data-section="advanced-evidence"') == 1
+    assert fragment.index('data-section="evidence-one-pager"') < fragment.index(
+        'data-section="overview"'
+    )
 
     for mode in ("public", "operator"):
         other = AppTest.from_file(DASHBOARD_APP, default_timeout=120)
@@ -1079,10 +1086,20 @@ def test_company_workbench_html_brief_is_one_collapsed_research_only_in_memory_s
             item.label == "Download HTML Research Brief"
             for item in other.get("download_button")
         )
+        assert not [
+            item.proto.body
+            for item in other.get("html")
+            if 'data-section="evidence-one-pager"' in item.proto.body
+        ]
 
     closed = _html_brief_app(open_report=False)
     assert not closed.exception
     assert not any(item.label == "HTML Research Brief" for item in closed.expander)
+    assert not [
+        item.proto.body
+        for item in closed.get("html")
+        if 'data-section="evidence-one-pager"' in item.proto.body
+    ]
 
 
 @pytest.mark.parametrize(

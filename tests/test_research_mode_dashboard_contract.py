@@ -2225,10 +2225,12 @@ def test_company_workbench_html_brief_is_research_only_and_follows_the_module_ga
         "if research_mode and not single_stock_detail_sections_visible(ticker):",
         primary_brief,
     )
+    constructor = report.index("CompanyWorkbenchHtmlInputs(", module_gate)
     brief = report.index('st.expander("HTML Research Brief", expanded=False)', module_gate)
     detail_gate = report.index("if public_mode and report_payload", brief)
 
-    assert research_block < primary_brief < module_gate < brief < detail_gate
+    assert research_block < primary_brief < module_gate < constructor < brief < detail_gate
+    assert report.count("CompanyWorkbenchHtmlInputs(") == 1
     assert report.count('st.expander("HTML Research Brief", expanded=False)') == 1
     assert report.count('"Download HTML Research Brief"') == 1
     assert 'unsafe_allow_javascript=False' in report[brief:detail_gate]

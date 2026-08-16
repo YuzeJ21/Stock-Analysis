@@ -36325,6 +36325,13 @@ def test_company_workbench_html_brief_uses_the_prepared_session_and_loaded_evide
     assert 'selected_answer["state"] = report_one_answer_snapshot["status"]' in render_source
     assert render_source.count("run_scenario_lab_from_state(") == 1
     assert render_source.count("render_scenario_lab(scenario_session)") == 1
+    brief_start = render_source.index("CompanyWorkbenchHtmlInputs(")
+    brief_end = render_source.index("\n                )", brief_start)
+    brief_inputs = render_source[brief_start:brief_end]
+    assert "change_answer=change_answer or {}" in brief_inputs
+    assert "change_ticker=ticker" in brief_inputs
+    assert "change_profile_key=selected_context.profile_key" in brief_inputs
+    assert render_source.count("company_change_answer(") == 1
     assert "company_name" not in render_source[task_arbitration:detail_gate]
     assert "OutcomeStatus" not in render_source[task_arbitration:detail_gate]
     assert "analyst_estimates_readiness" not in render_source[task_arbitration:detail_gate]
