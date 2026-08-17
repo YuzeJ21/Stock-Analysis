@@ -864,6 +864,206 @@ def test_actual_company_workbench_one_pager_in_app_contract():
     }
 
 
+def _ready_authoring_error_observation() -> dict[str, object]:
+    return {
+        "ready": True,
+        "field_count": 1,
+        "described_by": "research-authoring-demo-nvda-thesis-thesis-id-error",
+        "linked_error_count": 1,
+        "linked_error_owned": True,
+        "linked_error_visible": True,
+        "linked_error_inner_text": "thesis_id is required",
+        "linked_error_text_content": "thesis_id is required",
+        "linked_error_outer_html": (
+            '<p data-research-authoring-error-owned="true">'
+            "thesis_id is required</p>"
+        ),
+        "alert_count": 1,
+        "alert_texts": ["Validation rejected\nthesis_id is required"],
+        "active_label": "Thesis Id",
+    }
+
+
+def test_authoring_error_observation_timeout_fails_closed_after_late_ready_snapshot():
+    import src.research_accessibility_browser_gate as gate
+
+    class TimeoutPage:
+        def wait_for_function(self, *args, **kwargs):
+            raise TimeoutError("synthetic wait timeout")
+
+        def evaluate(self, *args, **kwargs):
+            return _ready_authoring_error_observation()
+
+    observed = gate._wait_for_authoring_error_observation(
+        TimeoutPage(),
+        field_label="Thesis Id",
+        expected_message="thesis_id is required",
+        timeout_seconds=0.01,
+    )
+
+    assert observed["ready"] is False
+    assert observed["linked_error_inner_text"] == "thesis_id is required"
+    assert "TimeoutError: synthetic wait timeout" in observed["wait_error"]
+
+
+def test_authoring_error_observation_evaluation_error_fails_closed():
+    import src.research_accessibility_browser_gate as gate
+
+    class EvaluationErrorPage:
+        def wait_for_function(self, *args, **kwargs):
+            return None
+
+        def evaluate(self, *args, **kwargs):
+            raise RuntimeError("synthetic observation failure")
+
+    observed = gate._wait_for_authoring_error_observation(
+        EvaluationErrorPage(),
+        field_label="Thesis Id",
+        expected_message="thesis_id is required",
+        timeout_seconds=0.01,
+    )
+
+    assert observed["ready"] is False
+    assert observed["wait_error"] == ""
+    assert "RuntimeError: synthetic observation failure" in observed[
+        "evaluation_error"
+    ]
+
+
+def test_actual_phone_authoring_association_waits_for_linked_error_text():
+    import src.research_accessibility_browser_gate as gate
+    from playwright.sync_api import sync_playwright
+
+    class SemanticWaitPage:
+        def __init__(self, page):
+            self._page = page
+            self.semantic_wait_calls = 0
+
+        def __getattr__(self, name):
+            return getattr(self._page, name)
+
+        def wait_for_function(self, expression, *args, **kwargs):
+            self.semantic_wait_calls += 1
+            self._page.wait_for_function(
+                """
+() => window.__authoringLinkedTextDelayProbe?.triggered === true
+""",
+                timeout=10_000,
+            )
+            self._page.evaluate(
+                """
+() => window.dispatchEvent(
+  new Event('research-authoring-semantic-wait-started')
+)
+"""
+            )
+            return self._page.wait_for_function(expression, *args, **kwargs)
+
+    chrome = gate.find_chrome_executable()
+    assert chrome is not None
+    workbench = next(
+        route for route in gate.RESEARCH_ROUTES if route.name == "Company Workbench"
+    )
+    with gate._captured_local_demo_server(Path.cwd(), timeout_seconds=45) as server:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(
+                executable_path=str(chrome),
+                headless=True,
+            )
+            context = browser.new_context(viewport={"width": 390, "height": 844})
+            page = context.new_page()
+            try:
+                page.goto(
+                    f"{server.base_url.rstrip('/')}{workbench.route}",
+                    wait_until="domcontentloaded",
+                    timeout=45_000,
+                )
+                gate._wait_for_visible_text(
+                    page,
+                    workbench.marker,
+                    timeout_seconds=45,
+                )
+                gate._wait_for_dom_stability(page, timeout_seconds=45)
+                gate._wait_for_route_heading(
+                    page,
+                    workbench,
+                    timeout_seconds=45,
+                )
+                assert gate._open_company_workbench_modules(
+                    page,
+                    timeout_seconds=45,
+                )["passed"] is True
+                page.evaluate(
+                    """
+() => {
+  const probe = {
+    triggered: false,
+    cleared_text: null,
+    restored_text: null,
+    release_count: 0,
+  };
+  window.__authoringLinkedTextDelayProbe = probe;
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const added of mutation.addedNodes) {
+        if (!(added instanceof Element)) continue;
+        const candidate = added.matches(
+          '[data-research-authoring-error-owned="true"]'
+        )
+          ? added
+          : added.querySelector(
+              '[data-research-authoring-error-owned="true"]'
+            );
+        if (!candidate || !candidate.id.endsWith('thesis-thesis-id-error')) {
+          continue;
+        }
+        const originalText = candidate.textContent;
+        probe.triggered = true;
+        candidate.textContent = '';
+        probe.cleared_text = candidate.textContent;
+        observer.disconnect();
+        window.addEventListener(
+          'research-authoring-semantic-wait-started',
+          () => {
+            if (candidate.isConnected) candidate.textContent = originalText;
+            probe.restored_text = candidate.textContent;
+            probe.release_count += 1;
+          },
+          {once: true}
+        );
+        return;
+      }
+    }
+  });
+  observer.observe(document.documentElement, {childList: true, subtree: true});
+}
+"""
+                )
+
+                semantic_page = SemanticWaitPage(page)
+                assertions = gate._authoring_error_assertions(semantic_page)
+                probe = page.evaluate("window.__authoringLinkedTextDelayProbe")
+            finally:
+                context.close()
+                browser.close()
+
+    association = next(
+        assertion
+        for assertion in assertions
+        if assertion["name"] == "authoring_field_error_association"
+    )
+    assert probe["triggered"] is True
+    assert probe["cleared_text"] == ""
+    assert probe["restored_text"] == "thesis_id is required"
+    assert probe["release_count"] == 1
+    assert semantic_page.semantic_wait_calls == 2
+    assert association["passed"] is True, {
+        "association": association,
+        "probe": probe,
+    }
+    assert all(assertion["passed"] for assertion in assertions), assertions
+
+
 @pytest.mark.parametrize(
     "mutation_css",
     (

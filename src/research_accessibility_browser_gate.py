@@ -14,6 +14,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -4183,6 +4184,134 @@ element => {
     )
 
 
+_AUTHORING_ERROR_OBSERVATION_SCRIPT = r"""
+({fieldLabel, expectedMessage}) => {
+  const fields = Array.from(
+    document.querySelectorAll('[aria-invalid="true"]')
+  ).filter((element) => element.getAttribute('aria-label') === fieldLabel);
+  const field = fields[0] || null;
+  const describedBy = field?.getAttribute('aria-describedby') || '';
+  const linkedErrors = describedBy
+    ? Array.from(document.querySelectorAll('[id]')).filter(
+        (element) => element.id === describedBy
+      )
+    : [];
+  const linkedError = linkedErrors[0] || null;
+  const linkedInnerText = linkedError ? linkedError.innerText : null;
+  const linkedTextContent = linkedError ? linkedError.textContent : null;
+  const linkedStyle = linkedError ? getComputedStyle(linkedError) : null;
+  const linkedRect = linkedError ? linkedError.getBoundingClientRect() : null;
+  const linkedVisible = Boolean(
+    linkedError &&
+    linkedStyle &&
+    linkedStyle.display !== 'none' &&
+    linkedStyle.visibility !== 'hidden' &&
+    linkedStyle.opacity !== '0' &&
+    linkedRect &&
+    linkedRect.width > 0 &&
+    linkedRect.height > 0
+  );
+  const linkedOwned = Boolean(
+    linkedError &&
+    linkedError.getAttribute('data-research-authoring-error-owned') === 'true'
+  );
+  const alerts = Array.from(document.querySelectorAll('[role="alert"]')).filter(
+    (element) => (element.textContent || '').includes(expectedMessage)
+  );
+  const activeLabel = document.activeElement?.getAttribute('aria-label') || null;
+  const ready = Boolean(
+    fields.length === 1 &&
+    describedBy &&
+    linkedErrors.length === 1 &&
+    linkedOwned &&
+    linkedVisible &&
+    linkedInnerText?.trim() === expectedMessage &&
+    alerts.length === 1 &&
+    activeLabel === fieldLabel
+  );
+  return {
+    ready,
+    field_count: fields.length,
+    described_by: describedBy,
+    linked_error_count: linkedErrors.length,
+    linked_error_owned: linkedOwned,
+    linked_error_visible: linkedVisible,
+    linked_error_inner_text: linkedInnerText,
+    linked_error_text_content: linkedTextContent,
+    linked_error_outer_html: linkedError ? linkedError.outerHTML : null,
+    alert_count: alerts.length,
+    alert_texts: alerts.map((element) => element.innerText),
+    active_label: activeLabel,
+  };
+}
+"""
+
+
+def _wait_for_authoring_error_observation(
+    page: Any,
+    *,
+    field_label: str,
+    expected_message: str,
+    timeout_seconds: float = 10.0,
+) -> dict[str, object]:
+    """Wait for and atomically capture one complete field-error association."""
+
+    payload = {
+        "fieldLabel": field_label,
+        "expectedMessage": expected_message,
+    }
+    started = time.monotonic()
+    wait_error = ""
+    evaluation_error = ""
+    try:
+        page.wait_for_function(
+            f"payload => ({_AUTHORING_ERROR_OBSERVATION_SCRIPT})(payload).ready",
+            arg=payload,
+            timeout=int(timeout_seconds * 1000),
+        )
+    except Exception as exc:
+        wait_error = f"{type(exc).__name__}: {exc}"
+    try:
+        observed = page.evaluate(_AUTHORING_ERROR_OBSERVATION_SCRIPT, payload)
+    except Exception as exc:
+        evaluation_error = f"{type(exc).__name__}: {exc}"
+        observed = {"ready": False}
+    if not isinstance(observed, dict):
+        observed = {
+            "ready": False,
+            "observation_error": (
+                f"expected object observation, found {type(observed).__name__}"
+            ),
+        }
+    if wait_error or evaluation_error:
+        observed["ready"] = False
+    observed["wait_elapsed_ms"] = round((time.monotonic() - started) * 1000, 3)
+    observed["wait_error"] = wait_error
+    observed["evaluation_error"] = evaluation_error
+    return observed
+
+
+def _authoring_error_observation_detail(
+    observation: Mapping[str, object],
+) -> str:
+    return (
+        f"field_count={observation.get('field_count')!r}; "
+        f"described_by={observation.get('described_by')!r}; "
+        f"error_count={observation.get('linked_error_count')!r}; "
+        f"error_owned={observation.get('linked_error_owned')!r}; "
+        f"error_visible={observation.get('linked_error_visible')!r}; "
+        f"error_inner_text={observation.get('linked_error_inner_text')!r}; "
+        f"error_text_content={observation.get('linked_error_text_content')!r}; "
+        f"error_outer_html={observation.get('linked_error_outer_html')!r}; "
+        f"alert_count={observation.get('alert_count')!r}; "
+        f"alert_texts={observation.get('alert_texts')!r}; "
+        f"active_label={observation.get('active_label')!r}; "
+        f"wait_elapsed_ms={observation.get('wait_elapsed_ms')!r}; "
+        f"wait_error={observation.get('wait_error')!r}; "
+        f"evaluation_error={observation.get('evaluation_error')!r}"
+    )
+
+
 def _authoring_error_assertions(page: Any) -> list[dict[str, object]]:
     composer = page.locator("details").filter(
         has=page.get_by_text("Add a reviewed research record", exact=True)
@@ -4206,27 +4335,20 @@ def _authoring_error_assertions(page: Any) -> list[dict[str, object]]:
             )
         ]
     validate.click()
-    page.locator(
-        '[aria-label="Thesis Id"][aria-invalid="true"]'
-    ).wait_for(state="attached", timeout=10_000)
+    thesis_observation = _wait_for_authoring_error_observation(
+        page,
+        field_label="Thesis Id",
+        expected_message="thesis_id is required",
+    )
     field = page.locator('[aria-label="Thesis Id"][aria-invalid="true"]')
-    described_by = field.get_attribute("aria-describedby") or ""
+    described_by = str(thesis_observation.get("described_by") or "")
     error = page.locator(f"#{described_by}") if described_by else page.locator(
         "#__missing-authoring-error"
     )
-    global_alerts = page.get_by_role("alert").filter(
-        has_text="thesis_id is required"
-    )
-    active_label = page.evaluate(
-        "document.activeElement && document.activeElement.getAttribute('aria-label')"
-    )
     passed = (
-        field.count() == 1
-        and bool(described_by)
-        and error.count() == 1
-        and error.first.inner_text().strip() == "thesis_id is required"
-        and global_alerts.count() == 1
-        and active_label == "Thesis Id"
+        thesis_observation.get("ready") is True
+        and not thesis_observation.get("wait_error")
+        and not thesis_observation.get("evaluation_error")
     )
     first_result = _assertion(
         "authoring_field_error_association",
@@ -4234,11 +4356,7 @@ def _authoring_error_assertions(page: Any) -> list[dict[str, object]]:
         (
             "one Thesis Id field is invalid, described, focused, and retains one alert"
             if passed
-            else (
-                f"field_count={field.count()}; described_by={described_by!r}; "
-                f"error_count={error.count()}; alert_count={global_alerts.count()}; "
-                f"active_label={active_label!r}"
-            )
+            else _authoring_error_observation_detail(thesis_observation)
         ),
     )
     if not passed:
@@ -4267,44 +4385,19 @@ def _authoring_error_assertions(page: Any) -> list[dict[str, object]]:
     )
     validate = page.get_by_role("button", name="Validate and preview", exact=True)
     validate.click()
-    effective = page.locator('[aria-label="Effective At"][aria-invalid="true"]')
-    try:
-        effective.wait_for(state="attached", timeout=10_000)
-    except Exception as exc:
-        return [
-            first_result,
-            _assertion(
-                "authoring_field_error_cleanup_transition",
-                False,
-                (
-                    f"Effective At did not receive the next required error: "
-                    f"{type(exc).__name__}: {exc}"
-                ),
-            ),
-        ]
-    effective_described_by = effective.get_attribute("aria-describedby") or ""
-    effective_error = (
-        page.locator(f"#{effective_described_by}")
-        if effective_described_by
-        else page.locator("#__missing-effective-at-error")
-    )
-    effective_alerts = page.get_by_role("alert").filter(
-        has_text="effective_at is required"
-    )
-    active_label = page.evaluate(
-        "document.activeElement && document.activeElement.getAttribute('aria-label')"
+    effective_observation = _wait_for_authoring_error_observation(
+        page,
+        field_label="Effective At",
+        expected_message="effective_at is required",
     )
     thesis_after_validation = page.get_by_label("Thesis Id", exact=True)
     passed_transition = (
         stale_thesis_clean
         and thesis_after_validation.get_attribute("aria-invalid") is None
         and thesis_after_validation.get_attribute("aria-describedby") is None
-        and effective.count() == 1
-        and bool(effective_described_by)
-        and effective_error.count() == 1
-        and effective_error.first.inner_text().strip() == "effective_at is required"
-        and effective_alerts.count() == 1
-        and active_label == "Effective At"
+        and effective_observation.get("ready") is True
+        and not effective_observation.get("wait_error")
+        and not effective_observation.get("evaluation_error")
     )
     return [
         first_result,
@@ -4317,11 +4410,7 @@ def _authoring_error_assertions(page: Any) -> list[dict[str, object]]:
                 if passed_transition
                 else (
                     f"stale_thesis_clean={stale_thesis_clean}; "
-                    f"effective_count={effective.count()}; "
-                    f"effective_described_by={effective_described_by!r}; "
-                    f"effective_error_count={effective_error.count()}; "
-                    f"alert_count={effective_alerts.count()}; "
-                    f"active_label={active_label!r}"
+                    + _authoring_error_observation_detail(effective_observation)
                 )
             ),
         ),
