@@ -3899,7 +3899,10 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                             forceInlineProbeGeometry(origin);
                             const candidateHits = pointHits();
                             if ([...candidate.coverage].some(index =>
-                                candidateHits[index] === origin &&
+                                candidateHits[index] &&
+                                (candidateHits[index] === origin ||
+                                    origin.matches('svg') &&
+                                    origin.contains(candidateHits[index])) &&
                                 candidateHits[index] !== ordinaryHits[index]
                             )) confirmedRealCandidates.add(candidate);
                             restoreInlineStyle(origin);

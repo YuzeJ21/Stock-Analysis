@@ -1520,6 +1520,41 @@ def test_summary_browser_collector_contract_rejects_unreachable_or_occluded_summ
     }
 
 
+def test_summary_browser_collector_contract_does_not_confirm_non_svg_origin_from_transparent_descendant():
+    document = _replace_once(
+        _synthetic_brief("complete"),
+        b'<body class="srcc-html-document">',
+        (
+            b'<body class="srcc-html-document">'
+            b'<div class="test-behind-paint-origin" aria-hidden="true">'
+            b'<span class="test-transparent-probe-child"></span></div>'
+        ),
+    )
+    document = _append_test_css(
+        document,
+        """
+        @media screen {
+          .test-behind-paint-origin {
+            height: 100vh;
+            margin-bottom: -100vh;
+            background: #fff;
+            pointer-events: none;
+          }
+          .test-transparent-probe-child {
+            position: fixed;
+            inset: 0;
+            z-index: 2;
+            background: transparent;
+          }
+        }
+        """,
+    )
+
+    result = _run_summary_cell(document)
+
+    assert _failed_assertion_names(result) == set()
+
+
 def test_summary_browser_collector_contract_rejects_localized_late_provenance_pseudo_cover():
     document = _append_test_css(
         _synthetic_brief("complete"),

@@ -2355,7 +2355,10 @@ def _summary_scope_observation(page) -> dict[str, object]:
                             forceInlineProbeGeometry(origin);
                             const candidateHits = pointHits();
                             if ([...candidate.coverage].some(index =>
-                                candidateHits[index] === origin &&
+                                candidateHits[index] &&
+                                (candidateHits[index] === origin ||
+                                    origin.matches('svg') &&
+                                    origin.contains(candidateHits[index])) &&
                                 candidateHits[index] !== ordinaryHits[index]
                             )) confirmedRealCandidates.add(candidate);
                             restoreInlineStyle(origin);
