@@ -1850,99 +1850,170 @@ def _summary_scope_observation(page) -> dict[str, object]:
                         layers.push(value.slice(start));
                         return layers;
                     };
-                    const paintDimensions = (origin, style, pseudo) => {
-                        const rect = origin.getBoundingClientRect();
-                        if (!pseudo || style.position !== 'fixed') {
-                            return {width: rect.width, height: rect.height};
+                    const cssLength = (value, basis) => {
+                        const text = String(value || '').trim().toLowerCase();
+                        const parsed = Number.parseFloat(text);
+                        if (!Number.isFinite(parsed)) return Number.NaN;
+                        if (text.endsWith('%')) return basis * parsed / 100;
+                        if (text.endsWith('vw')) return window.innerWidth * parsed / 100;
+                        if (text.endsWith('vh')) return window.innerHeight * parsed / 100;
+                        if (text.endsWith('vmin')) {
+                            return Math.min(window.innerWidth, window.innerHeight) * parsed / 100;
                         }
-                        const fixedExtent = (start, end, viewport, declared) => {
-                            const startValue = Number.parseFloat(start);
-                            const endValue = Number.parseFloat(end);
-                            if (Number.isFinite(startValue) && Number.isFinite(endValue)) {
-                                return Math.max(0, viewport - startValue - endValue);
+                        if (text.endsWith('vmax')) {
+                            return Math.max(window.innerWidth, window.innerHeight) * parsed / 100;
+                        }
+                        return parsed;
+                    };
+                    const paintRect = (origin, style, pseudo) => {
+                        const originRect = origin.getBoundingClientRect();
+                        if (!pseudo) return originRect;
+                        const fixed = style.position === 'fixed';
+                        const container = fixed
+                            ? {
+                                left: 0,
+                                top: 0,
+                                right: window.innerWidth,
+                                bottom: window.innerHeight,
+                                width: window.innerWidth,
+                                height: window.innerHeight,
                             }
-                            const declaredValue = Number.parseFloat(declared);
-                            return Number.isFinite(declaredValue)
-                                ? Math.max(0, declaredValue)
-                                : 0;
+                            : originRect;
+                        const axis = (start, end, size, containerStart, extent) => {
+                            const startValue = cssLength(start, extent);
+                            const endValue = cssLength(end, extent);
+                            let sizeValue = cssLength(size, extent);
+                            if (!Number.isFinite(sizeValue) &&
+                                Number.isFinite(startValue) &&
+                                Number.isFinite(endValue)) {
+                                sizeValue = Math.max(0, extent - startValue - endValue);
+                            }
+                            if (!Number.isFinite(sizeValue)) sizeValue = extent;
+                            const position = Number.isFinite(startValue)
+                                ? containerStart + startValue
+                                : Number.isFinite(endValue)
+                                    ? containerStart + extent - endValue - sizeValue
+                                    : containerStart;
+                            return [position, sizeValue];
                         };
+                        let [left, width] = axis(
+                            style.left, style.right, style.width,
+                            container.left, container.width
+                        );
+                        let [top, height] = axis(
+                            style.top, style.bottom, style.height,
+                            container.top, container.height
+                        );
+                        if (style.boxSizing === 'content-box') {
+                            width += ['Left', 'Right'].reduce(
+                                (total, side) => total +
+                                    (Number.parseFloat(
+                                        style[`border${side}Width`] || '0'
+                                    ) || 0) +
+                                    (Number.parseFloat(
+                                        style[`padding${side}`] || '0'
+                                    ) || 0),
+                                0
+                            );
+                            height += ['Top', 'Bottom'].reduce(
+                                (total, side) => total +
+                                    (Number.parseFloat(
+                                        style[`border${side}Width`] || '0'
+                                    ) || 0) +
+                                    (Number.parseFloat(
+                                        style[`padding${side}`] || '0'
+                                    ) || 0),
+                                0
+                            );
+                        }
+                        if (style.transform && style.transform !== 'none') {
+                            try {
+                                const matrix = new DOMMatrixReadOnly(style.transform);
+                                left += matrix.m41;
+                                top += matrix.m42;
+                            } catch (_error) {
+                                return originRect;
+                            }
+                        }
                         return {
-                            width: fixedExtent(
-                                style.left, style.right, window.innerWidth, style.width
-                            ),
-                            height: fixedExtent(
-                                style.top, style.bottom, window.innerHeight, style.height
-                            ),
+                            left,
+                            right: left + width,
+                            top,
+                            bottom: top + height,
+                            width,
+                            height,
                         };
                     };
-                    const shadowHasMaterialPaint = (origin, style, pseudo) => {
-                        const value = style.boxShadow;
-                        if (!value || value === 'none') return false;
-                        const dimensions = paintDimensions(origin, style, pseudo);
-                        const minimumExtent = Math.max(
-                            1,
-                            Math.min(
-                                Math.max(0, dimensions.width),
-                                Math.max(0, dimensions.height)
-                            ) / 2
+                    const materialColor = value => {
+                        const colors = cssColors(value);
+                        return colors.length === 0 || colors.some(color =>
+                            color.toLowerCase() !== 'transparent' &&
+                            colorAlpha(color) > 0.01
                         );
-                        return splitCssLayers(String(value)).some(layer => {
-                            if (!/\binset\b/i.test(layer)) return false;
-                            const colors = cssColors(layer);
-                            if (colors.length > 0 && !colors.some(color =>
-                                color.toLowerCase() !== 'transparent' &&
-                                colorAlpha(color) > 0.01
-                            )) return false;
-                            const dimensions = layer.replace(
+                    };
+                    const shadowLayers = style => {
+                        const value = style.boxShadow;
+                        if (!value || value === 'none') return [];
+                        return splitCssLayers(String(value)).map(layer => {
+                            const lengths = layer.replace(
                                 /(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)|transparent/gi,
                                 ''
                             ).match(/-?(?:\d+\.?\d*|\.\d+)(?:[a-z%]+)?/gi) || [];
-                            const parsed = dimensions.map(dimension =>
-                                Number.parseFloat(dimension)
+                            const parsed = lengths.map(length =>
+                                Number.parseFloat(length)
                             );
-                            const blur = Math.max(0, parsed[2] || 0);
-                            const spread = Math.max(0, parsed[3] || 0);
-                            return blur + spread >= minimumExtent - 1;
+                            return {
+                                inset: /\binset\b/i.test(layer),
+                                material: materialColor(layer),
+                                offsetX: parsed[0] || 0,
+                                offsetY: parsed[1] || 0,
+                                blur: Math.max(0, parsed[2] || 0),
+                                spread: parsed[3] || 0,
+                            };
                         });
                     };
-                    const edgeHasMaterialPaint = (origin, style, pseudo) => {
-                        const dimensions = paintDimensions(origin, style, pseudo);
-                        const materialBorderWidth = side => {
-                            const width = Number.parseFloat(
-                                style[`border${side}Width`] || '0'
-                            );
-                            return width > 0.01 &&
-                                !['none', 'hidden'].includes(
-                                    style[`border${side}Style`]
-                                ) &&
-                                colorAlpha(style[`border${side}Color`]) > 0.01
-                                ? width
-                                : 0;
-                        };
-                        const borderFills = dimensions.width > 1 &&
-                            dimensions.height > 1 && (
-                            materialBorderWidth('Left') +
-                                materialBorderWidth('Right') >= dimensions.width - 1 ||
-                            materialBorderWidth('Top') +
-                                materialBorderWidth('Bottom') >= dimensions.height - 1
+                    const materialBorderWidth = (style, side) => {
+                        const width = Number.parseFloat(
+                            style[`border${side}Width`] || '0'
                         );
-                        const outlineWidth = Number.parseFloat(
-                            style.outlineWidth || '0'
-                        );
-                        const outlineOffset = Number.parseFloat(
-                            style.outlineOffset || '0'
-                        );
-                        const outlineInset = Math.max(0, -outlineOffset);
-                        const outlineFills = dimensions.width > 1 &&
-                            dimensions.height > 1 &&
-                            outlineWidth > 0.01 &&
-                            !['none', 'hidden'].includes(style.outlineStyle) &&
-                            colorAlpha(style.outlineColor) > 0.01 &&
-                            outlineInset >=
-                                Math.min(dimensions.width, dimensions.height) / 2 - 1 &&
-                            outlineInset - outlineWidth <= 1;
-                        return borderFills || outlineFills;
+                        return width > 0.01 &&
+                            !['none', 'hidden'].includes(style[`border${side}Style`]) &&
+                            colorAlpha(style[`border${side}Color`]) > 0.01
+                            ? width
+                            : 0;
                     };
+                    const materialOutline = style => {
+                        const width = Number.parseFloat(style.outlineWidth || '0');
+                        return {
+                            width: width > 0.01 &&
+                                !['none', 'hidden'].includes(style.outlineStyle) &&
+                                colorAlpha(style.outlineColor) > 0.01
+                                ? width
+                                : 0,
+                            offset: Number.parseFloat(style.outlineOffset || '0') || 0,
+                        };
+                    };
+                    const shadowHasMaterialPaint = (origin, style, pseudo) => {
+                        const rect = paintRect(origin, style, pseudo);
+                        const minimumExtent = Math.max(
+                            1,
+                            Math.min(
+                                Math.max(0, rect.width),
+                                Math.max(0, rect.height)
+                            ) / 2
+                        );
+                        return shadowLayers(style).some(layer =>
+                            layer.material && (
+                                !layer.inset ||
+                                layer.blur + Math.max(0, layer.spread) >=
+                                    minimumExtent - 1
+                            )
+                        );
+                    };
+                    const edgeHasMaterialPaint = style =>
+                        ['Left', 'Right', 'Top', 'Bottom'].some(side =>
+                            materialBorderWidth(style, side) > 0
+                        ) || materialOutline(style).width > 0;
                     const svgHasMaterialPaint = origin => origin.matches('svg') &&
                         [...origin.querySelectorAll('*')].some(descendant => {
                             const style = getComputedStyle(descendant);
@@ -1966,16 +2037,118 @@ def _summary_scope_observation(page) -> dict[str, object]:
                             colorAlpha(style.backgroundColor) > 0.01 ||
                             imageHasMaterialPaint(style.backgroundImage) ||
                             shadowHasMaterialPaint(origin, style, pseudo) ||
-                            edgeHasMaterialPaint(origin, style, pseudo) ||
+                            edgeHasMaterialPaint(style) ||
                             (!pseudo && (
                                 origin.matches('img, video, canvas') ||
                                 svgHasMaterialPaint(origin)
                             ))
                         );
                     };
-                    const coversPoint = rect => rect && rect.width > 1 && rect.height > 1 &&
-                        points.some(([x, y]) => x >= rect.left && x <= rect.right &&
-                            y >= rect.top && y <= rect.bottom);
+                    const containsPoint = (rect, [x, y]) =>
+                        rect && rect.right > rect.left && rect.bottom > rect.top &&
+                        x >= rect.left && x <= rect.right &&
+                        y >= rect.top && y <= rect.bottom;
+                    const expandedRect = (rect, left, right, top, bottom) => ({
+                        left: rect.left - left,
+                        right: rect.right + right,
+                        top: rect.top - top,
+                        bottom: rect.bottom + bottom,
+                    });
+                    const materialPaintCoverage = (origin, style, pseudo) => {
+                        const rect = paintRect(origin, style, pseudo);
+                        const shadows = shadowLayers(style);
+                        const minimumExtent = Math.max(
+                            1,
+                            Math.min(
+                                Math.max(0, rect.width),
+                                Math.max(0, rect.height)
+                            ) / 2
+                        );
+                        const insetShadowFills = shadows.some(layer =>
+                            layer.material && layer.inset &&
+                            layer.blur + Math.max(0, layer.spread) >=
+                                minimumExtent - 1
+                        );
+                        const baseFills = colorAlpha(style.backgroundColor) > 0.01 ||
+                            imageHasMaterialPaint(style.backgroundImage) ||
+                            insetShadowFills ||
+                            (!pseudo && (
+                                origin.matches('img, video, canvas') ||
+                                svgHasMaterialPaint(origin)
+                            ));
+                        const borders = {
+                            left: materialBorderWidth(style, 'Left'),
+                            right: materialBorderWidth(style, 'Right'),
+                            top: materialBorderWidth(style, 'Top'),
+                            bottom: materialBorderWidth(style, 'Bottom'),
+                        };
+                        const borderFills = rect.width > 1 && rect.height > 1 && (
+                            borders.left + borders.right >= rect.width - 1 ||
+                            borders.top + borders.bottom >= rect.height - 1
+                        );
+                        const borderInner = {
+                            left: rect.left + borders.left,
+                            right: rect.right - borders.right,
+                            top: rect.top + borders.top,
+                            bottom: rect.bottom - borders.bottom,
+                        };
+                        const outline = materialOutline(style);
+                        const outlineInset = Math.max(0, -outline.offset);
+                        const outlineFills = rect.width > 1 && rect.height > 1 &&
+                            outline.width > 0 &&
+                            outlineInset >= Math.min(rect.width, rect.height) / 2 - 1 &&
+                            outlineInset - outline.width <= 1;
+                        const outlineInner = expandedRect(
+                            rect,
+                            outline.offset,
+                            outline.offset,
+                            outline.offset,
+                            outline.offset
+                        );
+                        const outlineOuter = expandedRect(
+                            outlineInner,
+                            outline.width,
+                            outline.width,
+                            outline.width,
+                            outline.width
+                        );
+                        const outerShadows = shadows.filter(layer =>
+                            layer.material && !layer.inset
+                        );
+                        return new Set(points.flatMap((point, index) => {
+                            const inBase = containsPoint(rect, point);
+                            const inBorder = containsPoint(rect, point) &&
+                                !containsPoint(borderInner, point);
+                            const inOutline = outline.width > 0 &&
+                                containsPoint(outlineOuter, point) &&
+                                !containsPoint(outlineInner, point);
+                            const inOuterShadow = outerShadows.some(layer => {
+                                const extent = Math.max(
+                                    0,
+                                    layer.spread + layer.blur * 2
+                                );
+                                const shadowRect = expandedRect(
+                                    {
+                                        left: rect.left + layer.offsetX,
+                                        right: rect.right + layer.offsetX,
+                                        top: rect.top + layer.offsetY,
+                                        bottom: rect.bottom + layer.offsetY,
+                                    },
+                                    extent,
+                                    extent,
+                                    extent,
+                                    extent
+                                );
+                                return containsPoint(shadowRect, point) && !inBase;
+                            });
+                            return baseFills && inBase ||
+                                borderFills && inBase ||
+                                outlineFills && inBase ||
+                                inBorder || inOutline || inOuterShadow
+                                ? [index]
+                                : [];
+                        }));
+                    };
                     const paintVisible = origin => {
                         let opacity = 1;
                         for (let current = origin;
@@ -2012,10 +2185,24 @@ def _summary_scope_observation(page) -> dict[str, object]:
                         }
                         materialPaintCandidates = {real, pseudo};
                     }
-                    const realCandidates = materialPaintCandidates.real.filter(
-                        origin => coversPoint(origin.getBoundingClientRect())
+                    const realCandidates = materialPaintCandidates.real.flatMap(origin => {
+                        const style = getComputedStyle(origin);
+                        const coverage = materialPaintCoverage(origin, style, false);
+                        return coverage.size > 0
+                            ? [{origin, coverage}]
+                            : [];
+                    });
+                    const pseudoCandidates = materialPaintCandidates.pseudo.flatMap(
+                        ([origin, pseudo]) => {
+                            const style = getComputedStyle(origin, pseudo);
+                            const coverage = materialPaintCoverage(
+                                origin, style, true
+                            );
+                            return coverage.size > 0
+                                ? [{origin, pseudo, coverage}]
+                                : [];
+                        }
                     );
-                    const pseudoCandidates = materialPaintCandidates.pseudo;
                     if (realCandidates.length === 0 && pseudoCandidates.length === 0) {
                         return true;
                     }
@@ -2050,11 +2237,30 @@ def _summary_scope_observation(page) -> dict[str, object]:
                             `${rawStyle}${separator}pointer-events:${value}!important;`
                         );
                     };
+                    const forceInlineProbeGeometry = candidate => {
+                        rememberInlineStyle(candidate);
+                        const rawStyle = candidate.getAttribute('style') || '';
+                        const separator = rawStyle.trim() &&
+                            !rawStyle.trimEnd().endsWith(';') ? ';' : '';
+                        candidate.setAttribute(
+                            'style',
+                            `${rawStyle}${separator}` +
+                            'pointer-events:auto!important;' +
+                            'position:fixed!important;inset:0!important;' +
+                            'width:auto!important;height:auto!important;' +
+                            'margin:0!important;transform:none!important;' +
+                            'box-sizing:border-box!important;border:0!important;' +
+                            'outline:0!important;box-shadow:none!important;' +
+                            'clip:auto!important;clip-path:none!important;'
+                        );
+                    };
                     let probeStyle = null;
                     try {
                         const pseudoOrigins = new Set();
                         const pseudoAttributes = [];
-                        for (const [origin, pseudo] of pseudoCandidates) {
+                        const pseudoProbes = [];
+                        for (const candidate of pseudoCandidates) {
+                            const {origin, pseudo} = candidate;
                             const attribute = pseudo === '::before'
                                 ? 'data-srcc-pointer-probe-before'
                                 : 'data-srcc-pointer-probe-after';
@@ -2065,6 +2271,7 @@ def _summary_scope_observation(page) -> dict[str, object]:
                                 origin.getAttribute(attribute),
                             ]);
                             pseudoAttributes.push([origin, attribute]);
+                            pseudoProbes.push([candidate, origin, attribute]);
                             origin.setAttribute(attribute, 'suppressed');
                             if (!pseudoOrigins.has(origin)) {
                                 pseudoOrigins.add(origin);
@@ -2094,6 +2301,18 @@ def _summary_scope_observation(page) -> dict[str, object]:
                                     ${boosted('data-srcc-pointer-probe-before', 'active')}::before,
                                     ${boosted('data-srcc-pointer-probe-after', 'active')}::after {
                                         pointer-events: auto !important;
+                                        position: fixed !important;
+                                        inset: 0 !important;
+                                        width: auto !important;
+                                        height: auto !important;
+                                        margin: 0 !important;
+                                        transform: none !important;
+                                        box-sizing: border-box !important;
+                                        border: 0 !important;
+                                        outline: 0 !important;
+                                        box-shadow: none !important;
+                                        clip: auto !important;
+                                        clip-path: none !important;
                                     }
                                 }
                             `;
@@ -2102,36 +2321,56 @@ def _summary_scope_observation(page) -> dict[str, object]:
                             );
                         }
                         const suppressedHits = pointHits();
-                        for (const [origin, attribute] of pseudoAttributes) {
+                        const confirmedPseudoCandidates = new Set();
+                        for (const [candidate, origin, attribute] of pseudoProbes) {
                             origin.setAttribute(attribute, 'active');
+                            const candidateHits = pointHits();
+                            if ([...candidate.coverage].some(index =>
+                                candidateHits[index] === candidate.origin &&
+                                candidateHits[index] !== suppressedHits[index]
+                            )) confirmedPseudoCandidates.add(candidate);
+                            origin.setAttribute(attribute, 'suppressed');
                         }
-                        const pseudoHits = pointHits();
-                        const pseudoCovered = pseudoHits.map((hit, index) =>
-                            hit && pseudoOrigins.has(hit) &&
-                            hit !== suppressedHits[index]
+                        const pseudoCovered = points.map((_, index) =>
+                            pseudoCandidates.some(candidate =>
+                                confirmedPseudoCandidates.has(candidate) &&
+                                candidate.coverage.has(index)
+                            )
                         );
                         for (const [origin, attribute] of pseudoAttributes) {
                             origin.setAttribute(attribute, 'inactive');
                         }
                         for (const origin of pseudoOrigins) restoreInlineStyle(origin);
+                        const confirmedRealCandidates = new Set();
                         for (const candidate of realCandidates) {
+                            const {origin} = candidate;
                             const attribute = 'data-srcc-pointer-probe-real';
                             attributeOriginals.push([
-                                candidate,
+                                origin,
                                 attribute,
-                                candidate.hasAttribute(attribute),
-                                candidate.getAttribute(attribute),
+                                origin.hasAttribute(attribute),
+                                origin.getAttribute(attribute),
                             ]);
-                            candidate.setAttribute(attribute, 'active');
-                            forceInlinePointerEvents(candidate, 'auto');
+                            origin.setAttribute(attribute, 'active');
+                            forceInlineProbeGeometry(origin);
+                            const candidateHits = pointHits();
+                            if ([...candidate.coverage].some(index =>
+                                candidateHits[index] === origin &&
+                                candidateHits[index] !== ordinaryHits[index]
+                            )) confirmedRealCandidates.add(candidate);
+                            restoreInlineStyle(origin);
+                            origin.setAttribute(attribute, 'inactive');
                         }
-                        const realHits = realCandidates.length > 0
-                            ? pointHits()
-                            : ordinaryHits;
+                        const realCovered = points.map((_, index) =>
+                            realCandidates.some(candidate =>
+                                confirmedRealCandidates.has(candidate) &&
+                                candidate.coverage.has(index)
+                            )
+                        );
                         const visibleEvidenceCount = evidenceIndexes.filter(index =>
                             !pseudoCovered[index] &&
-                            realHits[index] === ordinaryHits[index] &&
-                            isRelatedHit(realHits[index])
+                            !realCovered[index] &&
+                            isRelatedHit(ordinaryHits[index])
                         ).length;
                         return visibleEvidenceCount * 2 > evidenceIndexes.length;
                     } finally {

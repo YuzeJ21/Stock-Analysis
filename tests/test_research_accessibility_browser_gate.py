@@ -899,6 +899,103 @@ def test_actual_company_workbench_one_pager_in_app_contract():
         ".test-pointer-transparent-cover { position: fixed; inset: 0; background: transparent; box-shadow: inset 0 0 0 100vmax #fff; z-index: 2147483647; pointer-events: none; }",
         "body::after { content: ''; position: fixed; inset: 0; background: transparent; box-shadow: inset 0 0 0 100vmax #fff; z-index: 2147483647; pointer-events: none; }",
         """
+        /* tiny-outward-real-cover-current */
+        .test-tiny-outward-paint-cover {
+          display: block !important;
+          position: fixed;
+          left: 50vw;
+          top: 50vh;
+          width: 2px;
+          height: 2px;
+          box-sizing: border-box;
+          transform: translate(-50%, -50%);
+          z-index: 2147483647;
+          pointer-events: none;
+          background: transparent;
+          box-shadow: 0 0 0 100vmax #fff;
+        }
+        """,
+        """
+        /* tiny-outward-real-cover-below-fold */
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        .test-tiny-outward-paint-cover {
+          display: block !important;
+          position: fixed;
+          left: 50vw;
+          top: 50vh;
+          width: 2px;
+          height: 2px;
+          box-sizing: border-box;
+          transform: translate(-50%, -50%);
+          z-index: 2147483647;
+          pointer-events: none;
+          background: transparent;
+          border: 100vmax solid #fff;
+        }
+        """,
+        """
+        /* tiny-outward-required-pseudo-cover-current */
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state::after {
+          content: '';
+          position: fixed;
+          left: 50vw;
+          top: 50vh;
+          width: 2px;
+          height: 2px;
+          box-sizing: border-box;
+          transform: translate(-50%, -50%);
+          z-index: 2147483647;
+          pointer-events: none;
+          background: transparent;
+          outline: 100vmax solid #fff;
+          outline-offset: 0;
+        }
+        """,
+        """
+        /* tiny-outward-required-pseudo-cover-below-fold */
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state::after {
+          content: '';
+          position: fixed;
+          left: 50vw;
+          top: 50vh;
+          width: 2px;
+          height: 2px;
+          box-sizing: border-box;
+          transform: translate(-50%, -50%);
+          z-index: 2147483647;
+          pointer-events: none;
+          background: transparent;
+          box-shadow: 0 0 0 100vmax #fff;
+        }
+        """,
+        """
+        /* stacked-real-cover-below-tiny-decoration */
+        .test-pointer-transparent-cover {
+          position: fixed; inset: 0; z-index: 2147483646;
+          pointer-events: none; background: #fff;
+        }
+        .test-tiny-outward-paint-cover {
+          display: block !important; position: fixed;
+          left: 50vw; top: 50vh; width: 2px; height: 2px;
+          transform: translate(-50%, -50%); z-index: 2147483647;
+          pointer-events: none; background: #f0f;
+        }
+        """,
+        """
+        /* stacked-pseudo-cover-below-tiny-decoration */
+        body::before {
+          content: ''; position: fixed; inset: 0; z-index: 2147483646;
+          pointer-events: none; background: #fff;
+        }
+        [data-section="evidence-one-pager"] { position: relative; }
+        [data-section="evidence-one-pager"]::after {
+          content: ''; position: absolute; left: 0; top: 0;
+          width: 2px; height: 2px;
+          z-index: 2147483647; pointer-events: none; background: #f0f;
+        }
+        """,
+        """
         /* localized-required-node-covers */
         [data-section="evidence-one-pager"] .srcc-blockers {
           display: none !important;
@@ -1006,6 +1103,12 @@ def test_actual_company_workbench_one_pager_in_app_contract():
         "translucent-pointer-transparent-element-cover",
         "pointer-transparent-inset-box-shadow-cover",
         "pointer-transparent-inset-box-shadow-pseudo-cover",
+        "tiny-outward-real-cover-current",
+        "tiny-outward-real-cover-below-fold",
+        "tiny-outward-required-pseudo-cover-current",
+        "tiny-outward-required-pseudo-cover-below-fold",
+        "stacked-real-cover-below-tiny-decoration",
+        "stacked-pseudo-cover-below-tiny-decoration",
         "localized-required-node-covers",
         "localized-required-leaf-covers",
         "layered-important-real-cover",
@@ -1120,6 +1223,11 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
                             insideCover.setAttribute('aria-hidden', 'true');
                             insideCover.style.display = 'none';
                             onePager.prepend(insideCover);
+                            const outwardPaintCover = document.createElement('div');
+                            outwardPaintCover.className = 'test-tiny-outward-paint-cover';
+                            outwardPaintCover.setAttribute('aria-hidden', 'true');
+                            outwardPaintCover.style.display = 'none';
+                            onePager.prepend(outwardPaintCover);
                             const svgCover = document.createElementNS(
                                 'http://www.w3.org/2000/svg', 'svg'
                             );
@@ -1180,8 +1288,19 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
                                 '.test-pointer-transparent-cover, ' +
                                 '.test-layer-cover, ' +
                                 '.test-inside-pointer-transparent-cover, ' +
-                            '.test-pointer-transparent-svg-cover, ' +
-                            '.test-inline-style-cover'
+                                '.test-pointer-transparent-svg-cover, ' +
+                                '.test-inline-style-cover, ' +
+                                '.test-tiny-outward-paint-cover, ' +
+                                '[data-section="evidence-one-pager"], ' +
+                                '[data-section="one-pager-provenance"], ' +
+                                '[data-section="one-pager-provenance"] caption, ' +
+                                '[data-section="one-pager-provenance"] tbody td, ' +
+                                '[data-section="one-pager-provenance"] .srcc-blockers > li, ' +
+                                '[data-section="one-pager-scenarios"], ' +
+                                '[data-section="one-pager-scenarios"] .srcc-state, ' +
+                                '[data-section="one-pager-scenarios"] [data-share-basis-role], ' +
+                                '[data-section="one-pager-handoff"], ' +
+                                '[data-section="one-pager-handoff"] > p'
                         )].map(node => [
                             node.className?.baseVal || node.className || '',
                             node.hasAttribute('style'),

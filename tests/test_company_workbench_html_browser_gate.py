@@ -1272,6 +1272,70 @@ def _with_pointer_transparent_paint_cover(document, declarations):
     )
 
 
+def _with_tiny_outward_real_paint_cover(document, declarations, *, below_fold):
+    document = _replace_once(
+        document,
+        b'data-section="evidence-one-pager">',
+        (
+            b'data-section="evidence-one-pager">'
+            b'<div class="test-tiny-outward-paint-cover" aria-hidden="true"></div>'
+        ),
+    )
+    margin = ".srcc-one-pager { margin-top: 1000px !important; }" if below_fold else ""
+    return _append_test_css(
+        document,
+        f"""
+        @media screen {{
+          {margin}
+          .test-tiny-outward-paint-cover {{
+            position: fixed;
+            left: 50vw;
+            top: 50vh;
+            width: 2px;
+            height: 2px;
+            box-sizing: border-box;
+            transform: translate(-50%, -50%);
+            z-index: 2147483647;
+            pointer-events: none;
+            background: transparent;
+            {declarations}
+          }}
+        }}
+        """,
+    )
+
+
+def _with_tiny_outward_required_pseudo_cover(
+    document,
+    declarations,
+    *,
+    below_fold,
+):
+    margin = ".srcc-one-pager { margin-top: 1000px !important; }" if below_fold else ""
+    return _append_test_css(
+        document,
+        f"""
+        @media screen {{
+          {margin}
+          [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state::after {{
+            content: '';
+            position: fixed;
+            left: 50vw;
+            top: 50vh;
+            width: 2px;
+            height: 2px;
+            box-sizing: border-box;
+            transform: translate(-50%, -50%);
+            z-index: 2147483647;
+            pointer-events: none;
+            background: transparent;
+            {declarations}
+          }}
+        }}
+        """,
+    )
+
+
 @pytest.mark.parametrize(
     "document",
     (
@@ -1763,6 +1827,76 @@ def test_summary_browser_collector_contract_rejects_pointer_transparent_material
     }
 
 
+@pytest.mark.parametrize(
+    "declarations",
+    (
+        "box-shadow: 0 0 0 100vmax #fff;",
+        "border: 100vmax solid #fff;",
+        "outline: 100vmax solid #fff; outline-offset: 0;",
+    ),
+    ids=("outward-shadow", "outward-border", "outward-outline"),
+)
+@pytest.mark.parametrize("below_fold", (False, True), ids=("current", "below-fold"))
+def test_summary_browser_collector_contract_rejects_tiny_real_outward_paint_footprint(
+    declarations,
+    below_fold,
+):
+    result = _run_summary_cell(
+        _with_tiny_outward_real_paint_cover(
+            _synthetic_brief("complete"),
+            declarations,
+            below_fold=below_fold,
+        )
+    )
+    failures = _failed_assertion_names(result)
+    expected = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected <= failures, {
+        "missing": sorted(expected - failures),
+        "observed_failures": sorted(failures),
+    }
+
+
+@pytest.mark.parametrize(
+    "declarations",
+    (
+        "box-shadow: 0 0 0 100vmax #fff;",
+        "border: 100vmax solid #fff;",
+        "outline: 100vmax solid #fff; outline-offset: 0;",
+    ),
+    ids=("outward-shadow", "outward-border", "outward-outline"),
+)
+@pytest.mark.parametrize("below_fold", (False, True), ids=("current", "below-fold"))
+def test_summary_browser_collector_contract_rejects_tiny_required_pseudo_outward_paint_footprint(
+    declarations,
+    below_fold,
+):
+    result = _run_summary_cell(
+        _with_tiny_outward_required_pseudo_cover(
+            _synthetic_brief("complete"),
+            declarations,
+            below_fold=below_fold,
+        )
+    )
+    failures = _failed_assertion_names(result)
+    expected = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected <= failures, {
+        "missing": sorted(expected - failures),
+        "observed_failures": sorted(failures),
+    }
+
+
 def test_summary_browser_collector_contract_accepts_zero_paint_pointer_layers():
     document = _append_test_css(
         _replace_once(
@@ -1864,6 +1998,71 @@ def test_summary_browser_collector_contract_accepts_a_small_pointer_decoration()
     assert expected_green.isdisjoint(failures), sorted(failures)
 
 
+@pytest.mark.parametrize("candidate_type", ("real", "pseudo"))
+def test_summary_browser_collector_contract_rejects_full_cover_below_tiny_decoration(
+    candidate_type,
+):
+    document = _synthetic_brief("complete")
+    if candidate_type == "real":
+        document = _replace_once(
+            document,
+            b"</body>",
+            (
+                b'<div class="test-stacked-full-cover" aria-hidden="true"></div>'
+                b"</body>"
+            ),
+        )
+        document = _replace_once(
+            document,
+            b'data-section="evidence-one-pager">',
+            (
+                b'data-section="evidence-one-pager">'
+                b'<div class="test-stacked-tiny-decoration" aria-hidden="true"></div>'
+            ),
+        )
+        css = """
+        @media screen {
+          .test-stacked-full-cover {
+            position: fixed; inset: 0; z-index: 2147483646;
+            pointer-events: none; background: #fff;
+          }
+          .test-stacked-tiny-decoration {
+            position: fixed; left: 50vw; top: 50vh; width: 2px; height: 2px;
+            transform: translate(-50%, -50%); z-index: 2147483647;
+            pointer-events: none; background: #f0f;
+          }
+        }
+        """
+    else:
+        css = """
+        @media screen {
+          body::before {
+            content: ''; position: fixed; inset: 0; z-index: 2147483646;
+            pointer-events: none; background: #fff;
+          }
+          .srcc-one-pager { position: relative; }
+          .srcc-one-pager::after {
+            content: ''; position: absolute; left: 0; top: 0;
+            width: 2px; height: 2px;
+            z-index: 2147483647; pointer-events: none; background: #f0f;
+          }
+        }
+        """
+    result = _run_summary_cell(_append_test_css(document, css))
+    failures = _failed_assertion_names(result)
+    expected = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected <= failures, {
+        "missing": sorted(expected - failures),
+        "observed_failures": sorted(failures),
+    }
+
+
 @pytest.mark.parametrize(
     "declarations",
     (
@@ -1897,6 +2096,107 @@ def test_summary_browser_collector_contract_accepts_non_occluding_edge_paint(
         declarations,
     )
 
+    result = _run_summary_cell(document)
+    failures = _failed_assertion_names(result)
+    expected_green = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected_green.isdisjoint(failures), sorted(failures)
+
+
+@pytest.mark.parametrize(
+    "declarations",
+    (
+        "box-shadow: 0 0 0 100vmax rgba(255, 255, 255, 0);",
+        "border: 100vmax solid rgba(255, 255, 255, 0);",
+        "outline: 100vmax solid rgba(255, 255, 255, 0); outline-offset: 0;",
+        "box-shadow: 0 0 0 1px #fff;",
+        "border: 1px solid #fff;",
+        "outline: 1px solid #fff; outline-offset: 0;",
+    ),
+    ids=(
+        "transparent-outward-shadow",
+        "transparent-outward-border",
+        "transparent-outward-outline",
+        "tiny-outward-shadow",
+        "tiny-outward-border",
+        "tiny-outward-outline",
+    ),
+)
+def test_summary_browser_collector_contract_accepts_non_occluding_tiny_outward_paint(
+    declarations,
+):
+    result = _run_summary_cell(
+        _with_tiny_outward_real_paint_cover(
+            _synthetic_brief("complete"),
+            declarations,
+            below_fold=False,
+        )
+    )
+    failures = _failed_assertion_names(result)
+    expected_green = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected_green.isdisjoint(failures), sorted(failures)
+
+
+def test_summary_browser_collector_contract_rejects_outward_paint_with_base_off_viewport():
+    document = _append_test_css(
+        _with_tiny_outward_real_paint_cover(
+            _synthetic_brief("complete"),
+            "box-shadow: 0 0 0 100vmax #fff;",
+            below_fold=False,
+        ),
+        """
+        @media screen {
+          .test-tiny-outward-paint-cover {
+            left: -3px;
+            top: 50vh;
+            transform: none;
+          }
+        }
+        """,
+    )
+    result = _run_summary_cell(document)
+    failures = _failed_assertion_names(result)
+    expected = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected <= failures, {
+        "missing": sorted(expected - failures),
+        "observed_failures": sorted(failures),
+    }
+
+
+def test_summary_browser_collector_contract_accepts_outward_border_painted_off_summary():
+    document = _append_test_css(
+        _with_tiny_outward_real_paint_cover(
+            _synthetic_brief("complete"),
+            "border: 100vmax solid #fff;",
+            below_fold=False,
+        ),
+        """
+        @media screen {
+          .test-tiny-outward-paint-cover {
+            left: calc(100vw - 1px);
+            top: calc(100vh - 1px);
+            transform: none;
+          }
+        }
+        """,
+    )
     result = _run_summary_cell(document)
     failures = _failed_assertion_names(result)
     expected_green = {
