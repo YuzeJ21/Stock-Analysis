@@ -224,18 +224,27 @@ def safe_html_brief_reference(value: object) -> HtmlBriefSafeReference:
         candidate = value
     href = ""
     if isinstance(candidate, str) and not any(unicodedata.category(char) == "Cc" for char in candidate) and not _SECRET_PATTERN.search(candidate):
-        parsed = urlparse(candidate.strip())
-        decoded_path = parsed.path
-        for _ in range(2):
-            decoded_path = unquote(decoded_path)
-        path_segments = tuple(segment.strip().lower() for segment in decoded_path.split("/") if segment.strip())
-        sensitive_pair = any(
-            segment in _SENSITIVE_PATH_SEGMENTS and index + 1 < len(path_segments)
-            for index, segment in enumerate(path_segments)
-        )
-        unsafe_path = decoded_path.startswith(("/Users/", "/private/", "/tmp/")) or ".." in decoded_path or "\\" in decoded_path or sensitive_pair
-        if parsed.scheme == "https" and parsed.hostname and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment and not unsafe_path:
-            href = candidate.strip()
+        try:
+            parsed = urlparse(candidate.strip())
+            parsed_port = parsed.port
+            authority_is_safe = (
+                (parsed_port is None or parsed_port > 0)
+                and not any(char.isspace() for char in parsed.netloc)
+                and "%" not in parsed.netloc
+            )
+            decoded_path = parsed.path
+            for _ in range(2):
+                decoded_path = unquote(decoded_path)
+            path_segments = tuple(segment.strip().lower() for segment in decoded_path.split("/") if segment.strip())
+            sensitive_pair = any(
+                segment in _SENSITIVE_PATH_SEGMENTS and index + 1 < len(path_segments)
+                for index, segment in enumerate(path_segments)
+            )
+            unsafe_path = decoded_path.startswith(("/Users/", "/private/", "/tmp/")) or ".." in decoded_path or "\\" in decoded_path or sensitive_pair
+            if parsed.scheme == "https" and parsed.hostname and authority_is_safe and not parsed.username and not parsed.password and not parsed.query and not parsed.fragment and not unsafe_path:
+                href = candidate.strip()
+        except ValueError:
+            href = ""
     return HtmlBriefSafeReference(label, href)
 
 
@@ -1284,7 +1293,7 @@ def _html_evidence_one_pager(
             value_state, displayed_value = _html_one_pager_numeric_display(
                 value,
                 state,
-                currency=base.bridge.currency,
+                currency="" if key == "supplied-shares" else base.bridge.currency,
             )
             bridge_rows.append(
                 '<tr '

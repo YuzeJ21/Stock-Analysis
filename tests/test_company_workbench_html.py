@@ -243,6 +243,38 @@ def test_snapshot_withholds_mixed_valid_and_unsafe_change_references(unsafe_ref)
     assert changed.title == "No portable change answer."
 
 
+@pytest.mark.parametrize(
+    "malformed_ref",
+    (
+        "https://[bad]/x",
+        "https://[::1",
+        "https://example.com:bad/x",
+        "https://example.com:99999/x",
+        "https://exa mple.com/x",
+        "https://exa%20mple.com/x",
+    ),
+)
+def test_snapshot_withholds_malformed_https_change_references_without_raising(
+    malformed_ref,
+):
+    changed = build_company_workbench_html_snapshot(
+        _inputs(
+            change_answer=_change(
+                source_refs=("https://sec.example/change", malformed_ref)
+            )
+        )
+    ).answers[2]
+
+    assert changed.state == "withheld"
+    assert changed.source_refs == ()
+    assert changed.title == "No portable change answer."
+    assert changed.body == "No scoped saved change answer is available."
+    assert changed.badges == ()
+    assert changed.blockers == (
+        "Portable change content, workflow state, or reference is unsafe.",
+    )
+
+
 def _base(snapshot):
     return next(row for row in snapshot.scenarios if row.name == "Base")
 
@@ -2296,6 +2328,53 @@ def test_evidence_one_pager_preserves_share_basis_state_without_using_it_as_gate
     )
     assert html_brief.format_html_brief_number(31415.92) in rendered
     assert rendered.count("Share basis state: unverified") >= 3
+
+
+def test_evidence_one_pager_formats_shares_as_unitless_without_changing_currency_rows():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = replace(
+        snapshot,
+        scenarios=tuple(
+            replace(
+                scenario,
+                bridge=replace(
+                    scenario.bridge,
+                    explicit_total_state="available",
+                    equity_state="available",
+                    per_share_state="available",
+                    discounted_explicit_total=112233.0,
+                    cash=223344.0,
+                    debt=334455.0,
+                    shares_outstanding=445566.0,
+                    currency="USD",
+                ),
+            )
+            if scenario.name == "Base"
+            else scenario
+            for scenario in snapshot.scenarios
+        ),
+    )
+
+    nodes = _one_pager_state_nodes(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    shares = nodes["operating-valuation-base-bridge-supplied-shares"]["text"]
+    assert "445,566.00" in shares
+    assert "USD" not in shares
+    assert "USD 112,233.00" in nodes[
+        "operating-valuation-base-bridge-discounted-explicit-total"
+    ]["text"]
+    assert "USD 223,344.00" in nodes[
+        "operating-valuation-base-bridge-cash"
+    ]["text"]
+    assert "USD 334,455.00" in nodes[
+        "operating-valuation-base-bridge-debt"
+    ]["text"]
+    assert (
+        '<th scope="row">Shares outstanding used by existing model</th>'
+        "<td>USD 445,566.00</td>"
+        in html_brief.render_company_workbench_html_fragment(changed)
+    )
 
 
 def test_share_basis_state_cannot_override_withheld_per_share_gate():
