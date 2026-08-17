@@ -874,12 +874,47 @@ def test_actual_company_workbench_one_pager_in_app_contract():
         [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
         body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: auto; }
         """,
+        "body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }",
+        """
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+        """,
+        ".test-pointer-transparent-cover { position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }",
+        """
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        .test-pointer-transparent-cover { position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+        """,
+        "body::before { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }",
+        """
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        body::before { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+        """,
+        "body::after { content: ''; position: fixed; left: -100vw; top: 0; width: 100vw; height: 100vh; transform: translateX(100vw); background: #fff; z-index: 2147483647; pointer-events: none; }",
+        "body.srcc-pointer-cover-origin::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none !important; }",
+        ".test-inside-pointer-transparent-cover { display: block !important; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }",
+        "[data-section=\"evidence-one-pager\"]::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }",
+        ".test-pointer-transparent-svg-cover { display: block !important; position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 2147483647; pointer-events: none; }",
+        ".test-inline-style-cover { display: block !important; }",
+        ".test-pointer-transparent-cover { position: fixed; inset: 0; background: rgba(255, 255, 255, .98); z-index: 2147483647; pointer-events: none; }",
     ),
     ids=(
         "clip-path",
         "fixed-above-document",
         "opaque-fixed-cover",
         "scroll-reachable-under-fixed-cover",
+        "pointer-transparent-opaque-cover",
+        "scroll-reachable-under-pointer-transparent-cover",
+        "pointer-transparent-element-cover",
+        "scroll-reachable-under-pointer-transparent-element-cover",
+        "pointer-transparent-before-cover",
+        "scroll-reachable-under-pointer-transparent-before-cover",
+        "transformed-pointer-transparent-pseudo-cover",
+        "important-pointer-transparent-pseudo-cover",
+        "inside-pointer-transparent-element-cover",
+        "inside-pointer-transparent-pseudo-cover",
+        "pointer-transparent-svg-cover",
+        "pointer-transparent-inline-style-restoration",
+        "translucent-pointer-transparent-element-cover",
     ),
 )
 def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_with_outside_blockers(
@@ -967,10 +1002,49 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
                             const style = document.createElement('style');
                             style.textContent = css;
                             document.head.appendChild(style);
+                            document.body.classList.add('srcc-pointer-cover-origin');
                             const outside = document.createElement('div');
                             outside.className = 'srcc-blockers';
                             outside.textContent = 'Outside summary blockers must not count.';
                             document.body.appendChild(outside);
+                            const cover = document.createElement('div');
+                            cover.className = 'test-pointer-transparent-cover';
+                            cover.setAttribute('aria-hidden', 'true');
+                            document.body.appendChild(cover);
+                            const onePager = document.querySelector(
+                                '[data-section="evidence-one-pager"]'
+                            );
+                            const insideCover = document.createElement('div');
+                            insideCover.className = 'test-inside-pointer-transparent-cover';
+                            insideCover.setAttribute('aria-hidden', 'true');
+                            insideCover.style.display = 'none';
+                            onePager.prepend(insideCover);
+                            const svgCover = document.createElementNS(
+                                'http://www.w3.org/2000/svg', 'svg'
+                            );
+                            svgCover.setAttribute('class', 'test-pointer-transparent-svg-cover');
+                            svgCover.setAttribute('aria-hidden', 'true');
+                            svgCover.setAttribute('viewBox', '0 0 1 1');
+                            svgCover.style.display = 'none';
+                            const rect = document.createElementNS(
+                                'http://www.w3.org/2000/svg', 'rect'
+                            );
+                            rect.setAttribute('width', '1');
+                            rect.setAttribute('height', '1');
+                            rect.setAttribute('fill', '#fff');
+                            svgCover.appendChild(rect);
+                            document.body.appendChild(svgCover);
+                            const inlineCover = document.createElement('div');
+                            inlineCover.className = 'test-inline-style-cover';
+                            inlineCover.setAttribute('aria-hidden', 'true');
+                            inlineCover.setAttribute(
+                                'data-srcc-pointer-probe-real', 'preserve'
+                            );
+                            inlineCover.setAttribute(
+                                'style',
+                                'display:none; pointer-events:none!important; POSITION:fixed; inset:0; background:#fff; z-index:2147483647'
+                            );
+                            document.body.appendChild(inlineCover);
                         }""",
                         mutation_css,
                     )
@@ -994,6 +1068,35 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
                             ),
                     })"""
                     scroll_state_before = page.evaluate(scroll_state_script)
+                    probe_state_script = """() => ({
+                        active: [
+                            document.activeElement?.tagName || '',
+                            document.activeElement?.id || '',
+                            document.activeElement?.className || '',
+                        ],
+                        style_count: document.querySelectorAll('style').length,
+                        candidate_styles: [...document.querySelectorAll(
+                            '.test-pointer-transparent-cover, ' +
+                            '.test-inside-pointer-transparent-cover, ' +
+                            '.test-pointer-transparent-svg-cover, ' +
+                            '.test-inline-style-cover'
+                        )].map(node => [
+                            node.className?.baseVal || node.className || '',
+                            node.hasAttribute('style'),
+                            node.getAttribute('style'),
+                        ]),
+                        probe_attributes: [...document.querySelectorAll('*')]
+                            .filter(node => [...node.attributes].some(attribute =>
+                                attribute.name.startsWith('data-srcc-pointer-probe-')
+                            ))
+                            .map(node => [...node.attributes]
+                                .filter(attribute => attribute.name.startsWith(
+                                    'data-srcc-pointer-probe-'
+                                ))
+                                .map(attribute => [attribute.name, attribute.value])
+                            ),
+                    })"""
+                    probe_state_before = page.evaluate(probe_state_script)
                     outside_visible = page.locator(
                         "body > .srcc-blockers:visible"
                     ).count()
@@ -1001,12 +1104,34 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
                         page
                     )
                     scroll_state_after = page.evaluate(scroll_state_script)
+                    probe_state_after = page.evaluate(probe_state_script)
                 finally:
                     context.close()
 
     assert external_requests == []
     assert outside_visible == 1
     assert scroll_state_after == scroll_state_before
+    assert probe_state_after == probe_state_before, {
+        "style_differences": [
+            (before, after)
+            for before, after in zip(
+                probe_state_before["candidate_styles"],
+                probe_state_after["candidate_styles"],
+                strict=True,
+            )
+            if before != after
+        ],
+        "other_before": {
+            key: value
+            for key, value in probe_state_before.items()
+            if key != "candidate_styles"
+        },
+        "other_after": {
+            key: value
+            for key, value in probe_state_after.items()
+            if key != "candidate_styles"
+        },
+    }
     assert (
         observation["one_pager_visible"] is False
         and observation["one_pager_visible_count"] == 0

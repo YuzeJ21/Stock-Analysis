@@ -1746,12 +1746,200 @@ def _summary_scope_observation(page) -> dict[str, object]:
                         [viewportLeft + 0.5, viewportBottom - 0.5],
                         [viewportRight - 0.5, viewportBottom - 0.5],
                     ];
-                    return points.some(([x, y]) => {
-                        const hit = document.elementFromPoint(x, y);
-                        return hit && (
-                            hit === node || node.contains(hit)
+                    const pointKeys = new Set(points.map(([x, y]) => `${x}:${y}`));
+                    for (const descendant of node.querySelectorAll('*')) {
+                        if (points.length >= 37) break;
+                        const descendantRect = descendant.getBoundingClientRect();
+                        const descendantLeft = Math.max(viewportLeft, descendantRect.left);
+                        const descendantRight = Math.min(viewportRight, descendantRect.right);
+                        const descendantTop = Math.max(viewportTop, descendantRect.top);
+                        const descendantBottom = Math.min(viewportBottom, descendantRect.bottom);
+                        if (descendantRight - descendantLeft <= 1 ||
+                            descendantBottom - descendantTop <= 1) continue;
+                        const x = (descendantLeft + descendantRight) / 2;
+                        const y = (descendantTop + descendantBottom) / 2;
+                        const key = `${x}:${y}`;
+                        if (pointKeys.has(key)) continue;
+                        pointKeys.add(key);
+                        points.push([x, y]);
+                    }
+                    const isRelatedHit = hit => hit && (
+                        hit === node || node.contains(hit)
+                    );
+                    const pointHits = () => points.map(([x, y]) =>
+                        document.elementFromPoint(x, y)
+                    );
+                    const ordinaryHits = pointHits();
+                    const ordinaryHit = ordinaryHits.some(isRelatedHit);
+                    if (!ordinaryHit || node !== onePager) return ordinaryHit;
+                    const relatedIndexes = ordinaryHits.flatMap((hit, index) =>
+                        isRelatedHit(hit) ? [index] : []
+                    );
+                    const descendantIndexes = relatedIndexes.filter(index =>
+                        ordinaryHits[index] !== node
+                    );
+                    const evidenceIndexes = descendantIndexes.length > 0
+                        ? descendantIndexes
+                        : relatedIndexes;
+                    const colorAlpha = value => {
+                        const values = String(value || '').match(/[0-9.]+/g) || [];
+                        if (values.length < 3) return 0;
+                        const alpha = values.length > 3 ? Number(values[3]) : 1;
+                        return Number.isFinite(alpha) ? alpha : 0;
+                    };
+                    const imageHasMaterialPaint = value => {
+                        if (!value || value === 'none') return false;
+                        const colors = String(value).match(
+                            /rgba?\([^)]*\)|transparent/gi
+                        ) || [];
+                        if (colors.length === 0) return true;
+                        return colors.some(color =>
+                            color.toLowerCase() !== 'transparent' &&
+                            colorAlpha(color) > 0.01
                         );
-                    });
+                    };
+                    const svgHasMaterialPaint = origin => origin.matches('svg') &&
+                        [...origin.querySelectorAll('*')].some(descendant => {
+                            const style = getComputedStyle(descendant);
+                            const opacity = Number.parseFloat(style.opacity || '1');
+                            const fillOpacity = Number.parseFloat(
+                                style.fillOpacity || '1'
+                            );
+                            const strokeOpacity = Number.parseFloat(
+                                style.strokeOpacity || '1'
+                            );
+                            return Number.isFinite(opacity) && opacity > 0.01 && (
+                                Number.isFinite(fillOpacity) && fillOpacity > 0.01 &&
+                                    colorAlpha(style.fill) > 0.01 ||
+                                Number.isFinite(strokeOpacity) && strokeOpacity > 0.01 &&
+                                    colorAlpha(style.stroke) > 0.01
+                            );
+                        });
+                    const hasMaterialPaint = (origin, style, pseudo = false) => {
+                        const opacity = Number.parseFloat(style.opacity || '1');
+                        return Number.isFinite(opacity) && opacity > 0.01 && (
+                            colorAlpha(style.backgroundColor) > 0.01 ||
+                            imageHasMaterialPaint(style.backgroundImage) ||
+                            (!pseudo && (
+                                origin.matches('img, video, canvas') ||
+                                svgHasMaterialPaint(origin)
+                            ))
+                        );
+                    };
+                    const coversPoint = rect => rect && rect.width > 1 && rect.height > 1 &&
+                        points.some(([x, y]) => x >= rect.left && x <= rect.right &&
+                            y >= rect.top && y <= rect.bottom);
+                    const paintVisible = origin => {
+                        let opacity = 1;
+                        for (let current = origin;
+                            current instanceof Element;
+                            current = current.parentElement) {
+                            const style = getComputedStyle(current);
+                            const currentOpacity = Number.parseFloat(style.opacity || '1');
+                            if (style.display === 'none' || style.visibility !== 'visible' ||
+                                style.contentVisibility === 'hidden' ||
+                                !Number.isFinite(currentOpacity)) return false;
+                            opacity *= currentOpacity;
+                        }
+                        return opacity > 0.01;
+                    };
+                    const realCandidates = [];
+                    const pseudoCandidates = [];
+                    for (const origin of document.querySelectorAll('*')) {
+                        if (!paintVisible(origin)) continue;
+                        const style = getComputedStyle(origin);
+                        if (style.pointerEvents === 'none' &&
+                            hasMaterialPaint(origin, style) &&
+                            coversPoint(origin.getBoundingClientRect())) {
+                            realCandidates.push(origin);
+                        }
+                        for (const pseudo of ['::before', '::after']) {
+                            const pseudoStyle = getComputedStyle(origin, pseudo);
+                            if (pseudoStyle.pointerEvents !== 'none' ||
+                                ['none', 'normal'].includes(pseudoStyle.content) ||
+                                !hasMaterialPaint(origin, pseudoStyle, true)) continue;
+                            pseudoCandidates.push([origin, pseudo]);
+                        }
+                    }
+                    if (realCandidates.length === 0 && pseudoCandidates.length === 0) {
+                        return true;
+                    }
+                    const attributeOriginals = [];
+                    const inlineStyleOriginals = [];
+                    let probeStyle = null;
+                    try {
+                        for (const candidate of realCandidates) {
+                            const attribute = 'data-srcc-pointer-probe-real';
+                            attributeOriginals.push([
+                                candidate,
+                                attribute,
+                                candidate.hasAttribute(attribute),
+                                candidate.getAttribute(attribute),
+                            ]);
+                            candidate.setAttribute(attribute, 'active');
+                            if (candidate.style.getPropertyPriority(
+                                'pointer-events'
+                            ) === 'important') {
+                                inlineStyleOriginals.push([
+                                    candidate,
+                                    candidate.hasAttribute('style'),
+                                    candidate.getAttribute('style'),
+                                ]);
+                                candidate.style.setProperty(
+                                    'pointer-events', 'auto', 'important'
+                                );
+                            }
+                        }
+                        for (const [origin, pseudo] of pseudoCandidates) {
+                            const attribute = pseudo === '::before'
+                                ? 'data-srcc-pointer-probe-before'
+                                : 'data-srcc-pointer-probe-after';
+                            attributeOriginals.push([
+                                origin,
+                                attribute,
+                                origin.hasAttribute(attribute),
+                                origin.getAttribute(attribute),
+                            ]);
+                            origin.setAttribute(attribute, 'active');
+                        }
+                        if (realCandidates.length > 0 || pseudoCandidates.length > 0) {
+                            const boosted = attribute => Array.from(
+                                {length: 8},
+                                (_, index) => `:is(
+                                    #srcc-pointer-probe-${index},
+                                    [${attribute}="active"]
+                                )`
+                            ).join('');
+                            probeStyle = document.createElement('style');
+                            probeStyle.textContent = `
+                                ${boosted('data-srcc-pointer-probe-real')} {
+                                    pointer-events: auto !important;
+                                }
+                                ${boosted('data-srcc-pointer-probe-before')}::before,
+                                ${boosted('data-srcc-pointer-probe-after')}::after {
+                                    pointer-events: auto !important;
+                                }
+                            `;
+                            document.head.appendChild(probeStyle);
+                        }
+                        const probedHits = pointHits();
+                        return evidenceIndexes.some(index =>
+                            probedHits[index] === ordinaryHits[index] &&
+                            isRelatedHit(probedHits[index])
+                        );
+                    } finally {
+                        probeStyle?.remove();
+                        for (const [origin, attribute, hadAttribute, value] of
+                            attributeOriginals.reverse()) {
+                            if (hadAttribute) origin.setAttribute(attribute, value);
+                            else origin.removeAttribute(attribute);
+                        }
+                        for (const [candidate, hadStyle, value] of
+                            inlineStyleOriginals) {
+                            if (hadStyle) candidate.setAttribute('style', value);
+                            else candidate.removeAttribute('style');
+                        }
+                    }
                 };
                 if (hitTestEligible) return strictCurrentHitTest();
                 const scrollPositions = [];
@@ -2177,12 +2365,201 @@ def _summary_forced_colors_cues(page) -> bool:
                             [viewportLeft + 0.5, viewportBottom - 0.5],
                             [viewportRight - 0.5, viewportBottom - 0.5],
                         ];
-                        return points.some(([x, y]) => {
-                            const hit = document.elementFromPoint(x, y);
-                            return hit && (
-                                hit === node || node.contains(hit)
+                        const pointKeys = new Set(points.map(([x, y]) => `${x}:${y}`));
+                        for (const descendant of node.querySelectorAll('*')) {
+                            if (points.length >= 37) break;
+                            const descendantRect = descendant.getBoundingClientRect();
+                            const descendantLeft = Math.max(viewportLeft, descendantRect.left);
+                            const descendantRight = Math.min(viewportRight, descendantRect.right);
+                            const descendantTop = Math.max(viewportTop, descendantRect.top);
+                            const descendantBottom = Math.min(viewportBottom, descendantRect.bottom);
+                            if (descendantRight - descendantLeft <= 1 ||
+                                descendantBottom - descendantTop <= 1) continue;
+                            const x = (descendantLeft + descendantRight) / 2;
+                            const y = (descendantTop + descendantBottom) / 2;
+                            const key = `${x}:${y}`;
+                            if (pointKeys.has(key)) continue;
+                            pointKeys.add(key);
+                            points.push([x, y]);
+                        }
+                        const isRelatedHit = hit => hit && (
+                            hit === node || node.contains(hit)
+                        );
+                        const pointHits = () => points.map(([x, y]) =>
+                            document.elementFromPoint(x, y)
+                        );
+                        const ordinaryHits = pointHits();
+                        const ordinaryHit = ordinaryHits.some(isRelatedHit);
+                        if (!ordinaryHit || node !== root) return ordinaryHit;
+                        const relatedIndexes = ordinaryHits.flatMap((hit, index) =>
+                            isRelatedHit(hit) ? [index] : []
+                        );
+                        const descendantIndexes = relatedIndexes.filter(index =>
+                            ordinaryHits[index] !== node
+                        );
+                        const evidenceIndexes = descendantIndexes.length > 0
+                            ? descendantIndexes
+                            : relatedIndexes;
+                        const colorAlpha = value => {
+                            const values = String(value || '').match(/[0-9.]+/g) || [];
+                            if (values.length < 3) return 0;
+                            const alpha = values.length > 3 ? Number(values[3]) : 1;
+                            return Number.isFinite(alpha) ? alpha : 0;
+                        };
+                        const imageHasMaterialPaint = value => {
+                            if (!value || value === 'none') return false;
+                            const colors = String(value).match(
+                                /rgba?\([^)]*\)|transparent/gi
+                            ) || [];
+                            if (colors.length === 0) return true;
+                            return colors.some(color =>
+                                color.toLowerCase() !== 'transparent' &&
+                                colorAlpha(color) > 0.01
                             );
-                        });
+                        };
+                        const svgHasMaterialPaint = origin => origin.matches('svg') &&
+                            [...origin.querySelectorAll('*')].some(descendant => {
+                                const style = getComputedStyle(descendant);
+                                const opacity = Number.parseFloat(style.opacity || '1');
+                                const fillOpacity = Number.parseFloat(
+                                    style.fillOpacity || '1'
+                                );
+                                const strokeOpacity = Number.parseFloat(
+                                    style.strokeOpacity || '1'
+                                );
+                                return Number.isFinite(opacity) && opacity > 0.01 && (
+                                    Number.isFinite(fillOpacity) && fillOpacity > 0.01 &&
+                                        colorAlpha(style.fill) > 0.01 ||
+                                    Number.isFinite(strokeOpacity) &&
+                                        strokeOpacity > 0.01 &&
+                                        colorAlpha(style.stroke) > 0.01
+                                );
+                            });
+                        const hasMaterialPaint = (origin, style, pseudo = false) => {
+                            const opacity = Number.parseFloat(style.opacity || '1');
+                            return Number.isFinite(opacity) && opacity > 0.01 && (
+                                colorAlpha(style.backgroundColor) > 0.01 ||
+                                imageHasMaterialPaint(style.backgroundImage) ||
+                                (!pseudo && (
+                                    origin.matches('img, video, canvas') ||
+                                    svgHasMaterialPaint(origin)
+                                ))
+                            );
+                        };
+                        const coversPoint = rect => rect && rect.width > 1 && rect.height > 1 &&
+                            points.some(([x, y]) => x >= rect.left && x <= rect.right &&
+                                y >= rect.top && y <= rect.bottom);
+                        const paintVisible = origin => {
+                            let opacity = 1;
+                            for (let current = origin;
+                                current instanceof Element;
+                                current = current.parentElement) {
+                                const style = getComputedStyle(current);
+                                const currentOpacity = Number.parseFloat(style.opacity || '1');
+                                if (style.display === 'none' || style.visibility !== 'visible' ||
+                                    style.contentVisibility === 'hidden' ||
+                                    !Number.isFinite(currentOpacity)) return false;
+                                opacity *= currentOpacity;
+                            }
+                            return opacity > 0.01;
+                        };
+                        const realCandidates = [];
+                        const pseudoCandidates = [];
+                        for (const origin of document.querySelectorAll('*')) {
+                            if (!paintVisible(origin)) continue;
+                            const style = getComputedStyle(origin);
+                            if (style.pointerEvents === 'none' &&
+                                hasMaterialPaint(origin, style) &&
+                                coversPoint(origin.getBoundingClientRect())) {
+                                realCandidates.push(origin);
+                            }
+                            for (const pseudo of ['::before', '::after']) {
+                                const pseudoStyle = getComputedStyle(origin, pseudo);
+                                if (pseudoStyle.pointerEvents !== 'none' ||
+                                    ['none', 'normal'].includes(pseudoStyle.content) ||
+                                    !hasMaterialPaint(origin, pseudoStyle, true)) continue;
+                                pseudoCandidates.push([origin, pseudo]);
+                            }
+                        }
+                        if (realCandidates.length === 0 && pseudoCandidates.length === 0) {
+                            return true;
+                        }
+                        const attributeOriginals = [];
+                        const inlineStyleOriginals = [];
+                        let probeStyle = null;
+                        try {
+                            for (const candidate of realCandidates) {
+                                const attribute = 'data-srcc-pointer-probe-real';
+                                attributeOriginals.push([
+                                    candidate,
+                                    attribute,
+                                    candidate.hasAttribute(attribute),
+                                    candidate.getAttribute(attribute),
+                                ]);
+                                candidate.setAttribute(attribute, 'active');
+                                if (candidate.style.getPropertyPriority(
+                                    'pointer-events'
+                                ) === 'important') {
+                                    inlineStyleOriginals.push([
+                                        candidate,
+                                        candidate.hasAttribute('style'),
+                                        candidate.getAttribute('style'),
+                                    ]);
+                                    candidate.style.setProperty(
+                                        'pointer-events', 'auto', 'important'
+                                    );
+                                }
+                            }
+                            for (const [origin, pseudo] of pseudoCandidates) {
+                                const attribute = pseudo === '::before'
+                                    ? 'data-srcc-pointer-probe-before'
+                                    : 'data-srcc-pointer-probe-after';
+                                attributeOriginals.push([
+                                    origin,
+                                    attribute,
+                                    origin.hasAttribute(attribute),
+                                    origin.getAttribute(attribute),
+                                ]);
+                                origin.setAttribute(attribute, 'active');
+                            }
+                            if (realCandidates.length > 0 || pseudoCandidates.length > 0) {
+                                const boosted = attribute => Array.from(
+                                    {length: 8},
+                                    (_, index) => `:is(
+                                        #srcc-pointer-probe-${index},
+                                        [${attribute}="active"]
+                                    )`
+                                ).join('');
+                                probeStyle = document.createElement('style');
+                                probeStyle.textContent = `
+                                    ${boosted('data-srcc-pointer-probe-real')} {
+                                        pointer-events: auto !important;
+                                    }
+                                    ${boosted('data-srcc-pointer-probe-before')}::before,
+                                    ${boosted('data-srcc-pointer-probe-after')}::after {
+                                        pointer-events: auto !important;
+                                    }
+                                `;
+                                document.head.appendChild(probeStyle);
+                            }
+                            const probedHits = pointHits();
+                            return evidenceIndexes.some(index =>
+                                probedHits[index] === ordinaryHits[index] &&
+                                isRelatedHit(probedHits[index])
+                            );
+                        } finally {
+                            probeStyle?.remove();
+                            for (const [origin, attribute, hadAttribute, value] of
+                                attributeOriginals.reverse()) {
+                                if (hadAttribute) origin.setAttribute(attribute, value);
+                                else origin.removeAttribute(attribute);
+                            }
+                            for (const [candidate, hadStyle, value] of
+                                inlineStyleOriginals) {
+                                if (hadStyle) candidate.setAttribute('style', value);
+                                else candidate.removeAttribute('style');
+                            }
+                        }
                     };
                     if (hitTestEligible) return strictCurrentHitTest();
                     const scrollPositions = [];

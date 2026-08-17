@@ -1192,6 +1192,63 @@ def _wrap_one_pager_in_test_scroll(document):
     )
 
 
+def _with_pointer_transparent_test_cover(document, *, below_fold):
+    document = _replace_once(
+        document,
+        b"</body>",
+        b'<div class="test-pointer-transparent-cover" aria-hidden="true"></div></body>',
+    )
+    margin = ".srcc-one-pager { margin-top: 1000px !important; }" if below_fold else ""
+    return _append_test_css(
+        document,
+        f"""
+        @media screen {{
+          {margin}
+          .test-pointer-transparent-cover {{ position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }}
+        }}
+        """,
+    )
+
+
+def _with_pointer_transparent_svg_cover(document):
+    document = _replace_once(
+        document,
+        b"</body>",
+        (
+            b'<svg class="test-pointer-transparent-svg-cover" aria-hidden="true" '
+            b'viewBox="0 0 1 1"><rect width="1" height="1" fill="#fff" /></svg>'
+            b"</body>"
+        ),
+    )
+    return _append_test_css(
+        document,
+        """
+        @media screen {
+          .test-pointer-transparent-svg-cover { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 2147483647; pointer-events: none; }
+        }
+        """,
+    )
+
+
+def _with_inside_pointer_transparent_cover(document):
+    return _append_test_css(
+        _replace_once(
+            document,
+            b'data-section="evidence-one-pager">',
+            (
+                b'data-section="evidence-one-pager">'
+                b'<div class="test-inside-pointer-transparent-cover" '
+                b'aria-hidden="true"></div>'
+            ),
+        ),
+        """
+        @media screen {
+          .test-inside-pointer-transparent-cover { position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+        }
+        """,
+    )
+
+
 @pytest.mark.parametrize(
     "document",
     (
@@ -1222,6 +1279,40 @@ def _wrap_one_pager_in_test_scroll(document):
             }
             """,
         ),
+        _with_pointer_transparent_svg_cover(_synthetic_brief("complete")),
+        _with_inside_pointer_transparent_cover(_synthetic_brief("complete")),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              .srcc-one-pager::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              body::after { content: ''; position: fixed; left: -100vw; top: 0; width: 100vw; height: 100vh; transform: translateX(100vw); background: #fff; z-index: 2147483647; pointer-events: none; }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              body.srcc-html-document::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none !important; }
+            }
+            """,
+        ),
+        _with_pointer_transparent_test_cover(
+            _synthetic_brief("complete"),
+            below_fold=False,
+        ),
+        _with_pointer_transparent_test_cover(
+            _synthetic_brief("complete"),
+            below_fold=True,
+        ),
         _append_test_css(
             _synthetic_brief("complete"),
             "@media screen { .srcc-one-pager { transform: translateX(-10000px) !important; } }",
@@ -1243,14 +1334,85 @@ def _wrap_one_pager_in_test_scroll(document):
             }
             """,
         ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              .srcc-one-pager { margin-top: 1000px !important; }
+              body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              body::before { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              .srcc-one-pager { margin-top: 1000px !important; }
+              body::before { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+            }
+            """,
+        ),
+        _replace_once(
+            _synthetic_brief("complete"),
+            b"</body>",
+            (
+                b'<div aria-hidden="true" style="position:fixed;inset:0;'
+                b'background:#fff;z-index:2147483647;'
+                b'pointer-events:none!important"></div></body>'
+            ),
+        ),
+        _append_test_css(
+            _with_pointer_transparent_test_cover(
+                _synthetic_brief("complete"),
+                below_fold=False,
+            ),
+            "@media screen { .test-pointer-transparent-cover { background: rgba(255, 255, 255, .5) !important; } }",
+        ),
+        _append_test_css(
+            _with_pointer_transparent_test_cover(
+                _synthetic_brief("complete"),
+                below_fold=False,
+            ),
+            "@media screen { .test-pointer-transparent-cover { opacity: .98 !important; } }",
+        ),
     ),
     ids=(
         "overflow-hidden-ancestor",
         "unreachable-auto-scroll",
         "fixed-above-document",
+        "pointer-transparent-svg-cover",
+        "inside-pointer-transparent-element-cover",
+        "inside-pointer-transparent-pseudo-cover",
+        "transformed-pointer-transparent-pseudo-cover",
+        "important-pointer-transparent-pseudo-cover",
+        "pointer-transparent-element-cover",
+        "scroll-reachable-under-pointer-transparent-element-cover",
         "translated-left-of-document",
         "opaque-fixed-cover",
         "scroll-reachable-under-fixed-cover",
+        "pointer-transparent-opaque-cover",
+        "scroll-reachable-under-pointer-transparent-cover",
+        "pointer-transparent-before-cover",
+        "scroll-reachable-under-pointer-transparent-before-cover",
+        "inline-important-pointer-transparent-element-cover",
+        "translucent-pointer-transparent-element-cover",
+        "opacity-pointer-transparent-element-cover",
     ),
 )
 def test_summary_browser_collector_contract_rejects_unreachable_or_occluded_summary(
@@ -1269,6 +1431,94 @@ def test_summary_browser_collector_contract_rejects_unreachable_or_occluded_summ
         "missing": sorted(expected - failures),
         "observed_failures": sorted(failures),
     }
+
+
+def test_summary_browser_collector_contract_accepts_zero_paint_pointer_layers():
+    document = _append_test_css(
+        _replace_once(
+            _synthetic_brief("complete"),
+            b"</body>",
+            (
+                b'<div class="test-zero-paint-layer" aria-hidden="true"></div>'
+                b'<div class="test-one-percent-layer" aria-hidden="true"></div>'
+                b'<svg class="test-empty-svg-layer" aria-hidden="true"></svg>'
+                b"</body>"
+            ),
+        ),
+        """
+        @media screen {
+          .test-zero-paint-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483647;
+            pointer-events: none;
+            background: linear-gradient(transparent, transparent);
+            box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+          }
+          .test-one-percent-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483646;
+            pointer-events: none;
+            background: rgba(255, 255, 255, .01);
+          }
+          .test-empty-svg-layer {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 2147483645;
+            pointer-events: none;
+          }
+        }
+        """,
+    )
+
+    result = _run_summary_cell(document)
+    failures = _failed_assertion_names(result)
+    expected_green = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected_green.isdisjoint(failures), sorted(failures)
+
+
+def test_summary_browser_collector_contract_accepts_a_small_pointer_decoration():
+    document = _append_test_css(
+        _replace_once(
+            _synthetic_brief("complete"),
+            b"</body>",
+            b'<div class="test-small-decoration" aria-hidden="true"></div></body>',
+        ),
+        """
+        @media screen {
+          .test-small-decoration {
+            position: fixed;
+            left: 630px;
+            top: 430px;
+            width: 20px;
+            height: 20px;
+            z-index: 2147483647;
+            pointer-events: none;
+            background: #fff;
+          }
+        }
+        """,
+    )
+
+    result = _run_summary_cell(document)
+    failures = _failed_assertion_names(result)
+    expected_green = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected_green.isdisjoint(failures), sorted(failures)
 
 
 def test_summary_browser_collector_contract_accepts_scroll_reachable_summary():
