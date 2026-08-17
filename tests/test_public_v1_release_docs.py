@@ -2251,6 +2251,36 @@ def test_html_research_brief_public_and_methodology_docs_keep_the_verified_bound
     _assert_html_brief_section_has_no_affirmative_overclaim(methodology)
 
 
+def test_evidence_one_pager_active_docs_keep_the_additive_withheld_boundary():
+    sections = (
+        _markdown_section(
+            _read("README.md"), "### Download HTML Research Brief"
+        ),
+        _markdown_section(
+            _read("ROADMAP.md"), "### Company Workbench HTML Research Brief"
+        ),
+    )
+    core_boundary = (
+        "The existing HTML Research Brief begins with an Evidence One-Pager that "
+        "projects only the already-frozen saved evidence, scenario assumptions, "
+        "blockers, process status, and next research task; the complete evidence "
+        "report follows in the same offline artifact. The summary adds no source, "
+        "calculation engine, readiness promotion, recommendation, target price, "
+        "probability, or second download."
+    )
+    explicit_exclusions = (
+        "No new route is added; withheld evidence remains independently visible, "
+        "and the summary carries no `Certified` badge, target-price or upside "
+        "framing, or probability claim."
+    )
+
+    for section in sections:
+        normalized = " ".join(section.split())
+        assert core_boundary in normalized
+        assert explicit_exclusions in normalized
+        _assert_html_brief_section_has_no_affirmative_overclaim(section)
+
+
 def test_portable_html_action_repair_docs_preserve_history_and_name_current_release():
     methodology = _read("docs/METHODOLOGY.md")
     dashboard_qa = _read("docs/DASHBOARD_QA.md")
