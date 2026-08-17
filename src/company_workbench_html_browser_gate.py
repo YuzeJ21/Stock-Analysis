@@ -1591,6 +1591,20 @@ def _summary_scope_observation(page) -> dict[str, object]:
         r"""() => {
             const onePager = document.querySelector('[data-section="evidence-one-pager"]');
             const overview = document.querySelector('[data-section="overview"]');
+            const materialPaintSelector = [
+                '[data-section="one-pager-provenance"]',
+                '[data-section="one-pager-provenance"] caption',
+                '[data-section="one-pager-provenance"] tbody',
+                '.srcc-blockers',
+                '[data-section="one-pager-scenarios"] > ol > li',
+                '[data-section="one-pager-scenarios"] > ol > li > p',
+                '[data-section="one-pager-scenarios"] .srcc-state',
+                '[data-section="one-pager-handoff"]',
+                '[data-state][data-state-role]',
+                '[data-state][data-state-role] .srcc-state',
+                '[data-share-basis-role][data-share-basis-state]',
+            ].join(',');
+            let materialPaintCandidates = null;
             const visible = node => {
                 if (!(node instanceof Element)) return false;
                 const rect = node.getBoundingClientRect();
@@ -1771,7 +1785,9 @@ def _summary_scope_observation(page) -> dict[str, object]:
                     );
                     const ordinaryHits = pointHits();
                     const ordinaryHit = ordinaryHits.some(isRelatedHit);
-                    if (!ordinaryHit || node !== onePager) return ordinaryHit;
+                    const needsMaterialPaintProbe = node === onePager ||
+                        node.matches(materialPaintSelector);
+                    if (!ordinaryHit || !needsMaterialPaintProbe) return ordinaryHit;
                     const relatedIndexes = ordinaryHits.flatMap((hit, index) =>
                         isRelatedHit(hit) ? [index] : []
                     );
@@ -1782,21 +1798,150 @@ def _summary_scope_observation(page) -> dict[str, object]:
                         ? descendantIndexes
                         : relatedIndexes;
                     const colorAlpha = value => {
-                        const values = String(value || '').match(/[0-9.]+/g) || [];
-                        if (values.length < 3) return 0;
-                        const alpha = values.length > 3 ? Number(values[3]) : 1;
-                        return Number.isFinite(alpha) ? alpha : 0;
+                        const normalized = String(value || '').trim().toLowerCase();
+                        if (!normalized || ['none', 'transparent'].includes(normalized)) {
+                            return 0;
+                        }
+                        const alphaValue = token => {
+                            const trimmed = token.trim();
+                            const parsed = Number.parseFloat(trimmed);
+                            if (!Number.isFinite(parsed)) return 1;
+                            return trimmed.endsWith('%') ? parsed / 100 : parsed;
+                        };
+                        const functional = normalized.match(
+                            /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\((.*)\)$/
+                        );
+                        if (!functional) return 1;
+                        const body = functional[1];
+                        const slash = body.lastIndexOf('/');
+                        if (slash >= 0) return alphaValue(body.slice(slash + 1));
+                        if (body.includes(',')) {
+                            const components = body.split(',');
+                            return components.length === 4
+                                ? alphaValue(components[3])
+                                : 1;
+                        }
+                        return 1;
                     };
+                    const cssColors = value => String(value || '').match(
+                        /(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)|transparent/gi
+                    ) || [];
                     const imageHasMaterialPaint = value => {
                         if (!value || value === 'none') return false;
-                        const colors = String(value).match(
-                            /rgba?\([^)]*\)|transparent/gi
-                        ) || [];
+                        const colors = cssColors(value);
                         if (colors.length === 0) return true;
                         return colors.some(color =>
                             color.toLowerCase() !== 'transparent' &&
                             colorAlpha(color) > 0.01
                         );
+                    };
+                    const splitCssLayers = value => {
+                        const layers = [];
+                        let depth = 0;
+                        let start = 0;
+                        for (let index = 0; index < value.length; index += 1) {
+                            if (value[index] === '(') depth += 1;
+                            else if (value[index] === ')') depth = Math.max(0, depth - 1);
+                            else if (value[index] === ',' && depth === 0) {
+                                layers.push(value.slice(start, index));
+                                start = index + 1;
+                            }
+                        }
+                        layers.push(value.slice(start));
+                        return layers;
+                    };
+                    const paintDimensions = (origin, style, pseudo) => {
+                        const rect = origin.getBoundingClientRect();
+                        if (!pseudo || style.position !== 'fixed') {
+                            return {width: rect.width, height: rect.height};
+                        }
+                        const fixedExtent = (start, end, viewport, declared) => {
+                            const startValue = Number.parseFloat(start);
+                            const endValue = Number.parseFloat(end);
+                            if (Number.isFinite(startValue) && Number.isFinite(endValue)) {
+                                return Math.max(0, viewport - startValue - endValue);
+                            }
+                            const declaredValue = Number.parseFloat(declared);
+                            return Number.isFinite(declaredValue)
+                                ? Math.max(0, declaredValue)
+                                : 0;
+                        };
+                        return {
+                            width: fixedExtent(
+                                style.left, style.right, window.innerWidth, style.width
+                            ),
+                            height: fixedExtent(
+                                style.top, style.bottom, window.innerHeight, style.height
+                            ),
+                        };
+                    };
+                    const shadowHasMaterialPaint = (origin, style, pseudo) => {
+                        const value = style.boxShadow;
+                        if (!value || value === 'none') return false;
+                        const dimensions = paintDimensions(origin, style, pseudo);
+                        const minimumExtent = Math.max(
+                            1,
+                            Math.min(
+                                Math.max(0, dimensions.width),
+                                Math.max(0, dimensions.height)
+                            ) / 2
+                        );
+                        return splitCssLayers(String(value)).some(layer => {
+                            if (!/\binset\b/i.test(layer)) return false;
+                            const colors = cssColors(layer);
+                            if (colors.length > 0 && !colors.some(color =>
+                                color.toLowerCase() !== 'transparent' &&
+                                colorAlpha(color) > 0.01
+                            )) return false;
+                            const dimensions = layer.replace(
+                                /(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)|transparent/gi,
+                                ''
+                            ).match(/-?(?:\d+\.?\d*|\.\d+)(?:[a-z%]+)?/gi) || [];
+                            const parsed = dimensions.map(dimension =>
+                                Number.parseFloat(dimension)
+                            );
+                            const blur = Math.max(0, parsed[2] || 0);
+                            const spread = Math.max(0, parsed[3] || 0);
+                            return blur + spread >= minimumExtent - 1;
+                        });
+                    };
+                    const edgeHasMaterialPaint = (origin, style, pseudo) => {
+                        const dimensions = paintDimensions(origin, style, pseudo);
+                        const materialBorderWidth = side => {
+                            const width = Number.parseFloat(
+                                style[`border${side}Width`] || '0'
+                            );
+                            return width > 0.01 &&
+                                !['none', 'hidden'].includes(
+                                    style[`border${side}Style`]
+                                ) &&
+                                colorAlpha(style[`border${side}Color`]) > 0.01
+                                ? width
+                                : 0;
+                        };
+                        const borderFills = dimensions.width > 1 &&
+                            dimensions.height > 1 && (
+                            materialBorderWidth('Left') +
+                                materialBorderWidth('Right') >= dimensions.width - 1 ||
+                            materialBorderWidth('Top') +
+                                materialBorderWidth('Bottom') >= dimensions.height - 1
+                        );
+                        const outlineWidth = Number.parseFloat(
+                            style.outlineWidth || '0'
+                        );
+                        const outlineOffset = Number.parseFloat(
+                            style.outlineOffset || '0'
+                        );
+                        const outlineInset = Math.max(0, -outlineOffset);
+                        const outlineFills = dimensions.width > 1 &&
+                            dimensions.height > 1 &&
+                            outlineWidth > 0.01 &&
+                            !['none', 'hidden'].includes(style.outlineStyle) &&
+                            colorAlpha(style.outlineColor) > 0.01 &&
+                            outlineInset >=
+                                Math.min(dimensions.width, dimensions.height) / 2 - 1 &&
+                            outlineInset - outlineWidth <= 1;
+                        return borderFills || outlineFills;
                     };
                     const svgHasMaterialPaint = origin => origin.matches('svg') &&
                         [...origin.querySelectorAll('*')].some(descendant => {
@@ -1820,6 +1965,8 @@ def _summary_scope_observation(page) -> dict[str, object]:
                         return Number.isFinite(opacity) && opacity > 0.01 && (
                             colorAlpha(style.backgroundColor) > 0.01 ||
                             imageHasMaterialPaint(style.backgroundImage) ||
+                            shadowHasMaterialPaint(origin, style, pseudo) ||
+                            edgeHasMaterialPaint(origin, style, pseudo) ||
                             (!pseudo && (
                                 origin.matches('img, video, canvas') ||
                                 svgHasMaterialPaint(origin)
@@ -1843,53 +1990,70 @@ def _summary_scope_observation(page) -> dict[str, object]:
                         }
                         return opacity > 0.01;
                     };
-                    const realCandidates = [];
-                    const pseudoCandidates = [];
-                    for (const origin of document.querySelectorAll('*')) {
-                        if (!paintVisible(origin)) continue;
-                        const style = getComputedStyle(origin);
-                        if (style.pointerEvents === 'none' &&
-                            hasMaterialPaint(origin, style) &&
-                            coversPoint(origin.getBoundingClientRect())) {
-                            realCandidates.push(origin);
+                    if (materialPaintCandidates === null) {
+                        const real = [];
+                        const pseudo = [];
+                        for (const origin of document.querySelectorAll('*')) {
+                            if (!paintVisible(origin)) continue;
+                            const style = getComputedStyle(origin);
+                            if (style.pointerEvents === 'none' &&
+                                hasMaterialPaint(origin, style)) real.push(origin);
+                            for (const pseudoName of ['::before', '::after']) {
+                                const pseudoStyle = getComputedStyle(
+                                    origin, pseudoName
+                                );
+                                if (pseudoStyle.pointerEvents !== 'none' ||
+                                    ['none', 'normal'].includes(pseudoStyle.content) ||
+                                    !hasMaterialPaint(
+                                        origin, pseudoStyle, true
+                                    )) continue;
+                                pseudo.push([origin, pseudoName]);
+                            }
                         }
-                        for (const pseudo of ['::before', '::after']) {
-                            const pseudoStyle = getComputedStyle(origin, pseudo);
-                            if (pseudoStyle.pointerEvents !== 'none' ||
-                                ['none', 'normal'].includes(pseudoStyle.content) ||
-                                !hasMaterialPaint(origin, pseudoStyle, true)) continue;
-                            pseudoCandidates.push([origin, pseudo]);
-                        }
+                        materialPaintCandidates = {real, pseudo};
                     }
+                    const realCandidates = materialPaintCandidates.real.filter(
+                        origin => coversPoint(origin.getBoundingClientRect())
+                    );
+                    const pseudoCandidates = materialPaintCandidates.pseudo;
                     if (realCandidates.length === 0 && pseudoCandidates.length === 0) {
                         return true;
                     }
                     const attributeOriginals = [];
                     const inlineStyleOriginals = [];
+                    const rememberedInlineStyles = new Set();
+                    const rememberInlineStyle = candidate => {
+                        if (rememberedInlineStyles.has(candidate)) return;
+                        rememberedInlineStyles.add(candidate);
+                        inlineStyleOriginals.push([
+                            candidate,
+                            candidate.hasAttribute('style'),
+                            candidate.getAttribute('style'),
+                        ]);
+                    };
+                    const restoreInlineStyle = candidate => {
+                        const original = inlineStyleOriginals.find(
+                            ([element]) => element === candidate
+                        );
+                        if (!original) return;
+                        const [, hadStyle, value] = original;
+                        if (hadStyle) candidate.setAttribute('style', value);
+                        else candidate.removeAttribute('style');
+                    };
+                    const forceInlinePointerEvents = (candidate, value) => {
+                        rememberInlineStyle(candidate);
+                        const rawStyle = candidate.getAttribute('style') || '';
+                        const separator = rawStyle.trim() &&
+                            !rawStyle.trimEnd().endsWith(';') ? ';' : '';
+                        candidate.setAttribute(
+                            'style',
+                            `${rawStyle}${separator}pointer-events:${value}!important;`
+                        );
+                    };
                     let probeStyle = null;
                     try {
-                        for (const candidate of realCandidates) {
-                            const attribute = 'data-srcc-pointer-probe-real';
-                            attributeOriginals.push([
-                                candidate,
-                                attribute,
-                                candidate.hasAttribute(attribute),
-                                candidate.getAttribute(attribute),
-                            ]);
-                            candidate.setAttribute(attribute, 'active');
-                            if (candidate.style.getPropertyPriority(
-                                'pointer-events'
-                            ) === 'important') {
-                                inlineStyleOriginals.push([
-                                    candidate,
-                                    candidate.hasAttribute('style'),
-                                    candidate.getAttribute('style'),
-                                ]);
-                                candidate.style.setProperty(
-                                    'pointer-events', 'auto', 'important'
-                                );
-                            }
-                        }
+                        const pseudoOrigins = new Set();
+                        const pseudoAttributes = [];
                         for (const [origin, pseudo] of pseudoCandidates) {
                             const attribute = pseudo === '::before'
                                 ? 'data-srcc-pointer-probe-before'
@@ -1900,33 +2064,76 @@ def _summary_scope_observation(page) -> dict[str, object]:
                                 origin.hasAttribute(attribute),
                                 origin.getAttribute(attribute),
                             ]);
-                            origin.setAttribute(attribute, 'active');
+                            pseudoAttributes.push([origin, attribute]);
+                            origin.setAttribute(attribute, 'suppressed');
+                            if (!pseudoOrigins.has(origin)) {
+                                pseudoOrigins.add(origin);
+                                forceInlinePointerEvents(origin, 'none');
+                            }
                         }
                         if (realCandidates.length > 0 || pseudoCandidates.length > 0) {
-                            const boosted = attribute => Array.from(
+                            const boosted = (attribute, value) => Array.from(
                                 {length: 8},
                                 (_, index) => `:is(
                                     #srcc-pointer-probe-${index},
-                                    [${attribute}="active"]
+                                    [${attribute}="${value}"]
                                 )`
                             ).join('');
                             probeStyle = document.createElement('style');
                             probeStyle.textContent = `
-                                ${boosted('data-srcc-pointer-probe-real')} {
-                                    pointer-events: auto !important;
-                                }
-                                ${boosted('data-srcc-pointer-probe-before')}::before,
-                                ${boosted('data-srcc-pointer-probe-after')}::after {
-                                    pointer-events: auto !important;
+                                @layer srccPointerPaintProbe {
+                                    ${boosted('data-srcc-pointer-probe-real', 'active')} {
+                                        pointer-events: auto !important;
+                                    }
+                                    ${boosted('data-srcc-pointer-probe-before', 'suppressed')},
+                                    ${boosted('data-srcc-pointer-probe-after', 'suppressed')},
+                                    ${boosted('data-srcc-pointer-probe-before', 'active')},
+                                    ${boosted('data-srcc-pointer-probe-after', 'active')} {
+                                        pointer-events: none !important;
+                                    }
+                                    ${boosted('data-srcc-pointer-probe-before', 'active')}::before,
+                                    ${boosted('data-srcc-pointer-probe-after', 'active')}::after {
+                                        pointer-events: auto !important;
+                                    }
                                 }
                             `;
-                            document.head.appendChild(probeStyle);
+                            document.head.insertBefore(
+                                probeStyle, document.head.firstChild
+                            );
                         }
-                        const probedHits = pointHits();
-                        return evidenceIndexes.some(index =>
-                            probedHits[index] === ordinaryHits[index] &&
-                            isRelatedHit(probedHits[index])
+                        const suppressedHits = pointHits();
+                        for (const [origin, attribute] of pseudoAttributes) {
+                            origin.setAttribute(attribute, 'active');
+                        }
+                        const pseudoHits = pointHits();
+                        const pseudoCovered = pseudoHits.map((hit, index) =>
+                            hit && pseudoOrigins.has(hit) &&
+                            hit !== suppressedHits[index]
                         );
+                        for (const [origin, attribute] of pseudoAttributes) {
+                            origin.setAttribute(attribute, 'inactive');
+                        }
+                        for (const origin of pseudoOrigins) restoreInlineStyle(origin);
+                        for (const candidate of realCandidates) {
+                            const attribute = 'data-srcc-pointer-probe-real';
+                            attributeOriginals.push([
+                                candidate,
+                                attribute,
+                                candidate.hasAttribute(attribute),
+                                candidate.getAttribute(attribute),
+                            ]);
+                            candidate.setAttribute(attribute, 'active');
+                            forceInlinePointerEvents(candidate, 'auto');
+                        }
+                        const realHits = realCandidates.length > 0
+                            ? pointHits()
+                            : ordinaryHits;
+                        const visibleEvidenceCount = evidenceIndexes.filter(index =>
+                            !pseudoCovered[index] &&
+                            realHits[index] === ordinaryHits[index] &&
+                            isRelatedHit(realHits[index])
+                        ).length;
+                        return visibleEvidenceCount * 2 > evidenceIndexes.length;
                     } finally {
                         probeStyle?.remove();
                         for (const [origin, attribute, hadAttribute, value] of
@@ -1935,7 +2142,7 @@ def _summary_scope_observation(page) -> dict[str, object]:
                             else origin.removeAttribute(attribute);
                         }
                         for (const [candidate, hadStyle, value] of
-                            inlineStyleOriginals) {
+                            inlineStyleOriginals.reverse()) {
                             if (hadStyle) candidate.setAttribute('style', value);
                             else candidate.removeAttribute('style');
                         }
@@ -2118,6 +2325,10 @@ def _summary_scope_observation(page) -> dict[str, object]:
             const stateRoleNodes = onePager
                 ? [...onePager.querySelectorAll('[data-state][data-state-role]')]
                 : [];
+            const visibleStateRoleNodes = stateRoleNodes.filter(node => {
+                const stateText = node.querySelector('.srcc-state');
+                return visible(node) && visible(stateText);
+            });
             const stateRoles = stateRoleNodes
                 .map(node => String(node.dataset.stateRole || '').trim().toLowerCase())
                 .filter(Boolean);
@@ -2148,13 +2359,14 @@ def _summary_scope_observation(page) -> dict[str, object]:
                     : 0,
                 one_pager_scenario_item_count: scenarios.length,
                 one_pager_state_tokens: onePager
-                    ? stateRoleNodes
+                    ? visibleStateRoleNodes
                         .map(node => `${String(node.dataset.stateRole || '').trim().toLowerCase()}=${String(node.dataset.state || '').trim().toLowerCase()}`)
                         .filter(token => !token.startsWith('=') && !token.endsWith('='))
                         .sort()
                     : [],
                 one_pager_share_basis_tokens: onePager
                     ? [...onePager.querySelectorAll('[data-share-basis-role][data-share-basis-state]')]
+                        .filter(visible)
                         .map(node => `${String(node.dataset.shareBasisRole || '').trim().toLowerCase()}=${String(node.dataset.shareBasisState || '').trim().toLowerCase()}`)
                         .filter(token => !token.startsWith('=') && !token.endsWith('='))
                         .sort()
@@ -2206,447 +2418,73 @@ def _summary_scope_observation(page) -> dict[str, object]:
 
 
 def _summary_forced_colors_cues(page) -> bool:
+    summary = _summary_scope_observation(page)
+    state_count = int(summary["one_pager_state_node_count"])
+    if not (
+        summary["one_pager_visible"] is True
+        and summary["one_pager_provenance_visible"] is True
+        and state_count > 0
+        and state_count == int(summary["one_pager_state_role_count"])
+        and state_count == len(summary["one_pager_state_tokens"])
+    ):
+        return False
     return bool(
         page.evaluate(
             r"""() => {
-                const root = document.querySelector('[data-section="evidence-one-pager"]');
-                const visible = node => {
-                    if (!(node instanceof Element)) return false;
-                    const rect = node.getBoundingClientRect();
-                    if (rect.width <= 1 || rect.height <= 1 || node.getClientRects().length === 0) return false;
-                    let left = rect.left;
-                    let right = rect.right;
-                    let top = rect.top;
-                    let bottom = rect.bottom;
-                    let cumulativeOpacity = 1;
-                    let hitTestEligible = true;
-                    let documentScrollEligible = true;
-                    for (let current = node; current instanceof Element; current = current.parentElement) {
-                        const style = getComputedStyle(current);
-                        const opacity = Number.parseFloat(style.opacity || '1');
-                        if (style.display === 'none' || style.visibility === 'hidden' ||
-                            style.visibility === 'collapse' || style.contentVisibility === 'hidden' ||
-                            !Number.isFinite(opacity) || style.clipPath !== 'none' ||
-                            style.clip !== 'auto') return false;
-                        cumulativeOpacity *= opacity;
-                        if (style.position === 'fixed') documentScrollEligible = false;
-                        if (current !== node) {
-                            const ancestorRect = current.getBoundingClientRect();
-                            const constrain = (
-                                start, end, ancestorStart, ancestorEnd,
-                                overflow, scrollSize, clientSize, scrollOffset
-                            ) => {
-                                if (!['auto', 'clip', 'hidden', 'scroll'].includes(overflow)) {
-                                    return [start, end];
-                                }
-                                const clippedStart = Math.max(start, ancestorStart);
-                                const clippedEnd = Math.min(end, ancestorEnd);
-                                if (clippedEnd - clippedStart > 1) {
-                                    return [clippedStart, clippedEnd];
-                                }
-                                const scrollReachable = ['auto', 'scroll'].includes(overflow) &&
-                                    scrollSize > clientSize + 1;
-                                if (!scrollReachable) return null;
-                                const contentStart = start - ancestorStart + scrollOffset;
-                                const contentEnd = end - ancestorStart + scrollOffset;
-                                if (Math.min(contentEnd, scrollSize) -
-                                    Math.max(contentStart, 0) <= 1) return null;
-                                hitTestEligible = false;
-                                return [ancestorStart, ancestorEnd];
-                            };
-                            if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowX)) {
-                                const constrained = constrain(
-                                    left,
-                                    right,
-                                    ancestorRect.left + current.clientLeft,
-                                    ancestorRect.left + current.clientLeft + current.clientWidth,
-                                    style.overflowX,
-                                    current.scrollWidth,
-                                    current.clientWidth,
-                                    current.scrollLeft
-                                );
-                                if (!constrained) return false;
-                                [left, right] = constrained;
-                            }
-                            if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowY)) {
-                                const constrained = constrain(
-                                    top,
-                                    bottom,
-                                    ancestorRect.top + current.clientTop,
-                                    ancestorRect.top + current.clientTop + current.clientHeight,
-                                    style.overflowY,
-                                    current.scrollHeight,
-                                    current.clientHeight,
-                                    current.scrollTop
-                                );
-                                if (!constrained) return false;
-                                [top, bottom] = constrained;
-                            }
-                            if (right - left <= 1 || bottom - top <= 1) return false;
-                        }
+                const root = document.querySelector(
+                    '[data-section="evidence-one-pager"]'
+                );
+                const colorAlpha = value => {
+                    const normalized = String(value || '').trim().toLowerCase();
+                    if (!normalized || ['none', 'transparent'].includes(normalized)) {
+                        return 0;
                     }
-                    if (Math.abs(cumulativeOpacity - 1) > 0.001) return false;
-                    const scrollingElement = document.scrollingElement || document.documentElement;
-                    const constrainToDocument = (
-                        start, end, viewportSize, scrollOffset, scrollSize
-                    ) => {
-                        const clippedStart = Math.max(0, start);
-                        const clippedEnd = Math.min(viewportSize, end);
-                        if (clippedEnd - clippedStart > 1) {
-                            return [clippedStart, clippedEnd];
-                        }
-                        if (!documentScrollEligible) return null;
-                        const contentStart = start + scrollOffset;
-                        const contentEnd = end + scrollOffset;
-                        if (Math.min(contentEnd, scrollSize) -
-                            Math.max(contentStart, 0) <= 1) return null;
-                        hitTestEligible = false;
-                        return [0, viewportSize];
+                    const alphaValue = token => {
+                        const trimmed = token.trim();
+                        const parsed = Number.parseFloat(trimmed);
+                        if (!Number.isFinite(parsed)) return 1;
+                        return trimmed.endsWith('%') ? parsed / 100 : parsed;
                     };
-                    const horizontal = constrainToDocument(
-                        left,
-                        right,
-                        window.innerWidth,
-                        window.scrollX,
-                        scrollingElement.scrollWidth
+                    const functional = normalized.match(
+                        /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\((.*)\)$/
                     );
-                    const vertical = constrainToDocument(
-                        top,
-                        bottom,
-                        window.innerHeight,
-                        window.scrollY,
-                        scrollingElement.scrollHeight
-                    );
-                    if (!horizontal || !vertical) return false;
-                    const strictCurrentHitTest = () => {
-                        const currentRect = node.getBoundingClientRect();
-                        let currentLeft = currentRect.left;
-                        let currentRight = currentRect.right;
-                        let currentTop = currentRect.top;
-                        let currentBottom = currentRect.bottom;
-                        for (let current = node.parentElement;
-                            current instanceof Element;
-                            current = current.parentElement) {
-                            const style = getComputedStyle(current);
-                            const ancestorRect = current.getBoundingClientRect();
-                            if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowX)) {
-                                currentLeft = Math.max(
-                                    currentLeft,
-                                    ancestorRect.left + current.clientLeft
-                                );
-                                currentRight = Math.min(
-                                    currentRight,
-                                    ancestorRect.left + current.clientLeft + current.clientWidth
-                                );
-                            }
-                            if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowY)) {
-                                currentTop = Math.max(
-                                    currentTop,
-                                    ancestorRect.top + current.clientTop
-                                );
-                                currentBottom = Math.min(
-                                    currentBottom,
-                                    ancestorRect.top + current.clientTop + current.clientHeight
-                                );
-                            }
-                            if (currentRight - currentLeft <= 1 ||
-                                currentBottom - currentTop <= 1) return false;
-                        }
-                        const viewportLeft = Math.max(0, currentLeft);
-                        const viewportRight = Math.min(window.innerWidth, currentRight);
-                        const viewportTop = Math.max(0, currentTop);
-                        const viewportBottom = Math.min(window.innerHeight, currentBottom);
-                        if (viewportRight - viewportLeft <= 1 ||
-                            viewportBottom - viewportTop <= 1) return false;
-                        const points = [
-                            [(viewportLeft + viewportRight) / 2, (viewportTop + viewportBottom) / 2],
-                            [viewportLeft + 0.5, viewportTop + 0.5],
-                            [viewportRight - 0.5, viewportTop + 0.5],
-                            [viewportLeft + 0.5, viewportBottom - 0.5],
-                            [viewportRight - 0.5, viewportBottom - 0.5],
-                        ];
-                        const pointKeys = new Set(points.map(([x, y]) => `${x}:${y}`));
-                        for (const descendant of node.querySelectorAll('*')) {
-                            if (points.length >= 37) break;
-                            const descendantRect = descendant.getBoundingClientRect();
-                            const descendantLeft = Math.max(viewportLeft, descendantRect.left);
-                            const descendantRight = Math.min(viewportRight, descendantRect.right);
-                            const descendantTop = Math.max(viewportTop, descendantRect.top);
-                            const descendantBottom = Math.min(viewportBottom, descendantRect.bottom);
-                            if (descendantRight - descendantLeft <= 1 ||
-                                descendantBottom - descendantTop <= 1) continue;
-                            const x = (descendantLeft + descendantRight) / 2;
-                            const y = (descendantTop + descendantBottom) / 2;
-                            const key = `${x}:${y}`;
-                            if (pointKeys.has(key)) continue;
-                            pointKeys.add(key);
-                            points.push([x, y]);
-                        }
-                        const isRelatedHit = hit => hit && (
-                            hit === node || node.contains(hit)
-                        );
-                        const pointHits = () => points.map(([x, y]) =>
-                            document.elementFromPoint(x, y)
-                        );
-                        const ordinaryHits = pointHits();
-                        const ordinaryHit = ordinaryHits.some(isRelatedHit);
-                        if (!ordinaryHit || node !== root) return ordinaryHit;
-                        const relatedIndexes = ordinaryHits.flatMap((hit, index) =>
-                            isRelatedHit(hit) ? [index] : []
-                        );
-                        const descendantIndexes = relatedIndexes.filter(index =>
-                            ordinaryHits[index] !== node
-                        );
-                        const evidenceIndexes = descendantIndexes.length > 0
-                            ? descendantIndexes
-                            : relatedIndexes;
-                        const colorAlpha = value => {
-                            const values = String(value || '').match(/[0-9.]+/g) || [];
-                            if (values.length < 3) return 0;
-                            const alpha = values.length > 3 ? Number(values[3]) : 1;
-                            return Number.isFinite(alpha) ? alpha : 0;
-                        };
-                        const imageHasMaterialPaint = value => {
-                            if (!value || value === 'none') return false;
-                            const colors = String(value).match(
-                                /rgba?\([^)]*\)|transparent/gi
-                            ) || [];
-                            if (colors.length === 0) return true;
-                            return colors.some(color =>
-                                color.toLowerCase() !== 'transparent' &&
-                                colorAlpha(color) > 0.01
-                            );
-                        };
-                        const svgHasMaterialPaint = origin => origin.matches('svg') &&
-                            [...origin.querySelectorAll('*')].some(descendant => {
-                                const style = getComputedStyle(descendant);
-                                const opacity = Number.parseFloat(style.opacity || '1');
-                                const fillOpacity = Number.parseFloat(
-                                    style.fillOpacity || '1'
-                                );
-                                const strokeOpacity = Number.parseFloat(
-                                    style.strokeOpacity || '1'
-                                );
-                                return Number.isFinite(opacity) && opacity > 0.01 && (
-                                    Number.isFinite(fillOpacity) && fillOpacity > 0.01 &&
-                                        colorAlpha(style.fill) > 0.01 ||
-                                    Number.isFinite(strokeOpacity) &&
-                                        strokeOpacity > 0.01 &&
-                                        colorAlpha(style.stroke) > 0.01
-                                );
-                            });
-                        const hasMaterialPaint = (origin, style, pseudo = false) => {
-                            const opacity = Number.parseFloat(style.opacity || '1');
-                            return Number.isFinite(opacity) && opacity > 0.01 && (
-                                colorAlpha(style.backgroundColor) > 0.01 ||
-                                imageHasMaterialPaint(style.backgroundImage) ||
-                                (!pseudo && (
-                                    origin.matches('img, video, canvas') ||
-                                    svgHasMaterialPaint(origin)
-                                ))
-                            );
-                        };
-                        const coversPoint = rect => rect && rect.width > 1 && rect.height > 1 &&
-                            points.some(([x, y]) => x >= rect.left && x <= rect.right &&
-                                y >= rect.top && y <= rect.bottom);
-                        const paintVisible = origin => {
-                            let opacity = 1;
-                            for (let current = origin;
-                                current instanceof Element;
-                                current = current.parentElement) {
-                                const style = getComputedStyle(current);
-                                const currentOpacity = Number.parseFloat(style.opacity || '1');
-                                if (style.display === 'none' || style.visibility !== 'visible' ||
-                                    style.contentVisibility === 'hidden' ||
-                                    !Number.isFinite(currentOpacity)) return false;
-                                opacity *= currentOpacity;
-                            }
-                            return opacity > 0.01;
-                        };
-                        const realCandidates = [];
-                        const pseudoCandidates = [];
-                        for (const origin of document.querySelectorAll('*')) {
-                            if (!paintVisible(origin)) continue;
-                            const style = getComputedStyle(origin);
-                            if (style.pointerEvents === 'none' &&
-                                hasMaterialPaint(origin, style) &&
-                                coversPoint(origin.getBoundingClientRect())) {
-                                realCandidates.push(origin);
-                            }
-                            for (const pseudo of ['::before', '::after']) {
-                                const pseudoStyle = getComputedStyle(origin, pseudo);
-                                if (pseudoStyle.pointerEvents !== 'none' ||
-                                    ['none', 'normal'].includes(pseudoStyle.content) ||
-                                    !hasMaterialPaint(origin, pseudoStyle, true)) continue;
-                                pseudoCandidates.push([origin, pseudo]);
-                            }
-                        }
-                        if (realCandidates.length === 0 && pseudoCandidates.length === 0) {
-                            return true;
-                        }
-                        const attributeOriginals = [];
-                        const inlineStyleOriginals = [];
-                        let probeStyle = null;
-                        try {
-                            for (const candidate of realCandidates) {
-                                const attribute = 'data-srcc-pointer-probe-real';
-                                attributeOriginals.push([
-                                    candidate,
-                                    attribute,
-                                    candidate.hasAttribute(attribute),
-                                    candidate.getAttribute(attribute),
-                                ]);
-                                candidate.setAttribute(attribute, 'active');
-                                if (candidate.style.getPropertyPriority(
-                                    'pointer-events'
-                                ) === 'important') {
-                                    inlineStyleOriginals.push([
-                                        candidate,
-                                        candidate.hasAttribute('style'),
-                                        candidate.getAttribute('style'),
-                                    ]);
-                                    candidate.style.setProperty(
-                                        'pointer-events', 'auto', 'important'
-                                    );
-                                }
-                            }
-                            for (const [origin, pseudo] of pseudoCandidates) {
-                                const attribute = pseudo === '::before'
-                                    ? 'data-srcc-pointer-probe-before'
-                                    : 'data-srcc-pointer-probe-after';
-                                attributeOriginals.push([
-                                    origin,
-                                    attribute,
-                                    origin.hasAttribute(attribute),
-                                    origin.getAttribute(attribute),
-                                ]);
-                                origin.setAttribute(attribute, 'active');
-                            }
-                            if (realCandidates.length > 0 || pseudoCandidates.length > 0) {
-                                const boosted = attribute => Array.from(
-                                    {length: 8},
-                                    (_, index) => `:is(
-                                        #srcc-pointer-probe-${index},
-                                        [${attribute}="active"]
-                                    )`
-                                ).join('');
-                                probeStyle = document.createElement('style');
-                                probeStyle.textContent = `
-                                    ${boosted('data-srcc-pointer-probe-real')} {
-                                        pointer-events: auto !important;
-                                    }
-                                    ${boosted('data-srcc-pointer-probe-before')}::before,
-                                    ${boosted('data-srcc-pointer-probe-after')}::after {
-                                        pointer-events: auto !important;
-                                    }
-                                `;
-                                document.head.appendChild(probeStyle);
-                            }
-                            const probedHits = pointHits();
-                            return evidenceIndexes.some(index =>
-                                probedHits[index] === ordinaryHits[index] &&
-                                isRelatedHit(probedHits[index])
-                            );
-                        } finally {
-                            probeStyle?.remove();
-                            for (const [origin, attribute, hadAttribute, value] of
-                                attributeOriginals.reverse()) {
-                                if (hadAttribute) origin.setAttribute(attribute, value);
-                                else origin.removeAttribute(attribute);
-                            }
-                            for (const [candidate, hadStyle, value] of
-                                inlineStyleOriginals) {
-                                if (hadStyle) candidate.setAttribute('style', value);
-                                else candidate.removeAttribute('style');
-                            }
-                        }
-                    };
-                    if (hitTestEligible) return strictCurrentHitTest();
-                    const scrollPositions = [];
-                    const remembered = new Set();
-                    const remember = element => {
-                        if (!(element instanceof Element) || remembered.has(element)) return;
-                        remembered.add(element);
-                        scrollPositions.push([element, element.scrollLeft, element.scrollTop]);
-                    };
-                    for (let current = node.parentElement;
-                        current instanceof Element;
-                        current = current.parentElement) remember(current);
-                    remember(scrollingElement);
-                    const originalWindowScroll = [window.scrollX, window.scrollY];
-                    try {
-                        for (let current = node.parentElement;
-                            current instanceof Element;
-                            current = current.parentElement) {
-                            const style = getComputedStyle(current);
-                            const targetRect = node.getBoundingClientRect();
-                            const ancestorRect = current.getBoundingClientRect();
-                            const ancestorLeft = ancestorRect.left + current.clientLeft;
-                            const ancestorRight = ancestorLeft + current.clientWidth;
-                            const ancestorTop = ancestorRect.top + current.clientTop;
-                            const ancestorBottom = ancestorTop + current.clientHeight;
-                            if (['auto', 'scroll'].includes(style.overflowX) &&
-                                current.scrollWidth > current.clientWidth + 1) {
-                                if (targetRect.left < ancestorLeft) {
-                                    current.scrollLeft += targetRect.left - ancestorLeft;
-                                } else if (targetRect.right > ancestorRight) {
-                                    current.scrollLeft += targetRect.right - ancestorRight;
-                                }
-                            }
-                            if (['auto', 'scroll'].includes(style.overflowY) &&
-                                current.scrollHeight > current.clientHeight + 1) {
-                                if (targetRect.top < ancestorTop) {
-                                    current.scrollTop += targetRect.top - ancestorTop;
-                                } else if (targetRect.bottom > ancestorBottom) {
-                                    current.scrollTop += targetRect.bottom - ancestorBottom;
-                                }
-                            }
-                        }
-                        const targetRect = node.getBoundingClientRect();
-                        if (targetRect.left < 0) {
-                            scrollingElement.scrollLeft += targetRect.left;
-                        } else if (targetRect.right > window.innerWidth) {
-                            scrollingElement.scrollLeft += targetRect.right - window.innerWidth;
-                        }
-                        if (targetRect.top < 0) {
-                            scrollingElement.scrollTop += targetRect.top;
-                        } else if (targetRect.bottom > window.innerHeight) {
-                            scrollingElement.scrollTop += targetRect.bottom - window.innerHeight;
-                        }
-                        return strictCurrentHitTest();
-                    } finally {
-                        for (const [element, scrollLeft, scrollTop] of
-                            [...scrollPositions].reverse()) {
-                            element.scrollLeft = scrollLeft;
-                            element.scrollTop = scrollTop;
-                        }
-                        window.scrollTo({
-                            left: originalWindowScroll[0],
-                            top: originalWindowScroll[1],
-                            behavior: 'instant',
-                        });
+                    if (!functional) return 1;
+                    const body = functional[1];
+                    const slash = body.lastIndexOf('/');
+                    if (slash >= 0) return alphaValue(body.slice(slash + 1));
+                    if (body.includes(',')) {
+                        const components = body.split(',');
+                        return components.length === 4
+                            ? alphaValue(components[3])
+                            : 1;
                     }
+                    return 1;
                 };
                 const hasOwnCue = node => {
-                    if (!visible(node)) return false;
+                    if (!(node instanceof Element)) return false;
                     const style = getComputedStyle(node);
-                    const outline = Number.parseFloat(style.outlineWidth || '0') >= 1 &&
-                        !['none', 'hidden'].includes(style.outlineStyle);
+                    const outline = Number.parseFloat(
+                        style.outlineWidth || '0'
+                    ) >= 1 && !['none', 'hidden'].includes(style.outlineStyle) &&
+                        colorAlpha(style.outlineColor) > 0.01;
                     const border = ['Top', 'Right', 'Bottom', 'Left'].some(side =>
                         Number.parseFloat(style[`border${side}Width`] || '0') >= 1 &&
-                        !['none', 'hidden'].includes(style[`border${side}Style`])
+                        !['none', 'hidden'].includes(
+                            style[`border${side}Style`]
+                        ) && colorAlpha(style[`border${side}Color`]) > 0.01
                     );
                     return outline || border;
                 };
-                const hasCue = node => [node, ...node.querySelectorAll('*')]
-                    .filter(visible)
-                    .some(hasOwnCue);
-                if (!root || !visible(root)) return false;
+                if (!root) return false;
+                const provenance = root.querySelector(
+                    '[data-section="one-pager-provenance"]'
+                );
                 const states = [...root.querySelectorAll('[data-state]')];
-                const provenance = root.querySelector('[data-section="one-pager-provenance"]');
                 return states.length > 0 && states.every(node => {
                     const stateText = node.querySelector('.srcc-state');
-                    return visible(stateText) && String(stateText.innerText || '').trim().length > 0 && hasCue(node);
+                    return stateText instanceof Element &&
+                        String(stateText.innerText || '').trim().length > 0 &&
+                        hasOwnCue(stateText);
                 }) && hasOwnCue(root) && hasOwnCue(provenance);
             }"""
         )

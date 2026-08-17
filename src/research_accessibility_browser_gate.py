@@ -3135,6 +3135,20 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
     summary = _summary_scope_observation(page)
     scoped = page.evaluate(
         r"""() => {
+            const materialPaintSelector = [
+                '[data-section="one-pager-provenance"]',
+                '[data-section="one-pager-provenance"] caption',
+                '[data-section="one-pager-provenance"] tbody',
+                '.srcc-blockers',
+                '[data-section="one-pager-scenarios"] > ol > li',
+                '[data-section="one-pager-scenarios"] > ol > li > p',
+                '[data-section="one-pager-scenarios"] .srcc-state',
+                '[data-section="one-pager-handoff"]',
+                '[data-state][data-state-role]',
+                '[data-state][data-state-role] .srcc-state',
+                '[data-share-basis-role][data-share-basis-state]',
+            ].join(',');
+            let materialPaintCandidates = null;
             const visible = node => {
                 if (!(node instanceof Element)) return false;
                 const rect = node.getBoundingClientRect();
@@ -3315,7 +3329,9 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                     );
                     const ordinaryHits = pointHits();
                     const ordinaryHit = ordinaryHits.some(isRelatedHit);
-                    if (!ordinaryHit || node !== onePager) return ordinaryHit;
+                    const needsMaterialPaintProbe = node === onePager ||
+                        node.matches(materialPaintSelector);
+                    if (!ordinaryHit || !needsMaterialPaintProbe) return ordinaryHit;
                     const relatedIndexes = ordinaryHits.flatMap((hit, index) =>
                         isRelatedHit(hit) ? [index] : []
                     );
@@ -3326,21 +3342,150 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                         ? descendantIndexes
                         : relatedIndexes;
                     const colorAlpha = value => {
-                        const values = String(value || '').match(/[0-9.]+/g) || [];
-                        if (values.length < 3) return 0;
-                        const alpha = values.length > 3 ? Number(values[3]) : 1;
-                        return Number.isFinite(alpha) ? alpha : 0;
+                        const normalized = String(value || '').trim().toLowerCase();
+                        if (!normalized || ['none', 'transparent'].includes(normalized)) {
+                            return 0;
+                        }
+                        const alphaValue = token => {
+                            const trimmed = token.trim();
+                            const parsed = Number.parseFloat(trimmed);
+                            if (!Number.isFinite(parsed)) return 1;
+                            return trimmed.endsWith('%') ? parsed / 100 : parsed;
+                        };
+                        const functional = normalized.match(
+                            /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\((.*)\)$/
+                        );
+                        if (!functional) return 1;
+                        const body = functional[1];
+                        const slash = body.lastIndexOf('/');
+                        if (slash >= 0) return alphaValue(body.slice(slash + 1));
+                        if (body.includes(',')) {
+                            const components = body.split(',');
+                            return components.length === 4
+                                ? alphaValue(components[3])
+                                : 1;
+                        }
+                        return 1;
                     };
+                    const cssColors = value => String(value || '').match(
+                        /(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)|transparent/gi
+                    ) || [];
                     const imageHasMaterialPaint = value => {
                         if (!value || value === 'none') return false;
-                        const colors = String(value).match(
-                            /rgba?\([^)]*\)|transparent/gi
-                        ) || [];
+                        const colors = cssColors(value);
                         if (colors.length === 0) return true;
                         return colors.some(color =>
                             color.toLowerCase() !== 'transparent' &&
                             colorAlpha(color) > 0.01
                         );
+                    };
+                    const splitCssLayers = value => {
+                        const layers = [];
+                        let depth = 0;
+                        let start = 0;
+                        for (let index = 0; index < value.length; index += 1) {
+                            if (value[index] === '(') depth += 1;
+                            else if (value[index] === ')') depth = Math.max(0, depth - 1);
+                            else if (value[index] === ',' && depth === 0) {
+                                layers.push(value.slice(start, index));
+                                start = index + 1;
+                            }
+                        }
+                        layers.push(value.slice(start));
+                        return layers;
+                    };
+                    const paintDimensions = (origin, style, pseudo) => {
+                        const rect = origin.getBoundingClientRect();
+                        if (!pseudo || style.position !== 'fixed') {
+                            return {width: rect.width, height: rect.height};
+                        }
+                        const fixedExtent = (start, end, viewport, declared) => {
+                            const startValue = Number.parseFloat(start);
+                            const endValue = Number.parseFloat(end);
+                            if (Number.isFinite(startValue) && Number.isFinite(endValue)) {
+                                return Math.max(0, viewport - startValue - endValue);
+                            }
+                            const declaredValue = Number.parseFloat(declared);
+                            return Number.isFinite(declaredValue)
+                                ? Math.max(0, declaredValue)
+                                : 0;
+                        };
+                        return {
+                            width: fixedExtent(
+                                style.left, style.right, window.innerWidth, style.width
+                            ),
+                            height: fixedExtent(
+                                style.top, style.bottom, window.innerHeight, style.height
+                            ),
+                        };
+                    };
+                    const shadowHasMaterialPaint = (origin, style, pseudo) => {
+                        const value = style.boxShadow;
+                        if (!value || value === 'none') return false;
+                        const dimensions = paintDimensions(origin, style, pseudo);
+                        const minimumExtent = Math.max(
+                            1,
+                            Math.min(
+                                Math.max(0, dimensions.width),
+                                Math.max(0, dimensions.height)
+                            ) / 2
+                        );
+                        return splitCssLayers(String(value)).some(layer => {
+                            if (!/\binset\b/i.test(layer)) return false;
+                            const colors = cssColors(layer);
+                            if (colors.length > 0 && !colors.some(color =>
+                                color.toLowerCase() !== 'transparent' &&
+                                colorAlpha(color) > 0.01
+                            )) return false;
+                            const dimensions = layer.replace(
+                                /(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)|transparent/gi,
+                                ''
+                            ).match(/-?(?:\d+\.?\d*|\.\d+)(?:[a-z%]+)?/gi) || [];
+                            const parsed = dimensions.map(dimension =>
+                                Number.parseFloat(dimension)
+                            );
+                            const blur = Math.max(0, parsed[2] || 0);
+                            const spread = Math.max(0, parsed[3] || 0);
+                            return blur + spread >= minimumExtent - 1;
+                        });
+                    };
+                    const edgeHasMaterialPaint = (origin, style, pseudo) => {
+                        const dimensions = paintDimensions(origin, style, pseudo);
+                        const materialBorderWidth = side => {
+                            const width = Number.parseFloat(
+                                style[`border${side}Width`] || '0'
+                            );
+                            return width > 0.01 &&
+                                !['none', 'hidden'].includes(
+                                    style[`border${side}Style`]
+                                ) &&
+                                colorAlpha(style[`border${side}Color`]) > 0.01
+                                ? width
+                                : 0;
+                        };
+                        const borderFills = dimensions.width > 1 &&
+                            dimensions.height > 1 && (
+                            materialBorderWidth('Left') +
+                                materialBorderWidth('Right') >= dimensions.width - 1 ||
+                            materialBorderWidth('Top') +
+                                materialBorderWidth('Bottom') >= dimensions.height - 1
+                        );
+                        const outlineWidth = Number.parseFloat(
+                            style.outlineWidth || '0'
+                        );
+                        const outlineOffset = Number.parseFloat(
+                            style.outlineOffset || '0'
+                        );
+                        const outlineInset = Math.max(0, -outlineOffset);
+                        const outlineFills = dimensions.width > 1 &&
+                            dimensions.height > 1 &&
+                            outlineWidth > 0.01 &&
+                            !['none', 'hidden'].includes(style.outlineStyle) &&
+                            colorAlpha(style.outlineColor) > 0.01 &&
+                            outlineInset >=
+                                Math.min(dimensions.width, dimensions.height) / 2 - 1 &&
+                            outlineInset - outlineWidth <= 1;
+                        return borderFills || outlineFills;
                     };
                     const svgHasMaterialPaint = origin => origin.matches('svg') &&
                         [...origin.querySelectorAll('*')].some(descendant => {
@@ -3364,6 +3509,8 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                         return Number.isFinite(opacity) && opacity > 0.01 && (
                             colorAlpha(style.backgroundColor) > 0.01 ||
                             imageHasMaterialPaint(style.backgroundImage) ||
+                            shadowHasMaterialPaint(origin, style, pseudo) ||
+                            edgeHasMaterialPaint(origin, style, pseudo) ||
                             (!pseudo && (
                                 origin.matches('img, video, canvas') ||
                                 svgHasMaterialPaint(origin)
@@ -3387,53 +3534,70 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                         }
                         return opacity > 0.01;
                     };
-                    const realCandidates = [];
-                    const pseudoCandidates = [];
-                    for (const origin of document.querySelectorAll('*')) {
-                        if (!paintVisible(origin)) continue;
-                        const style = getComputedStyle(origin);
-                        if (style.pointerEvents === 'none' &&
-                            hasMaterialPaint(origin, style) &&
-                            coversPoint(origin.getBoundingClientRect())) {
-                            realCandidates.push(origin);
+                    if (materialPaintCandidates === null) {
+                        const real = [];
+                        const pseudo = [];
+                        for (const origin of document.querySelectorAll('*')) {
+                            if (!paintVisible(origin)) continue;
+                            const style = getComputedStyle(origin);
+                            if (style.pointerEvents === 'none' &&
+                                hasMaterialPaint(origin, style)) real.push(origin);
+                            for (const pseudoName of ['::before', '::after']) {
+                                const pseudoStyle = getComputedStyle(
+                                    origin, pseudoName
+                                );
+                                if (pseudoStyle.pointerEvents !== 'none' ||
+                                    ['none', 'normal'].includes(pseudoStyle.content) ||
+                                    !hasMaterialPaint(
+                                        origin, pseudoStyle, true
+                                    )) continue;
+                                pseudo.push([origin, pseudoName]);
+                            }
                         }
-                        for (const pseudo of ['::before', '::after']) {
-                            const pseudoStyle = getComputedStyle(origin, pseudo);
-                            if (pseudoStyle.pointerEvents !== 'none' ||
-                                ['none', 'normal'].includes(pseudoStyle.content) ||
-                                !hasMaterialPaint(origin, pseudoStyle, true)) continue;
-                            pseudoCandidates.push([origin, pseudo]);
-                        }
+                        materialPaintCandidates = {real, pseudo};
                     }
+                    const realCandidates = materialPaintCandidates.real.filter(
+                        origin => coversPoint(origin.getBoundingClientRect())
+                    );
+                    const pseudoCandidates = materialPaintCandidates.pseudo;
                     if (realCandidates.length === 0 && pseudoCandidates.length === 0) {
                         return true;
                     }
                     const attributeOriginals = [];
                     const inlineStyleOriginals = [];
+                    const rememberedInlineStyles = new Set();
+                    const rememberInlineStyle = candidate => {
+                        if (rememberedInlineStyles.has(candidate)) return;
+                        rememberedInlineStyles.add(candidate);
+                        inlineStyleOriginals.push([
+                            candidate,
+                            candidate.hasAttribute('style'),
+                            candidate.getAttribute('style'),
+                        ]);
+                    };
+                    const restoreInlineStyle = candidate => {
+                        const original = inlineStyleOriginals.find(
+                            ([element]) => element === candidate
+                        );
+                        if (!original) return;
+                        const [, hadStyle, value] = original;
+                        if (hadStyle) candidate.setAttribute('style', value);
+                        else candidate.removeAttribute('style');
+                    };
+                    const forceInlinePointerEvents = (candidate, value) => {
+                        rememberInlineStyle(candidate);
+                        const rawStyle = candidate.getAttribute('style') || '';
+                        const separator = rawStyle.trim() &&
+                            !rawStyle.trimEnd().endsWith(';') ? ';' : '';
+                        candidate.setAttribute(
+                            'style',
+                            `${rawStyle}${separator}pointer-events:${value}!important;`
+                        );
+                    };
                     let probeStyle = null;
                     try {
-                        for (const candidate of realCandidates) {
-                            const attribute = 'data-srcc-pointer-probe-real';
-                            attributeOriginals.push([
-                                candidate,
-                                attribute,
-                                candidate.hasAttribute(attribute),
-                                candidate.getAttribute(attribute),
-                            ]);
-                            candidate.setAttribute(attribute, 'active');
-                            if (candidate.style.getPropertyPriority(
-                                'pointer-events'
-                            ) === 'important') {
-                                inlineStyleOriginals.push([
-                                    candidate,
-                                    candidate.hasAttribute('style'),
-                                    candidate.getAttribute('style'),
-                                ]);
-                                candidate.style.setProperty(
-                                    'pointer-events', 'auto', 'important'
-                                );
-                            }
-                        }
+                        const pseudoOrigins = new Set();
+                        const pseudoAttributes = [];
                         for (const [origin, pseudo] of pseudoCandidates) {
                             const attribute = pseudo === '::before'
                                 ? 'data-srcc-pointer-probe-before'
@@ -3444,33 +3608,76 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                                 origin.hasAttribute(attribute),
                                 origin.getAttribute(attribute),
                             ]);
-                            origin.setAttribute(attribute, 'active');
+                            pseudoAttributes.push([origin, attribute]);
+                            origin.setAttribute(attribute, 'suppressed');
+                            if (!pseudoOrigins.has(origin)) {
+                                pseudoOrigins.add(origin);
+                                forceInlinePointerEvents(origin, 'none');
+                            }
                         }
                         if (realCandidates.length > 0 || pseudoCandidates.length > 0) {
-                            const boosted = attribute => Array.from(
+                            const boosted = (attribute, value) => Array.from(
                                 {length: 8},
                                 (_, index) => `:is(
                                     #srcc-pointer-probe-${index},
-                                    [${attribute}="active"]
+                                    [${attribute}="${value}"]
                                 )`
                             ).join('');
                             probeStyle = document.createElement('style');
                             probeStyle.textContent = `
-                                ${boosted('data-srcc-pointer-probe-real')} {
-                                    pointer-events: auto !important;
-                                }
-                                ${boosted('data-srcc-pointer-probe-before')}::before,
-                                ${boosted('data-srcc-pointer-probe-after')}::after {
-                                    pointer-events: auto !important;
+                                @layer srccPointerPaintProbe {
+                                    ${boosted('data-srcc-pointer-probe-real', 'active')} {
+                                        pointer-events: auto !important;
+                                    }
+                                    ${boosted('data-srcc-pointer-probe-before', 'suppressed')},
+                                    ${boosted('data-srcc-pointer-probe-after', 'suppressed')},
+                                    ${boosted('data-srcc-pointer-probe-before', 'active')},
+                                    ${boosted('data-srcc-pointer-probe-after', 'active')} {
+                                        pointer-events: none !important;
+                                    }
+                                    ${boosted('data-srcc-pointer-probe-before', 'active')}::before,
+                                    ${boosted('data-srcc-pointer-probe-after', 'active')}::after {
+                                        pointer-events: auto !important;
+                                    }
                                 }
                             `;
-                            document.head.appendChild(probeStyle);
+                            document.head.insertBefore(
+                                probeStyle, document.head.firstChild
+                            );
                         }
-                        const probedHits = pointHits();
-                        return evidenceIndexes.some(index =>
-                            probedHits[index] === ordinaryHits[index] &&
-                            isRelatedHit(probedHits[index])
+                        const suppressedHits = pointHits();
+                        for (const [origin, attribute] of pseudoAttributes) {
+                            origin.setAttribute(attribute, 'active');
+                        }
+                        const pseudoHits = pointHits();
+                        const pseudoCovered = pseudoHits.map((hit, index) =>
+                            hit && pseudoOrigins.has(hit) &&
+                            hit !== suppressedHits[index]
                         );
+                        for (const [origin, attribute] of pseudoAttributes) {
+                            origin.setAttribute(attribute, 'inactive');
+                        }
+                        for (const origin of pseudoOrigins) restoreInlineStyle(origin);
+                        for (const candidate of realCandidates) {
+                            const attribute = 'data-srcc-pointer-probe-real';
+                            attributeOriginals.push([
+                                candidate,
+                                attribute,
+                                candidate.hasAttribute(attribute),
+                                candidate.getAttribute(attribute),
+                            ]);
+                            candidate.setAttribute(attribute, 'active');
+                            forceInlinePointerEvents(candidate, 'auto');
+                        }
+                        const realHits = realCandidates.length > 0
+                            ? pointHits()
+                            : ordinaryHits;
+                        const visibleEvidenceCount = evidenceIndexes.filter(index =>
+                            !pseudoCovered[index] &&
+                            realHits[index] === ordinaryHits[index] &&
+                            isRelatedHit(realHits[index])
+                        ).length;
+                        return visibleEvidenceCount * 2 > evidenceIndexes.length;
                     } finally {
                         probeStyle?.remove();
                         for (const [origin, attribute, hadAttribute, value] of
@@ -3479,7 +3686,7 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                             else origin.removeAttribute(attribute);
                         }
                         for (const [candidate, hadStyle, value] of
-                            inlineStyleOriginals) {
+                            inlineStyleOriginals.reverse()) {
                             if (hadStyle) candidate.setAttribute('style', value);
                             else candidate.removeAttribute('style');
                         }

@@ -1249,6 +1249,29 @@ def _with_inside_pointer_transparent_cover(document):
     )
 
 
+def _with_pointer_transparent_paint_cover(document, declarations):
+    document = _replace_once(
+        document,
+        b"</body>",
+        b'<div class="test-pointer-transparent-paint-cover" aria-hidden="true"></div></body>',
+    )
+    return _append_test_css(
+        document,
+        f"""
+        @media screen {{
+          .test-pointer-transparent-paint-cover {{
+            position: fixed;
+            inset: 0;
+            z-index: 2147483647;
+            pointer-events: none;
+            background: transparent;
+            {declarations}
+          }}
+        }}
+        """,
+    )
+
+
 @pytest.mark.parametrize(
     "document",
     (
@@ -1433,6 +1456,313 @@ def test_summary_browser_collector_contract_rejects_unreachable_or_occluded_summ
     }
 
 
+def test_summary_browser_collector_contract_rejects_localized_late_provenance_pseudo_cover():
+    document = _append_test_css(
+        _synthetic_brief("complete"),
+        """
+        @media screen {
+          [data-section="one-pager-provenance"] { position: relative; }
+          [data-section="one-pager-provenance"]::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 2147483647;
+            pointer-events: none;
+            background: #fff;
+          }
+        }
+        """,
+    )
+
+    result = _run_summary_cell(document)
+    assertions = {assertion.name: assertion for assertion in result.assertions}
+
+    assert assertions["one_pager_visible"].passed is True
+    assert assertions["one_pager_provenance_caption_visible"].passed is False
+    assert assertions["one_pager_screen_content_visible"].passed is False
+
+
+def test_summary_browser_collector_contract_rejects_localized_required_node_pseudo_covers():
+    document = _append_test_css(
+        _synthetic_brief("complete"),
+        """
+        @media screen {
+          [data-section="evidence-one-pager"] .srcc-blockers {
+            display: none !important;
+          }
+          [data-section="one-pager-provenance"] .srcc-blockers {
+            display: block !important;
+          }
+          [data-section="one-pager-provenance"],
+          [data-section="one-pager-scenarios"],
+          [data-section="one-pager-handoff"] {
+            position: relative;
+          }
+          [data-section="one-pager-provenance"]::after,
+          [data-section="one-pager-scenarios"]::after,
+          [data-section="one-pager-handoff"]::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 2147483647;
+            pointer-events: none;
+            background: #fff;
+          }
+        }
+        """,
+    )
+
+    result = _run_summary_cell(document)
+    assertions = {assertion.name: assertion for assertion in result.assertions}
+
+    assert assertions["one_pager_visible"].passed is True
+    assert assertions["one_pager_state_truth"].passed is False
+    assert assertions["one_pager_share_basis_disclosure"].passed is False
+    assert assertions["one_pager_provenance_caption_visible"].passed is False
+    assert assertions["one_pager_screen_content_visible"].passed is False
+    assert "(False, False, False, False)" in assertions[
+        "one_pager_screen_content_visible"
+    ].evidence
+
+
+def test_summary_browser_collector_contract_rejects_localized_required_leaf_pseudo_covers():
+    document = _append_test_css(
+        _synthetic_brief("complete"),
+        """
+        @media screen {
+          [data-section="evidence-one-pager"] .srcc-blockers {
+            display: none !important;
+          }
+          [data-section="one-pager-provenance"] .srcc-blockers {
+            display: block !important;
+          }
+          [data-section="one-pager-provenance"] caption,
+          [data-section="one-pager-provenance"] tbody td:nth-child(2),
+          [data-section="one-pager-provenance"] .srcc-blockers > li,
+          [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state,
+          [data-section="one-pager-handoff"] > p,
+          [data-share-basis-role="operating-valuation-base-bridge-share-basis"] {
+            position: relative;
+          }
+          [data-section="one-pager-provenance"] caption::after,
+          [data-section="one-pager-provenance"] tbody td:nth-child(2)::after,
+          [data-section="one-pager-provenance"] .srcc-blockers > li::after,
+          [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state::after,
+          [data-section="one-pager-handoff"] > p::after,
+          [data-share-basis-role="operating-valuation-base-bridge-share-basis"]::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 2147483647;
+            pointer-events: none;
+            background: #fff;
+          }
+        }
+        """,
+    )
+
+    result = _run_summary_cell(document)
+    assertions = {assertion.name: assertion for assertion in result.assertions}
+
+    assert assertions["one_pager_visible"].passed is True
+    assert assertions["one_pager_state_truth"].passed is False
+    assert assertions["one_pager_share_basis_disclosure"].passed is False
+    assert assertions["one_pager_provenance_caption_visible"].passed is False
+    assert assertions["one_pager_screen_content_visible"].passed is False
+    assert "(False, False, False, False)" in assertions[
+        "one_pager_screen_content_visible"
+    ].evidence
+
+
+@pytest.mark.parametrize(
+    "selector",
+    (
+        '[data-section="one-pager-provenance"] caption',
+        '[data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state',
+    ),
+    ids=("caption", "state-label"),
+)
+def test_summary_browser_collector_contract_accepts_tiny_required_leaf_pseudo_decoration(
+    selector,
+):
+    document = _append_test_css(
+        _synthetic_brief("complete"),
+        f"""
+        @media screen {{
+          {selector} {{ position: relative !important; }}
+          {selector}::after {{
+            content: '';
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            width: 4px;
+            height: 2px;
+            z-index: 2147483647;
+            pointer-events: none;
+            background: #f0f;
+          }}
+        }}
+        """,
+    )
+
+    result = _run_summary_cell(document)
+    failures = _failed_assertion_names(result)
+    expected_green = {
+        "one_pager_visible",
+        "one_pager_state_truth",
+        "one_pager_provenance_caption_visible",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected_green.isdisjoint(failures), sorted(failures)
+
+
+@pytest.mark.parametrize(
+    "document",
+    (
+        _append_test_css(
+            _replace_once(
+                _synthetic_brief("complete"),
+                b"</body>",
+                b'<div class="test-layer-cover" aria-hidden="true"></div></body>',
+            ),
+            """
+            @layer adversarial {
+              .test-layer-cover { position: fixed; inset: 0; z-index: 2147483647; pointer-events: none !important; background: #f0f; }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @layer adversarial {
+              body::after { content: ''; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none !important; background: #f0f; }
+            }
+            """,
+        ),
+    ),
+    ids=("real", "pseudo"),
+)
+def test_summary_browser_collector_contract_rejects_layered_important_pointer_transparent_paint(
+    document,
+):
+    result = _run_summary_cell(document)
+    failures = _failed_assertion_names(result)
+    expected = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected <= failures, {
+        "missing": sorted(expected - failures),
+        "observed_failures": sorted(failures),
+    }
+
+
+@pytest.mark.parametrize(
+    "document",
+    (
+        _with_pointer_transparent_paint_cover(
+            _synthetic_brief("complete"),
+            "box-shadow: inset 0 0 0 100vmax #fff;",
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              body::after {
+                content: '';
+                position: fixed;
+                inset: 0;
+                z-index: 2147483647;
+                pointer-events: none;
+                background: transparent;
+                box-shadow: inset 0 0 0 100vmax #fff;
+              }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              body::after { content: ''; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none; background: transparent; box-shadow: inset 0 0 0 100vmax oklab(.8 0 0); }
+            }
+            """,
+        ),
+        _with_pointer_transparent_paint_cover(
+            _synthetic_brief("complete"),
+            "box-sizing: border-box; border: 100vmax solid #fff;",
+        ),
+        _with_pointer_transparent_paint_cover(
+            _synthetic_brief("complete"),
+            "outline: 100vmax solid #fff; outline-offset: -100vmax;",
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              body::after { content: ''; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none; background: transparent; box-shadow: inset 0 0 0 400px #f0f; }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              body::after { content: ''; position: fixed; inset: 0; box-sizing: border-box; z-index: 2147483647; pointer-events: none; background: transparent; border: 400px solid #f0f; }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              body::after { content: ''; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none; background: transparent; box-shadow: inset 0 0 0 100vmax color(srgb 1 1 1); }
+            }
+            """,
+        ),
+        _append_test_css(
+            _synthetic_brief("complete"),
+            """
+            @media screen {
+              body::after { content: ''; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none; background: transparent; box-shadow: inset 0 0 0 100vmax color(display-p3 1 1 1); }
+            }
+            """,
+        ),
+    ),
+    ids=(
+        "real-inset-box-shadow",
+        "pseudo-inset-box-shadow",
+        "css-color-4-oklab-shadow",
+        "opaque-border",
+        "opaque-outline",
+        "fixed-pseudo-400px-inset-shadow",
+        "fixed-pseudo-400px-border",
+        "css-color-4-srgb-shadow",
+        "css-color-4-display-p3-shadow",
+    ),
+)
+def test_summary_browser_collector_contract_rejects_pointer_transparent_material_edge_paint(
+    document,
+):
+    result = _run_summary_cell(document)
+    failures = _failed_assertion_names(result)
+    expected = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected <= failures, {
+        "missing": sorted(expected - failures),
+        "observed_failures": sorted(failures),
+    }
+
+
 def test_summary_browser_collector_contract_accepts_zero_paint_pointer_layers():
     document = _append_test_css(
         _replace_once(
@@ -1441,6 +1771,7 @@ def test_summary_browser_collector_contract_accepts_zero_paint_pointer_layers():
             (
                 b'<div class="test-zero-paint-layer" aria-hidden="true"></div>'
                 b'<div class="test-one-percent-layer" aria-hidden="true"></div>'
+                b'<div class="test-transparent-edge-paint-layer" aria-hidden="true"></div>'
                 b'<svg class="test-empty-svg-layer" aria-hidden="true"></svg>'
                 b"</body>"
             ),
@@ -1461,6 +1792,17 @@ def test_summary_browser_collector_contract_accepts_zero_paint_pointer_layers():
             z-index: 2147483646;
             pointer-events: none;
             background: rgba(255, 255, 255, .01);
+          }
+          .test-transparent-edge-paint-layer {
+            position: fixed;
+            inset: 0;
+            z-index: 2147483646;
+            pointer-events: none;
+            background: transparent;
+            box-shadow: inset 0 0 0 100vmax rgba(0, 0, 0, 0);
+            border: 48px solid rgba(0, 0, 0, 0);
+            outline: 48px solid rgba(0, 0, 0, 0);
+            outline-offset: -48px;
           }
           .test-empty-svg-layer {
             position: fixed;
@@ -1503,10 +1845,56 @@ def test_summary_browser_collector_contract_accepts_a_small_pointer_decoration()
             height: 20px;
             z-index: 2147483647;
             pointer-events: none;
-            background: #fff;
+            background: transparent;
+            box-shadow: inset 0 0 0 100vmax #fff;
           }
         }
         """,
+    )
+
+    result = _run_summary_cell(document)
+    failures = _failed_assertion_names(result)
+    expected_green = {
+        "one_pager_visible",
+        "one_pager_text_contrast",
+        "one_pager_boundary_contrast",
+        "one_pager_screen_content_visible",
+    }
+
+    assert expected_green.isdisjoint(failures), sorted(failures)
+
+
+@pytest.mark.parametrize(
+    "declarations",
+    (
+        "box-shadow: inset 0 0 0 1px #fff;",
+        "box-shadow: 10000px 0 0 #fff;",
+        "box-sizing: border-box; border: 1px solid #fff;",
+        "outline: 1px solid #fff; outline-offset: -1px;",
+        "outline: 1px solid #000; outline-offset: -360px;",
+        "outline: 400px solid #000; outline-offset: 0;",
+        "box-sizing: border-box; border: 100vmax solid color(display-p3 1 1 1 / 0);",
+        "outline: 100vmax solid color(display-p3 1 1 1 / 0); outline-offset: -100vmax;",
+        "box-sizing: border-box; border: 100vmax solid oklab(.8 0 0 / 0);",
+    ),
+    ids=(
+        "thin-inset-shadow",
+        "offscreen-outer-shadow",
+        "thin-border",
+        "thin-outline",
+        "thin-centered-outline",
+        "outward-only-outline",
+        "transparent-css-color-4-border",
+        "transparent-css-color-4-outline",
+        "transparent-css-color-4-oklab-border",
+    ),
+)
+def test_summary_browser_collector_contract_accepts_non_occluding_edge_paint(
+    declarations,
+):
+    document = _with_pointer_transparent_paint_cover(
+        _synthetic_brief("complete"),
+        declarations,
     )
 
     result = _run_summary_cell(document)
@@ -1591,16 +1979,48 @@ def test_summary_browser_collector_contract_rejects_print_only_contrast_loss(
     assert expected_assertion in _failed_assertion_names(result)
 
 
-def test_summary_browser_collector_contract_rejects_forced_colors_border_loss():
+@pytest.mark.parametrize(
+    "selector",
+    (
+        "body.srcc-html-document .srcc-one-pager",
+        (
+            "body.srcc-html-document .srcc-one-pager "
+            "[data-section='one-pager-provenance']"
+        ),
+        "body.srcc-html-document .srcc-one-pager .srcc-state",
+    ),
+    ids=("root", "provenance", "state-labels"),
+)
+def test_summary_browser_collector_contract_rejects_forced_colors_border_loss(
+    selector,
+):
+    document = _append_test_css(
+        _synthetic_brief("complete"),
+        f"""
+@media (forced-colors: active) {{
+  {selector} {{
+    border: 0 !important;
+    outline: 0 !important;
+  }}
+}}
+""",
+    )
+    result = _run_summary_cell(document)
+
+    assert "one_pager_forced_colors_non_color_cue" in _failed_assertion_names(result)
+
+
+def test_summary_browser_collector_contract_rejects_transparent_forced_colors_cues():
     document = _append_test_css(
         _synthetic_brief("complete"),
         """
 @media (forced-colors: active) {
   body.srcc-html-document .srcc-one-pager,
-  body.srcc-html-document .srcc-one-pager [data-state],
+  body.srcc-html-document .srcc-one-pager .srcc-state,
   body.srcc-html-document .srcc-one-pager [data-section='one-pager-provenance'] {
-    border: 0 !important;
-    outline: 0 !important;
+    forced-color-adjust: none !important;
+    border-color: transparent !important;
+    outline-color: transparent !important;
   }
 }
 """,

@@ -896,6 +896,95 @@ def test_actual_company_workbench_one_pager_in_app_contract():
         ".test-pointer-transparent-svg-cover { display: block !important; position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 2147483647; pointer-events: none; }",
         ".test-inline-style-cover { display: block !important; }",
         ".test-pointer-transparent-cover { position: fixed; inset: 0; background: rgba(255, 255, 255, .98); z-index: 2147483647; pointer-events: none; }",
+        ".test-pointer-transparent-cover { position: fixed; inset: 0; background: transparent; box-shadow: inset 0 0 0 100vmax #fff; z-index: 2147483647; pointer-events: none; }",
+        "body::after { content: ''; position: fixed; inset: 0; background: transparent; box-shadow: inset 0 0 0 100vmax #fff; z-index: 2147483647; pointer-events: none; }",
+        """
+        /* localized-required-node-covers */
+        [data-section="evidence-one-pager"] .srcc-blockers {
+          display: none !important;
+        }
+        [data-section="one-pager-provenance"] .srcc-blockers {
+          display: block !important;
+        }
+        [data-section="one-pager-provenance"],
+        [data-section="one-pager-scenarios"],
+        [data-section="one-pager-handoff"] {
+          position: relative;
+        }
+        [data-section="one-pager-provenance"]::after,
+        [data-section="one-pager-scenarios"]::after,
+        [data-section="one-pager-handoff"]::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          z-index: 2147483647;
+          pointer-events: none;
+          background: #fff;
+        }
+        """,
+        """
+        /* localized-required-leaf-covers */
+        [data-section="evidence-one-pager"] .srcc-blockers {
+          display: none !important;
+        }
+        [data-section="one-pager-provenance"] .srcc-blockers {
+          display: block !important;
+        }
+        [data-section="one-pager-provenance"] caption,
+        [data-section="one-pager-provenance"] tbody td:nth-child(2),
+        [data-section="one-pager-provenance"] .srcc-blockers > li,
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state,
+        [data-section="one-pager-scenarios"] [data-share-basis-role],
+        [data-section="one-pager-handoff"] > p {
+          position: relative;
+        }
+        [data-section="one-pager-provenance"] caption::after,
+        [data-section="one-pager-provenance"] tbody td:nth-child(2)::after,
+        [data-section="one-pager-provenance"] .srcc-blockers > li::after,
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state::after,
+        [data-section="one-pager-scenarios"] [data-share-basis-role]::after,
+        [data-section="one-pager-handoff"] > p::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          z-index: 2147483647;
+          pointer-events: none;
+          background: #fff;
+        }
+        """,
+        """
+        /* layered-important-real-cover */
+        @layer adversarial {
+          .test-layer-cover { position: fixed; inset: 0; z-index: 2147483647; pointer-events: none !important; background: #f0f; }
+        }
+        """,
+        """
+        /* layered-important-pseudo-cover */
+        @layer adversarial {
+          body::after { content: ''; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none !important; background: #f0f; }
+        }
+        """,
+        """
+        /* oklab-pointer-transparent-cover */
+        body::after { content: ''; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none; background: transparent; box-shadow: inset 0 0 0 100vmax oklab(.8 0 0); }
+        """,
+        """
+        /* tiny-required-state-decoration */
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state {
+          position: relative !important;
+        }
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state::after {
+          content: '';
+          position: absolute;
+          right: 0;
+          bottom: 0;
+          width: 4px;
+          height: 2px;
+          z-index: 2147483647;
+          pointer-events: none;
+          background: #f0f;
+        }
+        """,
     ),
     ids=(
         "clip-path",
@@ -915,6 +1004,14 @@ def test_actual_company_workbench_one_pager_in_app_contract():
         "pointer-transparent-svg-cover",
         "pointer-transparent-inline-style-restoration",
         "translucent-pointer-transparent-element-cover",
+        "pointer-transparent-inset-box-shadow-cover",
+        "pointer-transparent-inset-box-shadow-pseudo-cover",
+        "localized-required-node-covers",
+        "localized-required-leaf-covers",
+        "layered-important-real-cover",
+        "layered-important-pseudo-cover",
+        "oklab-pointer-transparent-cover",
+        "tiny-required-state-decoration",
     ),
 )
 def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_with_outside_blockers(
@@ -1011,6 +1108,10 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
                             cover.className = 'test-pointer-transparent-cover';
                             cover.setAttribute('aria-hidden', 'true');
                             document.body.appendChild(cover);
+                            const layerCover = document.createElement('div');
+                            layerCover.className = 'test-layer-cover';
+                            layerCover.setAttribute('aria-hidden', 'true');
+                            document.body.appendChild(layerCover);
                             const onePager = document.querySelector(
                                 '[data-section="evidence-one-pager"]'
                             );
@@ -1076,8 +1177,9 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
                         ],
                         style_count: document.querySelectorAll('style').length,
                         candidate_styles: [...document.querySelectorAll(
-                            '.test-pointer-transparent-cover, ' +
-                            '.test-inside-pointer-transparent-cover, ' +
+                                '.test-pointer-transparent-cover, ' +
+                                '.test-layer-cover, ' +
+                                '.test-inside-pointer-transparent-cover, ' +
                             '.test-pointer-transparent-svg-cover, ' +
                             '.test-inline-style-cover'
                         )].map(node => [
@@ -1132,20 +1234,47 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
             if key != "candidate_styles"
         },
     }
-    assert (
-        observation["one_pager_visible"] is False
-        and observation["one_pager_visible_count"] == 0
-        and observation["one_pager_min_text_contrast_ratio"] < 0
-        and observation["one_pager_min_boundary_contrast_ratio"] < 0
-        and observation["one_pager_provenance_visible"] is False
-        and observation["one_pager_blockers_visible"] is False
-        and observation["one_pager_assumptions_visible"] is False
-        and observation["one_pager_handoff_visible"] is False
-        and observation["one_pager_state_text_matches"] is False
-        and observation["one_pager_share_basis_visible_count"] == 0
-        and observation["advanced_evidence_count"] == 1
-        and observation["advanced_evidence_after_one_pager"] is True
-    ), observation
+    if "tiny-required-state-decoration" in mutation_css:
+        assert (
+            observation["one_pager_visible"] is True
+            and observation["one_pager_visible_count"] == 1
+            and observation["one_pager_provenance_visible"] is True
+            and observation["one_pager_blockers_visible"] is True
+            and observation["one_pager_assumptions_visible"] is True
+            and observation["one_pager_handoff_visible"] is True
+            and observation["one_pager_state_text_matches"] is True
+            and observation["one_pager_share_basis_visible_count"] == 4
+            and observation["advanced_evidence_count"] == 1
+            and observation["advanced_evidence_after_one_pager"] is True
+        ), observation
+    elif "localized-required-" in mutation_css:
+        assert (
+            observation["one_pager_visible"] is True
+            and observation["one_pager_visible_count"] == 1
+            and observation["one_pager_provenance_visible"] is False
+            and observation["one_pager_blockers_visible"] is False
+            and observation["one_pager_assumptions_visible"] is False
+            and observation["one_pager_handoff_visible"] is False
+            and observation["one_pager_state_text_matches"] is False
+            and observation["one_pager_share_basis_visible_count"] == 1
+            and observation["advanced_evidence_count"] == 1
+            and observation["advanced_evidence_after_one_pager"] is True
+        ), observation
+    else:
+        assert (
+            observation["one_pager_visible"] is False
+            and observation["one_pager_visible_count"] == 0
+            and observation["one_pager_min_text_contrast_ratio"] < 0
+            and observation["one_pager_min_boundary_contrast_ratio"] < 0
+            and observation["one_pager_provenance_visible"] is False
+            and observation["one_pager_blockers_visible"] is False
+            and observation["one_pager_assumptions_visible"] is False
+            and observation["one_pager_handoff_visible"] is False
+            and observation["one_pager_state_text_matches"] is False
+            and observation["one_pager_share_basis_visible_count"] == 0
+            and observation["advanced_evidence_count"] == 1
+            and observation["advanced_evidence_after_one_pager"] is True
+        ), observation
 
 
 def test_proof_history_media_marker_selects_the_rendered_public_timeline():
