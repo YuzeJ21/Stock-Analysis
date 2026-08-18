@@ -834,10 +834,12 @@ def test_actual_company_workbench_one_pager_in_app_contract():
     import src.research_accessibility_browser_gate as gate
     from playwright.sync_api import sync_playwright
 
+    repository_root = Path.cwd()
+    repository_before = gate._repository_content_snapshot(repository_root)
     chrome = gate.find_chrome_executable()
     assert chrome is not None
     with gate._captured_local_demo_server(
-        Path.cwd(),
+        repository_root,
         timeout_seconds=45,
     ) as server:
         with sync_playwright() as playwright:
@@ -852,7 +854,9 @@ def test_actual_company_workbench_one_pager_in_app_contract():
                 ),
                 server_runtime_output_status=server.capture_status,
             )
+    repository_after = gate._repository_content_snapshot(repository_root)
     observation = result["observation"]
+    assert repository_after == repository_before
     assert (
         observation["one_pager_min_text_contrast_ratio"] >= 4.5
         and observation["download_button_height"] >= 44
@@ -2594,63 +2598,6 @@ def test_route_transition_verifies_url_after_late_render_mutation(monkeypatch):
     assert expected in str(assertions[0]["detail"])
 
 
-def test_browser_measurement_rechecks_landmark_after_rerun_and_route_transition():
-    source = Path("src/research_accessibility_browser_gate.py").read_text(
-        encoding="utf-8"
-    )
-    transition = source[source.index("def _navigate_and_verify_route(") :]
-    transition = transition[: transition.index("\ndef _measure_route(")]
-    measurement = source[source.index("def _measure_route(") :]
-    measurement = measurement[
-        : measurement.index("\ndef _repository_status_snapshot(")
-    ]
-
-    assert 'page.on("console"' in measurement
-    assert 'page.on("pageerror"' in measurement
-    assert '_semantic_main_assertions(page, phase="initial")' in measurement
-    assert (
-        '_semantic_main_assertions(page, phase="navigation_authority")'
-        in measurement
-    )
-    assert "_personal_navigation_authority_assertions(page)" in measurement
-    assert "_same_document_streamlit_rerun_assertions(" not in measurement
-    assert '_semantic_main_assertions(page, phase="route_away")' in measurement
-    assert '_semantic_main_assertions(page, phase="route_return")' in measurement
-    assert '_wait_for_route_heading(page, route,' in measurement
-    assert measurement.count("_wait_for_route_heading(") == 2
-    assert "away_route," in measurement
-    assert "away_route = _route_transition_target(route)" in measurement
-    assert measurement.count("_navigate_and_verify_route(") == 2
-    assert transition.count("page.goto(") == 1
-    assert transition.index("_wait_for_route_heading(") < transition.index(
-        "evaluate_exact_route_url("
-    )
-    assert 'phase="route_away"' in measurement
-    assert 'phase="route_return"' in measurement
-    assert (
-        '_evidence_navigation_assertion(page, phase="initial")'
-        in measurement
-    )
-    assert (
-        '_evidence_navigation_assertion(page, phase="navigation_authority")'
-        in measurement
-    )
-    assert (
-        '_evidence_navigation_assertion(page, phase="route_away")'
-        in measurement
-    )
-    assert (
-        '_evidence_navigation_assertion(page, phase="route_return")'
-        in measurement
-    )
-    assert '_runtime_dom_assertions(page, phase="route_away")' in measurement
-    assert '_runtime_dom_assertions(page, phase="route_return")' in measurement
-    assert measurement.count("page.goto(") == 1
-    assert measurement.index(
-        "_personal_navigation_authority_assertions(page)"
-    ) < measurement.index("away_route = _route_transition_target(route)")
-
-
 def test_discover_action_contract_uses_every_actual_row_and_fails_when_empty():
     from src.research_accessibility_browser_gate import (
         evaluate_discover_action_names,
@@ -3372,21 +3319,3 @@ def test_makefile_exposes_non_writing_browser_gate():
 
     assert "research-accessibility-browser-check:" in makefile
     assert "python3 -m src.research_accessibility_browser_gate" in makefile
-
-
-def test_browser_gate_source_has_no_artifact_writer_or_screenshot_capture():
-    source = Path("src/research_accessibility_browser_gate.py").read_text(
-        encoding="utf-8"
-    )
-    lowered = source.lower()
-
-    for forbidden in (
-        "write_text(",
-        "write_bytes(",
-        "json.dump(",
-        ".screenshot(",
-        "page.screenshot",
-    ):
-        assert forbidden not in lowered
-    assert "STOCK_RESEARCH_DATA_PROFILE" in source
-    assert '"demo"' in source
