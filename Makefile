@@ -356,7 +356,7 @@ help-full:
 	@echo "Preview-first fundamentals and universe imports:"
 	@echo "  export SEC_USER_AGENT='Name email@example.com'"
 	@echo "  make sec-stage TICKERS=NVDA,MSFT"
-	@echo "  make sec-fundamentals-preview TICKERS=AAPL,AMZN,GOOG Official SEC annual comparison; max five explicit tickers; no cache, staging, or apply writes"
+	@echo "  make sec-fundamentals-preview TICKERS=AAPL,NVDA,AMD Official SEC annual comparison; max five explicit tickers; no cache, staging, or apply writes"
 	@echo "  make yfinance-stage TICKERS=NVDA"
 	@echo "  make fundamentals-source-ladder TICKERS=NVDA"
 	@echo "                        Try SEC, yfinance, FMP, Alpha Vantage, then Finnhub before stopping at reviewed blocker evidence"
@@ -1275,7 +1275,7 @@ endif
 .PHONY: sec-fundamentals-preview
 sec-fundamentals-preview:
 ifndef TICKERS
-	$(error TICKERS is required, for example: make sec-fundamentals-preview TICKERS=AAPL,AMZN,GOOG)
+	$(error TICKERS is required, for example: make sec-fundamentals-preview TICKERS=AAPL,NVDA,AMD)
 endif
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.sec_fundamentals_preview --tickers "$(TICKERS)"
 

@@ -115,6 +115,7 @@ def _canonical_file(path: Path):
                 "shares_outstanding": 14_687_356_000,
                 "source": "sec_companyfacts",
                 "as_of_date": "2018-09-29",
+                "sec_filed_date": "2018-11-05",
             },
             {"ticker": "AMZN", "revenue": 1, "as_of_date": "2024-12-31"},
             {"ticker": "GOOG", "revenue": 1, "as_of_date": "2024-12-31"},
@@ -122,7 +123,13 @@ def _canonical_file(path: Path):
     ).to_csv(path, index=False)
 
 
-def _build(tmp_path: Path, *, payload=None, staged=True):
+def _build(
+    tmp_path: Path,
+    *,
+    payload=None,
+    staged=True,
+    retrieval_timestamp=None,
+):
     canonical = tmp_path / "fundamentals.csv"
     _canonical_file(canonical)
     staged_path = tmp_path / "staged.csv"
@@ -138,6 +145,9 @@ def _build(tmp_path: Path, *, payload=None, staged=True):
         requested_urls.append(url)
         return payload if payload is not None else _companyfacts_payload()
 
+    kwargs = {}
+    if retrieval_timestamp is not None:
+        kwargs["retrieval_timestamp"] = retrieval_timestamp
     result = build_sec_fundamentals_preview(
         "AAPL",
         canonical_path=canonical,
@@ -146,6 +156,7 @@ def _build(tmp_path: Path, *, payload=None, staged=True):
         ticker_map_fetcher=ticker_fetcher,
         companyfacts_fetcher=facts_fetcher,
         cache_dir=tmp_path / "must-not-exist",
+        **kwargs,
     )
     return result, requested_urls
 
@@ -239,6 +250,139 @@ def test_preview_exposes_aapl_mixed_canonical_period_and_field_classifications(t
         )
     )
     assert "net_income" not in fields
+
+
+def test_preview_emits_complete_field_level_review_metadata(tmp_path: Path):
+    result, _ = _build(
+        tmp_path,
+        retrieval_timestamp="2026-08-18T22:15:30Z",
+    )
+    ticker = result["tickers"][0]
+    fields = {row["field"]: row for row in ticker["fields"]}
+    components = {row["field"]: row for row in ticker["source_components"]}
+
+    assert result["retrieval_timestamp"] == "2026-08-18T22:15:30Z"
+    assert ticker["sec_cik"] == "0000320193"
+    assert ticker["changed_fields"] == [
+        "revenue",
+        "revenue_growth",
+        "fcf_margin",
+        "profit_margin",
+        "operating_margin",
+        "cash",
+        "debt",
+        "filing_dates",
+    ]
+    assert ticker["schema_review_required_fields"] == [
+        "cash_from_operations",
+        "capital_expenditures",
+        "operating_income",
+    ]
+    assert "eps" in ticker["intentionally_withheld_fields"]
+    assert "free_cash_flow" in ticker["intentionally_withheld_fields"]
+
+    revenue = fields["revenue"]
+    assert revenue == {
+        **revenue,
+        "ticker": "AAPL",
+        "sec_cik": "0000320193",
+        "canonical_column": "revenue",
+        "unit": "USD",
+        "source_units": ["USD"],
+        "retrieval_timestamp": "2026-08-18T22:15:30Z",
+        "source_rights_status": "approved",
+        "commercial_rights_approved": True,
+        "required_registered_field": "revenue",
+        "field_scope_status": "approved",
+        "missing_registered_fields": [],
+        "proposed_delta": {
+            "from": 265_595_000_000,
+            "to": 416_161_000_000,
+            "numeric_change": 150_566_000_000,
+        },
+        "required_owner_action": "review_field_delta_before_separate_apply_authorization",
+    }
+    assert revenue["source_refs"][0]["retrieval_timestamp"] == "2026-08-18T22:15:30Z"
+
+    filing_date = fields["filing_dates"]
+    assert filing_date["canonical_column"] == "sec_filed_date"
+    assert filing_date["candidate_value"] == "2025-10-31"
+    assert filing_date["unit"] == "date"
+    assert filing_date["value_kind"] == "direct"
+    assert filing_date["classification"] == "approved_direct"
+    assert filing_date["field_scope_status"] == "approved"
+    assert filing_date["source_units"] == ["date"]
+    assert filing_date["source_refs"][0]["taxonomy"] == "us-gaap"
+    assert filing_date["source_refs"][0]["concept"] == "Revenues"
+    assert filing_date["source_refs"][0]["unit"] == "date"
+    assert filing_date["source_refs"][0]["underlying_fact_unit"] == "USD"
+    assert filing_date["proposed_delta"] == {
+        "from": "2018-11-05",
+        "to": "2025-10-31",
+        "numeric_change": None,
+    }
+    assert "filing_dates" in ticker["future_apply_candidate_fields"]
+
+    operating_income = components["operating_income"]
+    assert operating_income["unit"] == "USD"
+    assert operating_income["source_rights_status"] == "approved"
+    assert operating_income["field_scope_status"] == "approved"
+    assert operating_income["required_owner_action"] == (
+        "approve_canonical_schema_before_any_apply"
+    )
+
+    shares = fields["shares_outstanding"]
+    assert shares["basis_status"] == "reported_value_no_split_adjustment"
+    assert shares["classification"] == "approved_direct"
+
+
+def test_preview_blocks_cross_currency_derived_values(tmp_path: Path):
+    payload = _companyfacts_payload()
+    capex = payload["facts"]["us-gaap"][
+        "PaymentsToAcquirePropertyPlantAndEquipment"
+    ]["units"].pop("USD")[0]
+    payload["facts"]["us-gaap"][
+        "PaymentsToAcquirePropertyPlantAndEquipment"
+    ]["units"]["EUR"] = [capex]
+
+    result, _ = _build(tmp_path, payload=payload)
+    fields = {row["field"]: row for row in result["tickers"][0]["fields"]}
+
+    assert fields["free_cash_flow"]["source_units"] == ["EUR", "USD"]
+    assert fields["free_cash_flow"]["unit"] == "mixed"
+    assert fields["free_cash_flow"]["classification"] == "unit_conflict"
+    assert "consistent source units" in fields["free_cash_flow"][
+        "publishability_blocker"
+    ]
+    assert fields["fcf_margin"]["classification"] == "unit_conflict"
+
+
+def test_preview_does_not_make_missing_canonical_columns_apply_candidates(
+    tmp_path: Path,
+):
+    canonical = tmp_path / "fundamentals.csv"
+    pd.DataFrame(
+        [{"ticker": "AAPL", "revenue": 1, "as_of_date": "2024-01-01"}]
+    ).to_csv(canonical, index=False)
+    result = build_sec_fundamentals_preview(
+        "AAPL",
+        retrieval_timestamp="2026-08-18T22:15:30Z",
+        canonical_path=canonical,
+        staged_path=tmp_path / "missing.csv",
+        user_agent="Test test@example.com",
+        ticker_map_fetcher=lambda *_: _ticker_map_payload(),
+        companyfacts_fetcher=lambda *_: _companyfacts_payload(),
+        cache_dir=tmp_path / "must-not-exist",
+    )
+    ticker = result["tickers"][0]
+    fields = {row["field"]: row for row in ticker["fields"]}
+
+    assert fields["filing_dates"]["classification"] == "approved_direct"
+    assert fields["filing_dates"]["schema_status"] == "canonical_column_missing"
+    assert fields["filing_dates"]["required_owner_action"] == (
+        "approve_canonical_schema_before_any_apply"
+    )
+    assert "filing_dates" not in ticker["future_apply_candidate_fields"]
 
 
 def test_preview_blocks_mixed_candidate_periods(tmp_path: Path):
@@ -507,7 +651,9 @@ def test_malformed_first_ticker_does_not_abort_later_valid_ticker(tmp_path: Path
 
 
 def test_preview_reports_staged_schema_expansion_and_is_deterministic(tmp_path: Path):
-    result, _ = _build(tmp_path)
+    retrieval_timestamp = "2026-08-18T22:15:30Z"
+    result, _ = _build(tmp_path, retrieval_timestamp=retrieval_timestamp)
+    rebuilt, _ = _build(tmp_path, retrieval_timestamp=retrieval_timestamp)
 
     assert result["schema_delta"]["staged_extra_columns"] == ["currency"]
     assert "cash_from_operations" in result["schema_delta"]["candidate_component_extra_columns"]
@@ -515,4 +661,4 @@ def test_preview_reports_staged_schema_expansion_and_is_deterministic(tmp_path: 
     assert "net_income" in result["schema_delta"]["canonical_columns_not_produced"]
     rendered = render_sec_fundamentals_preview(result)
     assert json.loads(rendered) == result
-    assert rendered == render_sec_fundamentals_preview(result)
+    assert rendered == render_sec_fundamentals_preview(rebuilt)

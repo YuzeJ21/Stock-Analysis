@@ -6,6 +6,7 @@ import argparse
 import json
 import math
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping
 
@@ -43,6 +44,7 @@ PREVIEW_FIELDS = (
 DIRECT_RIGHTS_FIELDS = {
     "revenue": "revenue",
     "shares_outstanding": "shares_outstanding",
+    "filing_dates": "filing_dates",
 }
 CANDIDATE_COMPONENT_FIELDS = (
     "net_income",
@@ -50,7 +52,21 @@ CANDIDATE_COMPONENT_FIELDS = (
     "capital_expenditures",
     "operating_income",
 )
+REGISTERED_ACTIVATION_FIELDS = (
+    "revenue",
+    "shares_outstanding",
+    "filing_dates",
+    "operating_income",
+    "cash_from_operations",
+    "capital_expenditures",
+)
 _TICKER_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9.-]*$")
+_RATIO_FIELDS = {
+    "revenue_growth",
+    "fcf_margin",
+    "profit_margin",
+    "operating_margin",
+}
 
 
 def parse_preview_tickers(value: str | Iterable[str]) -> list[str]:
@@ -94,6 +110,40 @@ def _values_equal(left: Any, right: Any) -> bool:
     if isinstance(left, (int, float)) and isinstance(right, (int, float)):
         return math.isclose(float(left), float(right), rel_tol=1e-12, abs_tol=0.0)
     return left == right
+
+
+def _retrieval_timestamp(value: str | None) -> str:
+    if value is None:
+        timestamp = datetime.now(timezone.utc)
+    else:
+        try:
+            timestamp = datetime.fromisoformat(
+                str(value).strip().replace("Z", "+00:00")
+            )
+        except ValueError as exc:
+            raise ValueError("retrieval_timestamp must be a timezone-aware ISO timestamp") from exc
+        if timestamp.tzinfo is None:
+            raise ValueError("retrieval_timestamp must be a timezone-aware ISO timestamp")
+        timestamp = timestamp.astimezone(timezone.utc)
+    return timestamp.isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _proposed_delta(canonical_value: Any, candidate_value: Any) -> dict[str, Any]:
+    canonical_value = _json_value(canonical_value)
+    candidate_value = _json_value(candidate_value)
+    numeric_change = None
+    if (
+        isinstance(canonical_value, (int, float))
+        and not isinstance(canonical_value, bool)
+        and isinstance(candidate_value, (int, float))
+        and not isinstance(candidate_value, bool)
+    ):
+        numeric_change = _json_value(candidate_value - canonical_value)
+    return {
+        "from": canonical_value,
+        "to": candidate_value,
+        "numeric_change": numeric_change,
+    }
 
 
 def _read_canonical(path: Path) -> tuple[pd.DataFrame, list[str]]:
@@ -250,15 +300,21 @@ def _field_context(
     return None, None
 
 
-def _source_refs(records: list[Mapping[str, Any]], source_url: str) -> list[dict[str, Any]]:
+def _source_refs(
+    records: list[Mapping[str, Any]],
+    source_url: str,
+    retrieval_timestamp: str,
+) -> list[dict[str, Any]]:
     refs: list[dict[str, Any]] = []
     for record in records:
         refs.append(
             {
                 "source_url": source_url,
+                "retrieval_timestamp": retrieval_timestamp,
                 "taxonomy": record.get("taxonomy"),
                 "concept": record.get("concept"),
                 "unit": record.get("unit"),
+                "underlying_fact_unit": record.get("underlying_fact_unit"),
                 "period_start": record.get("period_start"),
                 "period_end": record.get("period_end"),
                 "filed": record.get("filed"),
@@ -271,16 +327,82 @@ def _source_refs(records: list[Mapping[str, Any]], source_url: str) -> list[dict
     return refs
 
 
+def _source_units(records: list[Mapping[str, Any]]) -> list[str]:
+    return sorted(
+        {
+            str(record.get("unit") or "").strip()
+            for record in records
+            if str(record.get("unit") or "").strip()
+        }
+    )
+
+
+def _field_unit(field: str, source_units: list[str]) -> str | None:
+    if len(source_units) > 1:
+        return "mixed"
+    if field in _RATIO_FIELDS:
+        return "ratio"
+    if field == "filing_dates":
+        return "date"
+    return source_units[0] if source_units else None
+
+
+def _unit_context(
+    records: list[Mapping[str, Any]],
+) -> tuple[str | None, str | None]:
+    if not records:
+        return None, None
+    if any(not str(record.get("unit") or "").strip() for record in records):
+        return (
+            "source_context_ambiguous",
+            "Every selected SEC fact requires an explicit source unit.",
+        )
+    if len(_source_units(records)) > 1:
+        return (
+            "unit_conflict",
+            "Selected SEC facts do not have consistent source units or currency.",
+        )
+    return None, None
+
+
+def _owner_action(
+    classification: str,
+    *,
+    value_status: str,
+    schema_status: str,
+) -> str:
+    if classification == "approved_direct":
+        if schema_status != "existing_canonical":
+            return "approve_canonical_schema_before_any_apply"
+        if value_status == "changed":
+            return "review_field_delta_before_separate_apply_authorization"
+        return "retain_reviewed_source_evidence_no_value_apply_needed"
+    if classification == "derived_scope_review_required":
+        return "approve_exact_derived_field_scope_or_keep_withheld"
+    if classification == "unsupported":
+        return "approve_exact_registered_field_scope_or_keep_withheld"
+    if classification == "missing":
+        return "supply_supported_sec_fact_or_keep_withheld"
+    if classification == "unit_conflict":
+        return "supply_unit_coherent_sec_facts_or_keep_withheld"
+    return "resolve_period_or_source_context_before_any_apply_review"
+
+
 def _compare_field(
     field: str,
     *,
+    ticker: str,
+    cik: str,
     canonical_value: Any,
     candidate_value: Any,
+    canonical_column: str,
+    schema_status: str,
     provenance: Mapping[str, Any],
     anchor_period_start: str | None,
     anchor_period_end: str | None,
     anchor_accession: str | None,
     source_url: str,
+    retrieval_timestamp: str,
     registry: Mapping[str, Any],
 ) -> dict[str, Any]:
     canonical_value = _json_value(canonical_value)
@@ -291,21 +413,29 @@ def _compare_field(
         for record in provenance.get("records", [])
         if isinstance(record, Mapping)
     ]
-    refs = _source_refs(records, source_url)
-
+    refs = _source_refs(records, source_url, retrieval_timestamp)
+    source_units = _source_units(records)
+    required_field = DIRECT_RIGHTS_FIELDS.get(field, field)
+    rights_review = review_commercial_field_scope(
+        registry,
+        "sec_companyfacts",
+        [required_field],
+    )
     if candidate_value is None:
         value_status = "missing"
         classification = "missing"
         blocker = "No supported SEC fact was selected; the value remains unavailable."
     else:
         value_status = "unchanged" if _values_equal(canonical_value, candidate_value) else "changed"
-        context_classification, context_blocker = _field_context(
-            field,
-            provenance,
-            anchor_period_start=anchor_period_start,
-            anchor_period_end=anchor_period_end,
-            anchor_accession=anchor_accession,
-        )
+        context_classification, context_blocker = _unit_context(records)
+        if context_classification is None:
+            context_classification, context_blocker = _field_context(
+                field,
+                provenance,
+                anchor_period_start=anchor_period_start,
+                anchor_period_end=anchor_period_end,
+                anchor_accession=anchor_accession,
+            )
         if context_classification:
             classification = context_classification
             blocker = context_blocker or "Filing context requires review."
@@ -313,13 +443,7 @@ def _compare_field(
             classification = "derived_scope_review_required"
             blocker = "Calculated value is not an SEC-reported fact and its exact field scope is not approved."
         else:
-            required_field = DIRECT_RIGHTS_FIELDS.get(field, field)
-            review = review_commercial_field_scope(
-                registry,
-                "sec_companyfacts",
-                [required_field],
-            )
-            if review.commercial_evidence_ready:
+            if rights_review.commercial_evidence_ready:
                 classification = "approved_direct"
                 blocker = "none"
             else:
@@ -328,42 +452,80 @@ def _compare_field(
 
     first_ref = refs[0] if refs else {}
     return {
+        "ticker": ticker,
+        "sec_cik": str(cik).zfill(10),
         "field": field,
+        "canonical_column": canonical_column,
         "canonical_value": canonical_value,
         "candidate_value": candidate_value,
+        "unit": _field_unit(field, source_units),
+        "source_units": source_units,
         "value_status": value_status,
         "value_kind": value_kind,
         "classification": classification,
+        "source_rights_status": rights_review.rights_status,
+        "commercial_rights_approved": rights_review.commercial_rights_approved,
+        "required_registered_field": required_field,
+        "field_scope_status": (
+            "approved" if rights_review.commercial_evidence_ready else "review_required"
+        ),
+        "missing_registered_fields": list(rights_review.missing_supported_fields),
         "publishability_blocker": blocker,
+        "required_owner_action": _owner_action(
+            classification,
+            value_status=value_status,
+            schema_status=schema_status,
+        ),
+        "proposed_delta": _proposed_delta(canonical_value, candidate_value),
+        "retrieval_timestamp": retrieval_timestamp,
+        "source_url": source_url,
         "period_start": first_ref.get("period_start"),
         "period_end": first_ref.get("period_end"),
         "filing_date": first_ref.get("filed"),
         "accession": first_ref.get("accession"),
         "form": first_ref.get("form"),
         "source_refs": refs,
+        "schema_status": schema_status,
+        **(
+            {"basis_status": "reported_value_no_split_adjustment"}
+            if field == "shares_outstanding"
+            else {}
+        ),
     }
 
 
 def _compare_source_component(
     field: str,
     *,
+    ticker: str,
+    cik: str,
     component: Mapping[str, Any],
     anchor_period_start: str | None,
     anchor_period_end: str | None,
     anchor_accession: str | None,
     source_url: str,
+    retrieval_timestamp: str,
     registry: Mapping[str, Any],
     canonical_columns: set[str],
 ) -> dict[str, Any]:
     row = _compare_field(
         field,
+        ticker=ticker,
+        cik=cik,
         canonical_value=None,
         candidate_value=component.get("value"),
+        canonical_column=field,
+        schema_status=(
+            "existing_canonical"
+            if field in canonical_columns
+            else "canonical_column_missing"
+        ),
         provenance=component,
         anchor_period_start=anchor_period_start,
         anchor_period_end=anchor_period_end,
         anchor_accession=anchor_accession,
         source_url=source_url,
+        retrieval_timestamp=retrieval_timestamp,
         registry=registry,
     )
     row["value_status"] = "not_canonical"
@@ -376,6 +538,11 @@ def _compare_source_component(
         row["publishability_blocker"] = (
             "Direct SEC field is approved, but adding a canonical column requires a separate schema decision."
         )
+    row["required_owner_action"] = _owner_action(
+        row["classification"],
+        value_status=row["value_status"],
+        schema_status=row["schema_status"],
+    )
     return row
 
 
@@ -394,6 +561,7 @@ def _ticker_failure(ticker: str, status: str, blocker: str) -> dict[str, Any]:
 def build_sec_fundamentals_preview(
     tickers: str | Iterable[str],
     *,
+    retrieval_timestamp: str | None = None,
     canonical_path: str | Path = "data/fundamentals.csv",
     staged_path: str | Path = "data/imports/fundamentals.csv",
     rights_path: str | Path = DEFAULT_REGISTRY_PATH,
@@ -404,6 +572,7 @@ def build_sec_fundamentals_preview(
     companyfacts_fetcher: Callable[[str, str, float], Any] | None = None,
 ) -> dict[str, Any]:
     requested = parse_preview_tickers(tickers)
+    normalized_retrieval_timestamp = _retrieval_timestamp(retrieval_timestamp)
     canonical, canonical_columns = _read_canonical(Path(canonical_path))
     staged_columns = _read_header(Path(staged_path))
     registry = load_source_rights_registry(Path(rights_path))
@@ -518,6 +687,8 @@ def build_sec_fundamentals_preview(
         field_rows = [
             _compare_field(
                 field,
+                ticker=ticker,
+                cik=cik,
                 canonical_value=(
                     canonical_row.get(field) if canonical_row is not None else None
                 ),
@@ -525,6 +696,12 @@ def build_sec_fundamentals_preview(
                     extracted.get(field)
                     if field in extracted
                     else source_components.get(field, {}).get("value")
+                ),
+                canonical_column=field,
+                schema_status=(
+                    "existing_canonical"
+                    if field in canonical_columns
+                    else "canonical_column_missing"
                 ),
                 provenance=(
                     provenance.get(field, {})
@@ -535,18 +712,55 @@ def build_sec_fundamentals_preview(
                 anchor_period_end=anchor_period_end,
                 anchor_accession=anchor_accession,
                 source_url=source_url,
+                retrieval_timestamp=normalized_retrieval_timestamp,
                 registry=registry,
             )
             for field in PREVIEW_FIELDS
         ]
+        filing_record = dict(anchor_record) if anchor_valid else {}
+        if filing_record:
+            filing_record["underlying_fact_unit"] = filing_record.get("unit")
+            filing_record["unit"] = "date"
+        field_rows.append(
+            _compare_field(
+                "filing_dates",
+                ticker=ticker,
+                cik=cik,
+                canonical_value=(
+                    canonical_row.get("sec_filed_date")
+                    if canonical_row is not None
+                    else None
+                ),
+                candidate_value=anchor_filing_date,
+                canonical_column="sec_filed_date",
+                schema_status=(
+                    "existing_canonical"
+                    if "sec_filed_date" in canonical_columns
+                    else "canonical_column_missing"
+                ),
+                provenance={
+                    "value_kind": "direct",
+                    "records": [filing_record] if filing_record else [],
+                },
+                anchor_period_start=anchor_period_start,
+                anchor_period_end=anchor_period_end,
+                anchor_accession=anchor_accession,
+                source_url=source_url,
+                retrieval_timestamp=normalized_retrieval_timestamp,
+                registry=registry,
+            )
+        )
         source_component_rows = [
             _compare_source_component(
                 field,
+                ticker=ticker,
+                cik=cik,
                 component=source_components.get(field, {}),
                 anchor_period_start=anchor_period_start,
                 anchor_period_end=anchor_period_end,
                 anchor_accession=anchor_accession,
                 source_url=source_url,
+                retrieval_timestamp=normalized_retrieval_timestamp,
                 registry=registry,
                 canonical_columns=set(canonical_columns),
             )
@@ -557,6 +771,32 @@ def build_sec_fundamentals_preview(
             for row in field_rows
             if row["classification"] == "approved_direct"
             and row["value_status"] == "changed"
+            and row["schema_status"] == "existing_canonical"
+        ]
+        changed_fields = [
+            row["field"] for row in field_rows if row["value_status"] == "changed"
+        ]
+        schema_review_required_fields = [
+            row["field"]
+            for row in source_component_rows
+            if row["classification"] == "approved_direct"
+            and row["schema_status"] == "candidate_component_not_canonical"
+        ]
+        intentionally_withheld_fields = [
+            row["field"]
+            for row in [*field_rows, *source_component_rows]
+            if row["classification"] != "approved_direct"
+        ]
+        registered_field_reviews = [
+            {
+                "field": row["field"],
+                "classification": row["classification"],
+                "value_status": row["value_status"],
+                "schema_status": row["schema_status"],
+                "required_owner_action": row["required_owner_action"],
+            }
+            for row in [*field_rows, *source_component_rows]
+            if row["field"] in REGISTERED_ACTIVATION_FIELDS
         ]
         future_apply_proposal_status = (
             "owner_review_required"
@@ -566,6 +806,8 @@ def build_sec_fundamentals_preview(
         results.append(
             {
                 "ticker": ticker,
+                "sec_cik": str(cik).zfill(10),
+                "retrieval_timestamp": normalized_retrieval_timestamp,
                 "status": (
                     "compared" if canonical_present else "compared_canonical_missing"
                 ),
@@ -588,6 +830,10 @@ def build_sec_fundamentals_preview(
                 ),
                 "future_apply_candidate_fields": future_apply_candidate_fields,
                 "future_apply_proposal_status": future_apply_proposal_status,
+                "changed_fields": changed_fields,
+                "schema_review_required_fields": schema_review_required_fields,
+                "intentionally_withheld_fields": intentionally_withheld_fields,
+                "registered_field_reviews": registered_field_reviews,
                 "source_components": source_component_rows,
                 "fields": field_rows,
             }
@@ -615,6 +861,7 @@ def build_sec_fundamentals_preview(
     return {
         "status": "inspection_only",
         "requested_tickers": requested,
+        "retrieval_timestamp": normalized_retrieval_timestamp,
         "source": "sec_companyfacts",
         "source_rights_mutated": False,
         "canonical_apply_authorized": False,

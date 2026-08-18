@@ -393,7 +393,7 @@ def test_sec_fundamentals_preview_is_explicit_capped_and_no_write():
         assert forbidden not in block
 
     assert (
-        "make sec-fundamentals-preview TICKERS=AAPL,AMZN,GOOG Official SEC annual comparison; max five explicit tickers; no cache, staging, or apply writes"
+        "make sec-fundamentals-preview TICKERS=AAPL,NVDA,AMD Official SEC annual comparison; max five explicit tickers; no cache, staging, or apply writes"
         in makefile
     )
 
