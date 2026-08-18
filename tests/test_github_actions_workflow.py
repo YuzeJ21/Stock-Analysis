@@ -12,7 +12,7 @@ def test_commercial_research_beta_workflow_is_minimal_pr_only_gate():
     assert "on:\n  pull_request:\n    branches: [main]" in workflow
     assert "permissions:\n  contents: read" in workflow
     assert "runs-on: ubuntu-latest" in workflow
-    assert "timeout-minutes: 45" in workflow
+    assert "timeout-minutes: 60" in workflow
     assert "python-version: \"3.12\"" in workflow
     assert "python3 -m pip install -e '.[dev]'" in workflow
     assert "python3 -m pip install -e . pytest" not in workflow
