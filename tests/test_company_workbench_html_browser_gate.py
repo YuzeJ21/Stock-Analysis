@@ -963,6 +963,46 @@ def test_summary_browser_collector_contract_accepts_the_substantive_baseline():
         )
 
 
+def test_summary_browser_collector_wraps_wide_scenario_labels_at_200_percent():
+    document = _synthetic_brief("complete")
+    assert document.count(b"Revenue growth") == 4
+    document = document.replace(
+        b"Revenue growth",
+        b"Revenue growth expectations through cycle",
+    )
+
+    result = _run_summary_cell(
+        document,
+        cells=((1440, 1024, 2),),
+    )
+
+    assert result.passed is True
+    assert next(
+        assertion
+        for assertion in result.assertions
+        if assertion.name == "one_pager_no_descendant_overflow"
+    ).passed is True
+
+
+def test_summary_browser_collector_wraps_blockers_with_wider_text_metrics():
+    document = _append_test_css(
+        _synthetic_brief("complete"),
+        ".srcc-one-pager { font-size: 21.1px !important; }",
+    )
+
+    result = _run_summary_cell(
+        document,
+        cells=((1440, 1024, 2),),
+    )
+
+    assert result.passed is True
+    assert next(
+        assertion
+        for assertion in result.assertions
+        if assertion.name == "one_pager_no_descendant_overflow"
+    ).passed is True
+
+
 @pytest.mark.parametrize(
     ("mutation", "expected_assertion"),
     (
@@ -3003,7 +3043,7 @@ def test_result_packet_contract_rejects_outside_tmp_and_nonempty_directory(tmp_p
     source_paths = _packet_source_paths(tmp_path)
     with pytest.raises(ValueError, match="/tmp"):
         write_html_brief_browser_result_packet(
-            tmp_path,
+            Path("/"),
             _packet_results(),
             input_documents=documents,
             source_paths=source_paths,

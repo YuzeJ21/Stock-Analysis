@@ -900,6 +900,7 @@ def _html_brief_css(root: str) -> str:
   color: #f8fafc !important;
   background: #0b1b2b;
   border-top: .35rem solid #f59e0b;
+  overflow-wrap: anywhere;
   padding: 1.25rem;
 }}
 {root} .srcc-one-pager * {{ color: #f8fafc !important; }}
@@ -921,6 +922,14 @@ def _html_brief_css(root: str) -> str:
   list-style: none;
   margin: 0;
   padding: 0;
+}}
+{root} .srcc-one-pager-scenarios .srcc-meta {{
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}}
+{root} .srcc-one-pager-scenarios .srcc-meta dt,
+{root} .srcc-one-pager-scenarios .srcc-meta dd {{
+  min-width: 0;
+  overflow-wrap: anywhere;
 }}
 {root} .srcc-one-pager a {{ color: #67e8f9 !important; }}
 {root} .srcc-one-pager .srcc-boundary {{ border-color: #60a5fa; }}
