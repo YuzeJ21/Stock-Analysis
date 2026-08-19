@@ -33,6 +33,7 @@ from src.stock_report import (
     _stock_report_missing_data_lines,
     _stock_report_reader_guide_lines,
     _stock_report_reader_question_lines,
+    _stock_report_volatility_lines,
     _stock_report_valuation_lines,
     _stock_report_purpose_fields,
     build_readiness_only_markdown,
@@ -44,6 +45,24 @@ from src.stock_report import (
 )
 
 RICH_FIXTURE_DIR = Path(__file__).parent / "fixtures" / "rich_local_data"
+
+
+def test_stock_report_volatility_lines_read_real_lowercase_screener_payload():
+    lines = _stock_report_volatility_lines(
+        {
+            "screener_context": {
+                "momentum_leaders": {
+                    "atrorvolatilitypct": 0.0171,
+                    "atrorvolatilitysource": "volatility_proxy",
+                }
+            }
+        }
+    )
+
+    assert lines == [
+        "- ATR / volatility: 1.7% (Volatility proxy approximation). "
+        "This is an approximation from close-to-close volatility because high/low ATR inputs were unavailable."
+    ]
 
 
 def test_stock_report_formats_bare_make_commands_as_copyable_inline_commands():

@@ -11487,24 +11487,51 @@ def _atr_or_volatility_source_label(source: object) -> str:
     return "Volatility source unavailable"
 
 
+def _screener_context_value(values: Mapping[str, object], field: str) -> object:
+    """Read serialized screener fields without assuming one key casing."""
+
+    if field in values:
+        return values.get(field)
+    normalized = field.casefold()
+    return next(
+        (value for key, value in values.items() if str(key).casefold() == normalized),
+        None,
+    )
+
+
 def stock_report_technical_context_cards(report_payload: dict[str, object]) -> list[dict[str, object]]:
     screener_context = report_payload.get("screener_context", {}) or {}
     momentum = screener_context.get("momentum_leaders", {}) or {}
     watchlist = screener_context.get("final_watchlist", {}) or {}
-    setup_status = format_missing(momentum.get("SetupStatus") or watchlist.get("SetupStatus"), "Not available")
-    final_state = format_missing(watchlist.get("FinalState"), "Not available")
-    rs_percentile = momentum.get("RSPercentile")
-    relative_spy = momentum.get("RelativeReturnVsSPY")
-    relative_qqq = momentum.get("RelativeReturnVsQQQ")
-    volume_ratio = momentum.get("VolumeRatio")
+    setup_status = format_missing(
+        _screener_context_value(momentum, "SetupStatus")
+        or _screener_context_value(watchlist, "SetupStatus"),
+        "Not available",
+    )
+    final_state = format_missing(
+        _screener_context_value(watchlist, "FinalState"),
+        "Not available",
+    )
+    rs_percentile = _screener_context_value(momentum, "RSPercentile")
+    relative_spy = _screener_context_value(momentum, "RelativeReturnVsSPY")
+    relative_qqq = _screener_context_value(momentum, "RelativeReturnVsQQQ")
+    volume_ratio = _screener_context_value(momentum, "VolumeRatio")
     volume_ratio_display = report_display_value(volume_ratio, "number")
     volume_title = f"Volume {volume_ratio_display}x" if volume_ratio_display != "Not available" else "Volume ratio not available"
-    volatility_proxy = momentum.get("ATRorVolatilityPct")
-    volatility_source = _atr_or_volatility_source_label(momentum.get("ATRorVolatilitySource"))
+    volatility_proxy = _screener_context_value(momentum, "ATRorVolatilityPct")
+    volatility_source = _atr_or_volatility_source_label(
+        _screener_context_value(momentum, "ATRorVolatilitySource")
+    )
     ma_stack = [
-        _technical_distance_label(momentum.get("DistanceFrom10EMA"), "10 EMA"),
-        _technical_distance_label(momentum.get("DistanceFrom21EMA"), "21 EMA"),
-        _technical_distance_label(momentum.get("DistanceFrom50SMA"), "50 SMA"),
+        _technical_distance_label(
+            _screener_context_value(momentum, "DistanceFrom10EMA"), "10 EMA"
+        ),
+        _technical_distance_label(
+            _screener_context_value(momentum, "DistanceFrom21EMA"), "21 EMA"
+        ),
+        _technical_distance_label(
+            _screener_context_value(momentum, "DistanceFrom50SMA"), "50 SMA"
+        ),
     ]
     return [
         {
@@ -11681,18 +11708,77 @@ def stock_report_technical_context_frame(report_payload: dict[str, object]) -> p
     momentum = screener_context.get("momentum_leaders", {}) or {}
     watchlist = screener_context.get("final_watchlist", {}) or {}
     rows = [
-        {"Metric": "Setup Status", "Value": format_missing(momentum.get("SetupStatus") or watchlist.get("SetupStatus"))},
-        {"Metric": "Final State", "Value": format_missing(watchlist.get("FinalState"))},
-        {"Metric": "RS Percentile", "Value": report_display_value(momentum.get("RSPercentile"), "number")},
-        {"Metric": "Relative Return vs SPY", "Value": report_display_value(momentum.get("RelativeReturnVsSPY"), "percent")},
-        {"Metric": "Relative Return vs QQQ", "Value": report_display_value(momentum.get("RelativeReturnVsQQQ"), "percent")},
-        {"Metric": "10 EMA Distance", "Value": report_display_value(momentum.get("DistanceFrom10EMA"), "percent")},
-        {"Metric": "21 EMA Distance", "Value": report_display_value(momentum.get("DistanceFrom21EMA"), "percent")},
-        {"Metric": "50 SMA Distance", "Value": report_display_value(momentum.get("DistanceFrom50SMA"), "percent")},
-        {"Metric": "Average Volume 20D", "Value": report_display_value(momentum.get("AvgVolume20D"), "integer")},
-        {"Metric": "Volume Ratio", "Value": report_display_value(momentum.get("VolumeRatio"), "number")},
-        {"Metric": "ATR / Volatility Proxy", "Value": report_display_value(momentum.get("ATRorVolatilityPct"), "percent")},
-        {"Metric": "Volatility Source", "Value": _atr_or_volatility_source_label(momentum.get("ATRorVolatilitySource"))},
+        {
+            "Metric": "Setup Status",
+            "Value": format_missing(
+                _screener_context_value(momentum, "SetupStatus")
+                or _screener_context_value(watchlist, "SetupStatus")
+            ),
+        },
+        {
+            "Metric": "Final State",
+            "Value": format_missing(_screener_context_value(watchlist, "FinalState")),
+        },
+        {
+            "Metric": "RS Percentile",
+            "Value": report_display_value(
+                _screener_context_value(momentum, "RSPercentile"), "number"
+            ),
+        },
+        {
+            "Metric": "Relative Return vs SPY",
+            "Value": report_display_value(
+                _screener_context_value(momentum, "RelativeReturnVsSPY"), "percent"
+            ),
+        },
+        {
+            "Metric": "Relative Return vs QQQ",
+            "Value": report_display_value(
+                _screener_context_value(momentum, "RelativeReturnVsQQQ"), "percent"
+            ),
+        },
+        {
+            "Metric": "10 EMA Distance",
+            "Value": report_display_value(
+                _screener_context_value(momentum, "DistanceFrom10EMA"), "percent"
+            ),
+        },
+        {
+            "Metric": "21 EMA Distance",
+            "Value": report_display_value(
+                _screener_context_value(momentum, "DistanceFrom21EMA"), "percent"
+            ),
+        },
+        {
+            "Metric": "50 SMA Distance",
+            "Value": report_display_value(
+                _screener_context_value(momentum, "DistanceFrom50SMA"), "percent"
+            ),
+        },
+        {
+            "Metric": "Average Volume 20D",
+            "Value": report_display_value(
+                _screener_context_value(momentum, "AvgVolume20D"), "integer"
+            ),
+        },
+        {
+            "Metric": "Volume Ratio",
+            "Value": report_display_value(
+                _screener_context_value(momentum, "VolumeRatio"), "number"
+            ),
+        },
+        {
+            "Metric": "ATR / Volatility Proxy",
+            "Value": report_display_value(
+                _screener_context_value(momentum, "ATRorVolatilityPct"), "percent"
+            ),
+        },
+        {
+            "Metric": "Volatility Source",
+            "Value": _atr_or_volatility_source_label(
+                _screener_context_value(momentum, "ATRorVolatilitySource")
+            ),
+        },
     ]
     return pd.DataFrame(rows)
 

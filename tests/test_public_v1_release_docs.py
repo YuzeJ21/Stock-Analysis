@@ -337,6 +337,19 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert readme.index("## Now / Next / Not Yet") < readme.index("## What You Can Analyze")
 
 
+def test_readme_explains_no_key_sec_preview_without_claiming_activation():
+    readme = _read("README.md")
+
+    assert "**No-key SEC actuals inspection:**" in readme
+    assert "`make sec-fundamentals-preview TICKERS=AAPL,NVDA,AMD`" in readme
+    assert "official SEC endpoints" in readme
+    assert "at most five explicit tickers" in readme
+    assert "writes no cache, import, canonical, readiness, or output files" in readme
+    assert "does not authorize a data apply" in readme
+    assert "field-level period, unit, retrieval, source-rights, schema, delta, and owner-action evidence" in readme
+    assert "derived, mixed-unit, out-of-scope, and incoherent-period fields remain blocked" in readme
+
+
 def test_public_status_language_keeps_share_review_ready_local_only():
     readme = _read("README.md")
 

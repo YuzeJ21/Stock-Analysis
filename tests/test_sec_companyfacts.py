@@ -301,6 +301,135 @@ def test_cache_behavior_avoids_refetch(tmp_path: Path):
     assert payload["entityName"] == "NVIDIA CORP"
 
 
+def test_no_cache_sec_requests_do_not_create_cache_paths(tmp_path: Path):
+    cache_dir = tmp_path / "must-not-exist"
+    requested_urls: list[str] = []
+
+    def fake_ticker_fetch(url, *_args):
+        requested_urls.append(url)
+        return _sample_ticker_map_payload()
+
+    def fake_companyfacts_fetch(url, *_args):
+        requested_urls.append(url)
+        return _sample_companyfacts_payload()
+
+    ticker_map = load_sec_ticker_map(
+        cache_dir=cache_dir,
+        user_agent="Test test@example.com",
+        cache=False,
+        fetcher=fake_ticker_fetch,
+    )
+    payload = fetch_companyfacts(
+        "0001045810",
+        "Test test@example.com",
+        cache=False,
+        cache_dir=cache_dir,
+        fetcher=fake_companyfacts_fetch,
+    )
+
+    assert ticker_map["NVDA"]["cik"] == "0001045810"
+    assert payload["entityName"] == "NVIDIA CORP"
+    assert requested_urls == [
+        "https://www.sec.gov/files/company_tickers.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001045810.json",
+    ]
+    assert not cache_dir.exists()
+
+
+def test_extractor_records_direct_and_derived_field_provenance():
+    row = extract_fundamentals_from_companyfacts(_sample_companyfacts_payload())
+    provenance = row["_field_provenance"]
+
+    assert provenance["revenue"]["value_kind"] == "direct"
+    assert provenance["revenue"]["records"] == [
+        {
+            "taxonomy": "us-gaap",
+            "concept": "Revenues",
+            "unit": "USD",
+            "period_start": "2025-01-01",
+            "period_end": "2025-12-31",
+            "filed": "2026-02-20",
+                "form": "10-K",
+                "accession": "0001045810-26-000001",
+                "fiscal_year": 2025,
+                "fiscal_period": "FY",
+            }
+        ]
+    assert provenance["free_cash_flow"]["value_kind"] == "derived"
+    assert {record["concept"] for record in provenance["free_cash_flow"]["records"]} == {
+        "NetCashProvidedByUsedInOperatingActivities",
+        "PaymentsToAcquirePropertyPlantAndEquipment",
+    }
+    assert provenance["fcf_margin"]["value_kind"] == "derived"
+    assert provenance["shares_outstanding"]["value_kind"] == "direct"
+    assert provenance["debt"]["value_kind"] == "derived"
+    assert len(provenance["debt"]["records"]) == 3
+    components = row["_source_components"]
+    assert components["cash_from_operations"]["value"] == 250
+    assert components["capital_expenditures"]["value"] == 50
+    assert components["operating_income"]["value"] == 250
+    assert components["net_income"]["value"] == 200
+    assert all(component["value_kind"] == "direct" for component in components.values())
+
+
+def test_extractor_keeps_single_reported_total_debt_direct():
+    payload = _sample_companyfacts_payload()
+    gaap = payload["facts"]["us-gaap"]
+    for concept in (
+        "ShortTermBorrowings",
+        "LongTermDebtCurrent",
+        "LongTermDebtNoncurrent",
+    ):
+        gaap.pop(concept)
+    gaap["LongTermDebt"] = {
+        "units": {
+            "USD": [
+                {
+                    "val": 150,
+                    "end": "2025-12-31",
+                    "fy": 2025,
+                    "fp": "FY",
+                    "form": "10-K",
+                    "filed": "2026-02-20",
+                    "accn": "0001045810-26-000001",
+                }
+            ]
+        }
+    }
+
+    row = extract_fundamentals_from_companyfacts(payload)
+
+    assert row["debt"] == 150
+    assert row["_field_provenance"]["debt"]["value_kind"] == "direct"
+    assert len(row["_field_provenance"]["debt"]["records"]) == 1
+
+
+def test_extractor_keeps_single_debt_component_derived_and_incomplete():
+    payload = _sample_companyfacts_payload()
+    gaap = payload["facts"]["us-gaap"]
+    gaap.pop("ShortTermBorrowings")
+    gaap.pop("LongTermDebtNoncurrent")
+
+    row = extract_fundamentals_from_companyfacts(payload)
+
+    assert row["debt"] == 20
+    assert row["_field_provenance"]["debt"]["value_kind"] == "derived"
+    assert len(row["_field_provenance"]["debt"]["records"]) == 1
+
+
+def test_staging_rows_omit_private_field_provenance(tmp_path: Path):
+    result = build_sec_fundamentals_rows(
+        ["NVDA"],
+        user_agent="Test test@example.com",
+        cache_dir=tmp_path / "cache",
+        ticker_map={"NVDA": {"ticker": "NVDA", "cik": "0001045810"}},
+        companyfacts_fetcher=lambda *_: _sample_companyfacts_payload(),
+    )
+
+    assert "_field_provenance" not in result["rows"][0]
+    assert "_source_components" not in result["rows"][0]
+
+
 def test_tiny_sec_ticker_map_cache_refreshes(monkeypatch, tmp_path: Path):
     cache_dir = tmp_path / "cache"
     ticker_cache = cache_dir / "company_tickers.json"

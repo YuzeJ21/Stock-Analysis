@@ -879,12 +879,26 @@ def _atr_or_volatility_source_label(source: Any) -> str:
     return "Volatility source unavailable"
 
 
+def _screener_context_value(values: dict[str, Any], field: str) -> Any:
+    """Read serialized screener fields without assuming one key casing."""
+
+    if field in values:
+        return values.get(field)
+    normalized = field.casefold()
+    return next(
+        (value for key, value in values.items() if str(key).casefold() == normalized),
+        None,
+    )
+
+
 def _stock_report_volatility_lines(payload: dict[str, Any]) -> list[str]:
     momentum = ((payload.get("screener_context") or {}).get("momentum_leaders") or {})
-    volatility_value = momentum.get("ATRorVolatilityPct")
+    volatility_value = _screener_context_value(momentum, "ATRorVolatilityPct")
     if _display_value(volatility_value) == "Not available":
         return ["- ATR / volatility: Not available; missing values stay visible instead of guessed."]
-    source_label = _atr_or_volatility_source_label(momentum.get("ATRorVolatilitySource"))
+    source_label = _atr_or_volatility_source_label(
+        _screener_context_value(momentum, "ATRorVolatilitySource")
+    )
     if source_label == "Volatility proxy approximation":
         suffix = " This is an approximation from close-to-close volatility because high/low ATR inputs were unavailable."
     elif source_label == "Volatility source unavailable":
