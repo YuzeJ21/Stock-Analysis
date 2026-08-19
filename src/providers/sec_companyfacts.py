@@ -103,18 +103,27 @@ def load_sec_ticker_map(
     refresh: bool = False,
     sleep_seconds: float = 0.2,
     fetcher: Callable[[str, str, float], Any] | None = None,
+    cache: bool = True,
 ) -> dict[str, dict[str, Any]]:
-    cache_path = _cache_path(Path(cache_dir), "company_tickers.json")
-    if cache_path.exists() and not refresh:
-        payload = _read_json(cache_path)
-        if fetcher is None and _payload_row_count(payload) < MIN_SEC_TICKER_MAP_ROWS:
-            resolved_user_agent = _require_user_agent(user_agent)
-            payload = _fetch_json(SEC_TICKER_MAP_URL, resolved_user_agent, sleep_seconds)
-            _write_json(cache_path, payload)
-    else:
+    if not cache:
         resolved_user_agent = _require_user_agent(user_agent)
-        payload = (fetcher or _fetch_json)(SEC_TICKER_MAP_URL, resolved_user_agent, sleep_seconds)
-        _write_json(cache_path, payload)
+        payload = (fetcher or _fetch_json)(
+            SEC_TICKER_MAP_URL,
+            resolved_user_agent,
+            sleep_seconds,
+        )
+    else:
+        cache_path = _cache_path(Path(cache_dir), "company_tickers.json")
+        if cache_path.exists() and not refresh:
+            payload = _read_json(cache_path)
+            if fetcher is None and _payload_row_count(payload) < MIN_SEC_TICKER_MAP_ROWS:
+                resolved_user_agent = _require_user_agent(user_agent)
+                payload = _fetch_json(SEC_TICKER_MAP_URL, resolved_user_agent, sleep_seconds)
+                _write_json(cache_path, payload)
+        else:
+            resolved_user_agent = _require_user_agent(user_agent)
+            payload = (fetcher or _fetch_json)(SEC_TICKER_MAP_URL, resolved_user_agent, sleep_seconds)
+            _write_json(cache_path, payload)
 
     rows: Iterable[dict[str, Any]]
     if isinstance(payload, dict) and all(isinstance(value, dict) for value in payload.values()):
@@ -177,9 +186,10 @@ def fetch_companyfacts(
 ) -> dict[str, Any]:
     resolved_user_agent = _require_user_agent(user_agent)
     normalized_cik = str(cik).zfill(10)
-    cache_root = Path(cache_dir)
-    cache_path = _companyfacts_cache_path(cache_root, normalized_cik)
-    if cache and cache_path.exists() and not refresh:
+    cache_path = (
+        _companyfacts_cache_path(Path(cache_dir), normalized_cik) if cache else None
+    )
+    if cache_path is not None and cache_path.exists() and not refresh:
         if fetcher is not None or cache_path.stat().st_size >= MIN_SEC_COMPANYFACTS_CACHE_BYTES:
             return _read_json(cache_path)
     payload = (fetcher or _fetch_json)(
@@ -187,7 +197,7 @@ def fetch_companyfacts(
         resolved_user_agent,
         sleep_seconds,
     )
-    if cache:
+    if cache_path is not None:
         _write_json(cache_path, payload)
     return payload
 
@@ -311,6 +321,33 @@ def _metadata_from_record(record: SecFactRecord | None) -> dict[str, str | None]
     }
 
 
+def _record_provenance(record: SecFactRecord) -> dict[str, Any]:
+    return {
+        "taxonomy": record.taxonomy,
+        "concept": record.concept,
+        "unit": record.unit,
+        "period_start": record.start,
+        "period_end": record.end,
+        "filed": record.filed,
+        "form": record.form,
+        "accession": record.accession,
+        "fiscal_year": record.fy,
+        "fiscal_period": record.fp,
+    }
+
+
+def _field_provenance(
+    value_kind: str,
+    records: Iterable[SecFactRecord | None],
+) -> dict[str, Any]:
+    return {
+        "value_kind": value_kind,
+        "records": [
+            _record_provenance(record) for record in records if record is not None
+        ],
+    }
+
+
 def extract_fundamentals_from_companyfacts(companyfacts_json: dict[str, Any]) -> dict[str, Any]:
     warnings: list[str] = []
     revenue_concepts = [
@@ -363,11 +400,13 @@ def extract_fundamentals_from_companyfacts(companyfacts_json: dict[str, Any]) ->
     ebitda_record = _latest_record(companyfacts_json, ebitda_concepts, annual_only=True)
 
     debt_value, debt_records = _sum_latest_records(companyfacts_json, debt_component_groups)
+    debt_value_kind = "derived"
     if debt_value is None:
         total_debt_record = _latest_record(companyfacts_json, total_debt_concepts, annual_only=False)
         if total_debt_record is not None:
             debt_value = _numeric_record_value(total_debt_record)
             debt_records = [total_debt_record]
+            debt_value_kind = "direct"
 
     revenue = _numeric_record_value(revenue_record)
     net_income = _numeric_record_value(net_income_record)
@@ -442,6 +481,52 @@ def extract_fundamentals_from_companyfacts(companyfacts_json: dict[str, Any]) ->
         "sec_fact_warnings": " | ".join(sorted(set(warnings))) if warnings else None,
         "sec_entity_name": companyfacts_json.get("entityName"),
         "_warnings": sorted(set(warnings)),
+        "_field_provenance": {
+            "revenue": _field_provenance("direct", [revenue_record]),
+            "revenue_growth": _field_provenance(
+                "derived", revenue_series[:2]
+            ),
+            "eps": _field_provenance("direct", [eps_record]),
+            "free_cash_flow": _field_provenance(
+                "derived", [ocf_record, capex_record]
+            ),
+            "fcf_margin": _field_provenance(
+                "derived", [revenue_record, ocf_record, capex_record]
+            ),
+            "profit_margin": _field_provenance(
+                "derived", [revenue_record, net_income_record]
+            ),
+            "operating_margin": _field_provenance(
+                "derived", [revenue_record, operating_income_record]
+            ),
+            "ebitda": _field_provenance("direct", [ebitda_record]),
+            "cash": _field_provenance("direct", [cash_record]),
+            "debt": _field_provenance(
+                debt_value_kind,
+                debt_records,
+            ),
+            "shares_outstanding": _field_provenance(
+                "direct", [shares_record]
+            ),
+        },
+        "_source_components": {
+            "net_income": {
+                "value": net_income,
+                **_field_provenance("direct", [net_income_record]),
+            },
+            "cash_from_operations": {
+                "value": operating_cash_flow,
+                **_field_provenance("direct", [ocf_record]),
+            },
+            "capital_expenditures": {
+                "value": capex,
+                **_field_provenance("direct", [capex_record]),
+            },
+            "operating_income": {
+                "value": operating_income,
+                **_field_provenance("direct", [operating_income_record]),
+            },
+        },
     }
     return row
 
