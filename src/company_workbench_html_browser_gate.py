@@ -1078,16 +1078,80 @@ def repository_fingerprint(repo_root: Path) -> str:
 
 
 def _visible(page, selector: str, *, scroll_vertical: bool = True) -> bool:
+    if scroll_vertical:
+        expected_scroll_y = page.evaluate(
+            """selector => {
+                const node = document.querySelector(selector);
+                if (!node) return null;
+                delete document.documentElement.__srccVisibleSettlement;
+                const initial = node.getBoundingClientRect();
+                const requested = Math.max(
+                    0,
+                    window.scrollY + initial.top -
+                        (window.innerHeight - initial.height) / 2
+                );
+                const maximum = Math.max(
+                    0,
+                    document.documentElement.scrollHeight - window.innerHeight
+                );
+                const expected = Math.min(requested, maximum);
+                window.scrollTo(window.scrollX, expected);
+                return expected;
+            }""",
+            selector,
+        )
+        if expected_scroll_y is None:
+            return False
+        try:
+            page.wait_for_function(
+                """({selector, expected}) => {
+                    const node = document.querySelector(selector);
+                    if (!node) return false;
+                    void node.offsetWidth;
+                    const rect = node.getBoundingClientRect();
+                    const scrollSettled = Math.abs(window.scrollY - expected) <= 1;
+                    const intersectsViewport = rect.right > 0 &&
+                        rect.left < window.innerWidth &&
+                        rect.bottom > 0 &&
+                        rect.top < window.innerHeight;
+                    if (!scrollSettled || !intersectsViewport) {
+                        delete document.documentElement.__srccVisibleSettlement;
+                        return false;
+                    }
+                    const fingerprint = JSON.stringify([
+                        window.scrollX,
+                        window.scrollY,
+                        rect.left,
+                        rect.right,
+                        rect.top,
+                        rect.bottom,
+                    ]);
+                    const previous = document.documentElement.__srccVisibleSettlement;
+                    if (!previous || previous.fingerprint !== fingerprint) {
+                        document.documentElement.__srccVisibleSettlement = {
+                            fingerprint,
+                            stableFrames: 0,
+                        };
+                        return false;
+                    }
+                    previous.stableFrames += 1;
+                    return previous.stableFrames >= 2;
+                }""",
+                arg={"selector": selector, "expected": expected_scroll_y},
+                polling="raf",
+                timeout=2_000,
+            )
+        except Exception:
+            return False
+        finally:
+            page.evaluate(
+                "delete document.documentElement.__srccVisibleSettlement"
+            )
     return bool(
         page.evaluate(
-            """({selector, scrollVertical}) => {
+            """selector => {
                 const node = document.querySelector(selector);
                 if (!node) return false;
-                if (scrollVertical) {
-                    const initial = node.getBoundingClientRect();
-                    const targetY = Math.max(0, window.scrollY + initial.top - (window.innerHeight - initial.height) / 2);
-                    window.scrollTo(window.scrollX, targetY);
-                }
                 let rect = node.getBoundingClientRect();
                 let left = Math.max(0, rect.left);
                 let right = Math.min(window.innerWidth, rect.right);
@@ -1120,7 +1184,7 @@ def _visible(page, selector: str, *, scroll_vertical: bool = True) -> bool:
                     candidate => candidate === node || node.contains(candidate)
                 ));
             }""",
-            {"selector": selector, "scrollVertical": scroll_vertical},
+            selector,
         )
     )
 
