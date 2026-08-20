@@ -46,6 +46,173 @@ _SENSITIVE_PATH_SEGMENTS = frozenset(
 )
 _TICKER_PATTERN = re.compile(r"^[A-Z0-9.-]+$")
 _WITHHELD_ACTION = "Withheld: reviewer-authored action language is not portable research evidence."
+_ONE_PAGER_POLICY_BLOCKER = (
+    "One-Pager content was withheld because it violates the summary evidence policy."
+)
+_ONE_PAGER_APPROVED_BOUNDARY_TEXTS = frozenset(
+    {
+        "no recommendation",
+        "no buy sell instruction",
+        "no broker integration",
+        "not investment advice",
+        "no current price probability or recommendation is provided",
+        "the brief does not provide a target price",
+        "probability is not available",
+        "research only fail closed portable brief no recommendation probability or transaction action",
+    }
+)
+_ONE_PAGER_PROHIBITED_CLAIM_PATTERNS = tuple(
+    re.compile(pattern)
+    for pattern in (
+        r"\bcertif(?:y|ies|ied|ying|ication|ications)\b",
+        r"\bwhy own it\b",
+        r"\bown it\b",
+        r"\bone to own\b",
+        r"\bown (?:the )?(?:stock|security|company|shares)\b",
+        r"\bownership (?:case|thesis|rationale)\b",
+        r"\b(?:stock|company|security|shares?) worth owning\b",
+        r"\b(?:stock|company|security) to own\b",
+        r"^ownership is (?:attractive|compelling)\b",
+        r"\b(?:stock|security|company|investment|portfolio|position) "
+        r"ownership is (?:attractive|compelling)\b",
+        r"\bcio decision\b",
+        r"\bblue sky\b",
+        r"\b(?:suggested|recommended|portfolio|position) sizing\b",
+        r"\bsize it\b",
+        r"\bsizing (?:is|of|at) \d",
+        r"\bposition size\b",
+        r"\b(?:suggested|recommended) (?:portfolio|position) weight\b",
+        r"\b(?:suggested|recommended|portfolio|position) "
+        r"(?:portfolio |position )?weight(?: (?:is|of|at))? "
+        r"(?:\d+(?: \d+)?|zero|one|two|three|four|five|six|seven|eight|nine|ten) "
+        r"percent\b",
+        r"\bexpected returns?\b",
+        r"\breturn expectations?\b",
+        r"\btarget (?:price|value|valuation)\b",
+        r"\bvaluation target\b",
+        r"\bcurrent (?:market )?price\b",
+        r"\bspot (?:price|value|is|at|of)\b",
+        r"\b(?:above|below|over|under|versus|vs) spot\b",
+        r"\b(?:upside|downside)\b",
+        r"\bprobabilit(?:y|ies)\b",
+        r"\blikelihoods?\b",
+        r"\bchance of\b",
+        r"\b(?:model|scenario) (?:assigns? )?\d+(?: \d+)? (?:percent )?odds\b",
+        r"\bodds (?:are|is|of|at) \d",
+        r"\brecommendations?\b",
+        r"\bconfidence (?:score|level|rating|is|of|at)\b",
+        r"\b(?:high|strong) confidence\b",
+        r"\b(?:we|i) (?:are |remain |feel )?(?:highly |strongly )?confident\b",
+        r"\b(?:the )?(?:model|research team|analysts?|researchers?) "
+        r"(?:is|are|remains?|feel|feels) (?:highly |strongly )?confident\b",
+        r"\bconfidence in (?:the )?(?:thesis|valuation|case|scenario)\b",
+        r"\b\d+(?: \d+)? (?:percent )?confident\b",
+        r"\bconfidently estimated\b",
+        r"\bmonte carlo\b",
+        r"\bpercentiles?\b",
+        r"^invest$",
+        r"^invest in\b",
+        r"\b(?:you|we|investors?) should invest\b",
+        r"\brecommend(?:s|ed|ing)? investing\b",
+    )
+)
+_ONE_PAGER_NEGATABLE_CLAIM = (
+    r"(?:current (?:market )?price|target (?:price|value|valuation)|"
+    r"spot (?:price|value)|expected returns?|return expectations?|"
+    r"probabilit(?:y|ies)|likelihoods?|odds|confidence (?:score|level|rating)|"
+    r"recommendations?|upside|downside)"
+)
+_ONE_PAGER_NEGATABLE_CLAIM_LIST = (
+    rf"{_ONE_PAGER_NEGATABLE_CLAIM}"
+    rf"(?: (?:(?:and|or) )?{_ONE_PAGER_NEGATABLE_CLAIM})*"
+)
+_ONE_PAGER_SAFE_NEGATION_PATTERNS = tuple(
+    re.compile(pattern)
+    for pattern in (
+        rf"no {_ONE_PAGER_NEGATABLE_CLAIM_LIST}"
+        r"(?: (?:is|are) (?:provided|shown|displayed|included|reported|recorded|available))?",
+        rf"(?:the )?brief (?:does not|will not) "
+        rf"(?:provide|show|display|include|report|record) (?:a |an |the )?"
+        rf"{_ONE_PAGER_NEGATABLE_CLAIM_LIST}",
+        rf"{_ONE_PAGER_NEGATABLE_CLAIM_LIST} (?:is|are) not "
+        r"(?:provided|shown|displayed|included|reported|recorded|available)",
+    )
+)
+_ONE_PAGER_APPROVED_NON_ACTION_PATTERNS = tuple(
+    re.compile(pattern)
+    for pattern in (
+        r"(?:the )?(?:suggested|recommended) weight (?:is|of|at) "
+        r"\d+(?: \d+)? (?:g|gram|grams|kg|kilogram|kilograms|lb|lbs|pound|pounds)"
+        r"(?: according to (?:the )?(?:filing|source|record))?",
+    )
+)
+_ONE_PAGER_TICKER_OWNERSHIP_PATTERN = re.compile(
+    r"\b(?i:we|i)\s+own\s+"
+    r"(?:(?i:(?:the\s+)?(?:stock|security|shares?|position))|"
+    r"[A-Z][A-Z0-9.-]{0,9})\b"
+)
+_ONE_PAGER_PERCENT_WEIGHT_PATTERN = re.compile(
+    r"\b(?:suggested|recommended)(?:\s+(?:portfolio|position))?\s+"
+    r"weight\s+(?:is|of|at)\s+\d+(?:\.\d+)?\s*%",
+    re.IGNORECASE,
+)
+_ONE_PAGER_OPERATIONAL_OWNERSHIP_CONTEXT = frozenset(
+    {
+        "documentation",
+        "evidence",
+        "governance",
+        "methodology",
+        "process",
+        "quality",
+        "review",
+        "task",
+        "validation",
+        "workflow",
+        "workstream",
+    }
+)
+_ONE_PAGER_OPERATIONAL_OWNERSHIP_OBJECTS = frozenset(
+    {"code", "data", "model", "risk", "task", "tasks"}
+)
+_ONE_PAGER_CONFUSABLE_TRANSLATION = str.maketrans(
+    {
+        # Bounded Greek/Cyrillic lookalikes used to disguise English policy terms.
+        "а": "a",
+        "ɑ": "a",
+        "α": "a",
+        "в": "b",
+        "β": "b",
+        "с": "c",
+        "ϲ": "c",
+        "ԁ": "d",
+        "е": "e",
+        "ε": "e",
+        "һ": "h",
+        "і": "i",
+        "ι": "i",
+        "ј": "j",
+        "κ": "k",
+        "к": "k",
+        "ӏ": "l",
+        "м": "m",
+        "μ": "m",
+        "ո": "n",
+        "о": "o",
+        "ο": "o",
+        "р": "p",
+        "ρ": "p",
+        "ԛ": "q",
+        "ѕ": "s",
+        "т": "t",
+        "τ": "t",
+        "υ": "u",
+        "у": "y",
+        "ν": "v",
+        "х": "x",
+        "χ": "x",
+        "ζ": "z",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -197,8 +364,8 @@ def normalize_html_brief_state(value: object) -> str:
 
 
 
-def safe_html_brief_text(value: object) -> str:
-    """Return escaped portable text, never paths, secrets, or action instructions."""
+def _structurally_safe_html_brief_text(value: object) -> str:
+    """Return escaped text after shared path, secret, and control checks."""
     if not isinstance(value, (str, int, float, bool)):
         return ""
     text = str(value)
@@ -210,9 +377,18 @@ def safe_html_brief_text(value: object) -> str:
     parsed = urlparse(text)
     if parsed.scheme or text.startswith("//"):
         return ""
+    return html.escape(text, quote=True)
+
+
+def safe_html_brief_text(value: object) -> str:
+    """Return escaped portable text, never paths, secrets, or action instructions."""
+    safe = _structurally_safe_html_brief_text(value)
+    if not safe:
+        return ""
+    text = html.unescape(safe)
     if contains_portable_action_language(text):
         return _WITHHELD_ACTION
-    return html.escape(text, quote=True)
+    return safe
 
 
 def safe_html_brief_reference(value: object) -> HtmlBriefSafeReference:
@@ -825,6 +1001,567 @@ def _html_brief_text(value: object, fallback: str = "not recorded") -> str:
     return safe_html_brief_text(html.unescape(str(value))) or fallback
 
 
+def _one_pager_policy_source(value: object) -> str:
+    if not isinstance(value, (str, int, float, bool)):
+        return ""
+    policy_value = (
+        unicodedata.normalize("NFKC", html.unescape(str(value)))
+        .casefold()
+        .translate(_ONE_PAGER_CONFUSABLE_TRANSLATION)
+        .replace("%", " percent ")
+    )
+    normalized = unicodedata.normalize(
+        "NFKD",
+        policy_value,
+    )
+    return "".join(
+        char
+        for char in normalized
+        if unicodedata.category(char) != "Cf"
+        and not unicodedata.category(char).startswith("M")
+    )
+
+
+def _one_pager_policy_text(value: object) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", _one_pager_policy_source(value)))
+
+
+def _one_pager_policy_clauses(value: object) -> tuple[str, ...]:
+    return tuple(
+        clause
+        for item in re.split(
+            r"(?<!\d)\.(?!\d)|[!?;\n\u3002\uff01\uff1f]+",
+            _one_pager_policy_source(value),
+        )
+        if (clause := " ".join(re.findall(r"[a-z0-9]+", item)))
+    )
+
+
+def _one_pager_clause_is_safe_negation(clause: str) -> bool:
+    return any(pattern.fullmatch(clause) for pattern in _ONE_PAGER_SAFE_NEGATION_PATTERNS)
+
+
+def _one_pager_text_has_prohibited_raw_context(
+    value: object,
+    *,
+    ticker: str = "",
+) -> bool:
+    if not isinstance(value, (str, int, float, bool)):
+        return False
+    raw = unicodedata.normalize("NFKC", html.unescape(str(value)))
+    if bool(
+        _ONE_PAGER_TICKER_OWNERSHIP_PATTERN.search(raw)
+        or _ONE_PAGER_PERCENT_WEIGHT_PATTERN.search(raw)
+    ):
+        return True
+
+    policy_source = _one_pager_policy_source(raw)
+    ownership_match = re.search(
+        r"\b(?:we|i)\s+own\s+([^\s.,;!?]+)(?:\s+(shares?))?",
+        policy_source,
+    )
+    if ownership_match is None:
+        return False
+    owned_token = ownership_match.group(1)
+    normalized_owned_token = _one_pager_policy_text(owned_token)
+    normalized_ticker = _one_pager_policy_text(ticker)
+    ownership_tail_match = re.search(
+        r"\b(?:we|i)\s+own\s+([^!?;\n\u3002\uff01\uff1f]+)",
+        policy_source,
+    )
+    normalized_ownership_tail = _one_pager_policy_text(
+        ownership_tail_match.group(1) if ownership_tail_match else owned_token
+    )
+    ownership_tail_tokens = normalized_ownership_tail.split()
+    owns_named_shares = bool(ownership_match.group(2))
+    owns_selected_ticker = bool(
+        normalized_ticker and normalized_owned_token == normalized_ticker
+    )
+    raw_without_controls = "".join(
+        char
+        for char in unicodedata.normalize("NFKC", raw)
+        if unicodedata.category(char) != "Cf"
+    )
+    raw_tokens = re.findall(r"[\w.-]+", raw_without_controls, re.UNICODE)
+    ownership_raw_tokens: tuple[str, ...] = ()
+    for index in range(max(0, len(raw_tokens) - 2)):
+        if (
+            _one_pager_policy_text(raw_tokens[index]) in {"we", "i"}
+            and _one_pager_policy_text(raw_tokens[index + 1]) == "own"
+        ):
+            ownership_raw_tokens = tuple(raw_tokens[index : index + 3])
+            break
+    folded_ownership_prefix = " ".join(
+        unicodedata.normalize("NFKC", token).casefold()
+        for token in ownership_raw_tokens
+    )
+    owns_mixed_script_token = bool(
+        len(normalized_owned_token) <= 10
+        and normalized_owned_token
+        and folded_ownership_prefix.translate(_ONE_PAGER_CONFUSABLE_TRANSLATION)
+        != folded_ownership_prefix
+    )
+    owns_operational_process = bool(
+        normalized_owned_token in _ONE_PAGER_OPERATIONAL_OWNERSHIP_OBJECTS
+        or (
+            len(ownership_tail_tokens) > 1
+            and ownership_tail_tokens[1]
+            in _ONE_PAGER_OPERATIONAL_OWNERSHIP_CONTEXT
+        )
+    )
+    owns_short_ticker_shaped_token = bool(
+        owned_token.casefold() not in {"a", "an", "the"}
+        and re.fullmatch(r"[A-Za-z0-9.-]{1,5}", owned_token)
+        and not owns_operational_process
+    )
+    owns_investment_context = bool(
+        re.search(
+            r"\b(?:shares?|stock|security|position|stake|holding|investment)\b",
+            normalized_ownership_tail,
+        )
+    )
+    return bool(
+        owns_named_shares
+        or owns_selected_ticker
+        or owns_mixed_script_token
+        or owns_short_ticker_shaped_token
+        or owns_investment_context
+    )
+
+
+def _one_pager_text_is_approved_boundary(value: object) -> bool:
+    normalized = _one_pager_policy_text(value)
+    if normalized in _ONE_PAGER_APPROVED_BOUNDARY_TEXTS:
+        return True
+    if any(
+        pattern.fullmatch(normalized)
+        for pattern in _ONE_PAGER_APPROVED_NON_ACTION_PATTERNS
+    ):
+        return True
+    saw_negated_claim = False
+    for clause in _one_pager_policy_clauses(value):
+        has_policy_claim = any(
+            pattern.search(clause)
+            for pattern in _ONE_PAGER_PROHIBITED_CLAIM_PATTERNS
+        )
+        if has_policy_claim:
+            if not _one_pager_clause_is_safe_negation(clause):
+                return False
+            saw_negated_claim = True
+        elif contains_portable_action_language(clause):
+            return False
+    return saw_negated_claim
+
+
+def _one_pager_text_is_prohibited(
+    value: object,
+    *,
+    ticker: str = "",
+) -> bool:
+    normalized = _one_pager_policy_text(value)
+    if _one_pager_text_has_prohibited_raw_context(value, ticker=ticker):
+        return True
+    if not normalized or normalized in _ONE_PAGER_APPROVED_BOUNDARY_TEXTS:
+        return False
+    for clause in _one_pager_policy_clauses(value):
+        if any(
+            pattern.search(clause)
+            for pattern in _ONE_PAGER_PROHIBITED_CLAIM_PATTERNS
+        ) and not _one_pager_clause_is_safe_negation(clause):
+            return True
+    return False
+
+
+def _html_one_pager_safe_text(
+    value: object,
+    fallback: str = "not recorded",
+    *,
+    ticker: str = "",
+) -> tuple[str, bool]:
+    """Return summary-safe text and whether a supplied value was rejected."""
+    if not isinstance(value, (str, int, float, bool)):
+        return _html_brief_text(fallback, fallback), False
+    raw = html.unescape(str(value))
+    if not raw.strip():
+        return _html_brief_text(fallback, fallback), False
+    structurally_safe = _structurally_safe_html_brief_text(raw)
+    action_safe = safe_html_brief_text(raw)
+    rejected = (
+        not structurally_safe
+        or _one_pager_text_is_prohibited(raw, ticker=ticker)
+        or (
+            action_safe == _WITHHELD_ACTION
+            and not _one_pager_text_is_approved_boundary(raw)
+        )
+    )
+    return (
+        (_WITHHELD_ACTION, True)
+        if rejected
+        else (structurally_safe, False)
+    )
+
+
+def _html_one_pager_blocker_values(
+    blockers: tuple[str, ...],
+    *,
+    rejected: bool = False,
+    ticker: str = "",
+) -> tuple[tuple[str, ...], bool]:
+    values: list[str] = []
+    any_rejected = rejected
+    for blocker in blockers:
+        safe, item_rejected = _html_one_pager_safe_text(blocker, ticker=ticker)
+        any_rejected = any_rejected or item_rejected
+        if safe not in values:
+            values.append(safe)
+    if any_rejected and _ONE_PAGER_POLICY_BLOCKER not in values:
+        values.append(_ONE_PAGER_POLICY_BLOCKER)
+    return tuple(values), any_rejected
+
+
+def _html_one_pager_reference_value(
+    reference: HtmlBriefSafeReference,
+    *,
+    ticker: str = "",
+) -> tuple[HtmlBriefSafeReference, bool]:
+    label, label_rejected = _html_one_pager_safe_text(
+        reference.label,
+        "not recorded",
+        ticker=ticker,
+    )
+    safe = safe_html_brief_reference(
+        {
+            "label": html.unescape(label),
+            "href": reference.href,
+        }
+    )
+    policy_href = ""
+    if safe.href:
+        parsed = urlparse(safe.href)
+        decoded_path = parsed.path
+        for _ in range(2):
+            decoded_path = unquote(decoded_path)
+        policy_href = f"{parsed.hostname or ''} {decoded_path}"
+    normalized_policy_href = _one_pager_policy_text(policy_href)
+    normalized_ticker = _one_pager_policy_text(ticker)
+    direct_investment_reference = bool(
+        re.search(
+            r"\binvest in (?:the )?(?:stock|security|shares?|company)\b",
+            normalized_policy_href,
+        )
+        or (
+            normalized_ticker
+            and re.search(
+                rf"\binvest in {re.escape(normalized_ticker)}\b",
+                normalized_policy_href,
+            )
+        )
+    )
+    href_rejected = bool(
+        reference.href
+        and (
+            not safe.href
+            or _one_pager_text_is_prohibited(policy_href, ticker=ticker)
+            or contains_portable_action_language(normalized_policy_href)
+            or direct_investment_reference
+        )
+    )
+    return (
+        HtmlBriefSafeReference(label, "" if href_rejected else safe.href),
+        label_rejected or href_rejected,
+    )
+
+
+def _html_one_pager_answer_value(
+    answer: HtmlBriefAnswer,
+    *,
+    ticker: str = "",
+) -> HtmlBriefAnswer:
+    label, label_rejected = _html_one_pager_safe_text(
+        answer.label,
+        ticker=ticker,
+    )
+    title, title_rejected = _html_one_pager_safe_text(
+        answer.title,
+        "No portable answer.",
+        ticker=ticker,
+    )
+    body, body_rejected = _html_one_pager_safe_text(
+        answer.body,
+        "No portable answer.",
+        ticker=ticker,
+    )
+    badges: list[str] = []
+    badges_rejected = False
+    for badge in answer.badges:
+        safe, rejected = _html_one_pager_safe_text(badge, ticker=ticker)
+        badges_rejected = badges_rejected or rejected
+        if safe not in badges:
+            badges.append(safe)
+    references: list[HtmlBriefSafeReference] = []
+    references_rejected = False
+    for reference in answer.source_refs:
+        safe, rejected = _html_one_pager_reference_value(
+            reference,
+            ticker=ticker,
+        )
+        references_rejected = references_rejected or rejected
+        if safe not in references:
+            references.append(safe)
+    content_rejected = any(
+        (
+            label_rejected,
+            title_rejected,
+            body_rejected,
+            badges_rejected,
+            references_rejected,
+        )
+    )
+    blockers, blocker_rejected = _html_one_pager_blocker_values(
+        answer.blockers,
+        rejected=content_rejected,
+        ticker=ticker,
+    )
+    return replace(
+        answer,
+        label=label,
+        title=title,
+        body=body,
+        state="withheld" if content_rejected or blocker_rejected else answer.state,
+        badges=tuple(badges),
+        source_refs=tuple(references),
+        blockers=blockers,
+    )
+
+
+def _html_one_pager_section_value(
+    section: HtmlBriefSection,
+    *,
+    ticker: str = "",
+) -> HtmlBriefSection:
+    title, title_rejected = _html_one_pager_safe_text(
+        section.title,
+        ticker=ticker,
+    )
+    answer, answer_rejected = _html_one_pager_safe_text(
+        section.answer,
+        "No portable evidence recorded.",
+        ticker=ticker,
+    )
+    facts: list[tuple[str, str]] = []
+    facts_rejected = False
+    for label, value in section.facts:
+        safe_label, label_rejected = _html_one_pager_safe_text(
+            label,
+            ticker=ticker,
+        )
+        safe_value, value_rejected = _html_one_pager_safe_text(
+            value,
+            ticker=ticker,
+        )
+        facts_rejected = facts_rejected or label_rejected or value_rejected
+        facts.append((safe_label, safe_value))
+    content_rejected = title_rejected or answer_rejected or facts_rejected
+    blockers, blocker_rejected = _html_one_pager_blocker_values(
+        section.blockers,
+        rejected=content_rejected,
+        ticker=ticker,
+    )
+    return replace(
+        section,
+        title=title,
+        state="withheld" if content_rejected or blocker_rejected else section.state,
+        answer=answer,
+        facts=tuple(facts),
+        blockers=blockers,
+    )
+
+
+def _html_one_pager_scenario_value(
+    scenario: HtmlBriefScenario,
+    *,
+    ticker: str = "",
+) -> HtmlBriefScenario:
+    name, name_rejected = _html_one_pager_safe_text(
+        scenario.name,
+        ticker=ticker,
+    )
+    method_name, method_rejected = _html_one_pager_safe_text(
+        scenario.method_name,
+        "not recorded",
+        ticker=ticker,
+    )
+    shares_label, shares_label_rejected = _html_one_pager_safe_text(
+        scenario.bridge.shares_label,
+        "Shares outstanding used by existing model",
+        ticker=ticker,
+    )
+    share_basis_state, share_basis_rejected = _html_one_pager_safe_text(
+        scenario.bridge.share_basis_state,
+        "not recorded",
+        ticker=ticker,
+    )
+    currency, currency_rejected = _html_one_pager_safe_text(
+        scenario.bridge.currency,
+        "",
+        ticker=ticker,
+    )
+    metadata_rejected = any(
+        (
+            name_rejected,
+            method_rejected,
+            shares_label_rejected,
+            share_basis_rejected,
+            currency_rejected,
+        )
+    )
+    blockers, blocker_rejected = _html_one_pager_blocker_values(
+        scenario.bridge.blockers,
+        rejected=metadata_rejected,
+        ticker=ticker,
+    )
+    bridge_changes: dict[str, object] = {
+        "state": (
+            "withheld"
+            if metadata_rejected or blocker_rejected
+            else scenario.bridge.state
+        ),
+        "shares_label": shares_label,
+        "share_basis_state": (
+            "withheld" if share_basis_rejected else share_basis_state
+        ),
+        "currency": "" if currency_rejected else currency,
+        "blockers": blockers,
+    }
+    if currency_rejected:
+        bridge_changes.update(
+            {
+                "enterprise_state": "withheld",
+                "equity_state": "withheld",
+                "per_share_state": "withheld",
+                "explicit_total_state": "withheld",
+            }
+        )
+    elif shares_label_rejected or share_basis_rejected:
+        bridge_changes["per_share_state"] = "withheld"
+    bridge = replace(scenario.bridge, **bridge_changes)
+    return replace(
+        scenario,
+        name=name,
+        state=(
+            "withheld"
+            if metadata_rejected or blocker_rejected
+            else scenario.state
+        ),
+        method_name=method_name,
+        bridge=bridge,
+    )
+
+
+def _html_one_pager_evidence_value(
+    row: HtmlBriefEvidenceRow,
+    *,
+    ticker: str = "",
+) -> HtmlBriefEvidenceRow:
+    values: dict[str, str] = {}
+    content_rejected = False
+    for field_name in (
+        "section",
+        "source_id",
+        "as_of",
+        "retrieved_at",
+        "rights_state",
+        "field_scope_state",
+        "model_identity",
+        "input_identity",
+    ):
+        safe, rejected = _html_one_pager_safe_text(
+            getattr(row, field_name),
+            ticker=ticker,
+        )
+        values[field_name] = safe
+        content_rejected = content_rejected or rejected
+    source_ref, reference_rejected = _html_one_pager_reference_value(
+        row.source_ref,
+        ticker=ticker,
+    )
+    content_rejected = content_rejected or reference_rejected
+    blockers, blocker_rejected = _html_one_pager_blocker_values(
+        row.blockers,
+        rejected=content_rejected,
+        ticker=ticker,
+    )
+    return replace(
+        row,
+        state="withheld" if content_rejected or blocker_rejected else row.state,
+        source_ref=source_ref,
+        blockers=blockers,
+        **values,
+    )
+
+
+def _html_one_pager_snapshot_value(
+    snapshot: CompanyWorkbenchHtmlSnapshot,
+) -> CompanyWorkbenchHtmlSnapshot:
+    values: dict[str, str] = {}
+    header_rejected = False
+    for field_name, fallback in (
+        ("ticker", "Research"),
+        ("profile_label", "not recorded"),
+        ("review_cutoff", "not recorded"),
+        ("source_as_of", "not recorded"),
+        ("generated_at", "not recorded"),
+        ("model_version", "not recorded"),
+        ("boundary", "not recorded"),
+        ("identity", "not recorded"),
+    ):
+        safe, rejected = _html_one_pager_safe_text(
+            getattr(snapshot, field_name),
+            fallback,
+            ticker=snapshot.ticker,
+        )
+        values[field_name] = safe
+        header_rejected = header_rejected or rejected
+    blockers, _ = _html_one_pager_blocker_values(
+        snapshot.blockers,
+        rejected=header_rejected,
+        ticker=snapshot.ticker,
+    )
+    projected_evidence_rows = tuple(
+        _html_one_pager_evidence_value(row, ticker=snapshot.ticker)
+        for row in snapshot.evidence_rows
+    )
+    rights_state = snapshot.rights_state
+    if (
+        normalize_html_brief_state(rights_state) == "available"
+        and _rights_state(projected_evidence_rows) != "available"
+    ):
+        rights_state = "withheld"
+    return replace(
+        snapshot,
+        answers=tuple(
+            _html_one_pager_answer_value(answer, ticker=snapshot.ticker)
+            for answer in snapshot.answers
+        ),
+        scenarios=tuple(
+            _html_one_pager_scenario_value(scenario, ticker=snapshot.ticker)
+            for scenario in snapshot.scenarios
+        ),
+        research_sections=tuple(
+            _html_one_pager_section_value(section, ticker=snapshot.ticker)
+            for section in snapshot.research_sections
+        ),
+        decision_lanes=tuple(
+            _html_one_pager_section_value(section, ticker=snapshot.ticker)
+            for section in snapshot.decision_lanes
+        ),
+        evidence_rows=projected_evidence_rows,
+        rights_state=rights_state,
+        blockers=blockers,
+        **values,
+    )
+
+
 def _html_brief_state(value: object) -> tuple[str, str]:
     state = normalize_html_brief_state(value)
     return state, _HTML_BRIEF_STATE_LABELS[state]
@@ -1053,13 +1790,47 @@ def _html_one_pager_state_attributes(state: object, role: str) -> str:
     )
 
 
+def _html_one_pager_text(
+    value: object,
+    fallback: str = "not recorded",
+) -> str:
+    """Render text that already passed the One-Pager projection policy."""
+    if isinstance(value, (str, int, float, bool)):
+        safe = _structurally_safe_html_brief_text(
+            html.unescape(str(value))
+        )
+        if safe:
+            return safe
+    return _structurally_safe_html_brief_text(fallback) or "not recorded"
+
+
+def _html_one_pager_blockers(blockers: tuple[str, ...]) -> str:
+    if not blockers:
+        return ""
+    rows = "".join(f"<li>{_html_one_pager_text(item)}</li>" for item in blockers)
+    return f'<ul class="srcc-blockers"><li>Blockers</li><li><ul>{rows}</ul></li></ul>'
+
+
+def _html_one_pager_reference_markup(reference: HtmlBriefSafeReference) -> str:
+    label = _html_one_pager_text(reference.label)
+    safe = safe_html_brief_reference(
+        {"label": "Source", "href": reference.href}
+    )
+    if safe.href:
+        return (
+            f'<a href="{html.escape(safe.href, quote=True)}" '
+            f'rel="noreferrer noopener">{label}</a>'
+        )
+    return label
+
+
 def _html_one_pager_references(
     references: tuple[HtmlBriefSafeReference, ...],
 ) -> str:
     if not references:
         return ""
     items = "".join(
-        f"<li>{_html_brief_reference_markup(reference)}</li>"
+        f"<li>{_html_one_pager_reference_markup(reference)}</li>"
         for reference in references
     )
     return f"<p>Source references</p><ul>{items}</ul>"
@@ -1086,16 +1857,17 @@ def _html_one_pager_section_card(
     facts = ""
     if selected.facts:
         facts = '<dl class="srcc-meta">' + "".join(
-            f"<dt>{_html_brief_text(label)}</dt><dd>{_html_brief_text(value)}</dd>"
+            f"<dt>{_html_one_pager_text(label)}</dt>"
+            f"<dd>{_html_one_pager_text(value)}</dd>"
             for label, value in selected.facts
         ) + "</dl>"
     return (
         '<article class="srcc-one-pager-card srcc-card" '
         f'{_html_one_pager_state_attributes(selected.state, role)}>'
-        f"<{heading}>{_html_brief_text(selected.title)}</{heading}>"
+        f"<{heading}>{_html_one_pager_text(selected.title)}</{heading}>"
         f"{_html_brief_state_markup(selected.state)}"
-        f"<p>{_html_brief_text(selected.answer, 'No portable evidence recorded.')}</p>"
-        f"{facts}{_html_brief_blockers(selected.blockers)}"
+        f"<p>{_html_one_pager_text(selected.answer, 'No portable evidence recorded.')}</p>"
+        f"{facts}{_html_one_pager_blockers(selected.blockers)}"
         "</article>"
     )
 
@@ -1112,12 +1884,12 @@ def _html_one_pager_answer_card(
     return (
         f'<{container} class="srcc-one-pager-card srcc-card"'
         f'{item_attribute} {_html_one_pager_state_attributes(answer.state, role)}>'
-        f"<{heading}>{_html_brief_text(answer.label)}</{heading}>"
+        f"<{heading}>{_html_one_pager_text(answer.label)}</{heading}>"
         f"{_html_brief_state_markup(answer.state)}"
-        f"<p>{_html_brief_text(answer.title, 'No portable answer.')}</p>"
-        f"<p>{_html_brief_text(answer.body, 'No portable answer.')}</p>"
+        f"<p>{_html_one_pager_text(answer.title, 'No portable answer.')}</p>"
+        f"<p>{_html_one_pager_text(answer.body, 'No portable answer.')}</p>"
         f"{_html_one_pager_references(answer.source_refs)}"
-        f"{_html_brief_blockers(answer.blockers)}"
+        f"{_html_one_pager_blockers(answer.blockers)}"
         f"</{container}>"
     )
 
@@ -1143,7 +1915,7 @@ def _html_one_pager_share_basis(
     *,
     role: str,
 ) -> str:
-    supplied = _html_brief_text(state, "not recorded")
+    supplied = _html_one_pager_text(state, "not recorded")
     return (
         '<p class="srcc-boundary" '
         f'data-share-basis-role="{html.escape(role, quote=True)}" '
@@ -1157,6 +1929,7 @@ def _html_evidence_one_pager(
     heading_level: int,
 ) -> str:
     """Project a summary from an already-frozen snapshot without side effects."""
+    snapshot = _html_one_pager_snapshot_value(snapshot)
     level = max(1, min(6, int(heading_level)))
     heading = f"h{level}"
     section_heading = f"h{min(6, level + 1)}"
@@ -1165,7 +1938,7 @@ def _html_evidence_one_pager(
     header_state_rows = "".join(
         '<div class="srcc-one-pager-card" '
         f'{_html_one_pager_state_attributes(state, _html_one_pager_role("header", field))}>'
-        f"<p>{_html_brief_text(label)}</p>{_html_brief_state_markup(state)}</div>"
+        f"<p>{_html_one_pager_text(label)}</p>{_html_brief_state_markup(state)}</div>"
         for field, label, state in (
             ("freshness-state", "Freshness", snapshot.freshness_state),
             ("rights-state", "Rights", snapshot.rights_state),
@@ -1175,18 +1948,18 @@ def _html_evidence_one_pager(
         '<header data-section="one-pager-header">'
         '<p>Saved evidence snapshot</p>'
         f'<{heading} id="evidence-one-pager-title">'
-        f"{_html_brief_text(snapshot.ticker, 'Research')} Evidence One-Pager"
+        f"{_html_one_pager_text(snapshot.ticker, 'Research')} Evidence One-Pager"
         f"</{heading}>"
         '<dl class="srcc-meta">'
-        f"<dt>Ticker</dt><dd>{_html_brief_text(snapshot.ticker)}</dd>"
-        f"<dt>Review cutoff</dt><dd>{_html_brief_text(snapshot.review_cutoff)}</dd>"
-        f"<dt>Source as of</dt><dd>{_html_brief_text(snapshot.source_as_of)}</dd>"
-        f"<dt>Model version</dt><dd>{_html_brief_text(snapshot.model_version)}</dd>"
-        f"<dt>Snapshot identity</dt><dd>{_html_brief_text(snapshot.identity)}</dd>"
+        f"<dt>Ticker</dt><dd>{_html_one_pager_text(snapshot.ticker)}</dd>"
+        f"<dt>Review cutoff</dt><dd>{_html_one_pager_text(snapshot.review_cutoff)}</dd>"
+        f"<dt>Source as of</dt><dd>{_html_one_pager_text(snapshot.source_as_of)}</dd>"
+        f"<dt>Model version</dt><dd>{_html_one_pager_text(snapshot.model_version)}</dd>"
+        f"<dt>Snapshot identity</dt><dd>{_html_one_pager_text(snapshot.identity)}</dd>"
         "</dl>"
         f'<div class="srcc-one-pager-grid">{header_state_rows}</div>'
-        f'<p class="srcc-boundary">{_html_brief_text(snapshot.boundary)}</p>'
-        f"{_html_brief_blockers(snapshot.blockers)}"
+        f'<p class="srcc-boundary">{_html_one_pager_text(snapshot.boundary)}</p>'
+        f"{_html_one_pager_blockers(snapshot.blockers)}"
         "</header>"
     )
 
@@ -1219,11 +1992,11 @@ def _html_evidence_one_pager(
         scenario_items.append(
             '<li class="srcc-one-pager-card srcc-card" data-scenario-item="" '
             f'{_html_one_pager_state_attributes(scenario.state, scenario_role)}>'
-            f"<{card_heading}>{_html_brief_text(scenario.name)}</{card_heading}>"
+            f"<{card_heading}>{_html_one_pager_text(scenario.name)}</{card_heading}>"
             f"{_html_brief_state_markup(scenario.state)}"
             f"<p>{'Modified Base assumptions' if scenario.modified else 'Recorded assumptions'}</p>"
             '<dl class="srcc-meta">'
-            f"<dt>Method</dt><dd>{_html_brief_text(scenario.method_name)}</dd>"
+            f"<dt>Method</dt><dd>{_html_one_pager_text(scenario.method_name)}</dd>"
             f"<dt>Revenue growth</dt><dd>{format_html_brief_number(scenario.revenue_growth, percent=True)}</dd>"
             f"<dt>FCF margin</dt><dd>{format_html_brief_number(scenario.fcf_margin, percent=True)}</dd>"
             f"<dt>WACC</dt><dd>{format_html_brief_number(scenario.wacc, percent=True)}</dd>"
@@ -1234,7 +2007,7 @@ def _html_evidence_one_pager(
             f'{_html_one_pager_state_attributes(value_state, value_role)}>'
             f"<p>{value_copy}</p>{_html_brief_state_markup(value_state)}</div>"
             f"{_html_one_pager_share_basis(scenario.bridge.share_basis_state, role=_html_one_pager_role('scenarios', scenario.name, 'share-basis'))}"
-            f"{_html_brief_blockers(scenario.bridge.blockers)}"
+            f"{_html_one_pager_blockers(scenario.bridge.blockers)}"
             "</li>"
         )
     scenarios = (
@@ -1307,10 +2080,10 @@ def _html_evidence_one_pager(
             bridge_rows.append(
                 '<tr '
                 f'{_html_one_pager_state_attributes(value_state, _html_one_pager_role("operating-valuation", "base-bridge", key))}>'
-                f'<th scope="row">{_html_brief_text(label)}</th><td>'
+                f'<th scope="row">{_html_one_pager_text(label)}</th><td>'
                 f"{displayed_value or 'withheld'}"
                 f"{_html_brief_state_markup(value_state)}"
-                f"{_html_brief_blockers(base.bridge.blockers)}</td></tr>"
+                f"{_html_one_pager_blockers(base.bridge.blockers)}</td></tr>"
             )
         bridge_markup = (
             '<div class="srcc-one-pager-card">'
@@ -1387,7 +2160,7 @@ def _html_evidence_one_pager(
     provenance_top_states = "".join(
         '<div class="srcc-one-pager-card" '
         f'{_html_one_pager_state_attributes(state, _html_one_pager_role("provenance", field))}>'
-        f"<p>{_html_brief_text(label)}</p>{_html_brief_state_markup(state)}</div>"
+        f"<p>{_html_one_pager_text(label)}</p>{_html_brief_state_markup(state)}</div>"
         for field, label, state in (
             ("freshness-state", "Freshness", snapshot.freshness_state),
             ("rights-state", "Rights", snapshot.rights_state),
@@ -1400,16 +2173,16 @@ def _html_evidence_one_pager(
         )
         fields = (
             ("State", _html_brief_state_markup(row.state)),
-            ("Section", _html_brief_text(row.section)),
-            ("Source ID", _html_brief_text(row.source_id)),
-            ("Reference", _html_brief_reference_markup(row.source_ref)),
-            ("As of", _html_brief_text(row.as_of)),
-            ("Retrieved", _html_brief_text(row.retrieved_at)),
-            ("Rights", _html_brief_text(row.rights_state)),
-            ("Field scope", _html_brief_text(row.field_scope_state)),
-            ("Model identity", _html_brief_text(row.model_identity)),
-            ("Input identity", _html_brief_text(row.input_identity)),
-            ("Blockers", _html_brief_blockers(row.blockers) or "None recorded"),
+            ("Section", _html_one_pager_text(row.section)),
+            ("Source ID", _html_one_pager_text(row.source_id)),
+            ("Reference", _html_one_pager_reference_markup(row.source_ref)),
+            ("As of", _html_one_pager_text(row.as_of)),
+            ("Retrieved", _html_one_pager_text(row.retrieved_at)),
+            ("Rights", _html_one_pager_text(row.rights_state)),
+            ("Field scope", _html_one_pager_text(row.field_scope_state)),
+            ("Model identity", _html_one_pager_text(row.model_identity)),
+            ("Input identity", _html_one_pager_text(row.input_identity)),
+            ("Blockers", _html_one_pager_blockers(row.blockers) or "None recorded"),
         )
         rows = "".join(
             f'<tr><th scope="row">{label}</th><td>{value}</td></tr>'
@@ -1425,8 +2198,8 @@ def _html_evidence_one_pager(
             f'{_html_one_pager_state_attributes(unavailable.state, _html_one_pager_role("provenance", "no-portable-evidence"))}>'
             '<tr><th scope="row">Evidence state</th><td>'
             f"{_html_brief_state_markup(unavailable.state)}"
-            f"<p>{_html_brief_text(unavailable.answer)}</p>"
-            f"{_html_brief_blockers(unavailable.blockers)}</td></tr></tbody>"
+            f"<p>{_html_one_pager_text(unavailable.answer)}</p>"
+            f"{_html_one_pager_blockers(unavailable.blockers)}</td></tr></tbody>"
         )
     provenance = (
         '<aside class="srcc-one-pager-card" data-section="one-pager-provenance" '
@@ -1434,9 +2207,9 @@ def _html_evidence_one_pager(
         f'<{section_heading} id="evidence-one-pager-provenance-title">'
         f"Provenance and boundaries</{section_heading}>"
         '<dl class="srcc-meta">'
-        f"<dt>Model version</dt><dd>{_html_brief_text(snapshot.model_version)}</dd>"
-        f"<dt>Snapshot identity</dt><dd>{_html_brief_text(snapshot.identity)}</dd>"
-        f"<dt>Boundary</dt><dd>{_html_brief_text(snapshot.boundary)}</dd>"
+        f"<dt>Model version</dt><dd>{_html_one_pager_text(snapshot.model_version)}</dd>"
+        f"<dt>Snapshot identity</dt><dd>{_html_one_pager_text(snapshot.identity)}</dd>"
+        f"<dt>Boundary</dt><dd>{_html_one_pager_text(snapshot.boundary)}</dd>"
         "</dl>"
         f'<div class="srcc-one-pager-grid">{provenance_top_states}</div>'
         '<div class="table-scroll"><table class="srcc-table">'
