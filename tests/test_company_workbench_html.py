@@ -1,4 +1,5 @@
 from dataclasses import replace
+import html
 from html.parser import HTMLParser
 from pathlib import Path
 import re
@@ -85,6 +86,19 @@ def _valuation_payload() -> dict[str, object]:
     return valuation.to_dict()
 
 
+def _change(**changes: object) -> dict[str, object]:
+    row: dict[str, object] = {
+        "state": "review_now",
+        "answer": "1 unresolved source-backed change needs review.",
+        "next_task": "Review the changed filing evidence.",
+        "source_refs": ("https://sec.example/change",),
+        "source_backed_eligible": True,
+        "change_context_kind": "source_backed",
+    }
+    row.update(changes)
+    return row
+
+
 def _inputs(report: dict[str, object] | None = None, **changes: object) -> CompanyWorkbenchHtmlInputs:
     valuation = _valuation_payload()
     default_report = {
@@ -98,9 +112,167 @@ def _inputs(report: dict[str, object] | None = None, **changes: object) -> Compa
     }
     selected = {"Ticker": "NVDA", "Use Now": "Saved, source-backed context.", "Still Blocked": "No live consensus.", "state": "ready"}
     recency = ObservationRecencySet(ObservationRecency("NVDA", "2026-07-30", 1, "current", "Current"), ObservationRecency("profile", "2026-07-30", 1, "current", "Current"), (), 7, "/private/prices.csv", "2026-07-31")
-    values = dict(report_payload=default_report if report is None else report, profile_context=_profile(), observation_recency=recency, selected_answer=selected, authoritative_task={"title": "Review evidence", "body": "Confirm source scope.", "state": "blocked", "badges": ("Research",)}, scenario_lab_result=None, nowcast_packet=None, decision_lab_state=_decision(), quarterly_trend=_quarterly(), forward_view=_forward(), journal_state=None, valuation_regime=_regime(), catalyst_timeline=_catalysts())
+    values = dict(report_payload=default_report if report is None else report, profile_context=_profile(), observation_recency=recency, selected_answer=selected, authoritative_task={"title": "Review evidence", "body": "Confirm source scope.", "state": "blocked", "badges": ("Research",)}, scenario_lab_result=None, nowcast_packet=None, decision_lab_state=_decision(), quarterly_trend=_quarterly(), forward_view=_forward(), journal_state=None, valuation_regime=_regime(), catalyst_timeline=_catalysts(), change_answer=_change(), change_ticker="NVDA", change_profile_key="demo")
     values.update(changes)
     return CompanyWorkbenchHtmlInputs(**values)
+
+
+def test_snapshot_freezes_four_scoped_answers_without_promoting_source_backed_change():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+
+    assert [answer.label for answer in snapshot.answers] == [
+        "Use now",
+        "Still withheld",
+        "What changed",
+        "Next research task",
+    ]
+    changed = snapshot.answers[2]
+    assert changed.state == "partial"
+    assert changed.title == "1 unresolved source-backed change needs review."
+    assert changed.body == "Review the changed filing evidence."
+    assert [reference.href for reference in changed.source_refs] == [
+        "https://sec.example/change"
+    ]
+    assert any("portable publication" in blocker.lower() for blocker in changed.blockers)
+
+
+@pytest.mark.parametrize(
+    ("kind", "eligible", "expected"),
+    (
+        ("none", False, "not_recorded"),
+        ("snapshot_only", False, "partial"),
+        ("source_backed", True, "partial"),
+        ("unknown", True, "withheld"),
+    ),
+)
+def test_snapshot_maps_change_context_without_inheriting_workflow_state(kind, eligible, expected):
+    inputs = _inputs(change_answer=_change(change_context_kind=kind, source_backed_eligible=eligible))
+    assert build_company_workbench_html_snapshot(inputs).answers[2].state == expected
+
+
+@pytest.mark.parametrize("kind", ("none", "unknown"))
+def test_snapshot_clears_claim_and_references_for_none_or_unknown_context(kind):
+    changed = build_company_workbench_html_snapshot(
+        _inputs(change_answer=_change(change_context_kind=kind))
+    ).answers[2]
+    assert changed.title == "No portable change answer."
+    assert changed.body == "No scoped saved change answer is available."
+    assert changed.source_refs == ()
+    assert "unresolved source-backed" not in repr(changed).lower()
+
+
+@pytest.mark.parametrize(
+    ("ticker", "profile"),
+    (("AMD", "demo"), ("NVDA", "other"), ("", "demo")),
+)
+def test_snapshot_rejects_unscoped_or_mismatched_change_answer(ticker, profile):
+    snapshot = build_company_workbench_html_snapshot(
+        _inputs(change_ticker=ticker, change_profile_key=profile)
+    )
+    changed = snapshot.answers[2]
+    assert changed.state == "not_recorded"
+    assert changed.source_refs == ()
+    assert "changed filing" not in repr(changed).lower()
+
+
+def test_snapshot_sanitizes_change_copy_state_and_references():
+    snapshot = build_company_workbench_html_snapshot(
+        _inputs(
+            change_answer=_change(
+                state="invented-state<script>",
+                answer="<script>alert(1)</script>",
+                next_task="buy this stock now",
+                source_refs=(
+                    "javascript:alert(1)",
+                    "https://sec.example/change",
+                ),
+            )
+        )
+    )
+    changed = snapshot.answers[2]
+    assert changed.state == "withheld"
+    assert changed.badges == ()
+    assert "<script" not in repr(changed).lower()
+    assert "buy this stock" not in repr(changed).lower()
+    assert changed.source_refs == ()
+    assert changed.title == "No portable change answer."
+
+
+@pytest.mark.parametrize(
+    "source_ref",
+    (
+        "sec:accession",
+        "sec-accession:0001045810-26-000021",
+        "consensus://nvda/fy2027-q2/2026-07-15",
+        "sec_companyfacts",
+        "sec_companyfacts; sec_filing_document",
+        "yfinance_research_grade; sec_filing_document",
+    ),
+)
+def test_snapshot_keeps_real_opaque_source_ref_partial_but_does_not_expose_it(
+    source_ref,
+):
+    changed = build_company_workbench_html_snapshot(
+        _inputs(change_answer=_change(source_refs=(source_ref,)))
+    ).answers[2]
+    assert changed.state == "partial"
+    assert changed.source_refs == ()
+    assert any("reference is incomplete" in blocker.lower() for blocker in changed.blockers)
+
+
+@pytest.mark.parametrize(
+    "unsafe_ref",
+    (
+        "http://example.com/change",
+        "/etc/passwd",
+        "src/private-change.txt",
+        "file:///tmp/change",
+        "consensus://nvda/../../private",
+    ),
+)
+def test_snapshot_withholds_mixed_valid_and_unsafe_change_references(unsafe_ref):
+    changed = build_company_workbench_html_snapshot(
+        _inputs(
+            change_answer=_change(
+                source_refs=("https://sec.example/change", unsafe_ref)
+            )
+        )
+    ).answers[2]
+    assert changed.state == "withheld"
+    assert changed.source_refs == ()
+    assert changed.title == "No portable change answer."
+
+
+@pytest.mark.parametrize(
+    "malformed_ref",
+    (
+        "https://[bad]/x",
+        "https://[::1",
+        "https://example.com:bad/x",
+        "https://example.com:99999/x",
+        "https://exa mple.com/x",
+        "https://exa%20mple.com/x",
+    ),
+)
+def test_snapshot_withholds_malformed_https_change_references_without_raising(
+    malformed_ref,
+):
+    changed = build_company_workbench_html_snapshot(
+        _inputs(
+            change_answer=_change(
+                source_refs=("https://sec.example/change", malformed_ref)
+            )
+        )
+    ).answers[2]
+
+    assert changed.state == "withheld"
+    assert changed.source_refs == ()
+    assert changed.title == "No portable change answer."
+    assert changed.body == "No scoped saved change answer is available."
+    assert changed.badges == ()
+    assert changed.blockers == (
+        "Portable change content, workflow state, or reference is unsafe.",
+    )
 
 
 def _base(snapshot):
@@ -1843,6 +2015,1002 @@ class _BriefHtmlParser(HTMLParser):
             self.headings.append((self._heading, data.strip()))
 
 
+class _OnePagerHtmlParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.tags = []
+        self.headings = []
+        self.captions = []
+        self.answer_item_count = 0
+        self.scenario_item_count = 0
+        self.state_nodes = []
+        self.state_roles = []
+        self.state_role_pairs = []
+        self.share_basis_pairs = []
+        self.labelled_asides = []
+        self.labelled_sections = []
+        self._depth = 0
+        self._text_tag = None
+        self._text_parts = []
+
+    def handle_starttag(self, tag, attrs):
+        attributes = dict(attrs)
+        if not self._depth:
+            if attributes.get("data-section") != "evidence-one-pager":
+                return
+            self._depth = 1
+        else:
+            self._depth += 1
+        self.tags.append(tag)
+        if tag in {"h1", "h2", "h3", "h4", "h5", "h6", "caption"}:
+            self._text_tag = tag
+            self._text_parts = []
+        if attributes.get("data-answer-item") is not None:
+            self.answer_item_count += 1
+        if attributes.get("data-scenario-item") is not None:
+            self.scenario_item_count += 1
+        if "data-state" in attributes or "data-state-role" in attributes:
+            state = attributes.get("data-state", "")
+            role = attributes.get("data-state-role", "")
+            self.state_nodes.append(tag)
+            self.state_roles.append(role)
+            self.state_role_pairs.append((role, state))
+        if (
+            "data-share-basis-role" in attributes
+            or "data-share-basis-state" in attributes
+        ):
+            self.share_basis_pairs.append(
+                (
+                    attributes.get("data-share-basis-role", ""),
+                    attributes.get("data-share-basis-state", ""),
+                )
+            )
+        if tag == "aside" and attributes.get("aria-labelledby"):
+            self.labelled_asides.append(attributes["aria-labelledby"])
+        if tag == "section" and attributes.get("aria-labelledby"):
+            self.labelled_sections.append(attributes["aria-labelledby"])
+
+    def handle_endtag(self, tag):
+        if not self._depth:
+            return
+        if tag == self._text_tag:
+            text = "".join(self._text_parts).strip()
+            if tag == "caption":
+                self.captions.append(text)
+            else:
+                self.headings.append((tag, text))
+            self._text_tag = None
+            self._text_parts = []
+        self._depth -= 1
+
+    def handle_data(self, data):
+        if self._depth and self._text_tag:
+            self._text_parts.append(data)
+
+
+class _OnePagerStateHtmlParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.nodes = {}
+        self._depth = 0
+        self._active = []
+
+    def handle_starttag(self, tag, attrs):
+        self._depth += 1
+        attributes = dict(attrs)
+        role = attributes.get("data-state-role")
+        if role:
+            self.nodes[role] = {
+                "state": attributes.get("data-state", ""),
+                "text": [],
+            }
+            self._active.append((role, tag, self._depth))
+
+    def handle_endtag(self, tag):
+        self._active = [
+            item
+            for item in self._active
+            if not (item[1] == tag and item[2] == self._depth)
+        ]
+        self._depth -= 1
+
+    def handle_data(self, data):
+        for role, _, _ in self._active:
+            self.nodes[role]["text"].append(data)
+
+
+def _one_pager_state_nodes(rendered):
+    parser = _OnePagerStateHtmlParser()
+    parser.feed(rendered)
+    return {
+        role: {
+            "state": node["state"],
+            "text": " ".join("".join(node["text"]).split()),
+        }
+        for role, node in parser.nodes.items()
+    }
+
+
+def test_evidence_one_pager_renders_fixed_order_from_frozen_snapshot_only():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    rendered = html_brief._html_evidence_one_pager(snapshot, heading_level=2)
+
+    markers = (
+        "Saved evidence snapshot",
+        "Company Brief",
+        "Scenarios under assumptions",
+        "Research case",
+        "Operating and valuation evidence",
+        "What could break the research case",
+        "Questions still requiring evidence",
+        "Provenance and boundaries",
+        "Continue to the full evidence report below.",
+    )
+    assert all(marker in rendered for marker in markers)
+    assert [rendered.index(marker) for marker in markers] == sorted(
+        rendered.index(marker) for marker in markers
+    )
+    assert rendered.count('data-section="evidence-one-pager"') == 1
+    assert rendered.count("Use now") >= 1
+    assert rendered.count("What changed") >= 1
+
+
+@pytest.mark.parametrize(
+    "forbidden",
+    (
+        "Certified",
+        "Why own it",
+        "Blue Sky",
+        "upside",
+        "target price",
+        "expected return",
+        "buy",
+        "sell",
+        "position size",
+    ),
+)
+def test_evidence_one_pager_never_adds_prohibited_claims(forbidden):
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(
+            build_company_workbench_html_snapshot(_inputs()),
+            heading_level=2,
+        )
+    )
+    assert forbidden.lower() not in rendered.lower()
+
+
+def _snapshot_with_one_pager_surface_text(snapshot, surface, text):
+    if surface.startswith("answer_"):
+        field = surface.removeprefix("answer_")
+        answer = snapshot.answers[0]
+        value = (text,) if field == "badges" else text
+        changed = replace(answer, state="available", **{field: value})
+        return replace(snapshot, answers=(changed,) + snapshot.answers[1:])
+
+    if surface.startswith("section_"):
+        field = surface.removeprefix("section_")
+        section = next(
+            item for item in snapshot.research_sections if item.key == "key-drivers"
+        )
+        changes = {"state": "available"}
+        if field == "fact_label":
+            changes["facts"] = ((text, "Recorded evidence"),)
+        elif field == "fact_value":
+            changes["facts"] = (("Metric", text),)
+        elif field == "blockers":
+            changes["blockers"] = (text,)
+        else:
+            changes[field] = text
+        changed = replace(section, **changes)
+        return replace(
+            snapshot,
+            research_sections=tuple(
+                changed if item.key == "key-drivers" else item
+                for item in snapshot.research_sections
+            ),
+        )
+
+    if surface == "scenario_method":
+        return replace(
+            snapshot,
+            scenarios=tuple(
+                replace(item, state="available", method_name=text)
+                if item.name == "Base"
+                else item
+                for item in snapshot.scenarios
+            ),
+        )
+
+    if surface.startswith("provenance_"):
+        field = surface.removeprefix("provenance_")
+        row = snapshot.evidence_rows[0]
+        if field == "reference_label":
+            changed = replace(
+                row,
+                state="available",
+                source_ref=replace(row.source_ref, label=text),
+            )
+        elif field == "blockers":
+            changed = replace(row, state="available", blockers=(text,))
+        else:
+            changed = replace(row, state="available", **{field: text})
+        return replace(snapshot, evidence_rows=(changed,) + snapshot.evidence_rows[1:])
+
+    if surface == "snapshot_blockers":
+        return replace(snapshot, blockers=(text,))
+    if surface.startswith("snapshot_"):
+        return replace(snapshot, **{surface.removeprefix("snapshot_"): text})
+    raise AssertionError(f"unhandled one-pager surface: {surface}")
+
+
+_ONE_PAGER_DYNAMIC_TEXT_SURFACES = (
+    "answer_title",
+    "answer_body",
+    "answer_badges",
+    "section_title",
+    "section_answer",
+    "section_fact_label",
+    "section_fact_value",
+    "section_blockers",
+    "scenario_method",
+    "provenance_section",
+    "provenance_source_id",
+    "provenance_reference_label",
+    "provenance_as_of",
+    "provenance_retrieved_at",
+    "provenance_rights_state",
+    "provenance_field_scope_state",
+    "provenance_model_identity",
+    "provenance_input_identity",
+    "provenance_blockers",
+    "snapshot_source_as_of",
+    "snapshot_model_version",
+    "snapshot_boundary",
+    "snapshot_blockers",
+)
+
+
+@pytest.mark.parametrize("surface", _ONE_PAGER_DYNAMIC_TEXT_SURFACES)
+@pytest.mark.parametrize(
+    "prohibited",
+    (
+        "Certified one-pager.",
+        "Why own it: durable moat.",
+        "Blue Sky case.",
+        "Current price is USD 100.",
+        "Target price is USD 150.",
+        "Upside is 20%.",
+        "Expected return is 20%.",
+        "Probability is 80%.",
+        "Confidence is 90%.",
+        "Position size is 5%.",
+    ),
+)
+def test_evidence_one_pager_withholds_prohibited_claims_from_every_dynamic_text_surface(
+    surface, prohibited
+):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = _snapshot_with_one_pager_surface_text(snapshot, surface, prohibited)
+
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+
+    assert prohibited.lower() not in rendered.lower()
+    assert (
+        "One-Pager content was withheld because it violates the summary evidence policy."
+        in rendered
+    )
+
+
+@pytest.mark.parametrize(
+    "surface, role",
+    (
+        ("answer_body", "answers-use-now"),
+        ("answer_badges", "answers-use-now"),
+        ("section_fact_value", "research-case-research-key-drivers"),
+        ("scenario_method", "scenarios-base"),
+        ("provenance_model_identity", "provenance-row-1-catalyst-sec"),
+    ),
+)
+def test_evidence_one_pager_downgrades_policy_rejected_cards_to_withheld(
+    surface, role
+):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = _snapshot_with_one_pager_surface_text(
+        snapshot,
+        surface,
+        "Current price is USD 100.",
+    )
+
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    node = _one_pager_state_nodes(rendered)[role]
+
+    assert node["state"] == "withheld"
+    assert "State: withheld" in node["text"]
+    assert (
+        "One-Pager content was withheld because it violates the summary evidence policy."
+        in node["text"]
+    )
+
+
+def test_evidence_one_pager_keeps_the_approved_research_only_boundary_visible():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(snapshot, heading_level=2)
+    )
+
+    assert snapshot.boundary in rendered
+
+
+def test_evidence_one_pager_policy_does_not_rewrite_the_preserved_full_report():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = _snapshot_with_one_pager_surface_text(
+        snapshot,
+        "answer_body",
+        "Current price is USD 100.",
+    )
+
+    summary = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    full_report = html.unescape(
+        html_brief._html_brief_content(changed, heading_level=2)
+    )
+
+    assert "Current price is USD 100." not in summary
+    assert "Current price is USD 100." in full_report
+
+
+@pytest.mark.parametrize(
+    "prohibited",
+    (
+        "Сurrеnt рriсe is USD 100.",
+        "C\u200durrent price is USD 100.",
+        "Cúrrent price is USD 100.",
+        "Own it for the durable moat.",
+        "This is one to own.",
+        "The ownership case is compelling.",
+        "A stock worth owning.",
+        "A compelling company to own.",
+        "We own NVDA.",
+        "We own nvda.",
+        "We own NVDА.",
+        "We own NТDA.",
+        "Wе own msft.",
+        "We оwn msft.",
+        "We o\u200dwn msft.",
+        "Wе own NVDА.",
+        "We own msft.",
+        "I own amzn.",
+        "We own aapl.",
+        "We own msft today.",
+        "We own aapl as a hedge.",
+        "I own amzn for diversification.",
+        "I own msft shares.",
+        "Ownership is attractive.",
+        "Suggested sizing is 5%.",
+        "Portfolio sizing is 5%.",
+        "Size it at 5%.",
+        "Suggested weight is 5%.",
+        "Portfolio weight is 5%.",
+        "Position weight is 5%.",
+        "Suggested weight: 5%.",
+        "Suggested weight is 5 percent.",
+        "Suggested weight of 5 percent.",
+        "Suggested weight is five percent.",
+        "Suggested weight is 5％.",
+        "Portfolio weight is 0.5%.",
+        "Position weight at 2.5%.",
+        "Suggested weight: 0.5%.",
+        "Expected returns are 20%.",
+        "Return expectation is 20%.",
+        "Target valuation is USD 150.",
+        "Target value is USD 150.",
+        "Spot is USD 100.",
+        "20% above spot.",
+        "Below spot.",
+        "Likelihood is 80%.",
+        "The model assigns 80% odds.",
+        "We are 90% confident.",
+        "We are highly confident in the thesis.",
+        "High confidence in the valuation.",
+        "The model is highly confident in the thesis.",
+        "The research team remains confident in the case.",
+        "Analysts are confident in the scenario.",
+        "The result is confidently estimated.",
+        "This is a certifying one-pager.",
+        "Certification complete.",
+        "Invest in NVDA.",
+        "Confidence score: 90%.",
+        "No recommendation; target valuation is USD 150.",
+        "Not investment advice; own it.",
+        "No target price is provided, but target price is USD 100.",
+        "No current price is provided. Buy the stock.",
+    ),
+)
+def test_evidence_one_pager_withholds_confusable_and_morphological_claim_variants(
+    prohibited,
+):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = _snapshot_with_one_pager_surface_text(
+        snapshot,
+        "answer_body",
+        prohibited,
+    )
+
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    node = _one_pager_state_nodes(rendered)["answers-use-now"]
+
+    assert prohibited.casefold() not in rendered.casefold()
+    assert node["state"] == "withheld"
+    assert "State: withheld" in node["text"]
+    assert html_brief._ONE_PAGER_POLICY_BLOCKER in node["text"]
+
+
+@pytest.mark.parametrize(
+    "allowed",
+    (
+        "No current price, probability, or recommendation is provided.",
+        "No current price or probability is provided.",
+        "No current market price is provided.",
+        "No target value is provided.",
+        "The brief does not provide a target price.",
+        "The brief does not provide current price.",
+        "Probability is not available.",
+        "Management will invest USD 1 billion in research and development.",
+        "Management expressed confidence in demand.",
+        "業績は改善した。",
+        "SEC 来源记录。",
+        "We own the review process.",
+        "I own the source-validation task.",
+        "We own data validation.",
+        "We own risk review.",
+        "I own model governance.",
+        "We own café review.",
+        "We own data.",
+        "We own risk.",
+        "We own code.",
+        "We own tasks.",
+        "We own data from the α cohort.",
+        "We own risk for the β release.",
+        "We own code: С++ implementation notes.",
+        "We own data validation for β testing.",
+        "We own risk review for μ sensitivity.",
+        "I own model governance for Роснефть coverage.",
+        "Source ownership is attractive because accountability is clear.",
+        "Suggested weight is 5 kilograms.",
+        "The recommended weight is 5 kg.",
+        "The recommended weight is 5 kg according to the filing.",
+        "Owner review required before publication.",
+        "Source ownership is unverified.",
+        "Sample sizing method documented.",
+        "Target date is 2026-09-01.",
+        "The target company filed its 10-K.",
+        "Run a spot check on source coverage.",
+        "Return to the full evidence report.",
+    ),
+)
+def test_evidence_one_pager_preserves_negated_boundaries_and_operating_language(
+    allowed,
+):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = _snapshot_with_one_pager_surface_text(
+        snapshot,
+        "section_answer",
+        allowed,
+    )
+
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    node = _one_pager_state_nodes(rendered)[
+        "research-case-research-key-drivers"
+    ]
+
+    assert allowed in rendered
+    assert node["state"] == "available"
+    assert html_brief._ONE_PAGER_POLICY_BLOCKER not in node["text"]
+
+
+@pytest.mark.parametrize(
+    "href",
+    (
+        "https://sec.example/current-price",
+        "https://sec.example/%63urrent%2Dprice",
+        "https://sec.example/%2563urrent%252Dprice",
+        "https://current-price.example/filing",
+        "https://sec.example/buy-stock",
+        "https://sec.example/order-shares",
+        "https://sec.example/invest-in-nvda",
+        "https://sec.example/%62uy%2Dstock",
+        "https://sec.example/%6Frder%2Dshares",
+        "https://sec.example/%69nvest%2Din%2Dnvda",
+        "https://sec.example/bυy-stock",
+        "https://sec.example/οrder-shares",
+        "https://sec.example/invest-in-nvdа",
+    ),
+)
+def test_evidence_one_pager_withholds_prohibited_reference_href_and_clears_link(
+    href,
+):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    answer = replace(
+        snapshot.answers[0],
+        state="available",
+        source_refs=(
+            html_brief.HtmlBriefSafeReference(
+                "SEC filing",
+                href,
+            ),
+        ),
+    )
+    changed = replace(snapshot, answers=(answer,) + snapshot.answers[1:])
+
+    projected = html_brief._html_one_pager_snapshot_value(changed)
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    node = _one_pager_state_nodes(rendered)["answers-use-now"]
+
+    assert projected.answers[0].state == "withheld"
+    assert projected.answers[0].source_refs[0].href == ""
+    assert href not in rendered
+    assert node["state"] == "withheld"
+    assert html_brief._ONE_PAGER_POLICY_BLOCKER in node["text"]
+
+
+@pytest.mark.parametrize(
+    "href",
+    (
+        "https://sec.example/filing",
+        "https://company.example/management-invest-in-rd",
+    ),
+)
+def test_evidence_one_pager_keeps_normal_permitted_reference_href_and_state(href):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    answer = replace(
+        snapshot.answers[0],
+        state="available",
+        source_refs=(
+            html_brief.HtmlBriefSafeReference(
+                "SEC filing",
+                href,
+            ),
+        ),
+    )
+    changed = replace(snapshot, answers=(answer,) + snapshot.answers[1:])
+
+    projected = html_brief._html_one_pager_snapshot_value(changed)
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+
+    assert projected.answers[0].state == "available"
+    assert projected.answers[0].source_refs[0].href == href
+    assert f'href="{href}"' in rendered
+
+
+def test_evidence_one_pager_downgrades_rights_rollup_when_projected_row_is_withheld():
+    report = _inputs().report_payload
+    report["provenance"]["source_records"] = [
+        _source_record(model_identity="model-v1")
+    ]
+    snapshot = build_company_workbench_html_snapshot(
+        _inputs(
+            report,
+            catalyst_timeline=replace(_catalysts(), upcoming=()),
+        )
+    )
+    assert snapshot.rights_state == "available"
+    changed = replace(
+        snapshot,
+        evidence_rows=(
+            replace(
+                snapshot.evidence_rows[0],
+                state="available",
+                model_identity="Current price is USD 100.",
+            ),
+        ),
+    )
+    frozen_identity = changed.identity
+
+    projected = html_brief._html_one_pager_snapshot_value(changed)
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    nodes = _one_pager_state_nodes(rendered)
+
+    assert projected.evidence_rows[0].state == "withheld"
+    assert projected.rights_state == "withheld"
+    assert nodes["header-rights-state"]["state"] == "withheld"
+    assert nodes["provenance-rights-state"]["state"] == "withheld"
+    assert html_brief._ONE_PAGER_POLICY_BLOCKER in rendered
+    assert changed.rights_state == "available"
+    assert changed.evidence_rows[0].state == "available"
+    assert changed.identity == frozen_identity
+    assert "Current price is USD 100." in html.unescape(
+        html_brief._html_brief_content(changed, heading_level=2)
+    )
+
+
+def test_evidence_one_pager_method_rejection_does_not_suppress_independent_value_gate():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = replace(
+        snapshot,
+        scenarios=tuple(
+            replace(scenario, method_name="Target valuation is USD 150.")
+            if scenario.name == "Base"
+            else scenario
+            for scenario in snapshot.scenarios
+        ),
+    )
+
+    projected = html_brief._html_one_pager_snapshot_value(changed)
+    projected_base = next(
+        scenario for scenario in projected.scenarios if scenario.name == "Base"
+    )
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    nodes = _one_pager_state_nodes(rendered)
+
+    assert projected_base.state == "withheld"
+    assert projected_base.bridge.state == "withheld"
+    assert projected_base.bridge.per_share_state == "available"
+    assert projected_base.bridge.scenario_value_per_share == next(
+        scenario for scenario in snapshot.scenarios if scenario.name == "Base"
+    ).bridge.scenario_value_per_share
+    assert nodes["scenarios-base"]["state"] == "withheld"
+    assert nodes["scenarios-base-value-per-share"]["state"] == "available"
+    assert "Scenario value: USD 212.58" in nodes[
+        "scenarios-base-value-per-share"
+    ]["text"]
+
+
+def test_evidence_one_pager_keeps_withheld_values_non_numeric():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    sentinels = tuple(101001.1 + index for index in range(12))
+    base = next(scenario for scenario in snapshot.scenarios if scenario.name == "Base")
+    withheld_bridge = replace(
+        base.bridge,
+        state="withheld",
+        enterprise_state="withheld",
+        equity_state="withheld",
+        per_share_state="withheld",
+        explicit_total_state="withheld",
+        projected_fcfs=(sentinels[0],),
+        discounted_fcfs=(sentinels[1],),
+        discounted_explicit_total=sentinels[2],
+        terminal_value=sentinels[3],
+        discounted_terminal_value=sentinels[4],
+        enterprise_value=sentinels[5],
+        cash=sentinels[6],
+        debt=sentinels[7],
+        net_debt=sentinels[8],
+        equity_value=sentinels[9],
+        shares_outstanding=sentinels[10],
+        scenario_value_per_share=sentinels[11],
+        blockers=("The supplied Base bridge is withheld.",),
+    )
+    withheld = replace(
+        snapshot,
+        scenarios=tuple(
+            replace(scenario, bridge=withheld_bridge)
+            if scenario.name == "Base"
+            else scenario
+            for scenario in snapshot.scenarios
+        ),
+    )
+    rendered = html_brief._html_evidence_one_pager(withheld, heading_level=2)
+    assert "Scenario value withheld" in rendered
+    assert "The supplied Base bridge is withheld." in html.unescape(rendered)
+    assert not [
+        value
+        for value in sentinels
+        if html_brief.format_html_brief_number(value) in html.unescape(rendered)
+    ]
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    (None, True, float("nan"), float("inf"), float("-inf")),
+    ids=("missing", "boolean", "nan", "positive-infinity", "negative-infinity"),
+)
+def test_evidence_one_pager_downgrades_invalid_available_numeric_states(invalid):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = replace(
+        snapshot,
+        scenarios=tuple(
+            replace(
+                scenario,
+                bridge=replace(
+                    scenario.bridge,
+                    enterprise_state="available",
+                    per_share_state="available",
+                    enterprise_value=invalid,
+                    scenario_value_per_share=invalid,
+                ),
+            )
+            if scenario.name == "Base"
+            else scenario
+            for scenario in snapshot.scenarios
+        ),
+    )
+
+    rendered = html_brief._html_evidence_one_pager(changed, heading_level=2)
+    nodes = _one_pager_state_nodes(rendered)
+    for role in (
+        "scenarios-base-value-per-share",
+        "operating-valuation-base-bridge-enterprise-value",
+    ):
+        assert nodes[role]["state"] == "withheld"
+        assert "State: withheld" in nodes[role]["text"]
+        assert "State: complete" not in nodes[role]["text"]
+        assert "withheld" in nodes[role]["text"].lower()
+
+
+@pytest.mark.parametrize(
+    ("supplied_state", "expected_state", "expected_label"),
+    (
+        ("partial", "partial", "partial"),
+        ("not_recorded", "not_recorded", "not recorded"),
+        ("withheld", "withheld", "withheld"),
+    ),
+)
+def test_evidence_one_pager_never_promotes_or_leaks_nonavailable_finite_values(
+    supplied_state,
+    expected_state,
+    expected_label,
+):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = replace(
+        snapshot,
+        scenarios=tuple(
+            replace(
+                scenario,
+                bridge=replace(
+                    scenario.bridge,
+                    enterprise_state=supplied_state,
+                    per_share_state=supplied_state,
+                    enterprise_value=876543.21,
+                    scenario_value_per_share=987654.32,
+                ),
+            )
+            if scenario.name == "Base"
+            else scenario
+            for scenario in snapshot.scenarios
+        ),
+    )
+
+    rendered = html_brief._html_evidence_one_pager(changed, heading_level=2)
+    nodes = _one_pager_state_nodes(rendered)
+    for role in (
+        "scenarios-base-value-per-share",
+        "operating-valuation-base-bridge-enterprise-value",
+    ):
+        assert nodes[role]["state"] == expected_state
+        assert f"State: {expected_label}" in nodes[role]["text"]
+        assert "State: complete" not in nodes[role]["text"]
+    assert "876,543.21" not in html.unescape(rendered)
+    assert "987,654.32" not in html.unescape(rendered)
+
+
+def test_evidence_one_pager_preserves_share_basis_state_without_using_it_as_gate():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    scenarios = tuple(
+        replace(
+            scenario,
+            bridge=replace(
+                scenario.bridge,
+                per_share_state="available",
+                share_basis_state="unverified",
+                scenario_value_per_share=31415.92,
+            ),
+        )
+        for scenario in snapshot.scenarios
+    )
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(
+            replace(snapshot, scenarios=scenarios), heading_level=2
+        )
+    )
+    assert html_brief.format_html_brief_number(31415.92) in rendered
+    assert rendered.count("Share basis state: unverified") >= 3
+
+
+def test_evidence_one_pager_formats_shares_as_unitless_without_changing_currency_rows():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = replace(
+        snapshot,
+        scenarios=tuple(
+            replace(
+                scenario,
+                bridge=replace(
+                    scenario.bridge,
+                    explicit_total_state="available",
+                    equity_state="available",
+                    per_share_state="available",
+                    discounted_explicit_total=112233.0,
+                    cash=223344.0,
+                    debt=334455.0,
+                    shares_outstanding=445566.0,
+                    currency="USD",
+                ),
+            )
+            if scenario.name == "Base"
+            else scenario
+            for scenario in snapshot.scenarios
+        ),
+    )
+
+    nodes = _one_pager_state_nodes(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    shares = nodes["operating-valuation-base-bridge-supplied-shares"]["text"]
+    assert "445,566.00" in shares
+    assert "USD" not in shares
+    assert "USD 112,233.00" in nodes[
+        "operating-valuation-base-bridge-discounted-explicit-total"
+    ]["text"]
+    assert "USD 223,344.00" in nodes[
+        "operating-valuation-base-bridge-cash"
+    ]["text"]
+    assert "USD 334,455.00" in nodes[
+        "operating-valuation-base-bridge-debt"
+    ]["text"]
+    assert (
+        '<th scope="row">Shares outstanding used by existing model</th>'
+        "<td>USD 445,566.00</td>"
+        in html_brief.render_company_workbench_html_fragment(changed)
+    )
+
+
+def test_share_basis_state_cannot_override_withheld_per_share_gate():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = replace(
+        snapshot,
+        scenarios=tuple(
+            replace(
+                scenario,
+                bridge=replace(
+                    scenario.bridge,
+                    per_share_state="withheld",
+                    share_basis_state="available",
+                    scenario_value_per_share=27182.81,
+                ),
+            )
+            if scenario.name == "Base"
+            else scenario
+            for scenario in snapshot.scenarios
+        ),
+    )
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    assert html_brief.format_html_brief_number(27182.81) not in rendered
+    assert "Share basis state: available" in rendered
+
+
+@pytest.mark.parametrize(
+    ("state", "label"),
+    (
+        ("available", "complete"),
+        ("partial", "partial"),
+        ("stale", "stale"),
+        ("withheld", "withheld"),
+    ),
+)
+def test_evidence_one_pager_keeps_independent_state_text_visible(state, label):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    changed = replace(
+        snapshot,
+        freshness_state=state,
+        answers=tuple(replace(answer, state=state) for answer in snapshot.answers),
+    )
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(changed, heading_level=2)
+    )
+    assert f'data-state="{state}"' in rendered
+    assert f"State: {label}" in rendered
+
+
+def test_evidence_one_pager_formats_only_supplied_scenario_values():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    scenarios = tuple(
+        replace(
+            scenario,
+            revenue_growth=0.123,
+            fcf_margin=0.234,
+            wacc=0.087,
+            terminal_growth=0.031,
+            forecast_years=7,
+        )
+        for scenario in snapshot.scenarios
+    )
+    rendered = html.unescape(
+        html_brief._html_evidence_one_pager(
+            replace(snapshot, scenarios=scenarios),
+            heading_level=2,
+        )
+    )
+    for supplied in ("12.3%", "23.4%", "8.7%", "3.1%", "7"):
+        assert supplied in rendered
+
+
+def test_evidence_one_pager_has_summary_scoped_semantics_and_dom_order():
+    rendered = html_brief._html_evidence_one_pager(
+        build_company_workbench_html_snapshot(_inputs()),
+        heading_level=2,
+    )
+    parser = _OnePagerHtmlParser()
+    parser.feed(rendered)
+    assert parser.tags[0] == "section"
+    assert {"header", "section", "ol", "table", "caption", "aside"} <= set(
+        parser.tags
+    )
+    assert not {"main", "footer", "script", "form", "iframe"} & set(parser.tags)
+    assert parser.headings[0] == ("h2", "NVDA Evidence One-Pager")
+    assert "Portable evidence provenance" in parser.captions
+    assert parser.labelled_asides == ["evidence-one-pager-provenance-title"]
+    assert parser.answer_item_count == 4
+    assert parser.scenario_item_count == 3
+    assert len(parser.state_nodes) == len(parser.state_roles)
+    assert len(parser.state_roles) == len(set(parser.state_roles))
+    assert all(role and state for role, state in parser.state_role_pairs)
+    assert len(parser.share_basis_pairs) == 4
+    markers = (
+        'data-section="one-pager-header"',
+        'data-section="one-pager-answers"',
+        'data-section="one-pager-scenarios"',
+        'data-section="one-pager-research-case"',
+        'data-section="one-pager-operating-valuation"',
+        'data-section="one-pager-break-case"',
+        'data-section="one-pager-questions"',
+        'data-section="one-pager-provenance"',
+        'data-section="one-pager-handoff"',
+    )
+    assert [rendered.index(marker) for marker in markers] == sorted(
+        rendered.index(marker) for marker in markers
+    )
+
+
+def test_evidence_one_pager_unavailable_fallback_has_labelled_summary_header():
+    rendered = html_brief._html_evidence_one_pager_or_unavailable(
+        None,
+        heading_level=2,
+    )
+    assert 'data-section="evidence-one-pager-unavailable"' in rendered
+    assert '<h2>Evidence One-Pager unavailable</h2>' in rendered
+    assert "Continue to the full evidence report below." in rendered
+
+
+def test_evidence_one_pager_escapes_and_withholds_unsafe_answer_content():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    unsafe = replace(
+        snapshot.answers[0],
+        title="<script>alert(1)</script>",
+        body="/private/repository buy shares",
+    )
+    rendered = html_brief._html_evidence_one_pager(
+        replace(snapshot, answers=(unsafe,) + snapshot.answers[1:]),
+        heading_level=2,
+    )
+    parser = _OnePagerHtmlParser()
+    parser.feed(rendered)
+
+    assert "<script>" not in rendered
+    assert "alert(1)" not in html.unescape(rendered)
+    assert "/private/repository" not in html.unescape(rendered)
+    assert "buy shares" not in html.unescape(rendered).lower()
+    assert "script" not in parser.tags
+
+
 def _render_snapshot():
     report = _inputs().report_payload
     report["provenance"]["source_records"] = [_source_record()]
@@ -1869,6 +3037,74 @@ def test_renderer_has_fixed_research_section_order_and_uses_only_snapshot_values
     assert "net debt" not in rendered.lower() or str(next(row for row in snapshot.scenarios if row.name == "Base").bridge.net_debt) in rendered
 
 
+def test_fragment_and_document_place_one_pager_before_unchanged_full_report_order():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    fragment = html_brief.render_company_workbench_html_fragment(snapshot)
+    document = html_brief.render_company_workbench_html_document(snapshot)
+
+    for rendered in (fragment, document):
+        assert rendered.index('data-section="evidence-one-pager"') < rendered.index(
+            'data-section="one-pager-provenance"'
+        ) < rendered.index('data-section="one-pager-handoff"') < rendered.index(
+            'data-section="overview"'
+        )
+        assert rendered.index('data-section="overview"') < rendered.index(
+            'data-section="answers"'
+        ) < rendered.index('data-section="scenarios"') < rendered.index(
+            'data-section="advanced-evidence"'
+        )
+
+
+def test_one_pager_projection_failure_cannot_suppress_full_report(monkeypatch):
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+
+    def fail(*args, **kwargs):
+        raise ValueError("summary formatting failed")
+
+    monkeypatch.setattr(html_brief, "_html_evidence_one_pager", fail)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+
+    assert 'data-section="evidence-one-pager-unavailable"' in rendered
+    assert "Evidence One-Pager unavailable" in rendered
+    assert 'data-section="overview"' in rendered
+    assert 'data-section="advanced-evidence"' in rendered
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"ticker": ""},
+        {"ticker": "NVDA<script>"},
+        {"profile_label": ""},
+        {"profile_label": "not recorded"},
+        {"profile_label": "/private/profile"},
+        {"profile_label": "Different reviewed profile"},
+        {"review_cutoff": "not recorded"},
+        {"identity": ""},
+        {"identity": "not-a-sha256"},
+        {"identity": "0" * 64},
+    ),
+)
+def test_invalid_summary_scope_fails_closed_without_suppressing_full_report(changes):
+    snapshot = replace(build_company_workbench_html_snapshot(_inputs()), **changes)
+    rendered = html_brief.render_company_workbench_html_document(snapshot)
+    assert 'data-section="evidence-one-pager"' not in rendered
+    assert 'data-section="evidence-one-pager-unavailable"' in rendered
+    assert 'data-section="overview"' in rendered
+    assert 'data-section="advanced-evidence"' in rendered
+
+
+def test_download_contract_remains_one_deterministic_html_artifact():
+    snapshot = build_company_workbench_html_snapshot(_inputs())
+    first = html_brief.company_workbench_html_download_spec(snapshot)
+    second = html_brief.company_workbench_html_download_spec(snapshot)
+    assert first == second
+    assert first.file_name == "NVDA-2026-07-30-research-brief.html"
+    assert first.mime == "text/html; charset=utf-8"
+    assert first.data.count(b'data-section="evidence-one-pager"') == 1
+    assert first.data.count(b'data-section="advanced-evidence"') == 1
+
+
 def test_document_and_fragment_have_distinct_semantic_wrappers():
     snapshot = _render_snapshot()
     document = html_brief.render_company_workbench_html_document(snapshot)
@@ -1886,7 +3122,7 @@ def test_document_and_fragment_have_distinct_semantic_wrappers():
     assert "Skip to research brief" in document
     assert fragment.count('<article class="srcc-html-brief"') == 1
     assert ("h2", "NVDA research brief") in embedded.headings
-    assert not {"html", "head", "body", "header", "main", "footer", "script"} & set(embedded.tags)
+    assert not {"html", "head", "body", "main", "footer", "script"} & set(embedded.tags)
     assert "Skip to research brief" not in fragment
     assert "Content-Security-Policy" not in fragment
 
@@ -1951,6 +3187,47 @@ def test_renderer_css_is_scoped_and_contains_offline_accessibility_and_print_con
     assert "Research-only" in document
     assert "body {" not in fragment_css
     assert "body {" not in document_css
+
+
+def test_one_pager_print_css_resets_nested_card_borders_without_global_override():
+    root = ".print-contract"
+    css = html_brief._html_brief_css(root)
+    screen_css, one_pager_print_css = css.rsplit("@media print {", 1)
+    black_border_group = re.search(
+        r"([^{}]+)\{\s*border-color: #000 !important;\s*\}",
+        one_pager_print_css,
+    )
+
+    assert black_border_group is not None
+    black_border_selectors = {
+        selector.strip() for selector in black_border_group.group(1).split(",")
+    }
+    nested_card = f"{root} .srcc-one-pager .srcc-card"
+    assert nested_card in black_border_selectors
+    assert nested_card not in screen_css
+    assert f"{root} .srcc-card" not in black_border_selectors
+
+
+def test_one_pager_screen_text_css_resists_host_overrides_and_print_stays_black():
+    root = ".host-cascade-contract"
+    css = html_brief._html_brief_css(root)
+    screen_css, one_pager_print_css = css.rsplit("@media print {", 1)
+
+    def has_declaration(styles, selector, declaration):
+        return re.search(
+            rf"{re.escape(selector)}\s*\{{[^}}]*{re.escape(declaration)}[^}}]*\}}",
+            styles,
+        )
+
+    one_pager = f"{root} .srcc-one-pager"
+    descendants = f"{one_pager} *"
+    links = f"{one_pager} a"
+    assert has_declaration(screen_css, one_pager, "color: #f8fafc !important;")
+    assert has_declaration(screen_css, descendants, "color: #f8fafc !important;")
+    assert has_declaration(screen_css, links, "color: #67e8f9 !important;")
+    assert has_declaration(one_pager_print_css, one_pager, "background: #fff !important;")
+    assert has_declaration(one_pager_print_css, descendants, "color: #000 !important;")
+    assert has_declaration(one_pager_print_css, links, "color: #000 !important;")
 
 
 def test_document_bytes_and_download_spec_are_deterministic_and_pathless():

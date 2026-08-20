@@ -12,11 +12,13 @@ import os
 import platform
 import subprocess
 import sys
+import tempfile
 import threading
+import time
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import parse_qs, urlparse
 
 from scripts.diff_hygiene import (
@@ -26,6 +28,11 @@ from scripts.diff_hygiene import (
     load_status,
 )
 from src.paths import resolve_project_root
+from src.company_workbench_html_browser_gate import (
+    _chromium_zoom_preferences,
+    _summary_scope_observation,
+    evaluate_html_brief_browser_zoom,
+)
 from src.public_performance_gate import (
     _git_commit,
     _free_port,
@@ -38,6 +45,11 @@ from src.public_performance_gate import (
 
 
 VIEWPORTS: tuple[tuple[int, int], ...] = ((1280, 720), (390, 844))
+COMPANY_WORKBENCH_ONE_PAGER_CELLS: tuple[tuple[int, int, int], ...] = (
+    (1280, 720, 1),
+    (1280, 720, 2),
+    (390, 844, 1),
+)
 DATA_PROFILE_CONTRACT = ("STOCK_RESEARCH_DATA_PROFILE", "demo")
 EXPECTED_APP_TITLE = "Stock Research Command Center"
 EXPECTED_PROFILE_LABEL = "Demo"
@@ -53,6 +65,56 @@ STATE_HARNESS_TRANSITIONS: tuple[tuple[str, str], ...] = (
     ("draft_changed", "Draft changed"),
     ("save_reloaded", "Record saved"),
     ("save_reload_unverified", "Save verification incomplete"),
+)
+
+_ONE_PAGER_REQUIRED_STATE_ROLES = frozenset(
+    {
+        "answers-next-research-task",
+        "answers-still-withheld",
+        "answers-use-now",
+        "answers-what-changed",
+        "break-case-decision-invalidation",
+        "break-case-research-risks",
+        "header-freshness-state",
+        "header-rights-state",
+        "operating-valuation-base-bridge-cash",
+        "operating-valuation-base-bridge-debt",
+        "operating-valuation-base-bridge-discounted-explicit-total",
+        "operating-valuation-base-bridge-discounted-terminal-value",
+        "operating-valuation-base-bridge-enterprise-value",
+        "operating-valuation-base-bridge-equity-value",
+        "operating-valuation-base-bridge-net-debt",
+        "operating-valuation-base-bridge-supplied-shares",
+        "operating-valuation-base-bridge-supplied-value-per-share",
+        "operating-valuation-base-bridge-terminal-value",
+        "operating-valuation-research-business-trend",
+        "operating-valuation-research-key-drivers",
+        "operating-valuation-research-valuation-regime",
+        "provenance-freshness-state",
+        "provenance-rights-state",
+        "questions-answer-next-research-task",
+        "questions-decision-review-trigger",
+        "questions-research-evidence-gaps",
+        "research-case-decision-evidence",
+        "research-case-decision-plan",
+        "research-case-research-business-trend",
+        "research-case-research-key-drivers",
+        "scenarios-base",
+        "scenarios-base-value-per-share",
+        "scenarios-bear",
+        "scenarios-bear-value-per-share",
+        "scenarios-bull",
+        "scenarios-bull-value-per-share",
+    }
+)
+_ONE_PAGER_ALLOWED_STATES = frozenset(
+    {"available", "partial", "withheld", "stale", "not_recorded", "excluded"}
+)
+_ONE_PAGER_EXPECTED_SHARE_BASIS_TOKENS = (
+    "operating-valuation-base-bridge-share-basis=unverified",
+    "scenarios-base-share-basis=unverified",
+    "scenarios-bear-share-basis=unverified",
+    "scenarios-bull-share-basis=unverified",
 )
 
 
@@ -918,6 +980,314 @@ def _safe_float(value: object) -> float | None:
     except (TypeError, ValueError, OverflowError):
         return None
     return converted if math.isfinite(converted) else None
+
+
+def _exact_http_origin(url: object) -> str | None:
+    try:
+        parsed = urlparse(str(url or ""))
+        port = parsed.port
+    except ValueError:
+        return None
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return None
+    default_port = 80 if parsed.scheme == "http" else 443
+    display_host = (
+        f"[{parsed.hostname.lower()}]"
+        if ":" in parsed.hostname
+        else parsed.hostname.lower()
+    )
+    suffix = "" if (port or default_port) == default_port else f":{port}"
+    return f"{parsed.scheme}://{display_host}{suffix}"
+
+
+def evaluate_company_workbench_one_pager_observation(
+    observation: Mapping[str, object],
+) -> list[dict[str, object]]:
+    """Fail closed on the scoped in-app one-pager observation contract."""
+
+    def integer(name: str) -> int | None:
+        return _safe_int(observation.get(name))
+
+    def number(name: str) -> float | None:
+        return _safe_float(observation.get(name))
+
+    state_tokens_value = observation.get("one_pager_state_tokens", ())
+    state_tokens = (
+        tuple(state_tokens_value)
+        if isinstance(state_tokens_value, (tuple, list))
+        and all(isinstance(value, str) for value in state_tokens_value)
+        else ()
+    )
+    parsed_state_tokens: list[tuple[str, str]] = []
+    for token in state_tokens:
+        role, separator, state = token.partition("=")
+        if separator and role and state and "=" not in state:
+            parsed_state_tokens.append((role, state))
+    state_roles = tuple(role for role, _state in parsed_state_tokens)
+    state_values = tuple(state for _role, state in parsed_state_tokens)
+    provenance_roles = tuple(
+        role for role in state_roles if role.startswith("provenance-row-")
+    )
+    unexpected_roles = set(state_roles).difference(
+        _ONE_PAGER_REQUIRED_STATE_ROLES,
+        provenance_roles,
+    )
+    state_count = integer("one_pager_state_node_count")
+    state_role_count = integer("one_pager_state_role_count")
+    unique_state_role_count = integer("one_pager_unique_state_role_count")
+    state_roles_passed = (
+        len(parsed_state_tokens) == len(state_tokens)
+        and state_count == len(state_tokens)
+        and state_role_count == len(state_tokens)
+        and unique_state_role_count == len(set(state_roles)) == len(state_tokens)
+        and _ONE_PAGER_REQUIRED_STATE_ROLES.issubset(state_roles)
+        and bool(provenance_roles)
+        and not unexpected_roles
+        and all(state in _ONE_PAGER_ALLOWED_STATES for state in state_values)
+        and observation.get("one_pager_state_text_matches") is True
+    )
+
+    share_tokens_value = observation.get("one_pager_share_basis_tokens", ())
+    share_tokens = (
+        tuple(share_tokens_value)
+        if isinstance(share_tokens_value, (tuple, list))
+        and all(isinstance(value, str) for value in share_tokens_value)
+        else ()
+    )
+    request_urls_value = observation.get("request_urls", ())
+    request_urls = (
+        tuple(request_urls_value)
+        if isinstance(request_urls_value, (tuple, list))
+        and all(isinstance(value, str) for value in request_urls_value)
+        else ()
+    )
+    active_origin = _exact_http_origin(observation.get("active_origin"))
+    request_origins = tuple(_exact_http_origin(url) for url in request_urls)
+    network_passed = (
+        observation.get("request_audit_complete") is True
+        and active_origin is not None
+        and integer("external_request_count") == 0
+        and all(origin == active_origin for origin in request_origins)
+    )
+
+    overflow_values = (
+        number("document_overflow_px"),
+        number("one_pager_overflow_px"),
+        number("one_pager_max_descendant_overflow_px"),
+    )
+    contrast_values = (
+        number("one_pager_min_text_contrast_ratio"),
+        number("one_pager_min_boundary_contrast_ratio"),
+    )
+    console_errors = observation.get("console_errors")
+    page_errors = observation.get("page_errors")
+    return [
+        _assertion(
+            "one_pager_module_gate",
+            observation.get("one_pager_absent_before_open") is True,
+            f"absent_before_open={observation.get('one_pager_absent_before_open')!r}",
+        ),
+        _assertion(
+            "one_pager_disclosure",
+            integer("html_brief_details_count") == 1
+            and observation.get("html_brief_details_open") is True,
+            (
+                f"details_count={observation.get('html_brief_details_count')!r}; "
+                f"open={observation.get('html_brief_details_open')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_unique_visible",
+            integer("one_pager_count") == 1
+            and integer("one_pager_visible_count") == 1
+            and observation.get("one_pager_inside_html_brief") is True,
+            (
+                f"count={observation.get('one_pager_count')!r}; "
+                f"visible_count={observation.get('one_pager_visible_count')!r}; "
+                f"inside_html_brief="
+                f"{observation.get('one_pager_inside_html_brief')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_order",
+            observation.get("one_pager_before_overview") is True
+            and integer("overview_count") == 1,
+            (
+                f"before_overview={observation.get('one_pager_before_overview')!r}; "
+                f"overview_count={observation.get('overview_count')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_full_report",
+            integer("advanced_evidence_count") == 1
+            and observation.get("advanced_evidence_after_one_pager") is True
+            and observation.get("advanced_evidence_visible") is True,
+            (
+                f"advanced_count={observation.get('advanced_evidence_count')!r}; "
+                f"after={observation.get('advanced_evidence_after_one_pager')!r}; "
+                f"visible={observation.get('advanced_evidence_visible')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_zoom",
+            integer("requested_zoom") in {1, 2}
+            and observation.get("actual_browser_zoom") is True,
+            (
+                f"requested_zoom={observation.get('requested_zoom')!r}; "
+                f"actual={observation.get('actual_browser_zoom')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_no_overflow",
+            all(value is not None and value <= 1 for value in overflow_values),
+            (
+                f"document/summary/descendant overflow={overflow_values!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_contrast",
+            contrast_values[0] is not None
+            and contrast_values[0] >= 4.5
+            and contrast_values[1] is not None
+            and contrast_values[1] >= 3.0,
+            f"text-link/boundary contrast={contrast_values!r}",
+        ),
+        _assertion(
+            "one_pager_lists",
+            integer("one_pager_answer_item_count") == 4
+            and integer("one_pager_scenario_item_count") == 3,
+            (
+                f"answers={observation.get('one_pager_answer_item_count')!r}; "
+                f"scenarios={observation.get('one_pager_scenario_item_count')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_state_roles",
+            state_roles_passed,
+            (
+                f"nodes/roles/unique={state_count!r}/{state_role_count!r}/"
+                f"{unique_state_role_count!r}; roles={state_roles!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_share_basis",
+            tuple(sorted(share_tokens))
+            == _ONE_PAGER_EXPECTED_SHARE_BASIS_TOKENS
+            and integer("one_pager_share_basis_visible_count") == 4
+            and observation.get("one_pager_share_basis_text_matches") is True,
+            (
+                f"tokens={share_tokens!r}; "
+                f"visible={observation.get('one_pager_share_basis_visible_count')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_content_visible",
+            all(
+                observation.get(name) is True
+                for name in (
+                    "one_pager_provenance_caption_visible",
+                    "one_pager_provenance_visible",
+                    "one_pager_blockers_visible",
+                    "one_pager_assumptions_visible",
+                    "one_pager_handoff_visible",
+                )
+            ),
+            "provenance/caption/blockers/assumptions/handoff remain visible",
+        ),
+        _assertion(
+            "one_pager_download_target",
+            integer("download_button_count") == 1
+            and observation.get("download_button_label")
+            == "Download HTML Research Brief"
+            and observation.get("download_button_visible") is True
+            and number("download_button_height") is not None
+            and number("download_button_height") >= 44,
+            (
+                f"count={observation.get('download_button_count')!r}; "
+                f"label={observation.get('download_button_label')!r}; "
+                f"height={observation.get('download_button_height')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_runtime",
+            isinstance(console_errors, (tuple, list))
+            and isinstance(page_errors, (tuple, list))
+            and not console_errors
+            and not page_errors
+            and observation.get("server_runtime_output_status")
+            == "captured_local_server"
+            and integer("server_deprecated_warning_count") == 0,
+            (
+                f"console_errors={console_errors!r}; page_errors={page_errors!r}; "
+                f"server_status={observation.get('server_runtime_output_status')!r}; "
+                f"deprecated_warning_count="
+                f"{observation.get('server_deprecated_warning_count')!r}"
+            ),
+        ),
+        _assertion(
+            "one_pager_exact_origin_network",
+            network_passed,
+            (
+                f"active_origin={active_origin!r}; requests={request_urls!r}; "
+                f"external_count={observation.get('external_request_count')!r}; "
+                f"audit_complete={observation.get('request_audit_complete')!r}"
+            ),
+        ),
+    ]
+
+
+def evaluate_company_workbench_one_pager_payload(
+    results: Iterable[Mapping[str, object]],
+) -> dict[str, object]:
+    """Require the exact bounded Workbench matrix and every scoped assertion."""
+
+    expected = {
+        (f"{width}x{height}", zoom)
+        for width, height, zoom in COMPANY_WORKBENCH_ONE_PAGER_CELLS
+    }
+    observed: list[tuple[str, int | None]] = []
+    failures: list[str] = []
+    for index, result in enumerate(tuple(results), start=1):
+        viewport = str(result.get("viewport") or "")
+        zoom = _safe_int(result.get("zoom"))
+        key = (viewport, zoom)
+        observed.append(key)
+        observation = result.get("observation")
+        assertions = result.get("assertions")
+        if not isinstance(observation, Mapping):
+            failures.append(f"cell {index} observation is missing")
+            continue
+        evaluated = evaluate_company_workbench_one_pager_observation(observation)
+        if (
+            observation.get("viewport") != viewport
+            or _safe_int(observation.get("requested_zoom")) != zoom
+        ):
+            failures.append(f"cell {index} identity does not match its observation")
+        if result.get("passed") is not True or not all(
+            assertion["passed"] for assertion in evaluated
+        ):
+            failures.append(f"cell {index} did not pass the scoped observation")
+        if not isinstance(assertions, (tuple, list)) or not assertions or not all(
+            isinstance(assertion, Mapping) and assertion.get("passed") is True
+            for assertion in assertions
+        ):
+            failures.append(f"cell {index} contains a failed or missing assertion")
+    actual = set(observed)
+    if len(observed) != len(actual):
+        failures.append("duplicate Workbench one-pager cell")
+    if actual != expected:
+        failures.append(
+            f"Workbench one-pager cells mismatch: actual={sorted(actual)!r}; "
+            f"expected={sorted(expected)!r}"
+        )
+    return {
+        "passed": not failures,
+        "detail": (
+            "exact three-cell Workbench one-pager matrix passed"
+            if not failures
+            else "; ".join(failures)
+        ),
+    }
 
 
 def evaluate_forced_colors_observation(
@@ -2699,6 +3069,1090 @@ def _open_company_workbench_modules(
     )
 
 
+def _open_company_workbench_html_brief(
+    page: Any,
+    *,
+    timeout_seconds: float,
+) -> dict[str, object]:
+    """Open the one native HTML Research Brief disclosure after module activation."""
+
+    details = page.locator("details").filter(
+        has=page.get_by_text("HTML Research Brief", exact=True)
+    )
+    if details.count() != 1:
+        return _assertion(
+            "company_workbench_html_brief_open",
+            False,
+            f"expected one HTML Research Brief disclosure, found {details.count()}",
+        )
+    summary = details.first.locator(":scope > summary")
+    if (
+        summary.count() != 1
+        or summary.first.inner_text().strip() != "HTML Research Brief"
+        or not summary.first.is_visible()
+    ):
+        return _assertion(
+            "company_workbench_html_brief_open",
+            False,
+            "HTML Research Brief must expose one visible native summary control",
+        )
+    if details.first.get_attribute("open") is None:
+        summary.first.click()
+    one_pager = details.first.locator('[data-section="evidence-one-pager"]')
+    try:
+        one_pager.first.wait_for(
+            state="visible",
+            timeout=int(timeout_seconds * 1000),
+        )
+        _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+    except Exception as exc:
+        return _assertion(
+            "company_workbench_html_brief_open",
+            False,
+            f"HTML Research Brief did not expose its one-pager: {type(exc).__name__}: {exc}",
+        )
+    passed = (
+        details.first.get_attribute("open") is not None
+        and one_pager.count() == 1
+        and one_pager.first.is_visible()
+    )
+    return _assertion(
+        "company_workbench_html_brief_open",
+        passed,
+        (
+            "native HTML Research Brief summary opened one visible one-pager"
+            if passed
+            else (
+                f"details_open={details.first.get_attribute('open') is not None}; "
+                f"one_pager_count={one_pager.count()}"
+            )
+        ),
+    )
+
+
+def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]:
+    """Collect summary-scoped evidence from the opened in-app HTML fragment."""
+
+    summary = _summary_scope_observation(page)
+    scoped = page.evaluate(
+        r"""() => {
+            const materialPaintSelector = [
+                '[data-section="one-pager-provenance"]',
+                '[data-section="one-pager-provenance"] caption',
+                '[data-section="one-pager-provenance"] tbody',
+                '.srcc-blockers',
+                '[data-section="one-pager-scenarios"] > ol > li',
+                '[data-section="one-pager-scenarios"] > ol > li > p',
+                '[data-section="one-pager-scenarios"] .srcc-state',
+                '[data-section="one-pager-handoff"]',
+                '[data-state][data-state-role]',
+                '[data-state][data-state-role] .srcc-state',
+                '[data-share-basis-role][data-share-basis-state]',
+            ].join(',');
+            let materialPaintCandidates = null;
+            const visible = node => {
+                if (!(node instanceof Element)) return false;
+                const rect = node.getBoundingClientRect();
+                if (rect.width <= 1 || rect.height <= 1 || node.getClientRects().length === 0) return false;
+                let left = rect.left;
+                let right = rect.right;
+                let top = rect.top;
+                let bottom = rect.bottom;
+                let cumulativeOpacity = 1;
+                let hitTestEligible = true;
+                let documentScrollEligible = true;
+                for (let current = node; current instanceof Element; current = current.parentElement) {
+                    const style = getComputedStyle(current);
+                    const opacity = Number.parseFloat(style.opacity || '1');
+                    if (style.display === 'none' || style.visibility === 'hidden' ||
+                        style.visibility === 'collapse' || style.contentVisibility === 'hidden' ||
+                        !Number.isFinite(opacity) || style.clipPath !== 'none' ||
+                        style.clip !== 'auto') return false;
+                    cumulativeOpacity *= opacity;
+                    if (style.position === 'fixed') documentScrollEligible = false;
+                    if (current !== node) {
+                        const ancestorRect = current.getBoundingClientRect();
+                        const constrain = (
+                            start, end, ancestorStart, ancestorEnd,
+                            overflow, scrollSize, clientSize, scrollOffset
+                        ) => {
+                            if (!['auto', 'clip', 'hidden', 'scroll'].includes(overflow)) {
+                                return [start, end];
+                            }
+                            const clippedStart = Math.max(start, ancestorStart);
+                            const clippedEnd = Math.min(end, ancestorEnd);
+                            if (clippedEnd - clippedStart > 1) {
+                                return [clippedStart, clippedEnd];
+                            }
+                            const scrollReachable = ['auto', 'scroll'].includes(overflow) &&
+                                scrollSize > clientSize + 1;
+                            if (!scrollReachable) return null;
+                            const contentStart = start - ancestorStart + scrollOffset;
+                            const contentEnd = end - ancestorStart + scrollOffset;
+                            if (Math.min(contentEnd, scrollSize) -
+                                Math.max(contentStart, 0) <= 1) return null;
+                            hitTestEligible = false;
+                            return [ancestorStart, ancestorEnd];
+                        };
+                        if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowX)) {
+                            const constrained = constrain(
+                                left,
+                                right,
+                                ancestorRect.left + current.clientLeft,
+                                ancestorRect.left + current.clientLeft + current.clientWidth,
+                                style.overflowX,
+                                current.scrollWidth,
+                                current.clientWidth,
+                                current.scrollLeft
+                            );
+                            if (!constrained) return false;
+                            [left, right] = constrained;
+                        }
+                        if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowY)) {
+                            const constrained = constrain(
+                                top,
+                                bottom,
+                                ancestorRect.top + current.clientTop,
+                                ancestorRect.top + current.clientTop + current.clientHeight,
+                                style.overflowY,
+                                current.scrollHeight,
+                                current.clientHeight,
+                                current.scrollTop
+                            );
+                            if (!constrained) return false;
+                            [top, bottom] = constrained;
+                        }
+                        if (right - left <= 1 || bottom - top <= 1) return false;
+                    }
+                }
+                if (Math.abs(cumulativeOpacity - 1) > 0.001) return false;
+                const scrollingElement = document.scrollingElement || document.documentElement;
+                const constrainToDocument = (
+                    start, end, viewportSize, scrollOffset, scrollSize
+                ) => {
+                    const clippedStart = Math.max(0, start);
+                    const clippedEnd = Math.min(viewportSize, end);
+                    if (clippedEnd - clippedStart > 1) {
+                        return [clippedStart, clippedEnd];
+                    }
+                    if (!documentScrollEligible) return null;
+                    const contentStart = start + scrollOffset;
+                    const contentEnd = end + scrollOffset;
+                    if (Math.min(contentEnd, scrollSize) -
+                        Math.max(contentStart, 0) <= 1) return null;
+                    hitTestEligible = false;
+                    return [0, viewportSize];
+                };
+                const horizontal = constrainToDocument(
+                    left,
+                    right,
+                    window.innerWidth,
+                    window.scrollX,
+                    scrollingElement.scrollWidth
+                );
+                const vertical = constrainToDocument(
+                    top,
+                    bottom,
+                    window.innerHeight,
+                    window.scrollY,
+                    scrollingElement.scrollHeight
+                );
+                if (!horizontal || !vertical) return false;
+                const strictCurrentHitTest = () => {
+                    const currentRect = node.getBoundingClientRect();
+                    let currentLeft = currentRect.left;
+                    let currentRight = currentRect.right;
+                    let currentTop = currentRect.top;
+                    let currentBottom = currentRect.bottom;
+                    for (let current = node.parentElement;
+                        current instanceof Element;
+                        current = current.parentElement) {
+                        const style = getComputedStyle(current);
+                        const ancestorRect = current.getBoundingClientRect();
+                        if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowX)) {
+                            currentLeft = Math.max(
+                                currentLeft,
+                                ancestorRect.left + current.clientLeft
+                            );
+                            currentRight = Math.min(
+                                currentRight,
+                                ancestorRect.left + current.clientLeft + current.clientWidth
+                            );
+                        }
+                        if (['auto', 'clip', 'hidden', 'scroll'].includes(style.overflowY)) {
+                            currentTop = Math.max(
+                                currentTop,
+                                ancestorRect.top + current.clientTop
+                            );
+                            currentBottom = Math.min(
+                                currentBottom,
+                                ancestorRect.top + current.clientTop + current.clientHeight
+                            );
+                        }
+                        if (currentRight - currentLeft <= 1 ||
+                            currentBottom - currentTop <= 1) return false;
+                    }
+                    const viewportLeft = Math.max(0, currentLeft);
+                    const viewportRight = Math.min(window.innerWidth, currentRight);
+                    const viewportTop = Math.max(0, currentTop);
+                    const viewportBottom = Math.min(window.innerHeight, currentBottom);
+                    if (viewportRight - viewportLeft <= 1 ||
+                        viewportBottom - viewportTop <= 1) return false;
+                    const points = [
+                        [(viewportLeft + viewportRight) / 2, (viewportTop + viewportBottom) / 2],
+                        [viewportLeft + 0.5, viewportTop + 0.5],
+                        [viewportRight - 0.5, viewportTop + 0.5],
+                        [viewportLeft + 0.5, viewportBottom - 0.5],
+                        [viewportRight - 0.5, viewportBottom - 0.5],
+                    ];
+                    const pointKeys = new Set(points.map(([x, y]) => `${x}:${y}`));
+                    for (const descendant of node.querySelectorAll('*')) {
+                        if (points.length >= 37) break;
+                        const descendantRect = descendant.getBoundingClientRect();
+                        const descendantLeft = Math.max(viewportLeft, descendantRect.left);
+                        const descendantRight = Math.min(viewportRight, descendantRect.right);
+                        const descendantTop = Math.max(viewportTop, descendantRect.top);
+                        const descendantBottom = Math.min(viewportBottom, descendantRect.bottom);
+                        if (descendantRight - descendantLeft <= 1 ||
+                            descendantBottom - descendantTop <= 1) continue;
+                        const x = (descendantLeft + descendantRight) / 2;
+                        const y = (descendantTop + descendantBottom) / 2;
+                        const key = `${x}:${y}`;
+                        if (pointKeys.has(key)) continue;
+                        pointKeys.add(key);
+                        points.push([x, y]);
+                    }
+                    const isRelatedHit = hit => hit && (
+                        hit === node || node.contains(hit)
+                    );
+                    const pointHits = () => points.map(([x, y]) =>
+                        document.elementFromPoint(x, y)
+                    );
+                    const ordinaryHits = pointHits();
+                    const ordinaryHit = ordinaryHits.some(isRelatedHit);
+                    const needsMaterialPaintProbe = node === onePager ||
+                        node.matches(materialPaintSelector);
+                    if (!ordinaryHit || !needsMaterialPaintProbe) return ordinaryHit;
+                    const relatedIndexes = ordinaryHits.flatMap((hit, index) =>
+                        isRelatedHit(hit) ? [index] : []
+                    );
+                    const descendantIndexes = relatedIndexes.filter(index =>
+                        ordinaryHits[index] !== node
+                    );
+                    const evidenceIndexes = descendantIndexes.length > 0
+                        ? descendantIndexes
+                        : relatedIndexes;
+                    const colorAlpha = value => {
+                        const normalized = String(value || '').trim().toLowerCase();
+                        if (!normalized || ['none', 'transparent'].includes(normalized)) {
+                            return 0;
+                        }
+                        const alphaValue = token => {
+                            const trimmed = token.trim();
+                            const parsed = Number.parseFloat(trimmed);
+                            if (!Number.isFinite(parsed)) return 1;
+                            return trimmed.endsWith('%') ? parsed / 100 : parsed;
+                        };
+                        const functional = normalized.match(
+                            /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\((.*)\)$/
+                        );
+                        if (!functional) return 1;
+                        const body = functional[1];
+                        const slash = body.lastIndexOf('/');
+                        if (slash >= 0) return alphaValue(body.slice(slash + 1));
+                        if (body.includes(',')) {
+                            const components = body.split(',');
+                            return components.length === 4
+                                ? alphaValue(components[3])
+                                : 1;
+                        }
+                        return 1;
+                    };
+                    const cssColors = value => String(value || '').match(
+                        /(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)|transparent/gi
+                    ) || [];
+                    const imageHasMaterialPaint = value => {
+                        if (!value || value === 'none') return false;
+                        const colors = cssColors(value);
+                        if (colors.length === 0) return true;
+                        return colors.some(color =>
+                            color.toLowerCase() !== 'transparent' &&
+                            colorAlpha(color) > 0.01
+                        );
+                    };
+                    const splitCssLayers = value => {
+                        const layers = [];
+                        let depth = 0;
+                        let start = 0;
+                        for (let index = 0; index < value.length; index += 1) {
+                            if (value[index] === '(') depth += 1;
+                            else if (value[index] === ')') depth = Math.max(0, depth - 1);
+                            else if (value[index] === ',' && depth === 0) {
+                                layers.push(value.slice(start, index));
+                                start = index + 1;
+                            }
+                        }
+                        layers.push(value.slice(start));
+                        return layers;
+                    };
+                    const cssLength = (value, basis) => {
+                        const text = String(value || '').trim().toLowerCase();
+                        const parsed = Number.parseFloat(text);
+                        if (!Number.isFinite(parsed)) return Number.NaN;
+                        if (text.endsWith('%')) return basis * parsed / 100;
+                        if (text.endsWith('vw')) return window.innerWidth * parsed / 100;
+                        if (text.endsWith('vh')) return window.innerHeight * parsed / 100;
+                        if (text.endsWith('vmin')) {
+                            return Math.min(window.innerWidth, window.innerHeight) * parsed / 100;
+                        }
+                        if (text.endsWith('vmax')) {
+                            return Math.max(window.innerWidth, window.innerHeight) * parsed / 100;
+                        }
+                        return parsed;
+                    };
+                    const paintRect = (origin, style, pseudo) => {
+                        const originRect = origin.getBoundingClientRect();
+                        if (!pseudo) return originRect;
+                        const fixed = style.position === 'fixed';
+                        const container = fixed
+                            ? {
+                                left: 0,
+                                top: 0,
+                                right: window.innerWidth,
+                                bottom: window.innerHeight,
+                                width: window.innerWidth,
+                                height: window.innerHeight,
+                            }
+                            : originRect;
+                        const axis = (start, end, size, containerStart, extent) => {
+                            const startValue = cssLength(start, extent);
+                            const endValue = cssLength(end, extent);
+                            let sizeValue = cssLength(size, extent);
+                            if (!Number.isFinite(sizeValue) &&
+                                Number.isFinite(startValue) &&
+                                Number.isFinite(endValue)) {
+                                sizeValue = Math.max(0, extent - startValue - endValue);
+                            }
+                            if (!Number.isFinite(sizeValue)) sizeValue = extent;
+                            const position = Number.isFinite(startValue)
+                                ? containerStart + startValue
+                                : Number.isFinite(endValue)
+                                    ? containerStart + extent - endValue - sizeValue
+                                    : containerStart;
+                            return [position, sizeValue];
+                        };
+                        let [left, width] = axis(
+                            style.left, style.right, style.width,
+                            container.left, container.width
+                        );
+                        let [top, height] = axis(
+                            style.top, style.bottom, style.height,
+                            container.top, container.height
+                        );
+                        if (style.boxSizing === 'content-box') {
+                            width += ['Left', 'Right'].reduce(
+                                (total, side) => total +
+                                    (Number.parseFloat(
+                                        style[`border${side}Width`] || '0'
+                                    ) || 0) +
+                                    (Number.parseFloat(
+                                        style[`padding${side}`] || '0'
+                                    ) || 0),
+                                0
+                            );
+                            height += ['Top', 'Bottom'].reduce(
+                                (total, side) => total +
+                                    (Number.parseFloat(
+                                        style[`border${side}Width`] || '0'
+                                    ) || 0) +
+                                    (Number.parseFloat(
+                                        style[`padding${side}`] || '0'
+                                    ) || 0),
+                                0
+                            );
+                        }
+                        if (style.transform && style.transform !== 'none') {
+                            try {
+                                const matrix = new DOMMatrixReadOnly(style.transform);
+                                left += matrix.m41;
+                                top += matrix.m42;
+                            } catch (_error) {
+                                return originRect;
+                            }
+                        }
+                        return {
+                            left,
+                            right: left + width,
+                            top,
+                            bottom: top + height,
+                            width,
+                            height,
+                        };
+                    };
+                    const materialColor = value => {
+                        const colors = cssColors(value);
+                        return colors.length === 0 || colors.some(color =>
+                            color.toLowerCase() !== 'transparent' &&
+                            colorAlpha(color) > 0.01
+                        );
+                    };
+                    const shadowLayers = style => {
+                        const value = style.boxShadow;
+                        if (!value || value === 'none') return [];
+                        return splitCssLayers(String(value)).map(layer => {
+                            const lengths = layer.replace(
+                                /(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^)]*\)|transparent/gi,
+                                ''
+                            ).match(/-?(?:\d+\.?\d*|\.\d+)(?:[a-z%]+)?/gi) || [];
+                            const parsed = lengths.map(length =>
+                                Number.parseFloat(length)
+                            );
+                            return {
+                                inset: /\binset\b/i.test(layer),
+                                material: materialColor(layer),
+                                offsetX: parsed[0] || 0,
+                                offsetY: parsed[1] || 0,
+                                blur: Math.max(0, parsed[2] || 0),
+                                spread: parsed[3] || 0,
+                            };
+                        });
+                    };
+                    const materialBorderWidth = (style, side) => {
+                        const width = Number.parseFloat(
+                            style[`border${side}Width`] || '0'
+                        );
+                        return width > 0.01 &&
+                            !['none', 'hidden'].includes(style[`border${side}Style`]) &&
+                            colorAlpha(style[`border${side}Color`]) > 0.01
+                            ? width
+                            : 0;
+                    };
+                    const materialOutline = style => {
+                        const width = Number.parseFloat(style.outlineWidth || '0');
+                        return {
+                            width: width > 0.01 &&
+                                !['none', 'hidden'].includes(style.outlineStyle) &&
+                                colorAlpha(style.outlineColor) > 0.01
+                                ? width
+                                : 0,
+                            offset: Number.parseFloat(style.outlineOffset || '0') || 0,
+                        };
+                    };
+                    const shadowHasMaterialPaint = (origin, style, pseudo) => {
+                        const rect = paintRect(origin, style, pseudo);
+                        const minimumExtent = Math.max(
+                            1,
+                            Math.min(
+                                Math.max(0, rect.width),
+                                Math.max(0, rect.height)
+                            ) / 2
+                        );
+                        return shadowLayers(style).some(layer =>
+                            layer.material && (
+                                !layer.inset ||
+                                layer.blur + Math.max(0, layer.spread) >=
+                                    minimumExtent - 1
+                            )
+                        );
+                    };
+                    const edgeHasMaterialPaint = style =>
+                        ['Left', 'Right', 'Top', 'Bottom'].some(side =>
+                            materialBorderWidth(style, side) > 0
+                        ) || materialOutline(style).width > 0;
+                    const svgHasMaterialPaint = origin => origin.matches('svg') &&
+                        [...origin.querySelectorAll('*')].some(descendant => {
+                            const style = getComputedStyle(descendant);
+                            const opacity = Number.parseFloat(style.opacity || '1');
+                            const fillOpacity = Number.parseFloat(
+                                style.fillOpacity || '1'
+                            );
+                            const strokeOpacity = Number.parseFloat(
+                                style.strokeOpacity || '1'
+                            );
+                            return Number.isFinite(opacity) && opacity > 0.01 && (
+                                Number.isFinite(fillOpacity) && fillOpacity > 0.01 &&
+                                    colorAlpha(style.fill) > 0.01 ||
+                                Number.isFinite(strokeOpacity) && strokeOpacity > 0.01 &&
+                                    colorAlpha(style.stroke) > 0.01
+                            );
+                        });
+                    const hasMaterialPaint = (origin, style, pseudo = false) => {
+                        const opacity = Number.parseFloat(style.opacity || '1');
+                        return Number.isFinite(opacity) && opacity > 0.01 && (
+                            colorAlpha(style.backgroundColor) > 0.01 ||
+                            imageHasMaterialPaint(style.backgroundImage) ||
+                            shadowHasMaterialPaint(origin, style, pseudo) ||
+                            edgeHasMaterialPaint(style) ||
+                            (!pseudo && (
+                                origin.matches('img, video, canvas') ||
+                                svgHasMaterialPaint(origin)
+                            ))
+                        );
+                    };
+                    const containsPoint = (rect, [x, y]) =>
+                        rect && rect.right > rect.left && rect.bottom > rect.top &&
+                        x >= rect.left && x <= rect.right &&
+                        y >= rect.top && y <= rect.bottom;
+                    const expandedRect = (rect, left, right, top, bottom) => ({
+                        left: rect.left - left,
+                        right: rect.right + right,
+                        top: rect.top - top,
+                        bottom: rect.bottom + bottom,
+                    });
+                    const materialPaintCoverage = (origin, style, pseudo) => {
+                        const rect = paintRect(origin, style, pseudo);
+                        const shadows = shadowLayers(style);
+                        const minimumExtent = Math.max(
+                            1,
+                            Math.min(
+                                Math.max(0, rect.width),
+                                Math.max(0, rect.height)
+                            ) / 2
+                        );
+                        const insetShadowFills = shadows.some(layer =>
+                            layer.material && layer.inset &&
+                            layer.blur + Math.max(0, layer.spread) >=
+                                minimumExtent - 1
+                        );
+                        const baseFills = colorAlpha(style.backgroundColor) > 0.01 ||
+                            imageHasMaterialPaint(style.backgroundImage) ||
+                            insetShadowFills ||
+                            (!pseudo && (
+                                origin.matches('img, video, canvas') ||
+                                svgHasMaterialPaint(origin)
+                            ));
+                        const borders = {
+                            left: materialBorderWidth(style, 'Left'),
+                            right: materialBorderWidth(style, 'Right'),
+                            top: materialBorderWidth(style, 'Top'),
+                            bottom: materialBorderWidth(style, 'Bottom'),
+                        };
+                        const borderFills = rect.width > 1 && rect.height > 1 && (
+                            borders.left + borders.right >= rect.width - 1 ||
+                            borders.top + borders.bottom >= rect.height - 1
+                        );
+                        const borderInner = {
+                            left: rect.left + borders.left,
+                            right: rect.right - borders.right,
+                            top: rect.top + borders.top,
+                            bottom: rect.bottom - borders.bottom,
+                        };
+                        const outline = materialOutline(style);
+                        const outlineInset = Math.max(0, -outline.offset);
+                        const outlineFills = rect.width > 1 && rect.height > 1 &&
+                            outline.width > 0 &&
+                            outlineInset >= Math.min(rect.width, rect.height) / 2 - 1 &&
+                            outlineInset - outline.width <= 1;
+                        const outlineInner = expandedRect(
+                            rect,
+                            outline.offset,
+                            outline.offset,
+                            outline.offset,
+                            outline.offset
+                        );
+                        const outlineOuter = expandedRect(
+                            outlineInner,
+                            outline.width,
+                            outline.width,
+                            outline.width,
+                            outline.width
+                        );
+                        const outerShadows = shadows.filter(layer =>
+                            layer.material && !layer.inset
+                        );
+                        return new Set(points.flatMap((point, index) => {
+                            const inBase = containsPoint(rect, point);
+                            const inBorder = containsPoint(rect, point) &&
+                                !containsPoint(borderInner, point);
+                            const inOutline = outline.width > 0 &&
+                                containsPoint(outlineOuter, point) &&
+                                !containsPoint(outlineInner, point);
+                            const inOuterShadow = outerShadows.some(layer => {
+                                const extent = Math.max(
+                                    0,
+                                    layer.spread + layer.blur * 2
+                                );
+                                const shadowRect = expandedRect(
+                                    {
+                                        left: rect.left + layer.offsetX,
+                                        right: rect.right + layer.offsetX,
+                                        top: rect.top + layer.offsetY,
+                                        bottom: rect.bottom + layer.offsetY,
+                                    },
+                                    extent,
+                                    extent,
+                                    extent,
+                                    extent
+                                );
+                                return containsPoint(shadowRect, point) && !inBase;
+                            });
+                            return baseFills && inBase ||
+                                borderFills && inBase ||
+                                outlineFills && inBase ||
+                                inBorder || inOutline || inOuterShadow
+                                ? [index]
+                                : [];
+                        }));
+                    };
+                    const paintVisible = origin => {
+                        let opacity = 1;
+                        for (let current = origin;
+                            current instanceof Element;
+                            current = current.parentElement) {
+                            const style = getComputedStyle(current);
+                            const currentOpacity = Number.parseFloat(style.opacity || '1');
+                            if (style.display === 'none' || style.visibility !== 'visible' ||
+                                style.contentVisibility === 'hidden' ||
+                                !Number.isFinite(currentOpacity)) return false;
+                            opacity *= currentOpacity;
+                        }
+                        return opacity > 0.01;
+                    };
+                    if (materialPaintCandidates === null) {
+                        const real = [];
+                        const pseudo = [];
+                        for (const origin of document.querySelectorAll('*')) {
+                            if (!paintVisible(origin)) continue;
+                            const style = getComputedStyle(origin);
+                            if (style.pointerEvents === 'none' &&
+                                hasMaterialPaint(origin, style)) real.push(origin);
+                            for (const pseudoName of ['::before', '::after']) {
+                                const pseudoStyle = getComputedStyle(
+                                    origin, pseudoName
+                                );
+                                if (pseudoStyle.pointerEvents !== 'none' ||
+                                    ['none', 'normal'].includes(pseudoStyle.content) ||
+                                    !hasMaterialPaint(
+                                        origin, pseudoStyle, true
+                                    )) continue;
+                                pseudo.push([origin, pseudoName]);
+                            }
+                        }
+                        materialPaintCandidates = {real, pseudo};
+                    }
+                    const realCandidates = materialPaintCandidates.real.flatMap(origin => {
+                        const style = getComputedStyle(origin);
+                        const coverage = materialPaintCoverage(origin, style, false);
+                        return coverage.size > 0
+                            ? [{origin, coverage}]
+                            : [];
+                    });
+                    const pseudoCandidates = materialPaintCandidates.pseudo.flatMap(
+                        ([origin, pseudo]) => {
+                            const style = getComputedStyle(origin, pseudo);
+                            const coverage = materialPaintCoverage(
+                                origin, style, true
+                            );
+                            return coverage.size > 0
+                                ? [{origin, pseudo, coverage}]
+                                : [];
+                        }
+                    );
+                    if (realCandidates.length === 0 && pseudoCandidates.length === 0) {
+                        return true;
+                    }
+                    const attributeOriginals = [];
+                    const inlineStyleOriginals = [];
+                    const rememberedInlineStyles = new Set();
+                    const rememberInlineStyle = candidate => {
+                        if (rememberedInlineStyles.has(candidate)) return;
+                        rememberedInlineStyles.add(candidate);
+                        inlineStyleOriginals.push([
+                            candidate,
+                            candidate.hasAttribute('style'),
+                            candidate.getAttribute('style'),
+                        ]);
+                    };
+                    const restoreInlineStyle = candidate => {
+                        const original = inlineStyleOriginals.find(
+                            ([element]) => element === candidate
+                        );
+                        if (!original) return;
+                        const [, hadStyle, value] = original;
+                        if (hadStyle) candidate.setAttribute('style', value);
+                        else candidate.removeAttribute('style');
+                    };
+                    const forceInlinePointerEvents = (candidate, value) => {
+                        rememberInlineStyle(candidate);
+                        const rawStyle = candidate.getAttribute('style') || '';
+                        const separator = rawStyle.trim() &&
+                            !rawStyle.trimEnd().endsWith(';') ? ';' : '';
+                        candidate.setAttribute(
+                            'style',
+                            `${rawStyle}${separator}pointer-events:${value}!important;`
+                        );
+                    };
+                    const forceInlineProbeGeometry = candidate => {
+                        rememberInlineStyle(candidate);
+                        const rawStyle = candidate.getAttribute('style') || '';
+                        const separator = rawStyle.trim() &&
+                            !rawStyle.trimEnd().endsWith(';') ? ';' : '';
+                        candidate.setAttribute(
+                            'style',
+                            `${rawStyle}${separator}` +
+                            'pointer-events:auto!important;' +
+                            'position:fixed!important;inset:0!important;' +
+                            'width:auto!important;height:auto!important;' +
+                            'margin:0!important;transform:none!important;' +
+                            'box-sizing:border-box!important;border:0!important;' +
+                            'outline:0!important;box-shadow:none!important;' +
+                            'clip:auto!important;clip-path:none!important;'
+                        );
+                    };
+                    let probeStyle = null;
+                    try {
+                        const pseudoOrigins = new Set();
+                        const pseudoAttributes = [];
+                        const pseudoProbes = [];
+                        for (const candidate of pseudoCandidates) {
+                            const {origin, pseudo} = candidate;
+                            const attribute = pseudo === '::before'
+                                ? 'data-srcc-pointer-probe-before'
+                                : 'data-srcc-pointer-probe-after';
+                            attributeOriginals.push([
+                                origin,
+                                attribute,
+                                origin.hasAttribute(attribute),
+                                origin.getAttribute(attribute),
+                            ]);
+                            pseudoAttributes.push([origin, attribute]);
+                            pseudoProbes.push([candidate, origin, attribute]);
+                            origin.setAttribute(attribute, 'suppressed');
+                            if (!pseudoOrigins.has(origin)) {
+                                pseudoOrigins.add(origin);
+                                forceInlinePointerEvents(origin, 'none');
+                            }
+                        }
+                        if (realCandidates.length > 0 || pseudoCandidates.length > 0) {
+                            const boosted = (attribute, value) => Array.from(
+                                {length: 8},
+                                (_, index) => `:is(
+                                    #srcc-pointer-probe-${index},
+                                    [${attribute}="${value}"]
+                                )`
+                            ).join('');
+                            probeStyle = document.createElement('style');
+                            probeStyle.textContent = `
+                                @layer srccPointerPaintProbe {
+                                    ${boosted('data-srcc-pointer-probe-real', 'active')} {
+                                        pointer-events: auto !important;
+                                    }
+                                    ${boosted('data-srcc-pointer-probe-before', 'suppressed')},
+                                    ${boosted('data-srcc-pointer-probe-after', 'suppressed')},
+                                    ${boosted('data-srcc-pointer-probe-before', 'active')},
+                                    ${boosted('data-srcc-pointer-probe-after', 'active')} {
+                                        pointer-events: none !important;
+                                    }
+                                    ${boosted('data-srcc-pointer-probe-before', 'active')}::before,
+                                    ${boosted('data-srcc-pointer-probe-after', 'active')}::after {
+                                        pointer-events: auto !important;
+                                        position: fixed !important;
+                                        inset: 0 !important;
+                                        width: auto !important;
+                                        height: auto !important;
+                                        margin: 0 !important;
+                                        transform: none !important;
+                                        box-sizing: border-box !important;
+                                        border: 0 !important;
+                                        outline: 0 !important;
+                                        box-shadow: none !important;
+                                        clip: auto !important;
+                                        clip-path: none !important;
+                                    }
+                                }
+                            `;
+                            document.head.insertBefore(
+                                probeStyle, document.head.firstChild
+                            );
+                        }
+                        const suppressedHits = pointHits();
+                        const confirmedPseudoCandidates = new Set();
+                        for (const [candidate, origin, attribute] of pseudoProbes) {
+                            origin.setAttribute(attribute, 'active');
+                            const candidateHits = pointHits();
+                            if ([...candidate.coverage].some(index =>
+                                candidateHits[index] === candidate.origin &&
+                                candidateHits[index] !== suppressedHits[index]
+                            )) confirmedPseudoCandidates.add(candidate);
+                            origin.setAttribute(attribute, 'suppressed');
+                        }
+                        const pseudoCovered = points.map((_, index) =>
+                            pseudoCandidates.some(candidate =>
+                                confirmedPseudoCandidates.has(candidate) &&
+                                candidate.coverage.has(index)
+                            )
+                        );
+                        for (const [origin, attribute] of pseudoAttributes) {
+                            origin.setAttribute(attribute, 'inactive');
+                        }
+                        for (const origin of pseudoOrigins) restoreInlineStyle(origin);
+                        const confirmedRealCandidates = new Set();
+                        for (const candidate of realCandidates) {
+                            const {origin} = candidate;
+                            const attribute = 'data-srcc-pointer-probe-real';
+                            attributeOriginals.push([
+                                origin,
+                                attribute,
+                                origin.hasAttribute(attribute),
+                                origin.getAttribute(attribute),
+                            ]);
+                            origin.setAttribute(attribute, 'active');
+                            forceInlineProbeGeometry(origin);
+                            const candidateHits = pointHits();
+                            if ([...candidate.coverage].some(index =>
+                                candidateHits[index] &&
+                                (candidateHits[index] === origin ||
+                                    origin.matches('svg') &&
+                                    origin.contains(candidateHits[index])) &&
+                                candidateHits[index] !== ordinaryHits[index]
+                            )) confirmedRealCandidates.add(candidate);
+                            restoreInlineStyle(origin);
+                            origin.setAttribute(attribute, 'inactive');
+                        }
+                        const realCovered = points.map((_, index) =>
+                            realCandidates.some(candidate =>
+                                confirmedRealCandidates.has(candidate) &&
+                                candidate.coverage.has(index)
+                            )
+                        );
+                        const visibleEvidenceCount = evidenceIndexes.filter(index =>
+                            !pseudoCovered[index] &&
+                            !realCovered[index] &&
+                            isRelatedHit(ordinaryHits[index])
+                        ).length;
+                        return visibleEvidenceCount * 2 > evidenceIndexes.length;
+                    } finally {
+                        probeStyle?.remove();
+                        for (const [origin, attribute, hadAttribute, value] of
+                            attributeOriginals.reverse()) {
+                            if (hadAttribute) origin.setAttribute(attribute, value);
+                            else origin.removeAttribute(attribute);
+                        }
+                        for (const [candidate, hadStyle, value] of
+                            inlineStyleOriginals.reverse()) {
+                            if (hadStyle) candidate.setAttribute('style', value);
+                            else candidate.removeAttribute('style');
+                        }
+                    }
+                };
+                if (hitTestEligible) return strictCurrentHitTest();
+                const scrollPositions = [];
+                const remembered = new Set();
+                const remember = element => {
+                    if (!(element instanceof Element) || remembered.has(element)) return;
+                    remembered.add(element);
+                    scrollPositions.push([element, element.scrollLeft, element.scrollTop]);
+                };
+                for (let current = node.parentElement;
+                    current instanceof Element;
+                    current = current.parentElement) remember(current);
+                remember(scrollingElement);
+                const originalWindowScroll = [window.scrollX, window.scrollY];
+                try {
+                    for (let current = node.parentElement;
+                        current instanceof Element;
+                        current = current.parentElement) {
+                        const style = getComputedStyle(current);
+                        const targetRect = node.getBoundingClientRect();
+                        const ancestorRect = current.getBoundingClientRect();
+                        const ancestorLeft = ancestorRect.left + current.clientLeft;
+                        const ancestorRight = ancestorLeft + current.clientWidth;
+                        const ancestorTop = ancestorRect.top + current.clientTop;
+                        const ancestorBottom = ancestorTop + current.clientHeight;
+                        if (['auto', 'scroll'].includes(style.overflowX) &&
+                            current.scrollWidth > current.clientWidth + 1) {
+                            if (targetRect.left < ancestorLeft) {
+                                current.scrollLeft += targetRect.left - ancestorLeft;
+                            } else if (targetRect.right > ancestorRight) {
+                                current.scrollLeft += targetRect.right - ancestorRight;
+                            }
+                        }
+                        if (['auto', 'scroll'].includes(style.overflowY) &&
+                            current.scrollHeight > current.clientHeight + 1) {
+                            if (targetRect.top < ancestorTop) {
+                                current.scrollTop += targetRect.top - ancestorTop;
+                            } else if (targetRect.bottom > ancestorBottom) {
+                                current.scrollTop += targetRect.bottom - ancestorBottom;
+                            }
+                        }
+                    }
+                    const targetRect = node.getBoundingClientRect();
+                    if (targetRect.left < 0) {
+                        scrollingElement.scrollLeft += targetRect.left;
+                    } else if (targetRect.right > window.innerWidth) {
+                        scrollingElement.scrollLeft += targetRect.right - window.innerWidth;
+                    }
+                    if (targetRect.top < 0) {
+                        scrollingElement.scrollTop += targetRect.top;
+                    } else if (targetRect.bottom > window.innerHeight) {
+                        scrollingElement.scrollTop += targetRect.bottom - window.innerHeight;
+                    }
+                    return strictCurrentHitTest();
+                } finally {
+                    for (const [element, scrollLeft, scrollTop] of
+                        [...scrollPositions].reverse()) {
+                        element.scrollLeft = scrollLeft;
+                        element.scrollTop = scrollTop;
+                    }
+                    window.scrollTo({
+                        left: originalWindowScroll[0],
+                        top: originalWindowScroll[1],
+                        behavior: 'instant',
+                    });
+                }
+            };
+            const detailsNodes = [...document.querySelectorAll('details')].filter(node =>
+                String(node.querySelector(':scope > summary')?.innerText || '').trim() === 'HTML Research Brief'
+            );
+            const details = detailsNodes.length === 1 ? detailsNodes[0] : null;
+            const allOnePagers = [...document.querySelectorAll('[data-section="evidence-one-pager"]')];
+            const onePager = allOnePagers.length === 1 ? allOnePagers[0] : null;
+            const surface = onePager?.closest('.srcc-html-brief');
+            const overviewNodes = surface
+                ? [...surface.querySelectorAll('[data-section="overview"]')]
+                : [];
+            const advancedNodes = surface
+                ? [...surface.querySelectorAll('[data-section="advanced-evidence"]')]
+                : [];
+            const overview = overviewNodes.length === 1 ? overviewNodes[0] : null;
+            const advanced = advancedNodes.length === 1 ? advancedNodes[0] : null;
+            const stateNodes = onePager ? [...onePager.querySelectorAll('[data-state]')] : [];
+            const labels = {
+                available: 'state: complete',
+                partial: 'state: partial',
+                withheld: 'state: withheld',
+                stale: 'state: stale',
+                not_recorded: 'state: not recorded',
+                excluded: 'state: excluded',
+            };
+            const onePagerVisible = visible(onePager);
+            const stateTextMatches = onePagerVisible &&
+                stateNodes.length > 0 && stateNodes.every(node => {
+                const expected = labels[String(node.dataset.state || '').trim().toLowerCase()];
+                const direct = [...node.children].find(child => child.matches('.srcc-state'));
+                const stateText = direct || node.querySelector('.srcc-state');
+                return Boolean(expected) && visible(stateText) &&
+                    String(stateText.innerText || '').trim().toLowerCase() === expected;
+            });
+            const shareBasisNodes = onePager
+                ? [...onePager.querySelectorAll('[data-share-basis-role][data-share-basis-state]')]
+                : [];
+            const shareBasisVisible = onePagerVisible
+                ? shareBasisNodes.filter(visible)
+                : [];
+            const shareBasisTextMatches = shareBasisNodes.length > 0 && shareBasisNodes.every(node =>
+                String(node.innerText || '').trim().toLowerCase() ===
+                    `share basis state: ${String(node.dataset.shareBasisState || '').trim().toLowerCase()}`
+            );
+            return {
+                html_brief_details_count: detailsNodes.length,
+                html_brief_details_open: Boolean(details?.open),
+                one_pager_count: allOnePagers.length,
+                one_pager_visible_count: allOnePagers.filter(visible).length,
+                one_pager_inside_html_brief: Boolean(details && onePager && details.contains(onePager)),
+                overview_count: overviewNodes.length,
+                advanced_evidence_count: advancedNodes.length,
+                advanced_evidence_after_one_pager: Boolean(
+                    onePager && advanced &&
+                    (onePager.compareDocumentPosition(advanced) & Node.DOCUMENT_POSITION_FOLLOWING)
+                ),
+                advanced_evidence_visible: visible(advanced),
+                one_pager_state_text_matches: stateTextMatches,
+                one_pager_share_basis_visible_count: shareBasisVisible.length,
+                one_pager_share_basis_text_matches: shareBasisTextMatches,
+                document_overflow_px: Math.max(
+                    0,
+                    document.documentElement.scrollWidth - window.innerWidth
+                ),
+                inner_width: window.innerWidth,
+                inner_height: window.innerHeight,
+                device_pixel_ratio: window.devicePixelRatio,
+                visual_viewport_width: window.visualViewport?.width || 0,
+                visual_viewport_height: window.visualViewport?.height || 0,
+                visual_viewport_scale: window.visualViewport?.scale || 0,
+            };
+        }"""
+    )
+    return {**summary, **scoped}
+
+
+def _company_workbench_one_pager_observation(
+    page: Any,
+    *,
+    width: int,
+    height: int,
+    requested_zoom: int,
+    absent_before_open: bool,
+    active_origin: str,
+    request_urls: Iterable[str],
+    external_request_count: int,
+    console_errors: Iterable[str],
+    page_errors: Iterable[str],
+    server_runtime_output_status: str,
+    server_deprecated_warning_count: int,
+) -> dict[str, object]:
+    observed = _company_workbench_one_pager_dom_observation(page)
+    screenshot = page.screenshot(full_page=False, scale="device")
+    if screenshot[:8] != b"\x89PNG\r\n\x1a\n" or len(screenshot) < 24:
+        raise RuntimeError("Workbench one-pager screenshot did not produce a PNG")
+    screenshot_width = int.from_bytes(screenshot[16:20], "big")
+    screenshot_height = int.from_bytes(screenshot[20:24], "big")
+    zoom_assertion = evaluate_html_brief_browser_zoom(
+        requested_zoom=requested_zoom,
+        declared_width=float(width),
+        declared_height=float(height),
+        screenshot_width=float(screenshot_width),
+        screenshot_height=float(screenshot_height),
+        inner_width=float(observed["inner_width"]),
+        inner_height=float(observed["inner_height"]),
+        visual_viewport_width=float(observed["visual_viewport_width"]),
+        visual_viewport_height=float(observed["visual_viewport_height"]),
+        device_pixel_ratio=float(observed["device_pixel_ratio"]),
+        visual_viewport_scale=float(observed["visual_viewport_scale"]),
+    )
+    details = page.locator("details").filter(
+        has=page.get_by_text("HTML Research Brief", exact=True)
+    )
+    download = details.first.get_by_role(
+        "button",
+        name="Download HTML Research Brief",
+        exact=True,
+    ) if details.count() == 1 else page.locator("button[data-never-match]")
+    download_box = (
+        download.first.bounding_box()
+        if download.count() == 1 and download.first.is_visible()
+        else None
+    )
+    return {
+        **observed,
+        "viewport": f"{width}x{height}",
+        "requested_zoom": requested_zoom,
+        "actual_browser_zoom": zoom_assertion.passed,
+        "actual_browser_zoom_evidence": zoom_assertion.evidence,
+        "one_pager_absent_before_open": absent_before_open,
+        "one_pager_state_tokens": tuple(observed["one_pager_state_tokens"]),
+        "one_pager_share_basis_tokens": tuple(
+            observed["one_pager_share_basis_tokens"]
+        ),
+        "download_button_count": download.count(),
+        "download_button_label": (
+            download.first.inner_text().strip() if download.count() == 1 else ""
+        ),
+        "download_button_visible": (
+            download.count() == 1 and download.first.is_visible()
+        ),
+        "download_button_height": (download_box or {}).get("height", 0),
+        "console_errors": tuple(console_errors),
+        "page_errors": tuple(page_errors),
+        "server_runtime_output_status": server_runtime_output_status,
+        "server_deprecated_warning_count": server_deprecated_warning_count,
+        "active_origin": active_origin,
+        "request_urls": tuple(request_urls),
+        "external_request_count": external_request_count,
+        "request_audit_complete": True,
+    }
+
+
 def _summary_focus_assertion(page: Any) -> dict[str, object]:
     summaries = page.locator("summary:visible")
     count = summaries.count()
@@ -2730,6 +4184,134 @@ element => {
     )
 
 
+_AUTHORING_ERROR_OBSERVATION_SCRIPT = r"""
+({fieldLabel, expectedMessage}) => {
+  const fields = Array.from(
+    document.querySelectorAll('[aria-invalid="true"]')
+  ).filter((element) => element.getAttribute('aria-label') === fieldLabel);
+  const field = fields[0] || null;
+  const describedBy = field?.getAttribute('aria-describedby') || '';
+  const linkedErrors = describedBy
+    ? Array.from(document.querySelectorAll('[id]')).filter(
+        (element) => element.id === describedBy
+      )
+    : [];
+  const linkedError = linkedErrors[0] || null;
+  const linkedInnerText = linkedError ? linkedError.innerText : null;
+  const linkedTextContent = linkedError ? linkedError.textContent : null;
+  const linkedStyle = linkedError ? getComputedStyle(linkedError) : null;
+  const linkedRect = linkedError ? linkedError.getBoundingClientRect() : null;
+  const linkedVisible = Boolean(
+    linkedError &&
+    linkedStyle &&
+    linkedStyle.display !== 'none' &&
+    linkedStyle.visibility !== 'hidden' &&
+    linkedStyle.opacity !== '0' &&
+    linkedRect &&
+    linkedRect.width > 0 &&
+    linkedRect.height > 0
+  );
+  const linkedOwned = Boolean(
+    linkedError &&
+    linkedError.getAttribute('data-research-authoring-error-owned') === 'true'
+  );
+  const alerts = Array.from(document.querySelectorAll('[role="alert"]')).filter(
+    (element) => (element.textContent || '').includes(expectedMessage)
+  );
+  const activeLabel = document.activeElement?.getAttribute('aria-label') || null;
+  const ready = Boolean(
+    fields.length === 1 &&
+    describedBy &&
+    linkedErrors.length === 1 &&
+    linkedOwned &&
+    linkedVisible &&
+    linkedInnerText?.trim() === expectedMessage &&
+    alerts.length === 1 &&
+    activeLabel === fieldLabel
+  );
+  return {
+    ready,
+    field_count: fields.length,
+    described_by: describedBy,
+    linked_error_count: linkedErrors.length,
+    linked_error_owned: linkedOwned,
+    linked_error_visible: linkedVisible,
+    linked_error_inner_text: linkedInnerText,
+    linked_error_text_content: linkedTextContent,
+    linked_error_outer_html: linkedError ? linkedError.outerHTML : null,
+    alert_count: alerts.length,
+    alert_texts: alerts.map((element) => element.innerText),
+    active_label: activeLabel,
+  };
+}
+"""
+
+
+def _wait_for_authoring_error_observation(
+    page: Any,
+    *,
+    field_label: str,
+    expected_message: str,
+    timeout_seconds: float = 10.0,
+) -> dict[str, object]:
+    """Wait for and atomically capture one complete field-error association."""
+
+    payload = {
+        "fieldLabel": field_label,
+        "expectedMessage": expected_message,
+    }
+    started = time.monotonic()
+    wait_error = ""
+    evaluation_error = ""
+    try:
+        page.wait_for_function(
+            f"payload => ({_AUTHORING_ERROR_OBSERVATION_SCRIPT})(payload).ready",
+            arg=payload,
+            timeout=int(timeout_seconds * 1000),
+        )
+    except Exception as exc:
+        wait_error = f"{type(exc).__name__}: {exc}"
+    try:
+        observed = page.evaluate(_AUTHORING_ERROR_OBSERVATION_SCRIPT, payload)
+    except Exception as exc:
+        evaluation_error = f"{type(exc).__name__}: {exc}"
+        observed = {"ready": False}
+    if not isinstance(observed, dict):
+        observed = {
+            "ready": False,
+            "observation_error": (
+                f"expected object observation, found {type(observed).__name__}"
+            ),
+        }
+    if wait_error or evaluation_error:
+        observed["ready"] = False
+    observed["wait_elapsed_ms"] = round((time.monotonic() - started) * 1000, 3)
+    observed["wait_error"] = wait_error
+    observed["evaluation_error"] = evaluation_error
+    return observed
+
+
+def _authoring_error_observation_detail(
+    observation: Mapping[str, object],
+) -> str:
+    return (
+        f"field_count={observation.get('field_count')!r}; "
+        f"described_by={observation.get('described_by')!r}; "
+        f"error_count={observation.get('linked_error_count')!r}; "
+        f"error_owned={observation.get('linked_error_owned')!r}; "
+        f"error_visible={observation.get('linked_error_visible')!r}; "
+        f"error_inner_text={observation.get('linked_error_inner_text')!r}; "
+        f"error_text_content={observation.get('linked_error_text_content')!r}; "
+        f"error_outer_html={observation.get('linked_error_outer_html')!r}; "
+        f"alert_count={observation.get('alert_count')!r}; "
+        f"alert_texts={observation.get('alert_texts')!r}; "
+        f"active_label={observation.get('active_label')!r}; "
+        f"wait_elapsed_ms={observation.get('wait_elapsed_ms')!r}; "
+        f"wait_error={observation.get('wait_error')!r}; "
+        f"evaluation_error={observation.get('evaluation_error')!r}"
+    )
+
+
 def _authoring_error_assertions(page: Any) -> list[dict[str, object]]:
     composer = page.locator("details").filter(
         has=page.get_by_text("Add a reviewed research record", exact=True)
@@ -2753,27 +4335,20 @@ def _authoring_error_assertions(page: Any) -> list[dict[str, object]]:
             )
         ]
     validate.click()
-    page.locator(
-        '[aria-label="Thesis Id"][aria-invalid="true"]'
-    ).wait_for(state="attached", timeout=10_000)
+    thesis_observation = _wait_for_authoring_error_observation(
+        page,
+        field_label="Thesis Id",
+        expected_message="thesis_id is required",
+    )
     field = page.locator('[aria-label="Thesis Id"][aria-invalid="true"]')
-    described_by = field.get_attribute("aria-describedby") or ""
+    described_by = str(thesis_observation.get("described_by") or "")
     error = page.locator(f"#{described_by}") if described_by else page.locator(
         "#__missing-authoring-error"
     )
-    global_alerts = page.get_by_role("alert").filter(
-        has_text="thesis_id is required"
-    )
-    active_label = page.evaluate(
-        "document.activeElement && document.activeElement.getAttribute('aria-label')"
-    )
     passed = (
-        field.count() == 1
-        and bool(described_by)
-        and error.count() == 1
-        and error.first.inner_text().strip() == "thesis_id is required"
-        and global_alerts.count() == 1
-        and active_label == "Thesis Id"
+        thesis_observation.get("ready") is True
+        and not thesis_observation.get("wait_error")
+        and not thesis_observation.get("evaluation_error")
     )
     first_result = _assertion(
         "authoring_field_error_association",
@@ -2781,11 +4356,7 @@ def _authoring_error_assertions(page: Any) -> list[dict[str, object]]:
         (
             "one Thesis Id field is invalid, described, focused, and retains one alert"
             if passed
-            else (
-                f"field_count={field.count()}; described_by={described_by!r}; "
-                f"error_count={error.count()}; alert_count={global_alerts.count()}; "
-                f"active_label={active_label!r}"
-            )
+            else _authoring_error_observation_detail(thesis_observation)
         ),
     )
     if not passed:
@@ -2814,44 +4385,19 @@ def _authoring_error_assertions(page: Any) -> list[dict[str, object]]:
     )
     validate = page.get_by_role("button", name="Validate and preview", exact=True)
     validate.click()
-    effective = page.locator('[aria-label="Effective At"][aria-invalid="true"]')
-    try:
-        effective.wait_for(state="attached", timeout=10_000)
-    except Exception as exc:
-        return [
-            first_result,
-            _assertion(
-                "authoring_field_error_cleanup_transition",
-                False,
-                (
-                    f"Effective At did not receive the next required error: "
-                    f"{type(exc).__name__}: {exc}"
-                ),
-            ),
-        ]
-    effective_described_by = effective.get_attribute("aria-describedby") or ""
-    effective_error = (
-        page.locator(f"#{effective_described_by}")
-        if effective_described_by
-        else page.locator("#__missing-effective-at-error")
-    )
-    effective_alerts = page.get_by_role("alert").filter(
-        has_text="effective_at is required"
-    )
-    active_label = page.evaluate(
-        "document.activeElement && document.activeElement.getAttribute('aria-label')"
+    effective_observation = _wait_for_authoring_error_observation(
+        page,
+        field_label="Effective At",
+        expected_message="effective_at is required",
     )
     thesis_after_validation = page.get_by_label("Thesis Id", exact=True)
     passed_transition = (
         stale_thesis_clean
         and thesis_after_validation.get_attribute("aria-invalid") is None
         and thesis_after_validation.get_attribute("aria-describedby") is None
-        and effective.count() == 1
-        and bool(effective_described_by)
-        and effective_error.count() == 1
-        and effective_error.first.inner_text().strip() == "effective_at is required"
-        and effective_alerts.count() == 1
-        and active_label == "Effective At"
+        and effective_observation.get("ready") is True
+        and not effective_observation.get("wait_error")
+        and not effective_observation.get("evaluation_error")
     )
     return [
         first_result,
@@ -2864,11 +4410,7 @@ def _authoring_error_assertions(page: Any) -> list[dict[str, object]]:
                 if passed_transition
                 else (
                     f"stale_thesis_clean={stale_thesis_clean}; "
-                    f"effective_count={effective.count()}; "
-                    f"effective_described_by={effective_described_by!r}; "
-                    f"effective_error_count={effective_error.count()}; "
-                    f"alert_count={effective_alerts.count()}; "
-                    f"active_label={active_label!r}"
+                    + _authoring_error_observation_detail(effective_observation)
                 )
             ),
         ),
@@ -3282,6 +4824,187 @@ def _measure_route(
     }
 
 
+def _measure_company_workbench_one_pager_cell(
+    chromium: Any,
+    *,
+    chrome_executable: Path,
+    base_url: str,
+    cell: tuple[int, int, int],
+    timeout_seconds: float,
+    server_deprecated_warning_count: int | Callable[[], int],
+    server_runtime_output_status: str,
+) -> dict[str, object]:
+    """Measure one isolated Workbench viewport/zoom cell after explicit open."""
+
+    width, height, zoom = cell
+    viewport = f"{width}x{height}"
+    active_origin = _exact_http_origin(base_url)
+    hostname = str(urlparse(base_url).hostname or "")
+    request_urls: list[str] = []
+    external_requests: list[str] = []
+    console_errors: list[str] = []
+    page_errors: list[str] = []
+    assertions: list[dict[str, object]] = []
+    observation: dict[str, object] = {
+        "viewport": viewport,
+        "requested_zoom": zoom,
+        "active_origin": active_origin or "",
+        "request_urls": (),
+        "external_request_count": 0,
+        "request_audit_complete": False,
+    }
+    if active_origin is None or not hostname:
+        assertions.append(
+            _assertion(
+                "company_workbench_one_pager_origin",
+                False,
+                f"invalid active origin: {base_url!r}",
+            )
+        )
+        return {
+            "viewport": viewport,
+            "zoom": zoom,
+            "passed": False,
+            "assertions": assertions,
+            "observation": observation,
+        }
+
+    with tempfile.TemporaryDirectory(
+        prefix="stock-research-workbench-one-pager-zoom-",
+        dir="/tmp",
+    ) as profile_directory:
+        profile = Path(profile_directory)
+        preferences = profile / "Default" / "Preferences"
+        preferences.parent.mkdir(parents=True)
+        preferences.write_text(
+            json.dumps(
+                _chromium_zoom_preferences(host=hostname, zoom=zoom),
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
+        context = chromium.launch_persistent_context(
+            user_data_dir=profile,
+            executable_path=str(chrome_executable),
+            headless=True,
+            viewport={"width": width, "height": height},
+            screen={"width": width, "height": height},
+            service_workers="block",
+        )
+
+        def intercept(route: Any, request: Any) -> None:
+            request_url = str(request.url)
+            parsed = urlparse(request_url)
+            if parsed.scheme in {"http", "https"}:
+                request_urls.append(request_url)
+                if _exact_http_origin(request_url) != active_origin:
+                    external_requests.append(request_url)
+                    route.abort()
+                    return
+            route.continue_()
+
+        context.route("**/*", intercept)
+        page = context.pages[0] if context.pages else context.new_page()
+
+        def capture_console_message(message: Any) -> None:
+            if str(message.type).lower() == "error":
+                console_errors.append(f"console error: {message.text}")
+
+        def capture_page_error(error: Any) -> None:
+            page_errors.append(f"page error: {error}")
+
+        page.on("console", capture_console_message)
+        page.on("pageerror", capture_page_error)
+        try:
+            route = next(
+                route
+                for route in RESEARCH_ROUTES
+                if route.name == "Company Workbench"
+            )
+            expected_url = f"{base_url.rstrip('/')}{route.route}"
+            page.goto(
+                expected_url,
+                wait_until="domcontentloaded",
+                timeout=int(timeout_seconds * 1000),
+            )
+            _wait_for_visible_text(
+                page,
+                route.marker,
+                timeout_seconds=timeout_seconds,
+            )
+            _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+            _wait_for_route_heading(
+                page,
+                route,
+                timeout_seconds=timeout_seconds,
+            )
+            assertions.append(
+                evaluate_exact_route_url(
+                    actual_url=page.url,
+                    expected_url=expected_url,
+                    phase=f"one_pager_{viewport}_{zoom}",
+                )
+            )
+            assertions.append(_company_workbench_primary_brief_assertion(page))
+            absent_before_open = (
+                page.locator('[data-section="evidence-one-pager"]').count() == 0
+            )
+            module_open = _open_company_workbench_modules(
+                page,
+                timeout_seconds=timeout_seconds,
+            )
+            assertions.append(module_open)
+            if module_open["passed"]:
+                html_brief_open = _open_company_workbench_html_brief(
+                    page,
+                    timeout_seconds=timeout_seconds,
+                )
+                assertions.append(html_brief_open)
+                if html_brief_open["passed"]:
+                    warning_count = (
+                        server_deprecated_warning_count()
+                        if callable(server_deprecated_warning_count)
+                        else server_deprecated_warning_count
+                    )
+                    observation = _company_workbench_one_pager_observation(
+                        page,
+                        width=width,
+                        height=height,
+                        requested_zoom=zoom,
+                        absent_before_open=absent_before_open,
+                        active_origin=active_origin,
+                        request_urls=request_urls,
+                        external_request_count=len(external_requests),
+                        console_errors=console_errors,
+                        page_errors=page_errors,
+                        server_runtime_output_status=server_runtime_output_status,
+                        server_deprecated_warning_count=warning_count,
+                    )
+                    assertions.extend(
+                        evaluate_company_workbench_one_pager_observation(
+                            observation
+                        )
+                    )
+        except Exception as exc:
+            assertions.append(
+                _assertion(
+                    "company_workbench_one_pager_execution",
+                    False,
+                    f"{type(exc).__name__}: {exc}",
+                )
+            )
+        finally:
+            context.close()
+    return {
+        "viewport": viewport,
+        "zoom": zoom,
+        "passed": bool(assertions)
+        and all(bool(assertion["passed"]) for assertion in assertions),
+        "assertions": assertions,
+        "observation": observation,
+    }
+
+
 def _repository_content_snapshot(root: Path) -> str:
     """Hash status plus every dirty/untracked path's current content."""
 
@@ -3508,6 +5231,7 @@ def _failed_payload(
         "viewports": [f"{width}x{height}" for width, height in VIEWPORTS],
         "routes": [route.name for route in RESEARCH_ROUTES],
         "results": [],
+        "company_workbench_one_pager": [],
         "state_harness": {
             "passed": False,
             "results": [],
@@ -3593,6 +5317,7 @@ def run_research_accessibility_browser_gate(
         capture_status="unverified",
     )
     state_results: list[dict[str, object]] = []
+    one_pager_results: list[dict[str, object]] = []
     state_repository_snapshot = _assertion(
         "repository_snapshot_unchanged",
         False,
@@ -3649,6 +5374,22 @@ def run_research_accessibility_browser_gate(
                         )
                         for viewport in VIEWPORTS
                         for route in RESEARCH_ROUTES
+                    ]
+                    one_pager_results = [
+                        _measure_company_workbench_one_pager_cell(
+                            playwright.chromium,
+                            chrome_executable=Path(chrome),
+                            base_url=verified_active_url,
+                            cell=cell,
+                            timeout_seconds=max(5.0, timeout_seconds),
+                            server_deprecated_warning_count=(
+                                active_server.deprecated_warning_count
+                            ),
+                            server_runtime_output_status=(
+                                active_server.capture_status
+                            ),
+                        )
+                        for cell in COMPANY_WORKBENCH_ONE_PAGER_CELLS
                     ]
                 repository_before_state_harness = _repository_status_snapshot(root)
                 with _captured_local_state_harness_server(
@@ -3716,6 +5457,23 @@ def run_research_accessibility_browser_gate(
         for result in state_results
         if not result["passed"]
     )
+    failures.extend(
+        (
+            f"Company Workbench one-pager {result['viewport']}@{result['zoom']}: "
+            + "; ".join(
+                str(assertion["detail"])
+                for assertion in result["assertions"]
+                if not assertion["passed"]
+            )
+        )
+        for result in one_pager_results
+        if not result["passed"]
+    )
+    one_pager_payload = evaluate_company_workbench_one_pager_payload(
+        one_pager_results
+    )
+    if not one_pager_payload["passed"]:
+        failures.append(str(one_pager_payload["detail"]))
     if not server_runtime_output["passed"]:
         failures.append(str(server_runtime_output["detail"]))
     if not state_server_runtime_output["passed"]:
@@ -3734,6 +5492,7 @@ def run_research_accessibility_browser_gate(
         "viewports": [f"{width}x{height}" for width, height in VIEWPORTS],
         "routes": [route.name for route in RESEARCH_ROUTES],
         "results": results,
+        "company_workbench_one_pager": one_pager_results,
         "state_harness": {
             "passed": (
                 bool(state_results)

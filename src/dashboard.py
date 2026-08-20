@@ -32718,6 +32718,9 @@ def render_single_stock_report(
                     observation_recency=observation_recency,
                     selected_answer=selected_answer,
                     authoritative_task=authoritative_task,
+                    change_answer=change_answer or {},
+                    change_ticker=ticker,
+                    change_profile_key=selected_context.profile_key,
                     scenario_lab_result=scenario_session.result,
                     nowcast_packet=nowcast_packet,
                     decision_lab_state=decision_lab_state,
@@ -36868,6 +36871,9 @@ def render_research_workspace_styles() -> None:
             min-height: 44px;
         }
         div[data-testid="stButton"] > button {
+            min-height: 44px;
+        }
+        [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button {
             min-height: 44px;
         }
         .company-workbench-primary-stop {

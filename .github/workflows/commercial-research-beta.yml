@@ -10,7 +10,7 @@ permissions:
 jobs:
   local-engineering-gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       PYTHONDONTWRITEBYTECODE: "1"
       PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}

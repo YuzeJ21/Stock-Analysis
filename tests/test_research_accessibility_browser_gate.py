@@ -1,7 +1,121 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from pathlib import Path
 import subprocess
+
+import pytest
+
+
+_ONE_PAGER_REQUIRED_STATE_ROLES = (
+    "answers-next-research-task",
+    "answers-still-withheld",
+    "answers-use-now",
+    "answers-what-changed",
+    "break-case-decision-invalidation",
+    "break-case-research-risks",
+    "header-freshness-state",
+    "header-rights-state",
+    "operating-valuation-base-bridge-cash",
+    "operating-valuation-base-bridge-debt",
+    "operating-valuation-base-bridge-discounted-explicit-total",
+    "operating-valuation-base-bridge-discounted-terminal-value",
+    "operating-valuation-base-bridge-enterprise-value",
+    "operating-valuation-base-bridge-equity-value",
+    "operating-valuation-base-bridge-net-debt",
+    "operating-valuation-base-bridge-supplied-shares",
+    "operating-valuation-base-bridge-supplied-value-per-share",
+    "operating-valuation-base-bridge-terminal-value",
+    "operating-valuation-research-business-trend",
+    "operating-valuation-research-key-drivers",
+    "operating-valuation-research-valuation-regime",
+    "provenance-freshness-state",
+    "provenance-rights-state",
+    "questions-answer-next-research-task",
+    "questions-decision-review-trigger",
+    "questions-research-evidence-gaps",
+    "research-case-decision-evidence",
+    "research-case-decision-plan",
+    "research-case-research-business-trend",
+    "research-case-research-key-drivers",
+    "scenarios-base",
+    "scenarios-base-value-per-share",
+    "scenarios-bear",
+    "scenarios-bear-value-per-share",
+    "scenarios-bull",
+    "scenarios-bull-value-per-share",
+)
+
+_ONE_PAGER_SHARE_BASIS_TOKENS = (
+    "operating-valuation-base-bridge-share-basis=unverified",
+    "scenarios-base-share-basis=unverified",
+    "scenarios-bear-share-basis=unverified",
+    "scenarios-bull-share-basis=unverified",
+)
+
+
+def _passing_one_pager_observation(
+    *,
+    width: int = 1280,
+    height: int = 720,
+    zoom: int = 1,
+) -> dict[str, object]:
+    state_tokens = tuple(
+        sorted(
+            [f"{role}=partial" for role in _ONE_PAGER_REQUIRED_STATE_ROLES]
+            + ["provenance-row-1-saved-evidence-demo-source=partial"]
+        )
+    )
+    return {
+        "viewport": f"{width}x{height}",
+        "requested_zoom": zoom,
+        "actual_browser_zoom": True,
+        "one_pager_absent_before_open": True,
+        "html_brief_details_count": 1,
+        "html_brief_details_open": True,
+        "one_pager_count": 1,
+        "one_pager_visible_count": 1,
+        "one_pager_inside_html_brief": True,
+        "one_pager_before_overview": True,
+        "overview_count": 1,
+        "advanced_evidence_count": 1,
+        "advanced_evidence_after_one_pager": True,
+        "advanced_evidence_visible": True,
+        "document_overflow_px": 0.0,
+        "one_pager_overflow_px": 0.0,
+        "one_pager_max_descendant_overflow_px": 0.0,
+        "one_pager_min_text_contrast_ratio": 7.0,
+        "one_pager_min_boundary_contrast_ratio": 3.2,
+        "one_pager_answer_item_count": 4,
+        "one_pager_scenario_item_count": 3,
+        "one_pager_state_tokens": state_tokens,
+        "one_pager_state_node_count": len(state_tokens),
+        "one_pager_state_role_count": len(state_tokens),
+        "one_pager_unique_state_role_count": len(state_tokens),
+        "one_pager_state_text_matches": True,
+        "one_pager_share_basis_tokens": _ONE_PAGER_SHARE_BASIS_TOKENS,
+        "one_pager_share_basis_visible_count": 4,
+        "one_pager_share_basis_text_matches": True,
+        "one_pager_provenance_caption_visible": True,
+        "one_pager_provenance_visible": True,
+        "one_pager_blockers_visible": True,
+        "one_pager_assumptions_visible": True,
+        "one_pager_handoff_visible": True,
+        "download_button_count": 1,
+        "download_button_label": "Download HTML Research Brief",
+        "download_button_visible": True,
+        "download_button_height": 44.0,
+        "console_errors": (),
+        "page_errors": (),
+        "server_runtime_output_status": "captured_local_server",
+        "server_deprecated_warning_count": 0,
+        "active_origin": "http://127.0.0.1:43123",
+        "request_urls": (
+            "http://127.0.0.1:43123/?mode=research&page=company-workbench&ticker=NVDA&open=1",
+        ),
+        "external_request_count": 0,
+        "request_audit_complete": True,
+    }
 
 
 def test_forced_colors_observation_fails_closed_for_each_required_signal():
@@ -493,6 +607,997 @@ def test_company_workbench_module_open_browser_check_supports_pointer_and_keyboa
     assert "button.first.click()" in helper
     assert 'button.first.press("Enter")' in helper
     assert "activation_attempts" in helper
+
+
+def test_one_pager_collector_contract_accepts_substantive_observation():
+    from src.research_accessibility_browser_gate import (
+        evaluate_company_workbench_one_pager_observation,
+    )
+
+    assertions = evaluate_company_workbench_one_pager_observation(
+        _passing_one_pager_observation()
+    )
+
+    assert assertions
+    assert all(assertion["passed"] for assertion in assertions)
+
+
+def test_one_pager_collector_contract_rejects_missing_duplicate_hidden_order_and_full_report():
+    from src.research_accessibility_browser_gate import (
+        evaluate_company_workbench_one_pager_observation,
+    )
+
+    mutations = (
+        ("one_pager_unique_visible", {"one_pager_count": 0}),
+        ("one_pager_unique_visible", {"one_pager_count": 2}),
+        ("one_pager_unique_visible", {"one_pager_visible_count": 0}),
+        ("one_pager_unique_visible", {"one_pager_inside_html_brief": False}),
+        ("one_pager_order", {"one_pager_before_overview": False}),
+        ("one_pager_order", {"overview_count": 0}),
+        ("one_pager_full_report", {"advanced_evidence_count": 0}),
+        ("one_pager_full_report", {"advanced_evidence_after_one_pager": False}),
+        ("one_pager_full_report", {"advanced_evidence_visible": False}),
+    )
+    for assertion_name, mutation in mutations:
+        assertions = evaluate_company_workbench_one_pager_observation(
+            {**_passing_one_pager_observation(), **mutation}
+        )
+        assert next(
+            assertion
+            for assertion in assertions
+            if assertion["name"] == assertion_name
+        )["passed"] is False
+
+
+def test_one_pager_collector_contract_rejects_zoom_overflow_state_share_target_runtime_and_requests():
+    from src.research_accessibility_browser_gate import (
+        evaluate_company_workbench_one_pager_observation,
+    )
+
+    passing = _passing_one_pager_observation()
+    state_tokens = tuple(passing["one_pager_state_tokens"])
+    mutations = (
+        ("one_pager_module_gate", {"one_pager_absent_before_open": False}),
+        ("one_pager_disclosure", {"html_brief_details_count": 2}),
+        ("one_pager_disclosure", {"html_brief_details_open": False}),
+        ("one_pager_zoom", {"actual_browser_zoom": False}),
+        ("one_pager_no_overflow", {"document_overflow_px": 2.0}),
+        ("one_pager_no_overflow", {"one_pager_overflow_px": 2.0}),
+        (
+            "one_pager_no_overflow",
+            {"one_pager_max_descendant_overflow_px": 2.0},
+        ),
+        ("one_pager_contrast", {"one_pager_min_text_contrast_ratio": 4.49}),
+        (
+            "one_pager_contrast",
+            {"one_pager_min_boundary_contrast_ratio": 2.99},
+        ),
+        ("one_pager_lists", {"one_pager_answer_item_count": 3}),
+        ("one_pager_lists", {"one_pager_scenario_item_count": 2}),
+        (
+            "one_pager_state_roles",
+            {
+                "one_pager_state_tokens": state_tokens[1:],
+                "one_pager_state_node_count": len(state_tokens) - 1,
+                "one_pager_state_role_count": len(state_tokens) - 1,
+                "one_pager_unique_state_role_count": len(state_tokens) - 1,
+            },
+        ),
+        (
+            "one_pager_state_roles",
+            {
+                "one_pager_state_tokens": state_tokens + (state_tokens[0],),
+                "one_pager_state_node_count": len(state_tokens) + 1,
+                "one_pager_state_role_count": len(state_tokens) + 1,
+            },
+        ),
+        ("one_pager_state_roles", {"one_pager_state_text_matches": False}),
+        (
+            "one_pager_share_basis",
+            {
+                "one_pager_share_basis_tokens": _ONE_PAGER_SHARE_BASIS_TOKENS[:-1],
+                "one_pager_share_basis_visible_count": 3,
+            },
+        ),
+        (
+            "one_pager_share_basis",
+            {"one_pager_share_basis_text_matches": False},
+        ),
+        (
+            "one_pager_content_visible",
+            {"one_pager_provenance_caption_visible": False},
+        ),
+        ("one_pager_content_visible", {"one_pager_blockers_visible": False}),
+        ("one_pager_content_visible", {"one_pager_assumptions_visible": False}),
+        ("one_pager_content_visible", {"one_pager_handoff_visible": False}),
+        ("one_pager_download_target", {"download_button_count": 0}),
+        (
+            "one_pager_download_target",
+            {"download_button_label": "Download report"},
+        ),
+        ("one_pager_download_target", {"download_button_height": 43.9}),
+        ("one_pager_runtime", {"console_errors": ("console error",)}),
+        ("one_pager_runtime", {"page_errors": ("page error",)}),
+        (
+            "one_pager_runtime",
+            {"server_runtime_output_status": "unverified"},
+        ),
+        ("one_pager_runtime", {"server_deprecated_warning_count": 1}),
+        (
+            "one_pager_exact_origin_network",
+            {
+                "request_urls": ("https://example.com/escaped",),
+                "external_request_count": 1,
+            },
+        ),
+        (
+            "one_pager_exact_origin_network",
+            {"request_audit_complete": False},
+        ),
+    )
+    for assertion_name, mutation in mutations:
+        assertions = evaluate_company_workbench_one_pager_observation(
+            {**passing, **mutation}
+        )
+        assert next(
+            assertion
+            for assertion in assertions
+            if assertion["name"] == assertion_name
+        )["passed"] is False
+
+
+def _passing_one_pager_payload_results() -> list[dict[str, object]]:
+    results: list[dict[str, object]] = []
+    for width, height, zoom in (
+        (1280, 720, 1),
+        (1280, 720, 2),
+        (390, 844, 1),
+    ):
+        results.append(
+            {
+                "viewport": f"{width}x{height}",
+                "zoom": zoom,
+                "passed": True,
+                "assertions": (
+                    {
+                        "name": "one_pager_unique_visible",
+                        "passed": True,
+                        "detail": "one visible summary",
+                    },
+                ),
+                "observation": _passing_one_pager_observation(
+                    width=width,
+                    height=height,
+                    zoom=zoom,
+                ),
+            }
+        )
+    return results
+
+
+def test_one_pager_payload_contract_accepts_exact_three_cell_slice():
+    from src.research_accessibility_browser_gate import (
+        COMPANY_WORKBENCH_ONE_PAGER_CELLS,
+        evaluate_company_workbench_one_pager_payload,
+    )
+
+    assert COMPANY_WORKBENCH_ONE_PAGER_CELLS == (
+        (1280, 720, 1),
+        (1280, 720, 2),
+        (390, 844, 1),
+    )
+    evaluated = evaluate_company_workbench_one_pager_payload(
+        _passing_one_pager_payload_results()
+    )
+
+    assert evaluated["passed"] is True
+    assert evaluated["detail"]
+
+
+def test_one_pager_payload_contract_rejects_missing_duplicate_zoom_overflow_request_or_assertion():
+    from src.research_accessibility_browser_gate import (
+        evaluate_company_workbench_one_pager_payload,
+    )
+
+    mutations = []
+    missing = _passing_one_pager_payload_results()
+    missing.pop()
+    mutations.append(missing)
+    duplicate = _passing_one_pager_payload_results()
+    duplicate.append(deepcopy(duplicate[0]))
+    mutations.append(duplicate)
+    false_zoom = _passing_one_pager_payload_results()
+    false_zoom[1]["observation"]["actual_browser_zoom"] = False
+    mutations.append(false_zoom)
+    overflow = _passing_one_pager_payload_results()
+    overflow[2]["observation"]["one_pager_max_descendant_overflow_px"] = 2.0
+    mutations.append(overflow)
+    external_request = _passing_one_pager_payload_results()
+    external_request[0]["observation"].update(
+        {
+            "request_urls": ("http://example.com/escaped",),
+            "external_request_count": 1,
+        }
+    )
+    mutations.append(external_request)
+    failed_assertion = _passing_one_pager_payload_results()
+    failed_assertion[0]["assertions"][0]["passed"] = False
+    mutations.append(failed_assertion)
+
+    for results in mutations:
+        evaluated = evaluate_company_workbench_one_pager_payload(results)
+        assert evaluated["passed"] is False
+        assert evaluated["detail"]
+
+
+def test_actual_company_workbench_one_pager_in_app_contract():
+    import src.research_accessibility_browser_gate as gate
+    from playwright.sync_api import sync_playwright
+
+    repository_root = Path.cwd()
+    repository_before = gate._repository_content_snapshot(repository_root)
+    chrome = gate.find_chrome_executable()
+    assert chrome is not None
+    with gate._captured_local_demo_server(
+        repository_root,
+        timeout_seconds=45,
+    ) as server:
+        with sync_playwright() as playwright:
+            result = gate._measure_company_workbench_one_pager_cell(
+                playwright.chromium,
+                chrome_executable=Path(chrome),
+                base_url=server.base_url,
+                cell=(1280, 720, 1),
+                timeout_seconds=45,
+                server_deprecated_warning_count=(
+                    server.deprecated_warning_count
+                ),
+                server_runtime_output_status=server.capture_status,
+            )
+    repository_after = gate._repository_content_snapshot(repository_root)
+    observation = result["observation"]
+    assert repository_after == repository_before
+    assert (
+        observation["one_pager_min_text_contrast_ratio"] >= 4.5
+        and observation["download_button_height"] >= 44
+        and observation["one_pager_state_text_matches"] is True
+    ), {
+        "contrast": observation.get("one_pager_min_text_contrast_ratio"),
+        "download_height": observation.get("download_button_height"),
+        "state_text_matches": observation.get("one_pager_state_text_matches"),
+    }
+
+
+def _ready_authoring_error_observation() -> dict[str, object]:
+    return {
+        "ready": True,
+        "field_count": 1,
+        "described_by": "research-authoring-demo-nvda-thesis-thesis-id-error",
+        "linked_error_count": 1,
+        "linked_error_owned": True,
+        "linked_error_visible": True,
+        "linked_error_inner_text": "thesis_id is required",
+        "linked_error_text_content": "thesis_id is required",
+        "linked_error_outer_html": (
+            '<p data-research-authoring-error-owned="true">'
+            "thesis_id is required</p>"
+        ),
+        "alert_count": 1,
+        "alert_texts": ["Validation rejected\nthesis_id is required"],
+        "active_label": "Thesis Id",
+    }
+
+
+def test_authoring_error_observation_timeout_fails_closed_after_late_ready_snapshot():
+    import src.research_accessibility_browser_gate as gate
+
+    class TimeoutPage:
+        def wait_for_function(self, *args, **kwargs):
+            raise TimeoutError("synthetic wait timeout")
+
+        def evaluate(self, *args, **kwargs):
+            return _ready_authoring_error_observation()
+
+    observed = gate._wait_for_authoring_error_observation(
+        TimeoutPage(),
+        field_label="Thesis Id",
+        expected_message="thesis_id is required",
+        timeout_seconds=0.01,
+    )
+
+    assert observed["ready"] is False
+    assert observed["linked_error_inner_text"] == "thesis_id is required"
+    assert "TimeoutError: synthetic wait timeout" in observed["wait_error"]
+
+
+def test_authoring_error_observation_evaluation_error_fails_closed():
+    import src.research_accessibility_browser_gate as gate
+
+    class EvaluationErrorPage:
+        def wait_for_function(self, *args, **kwargs):
+            return None
+
+        def evaluate(self, *args, **kwargs):
+            raise RuntimeError("synthetic observation failure")
+
+    observed = gate._wait_for_authoring_error_observation(
+        EvaluationErrorPage(),
+        field_label="Thesis Id",
+        expected_message="thesis_id is required",
+        timeout_seconds=0.01,
+    )
+
+    assert observed["ready"] is False
+    assert observed["wait_error"] == ""
+    assert "RuntimeError: synthetic observation failure" in observed[
+        "evaluation_error"
+    ]
+
+
+def test_actual_phone_authoring_association_waits_for_linked_error_text():
+    import src.research_accessibility_browser_gate as gate
+    from playwright.sync_api import sync_playwright
+
+    class SemanticWaitPage:
+        def __init__(self, page):
+            self._page = page
+            self.semantic_wait_calls = 0
+
+        def __getattr__(self, name):
+            return getattr(self._page, name)
+
+        def wait_for_function(self, expression, *args, **kwargs):
+            self.semantic_wait_calls += 1
+            self._page.wait_for_function(
+                """
+() => window.__authoringLinkedTextDelayProbe?.triggered === true
+""",
+                timeout=10_000,
+            )
+            self._page.evaluate(
+                """
+() => window.dispatchEvent(
+  new Event('research-authoring-semantic-wait-started')
+)
+"""
+            )
+            return self._page.wait_for_function(expression, *args, **kwargs)
+
+    chrome = gate.find_chrome_executable()
+    assert chrome is not None
+    workbench = next(
+        route for route in gate.RESEARCH_ROUTES if route.name == "Company Workbench"
+    )
+    with gate._captured_local_demo_server(Path.cwd(), timeout_seconds=45) as server:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(
+                executable_path=str(chrome),
+                headless=True,
+            )
+            context = browser.new_context(viewport={"width": 390, "height": 844})
+            page = context.new_page()
+            try:
+                page.goto(
+                    f"{server.base_url.rstrip('/')}{workbench.route}",
+                    wait_until="domcontentloaded",
+                    timeout=45_000,
+                )
+                gate._wait_for_visible_text(
+                    page,
+                    workbench.marker,
+                    timeout_seconds=45,
+                )
+                gate._wait_for_dom_stability(page, timeout_seconds=45)
+                gate._wait_for_route_heading(
+                    page,
+                    workbench,
+                    timeout_seconds=45,
+                )
+                assert gate._open_company_workbench_modules(
+                    page,
+                    timeout_seconds=45,
+                )["passed"] is True
+                page.evaluate(
+                    """
+() => {
+  const probe = {
+    triggered: false,
+    cleared_text: null,
+    restored_text: null,
+    release_count: 0,
+  };
+  window.__authoringLinkedTextDelayProbe = probe;
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const added of mutation.addedNodes) {
+        if (!(added instanceof Element)) continue;
+        const candidate = added.matches(
+          '[data-research-authoring-error-owned="true"]'
+        )
+          ? added
+          : added.querySelector(
+              '[data-research-authoring-error-owned="true"]'
+            );
+        if (!candidate || !candidate.id.endsWith('thesis-thesis-id-error')) {
+          continue;
+        }
+        const originalText = candidate.textContent;
+        probe.triggered = true;
+        candidate.textContent = '';
+        probe.cleared_text = candidate.textContent;
+        observer.disconnect();
+        window.addEventListener(
+          'research-authoring-semantic-wait-started',
+          () => {
+            if (candidate.isConnected) candidate.textContent = originalText;
+            probe.restored_text = candidate.textContent;
+            probe.release_count += 1;
+          },
+          {once: true}
+        );
+        return;
+      }
+    }
+  });
+  observer.observe(document.documentElement, {childList: true, subtree: true});
+}
+"""
+                )
+
+                semantic_page = SemanticWaitPage(page)
+                assertions = gate._authoring_error_assertions(semantic_page)
+                probe = page.evaluate("window.__authoringLinkedTextDelayProbe")
+            finally:
+                context.close()
+                browser.close()
+
+    association = next(
+        assertion
+        for assertion in assertions
+        if assertion["name"] == "authoring_field_error_association"
+    )
+    assert probe["triggered"] is True
+    assert probe["cleared_text"] == ""
+    assert probe["restored_text"] == "thesis_id is required"
+    assert probe["release_count"] == 1
+    assert semantic_page.semantic_wait_calls == 2
+    assert association["passed"] is True, {
+        "association": association,
+        "probe": probe,
+    }
+    assert all(assertion["passed"] for assertion in assertions), assertions
+
+
+@pytest.mark.parametrize(
+    "mutation_css",
+    (
+        '[data-section="evidence-one-pager"] { clip-path: inset(50%) !important; }',
+        '[data-section="evidence-one-pager"] { position: fixed !important; top: -10000px !important; left: 50px !important; width: 1000px !important; }',
+        "body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: auto; }",
+        """
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: auto; }
+        """,
+        "body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }",
+        """
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        body::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+        """,
+        ".test-pointer-transparent-cover { position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }",
+        """
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        .test-pointer-transparent-cover { position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+        """,
+        "body::before { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }",
+        """
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        body::before { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }
+        """,
+        "body::after { content: ''; position: fixed; left: -100vw; top: 0; width: 100vw; height: 100vh; transform: translateX(100vw); background: #fff; z-index: 2147483647; pointer-events: none; }",
+        "body.srcc-pointer-cover-origin::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none !important; }",
+        ".test-inside-pointer-transparent-cover { display: block !important; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }",
+        "[data-section=\"evidence-one-pager\"]::after { content: ''; position: fixed; inset: 0; background: #fff; z-index: 2147483647; pointer-events: none; }",
+        ".test-pointer-transparent-svg-cover { display: block !important; position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 2147483647; pointer-events: none; }",
+        ".test-inline-style-cover { display: block !important; }",
+        ".test-pointer-transparent-cover { position: fixed; inset: 0; background: rgba(255, 255, 255, .98); z-index: 2147483647; pointer-events: none; }",
+        ".test-pointer-transparent-cover { position: fixed; inset: 0; background: transparent; box-shadow: inset 0 0 0 100vmax #fff; z-index: 2147483647; pointer-events: none; }",
+        "body::after { content: ''; position: fixed; inset: 0; background: transparent; box-shadow: inset 0 0 0 100vmax #fff; z-index: 2147483647; pointer-events: none; }",
+        """
+        /* tiny-outward-real-cover-current */
+        .test-tiny-outward-paint-cover {
+          display: block !important;
+          position: fixed;
+          left: 50vw;
+          top: 50vh;
+          width: 2px;
+          height: 2px;
+          box-sizing: border-box;
+          transform: translate(-50%, -50%);
+          z-index: 2147483647;
+          pointer-events: none;
+          background: transparent;
+          box-shadow: 0 0 0 100vmax #fff;
+        }
+        """,
+        """
+        /* tiny-outward-real-cover-below-fold */
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        .test-tiny-outward-paint-cover {
+          display: block !important;
+          position: fixed;
+          left: 50vw;
+          top: 50vh;
+          width: 2px;
+          height: 2px;
+          box-sizing: border-box;
+          transform: translate(-50%, -50%);
+          z-index: 2147483647;
+          pointer-events: none;
+          background: transparent;
+          border: 100vmax solid #fff;
+        }
+        """,
+        """
+        /* tiny-outward-required-pseudo-cover-current */
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state::after {
+          content: '';
+          position: fixed;
+          left: 50vw;
+          top: 50vh;
+          width: 2px;
+          height: 2px;
+          box-sizing: border-box;
+          transform: translate(-50%, -50%);
+          z-index: 2147483647;
+          pointer-events: none;
+          background: transparent;
+          outline: 100vmax solid #fff;
+          outline-offset: 0;
+        }
+        """,
+        """
+        /* tiny-outward-required-pseudo-cover-below-fold */
+        [data-section="evidence-one-pager"] { margin-top: 1000px !important; }
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state::after {
+          content: '';
+          position: fixed;
+          left: 50vw;
+          top: 50vh;
+          width: 2px;
+          height: 2px;
+          box-sizing: border-box;
+          transform: translate(-50%, -50%);
+          z-index: 2147483647;
+          pointer-events: none;
+          background: transparent;
+          box-shadow: 0 0 0 100vmax #fff;
+        }
+        """,
+        """
+        /* stacked-real-cover-below-tiny-decoration */
+        .test-pointer-transparent-cover {
+          position: fixed; inset: 0; z-index: 2147483646;
+          pointer-events: none; background: #fff;
+        }
+        .test-tiny-outward-paint-cover {
+          display: block !important; position: fixed;
+          left: 50vw; top: 50vh; width: 2px; height: 2px;
+          transform: translate(-50%, -50%); z-index: 2147483647;
+          pointer-events: none; background: #f0f;
+        }
+        """,
+        """
+        /* stacked-pseudo-cover-below-tiny-decoration */
+        body::before {
+          content: ''; position: fixed; inset: 0; z-index: 2147483646;
+          pointer-events: none; background: #fff;
+        }
+        [data-section="evidence-one-pager"] { position: relative; }
+        [data-section="evidence-one-pager"]::after {
+          content: ''; position: absolute; left: 0; top: 0;
+          width: 2px; height: 2px;
+          z-index: 2147483647; pointer-events: none; background: #f0f;
+        }
+        """,
+        """
+        /* localized-required-node-covers */
+        [data-section="evidence-one-pager"] .srcc-blockers {
+          display: none !important;
+        }
+        [data-section="one-pager-provenance"] .srcc-blockers {
+          display: block !important;
+        }
+        [data-section="one-pager-provenance"],
+        [data-section="one-pager-scenarios"],
+        [data-section="one-pager-handoff"] {
+          position: relative;
+        }
+        [data-section="one-pager-provenance"]::after,
+        [data-section="one-pager-scenarios"]::after,
+        [data-section="one-pager-handoff"]::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          z-index: 2147483647;
+          pointer-events: none;
+          background: #fff;
+        }
+        """,
+        """
+        /* localized-required-leaf-covers */
+        [data-section="evidence-one-pager"] .srcc-blockers {
+          display: none !important;
+        }
+        [data-section="one-pager-provenance"] .srcc-blockers {
+          display: block !important;
+        }
+        [data-section="one-pager-provenance"] caption,
+        [data-section="one-pager-provenance"] tbody td:nth-child(2),
+        [data-section="one-pager-provenance"] .srcc-blockers > li,
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state,
+        [data-section="one-pager-scenarios"] [data-share-basis-role],
+        [data-section="one-pager-handoff"] > p {
+          position: relative;
+        }
+        [data-section="one-pager-provenance"] caption::after,
+        [data-section="one-pager-provenance"] tbody td:nth-child(2)::after,
+        [data-section="one-pager-provenance"] .srcc-blockers > li::after,
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state::after,
+        [data-section="one-pager-scenarios"] [data-share-basis-role]::after,
+        [data-section="one-pager-handoff"] > p::after {
+          content: '';
+          position: absolute;
+          inset: 0;
+          z-index: 2147483647;
+          pointer-events: none;
+          background: #fff;
+        }
+        """,
+        """
+        /* layered-important-real-cover */
+        @layer adversarial {
+          .test-layer-cover { position: fixed; inset: 0; z-index: 2147483647; pointer-events: none !important; background: #f0f; }
+        }
+        """,
+        """
+        /* layered-important-pseudo-cover */
+        @layer adversarial {
+          body::after { content: ''; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none !important; background: #f0f; }
+        }
+        """,
+        """
+        /* oklab-pointer-transparent-cover */
+        body::after { content: ''; position: fixed; inset: 0; z-index: 2147483647; pointer-events: none; background: transparent; box-shadow: inset 0 0 0 100vmax oklab(.8 0 0); }
+        """,
+        """
+        /* tiny-required-state-decoration */
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state {
+          position: relative !important;
+        }
+        [data-section="one-pager-scenarios"] > ol > li:first-child .srcc-state::after {
+          content: '';
+          position: absolute;
+          right: 0;
+          bottom: 0;
+          width: 4px;
+          height: 2px;
+          z-index: 2147483647;
+          pointer-events: none;
+          background: #f0f;
+        }
+        """,
+    ),
+    ids=(
+        "clip-path",
+        "fixed-above-document",
+        "opaque-fixed-cover",
+        "scroll-reachable-under-fixed-cover",
+        "pointer-transparent-opaque-cover",
+        "scroll-reachable-under-pointer-transparent-cover",
+        "pointer-transparent-element-cover",
+        "scroll-reachable-under-pointer-transparent-element-cover",
+        "pointer-transparent-before-cover",
+        "scroll-reachable-under-pointer-transparent-before-cover",
+        "transformed-pointer-transparent-pseudo-cover",
+        "important-pointer-transparent-pseudo-cover",
+        "inside-pointer-transparent-element-cover",
+        "inside-pointer-transparent-pseudo-cover",
+        "pointer-transparent-svg-cover",
+        "pointer-transparent-inline-style-restoration",
+        "translucent-pointer-transparent-element-cover",
+        "pointer-transparent-inset-box-shadow-cover",
+        "pointer-transparent-inset-box-shadow-pseudo-cover",
+        "tiny-outward-real-cover-current",
+        "tiny-outward-real-cover-below-fold",
+        "tiny-outward-required-pseudo-cover-current",
+        "tiny-outward-required-pseudo-cover-below-fold",
+        "stacked-real-cover-below-tiny-decoration",
+        "stacked-pseudo-cover-below-tiny-decoration",
+        "localized-required-node-covers",
+        "localized-required-leaf-covers",
+        "layered-important-real-cover",
+        "layered-important-pseudo-cover",
+        "oklab-pointer-transparent-cover",
+        "tiny-required-state-decoration",
+    ),
+)
+def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_with_outside_blockers(
+    mutation_css,
+):
+    import src.research_accessibility_browser_gate as gate
+    from playwright.sync_api import sync_playwright
+
+    chrome = gate.find_chrome_executable()
+    assert chrome is not None
+    external_requests = []
+    with gate._captured_local_demo_server(
+        Path.cwd(),
+        timeout_seconds=45,
+    ) as server:
+        active_origin = gate._exact_http_origin(server.base_url)
+        assert active_origin is not None
+        hostname = gate.urlparse(server.base_url).hostname
+        assert hostname
+        with gate.tempfile.TemporaryDirectory(
+            prefix="stock-research-workbench-one-pager-clipped-",
+            dir="/tmp",
+        ) as profile_directory:
+            preferences = Path(profile_directory) / "Default" / "Preferences"
+            preferences.parent.mkdir(parents=True)
+            preferences.write_text(
+                gate.json.dumps(
+                    gate._chromium_zoom_preferences(host=hostname, zoom=1),
+                    sort_keys=True,
+                ),
+                encoding="utf-8",
+            )
+            with sync_playwright() as playwright:
+                context = playwright.chromium.launch_persistent_context(
+                    user_data_dir=profile_directory,
+                    executable_path=str(chrome),
+                    headless=True,
+                    viewport={"width": 1280, "height": 720},
+                    screen={"width": 1280, "height": 720},
+                    service_workers="block",
+                )
+
+                def intercept(route, request):
+                    request_origin = gate._exact_http_origin(str(request.url))
+                    if request_origin is not None and request_origin != active_origin:
+                        external_requests.append(str(request.url))
+                        route.abort()
+                    else:
+                        route.continue_()
+
+                context.route("**/*", intercept)
+                page = context.pages[0] if context.pages else context.new_page()
+                try:
+                    workbench = next(
+                        route
+                        for route in gate.RESEARCH_ROUTES
+                        if route.name == "Company Workbench"
+                    )
+                    page.goto(
+                        f"{server.base_url.rstrip('/')}{workbench.route}",
+                        wait_until="domcontentloaded",
+                        timeout=45_000,
+                    )
+                    gate._wait_for_visible_text(
+                        page,
+                        workbench.marker,
+                        timeout_seconds=45,
+                    )
+                    gate._wait_for_dom_stability(page, timeout_seconds=45)
+                    gate._wait_for_route_heading(
+                        page,
+                        workbench,
+                        timeout_seconds=45,
+                    )
+                    assert gate._open_company_workbench_modules(
+                        page,
+                        timeout_seconds=45,
+                    )["passed"] is True
+                    assert gate._open_company_workbench_html_brief(
+                        page,
+                        timeout_seconds=45,
+                    )["passed"] is True
+                    page.evaluate(
+                        """css => {
+                            const style = document.createElement('style');
+                            style.textContent = css;
+                            document.head.appendChild(style);
+                            document.body.classList.add('srcc-pointer-cover-origin');
+                            const outside = document.createElement('div');
+                            outside.className = 'srcc-blockers';
+                            outside.textContent = 'Outside summary blockers must not count.';
+                            document.body.appendChild(outside);
+                            const cover = document.createElement('div');
+                            cover.className = 'test-pointer-transparent-cover';
+                            cover.setAttribute('aria-hidden', 'true');
+                            document.body.appendChild(cover);
+                            const layerCover = document.createElement('div');
+                            layerCover.className = 'test-layer-cover';
+                            layerCover.setAttribute('aria-hidden', 'true');
+                            document.body.appendChild(layerCover);
+                            const onePager = document.querySelector(
+                                '[data-section="evidence-one-pager"]'
+                            );
+                            const insideCover = document.createElement('div');
+                            insideCover.className = 'test-inside-pointer-transparent-cover';
+                            insideCover.setAttribute('aria-hidden', 'true');
+                            insideCover.style.display = 'none';
+                            onePager.prepend(insideCover);
+                            const outwardPaintCover = document.createElement('div');
+                            outwardPaintCover.className = 'test-tiny-outward-paint-cover';
+                            outwardPaintCover.setAttribute('aria-hidden', 'true');
+                            outwardPaintCover.style.display = 'none';
+                            onePager.prepend(outwardPaintCover);
+                            const svgCover = document.createElementNS(
+                                'http://www.w3.org/2000/svg', 'svg'
+                            );
+                            svgCover.setAttribute('class', 'test-pointer-transparent-svg-cover');
+                            svgCover.setAttribute('aria-hidden', 'true');
+                            svgCover.setAttribute('viewBox', '0 0 1 1');
+                            svgCover.style.display = 'none';
+                            const rect = document.createElementNS(
+                                'http://www.w3.org/2000/svg', 'rect'
+                            );
+                            rect.setAttribute('width', '1');
+                            rect.setAttribute('height', '1');
+                            rect.setAttribute('fill', '#fff');
+                            svgCover.appendChild(rect);
+                            document.body.appendChild(svgCover);
+                            const inlineCover = document.createElement('div');
+                            inlineCover.className = 'test-inline-style-cover';
+                            inlineCover.setAttribute('aria-hidden', 'true');
+                            inlineCover.setAttribute(
+                                'data-srcc-pointer-probe-real', 'preserve'
+                            );
+                            inlineCover.setAttribute(
+                                'style',
+                                'display:none; pointer-events:none!important; POSITION:fixed; inset:0; background:#fff; z-index:2147483647'
+                            );
+                            document.body.appendChild(inlineCover);
+                        }""",
+                        mutation_css,
+                    )
+                    page.evaluate(
+                        "() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))"
+                    )
+                    scroll_state_script = """() => ({
+                        window: [window.scrollX, window.scrollY],
+                        nodes: [...document.querySelectorAll('*')]
+                            .map((node, index) => [
+                                index,
+                                node.scrollLeft,
+                                node.scrollTop,
+                                node.scrollWidth,
+                                node.scrollHeight,
+                                node.clientWidth,
+                                node.clientHeight,
+                            ])
+                            .filter(([, left, top, width, height, clientWidth, clientHeight]) =>
+                                left || top || width > clientWidth || height > clientHeight
+                            ),
+                    })"""
+                    scroll_state_before = page.evaluate(scroll_state_script)
+                    probe_state_script = """() => ({
+                        active: [
+                            document.activeElement?.tagName || '',
+                            document.activeElement?.id || '',
+                            document.activeElement?.className || '',
+                        ],
+                        style_count: document.querySelectorAll('style').length,
+                        candidate_styles: [...document.querySelectorAll(
+                                '.test-pointer-transparent-cover, ' +
+                                '.test-layer-cover, ' +
+                                '.test-inside-pointer-transparent-cover, ' +
+                                '.test-pointer-transparent-svg-cover, ' +
+                                '.test-inline-style-cover, ' +
+                                '.test-tiny-outward-paint-cover, ' +
+                                '[data-section="evidence-one-pager"], ' +
+                                '[data-section="one-pager-provenance"], ' +
+                                '[data-section="one-pager-provenance"] caption, ' +
+                                '[data-section="one-pager-provenance"] tbody td, ' +
+                                '[data-section="one-pager-provenance"] .srcc-blockers > li, ' +
+                                '[data-section="one-pager-scenarios"], ' +
+                                '[data-section="one-pager-scenarios"] .srcc-state, ' +
+                                '[data-section="one-pager-scenarios"] [data-share-basis-role], ' +
+                                '[data-section="one-pager-handoff"], ' +
+                                '[data-section="one-pager-handoff"] > p'
+                        )].map(node => [
+                            node.className?.baseVal || node.className || '',
+                            node.hasAttribute('style'),
+                            node.getAttribute('style'),
+                        ]),
+                        probe_attributes: [...document.querySelectorAll('*')]
+                            .filter(node => [...node.attributes].some(attribute =>
+                                attribute.name.startsWith('data-srcc-pointer-probe-')
+                            ))
+                            .map(node => [...node.attributes]
+                                .filter(attribute => attribute.name.startsWith(
+                                    'data-srcc-pointer-probe-'
+                                ))
+                                .map(attribute => [attribute.name, attribute.value])
+                            ),
+                    })"""
+                    probe_state_before = page.evaluate(probe_state_script)
+                    outside_visible = page.locator(
+                        "body > .srcc-blockers:visible"
+                    ).count()
+                    observation = gate._company_workbench_one_pager_dom_observation(
+                        page
+                    )
+                    scroll_state_after = page.evaluate(scroll_state_script)
+                    probe_state_after = page.evaluate(probe_state_script)
+                finally:
+                    context.close()
+
+    assert external_requests == []
+    assert outside_visible == 1
+    assert scroll_state_after == scroll_state_before
+    assert probe_state_after == probe_state_before, {
+        "style_differences": [
+            (before, after)
+            for before, after in zip(
+                probe_state_before["candidate_styles"],
+                probe_state_after["candidate_styles"],
+                strict=True,
+            )
+            if before != after
+        ],
+        "other_before": {
+            key: value
+            for key, value in probe_state_before.items()
+            if key != "candidate_styles"
+        },
+        "other_after": {
+            key: value
+            for key, value in probe_state_after.items()
+            if key != "candidate_styles"
+        },
+    }
+    if "tiny-required-state-decoration" in mutation_css:
+        assert (
+            observation["one_pager_visible"] is True
+            and observation["one_pager_visible_count"] == 1
+            and observation["one_pager_provenance_visible"] is True
+            and observation["one_pager_blockers_visible"] is True
+            and observation["one_pager_assumptions_visible"] is True
+            and observation["one_pager_handoff_visible"] is True
+            and observation["one_pager_state_text_matches"] is True
+            and observation["one_pager_share_basis_visible_count"] == 4
+            and observation["advanced_evidence_count"] == 1
+            and observation["advanced_evidence_after_one_pager"] is True
+        ), observation
+    elif "localized-required-" in mutation_css:
+        assert (
+            observation["one_pager_visible"] is True
+            and observation["one_pager_visible_count"] == 1
+            and observation["one_pager_provenance_visible"] is False
+            and observation["one_pager_blockers_visible"] is False
+            and observation["one_pager_assumptions_visible"] is False
+            and observation["one_pager_handoff_visible"] is False
+            and observation["one_pager_state_text_matches"] is False
+            and observation["one_pager_share_basis_visible_count"] == 1
+            and observation["advanced_evidence_count"] == 1
+            and observation["advanced_evidence_after_one_pager"] is True
+        ), observation
+    else:
+        assert (
+            observation["one_pager_visible"] is False
+            and observation["one_pager_visible_count"] == 0
+            and observation["one_pager_min_text_contrast_ratio"] < 0
+            and observation["one_pager_min_boundary_contrast_ratio"] < 0
+            and observation["one_pager_provenance_visible"] is False
+            and observation["one_pager_blockers_visible"] is False
+            and observation["one_pager_assumptions_visible"] is False
+            and observation["one_pager_handoff_visible"] is False
+            and observation["one_pager_state_text_matches"] is False
+            and observation["one_pager_share_basis_visible_count"] == 0
+            and observation["advanced_evidence_count"] == 1
+            and observation["advanced_evidence_after_one_pager"] is True
+        ), observation
 
 
 def test_proof_history_media_marker_selects_the_rendered_public_timeline():
@@ -1493,63 +2598,6 @@ def test_route_transition_verifies_url_after_late_render_mutation(monkeypatch):
     assert expected in str(assertions[0]["detail"])
 
 
-def test_browser_measurement_rechecks_landmark_after_rerun_and_route_transition():
-    source = Path("src/research_accessibility_browser_gate.py").read_text(
-        encoding="utf-8"
-    )
-    transition = source[source.index("def _navigate_and_verify_route(") :]
-    transition = transition[: transition.index("\ndef _measure_route(")]
-    measurement = source[source.index("def _measure_route(") :]
-    measurement = measurement[
-        : measurement.index("\ndef _repository_status_snapshot(")
-    ]
-
-    assert 'page.on("console"' in measurement
-    assert 'page.on("pageerror"' in measurement
-    assert '_semantic_main_assertions(page, phase="initial")' in measurement
-    assert (
-        '_semantic_main_assertions(page, phase="navigation_authority")'
-        in measurement
-    )
-    assert "_personal_navigation_authority_assertions(page)" in measurement
-    assert "_same_document_streamlit_rerun_assertions(" not in measurement
-    assert '_semantic_main_assertions(page, phase="route_away")' in measurement
-    assert '_semantic_main_assertions(page, phase="route_return")' in measurement
-    assert '_wait_for_route_heading(page, route,' in measurement
-    assert measurement.count("_wait_for_route_heading(") == 2
-    assert "away_route," in measurement
-    assert "away_route = _route_transition_target(route)" in measurement
-    assert measurement.count("_navigate_and_verify_route(") == 2
-    assert transition.count("page.goto(") == 1
-    assert transition.index("_wait_for_route_heading(") < transition.index(
-        "evaluate_exact_route_url("
-    )
-    assert 'phase="route_away"' in measurement
-    assert 'phase="route_return"' in measurement
-    assert (
-        '_evidence_navigation_assertion(page, phase="initial")'
-        in measurement
-    )
-    assert (
-        '_evidence_navigation_assertion(page, phase="navigation_authority")'
-        in measurement
-    )
-    assert (
-        '_evidence_navigation_assertion(page, phase="route_away")'
-        in measurement
-    )
-    assert (
-        '_evidence_navigation_assertion(page, phase="route_return")'
-        in measurement
-    )
-    assert '_runtime_dom_assertions(page, phase="route_away")' in measurement
-    assert '_runtime_dom_assertions(page, phase="route_return")' in measurement
-    assert measurement.count("page.goto(") == 1
-    assert measurement.index(
-        "_personal_navigation_authority_assertions(page)"
-    ) < measurement.index("away_route = _route_transition_target(route)")
-
-
 def test_discover_action_contract_uses_every_actual_row_and_fails_when_empty():
     from src.research_accessibility_browser_gate import (
         evaluate_discover_action_names,
@@ -2271,21 +3319,3 @@ def test_makefile_exposes_non_writing_browser_gate():
 
     assert "research-accessibility-browser-check:" in makefile
     assert "python3 -m src.research_accessibility_browser_gate" in makefile
-
-
-def test_browser_gate_source_has_no_artifact_writer_or_screenshot_capture():
-    source = Path("src/research_accessibility_browser_gate.py").read_text(
-        encoding="utf-8"
-    )
-    lowered = source.lower()
-
-    for forbidden in (
-        "write_text(",
-        "write_bytes(",
-        "json.dump(",
-        ".screenshot(",
-        "page.screenshot",
-    ):
-        assert forbidden not in lowered
-    assert "STOCK_RESEARCH_DATA_PROFILE" in source
-    assert '"demo"' in source

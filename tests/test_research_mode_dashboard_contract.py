@@ -2225,10 +2225,12 @@ def test_company_workbench_html_brief_is_research_only_and_follows_the_module_ga
         "if research_mode and not single_stock_detail_sections_visible(ticker):",
         primary_brief,
     )
+    constructor = report.index("CompanyWorkbenchHtmlInputs(", module_gate)
     brief = report.index('st.expander("HTML Research Brief", expanded=False)', module_gate)
     detail_gate = report.index("if public_mode and report_payload", brief)
 
-    assert research_block < primary_brief < module_gate < brief < detail_gate
+    assert research_block < primary_brief < module_gate < constructor < brief < detail_gate
+    assert report.count("CompanyWorkbenchHtmlInputs(") == 1
     assert report.count('st.expander("HTML Research Brief", expanded=False)') == 1
     assert report.count('"Download HTML Research Brief"') == 1
     assert 'unsafe_allow_javascript=False' in report[brief:detail_gate]
@@ -2415,6 +2417,23 @@ def test_company_workbench_primary_actions_use_explicit_44px_browser_targets():
         "            min-height: 44px;\n"
         "        }"
     ) in styles
+
+
+def test_company_workbench_html_brief_download_target_is_a_keyed_44px_control():
+    """Catches a sub-44px brief download target or a rule leaking into other routes."""
+
+    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
+    styles_start = source.index("def render_research_workspace_styles()")
+    styles_end = source.index("\ndef render_research_workspace_header(", styles_start)
+    styles = source[styles_start:styles_end]
+
+    selector = '[class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button'
+    assert styles.count('[data-testid="stDownloadButton"]') == 1
+    download_start = styles.index(selector)
+    download_end = styles.index("}", download_start)
+    download_rule = styles[download_start:download_end]
+
+    assert "min-height: 44px;" in download_rule
 
 
 def test_company_workbench_uses_two_mobile_lanes_then_one_at_two_hundred_percent():
