@@ -494,8 +494,8 @@ def _synthetic_snapshot(state: str) -> CompanyWorkbenchHtmlSnapshot:
         source_ref=HtmlBriefSafeReference("Synthetic source", ""),
         as_of="2026-08-15T17:00:00-04:00",
         retrieved_at="2026-08-16T08:30:00-04:00",
-        rights_state=normalized,
-        field_scope_state=normalized,
+        rights_state="permitted",
+        field_scope_state="permitted",
         model_identity="synthetic-model",
         input_identity="synthetic-input",
         blockers=blocker,
@@ -811,6 +811,8 @@ def test_synthetic_fixture_contract_has_four_substantive_scope_valid_cases():
             "Bull",
         )
         assert len(snapshot.evidence_rows) == 1
+        assert snapshot.evidence_rows[0].rights_state == "permitted"
+        assert snapshot.evidence_rows[0].field_scope_state == "permitted"
         assert all(
             scenario.bridge.share_basis_state == "unverified"
             for scenario in snapshot.scenarios
