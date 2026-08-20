@@ -398,6 +398,57 @@ def test_sec_fundamentals_preview_is_explicit_capped_and_no_write():
     )
 
 
+def test_sec_fundamentals_patch_preview_launcher_is_explicit_and_no_write():
+    missing = subprocess.run(
+        ["make", "--dry-run", "sec-fundamentals-patch-preview"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing.returncode != 0
+    assert "SEC_PREVIEW is required" in missing.stderr
+
+    missing_hashes = subprocess.run(
+        [
+            "make",
+            "--dry-run",
+            "sec-fundamentals-patch-preview",
+            "SEC_PREVIEW=/tmp/reviewed-sec-preview.json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing_hashes.returncode != 0
+    assert "EXPECTED_SEC_PREVIEW_SHA256 is required" in missing_hashes.stderr
+
+    result = subprocess.run(
+        [
+            "make",
+            "--dry-run",
+            "sec-fundamentals-patch-preview",
+            "SEC_PREVIEW=/tmp/reviewed-sec-preview.json",
+            f"EXPECTED_SEC_PREVIEW_SHA256={'1' * 64}",
+            f"EXPECTED_CANONICAL_SHA256={'2' * 64}",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert (
+        "PYTHONDONTWRITEBYTECODE=1 python3 -m src.sec_fundamentals_patch_preview "
+        "--sec-preview-path \"/tmp/reviewed-sec-preview.json\" "
+        "--canonical-path \"data/fundamentals.csv\" "
+        f"--expected-sec-preview-sha256 \"{'1' * 64}\" "
+        f"--expected-canonical-sha256 \"{'2' * 64}\""
+        in result.stdout
+    )
+    assert re.search(r'--repository-head "[0-9a-f]{40}"', result.stdout)
+    for forbidden in ("--output", "apply", "readiness", "materialize", "provider"):
+        assert forbidden not in result.stdout.lower()
+
+
 def test_reviewed_batch_packet_targets_forward_one_named_profile():
     makefile = Path("Makefile").read_text(encoding="utf-8")
     for target in ("reviewed-batch", "fundamentals-batch-proof", "peer-batch-proof"):

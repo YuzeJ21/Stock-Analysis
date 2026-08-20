@@ -357,6 +357,7 @@ help-full:
 	@echo "  export SEC_USER_AGENT='Name email@example.com'"
 	@echo "  make sec-stage TICKERS=NVDA,MSFT"
 	@echo "  make sec-fundamentals-preview TICKERS=AAPL,NVDA,AMD Official SEC annual comparison; max five explicit tickers; no cache, staging, or apply writes"
+	@echo "  make sec-fundamentals-patch-preview SEC_PREVIEW=/tmp/reviewed-sec-preview.json EXPECTED_SEC_PREVIEW_SHA256=<sha256> EXPECTED_CANONICAL_SHA256=<sha256> Exact reviewed-cell projection; drift fails closed; no writes or apply"
 	@echo "  make yfinance-stage TICKERS=NVDA"
 	@echo "  make fundamentals-source-ladder TICKERS=NVDA"
 	@echo "                        Try SEC, yfinance, FMP, Alpha Vantage, then Finnhub before stopping at reviewed blocker evidence"
@@ -1285,6 +1286,19 @@ ifndef TICKERS
 	$(error TICKERS is required, for example: make sec-fundamentals-preview TICKERS=AAPL,NVDA,AMD)
 endif
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.sec_fundamentals_preview --tickers "$(TICKERS)"
+
+.PHONY: sec-fundamentals-patch-preview
+sec-fundamentals-patch-preview:
+ifndef SEC_PREVIEW
+	$(error SEC_PREVIEW is required, for example: make sec-fundamentals-patch-preview SEC_PREVIEW=/tmp/reviewed-sec-preview.json)
+endif
+ifndef EXPECTED_SEC_PREVIEW_SHA256
+	$(error EXPECTED_SEC_PREVIEW_SHA256 is required)
+endif
+ifndef EXPECTED_CANONICAL_SHA256
+	$(error EXPECTED_CANONICAL_SHA256 is required)
+endif
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.sec_fundamentals_patch_preview --sec-preview-path "$(SEC_PREVIEW)" --canonical-path "$(or $(CANONICAL_PATH),data/fundamentals.csv)" --expected-sec-preview-sha256 "$(EXPECTED_SEC_PREVIEW_SHA256)" --expected-canonical-sha256 "$(EXPECTED_CANONICAL_SHA256)" --repository-head "$(shell git rev-parse HEAD)"
 
 demo-dashboard-render-smoke:
 	@STOCK_RESEARCH_DATA_PROFILE=demo python3 -m src.dashboard_render_smoke
