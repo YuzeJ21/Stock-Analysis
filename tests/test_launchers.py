@@ -449,6 +449,57 @@ def test_sec_fundamentals_patch_preview_launcher_is_explicit_and_no_write():
         assert forbidden not in result.stdout.lower()
 
 
+def test_sec_fundamentals_patch_apply_launcher_requires_exact_hashes_and_confirmation():
+    missing = subprocess.run(
+        ["make", "--dry-run", "sec-fundamentals-patch-apply"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert missing.returncode != 0
+    assert "PATCH_PREVIEW is required" in missing.stderr
+
+    unconfirmed = subprocess.run(
+        [
+            "make",
+            "--dry-run",
+            "sec-fundamentals-patch-apply",
+            "PATCH_PREVIEW=/tmp/reviewed-patch.json",
+            f"EXPECTED_PATCH_PREVIEW_SHA256={'1' * 64}",
+            f"EXPECTED_CANONICAL_SHA256={'2' * 64}",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert unconfirmed.returncode != 0
+    assert "CONFIRM_EXACT_FOUR_CELL_APPLY=1 is required" in unconfirmed.stderr
+
+    result = subprocess.run(
+        [
+            "make",
+            "--dry-run",
+            "sec-fundamentals-patch-apply",
+            "PATCH_PREVIEW=/tmp/reviewed-patch.json",
+            f"EXPECTED_PATCH_PREVIEW_SHA256={'1' * 64}",
+            f"EXPECTED_CANONICAL_SHA256={'2' * 64}",
+            "CONFIRM_EXACT_FOUR_CELL_APPLY=1",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "python3 -m src.sec_fundamentals_patch_apply" in result.stdout
+    assert '--patch-preview-path "/tmp/reviewed-patch.json"' in result.stdout
+    assert '--expected-patch-preview-sha256 "' + ("1" * 64) + '"' in result.stdout
+    assert '--expected-canonical-sha256 "' + ("2" * 64) + '"' in result.stdout
+    assert re.search(r'--repository-head "[0-9a-f]{40}"', result.stdout)
+    assert "--authorize-exact-four-cell-apply" in result.stdout
+    for forbidden in ("readiness-materialize", "imports-apply", "provider", "currency"):
+        assert forbidden not in result.stdout.lower()
+
+
 def test_reviewed_batch_packet_targets_forward_one_named_profile():
     makefile = Path("Makefile").read_text(encoding="utf-8")
     for target in ("reviewed-batch", "fundamentals-batch-proof", "peer-batch-proof"):
