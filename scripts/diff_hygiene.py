@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import subprocess
 from shlex import quote
@@ -173,6 +174,21 @@ def resolve_commit(repo_root: Path, revision: str, *, label: str) -> str:
     return result.stdout.strip()
 
 
+def resolve_merge_base(
+    repo_root: Path, base_revision: str, head_revision: str
+) -> str:
+    base_sha = resolve_commit(repo_root, base_revision, label="range base")
+    head_sha = resolve_commit(repo_root, head_revision, label="range head")
+    result = subprocess.run(
+        ["git", "merge-base", base_sha, head_sha],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
 def load_range_status(
     repo_root: Path, base_revision: str, head_revision: str
 ) -> list[StatusEntry]:
@@ -208,6 +224,43 @@ def load_staged_added_lines(repo_root: Path, path: str) -> list[str]:
             continue
         rows.append(line[1:])
     return rows
+
+
+def load_range_added_lines(
+    repo_root: Path, base_revision: str, head_revision: str, path: str
+) -> list[str]:
+    base_sha = resolve_commit(repo_root, base_revision, label="range base")
+    head_sha = resolve_commit(repo_root, head_revision, label="range head")
+    result = subprocess.run(
+        [
+            "git",
+            "diff",
+            "--unified=0",
+            f"{base_sha}...{head_sha}",
+            "--",
+            path,
+        ],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return [
+        line[1:]
+        for line in result.stdout.splitlines()
+        if line.startswith("+") and not line.startswith("+++")
+    ]
+
+
+def load_revision_file(repo_root: Path, revision: str, path: str) -> bytes:
+    commit = resolve_commit(repo_root, revision, label="range revision")
+    result = subprocess.run(
+        ["git", "show", f"{commit}:{path}"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
+    return result.stdout
 
 
 def load_branch_status(repo_root: Path) -> str:
@@ -564,10 +617,178 @@ def range_hygiene_has_blockers(entries: list[StatusEntry]) -> bool:
     return bool(group_entries(entries)["generated_csv_churn"])
 
 
+def _csv_changed_cells(before: bytes, after: bytes) -> tuple[str, ...] | None:
+    try:
+        before_rows = list(csv.reader(before.decode("utf-8").splitlines()))
+        after_rows = list(csv.reader(after.decode("utf-8").splitlines()))
+    except (UnicodeDecodeError, csv.Error):
+        return None
+    if not before_rows or not after_rows or before_rows[0] != after_rows[0]:
+        return None
+    header = before_rows[0]
+    if not header or header[0].strip().lower() != "ticker":
+        return None
+    if len(before_rows) != len(after_rows):
+        return None
+    changed: list[str] = []
+    for before_row, after_row in zip(before_rows[1:], after_rows[1:]):
+        if (
+            len(before_row) != len(header)
+            or len(after_row) != len(header)
+            or before_row[0] != after_row[0]
+        ):
+            return None
+        ticker = before_row[0].strip().upper()
+        if not ticker:
+            return None
+        for index, column in enumerate(header[1:], start=1):
+            if before_row[index] != after_row[index]:
+                changed.append(f"{ticker}:{column.strip()}")
+    return tuple(changed)
+
+
+def _is_sha256(value: object) -> bool:
+    text = str(value or "").strip().lower()
+    return len(text) == 64 and all(character in "0123456789abcdef" for character in text)
+
+
+def _range_fundamentals_proof_matches(
+    repo_root: Path,
+    *,
+    base_revision: str,
+    head_revision: str,
+    path: str,
+) -> bool:
+    try:
+        merge_base = resolve_merge_base(repo_root, base_revision, head_revision)
+        before = load_revision_file(repo_root, merge_base, path)
+        after = load_revision_file(repo_root, head_revision, path)
+    except subprocess.CalledProcessError:
+        return False
+    changed_cells = _csv_changed_cells(before, after)
+    if not changed_cells:
+        return False
+    changed_tickers = {cell.split(":", 1)[0] for cell in changed_cells}
+    before_sha256 = hashlib.sha256(before).hexdigest()
+    after_sha256 = hashlib.sha256(after).hexdigest()
+    proof_lines = load_range_added_lines(
+        repo_root,
+        base_revision,
+        head_revision,
+        "data/reviewed_batch_proofs.csv",
+    )
+    for line in proof_lines:
+        try:
+            parts = next(csv.reader([line]))
+        except csv.Error:
+            continue
+        if len(parts) < 18:
+            continue
+        lane = parts[3].strip().lower()
+        proof_ticker_tokens = [
+            token.strip().upper()
+            for token in parts[5].replace(";", ",").split(",")
+            if token.strip()
+        ]
+        applied_ticker_tokens = [
+            token.strip().upper()
+            for token in parts[13].replace(";", ",").split(",")
+            if token.strip()
+        ]
+        proof_tickers = set(proof_ticker_tokens)
+        applied_tickers = set(applied_ticker_tokens)
+        source_paths = {
+            token.strip() for token in parts[14].split(";") if token.strip()
+        }
+        outcome = parts[-2].strip().lower()
+        if (
+            lane != "fundamentals"
+            or outcome not in SUPPORTED_REVIEW_OUTCOMES
+            or len(proof_ticker_tokens) != len(proof_tickers)
+            or len(applied_ticker_tokens) != len(applied_tickers)
+            or proof_tickers != changed_tickers
+            or applied_tickers != changed_tickers
+            or path not in source_paths
+            or not parts[9].strip().lower().startswith("applied")
+        ):
+            continue
+        try:
+            binding = json.loads(parts[-1])
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(binding, dict):
+            continue
+        if (
+            binding.get("canonical_before_sha256") != before_sha256
+            or binding.get("canonical_after_sha256") != after_sha256
+            or binding.get("readiness_mutated") is not False
+            or tuple(binding.get("changed_cells", ())) != changed_cells
+            or not _is_sha256(binding.get("patch_preview_sha256"))
+            or not _is_sha256(binding.get("apply_receipt_sha256"))
+        ):
+            continue
+        return True
+    return False
+
+
+def range_hygiene_blockers_for_repo(
+    entries: list[StatusEntry],
+    repo_root: Path,
+    base_revision: str,
+    head_revision: str,
+) -> dict[str, list[StatusEntry]]:
+    groups = group_entries(entries)
+    reviewed: list[StatusEntry] = []
+    for entry in groups["generated_csv_churn"]:
+        if entry.path == "data/fundamentals.csv" and _range_fundamentals_proof_matches(
+            repo_root,
+            base_revision=base_revision,
+            head_revision=head_revision,
+            path=entry.path,
+        ):
+            reviewed.append(entry)
+    reviewed_paths = {entry.path for entry in reviewed}
+    return {
+        "generated_csv_churn": [
+            entry
+            for entry in groups["generated_csv_churn"]
+            if entry.path not in reviewed_paths
+        ],
+        "reviewed_canonical_data": reviewed,
+    }
+
+
+def range_hygiene_has_blockers_for_repo(
+    entries: list[StatusEntry],
+    repo_root: Path,
+    base_revision: str,
+    head_revision: str,
+) -> bool:
+    return bool(
+        range_hygiene_blockers_for_repo(
+            entries, repo_root, base_revision, head_revision
+        )["generated_csv_churn"]
+    )
+
+
 def build_range_check_report(
-    entries: list[StatusEntry], base_revision: str, head_revision: str
+    entries: list[StatusEntry],
+    base_revision: str,
+    head_revision: str,
+    *,
+    repo_root: Path | None = None,
 ) -> str:
     groups = group_entries(entries)
+    blockers = (
+        range_hygiene_blockers_for_repo(
+            entries, repo_root, base_revision, head_revision
+        )
+        if repo_root is not None
+        else {
+            "generated_csv_churn": groups["generated_csv_churn"],
+            "reviewed_canonical_data": [],
+        }
+    )
     lines = [
         "Pull Request Range Hygiene Check",
         "Read-only: this command inspects committed paths and does not modify the working tree.",
@@ -578,13 +799,13 @@ def build_range_check_report(
         format_count_line("Generated CSV/JSON churn", groups["generated_csv_churn"]),
         format_count_line("Manual-review paths", groups["review_manually"]),
     ]
-    if range_hygiene_has_blockers(entries):
+    if blockers["generated_csv_churn"]:
         lines.extend(
             [
                 "",
                 "Pull-request range hygiene failed.",
                 "Generated CSV/JSON churn is present in the explicit base/head range:",
-                *format_paths(groups["generated_csv_churn"], limit=80),
+                *format_paths(blockers["generated_csv_churn"], limit=80),
             ]
         )
     else:
@@ -592,7 +813,15 @@ def build_range_check_report(
             [
                 "",
                 "Pull-request range hygiene passed.",
-                "No generated CSV/JSON churn is present in the explicit base/head range.",
+                "No unreviewed generated CSV/JSON churn is present in the explicit base/head range.",
+            ]
+        )
+    if blockers["reviewed_canonical_data"]:
+        lines.extend(
+            [
+                "",
+                "Reviewed canonical data accepted by proof ledger:",
+                *format_paths(blockers["reviewed_canonical_data"], limit=80),
             ]
         )
     if groups["review_manually"]:
@@ -1275,8 +1504,21 @@ def main() -> int:
             entries = load_range_status(repo_root, args.range_base, args.range_head)
         except ValueError as exc:
             parser.error(str(exc))
-        print(build_range_check_report(entries, args.range_base, args.range_head))
-        return 1 if range_hygiene_has_blockers(entries) else 0
+        print(
+            build_range_check_report(
+                entries,
+                args.range_base,
+                args.range_head,
+                repo_root=repo_root,
+            )
+        )
+        return (
+            1
+            if range_hygiene_has_blockers_for_repo(
+                entries, repo_root, args.range_base, args.range_head
+            )
+            else 0
+        )
     if args.staged_check:
         entries = load_staged_status(repo_root)
         print(build_staged_check_report(entries, repo_root))

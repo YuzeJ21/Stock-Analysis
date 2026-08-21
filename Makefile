@@ -1300,6 +1300,22 @@ ifndef EXPECTED_CANONICAL_SHA256
 endif
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.sec_fundamentals_patch_preview --sec-preview-path "$(SEC_PREVIEW)" --canonical-path "$(or $(CANONICAL_PATH),data/fundamentals.csv)" --expected-sec-preview-sha256 "$(EXPECTED_SEC_PREVIEW_SHA256)" --expected-canonical-sha256 "$(EXPECTED_CANONICAL_SHA256)" --repository-head "$(shell git rev-parse HEAD)"
 
+.PHONY: sec-fundamentals-patch-apply
+sec-fundamentals-patch-apply:
+ifndef PATCH_PREVIEW
+	$(error PATCH_PREVIEW is required, for example: make sec-fundamentals-patch-apply PATCH_PREVIEW=/tmp/reviewed-patch.json)
+endif
+ifndef EXPECTED_PATCH_PREVIEW_SHA256
+	$(error EXPECTED_PATCH_PREVIEW_SHA256 is required)
+endif
+ifndef EXPECTED_CANONICAL_SHA256
+	$(error EXPECTED_CANONICAL_SHA256 is required)
+endif
+ifneq ($(CONFIRM_EXACT_FOUR_CELL_APPLY),1)
+	$(error CONFIRM_EXACT_FOUR_CELL_APPLY=1 is required)
+endif
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.sec_fundamentals_patch_apply --patch-preview-path "$(PATCH_PREVIEW)" --canonical-path "$(or $(CANONICAL_PATH),data/fundamentals.csv)" --expected-patch-preview-sha256 "$(EXPECTED_PATCH_PREVIEW_SHA256)" --expected-canonical-sha256 "$(EXPECTED_CANONICAL_SHA256)" --repository-head "$(shell git rev-parse HEAD)" --authorize-exact-four-cell-apply
+
 demo-dashboard-render-smoke:
 	@STOCK_RESEARCH_DATA_PROFILE=demo python3 -m src.dashboard_render_smoke
 

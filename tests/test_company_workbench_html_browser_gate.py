@@ -2519,6 +2519,56 @@ def test_media_css_settlement_proves_each_observed_transition_and_cleans_probe()
     assert all(item["browser_version"] for item in evidence)
 
 
+def test_visible_waits_for_post_scroll_geometry_to_settle():
+    document = b"""<!doctype html>
+<html><body style="margin:0">
+<div style="height:1600px"></div>
+<div id="target" style="height:100px">Target</div>
+</body></html>"""
+
+    def observe(page):
+        page.evaluate(
+            """() => {
+                const target = document.querySelector('#target');
+                const nativeRect = target.getBoundingClientRect.bind(target);
+                const nativeScrollTo = window.scrollTo.bind(window);
+                let geometrySettled = true;
+                target.getBoundingClientRect = () => {
+                    const rect = nativeRect();
+                    if (geometrySettled) return rect;
+                    return {
+                        x: rect.x,
+                        y: -2000,
+                        left: rect.left,
+                        right: rect.right,
+                        top: -2000,
+                        bottom: -1900,
+                        width: rect.width,
+                        height: rect.height,
+                        toJSON: () => ({}),
+                    };
+                };
+                window.scrollTo = (...args) => {
+                    geometrySettled = false;
+                    nativeScrollTo(...args);
+                    let remainingFrames = 6;
+                    const settleGeometry = () => {
+                        remainingFrames -= 1;
+                        if (remainingFrames === 0) {
+                            geometrySettled = true;
+                            return;
+                        }
+                        requestAnimationFrame(settleGeometry);
+                    };
+                    requestAnimationFrame(settleGeometry);
+                };
+            }"""
+        )
+        return browser_gate._visible(page, "#target")
+
+    assert _run_actual_browser_page(document, observe) is True
+
+
 def test_media_css_settlement_timeout_fails_closed_with_diagnostics_and_cleanup():
     sabotaged = _append_test_css(
         _synthetic_brief("complete"),
