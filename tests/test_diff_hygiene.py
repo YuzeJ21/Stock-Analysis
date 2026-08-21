@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import importlib.util
 import json
 import subprocess
@@ -62,6 +63,214 @@ def test_pr_range_hygiene_inspects_committed_range_not_clean_worktree(tmp_path: 
     assert "Pull Request Range Hygiene Check" in report
     assert "data/reports/readiness.json" in report
     assert "failed" in report.lower()
+
+
+def _reviewed_fundamentals_range(
+    tmp_path: Path,
+    *,
+    proof_tickers: str = "AAPL,AMD",
+    canonical_after_sha256: str = (
+        "8cb2f4024aadd0a2171c1d0754093fc6efed82b922f99643daeca57472a4a1c6"
+    ),
+    add_unreviewed_generated_file: bool = False,
+    diverged_base: bool = False,
+) -> tuple[object, Path, str, str]:
+    module = load_diff_hygiene_module()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def git(*args: str) -> str:
+        result = subprocess.run(
+            ["git", *args], cwd=repo, check=True, capture_output=True, text=True
+        )
+        return result.stdout.strip()
+
+    git("init", "-b", "main")
+    git("config", "user.name", "Range Test")
+    git("config", "user.email", "range@example.invalid")
+    data_dir = repo / "data"
+    data_dir.mkdir()
+    fundamentals = data_dir / "fundamentals.csv"
+    fundamentals.write_text(
+        "ticker,revenue,sec_filed_date\n"
+        "AAPL,265595000000.0,2018-11-05\n"
+        "AMD,5329000000.0,2018-02-27\n",
+        encoding="utf-8",
+    )
+    proof = data_dir / "reviewed_batch_proofs.csv"
+    proof.write_text(
+        "batch_id,review_date,reviewer,lane,scope,tickers,command_run,"
+        "validation_result,preview_result,apply_result,"
+        "pre_run_readiness_snapshot,post_run_readiness_snapshot,"
+        "changed_readiness_counts,changed_tickers,source_files,"
+        "generated_artifacts_reviewed,final_outcome,notes\n",
+        encoding="utf-8",
+    )
+    git("add", "data/fundamentals.csv", "data/reviewed_batch_proofs.csv")
+    git("commit", "-m", "base")
+    base_sha = git("rev-parse", "HEAD")
+    git("switch", "-c", "feature")
+
+    fundamentals.write_text(
+        "ticker,revenue,sec_filed_date\n"
+        "AAPL,416161000000.0,2025-10-31\n"
+        "AMD,34639000000.0,2026-02-04\n",
+        encoding="utf-8",
+    )
+    proof_binding = {
+        "apply_receipt_sha256": "2" * 64,
+        "canonical_after_sha256": canonical_after_sha256,
+        "canonical_before_sha256": (
+            "a20d5d39714b519d9580871d4a1287744f8ce57506e6f085b384518ba5e73624"
+        ),
+        "changed_cells": [
+            "AAPL:revenue",
+            "AAPL:sec_filed_date",
+            "AMD:revenue",
+            "AMD:sec_filed_date",
+        ],
+        "patch_preview_sha256": "1" * 64,
+        "readiness_mutated": False,
+    }
+    with proof.open("a", encoding="utf-8", newline="") as handle:
+        csv.writer(handle).writerow(
+            [
+                "RB-SEC-4",
+                "2026-08-20",
+                "Owner",
+                "fundamentals",
+                "Exact four-cell SEC apply",
+                proof_tickers,
+                "hash-guarded apply",
+                "valid",
+                "reviewed preview",
+                "applied",
+                "stale",
+                "stale",
+                "none",
+                "AAPL,AMD",
+                "data/fundamentals.csv",
+                "exact reviewed artifact",
+                "human_reviewed_supported",
+                json.dumps(proof_binding, sort_keys=True, separators=(",", ":")),
+            ]
+        )
+    git("add", "data/fundamentals.csv", "data/reviewed_batch_proofs.csv")
+    if add_unreviewed_generated_file:
+        readiness = data_dir / "reports" / "readiness.json"
+        readiness.parent.mkdir()
+        readiness.write_text("{}\n", encoding="utf-8")
+        git("add", "data/reports/readiness.json")
+    git("commit", "-m", "reviewed fundamentals")
+    head_sha = git("rev-parse", "HEAD")
+    if diverged_base:
+        git("switch", "main")
+        fundamentals.write_text(
+            "ticker,revenue,sec_filed_date\n"
+            "AAPL,265595000000.0,2018-11-05\n"
+            "AMD,5329000000.0,2018-02-27\n"
+            "GOOG,1000000000.0,2026-08-20\n",
+            encoding="utf-8",
+        )
+        git("add", "data/fundamentals.csv")
+        git("commit", "-m", "advance base")
+        base_sha = git("rev-parse", "HEAD")
+        git("switch", "feature")
+    return module, repo, base_sha, head_sha
+
+
+def test_pr_range_hygiene_accepts_proof_backed_fundamentals(tmp_path: Path):
+    module, repo, base_sha, head_sha = _reviewed_fundamentals_range(tmp_path)
+    entries = module.load_range_status(repo, base_sha, head_sha)
+
+    report = module.build_range_check_report(
+        entries, base_sha, head_sha, repo_root=repo
+    )
+
+    assert module.range_hygiene_has_blockers_for_repo(
+        entries, repo, base_sha, head_sha
+    ) is False
+    assert "Pull-request range hygiene passed." in report
+    assert "Reviewed canonical data accepted by proof ledger:" in report
+    assert "data/fundamentals.csv" in report
+
+
+def test_pr_range_hygiene_uses_merge_base_for_proof_binding(tmp_path: Path):
+    module, repo, base_sha, head_sha = _reviewed_fundamentals_range(
+        tmp_path, diverged_base=True
+    )
+    entries = module.load_range_status(repo, base_sha, head_sha)
+
+    assert module.range_hygiene_has_blockers_for_repo(
+        entries, repo, base_sha, head_sha
+    ) is False
+
+
+def test_pr_range_hygiene_blocks_fundamentals_with_incomplete_ticker_proof(
+    tmp_path: Path,
+):
+    module, repo, base_sha, head_sha = _reviewed_fundamentals_range(
+        tmp_path, proof_tickers="AAPL"
+    )
+    entries = module.load_range_status(repo, base_sha, head_sha)
+
+    assert module.range_hygiene_has_blockers_for_repo(
+        entries, repo, base_sha, head_sha
+    ) is True
+
+
+def test_pr_range_hygiene_blocks_fundamentals_with_extra_ticker_proof(
+    tmp_path: Path,
+):
+    module, repo, base_sha, head_sha = _reviewed_fundamentals_range(
+        tmp_path, proof_tickers="AAPL,AMD,NVDA"
+    )
+    entries = module.load_range_status(repo, base_sha, head_sha)
+
+    assert module.range_hygiene_has_blockers_for_repo(
+        entries, repo, base_sha, head_sha
+    ) is True
+
+
+def test_pr_range_hygiene_blocks_duplicate_ticker_proof(tmp_path: Path):
+    module, repo, base_sha, head_sha = _reviewed_fundamentals_range(
+        tmp_path, proof_tickers="AAPL,AAPL,AMD"
+    )
+    entries = module.load_range_status(repo, base_sha, head_sha)
+
+    assert module.range_hygiene_has_blockers_for_repo(
+        entries, repo, base_sha, head_sha
+    ) is True
+
+
+def test_pr_range_hygiene_blocks_fundamentals_with_wrong_canonical_hash(
+    tmp_path: Path,
+):
+    module, repo, base_sha, head_sha = _reviewed_fundamentals_range(
+        tmp_path, canonical_after_sha256="0" * 64
+    )
+    entries = module.load_range_status(repo, base_sha, head_sha)
+
+    assert module.range_hygiene_has_blockers_for_repo(
+        entries, repo, base_sha, head_sha
+    ) is True
+
+
+def test_pr_range_hygiene_keeps_unreviewed_generated_files_blocked(
+    tmp_path: Path,
+):
+    module, repo, base_sha, head_sha = _reviewed_fundamentals_range(
+        tmp_path, add_unreviewed_generated_file=True
+    )
+    entries = module.load_range_status(repo, base_sha, head_sha)
+    report = module.build_range_check_report(
+        entries, base_sha, head_sha, repo_root=repo
+    )
+
+    assert module.range_hygiene_has_blockers_for_repo(
+        entries, repo, base_sha, head_sha
+    ) is True
+    assert "data/reports/readiness.json" in report
 
 
 def test_diff_hygiene_keeps_markdown_reports_as_reviewable_examples():
