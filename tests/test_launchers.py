@@ -165,6 +165,41 @@ def test_readiness_evidence_remediation_make_is_deterministic_json_and_write_fre
     assert _tree_manifest(root) == before
 
 
+def test_golden_evidence_cohort_make_is_deterministic_json_and_write_free():
+    root = Path.cwd()
+    before = _tree_manifest(root)
+
+    first = subprocess.run(
+        ["make", "--no-print-directory", "golden-evidence-cohort", "TOP_N=5", "JSON=1"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+    second = subprocess.run(
+        ["make", "--no-print-directory", "golden-evidence-cohort", "TOP_N=5", "JSON=1"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+
+    assert first.returncode == 0, first.stderr
+    assert second.returncode == 0, second.stderr
+    assert first.stdout == second.stdout
+    payload = json.loads(first.stdout)
+    assert [member["ticker"] for member in payload["members"]] == ["AMD", "AVGO", "COHR", "ABAT", "QQQ"]
+    assert payload["inspection_only"] is True
+    assert payload["canonical_apply_authorized"] is False
+    assert payload["readiness_materialization_authorized"] is False
+    assert payload["source_rights_change_authorized"] is False
+    assert payload["recommendation_authorized"] is False
+    assert payload["repository_writes"] == []
+    assert _tree_manifest(root) == before
+
+
 def test_interview_brief_local_artifact_boundary_is_narrow():
     expected_local = (
         "output/documents/Stock_Research_Command_Center_Interview_Brief.docx",
