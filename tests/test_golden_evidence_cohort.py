@@ -494,6 +494,29 @@ def test_exact_rights_action_lists_only_the_unresolved_exact_source_identifiers(
     assert "approved_fundamentals" not in bbb.next_evidence_review_action
 
 
+def test_unresolved_composite_fundamental_rights_drive_the_primary_owner_action():
+    member = _packet().members[0]
+
+    assert member.source_identifiers == (
+        "approved_fundamentals; filing_document",
+        "approved_prices",
+    )
+    assert member.source_rights_states == (
+        "approved_fundamentals; filing_document:unknown_source",
+        "approved_prices:approved",
+    )
+    assert member.independent_blockers[:2] == (
+        "exact_source_rights",
+        "registered_field_scope",
+    )
+    assert member.state == "withheld_exact_source_rights"
+    assert member.owner_decision_required is True
+    assert member.next_evidence_review_action == (
+        "Owner decision required for exact-source commercial rights on AAA: "
+        "approved_fundamentals; filing_document; keep identifiers intact."
+    )
+
+
 def test_owner_decision_requires_only_rights_or_registered_scope_authority():
     full_registry = {
         **_registry(),

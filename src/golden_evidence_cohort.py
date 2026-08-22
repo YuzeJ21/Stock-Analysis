@@ -202,12 +202,12 @@ def _fundamental_evidence(
     ticker: str,
     rows_by_ticker: Mapping[str, tuple[pd.Series, ...]],
     rights_registry: Mapping[str, SourceRights],
-) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...]]:
-    """Return usable lanes, source ids, rights states, scope gaps, and provenance gaps."""
+) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...], str | None]:
+    """Return fundamental evidence plus its separate exact-source rights status."""
 
     rows = rows_by_ticker.get(ticker, ())
     if len(rows) != 1:
-        return (), (), (), FUNDAMENTAL_SCOPE_FIELDS, ("fundamentals_row",)
+        return (), (), (), FUNDAMENTAL_SCOPE_FIELDS, ("fundamentals_row",), None
     row = rows[0]
     source_id = _text(row.get("source"))
     source_ref = _text(row.get("source_ref")) or _text(row.get("sec_accession"))
@@ -235,7 +235,14 @@ def _fundamental_evidence(
             usable.append("filing_date")
     source_ids = (source_id,) if source_id else ()
     rights = (f"{source_id}:{scope.rights_status}",) if source_id else ("<missing>:unknown_source",)
-    return tuple(usable), source_ids, rights, scope.missing_supported_fields, provenance
+    return (
+        tuple(usable),
+        source_ids,
+        rights,
+        scope.missing_supported_fields,
+        provenance,
+        scope.rights_status,
+    )
 
 
 def _candidate_groups(packet: ReadinessEvidenceRemediation) -> dict[str, tuple[ReadinessRemediationCandidate, ...]]:
@@ -302,7 +309,7 @@ def _member(
     candidate_rows: tuple[ReadinessRemediationCandidate, ...] = (),
     method_fit: tuple[str, ...] = (),
 ) -> GoldenEvidenceMember:
-    usable, sources, rights, missing_scope, provenance = _fundamental_evidence(
+    usable, sources, rights, missing_scope, provenance, fundamental_rights_status = _fundamental_evidence(
         ticker, fundamentals, rights_registry
     )
     price = _price_evidence(
@@ -330,12 +337,17 @@ def _member(
         }
     )
     blockers = list(_merged_candidate_blockers(candidate_rows))
+    unresolved_sources: list[str] = []
+    if fundamental_rights_status is not None and fundamental_rights_status != "approved":
+        blockers.append("exact_source_rights")
+        unresolved_sources.extend(sources or ("<missing>",))
     if price_lineage:
         blockers.append("price_lineage")
     if temporal:
         blockers.append("temporal_evidence")
     if price.rights_status != "approved":
         blockers.append("exact_source_rights")
+        unresolved_sources.append(price.source_id)
     if price.missing_supported_fields:
         blockers.append("registered_field_scope")
     if missing_scope:
@@ -365,6 +377,8 @@ def _member(
     withheld = _withheld_lanes(usable, method_fit=method_fit)
     if method_fit:
         state = "method_fit_excluded"
+    elif blockers and blockers[0] == "exact_source_rights":
+        state = _state_from_blockers(blockers)
     elif role == "saved_operating_company" and usable:
         state = "reviewable_saved_evidence"
     else:
@@ -380,12 +394,9 @@ def _member(
     elif blockers and blockers[0] == "temporal_evidence":
         next_action = f"Review the exact price retrieval timestamp and cutoff evidence for {ticker}."
     elif blockers and blockers[0] == "exact_source_rights":
-        unresolved_sources = tuple(
-            source for source in sources if f"{source}:approved" not in rights
-        )
         next_action = (
             f"Owner decision required for exact-source commercial rights on {ticker}: "
-            f"{' | '.join(unresolved_sources) or '<missing>'}; keep identifiers intact."
+            f"{' | '.join(_ordered_unique(unresolved_sources)) or '<missing>'}; keep identifiers intact."
         )
     elif blockers and blockers[0] == "registered_field_scope":
         next_action = (
