@@ -109,6 +109,9 @@ def test_compare_ignores_updated_at_but_reports_stable_fields():
 
     assert preview.status == "changes_detected"
     assert preview.changed_ticker_count == 1
+    assert preview.saved_snapshot_identity.startswith("sha256:")
+    assert preview.proposed_snapshot_identity.startswith("sha256:")
+    assert preview.saved_snapshot_identity != preview.proposed_snapshot_identity
     assert preview.changed_tickers[0].ticker == "AAA"
     assert preview.changed_tickers[0].fields == ("price_ready", "ready_features", "blocked_features")
 

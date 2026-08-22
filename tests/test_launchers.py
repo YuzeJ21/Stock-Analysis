@@ -132,6 +132,65 @@ def test_readiness_release_review_make_is_json_and_write_free():
     assert after_status == before_status
 
 
+def test_readiness_evidence_remediation_make_is_deterministic_json_and_write_free():
+    root = Path.cwd()
+    before = _tree_manifest(root)
+
+    first = subprocess.run(
+        ["make", "--no-print-directory", "readiness-evidence-remediation", "TOP_N=2", "JSON=1"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+    second = subprocess.run(
+        ["make", "--no-print-directory", "readiness-evidence-remediation", "TOP_N=2", "JSON=1"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+
+    assert first.returncode == 0, first.stderr
+    assert second.returncode == 0, second.stderr
+    assert first.stdout == second.stdout
+    payload = json.loads(first.stdout)
+    assert payload["status"] == "inspection_only"
+    assert payload["canonical_apply_authorized"] is False
+    assert payload["readiness_materialization_authorized"] is False
+    assert payload["source_rights_change_authorized"] is False
+    assert payload["repository_writes"] == []
+    assert _tree_manifest(root) == before
+
+
+def test_interview_brief_local_artifact_boundary_is_narrow():
+    expected_local = (
+        "output/documents/Stock_Research_Command_Center_Interview_Brief.docx",
+        "output/pdf/Stock_Research_Command_Center_Interview_Brief.pdf",
+        "output/source/Stock_Research_Command_Center_Interview_Brief.py",
+        "tmp/interview_brief/render/page-1.png",
+    )
+    ignored = subprocess.run(
+        ["git", "check-ignore", "--no-index", *expected_local],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    unrelated = subprocess.run(
+        ["git", "check-ignore", "--no-index", "output/unrelated.txt", "tmp/unrelated.txt"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert ignored.returncode == 0
+    assert ignored.stdout.splitlines() == list(expected_local)
+    assert unrelated.returncode == 1
+    assert unrelated.stdout == ""
+
+
 def test_make_reachability_tracks_every_target_on_recursive_multi_target_lines():
     makefile = Path("Makefile").read_text(encoding="utf-8")
 

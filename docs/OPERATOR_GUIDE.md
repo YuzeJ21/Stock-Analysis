@@ -76,8 +76,11 @@ Inspect readiness impact after changing reviewed source data or imports; do not 
 ```bash
 make pipeline  # no-write guarded composite verification
 make readiness-preview TOP_N=20
+make readiness-evidence-remediation TOP_N=20
 make project-status-check
 ```
+
+When the preview contains many technical promotions, `make readiness-evidence-remediation TOP_N=20` ranks the closest evidence-review candidates while keeping provenance, exact-source rights, registered field scope, price lineage, and timing blockers independent. Add `JSON=1` for deterministic structured stdout. The queue writes nothing and cannot apply canonical rows, change source rights, materialize readiness, or promote a ticker.
 
 An optional ignored local package requires explicit authorization through `CONFIRM_MATERIALIZE=1 make readiness-materialize PROFILE=<default|demo|local>` and is not tracked release evidence. `make readiness-release-review TOP_N=20` applies only when an exact existing tracked 18-file candidate has been separately identified for review.
 
