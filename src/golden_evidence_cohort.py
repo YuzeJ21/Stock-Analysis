@@ -351,6 +351,13 @@ def _member(
         and not price.missing_supported_fields
     ):
         usable = _ordered_unique(list(usable) + ["price_lineage"])
+    if (
+        saved_row is not None
+        and _truthy(saved_row.get("dcf_ready"))
+        and {"price_lineage", "revenue", "free_cash_flow", "fcf_margin", "shares_outstanding"}
+        <= set(usable)
+    ):
+        usable = _ordered_unique(list(usable) + ["dcf"])
     price_rights = (f"{price.source_id}:{price.rights_status}",)
     sources = _ordered_unique(list(sources) + [price.source_id])
     rights = _ordered_unique(list(rights) + list(price_rights))
@@ -363,10 +370,31 @@ def _member(
         state = _state_from_blockers(blockers)
     if role == "method_fit_exclusion":
         next_action = "Use a method appropriate to the saved fund or index evidence; keep company DCF excluded."
-    elif candidate_rows:
-        next_action = candidate_rows[0].next_review_instruction
+    elif blockers and blockers[0] == "price_lineage":
+        omissions = ", ".join(price_lineage) or "one unambiguous latest-price row"
+        next_action = (
+            f"Review exact latest-price lineage for {ticker}: {omissions}; "
+            "keep source or provider identity uninferred."
+        )
+    elif blockers and blockers[0] == "temporal_evidence":
+        next_action = f"Review the exact price retrieval timestamp and cutoff evidence for {ticker}."
+    elif blockers and blockers[0] == "exact_source_rights":
+        next_action = (
+            f"Owner decision required for exact-source commercial rights on {ticker}: "
+            f"{' | '.join(sources) or '<missing>'}; keep identifiers intact."
+        )
+    elif blockers and blockers[0] == "registered_field_scope":
+        next_action = (
+            f"Owner review required for registered field scope on {ticker}: "
+            f"{', '.join(_ordered_unique(list(missing_scope) + list(price.missing_supported_fields))) or 'required fields'}."
+        )
+    elif blockers and blockers[0] == "provenance":
+        next_action = (
+            f"Review exact fundamentals provenance for {ticker}: "
+            f"{', '.join(provenance) or 'one unambiguous fundamentals row'}; keep missing evidence uninferred."
+        )
     elif blockers:
-        next_action = "Review the listed independent evidence blockers before any separate owner decision."
+        next_action = f"Independent review must classify the primary evidence blocker for {ticker}."
     else:
         next_action = "Review saved evidence before any separate owner decision."
     return GoldenEvidenceMember(

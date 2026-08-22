@@ -390,3 +390,50 @@ def test_completed_price_and_fcf_evidence_is_usable_but_independent_blockers_rem
     assert not {"price_lineage", "free_cash_flow", "fcf_margin"} & set(bbb.withheld_evidence_lanes)
     assert "free_cash_flow" not in abat.usable_evidence_lanes
     assert "registered_field_scope" in abat.independent_blockers
+
+
+def test_saved_dcf_is_usable_only_with_all_completed_saved_core_evidence():
+    registry = {
+        **_registry(),
+        "approved_fundamentals": _rights(
+            "approved_fundamentals",
+            supported_fields=(
+                "revenue",
+                "free_cash_flow",
+                "fcf_margin",
+                "shares_outstanding",
+                "filing_dates",
+            ),
+        ),
+    }
+    completed = _packet(rights_registry=registry).members[1]
+    price_blocked = _packet(
+        rights_registry=registry,
+        prices=pd.DataFrame(
+            [
+                {
+                    "ticker": "BBB",
+                    "date": "2026-01-03",
+                    "close": 10.0,
+                    "source": "approved_prices",
+                    "source_ref": "price:BBB",
+                    "retrieved_at": "",
+                }
+            ]
+        ),
+    ).members[1]
+
+    assert "dcf" in completed.usable_evidence_lanes
+    assert "dcf" not in completed.withheld_evidence_lanes
+    assert "dcf" not in price_blocked.usable_evidence_lanes
+    assert "dcf" in price_blocked.withheld_evidence_lanes
+    assert "temporal_evidence" in price_blocked.independent_blockers
+
+
+def test_control_next_action_matches_the_merged_primary_price_lineage_blocker():
+    abat = _packet().members[3]
+
+    assert abat.state == "withheld_price_lineage"
+    assert abat.independent_blockers[0] == "price_lineage"
+    assert abat.next_evidence_review_action.startswith("Review exact latest-price lineage for ABAT:")
+    assert "provider" in abat.next_evidence_review_action.lower()
