@@ -547,6 +547,80 @@ def test_duplicate_fundamentals_preserve_every_exact_source_and_rights_state():
     } & set(member.usable_evidence_lanes)
 
 
+def test_duplicate_full_scope_sources_are_provenance_blocked_without_owner_scope_decision():
+    fundamentals = _default_fundamentals()
+    duplicate = dict(fundamentals.loc[fundamentals["ticker"] == "BBB"].iloc[0])
+    duplicate["source"] = "approved_duplicate"
+    duplicate["sec_accession"] = "filing:BBB:duplicate"
+    fundamentals = pd.concat([fundamentals, pd.DataFrame([duplicate])], ignore_index=True)
+    full_scope = (
+        "revenue",
+        "free_cash_flow",
+        "fcf_margin",
+        "shares_outstanding",
+        "filing_dates",
+    )
+    registry = {
+        **_registry(),
+        "approved_fundamentals": _rights(
+            "approved_fundamentals", supported_fields=full_scope
+        ),
+        "approved_duplicate": _rights(
+            "approved_duplicate", supported_fields=full_scope
+        ),
+    }
+
+    member = _packet(fundamentals=fundamentals, rights_registry=registry).members[1]
+
+    assert member.source_rights_states[:2] == (
+        "approved_fundamentals:approved",
+        "approved_duplicate:approved",
+    )
+    assert member.missing_registered_fields == ()
+    assert member.independent_blockers == ("provenance",)
+    assert member.owner_decision_required is False
+    assert member.state == "withheld_provenance"
+
+
+def test_duplicate_mixed_scope_sources_keep_exact_missing_field_owner_decision():
+    fundamentals = _default_fundamentals()
+    duplicate = dict(fundamentals.loc[fundamentals["ticker"] == "BBB"].iloc[0])
+    duplicate["source"] = "approved_partial_duplicate"
+    duplicate["sec_accession"] = "filing:BBB:duplicate"
+    fundamentals = pd.concat([fundamentals, pd.DataFrame([duplicate])], ignore_index=True)
+    full_scope = (
+        "revenue",
+        "free_cash_flow",
+        "fcf_margin",
+        "shares_outstanding",
+        "filing_dates",
+    )
+    registry = {
+        **_registry(),
+        "approved_fundamentals": _rights(
+            "approved_fundamentals", supported_fields=full_scope
+        ),
+        "approved_partial_duplicate": _rights(
+            "approved_partial_duplicate", supported_fields=("revenue",)
+        ),
+    }
+
+    member = _packet(fundamentals=fundamentals, rights_registry=registry).members[1]
+
+    assert member.missing_registered_fields == (
+        "free_cash_flow",
+        "fcf_margin",
+        "shares_outstanding",
+        "filing_dates",
+    )
+    assert member.independent_blockers == (
+        "provenance",
+        "registered_field_scope",
+    )
+    assert member.owner_decision_required is True
+    assert member.state == "withheld_provenance"
+
+
 def test_saved_dcf_is_usable_only_with_all_completed_saved_core_evidence():
     registry = {
         **_registry(),

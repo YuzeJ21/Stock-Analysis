@@ -244,17 +244,28 @@ def _fundamental_evidence(
             provenance_omissions=("fundamentals_row",),
         )
     if len(rows) != 1:
+        scoped_sources = tuple(
+            (
+                _text(row.get("source")) or "<missing>",
+                review_commercial_field_scope(
+                    rights_registry,
+                    _text(row.get("source")),
+                    FUNDAMENTAL_SCOPE_FIELDS,
+                ),
+            )
+            for row in rows
+        )
         source_statuses = tuple(
             dict.fromkeys(
-                (
-                    _text(row.get("source")) or "<missing>",
-                    review_commercial_field_scope(
-                        rights_registry,
-                        _text(row.get("source")),
-                        FUNDAMENTAL_SCOPE_FIELDS,
-                    ).rights_status,
-                )
-                for row in rows
+                (source, scope.rights_status) for source, scope in scoped_sources
+            )
+        )
+        missing_supported_fields = tuple(
+            field
+            for field in FUNDAMENTAL_SCOPE_FIELDS
+            if any(
+                field in scope.missing_supported_fields
+                for _, scope in scoped_sources
             )
         )
         return _FundamentalEvidence(
@@ -264,7 +275,7 @@ def _fundamental_evidence(
                 f"{source}:{status}" for source, status in source_statuses
             ),
             source_statuses=source_statuses,
-            missing_supported_fields=FUNDAMENTAL_SCOPE_FIELDS,
+            missing_supported_fields=missing_supported_fields,
             provenance_omissions=("fundamentals_row",),
         )
     row = rows[0]
