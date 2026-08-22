@@ -354,6 +354,7 @@ def _member(
     if (
         saved_row is not None
         and _truthy(saved_row.get("dcf_ready"))
+        and not method_fit
         and {"price_lineage", "revenue", "free_cash_flow", "fcf_margin", "shares_outstanding"}
         <= set(usable)
     ):
@@ -379,9 +380,12 @@ def _member(
     elif blockers and blockers[0] == "temporal_evidence":
         next_action = f"Review the exact price retrieval timestamp and cutoff evidence for {ticker}."
     elif blockers and blockers[0] == "exact_source_rights":
+        unresolved_sources = tuple(
+            source for source in sources if f"{source}:approved" not in rights
+        )
         next_action = (
             f"Owner decision required for exact-source commercial rights on {ticker}: "
-            f"{' | '.join(sources) or '<missing>'}; keep identifiers intact."
+            f"{' | '.join(unresolved_sources) or '<missing>'}; keep identifiers intact."
         )
     elif blockers and blockers[0] == "registered_field_scope":
         next_action = (
@@ -415,7 +419,9 @@ def _member(
         price_lineage_omissions=price_lineage,
         method_fit_exclusions=method_fit,
         independent_blockers=blockers,
-        owner_decision_required=bool(blockers) and not method_fit,
+        owner_decision_required=bool(
+            {"exact_source_rights", "registered_field_scope"} & set(blockers)
+        ),
         next_evidence_review_action=next_action,
         saved_research_loop_status="partial_saved_evidence_only",
         research_only_boundary=RESEARCH_ONLY_BOUNDARY,

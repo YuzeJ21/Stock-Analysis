@@ -78,6 +78,8 @@ def _packet(
     abat_source: str = "scope_gap",
     include_etf: bool = True,
     method_asset_type: str = "etf",
+    method_dcf_ready: bool = False,
+    method_core_evidence: bool = False,
     rights_registry: Mapping[str, SourceRights] | None = None,
 ):
     registry = rights_registry if rights_registry is not None else _registry()
@@ -97,8 +99,8 @@ def _packet(
             _readiness_row(
                 "QQQ",
                 asset_type=method_asset_type,
-                dcf_ready=False,
-                ready_features="price",
+                dcf_ready=method_dcf_ready,
+                ready_features="price, fundamentals, dcf" if method_dcf_ready else "price",
                 blocked_features="fundamentals, peer, earnings, analyst_estimates",
                 excluded_features="dcf",
             ),
@@ -162,12 +164,28 @@ def _packet(
                 "sec_accession": "filing:ABAT",
             }
         ]
+        + (
+            [
+                {
+                    "ticker": "QQQ",
+                    "revenue": 100.0,
+                    "free_cash_flow": 20.0,
+                    "fcf_margin": 0.2,
+                    "shares_outstanding": 10.0,
+                    "source": "approved_fundamentals",
+                    "as_of_date": "2025-12-31",
+                    "sec_accession": "filing:QQQ",
+                }
+            ]
+            if method_core_evidence
+            else []
+        )
     )
     if prices is None:
         prices = pd.DataFrame(
             [
                 {"ticker": ticker, "date": "2026-01-03", "close": 10.0, "source": "approved_prices", "source_ref": f"price:{ticker}", "retrieved_at": "2026-01-04T01:00:00Z"}
-                for ticker in ("AAA", "BBB", "CCC")
+                for ticker in (("AAA", "BBB", "CCC", "QQQ") if method_core_evidence else ("AAA", "BBB", "CCC"))
             ]
             + [
                 {"ticker": "ABAT", "date": "2026-01-03", "close": 10.0, "source": "", "source_ref": "", "retrieved_at": ""}
@@ -437,3 +455,133 @@ def test_control_next_action_matches_the_merged_primary_price_lineage_blocker():
     assert abat.independent_blockers[0] == "price_lineage"
     assert abat.next_evidence_review_action.startswith("Review exact latest-price lineage for ABAT:")
     assert "provider" in abat.next_evidence_review_action.lower()
+
+
+def test_exact_rights_action_lists_only_the_unresolved_exact_source_identifiers():
+    registry = {
+        **_registry(),
+        "approved_fundamentals": _rights(
+            "approved_fundamentals",
+            supported_fields=(
+                "revenue",
+                "free_cash_flow",
+                "fcf_margin",
+                "shares_outstanding",
+                "filing_dates",
+            ),
+        ),
+    }
+    bbb = _packet(
+        rights_registry=registry,
+        prices=pd.DataFrame(
+            [
+                {
+                    "ticker": "BBB",
+                    "date": "2026-01-03",
+                    "close": 10.0,
+                    "source": "unknown_prices",
+                    "source_ref": "price:BBB",
+                    "retrieved_at": "2026-01-04T01:00:00Z",
+                }
+            ]
+        ),
+    ).members[1]
+
+    assert bbb.independent_blockers[0] == "exact_source_rights"
+    assert "approved_fundamentals:approved" in bbb.source_rights_states
+    assert "unknown_prices:unknown_source" in bbb.source_rights_states
+    assert "unknown_prices" in bbb.next_evidence_review_action
+    assert "approved_fundamentals" not in bbb.next_evidence_review_action
+
+
+def test_owner_decision_requires_only_rights_or_registered_scope_authority():
+    full_registry = {
+        **_registry(),
+        "approved_fundamentals": _rights(
+            "approved_fundamentals",
+            supported_fields=(
+                "revenue",
+                "free_cash_flow",
+                "fcf_margin",
+                "shares_outstanding",
+                "filing_dates",
+            ),
+        ),
+    }
+    temporal_only = _packet(
+        rights_registry=full_registry,
+        prices=pd.DataFrame(
+            [
+                {
+                    "ticker": "BBB",
+                    "date": "2026-01-03",
+                    "close": 10.0,
+                    "source": "approved_prices",
+                    "source_ref": "price:BBB",
+                    "retrieved_at": "2026-01-03T00:00:00Z",
+                }
+            ]
+        ),
+    ).members[1]
+    rights_member = _packet(
+        rights_registry=full_registry,
+        prices=pd.DataFrame(
+            [
+                {
+                    "ticker": "BBB",
+                    "date": "2026-01-03",
+                    "close": 10.0,
+                    "source": "unknown_prices",
+                    "source_ref": "price:BBB",
+                    "retrieved_at": "2026-01-04T01:00:00Z",
+                }
+            ]
+        ),
+    ).members[1]
+    scope_member = _packet(
+        prices=pd.DataFrame(
+            [
+                {
+                    "ticker": "ABAT",
+                    "date": "2026-01-03",
+                    "close": 10.0,
+                    "source": "approved_prices",
+                    "source_ref": "price:ABAT",
+                    "retrieved_at": "2026-01-04T01:00:00Z",
+                }
+            ]
+        ),
+    ).members[3]
+
+    assert temporal_only.independent_blockers == ("temporal_evidence",)
+    assert temporal_only.owner_decision_required is False
+    assert "exact_source_rights" in rights_member.independent_blockers
+    assert rights_member.owner_decision_required is True
+    assert scope_member.independent_blockers == ("registered_field_scope",)
+    assert scope_member.owner_decision_required is True
+
+
+def test_method_fit_exclusion_overrides_stale_saved_dcf_and_completed_core_evidence():
+    registry = {
+        **_registry(),
+        "approved_fundamentals": _rights(
+            "approved_fundamentals",
+            supported_fields=(
+                "revenue",
+                "free_cash_flow",
+                "fcf_margin",
+                "shares_outstanding",
+                "filing_dates",
+            ),
+        ),
+    }
+    qqq = _packet(
+        method_asset_type="index",
+        method_dcf_ready=True,
+        method_core_evidence=True,
+        rights_registry=registry,
+    ).members[-1]
+
+    assert qqq.state == "method_fit_excluded"
+    assert qqq.method_fit_exclusions == ("non_operating_asset_type",)
+    assert "dcf" not in qqq.usable_evidence_lanes
