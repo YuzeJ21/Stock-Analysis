@@ -34,7 +34,7 @@ from src.readiness_preview import (
 
 
 OPERATING_ASSET_TYPES = {"company", "adr"}
-METHOD_FIT_ASSET_TYPES = {"etf", "index_proxy", "fund"}
+METHOD_FIT_ASSET_TYPES = {"etf", "index", "index_proxy", "fund"}
 FUNDAMENTAL_SCOPE_FIELDS = (
     "revenue",
     "free_cash_flow",
@@ -224,7 +224,14 @@ def _fundamental_evidence(
             usable.append("revenue")
         if "shares_outstanding" not in scope.missing_supported_fields and _text(row.get("shares_outstanding")):
             usable.append("shares_outstanding")
-        if "filing_dates" not in scope.missing_supported_fields:
+        if "free_cash_flow" not in scope.missing_supported_fields and _text(row.get("free_cash_flow")):
+            usable.append("free_cash_flow")
+        if "fcf_margin" not in scope.missing_supported_fields and _text(row.get("fcf_margin")):
+            usable.append("fcf_margin")
+        if (
+            "filing_dates" not in scope.missing_supported_fields
+            and (_text(row.get("sec_filed_date")) or _text(row.get("filed_date")))
+        ):
             usable.append("filing_date")
     source_ids = (source_id,) if source_id else ()
     rights = (f"{source_id}:{scope.rights_status}",) if source_id else ("<missing>:unknown_source",)
@@ -262,9 +269,12 @@ def _withheld_lanes(
     lanes = [
         lane
         for lane in (
+            "revenue",
             "price_lineage",
             "free_cash_flow",
             "fcf_margin",
+            "shares_outstanding",
+            "filing_date",
             "dcf",
             "peers",
             "earnings_dates",
@@ -333,8 +343,16 @@ def _member(
     if provenance:
         blockers.append("provenance")
     blockers = tuple(blocker for blocker in INDEPENDENT_BLOCKER_ORDER if blocker in set(blockers))
-    price_rights = () if price.source_id.startswith("<") else (f"{price.source_id}:{price.rights_status}",)
-    sources = _ordered_unique(list(sources) + ([] if price.source_id.startswith("<") else [price.source_id]))
+    if (
+        price.latest_row_count == 1
+        and not price.missing_provenance_fields
+        and price.temporal_status == "temporal_complete"
+        and price.rights_status == "approved"
+        and not price.missing_supported_fields
+    ):
+        usable = _ordered_unique(list(usable) + ["price_lineage"])
+    price_rights = (f"{price.source_id}:{price.rights_status}",)
+    sources = _ordered_unique(list(sources) + [price.source_id])
     rights = _ordered_unique(list(rights) + list(price_rights))
     withheld = _withheld_lanes(usable, method_fit=method_fit)
     if method_fit:
@@ -469,8 +487,9 @@ def build_golden_evidence_cohort_from_evidence(
     if method_tickers:
         ticker = method_tickers[0]
         metadata = _metadata(ticker, saved_by_ticker, proposed_by_ticker, universe_by_ticker)
+        method_asset_type = _asset_type(ticker, saved_by_ticker, proposed_by_ticker, universe_by_ticker)
         method_fit = company_dcf_exclusion_reasons(
-            _asset_type(ticker, saved_by_ticker, proposed_by_ticker, universe_by_ticker),
+            "index_proxy" if method_asset_type == "index" else method_asset_type,
             metadata,
             None,
         )
@@ -530,7 +549,11 @@ def build_golden_evidence_cohort(
     universe_path = data_path / "universe_master.csv"
     fundamentals_path = data_path / "fundamentals.csv"
     prices_path = data_path / "prices.csv"
-    registry = rights_registry or load_source_rights_registry(project_root / "config" / "source_rights.yml")
+    registry = (
+        rights_registry
+        if rights_registry is not None
+        else load_source_rights_registry(project_root / "config" / "source_rights.yml")
+    )
     return build_golden_evidence_cohort_from_evidence(
         saved,
         proposed,
@@ -561,13 +584,24 @@ def render_golden_evidence_cohort(packet: GoldenEvidenceCohort) -> str:
         lines.extend(
             [
                 f"- {member.ticker}: role={member.cohort_role}; state={member.state}",
+                f"  asset_type={member.asset_type}",
                 f"  reason={member.selection_reason}",
+                f"  saved_readiness_identity={member.saved_readiness_identity}",
+                f"  proposed_readiness_identity={member.proposed_readiness_identity}",
                 f"  usable_evidence_lanes={','.join(member.usable_evidence_lanes) or 'none'}",
                 f"  withheld_evidence_lanes={','.join(member.withheld_evidence_lanes) or 'none'}",
                 f"  independent_blockers={','.join(member.independent_blockers) or 'none'}",
                 f"  source_identifiers={','.join(member.source_identifiers) or 'none'}",
                 f"  source_rights_states={','.join(member.source_rights_states) or 'none'}",
+                f"  missing_registered_fields={','.join(member.missing_registered_fields) or 'none'}",
+                f"  provenance_omissions={','.join(member.provenance_omissions) or 'none'}",
+                f"  temporal_evidence_omissions={','.join(member.temporal_evidence_omissions) or 'none'}",
+                f"  price_lineage_omissions={','.join(member.price_lineage_omissions) or 'none'}",
+                f"  method_fit_exclusions={','.join(member.method_fit_exclusions) or 'none'}",
+                f"  owner_decision_required={str(member.owner_decision_required).lower()}",
                 f"  next_evidence_review_action={member.next_evidence_review_action}",
+                f"  saved_research_loop_status={member.saved_research_loop_status}",
+                f"  research_only_boundary={member.research_only_boundary}",
             ]
         )
     lines.extend(

@@ -1,6 +1,7 @@
 from dataclasses import replace
 import json
 from pathlib import Path
+from typing import Mapping
 
 import pandas as pd
 
@@ -8,6 +9,7 @@ from src.commercial_source_rights import SourceRights
 from src.golden_evidence_cohort import (
     build_golden_evidence_cohort,
     build_golden_evidence_cohort_from_evidence,
+    render_golden_evidence_cohort,
     render_golden_evidence_cohort_json,
 )
 from src.readiness_preview import (
@@ -75,7 +77,10 @@ def _packet(
     prices: pd.DataFrame | None = None,
     abat_source: str = "scope_gap",
     include_etf: bool = True,
+    method_asset_type: str = "etf",
+    rights_registry: Mapping[str, SourceRights] | None = None,
 ):
+    registry = rights_registry if rights_registry is not None else _registry()
     saved = pd.DataFrame(
         [
             _readiness_row("AAA"),
@@ -91,7 +96,7 @@ def _packet(
             ),
             _readiness_row(
                 "QQQ",
-                asset_type="etf",
+                asset_type=method_asset_type,
                 dcf_ready=False,
                 ready_features="price",
                 blocked_features="fundamentals, peer, earnings, analyst_estimates",
@@ -127,7 +132,7 @@ def _packet(
             {"ticker": "BBB", "asset_type": "company", "is_active_listing": True, "name": "BBB Example"},
             {"ticker": "CCC", "asset_type": "company", "is_active_listing": True, "name": "CCC Example"},
             {"ticker": "ABAT", "asset_type": "company", "is_active_listing": True, "name": "ABAT Example"},
-            {"ticker": "QQQ", "asset_type": "etf", "is_active_listing": True, "name": "QQQ Example"},
+            {"ticker": "QQQ", "asset_type": method_asset_type, "is_active_listing": True, "name": "QQQ Example"},
             {"ticker": "NEW", "asset_type": "company", "is_active_listing": True, "name": "New Example"},
         ]
     )
@@ -172,14 +177,14 @@ def _packet(
     preview = replace(
         preview,
         promotion_review=review_readiness_promotions(
-            saved, proposed, fundamentals, rights_registry=_registry(), top_n=20
+            saved, proposed, fundamentals, rights_registry=registry, top_n=20
         ),
         change_review=review_readiness_changes(saved, proposed, fundamentals),
         dcf_price_lineage_review=review_dcf_price_lineage(
             saved,
             proposed,
             prices,
-            rights_registry=_registry(),
+            rights_registry=registry,
             review_cutoff="2026-01-06T00:00:00Z",
             top_n=20,
         ),
@@ -191,7 +196,7 @@ def _packet(
         fundamentals,
         prices,
         preview=preview,
-        rights_registry=_registry(),
+        rights_registry=registry,
         top_n=5,
         review_cutoff="2026-01-06T00:00:00Z",
     )
@@ -293,3 +298,95 @@ def test_real_saved_packet_has_the_verified_base_roles_and_never_uses_action_lan
     assert json.loads(rendered)["repository_writes"] == []
     for forbidden in ("buy", "sell", "return", "target", "upside", "allocation", "position sizing"):
         assert forbidden not in rendered
+
+
+def test_filing_date_is_withheld_when_the_registered_field_has_no_saved_value():
+    packet = _packet()
+
+    assert "filing_date" not in packet.members[1].usable_evidence_lanes
+    assert "filing_date" in packet.members[1].withheld_evidence_lanes
+
+
+def test_explicit_empty_rights_registry_is_not_replaced_by_configured_rights(monkeypatch):
+    import src.golden_evidence_cohort as golden_evidence_cohort
+    import src.readiness_engine as readiness_engine
+
+    saved = pd.read_csv(Path.cwd() / "data" / "reports" / "ticker_readiness_report.csv")
+    proposed = saved.copy()
+    preview = compare_readiness_frames(saved, proposed, top_n=5)
+
+    monkeypatch.setattr(golden_evidence_cohort, "build_readiness_impact_preview", lambda *args, **kwargs: preview)
+    monkeypatch.setattr(
+        readiness_engine,
+        "build_ticker_readiness_report",
+        lambda *args, **kwargs: {"ticker_readiness_report": proposed},
+    )
+    monkeypatch.setattr(
+        golden_evidence_cohort,
+        "load_source_rights_registry",
+        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("configured registry must not be loaded")),
+    )
+
+    packet = build_golden_evidence_cohort(Path.cwd(), rights_registry={})
+
+    assert packet.inspection_only is True
+
+
+def test_default_text_packet_exposes_the_complete_member_contract():
+    packet = _packet()
+    rendered = render_golden_evidence_cohort(packet)
+
+    for field in (
+        "asset_type",
+        "saved_readiness_identity",
+        "proposed_readiness_identity",
+        "missing_registered_fields",
+        "provenance_omissions",
+        "temporal_evidence_omissions",
+        "price_lineage_omissions",
+        "method_fit_exclusions",
+        "owner_decision_required",
+        "saved_research_loop_status",
+        "research_only_boundary",
+    ):
+        assert f"  {field}=" in rendered
+
+
+def test_missing_price_identity_and_its_rights_state_remain_explicit():
+    abat = _packet().members[3]
+
+    assert "<missing>" in abat.source_identifiers
+    assert "<missing>:unknown_source" in abat.source_rights_states
+
+
+def test_literal_index_asset_type_can_fill_the_method_fit_role_deterministically():
+    packet = _packet(method_asset_type="index")
+
+    assert packet.members[-1].ticker == "QQQ"
+    assert packet.members[-1].asset_type == "index"
+    assert packet.members[-1].state == "method_fit_excluded"
+    assert packet.members[-1].method_fit_exclusions == ("non_operating_asset_type",)
+
+
+def test_completed_price_and_fcf_evidence_is_usable_but_independent_blockers_remain_withheld():
+    registry = {
+        **_registry(),
+        "approved_fundamentals": _rights(
+            "approved_fundamentals",
+            supported_fields=(
+                "revenue",
+                "free_cash_flow",
+                "fcf_margin",
+                "shares_outstanding",
+                "filing_dates",
+            ),
+        ),
+    }
+    packet = _packet(rights_registry=registry)
+    bbb = packet.members[1]
+    abat = packet.members[3]
+
+    assert {"price_lineage", "free_cash_flow", "fcf_margin"} <= set(bbb.usable_evidence_lanes)
+    assert not {"price_lineage", "free_cash_flow", "fcf_margin"} & set(bbb.withheld_evidence_lanes)
+    assert "free_cash_flow" not in abat.usable_evidence_lanes
+    assert "registered_field_scope" in abat.independent_blockers
