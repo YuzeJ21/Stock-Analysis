@@ -200,6 +200,98 @@ def test_golden_evidence_cohort_make_is_deterministic_json_and_write_free():
     assert _tree_manifest(root) == before
 
 
+def _run_isolated_golden_make(root: Path, fixture_root: Path, *, json_output: bool):
+    command = [
+        "make",
+        "--no-print-directory",
+        "-f",
+        str(root / "Makefile"),
+        "golden-evidence-cohort",
+        "TOP_N=5",
+    ]
+    if json_output:
+        command.append("JSON=1")
+    return subprocess.run(
+        command,
+        cwd=fixture_root,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={
+            **os.environ,
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONPATH": str(root),
+        },
+    )
+
+
+def test_golden_evidence_cohort_make_fails_closed_for_missing_snapshot_in_text_and_json(
+    tmp_path: Path,
+):
+    root = Path.cwd()
+    config = tmp_path / "config"
+    config.mkdir()
+    (config / "source_rights.yml").write_bytes(
+        (root / "config" / "source_rights.yml").read_bytes()
+    )
+    before = _tree_manifest(tmp_path)
+
+    text_result = _run_isolated_golden_make(root, tmp_path, json_output=False)
+    json_result = _run_isolated_golden_make(root, tmp_path, json_output=True)
+
+    assert text_result.returncode != 0
+    assert "status=missing_saved_snapshot" in text_result.stdout
+    assert "inspection_only=true" in text_result.stdout
+    assert "canonical_apply_authorized=false" in text_result.stdout
+    assert "readiness_materialization_authorized=false" in text_result.stdout
+    assert "source_rights_change_authorized=false" in text_result.stdout
+    assert "recommendation_authorized=false" in text_result.stdout
+    assert "repository_writes=[]" in text_result.stdout
+    assert json_result.returncode != 0
+    payload = json.loads(json_result.stdout)
+    assert payload["status"] == "missing_saved_snapshot"
+    assert payload["inspection_only"] is True
+    assert payload["canonical_apply_authorized"] is False
+    assert payload["readiness_materialization_authorized"] is False
+    assert payload["source_rights_change_authorized"] is False
+    assert payload["recommendation_authorized"] is False
+    assert payload["repository_writes"] == []
+    assert _tree_manifest(tmp_path) == before
+
+
+def test_golden_evidence_cohort_make_distinguishes_a_valid_empty_cohort_in_text_and_json(
+    tmp_path: Path,
+):
+    root = Path.cwd()
+    config = tmp_path / "config"
+    config.mkdir()
+    (config / "source_rights.yml").write_bytes(
+        (root / "config" / "source_rights.yml").read_bytes()
+    )
+    reports = tmp_path / "data" / "reports"
+    reports.mkdir(parents=True)
+    (reports / "ticker_readiness_report.csv").write_text("ticker\n", encoding="utf-8")
+    before = _tree_manifest(tmp_path)
+
+    text_result = _run_isolated_golden_make(root, tmp_path, json_output=False)
+    json_result = _run_isolated_golden_make(root, tmp_path, json_output=True)
+
+    assert text_result.returncode == 0, text_result.stderr
+    assert "status=inspection_only" in text_result.stdout
+    assert "members=0; TOP_N=5" in text_result.stdout
+    assert json_result.returncode == 0, json_result.stderr
+    payload = json.loads(json_result.stdout)
+    assert payload["status"] == "inspection_only"
+    assert payload["members"] == []
+    assert payload["inspection_only"] is True
+    assert payload["canonical_apply_authorized"] is False
+    assert payload["readiness_materialization_authorized"] is False
+    assert payload["source_rights_change_authorized"] is False
+    assert payload["recommendation_authorized"] is False
+    assert payload["repository_writes"] == []
+    assert _tree_manifest(tmp_path) == before
+
+
 def test_interview_brief_local_artifact_boundary_is_narrow():
     expected_local = (
         "output/documents/Stock_Research_Command_Center_Interview_Brief.docx",

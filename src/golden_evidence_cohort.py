@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Mapping
@@ -86,6 +87,16 @@ class GoldenEvidenceCohort:
     research_only_boundary: str = RESEARCH_ONLY_BOUNDARY
 
 
+@dataclass(frozen=True)
+class _FundamentalEvidence:
+    usable_lanes: tuple[str, ...]
+    source_identifiers: tuple[str, ...]
+    source_rights_states: tuple[str, ...]
+    source_statuses: tuple[tuple[str, str], ...]
+    missing_supported_fields: tuple[str, ...]
+    provenance_omissions: tuple[str, ...]
+
+
 def _text(value: object) -> str:
     if value is None:
         return ""
@@ -107,6 +118,23 @@ def _ticker(value: object) -> str:
 
 def _feature_set(value: object) -> set[str]:
     return {part.strip().lower() for part in _text(value).split(",") if part.strip()}
+
+
+def _is_finite_number(value: object) -> bool:
+    if isinstance(value, bool):
+        return False
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return False
+    return math.isfinite(parsed)
+
+
+def _is_valid_date(value: object) -> bool:
+    text = _text(value)
+    if not text:
+        return False
+    return bool(pd.notna(pd.to_datetime(text, errors="coerce")))
 
 
 def _normalized(frame: pd.DataFrame | None) -> pd.DataFrame:
@@ -202,14 +230,46 @@ def _fundamental_evidence(
     ticker: str,
     rows_by_ticker: Mapping[str, tuple[pd.Series, ...]],
     rights_registry: Mapping[str, SourceRights],
-) -> tuple[tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...], tuple[str, ...], str | None]:
-    """Return fundamental evidence plus its separate exact-source rights status."""
+) -> _FundamentalEvidence:
+    """Return fail-closed fundamental evidence without selecting ambiguous rows."""
 
     rows = rows_by_ticker.get(ticker, ())
+    if not rows:
+        return _FundamentalEvidence(
+            usable_lanes=(),
+            source_identifiers=(),
+            source_rights_states=(),
+            source_statuses=(),
+            missing_supported_fields=FUNDAMENTAL_SCOPE_FIELDS,
+            provenance_omissions=("fundamentals_row",),
+        )
     if len(rows) != 1:
-        return (), (), (), FUNDAMENTAL_SCOPE_FIELDS, ("fundamentals_row",), None
+        source_statuses = tuple(
+            dict.fromkeys(
+                (
+                    _text(row.get("source")) or "<missing>",
+                    review_commercial_field_scope(
+                        rights_registry,
+                        _text(row.get("source")),
+                        FUNDAMENTAL_SCOPE_FIELDS,
+                    ).rights_status,
+                )
+                for row in rows
+            )
+        )
+        return _FundamentalEvidence(
+            usable_lanes=(),
+            source_identifiers=tuple(source for source, _ in source_statuses),
+            source_rights_states=tuple(
+                f"{source}:{status}" for source, status in source_statuses
+            ),
+            source_statuses=source_statuses,
+            missing_supported_fields=FUNDAMENTAL_SCOPE_FIELDS,
+            provenance_omissions=("fundamentals_row",),
+        )
     row = rows[0]
     source_id = _text(row.get("source"))
+    exact_source_id = source_id or "<missing>"
     source_ref = _text(row.get("source_ref")) or _text(row.get("sec_accession"))
     as_of_date = _text(row.get("as_of_date"))
     provenance = tuple(
@@ -220,28 +280,32 @@ def _fundamental_evidence(
     scope = review_commercial_field_scope(rights_registry, source_id, FUNDAMENTAL_SCOPE_FIELDS)
     usable: list[str] = []
     if not provenance and scope.commercial_rights_approved:
-        if "revenue" not in scope.missing_supported_fields and _text(row.get("revenue")):
+        if "revenue" not in scope.missing_supported_fields and _is_finite_number(row.get("revenue")):
             usable.append("revenue")
-        if "shares_outstanding" not in scope.missing_supported_fields and _text(row.get("shares_outstanding")):
+        if (
+            "shares_outstanding" not in scope.missing_supported_fields
+            and _is_finite_number(row.get("shares_outstanding"))
+        ):
             usable.append("shares_outstanding")
-        if "free_cash_flow" not in scope.missing_supported_fields and _text(row.get("free_cash_flow")):
+        if (
+            "free_cash_flow" not in scope.missing_supported_fields
+            and _is_finite_number(row.get("free_cash_flow"))
+        ):
             usable.append("free_cash_flow")
-        if "fcf_margin" not in scope.missing_supported_fields and _text(row.get("fcf_margin")):
+        if "fcf_margin" not in scope.missing_supported_fields and _is_finite_number(row.get("fcf_margin")):
             usable.append("fcf_margin")
         if (
             "filing_dates" not in scope.missing_supported_fields
-            and (_text(row.get("sec_filed_date")) or _text(row.get("filed_date")))
+            and (_is_valid_date(row.get("sec_filed_date")) or _is_valid_date(row.get("filed_date")))
         ):
             usable.append("filing_date")
-    source_ids = (source_id,) if source_id else ()
-    rights = (f"{source_id}:{scope.rights_status}",) if source_id else ("<missing>:unknown_source",)
-    return (
-        tuple(usable),
-        source_ids,
-        rights,
-        scope.missing_supported_fields,
-        provenance,
-        scope.rights_status,
+    return _FundamentalEvidence(
+        usable_lanes=tuple(usable),
+        source_identifiers=(exact_source_id,),
+        source_rights_states=(f"{exact_source_id}:{scope.rights_status}",),
+        source_statuses=((exact_source_id, scope.rights_status),),
+        missing_supported_fields=scope.missing_supported_fields,
+        provenance_omissions=provenance,
     )
 
 
@@ -309,9 +373,12 @@ def _member(
     candidate_rows: tuple[ReadinessRemediationCandidate, ...] = (),
     method_fit: tuple[str, ...] = (),
 ) -> GoldenEvidenceMember:
-    usable, sources, rights, missing_scope, provenance, fundamental_rights_status = _fundamental_evidence(
-        ticker, fundamentals, rights_registry
-    )
+    fundamental = _fundamental_evidence(ticker, fundamentals, rights_registry)
+    usable = fundamental.usable_lanes
+    sources = fundamental.source_identifiers
+    rights = fundamental.source_rights_states
+    missing_scope = fundamental.missing_supported_fields
+    provenance = fundamental.provenance_omissions
     price = _price_evidence(
         ticker,
         saved_row,
@@ -337,10 +404,11 @@ def _member(
         }
     )
     blockers = list(_merged_candidate_blockers(candidate_rows))
-    unresolved_sources: list[str] = []
-    if fundamental_rights_status is not None and fundamental_rights_status != "approved":
+    unresolved_sources = [
+        source for source, status in fundamental.source_statuses if status != "approved"
+    ]
+    if unresolved_sources:
         blockers.append("exact_source_rights")
-        unresolved_sources.extend(sources or ("<missing>",))
     if price_lineage:
         blockers.append("price_lineage")
     if temporal:
@@ -377,7 +445,7 @@ def _member(
     withheld = _withheld_lanes(usable, method_fit=method_fit)
     if method_fit:
         state = "method_fit_excluded"
-    elif blockers and blockers[0] == "exact_source_rights":
+    elif blockers and blockers[0] in {"provenance", "exact_source_rights"}:
         state = _state_from_blockers(blockers)
     elif role == "saved_operating_company" and usable:
         state = "reviewable_saved_evidence"
@@ -556,7 +624,11 @@ def build_golden_evidence_cohort_from_evidence(
             )
     emitted = tuple(members[: min(top_n, 5)])
     return GoldenEvidenceCohort(
-        status="inspection_only",
+        status=(
+            "missing_saved_snapshot"
+            if preview.status == "missing_saved_snapshot"
+            else "inspection_only"
+        ),
         saved_snapshot_identity=preview.saved_snapshot_identity,
         proposed_snapshot_identity=preview.proposed_snapshot_identity,
         members=emitted,
@@ -688,7 +760,7 @@ def main(argv: list[str] | None = None) -> int:
         print("repository_writes=[]")
         return 1
     print(render_golden_evidence_cohort_json(packet) if args.json else render_golden_evidence_cohort(packet))
-    return 0
+    return 2 if packet.status == "missing_saved_snapshot" else 0
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ from src.commercial_source_rights import SourceRights
 from src.golden_evidence_cohort import (
     build_golden_evidence_cohort,
     build_golden_evidence_cohort_from_evidence,
+    main as golden_evidence_main,
     render_golden_evidence_cohort,
     render_golden_evidence_cohort_json,
 )
@@ -72,10 +73,41 @@ def _readiness_row(ticker: str, **overrides: object) -> dict[str, object]:
     return row
 
 
+def _default_fundamentals() -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "ticker": ticker,
+                "revenue": 100.0,
+                "free_cash_flow": 20.0,
+                "fcf_margin": 0.2,
+                "shares_outstanding": 10.0,
+                "source": "approved_fundamentals; filing_document" if ticker == "AAA" else "approved_fundamentals",
+                "as_of_date": "2025-12-31",
+                "sec_accession": f"filing:{ticker}",
+            }
+            for ticker in ("AAA", "BBB", "CCC")
+        ]
+        + [
+            {
+                "ticker": "ABAT",
+                "revenue": 100.0,
+                "free_cash_flow": 20.0,
+                "fcf_margin": 0.2,
+                "shares_outstanding": 10.0,
+                "source": "scope_gap",
+                "as_of_date": "2025-12-31",
+                "sec_accession": "filing:ABAT",
+            }
+        ]
+    )
+
+
 def _packet(
     *,
     prices: pd.DataFrame | None = None,
     abat_source: str = "scope_gap",
+    fundamentals: pd.DataFrame | None = None,
     include_etf: bool = True,
     method_asset_type: str = "etf",
     method_dcf_ready: bool = False,
@@ -138,49 +170,30 @@ def _packet(
             {"ticker": "NEW", "asset_type": "company", "is_active_listing": True, "name": "New Example"},
         ]
     )
-    fundamentals = pd.DataFrame(
-        [
-            {
-                "ticker": ticker,
-                "revenue": 100.0,
-                "free_cash_flow": 20.0,
-                "fcf_margin": 0.2,
-                "shares_outstanding": 10.0,
-                "source": "approved_fundamentals; filing_document" if ticker == "AAA" else "approved_fundamentals",
-                "as_of_date": "2025-12-31",
-                "sec_accession": f"filing:{ticker}",
-            }
-            for ticker in ("AAA", "BBB", "CCC")
-        ]
-        + [
-            {
-                "ticker": "ABAT",
-                "revenue": 100.0,
-                "free_cash_flow": 20.0,
-                "fcf_margin": 0.2,
-                "shares_outstanding": 10.0,
-                "source": abat_source,
-                "as_of_date": "2025-12-31",
-                "sec_accession": "filing:ABAT",
-            }
-        ]
-        + (
-            [
-                {
-                    "ticker": "QQQ",
-                    "revenue": 100.0,
-                    "free_cash_flow": 20.0,
-                    "fcf_margin": 0.2,
-                    "shares_outstanding": 10.0,
-                    "source": "approved_fundamentals",
-                    "as_of_date": "2025-12-31",
-                    "sec_accession": "filing:QQQ",
-                }
-            ]
-            if method_core_evidence
-            else []
-        )
-    )
+    if fundamentals is None:
+        fundamentals = _default_fundamentals()
+        fundamentals.loc[fundamentals["ticker"] == "ABAT", "source"] = abat_source
+        if method_core_evidence:
+            fundamentals = pd.concat(
+                [
+                    fundamentals,
+                    pd.DataFrame(
+                        [
+                            {
+                                "ticker": "QQQ",
+                                "revenue": 100.0,
+                                "free_cash_flow": 20.0,
+                                "fcf_margin": 0.2,
+                                "shares_outstanding": 10.0,
+                                "source": "approved_fundamentals",
+                                "as_of_date": "2025-12-31",
+                                "sec_accession": "filing:QQQ",
+                            }
+                        ]
+                    ),
+                ],
+                ignore_index=True,
+            )
     if prices is None:
         prices = pd.DataFrame(
             [
@@ -282,6 +295,7 @@ def test_packet_never_pads_categories_and_json_is_deterministic_under_input_ties
     ]
     assert render_golden_evidence_cohort_json(first) == render_golden_evidence_cohort_json(second)
     assert capped.members == ()
+    assert capped.status == "inspection_only"
     assert capped.inspection_only is True
 
 
@@ -408,6 +422,129 @@ def test_completed_price_and_fcf_evidence_is_usable_but_independent_blockers_rem
     assert not {"price_lineage", "free_cash_flow", "fcf_margin"} & set(bbb.withheld_evidence_lanes)
     assert "free_cash_flow" not in abat.usable_evidence_lanes
     assert "registered_field_scope" in abat.independent_blockers
+
+
+def test_malformed_or_nonfinite_fundamentals_stay_withheld_without_dcf_activation():
+    fundamentals = _default_fundamentals().astype(object)
+    bbb = fundamentals["ticker"] == "BBB"
+    fundamentals.loc[bbb, "revenue"] = "not-a-number"
+    fundamentals.loc[bbb, "free_cash_flow"] = float("nan")
+    fundamentals.loc[bbb, "fcf_margin"] = True
+    fundamentals.loc[bbb, "shares_outstanding"] = "inf"
+    fundamentals.loc[bbb, "sec_filed_date"] = "not-a-date"
+    registry = {
+        **_registry(),
+        "approved_fundamentals": _rights(
+            "approved_fundamentals",
+            supported_fields=(
+                "revenue",
+                "free_cash_flow",
+                "fcf_margin",
+                "shares_outstanding",
+                "filing_dates",
+            ),
+        ),
+    }
+
+    member = _packet(fundamentals=fundamentals, rights_registry=registry).members[1]
+
+    malformed_lanes = {
+        "revenue",
+        "free_cash_flow",
+        "fcf_margin",
+        "shares_outstanding",
+        "filing_date",
+    }
+    assert not malformed_lanes & set(member.usable_evidence_lanes)
+    assert malformed_lanes <= set(member.withheld_evidence_lanes)
+    assert "dcf" not in member.usable_evidence_lanes
+    assert "dcf" in member.withheld_evidence_lanes
+    assert member.state not in {"activated", "current", "approved", "commercially_eligible"}
+
+
+def test_finite_numeric_strings_and_a_valid_filing_date_remain_usable():
+    fundamentals = _default_fundamentals().astype(object)
+    bbb = fundamentals["ticker"] == "BBB"
+    fundamentals.loc[bbb, "revenue"] = "100.25"
+    fundamentals.loc[bbb, "free_cash_flow"] = "20.5"
+    fundamentals.loc[bbb, "fcf_margin"] = "0.204"
+    fundamentals.loc[bbb, "shares_outstanding"] = "10"
+    fundamentals.loc[bbb, "sec_filed_date"] = "2026-01-02"
+    registry = {
+        **_registry(),
+        "approved_fundamentals": _rights(
+            "approved_fundamentals",
+            supported_fields=(
+                "revenue",
+                "free_cash_flow",
+                "fcf_margin",
+                "shares_outstanding",
+                "filing_dates",
+            ),
+        ),
+    }
+
+    member = _packet(fundamentals=fundamentals, rights_registry=registry).members[1]
+
+    assert {
+        "revenue",
+        "free_cash_flow",
+        "fcf_margin",
+        "shares_outstanding",
+        "filing_date",
+        "price_lineage",
+        "dcf",
+    } <= set(member.usable_evidence_lanes)
+
+
+def test_duplicate_fundamentals_preserve_every_exact_source_and_rights_state():
+    fundamentals = _default_fundamentals()
+    duplicate = dict(fundamentals.loc[fundamentals["ticker"] == "BBB"].iloc[0])
+    duplicate["source"] = "unresolved_feed; filing_copy"
+    duplicate["sec_accession"] = "filing:BBB:duplicate"
+    fundamentals = pd.concat([fundamentals, pd.DataFrame([duplicate])], ignore_index=True)
+    registry = {
+        **_registry(),
+        "approved_fundamentals": _rights(
+            "approved_fundamentals",
+            supported_fields=(
+                "revenue",
+                "free_cash_flow",
+                "fcf_margin",
+                "shares_outstanding",
+                "filing_dates",
+            ),
+        ),
+    }
+
+    member = _packet(fundamentals=fundamentals, rights_registry=registry).members[1]
+
+    assert member.source_identifiers == (
+        "approved_fundamentals",
+        "unresolved_feed; filing_copy",
+        "approved_prices",
+    )
+    assert member.source_rights_states == (
+        "approved_fundamentals:approved",
+        "unresolved_feed; filing_copy:unknown_source",
+        "approved_prices:approved",
+    )
+    assert member.provenance_omissions == ("fundamentals_row",)
+    assert member.independent_blockers[:3] == (
+        "provenance",
+        "exact_source_rights",
+        "registered_field_scope",
+    )
+    assert member.state == "withheld_provenance"
+    assert member.owner_decision_required is True
+    assert not {
+        "revenue",
+        "free_cash_flow",
+        "fcf_margin",
+        "shares_outstanding",
+        "filing_date",
+        "dcf",
+    } & set(member.usable_evidence_lanes)
 
 
 def test_saved_dcf_is_usable_only_with_all_completed_saved_core_evidence():
@@ -608,3 +745,57 @@ def test_method_fit_exclusion_overrides_stale_saved_dcf_and_completed_core_evide
     assert qqq.state == "method_fit_excluded"
     assert qqq.method_fit_exclusions == ("non_operating_asset_type",)
     assert "dcf" not in qqq.usable_evidence_lanes
+
+
+def test_missing_saved_snapshot_is_explicit_and_cli_exits_nonzero_in_text_and_json(
+    tmp_path: Path,
+    capsys,
+):
+    missing_data = tmp_path / "missing-data"
+    packet = build_golden_evidence_cohort(
+        Path.cwd(),
+        data_dir=missing_data,
+        rights_registry={},
+    )
+
+    assert packet.status == "missing_saved_snapshot"
+    assert packet.members == ()
+    assert packet.inspection_only is True
+    assert packet.canonical_apply_authorized is False
+    assert packet.readiness_materialization_authorized is False
+    assert packet.source_rights_change_authorized is False
+    assert packet.recommendation_authorized is False
+    assert packet.repository_writes == ()
+
+    text_exit = golden_evidence_main(
+        ["--project-root", str(Path.cwd()), "--data-dir", str(missing_data)]
+    )
+    text_output = capsys.readouterr().out
+    json_exit = golden_evidence_main(
+        [
+            "--project-root",
+            str(Path.cwd()),
+            "--data-dir",
+            str(missing_data),
+            "--json",
+        ]
+    )
+    json_output = capsys.readouterr().out
+
+    assert text_exit == 2
+    assert "status=missing_saved_snapshot" in text_output
+    assert "inspection_only=true" in text_output
+    assert "canonical_apply_authorized=false" in text_output
+    assert "readiness_materialization_authorized=false" in text_output
+    assert "source_rights_change_authorized=false" in text_output
+    assert "recommendation_authorized=false" in text_output
+    assert "repository_writes=[]" in text_output
+    assert json_exit == 2
+    payload = json.loads(json_output)
+    assert payload["status"] == "missing_saved_snapshot"
+    assert payload["inspection_only"] is True
+    assert payload["canonical_apply_authorized"] is False
+    assert payload["readiness_materialization_authorized"] is False
+    assert payload["source_rights_change_authorized"] is False
+    assert payload["recommendation_authorized"] is False
+    assert payload["repository_writes"] == []
