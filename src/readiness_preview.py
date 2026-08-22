@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Mapping
@@ -121,6 +123,8 @@ class ReadinessImpactPreview:
     promotion_review: ReadinessPromotionReview | None = None
     change_review: ReadinessChangeReview | None = None
     dcf_price_lineage_review: DcfPriceLineageReview | None = None
+    saved_snapshot_identity: str = ""
+    proposed_snapshot_identity: str = ""
 
 
 def _truthy(value: object) -> bool:
@@ -141,6 +145,36 @@ def _stable_value(row: pd.Series, field: str) -> bool | str:
     if field in BOOLEAN_READINESS_FIELDS:
         return _truthy(row.get(field))
     return _text(row.get(field))
+
+
+def _snapshot_identity(frame: pd.DataFrame) -> str:
+    columns = [
+        column
+        for column in ("ticker", *STABLE_READINESS_FIELDS)
+        if column in frame.columns
+    ]
+    normalized = frame.reindex(columns=columns)
+    rows: list[list[object]] = []
+    for values in normalized.itertuples(index=False, name=None):
+        row: list[object] = []
+        for value in values:
+            if pd.isna(value):
+                row.append(None)
+            elif isinstance(value, bool):
+                row.append(value)
+            elif isinstance(value, (int, float)):
+                row.append(value)
+            else:
+                row.append(str(value))
+        rows.append(row)
+    rows.sort(key=lambda item: json.dumps(item, ensure_ascii=False, separators=(",", ":")))
+    payload = json.dumps(
+        {"columns": columns, "rows": rows},
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return f"sha256:{hashlib.sha256(payload).hexdigest()}"
 
 
 def _index_readiness(frame: pd.DataFrame) -> dict[str, pd.Series]:
@@ -424,6 +458,8 @@ def compare_readiness_frames(
         changed_tickers=tuple(changes[:top_n]),
         top_n=top_n,
         saved_path=saved_path,
+        saved_snapshot_identity=_snapshot_identity(saved),
+        proposed_snapshot_identity=_snapshot_identity(proposed),
     )
 
 
@@ -434,6 +470,7 @@ def build_readiness_impact_preview(
     top_n: int = 20,
     rights_registry: Mapping[str, SourceRights] | None = None,
     review_cutoff: str | None = None,
+    include_all_evidence: bool = False,
 ) -> ReadinessImpactPreview:
     project_root = resolve_project_root(root)
     data_path = resolve_data_dir(data_dir, project_root)
@@ -457,6 +494,7 @@ def build_readiness_impact_preview(
         write_outputs=False,
     )
     proposed = reports["ticker_readiness_report"]
+    evidence_top_n = max(top_n, len(proposed)) if include_all_evidence else top_n
     preview = compare_readiness_frames(
         saved,
         proposed,
@@ -477,7 +515,7 @@ def build_readiness_impact_preview(
         proposed,
         fundamentals,
         rights_registry=registry,
-        top_n=top_n,
+        top_n=evidence_top_n,
     )
     change_review = review_readiness_changes(saved, proposed, fundamentals)
     prices_path = data_path / "prices.csv"
@@ -490,7 +528,7 @@ def build_readiness_impact_preview(
         prices,
         rights_registry=registry,
         review_cutoff=review_cutoff,
-        top_n=top_n,
+        top_n=evidence_top_n,
     )
     return replace(
         preview,

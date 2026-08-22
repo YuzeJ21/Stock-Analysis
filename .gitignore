@@ -61,3 +61,7 @@ outputs/project_status_top_actions.csv
 outputs/project_status_next_steps.csv
 local_artifacts_backup/
 .worktrees/
+/output/documents/Stock_Research_Command_Center_Interview_Brief.docx
+/output/pdf/Stock_Research_Command_Center_Interview_Brief.pdf
+/output/source/Stock_Research_Command_Center_Interview_Brief.py
+/tmp/interview_brief/
