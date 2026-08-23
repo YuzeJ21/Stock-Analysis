@@ -17,7 +17,10 @@ def _makefile_targets(makefile: str | None = None) -> set[str]:
 def _tree_manifest(root: Path) -> dict[str, tuple[str, bytes | None]]:
     manifest = {".": ("directory", None)}
     for path in sorted(root.rglob("*")):
-        relative = path.relative_to(root).as_posix()
+        relative_path = path.relative_to(root)
+        if relative_path.parts and relative_path.parts[0] == ".git":
+            continue
+        relative = relative_path.as_posix()
         if path.is_symlink():
             manifest[relative] = ("symlink", os.readlink(path).encode())
         elif path.is_dir():
