@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import importlib
 import os
@@ -265,12 +266,18 @@ class YahooChartDailyPriceSource:
         base_url: str = "https://query1.finance.yahoo.com/v8/finance/chart",
         range_days: int = 900,
         opener: Callable[..., Any] = urlopen,
+        clock: Callable[[], datetime] | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.range_days = range_days
         self.opener = opener
+        self.clock = clock or (lambda: datetime.now(timezone.utc))
+        self.last_source_reference = ""
+        self.last_retrieved_at = ""
 
     def fetch_history(self, ticker: str) -> tuple[pd.DataFrame, list[str]]:
+        self.last_source_reference = ""
+        self.last_retrieved_at = ""
         ticker = ticker.upper().strip()
         symbol = _yahoo_chart_symbol(ticker)
         period2 = int(time.time())
@@ -290,6 +297,15 @@ class YahooChartDailyPriceSource:
         except (HTTPError, URLError) as exc:
             suffix = f" for {symbol}" if symbol != ticker else ""
             return pd.DataFrame(columns=PRICE_COLUMNS), [f"{ticker}: update failed from Yahoo chart endpoint{suffix} ({exc})"]
+
+        retrieved_at = self.clock()
+        if retrieved_at.tzinfo is None or retrieved_at.utcoffset() is None:
+            raise ValueError("Yahoo chart retrieval clock must be timezone-aware")
+        self.last_source_reference = (
+            f"yahoo-chart:{symbol}:sha256:"
+            f"{hashlib.sha256(payload.encode('utf-8')).hexdigest()}"
+        )
+        self.last_retrieved_at = retrieved_at.astimezone(timezone.utc).isoformat()
 
         try:
             parsed = json.loads(payload)

@@ -200,6 +200,37 @@ def test_golden_evidence_cohort_make_is_deterministic_json_and_write_free():
     assert _tree_manifest(root) == before
 
 
+def test_golden_price_lineage_proof_make_defaults_to_no_live_collection_and_no_writes():
+    root = Path.cwd()
+    before = _tree_manifest(root)
+
+    result = subprocess.run(
+        ["make", "--no-print-directory", "golden-price-lineage-proof", "JSON=1"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "collection_not_requested"
+    assert payload["live_collection_performed"] is False
+    assert [member["ticker"] for member in payload["members"]] == [
+        "AMD",
+        "AVGO",
+        "COHR",
+        "ABAT",
+    ]
+    assert payload["method_fit_exclusions"] == ["QQQ"]
+    assert payload["canonical_apply_authorized"] is False
+    assert payload["readiness_materialization_authorized"] is False
+    assert payload["source_rights_change_authorized"] is False
+    assert payload["repository_writes"] == []
+    assert _tree_manifest(root) == before
+
+
 def _run_isolated_golden_make(root: Path, fixture_root: Path, *, json_output: bool):
     command = [
         "make",

@@ -1,5 +1,7 @@
 import json
+import hashlib
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -198,6 +200,52 @@ def test_yahoo_chart_source_normalizes_daily_rows():
     assert frame.iloc[0]["ticker"] == "AMD"
     assert frame.iloc[0]["adj_close"] == 100.5
     assert "unofficial Yahoo chart endpoint" in warnings[0]
+
+
+def test_yahoo_chart_source_captures_exact_payload_reference_and_retrieval_time():
+    payload = json.dumps(
+        {
+            "chart": {
+                "result": [
+                    {
+                        "timestamp": [1767312000],
+                        "indicators": {
+                            "quote": [
+                                {
+                                    "open": [100.0],
+                                    "high": [102.0],
+                                    "low": [99.0],
+                                    "close": [101.0],
+                                    "volume": [12345],
+                                }
+                            ],
+                            "adjclose": [{"adjclose": [100.5]}],
+                        },
+                    }
+                ],
+                "error": None,
+            }
+        },
+        separators=(",", ":"),
+    )
+
+    def opener(_request, timeout: int):
+        assert timeout == 20
+        return FakeHTTPResponse(payload)
+
+    source = YahooChartDailyPriceSource(
+        opener=opener,
+        clock=lambda: datetime(2026, 8, 22, 20, 30, tzinfo=timezone.utc),
+    )
+
+    frame, _warnings = source.fetch_history("AMD")
+
+    assert len(frame) == 1
+    assert source.last_source_reference == (
+        "yahoo-chart:AMD:sha256:"
+        + hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    )
+    assert source.last_retrieved_at == "2026-08-22T20:30:00+00:00"
 
 
 def test_yahoo_chart_source_uses_provider_symbol_alias_but_preserves_local_ticker():
