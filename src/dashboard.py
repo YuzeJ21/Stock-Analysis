@@ -428,6 +428,7 @@ from src.research_workspace import (
     saved_readiness_display_label,
     research_workflow_navigation_html,
     research_workspace_header_html,
+    _quoted_ticker,
     weekly_summary_cards,
 )
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
@@ -30341,6 +30342,60 @@ def discover_saved_company_browse_frame(
     return result.head(max(limit, 1)).reset_index(drop=True)
 
 
+def discover_primary_answer_html(saved_company_count: int, strict_eligible_count: int) -> str:
+    """Render the Discover answer with saved evidence access before strict screening."""
+
+    saved_count = max(int(saved_company_count), 0)
+    eligible_count = max(int(strict_eligible_count), 0)
+    saved_noun = "saved company" if saved_count == 1 else "saved companies"
+    answer = (
+        f"{saved_count:,} {saved_noun} {'is' if saved_count == 1 else 'are'} "
+        f"available for evidence review; {eligible_count:,} currently pass the strict screen."
+    )
+    reason = (
+        "Saved-company availability and strict-screen eligibility are separate. "
+        "The links below are alphabetical evidence paths, not a ranking; strict thresholds remain unchanged."
+    )
+    return answer_panel_html(
+        question="Find a Company · Evidence access first",
+        answer=answer,
+        reason=reason,
+        action=None,
+        stop_rule=None,
+    ).value
+
+
+def discover_quick_company_links_html(frame: pd.DataFrame, *, limit: int = 4) -> str:
+    """Render a compact alphabetical set of Company Workbench evidence paths."""
+
+    if frame is None or frame.empty or "Ticker" not in frame.columns:
+        tickers: list[str] = []
+    else:
+        ticker_series = frame["Ticker"].copy().fillna("").astype(str).str.strip().str.upper()
+        tickers = sorted(
+            ticker_series.loc[ticker_series.ne("")].drop_duplicates().tolist(),
+            key=str.casefold,
+        )[: max(limit, 0)]
+    links = "".join(
+        next_action_html(
+            SafeRouteAction(
+                label=f"Open {ticker} Company Brief",
+                href=(
+                    "?mode=research&page=company-workbench"
+                    f"&ticker={_quoted_ticker(ticker)}&open=1"
+                ),
+            )
+        ).value
+        for ticker in tickers
+    )
+    return (
+        "<section class='discover-quick-company-links' "
+        f"aria-label='{html.escape('Alphabetical Company Brief evidence paths', quote=True)}'>"
+        "<p>Alphabetical evidence paths, not a ranking.</p>"
+        f"{links}</section>"
+    )
+
+
 def stock_selector_queue_frame(
     decisions_frame: pd.DataFrame | None,
     final_frame: pd.DataFrame | None,
@@ -30923,6 +30978,7 @@ def render_stock_selector(
     target_page: str = "single-stock-report",
     allowed_tickers: tuple[str, ...] | None = None,
     research_boundary: str | None = None,
+    strict_eligible_count: int | None = None,
 ) -> None:
     research_discover = (
         str(target_mode).strip().lower() == RESEARCH_MODE
@@ -30963,6 +31019,19 @@ def render_stock_selector(
         selector_frame = filter_selector_to_tickers(
             selector_frame,
             allowed_tickers,
+        )
+
+    if research_discover:
+        st.markdown(
+            discover_primary_answer_html(
+                len(selector_frame),
+                0 if strict_eligible_count is None else strict_eligible_count,
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            discover_quick_company_links_html(selector_frame),
+            unsafe_allow_html=True,
         )
 
     if public_mode and not research_discover and selector_frame.empty:
@@ -37404,11 +37473,6 @@ def render_personal_research_route(
             include_boundary=False,
         )
         daily_queue = load_dashboard_daily_research_queue(context, as_of=review_date)
-        render_daily_research_queue(
-            daily_queue,
-            include_details=False,
-            include_boundary=False,
-        )
         render_stock_selector(
             {},
             public_mode=True,
@@ -37416,6 +37480,7 @@ def render_personal_research_route(
             target_page="company-workbench",
             allowed_tickers=tuple(member.ticker for member in cohort.members),
             research_boundary=QUEUE_BOUNDARY,
+            strict_eligible_count=len(daily_queue.result.eligible),
         )
         st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
         with st.expander("Advanced: cohort readiness context", expanded=False):

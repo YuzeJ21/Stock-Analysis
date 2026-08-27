@@ -500,7 +500,7 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
     monkeypatch.setattr(
         dashboard,
         "load_dashboard_daily_research_queue",
-        lambda *args, **kwargs: object(),
+        lambda *args, **kwargs: SimpleNamespace(result=SimpleNamespace(eligible=())),
         raising=False,
     )
     monkeypatch.setattr(
@@ -552,8 +552,124 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
 
     assert all(value != "## Find a Company" for value in headings)
     assert all("Browse saved companies" not in value for value in headings)
-    assert calls[:2] == ["strict eligibility", "saved browsing"]
-    assert calls[2:] == ["advanced"]
+    assert calls == ["saved browsing", "advanced"]
+
+
+def test_discover_evidence_access_first_keeps_strict_queue_in_advanced_context(monkeypatch):
+    events: list[tuple[str, object]] = []
+    context = SimpleNamespace(data_dir=Path("/selected-profile/data"))
+    tickers = ("NVDA", "AMD", "AVGO", "COHR", "TSLA", "XOM", "PLTR", "ZZZ")
+    readiness = dashboard.pd.DataFrame(
+        {"ticker": tickers, "asset_type": ["company"] * len(tickers)}
+    )
+    strict_status = DailyQueueBuildStatus(
+        result=evaluate_daily_queue(()),
+        considered_count=0,
+        readiness_row_count=len(tickers),
+        price_row_count=0,
+        valuation_observation_count=0,
+        blocker_counts=(),
+        message="No strict-screen matches.",
+    )
+
+    class ContextManager:
+        def __init__(self, label: str):
+            self.label = label
+
+        def __enter__(self):
+            events.append(("expander", self.label))
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    selector_counts: list[int] = []
+    original_selector = dashboard.render_stock_selector
+
+    def render_selector(*args, **kwargs):
+        selector_counts.append(kwargs["strict_eligible_count"])
+        return original_selector(*args, **kwargs)
+
+    monkeypatch.setattr(dashboard, "load_observation_recency", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "load_dashboard_daily_research_queue", lambda *args, **kwargs: strict_status)
+    monkeypatch.setattr(dashboard, "load_ticker_readiness_report", lambda: (readiness, None))
+    monkeypatch.setattr(dashboard, "load_dcf_readiness", lambda: (dashboard.pd.DataFrame(), None))
+    monkeypatch.setattr(
+        dashboard,
+        "load_optional_context_readiness",
+        lambda: {
+            "earnings_readiness": (dashboard.pd.DataFrame(), None),
+            "analyst_estimates_readiness": (dashboard.pd.DataFrame(), None),
+        },
+    )
+    monkeypatch.setattr(dashboard, "load_output", lambda *args, **kwargs: (dashboard.pd.DataFrame(), None))
+    monkeypatch.setattr(dashboard, "dashboard_readiness_summary", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        dashboard,
+        "stock_selector_saved_filter_presets",
+        lambda: ({"label": "All", "state": "All", "readiness": "All", "detail": "All", "theme": "All", "search": ""},),
+    )
+    monkeypatch.setattr(dashboard, "render_stock_selector", render_selector)
+    monkeypatch.setattr(dashboard, "focused_cohort_cards", lambda *args, **kwargs: [])
+    monkeypatch.setattr(dashboard, "focused_cohort_coverage_cards", lambda *args, **kwargs: [])
+    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "session_state", {})
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda value, **kwargs: events.append(("markdown", value)),
+    )
+    monkeypatch.setattr(
+        dashboard.st,
+        "text_input",
+        lambda label, **kwargs: events.append(("text_input", label)) or "",
+    )
+    monkeypatch.setattr(dashboard.st, "expander", lambda label, **kwargs: ContextManager(label))
+    monkeypatch.setattr(dashboard.st, "form", lambda label, **kwargs: ContextManager(label))
+    monkeypatch.setattr(dashboard.st, "columns", lambda widths: [dashboard.st] * len(widths))
+    monkeypatch.setattr(dashboard.st, "selectbox", lambda label, options, **kwargs: options[0])
+    monkeypatch.setattr(dashboard.st, "form_submit_button", lambda *args, **kwargs: False)
+    monkeypatch.setattr(dashboard.st, "dataframe", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "caption", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "render_notice_card",
+        lambda title, body, *args, **kwargs: events.append(("notice", f"{title} {body}")),
+    )
+
+    dashboard.render_personal_research_route(
+        selected_page="Discover",
+        provider=object(),
+        context=context,
+        state={},
+        cohort=SimpleNamespace(members=tuple(SimpleNamespace(ticker=ticker) for ticker in tickers)),
+        coverage=object(),
+        weekly_summary=object(),
+        ticker="AMD",
+        review_date=date(2026, 8, 26),
+    )
+
+    primary_index = next(
+        index
+        for index, event in enumerate(events)
+        if event[0] == "markdown" and "8 saved companies are available" in event[1]
+    )
+    search_index = events.index(("text_input", "Search saved companies"))
+    assert "0 currently pass the strict screen" in events[primary_index][1]
+    assert primary_index < search_index
+    assert all(
+        ticker in " ".join(event[1] for event in events if event[0] == "markdown")
+        for ticker in ("AMD", "AVGO", "COHR", "NVDA")
+    )
+    advanced_index = events.index(("expander", "Advanced: cohort readiness context"))
+    strict_detail_index = next(
+        index
+        for index, event in enumerate(events)
+        if event[0] == "notice" and "No company currently has complete evidence" in event[1]
+    )
+    assert advanced_index < strict_detail_index
+    assert selector_counts == [0]
 
 
 def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser(
@@ -577,7 +693,11 @@ def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser
         "render_research_workspace_header",
         lambda *args, **kwargs: calls.append(("header", kwargs)),
     )
-    monkeypatch.setattr(dashboard, "load_dashboard_daily_research_queue", lambda *args, **kwargs: object())
+    monkeypatch.setattr(
+        dashboard,
+        "load_dashboard_daily_research_queue",
+        lambda *args, **kwargs: SimpleNamespace(result=SimpleNamespace(eligible=())),
+    )
     monkeypatch.setattr(dashboard, "render_daily_research_queue", lambda *args, **kwargs: calls.append(("strict", kwargs)))
     monkeypatch.setattr(
         dashboard,
@@ -614,12 +734,10 @@ def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser
     assert header_kwargs["include_boundary"] is False
     assert header_kwargs["compact"] is True
     assert header_kwargs.get("observation_recency") is None
-    assert [name for name, _ in calls].index("strict") < [name for name, _ in calls].index(
-        "saved"
-    ) < [name for name, _ in calls].index("recency")
-    strict_kwargs = next(value for name, value in calls if name == "strict")
-    assert strict_kwargs["include_details"] is False
-    assert strict_kwargs["include_boundary"] is False
+    assert "strict" not in [name for name, _ in calls]
+    assert [name for name, _ in calls].index("saved") < [name for name, _ in calls].index(
+        "recency"
+    )
     saved_kwargs = next(value for name, value in calls if name == "saved")
     assert saved_kwargs["research_boundary"] == dashboard.QUEUE_BOUNDARY
 

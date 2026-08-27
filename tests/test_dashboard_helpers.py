@@ -2262,6 +2262,28 @@ def test_discover_saved_company_browse_frame_fails_closed_without_saved_readines
     ).empty
 
 
+def test_discover_primary_answer_separates_saved_access_from_strict_eligibility():
+    rendered = dashboard.discover_primary_answer_html(8, 0)
+
+    assert "8 saved companies are available for evidence review" in rendered
+    assert "0 currently pass the strict screen" in rendered
+    assert "alphabetical" in rendered.lower()
+    assert "not a ranking" in rendered.lower()
+
+
+def test_discover_quick_links_are_alphabetical_non_ranked_company_briefs():
+    frame = dashboard.pd.DataFrame({"Ticker": ["NVDA", "AMD", "AVGO", "COHR", "TSLA"]})
+
+    rendered = dashboard.discover_quick_company_links_html(frame, limit=4)
+
+    assert [rendered.index(ticker) for ticker in ("AMD", "AVGO", "COHR", "NVDA")] == sorted(
+        rendered.index(ticker) for ticker in ("AMD", "AVGO", "COHR", "NVDA")
+    )
+    assert "TSLA" not in rendered
+    assert rendered.count("page=company-workbench") == 4
+    assert "ranking" in rendered.lower()
+
+
 def test_stock_selector_source_frames_skip_legacy_outputs_for_research_discover(
     monkeypatch,
 ):
