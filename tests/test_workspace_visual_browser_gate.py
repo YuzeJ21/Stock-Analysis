@@ -1,10 +1,65 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import textwrap
 from pathlib import Path
 
 import pytest
+
+
+@pytest.mark.parametrize(
+    ("route", "final_selector"),
+    (
+        ("/?mode=research&page=company-workbench&ticker=AVGO&open=1", ".company-workbench-primary-brief"),
+        ("/?mode=public&page=single-stock-report&ticker=AVGO&open=1", ".public-ticker-summary"),
+    ),
+)
+def test_task4_production_report_cold_transition_is_neutral_then_resolved(
+    tmp_path, monkeypatch, route, final_selector
+):
+    """Observe the real report route while a child-only report build is delayed once."""
+    from playwright.sync_api import sync_playwright
+    from src.research_accessibility_browser_gate import _captured_local_demo_server
+    from src.workspace_visual_browser_gate import find_chrome_executable
+
+    delay_dir = tmp_path / "delay"
+    delay_dir.mkdir()
+    (delay_dir / "sitecustomize.py").write_text(textwrap.dedent("""
+        import time
+        import src.stock_report as _stock_report
+        _original = _stock_report.build_stock_report
+        _used = False
+        def build_stock_report(*args, **kwargs):
+            global _used
+            if not _used:
+                _used = True
+                time.sleep(1.0)
+            return _original(*args, **kwargs)
+        _stock_report.build_stock_report = build_stock_report
+    """), encoding="utf-8")
+    monkeypatch.setenv("PYTHONPATH", str(delay_dir) + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    root = Path(__file__).resolve().parents[1]
+    with _captured_local_demo_server(root, timeout_seconds=30) as server:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(executable_path=find_chrome_executable(), headless=True)
+            page = browser.new_page(viewport={"width": 1280, "height": 720})
+            page.add_init_script("""
+              window.__cold = [];
+              new MutationObserver(() => { const loader=document.querySelector('.single-stock-loading-state[role="status"][aria-live="polite"][aria-busy="true"]'); const final=document.querySelectorAll(%s); if (loader || final.length) window.__cold.push({loader:!!loader, final:final.length, text:loader?.innerText||''}); }).observe(document,{childList:true,subtree:true});
+            """ % json.dumps(final_selector))
+            page.goto(server.base_url + route, wait_until="domcontentloaded")
+            page.wait_for_selector(final_selector, state="visible", timeout=30000)
+            observed = page.evaluate("() => window.__cold")
+            loader = [row for row in observed if row["loader"]]
+            assert loader and all(row["final"] == 0 for row in loader)
+            assert "No data is being refreshed or changed" in loader[0]["text"]
+            assert "does not state that any analysis section is ready or blocked" in loader[0]["text"].lower()
+            assert page.locator(final_selector).count() == 1
+            assert page.locator(".single-stock-loading-state, [aria-busy='true']").count() == 0
+            assert page.url == server.base_url + route
+            browser.close()
 
 
 def test_route_fixtures_cover_the_literal_workspace_matrix_in_declared_order():
@@ -1436,18 +1491,21 @@ def test_task4_resolved_report_state_requires_one_completed_brief_and_no_busy_lo
 
     assert evaluate_resolved_report_state(
         company_brief_count=1,
-        completed_answer_count=4,
+        primary_answer_count=4,
+        evidence_lane_count=5,
         busy_loading_count=0,
     ).passed
     baseline = {
         "company_brief_count": 1,
-        "completed_answer_count": 4,
+        "primary_answer_count": 4,
+        "evidence_lane_count": 5,
         "busy_loading_count": 0,
     }
     for changed in (
         {"company_brief_count": 0},
         {"company_brief_count": 2},
-        {"completed_answer_count": 3},
+        {"primary_answer_count": 3},
+        {"evidence_lane_count": 4},
         {"busy_loading_count": 1},
     ):
         assert not evaluate_resolved_report_state(**{**baseline, **changed}).passed

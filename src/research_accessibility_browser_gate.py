@@ -437,6 +437,7 @@ def evaluate_discover_evidence_access(
     quick_links: Iterable[tuple[object, object]],
     primary_before_quick_links: bool,
     quick_links_before_advanced_filters: bool,
+    expected_strict_count: int | None = None,
 ) -> dict[str, object]:
     """Require the live Discover answer and compact evidence paths before filters."""
 
@@ -449,8 +450,11 @@ def evaluate_discover_evidence_access(
         and "saved compan" in answer_parts[0].casefold()
         and "available for evidence review" in normalized_answer
         and answer_parts[1].split(" ", 1)[0].replace(",", "").isdigit()
-        and answer_parts[1].split(" ", 1)[0] == "0"
         and "currently pass the strict screen" in normalized_answer
+    )
+    strict_count = int(answer_parts[1].split(" ", 1)[0]) if answer_has_counts else None
+    strict_count_matches = (
+        expected_strict_count is None or strict_count == expected_strict_count
     )
     observed_links = tuple(
         (str(label or "").strip(), str(href or "").strip())
@@ -477,6 +481,7 @@ def evaluate_discover_evidence_access(
     links_are_unique = len(tickers) == len(set(ticker.upper() for ticker in tickers))
     passed = (
         answer_has_counts
+        and strict_count_matches
         and len(observed_links) >= 4
         and links_are_bound
         and links_are_unique
@@ -491,7 +496,7 @@ def evaluate_discover_evidence_access(
             "Discover exposes both live counts and four alphabetical Company Brief evidence paths before advanced filters"
             if passed
             else (
-                f"answer_has_counts={answer_has_counts}; quick_link_count={len(observed_links)}; "
+                f"answer_has_counts={answer_has_counts}; strict_count={strict_count}; expected_strict_count={expected_strict_count}; quick_link_count={len(observed_links)}; "
                 f"links_are_bound={links_are_bound}; links_are_unique={links_are_unique}; "
                 f"links_are_alphabetical={links_are_alphabetical}; "
                 f"primary_before_quick_links={primary_before_quick_links}; "

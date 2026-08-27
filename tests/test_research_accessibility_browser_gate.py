@@ -464,12 +464,6 @@ def test_task4_discover_evidence_access_requires_live_counts_alphabetical_briefs
     }
     for changed in (
         {"primary_answer": "8 saved companies are available for evidence review."},
-        {
-            "primary_answer": (
-                "8 saved companies are available for evidence review; "
-                "1 currently pass the strict screen."
-            )
-        },
         {"quick_links": passing["quick_links"][:3]},
         {
             "quick_links": (
@@ -483,6 +477,22 @@ def test_task4_discover_evidence_access_requires_live_counts_alphabetical_briefs
     ):
         result = evaluate_discover_evidence_access(**{**baseline, **changed})
         assert result["passed"] is False
+
+    zero_fixture = evaluate_discover_evidence_access(
+        **{**baseline, "expected_strict_count": 0}
+    )
+    nonzero_fixture = evaluate_discover_evidence_access(
+        **{
+            **baseline,
+            "primary_answer": (
+                "8 saved companies are available for evidence review; "
+                "1 currently pass the strict screen."
+            ),
+            "expected_strict_count": 0,
+        }
+    )
+    assert zero_fixture["passed"] is True
+    assert nonzero_fixture["passed"] is False
 
 
 def test_task4_monitor_return_context_requires_one_return_without_changing_monitor_counts():

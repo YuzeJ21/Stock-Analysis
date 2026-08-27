@@ -413,14 +413,16 @@ def evaluate_runtime_capture(
 def evaluate_resolved_report_state(
     *,
     company_brief_count: int,
-    completed_answer_count: int,
+    primary_answer_count: int,
+    evidence_lane_count: int,
     busy_loading_count: int,
 ) -> BrowserEvaluation:
     """Require the stable Workbench to replace the temporary busy report state."""
 
     passed = (
         company_brief_count == 1
-        and completed_answer_count == 4
+        and primary_answer_count == 4
+        and evidence_lane_count == 5
         and busy_loading_count == 0
     )
     return BrowserEvaluation(
@@ -430,7 +432,8 @@ def evaluate_resolved_report_state(
             if passed
             else (
                 f"company_brief_count={company_brief_count}; "
-                f"completed_answer_count={completed_answer_count}; "
+                f"primary_answer_count={primary_answer_count}; "
+                f"evidence_lane_count={evidence_lane_count}; "
                 f"busy_loading_count={busy_loading_count}"
             )
         ),
@@ -1965,6 +1968,9 @@ def _browser_observation(page: Any) -> dict[str, object]:
       (node) => Boolean(node.getAttribute("aria-label")?.trim())
     ).length,
     workbench_evidence_lane_count: workbenchEvidenceLanes.length,
+    workbench_primary_answer_count: firstWorkbenchBrief
+      ? [...firstWorkbenchBrief.querySelectorAll(".company-workbench-primary-answer")].filter(visible).length
+      : 0,
     workbench_busy_loading_count: document.querySelectorAll("[aria-busy='true']").length,
     evidence_current_marker_count: evidenceCurrentMarkers.length,
     evidence_current_label_color: evidenceLabel ? getComputedStyle(evidenceLabel).color : "",
@@ -2652,7 +2658,10 @@ def _evaluate_observation(
                 company_brief_count=int(
                     observation.get("workbench_brief_visible_count") or 0
                 ),
-                completed_answer_count=int(
+                primary_answer_count=int(
+                    observation.get("workbench_primary_answer_count") or 0
+                ),
+                evidence_lane_count=int(
                     observation.get("workbench_evidence_lane_count") or 0
                 ),
                 busy_loading_count=int(
