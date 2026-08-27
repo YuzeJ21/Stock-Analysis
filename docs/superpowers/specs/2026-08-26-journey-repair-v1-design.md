@@ -159,4 +159,3 @@ Acceptance requires:
    no diff.
 
 > Data readiness first, analysis second, research decision last.
-
