@@ -842,6 +842,16 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   border-color: var(--sr-nav-text) !important;
   color: var(--sr-nav-text) !important;
 }}
+.research-workflow-navigation .research-workflow-evidence-current {{
+  background: rgba(248, 250, 252, .12);
+  border-color: var(--sr-nav-muted);
+}}
+.research-workflow-navigation .research-workflow-evidence-current > span {{
+  color: var(--sr-nav-muted) !important;
+}}
+.research-workflow-navigation .research-workflow-evidence-current > strong {{
+  color: var(--sr-nav-text) !important;
+}}
 .research-workflow-disabled {{ position: relative; color: var(--sr-nav-muted) !important; opacity: .82; cursor: not-allowed; }}
 .research-workspace-mode {{
   display: grid;
@@ -1066,6 +1076,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
     grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
     gap: 4px;
     width: 100%;
+  }}
+  .research-workflow-routes .research-workflow-evidence-current {{
+    grid-column: 1 / -1;
+    justify-content: center;
+    min-width: 0;
+    text-align: center;
   }}
   .research-workspace-mode {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; padding: 8px 0 0; border-top: 1px solid rgba(248, 250, 252, .24); }}
   .research-workspace-mode > span {{ grid-column: 1 / -1; align-self: center; padding: 0 4px; }}

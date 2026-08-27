@@ -30,6 +30,9 @@ def test_route_fixtures_cover_the_literal_workspace_matrix_in_declared_order():
     assert next(route for route in ROUTE_FIXTURES if route.slug == "company-workbench").route == (
         "/?mode=research&page=company-workbench&ticker=AVGO"
     )
+    assert next(route for route in ROUTE_FIXTURES if route.slug == "monitor").route == (
+        "/?mode=research&page=monitor&return_ticker=NVDA"
+    )
     assert next(route for route in ROUTE_FIXTURES if route.slug == "single-stock-report").route == (
         "/?mode=public&page=single-stock-report&ticker=AVGO&open=1"
     )
@@ -1424,6 +1427,92 @@ def test_runtime_capture_requires_an_idle_streamlit_app_and_no_visible_loading()
                 **broken,
             }
         ).passed
+
+
+def test_task4_resolved_report_state_requires_one_completed_brief_and_no_busy_loading_state():
+    """Catches a stable Company Workbench retaining cold-report busy markup."""
+
+    from src.workspace_visual_browser_gate import evaluate_resolved_report_state
+
+    assert evaluate_resolved_report_state(
+        company_brief_count=1,
+        completed_answer_count=4,
+        busy_loading_count=0,
+    ).passed
+    baseline = {
+        "company_brief_count": 1,
+        "completed_answer_count": 4,
+        "busy_loading_count": 0,
+    }
+    for changed in (
+        {"company_brief_count": 0},
+        {"company_brief_count": 2},
+        {"completed_answer_count": 3},
+        {"busy_loading_count": 1},
+    ):
+        assert not evaluate_resolved_report_state(**{**baseline, **changed}).passed
+
+
+def test_task4_advanced_evidence_rail_contrast_rejects_dark_text_on_the_desktop_nav_background():
+    """Catches the evidence current-location cue becoming unreadable on the dark rail."""
+
+    from src.workspace_visual_browser_gate import (
+        evaluate_advanced_evidence_rail_contrast,
+    )
+
+    assert evaluate_advanced_evidence_rail_contrast(
+        marker_count=1,
+        label_color="rgb(203, 213, 225)",
+        current_color="rgb(248, 250, 252)",
+        navigation_background="rgb(11, 27, 43)",
+    ).passed
+    assert not evaluate_advanced_evidence_rail_contrast(
+        marker_count=1,
+        label_color="rgb(82, 97, 92)",
+        current_color="rgb(15, 76, 58)",
+        navigation_background="rgb(11, 27, 43)",
+    ).passed
+
+
+def test_task4_phone_advanced_evidence_cue_requires_its_own_row_without_overlapping_primary_navigation():
+    """Catches the secondary location cue sharing a phone-grid cell with a primary route."""
+
+    from src.workspace_visual_browser_gate import (
+        evaluate_advanced_evidence_navigation_layout,
+    )
+
+    passing = evaluate_advanced_evidence_navigation_layout(
+        phone_layout=True,
+        marker_count=1,
+        primary_link_count=4,
+        marker_box={"left": 16, "right": 374, "top": 140, "bottom": 194},
+        primary_link_boxes=(
+            {"left": 16, "right": 103, "top": 78, "bottom": 128},
+            {"left": 107, "right": 194, "top": 78, "bottom": 128},
+            {"left": 198, "right": 285, "top": 78, "bottom": 128},
+            {"left": 289, "right": 374, "top": 78, "bottom": 128},
+        ),
+        workspace_mode_box={"left": 16, "right": 374, "top": 206, "bottom": 294},
+        routes_scroll_width=358,
+        routes_client_width=358,
+    )
+
+    assert passing.passed
+    assert not evaluate_advanced_evidence_navigation_layout(
+        phone_layout=True,
+        marker_count=1,
+        primary_link_count=4,
+        marker_box={"left": 16, "right": 103, "top": 112, "bottom": 194},
+        primary_link_boxes=(
+            {"left": 16, "right": 103, "top": 78, "bottom": 128},
+            {"left": 107, "right": 194, "top": 78, "bottom": 128},
+            {"left": 198, "right": 285, "top": 78, "bottom": 128},
+            {"left": 289, "right": 374, "top": 78, "bottom": 128},
+        ),
+        workspace_mode_box={"left": 16, "right": 374, "top": 206, "bottom": 294},
+        routes_scroll_width=358,
+        routes_client_width=358,
+    ).passed
 
 
 def _run_fake_matrix_cell_with_requests(

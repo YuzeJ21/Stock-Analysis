@@ -400,7 +400,9 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         route for route in RESEARCH_RENDER_ROUTES if route.name == "Discover"
     )
     assert "Find a Company" in discover_route.required_markers
-    assert "Screen eligibility — when supported" in discover_route.required_markers
+    assert "available for evidence review" in discover_route.required_markers
+    assert "currently pass the strict screen" in discover_route.required_markers
+    assert "Screen eligibility — when supported" not in discover_route.required_markers
     assert "Browse saved companies" in discover_route.required_markers
     data_health_route = next(
         route for route in RESEARCH_RENDER_ROUTES if route.name == "Research Data Health"
@@ -974,12 +976,28 @@ for key in (
     st.session_state.pop(key, None)
 class AnswerTarget:
     def markdown(self, body, **kwargs):
-        events.append('neutral' if 'preparing saved review' in body else 'completed')
+        events.append(
+            'neutral' if 'preparing saved review' in body
+            else 'failure' if 'saved report unavailable' in body
+            else 'completed'
+        )
     def empty(self):
         events.append('cleared')
 
+class EvidenceTarget:
+    def __init__(self):
+        self.target = st.empty()
+    def markdown(self, body, **kwargs):
+        events.append(
+            'rail-loading' if 'preparing saved review' in body
+            else 'rail-unavailable' if 'Unavailable' in body
+            else 'rail-final'
+        )
+        self.target.markdown(body, **kwargs)
+
 def unavailable_report(*args, **kwargs):
     build_calls.append((args, kwargs))
+    events.append('build')
     raise RuntimeError('controlled unavailable report')
 
 original_build_provider = dashboard.build_provider
@@ -999,7 +1017,7 @@ try:
         },
     )
     answer_target = AnswerTarget()
-    evidence_target = st.empty()
+    evidence_target = EvidenceTarget()
     dashboard.render_single_stock_report(
         provider,
         False,
@@ -1029,7 +1047,7 @@ st.caption(f'controlled events: {"|".join(events)}')
     assert rails[0].count("Unavailable") == 6
     assert "controlled builder calls: 1" in [item.value for item in app.caption]
     event_caption = next(item.value for item in app.caption if str(item.value).startswith("controlled events:"))
-    assert event_caption == "controlled events: neutral|cleared"
+    assert event_caption == "controlled events: neutral|rail-loading|build|failure|rail-unavailable"
 
 
 def test_company_workbench_cold_success_replaces_neutral_loading_with_the_completed_brief_once():
@@ -1051,9 +1069,24 @@ for key in (
     st.session_state.pop(key, None)
 class AnswerTarget:
     def markdown(self, body, **kwargs):
-        events.append('neutral' if 'preparing saved review' in body else 'completed')
+        events.append(
+            'neutral' if 'preparing saved review' in body
+            else 'failure' if 'saved report unavailable' in body
+            else 'completed'
+        )
     def empty(self):
         events.append('cleared')
+
+class EvidenceTarget:
+    def __init__(self):
+        self.target = st.empty()
+    def markdown(self, body, **kwargs):
+        events.append(
+            'rail-loading' if 'preparing saved review' in body
+            else 'rail-unavailable' if 'Unavailable' in body
+            else 'rail-final'
+        )
+        self.target.markdown(body, **kwargs)
 
 provider = dashboard.build_provider('local', base_dir=Path('.'))
 original_build_stock_report = dashboard.build_stock_report
@@ -1070,6 +1103,7 @@ try:
         public_mode=True,
         research_mode=True,
         selected_answer_target=AnswerTarget(),
+        selected_evidence_target=EvidenceTarget(),
     )
 finally:
     dashboard.build_stock_report = original_build_stock_report
@@ -1085,9 +1119,12 @@ st.caption(f'controlled events: {"|".join(events)}')
     event_caption = next(item.value for item in app.caption if str(item.value).startswith("controlled events:"))
     events = event_caption.removeprefix("controlled events: ").split("|")
     assert events.count("neutral") == 1
+    assert events.count("rail-loading") == 1
     assert events.count("cleared") == 1
     assert events.count("completed") == 1
-    assert events.index("neutral") < events.index("build") < events.index("cleared") < events.index("completed")
+    assert events.count("rail-final") == 1
+    assert events.index("neutral") < events.index("rail-loading") < events.index("build")
+    assert events.index("build") < events.index("cleared") < events.index("rail-final") < events.index("completed")
 
 
 def test_company_workbench_unavailable_rail_restores_the_normal_report_builders():

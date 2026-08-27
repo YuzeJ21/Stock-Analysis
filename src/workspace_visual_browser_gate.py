@@ -77,7 +77,7 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
     WorkspaceVisualRoute(
         "monitor",
         "Monitor",
-        "/?mode=research&page=monitor",
+        "/?mode=research&page=monitor&return_ticker=NVDA",
         "Follow-up Queue",
         "Monitor",
         "research",
@@ -406,6 +406,154 @@ def evaluate_runtime_capture(
         (
             f"app_state={app_state!r}; traceback={traceback_visible}; "
             f"spinners={spinner_count}; console_errors={list(console_errors)!r}"
+        ),
+    )
+
+
+def evaluate_resolved_report_state(
+    *,
+    company_brief_count: int,
+    completed_answer_count: int,
+    busy_loading_count: int,
+) -> BrowserEvaluation:
+    """Require the stable Workbench to replace the temporary busy report state."""
+
+    passed = (
+        company_brief_count == 1
+        and completed_answer_count == 4
+        and busy_loading_count == 0
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            "one completed Company Brief is stable with no aria-busy loading state"
+            if passed
+            else (
+                f"company_brief_count={company_brief_count}; "
+                f"completed_answer_count={completed_answer_count}; "
+                f"busy_loading_count={busy_loading_count}"
+            )
+        ),
+    )
+
+
+def _contrast_ratio(foreground: str, background: str) -> float | None:
+    """Return WCAG contrast for browser-computed opaque rgb colors."""
+
+    def luminance(value: str) -> float | None:
+        match = re.fullmatch(
+            r"rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)",
+            str(value or "").strip(),
+        )
+        if match is None:
+            return None
+        channels = tuple(int(channel) for channel in match.groups())
+        if any(channel < 0 or channel > 255 for channel in channels):
+            return None
+        linear = tuple(
+            channel / 255 / 12.92
+            if channel / 255 <= 0.04045
+            else ((channel / 255 + 0.055) / 1.055) ** 2.4
+            for channel in channels
+        )
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+    foreground_luminance = luminance(foreground)
+    background_luminance = luminance(background)
+    if foreground_luminance is None or background_luminance is None:
+        return None
+    lighter, darker = sorted((foreground_luminance, background_luminance), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def evaluate_advanced_evidence_rail_contrast(
+    *,
+    marker_count: int,
+    label_color: str,
+    current_color: str,
+    navigation_background: str,
+) -> BrowserEvaluation:
+    """Require the desktop Advanced Evidence cue to remain readable on the nav rail."""
+
+    label_ratio = _contrast_ratio(label_color, navigation_background)
+    current_ratio = _contrast_ratio(current_color, navigation_background)
+    passed = (
+        marker_count == 1
+        and label_ratio is not None
+        and current_ratio is not None
+        and label_ratio >= 4.5
+        and current_ratio >= 4.5
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            "one Advanced Evidence marker has readable label and current-location text on the desktop nav rail"
+            if passed
+            else (
+                f"marker_count={marker_count}; label_color={label_color!r}; "
+                f"current_color={current_color!r}; navigation_background={navigation_background!r}; "
+                f"label_contrast={label_ratio!r}; current_contrast={current_ratio!r}"
+            )
+        ),
+    )
+
+
+def evaluate_advanced_evidence_navigation_layout(
+    *,
+    phone_layout: bool,
+    marker_count: int,
+    primary_link_count: int,
+    marker_box: dict[str, object],
+    primary_link_boxes: tuple[dict[str, object], ...],
+    workspace_mode_box: dict[str, object],
+    routes_scroll_width: float,
+    routes_client_width: float,
+) -> BrowserEvaluation:
+    """Require the phone evidence cue to occupy a full row between route links and mode."""
+
+    if not phone_layout:
+        return BrowserEvaluation(True, "desktop layout is outside the phone cue-row contract")
+
+    def coordinates(box: dict[str, object]) -> tuple[float, float, float, float] | None:
+        try:
+            values = tuple(float(box[key]) for key in ("left", "right", "top", "bottom"))
+        except (KeyError, TypeError, ValueError):
+            return None
+        left, right, top, bottom = values
+        if right <= left or bottom <= top:
+            return None
+        return values
+
+    marker = coordinates(marker_box)
+    primary = tuple(coordinates(box) for box in primary_link_boxes)
+    mode = coordinates(workspace_mode_box)
+    primary_valid = len(primary) == primary_link_count and all(box is not None for box in primary)
+    no_overflow = routes_scroll_width <= routes_client_width + 1
+    positioned = False
+    if marker is not None and mode is not None and primary_valid:
+        primary_boxes = tuple(box for box in primary if box is not None)
+        primary_left = min(box[0] for box in primary_boxes)
+        primary_right = max(box[1] for box in primary_boxes)
+        primary_bottom = max(box[3] for box in primary_boxes)
+        marker_left, marker_right, marker_top, marker_bottom = marker
+        positioned = (
+            marker_left <= primary_left + 1
+            and marker_right >= primary_right - 1
+            and marker_top >= primary_bottom + 1
+            and marker_bottom <= mode[2] + 1
+            and marker_bottom - marker_top >= 44
+        )
+    passed = marker_count == 1 and primary_link_count == 4 and primary_valid and no_overflow and positioned
+    return BrowserEvaluation(
+        passed,
+        (
+            "one Advanced Evidence cue occupies its own full phone row with no route-grid overflow"
+            if passed
+            else (
+                f"marker_count={marker_count}; primary_link_count={primary_link_count}; "
+                f"primary_valid={primary_valid}; positioned={positioned}; "
+                f"routes_scroll_width={routes_scroll_width}; routes_client_width={routes_client_width}"
+            )
         ),
     )
 
@@ -1631,6 +1779,18 @@ def _browser_observation(page: Any) -> dict[str, object]:
       .filter(visible)
       .map((node) => boxFor(node, node.getAttribute("data-workbench-lane") || "lane"))
     : [];
+  const evidenceCurrentMarkers = [...document.querySelectorAll(
+    ".research-workflow-evidence-current"
+  )].filter(visible);
+  const evidenceCurrent = evidenceCurrentMarkers[0] || null;
+  const evidenceLabel = evidenceCurrent?.querySelector("span") || null;
+  const evidenceCurrentText = evidenceCurrent?.querySelector("strong[aria-current='page']") || null;
+  const evidenceNavigation = evidenceCurrent?.closest(".research-workflow-navigation") || null;
+  const researchRouteGrid = document.querySelector(".research-workflow-routes");
+  const primaryResearchLinks = [...document.querySelectorAll(
+    ".research-workflow-routes .research-workflow-link"
+  )].filter(visible);
+  const workspaceMode = document.querySelector(".research-workspace-mode");
   const operatorRadios = [...document.querySelectorAll("[data-testid='stSidebar'] [role='radiogroup']")];
   const operatorShells = [...document.querySelectorAll("[role='main'] .sr-operator-route-shell")];
   const operatorWarnings = [...document.querySelectorAll("[role='main'] .sr-operator-warning")];
@@ -1805,6 +1965,16 @@ def _browser_observation(page: Any) -> dict[str, object]:
       (node) => Boolean(node.getAttribute("aria-label")?.trim())
     ).length,
     workbench_evidence_lane_count: workbenchEvidenceLanes.length,
+    workbench_busy_loading_count: document.querySelectorAll("[aria-busy='true']").length,
+    evidence_current_marker_count: evidenceCurrentMarkers.length,
+    evidence_current_label_color: evidenceLabel ? getComputedStyle(evidenceLabel).color : "",
+    evidence_current_text_color: evidenceCurrentText ? getComputedStyle(evidenceCurrentText).color : "",
+    evidence_navigation_background: evidenceNavigation ? getComputedStyle(evidenceNavigation).backgroundColor : "",
+    evidence_current_box: evidenceCurrent ? boxFor(evidenceCurrent, "advanced-evidence-current") : {},
+    primary_research_link_boxes: primaryResearchLinks.map((node) => boxFor(node, "research-workflow-link")),
+    workspace_mode_box: workspaceMode ? boxFor(workspaceMode, "workspace-mode") : {},
+    research_route_grid_scroll_width: researchRouteGrid ? researchRouteGrid.scrollWidth : 0,
+    research_route_grid_client_width: researchRouteGrid ? researchRouteGrid.clientWidth : 0,
     workbench_primary_action_count: firstWorkbenchBrief
       ? firstWorkbenchBrief.querySelectorAll("a.public-primary-action").length
       : 0,
@@ -1829,6 +1999,7 @@ def _browser_observation(page: Any) -> dict[str, object]:
       : null,
     workbench_brief_lane_boxes: workbenchBriefLaneBoxes,
     research_current_count: document.querySelectorAll("nav[aria-label='Personal research workflow'] [aria-current='page']").length,
+    research_core_current_count: document.querySelectorAll("nav[aria-label='Personal research workflow'] .research-workflow-link[aria-current='page']").length,
     operator_radio_count: operatorRadios.length,
     operator_radio_visible_count: operatorRadios.filter(visible).length,
     operator_shell_count: operatorShells.length,
@@ -2284,9 +2455,52 @@ def _evaluate_observation(
         checks.append(
             {
                 "name": "evidence_nav_has_no_false_current_core_item",
-                "passed": observation.get("research_current_count") == 0,
-                "detail": f"current core item count={observation.get('research_current_count')}",
+                "passed": observation.get("research_core_current_count") == 0,
+                "detail": f"current core item count={observation.get('research_core_current_count')}",
             }
+        )
+        add(
+            "advanced_evidence_rail_contrast",
+            evaluate_advanced_evidence_rail_contrast(
+                marker_count=int(
+                    observation.get("evidence_current_marker_count") or 0
+                ),
+                label_color=str(
+                    observation.get("evidence_current_label_color") or ""
+                ),
+                current_color=str(
+                    observation.get("evidence_current_text_color") or ""
+                ),
+                navigation_background=str(
+                    observation.get("evidence_navigation_background") or ""
+                ),
+            ),
+        )
+        add(
+            "advanced_evidence_phone_row",
+            evaluate_advanced_evidence_navigation_layout(
+                phone_layout=observation.get("phone_media_matches") is True,
+                marker_count=int(
+                    observation.get("evidence_current_marker_count") or 0
+                ),
+                primary_link_count=len(
+                    observation.get("primary_research_link_boxes") or ()
+                ),
+                marker_box=dict(observation.get("evidence_current_box") or {}),
+                primary_link_boxes=tuple(
+                    dict(box)
+                    for box in observation.get("primary_research_link_boxes") or ()
+                ),
+                workspace_mode_box=dict(
+                    observation.get("workspace_mode_box") or {}
+                ),
+                routes_scroll_width=float(
+                    observation.get("research_route_grid_scroll_width") or 0
+                ),
+                routes_client_width=float(
+                    observation.get("research_route_grid_client_width") or 0
+                ),
+            ),
         )
     first_view_routes = {
         "research-desk",
@@ -2429,6 +2643,20 @@ def _evaluate_observation(
                 brief_lane_boxes=tuple(
                     dict(row)
                     for row in observation.get("workbench_brief_lane_boxes") or ()
+                ),
+            ),
+        )
+        add(
+            "resolved_report_state",
+            evaluate_resolved_report_state(
+                company_brief_count=int(
+                    observation.get("workbench_brief_visible_count") or 0
+                ),
+                completed_answer_count=int(
+                    observation.get("workbench_evidence_lane_count") or 0
+                ),
+                busy_loading_count=int(
+                    observation.get("workbench_busy_loading_count") or 0
                 ),
             ),
         )

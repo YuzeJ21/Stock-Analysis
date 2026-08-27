@@ -431,6 +431,123 @@ def evaluate_discover_action_names(names: Iterable[str]) -> dict[str, object]:
     }
 
 
+def evaluate_discover_evidence_access(
+    *,
+    primary_answer: object,
+    quick_links: Iterable[tuple[object, object]],
+    primary_before_quick_links: bool,
+    quick_links_before_advanced_filters: bool,
+) -> dict[str, object]:
+    """Require the live Discover answer and compact evidence paths before filters."""
+
+    answer = str(primary_answer or "").strip()
+    normalized_answer = answer.casefold()
+    answer_parts = answer.split("; ")
+    answer_has_counts = (
+        len(answer_parts) == 2
+        and answer_parts[0].split(" ", 1)[0].replace(",", "").isdigit()
+        and "saved compan" in answer_parts[0].casefold()
+        and "available for evidence review" in normalized_answer
+        and answer_parts[1].split(" ", 1)[0].replace(",", "").isdigit()
+        and answer_parts[1].split(" ", 1)[0] == "0"
+        and "currently pass the strict screen" in normalized_answer
+    )
+    observed_links = tuple(
+        (str(label or "").strip(), str(href or "").strip())
+        for label, href in quick_links
+    )
+    tickers: list[str] = []
+    links_are_bound = True
+    for label, href in observed_links:
+        if not label.startswith("Open ") or not label.endswith(" Company Brief"):
+            links_are_bound = False
+            continue
+        ticker = label.removeprefix("Open ").removesuffix(" Company Brief").strip()
+        query = parse_qs(urlparse(href).query)
+        if (
+            not ticker
+            or query.get("mode", [""])[0] != "research"
+            or query.get("page", [""])[0] != "company-workbench"
+            or query.get("ticker", [""])[0].strip().upper() != ticker.upper()
+            or query.get("open", [""])[0] != "1"
+        ):
+            links_are_bound = False
+        tickers.append(ticker)
+    links_are_alphabetical = tickers == sorted(tickers, key=str.casefold)
+    links_are_unique = len(tickers) == len(set(ticker.upper() for ticker in tickers))
+    passed = (
+        answer_has_counts
+        and len(observed_links) >= 4
+        and links_are_bound
+        and links_are_unique
+        and links_are_alphabetical
+        and primary_before_quick_links is True
+        and quick_links_before_advanced_filters is True
+    )
+    return {
+        "passed": passed,
+        "quick_links": observed_links,
+        "detail": (
+            "Discover exposes both live counts and four alphabetical Company Brief evidence paths before advanced filters"
+            if passed
+            else (
+                f"answer_has_counts={answer_has_counts}; quick_link_count={len(observed_links)}; "
+                f"links_are_bound={links_are_bound}; links_are_unique={links_are_unique}; "
+                f"links_are_alphabetical={links_are_alphabetical}; "
+                f"primary_before_quick_links={primary_before_quick_links}; "
+                f"quick_links_before_advanced_filters={quick_links_before_advanced_filters}"
+            )
+        ),
+    }
+
+
+def evaluate_monitor_return_context(
+    *,
+    baseline_counts: Mapping[str, object],
+    context_counts: Mapping[str, object],
+    return_action_count: int,
+    return_action_label: object,
+    return_action_href: object,
+    clarification: object,
+) -> dict[str, object]:
+    """Require a return-only Monitor context that leaves its visible state unchanged."""
+
+    baseline = dict(baseline_counts)
+    context = dict(context_counts)
+    query = parse_qs(urlparse(str(return_action_href or "")).query)
+    returned_to_nvda = (
+        str(return_action_label or "").strip() == "Return to NVDA Company Workbench"
+        and query.get("mode", [""])[0] == "research"
+        and query.get("page", [""])[0] == "company-workbench"
+        and query.get("ticker", [""])[0].strip().upper() == "NVDA"
+        and query.get("open", [""])[0] == "1"
+    )
+    context_copy = str(clarification or "").strip()
+    clarification_is_context_only = (
+        "Monitor remains focused-cohort-wide; NVDA is only the return destination" in context_copy
+        and "does not filter these follow-up items." in context_copy
+    )
+    passed = (
+        bool(baseline)
+        and baseline == context
+        and return_action_count == 1
+        and returned_to_nvda
+        and clarification_is_context_only
+    )
+    return {
+        "passed": passed,
+        "detail": (
+            "Monitor return context exposes one explicit return action while cards, rows, and evidence remain unchanged"
+            if passed
+            else (
+                f"baseline_counts={baseline!r}; context_counts={context!r}; "
+                f"return_action_count={return_action_count}; returned_to_nvda={returned_to_nvda}; "
+                f"clarification_is_context_only={clarification_is_context_only}"
+            )
+        ),
+    }
+
+
 def evaluate_discover_rows(
     rows: Iterable[dict[str, object]],
 ) -> dict[str, object]:
@@ -2361,15 +2478,64 @@ def evaluate_evidence_navigation(
     )
 
 
+def evaluate_evidence_navigation_location(
+    *,
+    navigation_count: int,
+    core_current_count: int,
+    secondary_current_count: int,
+    secondary_current_text: object,
+    expected_label: str,
+    phase: str,
+) -> dict[str, object]:
+    """Require an Advanced Evidence page to own one truthful current-location cue."""
+
+    phase_name = str(phase or "snapshot").strip().lower().replace(" ", "_")
+    expected_text = f"Advanced Evidence · {expected_label}"
+    passed = (
+        navigation_count == 1
+        and core_current_count == 0
+        and secondary_current_count == 1
+        and str(secondary_current_text or "").strip() == expected_text
+    )
+    return _assertion(
+        f"evidence_workflow_location_{phase_name}",
+        passed,
+        (
+            "one Advanced Evidence current-location cue is truthful"
+            if passed
+            else (
+                f"navigation_count={navigation_count}; core_current_count={core_current_count}; "
+                f"secondary_current_count={secondary_current_count}; "
+                f"secondary_current_text={secondary_current_text!r}; expected={expected_text!r}"
+            )
+        ),
+    )
+
+
 def _evidence_navigation_assertion(
     page: Any,
     *,
+    route: ResearchRoute,
     phase: str,
 ) -> dict[str, object]:
     navigation = page.locator("nav[aria-label='Personal research workflow']")
-    return evaluate_evidence_navigation(
+    expected_label = {
+        "Research Data Health": "Data Health",
+        "Research Proof History": "Proof History",
+    }.get(route.name, "")
+    secondary = navigation.locator(
+        ".research-workflow-evidence-current strong[aria-current='page']"
+    )
+    return evaluate_evidence_navigation_location(
         navigation_count=navigation.count(),
-        current_count=navigation.locator("[aria-current='page']").count(),
+        core_current_count=navigation.locator(
+            "a.research-workflow-link[aria-current='page']"
+        ).count(),
+        secondary_current_count=secondary.count(),
+        secondary_current_text=(
+            secondary.first.inner_text().strip() if secondary.count() == 1 else ""
+        ),
+        expected_label=expected_label,
         phase=phase,
     )
 
@@ -2663,6 +2829,49 @@ def _discover_action_assertion(page: Any) -> dict[str, object]:
     return _assertion("discover_action_names", passed, detail)
 
 
+def _discover_evidence_access_assertion(page: Any) -> dict[str, object]:
+    """Read the rendered Discover sequence rather than inferring it from source text."""
+
+    observed = page.evaluate(
+        """
+() => {
+  const quick = document.querySelector(".discover-quick-company-links");
+  const answer = [...document.querySelectorAll(".sr-answer-panel")].find(
+    (node) => node.innerText.includes("available for evidence review") &&
+      node.innerText.includes("currently pass the strict screen")
+  );
+  const advanced = [...document.querySelectorAll("details")].find(
+    (node) => node.querySelector("summary")?.innerText.trim() ===
+      "Advanced: filters and selection guidance"
+  );
+  const before = (first, second) => Boolean(first && second &&
+    (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING));
+  return {
+    primary_answer: answer?.querySelector("h2")?.innerText.trim() || "",
+    quick_links: quick ? [...quick.querySelectorAll("a")].map((node) => [
+      node.innerText.trim(), node.getAttribute("href") || ""
+    ]) : [],
+    primary_before_quick_links: before(answer, quick),
+    quick_links_before_advanced_filters: before(quick, advanced),
+  };
+}
+"""
+    )
+    evaluated = evaluate_discover_evidence_access(
+        primary_answer=observed.get("primary_answer"),
+        quick_links=tuple(observed.get("quick_links") or ()),
+        primary_before_quick_links=observed.get("primary_before_quick_links") is True,
+        quick_links_before_advanced_filters=(
+            observed.get("quick_links_before_advanced_filters") is True
+        ),
+    )
+    return _assertion(
+        "discover_evidence_access_first",
+        bool(evaluated["passed"]),
+        str(evaluated["detail"]),
+    )
+
+
 def _discover_rows_assertion(page: Any) -> dict[str, object]:
     rows = page.locator(
         ".research-discover-result .selector-result-row"
@@ -2875,6 +3084,78 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
     )
     return _assertion(
         "monitor_process_rows",
+        bool(evaluated["passed"]),
+        str(evaluated["detail"]),
+    )
+
+
+def _monitor_surface_counts(page: Any) -> dict[str, object]:
+    """Collect only rendered Monitor state that return context must not change."""
+
+    return page.evaluate(
+        """
+() => ({
+  cards: document.querySelectorAll(".signal-grid.evidence-monitor-grid .signal-card").length,
+  rows: document.querySelectorAll("table.research-discipline-table tbody tr.research-discipline-row").length,
+  advanced_identities: document.querySelectorAll("tr.research-discipline-identity-row").length,
+  freshness_evidence: [...document.querySelectorAll(
+    ".signal-grid.evidence-monitor-grid, table.research-discipline-table, details"
+  )].map((node) => node.innerText.trim()),
+})
+"""
+    )
+
+
+def _monitor_return_context_assertion(
+    page: Any,
+    *,
+    base_url: str,
+    timeout_seconds: float,
+) -> dict[str, object]:
+    """Exercise Monitor with and without return_ticker in the same live browser page."""
+
+    def load(route: str) -> None:
+        page.goto(
+            f"{base_url.rstrip('/')}{route}",
+            wait_until="domcontentloaded",
+            timeout=int(timeout_seconds * 1000),
+        )
+        _wait_for_visible_text(page, "Follow-up Queue", timeout_seconds=timeout_seconds)
+        _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
+
+    load("/?mode=research&page=monitor")
+    baseline = _monitor_surface_counts(page)
+    load("/?mode=research&page=monitor&return_ticker=NVDA")
+    context = _monitor_surface_counts(page)
+    return_action = page.get_by_role(
+        "link", name="Return to NVDA Company Workbench", exact=True
+    )
+    clarification = page.get_by_text(
+        "Monitor remains focused-cohort-wide; NVDA is only the return destination and does not filter these follow-up items.",
+        exact=True,
+    )
+    evaluated = evaluate_monitor_return_context(
+        baseline_counts=baseline,
+        context_counts=context,
+        return_action_count=return_action.count(),
+        return_action_label=(
+            return_action.first.inner_text().strip()
+            if return_action.count() == 1
+            else ""
+        ),
+        return_action_href=(
+            return_action.first.get_attribute("href") or ""
+            if return_action.count() == 1
+            else ""
+        ),
+        clarification=(
+            clarification.first.inner_text().strip()
+            if clarification.count() == 1
+            else ""
+        ),
+    )
+    return _assertion(
+        "monitor_return_context_only",
         bool(evaluated["passed"]),
         str(evaluated["detail"]),
     )
@@ -4685,17 +4966,25 @@ def _measure_route(
             assertions.append(_navigation_assertion(page, route))
         if route.evidence_route:
             assertions.append(
-                _evidence_navigation_assertion(page, phase="initial")
+                _evidence_navigation_assertion(page, route=route, phase="initial")
             )
         assertions.extend(_skip_link_assertions(page))
         if route.requires_primary_navigation and not route.evidence_route:
             assertions.append(_summary_focus_assertion(page))
         if route.name == "Discover":
+            assertions.append(_discover_evidence_access_assertion(page))
             assertions.append(_discover_action_assertion(page))
             assertions.append(_discover_rows_assertion(page))
         if route.name == "Monitor":
             assertions.append(_monitor_brief_assertion(page, viewport[0]))
             assertions.append(_monitor_rows_assertion(page))
+            assertions.append(
+                _monitor_return_context_assertion(
+                    page,
+                    base_url=base_url,
+                    timeout_seconds=timeout_seconds,
+                )
+            )
         if route.name == "Company Workbench":
             assertions.append(_company_workbench_primary_brief_assertion(page))
 
@@ -4712,7 +5001,11 @@ def _measure_route(
         )
         if route.evidence_route:
             assertions.append(
-                _evidence_navigation_assertion(page, phase="navigation_authority")
+                _evidence_navigation_assertion(
+                    page,
+                    route=route,
+                    phase="navigation_authority",
+                )
             )
         if route.name == "Company Workbench":
             assertions.append(_company_workbench_primary_brief_assertion(page))
@@ -4744,7 +5037,11 @@ def _measure_route(
             assertions.append(_navigation_assertion(page, away_route))
         if away_route.evidence_route:
             assertions.append(
-                _evidence_navigation_assertion(page, phase="route_away")
+                _evidence_navigation_assertion(
+                    page,
+                    route=away_route,
+                    phase="route_away",
+                )
             )
 
         assertions.extend(
@@ -4766,7 +5063,11 @@ def _measure_route(
             assertions.append(_navigation_assertion(page, route))
         if route.evidence_route:
             assertions.append(
-                _evidence_navigation_assertion(page, phase="route_return")
+                _evidence_navigation_assertion(
+                    page,
+                    route=route,
+                    phase="route_return",
+                )
             )
     except Exception as exc:
         assertions.append(
