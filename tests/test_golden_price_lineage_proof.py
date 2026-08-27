@@ -234,6 +234,43 @@ def test_fetch_failure_and_ambiguous_latest_rows_fail_closed_without_padding():
     assert len(packet.members) == 4
 
 
+def test_collection_failures_do_not_hide_unknown_rights_owner_gate():
+    unusable = pd.DataFrame(
+        [{"date": "not-a-date", "ticker": "AVGO", "close": None}]
+    )
+    source = FakeYahooSource(
+        {
+            "AMD": None,
+            "AVGO": unusable,
+            "COHR": _price_rows("COHR"),
+            "ABAT": _price_rows("ABAT"),
+        }
+    )
+
+    packet = build_golden_price_lineage_proof(
+        _cohort(),
+        rights_registry={"yfinance": _rights("yfinance")},
+        live=True,
+        source=source,
+        review_cutoff="2026-08-22T21:00:00Z",
+    )
+
+    assert packet.members[0].collection_status == "fetch_failed"
+    assert packet.members[0].blockers == (
+        "candidate_fetch_failed",
+        "commercial_rights:unknown_source",
+        "registered_price_scope_incomplete",
+    )
+    assert packet.members[0].owner_decision_required is True
+    assert packet.members[1].collection_status == "no_usable_candidate"
+    assert packet.members[1].blockers == (
+        "no_usable_candidate_row",
+        "commercial_rights:unknown_source",
+        "registered_price_scope_incomplete",
+    )
+    assert packet.members[1].owner_decision_required is True
+
+
 def test_renderers_are_deterministic_and_keep_all_authorization_boundaries_visible():
     packet = build_golden_price_lineage_proof(
         _cohort(),

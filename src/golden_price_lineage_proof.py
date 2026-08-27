@@ -241,7 +241,12 @@ def _review_collected_member(
     member = collected.member
     if collected.fetch_failed:
         collection_status = "fetch_failed"
-        blockers = ("candidate_fetch_failed",)
+        blocker_values = ["candidate_fetch_failed"]
+        if rights_status != "approved":
+            blocker_values.append(f"commercial_rights:{rights_status}")
+        if price_scope_status != "complete":
+            blocker_values.append("registered_price_scope_incomplete")
+        blockers = tuple(blocker_values)
         return GoldenPriceLineageProofMember(
             ticker=member.ticker,
             cohort_role=member.cohort_role,
@@ -257,7 +262,9 @@ def _review_collected_member(
             rights_status=rights_status,
             price_scope_status=price_scope_status,
             blockers=blockers,
-            owner_decision_required=False,
+            owner_decision_required=(
+                rights_status != "approved" or price_scope_status != "complete"
+            ),
             collection_notes=collected.notes,
             next_evidence_review_action=_next_action(
                 member.ticker, collection_status, blockers
@@ -273,7 +280,12 @@ def _review_collected_member(
             if collection_status == "ambiguous_latest_candidate"
             else "no_usable_candidate_row"
         )
-        blockers = (blocker,)
+        blocker_values = [blocker]
+        if rights_status != "approved":
+            blocker_values.append(f"commercial_rights:{rights_status}")
+        if price_scope_status != "complete":
+            blocker_values.append("registered_price_scope_incomplete")
+        blockers = tuple(blocker_values)
         return GoldenPriceLineageProofMember(
             ticker=member.ticker,
             cohort_role=member.cohort_role,
@@ -289,7 +301,9 @@ def _review_collected_member(
             rights_status=rights_status,
             price_scope_status=price_scope_status,
             blockers=blockers,
-            owner_decision_required=False,
+            owner_decision_required=(
+                rights_status != "approved" or price_scope_status != "complete"
+            ),
             collection_notes=collected.notes,
             next_evidence_review_action=_next_action(
                 member.ticker, collection_status, blockers

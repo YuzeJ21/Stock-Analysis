@@ -494,6 +494,18 @@ def test_task4_discover_evidence_access_requires_live_counts_alphabetical_briefs
     assert zero_fixture["passed"] is True
     assert nonzero_fixture["passed"] is False
 
+    comma_formatted_fixture = evaluate_discover_evidence_access(
+        **{
+            **baseline,
+            "primary_answer": (
+                "1,234 saved companies are available for evidence review; "
+                "1,000 currently pass the strict screen."
+            ),
+            "expected_strict_count": 1000,
+        }
+    )
+    assert comma_formatted_fixture["passed"] is True
+
 
 def test_task4_monitor_return_context_requires_one_return_without_changing_monitor_counts():
     """Catches return context filtering Monitor or rendering a duplicated return action."""

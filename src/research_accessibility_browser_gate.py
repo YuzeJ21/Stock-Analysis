@@ -452,7 +452,11 @@ def evaluate_discover_evidence_access(
         and answer_parts[1].split(" ", 1)[0].replace(",", "").isdigit()
         and "currently pass the strict screen" in normalized_answer
     )
-    strict_count = int(answer_parts[1].split(" ", 1)[0]) if answer_has_counts else None
+    strict_count = (
+        int(answer_parts[1].split(" ", 1)[0].replace(",", ""))
+        if answer_has_counts
+        else None
+    )
     strict_count_matches = (
         expected_strict_count is None or strict_count == expected_strict_count
     )
