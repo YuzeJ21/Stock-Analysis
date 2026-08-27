@@ -37619,7 +37619,7 @@ def main() -> None:
     catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
     monitor_return_ticker = ""
-    if research_mode and selected_page == "Monitor":
+    if research_mode and initial_page == "Monitor":
         registered_tickers = (
             provider.list_local_tickers()
             if hasattr(provider, "list_local_tickers")

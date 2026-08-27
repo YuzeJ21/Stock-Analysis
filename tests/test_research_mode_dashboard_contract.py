@@ -52,6 +52,88 @@ def test_dashboard_resolves_raw_route_before_loading_workspace_state():
     assert route_resolution < redirect_write < data_profile < bootstrap
 
 
+@pytest.mark.parametrize(
+    ("query", "registered", "expected_return_ticker", "expected_query", "expected_registered_calls"),
+    (
+        (
+            {"mode": "research", "page": "monitor", "return_ticker": "nvda"},
+            ("NVDA",),
+            "NVDA",
+            {"mode": "research", "page": "monitor", "return_ticker": "nvda"},
+            1,
+        ),
+        (
+            {"mode": "research", "page": "monitor", "return_ticker": "UNKNOWN", "ticker": "AVGO"},
+            ("NVDA",),
+            "",
+            {"mode": "research", "page": "monitor"},
+            1,
+        ),
+        (
+            {"mode": "research", "page": "research-desk", "return_ticker": "NVDA"},
+            ("NVDA",),
+            "",
+            {"mode": "research", "page": "research-desk"},
+            0,
+        ),
+    ),
+)
+def test_main_resolves_monitor_return_context_only_after_provider_availability(
+    monkeypatch,
+    query,
+    registered,
+    expected_return_ticker,
+    expected_query,
+    expected_registered_calls,
+):
+    """Catches pre-route selected-page access and return validation outside the resolved Monitor route."""
+
+    dispatched: list[dict[str, object]] = []
+
+    class Provider:
+        def __init__(self):
+            self.registered_calls = 0
+
+        def list_local_tickers(self):
+            self.registered_calls += 1
+            return registered
+
+    provider = Provider()
+    fake_streamlit = SimpleNamespace(
+        query_params=dict(query),
+        set_page_config=lambda **kwargs: None,
+    )
+    monkeypatch.setattr(dashboard, "st", fake_streamlit)
+    monkeypatch.setattr(dashboard, "apply_dashboard_theme", lambda: None)
+    monkeypatch.setattr(dashboard, "render_semantic_main_bridge", lambda: None)
+    monkeypatch.setattr(dashboard, "render_public_workflow_skip_link", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "resolve_data_profile", lambda **kwargs: SimpleNamespace(name="Local"))
+    monkeypatch.setattr(dashboard, "build_profile_context", lambda **kwargs: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_research_change_state", lambda *args: {"queue": ()})
+    monkeypatch.setattr(dashboard, "load_dashboard_focused_cohort", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_focused_cohort_coverage", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_weekly_summary", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "LocalDataCatalog", lambda *args, **kwargs: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "get_local_provider", lambda: provider)
+    monkeypatch.setattr(dashboard, "render_research_workflow_navigation", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_public_workflow_skip_target", lambda: None)
+    monkeypatch.setattr(dashboard, "render_research_workspace_styles", lambda: None)
+    monkeypatch.setattr(dashboard, "dashboard_output_frames_for_page", lambda *args: {})
+    monkeypatch.setattr(dashboard, "load_saved_project_status_payload", lambda *args: {})
+    monkeypatch.setattr(
+        dashboard,
+        "render_personal_research_route",
+        lambda **kwargs: dispatched.append(kwargs) or True,
+    )
+
+    dashboard.main()
+
+    assert provider.registered_calls == expected_registered_calls
+    assert fake_streamlit.query_params == expected_query
+    assert dispatched[0]["selected_page"] == ("Monitor" if expected_registered_calls else "Research Desk")
+    assert dispatched[0]["return_ticker"] == expected_return_ticker
+
+
 def test_personal_research_routes_do_not_render_ambiguous_freshness_label():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     assert "<small>Freshness</small>" not in source
