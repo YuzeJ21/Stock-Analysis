@@ -37840,6 +37840,19 @@ def main() -> None:
         show_reason_details = False
         show_source_details = False
 
+    if research_mode and selected_page in {"Data Health", PROOF_HISTORY_PATH_TITLE}:
+        registered_tickers = (
+            provider.list_local_tickers()
+            if hasattr(provider, "list_local_tickers")
+            else ()
+        )
+        evidence_ticker = data_health_focus_ticker(
+            st.query_params.get("ticker"),
+            registered_tickers,
+        )
+        if "ticker" in st.query_params and not evidence_ticker:
+            del st.query_params["ticker"]
+
     content_page = workspace_content_page(selected_page, mode)
     ticker = str(st.query_params.get("ticker") or "").strip().upper()
     output_frames = dashboard_output_frames_for_page(content_page)
