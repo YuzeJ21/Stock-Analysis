@@ -21,7 +21,10 @@ def test_task4_production_report_cold_transition_is_neutral_then_resolved(
 ):
     """Observe the real report route while a child-only report build is delayed once."""
     from playwright.sync_api import sync_playwright
-    from src.research_accessibility_browser_gate import _captured_local_demo_server
+    from src.research_accessibility_browser_gate import (
+        _captured_local_demo_server,
+        _repository_content_snapshot,
+    )
     from src.workspace_visual_browser_gate import find_chrome_executable
 
     delay_dir = tmp_path / "delay"
@@ -41,25 +44,42 @@ def test_task4_production_report_cold_transition_is_neutral_then_resolved(
     """), encoding="utf-8")
     monkeypatch.setenv("PYTHONPATH", str(delay_dir) + os.pathsep + os.environ.get("PYTHONPATH", ""))
     root = Path(__file__).resolve().parents[1]
+    repository_before = _repository_content_snapshot(root)
     with _captured_local_demo_server(root, timeout_seconds=30) as server:
         with sync_playwright() as pw:
             browser = pw.chromium.launch(executable_path=find_chrome_executable(), headless=True)
-            page = browser.new_page(viewport={"width": 1280, "height": 720})
-            page.add_init_script("""
+            try:
+                page = browser.new_page(viewport={"width": 1280, "height": 720})
+                errors = []
+                page.on("pageerror", lambda error: errors.append(str(error)))
+                page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
+                page.add_init_script("""
               window.__cold = [];
-              new MutationObserver(() => { const loader=document.querySelector('.single-stock-loading-state[role="status"][aria-live="polite"][aria-busy="true"]'); const final=document.querySelectorAll(%s); if (loader || final.length) window.__cold.push({loader:!!loader, final:final.length, text:loader?.innerText||''}); }).observe(document,{childList:true,subtree:true});
+              new MutationObserver(() => { const loader=document.querySelector('.single-stock-loading-state[role="status"][aria-live="polite"][aria-busy="true"]'); const final=document.querySelectorAll(%s); if (loader || final.length) window.__cold.push({kind:loader?'loader':'final', loader:!!loader, final:final.length, text:loader?.innerText||'', contained:!!loader?.closest('[data-sr-region="primary-answer"], .company-workbench-primary-brief')}); }).observe(document,{childList:true,subtree:true});
             """ % json.dumps(final_selector))
-            page.goto(server.base_url + route, wait_until="domcontentloaded")
-            page.wait_for_selector(final_selector, state="visible", timeout=30000)
-            observed = page.evaluate("() => window.__cold")
-            loader = [row for row in observed if row["loader"]]
-            assert loader and all(row["final"] == 0 for row in loader)
-            assert "No data is being refreshed or changed" in loader[0]["text"]
-            assert "does not state that any analysis section is ready or blocked" in loader[0]["text"].lower()
-            assert page.locator(final_selector).count() == 1
-            assert page.locator(".single-stock-loading-state, [aria-busy='true']").count() == 0
-            assert page.url == server.base_url + route
-            browser.close()
+                page.goto(server.base_url + route, wait_until="domcontentloaded")
+                page.wait_for_selector(final_selector, state="visible", timeout=30000)
+                observed = page.evaluate("() => window.__cold")
+                loader = [row for row in observed if row["loader"]]
+                assert observed and observed[0]["kind"] == "loader" and loader[0]["contained"]
+                assert all(row["final"] == 0 for row in loader)
+                assert "No data is being refreshed or changed" in loader[0]["text"]
+                assert "does not state that any analysis section is ready or blocked" in loader[0]["text"].lower()
+                assert page.locator(final_selector).count() == 1
+                resolved_text = page.locator(final_selector).inner_text()
+                resolved_url = page.url
+                assert "AVGO" in resolved_text
+                assert page.locator(".single-stock-loading-state, [aria-busy='true']").count() == 0
+                assert resolved_url == server.base_url + route and "ticker=AVGO" in resolved_url
+                page.wait_for_timeout(500)
+                assert page.locator(final_selector).count() == 1
+                assert page.locator(final_selector).inner_text() == resolved_text
+                assert page.locator(".single-stock-loading-state, [aria-busy='true']").count() == 0
+                assert page.url == resolved_url
+                assert not errors
+            finally:
+                browser.close()
+    assert _repository_content_snapshot(root) == repository_before
 
 
 def test_route_fixtures_cover_the_literal_workspace_matrix_in_declared_order():
@@ -1171,6 +1191,400 @@ def test_initial_viewport_hierarchy_rejects_regions_above_or_below_the_viewport(
     ).passed
 
 
+def _valid_discover_evidence_access_layout() -> dict[str, object]:
+    links = (
+        {
+            "label": "Open AMD Company Brief",
+            "href": "?mode=research&page=company-workbench&ticker=AMD&open=1",
+            "visible": True,
+            "focusable": True,
+            "left": 280,
+            "right": 500,
+            "width": 220,
+            "height": 44,
+            "clipped": False,
+        },
+        {
+            "label": "Open AVGO Company Brief",
+            "href": "?mode=research&page=company-workbench&ticker=AVGO&open=1",
+            "visible": True,
+            "focusable": True,
+            "left": 510,
+            "right": 730,
+            "width": 220,
+            "height": 44,
+            "clipped": False,
+        },
+        {
+            "label": "Open COHR Company Brief",
+            "href": "?mode=research&page=company-workbench&ticker=COHR&open=1",
+            "visible": True,
+            "focusable": True,
+            "left": 740,
+            "right": 960,
+            "width": 220,
+            "height": 44,
+            "clipped": False,
+        },
+        {
+            "label": "Open NVDA Company Brief",
+            "href": "?mode=research&page=company-workbench&ticker=NVDA&open=1",
+            "visible": True,
+            "focusable": True,
+            "left": 970,
+            "right": 1190,
+            "width": 220,
+            "height": 44,
+            "clipped": False,
+        },
+    )
+    focus = {
+        "quick_link_labels": tuple(link["label"] for link in links),
+        "quick_link_indices": (7, 8, 9, 10),
+        "quick_link_outline_widths": (3, 3, 3, 3),
+        "search_indices": (12,),
+        "search_outline_widths": (3,),
+        "location_path": "/",
+        "location_search": "?mode=research&page=discover",
+        "current_page_count": 1,
+        "current_page_label": "Discover",
+    }
+    return {
+        "primary_answer_count": 1,
+        "quick_links": links,
+        "native_search_count": 1,
+        "primary_action_count": 1,
+        "primary_action_focusable_count": 1,
+        "stop_rule_count": 1,
+        "supporting_evidence_count": 1,
+        "advanced_detail_count": 1,
+        "dom_order": (
+            "primary-answer",
+            "quick-links",
+            "native-search",
+            "stop-rule",
+            "supporting-evidence",
+            "advanced-detail",
+        ),
+        "client_width": 1280,
+        "document_scroll_width": 1280,
+        "body_scroll_width": 1280,
+        "main_scroll_width": 1280,
+        "main_client_width": 1280,
+        "clipped_text_count": 0,
+        "location_path": "/",
+        "location_search": "?mode=research&page=discover",
+        "research_nav_count": 1,
+        "research_nav_visible_count": 1,
+        "public_nav_count": 0,
+        "operator_nav_count": 0,
+        "current_page_count": 1,
+        "current_page_label": "Discover",
+        "positive_tabindex_count": 0,
+        "focus_sequences": {
+            "normal": focus,
+            "forced-colors": dict(focus),
+        },
+    }
+
+
+def test_discover_evidence_access_layout_accepts_the_exact_secondary_link_contract():
+    """Catches the Discover-only gate rejecting approved secondary evidence actions."""
+
+    from src.workspace_visual_browser_gate import (
+        evaluate_discover_evidence_access_layout,
+    )
+
+    assert evaluate_discover_evidence_access_layout(
+        **_valid_discover_evidence_access_layout()
+    ).passed
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        {"primary_answer_count": 2},
+        {"native_search_count": 0},
+        {"primary_action_count": 2},
+        {"primary_action_focusable_count": 0},
+        {"stop_rule_count": 0},
+        {"supporting_evidence_count": 0},
+        {"advanced_detail_count": 0},
+        {
+            "dom_order": (
+                "primary-answer",
+                "native-search",
+                "quick-links",
+                "stop-rule",
+                "supporting-evidence",
+                "advanced-detail",
+            )
+        },
+        {"document_scroll_width": 1282},
+        {"clipped_text_count": 1},
+        {"location_search": "?mode=research&page=monitor"},
+        {"research_nav_count": 2},
+        {"public_nav_count": 1},
+        {"operator_nav_count": 1},
+        {"current_page_count": 0},
+        {"current_page_label": "Research Desk"},
+        {"positive_tabindex_count": 1},
+    ),
+)
+def test_discover_evidence_access_layout_rejects_hierarchy_overflow_or_route_drift(mutation):
+    from src.workspace_visual_browser_gate import (
+        evaluate_discover_evidence_access_layout,
+    )
+
+    assert not evaluate_discover_evidence_access_layout(
+        **{**_valid_discover_evidence_access_layout(), **mutation}
+    ).passed
+
+
+def test_discover_evidence_access_layout_rejects_link_or_focus_regressions():
+    from src.workspace_visual_browser_gate import (
+        evaluate_discover_evidence_access_layout,
+    )
+
+    valid = _valid_discover_evidence_access_layout()
+    links = tuple(dict(link) for link in valid["quick_links"])
+    focus = {
+        mode: dict(sequence)
+        for mode, sequence in valid["focus_sequences"].items()
+    }
+    mutations = (
+        {"quick_links": links[:3]},
+        {"quick_links": (links[1], links[0], links[2], links[3])},
+        {"quick_links": (links[0], links[1], links[2], dict(links[2]))},
+        {
+            "quick_links": (
+                {**links[0], "href": "?mode=research&page=monitor&ticker=AMD&open=1"},
+                *links[1:],
+            )
+        },
+        {"quick_links": ({**links[0], "visible": False}, *links[1:])},
+        {"quick_links": ({**links[0], "focusable": False}, *links[1:])},
+        {"quick_links": ({**links[0], "width": 43}, *links[1:])},
+        {"quick_links": ({**links[0], "height": 43}, *links[1:])},
+        {"quick_links": ({**links[0], "left": -2}, *links[1:])},
+        {"quick_links": ({**links[0], "clipped": True}, *links[1:])},
+        {
+            "focus_sequences": {
+                **focus,
+                "normal": {
+                    **focus["normal"],
+                    "quick_link_labels": tuple(reversed(focus["normal"]["quick_link_labels"])),
+                },
+            }
+        },
+        {
+            "focus_sequences": {
+                **focus,
+                "normal": {
+                    **focus["normal"],
+                    "search_indices": (6,),
+                },
+            }
+        },
+        {
+            "focus_sequences": {
+                **focus,
+                "forced-colors": {
+                    **focus["forced-colors"],
+                    "quick_link_outline_widths": (3, 3, 2, 3),
+                },
+            }
+        },
+        {
+            "focus_sequences": {
+                **focus,
+                "forced-colors": {
+                    **focus["forced-colors"],
+                    "location_search": "?mode=research&page=monitor",
+                },
+            }
+        },
+        {
+            "focus_sequences": {
+                **focus,
+                "normal": {
+                    **focus["normal"],
+                    "current_page_label": "Monitor",
+                },
+            }
+        },
+    )
+    for mutation in mutations:
+        assert not evaluate_discover_evidence_access_layout(
+            **{**valid, **mutation}
+        ).passed
+
+
+def _evaluate_discover_observation_checks(contract: dict[str, object]):
+    from src import workspace_visual_browser_gate as gate
+
+    route = gate.parse_routes("discover")[0]
+    order = (
+        "workflow-nav",
+        "context",
+        "page-title",
+        "primary-answer",
+        "primary-action",
+        "stop-rule",
+        "supporting-evidence",
+        "advanced-detail",
+    )
+    counts = {name: 1 for name in order}
+    observation = {
+        "discover_evidence_access": {
+            key: value
+            for key, value in contract.items()
+            if key != "focus_sequences"
+        },
+        "discover_focus_sequences": contract["focus_sequences"],
+        "client_width": 1280,
+        "client_height": 720,
+        "document_scroll_width": 1280,
+        "body_scroll_width": 1280,
+        "main_scroll_width": 1280,
+        "main_client_width": 1280,
+        "inner_width": 1280,
+        "inner_height": 720,
+        "visual_viewport_width": 1280,
+        "visual_viewport_height": 720,
+        "screenshot_width": 1280,
+        "screenshot_height": 720,
+        "device_pixel_ratio": 1,
+        "visual_viewport_scale": 1,
+        "scroll_x": 0,
+        "scroll_y": 0,
+        "document_scroll_left": 0,
+        "document_scroll_top": 0,
+        "main_scroll_left": 0,
+        "main_scroll_top": 0,
+        "public_app_nav_scroll_left": 0,
+        "research_workflow_nav_scroll_left": 0,
+        "research_workflow_nav_scroll_top": 0,
+        "regions": (
+            {"name": "primary-answer", "left": 280, "right": 1220, "top": 230, "bottom": 490},
+            {"name": "primary-action", "left": 280, "right": 1220, "top": 620, "bottom": 664},
+            {"name": "stop-rule", "left": 280, "right": 1220, "top": 675, "bottom": 776},
+        ),
+        "region_counts": counts,
+        "visible_region_counts": counts,
+        "region_order": order,
+        "visible_region_order": order,
+        "primary_action_focusable_count": 1,
+        "legacy_pre_answer_action_count": 0,
+        "h1_count": 1,
+        "h1_text": ("Discover",),
+        "public_nav_count": 0,
+        "public_nav_visible_count": 0,
+        "research_nav_count": 1,
+        "research_nav_visible_count": 1,
+        "operator_radio_count": 0,
+        "operator_radio_visible_count": 0,
+        "research_nav_link_count": 4,
+        "research_nav_link_visible_count": 4,
+        "research_nav_link_fully_visible_count": 4,
+        "research_nav_scroll_width": 200,
+        "research_nav_client_width": 200,
+        "skip_count": 1,
+        "skip_in_main_count": 1,
+        "skip_in_sidebar_count": 0,
+        "stop_rule_count": 1,
+        "positive_tabindex_count": 0,
+        "phone_media_matches": False,
+        "app_state": "notRunning",
+        "traceback_visible": False,
+        "spinner_count": 0,
+    }
+    return gate._evaluate_observation(
+        observation,
+        route=route,
+        viewport=(1280, 720),
+        zoom=1,
+        console_errors=(),
+        skip_focus={
+            "skip_count": 1,
+            "focused": True,
+            "route_preserved": True,
+            "fragment": "public-page-answer",
+            "active_id": "public-page-answer",
+        },
+        reduced_motion={
+            "active": True,
+            "target_count": 1,
+            "max_animation_duration_ms": 0,
+            "max_transition_duration_ms": 0,
+            "max_animation_iterations": 1,
+            "smooth_scroll_count": 0,
+        },
+        forced_colors={
+            "active": True,
+            "focus_outline_style": "solid",
+            "focus_outline_width": 3,
+            "state_count": 1,
+            "state_border_width": 1,
+            "state_outline_width": 3,
+        },
+        focus_sequences={
+            "normal": {
+                "focused_roles": (
+                    "skip",
+                    "navigation",
+                    "other",
+                    "primary-action",
+                    "advanced-detail",
+                ),
+                "outline_widths": (3, 3, 3, 3, 3),
+            },
+            "forced-colors": {
+                "focused_roles": (
+                    "skip",
+                    "navigation",
+                    "other",
+                    "primary-action",
+                    "advanced-detail",
+                ),
+                "outline_widths": (3, 3, 3, 3, 3),
+            },
+        },
+    )
+
+
+def test_discover_strong_contract_routes_around_only_generic_fold_and_focus_checks():
+    checks = _evaluate_discover_observation_checks(
+        _valid_discover_evidence_access_layout()
+    )
+    by_name = {str(check["name"]): check for check in checks}
+
+    assert by_name["discover_evidence_access_layout"]["passed"] is True
+    assert "initial_viewport_hierarchy" not in by_name
+    assert "natural_focus_sequence_normal" not in by_name
+    assert "natural_focus_sequence_forced-colors" not in by_name
+    assert by_name["unique_shared_regions"]["passed"] is True
+    assert by_name["personal_route_answer_hierarchy"]["passed"] is True
+    assert by_name["single_navigation_authority"]["passed"] is True
+
+
+def test_discover_failed_strong_contract_keeps_generic_fold_and_focus_checks_strict():
+    invalid = {
+        **_valid_discover_evidence_access_layout(),
+        "primary_answer_count": 2,
+    }
+    checks = _evaluate_discover_observation_checks(invalid)
+    by_name = {str(check["name"]): check for check in checks}
+
+    assert by_name["discover_evidence_access_layout"]["passed"] is False
+    assert by_name["initial_viewport_hierarchy"]["passed"] is False
+    assert by_name["natural_focus_sequence_normal"]["passed"] is False
+    assert by_name["natural_focus_sequence_forced-colors"]["passed"] is False
+    assert by_name["unique_shared_regions"]["passed"] is True
+    assert by_name["personal_route_answer_hierarchy"]["passed"] is True
+    assert by_name["single_navigation_authority"]["passed"] is True
+
+
 @pytest.mark.parametrize(
     "slug",
     (
@@ -1265,7 +1679,7 @@ def test_public_home_geometry_observes_the_grid_area_not_the_inner_action_link()
 
     runner = source[
         source.index("if route.slug == \"public-home\":") :
-        source.index("if route.slug in PERSONAL_FOCUS_ROUTE_SLUGS:")
+        source.index("if route.slug in PERSONAL_FOCUS_ROUTE_SLUGS and (")
     ]
     assert 'observation.get("home_action_area")' in runner
     assert 'action_left=float(home_action_area.get("left") or 0)' in runner
