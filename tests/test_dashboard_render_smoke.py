@@ -400,7 +400,9 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         route for route in RESEARCH_RENDER_ROUTES if route.name == "Discover"
     )
     assert "Find a Company" in discover_route.required_markers
-    assert "Screen eligibility — when supported" in discover_route.required_markers
+    assert "available for evidence review" in discover_route.required_markers
+    assert "currently pass the strict screen" in discover_route.required_markers
+    assert "Screen eligibility — when supported" not in discover_route.required_markers
     assert "Browse saved companies" in discover_route.required_markers
     data_health_route = next(
         route for route in RESEARCH_RENDER_ROUTES if route.name == "Research Data Health"
@@ -441,7 +443,7 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
             route for route in RESEARCH_RENDER_ROUTES if route.name == evidence_name
         )
         assert question in route.required_markers
-        assert "Return to Company Workbench" in route.required_markers
+        assert "Return to NVDA Company Workbench" in route.required_markers
         assert "Research-only" in route.required_markers
         assert (
             "Continue the selected-company review without changing evidence state."
@@ -489,7 +491,7 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         evidence_blocks = "\n".join(
             next(result for result in results if result.name == evidence_name).rendered_blocks
         )
-        assert evidence_blocks.count("Return to Company Workbench") == 1
+        assert evidence_blocks.count("Return to NVDA Company Workbench") == 1
         assert "Continue the selected-company review without changing evidence state." not in evidence_blocks
         assert "?mode=public&page=single-stock-report" not in evidence_blocks
 
@@ -954,8 +956,8 @@ render_single_stock_report(
     assert "Unavailable" not in rails[0]
 
 
-def test_company_workbench_single_stock_report_projects_an_unavailable_evidence_rail_when_report_build_fails():
-    """Catches a missing payload leaving the existing Workbench evidence target blank."""
+def test_company_workbench_cold_failure_projects_an_unavailable_evidence_rail_without_a_brief_answer():
+    """Catches a failed cold build leaving an optimistic Company Brief behind."""
 
     app = AppTest.from_string(
         """
@@ -964,8 +966,37 @@ import streamlit as st
 from src import dashboard
 
 build_calls = []
+events = []
+for key in (
+    'single_stock_report_payload',
+    'single_stock_report_ticker',
+    'single_stock_report_provider',
+    'single_stock_report_history',
+):
+    st.session_state.pop(key, None)
+class AnswerTarget:
+    def markdown(self, body, **kwargs):
+        events.append(
+            'neutral-primary' if 'preparing saved review' in body and "data-sr-region='primary-answer'" in body
+            else 'failure' if 'saved report unavailable' in body
+            else 'completed'
+        )
+    def empty(self):
+        events.append('cleared')
+
+class EvidenceTarget:
+    def __init__(self):
+        self.target = st.empty()
+    def markdown(self, body, **kwargs):
+        events.append(
+            'rail-loading' if 'preparing saved review' in body
+            else 'rail-result'
+        )
+        self.target.markdown(body, **kwargs)
+
 def unavailable_report(*args, **kwargs):
     build_calls.append((args, kwargs))
+    events.append('build')
     raise RuntimeError('controlled unavailable report')
 
 original_build_provider = dashboard.build_provider
@@ -984,17 +1015,21 @@ try:
             'peer_market_context_available': 0,
         },
     )
-    evidence_target = st.empty()
+    answer_target = AnswerTarget()
+    evidence_target = EvidenceTarget()
     dashboard.render_single_stock_report(
         provider,
         False,
         public_mode=True,
+        research_mode=True,
+        selected_answer_target=answer_target,
         selected_evidence_target=evidence_target,
     )
 finally:
     dashboard.build_provider = original_build_provider
     dashboard.build_stock_report = original_build_stock_report
 st.caption(f'controlled builder calls: {len(build_calls)}')
+st.caption(f'controlled events: {"|".join(events)}')
 """,
         default_timeout=120,
     )
@@ -1010,6 +1045,84 @@ st.caption(f'controlled builder calls: {len(build_calls)}')
     assert len(rails) == 1
     assert rails[0].count("Unavailable") == 6
     assert "controlled builder calls: 1" in [item.value for item in app.caption]
+    event_caption = next(item.value for item in app.caption if str(item.value).startswith("controlled events:"))
+    assert event_caption == "controlled events: neutral-primary|rail-loading|build|failure|rail-result"
+
+
+def test_company_workbench_cold_success_replaces_neutral_loading_with_the_completed_brief_once():
+    """Catches a completed report rendering before or alongside the neutral Company Brief state."""
+
+    app = AppTest.from_string(
+        """
+from pathlib import Path
+import streamlit as st
+from src import dashboard
+
+events = []
+for key in (
+    'single_stock_report_payload',
+    'single_stock_report_ticker',
+    'single_stock_report_provider',
+    'single_stock_report_history',
+):
+    st.session_state.pop(key, None)
+class AnswerTarget:
+    def markdown(self, body, **kwargs):
+        events.append(
+            'neutral-primary' if 'preparing saved review' in body and "data-sr-region='primary-answer'" in body
+            else 'failure' if 'saved report unavailable' in body
+            else 'completed'
+        )
+    def empty(self):
+        events.append('cleared')
+
+class EvidenceTarget:
+    def __init__(self):
+        self.target = st.empty()
+    def markdown(self, body, **kwargs):
+        events.append(
+            'rail-loading' if 'preparing saved review' in body
+            else 'rail-result'
+        )
+        self.target.markdown(body, **kwargs)
+
+provider = dashboard.build_provider('local', base_dir=Path('.'))
+original_build_stock_report = dashboard.build_stock_report
+original_rerun = dashboard.st.rerun
+try:
+    def controlled_report(*args, **kwargs):
+        events.append('build')
+        return original_build_stock_report(*args, **kwargs)
+    dashboard.build_stock_report = controlled_report
+    dashboard.st.rerun = lambda: events.append('rerun')
+    dashboard.render_single_stock_report(
+        provider,
+        False,
+        public_mode=True,
+        research_mode=True,
+        selected_answer_target=AnswerTarget(),
+        selected_evidence_target=EvidenceTarget(),
+    )
+finally:
+    dashboard.build_stock_report = original_build_stock_report
+    dashboard.st.rerun = original_rerun
+st.caption(f'controlled events: {"|".join(events)}')
+""",
+        default_timeout=120,
+    )
+    app.query_params.update({"ticker": "NVDA", "open": "1"})
+    app.run(timeout=120)
+
+    assert not app.exception
+    event_caption = next(item.value for item in app.caption if str(item.value).startswith("controlled events:"))
+    events = event_caption.removeprefix("controlled events: ").split("|")
+    assert events.count("neutral-primary") == 1
+    assert events.count("rail-loading") == 1
+    assert events.count("cleared") == 1
+    assert events.count("completed") == 1
+    assert events.count("rail-result") == 1
+    assert events.index("neutral-primary") < events.index("rail-loading") < events.index("build")
+    assert events.index("build") < events.index("cleared") < events.index("rail-result") < events.index("completed")
 
 
 def test_company_workbench_unavailable_rail_restores_the_normal_report_builders():

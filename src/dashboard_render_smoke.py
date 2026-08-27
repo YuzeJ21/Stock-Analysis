@@ -116,7 +116,8 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
             "Discover",
             "Focused cohort",
             "Find a Company",
-            "Screen eligibility — when supported",
+            "available for evidence review",
+            "currently pass the strict screen",
             "Browse saved companies",
             "Research-only",
         ),
@@ -158,7 +159,7 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         required_markers=(
             "Data Health",
             "What can I use and what stays unavailable?",
-            "Return to Company Workbench",
+            "Return to NVDA Company Workbench",
             "Selected Lane Answer",
             "source-backed mapping proof",
             "Research-only",
@@ -180,7 +181,7 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         required_markers=(
             "Proof History",
             "What evidence changed a readiness state?",
-            "Return to Company Workbench",
+            "Return to NVDA Company Workbench",
             "Newest reviewed evidence",
             "Research-only",
         ),

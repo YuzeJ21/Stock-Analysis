@@ -2262,6 +2262,44 @@ def test_discover_saved_company_browse_frame_fails_closed_without_saved_readines
     ).empty
 
 
+def test_discover_primary_answer_separates_saved_access_from_strict_eligibility():
+    rendered = dashboard.discover_primary_answer_html(8, 0)
+
+    assert "8 saved companies are available for evidence review" in rendered
+    assert "0 currently pass the strict screen" in rendered
+    assert "alphabetical" in rendered.lower()
+    assert "not a ranking" in rendered.lower()
+
+
+def test_discover_quick_links_are_alphabetical_non_ranked_company_briefs():
+    frame = dashboard.pd.DataFrame({"Ticker": ["NVDA", "AMD", "AVGO", "COHR", "TSLA"]})
+
+    rendered = dashboard.discover_quick_company_links_html(frame, limit=4)
+
+    assert [rendered.index(ticker) for ticker in ("AMD", "AVGO", "COHR", "NVDA")] == sorted(
+        rendered.index(ticker) for ticker in ("AMD", "AVGO", "COHR", "NVDA")
+    )
+    assert "TSLA" not in rendered
+    assert rendered.count("page=company-workbench") == 4
+    assert "ranking" in rendered.lower()
+
+
+def test_discover_quick_links_are_safe_secondary_evidence_paths_not_primary_actions():
+    frame = dashboard.pd.DataFrame({"Ticker": ["NVDA", "AMD", "AVGO", "COHR", "TSLA"]})
+
+    rendered = dashboard.discover_quick_company_links_html(frame, limit=4)
+
+    assert rendered.count("class='sr-primary-action public-primary-action'") == 4
+    assert rendered.count("target='_self'") == 4
+    assert rendered.count("page=company-workbench") == 4
+    assert "data-sr-region='primary-action'" not in rendered
+    assert [rendered.index(ticker) for ticker in ("AMD", "AVGO", "COHR", "NVDA")] == sorted(
+        rendered.index(ticker) for ticker in ("AMD", "AVGO", "COHR", "NVDA")
+    )
+    assert "TSLA" not in rendered
+    assert "not a ranking" in rendered.lower()
+
+
 def test_stock_selector_source_frames_skip_legacy_outputs_for_research_discover(
     monkeypatch,
 ):
@@ -31923,7 +31961,7 @@ def test_public_data_health_bootstrap_clears_before_the_shared_public_shell():
     bootstrap_index = source.index("bootstrap_placeholder = (")
     sidebar_index = source.index("with st.sidebar:", bootstrap_index)
     public_mode_index = source.index("if public_demo_mode:", sidebar_index)
-    clear_index = source.index("if bootstrap_placeholder is not None:", public_mode_index)
+    clear_index = source.index('if bootstrap_placeholder is not None and selected_page != "Single-Stock Report":', public_mode_index)
     shell_index = source.index("render_public_app_shell(selected_page)", clear_index)
     data_health_branch_index = source.index('elif content_page == "Data Health":', shell_index)
     data_health_render_index = source.index("render_data_health(", data_health_branch_index)
@@ -31948,13 +31986,17 @@ def test_public_route_bootstrap_clears_before_the_actual_shell_to_avoid_duplicat
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     public_mode_index = source.index("if public_demo_mode:", source.index("output_frames = dashboard_output_frames_for_page(content_page)"))
-    clear_index = source.index("if bootstrap_placeholder is not None:", public_mode_index)
+    clear_index = source.index('if bootstrap_placeholder is not None and selected_page != "Single-Stock Report":', public_mode_index)
     shell_index = source.index("render_public_app_shell(selected_page)", clear_index)
     dispatch_index = source.index("if research_mode and render_personal_research_route(", shell_index)
+    final_clear_index = source.rindex("if bootstrap_placeholder is not None:")
 
     assert public_mode_index < clear_index < shell_index < dispatch_index
     assert "bootstrap_placeholder.empty()" in source[clear_index:shell_index]
     assert "bootstrap_placeholder = None" in source[clear_index:shell_index]
+    assert 'selected_page != "Single-Stock Report"' in source[clear_index:shell_index]
+    assert final_clear_index > dispatch_index
+    assert "bootstrap_placeholder.empty()" in source[final_clear_index:]
 
 
 def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy():
@@ -31972,8 +32014,8 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert "Public start guide" in chunk
     assert "where to start, and the research-only stop rule" in chunk
     assert "Readiness-backed ticker guide" in chunk
-    assert "Selected-ticker guide" in chunk
-    assert "selected ticker state, usable sections, blocked inputs, and one next step" in chunk
+    assert "Preparing saved review" in chunk
+    assert "selected ticker state, usable sections, blocked inputs, and one next step" not in chunk
     assert "Lane answer / coverage summary guide" in chunk
     assert "Use the lane cards before opening advanced proof details" in chunk
     assert "Real lane cards are still loading" not in chunk
@@ -31993,6 +32035,68 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert "What appears first" not in preview_html
     assert "Next safe action" not in preview_html
     assert "public workflow is loading" not in chunk
+
+
+def test_public_single_stock_bootstrap_is_neutral_before_the_saved_report_exists(monkeypatch):
+    events = []
+
+    class Placeholder:
+        def container(self):
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+    placeholder = Placeholder()
+    monkeypatch.setattr(dashboard.st, "empty", lambda: placeholder)
+    monkeypatch.setattr(
+        dashboard,
+        "render_context_note",
+        lambda title, body, **kwargs: events.append(("note", title, body)),
+    )
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda body, **kwargs: events.append(("markdown", body)),
+    )
+
+    assert dashboard.render_public_route_bootstrap("Single-Stock Report", dashboard.PUBLIC_DEMO_MODE) is placeholder
+
+    _, title, body = events[0]
+    assert title == "Preparing saved review."
+    assert "No data is being refreshed or changed" in body
+    assert "does not state that any analysis section is ready or blocked" in body
+    assert "usable sections" not in body
+    assert "blocked inputs" not in body
+
+
+def test_company_workbench_loading_evidence_rail_is_neutral():
+    rendered = dashboard.company_workbench_evidence_loading_html("NVDA")
+
+    assert "company-workbench-evidence-status" in rendered
+    assert "Company evidence status" in rendered
+    assert "NVDA: preparing saved review" in rendered
+    assert "No data is being refreshed or changed" in rendered
+    assert "does not state that any analysis section is ready or blocked" in rendered
+    assert "aria-busy='true'" in rendered
+    assert "Reviewable" not in rendered
+    assert "Withheld" not in rendered
+    assert "Unavailable" not in rendered
+
+
+def test_single_stock_report_unavailable_state_is_fail_closed_and_not_a_company_brief_answer():
+    rendered = dashboard.single_stock_report_unavailable_html("NVDA")
+
+    assert "NVDA: saved report unavailable" in rendered
+    assert "No data is being refreshed or changed" in rendered
+    assert "does not state that any analysis section is ready or blocked" in rendered
+    assert "role='alert'" in rendered
+    assert "aria-busy" not in rendered
+    assert "Use now" not in rendered
+    assert "Still withheld" not in rendered
 
 
 def test_public_loading_preview_names_usable_and_blocked_states_for_slow_routes():
@@ -32264,12 +32368,10 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     query_ticker_index = source.index('query_ticker = single_stock_query_ticker(st.query_params.get("ticker"), local_tickers)', provider_ticker_load_index)
     section_index = source.index('"One-Stock Review"', query_ticker_index)
     direct_route_header_index = source.index('f"{query_ticker} is selected. Review the selected ticker state first', query_ticker_index)
-    loading_placeholder_index = source.index("single_stock_loading_placeholder = st.empty()", provider_ticker_load_index)
-    loading_contract_index = source.index("render_signal_cards(single_stock_loading_contract_cards(ticker)", loading_placeholder_index)
-    contract_cards_index = source.index("render_signal_cards(pre_report_cards", loading_contract_index)
-    preparing_note_index = source.index('"Preparing selected report."', loading_placeholder_index)
-    preparing_boundary_index = source.index("without refreshing prices, importing files, or contacting external accounts", preparing_note_index)
-    open_selected_report_index = source.index("open_selected_report()", preparing_note_index)
+    loading_placeholder_index = source.index("single_stock_loading_placeholder = (", provider_ticker_load_index)
+    loading_state_index = source.index("single_stock_loading_state_html(ticker)", loading_placeholder_index)
+    contract_cards_index = source.index("render_signal_cards(pre_report_cards", loading_state_index)
+    open_selected_report_index = source.index("open_selected_report()", loading_state_index)
     report_button_index = source.index('st.button("Open Review"', contract_cards_index)
     coverage_expander_index = source.index('st.expander("Ticker Readiness Evidence"', report_button_index)
     intro_expander_index = source.index('st.expander("Advanced: example report states"', coverage_expander_index)
@@ -32280,7 +32382,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
     assert '"Selected-ticker guide."' not in single_stock_chunk
     assert "The page opens with selected ticker state" not in single_stock_chunk
     assert "pre_report_cards[:3]" not in single_stock_chunk
-    assert "single_stock_loading_contract_cards(ticker)" in single_stock_chunk
+    assert "single_stock_loading_state_html(ticker)" in single_stock_chunk
     assert "if query_open_review and not report_payload and compact_public_open_report:" not in single_stock_chunk
     assert "elif report_payload and compact_public_open_report:" not in single_stock_chunk
     assert "if compact_public_open_report and report_payload:\n            st.rerun()" in single_stock_chunk
@@ -32291,9 +32393,7 @@ def test_single_stock_page_shows_readiness_contract_before_raw_coverage_and_repo
         < direct_route_header_index
         < section_index
         < loading_placeholder_index
-        < loading_contract_index
-        < preparing_note_index
-        < preparing_boundary_index
+        < loading_state_index
         < open_selected_report_index
         < contract_cards_index
         < report_button_index
@@ -32321,40 +32421,45 @@ def test_direct_public_single_stock_route_renders_loading_contract_before_provid
     render_index = source.index("def render_single_stock_report(")
     next_function_index = source.index("\ndef render_data_health(", render_index)
     report_chunk = source[render_index:next_function_index]
-    loading_placeholder_index = report_chunk.index("single_stock_loading_placeholder = st.empty()")
-    loading_contract_index = report_chunk.index("render_signal_cards(single_stock_loading_contract_cards(ticker)", loading_placeholder_index)
+    loading_placeholder_index = report_chunk.index("single_stock_loading_placeholder = (")
+    loading_state_index = report_chunk.index("single_stock_loading_state_html(ticker)", loading_placeholder_index)
     coverage_lookup_index = report_chunk.index("coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))")
     clear_loading_index = report_chunk.index("single_stock_loading_placeholder.empty()")
 
-    assert loading_placeholder_index < loading_contract_index < coverage_lookup_index < clear_loading_index
+    assert loading_placeholder_index < loading_state_index < coverage_lookup_index < clear_loading_index
 
 
-def test_direct_public_single_stock_route_renders_fast_summary_before_loading_and_provider_work():
+def test_single_stock_loading_state_is_neutral_and_accessible():
+    rendered = dashboard.single_stock_loading_state_html("NVDA")
+
+    assert "NVDA: preparing saved review" in rendered
+    assert "does not state that any analysis section is ready or blocked" in rendered
+    assert "No data is being refreshed or changed" in rendered
+    assert "role='status'" in rendered
+    assert "aria-live='polite'" in rendered
+    assert "aria-busy='true'" in rendered
+    assert "data-sr-region='primary-answer'" in rendered
+    assert "company-workbench-primary-brief" not in rendered
+    assert "Use now" not in rendered
+    assert "Still withheld" not in rendered
+
+
+def test_direct_public_single_stock_route_keeps_fast_readiness_out_of_the_cold_compact_open_branch():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
 
     render_index = source.index("def render_single_stock_report(")
     next_function_index = source.index("\ndef render_data_health(", render_index)
     report_chunk = source[render_index:next_function_index]
-    fast_snapshot_index = report_chunk.index("fast_snapshot = single_stock_fast_readiness_snapshot(ticker)")
-    fast_frame_index = report_chunk.index("fast_answer_frame = single_stock_one_answer_frame(fast_snapshot)", fast_snapshot_index)
-    fast_summary_index = report_chunk.index("render_single_stock_public_summary(", fast_frame_index)
-    loading_placeholder_index = report_chunk.index("single_stock_loading_placeholder = st.empty()", fast_summary_index)
-    coverage_lookup_index = report_chunk.index("coverage = pd.DataFrame(provider.get_ticker_dataset_coverage(ticker))")
-    direct_open_index = report_chunk.index("if query_open_review and not report_payload:", coverage_lookup_index)
+    cold_branch_index = report_chunk.index("if public_mode and compact_public_open_report and not report_payload:")
+    loading_state_index = report_chunk.index("single_stock_loading_state_html(ticker)", cold_branch_index)
+    direct_open_index = report_chunk.index("if query_open_review and not report_payload:", loading_state_index)
     open_report_index = report_chunk.index("open_selected_report()", direct_open_index)
+    cold_path = report_chunk[cold_branch_index:open_report_index]
 
-    assert (
-        fast_snapshot_index
-        < fast_frame_index
-        < fast_summary_index
-        < loading_placeholder_index
-        < coverage_lookup_index
-        < direct_open_index
-        < open_report_index
-    )
-    assert "render_signal_cards(single_stock_quick_read_cards(fast_snapshot)" not in report_chunk
-    assert "research_mode=research_mode" in report_chunk[fast_frame_index:loading_placeholder_index]
-    assert "selected_answer_target=selected_answer_target" in report_chunk[fast_frame_index:loading_placeholder_index]
+    assert cold_branch_index < loading_state_index < direct_open_index < open_report_index
+    assert "single_stock_fast_readiness_snapshot" not in cold_path
+    assert "single_stock_one_answer_frame" not in cold_path
+    assert "render_single_stock_public_summary" not in cold_path
 
 
 def test_single_stock_public_summary_uses_selected_target_when_supplied(monkeypatch):
@@ -32437,7 +32542,7 @@ def test_single_stock_summary_uses_company_brief_only_for_research_mode(monkeypa
     assert "Review consensus evidence" not in public_html
 
 
-def test_single_stock_report_routes_fast_and_final_answers_through_optional_target():
+def test_single_stock_report_routes_only_the_completed_answer_through_optional_target():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_single_stock_report(")
     next_function_index = source.index("\ndef render_data_health(", render_index)
@@ -32445,8 +32550,9 @@ def test_single_stock_report_routes_fast_and_final_answers_through_optional_targ
     signature = report_chunk[: report_chunk.index(") -> None:")]
 
     assert "selected_answer_target=None" in signature
-    assert report_chunk.count("render_single_stock_public_summary(") == 2
-    assert report_chunk.count("selected_answer_target=selected_answer_target") == 2
+    assert report_chunk.count("render_single_stock_public_summary(") == 1
+    assert report_chunk.count("selected_answer_target=selected_answer_target") == 1
+    assert "single_stock_fast_readiness_snapshot" not in report_chunk
     assert "single_stock_public_summary_html(" not in report_chunk
 
 
@@ -36623,6 +36729,8 @@ def test_evidence_route_answer_is_mode_identical_except_for_its_return_action(pa
     assert "mode=public" not in personal
     assert "ticker=BRK%2FB" in public
     assert "ticker=BRK%2FB" in personal
+    assert ">Return to BRK/B Company Workbench</a>" in personal
+    assert ">Return to Company Workbench</a>" not in personal
     assert re.sub(r"<a\b.*?</a>", "<RETURN_ACTION>", public) == re.sub(
         r"<a\b.*?</a>", "<RETURN_ACTION>", personal
     )

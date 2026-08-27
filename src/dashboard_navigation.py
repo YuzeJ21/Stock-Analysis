@@ -83,7 +83,7 @@ WORKSPACE_ROUTE_QUERY_KEYS = {
     (RESEARCH_MODE, "Research Desk"): (),
     (RESEARCH_MODE, "Discover"): (),
     (RESEARCH_MODE, "Company Workbench"): ("ticker", "open", "cash_preview"),
-    (RESEARCH_MODE, "Monitor"): (),
+    (RESEARCH_MODE, "Monitor"): ("return_ticker",),
     (RESEARCH_MODE, "Data Health"): DATA_HEALTH_QUERY_KEYS,
     (RESEARCH_MODE, PROOF_HISTORY_PATH_TITLE): ("ticker",),
 }

@@ -17,7 +17,10 @@ def _makefile_targets(makefile: str | None = None) -> set[str]:
 def _tree_manifest(root: Path) -> dict[str, tuple[str, bytes | None]]:
     manifest = {".": ("directory", None)}
     for path in sorted(root.rglob("*")):
-        relative = path.relative_to(root).as_posix()
+        relative_path = path.relative_to(root)
+        if relative_path.parts and relative_path.parts[0] == ".git":
+            continue
+        relative = relative_path.as_posix()
         if path.is_symlink():
             manifest[relative] = ("symlink", os.readlink(path).encode())
         elif path.is_dir():
@@ -196,6 +199,37 @@ def test_golden_evidence_cohort_make_is_deterministic_json_and_write_free():
     assert payload["readiness_materialization_authorized"] is False
     assert payload["source_rights_change_authorized"] is False
     assert payload["recommendation_authorized"] is False
+    assert payload["repository_writes"] == []
+    assert _tree_manifest(root) == before
+
+
+def test_golden_price_lineage_proof_make_defaults_to_no_live_collection_and_no_writes():
+    root = Path.cwd()
+    before = _tree_manifest(root)
+
+    result = subprocess.run(
+        ["make", "--no-print-directory", "golden-price-lineage-proof", "JSON=1"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
+
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["status"] == "collection_not_requested"
+    assert payload["live_collection_performed"] is False
+    assert [member["ticker"] for member in payload["members"]] == [
+        "AMD",
+        "AVGO",
+        "COHR",
+        "ABAT",
+    ]
+    assert payload["method_fit_exclusions"] == ["QQQ"]
+    assert payload["canonical_apply_authorized"] is False
+    assert payload["readiness_materialization_authorized"] is False
+    assert payload["source_rights_change_authorized"] is False
     assert payload["repository_writes"] == []
     assert _tree_manifest(root) == before
 

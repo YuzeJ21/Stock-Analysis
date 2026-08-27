@@ -1385,6 +1385,33 @@ def _quoted_ticker(ticker: str) -> str:
     return quote(str(ticker or "").strip().upper(), safe="")
 
 
+def validated_research_return_ticker(
+    value: object,
+    registered_tickers: Iterable[object],
+) -> str:
+    """Return a registered Monitor destination, or no context when validation fails."""
+
+    requested = str(value or "").strip().upper()
+    registered = {
+        str(ticker or "").strip().upper()
+        for ticker in registered_tickers
+        if str(ticker or "").strip()
+    }
+    return requested if requested and requested in registered else ""
+
+
+def research_monitor_return_link(ticker: str) -> dict[str, str]:
+    """Build the selected-company return action without changing Monitor scope."""
+
+    symbol = _quoted_ticker(ticker)
+    label_ticker = str(ticker or "").strip().upper()
+    return {
+        "label": f"Return to {label_ticker} Company Workbench",
+        "href": f"?mode=research&page=company-workbench&ticker={symbol}&open=1",
+        "purpose": "Return to the selected company; this context does not filter Monitor.",
+    }
+
+
 def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> str:
     """Render the deterministic Personal Research route sequence."""
 
@@ -1403,7 +1430,10 @@ def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> 
             else "",
         )
     )
-    routes.append(("Monitor", "monitor", "?mode=research&page=monitor"))
+    monitor_href = "?mode=research&page=monitor"
+    if symbol:
+        monitor_href = f"{monitor_href}&return_ticker={symbol}"
+    routes.append(("Monitor", "monitor", monitor_href))
     links: list[str] = []
     for label, slug, href in routes:
         if not href:
@@ -1413,17 +1443,33 @@ def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> 
                 "<span class='sr-visually-hidden'> — Choose a company in Discover first</span></span>"
             )
             continue
-        current = " aria-current='page'" if active_slug == slug else ""
+        current = (
+            " aria-current='page'"
+            if active_slug == slug and active_slug not in {"data-health", "proof-history"}
+            else ""
+        )
         links.append(
             "<a class='research-workflow-link' "
             f"href='{html.escape(href, quote=True)}' target='_self'{current}>"
             f"{html.escape(label)}</a>"
         )
+    evidence_label = {
+        "data-health": "Data Health",
+        "proof-history": "Proof History",
+    }.get(active_slug, "")
+    evidence_current = (
+        "<div class='research-workflow-evidence-current'>"
+        "<span>Advanced Evidence</span>"
+        f"<strong aria-current='page'>Advanced Evidence · {html.escape(evidence_label)}</strong>"
+        "</div>"
+        if evidence_label
+        else ""
+    )
     return (
         "<nav class='research-workflow-navigation' data-sr-region='workflow-nav' aria-label='Personal research workflow'>"
         "<a class='research-workspace-brand' href='?mode=research&amp;page=research-desk' target='_self'>"
         "<span>Readiness-first</span><strong>Stock Research Command Center</strong></a>"
-        f"<div class='research-workflow-routes'>{''.join(links)}</div>"
+        f"<div class='research-workflow-routes'>{''.join(links)}{evidence_current}</div>"
         "<div class='research-workspace-mode' role='group' aria-label='Workspace mode'>"
         "<span>Workspace mode</span>"
         "<a href='?mode=public' target='_self'>Public</a>"
@@ -1458,8 +1504,9 @@ def advanced_evidence_links(ticker: str) -> list[dict[str, str]]:
 def research_evidence_return_link(ticker: str) -> dict[str, str]:
     symbol = _quoted_ticker(ticker)
     if symbol:
+        label_ticker = str(ticker or "").strip().upper()
         return {
-            "label": "Return to Company Workbench",
+            "label": f"Return to {label_ticker} Company Workbench",
             "href": f"?mode=research&page=company-workbench&ticker={symbol}&open=1",
             "purpose": "Continue the selected-company review without changing evidence state.",
         }

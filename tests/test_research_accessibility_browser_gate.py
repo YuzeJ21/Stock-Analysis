@@ -423,6 +423,165 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
     ]
 
 
+def test_task4_discover_evidence_access_requires_live_counts_alphabetical_briefs_and_filter_order():
+    """Catches Discover moving evidence access below filters or back to a ranking-like list."""
+
+    from src.research_accessibility_browser_gate import (
+        evaluate_discover_evidence_access,
+    )
+
+    passing = evaluate_discover_evidence_access(
+        primary_answer=(
+            "8 saved companies are available for evidence review; "
+            "0 currently pass the strict screen."
+        ),
+        quick_links=(
+            ("Open AMD Company Brief", "?mode=research&page=company-workbench&ticker=AMD&open=1"),
+            ("Open AVGO Company Brief", "?mode=research&page=company-workbench&ticker=AVGO&open=1"),
+            ("Open COHR Company Brief", "?mode=research&page=company-workbench&ticker=COHR&open=1"),
+            ("Open NVDA Company Brief", "?mode=research&page=company-workbench&ticker=NVDA&open=1"),
+        ),
+        primary_before_quick_links=True,
+        quick_links_before_advanced_filters=True,
+    )
+
+    assert passing["passed"] is True
+    assert "four alphabetical Company Brief" in str(passing["detail"])
+
+    baseline = {
+        "primary_answer": (
+            "8 saved companies are available for evidence review; "
+            "0 currently pass the strict screen."
+        ),
+        "quick_links": (
+            ("Open AMD Company Brief", "?mode=research&page=company-workbench&ticker=AMD&open=1"),
+            ("Open AVGO Company Brief", "?mode=research&page=company-workbench&ticker=AVGO&open=1"),
+            ("Open COHR Company Brief", "?mode=research&page=company-workbench&ticker=COHR&open=1"),
+            ("Open NVDA Company Brief", "?mode=research&page=company-workbench&ticker=NVDA&open=1"),
+        ),
+        "primary_before_quick_links": True,
+        "quick_links_before_advanced_filters": True,
+    }
+    for changed in (
+        {"primary_answer": "8 saved companies are available for evidence review."},
+        {"quick_links": passing["quick_links"][:3]},
+        {
+            "quick_links": (
+                passing["quick_links"][1],
+                passing["quick_links"][0],
+                *passing["quick_links"][2:],
+            )
+        },
+        {"primary_before_quick_links": False},
+        {"quick_links_before_advanced_filters": False},
+    ):
+        result = evaluate_discover_evidence_access(**{**baseline, **changed})
+        assert result["passed"] is False
+
+    zero_fixture = evaluate_discover_evidence_access(
+        **{**baseline, "expected_strict_count": 0}
+    )
+    nonzero_fixture = evaluate_discover_evidence_access(
+        **{
+            **baseline,
+            "primary_answer": (
+                "8 saved companies are available for evidence review; "
+                "1 currently pass the strict screen."
+            ),
+            "expected_strict_count": 0,
+        }
+    )
+    assert zero_fixture["passed"] is True
+    assert nonzero_fixture["passed"] is False
+
+    comma_formatted_fixture = evaluate_discover_evidence_access(
+        **{
+            **baseline,
+            "primary_answer": (
+                "1,234 saved companies are available for evidence review; "
+                "1,000 currently pass the strict screen."
+            ),
+            "expected_strict_count": 1000,
+        }
+    )
+    assert comma_formatted_fixture["passed"] is True
+
+
+def test_task4_monitor_return_context_requires_one_return_without_changing_monitor_counts():
+    """Catches return context filtering Monitor or rendering a duplicated return action."""
+
+    from src.research_accessibility_browser_gate import (
+        evaluate_monitor_return_context,
+    )
+
+    passing = evaluate_monitor_return_context(
+        baseline_counts={"cards": 5, "rows": 2, "advanced_identities": 5},
+        context_counts={"cards": 5, "rows": 2, "advanced_identities": 5},
+        return_action_count=1,
+        return_action_label="Return to NVDA Company Workbench",
+        return_action_href=(
+            "?mode=research&page=company-workbench&ticker=NVDA&open=1"
+        ),
+        clarification=(
+            "Monitor remains focused-cohort-wide; NVDA is only the return destination "
+            "and does not filter these follow-up items."
+        ),
+    )
+
+    assert passing["passed"] is True
+    assert "unchanged" in str(passing["detail"])
+
+    baseline = {
+        "baseline_counts": {"cards": 5, "rows": 2, "advanced_identities": 5},
+        "context_counts": {"cards": 5, "rows": 2, "advanced_identities": 5},
+        "return_action_count": 1,
+        "return_action_label": "Return to NVDA Company Workbench",
+        "return_action_href": (
+            "?mode=research&page=company-workbench&ticker=NVDA&open=1"
+        ),
+        "clarification": (
+            "Monitor remains focused-cohort-wide; NVDA is only the return destination "
+            "and does not filter these follow-up items."
+        ),
+    }
+    for changed in (
+        {"context_counts": {"cards": 4, "rows": 2, "advanced_identities": 5}},
+        {"return_action_count": 2},
+        {"return_action_label": "Return to Company Workbench"},
+        {"return_action_href": "?mode=research&page=monitor&ticker=NVDA"},
+        {"clarification": "NVDA filters this Monitor."},
+    ):
+        result = evaluate_monitor_return_context(**{**baseline, **changed})
+        assert result["passed"] is False
+
+
+def test_task4_advanced_evidence_location_requires_one_truthful_secondary_current_marker():
+    """Catches an evidence page losing or duplicating its sole current-location cue."""
+
+    from src.research_accessibility_browser_gate import (
+        evaluate_evidence_navigation_location,
+    )
+
+    for label in ("Data Health", "Proof History"):
+        assert evaluate_evidence_navigation_location(
+            navigation_count=1,
+            core_current_count=0,
+            secondary_current_count=1,
+            secondary_current_text=f"Advanced Evidence · {label}",
+            expected_label=label,
+            phase="initial",
+        )["passed"] is True
+
+    assert evaluate_evidence_navigation_location(
+        navigation_count=1,
+        core_current_count=0,
+        secondary_current_count=2,
+        secondary_current_text="Advanced Evidence · Data Health",
+        expected_label="Data Health",
+        phase="initial",
+    )["passed"] is False
+
+
 def test_company_workbench_primary_brief_contract_fails_closed_per_requirement():
     from src.research_accessibility_browser_gate import (
         evaluate_company_workbench_primary_brief,

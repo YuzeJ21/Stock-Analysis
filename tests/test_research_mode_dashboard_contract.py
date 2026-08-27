@@ -52,6 +52,242 @@ def test_dashboard_resolves_raw_route_before_loading_workspace_state():
     assert route_resolution < redirect_write < data_profile < bootstrap
 
 
+@pytest.mark.parametrize(
+    ("query", "registered", "expected_return_ticker", "expected_query", "expected_registered_calls"),
+    (
+        (
+            {"mode": "research", "page": "monitor", "return_ticker": "nvda"},
+            ("NVDA",),
+            "NVDA",
+            {"mode": "research", "page": "monitor", "return_ticker": "nvda"},
+            1,
+        ),
+        (
+            {"mode": "research", "page": "monitor", "return_ticker": "UNKNOWN", "ticker": "AVGO"},
+            ("NVDA",),
+            "",
+            {"mode": "research", "page": "monitor"},
+            1,
+        ),
+        (
+            {"mode": "research", "page": "research-desk", "return_ticker": "NVDA"},
+            ("NVDA",),
+            "",
+            {"mode": "research", "page": "research-desk"},
+            0,
+        ),
+    ),
+)
+def test_main_resolves_monitor_return_context_only_after_provider_availability(
+    monkeypatch,
+    query,
+    registered,
+    expected_return_ticker,
+    expected_query,
+    expected_registered_calls,
+):
+    """Catches pre-route selected-page access and return validation outside the resolved Monitor route."""
+
+    dispatched: list[dict[str, object]] = []
+
+    class Provider:
+        def __init__(self):
+            self.registered_calls = 0
+
+        def list_local_tickers(self):
+            self.registered_calls += 1
+            return registered
+
+    provider = Provider()
+    fake_streamlit = SimpleNamespace(
+        query_params=dict(query),
+        set_page_config=lambda **kwargs: None,
+    )
+    monkeypatch.setattr(dashboard, "st", fake_streamlit)
+    monkeypatch.setattr(dashboard, "apply_dashboard_theme", lambda: None)
+    monkeypatch.setattr(dashboard, "render_semantic_main_bridge", lambda: None)
+    monkeypatch.setattr(dashboard, "render_public_workflow_skip_link", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "resolve_data_profile", lambda **kwargs: SimpleNamespace(name="Local"))
+    monkeypatch.setattr(dashboard, "build_profile_context", lambda **kwargs: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_research_change_state", lambda *args: {"queue": ()})
+    monkeypatch.setattr(dashboard, "load_dashboard_focused_cohort", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_focused_cohort_coverage", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_weekly_summary", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "LocalDataCatalog", lambda *args, **kwargs: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "get_local_provider", lambda: provider)
+    monkeypatch.setattr(dashboard, "render_research_workflow_navigation", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_public_workflow_skip_target", lambda: None)
+    monkeypatch.setattr(dashboard, "render_research_workspace_styles", lambda: None)
+    monkeypatch.setattr(dashboard, "dashboard_output_frames_for_page", lambda *args: {})
+    monkeypatch.setattr(dashboard, "load_saved_project_status_payload", lambda *args: {})
+    monkeypatch.setattr(
+        dashboard,
+        "render_personal_research_route",
+        lambda **kwargs: dispatched.append(kwargs) or True,
+    )
+
+    dashboard.main()
+
+    assert provider.registered_calls == expected_registered_calls
+    assert fake_streamlit.query_params == expected_query
+    assert dispatched[0]["selected_page"] == ("Monitor" if expected_registered_calls else "Research Desk")
+    assert dispatched[0]["return_ticker"] == expected_return_ticker
+
+
+@pytest.mark.parametrize("selected_page", ("Data Health", "Proof History"))
+@pytest.mark.parametrize(
+    ("supplied_ticker", "expected_query", "expected_navigation_ticker"),
+    (
+        (
+            "UNKNOWN",
+            {"mode": "research", "page": "data-health"},
+            "",
+        ),
+        (
+            "brk/b",
+            {"mode": "research", "page": "data-health", "ticker": "brk/b"},
+            "BRK/B",
+        ),
+    ),
+)
+def test_main_validates_advanced_evidence_ticker_before_research_navigation(
+    monkeypatch,
+    selected_page,
+    supplied_ticker,
+    expected_query,
+    expected_navigation_ticker,
+):
+    navigation_calls: list[tuple[str, str]] = []
+    dispatched: list[dict[str, object]] = []
+
+    class Provider:
+        def list_local_tickers(self):
+            return ("NVDA", "BRK/B")
+
+    fake_streamlit = SimpleNamespace(
+        query_params={
+            "mode": "research",
+            "page": "data-health" if selected_page == "Data Health" else "proof-history",
+            "ticker": supplied_ticker,
+        },
+        set_page_config=lambda **kwargs: None,
+    )
+    monkeypatch.setattr(dashboard, "st", fake_streamlit)
+    monkeypatch.setattr(dashboard, "apply_dashboard_theme", lambda: None)
+    monkeypatch.setattr(dashboard, "render_semantic_main_bridge", lambda: None)
+    monkeypatch.setattr(dashboard, "render_public_workflow_skip_link", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "resolve_data_profile", lambda **kwargs: SimpleNamespace(name="Local"))
+    monkeypatch.setattr(dashboard, "build_profile_context", lambda **kwargs: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_research_change_state", lambda *args: {"queue": ()})
+    monkeypatch.setattr(dashboard, "load_dashboard_focused_cohort", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_focused_cohort_coverage", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_weekly_summary", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "LocalDataCatalog", lambda *args, **kwargs: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "get_local_provider", lambda: Provider())
+    monkeypatch.setattr(
+        dashboard,
+        "render_research_workflow_navigation",
+        lambda page, *, ticker: navigation_calls.append((page, ticker)),
+    )
+    monkeypatch.setattr(dashboard, "render_public_workflow_skip_target", lambda: None)
+    monkeypatch.setattr(dashboard, "render_research_workspace_styles", lambda: None)
+    monkeypatch.setattr(dashboard, "dashboard_output_frames_for_page", lambda *args: {})
+    monkeypatch.setattr(dashboard, "load_saved_project_status_payload", lambda *args: {})
+    monkeypatch.setattr(
+        dashboard,
+        "render_personal_research_route",
+        lambda **kwargs: dispatched.append(kwargs) or True,
+    )
+
+    dashboard.main()
+
+    expected_query = dict(expected_query)
+    expected_query["page"] = "data-health" if selected_page == "Data Health" else "proof-history"
+    assert fake_streamlit.query_params == expected_query
+    assert navigation_calls == [(selected_page, expected_navigation_ticker)]
+    assert dispatched[0]["ticker"] == expected_navigation_ticker
+
+
+@pytest.mark.parametrize("selected_page", ("Data Health", "Proof History"))
+def test_main_revalidates_advanced_evidence_ticker_after_operator_mode_switch(
+    monkeypatch, selected_page
+):
+    navigation_calls: list[tuple[str, str]] = []
+    dispatched: list[dict[str, object]] = []
+
+    class FakeStreamlit:
+        def __init__(self):
+            self.query_params = {
+                "mode": "operator",
+                "page": "data-health" if selected_page == "Data Health" else "proof-history",
+                "ticker": "UNKNOWN",
+            }
+            self.sidebar = self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def radio(self, label, options, **kwargs):
+            return "research" if label == "Workspace" else selected_page
+
+        def selectbox(self, *args, **kwargs):
+            return "Keep current path"
+
+        def expander(self, *args, **kwargs):
+            return self
+
+        def checkbox(self, *args, **kwargs):
+            return False
+
+        def __getattr__(self, name):
+            return lambda *args, **kwargs: None
+
+    class Provider:
+        def list_local_tickers(self):
+            return ("NVDA", "BRK/B")
+
+    fake_streamlit = FakeStreamlit()
+    monkeypatch.setattr(dashboard, "st", fake_streamlit)
+    monkeypatch.setattr(dashboard, "apply_dashboard_theme", lambda: None)
+    monkeypatch.setattr(dashboard, "render_semantic_main_bridge", lambda: None)
+    monkeypatch.setattr(dashboard, "render_public_workflow_skip_link", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "resolve_data_profile", lambda **kwargs: SimpleNamespace(name="Local"))
+    monkeypatch.setattr(dashboard, "build_profile_context", lambda **kwargs: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_research_change_state", lambda *args: {"queue": ()})
+    monkeypatch.setattr(dashboard, "load_dashboard_focused_cohort", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_focused_cohort_coverage", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "load_dashboard_weekly_summary", lambda *args: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "LocalDataCatalog", lambda *args, **kwargs: SimpleNamespace())
+    monkeypatch.setattr(dashboard, "get_local_provider", lambda: Provider())
+    monkeypatch.setattr(
+        dashboard,
+        "render_research_workflow_navigation",
+        lambda page, *, ticker: navigation_calls.append((page, ticker)),
+    )
+    monkeypatch.setattr(dashboard, "render_public_workflow_skip_target", lambda: None)
+    monkeypatch.setattr(dashboard, "render_research_workspace_styles", lambda: None)
+    monkeypatch.setattr(dashboard, "dashboard_output_frames_for_page", lambda *args: {})
+    monkeypatch.setattr(dashboard, "load_saved_project_status_payload", lambda *args: {})
+    monkeypatch.setattr(dashboard, "render_sidebar_nav_header", lambda: None)
+    monkeypatch.setattr(dashboard, "render_sidebar_product_intro", lambda: None)
+    monkeypatch.setattr(dashboard, "render_sidebar_route_steps", lambda *args: None)
+    monkeypatch.setattr(dashboard, "sidebar_quick_help_lines", lambda: ())
+    monkeypatch.setattr(dashboard, "render_context_note", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_personal_research_route", lambda **kwargs: dispatched.append(kwargs) or True)
+
+    dashboard.main()
+
+    assert fake_streamlit.query_params == {
+        "mode": "research",
+        "page": "data-health" if selected_page == "Data Health" else "proof-history",
+    }
+    assert navigation_calls == [(selected_page, "")]
+    assert dispatched[0]["ticker"] == ""
+
+
 def test_personal_research_routes_do_not_render_ambiguous_freshness_label():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     assert "<small>Freshness</small>" not in source
@@ -76,7 +312,28 @@ def test_research_workflow_navigation_rendering_scopes_primary_and_secondary_rou
 
     assert len(rendered) == 2
     assert all("Personal research workflow" in html for html in rendered)
-    assert all(html.count("aria-current='page'") == 0 for html in rendered)
+    assert all(html.count("aria-current='page'") == 1 for html in rendered)
+    assert "Advanced Evidence · Data Health" in rendered[0]
+    assert "Advanced Evidence · Proof History" in rendered[1]
+
+
+def test_research_workflow_navigation_preserves_monitor_return_context_and_marks_evidence_location():
+    """Catches a detour that drops the selected company or leaves evidence routes unlocated."""
+
+    active = research_workspace.research_workflow_navigation_html(
+        active_page="Monitor", ticker="BRK/B"
+    )
+
+    assert "page=monitor&amp;return_ticker=BRK%2FB" in active
+    assert "page=company-workbench&amp;ticker=BRK%2FB&amp;open=1" in active
+    assert active.count("aria-current='page'") == 1
+
+    for page in ("Data Health", "Proof History"):
+        evidence = research_workspace.research_workflow_navigation_html(
+            active_page=page, ticker="AVGO"
+        )
+        assert f"Advanced Evidence · {page}" in evidence
+        assert evidence.count("aria-current='page'") == 1
 
 
 def test_research_workflow_navigation_keeps_canonical_routes_modes_and_tickerless_workbench_gate():
@@ -100,7 +357,7 @@ def test_research_workflow_navigation_keeps_canonical_routes_modes_and_tickerles
             "Company Workbench",
             "?mode=research&amp;page=company-workbench&amp;ticker=AVGO&amp;open=1",
         ),
-        ("Monitor", "?mode=research&amp;page=monitor"),
+        ("Monitor", "?mode=research&amp;page=monitor&amp;return_ticker=AVGO"),
     ):
         assert label in active
         assert f"href='{href}'" in active
@@ -148,7 +405,8 @@ def test_research_main_shell_keeps_one_workflow_nav_without_operator_readiness_c
     research_shell = shell[research_branch:operator_else]
     operator_shell = shell[operator_else:]
 
-    assert "render_research_workflow_navigation(selected_page, ticker=ticker)" in research_shell
+    assert "navigation_ticker = monitor_return_ticker if selected_page == \"Monitor\" else ticker" in research_shell
+    assert "render_research_workflow_navigation(selected_page, ticker=navigation_ticker)" in research_shell
     assert "render_public_workflow_skip_target()" in research_shell
     assert "render_research_workspace_styles()" in research_shell
     assert "render_app_header(" not in research_shell
@@ -176,7 +434,7 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
     load_calls: list[tuple[Path, str, date]] = []
     rendered: list[tuple[str, object]] = []
     daily_queue_calls: list[object] = []
-    queue_status = object()
+    queue_status = SimpleNamespace(result=SimpleNamespace(eligible=()))
 
     def load_recency(path, *, selected_ticker, as_of):
         load_calls.append((path, selected_ticker, as_of))
@@ -258,7 +516,7 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
         )
         assert load_calls == [(context.data_dir / "prices.csv", "AVGO", review_date)]
         assert rendered == [(selected_page, recency)]
-        assert daily_queue_calls == ([queue_status] if selected_page == "Discover" else [])
+        assert daily_queue_calls == []
         load_calls.clear()
         rendered.clear()
         daily_queue_calls.clear()
@@ -500,7 +758,7 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
     monkeypatch.setattr(
         dashboard,
         "load_dashboard_daily_research_queue",
-        lambda *args, **kwargs: object(),
+        lambda *args, **kwargs: SimpleNamespace(result=SimpleNamespace(eligible=())),
         raising=False,
     )
     monkeypatch.setattr(
@@ -552,8 +810,124 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
 
     assert all(value != "## Find a Company" for value in headings)
     assert all("Browse saved companies" not in value for value in headings)
-    assert calls[:2] == ["strict eligibility", "saved browsing"]
-    assert calls[2:] == ["advanced"]
+    assert calls == ["saved browsing", "advanced"]
+
+
+def test_discover_evidence_access_first_keeps_strict_queue_in_advanced_context(monkeypatch):
+    events: list[tuple[str, object]] = []
+    context = SimpleNamespace(data_dir=Path("/selected-profile/data"))
+    tickers = ("NVDA", "AMD", "AVGO", "COHR", "TSLA", "XOM", "PLTR", "ZZZ")
+    readiness = dashboard.pd.DataFrame(
+        {"ticker": tickers, "asset_type": ["company"] * len(tickers)}
+    )
+    strict_status = DailyQueueBuildStatus(
+        result=evaluate_daily_queue(()),
+        considered_count=0,
+        readiness_row_count=len(tickers),
+        price_row_count=0,
+        valuation_observation_count=0,
+        blocker_counts=(),
+        message="No strict-screen matches.",
+    )
+
+    class ContextManager:
+        def __init__(self, label: str):
+            self.label = label
+
+        def __enter__(self):
+            events.append(("expander", self.label))
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    selector_counts: list[int] = []
+    original_selector = dashboard.render_stock_selector
+
+    def render_selector(*args, **kwargs):
+        selector_counts.append(kwargs["strict_eligible_count"])
+        return original_selector(*args, **kwargs)
+
+    monkeypatch.setattr(dashboard, "load_observation_recency", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "load_dashboard_daily_research_queue", lambda *args, **kwargs: strict_status)
+    monkeypatch.setattr(dashboard, "load_ticker_readiness_report", lambda: (readiness, None))
+    monkeypatch.setattr(dashboard, "load_dcf_readiness", lambda: (dashboard.pd.DataFrame(), None))
+    monkeypatch.setattr(
+        dashboard,
+        "load_optional_context_readiness",
+        lambda: {
+            "earnings_readiness": (dashboard.pd.DataFrame(), None),
+            "analyst_estimates_readiness": (dashboard.pd.DataFrame(), None),
+        },
+    )
+    monkeypatch.setattr(dashboard, "load_output", lambda *args, **kwargs: (dashboard.pd.DataFrame(), None))
+    monkeypatch.setattr(dashboard, "dashboard_readiness_summary", lambda *args, **kwargs: {})
+    monkeypatch.setattr(
+        dashboard,
+        "stock_selector_saved_filter_presets",
+        lambda: ({"label": "All", "state": "All", "readiness": "All", "detail": "All", "theme": "All", "search": ""},),
+    )
+    monkeypatch.setattr(dashboard, "render_stock_selector", render_selector)
+    monkeypatch.setattr(dashboard, "focused_cohort_cards", lambda *args, **kwargs: [])
+    monkeypatch.setattr(dashboard, "focused_cohort_coverage_cards", lambda *args, **kwargs: [])
+    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "session_state", {})
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda value, **kwargs: events.append(("markdown", value)),
+    )
+    monkeypatch.setattr(
+        dashboard.st,
+        "text_input",
+        lambda label, **kwargs: events.append(("text_input", label)) or "",
+    )
+    monkeypatch.setattr(dashboard.st, "expander", lambda label, **kwargs: ContextManager(label))
+    monkeypatch.setattr(dashboard.st, "form", lambda label, **kwargs: ContextManager(label))
+    monkeypatch.setattr(dashboard.st, "columns", lambda widths: [dashboard.st] * len(widths))
+    monkeypatch.setattr(dashboard.st, "selectbox", lambda label, options, **kwargs: options[0])
+    monkeypatch.setattr(dashboard.st, "form_submit_button", lambda *args, **kwargs: False)
+    monkeypatch.setattr(dashboard.st, "dataframe", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard.st, "caption", lambda *args, **kwargs: None)
+    monkeypatch.setattr(
+        dashboard,
+        "render_notice_card",
+        lambda title, body, *args, **kwargs: events.append(("notice", f"{title} {body}")),
+    )
+
+    dashboard.render_personal_research_route(
+        selected_page="Discover",
+        provider=object(),
+        context=context,
+        state={},
+        cohort=SimpleNamespace(members=tuple(SimpleNamespace(ticker=ticker) for ticker in tickers)),
+        coverage=object(),
+        weekly_summary=object(),
+        ticker="AMD",
+        review_date=date(2026, 8, 26),
+    )
+
+    primary_index = next(
+        index
+        for index, event in enumerate(events)
+        if event[0] == "markdown" and "8 saved companies are available" in event[1]
+    )
+    search_index = events.index(("text_input", "Search saved companies"))
+    assert "0 currently pass the strict screen" in events[primary_index][1]
+    assert primary_index < search_index
+    assert all(
+        ticker in " ".join(event[1] for event in events if event[0] == "markdown")
+        for ticker in ("AMD", "AVGO", "COHR", "NVDA")
+    )
+    advanced_index = events.index(("expander", "Advanced: cohort readiness context"))
+    strict_detail_index = next(
+        index
+        for index, event in enumerate(events)
+        if event[0] == "notice" and "No company currently has complete evidence" in event[1]
+    )
+    assert advanced_index < strict_detail_index
+    assert selector_counts == [0]
 
 
 def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser(
@@ -577,7 +951,11 @@ def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser
         "render_research_workspace_header",
         lambda *args, **kwargs: calls.append(("header", kwargs)),
     )
-    monkeypatch.setattr(dashboard, "load_dashboard_daily_research_queue", lambda *args, **kwargs: object())
+    monkeypatch.setattr(
+        dashboard,
+        "load_dashboard_daily_research_queue",
+        lambda *args, **kwargs: SimpleNamespace(result=SimpleNamespace(eligible=())),
+    )
     monkeypatch.setattr(dashboard, "render_daily_research_queue", lambda *args, **kwargs: calls.append(("strict", kwargs)))
     monkeypatch.setattr(
         dashboard,
@@ -614,12 +992,10 @@ def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser
     assert header_kwargs["include_boundary"] is False
     assert header_kwargs["compact"] is True
     assert header_kwargs.get("observation_recency") is None
-    assert [name for name, _ in calls].index("strict") < [name for name, _ in calls].index(
-        "saved"
-    ) < [name for name, _ in calls].index("recency")
-    strict_kwargs = next(value for name, value in calls if name == "strict")
-    assert strict_kwargs["include_details"] is False
-    assert strict_kwargs["include_boundary"] is False
+    assert "strict" not in [name for name, _ in calls]
+    assert [name for name, _ in calls].index("saved") < [name for name, _ in calls].index(
+        "recency"
+    )
     saved_kwargs = next(value for name, value in calls if name == "saved")
     assert saved_kwargs["research_boundary"] == dashboard.QUEUE_BOUNDARY
 
@@ -1247,6 +1623,62 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     assert copy.count("data-sr-region='primary-answer'") == 1
     assert copy.count("data-sr-region='primary-action'") == 1
     assert copy.count("data-sr-region='stop-rule'") == 1
+
+
+def test_monitor_return_context_renders_once_without_changing_monitor_scope(monkeypatch):
+    """Catches return context being treated as a Monitor filter rather than a detour action."""
+
+    class Expander:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    rendered: list[str] = []
+    actions: list[tuple[str, str]] = []
+    cards: list[tuple[object, str]] = []
+    frames: list[list[dict[str, object]]] = []
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "load_dashboard_research_discipline_rows", lambda *args, **kwargs: ())
+    monkeypatch.setattr(dashboard, "load_dashboard_nowcast_cohort", lambda: ())
+    monkeypatch.setattr(dashboard, "cohort_readiness_cards", lambda rows: [])
+    monkeypatch.setattr(dashboard, "render_signal_cards", lambda values, **kwargs: cards.append((values, str(kwargs.get("variant") or ""))))
+    monkeypatch.setattr(dashboard.st, "markdown", lambda value, **kwargs: rendered.append(value))
+    monkeypatch.setattr(dashboard.st, "caption", lambda value, **kwargs: rendered.append(value))
+    monkeypatch.setattr(dashboard.st, "link_button", lambda label, url, **kwargs: actions.append((label, url)))
+    monkeypatch.setattr(dashboard.st, "dataframe", lambda frame, **kwargs: frames.append(frame.to_dict("records")))
+    monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+
+    args = (
+        {"queue": ()},
+        SimpleNamespace(freshness_state="current", freshness_message="Saved readiness is current."),
+        WeeklyResearchSummary(
+            status="no_changes",
+            as_of="2026-08-04T00:00:00+00:00",
+            cohort_size=0,
+            unique_event_count=0,
+            items=(),
+            message="No traceable cohort evidence change requires review this week.",
+        ),
+        object(),
+    )
+
+    dashboard.render_research_monitor(*args)
+    without_context = (list(rendered), list(cards), list(frames), list(actions))
+    rendered.clear()
+    cards.clear()
+    frames.clear()
+    actions.clear()
+
+    dashboard.render_research_monitor(*args, return_ticker="NVDA")
+    with_context = (list(rendered), list(cards), list(frames), list(actions))
+
+    assert with_context[1:3] == without_context[1:3]
+    assert with_context[3] == [("Return to NVDA Company Workbench", "?mode=research&page=company-workbench&ticker=NVDA&open=1")]
+    context_copy = " ".join(with_context[0])
+    assert context_copy.count("Monitor remains focused-cohort-wide; NVDA is only the return destination and does not filter these follow-up items.") == 1
+    assert [value for value in with_context[0] if "return destination" not in value] == without_context[0]
 
 
 def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_health(

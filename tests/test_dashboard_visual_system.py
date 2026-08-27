@@ -166,6 +166,31 @@ def test_dashboard_visual_css_uses_local_fonts_tokens_and_responsive_complete_co
     assert "@media (max-width: 360px)" in css
 
 
+def test_discover_quick_links_use_four_column_desktop_and_two_by_two_phone_grid():
+    css = visual.dashboard_visual_system_css()
+    phone_start = css.index("@media (max-width: 640px)")
+    desktop = css[:phone_start]
+    phone = css[phone_start:]
+
+    desktop_grid_start = desktop.index(".discover-quick-company-links {")
+    desktop_grid = desktop[desktop_grid_start : desktop.index("}", desktop_grid_start)]
+    paragraph_start = desktop.index(".discover-quick-company-links > p {")
+    paragraph = desktop[paragraph_start : desktop.index("}", paragraph_start)]
+    action_start = desktop.index(".discover-quick-company-links .sr-primary-action {")
+    action = desktop[action_start : desktop.index("}", action_start)]
+    phone_grid_start = phone.index(".discover-quick-company-links {")
+    phone_grid = phone[phone_grid_start : phone.index("}", phone_grid_start)]
+
+    assert "display: grid;" in desktop_grid
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in desktop_grid
+    assert "grid-column: 1 / -1;" in paragraph
+    assert "box-sizing: border-box;" in action
+    assert "width: 100%;" in action
+    assert "min-width: 44px;" in action
+    assert "min-width: 0;" not in action
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in phone_grid
+
+
 def test_company_workbench_document_css_scopes_horizontal_navigation_and_evidence_aside():
     """Catches a Workbench document layout drifting back into the fixed rail shell."""
 
@@ -475,6 +500,23 @@ def test_safe_route_action_renders_canonical_query_only_links():
 
     assert "href='?mode=research&amp;page=company-workbench&amp;ticker=BRK%2FB&amp;open=1'" in rendered
     assert "data-sr-region='primary-action'" in rendered
+
+
+def test_evidence_action_keeps_the_safe_link_contract_without_primary_action_region():
+    rendered = visual.evidence_action_html(
+        visual.SafeRouteAction(
+            label="Open <Company> Brief",
+            href="?mode=research&page=company-workbench&ticker=BRK%2FB&open=1",
+        )
+    ).value
+
+    assert "class='sr-primary-action public-primary-action'" in rendered
+    assert (
+        "href='?mode=research&amp;page=company-workbench&amp;ticker=BRK%2FB&amp;open=1'"
+        in rendered
+    )
+    assert "Open &lt;Company&gt; Brief" in rendered
+    assert "data-sr-region='primary-action'" not in rendered
 
 
 def test_shared_components_emit_unique_regions_and_malformed_evidence_stays_visible_neutral():

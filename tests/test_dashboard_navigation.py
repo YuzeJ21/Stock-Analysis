@@ -174,6 +174,24 @@ def test_canonical_workspace_query_keeps_only_the_exact_page_allowlist(mode, pag
     assert nav.canonical_workspace_query(mode, page, query_params) == expected
 
 
+def test_research_monitor_canonical_query_preserves_return_ticker_only():
+    """Catches Monitor losing its return destination or accepting a filtering ticker."""
+
+    query = {
+        "mode": "research",
+        "page": "monitor",
+        "return_ticker": "BRK/B",
+        "ticker": "NVDA",
+        "open": "1",
+    }
+
+    assert nav.canonical_workspace_query("research", "Monitor", query) == {
+        "mode": "research",
+        "page": "monitor",
+        "return_ticker": "BRK/B",
+    }
+
+
 def test_public_advanced_redirect_clears_route_specific_state():
     result = nav.resolve_workspace_route(
         "public",

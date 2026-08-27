@@ -31,6 +31,7 @@ from src.dashboard_visual_system import (
     answer_panel_html,
     dashboard_visual_system_css,
     empty_state_html,
+    evidence_action_html,
     evidence_timeline_html,
     next_action_html,
     operator_route_shell_html as _operator_route_shell_html,
@@ -422,12 +423,15 @@ from src.research_workspace import (
     research_desk_brief_html,
     research_accessibility_media_preferences_css,
     research_evidence_return_link,
+    research_monitor_return_link,
     research_monitor_frame,
     monitor_freshness_condition_label,
     monitor_primary_answer,
     saved_readiness_display_label,
+    validated_research_return_ticker,
     research_workflow_navigation_html,
     research_workspace_header_html,
+    _quoted_ticker,
     weekly_summary_cards,
 )
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, build_purpose_evaluation_drilldown
@@ -7981,6 +7985,80 @@ def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool =
     )
 
 
+def single_stock_loading_state_html(ticker: object) -> str:
+    """Render the neutral saved-review state before an authoritative payload exists."""
+
+    card = single_stock_loading_contract_cards(ticker)[0]
+    return (
+        "<section class='single-stock-loading-state' data-sr-region='primary-answer' role='status' aria-live='polite' aria-busy='true' "
+        "aria-label='Preparing saved review'>"
+        "<div class='signal-grid queue-grid'>"
+        + signal_card_html(
+            str(card.get("kicker", "")),
+            str(card.get("title", "")),
+            str(card.get("body", "")),
+            [str(item) for item in card.get("badges", [])],
+            str(card.get("command", "")),
+            show_command=False,
+            queue_preview=True,
+        )
+        + "</div>"
+        + context_note_html(
+            "Preparing selected report.",
+            "No data is being refreshed or changed. This temporary state does not state that any analysis section is ready or blocked.",
+        )
+        + "</section>"
+    )
+
+
+def company_workbench_evidence_loading_html(ticker: object) -> str:
+    """Render a neutral Workbench evidence rail until the saved report is available."""
+
+    ticker_label = html.escape(format_missing(ticker, "Selected company").upper())
+    return (
+        "<aside class='company-workbench-evidence-status' data-sr-region='evidence-status' "
+        "aria-label='Company evidence status' aria-busy='true'>"
+        "<div class='company-workbench-evidence-heading'>"
+        "<h2>Company evidence status</h2>"
+        f"<span>{ticker_label}: preparing saved review</span>"
+        "</div>"
+        "<div class='company-workbench-evidence-lanes'>"
+        "<article class='company-workbench-evidence-lane'>"
+        "<span>Saved review</span><strong>Preparing</strong>"
+        "</article>"
+        "</div>"
+        "<p class='company-workbench-evidence-loading-note'>"
+        "No data is being refreshed or changed. This temporary state does not state that any analysis section is ready or blocked."
+        "</p>"
+        "</aside>"
+    )
+
+
+def single_stock_report_unavailable_html(ticker: object) -> str:
+    """Render a target-local fail-closed state after saved report construction fails."""
+
+    ticker_label = format_missing(ticker, "Selected ticker").upper()
+    return (
+        "<section class='single-stock-report-unavailable' role='alert' aria-label='Saved report unavailable'>"
+        "<div class='signal-grid queue-grid'>"
+        + signal_card_html(
+            "SAVED REPORT",
+            f"{ticker_label}: saved report unavailable",
+            "The saved report could not be completed. This unavailable state does not state that any analysis section is ready or blocked.",
+            ["saved review", "fail closed"],
+            show_command=False,
+            queue_preview=True,
+        )
+        + "</div>"
+        + context_note_html(
+            "Saved report unavailable.",
+            "No data is being refreshed or changed. Review the displayed local error before trying the saved review again.",
+            tone="warning",
+        )
+        + "</section>"
+    )
+
+
 def public_safe_next_action_text(value: object) -> str:
     text = format_missing(value, "Open Data Health only if a field is blocked.")
     text = re.sub(
@@ -8567,11 +8645,10 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
             "reviewable ticker before opening a single-stock report."
         )
     elif selected_page == "Single-Stock Report":
-        title = "Selected-ticker guide."
+        title = "Preparing saved review."
         body = (
-            "The page opens with selected ticker state, usable sections, blocked inputs, and one next step. "
-            "Advanced evidence stays closed while the saved review evidence loads. "
-            "Stop: do not treat partial, candidate-only, or locked sections as conclusions."
+            "No data is being refreshed or changed. This temporary state does not state that any analysis section "
+            "is ready or blocked."
         )
     elif selected_page == PROOF_HISTORY_PATH_TITLE:
         title = "Evidence page guide."
@@ -30341,6 +30418,60 @@ def discover_saved_company_browse_frame(
     return result.head(max(limit, 1)).reset_index(drop=True)
 
 
+def discover_primary_answer_html(saved_company_count: int, strict_eligible_count: int) -> str:
+    """Render the Discover answer with saved evidence access before strict screening."""
+
+    saved_count = max(int(saved_company_count), 0)
+    eligible_count = max(int(strict_eligible_count), 0)
+    saved_noun = "saved company" if saved_count == 1 else "saved companies"
+    answer = (
+        f"{saved_count:,} {saved_noun} {'is' if saved_count == 1 else 'are'} "
+        f"available for evidence review; {eligible_count:,} currently pass the strict screen."
+    )
+    reason = (
+        "Saved-company availability and strict-screen eligibility are separate. "
+        "The links below are alphabetical evidence paths, not a ranking; strict thresholds remain unchanged."
+    )
+    return answer_panel_html(
+        question="Find a Company · Evidence access first",
+        answer=answer,
+        reason=reason,
+        action=None,
+        stop_rule=None,
+    ).value
+
+
+def discover_quick_company_links_html(frame: pd.DataFrame, *, limit: int = 4) -> str:
+    """Render a compact alphabetical set of Company Workbench evidence paths."""
+
+    if frame is None or frame.empty or "Ticker" not in frame.columns:
+        tickers: list[str] = []
+    else:
+        ticker_series = frame["Ticker"].copy().fillna("").astype(str).str.strip().str.upper()
+        tickers = sorted(
+            ticker_series.loc[ticker_series.ne("")].drop_duplicates().tolist(),
+            key=str.casefold,
+        )[: max(limit, 0)]
+    links = "".join(
+        evidence_action_html(
+            SafeRouteAction(
+                label=f"Open {ticker} Company Brief",
+                href=(
+                    "?mode=research&page=company-workbench"
+                    f"&ticker={_quoted_ticker(ticker)}&open=1"
+                ),
+            )
+        ).value
+        for ticker in tickers
+    )
+    return (
+        "<section class='discover-quick-company-links' "
+        f"aria-label='{html.escape('Alphabetical Company Brief evidence paths', quote=True)}'>"
+        "<p>Alphabetical evidence paths, not a ranking.</p>"
+        f"{links}</section>"
+    )
+
+
 def stock_selector_queue_frame(
     decisions_frame: pd.DataFrame | None,
     final_frame: pd.DataFrame | None,
@@ -30923,6 +31054,7 @@ def render_stock_selector(
     target_page: str = "single-stock-report",
     allowed_tickers: tuple[str, ...] | None = None,
     research_boundary: str | None = None,
+    strict_eligible_count: int | None = None,
 ) -> None:
     research_discover = (
         str(target_mode).strip().lower() == RESEARCH_MODE
@@ -30963,6 +31095,19 @@ def render_stock_selector(
         selector_frame = filter_selector_to_tickers(
             selector_frame,
             allowed_tickers,
+        )
+
+    if research_discover:
+        st.markdown(
+            discover_primary_answer_html(
+                len(selector_frame),
+                0 if strict_eligible_count is None else strict_eligible_count,
+            ),
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            discover_quick_company_links_html(selector_frame),
+            unsafe_allow_html=True,
         )
 
     if public_mode and not research_discover and selector_frame.empty:
@@ -32232,20 +32377,19 @@ def render_single_stock_report(
         report_payload = None
     single_stock_loading_placeholder = None
     if public_mode and compact_public_open_report and not report_payload:
-        fast_snapshot = single_stock_fast_readiness_snapshot(ticker)
-        fast_answer_frame = single_stock_one_answer_frame(fast_snapshot)
-        render_single_stock_public_summary(
-            fast_answer_frame,
-            research_mode=research_mode,
-            selected_answer_target=selected_answer_target,
+        single_stock_loading_placeholder = (
+            selected_answer_target
+            if selected_answer_target is not None
+            else st.empty()
         )
-        single_stock_loading_placeholder = st.empty()
-        with single_stock_loading_placeholder.container():
-            render_signal_cards(single_stock_loading_contract_cards(ticker), show_commands=False, variant="queue")
-            render_context_note(
-                "Preparing selected report.",
-                f"Building the saved {ticker} review from local outputs without refreshing prices, importing files, or contacting external accounts.",
-                tone="success",
+        single_stock_loading_placeholder.markdown(
+            single_stock_loading_state_html(ticker),
+            unsafe_allow_html=True,
+        )
+        if selected_evidence_target is not None:
+            selected_evidence_target.markdown(
+                company_workbench_evidence_loading_html(ticker),
+                unsafe_allow_html=True,
             )
 
     def open_selected_report() -> None:
@@ -32278,9 +32422,7 @@ def render_single_stock_report(
             report_open=bool(report_payload or query_open_review),
             report_payload=report_payload if isinstance(report_payload, dict) else None,
         )
-        if not report_payload and compact_public_open_report and single_stock_loading_placeholder is None:
-            render_signal_cards(single_stock_loading_contract_cards(ticker), show_commands=False, variant="queue")
-        elif not report_payload and not query_open_review:
+        if not report_payload and not query_open_review:
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
 
     if query_open_review and not report_payload:
@@ -32296,7 +32438,13 @@ def render_single_stock_report(
         else:
             open_selected_report()
         if single_stock_loading_placeholder is not None:
-            single_stock_loading_placeholder.empty()
+            if report_payload:
+                single_stock_loading_placeholder.empty()
+            else:
+                single_stock_loading_placeholder.markdown(
+                    single_stock_report_unavailable_html(ticker),
+                    unsafe_allow_html=True,
+                )
         if compact_public_open_report and report_payload:
             st.rerun()
 
@@ -36726,6 +36874,14 @@ def render_research_workspace_styles() -> None:
             margin: .45rem 0 .8rem;
             max-width: 100%;
         }
+        .research-workflow-routes {
+            align-items: center;
+            display: flex;
+            flex: 1 1 34rem;
+            flex-wrap: wrap;
+            gap: .45rem;
+            min-width: 0;
+        }
         .research-workflow-link {
             align-items: center;
             border: 1px solid #c8d5cf;
@@ -36736,11 +36892,37 @@ def render_research_workspace_styles() -> None:
             padding: .35rem .7rem;
             text-decoration: none !important;
         }
+        .research-workflow-link:focus-visible,
+        .research-workflow-evidence-current:focus-within {
+            outline: 3px solid #0f766e;
+            outline-offset: 2px;
+        }
         .research-workflow-link[aria-current='page'] {
             background: #0f766e;
             border-color: #0f766e;
             color: #fff !important;
             font-weight: 760;
+        }
+        .research-workflow-evidence-current {
+            align-items: center;
+            border: 1px solid #c8d5cf;
+            border-left: 4px solid #0f766e;
+            border-radius: 6px;
+            display: flex;
+            gap: .35rem;
+            min-height: 2.75rem;
+            padding: .35rem .7rem;
+        }
+        .research-workflow-evidence-current > span {
+            color: #52615c;
+            font-size: .72rem;
+            font-weight: 760;
+            text-transform: uppercase;
+        }
+        .research-workflow-evidence-current > strong {
+            color: #0f4c3a;
+            font-size: .86rem;
+            line-height: 1.25;
         }
         .public-ticker-summary.research {
             display: grid;
@@ -36897,7 +37079,9 @@ def render_research_workspace_styles() -> None:
                 grid-template-columns: 1fr;
             }
             .research-workflow-navigation { gap: .35rem; margin: .35rem 0 .65rem; }
+            .research-workflow-routes { flex-basis: 100%; gap: .35rem; }
             .research-workflow-link { flex: 1 1 10rem; justify-content: center; min-width: 0; }
+            .research-workflow-evidence-current { flex: 1 1 100%; justify-content: center; text-align: center; }
             .research-desk-brief { padding: .85rem; }
             .research-desk-brief-answer { font-size: 1.15rem; }
             .research-desk-brief-context { grid-template-columns: 1fr; }
@@ -37096,6 +37280,8 @@ def render_research_monitor(
     weekly_summary: WeeklyResearchSummary,
     cohort: FocusedCohort,
     observation_recency: ObservationRecencySet | None = None,
+    *,
+    return_ticker: str = "",
 ) -> None:
     render_research_workspace_header(
         "Monitor",
@@ -37146,6 +37332,14 @@ def render_research_monitor(
         ).value,
         unsafe_allow_html=True,
     )
+    if return_ticker:
+        return_link = research_monitor_return_link(return_ticker)
+        st.link_button(return_link["label"], return_link["href"])
+        st.caption(
+            "Monitor remains focused-cohort-wide; "
+            f"{str(return_ticker).strip().upper()} is only the return destination and "
+            "does not filter these follow-up items."
+        )
     st.markdown("## Follow-up Queue")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
     if queue.has_saved_follow_up:
@@ -37383,6 +37577,7 @@ def render_personal_research_route(
     weekly_summary: WeeklyResearchSummary,
     ticker: str,
     review_date,
+    return_ticker: str = "",
 ) -> bool:
     """Load one local observation result and render one primary research route."""
     if selected_page not in RESEARCH_PATH_PAGE_TITLES:
@@ -37404,11 +37599,6 @@ def render_personal_research_route(
             include_boundary=False,
         )
         daily_queue = load_dashboard_daily_research_queue(context, as_of=review_date)
-        render_daily_research_queue(
-            daily_queue,
-            include_details=False,
-            include_boundary=False,
-        )
         render_stock_selector(
             {},
             public_mode=True,
@@ -37416,6 +37606,7 @@ def render_personal_research_route(
             target_page="company-workbench",
             allowed_tickers=tuple(member.ticker for member in cohort.members),
             research_boundary=QUEUE_BOUNDARY,
+            strict_eligible_count=len(daily_queue.result.eligible),
         )
         st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
         with st.expander("Advanced: cohort readiness context", expanded=False):
@@ -37445,7 +37636,17 @@ def render_personal_research_route(
     elif selected_page == "Company Workbench":
         render_company_workbench(provider, context, state, coverage, observation_recency)
     else:
-        render_research_monitor(state, context, weekly_summary, cohort, observation_recency)
+        if return_ticker:
+            render_research_monitor(
+                state,
+                context,
+                weekly_summary,
+                cohort,
+                observation_recency,
+                return_ticker=return_ticker,
+            )
+        else:
+            render_research_monitor(state, context, weekly_summary, cohort, observation_recency)
     return True
 
 
@@ -37494,6 +37695,19 @@ def main() -> None:
     )
     catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
+    monitor_return_ticker = ""
+    if research_mode and initial_page == "Monitor":
+        registered_tickers = (
+            provider.list_local_tickers()
+            if hasattr(provider, "list_local_tickers")
+            else ()
+        )
+        monitor_return_ticker = validated_research_return_ticker(
+            st.query_params.get("return_ticker"),
+            registered_tickers,
+        )
+        if "return_ticker" in st.query_params and not monitor_return_ticker:
+            del st.query_params["return_ticker"]
     bootstrap_placeholder = (
         render_public_route_bootstrap(initial_page, initial_mode)
         if initial_mode == PUBLIC_DEMO_MODE
@@ -37627,11 +37841,24 @@ def main() -> None:
         show_reason_details = False
         show_source_details = False
 
+    if research_mode and selected_page in {"Data Health", PROOF_HISTORY_PATH_TITLE}:
+        registered_tickers = (
+            provider.list_local_tickers()
+            if hasattr(provider, "list_local_tickers")
+            else ()
+        )
+        evidence_ticker = data_health_focus_ticker(
+            st.query_params.get("ticker"),
+            registered_tickers,
+        )
+        if "ticker" in st.query_params and not evidence_ticker:
+            del st.query_params["ticker"]
+
     content_page = workspace_content_page(selected_page, mode)
     ticker = str(st.query_params.get("ticker") or "").strip().upper()
     output_frames = dashboard_output_frames_for_page(content_page)
     if public_demo_mode:
-        if bootstrap_placeholder is not None:
+        if bootstrap_placeholder is not None and selected_page != "Single-Stock Report":
             bootstrap_placeholder.empty()
             bootstrap_placeholder = None
         render_public_shell_mode_styles()
@@ -37640,7 +37867,8 @@ def main() -> None:
         render_public_workflow_skip_target()
     else:
         if research_mode:
-            render_research_workflow_navigation(selected_page, ticker=ticker)
+            navigation_ticker = monitor_return_ticker if selected_page == "Monitor" else ticker
+            render_research_workflow_navigation(selected_page, ticker=navigation_ticker)
             render_public_workflow_skip_target()
             render_research_workspace_styles()
         else:
@@ -37682,6 +37910,7 @@ def main() -> None:
         weekly_summary=weekly_research_summary,
         ticker=ticker,
         review_date=pd.Timestamp.now(tz="UTC").date(),
+        return_ticker=monitor_return_ticker,
     ):
         return
     if content_page == "Home":

@@ -460,6 +460,12 @@ def next_action_html(action: SafeRouteAction) -> HtmlFragment:
     return _trusted_fragment(_action_link(action, region=True))
 
 
+def evidence_action_html(action: SafeRouteAction) -> HtmlFragment:
+    """Render a safe evidence-access link without declaring a primary action."""
+
+    return _trusted_fragment(_action_link(action, region=False))
+
+
 def next_step_prompt_html(*, title: str, body: str) -> HtmlFragment:
     """Label an adjacent native control as the route's single next action."""
 
@@ -668,6 +674,22 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   text-decoration: none !important;
   white-space: normal;
 }}
+.discover-quick-company-links {{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}}
+.discover-quick-company-links > p {{
+  grid-column: 1 / -1;
+  margin: 0;
+}}
+.discover-quick-company-links .sr-primary-action {{
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 44px;
+  text-align: center;
+}}
 .stApp:has(.research-workflow-navigation) [data-testid="stTextInput"] input {{ min-height: 44px; }}
 .stApp:has(.public-app-shell) [data-testid="stTextInput"] input {{ min-height: 44px; }}
 .research-discover-browser-jump {{
@@ -840,6 +862,16 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
 .research-workflow-navigation .research-workflow-link[aria-current="page"] {{
   background: rgba(248, 250, 252, .12) !important;
   border-color: var(--sr-nav-text) !important;
+  color: var(--sr-nav-text) !important;
+}}
+.research-workflow-navigation .research-workflow-evidence-current {{
+  background: rgba(248, 250, 252, .12);
+  border-color: var(--sr-nav-muted);
+}}
+.research-workflow-navigation .research-workflow-evidence-current > span {{
+  color: var(--sr-nav-muted) !important;
+}}
+.research-workflow-navigation .research-workflow-evidence-current > strong {{
   color: var(--sr-nav-text) !important;
 }}
 .research-workflow-disabled {{ position: relative; color: var(--sr-nav-muted) !important; opacity: .82; cursor: not-allowed; }}
@@ -1067,6 +1099,12 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
     gap: 4px;
     width: 100%;
   }}
+  .research-workflow-routes .research-workflow-evidence-current {{
+    grid-column: 1 / -1;
+    justify-content: center;
+    min-width: 0;
+    text-align: center;
+  }}
   .research-workspace-mode {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 8px; padding: 8px 0 0; border-top: 1px solid rgba(248, 250, 252, .24); }}
   .research-workspace-mode > span {{ grid-column: 1 / -1; align-self: center; padding: 0 4px; }}
   .research-workflow-navigation .research-workflow-link, .research-workflow-disabled {{ justify-content: center; min-width: 0; max-width: none; padding: 6px; text-align: center; }}
@@ -1117,6 +1155,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   }}
   .sr-answer-panel {{ gap: 12px; padding: 16px; }}
   .sr-answer-panel h2 {{ font-size: 1.0625rem; }}
+  .discover-quick-company-links {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
   .sr-primary-action, .public-primary-action {{ width: 100%; }}
   .sr-evidence-row, .sr-timeline-record {{ grid-template-columns: 1fr; }}
   .research-desk-brief .sr-evidence-row {{ grid-template-columns: 1fr; }}
