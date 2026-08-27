@@ -685,8 +685,9 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   margin: 0;
 }}
 .discover-quick-company-links .sr-primary-action {{
+  box-sizing: border-box;
   width: 100%;
-  min-width: 0;
+  min-width: 44px;
   text-align: center;
 }}
 .stApp:has(.research-workflow-navigation) [data-testid="stTextInput"] input {{ min-height: 44px; }}

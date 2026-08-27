@@ -184,8 +184,10 @@ def test_discover_quick_links_use_four_column_desktop_and_two_by_two_phone_grid(
     assert "display: grid;" in desktop_grid
     assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in desktop_grid
     assert "grid-column: 1 / -1;" in paragraph
+    assert "box-sizing: border-box;" in action
     assert "width: 100%;" in action
-    assert "min-width: 0;" in action
+    assert "min-width: 44px;" in action
+    assert "min-width: 0;" not in action
     assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in phone_grid
 
 
