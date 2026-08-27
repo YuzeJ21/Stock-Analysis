@@ -954,8 +954,8 @@ render_single_stock_report(
     assert "Unavailable" not in rails[0]
 
 
-def test_company_workbench_single_stock_report_projects_an_unavailable_evidence_rail_when_report_build_fails():
-    """Catches a missing payload leaving the existing Workbench evidence target blank."""
+def test_company_workbench_cold_failure_projects_an_unavailable_evidence_rail_without_a_brief_answer():
+    """Catches a failed cold build leaving an optimistic Company Brief behind."""
 
     app = AppTest.from_string(
         """
@@ -964,6 +964,20 @@ import streamlit as st
 from src import dashboard
 
 build_calls = []
+events = []
+for key in (
+    'single_stock_report_payload',
+    'single_stock_report_ticker',
+    'single_stock_report_provider',
+    'single_stock_report_history',
+):
+    st.session_state.pop(key, None)
+class AnswerTarget:
+    def markdown(self, body, **kwargs):
+        events.append('neutral' if 'preparing saved review' in body else 'completed')
+    def empty(self):
+        events.append('cleared')
+
 def unavailable_report(*args, **kwargs):
     build_calls.append((args, kwargs))
     raise RuntimeError('controlled unavailable report')
@@ -984,17 +998,21 @@ try:
             'peer_market_context_available': 0,
         },
     )
+    answer_target = AnswerTarget()
     evidence_target = st.empty()
     dashboard.render_single_stock_report(
         provider,
         False,
         public_mode=True,
+        research_mode=True,
+        selected_answer_target=answer_target,
         selected_evidence_target=evidence_target,
     )
 finally:
     dashboard.build_provider = original_build_provider
     dashboard.build_stock_report = original_build_stock_report
 st.caption(f'controlled builder calls: {len(build_calls)}')
+st.caption(f'controlled events: {"|".join(events)}')
 """,
         default_timeout=120,
     )
@@ -1010,6 +1028,66 @@ st.caption(f'controlled builder calls: {len(build_calls)}')
     assert len(rails) == 1
     assert rails[0].count("Unavailable") == 6
     assert "controlled builder calls: 1" in [item.value for item in app.caption]
+    event_caption = next(item.value for item in app.caption if str(item.value).startswith("controlled events:"))
+    assert event_caption == "controlled events: neutral|cleared"
+
+
+def test_company_workbench_cold_success_replaces_neutral_loading_with_the_completed_brief_once():
+    """Catches a completed report rendering before or alongside the neutral Company Brief state."""
+
+    app = AppTest.from_string(
+        """
+from pathlib import Path
+import streamlit as st
+from src import dashboard
+
+events = []
+for key in (
+    'single_stock_report_payload',
+    'single_stock_report_ticker',
+    'single_stock_report_provider',
+    'single_stock_report_history',
+):
+    st.session_state.pop(key, None)
+class AnswerTarget:
+    def markdown(self, body, **kwargs):
+        events.append('neutral' if 'preparing saved review' in body else 'completed')
+    def empty(self):
+        events.append('cleared')
+
+provider = dashboard.build_provider('local', base_dir=Path('.'))
+original_build_stock_report = dashboard.build_stock_report
+original_rerun = dashboard.st.rerun
+try:
+    def controlled_report(*args, **kwargs):
+        events.append('build')
+        return original_build_stock_report(*args, **kwargs)
+    dashboard.build_stock_report = controlled_report
+    dashboard.st.rerun = lambda: events.append('rerun')
+    dashboard.render_single_stock_report(
+        provider,
+        False,
+        public_mode=True,
+        research_mode=True,
+        selected_answer_target=AnswerTarget(),
+    )
+finally:
+    dashboard.build_stock_report = original_build_stock_report
+    dashboard.st.rerun = original_rerun
+st.caption(f'controlled events: {"|".join(events)}')
+""",
+        default_timeout=120,
+    )
+    app.query_params.update({"ticker": "NVDA", "open": "1"})
+    app.run(timeout=120)
+
+    assert not app.exception
+    event_caption = next(item.value for item in app.caption if str(item.value).startswith("controlled events:"))
+    events = event_caption.removeprefix("controlled events: ").split("|")
+    assert events.count("neutral") == 1
+    assert events.count("cleared") == 1
+    assert events.count("completed") == 1
+    assert events.index("neutral") < events.index("build") < events.index("cleared") < events.index("completed")
 
 
 def test_company_workbench_unavailable_rail_restores_the_normal_report_builders():

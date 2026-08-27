@@ -7984,6 +7984,32 @@ def render_signal_cards(cards: list[dict[str, object]], *, show_commands: bool =
     )
 
 
+def single_stock_loading_state_html(ticker: object) -> str:
+    """Render the neutral saved-review state before an authoritative payload exists."""
+
+    card = single_stock_loading_contract_cards(ticker)[0]
+    return (
+        "<section class='single-stock-loading-state' role='status' aria-live='polite' aria-busy='true' "
+        "aria-label='Preparing saved review'>"
+        "<div class='signal-grid queue-grid'>"
+        + signal_card_html(
+            str(card.get("kicker", "")),
+            str(card.get("title", "")),
+            str(card.get("body", "")),
+            [str(item) for item in card.get("badges", [])],
+            str(card.get("command", "")),
+            show_command=False,
+            queue_preview=True,
+        )
+        + "</div>"
+        + context_note_html(
+            "Preparing selected report.",
+            "No data is being refreshed or changed. This temporary state does not state that any analysis section is ready or blocked.",
+        )
+        + "</section>"
+    )
+
+
 def public_safe_next_action_text(value: object) -> str:
     text = format_missing(value, "Open Data Health only if a field is blocked.")
     text = re.sub(
@@ -32303,21 +32329,15 @@ def render_single_stock_report(
         report_payload = None
     single_stock_loading_placeholder = None
     if public_mode and compact_public_open_report and not report_payload:
-        fast_snapshot = single_stock_fast_readiness_snapshot(ticker)
-        fast_answer_frame = single_stock_one_answer_frame(fast_snapshot)
-        render_single_stock_public_summary(
-            fast_answer_frame,
-            research_mode=research_mode,
-            selected_answer_target=selected_answer_target,
+        single_stock_loading_placeholder = (
+            selected_answer_target
+            if selected_answer_target is not None
+            else st.empty()
         )
-        single_stock_loading_placeholder = st.empty()
-        with single_stock_loading_placeholder.container():
-            render_signal_cards(single_stock_loading_contract_cards(ticker), show_commands=False, variant="queue")
-            render_context_note(
-                "Preparing selected report.",
-                f"Building the saved {ticker} review from local outputs without refreshing prices, importing files, or contacting external accounts.",
-                tone="success",
-            )
+        single_stock_loading_placeholder.markdown(
+            single_stock_loading_state_html(ticker),
+            unsafe_allow_html=True,
+        )
 
     def open_selected_report() -> None:
         nonlocal report_payload
@@ -32349,9 +32369,7 @@ def render_single_stock_report(
             report_open=bool(report_payload or query_open_review),
             report_payload=report_payload if isinstance(report_payload, dict) else None,
         )
-        if not report_payload and compact_public_open_report and single_stock_loading_placeholder is None:
-            render_signal_cards(single_stock_loading_contract_cards(ticker), show_commands=False, variant="queue")
-        elif not report_payload and not query_open_review:
+        if not report_payload and not query_open_review:
             render_signal_cards(pre_report_cards, show_commands=False, variant="queue")
 
     if query_open_review and not report_payload:
@@ -37768,7 +37786,7 @@ def main() -> None:
     ticker = str(st.query_params.get("ticker") or "").strip().upper()
     output_frames = dashboard_output_frames_for_page(content_page)
     if public_demo_mode:
-        if bootstrap_placeholder is not None:
+        if bootstrap_placeholder is not None and selected_page != "Single-Stock Report":
             bootstrap_placeholder.empty()
             bootstrap_placeholder = None
         render_public_shell_mode_styles()
