@@ -422,10 +422,12 @@ from src.research_workspace import (
     research_desk_brief_html,
     research_accessibility_media_preferences_css,
     research_evidence_return_link,
+    research_monitor_return_link,
     research_monitor_frame,
     monitor_freshness_condition_label,
     monitor_primary_answer,
     saved_readiness_display_label,
+    validated_research_return_ticker,
     research_workflow_navigation_html,
     research_workspace_header_html,
     _quoted_ticker,
@@ -36795,6 +36797,14 @@ def render_research_workspace_styles() -> None:
             margin: .45rem 0 .8rem;
             max-width: 100%;
         }
+        .research-workflow-routes {
+            align-items: center;
+            display: flex;
+            flex: 1 1 34rem;
+            flex-wrap: wrap;
+            gap: .45rem;
+            min-width: 0;
+        }
         .research-workflow-link {
             align-items: center;
             border: 1px solid #c8d5cf;
@@ -36805,11 +36815,37 @@ def render_research_workspace_styles() -> None:
             padding: .35rem .7rem;
             text-decoration: none !important;
         }
+        .research-workflow-link:focus-visible,
+        .research-workflow-evidence-current:focus-within {
+            outline: 3px solid #0f766e;
+            outline-offset: 2px;
+        }
         .research-workflow-link[aria-current='page'] {
             background: #0f766e;
             border-color: #0f766e;
             color: #fff !important;
             font-weight: 760;
+        }
+        .research-workflow-evidence-current {
+            align-items: center;
+            border: 1px solid #c8d5cf;
+            border-left: 4px solid #0f766e;
+            border-radius: 6px;
+            display: flex;
+            gap: .35rem;
+            min-height: 2.75rem;
+            padding: .35rem .7rem;
+        }
+        .research-workflow-evidence-current > span {
+            color: #52615c;
+            font-size: .72rem;
+            font-weight: 760;
+            text-transform: uppercase;
+        }
+        .research-workflow-evidence-current > strong {
+            color: #0f4c3a;
+            font-size: .86rem;
+            line-height: 1.25;
         }
         .public-ticker-summary.research {
             display: grid;
@@ -36966,7 +37002,9 @@ def render_research_workspace_styles() -> None:
                 grid-template-columns: 1fr;
             }
             .research-workflow-navigation { gap: .35rem; margin: .35rem 0 .65rem; }
+            .research-workflow-routes { flex-basis: 100%; gap: .35rem; }
             .research-workflow-link { flex: 1 1 10rem; justify-content: center; min-width: 0; }
+            .research-workflow-evidence-current { flex: 1 1 100%; justify-content: center; text-align: center; }
             .research-desk-brief { padding: .85rem; }
             .research-desk-brief-answer { font-size: 1.15rem; }
             .research-desk-brief-context { grid-template-columns: 1fr; }
@@ -37165,6 +37203,8 @@ def render_research_monitor(
     weekly_summary: WeeklyResearchSummary,
     cohort: FocusedCohort,
     observation_recency: ObservationRecencySet | None = None,
+    *,
+    return_ticker: str = "",
 ) -> None:
     render_research_workspace_header(
         "Monitor",
@@ -37215,6 +37255,14 @@ def render_research_monitor(
         ).value,
         unsafe_allow_html=True,
     )
+    if return_ticker:
+        return_link = research_monitor_return_link(return_ticker)
+        st.link_button(return_link["label"], return_link["href"])
+        st.caption(
+            "Monitor remains focused-cohort-wide; "
+            f"{str(return_ticker).strip().upper()} is only the return destination and "
+            "does not filter these follow-up items."
+        )
     st.markdown("## Follow-up Queue")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
     if queue.has_saved_follow_up:
@@ -37452,6 +37500,7 @@ def render_personal_research_route(
     weekly_summary: WeeklyResearchSummary,
     ticker: str,
     review_date,
+    return_ticker: str = "",
 ) -> bool:
     """Load one local observation result and render one primary research route."""
     if selected_page not in RESEARCH_PATH_PAGE_TITLES:
@@ -37510,7 +37559,17 @@ def render_personal_research_route(
     elif selected_page == "Company Workbench":
         render_company_workbench(provider, context, state, coverage, observation_recency)
     else:
-        render_research_monitor(state, context, weekly_summary, cohort, observation_recency)
+        if return_ticker:
+            render_research_monitor(
+                state,
+                context,
+                weekly_summary,
+                cohort,
+                observation_recency,
+                return_ticker=return_ticker,
+            )
+        else:
+            render_research_monitor(state, context, weekly_summary, cohort, observation_recency)
     return True
 
 
@@ -37559,6 +37618,19 @@ def main() -> None:
     )
     catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
+    monitor_return_ticker = ""
+    if research_mode and selected_page == "Monitor":
+        registered_tickers = (
+            provider.list_local_tickers()
+            if hasattr(provider, "list_local_tickers")
+            else ()
+        )
+        monitor_return_ticker = validated_research_return_ticker(
+            st.query_params.get("return_ticker"),
+            registered_tickers,
+        )
+        if "return_ticker" in st.query_params and not monitor_return_ticker:
+            del st.query_params["return_ticker"]
     bootstrap_placeholder = (
         render_public_route_bootstrap(initial_page, initial_mode)
         if initial_mode == PUBLIC_DEMO_MODE
@@ -37705,7 +37777,8 @@ def main() -> None:
         render_public_workflow_skip_target()
     else:
         if research_mode:
-            render_research_workflow_navigation(selected_page, ticker=ticker)
+            navigation_ticker = monitor_return_ticker if selected_page == "Monitor" else ticker
+            render_research_workflow_navigation(selected_page, ticker=navigation_ticker)
             render_public_workflow_skip_target()
             render_research_workspace_styles()
         else:
@@ -37747,6 +37820,7 @@ def main() -> None:
         weekly_summary=weekly_research_summary,
         ticker=ticker,
         review_date=pd.Timestamp.now(tz="UTC").date(),
+        return_ticker=monitor_return_ticker,
     ):
         return
     if content_page == "Home":

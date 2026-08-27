@@ -76,7 +76,28 @@ def test_research_workflow_navigation_rendering_scopes_primary_and_secondary_rou
 
     assert len(rendered) == 2
     assert all("Personal research workflow" in html for html in rendered)
-    assert all(html.count("aria-current='page'") == 0 for html in rendered)
+    assert all(html.count("aria-current='page'") == 1 for html in rendered)
+    assert "Advanced Evidence · Data Health" in rendered[0]
+    assert "Advanced Evidence · Proof History" in rendered[1]
+
+
+def test_research_workflow_navigation_preserves_monitor_return_context_and_marks_evidence_location():
+    """Catches a detour that drops the selected company or leaves evidence routes unlocated."""
+
+    active = research_workspace.research_workflow_navigation_html(
+        active_page="Monitor", ticker="BRK/B"
+    )
+
+    assert "page=monitor&amp;return_ticker=BRK%2FB" in active
+    assert "page=company-workbench&amp;ticker=BRK%2FB&amp;open=1" in active
+    assert active.count("aria-current='page'") == 1
+
+    for page in ("Data Health", "Proof History"):
+        evidence = research_workspace.research_workflow_navigation_html(
+            active_page=page, ticker="AVGO"
+        )
+        assert f"Advanced Evidence · {page}" in evidence
+        assert evidence.count("aria-current='page'") == 1
 
 
 def test_research_workflow_navigation_keeps_canonical_routes_modes_and_tickerless_workbench_gate():
@@ -100,7 +121,7 @@ def test_research_workflow_navigation_keeps_canonical_routes_modes_and_tickerles
             "Company Workbench",
             "?mode=research&amp;page=company-workbench&amp;ticker=AVGO&amp;open=1",
         ),
-        ("Monitor", "?mode=research&amp;page=monitor"),
+        ("Monitor", "?mode=research&amp;page=monitor&amp;return_ticker=AVGO"),
     ):
         assert label in active
         assert f"href='{href}'" in active
@@ -148,7 +169,8 @@ def test_research_main_shell_keeps_one_workflow_nav_without_operator_readiness_c
     research_shell = shell[research_branch:operator_else]
     operator_shell = shell[operator_else:]
 
-    assert "render_research_workflow_navigation(selected_page, ticker=ticker)" in research_shell
+    assert "navigation_ticker = monitor_return_ticker if selected_page == \"Monitor\" else ticker" in research_shell
+    assert "render_research_workflow_navigation(selected_page, ticker=navigation_ticker)" in research_shell
     assert "render_public_workflow_skip_target()" in research_shell
     assert "render_research_workspace_styles()" in research_shell
     assert "render_app_header(" not in research_shell
@@ -176,7 +198,7 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
     load_calls: list[tuple[Path, str, date]] = []
     rendered: list[tuple[str, object]] = []
     daily_queue_calls: list[object] = []
-    queue_status = object()
+    queue_status = SimpleNamespace(result=SimpleNamespace(eligible=()))
 
     def load_recency(path, *, selected_ticker, as_of):
         load_calls.append((path, selected_ticker, as_of))
@@ -258,7 +280,7 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
         )
         assert load_calls == [(context.data_dir / "prices.csv", "AVGO", review_date)]
         assert rendered == [(selected_page, recency)]
-        assert daily_queue_calls == ([queue_status] if selected_page == "Discover" else [])
+        assert daily_queue_calls == []
         load_calls.clear()
         rendered.clear()
         daily_queue_calls.clear()
@@ -1365,6 +1387,62 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     assert copy.count("data-sr-region='primary-answer'") == 1
     assert copy.count("data-sr-region='primary-action'") == 1
     assert copy.count("data-sr-region='stop-rule'") == 1
+
+
+def test_monitor_return_context_renders_once_without_changing_monitor_scope(monkeypatch):
+    """Catches return context being treated as a Monitor filter rather than a detour action."""
+
+    class Expander:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    rendered: list[str] = []
+    actions: list[tuple[str, str]] = []
+    cards: list[tuple[object, str]] = []
+    frames: list[list[dict[str, object]]] = []
+    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "load_dashboard_research_discipline_rows", lambda *args, **kwargs: ())
+    monkeypatch.setattr(dashboard, "load_dashboard_nowcast_cohort", lambda: ())
+    monkeypatch.setattr(dashboard, "cohort_readiness_cards", lambda rows: [])
+    monkeypatch.setattr(dashboard, "render_signal_cards", lambda values, **kwargs: cards.append((values, str(kwargs.get("variant") or ""))))
+    monkeypatch.setattr(dashboard.st, "markdown", lambda value, **kwargs: rendered.append(value))
+    monkeypatch.setattr(dashboard.st, "caption", lambda value, **kwargs: rendered.append(value))
+    monkeypatch.setattr(dashboard.st, "link_button", lambda label, url, **kwargs: actions.append((label, url)))
+    monkeypatch.setattr(dashboard.st, "dataframe", lambda frame, **kwargs: frames.append(frame.to_dict("records")))
+    monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+
+    args = (
+        {"queue": ()},
+        SimpleNamespace(freshness_state="current", freshness_message="Saved readiness is current."),
+        WeeklyResearchSummary(
+            status="no_changes",
+            as_of="2026-08-04T00:00:00+00:00",
+            cohort_size=0,
+            unique_event_count=0,
+            items=(),
+            message="No traceable cohort evidence change requires review this week.",
+        ),
+        object(),
+    )
+
+    dashboard.render_research_monitor(*args)
+    without_context = (list(rendered), list(cards), list(frames), list(actions))
+    rendered.clear()
+    cards.clear()
+    frames.clear()
+    actions.clear()
+
+    dashboard.render_research_monitor(*args, return_ticker="NVDA")
+    with_context = (list(rendered), list(cards), list(frames), list(actions))
+
+    assert with_context[1:3] == without_context[1:3]
+    assert with_context[3] == [("Return to NVDA Company Workbench", "?mode=research&page=company-workbench&ticker=NVDA&open=1")]
+    context_copy = " ".join(with_context[0])
+    assert context_copy.count("Monitor remains focused-cohort-wide; NVDA is only the return destination and does not filter these follow-up items.") == 1
+    assert [value for value in with_context[0] if "return destination" not in value] == without_context[0]
 
 
 def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_health(

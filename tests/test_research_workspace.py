@@ -1603,6 +1603,26 @@ def test_research_monitor_deduplicates_identical_event_identity_and_preserves_wa
     assert frame.iloc[0]["Wait condition"] == "Wait for a new source-backed filing."
 
 
+def test_validated_monitor_return_ticker_fails_closed():
+    """Catches an unregistered return destination being accepted into Monitor context."""
+
+    registered = ("NVDA", "BRK/B")
+
+    assert research_workspace.validated_research_return_ticker("brk/b", registered) == "BRK/B"
+    assert research_workspace.validated_research_return_ticker("UNKNOWN", registered) == ""
+    assert research_workspace.validated_research_return_ticker("", registered) == ""
+
+
+def test_monitor_return_link_is_explicitly_context_only():
+    """Catches a Monitor return link that could be confused with a Monitor filter."""
+
+    link = research_workspace.research_monitor_return_link("NVDA")
+
+    assert link["label"] == "Return to NVDA Company Workbench"
+    assert link["href"] == "?mode=research&page=company-workbench&ticker=NVDA&open=1"
+    assert "does not filter Monitor" in link["purpose"]
+
+
 def test_advanced_evidence_links_preserve_personal_research_mode_and_ticker():
     links = advanced_evidence_links("NVDA")
 
@@ -1667,8 +1687,9 @@ def test_personal_workflow_navigation_is_single_labelled_dom_on_core_and_evidenc
 
     assert "aria-label='Personal research workflow'" in rendered
     assert rendered.count("aria-label='Personal research workflow'") == 1
-    expected_current_count = 0 if active_page in {"data-health", "proof-history"} else 1
-    assert rendered.count("aria-current='page'") == expected_current_count
+    assert rendered.count("aria-current='page'") == 1
+    if active_page in {"data-health", "proof-history"}:
+        assert f"Advanced Evidence · {active_page.replace('-', ' ').title()}" in rendered
     assert all(label in rendered for label in ("Research Desk", "Discover", "Company Workbench", "Monitor"))
     assert "ticker=AVGO" in rendered
     assert "aria-label='Workspace mode'" in rendered
