@@ -32422,6 +32422,8 @@ def test_single_stock_loading_state_is_neutral_and_accessible():
     assert "role='status'" in rendered
     assert "aria-live='polite'" in rendered
     assert "aria-busy='true'" in rendered
+    assert "data-sr-region='primary-answer'" in rendered
+    assert "company-workbench-primary-brief" not in rendered
     assert "Use now" not in rendered
     assert "Still withheld" not in rendered
 

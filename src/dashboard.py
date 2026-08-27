@@ -7989,7 +7989,7 @@ def single_stock_loading_state_html(ticker: object) -> str:
 
     card = single_stock_loading_contract_cards(ticker)[0]
     return (
-        "<section class='single-stock-loading-state' role='status' aria-live='polite' aria-busy='true' "
+        "<section class='single-stock-loading-state' data-sr-region='primary-answer' role='status' aria-live='polite' aria-busy='true' "
         "aria-label='Preparing saved review'>"
         "<div class='signal-grid queue-grid'>"
         + signal_card_html(
