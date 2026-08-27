@@ -972,30 +972,17 @@ def evaluate_discover_evidence_access_layout(
     primary_answer_count: int,
     quick_links: tuple[dict[str, object], ...],
     native_search_count: int,
-    primary_action_count: int,
-    primary_action_focusable_count: int,
     stop_rule_count: int,
     supporting_evidence_count: int,
     advanced_detail_count: int,
     dom_order: tuple[str, ...],
     client_width: float,
-    document_scroll_width: float,
-    body_scroll_width: float,
-    main_scroll_width: float,
-    main_client_width: float,
-    clipped_text_count: int,
     location_path: str,
     location_search: str,
-    research_nav_count: int,
-    research_nav_visible_count: int,
-    public_nav_count: int,
-    operator_nav_count: int,
     current_page_count: int,
     current_page_label: str,
-    positive_tabindex_count: int,
-    focus_sequences: dict[str, dict[str, object]],
 ) -> BrowserEvaluation:
-    """Require the exact Discover secondary-evidence path and search hierarchy."""
+    """Require exact Discover evidence routes around the shared global checks."""
 
     expected_dom_order = (
         "primary-answer",
@@ -1065,88 +1052,26 @@ def evaluate_discover_evidence_access_layout(
     )
 
     route_is_stable = discover_route_matches(location_path, location_search)
-    navigation_is_stable = (
-        research_nav_count == 1
-        and research_nav_visible_count == 1
-        and public_nav_count == 0
-        and operator_nav_count == 0
-        and current_page_count == 1
+    current_location_is_stable = (
+        current_page_count == 1
         and str(current_page_label or "").strip() == "Discover"
     )
     structure_is_exact = (
         primary_answer_count == 1
         and native_search_count == 1
-        and primary_action_count == 1
-        and primary_action_focusable_count == 1
         and stop_rule_count == 1
         and supporting_evidence_count == 1
         and advanced_detail_count == 1
         and dom_order == expected_dom_order
     )
-    no_overflow_or_clipping = (
-        client_width > 0
-        and main_client_width > 0
-        and document_scroll_width <= client_width + 1
-        and body_scroll_width <= client_width + 1
-        and main_scroll_width <= main_client_width + 1
-        and clipped_text_count == 0
-    )
-
-    expected_labels = tuple(str(link.get("label") or "") for link in observed_links)
-    focus_passed = True
-    focus_detail: dict[str, object] = {}
-    for media_mode in ("normal", "forced-colors"):
-        sequence = dict(focus_sequences.get(media_mode) or {})
-        labels = tuple(str(value) for value in sequence.get("quick_link_labels") or ())
-        indexes = tuple(int(value) for value in sequence.get("quick_link_indices") or ())
-        outlines = tuple(
-            float(value) for value in sequence.get("quick_link_outline_widths") or ()
-        )
-        search_indexes = tuple(
-            int(value) for value in sequence.get("search_indices") or ()
-        )
-        search_outlines = tuple(
-            float(value) for value in sequence.get("search_outline_widths") or ()
-        )
-        sequence_passed = (
-            labels == expected_labels
-            and len(indexes) == 4
-            and all(left < right for left, right in zip(indexes, indexes[1:]))
-            and len(outlines) == 4
-            and all(width >= 3 for width in outlines)
-            and len(search_indexes) == 1
-            and indexes[-1] < search_indexes[0]
-            and len(search_outlines) == 1
-            and search_outlines[0] >= 3
-            and str(sequence.get("location_path") or "") == location_path
-            and str(sequence.get("location_search") or "") == location_search
-            and discover_route_matches(
-                sequence.get("location_path"),
-                sequence.get("location_search"),
-            )
-            and int(sequence.get("current_page_count") or 0) == 1
-            and str(sequence.get("current_page_label") or "").strip() == "Discover"
-        )
-        focus_passed = focus_passed and sequence_passed
-        focus_detail[media_mode] = {
-            "labels": labels,
-            "indexes": indexes,
-            "outlines": outlines,
-            "search_indexes": search_indexes,
-            "search_outlines": search_outlines,
-            "passed": sequence_passed,
-        }
 
     passed = (
         links_are_bound
         and links_are_usable
         and links_are_unique_and_alphabetical
         and structure_is_exact
-        and no_overflow_or_clipping
         and route_is_stable
-        and navigation_is_stable
-        and positive_tabindex_count == 0
-        and focus_passed
+        and current_location_is_stable
     )
     return BrowserEvaluation(
         passed,
@@ -1155,9 +1080,105 @@ def evaluate_discover_evidence_access_layout(
             f"links_bound={links_are_bound}; links_usable={links_are_usable}; "
             f"unique_alphabetical={links_are_unique_and_alphabetical}; "
             f"structure_exact={structure_is_exact}; dom_order={dom_order!r}; "
-            f"no_overflow_or_clipping={no_overflow_or_clipping}; "
-            f"route_stable={route_is_stable}; navigation_stable={navigation_is_stable}; "
-            f"positive_tabindex={positive_tabindex_count}; focus={focus_detail!r}"
+            f"route_stable={route_is_stable}; "
+            f"current_location_stable={current_location_is_stable}"
+        ),
+    )
+
+
+def evaluate_discover_initial_viewport_hierarchy(
+    *,
+    primary_answer_box: dict[str, object],
+    quick_links: tuple[dict[str, object], ...],
+    viewport_height: float,
+) -> BrowserEvaluation:
+    """Require Discover answer and first evidence path to begin in the first view."""
+
+    first_link = dict(quick_links[0]) if quick_links else {}
+    primary_top_raw = primary_answer_box.get("top")
+    evidence_top_raw = first_link.get("top")
+    coordinates_present = all(
+        isinstance(value, (int, float)) and math.isfinite(float(value))
+        for value in (primary_top_raw, evidence_top_raw, viewport_height)
+    )
+    primary_top = float(primary_top_raw or 0)
+    evidence_top = float(evidence_top_raw or 0)
+    passed = (
+        coordinates_present
+        and viewport_height > 0
+        and -1 <= primary_top <= viewport_height + 1
+        and -1 <= evidence_top <= viewport_height + 1
+        and primary_top <= evidence_top
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            f"discover primary_answer_top={primary_top:.1f}; "
+            f"first_evidence_top={evidence_top:.1f}; "
+            f"viewport_height={viewport_height:.1f}; "
+            f"coordinates_present={coordinates_present}"
+        ),
+    )
+
+
+def evaluate_discover_focus_sequence(
+    *,
+    focused_roles: tuple[str, ...],
+    focused_labels: tuple[str, ...],
+    outline_widths: tuple[float, ...],
+    positive_tabindex_count: int,
+) -> BrowserEvaluation:
+    """Require Discover's full keyboard path through evidence and native search."""
+
+    evidence_indexes = tuple(
+        index for index, role in enumerate(focused_roles) if role == "evidence-path"
+    )
+    evidence_labels = tuple(
+        focused_labels[index]
+        for index in evidence_indexes
+        if index < len(focused_labels)
+    )
+    tickers: list[str] = []
+    for label in evidence_labels:
+        match = re.fullmatch(
+            r"Open ([A-Z0-9][A-Z0-9./-]*) Company Brief",
+            str(label or "").strip(),
+        )
+        tickers.append(match.group(1) if match else "")
+    ordered_evidence = (
+        len(evidence_indexes) == 4
+        and evidence_indexes == tuple(range(evidence_indexes[0], evidence_indexes[0] + 4))
+        if evidence_indexes
+        else False
+    )
+    evidence_start = evidence_indexes[0] if evidence_indexes else -1
+    leading_roles = focused_roles[1:evidence_start] if evidence_start > 0 else ()
+    expected_tail = (
+        "browse-navigation",
+        "primary-action",
+        "advanced-detail",
+    )
+    passed = (
+        positive_tabindex_count == 0
+        and len(focused_roles) == len(focused_labels) == len(outline_widths)
+        and bool(focused_roles)
+        and focused_roles[0] == "skip"
+        and bool(leading_roles)
+        and all(role == "navigation" for role in leading_roles)
+        and ordered_evidence
+        and focused_roles[evidence_indexes[-1] + 1 :] == expected_tail
+        and len(tickers) == 4
+        and all(tickers)
+        and len(set(tickers)) == 4
+        and tickers == sorted(tickers, key=str.casefold)
+        and all(width >= 3 for width in outline_widths)
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            f"Discover focus positive_tabindex={positive_tabindex_count}; "
+            f"roles={focused_roles!r}; evidence-path labels={evidence_labels!r}; "
+            f"tickers={tickers!r}; outlines={outline_widths!r}"
         ),
     )
 
@@ -2311,34 +2332,10 @@ def _discover_evidence_access_observation(page: Any) -> dict[str, object]:
       ? -1
       : 1;
   });
-  const primaryActions = [
-    ...byRegion("primary-action"),
-    ...nativeSearches,
-  ];
-  const researchNavs = [...document.querySelectorAll(
-    "nav[aria-label='Personal research workflow']"
-  )];
-  const publicNavs = [...document.querySelectorAll(
-    "nav[aria-label='Public workflow']"
-  )];
-  const operatorNavs = [...document.querySelectorAll(
-    "[data-testid='stSidebar'] [role='radiogroup']"
-  )];
   const currentPages = [...document.querySelectorAll(
     "nav[aria-label='Personal research workflow'] [aria-current='page']"
   )];
-  const main = document.querySelector("[data-testid='stMain']") ||
-    document.querySelector("[role='main']");
   const doc = document.documentElement;
-  const body = document.body;
-  const clippingTargets = [
-    ...primaryAnswers,
-    ...quickSections,
-    ...quickLinks,
-    ...nativeSearches,
-    ...stopRules,
-    ...supportingEvidence,
-  ];
   return {
     primary_answer_count: primaryAnswers.length,
     quick_links: quickLinks.map((node) => {
@@ -2350,36 +2347,24 @@ def _discover_evidence_access_observation(page: Any) -> dict[str, object]:
         focusable: focusable(node),
         left: box.left,
         right: box.right,
+        top: box.top,
         width: box.width,
         height: box.height,
         clipped: clipped(node),
       };
     }),
     native_search_count: nativeSearches.length,
-    primary_action_count: primaryActions.length,
-    primary_action_focusable_count: primaryActions.filter(focusable).length,
     stop_rule_count: stopRules.length,
     supporting_evidence_count: supportingEvidence.length,
     advanced_detail_count: advancedDetails.length,
     dom_order: milestones.map((entry) => entry.name),
     client_width: doc.clientWidth,
-    document_scroll_width: doc.scrollWidth,
-    body_scroll_width: body.scrollWidth,
-    main_scroll_width: main ? main.scrollWidth : 0,
-    main_client_width: main ? main.clientWidth : 0,
-    clipped_text_count: clippingTargets.filter(clipped).length,
     location_path: window.location.pathname,
     location_search: window.location.search,
-    research_nav_count: researchNavs.length,
-    research_nav_visible_count: researchNavs.filter(visible).length,
-    public_nav_count: publicNavs.length,
-    operator_nav_count: operatorNavs.length,
     current_page_count: currentPages.length,
     current_page_label: currentPages.length === 1
       ? currentPages[0].textContent.trim()
       : "",
-    positive_tabindex_count: [...document.querySelectorAll("[tabindex]")]
-      .filter((node) => node.tabIndex > 0).length,
   };
 }
 """
@@ -2409,6 +2394,7 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
         "() => document.activeElement instanceof HTMLElement && document.activeElement.blur()"
     )
     focused_roles: list[str] = []
+    focused_labels: list[str] = []
     outline_widths: list[float] = []
     for _ in range(20):
         page.keyboard.press("Tab")
@@ -2425,7 +2411,8 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
   let role = "other";
   if (element.matches("a.public-skip-link")) role = "skip";
   else if (element.matches("[data-sr-region='primary-action']")) role = "primary-action";
-  else if (element.matches("a[href='#saved-company-browser']")) role = "navigation";
+  else if (element.matches(".discover-quick-company-links a[href]")) role = "evidence-path";
+  else if (element.matches("a[href='#saved-company-browser']")) role = "browse-navigation";
   else if (selectorSearch) role = "primary-action";
   else if (
     element.closest("nav[aria-label='Personal research workflow']") ||
@@ -2435,83 +2422,21 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
   const style = getComputedStyle(element);
   return {
     role,
+    label: element.textContent.trim(),
     outline_width: Number.parseFloat(style.outlineWidth) || 0,
   };
 }
 """
         )
         focused_roles.append(str(observed.get("role") or "other"))
+        focused_labels.append(str(observed.get("label") or ""))
         outline_widths.append(float(observed.get("outline_width") or 0))
         if observed.get("role") == "advanced-detail":
             break
     return {
         "focused_roles": focused_roles,
+        "focused_labels": focused_labels,
         "outline_widths": outline_widths,
-    }
-
-
-def _discover_focus_sequence_observation(page: Any) -> dict[str, object]:
-    """Capture Discover quick-link and native-search order with computed focus."""
-
-    page.evaluate(
-        "() => document.activeElement instanceof HTMLElement && document.activeElement.blur()"
-    )
-    observations: list[dict[str, object]] = []
-    for index in range(24):
-        page.keyboard.press("Tab")
-        observed = page.evaluate(
-            """
-() => {
-  const element = document.activeElement;
-  const quickLink = element.matches(
-    ".discover-quick-company-links a[href]"
-  );
-  const wrapper = element.closest("[data-testid='stTextInput']");
-  const nativeSearch = element.matches("[data-testid='stTextInput'] input") &&
-    Boolean(wrapper && wrapper.innerText.includes("Search saved companies"));
-  const style = getComputedStyle(element);
-  return {
-    kind: quickLink ? "quick-link" : nativeSearch ? "native-search" :
-      element.matches("summary") ? "advanced-detail" : "other",
-    label: quickLink ? element.textContent.trim() : "",
-    outline_width: Number.parseFloat(style.outlineWidth) || 0,
-  };
-}
-"""
-        )
-        observations.append({"index": index, **dict(observed)})
-        if observed.get("kind") == "advanced-detail":
-            break
-    final = page.evaluate(
-        """
-() => {
-  const currentPages = [...document.querySelectorAll(
-    "nav[aria-label='Personal research workflow'] [aria-current='page']"
-  )];
-  return {
-    location_path: window.location.pathname,
-    location_search: window.location.search,
-    current_page_count: currentPages.length,
-    current_page_label: currentPages.length === 1
-      ? currentPages[0].textContent.trim()
-      : "",
-  };
-}
-"""
-    )
-    quick_links = [row for row in observations if row.get("kind") == "quick-link"]
-    searches = [row for row in observations if row.get("kind") == "native-search"]
-    return {
-        "quick_link_labels": [str(row.get("label") or "") for row in quick_links],
-        "quick_link_indices": [int(row["index"]) for row in quick_links],
-        "quick_link_outline_widths": [
-            float(row.get("outline_width") or 0) for row in quick_links
-        ],
-        "search_indices": [int(row["index"]) for row in searches],
-        "search_outline_widths": [
-            float(row.get("outline_width") or 0) for row in searches
-        ],
-        **dict(final),
     }
 
 
@@ -2730,7 +2655,6 @@ def _evaluate_observation(
             "detail": "shared region hooks are unique" if not duplicates else f"duplicate regions: {duplicates}",
         }
     )
-    discover_contract_passed = False
     if route.slug == "discover":
         discover = dict(observation.get("discover_evidence_access") or {})
         discover_evaluation = evaluate_discover_evidence_access_layout(
@@ -2739,10 +2663,6 @@ def _evaluate_observation(
                 dict(link) for link in discover.get("quick_links") or ()
             ),
             native_search_count=int(discover.get("native_search_count") or 0),
-            primary_action_count=int(discover.get("primary_action_count") or 0),
-            primary_action_focusable_count=int(
-                discover.get("primary_action_focusable_count") or 0
-            ),
             stop_rule_count=int(discover.get("stop_rule_count") or 0),
             supporting_evidence_count=int(
                 discover.get("supporting_evidence_count") or 0
@@ -2750,35 +2670,12 @@ def _evaluate_observation(
             advanced_detail_count=int(discover.get("advanced_detail_count") or 0),
             dom_order=tuple(str(value) for value in discover.get("dom_order") or ()),
             client_width=float(discover.get("client_width") or 0),
-            document_scroll_width=float(
-                discover.get("document_scroll_width") or 0
-            ),
-            body_scroll_width=float(discover.get("body_scroll_width") or 0),
-            main_scroll_width=float(discover.get("main_scroll_width") or 0),
-            main_client_width=float(discover.get("main_client_width") or 0),
-            clipped_text_count=int(discover.get("clipped_text_count") or 0),
             location_path=str(discover.get("location_path") or ""),
             location_search=str(discover.get("location_search") or ""),
-            research_nav_count=int(discover.get("research_nav_count") or 0),
-            research_nav_visible_count=int(
-                discover.get("research_nav_visible_count") or 0
-            ),
-            public_nav_count=int(discover.get("public_nav_count") or 0),
-            operator_nav_count=int(discover.get("operator_nav_count") or 0),
             current_page_count=int(discover.get("current_page_count") or 0),
             current_page_label=str(discover.get("current_page_label") or ""),
-            positive_tabindex_count=int(
-                discover.get("positive_tabindex_count") or 0
-            ),
-            focus_sequences={
-                str(mode): dict(sequence)
-                for mode, sequence in dict(
-                    observation.get("discover_focus_sequences") or {}
-                ).items()
-            },
         )
         add("discover_evidence_access_layout", discover_evaluation)
-        discover_contract_passed = discover_evaluation.passed
     h1_text = tuple(str(value) for value in observation.get("h1_text") or ())
     checks.append(
         {
@@ -2986,7 +2883,18 @@ def _evaluate_observation(
                 or observation.get("client_height")
                 or 0
             )
-            if route.slug != "discover" or not discover_contract_passed:
+            if route.slug == "discover":
+                add(
+                    "initial_viewport_hierarchy",
+                    evaluate_discover_initial_viewport_hierarchy(
+                        primary_answer_box=dict(boxes.get("primary-answer") or {}),
+                        quick_links=tuple(
+                            dict(link) for link in discover.get("quick_links") or ()
+                        ),
+                        viewport_height=observed_height,
+                    ),
+                )
+            else:
                 add(
                     "initial_viewport_hierarchy",
                     evaluate_initial_viewport_hierarchy(
@@ -3199,14 +3107,26 @@ def _evaluate_observation(
                     "detail": f"missing Home geometry regions: {tuple(boxes)!r}",
                 }
             )
-    if route.slug in PERSONAL_FOCUS_ROUTE_SLUGS and (
-        route.slug != "discover" or not discover_contract_passed
-    ):
+    if route.slug in PERSONAL_FOCUS_ROUTE_SLUGS:
         for media_mode in ("normal", "forced-colors"):
             sequence = focus_sequences.get(media_mode) or {}
-            add(
-                f"natural_focus_sequence_{media_mode}",
-                evaluate_focus_sequence(
+            if route.slug == "discover":
+                evaluation = evaluate_discover_focus_sequence(
+                    focused_roles=tuple(
+                        str(value) for value in sequence.get("focused_roles") or ()
+                    ),
+                    focused_labels=tuple(
+                        str(value) for value in sequence.get("focused_labels") or ()
+                    ),
+                    outline_widths=tuple(
+                        float(value) for value in sequence.get("outline_widths") or ()
+                    ),
+                    positive_tabindex_count=int(
+                        observation.get("positive_tabindex_count") or 0
+                    ),
+                )
+            else:
+                evaluation = evaluate_focus_sequence(
                     focused_roles=tuple(
                         str(value) for value in sequence.get("focused_roles") or ()
                     ),
@@ -3219,7 +3139,10 @@ def _evaluate_observation(
                     positive_tabindex_count=int(
                         observation.get("positive_tabindex_count") or 0
                     ),
-                ),
+                )
+            add(
+                f"natural_focus_sequence_{media_mode}",
+                evaluation,
             )
     elif route.slug in {
         "public-home",
@@ -3395,6 +3318,22 @@ def _failed_cell_result(
     }
 
 
+def _close_browser_context(
+    context: Any,
+    *,
+    evaluation_complete: bool,
+    playwright_error_type: type[Exception],
+) -> None:
+    """Close before result serialization, tolerating only completed-target teardown."""
+
+    try:
+        context.close()
+    except playwright_error_type as exc:
+        if evaluation_complete and type(exc).__name__ == "TargetClosedError":
+            return
+        raise
+
+
 def _run_matrix_cell(
     *,
     root: Path,
@@ -3403,7 +3342,7 @@ def _run_matrix_cell(
     zoom: int,
     output_dir: Path,
     timeout_seconds: float,
-) -> dict[str, object]:
+    ) -> dict[str, object]:
     screenshot_name = f"{route.slug}-{viewport[0]}x{viewport[1]}-zoom-{zoom}.png"
     chrome = find_chrome_executable()
     if chrome is None or not Path(chrome).is_file() or not os.access(chrome, os.X_OK):
@@ -3414,6 +3353,7 @@ def _run_matrix_cell(
             error="Chrome-compatible browser runtime is unavailable.",
         )
     try:
+        from playwright.sync_api import Error as PlaywrightError
         from playwright.sync_api import sync_playwright
     except ImportError:
         return _failed_cell_result(
@@ -3427,6 +3367,7 @@ def _run_matrix_cell(
     network_capture = _new_http_network_capture()
     server_log = ""
     observation: dict[str, object] = {}
+    evaluation_complete = False
     server: Any | None = None
     try:
         with _captured_local_demo_server(
@@ -3532,7 +3473,6 @@ def _run_matrix_cell(
                             screenshot_bytes[20:24], "big"
                         )
                         focus_sequences: dict[str, dict[str, object]] = {}
-                        discover_focus_sequences: dict[str, dict[str, object]] = {}
                         focus_route_slugs = PERSONAL_FOCUS_ROUTE_SLUGS | {
                             "public-home",
                             "stock-selector",
@@ -3544,12 +3484,6 @@ def _run_matrix_cell(
                         }
                         if route.slug in focus_route_slugs:
                             focus_sequences["normal"] = _focus_sequence_observation(page)
-                            load_route()
-                            _reset_initial_scroll(page)
-                        if route.slug == "discover":
-                            discover_focus_sequences["normal"] = (
-                                _discover_focus_sequence_observation(page)
-                            )
                             load_route()
                             _reset_initial_scroll(page)
                         skip_focus = _skip_focus_observation(page)
@@ -3570,14 +3504,6 @@ def _run_matrix_cell(
                         if route.slug in focus_route_slugs:
                             load_route()
                             focus_sequences["forced-colors"] = _focus_sequence_observation(page)
-                        if route.slug == "discover":
-                            load_route()
-                            discover_focus_sequences["forced-colors"] = (
-                                _discover_focus_sequence_observation(page)
-                            )
-                            observation["discover_focus_sequences"] = (
-                                discover_focus_sequences
-                            )
                         observation = apply_final_runtime_observation(
                             observation,
                             _runtime_observation(page),
@@ -3593,8 +3519,13 @@ def _run_matrix_cell(
                             forced_colors=forced_colors,
                             focus_sequences=focus_sequences,
                         )
+                        evaluation_complete = True
                     finally:
-                        context.close()
+                        _close_browser_context(
+                            context,
+                            evaluation_complete=evaluation_complete,
+                            playwright_error_type=PlaywrightError,
+                        )
             server_log = "\n".join(server.snapshot())
     except Exception as exc:
         if server is not None:
