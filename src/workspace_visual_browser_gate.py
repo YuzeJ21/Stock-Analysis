@@ -1092,29 +1092,29 @@ def evaluate_discover_initial_viewport_hierarchy(
     quick_links: tuple[dict[str, object], ...],
     viewport_height: float,
 ) -> BrowserEvaluation:
-    """Require Discover answer and first evidence path to begin in the first view."""
+    """Require the Discover answer and all four evidence paths to begin in view."""
 
-    first_link = dict(quick_links[0]) if quick_links else {}
     primary_top_raw = primary_answer_box.get("top")
-    evidence_top_raw = first_link.get("top")
+    evidence_top_raw = tuple(dict(link).get("top") for link in quick_links)
     coordinates_present = all(
         isinstance(value, (int, float)) and math.isfinite(float(value))
-        for value in (primary_top_raw, evidence_top_raw, viewport_height)
+        for value in (primary_top_raw, *evidence_top_raw, viewport_height)
     )
     primary_top = float(primary_top_raw or 0)
-    evidence_top = float(evidence_top_raw or 0)
+    evidence_tops = tuple(float(value or 0) for value in evidence_top_raw)
     passed = (
-        coordinates_present
+        len(quick_links) == 4
+        and coordinates_present
         and viewport_height > 0
         and -1 <= primary_top <= viewport_height + 1
-        and -1 <= evidence_top <= viewport_height + 1
-        and primary_top <= evidence_top
+        and all(-1 <= top <= viewport_height + 1 for top in evidence_tops)
+        and all(primary_top <= top for top in evidence_tops)
     )
     return BrowserEvaluation(
         passed,
         (
             f"discover primary_answer_top={primary_top:.1f}; "
-            f"first_evidence_top={evidence_top:.1f}; "
+            f"evidence_tops={evidence_tops!r}; "
             f"viewport_height={viewport_height:.1f}; "
             f"coordinates_present={coordinates_present}"
         ),

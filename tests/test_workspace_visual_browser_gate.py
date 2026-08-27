@@ -1454,8 +1454,9 @@ def test_discover_initial_viewport_requires_answer_and_evidence_starts_on_screen
 
     valid = {
         "primary_answer_box": {"top": primary_top, "bottom": primary_top + 260},
-        "quick_links": (
-            {**_valid_discover_evidence_access_layout()["quick_links"][0], "top": evidence_top},
+        "quick_links": tuple(
+            {**link, "top": evidence_top}
+            for link in _valid_discover_evidence_access_layout()["quick_links"]
         ),
         "viewport_height": viewport_height,
     }
@@ -1468,6 +1469,30 @@ def test_discover_initial_viewport_requires_answer_and_evidence_starts_on_screen
             **valid,
             "quick_links": ({**valid["quick_links"][0], "top": viewport_height + 2},),
         }
+    ).passed
+    assert not evaluate_discover_initial_viewport_hierarchy(
+        **{**valid, "quick_links": valid["quick_links"][:3]}
+    ).passed
+
+
+@pytest.mark.parametrize("link_index", (1, 2, 3))
+def test_discover_initial_viewport_rejects_any_later_evidence_link_below_fold(
+    link_index,
+):
+    from src.workspace_visual_browser_gate import (
+        evaluate_discover_initial_viewport_hierarchy,
+    )
+
+    quick_links = [
+        {**link, "top": 500}
+        for link in _valid_discover_evidence_access_layout()["quick_links"]
+    ]
+    quick_links[link_index] = {**quick_links[link_index], "top": 722}
+
+    assert not evaluate_discover_initial_viewport_hierarchy(
+        primary_answer_box={"top": 230, "bottom": 490},
+        quick_links=tuple(quick_links),
+        viewport_height=720,
     ).passed
 
 
