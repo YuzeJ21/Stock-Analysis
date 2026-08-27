@@ -674,6 +674,21 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   text-decoration: none !important;
   white-space: normal;
 }}
+.discover-quick-company-links {{
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}}
+.discover-quick-company-links > p {{
+  grid-column: 1 / -1;
+  margin: 0;
+}}
+.discover-quick-company-links .sr-primary-action {{
+  width: 100%;
+  min-width: 0;
+  text-align: center;
+}}
 .stApp:has(.research-workflow-navigation) [data-testid="stTextInput"] input {{ min-height: 44px; }}
 .stApp:has(.public-app-shell) [data-testid="stTextInput"] input {{ min-height: 44px; }}
 .research-discover-browser-jump {{
@@ -1139,6 +1154,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   }}
   .sr-answer-panel {{ gap: 12px; padding: 16px; }}
   .sr-answer-panel h2 {{ font-size: 1.0625rem; }}
+  .discover-quick-company-links {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
   .sr-primary-action, .public-primary-action {{ width: 100%; }}
   .sr-evidence-row, .sr-timeline-record {{ grid-template-columns: 1fr; }}
   .research-desk-brief .sr-evidence-row {{ grid-template-columns: 1fr; }}
