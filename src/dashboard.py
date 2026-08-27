@@ -8010,6 +8010,54 @@ def single_stock_loading_state_html(ticker: object) -> str:
     )
 
 
+def company_workbench_evidence_loading_html(ticker: object) -> str:
+    """Render a neutral Workbench evidence rail until the saved report is available."""
+
+    ticker_label = html.escape(format_missing(ticker, "Selected company").upper())
+    return (
+        "<aside class='company-workbench-evidence-status' data-sr-region='evidence-status' "
+        "aria-label='Company evidence status' aria-busy='true'>"
+        "<div class='company-workbench-evidence-heading'>"
+        "<h2>Company evidence status</h2>"
+        f"<span>{ticker_label}: preparing saved review</span>"
+        "</div>"
+        "<div class='company-workbench-evidence-lanes'>"
+        "<article class='company-workbench-evidence-lane'>"
+        "<span>Saved review</span><strong>Preparing</strong>"
+        "</article>"
+        "</div>"
+        "<p class='company-workbench-evidence-loading-note'>"
+        "No data is being refreshed or changed. This temporary state does not state that any analysis section is ready or blocked."
+        "</p>"
+        "</aside>"
+    )
+
+
+def single_stock_report_unavailable_html(ticker: object) -> str:
+    """Render a target-local fail-closed state after saved report construction fails."""
+
+    ticker_label = format_missing(ticker, "Selected ticker").upper()
+    return (
+        "<section class='single-stock-report-unavailable' role='alert' aria-label='Saved report unavailable'>"
+        "<div class='signal-grid queue-grid'>"
+        + signal_card_html(
+            "SAVED REPORT",
+            f"{ticker_label}: saved report unavailable",
+            "The saved report could not be completed. This unavailable state does not state that any analysis section is ready or blocked.",
+            ["saved review", "fail closed"],
+            show_command=False,
+            queue_preview=True,
+        )
+        + "</div>"
+        + context_note_html(
+            "Saved report unavailable.",
+            "No data is being refreshed or changed. Review the displayed local error before trying the saved review again.",
+            tone="warning",
+        )
+        + "</section>"
+    )
+
+
 def public_safe_next_action_text(value: object) -> str:
     text = format_missing(value, "Open Data Health only if a field is blocked.")
     text = re.sub(
@@ -8596,11 +8644,10 @@ def render_public_route_bootstrap(selected_page: str, mode: str):
             "reviewable ticker before opening a single-stock report."
         )
     elif selected_page == "Single-Stock Report":
-        title = "Selected-ticker guide."
+        title = "Preparing saved review."
         body = (
-            "The page opens with selected ticker state, usable sections, blocked inputs, and one next step. "
-            "Advanced evidence stays closed while the saved review evidence loads. "
-            "Stop: do not treat partial, candidate-only, or locked sections as conclusions."
+            "No data is being refreshed or changed. This temporary state does not state that any analysis section "
+            "is ready or blocked."
         )
     elif selected_page == PROOF_HISTORY_PATH_TITLE:
         title = "Evidence page guide."
@@ -32338,6 +32385,11 @@ def render_single_stock_report(
             single_stock_loading_state_html(ticker),
             unsafe_allow_html=True,
         )
+        if selected_evidence_target is not None:
+            selected_evidence_target.markdown(
+                company_workbench_evidence_loading_html(ticker),
+                unsafe_allow_html=True,
+            )
 
     def open_selected_report() -> None:
         nonlocal report_payload
@@ -32385,7 +32437,13 @@ def render_single_stock_report(
         else:
             open_selected_report()
         if single_stock_loading_placeholder is not None:
-            single_stock_loading_placeholder.empty()
+            if report_payload:
+                single_stock_loading_placeholder.empty()
+            else:
+                single_stock_loading_placeholder.markdown(
+                    single_stock_report_unavailable_html(ticker),
+                    unsafe_allow_html=True,
+                )
         if compact_public_open_report and report_payload:
             st.rerun()
 

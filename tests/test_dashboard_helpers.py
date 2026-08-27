@@ -31998,8 +31998,8 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert "Public start guide" in chunk
     assert "where to start, and the research-only stop rule" in chunk
     assert "Readiness-backed ticker guide" in chunk
-    assert "Selected-ticker guide" in chunk
-    assert "selected ticker state, usable sections, blocked inputs, and one next step" in chunk
+    assert "Preparing saved review" in chunk
+    assert "selected ticker state, usable sections, blocked inputs, and one next step" not in chunk
     assert "Lane answer / coverage summary guide" in chunk
     assert "Use the lane cards before opening advanced proof details" in chunk
     assert "Real lane cards are still loading" not in chunk
@@ -32019,6 +32019,68 @@ def test_public_route_bootstrap_covers_slow_public_routes_without_generic_copy()
     assert "What appears first" not in preview_html
     assert "Next safe action" not in preview_html
     assert "public workflow is loading" not in chunk
+
+
+def test_public_single_stock_bootstrap_is_neutral_before_the_saved_report_exists(monkeypatch):
+    events = []
+
+    class Placeholder:
+        def container(self):
+            return self
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+    placeholder = Placeholder()
+    monkeypatch.setattr(dashboard.st, "empty", lambda: placeholder)
+    monkeypatch.setattr(
+        dashboard,
+        "render_context_note",
+        lambda title, body, **kwargs: events.append(("note", title, body)),
+    )
+    monkeypatch.setattr(
+        dashboard.st,
+        "markdown",
+        lambda body, **kwargs: events.append(("markdown", body)),
+    )
+
+    assert dashboard.render_public_route_bootstrap("Single-Stock Report", dashboard.PUBLIC_DEMO_MODE) is placeholder
+
+    _, title, body = events[0]
+    assert title == "Preparing saved review."
+    assert "No data is being refreshed or changed" in body
+    assert "does not state that any analysis section is ready or blocked" in body
+    assert "usable sections" not in body
+    assert "blocked inputs" not in body
+
+
+def test_company_workbench_loading_evidence_rail_is_neutral():
+    rendered = dashboard.company_workbench_evidence_loading_html("NVDA")
+
+    assert "company-workbench-evidence-status" in rendered
+    assert "Company evidence status" in rendered
+    assert "NVDA: preparing saved review" in rendered
+    assert "No data is being refreshed or changed" in rendered
+    assert "does not state that any analysis section is ready or blocked" in rendered
+    assert "aria-busy='true'" in rendered
+    assert "Reviewable" not in rendered
+    assert "Withheld" not in rendered
+    assert "Unavailable" not in rendered
+
+
+def test_single_stock_report_unavailable_state_is_fail_closed_and_not_a_company_brief_answer():
+    rendered = dashboard.single_stock_report_unavailable_html("NVDA")
+
+    assert "NVDA: saved report unavailable" in rendered
+    assert "No data is being refreshed or changed" in rendered
+    assert "does not state that any analysis section is ready or blocked" in rendered
+    assert "role='alert'" in rendered
+    assert "aria-busy" not in rendered
+    assert "Use now" not in rendered
+    assert "Still withheld" not in rendered
 
 
 def test_public_loading_preview_names_usable_and_blocked_states_for_slow_routes():

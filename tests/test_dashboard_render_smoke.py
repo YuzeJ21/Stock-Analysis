@@ -990,8 +990,7 @@ class EvidenceTarget:
     def markdown(self, body, **kwargs):
         events.append(
             'rail-loading' if 'preparing saved review' in body
-            else 'rail-unavailable' if 'Unavailable' in body
-            else 'rail-final'
+            else 'rail-result'
         )
         self.target.markdown(body, **kwargs)
 
@@ -1047,7 +1046,7 @@ st.caption(f'controlled events: {"|".join(events)}')
     assert rails[0].count("Unavailable") == 6
     assert "controlled builder calls: 1" in [item.value for item in app.caption]
     event_caption = next(item.value for item in app.caption if str(item.value).startswith("controlled events:"))
-    assert event_caption == "controlled events: neutral|rail-loading|build|failure|rail-unavailable"
+    assert event_caption == "controlled events: neutral|rail-loading|build|failure|rail-result"
 
 
 def test_company_workbench_cold_success_replaces_neutral_loading_with_the_completed_brief_once():
@@ -1083,8 +1082,7 @@ class EvidenceTarget:
     def markdown(self, body, **kwargs):
         events.append(
             'rail-loading' if 'preparing saved review' in body
-            else 'rail-unavailable' if 'Unavailable' in body
-            else 'rail-final'
+            else 'rail-result'
         )
         self.target.markdown(body, **kwargs)
 
@@ -1122,9 +1120,9 @@ st.caption(f'controlled events: {"|".join(events)}')
     assert events.count("rail-loading") == 1
     assert events.count("cleared") == 1
     assert events.count("completed") == 1
-    assert events.count("rail-final") == 1
+    assert events.count("rail-result") == 1
     assert events.index("neutral") < events.index("rail-loading") < events.index("build")
-    assert events.index("build") < events.index("cleared") < events.index("rail-final") < events.index("completed")
+    assert events.index("build") < events.index("cleared") < events.index("rail-result") < events.index("completed")
 
 
 def test_company_workbench_unavailable_rail_restores_the_normal_report_builders():
