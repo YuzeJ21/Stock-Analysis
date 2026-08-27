@@ -2284,6 +2284,22 @@ def test_discover_quick_links_are_alphabetical_non_ranked_company_briefs():
     assert "ranking" in rendered.lower()
 
 
+def test_discover_quick_links_are_safe_secondary_evidence_paths_not_primary_actions():
+    frame = dashboard.pd.DataFrame({"Ticker": ["NVDA", "AMD", "AVGO", "COHR", "TSLA"]})
+
+    rendered = dashboard.discover_quick_company_links_html(frame, limit=4)
+
+    assert rendered.count("class='sr-primary-action public-primary-action'") == 4
+    assert rendered.count("target='_self'") == 4
+    assert rendered.count("page=company-workbench") == 4
+    assert "data-sr-region='primary-action'" not in rendered
+    assert [rendered.index(ticker) for ticker in ("AMD", "AVGO", "COHR", "NVDA")] == sorted(
+        rendered.index(ticker) for ticker in ("AMD", "AVGO", "COHR", "NVDA")
+    )
+    assert "TSLA" not in rendered
+    assert "not a ranking" in rendered.lower()
+
+
 def test_stock_selector_source_frames_skip_legacy_outputs_for_research_discover(
     monkeypatch,
 ):

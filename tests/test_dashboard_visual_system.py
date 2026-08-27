@@ -477,6 +477,23 @@ def test_safe_route_action_renders_canonical_query_only_links():
     assert "data-sr-region='primary-action'" in rendered
 
 
+def test_evidence_action_keeps_the_safe_link_contract_without_primary_action_region():
+    rendered = visual.evidence_action_html(
+        visual.SafeRouteAction(
+            label="Open <Company> Brief",
+            href="?mode=research&page=company-workbench&ticker=BRK%2FB&open=1",
+        )
+    ).value
+
+    assert "class='sr-primary-action public-primary-action'" in rendered
+    assert (
+        "href='?mode=research&amp;page=company-workbench&amp;ticker=BRK%2FB&amp;open=1'"
+        in rendered
+    )
+    assert "Open &lt;Company&gt; Brief" in rendered
+    assert "data-sr-region='primary-action'" not in rendered
+
+
 def test_shared_components_emit_unique_regions_and_malformed_evidence_stays_visible_neutral():
     action = visual.SafeRouteAction(label="Open Discover", href="?mode=research&page=discover")
     shell = visual.workspace_shell_html(

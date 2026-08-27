@@ -31,6 +31,7 @@ from src.dashboard_visual_system import (
     answer_panel_html,
     dashboard_visual_system_css,
     empty_state_html,
+    evidence_action_html,
     evidence_timeline_html,
     next_action_html,
     operator_route_shell_html as _operator_route_shell_html,
@@ -30452,7 +30453,7 @@ def discover_quick_company_links_html(frame: pd.DataFrame, *, limit: int = 4) ->
             key=str.casefold,
         )[: max(limit, 0)]
     links = "".join(
-        next_action_html(
+        evidence_action_html(
             SafeRouteAction(
                 label=f"Open {ticker} Company Brief",
                 href=(

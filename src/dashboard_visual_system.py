@@ -460,6 +460,12 @@ def next_action_html(action: SafeRouteAction) -> HtmlFragment:
     return _trusted_fragment(_action_link(action, region=True))
 
 
+def evidence_action_html(action: SafeRouteAction) -> HtmlFragment:
+    """Render a safe evidence-access link without declaring a primary action."""
+
+    return _trusted_fragment(_action_link(action, region=False))
+
+
 def next_step_prompt_html(*, title: str, body: str) -> HtmlFragment:
     """Label an adjacent native control as the route's single next action."""
 
