@@ -1645,7 +1645,7 @@ def test_research_evidence_links_encode_ticker_and_return_to_workbench_or_desk()
     assert data_health_link["href"].endswith("ticker=BRK%2FB")
     assert data_health_link["href"].startswith("?mode=research&page=data-health")
     assert research_evidence_return_link("BRK/B") == {
-        "label": "Return to Company Workbench",
+        "label": "Return to BRK/B Company Workbench",
         "href": "?mode=research&page=company-workbench&ticker=BRK%2FB&open=1",
         "purpose": "Continue the selected-company review without changing evidence state.",
     }

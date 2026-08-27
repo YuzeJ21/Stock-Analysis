@@ -1504,8 +1504,9 @@ def advanced_evidence_links(ticker: str) -> list[dict[str, str]]:
 def research_evidence_return_link(ticker: str) -> dict[str, str]:
     symbol = _quoted_ticker(ticker)
     if symbol:
+        label_ticker = str(ticker or "").strip().upper()
         return {
-            "label": "Return to Company Workbench",
+            "label": f"Return to {label_ticker} Company Workbench",
             "href": f"?mode=research&page=company-workbench&ticker={symbol}&open=1",
             "purpose": "Continue the selected-company review without changing evidence state.",
         }

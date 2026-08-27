@@ -36729,6 +36729,8 @@ def test_evidence_route_answer_is_mode_identical_except_for_its_return_action(pa
     assert "mode=public" not in personal
     assert "ticker=BRK%2FB" in public
     assert "ticker=BRK%2FB" in personal
+    assert ">Return to BRK/B Company Workbench</a>" in personal
+    assert ">Return to Company Workbench</a>" not in personal
     assert re.sub(r"<a\b.*?</a>", "<RETURN_ACTION>", public) == re.sub(
         r"<a\b.*?</a>", "<RETURN_ACTION>", personal
     )

@@ -443,7 +443,7 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
             route for route in RESEARCH_RENDER_ROUTES if route.name == evidence_name
         )
         assert question in route.required_markers
-        assert "Return to Company Workbench" in route.required_markers
+        assert "Return to NVDA Company Workbench" in route.required_markers
         assert "Research-only" in route.required_markers
         assert (
             "Continue the selected-company review without changing evidence state."
@@ -491,7 +491,7 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         evidence_blocks = "\n".join(
             next(result for result in results if result.name == evidence_name).rendered_blocks
         )
-        assert evidence_blocks.count("Return to Company Workbench") == 1
+        assert evidence_blocks.count("Return to NVDA Company Workbench") == 1
         assert "Continue the selected-company review without changing evidence state." not in evidence_blocks
         assert "?mode=public&page=single-stock-report" not in evidence_blocks
 
