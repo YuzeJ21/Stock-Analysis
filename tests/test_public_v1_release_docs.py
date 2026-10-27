@@ -56,12 +56,12 @@ HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY = (
 )
 
 
-def test_streamlit_range_supports_same_document_javascript_transport():
+def test_pinned_streamlit_supports_same_document_javascript_transport():
     requirements = Path("requirements.txt").read_text(encoding="utf-8")
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
 
-    assert "streamlit>=1.52,<2" in requirements
-    assert '"streamlit>=1.52,<2"' in pyproject
+    assert "streamlit==1.62.0" in requirements
+    assert '"streamlit==1.62.0"' in pyproject
     assert "streamlit>=1.44" not in requirements + pyproject
 
 
@@ -552,7 +552,7 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     assert "make hosted-demo-readiness" in hosted
     assert "stock picks" not in hosted.lower()
     assert "buy/sell" in hosted
-    assert "streamlit>=1.52,<2" in requirements
+    assert "streamlit==1.62.0" in requirements
     assert "pandas>=2.2" in requirements
     assert "numpy>=1.26" in requirements
     assert "PyYAML>=6.0" in requirements
