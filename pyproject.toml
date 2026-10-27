@@ -13,7 +13,7 @@ dependencies = [
   "numpy>=1.26",
   "pandas>=2.2",
   "PyYAML>=6.0",
-  "streamlit>=1.52,<2",
+  "streamlit==1.62.0",
   "starlette>=0.46,<1.4",
 ]
 
@@ -24,7 +24,7 @@ research = [
 ]
 dev = [
   "pytest>=8.0",
-  "playwright>=1.52",
+  "playwright==1.62.0",
 ]
 
 [project.urls]
