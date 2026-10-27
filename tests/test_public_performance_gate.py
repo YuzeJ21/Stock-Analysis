@@ -480,7 +480,7 @@ def test_pyproject_keeps_browser_runner_in_development_dependencies_only():
     pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
     requirements = Path("requirements.txt").read_text(encoding="utf-8")
 
-    assert '"playwright>=1.52"' in pyproject
+    assert '"playwright==1.62.0"' in pyproject
     assert "playwright" not in requirements.lower()
 
 
