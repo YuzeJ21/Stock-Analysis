@@ -50,6 +50,28 @@ class SecQuarterlyPilotExtraction:
     revenue_actuals: tuple[QuarterlyActual, ...]
     capex_sign_evidence: str
     blockers: tuple[str, ...]
+    component_evidence: tuple[SecQuarterlyComponentEvidence, ...] = ()
+
+
+@dataclass(frozen=True)
+class SecQuarterlyComponentEvidence:
+    metric: str
+    concept: str
+    unit: str
+    unit_scale: float
+    raw_value: float
+    normalized_value: float
+    period_start_date: str
+    period_end_date: str
+    duration_basis: str
+    fiscal_period: str
+    companyfacts_filed_date: str
+    inline_fact_id: str
+    inline_unit: str
+    inline_scale: int
+    inline_display_value: float
+    source_ref: str
+    explicit_outflow: bool
 
 
 @dataclass(frozen=True)
@@ -73,6 +95,7 @@ class _SelectedFact:
 class _InlineFact:
     concept: str
     context_ref: str
+    unit_ref: str
     scale: int
     fact_id: str
     event_index: int
@@ -90,11 +113,15 @@ class _InlineFilingParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.contexts: dict[str, tuple[str, str]] = {}
+        self.units: dict[str, str] = {}
         self.rows: list[_InlineRow] = []
         self._context_id: str | None = None
         self._context_start = ""
         self._context_end = ""
         self._context_field: str | None = None
+        self._unit_id: str | None = None
+        self._unit_measure_parts: list[str] = []
+        self._in_unit_measure = False
         self._row: _InlineRow | None = None
         self._fact: _InlineFact | None = None
 
@@ -109,6 +136,11 @@ class _InlineFilingParser(HTMLParser):
             self._context_field = "start"
         elif normalized == "xbrli:enddate" and self._context_id:
             self._context_field = "end"
+        elif normalized == "xbrli:unit":
+            self._unit_id = attributes.get("id") or None
+            self._unit_measure_parts = []
+        elif normalized == "xbrli:measure" and self._unit_id:
+            self._in_unit_measure = True
         elif normalized == "tr":
             self._row = _InlineRow()
         elif normalized == "ix:nonfraction" and self._row is not None:
@@ -120,6 +152,7 @@ class _InlineFilingParser(HTMLParser):
             self._fact = _InlineFact(
                 concept=concept,
                 context_ref=attributes.get("contextref", ""),
+                unit_ref=attributes.get("unitref", ""),
                 scale=scale,
                 fact_id=attributes.get("id", ""),
                 event_index=len(self._row.events),
@@ -132,6 +165,8 @@ class _InlineFilingParser(HTMLParser):
             self._context_start += data
         elif self._context_field == "end":
             self._context_end += data
+        if self._in_unit_measure:
+            self._unit_measure_parts.append(data)
         if self._row is not None:
             self._row.events.append(data)
         if self._fact is not None:
@@ -141,6 +176,13 @@ class _InlineFilingParser(HTMLParser):
         normalized = tag.lower()
         if normalized in {"xbrli:startdate", "xbrli:enddate"}:
             self._context_field = None
+        elif normalized == "xbrli:measure":
+            self._in_unit_measure = False
+        elif normalized == "xbrli:unit":
+            if self._unit_id:
+                self.units[self._unit_id] = "".join(self._unit_measure_parts).strip()
+            self._unit_id = None
+            self._unit_measure_parts = []
         elif normalized == "xbrli:context":
             if self._context_id:
                 self.contexts[self._context_id] = (
@@ -203,11 +245,16 @@ def _select_companyfact(
 def _submission_for_accession(
     payload: Mapping[str, Any], accession: str
 ) -> dict[str, str] | None:
-    recent = payload.get("filings", {}).get("recent", {})
+    filings = payload.get("filings")
+    if not isinstance(filings, Mapping):
+        return None
+    recent = filings.get("recent")
+    if not isinstance(recent, Mapping):
+        return None
     accessions = recent.get("accessionNumber", ())
     try:
         index = list(accessions).index(accession)
-    except ValueError:
+    except (TypeError, ValueError):
         return None
     fields = ("filingDate", "acceptanceDateTime", "form", "primaryDocument")
     try:
@@ -516,6 +563,33 @@ def extract_sec_quarterly_cash_generation(
             split_adjustment_basis="primary_split_basis_unverified",
         ),
     )
+    component_evidence = tuple(
+        SecQuarterlyComponentEvidence(
+            metric=metric,
+            concept=selected.concept,
+            unit="USD",
+            unit_scale=1.0,
+            raw_value=selected.value,
+            normalized_value=(
+                -abs(selected.value) if metric == "capital_expenditures" else selected.value
+            ),
+            period_start_date=period_start_date,
+            period_end_date=period_end_date,
+            duration_basis="three_months",
+            fiscal_period=normalized_period,
+            companyfacts_filed_date=selected.filed,
+            inline_fact_id=inline[metric].fact_id,
+            inline_unit=parser.units.get(inline[metric].unit_ref, "").split(":")[-1].upper(),
+            inline_scale=inline[metric].scale,
+            inline_display_value=float(_displayed_value(inline[metric])),
+            source_ref=f"{source_url}#{inline[metric].fact_id}",
+            explicit_outflow=metric == "capital_expenditures",
+        )
+        for metric in (
+            "revenue", "operating_income", "cash_from_operations", "capital_expenditures"
+        )
+        if (selected := selections[metric]) is not None
+    )
     return SecQuarterlyPilotExtraction(
         ticker=symbol,
         cik=normalized_cik,
@@ -530,6 +604,7 @@ def extract_sec_quarterly_cash_generation(
         revenue_actuals=revenue_actuals,
         capex_sign_evidence="explicit_filed_table_outflow",
         blockers=(),
+        component_evidence=component_evidence,
     )
 
 

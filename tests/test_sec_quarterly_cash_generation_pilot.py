@@ -165,6 +165,37 @@ def test_unsigned_capex_is_blocked_instead_of_inferred():
     assert result.revenue_actuals == ()
 
 
+def test_extraction_exposes_exact_component_proof_without_changing_preview():
+    extraction = _extract()
+
+    proofs = {row.metric: row for row in extraction.component_evidence}
+    assert set(proofs) == {
+        "revenue", "operating_income", "cash_from_operations", "capital_expenditures"
+    }
+    revenue = proofs["revenue"]
+    assert revenue.concept == "RevenueFromContractWithCustomerExcludingAssessedTax"
+    assert revenue.unit == "USD"
+    assert revenue.unit_scale == 1.0
+    assert revenue.raw_value == extraction.revenue_actuals[0].revenue_actual
+    assert revenue.normalized_value == extraction.revenue_actuals[0].revenue_actual
+    assert revenue.period_start_date == START
+    assert revenue.period_end_date == END
+    assert revenue.duration_basis == "three_months"
+    assert revenue.fiscal_period == "2027-Q1"
+    assert revenue.companyfacts_filed_date == "2026-05-20"
+    assert revenue.inline_fact_id == "f-revenue"
+    assert revenue.inline_unit == ""
+    assert revenue.inline_scale == 6
+    assert revenue.source_ref.endswith("/nvda-20260426.htm#f-revenue")
+    capex = proofs["capital_expenditures"]
+    capex_observation = next(
+        row for row in extraction.observations if row.metric == "capital_expenditures"
+    )
+    assert capex.raw_value == -capex_observation.value
+    assert capex.normalized_value == capex_observation.value
+    assert capex.explicit_outflow is True
+
+
 def test_wrong_inline_context_is_distinct_from_missing_outflow_presentation():
     filing = _filing_fixture().replace(
         'id="f-capex" name="us-gaap:PaymentsToAcquireProductiveAssets" contextRef="c-q1"',

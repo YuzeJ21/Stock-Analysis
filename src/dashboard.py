@@ -402,6 +402,14 @@ from src.company_workbench_html import (
     company_workbench_html_download_spec,
     render_company_workbench_html_fragment,
 )
+from src.cohort_field_study import (
+    BoundedFieldStudy,
+    load_bounded_field_study,
+    study_company_detail_html,
+    study_company_html,
+    study_discover_html,
+    study_monitor_html,
+)
 from src.research_workspace import (
     advanced_evidence_links_html,
     build_monitor_follow_up_queue,
@@ -31055,6 +31063,7 @@ def render_stock_selector(
     allowed_tickers: tuple[str, ...] | None = None,
     research_boundary: str | None = None,
     strict_eligible_count: int | None = None,
+    field_study: BoundedFieldStudy | None = None,
 ) -> None:
     research_discover = (
         str(target_mode).strip().lower() == RESEARCH_MODE
@@ -31109,6 +31118,8 @@ def render_stock_selector(
             discover_quick_company_links_html(selector_frame),
             unsafe_allow_html=True,
         )
+        if field_study is not None:
+            st.markdown(study_discover_html(field_study), unsafe_allow_html=True)
 
     if public_mode and not research_discover and selector_frame.empty:
         st.markdown(
@@ -37274,6 +37285,21 @@ def render_research_desk(
         render_research_change_route_summary("Research Desk", state)
 
 
+def load_dashboard_bounded_field_study(context: ProfileContext) -> BoundedFieldStudy:
+    """Keep ignored local field reports bound to their original data profile."""
+
+    data_dir = getattr(context, "data_dir", None)
+    if data_dir is None:
+        return BoundedFieldStudy(
+            "unavailable", "This saved study is available only in the default local profile."
+        )
+    return load_bounded_field_study(
+        BASE_DIR,
+        profile_key=str(getattr(context, "profile_key", "")),
+        data_dir=data_dir,
+    )
+
+
 def render_research_monitor(
     state: dict[str, object],
     context: ProfileContext,
@@ -37379,6 +37405,11 @@ def render_research_monitor(
             research_discipline_table_html(queue.primary_rows),
             unsafe_allow_html=True,
         )
+
+    st.markdown(
+        study_monitor_html(load_dashboard_bounded_field_study(context)),
+        unsafe_allow_html=True,
+    )
 
     st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
     with st.expander("Advanced: Monitor evidence", expanded=False):
@@ -37559,8 +37590,13 @@ def render_company_workbench(
         selected_detail_target=selected_detail_target,
         selected_evidence_target=evidence_status_target,
     )
+    field_study = load_dashboard_bounded_field_study(context)
+    st.markdown(study_company_html(field_study, ticker), unsafe_allow_html=True)
     st.markdown("## Advanced Evidence")
     with st.expander("Advanced Evidence", expanded=False):
+        advanced_field_study = study_company_detail_html(field_study, ticker)
+        if advanced_field_study:
+            st.markdown(advanced_field_study, unsafe_allow_html=True)
         st.markdown(advanced_evidence_links_html(ticker), unsafe_allow_html=True)
         st.caption("Detailed ticker-change evidence remains in the separate evidence drawer below.")
     render_research_change_route_summary("Single-Stock Report", state, ticker=ticker)
@@ -37607,6 +37643,7 @@ def render_personal_research_route(
             allowed_tickers=tuple(member.ticker for member in cohort.members),
             research_boundary=QUEUE_BOUNDARY,
             strict_eligible_count=len(daily_queue.result.eligible),
+            field_study=load_dashboard_bounded_field_study(context),
         )
         st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
         with st.expander("Advanced: cohort readiness context", expanded=False):

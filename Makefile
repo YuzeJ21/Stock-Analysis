@@ -1283,6 +1283,16 @@ endif
 		--primary-document "$(or $(PRIMARY_DOCUMENT),nvda-20260426.htm)" \
 		--as-of "$(AS_OF)"
 
+.PHONY: sec-cash-evidence-packet
+sec-cash-evidence-packet:
+ifndef AS_OF
+	$(error AS_OF is required, for example: make sec-cash-evidence-packet AS_OF=2026-10-28T00:00:00Z)
+endif
+	@python3 -m src.sec_cash_generation_evidence_packet \
+		--as-of "$(AS_OF)" \
+		--saved-cohort "$(or $(SAVED_COHORT),outputs/local/cohort_field_evidence_2026-10-27.json)" \
+		$(if $(SOURCE_DIR),--source-dir "$(SOURCE_DIR)",) $(if $(CAPTURE_DIR),--capture-dir "$(CAPTURE_DIR)",)
+
 .PHONY: sec-fundamentals-preview
 sec-fundamentals-preview:
 ifndef TICKERS
