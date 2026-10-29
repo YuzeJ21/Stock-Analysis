@@ -375,7 +375,7 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
         (
             "/?mode=research&page=company-workbench&ticker=NVDA&open=1",
             "Company Brief",
-            "Company Workbench",
+            "NVDA Company Brief",
             True,
         ),
         (
@@ -713,12 +713,12 @@ def test_company_workbench_primary_answer_text_accepts_one_direct_paragraph_or_s
     )
 
 
-def test_company_workbench_display_title_collector_requires_one_semantic_h2():
+def test_company_workbench_display_title_collector_requires_one_semantic_h1():
     from src.research_accessibility_browser_gate import (
         _company_workbench_display_title,
     )
 
-    selector = ".company-workbench-primary-heading h2"
+    selector = ".company-workbench-primary-heading h1"
     observed_selectors: list[str] = []
 
     class FakeTitleLocator:

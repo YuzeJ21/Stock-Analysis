@@ -1048,7 +1048,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   padding-bottom: 16px;
   border-bottom: 1px solid var(--sr-border);
 }}
-.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading h2 {{
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading h1 {{
   color: var(--sr-ink) !important;
   font-family: Inter, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   font-size: clamp(1.5rem, 2.4vw, 2rem);
@@ -1058,7 +1058,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   margin: 0;
   text-transform: none;
 }}
-.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading h2 > span:first-child {{
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading h1 > span:first-child {{
   color: inherit !important;
   font: inherit;
   letter-spacing: inherit;
@@ -1670,13 +1670,12 @@ def research_dossier_css() -> str:
   min-height: 44px;
 }
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-brief {
-  margin: 0;
-  padding: 4px 0 12px;
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid #dce4df;
-  border-radius: 0;
-  box-shadow: none;
+  margin: 0 0 14px;
+  padding: 18px 20px 14px;
+  background: #fff;
+  border: 1px solid #dce5df;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(18, 44, 36, .045);
 }
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading {
   margin-bottom: 4px;
@@ -1690,11 +1689,19 @@ def research_dossier_css() -> str:
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer.use-now,
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer.withheld,
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer[data-workbench-priority="secondary"] {
-  padding: 8px 0;
+  padding: 10px 12px;
   background: transparent;
   border: 0;
-  border-radius: 0;
+  border-radius: 8px;
   box-shadow: none;
+}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer.use-now {
+  background: #f3f8f5;
+  border-left: 3px solid #2a7863;
+}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer.withheld {
+  background: #fff8ed;
+  border-left: 3px solid #b87925;
 }
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer > span {
   padding: 0;
@@ -1714,7 +1721,9 @@ def research_dossier_css() -> str:
   align-items: baseline;
   flex-wrap: wrap;
   gap: 4px 12px;
-  padding: 5px 0;
+  padding: 8px 10px;
+  background: #f2f6f3;
+  border-radius: 8px;
 }
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer.next-task strong {
   margin: 0;
@@ -1751,12 +1760,12 @@ def research_dossier_css() -> str:
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-status {
   display: block;
   margin: 8px 0 16px;
-  padding: 0;
+  padding: 16px 18px;
   color: #243244;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+  background: #fff;
+  border: 1px solid #dce5df;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(18, 44, 36, .04);
 }
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-heading {
   display: flex;
@@ -1775,7 +1784,8 @@ def research_dossier_css() -> str:
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table {
   display: table;
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   color: #243244;
   background: transparent;
   font-size: .875rem;
@@ -1784,7 +1794,8 @@ def research_dossier_css() -> str:
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table th,
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table td {
   padding: 9px 10px;
-  border-bottom: 1px solid #e0e6e2;
+  border: 0 !important;
+  border-bottom: 1px solid #e6ece7 !important;
   text-align: left;
   vertical-align: top;
   overflow-wrap: anywhere;
@@ -1973,12 +1984,13 @@ def research_dossier_css() -> str:
   .research-discover-result .research-discover-answer:nth-child(2) { grid-area: summary; }
   .research-discover-result .research-discover-details { grid-area: detail; }
   .research-discover-result .selector-action-link { padding: 8px; font-size: .75rem; }
-  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-brief { padding: 2px 0 8px; }
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-brief { padding: 14px; }
   .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-grid { grid-template-columns: 1fr; }
   .stApp:has(.st-key-company-workbench-document) .company-workbench-follow-up-grid { grid-template-columns: 1fr; }
   .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer,
-  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer[data-workbench-priority="secondary"] { padding: 5px 0; }
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer[data-workbench-priority="secondary"] { padding: 10px 12px; }
   .stApp:has(.st-key-company-workbench-document) .company-workbench-priority-action { grid-template-columns: 1fr; }
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-status { padding: 14px; }
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table,
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table tbody,
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane { display: block; }
@@ -2012,6 +2024,8 @@ def research_dossier_css() -> str:
   .research-workflow-routes {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-brief,
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-status { padding: 10px; }
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table td {
     grid-template-columns: minmax(0, 1fr);
     gap: 2px;

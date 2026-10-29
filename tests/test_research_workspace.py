@@ -1166,13 +1166,13 @@ def test_company_workbench_primary_brief_exposes_editorial_title_and_authoritati
 
     rendered = company_workbench_primary_brief_html(brief)
 
-    assert "<h2>AVGO Company Brief</h2>" in rendered
+    assert "<h1>AVGO Company Brief</h1>" in rendered
     heading = re.search(
         r"<div class='company-workbench-primary-heading'>(.*?)</div>", rendered
     )
     assert heading is not None
     assert heading.group(1) == (
-        "<h2>AVGO Company Brief</h2>"
+        "<h1>AVGO Company Brief</h1>"
         "<span class='company-workbench-brief-mode'>Research only</span>"
     )
     for label in ("Use now", "Still withheld", "What changed", "Next research task"):
@@ -1208,7 +1208,7 @@ def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_regio
 
     rendered = company_workbench_primary_brief_html(brief)
 
-    assert "<h2>NVDA&lt;SCRIPT&gt; Company Brief</h2>" in rendered
+    assert "<h1>NVDA&lt;SCRIPT&gt; Company Brief</h1>" in rendered
     assert rendered.count("aria-label='Company Brief'") == 1
     for label in ("Use now", "Still withheld", "What changed", "Next research task"):
         assert rendered.count(f"<span>{label}</span>") == 1
@@ -1897,6 +1897,27 @@ def test_compact_research_workspace_header_keeps_context_identity_and_boundary_w
     assert "Current through 2026-07-16" in rendered
     assert "Review source-backed sections" not in rendered
     assert "research-workspace-meta" not in rendered
+
+
+def test_context_only_company_workbench_header_keeps_trust_context_without_duplicate_title():
+    rendered = research_workspace_header_html(
+        "Company Workbench",
+        ticker="AVGO",
+        profile_label="Demo",
+        freshness="Current for saved sources",
+        primary_action="Review usable evidence",
+        compact=True,
+        include_boundary=False,
+        context_only=True,
+    )
+
+    assert "company-workbench-context-header" in rendered
+    assert "Data profile" in rendered
+    assert "Saved readiness" in rendered
+    assert "Demo" in rendered
+    assert "Current for saved sources" in rendered
+    assert "<h1" not in rendered
+    assert "data-sr-region='page-title'" not in rendered
 
 
 def test_research_desk_brief_and_advanced_evidence_html_stay_answer_first_and_command_free():

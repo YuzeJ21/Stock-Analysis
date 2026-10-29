@@ -71,7 +71,7 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
         "AVGO Company Workbench",
         "/?mode=research&page=company-workbench&ticker=AVGO",
         "Company Brief",
-        "Company Workbench",
+        "AVGO Company Brief",
         "research",
     ),
     WorkspaceVisualRoute(
@@ -2008,7 +2008,7 @@ def _browser_observation(page: Any) -> dict[str, object]:
   const visibleWorkbenchBriefs = workbenchBriefs.filter(visible);
   const firstWorkbenchBrief = visibleWorkbenchBriefs[0] || null;
   const workbenchDisplayTitles = [...document.querySelectorAll(
-    ".company-workbench-primary-heading h2"
+    ".company-workbench-primary-heading h1"
   )].filter(visible);
   const workbenchAsides = [...document.querySelectorAll(
     "aside.company-workbench-evidence-status[aria-label]"

@@ -1118,7 +1118,7 @@ def company_workbench_primary_brief_html(brief: Mapping[str, object]) -> str:
         "<section class='company-workbench-primary-brief' data-sr-region='primary-answer' "
         "aria-label='Company Brief'>"
         "<div class='company-workbench-primary-heading'>"
-        f"<h2>{escaped('ticker', 'Selected company')} Company Brief</h2>"
+        f"<h1>{escaped('ticker', 'Selected company')} Company Brief</h1>"
         "<span class='company-workbench-brief-mode'>Research only</span>"
         "</div>"
         "<div class='company-workbench-primary-grid'>"
@@ -1642,9 +1642,12 @@ def research_workspace_header_html(
     primary_action: str,
     compact: bool = False,
     include_boundary: bool = True,
+    context_only: bool = False,
 ) -> str:
     scope = str(ticker or "Focused research scope").strip().upper() if ticker else "Focused research scope"
     header_class = "research-workspace-header compact" if compact else "research-workspace-header"
+    if context_only:
+        header_class += " company-workbench-context-header"
     meta_html = "" if compact else (
         "<dl class='research-workspace-meta'>"
         f"<div class='research-workspace-meta-item research-workspace-freshness'><dt>Saved readiness</dt><dd>{html.escape(str(freshness or 'Check saved readiness'))}</dd></div>"
@@ -1664,10 +1667,14 @@ def research_workspace_header_html(
             ("Mode", "Personal research"),
         )
     ).value
-    title = page_title_html(
-        title=str(page_title or "Research Desk"),
-        purpose=f"{scope} · {str(profile_label or 'Local research')}",
-    ).value
+    title = (
+        ""
+        if context_only
+        else page_title_html(
+            title=str(page_title or "Research Desk"),
+            purpose=f"{scope} · {str(profile_label or 'Local research')}",
+        ).value
+    )
     return (
         f"<section class='{header_class}' aria-label='Personal research workspace'>"
         f"{context}{title}"

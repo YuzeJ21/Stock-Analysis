@@ -298,7 +298,7 @@ def test_company_workbench_primary_title_is_one_editorial_display_heading():
 
     css = visual.dashboard_visual_system_css()
     scope = ".stApp:has(.st-key-company-workbench-document)"
-    selector = f"{scope} .company-workbench-primary-heading h2"
+    selector = f"{scope} .company-workbench-primary-heading h1"
     start = css.index(f"{selector} {{")
     title_rule = css[start : css.index("\n}", start) + 2]
 

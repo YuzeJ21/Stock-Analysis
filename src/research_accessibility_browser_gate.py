@@ -203,7 +203,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "Company Workbench",
         "/?mode=research&page=company-workbench&ticker=NVDA&open=1",
         "Company Brief",
-        "Company Workbench",
+        "NVDA Company Brief",
         ".company-workbench-primary-brief[aria-label='Company Brief']",
         ".company-workbench-primary-brief .public-primary-action",
     ),
@@ -3271,9 +3271,9 @@ def _company_workbench_primary_answer_text(answer: Any) -> str:
 
 
 def _company_workbench_display_title(primary: Any, *, brief_count: int) -> str:
-    """Read the one semantic Company Brief H2 without legacy decoration fallback."""
+    """Read the one semantic Company Brief H1 without legacy decoration fallback."""
 
-    title = primary.locator(".company-workbench-primary-heading h2")
+    title = primary.locator(".company-workbench-primary-heading h1")
     if brief_count != 1 or title.count() != 1:
         return ""
     return title.first.inner_text().strip()

@@ -37583,6 +37583,7 @@ def render_research_workspace_header(
     primary_action: str,
     compact: bool = False,
     include_boundary: bool = True,
+    context_only: bool = False,
     observation_recency: ObservationRecencySet | None = None,
     include_selected_observation: bool = False,
 ) -> None:
@@ -37595,6 +37596,7 @@ def render_research_workspace_header(
             primary_action=primary_action,
             compact=compact,
             include_boundary=include_boundary,
+            context_only=context_only,
         ),
         unsafe_allow_html=True,
     )
@@ -37867,14 +37869,6 @@ def render_company_workbench(
     observation_recency: ObservationRecencySet | None = None,
 ) -> None:
     ticker = str(st.query_params.get("ticker") or "").strip().upper()
-    render_research_workspace_header(
-        "Company Workbench",
-        context,
-        ticker=ticker,
-        primary_action="Review usable evidence, then record what remains uncertain",
-        compact=True,
-        include_boundary=False,
-    )
     registered_tickers = {
         str(value or "").strip().upper()
         for value in (
@@ -37884,7 +37878,17 @@ def render_company_workbench(
         )
         if str(value or "").strip()
     }
-    if not ticker or ticker not in registered_tickers:
+    has_registered_company = bool(ticker and ticker in registered_tickers)
+    render_research_workspace_header(
+        "Company Workbench",
+        context,
+        ticker=ticker,
+        primary_action="Review usable evidence, then record what remains uncertain",
+        compact=True,
+        include_boundary=False,
+        context_only=has_registered_company,
+    )
+    if not has_registered_company:
         title = (
             f"No registered saved company matches {ticker}"
             if ticker
