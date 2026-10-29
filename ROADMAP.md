@@ -6,7 +6,7 @@ It is research-only: no investment advice, recommendation, company ranking, brok
 
 ## Current Truth
 
-- Master-universe and saved generated-snapshot context: use `make project-status-check` or `make status-check TOP_N=5`; neither is current-market freshness proof.
+- Master-universe and saved generated-snapshot context: use `make project-status-check` or `make status-check TOP_N=5`; neither is current-market freshness proof. `make release-baseline-audit INVENTORY=<path> DISPOSITION=<path> REVIEWED_HISTORY=<path>` checks exact inherited bytes and reviewed branch history but cannot clear source rights.
 - Active research and lane truth: use `make readiness-ops-center`; dashboard counts remain saved-workspace context.
 - Lane readiness: use `make readiness-ops-center`.
 - Historical proof versus current readiness: use `make proof-readiness-reconciliation TOP_N=20`. It is a current-snapshot audit; historical proof cannot promote current readiness.
@@ -14,7 +14,7 @@ It is research-only: no investment advice, recommendation, company ranking, brok
 - Source/provider state: use `make session-source-preflight` and `make provider-setup-checklist`.
 - Package/share state: use `make pilot-readiness-check TOP_N=10`, `make public-check`, and `make browser-qa-evidence`.
 - Commercial-beta state: use `make commercial-beta-check`, `make commercial-beta-performance-gate`, and `make commercial-beta-release-check`. Commit `6328c8cea` passed the category-separated 48-sample browser gate, the aggregate release check, and exact-head CI. Shell and first-useful evidence keep warm p90 separate from cold maximum at the unchanged one-second and three-second limits. These are local evidence only; they do not refresh data and do not prove market validation. The October 2026 code-only merge (`95699820a`) added a receipt-bound NVIDIA Q1 FY2027 SEC inspection and a read-only AMD, AVGO, COHR, MU, NVDA, and QCOM field comparison; its exact-source captures and reports remain ignored local inputs, with no canonical data, readiness, listing, rights, or recommendation change.
-- Point-in-time universe software: only `make point-in-time-universe-status MANIFEST=<path>` and `make point-in-time-universe-preview MANIFEST=<path> TOP_N=20` are supported. Both are read-only.
+- Point-in-time universe membership software: only `make point-in-time-universe-status MANIFEST=<path>` and `make point-in-time-universe-preview MANIFEST=<path> TOP_N=20` are supported. Separately, `make us-listing-receipt-audit SNAPSHOT_DIR=<path>` verifies one saved directory pair without import or company-identity claims. All three are read-only.
 
 The product deliberately separates the tracked master universe, active universe, and analysis-ready subset. It must never imply that the whole tracked universe is analysis-ready.
 

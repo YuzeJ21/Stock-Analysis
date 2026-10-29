@@ -9,6 +9,7 @@ EARNINGS_NOWCAST_COHORT ?= NVDA,AMD,AVGO,MU,QCOM
 .PHONY: commercial-source-rights commercial-beta-check commercial-beta-release-check
 .PHONY: private-beta-readiness
 .PHONY: point-in-time-universe-status point-in-time-universe-preview
+.PHONY: release-baseline-audit us-listing-receipt-audit
 .PHONY: calibration-evidence-bundle-preview
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
@@ -140,6 +141,10 @@ help-full:
 	@echo "  make point-in-time-universe-status MANIFEST=<path> [REGISTRY=<path>]"
 	@echo "                        Print deterministic validation truth for one immutable universe package"
 	@echo "  make point-in-time-universe-preview MANIFEST=<path> [REGISTRY=<path>] [TOP_N=20]"
+	@echo "  make release-baseline-audit INVENTORY=<path> DISPOSITION=<path> REVIEWED_HISTORY=<path>"
+	@echo "                        Verify inherited release bytes and reviewed branch history"
+	@echo "  make us-listing-receipt-audit SNAPSHOT_DIR=<path>"
+	@echo "                        Verify a dated, saved listing directory pair without importing"
 	@echo "                        Preview reproduction digests and capped canonical exclusions without writing"
 	@echo "  make calibration-evidence-bundle-preview BUNDLE=<path>"
 	@echo "                        Preview aggregate calibration evidence consistency without writing"
@@ -924,6 +929,14 @@ point-in-time-universe-preview:
 		--manifest "$${POINT_IN_TIME_UNIVERSE_MANIFEST}" \
 		--registry "$${POINT_IN_TIME_UNIVERSE_REGISTRY}" \
 		--top-n "$${POINT_IN_TIME_UNIVERSE_TOP_N}"
+
+release-baseline-audit:
+	@test -n "$(INVENTORY)" -a -n "$(DISPOSITION)" -a -n "$(REVIEWED_HISTORY)" || (echo "INVENTORY, DISPOSITION, and REVIEWED_HISTORY=<ignored TSV paths> are required" >&2; exit 2)
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.release_baseline_audit --repo-root . --inventory "$(INVENTORY)" --disposition "$(DISPOSITION)" --reviewed-history "$(REVIEWED_HISTORY)" --base-ref "$(or $(BASE_REF),main)"
+
+us-listing-receipt-audit:
+	@test -n "$(SNAPSHOT_DIR)" || (echo "SNAPSHOT_DIR=<saved local directory> is required" >&2; exit 2)
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.us_listing_receipt_audit --snapshot-dir "$(SNAPSHOT_DIR)"
 
 public-wording-check:
 	@python3 scripts/public_wording_check.py
