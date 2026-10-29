@@ -2277,6 +2277,8 @@ def test_discover_primary_answer_separates_saved_access_from_strict_eligibility(
     assert "class='research-discover-scope'" in rendered
     assert "data-sr-region='primary-answer'" in rendered
     assert rendered.count("data-sr-region='stop-rule'") == 1
+    assert "class='sr-stop-rule research-workspace-boundary'" in rendered
+    assert "Research-only" in rendered
     assert dashboard.QUEUE_BOUNDARY in rendered
     assert "8 saved companies" in rendered
     assert "0 strict-screen eligible" in rendered

@@ -683,8 +683,12 @@ def test_company_workbench_primary_answer_text_accepts_one_direct_paragraph_or_s
         def first(self):
             return self
 
-        def inner_text(self):
+        def text_content(self):
             return self._texts[0]
+
+        def inner_text(self):
+            # Closed disclosure content has no rendered inner text.
+            return ""
 
     class FakeAnswer:
         def __init__(self, texts):

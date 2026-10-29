@@ -3264,10 +3264,10 @@ def _monitor_return_context_assertion(
 
 
 def _company_workbench_primary_answer_text(answer: Any) -> str:
-    """Read one direct answer body while rejecting missing or ambiguous markup."""
+    """Read one direct answer body, including content in a closed disclosure."""
 
     body = answer.locator(":scope > p, :scope > strong")
-    return body.first.inner_text().strip() if body.count() == 1 else ""
+    return (body.first.text_content() or "").strip() if body.count() == 1 else ""
 
 
 def _company_workbench_display_title(primary: Any, *, brief_count: int) -> str:
@@ -3310,7 +3310,7 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
         answer = answer_nodes.nth(index)
         label = answer.locator("span").first
         answer_labels.append(
-            label.inner_text().strip() if label.count() == 1 else ""
+            (label.text_content() or "").strip() if label.count() == 1 else ""
         )
         answer_texts.append(_company_workbench_primary_answer_text(answer))
         answer_visible.append(answer.is_visible())

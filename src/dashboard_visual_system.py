@@ -1604,6 +1604,14 @@ def research_dossier_css() -> str:
 .research-discover-scope-counts { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
 .research-discover-scope-counts strong { color: #17232f; font-size: .85rem; }
 .research-discover-scope p { margin: 0; }
+.research-discover-scope .sr-stop-rule {
+  display: block;
+  padding: 2px 8px;
+  border-left-width: 2px;
+  border-radius: 3px;
+  font-size: .76rem;
+  line-height: 1.4;
+}
 .research-discover-scope-detail { margin-left: auto; }
 .research-discover-scope-detail summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .research-discover-scope-detail p { max-width: 60ch; padding: 2px 0 8px; }

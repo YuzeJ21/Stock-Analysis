@@ -30599,7 +30599,8 @@ def discover_primary_answer_html(
         f"<strong>{saved_count:,} {saved_noun}</strong>"
         f"<span>{eligible_count:,} strict-screen eligible</span>"
         "</div>"
-        "<p data-sr-region='stop-rule'>Research only · Saved evidence paths are not a ranking or recommendation.</p>"
+        "<p class='sr-stop-rule research-workspace-boundary' data-sr-region='stop-rule'>"
+        "Research-only · Saved evidence paths are not a ranking or recommendation.</p>"
         f"{scope_detail}"
         "</section>"
     )
