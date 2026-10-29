@@ -9,7 +9,7 @@ EARNINGS_NOWCAST_COHORT ?= NVDA,AMD,AVGO,MU,QCOM
 .PHONY: commercial-source-rights commercial-beta-check commercial-beta-release-check
 .PHONY: private-beta-readiness
 .PHONY: point-in-time-universe-status point-in-time-universe-preview
-.PHONY: release-baseline-audit us-listing-receipt-audit
+.PHONY: release-baseline-audit us-listing-receipt-audit issuer-security-bridge
 .PHONY: calibration-evidence-bundle-preview
 
 DEFAULT_TRUSTED_PILOT_TICKERS := MU,CRDO,HOOD,TSLA,META,A,APLD
@@ -141,11 +141,13 @@ help-full:
 	@echo "  make point-in-time-universe-status MANIFEST=<path> [REGISTRY=<path>]"
 	@echo "                        Print deterministic validation truth for one immutable universe package"
 	@echo "  make point-in-time-universe-preview MANIFEST=<path> [REGISTRY=<path>] [TOP_N=20]"
+	@echo "                        Preview reproduction digests and capped canonical exclusions without writing"
 	@echo "  make release-baseline-audit INVENTORY=<path> DISPOSITION=<path> REVIEWED_HISTORY=<path>"
 	@echo "                        Verify inherited release bytes and reviewed branch history"
 	@echo "  make us-listing-receipt-audit SNAPSHOT_DIR=<path>"
 	@echo "                        Verify a dated, saved listing directory pair without importing"
-	@echo "                        Preview reproduction digests and capped canonical exclusions without writing"
+	@echo "  make issuer-security-bridge DIRECTORY_SNAPSHOT=<path> SEC_CAPTURE=<path> [TOP_N=10]"
+	@echo "                        Inspect same-date symbol association leads or report a cutoff mismatch"
 	@echo "  make calibration-evidence-bundle-preview BUNDLE=<path>"
 	@echo "                        Preview aggregate calibration evidence consistency without writing"
 	@echo "  make session-source-preflight [SEC_USER_AGENT='Name email@example.com']"
@@ -937,6 +939,10 @@ release-baseline-audit:
 us-listing-receipt-audit:
 	@test -n "$(SNAPSHOT_DIR)" || (echo "SNAPSHOT_DIR=<saved local directory> is required" >&2; exit 2)
 	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.us_listing_receipt_audit --snapshot-dir "$(SNAPSHOT_DIR)"
+
+issuer-security-bridge:
+	@test -n "$(DIRECTORY_SNAPSHOT)" -a -n "$(SEC_CAPTURE)" || (echo "DIRECTORY_SNAPSHOT and SEC_CAPTURE=<saved local directories> are required" >&2; exit 2)
+	@PYTHONDONTWRITEBYTECODE=1 python3 -m src.issuer_security_bridge --directory-snapshot "$(DIRECTORY_SNAPSHOT)" --sec-capture "$(SEC_CAPTURE)" --top-n "$(or $(TOP_N),10)"
 
 public-wording-check:
 	@python3 scripts/public_wording_check.py

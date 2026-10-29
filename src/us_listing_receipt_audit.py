@@ -10,7 +10,9 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
+import stat
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -36,15 +38,59 @@ _FINANCIAL_STATUSES = frozenset({"D", "E", "Q", "N", "G", "H", "J", "K"})
 _SYMBOL = re.compile(r"[A-Z0-9][A-Z0-9.$-]{0,13}\Z")
 _FOOTER = re.compile(r"File Creation Time: (\d{8})(\d{2}:\d{2})\|*\Z")
 _SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+_MAX_MANIFEST_BYTES = 1 * 1024 * 1024
+_MAX_DIRECTORY_BYTES = 8 * 1024 * 1024
 
 
-def _regular_bytes(path: Path, reason: str) -> bytes:
-    if path.is_symlink() or not path.is_file():
+def _unique_manifest_keys(items: list[tuple[str, object]]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for key, value in items:
+        if key in result:
+            raise ValueError("manifest_invalid")
+        result[key] = value
+    return result
+
+
+def _invalid_json_constant(_value: str) -> object:
+    raise ValueError("manifest_invalid")
+
+
+def _regular_bytes(path: Path, reason: str, maximum: int) -> bytes:
+    nofollow = getattr(os, "O_NOFOLLOW", None)
+    if not isinstance(nofollow, int) or nofollow == 0:
         raise ValueError(reason)
+    descriptor: int | None = None
     try:
-        return path.read_bytes()
+        descriptor = os.open(
+            path,
+            os.O_RDONLY | nofollow | getattr(os, "O_NONBLOCK", 0)
+            | getattr(os, "O_CLOEXEC", 0),
+        )
+        before = os.fstat(descriptor)
+        if not stat.S_ISREG(before.st_mode) or before.st_size > maximum:
+            raise ValueError(reason)
+        chunks: list[bytes] = []
+        remaining = maximum + 1
+        while remaining:
+            chunk = os.read(descriptor, min(remaining, 1024 * 1024))
+            if not chunk:
+                break
+            chunks.append(chunk)
+            remaining -= len(chunk)
+        after = os.fstat(descriptor)
+        if (
+            sum(len(chunk) for chunk in chunks) > maximum
+            or sum(len(chunk) for chunk in chunks) != after.st_size
+            or (before.st_dev, before.st_ino, before.st_size, before.st_mtime_ns, before.st_ctime_ns)
+            != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns, after.st_ctime_ns)
+        ):
+            raise ValueError(reason)
+        return b"".join(chunks)
     except OSError as exc:
         raise ValueError(reason) from exc
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
 
 
 def _created_at(value: object) -> str:
@@ -83,7 +129,9 @@ def _last_modified(value: object) -> datetime:
     return parsed.astimezone(timezone.utc)
 
 
-def _parse_directory(raw: bytes, source: str, columns: tuple[str, ...]) -> tuple[int, int, set[str], str]:
+def _parse_directory(
+    raw: bytes, source: str, columns: tuple[str, ...]
+) -> tuple[int, int, set[str], str, list[dict[str, str]]]:
     try:
         text = raw.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
@@ -105,6 +153,7 @@ def _parse_directory(raw: bytes, source: str, columns: tuple[str, ...]) -> tuple
             raise ValueError("schema_invalid")
         seen: set[str] = set()
         excluded = 0
+        verified_rows: list[dict[str, str]] = []
         for fields in rows:
             if len(fields) != len(columns):
                 raise ValueError("source_rows_invalid")
@@ -134,25 +183,43 @@ def _parse_directory(raw: bytes, source: str, columns: tuple[str, ...]) -> tuple
             if symbol in seen:
                 raise ValueError("symbol_duplicate")
             seen.add(symbol)
+            verified_rows.append(
+                {
+                    "act_symbol": symbol,
+                    "cqs_symbol": row["CQS Symbol"].strip().upper() if source == "other" else "",
+                    "nasdaq_symbol": row["NASDAQ Symbol"].strip().upper() if source == "other" else "",
+                    "source": source,
+                    "exchange_code": row["Exchange"].strip().upper() if source == "other" else "",
+                    "market_category": row["Market Category"].strip().upper() if source == "nasdaq" else "",
+                    "etf": etf,
+                    "security_name": row["Security Name"].strip(),
+                }
+            )
     except (csv.Error, StopIteration) as exc:
         raise ValueError("source_rows_invalid") from exc
     if not seen:
         raise ValueError("source_rows_invalid")
-    return len(seen), excluded, seen, created
+    return len(seen), excluded, seen, created, verified_rows
 
 
-def build_us_listing_receipt_audit(snapshot_dir: Path) -> dict[str, object]:
-    """Verify two local receipt files and return only aggregate, held evidence."""
+def load_us_listing_rows(snapshot_dir: Path) -> tuple[dict[str, object], list[dict[str, str]]]:
+    """Return validated aggregate evidence and internal non-test directory rows."""
 
     snapshot_dir = Path(snapshot_dir)
     absolute_dir = snapshot_dir.absolute()
     if (".." in snapshot_dir.parts or not snapshot_dir.is_dir()
             or any(path.is_symlink() for path in (absolute_dir, *absolute_dir.parents))):
         raise ValueError("snapshot_dir_invalid")
-    manifest_bytes = _regular_bytes(snapshot_dir / "manifest.json", "manifest_invalid")
+    manifest_bytes = _regular_bytes(
+        snapshot_dir / "manifest.json", "manifest_invalid", _MAX_MANIFEST_BYTES
+    )
     try:
-        manifest = json.loads(manifest_bytes)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        manifest = json.loads(
+            manifest_bytes,
+            object_pairs_hook=_unique_manifest_keys,
+            parse_constant=_invalid_json_constant,
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
         raise ValueError("manifest_invalid") from exc
     if not isinstance(manifest, dict) or manifest.get("inspection_only") is not True:
         raise ValueError("manifest_invalid")
@@ -170,6 +237,7 @@ def build_us_listing_receipt_audit(snapshot_dir: Path) -> dict[str, object]:
     pair_created: set[str] = set()
     pair_observed: set[str] = set()
     pair_modified: set[str] = set()
+    verified_rows: list[dict[str, str]] = []
     for source, name, url, columns in _SOURCES:
         item = by_source[source]
         if item.get("file") != name or item.get("url") != url:
@@ -188,15 +256,18 @@ def build_us_listing_receipt_audit(snapshot_dir: Path) -> dict[str, object]:
         pair_observed.add(item["observed_at_utc"])
         pair_modified.add(modified.isoformat())
 
-        raw = _regular_bytes(snapshot_dir / name, "source_file_invalid")
+        raw = _regular_bytes(
+            snapshot_dir / name, "source_file_invalid", _MAX_DIRECTORY_BYTES
+        )
         if hashlib.sha256(raw).hexdigest() != digest:
             raise ValueError("digest_mismatch")
-        count, excluded, symbols, footer_created = _parse_directory(raw, source, columns)
+        count, excluded, symbols, footer_created, parsed_rows = _parse_directory(raw, source, columns)
         if footer_created != created:
             raise ValueError("creation_time_mismatch")
         if seen.intersection(symbols):
             raise ValueError("symbol_duplicate")
         seen.update(symbols)
+        verified_rows.extend(parsed_rows)
         if type(item.get("rows_excluding_test_issues")) is not int or item["rows_excluding_test_issues"] != count:
             raise ValueError("manifest_count_mismatch")
         if type(item.get("excluded_test_issues")) is not int or item["excluded_test_issues"] != excluded:
@@ -209,7 +280,7 @@ def build_us_listing_receipt_audit(snapshot_dir: Path) -> dict[str, object]:
         )
     if len(pair_created) != 1 or len(pair_observed) != 1 or len(pair_modified) != 1:
         raise ValueError("pair_time_mismatch")
-    return {
+    report = {
         "status": "validated_receipts",
         "inspection_only": True,
         "import_status": "held",
@@ -222,6 +293,13 @@ def build_us_listing_receipt_audit(snapshot_dir: Path) -> dict[str, object]:
         "sources": results,
         "boundary": "Listing-symbol receipts do not establish issuer domicile, security identity, current active status, analysis eligibility, or redistribution rights.",
     }
+    return report, verified_rows
+
+
+def build_us_listing_receipt_audit(snapshot_dir: Path) -> dict[str, object]:
+    """Verify two local receipt files and return only aggregate, held evidence."""
+    report, _rows = load_us_listing_rows(snapshot_dir)
+    return report
 
 
 def main() -> int:

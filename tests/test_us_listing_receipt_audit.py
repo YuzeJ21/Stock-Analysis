@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from src import us_listing_receipt_audit as receipt_audit
 from src.us_listing_receipt_audit import build_us_listing_receipt_audit, main
 
 
@@ -91,6 +92,99 @@ def test_matching_pair_reports_aggregate_counts_and_keeps_import_held(tmp_path: 
     ]
     assert "FICTA" not in json.dumps(result)
     assert "FICTB" not in json.dumps(result)
+
+
+def test_loader_returns_verified_non_test_symbol_fields_without_exposing_rows_in_report(tmp_path: Path) -> None:
+    directory = _snapshot(tmp_path)
+    text = (directory / "otherlisted.txt").read_text().replace(
+        "FICTB|Fictional Beta Common Stock|N|FICTB|N|100|N|FICTB",
+        "FICTB|Fictional Beta Common Stock|N|FICTB.C|N|100|N|FICTB+",
+    )
+    _change_file(directory, "otherlisted.txt", text)
+
+    report, rows = receipt_audit.load_us_listing_rows(directory)
+
+    assert report["total_non_test_symbols"] == 2
+    assert report["excluded_test_issues"] == 2
+    assert "FICTB" not in json.dumps(report)
+    assert rows == [
+        {
+            "act_symbol": "FICTA",
+            "cqs_symbol": "",
+            "nasdaq_symbol": "",
+            "source": "nasdaq",
+            "exchange_code": "",
+            "market_category": "Q",
+            "etf": "N",
+            "security_name": "Fictional Alpha Common Stock",
+        },
+        {
+            "act_symbol": "FICTB",
+            "cqs_symbol": "FICTB.C",
+            "nasdaq_symbol": "FICTB+",
+            "source": "other",
+            "exchange_code": "N",
+            "market_category": "",
+            "etf": "N",
+            "security_name": "Fictional Beta Common Stock",
+        },
+    ]
+
+
+def test_oversized_manifest_is_rejected_before_json_parsing(tmp_path: Path) -> None:
+    directory = _snapshot(tmp_path)
+    manifest = directory / "manifest.json"
+    manifest.write_bytes(manifest.read_bytes() + b" " * (2 * 1024 * 1024))
+
+    with pytest.raises(ValueError, match="manifest_invalid"):
+        receipt_audit.load_us_listing_rows(directory)
+
+
+@pytest.mark.parametrize("duplicate", ["sources", "nested_sha256"])
+def test_duplicate_manifest_keys_are_rejected(tmp_path: Path, duplicate: str) -> None:
+    directory = _snapshot(tmp_path)
+    manifest = directory / "manifest.json"
+    sources = json.loads(manifest.read_text())["sources"]
+    if duplicate == "sources":
+        raw = (
+            '{"inspection_only":true,"sources":'
+            + json.dumps(sources)
+            + ',"sources":'
+            + json.dumps(sources)
+            + "}"
+        )
+    else:
+        first = json.dumps(sources[0]).replace(
+            '"sha256": "',
+            '"sha256": "' + "0" * 64 + '", "sha256": "',
+            1,
+        )
+        raw = (
+            '{"inspection_only":true,"sources":['
+            + first + "," + json.dumps(sources[1]) + "]}"
+        )
+    manifest.write_text(raw)
+
+    with pytest.raises(ValueError, match="manifest_invalid"):
+        receipt_audit.load_us_listing_rows(directory)
+
+
+def test_deeply_nested_manifest_fails_without_recursion_traceback(tmp_path: Path) -> None:
+    directory = _snapshot(tmp_path)
+    (directory / "manifest.json").write_text("[" * 2000 + "0" + "]" * 2000)
+
+    with pytest.raises(ValueError, match="manifest_invalid"):
+        receipt_audit.load_us_listing_rows(directory)
+
+
+@pytest.mark.parametrize("name", ["nasdaqlisted.txt", "otherlisted.txt"])
+def test_oversized_directory_file_is_rejected_before_digest(tmp_path: Path, name: str) -> None:
+    directory = _snapshot(tmp_path)
+    with (directory / name).open("wb") as stream:
+        stream.truncate(16 * 1024 * 1024)
+
+    with pytest.raises(ValueError, match="source_file_invalid"):
+        receipt_audit.load_us_listing_rows(directory)
 
 
 def test_digest_mismatch_fails_closed(tmp_path: Path) -> None:
