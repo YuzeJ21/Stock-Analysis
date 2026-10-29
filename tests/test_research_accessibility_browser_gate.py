@@ -423,57 +423,55 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
     ]
 
 
-def test_task4_discover_evidence_access_requires_live_counts_alphabetical_briefs_and_filter_order():
-    """Catches Discover moving evidence access below filters or back to a ranking-like list."""
+def test_task4_discover_evidence_access_requires_search_and_one_actual_saved_result():
+    """Search precedes the count and the first result is a bound evidence route."""
 
     from src.research_accessibility_browser_gate import (
         evaluate_discover_evidence_access,
     )
 
     passing = evaluate_discover_evidence_access(
-        primary_answer=(
-            "8 saved companies are available for evidence review; "
-            "0 currently pass the strict screen."
+        primary_answer="8 saved companies are available for evidence review; 0 currently pass the strict screen.",
+        search_count=1,
+        quick_link_count=0,
+        first_result=(
+            "Open AACI Company Brief",
+            "?mode=research&page=company-workbench&ticker=AACI&open=1",
         ),
-        quick_links=(
-            ("Open AMD Company Brief", "?mode=research&page=company-workbench&ticker=AMD&open=1"),
-            ("Open AVGO Company Brief", "?mode=research&page=company-workbench&ticker=AVGO&open=1"),
-            ("Open COHR Company Brief", "?mode=research&page=company-workbench&ticker=COHR&open=1"),
-            ("Open NVDA Company Brief", "?mode=research&page=company-workbench&ticker=NVDA&open=1"),
-        ),
-        primary_before_quick_links=True,
-        quick_links_before_advanced_filters=True,
+        search_before_answer=True,
+        answer_before_stop_rule=True,
+        stop_rule_before_result=True,
+        result_after_filters=True,
     )
 
     assert passing["passed"] is True
-    assert "four alphabetical Company Brief" in str(passing["detail"])
+    assert "first saved-company result" in str(passing["detail"])
 
     baseline = {
         "primary_answer": (
             "8 saved companies are available for evidence review; "
             "0 currently pass the strict screen."
         ),
-        "quick_links": (
-            ("Open AMD Company Brief", "?mode=research&page=company-workbench&ticker=AMD&open=1"),
-            ("Open AVGO Company Brief", "?mode=research&page=company-workbench&ticker=AVGO&open=1"),
-            ("Open COHR Company Brief", "?mode=research&page=company-workbench&ticker=COHR&open=1"),
-            ("Open NVDA Company Brief", "?mode=research&page=company-workbench&ticker=NVDA&open=1"),
+        "search_count": 1,
+        "quick_link_count": 0,
+        "first_result": (
+            "Open AACI Company Brief",
+            "?mode=research&page=company-workbench&ticker=AACI&open=1",
         ),
-        "primary_before_quick_links": True,
-        "quick_links_before_advanced_filters": True,
+        "search_before_answer": True,
+        "answer_before_stop_rule": True,
+        "stop_rule_before_result": True,
+        "result_after_filters": True,
     }
     for changed in (
         {"primary_answer": "8 saved companies are available for evidence review."},
-        {"quick_links": passing["quick_links"][:3]},
-        {
-            "quick_links": (
-                passing["quick_links"][1],
-                passing["quick_links"][0],
-                *passing["quick_links"][2:],
-            )
-        },
-        {"primary_before_quick_links": False},
-        {"quick_links_before_advanced_filters": False},
+        {"search_count": 0},
+        {"quick_link_count": 1},
+        {"first_result": ("Open AACI Company Brief", "?mode=research&page=monitor&ticker=AACI")},
+        {"search_before_answer": False},
+        {"answer_before_stop_rule": False},
+        {"stop_rule_before_result": False},
+        {"result_after_filters": False},
     ):
         result = evaluate_discover_evidence_access(**{**baseline, **changed})
         assert result["passed"] is False

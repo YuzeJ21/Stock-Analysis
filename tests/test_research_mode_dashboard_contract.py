@@ -813,7 +813,7 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
     assert calls == ["saved browsing", "advanced"]
 
 
-def test_discover_evidence_access_first_keeps_strict_queue_in_advanced_context(monkeypatch):
+def test_discover_search_first_keeps_strict_queue_in_advanced_context(monkeypatch):
     events: list[tuple[str, object]] = []
     context = SimpleNamespace(data_dir=Path("/selected-profile/data"))
     tickers = ("NVDA", "AMD", "AVGO", "COHR", "TSLA", "XOM", "PLTR", "ZZZ")
@@ -915,10 +915,17 @@ def test_discover_evidence_access_first_keeps_strict_queue_in_advanced_context(m
     )
     search_index = events.index(("text_input", "Search saved companies"))
     assert "0 currently pass the strict screen" in events[primary_index][1]
-    assert primary_index < search_index
-    assert all(
-        ticker in " ".join(event[1] for event in events if event[0] == "markdown")
-        for ticker in ("AMD", "AVGO", "COHR", "NVDA")
+    assert search_index < primary_index
+    assert f"Research-only. {dashboard.QUEUE_BOUNDARY}" in events[primary_index][1]
+    assert sum(
+        str(value).count("data-sr-region='stop-rule'")
+        for event_type, value in events
+        if event_type == "markdown"
+    ) == 1
+    assert not any(
+        "discover-quick-company-links" in event[1]
+        for event in events
+        if event[0] == "markdown"
     )
     advanced_index = events.index(("expander", "Advanced: cohort readiness context"))
     strict_detail_index = next(
@@ -928,6 +935,19 @@ def test_discover_evidence_access_first_keeps_strict_queue_in_advanced_context(m
     )
     assert advanced_index < strict_detail_index
     assert selector_counts == [0]
+
+
+def test_discover_browsing_guidance_follows_the_saved_company_result():
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    selector = source[
+        source.index("def render_stock_selector(") : source.index(
+            "\ndef price_refresh_operator_plan_cards",
+            source.index("def render_stock_selector("),
+        )
+    ]
+    assert selector.index("stock_selector_result_table_html(filtered") < selector.index(
+        'title="Browse saved companies"'
+    )
 
 
 def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser(
@@ -1831,6 +1851,7 @@ def test_direct_registered_company_workbench_without_open_preserves_query_and_re
     monkeypatch,
 ):
     reports: list[dict[str, object]] = []
+    sec_cards: list[str] = []
     query = {"ticker": "AVGO", "cash_preview": "0"}
 
     class Expander:
@@ -1840,14 +1861,16 @@ def test_direct_registered_company_workbench_without_open_preserves_query_and_re
         def __exit__(self, *args):
             return False
 
-    target = SimpleNamespace(markdown=lambda *args, **kwargs: None)
+    target = SimpleNamespace(markdown=lambda value, **kwargs: sec_cards.append(str(value)))
     monkeypatch.setattr(
         dashboard,
         "st",
         SimpleNamespace(
             query_params=query,
+            session_state={},
             markdown=lambda *args, **kwargs: None,
             empty=lambda: target,
+            button=lambda *args, **kwargs: False,
             container=lambda *args, **kwargs: Expander(),
             columns=lambda *args, **kwargs: (Expander(), Expander()),
             expander=lambda *args, **kwargs: Expander(),
@@ -1883,6 +1906,7 @@ def test_direct_registered_company_workbench_without_open_preserves_query_and_re
     assert reports[0]["selected_answer_target"] is target
     assert reports[0]["selected_detail_target"] is target
     assert reports[0]["selected_evidence_target"] is target
+    assert any("Check SEC annual facts to request filing evidence" in card for card in sec_cards)
 
 
 def test_registered_company_workbench_renders_one_document_overview_with_evidence_placeholder(
@@ -1907,10 +1931,12 @@ def test_registered_company_workbench_renders_one_document_overview_with_evidenc
 
     class RecordingStreamlit:
         query_params = {"ticker": "AVGO", "cash_preview": "0"}
+        session_state = {}
 
         def container(self, *args, **kwargs):
-            calls.append(("container", kwargs.get("key"), contexts[-1] if contexts else None))
-            return RecordedContext("document")
+            key = kwargs.get("key")
+            calls.append(("container", key, contexts[-1] if contexts else None))
+            return RecordedContext("sec" if key == "company-sec-annual-check" else "document")
 
         def columns(self, spec):
             calls.append(("columns", spec, contexts[-1] if contexts else None))
@@ -1918,7 +1944,15 @@ def test_registered_company_workbench_renders_one_document_overview_with_evidenc
 
         def empty(self):
             calls.append(("empty", None, contexts[-1] if contexts else None))
-            return SimpleNamespace()
+            return SimpleNamespace(
+                markdown=lambda value, **kwargs: calls.append(
+                    ("placeholder-markdown", value, contexts[-1] if contexts else None)
+                )
+            )
+
+        def button(self, label, **kwargs):
+            calls.append(("button", label, contexts[-1] if contexts else None))
+            return False
 
         def markdown(self, value, **kwargs):
             calls.append(("markdown", value, contexts[-1] if contexts else None))
@@ -1946,7 +1980,8 @@ def test_registered_company_workbench_renders_one_document_overview_with_evidenc
     )
 
     assert [call for call in calls if call[0] == "container"] == [
-        ("container", "company-workbench-document", None)
+        ("container", "company-workbench-document", None),
+        ("container", "company-sec-annual-check", "overview"),
     ]
     assert [call for call in calls if call[0] == "columns"] == [
         ("columns", [3, 1], "document")
@@ -1955,6 +1990,13 @@ def test_registered_company_workbench_renders_one_document_overview_with_evidenc
         ("empty", None, "evidence")
     ]
     assert ("empty", None, "overview") in calls
+    assert ("button", "Check SEC annual facts", "sec") in calls
+    assert any(
+        call[0] == "placeholder-markdown"
+        and "Check SEC annual facts to request filing evidence" in str(call[1])
+        and call[2] == "sec"
+        for call in calls
+    )
     assert any(
         call[0] == "markdown" and "sr-evidence-timeline" in str(call[1]) and call[2] == "overview"
         for call in calls
@@ -2129,11 +2171,13 @@ def test_discover_supporting_region_is_owned_by_selector_after_action_and_stop()
     route = source[route_start:route_end]
 
     search = selector.index("search = st.text_input(")
-    stop = selector.index("stop_rule_html(", search)
-    supporting = selector.index('title="Browse saved companies"', stop)
-    filters = selector.index("open_change_counts:", supporting)
+    status = selector.index("discover_primary_answer_html(", search)
+    filters = selector.index("open_change_counts:", status)
+    result = selector.index("stock_selector_result_table_html(filtered", filters)
+    supporting = selector.index('title="Browse saved companies"', result)
 
-    assert search < stop < supporting < filters
+    assert search < status < filters < result < supporting
+    assert "research_boundary=research_boundary" in selector[status:filters]
     assert 'title="Browse saved companies"' not in route
 
 
@@ -2142,17 +2186,18 @@ def test_discover_search_omits_redundant_help_focus_stop_while_public_keeps_help
     selector_start = source.index("def render_stock_selector(")
     selector_end = source.index("\ndef price_refresh_operator_plan_cards", selector_start)
     selector = source[selector_start:selector_end]
-    search_start = selector.index("search = st.text_input(")
-    search_end = selector.index(").strip()", search_start)
-    search_call = selector[search_start:search_end]
+    discover_start = selector.index('"Search saved companies"')
+    public_start = selector.index('"Search this review queue"')
+    assert discover_start < public_start
+    discover_call = selector[discover_start : selector.index(").strip()", discover_start)]
+    public_call = selector[public_start : selector.index(").strip()", public_start)]
 
-    assert '"Search saved companies" if research_discover else "Search this review queue"' in search_call
-    assert 'value=str(current_filter_values.get("search") or "")' in search_call
-    assert 'placeholder="Search ticker, theme, blocker, or proof step"' in search_call
-    assert 'key="stock-selector-search"' in search_call
-    assert "None\n            if research_discover" in search_call
-    assert "Search readiness-backed rows before opening one saved report." in search_call
-    assert "Search alphabetical saved-company evidence paths." not in search_call
+    assert 'value=str(current_filter_values.get("search") or "")' in discover_call
+    assert 'placeholder="Search ticker, theme, blocker, or proof step"' in discover_call
+    assert 'key="stock-selector-search"' in discover_call
+    assert "help=None" in discover_call
+    assert "Search readiness-backed rows before opening one saved report." in public_call
+    assert "Search alphabetical saved-company evidence paths." not in selector
     assert "stock_selector_current_filter_values(saved_presets, st.session_state)" in selector
     assert "Search and filters apply only to the readiness-backed saved-company set." in selector
     assert "They do not change strict screen eligibility or create a ranking." in selector

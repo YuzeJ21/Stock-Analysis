@@ -921,6 +921,8 @@ def test_company_workbench_evidence_status_projects_independent_reviewable_lanes
     assert "AVGO" in rendered
     assert "Stale" in rendered
     assert "href=" not in rendered
+    assert rendered.count("data-evidence-state='reviewable'") == 2
+    assert rendered.count("data-evidence-state='withheld'") == 3
 
 
 def test_company_workbench_evidence_status_is_one_labelled_complementary_landmark():
@@ -1054,7 +1056,10 @@ def test_company_workbench_primary_brief_exposes_editorial_title_and_authoritati
         r"<div class='company-workbench-primary-heading'>(.*?)</div>", rendered
     )
     assert heading is not None
-    assert heading.group(1) == "<h2>AVGO Company Brief</h2>"
+    assert heading.group(1) == (
+        "<h2>AVGO Company Brief</h2>"
+        "<span class='company-workbench-brief-mode'>Research only</span>"
+    )
     for label in ("Use now", "Still withheld", "What changed", "Next research task"):
         assert rendered.count(f"<span>{label}</span>") == 1
     assert rendered.count("class='public-primary-action'") == 1
@@ -1112,6 +1117,9 @@ def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_regio
     assert rendered.count("data-workbench-lane='withheld'") == 1
     assert rendered.count("data-workbench-lane='change'") == 1
     assert rendered.count("data-workbench-lane='next-task'") == 1
+    assert rendered.count("data-workbench-priority='primary'") == 2
+    assert rendered.count("data-workbench-priority='secondary'") == 2
+    assert rendered.count("class='company-workbench-brief-mode'") == 1
     assert rendered.count("class='sr-detail-disclosure'") == 0
     assert "Blocked: EPS &amp; consensus Context only: Peer candidate" in primary
     assert rendered.index("data-workbench-lane='usable'") < rendered.index(

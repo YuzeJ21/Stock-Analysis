@@ -225,10 +225,10 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         "aside_box": {"left": 1060, "right": 1424, "top": 220, "bottom": 650},
         "module_gate_box": {"left": 16, "right": 1030, "top": 680, "bottom": 724},
         "brief_lane_boxes": (
-            {"left": 16, "right": 260, "top": 300, "bottom": 460},
-            {"left": 270, "right": 514, "top": 300, "bottom": 460},
-            {"left": 524, "right": 768, "top": 300, "bottom": 460},
-            {"left": 778, "right": 1030, "top": 300, "bottom": 460},
+            {"left": 16, "right": 500, "top": 300, "bottom": 430},
+            {"left": 515, "right": 1030, "top": 300, "bottom": 430},
+            {"left": 16, "right": 500, "top": 445, "bottom": 570},
+            {"left": 515, "right": 1030, "top": 445, "bottom": 570},
         ),
     }
     assert evaluate_company_workbench_document_contract(**desktop).passed
@@ -280,6 +280,19 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         "aside_box": {"left": 12, "right": 708, "top": 900, "bottom": 1540},
     }
     assert not evaluate_company_workbench_document_contract(**wrong_reflow).passed
+
+    old_four_column_brief = {
+        **desktop,
+        "brief_lane_boxes": (
+            {"left": 16, "right": 260, "top": 300, "bottom": 460},
+            {"left": 270, "right": 514, "top": 300, "bottom": 460},
+            {"left": 524, "right": 768, "top": 300, "bottom": 460},
+            {"left": 778, "right": 1030, "top": 300, "bottom": 460},
+        ),
+    }
+    assert not evaluate_company_workbench_document_contract(
+        **old_four_column_brief
+    ).passed
 
     overlapping_phone_lanes = {
         **phone,
@@ -1212,70 +1225,33 @@ def test_initial_viewport_hierarchy_rejects_regions_above_or_below_the_viewport(
 
 
 def _valid_discover_evidence_access_layout() -> dict[str, object]:
-    links = (
-        {
-            "label": "Open AMD Company Brief",
-            "href": "?mode=research&page=company-workbench&ticker=AMD&open=1",
-            "visible": True,
-            "focusable": True,
-            "left": 280,
-            "right": 500,
-            "width": 220,
-            "height": 44,
-            "top": 500,
-            "clipped": False,
-        },
-        {
-            "label": "Open AVGO Company Brief",
-            "href": "?mode=research&page=company-workbench&ticker=AVGO&open=1",
-            "visible": True,
-            "focusable": True,
-            "left": 510,
-            "right": 730,
-            "width": 220,
-            "height": 44,
-            "top": 500,
-            "clipped": False,
-        },
-        {
-            "label": "Open COHR Company Brief",
-            "href": "?mode=research&page=company-workbench&ticker=COHR&open=1",
-            "visible": True,
-            "focusable": True,
-            "left": 740,
-            "right": 960,
-            "width": 220,
-            "height": 44,
-            "top": 500,
-            "clipped": False,
-        },
-        {
-            "label": "Open NVDA Company Brief",
-            "href": "?mode=research&page=company-workbench&ticker=NVDA&open=1",
-            "visible": True,
-            "focusable": True,
-            "left": 970,
-            "right": 1190,
-            "width": 220,
-            "height": 44,
-            "top": 500,
-            "clipped": False,
-        },
-    )
+    result = {
+        "label": "Open AACI Company Brief",
+        "href": "?mode=research&page=company-workbench&ticker=AACI&open=1",
+        "visible": True,
+        "focusable": True,
+        "left": 280,
+        "right": 500,
+        "width": 220,
+        "height": 44,
+        "top": 500,
+        "clipped": False,
+    }
     return {
         "primary_answer_count": 1,
-        "quick_links": links,
+        "quick_link_count": 0,
+        "first_result_link": result,
         "native_search_count": 1,
         "stop_rule_count": 1,
         "supporting_evidence_count": 1,
-        "advanced_detail_count": 1,
+        "advanced_filter_count": 1,
         "dom_order": (
-            "primary-answer",
-            "quick-links",
             "native-search",
+            "primary-answer",
             "stop-rule",
+            "advanced-filter",
+            "first-result",
             "supporting-evidence",
-            "advanced-detail",
         ),
         "client_width": 1280,
         "location_path": "/",
@@ -1285,8 +1261,7 @@ def _valid_discover_evidence_access_layout() -> dict[str, object]:
     }
 
 
-def test_discover_evidence_access_layout_accepts_the_exact_secondary_link_contract():
-    """Catches the Discover-only gate rejecting approved secondary evidence actions."""
+def test_discover_evidence_access_layout_accepts_search_and_actual_saved_result():
 
     from src.workspace_visual_browser_gate import (
         evaluate_discover_evidence_access_layout,
@@ -1304,15 +1279,16 @@ def test_discover_evidence_access_layout_accepts_the_exact_secondary_link_contra
         {"native_search_count": 0},
         {"stop_rule_count": 0},
         {"supporting_evidence_count": 0},
-        {"advanced_detail_count": 0},
+        {"advanced_filter_count": 0},
+        {"quick_link_count": 1},
         {
             "dom_order": (
-                "primary-answer",
                 "native-search",
-                "quick-links",
+                "primary-answer",
                 "stop-rule",
+                "first-result",
+                "advanced-filter",
                 "supporting-evidence",
-                "advanced-detail",
             )
         },
         {"location_search": "?mode=research&page=monitor"},
@@ -1336,23 +1312,17 @@ def test_discover_evidence_access_layout_rejects_link_regressions():
     )
 
     valid = _valid_discover_evidence_access_layout()
-    links = tuple(dict(link) for link in valid["quick_links"])
+    link = dict(valid["first_result_link"])
     mutations = (
-        {"quick_links": links[:3]},
-        {"quick_links": (links[1], links[0], links[2], links[3])},
-        {"quick_links": (links[0], links[1], links[2], dict(links[2]))},
-        {
-            "quick_links": (
-                {**links[0], "href": "?mode=research&page=monitor&ticker=AMD&open=1"},
-                *links[1:],
-            )
-        },
-        {"quick_links": ({**links[0], "visible": False}, *links[1:])},
-        {"quick_links": ({**links[0], "focusable": False}, *links[1:])},
-        {"quick_links": ({**links[0], "width": 43}, *links[1:])},
-        {"quick_links": ({**links[0], "height": 43}, *links[1:])},
-        {"quick_links": ({**links[0], "left": -2}, *links[1:])},
-        {"quick_links": ({**links[0], "clipped": True}, *links[1:])},
+        {"first_result_link": {}},
+        {"first_result_link": {**link, "href": "?mode=research&page=monitor&ticker=AACI&open=1"}},
+        {"first_result_link": {**link, "label": "Open AMD Company Brief"}},
+        {"first_result_link": {**link, "visible": False}},
+        {"first_result_link": {**link, "focusable": False}},
+        {"first_result_link": {**link, "width": 43}},
+        {"first_result_link": {**link, "height": 43}},
+        {"first_result_link": {**link, "left": -2}},
+        {"first_result_link": {**link, "clipped": True}},
     )
     for mutation in mutations:
         assert not evaluate_discover_evidence_access_layout(
@@ -1369,13 +1339,9 @@ def _valid_discover_focus_sequence() -> dict[str, object]:
         "Monitor",
         "Data Health",
         "Proof History",
-        "Open AACI Company Brief",
-        "Open ACIC Company Brief",
-        "Open AMD Company Brief",
-        "Open AVGO Company Brief",
-        "Browse all saved companies",
         "Search saved companies",
-        "Advanced: cohort readiness context",
+        "Advanced: filters and selection guidance",
+        "Open AACI Company Brief",
     )
     return {
         "focused_roles": (
@@ -1386,21 +1352,18 @@ def _valid_discover_focus_sequence() -> dict[str, object]:
             "navigation",
             "navigation",
             "navigation",
-            "evidence-path",
-            "evidence-path",
-            "evidence-path",
-            "evidence-path",
-            "browse-navigation",
-            "primary-action",
+            "search",
             "advanced-detail",
+            "result-link",
         ),
         "focused_labels": labels,
         "outline_widths": (3,) * len(labels),
         "positive_tabindex_count": 0,
+        "expected_result_label": "Open AACI Company Brief",
     }
 
 
-def test_discover_focus_sequence_requires_the_complete_evidence_search_order():
+def test_discover_focus_sequence_requires_search_before_actual_result():
     from src.workspace_visual_browser_gate import evaluate_discover_focus_sequence
 
     valid = _valid_discover_focus_sequence()
@@ -1410,54 +1373,45 @@ def test_discover_focus_sequence_requires_the_complete_evidence_search_order():
         {
             "focused_roles": (
                 *valid["focused_roles"][:7],
-                *reversed(valid["focused_roles"][7:11]),
-                *valid["focused_roles"][11:],
-            ),
-            "focused_labels": (
-                *valid["focused_labels"][:7],
-                *reversed(valid["focused_labels"][7:11]),
-                *valid["focused_labels"][11:],
-            ),
-        },
-        {
-            "focused_labels": (
-                *valid["focused_labels"][:7],
-                "Open ACIC Company Brief",
-                "Open AACI Company Brief",
-                *valid["focused_labels"][9:],
-            )
-        },
-        {
-            "focused_roles": (
-                *valid["focused_roles"][:11],
-                "primary-action",
-                "browse-navigation",
+                "result-link",
                 "advanced-detail",
+                "search",
+            ),
+            "focused_labels": (
+                *valid["focused_labels"][:7],
+                "Open AACI Company Brief",
+                "Advanced: filters and selection guidance",
+                "Search saved companies",
+            ),
+        },
+        {
+            "focused_labels": (
+                *valid["focused_labels"][:-1],
+                "Open AMD Company Brief",
             )
         },
         {"positive_tabindex_count": 1},
-        {"outline_widths": (*valid["outline_widths"][:9], 2, *valid["outline_widths"][10:])},
+        {"outline_widths": (*valid["outline_widths"][:-1], 2)},
     ):
         assert not evaluate_discover_focus_sequence(**{**valid, **mutation}).passed
 
 
 @pytest.mark.parametrize(
-    ("viewport_height", "primary_top", "evidence_top"),
-    ((720, 230, 500), (844, 300, 780)),
+    ("viewport_height", "search_top", "answer_top", "stop_top", "result_top"),
+    ((720, 160, 230, 400, 500), (844, 160, 230, 440, 780)),
 )
-def test_discover_initial_viewport_requires_answer_and_evidence_starts_on_screen(
-    viewport_height, primary_top, evidence_top
+def test_discover_initial_viewport_requires_search_answer_stop_and_result_starts_on_screen(
+    viewport_height, search_top, answer_top, stop_top, result_top
 ):
     from src.workspace_visual_browser_gate import (
         evaluate_discover_initial_viewport_hierarchy,
     )
 
     valid = {
-        "primary_answer_box": {"top": primary_top, "bottom": primary_top + 260},
-        "quick_links": tuple(
-            {**link, "top": evidence_top}
-            for link in _valid_discover_evidence_access_layout()["quick_links"]
-        ),
+        "search_box": {"top": search_top, "bottom": search_top + 44},
+        "primary_answer_box": {"top": answer_top, "bottom": answer_top + 100},
+        "stop_rule_box": {"top": stop_top, "bottom": stop_top + 50},
+        "first_result_link": {**_valid_discover_evidence_access_layout()["first_result_link"], "top": result_top},
         "viewport_height": viewport_height,
     }
     assert evaluate_discover_initial_viewport_hierarchy(**valid).passed
@@ -1467,32 +1421,11 @@ def test_discover_initial_viewport_requires_answer_and_evidence_starts_on_screen
     assert not evaluate_discover_initial_viewport_hierarchy(
         **{
             **valid,
-            "quick_links": ({**valid["quick_links"][0], "top": viewport_height + 2},),
+            "first_result_link": {**valid["first_result_link"], "top": viewport_height + 2},
         }
     ).passed
     assert not evaluate_discover_initial_viewport_hierarchy(
-        **{**valid, "quick_links": valid["quick_links"][:3]}
-    ).passed
-
-
-@pytest.mark.parametrize("link_index", (1, 2, 3))
-def test_discover_initial_viewport_rejects_any_later_evidence_link_below_fold(
-    link_index,
-):
-    from src.workspace_visual_browser_gate import (
-        evaluate_discover_initial_viewport_hierarchy,
-    )
-
-    quick_links = [
-        {**link, "top": 500}
-        for link in _valid_discover_evidence_access_layout()["quick_links"]
-    ]
-    quick_links[link_index] = {**quick_links[link_index], "top": 722}
-
-    assert not evaluate_discover_initial_viewport_hierarchy(
-        primary_answer_box={"top": 230, "bottom": 490},
-        quick_links=tuple(quick_links),
-        viewport_height=720,
+        **{**valid, "stop_rule_box": {"top": search_top - 2}}
     ).passed
 
 
@@ -1539,9 +1472,9 @@ def _evaluate_personal_observation_checks(
         "research_workflow_nav_scroll_left": 0,
         "research_workflow_nav_scroll_top": 0,
         "regions": (
-            {"name": "primary-answer", "left": 280, "right": 1220, "top": 230, "bottom": 490},
+            {"name": "primary-answer", "left": 280, "right": 1220, "top": 230, "bottom": 330 if slug == "discover" else 490},
             {"name": "primary-action", "left": 280, "right": 1220, "top": 620, "bottom": 664},
-            {"name": "stop-rule", "left": 280, "right": 1220, "top": 675, "bottom": 776},
+            {"name": "stop-rule", "left": 280, "right": 1220, "top": 400 if slug == "discover" else 675, "bottom": 450 if slug == "discover" else 776},
         ),
         "region_counts": counts,
         "visible_region_counts": counts,
@@ -1573,7 +1506,11 @@ def _evaluate_personal_observation_checks(
         "spinner_count": 0,
     }
     if contract is not None:
-        observation["discover_evidence_access"] = dict(contract)
+        observation["discover_evidence_access"] = {
+            **contract,
+            "search_box": {"top": 160, "bottom": 204},
+            "stop_rule_box": {"top": 400, "bottom": 450},
+        }
     focus = (
         _valid_discover_focus_sequence()
         if slug == "discover"
@@ -1635,7 +1572,7 @@ def test_discover_replaces_named_fold_and_focus_checks_without_omitting_them():
     assert by_name["natural_focus_sequence_normal"]["passed"] is True
     assert by_name["natural_focus_sequence_forced-colors"]["passed"] is True
     assert "discover" in by_name["initial_viewport_hierarchy"]["detail"].lower()
-    assert "evidence-path" in by_name["natural_focus_sequence_normal"]["detail"]
+    assert "result-link" in by_name["natural_focus_sequence_normal"]["detail"]
     assert by_name["unique_shared_regions"]["passed"] is True
     assert by_name["personal_route_answer_hierarchy"]["passed"] is True
     assert by_name["single_navigation_authority"]["passed"] is True
@@ -2763,51 +2700,13 @@ def test_personal_focus_sequence_allows_intervening_native_controls():
     ).passed
 
 
-def test_discover_saved_browser_jump_is_classified_as_in_page_navigation():
-    from src.workspace_visual_browser_gate import evaluate_focus_sequence
-
+def test_discover_focus_capture_uses_search_and_real_result_without_quick_links():
     source = Path("src/workspace_visual_browser_gate.py").read_text(encoding="utf-8")
 
-    assert "a[href='#saved-company-browser']" in source
-    assert "role = \"navigation\"" in source
-    assert not evaluate_focus_sequence(
-        focused_roles=(
-            "skip",
-            "navigation",
-            "primary-action-help",
-            "primary-action",
-            "advanced-detail",
-        ),
-        region_order=(
-            "workflow-nav",
-            "primary-answer",
-            "primary-action",
-            "stop-rule",
-            "supporting-evidence",
-            "advanced-detail",
-        ),
-        outline_widths=(3, 3, 3, 3, 3),
-        positive_tabindex_count=0,
-    ).passed
-    assert not evaluate_focus_sequence(
-        focused_roles=(
-            "skip",
-            "navigation",
-            "primary-action",
-            "navigation",
-            "advanced-detail",
-        ),
-        region_order=(
-            "workflow-nav",
-            "primary-answer",
-            "primary-action",
-            "stop-rule",
-            "supporting-evidence",
-            "advanced-detail",
-        ),
-        outline_widths=(3, 3, 3, 3, 3),
-        positive_tabindex_count=0,
-    ).passed
+    assert "element.matches(\".research-discover-result .selector-result-row a.selector-action-link[href]\")" in source
+    assert 'else if (selectorSearch) role = window.location.search.includes("page=discover")' in source
+    assert "role = \"evidence-path\"" not in source
+    assert "a[href='#saved-company-browser']" not in source
 
 
 def test_source_snapshot_state_matches_the_presence_of_worktree_changes():

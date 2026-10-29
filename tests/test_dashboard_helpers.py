@@ -2270,8 +2270,14 @@ def test_discover_saved_company_browse_frame_fails_closed_without_saved_readines
 
 
 def test_discover_primary_answer_separates_saved_access_from_strict_eligibility():
-    rendered = dashboard.discover_primary_answer_html(8, 0)
+    rendered = dashboard.discover_primary_answer_html(
+        8, 0, research_boundary=dashboard.QUEUE_BOUNDARY
+    )
 
+    assert "class='research-discover-intro'" in rendered
+    assert "data-sr-region='primary-answer'" in rendered
+    assert rendered.count("data-sr-region='stop-rule'") == 1
+    assert f"Research-only. {dashboard.QUEUE_BOUNDARY}" in rendered
     assert "8 saved companies are available for evidence review" in rendered
     assert "0 currently pass the strict screen" in rendered
     assert "alphabetical" in rendered.lower()
@@ -32736,8 +32742,7 @@ def test_stock_selector_current_filter_values_use_saved_session_state_for_primar
 def test_stock_selector_search_precedes_advanced_filters():
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
     render_index = source.index("def render_stock_selector(")
-    section_index = source.index("STOCK_SELECTOR_PATH_TITLE", render_index)
-    preset_setup_index = source.index("saved_presets = stock_selector_saved_filter_presets()", section_index)
+    preset_setup_index = source.index("saved_presets = stock_selector_saved_filter_presets()", render_index)
     current_filter_index = source.index("current_filter_values = stock_selector_current_filter_values", preset_setup_index)
     search_index = source.index('"Search this review queue"', current_filter_index)
     refine_drawer_index = source.index('st.expander("Advanced: filters and selection guidance", expanded=False)', search_index)

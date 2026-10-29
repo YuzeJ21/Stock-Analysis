@@ -191,12 +191,32 @@ def test_discover_quick_links_use_four_column_desktop_and_two_by_two_phone_grid(
     assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in phone_grid
 
 
-def test_company_workbench_document_css_scopes_horizontal_navigation_and_evidence_aside():
-    """Catches a Workbench document layout drifting back into the fixed rail shell."""
+def test_discover_answer_and_boundary_share_a_compact_status_strip_below_search():
+    css = visual.dashboard_visual_system_css()
+    selector = ".research-discover-intro"
+    start = css.index(f"{selector} {{")
+    rule = css[start : css.index("\n}", start) + 2]
+
+    assert "padding: 10px 14px;" in rule
+    assert "margin: 0 0 4px;" in rule
+    assert "border-left: 3px solid var(--sr-forest);" in rule
+    answer_start = css.index(".research-discover-intro .sr-answer-panel {")
+    answer = css[answer_start : css.index("\n}", answer_start) + 2]
+    assert "background: transparent;" in answer
+    assert "border: 0;" in answer
+    assert "padding: 0;" in answer
+    boundary_start = css.index(".research-discover-intro .sr-stop-rule {")
+    boundary = css[boundary_start : css.index("\n}", boundary_start) + 2]
+    assert "border-left: 0;" in boundary
+    assert "padding: 6px 0 0;" in boundary
+
+
+def test_company_workbench_uses_the_shared_research_navigation_and_evidence_aside():
+    """Workbench keeps the same research navigation as Desk and Discover."""
 
     css = visual.dashboard_visual_system_css()
     scope = ".stApp:has(.st-key-company-workbench-document)"
-    desktop_start = css.index(f"{scope} .research-workflow-navigation {{")
+    desktop_start = css.index(".research-workflow-navigation {")
     desktop_end = css.index(".public-app-shell, .research-workspace-header", desktop_start)
     desktop = css[desktop_start:desktop_end]
     tablet_start = css.index("@media (max-width: 1099px) {")
@@ -204,19 +224,15 @@ def test_company_workbench_document_css_scopes_horizontal_navigation_and_evidenc
     tablet = css[tablet_start:phone_start]
     phone = css[phone_start:]
 
-    assert "position: static !important;" in desktop
-    assert "grid-template-columns: minmax(12rem, 1.1fr) minmax(0, 2fr) minmax(8rem, .7fr);" in desktop
-    assert f"{scope} .research-workflow-routes {{" in desktop
-    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in desktop
+    assert "position: fixed !important;" in desktop
+    assert f"{scope} .research-workflow-navigation {{" not in css
+    assert f"{scope} .research-workflow-routes {{" not in css
     assert f"{scope} .st-key-company-workbench-document [data-testid=\"stColumn\"]:last-child {{" in desktop
     assert "position: sticky;" in desktop
     assert "top: 1rem;" in desktop
-    assert f"{scope} .research-workflow-navigation {{" in tablet
-    assert "grid-template-columns: 1fr;" in tablet
     assert f"{scope} .st-key-company-workbench-document [data-testid=\"stHorizontalBlock\"] {{" in tablet
     assert "flex-direction: column !important;" in tablet
-    assert f"{scope} .research-workflow-routes {{" in phone
-    assert "grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));" in phone
+    assert ".research-workflow-routes {" in phone
 
 
 def test_company_workbench_tablet_layout_resets_streamlit_flex_columns_to_one_stack():
@@ -248,7 +264,7 @@ def test_company_workbench_primary_lanes_use_a_real_grid_before_mobile_reset():
     phone = css[css.index("@media (max-width: 640px) {") :]
 
     assert "display: grid;" in desktop
-    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in desktop
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr));" in desktop
     assert f"{scope} .company-workbench-primary-grid {{" in phone
     assert "grid-template-columns: 1fr;" in phone
 
@@ -262,11 +278,11 @@ def test_company_workbench_primary_title_is_one_editorial_display_heading():
     start = css.index(f"{selector} {{")
     title_rule = css[start : css.index("\n}", start) + 2]
 
-    assert 'font-family: Georgia, "Times New Roman", serif;' in title_rule
-    assert "font-size: clamp(1.5rem, 3.2vw, 2.75rem);" in title_rule
-    assert "font-weight: 600;" in title_rule
+    assert 'font-family: Inter, "SF Pro Text", "Segoe UI", system-ui, sans-serif;' in title_rule
+    assert "font-size: clamp(1.5rem, 2.4vw, 2rem);" in title_rule
+    assert "font-weight: 700;" in title_rule
     assert "letter-spacing: -.03em;" in title_rule
-    assert "line-height: 1.05;" in title_rule
+    assert "line-height: 1.15;" in title_rule
     assert "margin: 0;" in title_rule
     assert "text-transform: none;" in title_rule
 
@@ -280,6 +296,49 @@ def test_company_workbench_primary_title_is_one_editorial_display_heading():
     assert "font: inherit;" in streamlit_text_rule
     assert "letter-spacing: inherit;" in streamlit_text_rule
     assert "text-transform: none;" in streamlit_text_rule
+
+
+def test_company_workbench_primary_body_uses_readable_type_and_secondary_priority():
+    css = visual.dashboard_visual_system_css()
+    scope = ".stApp:has(.st-key-company-workbench-document)"
+    selector = f"{scope} .company-workbench-primary-answer p"
+    start = css.index(f"{selector} {{")
+    body_rule = css[start : css.index("\n}", start) + 2]
+
+    assert "font-size: 1rem;" in body_rule
+    assert "line-height: 1.5;" in body_rule
+    assert f"{scope} .company-workbench-primary-answer[data-workbench-priority='secondary'] {{" in css
+
+
+def test_company_workbench_first_view_uses_distinct_cards_and_compact_state_chips():
+    css = visual.dashboard_visual_system_css()
+    scope = ".stApp:has(.st-key-company-workbench-document)"
+
+    def rule(selector: str) -> str:
+        start = css.index(f"{scope} {selector} {{")
+        return css[start : css.index("\n}", start) + 2]
+
+    brief = rule(".company-workbench-primary-brief")
+    assert "background: var(--sr-surface);" in brief
+    assert "border-radius: 20px;" in brief
+    assert "box-shadow:" in brief
+    assert "padding: 22px 24px;" in brief
+    assert "display: grid;" in rule(".company-workbench-primary-answer")
+    assert "border-radius: 14px;" in rule(".company-workbench-primary-answer")
+    assert "background: #EFF8F4;" in rule(".company-workbench-primary-answer.use-now")
+    assert "background: #FFF8EC;" in rule(".company-workbench-primary-answer.withheld")
+    assert "background: #F6F8F7;" in rule(
+        ".company-workbench-primary-answer[data-workbench-priority='secondary']"
+    )
+    assert "border-radius: 999px;" in rule(".company-workbench-primary-answer > span")
+    assert "border-radius: 999px;" in rule(".company-workbench-brief-mode")
+    assert "border-radius: 18px;" in rule(
+        ".st-key-company-workbench-document [data-testid=\"stColumn\"]:last-child"
+    )
+    assert "border-radius: 999px;" in rule(".company-workbench-evidence-lane strong")
+    assert "background: #1E5A4B;" in rule(
+        ".company-workbench-evidence-lane[data-evidence-state='reviewable'] strong"
+    )
 
 
 def test_company_workbench_evidence_rail_uses_explicit_readable_dark_surface_tokens():
@@ -304,16 +363,19 @@ def test_company_workbench_evidence_rail_uses_explicit_readable_dark_surface_tok
     state = scoped_rule(".company-workbench-evidence-lane strong")
 
     assert "display: grid;" in rail
-    assert "gap: 12px;" in rail
+    assert "gap: 14px;" in rail
     assert "color: var(--sr-nav-text);" in rail
     assert "color: var(--sr-nav-text) !important;" in heading
     assert "color: var(--sr-nav-text) !important;" in heading_content
     assert "color: var(--sr-nav-muted) !important;" in meta
     assert "display: grid;" in lane
-    assert "grid-template-columns: minmax(0, 1fr) auto;" in lane
+    assert "grid-template-columns: minmax(0, 1fr);" in lane
+    assert "gap: 6px;" in lane
     assert "border-bottom: 1px solid rgba(248, 250, 252, .24);" in lane
     assert "color: var(--sr-nav-muted) !important;" in label
+    assert "white-space: nowrap;" in label
     assert "color: var(--sr-nav-text) !important;" in state
+    assert "justify-self: start;" in state
     forced = css[css.index("@media (forced-colors: active) {") :]
     assert f"{scope} .company-workbench-evidence-status" in forced
     assert f"{scope} .company-workbench-evidence-heading h2 *" in forced
@@ -347,7 +409,7 @@ def test_company_workbench_primary_module_gate_uses_explicit_readable_button_tok
 
 
 def test_company_workbench_phone_lanes_compact_only_internal_spacing_before_the_action():
-    """Catches the mobile brief pushing its required Data Health action below 390x844."""
+    """Keeps readable cards compact on the phone without squeezing two columns."""
 
     css = visual.dashboard_visual_system_css()
     scope = ".stApp:has(.st-key-company-workbench-document)"
@@ -356,35 +418,38 @@ def test_company_workbench_phone_lanes_compact_only_internal_spacing_before_the_
     assert (
         f"{scope} .company-workbench-primary-grid {{\n"
         "    grid-template-columns: 1fr;\n"
-        "    gap: 0;\n"
+        "    gap: 8px;\n"
         "  }"
     ) in phone
     assert (
         f"{scope} .company-workbench-primary-answer {{\n"
-        "    padding-top: 0;\n"
+        "    padding: 10px 12px;\n"
+        "    border-radius: 10px;\n"
         "  }"
     ) in phone
     assert (
         f"{scope} .company-workbench-primary-answer .public-primary-action {{\n"
-        "    margin-top: 0 !important;\n"
+        "    margin-top: 6px !important;\n"
         "    min-height: 44px;\n"
         "  }"
     ) in phone
     assert (
         f"{scope} .company-workbench-primary-heading {{\n"
-        "    margin-bottom: 0 !important;\n"
+        "    margin-bottom: 10px !important;\n"
+        "    padding-bottom: 10px;\n"
         "  }"
     ) in phone
     assert (
         f"{scope} .company-workbench-primary-answer p,\n"
         f"  {scope} .company-workbench-primary-answer strong,\n"
         f"  {scope} .company-workbench-primary-answer small {{\n"
-        "    margin-top: 0 !important;\n"
+        "    margin-top: 5px !important;\n"
         "  }"
     ) in phone
     assert (
         f"{scope} .company-workbench-primary-answer p {{\n"
-        "    line-height: 1.15;\n"
+        "    font-size: .875rem;\n"
+        "    line-height: 1.4;\n"
         "  }"
     ) in phone
 

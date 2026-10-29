@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import inspect
 from types import SimpleNamespace
 
 import pandas as pd
-import pytest
 
 from src import dashboard
 from src.cohort_field_evidence import DEFAULT_TICKERS, FIELDS
@@ -33,40 +33,17 @@ def _study() -> BoundedFieldStudy:
     )
 
 
-class _StopAtStudy(Exception):
-    pass
+def test_discover_places_six_company_study_after_saved_company_results():
+    source = inspect.getsource(dashboard.render_stock_selector)
+    assert source.index("stock_selector_result_table_html(filtered") < source.index(
+        "study_discover_html(field_study)"
+    )
 
 
-def test_discover_shows_explicit_six_company_study_outside_strict_browse_filter(monkeypatch):
-    rendered: list[str] = []
-    study = _study()
-    monkeypatch.setattr(dashboard, "load_ticker_readiness_report", lambda: (pd.DataFrame(), None))
-    monkeypatch.setattr(dashboard, "load_dcf_readiness", lambda: (pd.DataFrame(), None))
-    monkeypatch.setattr(dashboard, "load_optional_context_readiness", lambda: {
-        "earnings_readiness": (pd.DataFrame(), None),
-        "analyst_estimates_readiness": (pd.DataFrame(), None),
-    })
-    monkeypatch.setattr(dashboard, "stock_selector_source_frames", lambda *args, **kwargs: (pd.DataFrame(), None, pd.DataFrame(), None))
-    monkeypatch.setattr(dashboard, "load_output", lambda *args, **kwargs: (pd.DataFrame(), None))
-    monkeypatch.setattr(dashboard, "dashboard_readiness_summary", lambda *args, **kwargs: {})
-    monkeypatch.setattr(dashboard, "discover_saved_company_browse_frame", lambda *args, **kwargs: pd.DataFrame({"ticker": ["NVDA"]}))
-    monkeypatch.setattr(dashboard, "discover_quick_company_links_html", lambda *args: "")
-
-    def capture(markup, **kwargs):
-        rendered.append(str(markup))
-        if "Six-company evidence study" in str(markup):
-            raise _StopAtStudy
-
-    monkeypatch.setattr(dashboard.st, "markdown", capture)
-    with pytest.raises(_StopAtStudy):
-        dashboard.render_stock_selector(
-            {}, public_mode=True, target_mode=dashboard.RESEARCH_MODE,
-            target_page="company-workbench", allowed_tickers=("NVDA",),
-            strict_eligible_count=0, field_study=study,
-        )
-    assert len(rendered) == 3
-    assert all(f"ticker={ticker}" in rendered[-1] for ticker in DEFAULT_TICKERS)
-    assert "QCOM" in rendered[-1] and "blocked" in rendered[-1]
+def test_discover_study_markup_keeps_qcom_blocked_and_all_six_company_links():
+    rendered = dashboard.study_discover_html(_study())
+    assert all(f"ticker={ticker}" in rendered for ticker in DEFAULT_TICKERS)
+    assert "QCOM" in rendered and "blocked" in rendered
 
 
 def test_company_workbench_shows_qcom_reasons_and_keeps_raw_proof_advanced(monkeypatch):
@@ -82,6 +59,7 @@ def test_company_workbench_shows_qcom_reasons_and_keeps_raw_proof_advanced(monke
 
     class Streamlit:
         query_params = {"ticker": "QCOM", "cash_preview": "0"}
+        session_state = {}
 
         def markdown(self, value, **kwargs):
             rendered.append((location[-1], str(value)))
@@ -90,7 +68,12 @@ def test_company_workbench_shows_qcom_reasons_and_keeps_raw_proof_advanced(monke
             pass
 
         def empty(self):
-            return SimpleNamespace()
+            return SimpleNamespace(
+                markdown=lambda value, **kwargs: rendered.append((location[-1], str(value)))
+            )
+
+        def button(self, *args, **kwargs):
+            return False
 
         def container(self, **kwargs):
             return Context()
@@ -126,6 +109,7 @@ def test_company_workbench_shows_qcom_reasons_and_keeps_raw_proof_advanced(monke
     first_view = " ".join(value for place, value in rendered if place == "first view")
     advanced = " ".join(value for place, value in rendered if place == "Advanced Evidence")
     assert "QCOM saved-field evidence" in first_view
+    assert "Check SEC annual facts to request filing evidence" in first_view
     assert first_view.count("No saved value") == 9
     assert "saved_field_missing" not in first_view
     assert "Raw saved field references" in advanced

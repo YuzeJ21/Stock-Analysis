@@ -21,6 +21,10 @@ import pandas as pd
 import streamlit as st
 
 from src.accessibility_bridge import render_semantic_main_bridge
+from src.company_sec_online_preview import (
+    company_sec_annual_preview_html,
+    get_company_sec_annual_preview,
+)
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
@@ -30573,8 +30577,13 @@ def discover_saved_company_browse_frame(
     return result.head(max(limit, 1)).reset_index(drop=True)
 
 
-def discover_primary_answer_html(saved_company_count: int, strict_eligible_count: int) -> str:
-    """Render the Discover answer with saved evidence access before strict screening."""
+def discover_primary_answer_html(
+    saved_company_count: int,
+    strict_eligible_count: int,
+    *,
+    research_boundary: str | None = None,
+) -> str:
+    """Render saved access, strict eligibility, and the research boundary together."""
 
     saved_count = max(int(saved_company_count), 0)
     eligible_count = max(int(strict_eligible_count), 0)
@@ -30585,15 +30594,18 @@ def discover_primary_answer_html(saved_company_count: int, strict_eligible_count
     )
     reason = (
         "Saved-company availability and strict-screen eligibility are separate. "
-        "The links below are alphabetical evidence paths, not a ranking; strict thresholds remain unchanged."
+        "The results below are alphabetical evidence paths, not a ranking; strict thresholds remain unchanged."
     )
-    return answer_panel_html(
+    panel = answer_panel_html(
         question="Find a Company · Evidence access first",
         answer=answer,
         reason=reason,
         action=None,
         stop_rule=None,
     ).value
+    boundary = str(research_boundary or "").strip()
+    stop = stop_rule_html(f"Research-only. {boundary}").value if boundary else ""
+    return f"<div class='research-discover-intro'>{panel}{stop}</div>"
 
 
 def discover_quick_company_links_html(frame: pd.DataFrame, *, limit: int = 4) -> str:
@@ -31253,20 +31265,26 @@ def render_stock_selector(
             allowed_tickers,
         )
 
+    saved_presets = stock_selector_saved_filter_presets()
+    current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
+    if research_discover:
+        search = st.text_input(
+            "Search saved companies",
+            value=str(current_filter_values.get("search") or ""),
+            placeholder="Search ticker, theme, blocker, or proof step",
+            help=None,
+            key="stock-selector-search",
+        ).strip()
+
     if research_discover:
         st.markdown(
             discover_primary_answer_html(
                 len(selector_frame),
                 0 if strict_eligible_count is None else strict_eligible_count,
+                research_boundary=research_boundary,
             ),
             unsafe_allow_html=True,
         )
-        st.markdown(
-            discover_quick_company_links_html(selector_frame),
-            unsafe_allow_html=True,
-        )
-        if field_study is not None:
-            st.markdown(study_discover_html(field_study), unsafe_allow_html=True)
 
     if public_mode and not research_discover and selector_frame.empty:
         st.markdown(
@@ -31295,7 +31313,7 @@ def render_stock_selector(
             ).value,
             unsafe_allow_html=True,
         )
-    if not public_mode:
+    if not public_mode and not research_discover:
         render_section_header(
             STOCK_SELECTOR_PATH_TITLE,
             "Choose one readiness-backed ticker first; use filters only when you need a narrower queue.",
@@ -31341,54 +31359,17 @@ def render_stock_selector(
                 ).value,
                 unsafe_allow_html=True,
             )
-            st.markdown(
-                stop_rule_html(f"Research-only. {research_boundary}").value,
-                unsafe_allow_html=True,
-            )
         return
 
-    saved_presets = stock_selector_saved_filter_presets()
-    current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
-    if research_discover:
-        st.markdown(
-            discover_saved_browser_jump_html(),
-            unsafe_allow_html=True,
-        )
-    search = st.text_input(
-        "Search saved companies" if research_discover else "Search this review queue",
-        value=str(current_filter_values.get("search") or ""),
-        placeholder="Search ticker, theme, blocker, or proof step",
-        help=(
-            None
-            if research_discover
-            else "Search readiness-backed rows before opening one saved report."
-        ),
-        key="stock-selector-search",
-    ).strip()
-    if research_discover and research_boundary:
-        st.markdown(
-            stop_rule_html(f"Research-only. {research_boundary}").value,
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            supporting_detail_html(
-                title="Browse saved companies",
-                body=(
-                    "Search and filters apply only to the readiness-backed saved-company set. "
-                    "They do not change strict screen eligibility or create a ranking."
-                ),
-            ).value,
-            unsafe_allow_html=True,
-        )
-        render_context_note(
-            "Saved-company browsing is not strict screen eligibility.",
-            (
-                "Rows are alphabetical evidence-access paths. Availability does not mean "
-                "the company passed momentum and valuation screening, has attractive "
-                "valuation, or is a recommendation."
-            ),
-        )
-    elif public_mode and not research_discover:
+    if not research_discover:
+        search = st.text_input(
+            "Search this review queue",
+            value=str(current_filter_values.get("search") or ""),
+            placeholder="Search ticker, theme, blocker, or proof step",
+            help="Search readiness-backed rows before opening one saved report.",
+            key="stock-selector-search",
+        ).strip()
+    if public_mode and not research_discover:
         st.markdown(
             stop_rule_html(
                 "Research-only. This page helps choose what to review next; it does not rank "
@@ -31539,6 +31520,29 @@ def render_stock_selector(
         ),
         unsafe_allow_html=True,
     )
+    if research_discover and research_boundary:
+        with st.expander("Advanced: browsing guidance", expanded=False):
+            st.markdown(
+                supporting_detail_html(
+                    title="Browse saved companies",
+                    body=(
+                        "Search and filters apply only to the readiness-backed saved-company set. "
+                        "They do not change strict screen eligibility or create a ranking."
+                    ),
+                ).value,
+                unsafe_allow_html=True,
+            )
+            render_context_note(
+                "Saved-company browsing is not strict screen eligibility.",
+                (
+                    "Rows are alphabetical evidence-access paths. Availability does not mean "
+                    "the company passed momentum and valuation screening, has attractive "
+                    "valuation, or is a recommendation."
+                ),
+            )
+    if research_discover and field_study is not None:
+        with st.expander("Advanced: six-company field evidence", expanded=False):
+            st.markdown(study_discover_html(field_study), unsafe_allow_html=True)
     with st.expander("Advanced: full filtered selector rows", expanded=False):
         render_context_note(
             "Detailed selector evidence.",
@@ -37192,7 +37196,7 @@ def render_research_workspace_styles() -> None:
         .company-workbench-primary-grid {
             display: grid;
             gap: .75rem;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         .company-workbench-primary-answer {
             border-left: 3px solid #9aa7a2;
@@ -37211,8 +37215,8 @@ def render_research_workspace_styles() -> None:
         }
         .company-workbench-primary-answer p {
             color: #253746;
-            font-size: .84rem;
-            line-height: 1.4;
+            font-size: .875rem;
+            line-height: 1.45;
         }
         .company-workbench-primary-answer small {
             color: #667085;
@@ -37237,6 +37241,140 @@ def render_research_workspace_styles() -> None:
             line-height: 1.4;
             margin: .75rem 0 0;
             padding-top: .65rem;
+        }
+        .st-key-company-sec-annual-check {
+            margin: .85rem 0 1rem;
+            padding: 1.2rem 1.25rem;
+            border: 1px solid #cfdcd5;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, .06);
+        }
+        .st-key-company-sec-annual-check [data-testid="stButton"] > button {
+            background: #155e4b;
+            border-color: #155e4b;
+            color: #fff;
+            font-weight: 700;
+        }
+        .st-key-company-sec-annual-check [data-testid="stButton"] > button p {
+            color: #fff;
+        }
+        .st-key-company-sec-annual-check [data-testid="stButton"] > button:hover {
+            background: #0f4c3a;
+            border-color: #0f4c3a;
+        }
+        .st-key-company-sec-annual-check [data-testid="stButton"] > button:focus-visible {
+            outline: 3px solid #0b6bff;
+            outline-offset: 3px;
+        }
+        .company-sec-annual-preview {
+            color: #253746;
+            font-size: .9rem;
+            line-height: 1.5;
+        }
+        .company-sec-annual-preview .sec-annual-kicker {
+            color: #0f766e;
+            display: block;
+            font-size: .7rem;
+            font-weight: 800;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+        }
+        .company-sec-annual-preview h3 {
+            margin: .15rem 0 .55rem;
+            color: #102a43;
+            font-family: Inter, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+            font-size: 1.25rem;
+            font-weight: 750;
+        }
+        .company-sec-annual-preview h4 {
+            margin: .9rem 0 .5rem;
+            font-size: .82rem;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+        .company-sec-annual-preview p { margin: .3rem 0; }
+        .company-sec-annual-preview a { overflow-wrap: anywhere; }
+        .company-sec-annual-preview .sec-annual-source-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .4rem 1rem;
+            color: #52615c;
+            font-size: .78rem;
+        }
+        .company-sec-annual-preview .sec-annual-identity {
+            color: #52615c;
+            font-size: .76rem;
+        }
+        .company-sec-annual-preview .sec-annual-facts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+            gap: .65rem;
+        }
+        .company-sec-annual-preview .sec-annual-fact {
+            display: grid;
+            gap: .15rem;
+            min-width: 0;
+            padding: .75rem .85rem;
+            border: 1px solid #d9e8e1;
+            border-radius: 12px;
+            background: #f4faf7;
+        }
+        .company-sec-annual-preview .sec-annual-fact-name {
+            color: #52615c;
+            font-size: .76rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+        }
+        .company-sec-annual-preview .sec-annual-fact strong {
+            color: #102a43;
+            font-size: 1.1rem;
+            font-variant-numeric: tabular-nums;
+            overflow-wrap: anywhere;
+        }
+        .company-sec-annual-preview .sec-annual-fact small {
+            color: #52615c;
+        }
+        .company-sec-annual-preview .sec-annual-gaps {
+            margin-top: .85rem;
+            border-top: 1px solid #dce8e1;
+            padding-top: .65rem;
+        }
+        .company-sec-annual-preview .sec-annual-gaps summary {
+            color: #854d0e;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .company-sec-annual-preview .sec-annual-gaps summary:focus-visible {
+            outline: 3px solid #0b6bff;
+            outline-offset: 3px;
+        }
+        .company-sec-annual-preview .sec-annual-gaps ul {
+            display: grid;
+            gap: .4rem;
+            list-style: none;
+            margin: .75rem 0 .25rem;
+            padding: 0;
+        }
+        .company-sec-annual-preview .sec-annual-gaps li {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: .2rem 1rem;
+            border-bottom: 1px solid #e5e9e7;
+            padding: .35rem 0;
+        }
+        .company-sec-annual-preview .sec-annual-gaps code {
+            color: #64748b;
+            font-size: .7rem;
+        }
+        .company-sec-annual-preview .sec-annual-boundary {
+            margin-top: .8rem;
+            padding-top: .6rem;
+            border-top: 1px solid #dce8e1;
+            color: #52615c;
         }
         @media (max-width: 640px) {
             .observation-recency-summary {
@@ -37624,6 +37762,24 @@ def render_research_monitor(
         st.caption("Source identifiers and raw change rows remain in the separate evidence drawer below.")
 
 
+def render_company_sec_annual_check(ticker: str) -> None:
+    """Inspect one selected company's SEC annual facts only after an explicit click."""
+
+    with st.container(key="company-sec-annual-check"):
+        refresh_requested = st.button(
+            "Check SEC annual facts",
+            key=f"company-sec-annual-refresh-{ticker}",
+        )
+        preview_target = st.empty()
+        view = get_company_sec_annual_preview(
+            ticker,
+            st.session_state,
+            refresh_requested=refresh_requested,
+            user_agent=os.getenv("SEC_USER_AGENT"),
+        )
+        preview_target.markdown(company_sec_annual_preview_html(view), unsafe_allow_html=True)
+
+
 def render_company_workbench(
     provider,
     context: ProfileContext,
@@ -37687,6 +37843,7 @@ def render_company_workbench(
         overview_column, evidence_column = st.columns([3, 1])
         with overview_column:
             selected_answer_target = st.empty()
+            render_company_sec_annual_check(ticker)
             timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
             st.markdown(
                 evidence_timeline_html(

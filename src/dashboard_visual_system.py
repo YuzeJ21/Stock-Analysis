@@ -657,6 +657,60 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
 .sr-answer-question {{ margin: 0; color: var(--sr-muted); font-size: .8125rem; font-weight: 700; }}
 .sr-answer-panel h2 {{ margin: 0; max-width: 50ch; color: var(--sr-ink); font-size: 1.25rem; line-height: 1.35; }}
 .sr-answer-reason {{ margin: 0; max-width: 65ch; color: var(--sr-text); font-size: .9375rem; line-height: 1.5; }}
+.research-discover-intro {{
+  display: grid;
+  gap: 6px;
+  margin: 0 0 4px;
+  padding: 10px 14px;
+  background: #F4F8F5;
+  border: 1px solid var(--sr-border);
+  border-left: 3px solid var(--sr-forest);
+  border-radius: 10px;
+}}
+.research-discover-intro .sr-answer-panel {{
+  display: grid;
+  gap: 2px;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+}}
+.research-discover-intro .sr-answer-question {{
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}}
+.research-discover-intro .sr-answer-panel h2 {{
+  max-width: none;
+  font-size: 1rem;
+  line-height: 1.35;
+}}
+.research-discover-intro .sr-answer-reason {{
+  max-width: none;
+  font-size: .8125rem;
+  line-height: 1.35;
+}}
+.research-discover-intro .sr-stop-rule {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 0;
+  padding: 6px 0 0;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--sr-border);
+  border-left: 0;
+  border-radius: 0;
+  font-size: .8125rem;
+  line-height: 1.35;
+}}
+.research-discover-intro .sr-stop-rule strong {{ white-space: nowrap; }}
 .sr-primary-action, .public-primary-action {{
   display: inline-flex;
   align-items: center;
@@ -890,43 +944,6 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   color: var(--sr-nav-text) !important;
   font-size: .8125rem;
 }}
-.stApp:has(.st-key-company-workbench-document) [data-testid="stMainBlockContainer"] {{
-  padding-left: 16px !important;
-}}
-.stApp:has(.st-key-company-workbench-document) .research-workflow-navigation {{
-  position: static !important;
-  z-index: auto;
-  display: grid !important;
-  grid-template-columns: minmax(12rem, 1.1fr) minmax(0, 2fr) minmax(8rem, .7fr);
-  align-items: start;
-  width: 100% !important;
-  max-height: none;
-  margin: 0 0 16px;
-  padding: 12px 16px !important;
-  overflow: visible;
-  border-radius: 0 !important;
-}}
-.stApp:has(.st-key-company-workbench-document) .research-workflow-routes {{
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-}}
-.stApp:has(.st-key-company-workbench-document) .research-workflow-navigation .research-workflow-link,
-.stApp:has(.st-key-company-workbench-document) .research-workflow-disabled {{
-  justify-content: center;
-  min-width: 0;
-  padding: 8px;
-  text-align: center;
-}}
-.stApp:has(.st-key-company-workbench-document) .research-workspace-mode {{
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 4px 8px;
-  padding-top: 0;
-  border-top: 0;
-}}
-.stApp:has(.st-key-company-workbench-document) .research-workspace-mode > span {{
-  grid-column: 1 / -1;
-}}
 .stApp:has(.st-key-company-workbench-document) .st-key-company-workbench-document [data-testid="stHorizontalBlock"] {{
   align-items: start;
 }}
@@ -935,14 +952,16 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   top: 1rem;
   align-self: start;
   min-height: 8rem;
-  padding: 12px;
+  padding: 18px;
   color: var(--sr-nav-text);
   background: var(--sr-nav);
-  border-top: 3px solid var(--sr-teal);
+  border: 1px solid rgba(248, 250, 252, .12);
+  border-radius: 18px;
+  box-shadow: 0 14px 30px rgba(11, 27, 43, .12);
 }}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-status {{
   display: grid;
-  gap: 12px;
+  gap: 14px;
   color: var(--sr-nav-text);
 }}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-heading {{
@@ -967,40 +986,75 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
 }}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lanes {{
   display: grid;
-  gap: 0;
+  gap: 8px;
 }}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane {{
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-  padding: 8px 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+  padding: 10px 12px;
   border-bottom: 1px solid rgba(248, 250, 252, .24);
+  border-radius: 10px;
+  background: rgba(248, 250, 252, .06);
 }}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane span {{
   color: var(--sr-nav-muted) !important;
-  font-size: .8125rem;
+  font-size: .875rem;
   line-height: 1.35;
+  white-space: nowrap;
 }}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane strong {{
   color: var(--sr-nav-text) !important;
-  font-size: .8125rem;
-  line-height: 1.35;
+  font-size: .75rem;
+  line-height: 1.25;
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(248, 250, 252, .14);
   text-align: right;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane[data-evidence-state='reviewable'] strong {{
+  color: #DBF5EA !important;
+  background: #1E5A4B;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane[data-evidence-state='withheld'] strong {{
+  color: #FFE7BA !important;
+  background: #62481F;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane[data-evidence-state='unavailable'] strong {{
+  color: #E2E8F0 !important;
+  background: #354358;
 }}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-brief {{
   margin-top: 0;
-  padding: 0;
-  border-width: 1px 0;
-  border-radius: 0;
+  padding: 22px 24px;
+  color: var(--sr-text);
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 20px;
+  box-shadow: 0 12px 32px rgba(11, 27, 43, .07);
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading {{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--sr-border);
 }}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading h2 {{
   color: var(--sr-ink) !important;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(1.5rem, 3.2vw, 2.75rem);
-  font-weight: 600;
+  font-family: Inter, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  font-size: clamp(1.5rem, 2.4vw, 2rem);
+  font-weight: 700;
   letter-spacing: -.03em;
-  line-height: 1.05;
+  line-height: 1.15;
   margin: 0;
   text-transform: none;
 }}
@@ -1010,10 +1064,115 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   letter-spacing: inherit;
   text-transform: none;
 }}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-brief-mode {{
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  color: var(--sr-forest);
+  background: #E6F1EB;
+  border: 1px solid #C5DED0;
+  border-radius: 999px;
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-grid {{
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-top: 1px solid var(--sr-border);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer {{
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  padding: 16px 18px;
+  background: var(--sr-surface);
+  border: 1px solid var(--sr-border);
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(11, 27, 43, .035);
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer.use-now {{
+  background: #EFF8F4;
+  border-color: #C9E3D7;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer.withheld {{
+  background: #FFF8EC;
+  border-color: #EEDDBA;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer[data-workbench-priority='secondary'] {{
+  padding: 16px 18px;
+  background: #F6F8F7;
+  border-color: #E1E8E3;
+  box-shadow: none;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer > span {{
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 24px;
+  padding: 4px 9px;
+  color: var(--sr-forest);
+  background: #E6F1EB;
+  border-radius: 999px;
+  font-size: .6875rem;
+  font-weight: 800;
+  letter-spacing: .035em;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer.withheld > span {{
+  color: #854D0E;
+  background: #FBE9C4;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer.changed > span {{
+  color: #315D8A;
+  background: #E6EEF6;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer p {{
+  margin: 10px 0 0;
+  color: var(--sr-text);
+  font-size: 1rem;
+  line-height: 1.5;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer strong {{
+  margin: 10px 0 0;
+  color: var(--sr-ink);
+  font-size: 1rem;
+  line-height: 1.45;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer small {{
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  margin: 10px 0 0;
+  padding: 4px 8px;
+  color: #475569;
+  background: #E8EEEA;
+  border-radius: 999px;
+  font-size: .75rem;
+  line-height: 1.25;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer .public-primary-action {{
+  justify-self: start;
+  justify-content: center;
+  margin-top: 12px;
+  padding: 8px 14px;
+  min-height: 44px;
+  border-radius: 9px;
+  font-size: .875rem;
+  font-weight: 700;
+}}
+.stApp:has(.st-key-company-workbench-document) .company-workbench-primary-stop {{
+  margin: 14px 0 0;
+  padding: 10px 12px;
+  color: #3F5A4B;
+  background: #F1F6F2;
+  border: 0;
+  border-left: 3px solid var(--sr-forest);
+  border-radius: 9px;
+  font-size: .8125rem;
+  line-height: 1.45;
 }}
 .stApp:has(.st-key-company-workbench-document) [data-testid="stBaseButton-primary"] {{
   min-height: 44px;
@@ -1025,9 +1184,6 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   color: var(--sr-nav-text) !important;
 }}
 @media (max-width: 1099px) {{
-  .stApp:has(.st-key-company-workbench-document) .research-workflow-navigation {{
-    grid-template-columns: 1fr;
-  }}
   .stApp:has(.st-key-company-workbench-document) .st-key-company-workbench-document [data-testid="stHorizontalBlock"] {{
     display: flex !important;
     flex-direction: column !important;
@@ -1041,6 +1197,7 @@ html, body, .stApp, [data-testid="stAppViewContainer"] {{
   .stApp:has(.st-key-company-workbench-document) .st-key-company-workbench-document [data-testid="stColumn"]:last-child {{
     position: static;
     min-height: 44px;
+    margin-top: 12px;
   }}
 }}
 .public-app-shell, .research-workspace-header, .research-desk-brief {{ box-shadow: none !important; }}
@@ -1109,34 +1266,42 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   .research-workspace-mode > span {{ grid-column: 1 / -1; align-self: center; padding: 0 4px; }}
   .research-workflow-navigation .research-workflow-link, .research-workflow-disabled {{ justify-content: center; min-width: 0; max-width: none; padding: 6px; text-align: center; }}
   .research-workspace-mode a {{ justify-content: center; min-width: 44px; max-width: none; }}
-  .stApp:has(.st-key-company-workbench-document) .research-workflow-navigation {{
-    margin-bottom: 8px;
-    padding: 4px !important;
-  }}
-  .stApp:has(.st-key-company-workbench-document) .research-workflow-routes {{
-    grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-brief {{
+    padding: 12px;
+    border-radius: 14px;
+    box-shadow: none;
   }}
   .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-grid {{
     grid-template-columns: 1fr;
-    gap: 0;
+    gap: 8px;
   }}
   .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer {{
-    padding-top: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer[data-workbench-priority='secondary'] {{
+    padding: 10px 12px;
   }}
   .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer p,
   .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer strong,
   .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer small {{
-    margin-top: 0 !important;
+    margin-top: 5px !important;
   }}
   .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer p {{
-    line-height: 1.15;
+    font-size: .875rem;
+    line-height: 1.4;
   }}
   .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-answer .public-primary-action {{
-    margin-top: 0 !important;
+    margin-top: 6px !important;
     min-height: 44px;
   }}
   .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-heading {{
-    margin-bottom: 0 !important;
+    margin-bottom: 10px !important;
+    padding-bottom: 10px;
+  }}
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-primary-stop {{
+    margin-top: 8px;
+    padding: 8px 10px;
   }}
   .sr-context-bar {{ gap: 8px 16px; }}
   .sr-context-item {{ min-width: min(9rem, 100%); }}

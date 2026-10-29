@@ -10,6 +10,7 @@ import json
 import math
 import os
 import platform
+import re
 import subprocess
 import sys
 import tempfile
@@ -434,12 +435,16 @@ def evaluate_discover_action_names(names: Iterable[str]) -> dict[str, object]:
 def evaluate_discover_evidence_access(
     *,
     primary_answer: object,
-    quick_links: Iterable[tuple[object, object]],
-    primary_before_quick_links: bool,
-    quick_links_before_advanced_filters: bool,
+    search_count: int,
+    quick_link_count: int,
+    first_result: tuple[object, object],
+    search_before_answer: bool,
+    answer_before_stop_rule: bool,
+    stop_rule_before_result: bool,
+    result_after_filters: bool,
     expected_strict_count: int | None = None,
 ) -> dict[str, object]:
-    """Require the live Discover answer and compact evidence paths before filters."""
+    """Require search-first Discover and one actual saved-company evidence route."""
 
     answer = str(primary_answer or "").strip()
     normalized_answer = answer.casefold()
@@ -460,51 +465,47 @@ def evaluate_discover_evidence_access(
     strict_count_matches = (
         expected_strict_count is None or strict_count == expected_strict_count
     )
-    observed_links = tuple(
-        (str(label or "").strip(), str(href or "").strip())
-        for label, href in quick_links
+    label = str(first_result[0] or "").strip()
+    href = str(first_result[1] or "").strip()
+    match = re.fullmatch(r"Open ([A-Z0-9][A-Z0-9./-]*) Company Brief", label)
+    ticker = match.group(1) if match else ""
+    parsed = urlparse(href)
+    result_is_bound = bool(ticker) and (
+        not parsed.scheme
+        and not parsed.netloc
+        and parsed.path in {"", "/"}
+        and not parsed.fragment
+        and parse_qs(parsed.query, keep_blank_values=True)
+        == {
+            "mode": ["research"],
+            "page": ["company-workbench"],
+            "ticker": [ticker],
+            "open": ["1"],
+        }
     )
-    tickers: list[str] = []
-    links_are_bound = True
-    for label, href in observed_links:
-        if not label.startswith("Open ") or not label.endswith(" Company Brief"):
-            links_are_bound = False
-            continue
-        ticker = label.removeprefix("Open ").removesuffix(" Company Brief").strip()
-        query = parse_qs(urlparse(href).query)
-        if (
-            not ticker
-            or query.get("mode", [""])[0] != "research"
-            or query.get("page", [""])[0] != "company-workbench"
-            or query.get("ticker", [""])[0].strip().upper() != ticker.upper()
-            or query.get("open", [""])[0] != "1"
-        ):
-            links_are_bound = False
-        tickers.append(ticker)
-    links_are_alphabetical = tickers == sorted(tickers, key=str.casefold)
-    links_are_unique = len(tickers) == len(set(ticker.upper() for ticker in tickers))
     passed = (
         answer_has_counts
         and strict_count_matches
-        and len(observed_links) >= 4
-        and links_are_bound
-        and links_are_unique
-        and links_are_alphabetical
-        and primary_before_quick_links is True
-        and quick_links_before_advanced_filters is True
+        and search_count == 1
+        and quick_link_count == 0
+        and result_is_bound
+        and search_before_answer is True
+        and answer_before_stop_rule is True
+        and stop_rule_before_result is True
+        and result_after_filters is True
     )
     return {
         "passed": passed,
-        "quick_links": observed_links,
+        "first_result": (label, href),
         "detail": (
-            "Discover exposes both live counts and four alphabetical Company Brief evidence paths before advanced filters"
+            "Discover starts with search, live counts, and the first saved-company result after the stop rule"
             if passed
             else (
-                f"answer_has_counts={answer_has_counts}; strict_count={strict_count}; expected_strict_count={expected_strict_count}; quick_link_count={len(observed_links)}; "
-                f"links_are_bound={links_are_bound}; links_are_unique={links_are_unique}; "
-                f"links_are_alphabetical={links_are_alphabetical}; "
-                f"primary_before_quick_links={primary_before_quick_links}; "
-                f"quick_links_before_advanced_filters={quick_links_before_advanced_filters}"
+                f"answer_has_counts={answer_has_counts}; strict_count={strict_count}; expected_strict_count={expected_strict_count}; "
+                f"search_count={search_count}; quick_link_count={quick_link_count}; "
+                f"result_is_bound={result_is_bound}; search_before_answer={search_before_answer}; "
+                f"answer_before_stop_rule={answer_before_stop_rule}; "
+                f"stop_rule_before_result={stop_rule_before_result}; result_after_filters={result_after_filters}"
             )
         ),
     }
@@ -2839,40 +2840,51 @@ def _discover_action_assertion(page: Any) -> dict[str, object]:
 
 
 def _discover_evidence_access_assertion(page: Any) -> dict[str, object]:
-    """Read the rendered Discover sequence rather than inferring it from source text."""
+    """Read the search-first Discover sequence and its actual saved result."""
 
     observed = page.evaluate(
         """
 () => {
-  const quick = document.querySelector(".discover-quick-company-links");
+  const searches = [...document.querySelectorAll(
+    "[data-testid='stTextInput'] input[aria-label='Search saved companies']"
+  )];
+  const quickCount = document.querySelectorAll(".discover-quick-company-links a").length;
   const answer = [...document.querySelectorAll(".sr-answer-panel")].find(
     (node) => node.innerText.includes("available for evidence review") &&
       node.innerText.includes("currently pass the strict screen")
   );
+  const stop = document.querySelector(".research-discover-intro .sr-stop-rule");
   const advanced = [...document.querySelectorAll("details")].find(
     (node) => node.querySelector("summary")?.innerText.trim() ===
       "Advanced: filters and selection guidance"
+  );
+  const result = document.querySelector(
+    ".research-discover-result .selector-result-row a.selector-action-link"
   );
   const before = (first, second) => Boolean(first && second &&
     (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING));
   return {
     primary_answer: answer?.querySelector("h2")?.innerText.trim() || "",
-    quick_links: quick ? [...quick.querySelectorAll("a")].map((node) => [
-      node.innerText.trim(), node.getAttribute("href") || ""
-    ]) : [],
-    primary_before_quick_links: before(answer, quick),
-    quick_links_before_advanced_filters: before(quick, advanced),
+    search_count: searches.length,
+    quick_link_count: quickCount,
+    first_result: [result?.innerText.trim() || "", result?.getAttribute("href") || ""],
+    search_before_answer: before(searches[0], answer),
+    answer_before_stop_rule: before(answer, stop),
+    stop_rule_before_result: before(stop, result),
+    result_after_filters: before(advanced, result),
   };
 }
 """
     )
     evaluated = evaluate_discover_evidence_access(
         primary_answer=observed.get("primary_answer"),
-        quick_links=tuple(observed.get("quick_links") or ()),
-        primary_before_quick_links=observed.get("primary_before_quick_links") is True,
-        quick_links_before_advanced_filters=(
-            observed.get("quick_links_before_advanced_filters") is True
-        ),
+        search_count=int(observed.get("search_count") or 0),
+        quick_link_count=int(observed.get("quick_link_count") or 0),
+        first_result=tuple(observed.get("first_result") or ("", "")),
+        search_before_answer=observed.get("search_before_answer") is True,
+        answer_before_stop_rule=observed.get("answer_before_stop_rule") is True,
+        stop_rule_before_result=observed.get("stop_rule_before_result") is True,
+        result_after_filters=observed.get("result_after_filters") is True,
     )
     return _assertion(
         "discover_evidence_access_first",
