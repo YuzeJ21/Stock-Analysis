@@ -2012,6 +2012,14 @@ def research_dossier_css() -> str:
   .research-workflow-routes {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table td {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane td:first-child span {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
   .research-discover-result .research-discover-answers {
     display: flex;
   }
