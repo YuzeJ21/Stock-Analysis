@@ -1778,7 +1778,7 @@ def research_dossier_css() -> str:
   border-collapse: collapse;
   color: #243244;
   background: transparent;
-  font-size: .8rem;
+  font-size: .875rem;
 }
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table thead { background: #edf2ee; }
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table th,
@@ -1790,8 +1790,14 @@ def research_dossier_css() -> str:
   overflow-wrap: anywhere;
 }
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table th { color: #52615c; font-weight: 700; }
+.stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane td:first-child span {
+  color: #243244 !important;
+  font-size: .875rem;
+  font-weight: 650;
+}
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table td small {
   display: block;
+  font-size: .8125rem;
   line-height: 1.4;
 }
 .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table td small + small {
