@@ -1106,8 +1106,8 @@ def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_regio
     assert "Revenue &lt;verified&gt;" in rendered
     assert "EPS &amp; consensus" in rendered
     primary = rendered[: rendered.index("data-sr-region='stop-rule'")]
-    assert "No source-backed change is queued." in primary
-    assert "No source-backed change &lt;queued&gt;." not in primary
+    assert "No source-backed change is queued." in rendered
+    assert "No source-backed change &lt;queued&gt;." not in rendered
     assert "Review valuation &gt; evidence" in rendered
     assert "<script>" not in rendered
     assert rendered.count("data-sr-region='primary-answer'") == 1
@@ -1126,6 +1126,8 @@ def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_regio
         "data-workbench-lane='withheld'"
     ) < rendered.index("data-sr-region='primary-action'") < rendered.index(
         "data-sr-region='stop-rule'"
+    ) < rendered.index("data-workbench-lane='change'") < rendered.index(
+        "data-workbench-lane='next-task'"
     )
 
     detail = research_workspace.company_workbench_detail_disclosure_html(brief)

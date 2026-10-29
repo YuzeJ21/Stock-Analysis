@@ -37222,7 +37222,7 @@ def render_research_workspace_styles() -> None:
             color: #667085;
             font-size: .72rem;
         }
-        .company-workbench-primary-answer .public-primary-action {
+        .company-workbench-priority-action .public-primary-action {
             display: inline-flex;
             align-items: center;
             margin-top: .5rem;
@@ -37468,7 +37468,7 @@ def render_research_workspace_styles() -> None:
             .company-workbench-primary-answer strong,
             .company-workbench-primary-answer small { margin-top: .14rem; }
             .company-workbench-primary-answer p { line-height: 1.3; }
-            .company-workbench-primary-answer .public-primary-action {
+            .company-workbench-priority-action .public-primary-action {
                 align-items: center;
                 display: inline-flex;
                 margin-top: .3rem;

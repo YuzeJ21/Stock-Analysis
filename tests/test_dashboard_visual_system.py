@@ -211,6 +211,28 @@ def test_discover_answer_and_boundary_share_a_compact_status_strip_below_search(
     assert "padding: 6px 0 0;" in boundary
 
 
+def test_research_phone_header_uses_two_row_navigation_and_one_context_row():
+    css = visual.dashboard_visual_system_css()
+    phone = css[css.index("@media (max-width: 640px) {") :]
+    assert "grid-template-columns: minmax(0, 1fr) auto;" in phone
+    assert ".research-workspace-brand {" in phone
+    assert "grid-row: 1;" in phone
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in phone
+    assert ".research-workspace-header .sr-context-bar {" in phone
+    assert "grid-template-columns: minmax(0, .65fr) minmax(0, 1.5fr) minmax(0, .9fr);" in phone
+    assert ".research-workspace-header .sr-context-item {" in phone
+    assert "min-width: 0;" in phone
+
+
+def test_discover_phone_result_action_is_at_the_top_of_the_saved_company_card():
+    css = visual.dashboard_visual_system_css()
+    phone = css[css.index("@media (max-width: 640px) {") :]
+    assert "grid-template-areas: 'identity action' 'answers answers';" in phone
+    assert ".research-discover-result .selector-result-identity { grid-area: identity; }" in phone
+    assert ".research-discover-result .selector-actions { grid-area: action;" in phone
+    assert ".research-discover-result .research-discover-answers { grid-area: answers; }" in phone
+
+
 def test_company_workbench_uses_the_shared_research_navigation_and_evidence_aside():
     """Workbench keeps the same research navigation as Desk and Discover."""
 
@@ -428,8 +450,8 @@ def test_company_workbench_phone_lanes_compact_only_internal_spacing_before_the_
         "  }"
     ) in phone
     assert (
-        f"{scope} .company-workbench-primary-answer .public-primary-action {{\n"
-        "    margin-top: 6px !important;\n"
+        f"{scope} .company-workbench-priority-action .public-primary-action {{\n"
+        "    margin-top: 0 !important;\n"
         "    min-height: 44px;\n"
         "  }"
     ) in phone

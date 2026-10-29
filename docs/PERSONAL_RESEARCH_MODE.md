@@ -88,6 +88,8 @@ At phone width, the compact profile context keeps Data profile, Sources through,
 
 This mobile first-action density improvement does not change readiness, source dates, coverage, evidence, forecasts, valuation, or research conclusions. Desktop profile and route metadata remain unchanged. Company Workbench keeps the complete review path available through the same collapsed disclosure at desktop and phone widths.
 
+The company-first UI pass uses a two-row Personal Research navigation and one compact profile row at phone width. Discover keeps search, the saved-versus-strict-screen counts, the research boundary, and the first saved-company action in the opening viewport. Company Workbench places its single Data Health action and full research boundary immediately after the readable `Use now` and `Still withheld` cards; the secondary change and next-task cards follow. The 200% zoom path retains scroll access to the same content rather than shrinking body text.
+
 ## SEC Quarterly Cash-Generation Pilot
 
 The read-only NVIDIA Q1 FY2027 pilot proves that one exact SEC accession can supply compatible Revenue, operating income, cash from operations, and explicitly signed capital expenditures for adapter review. Run `make sec-quarterly-cash-preview AS_OF=<timezone-aware-cutoff>` only when `SEC_USER_AGENT` is configured. The command fetches three exact SEC endpoints in memory and writes no cache or generated artifact.

@@ -1259,16 +1259,20 @@ def evaluate_personal_route_hierarchy(
     primary_action_focusable_count: int,
     legacy_pre_answer_action_count: int,
 ) -> BrowserEvaluation:
-    """Require one answer-first hierarchy for a modernized personal route."""
+    """Require each personal route's observed answer and action hierarchy."""
 
     if slug not in {"research-desk", "discover", "company-workbench", "monitor"}:
         return BrowserEvaluation(False, f"unsupported personal route {slug!r}")
+    answer_and_action = (
+        ("primary-action", "primary-answer")
+        if slug == "discover"
+        else ("primary-answer", "primary-action")
+    )
     required = (
         "workflow-nav",
         "context",
         "page-title",
-        "primary-answer",
-        "primary-action",
+        *answer_and_action,
         "stop-rule",
         "advanced-detail",
     )
@@ -1467,6 +1471,51 @@ def evaluate_initial_viewport_hierarchy(
         starts_visible and complete,
         (
             f"viewport_height={viewport_height:.0f}; require_complete={require_complete}; "
+            f"tops={tops!r}; bottoms={bottoms!r}"
+        ),
+    )
+
+
+def evaluate_company_workbench_initial_viewport_hierarchy(
+    *,
+    region_boxes: dict[str, dict[str, object]],
+    viewport_height: float,
+) -> BrowserEvaluation:
+    """Keep Workbench's action and full stop in view around a readable brief."""
+
+    required = ("primary-answer", "primary-action", "stop-rule")
+    missing = tuple(name for name in required if name not in region_boxes)
+    if missing:
+        return BrowserEvaluation(False, f"missing Workbench regions={missing!r}")
+    coordinates = (
+        viewport_height,
+        *(region_boxes[name].get(edge) for name in required for edge in ("top", "bottom")),
+    )
+    if not all(
+        isinstance(value, (int, float)) and math.isfinite(float(value))
+        for value in coordinates
+    ):
+        return BrowserEvaluation(False, f"invalid Workbench coordinates={coordinates!r}")
+    tops = {name: float(region_boxes[name]["top"]) for name in required}
+    bottoms = {name: float(region_boxes[name]["bottom"]) for name in required}
+    starts_visible = all(-1 <= top <= viewport_height + 1 for top in tops.values())
+    boxes_are_valid = all(bottoms[name] >= tops[name] for name in required)
+    action_and_stop_complete = all(
+        bottoms[name] <= viewport_height + 1
+        for name in ("primary-action", "stop-rule")
+    )
+    passed = (
+        viewport_height > 0
+        and starts_visible
+        and boxes_are_valid
+        and action_and_stop_complete
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            f"Workbench viewport_height={viewport_height:.0f}; "
+            f"starts_visible={starts_visible}; boxes_valid={boxes_are_valid}; "
+            f"action_and_stop_complete={action_and_stop_complete}; "
             f"tops={tops!r}; bottoms={bottoms!r}"
         ),
     )
@@ -2894,6 +2943,14 @@ def _evaluate_observation(
                         primary_answer_box=dict(boxes.get("primary-answer") or {}),
                         stop_rule_box=dict(discover.get("stop_rule_box") or {}),
                         first_result_link=dict(discover.get("first_result_link") or {}),
+                        viewport_height=observed_height,
+                    ),
+                )
+            elif route.slug == "company-workbench":
+                add(
+                    "initial_viewport_hierarchy",
+                    evaluate_company_workbench_initial_viewport_hierarchy(
+                        region_boxes=boxes,
                         viewport_height=observed_height,
                     ),
                 )

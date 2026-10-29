@@ -824,12 +824,16 @@ def test_focus_sequence_evaluator_requires_natural_dom_and_physical_tab_order():
 def test_personal_route_hierarchy_evaluator_requires_one_ordered_answer_contract(slug):
     from src.workspace_visual_browser_gate import evaluate_personal_route_hierarchy
 
+    answer_action = (
+        ("primary-action", "primary-answer")
+        if slug == "discover"
+        else ("primary-answer", "primary-action")
+    )
     ordered = (
         "workflow-nav",
         "context",
         "page-title",
-        "primary-answer",
-        "primary-action",
+        *answer_action,
         "stop-rule",
         "supporting-evidence",
         "advanced-detail",
@@ -914,8 +918,7 @@ def test_personal_route_hierarchy_evaluator_requires_one_ordered_answer_contract
             "workflow-nav",
             "context",
             "page-title",
-            "primary-action",
-            "primary-answer",
+            *reversed(answer_action),
             "stop-rule",
             "supporting-evidence",
             "advanced-detail",
@@ -1224,6 +1227,37 @@ def test_initial_viewport_hierarchy_rejects_regions_above_or_below_the_viewport(
     ).passed
 
 
+def test_workbench_first_fold_requires_answer_start_and_complete_action_and_stop():
+    from src.workspace_visual_browser_gate import (
+        evaluate_company_workbench_initial_viewport_hierarchy,
+        evaluate_initial_viewport_hierarchy,
+    )
+
+    measured = {
+        "primary-answer": {"top": 250, "bottom": 780.7},
+        "primary-action": {"top": 568, "bottom": 612.2},
+        "stop-rule": {"top": 575, "bottom": 619.1},
+    }
+    assert evaluate_company_workbench_initial_viewport_hierarchy(
+        region_boxes=measured, viewport_height=720
+    ).passed
+    assert not evaluate_initial_viewport_hierarchy(
+        region_boxes=measured, viewport_height=720, require_complete=True
+    ).passed
+    for region in ("primary-action", "stop-rule"):
+        outside = {
+            **measured,
+            region: {**measured[region], "bottom": 722},
+        }
+        assert not evaluate_company_workbench_initial_viewport_hierarchy(
+            region_boxes=outside, viewport_height=720
+        ).passed
+    assert not evaluate_company_workbench_initial_viewport_hierarchy(
+        region_boxes={**measured, "primary-answer": {"top": 722, "bottom": 900}},
+        viewport_height=720,
+    ).passed
+
+
 def _valid_discover_evidence_access_layout() -> dict[str, object]:
     result = {
         "label": "Open AACI Company Brief",
@@ -1432,16 +1466,21 @@ def test_discover_initial_viewport_requires_search_answer_stop_and_result_starts
 def _evaluate_personal_observation_checks(
     slug: str,
     contract: dict[str, object] | None = None,
+    regions: tuple[dict[str, object], ...] | None = None,
 ):
     from src import workspace_visual_browser_gate as gate
 
     route = gate.parse_routes(slug)[0]
+    answer_action = (
+        ("primary-action", "primary-answer")
+        if slug == "discover"
+        else ("primary-answer", "primary-action")
+    )
     order = (
         "workflow-nav",
         "context",
         "page-title",
-        "primary-answer",
-        "primary-action",
+        *answer_action,
         "stop-rule",
         "supporting-evidence",
         "advanced-detail",
@@ -1473,7 +1512,7 @@ def _evaluate_personal_observation_checks(
         "research_workflow_nav_scroll_top": 0,
         "regions": (
             {"name": "primary-answer", "left": 280, "right": 1220, "top": 230, "bottom": 330 if slug == "discover" else 490},
-            {"name": "primary-action", "left": 280, "right": 1220, "top": 620, "bottom": 664},
+            {"name": "primary-action", "left": 280, "right": 1220, "top": 160 if slug == "discover" else 620, "bottom": 204 if slug == "discover" else 664},
             {"name": "stop-rule", "left": 280, "right": 1220, "top": 400 if slug == "discover" else 675, "bottom": 450 if slug == "discover" else 776},
         ),
         "region_counts": counts,
@@ -1505,6 +1544,8 @@ def _evaluate_personal_observation_checks(
         "traceback_visible": False,
         "spinner_count": 0,
     }
+    if regions is not None:
+        observation["regions"] = regions
     if contract is not None:
         observation["discover_evidence_access"] = {
             **contract,
@@ -1578,7 +1619,7 @@ def test_discover_replaces_named_fold_and_focus_checks_without_omitting_them():
     assert by_name["single_navigation_authority"]["passed"] is True
 
 
-@pytest.mark.parametrize("slug", ("research-desk", "company-workbench", "monitor"))
+@pytest.mark.parametrize("slug", ("research-desk", "monitor"))
 def test_other_personal_routes_retain_the_generic_named_fold_and_focus_checks(slug):
     checks = _evaluate_personal_observation_checks(slug)
     by_name = {str(check["name"]): check for check in checks}
@@ -1588,6 +1629,20 @@ def test_other_personal_routes_retain_the_generic_named_fold_and_focus_checks(sl
     assert by_name["natural_focus_sequence_normal"]["passed"] is True
     assert by_name["natural_focus_sequence_forced-colors"]["passed"] is True
     assert "evidence-path" not in by_name["natural_focus_sequence_normal"]["detail"]
+
+
+def test_workbench_route_accepts_readable_brief_continuing_below_first_fold():
+    checks = _evaluate_personal_observation_checks(
+        "company-workbench",
+        regions=(
+            {"name": "primary-answer", "left": 280, "right": 1220, "top": 250, "bottom": 780.7},
+            {"name": "primary-action", "left": 280, "right": 500, "top": 568, "bottom": 612.2},
+            {"name": "stop-rule", "left": 280, "right": 1220, "top": 575, "bottom": 619.1},
+        ),
+    )
+    by_name = {str(check["name"]): check for check in checks}
+    assert by_name["initial_viewport_hierarchy"]["passed"] is True
+    assert by_name["personal_route_answer_hierarchy"]["passed"] is True
 
 
 @pytest.mark.parametrize(

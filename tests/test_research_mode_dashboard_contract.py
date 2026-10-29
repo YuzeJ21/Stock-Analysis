@@ -2881,7 +2881,7 @@ def test_company_workbench_primary_actions_use_explicit_44px_browser_targets():
     styles = source[styles_start:styles_end]
 
     data_health_start = styles.index(
-        ".company-workbench-primary-answer .public-primary-action {"
+        ".company-workbench-priority-action .public-primary-action {"
     )
     data_health_end = styles.index("}", data_health_start)
     data_health_rule = styles[data_health_start:data_health_end]
