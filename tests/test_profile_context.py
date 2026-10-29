@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from src.profile_context import build_profile_context, render_profile_context_text
+from src.profile_context import build_profile_context, profile_context_payload, render_profile_context_text
 
 
 READINESS_FIELDS = (
@@ -247,6 +247,25 @@ def test_rendered_profile_context_is_compact_and_complete(tmp_path, monkeypatch)
     assert "Freshness:" in rendered
     assert "Readiness evidence:" in rendered
     assert "Saved readiness coverage: price=1/1; fundamentals=1/1; DCF=1/1; peers=0/1" in rendered
+
+
+def test_rendered_profile_context_withholds_truncated_readiness_flags(tmp_path, monkeypatch):
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "local")
+    _write_minimum_profile(tmp_path / "data/local")
+    report = tmp_path / "data/local/reports/ticker_readiness_report.csv"
+    report.write_text(
+        "ticker,price_ready,fundamentals_ready,dcf_ready,peer_ready\nNVDA\n",
+        encoding="utf-8",
+    )
+
+    context = build_profile_context(project_root=tmp_path)
+    rendered = render_profile_context_text(context)
+    payload = profile_context_payload(context)
+
+    assert "Saved readiness coverage: price=unavailable; fundamentals=unavailable; DCF=unavailable; peers=unavailable" in rendered
+    assert "price=0/1" not in rendered
+    assert payload["verified_coverage"]["price_ready"] is None
+    assert payload["coverage_count_authority"] == "verified_coverage"
 
 
 def test_source_date_after_readiness_build_date_is_stale_even_when_file_mtimes_are_current(tmp_path, monkeypatch):

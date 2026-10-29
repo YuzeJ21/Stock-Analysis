@@ -1962,7 +1962,14 @@ def test_price_refresh_operator_plan_cards_calculate_broad_capped_path_without_m
         {
             "master_universe": 3538,
             "price_ready": 240,
-        }
+        },
+        project_status_payload={
+            "coverage_populations": {
+                "working_universe": {
+                    "status": "available", "total": 3538, "has_prices": 240,
+                }
+            }
+        },
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
     source = Path("src/dashboard.py").read_text(encoding="utf-8")
@@ -1991,8 +1998,8 @@ def test_price_refresh_operator_plan_cards_calculate_broad_capped_path_without_m
     assert "make project-status" in rendered
     assert "make diff-hygiene" in rendered
     assert "repeating" not in rendered
-    assert "render_signal_cards(price_refresh_operator_plan_cards(summary), show_commands=False)" in source
-    assert "render_signal_cards(price_refresh_operator_plan_cards(readiness_summary), show_commands=False)" in source
+    assert "render_signal_cards(price_refresh_operator_plan_cards(summary, project_status_payload=project_status_payload), show_commands=False)" in source
+    assert "render_signal_cards(price_refresh_operator_plan_cards(readiness_summary, project_status_payload=project_status_payload), show_commands=False)" in source
     assert "broker" not in rendered
     assert "order" not in rendered
     assert "trading" not in rendered
@@ -7689,6 +7696,12 @@ def test_project_status_helpers_turn_payload_into_cards_and_commands():
             "critical_actions": 5,
             "onboarding_actions": 18,
         },
+        "coverage_populations": {
+            "saved_readiness": {
+                "status": "available", "total": 20, "price_ready": 9,
+                "dcf_ready": 3, "peer_ready": 2,
+            }
+        },
         "top_onboarding_actions": [
             {
                 "priority": 1,
@@ -7726,12 +7739,18 @@ def test_project_status_cockpit_is_readable_and_research_safe():
             "tickers_peer_ready": 0,
             "critical_actions": 9,
             "data_gaps": 25,
-        }
+        },
+        "coverage_populations": {
+            "saved_readiness": {
+                "status": "available", "total": 12, "price_ready": 3,
+                "dcf_ready": 0, "peer_ready": 0,
+            }
+        },
     }
 
     html = dashboard.project_status_cockpit_html(payload, 44, "Needs Data")
 
-    assert "Research Readiness" in html
+    assert "Workflow Health" in html
     assert "3/12" in html
     assert "0/12" in html
     assert "missing inputs are labeled instead of guessed" in html
@@ -7997,7 +8016,13 @@ def test_overview_landing_cards_surface_workflow_and_gap_context():
             "tickers_dcf_ready": 0,
             "tickers_peer_ready": 0,
             "data_gaps": 25,
-        }
+        },
+        "coverage_populations": {
+            "saved_readiness": {
+                "status": "available", "total": 12, "price_ready": 3,
+                "dcf_ready": 0, "peer_ready": 0,
+            }
+        },
     }
     cards = dashboard.overview_landing_cards(payload, {"critical": 4, "high": 7}, "2026-05-12", 12, 4)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -8017,7 +8042,7 @@ def test_overview_landing_cards_surface_workflow_and_gap_context():
     assert "sell" not in rendered
 
 
-def test_overview_landing_cards_fall_back_to_readiness_summary_without_project_status():
+def test_overview_landing_cards_do_not_infer_coverage_from_unbound_readiness_summary():
     readiness = {
         "master_universe": 3538,
         "price_ready": 265,
@@ -8029,9 +8054,10 @@ def test_overview_landing_cards_fall_back_to_readiness_summary_without_project_s
     cards = dashboard.overview_landing_cards(None, {"critical": 4, "high": 7}, "2026-06-05", 3538, 0, readiness)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "265/3538" in rendered
-    assert "23 dcf-ready" in rendered
-    assert "9 tickers also have peer-relative context" in rendered
+    assert cards[1]["title"] == "Not available"
+    assert cards[2]["title"] == "DCF readiness unavailable"
+    assert "Peer readiness is unavailable" in cards[2]["body"]
+    assert "265/3538" not in rendered
     assert "3273 data gaps remain visible" in rendered
     assert "0/0" not in rendered
 
@@ -8152,7 +8178,7 @@ def test_public_home_advanced_learn_more_surfaces_next_pilot_stages():
     assert advanced_index < stage_cards_index < stage_header_index < route_chooser_index
 
 
-def test_overview_guardrail_card_falls_back_to_readiness_summary_without_project_status():
+def test_overview_guardrail_card_does_not_infer_coverage_from_unbound_readiness_summary():
     readiness = {
         "master_universe": 3538,
         "price_ready": 265,
@@ -8164,9 +8190,9 @@ def test_overview_guardrail_card_falls_back_to_readiness_summary_without_project
     card = dashboard.overview_interpretation_guardrail_card(None, {"critical": 4}, {}, readiness)
     rendered = " ".join(str(value) for value in card.values()).lower()
 
-    assert "265/3538 tickers have prices" in rendered
-    assert "23 are dcf-ready" in rendered
-    assert "9 have peer-relative context" in rendered
+    assert "saved price readiness is not available" in rendered
+    assert "dcf readiness is unavailable" in rendered
+    assert "peer readiness is unavailable" in rendered
     assert "only 0/0" not in rendered
 
 
@@ -10687,7 +10713,12 @@ def test_overview_benchmark_pressure_cards_surface_price_gap_and_spy_context():
         ]
     )
     price_status = pd.DataFrame({"status": ["parse_error", "fetched", "source_unavailable"]})
-    payload = {"summary": {"tickers_total": 12, "tickers_with_prices": 3}}
+    payload = {
+        "summary": {"tickers_total": 12, "tickers_with_prices": 3},
+        "coverage_populations": {
+            "working_universe": {"status": "available", "total": 12, "has_prices": 3},
+        },
+    }
 
     cards = dashboard.overview_benchmark_pressure_cards(market_direction, price_status, payload)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -10713,7 +10744,12 @@ def test_overview_benchmark_pressure_cards_keep_price_status_visible_when_prices
         ]
     )
     price_status = pd.DataFrame({"status": ["fetched", "fetched"]})
-    payload = {"summary": {"tickers_total": 12, "tickers_with_prices": 12}}
+    payload = {
+        "summary": {"tickers_total": 12, "tickers_with_prices": 12},
+        "coverage_populations": {
+            "working_universe": {"status": "available", "total": 12, "has_prices": 12},
+        },
+    }
 
     cards = dashboard.overview_benchmark_pressure_cards(market_direction, price_status, payload)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
@@ -10730,10 +10766,9 @@ def test_overview_benchmark_pressure_cards_handle_missing_inputs_gracefully():
     cards = dashboard.overview_benchmark_pressure_cards(None, None, None)
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "local prices present" in rendered or "ticker coverage is not ready yet" in rendered
-    assert cards[0]["command"] == "make runbook-prices-broader"
+    assert "price coverage unavailable" in rendered
+    assert "command" not in cards[0]
     assert cards[1]["command"] == "make pipeline"
-    assert "make runbook-prices-broader" in rendered
     assert "make pipeline" in rendered
     assert "buy" not in rendered
 
@@ -11668,7 +11703,7 @@ def test_overview_interpretation_guardrail_card_flags_partial_workflow():
     )
     rendered = " ".join(str(value) for value in card.values()).lower()
 
-    assert "review readiness" in card["title"].lower()
+    assert "workflow health" in card["title"].lower()
     assert card["command"] == "make status-check TOP_N=5"
     assert "the review path is usable, but some outputs should still be treated as partial" in rendered
     assert "19 visible data gaps remain" in rendered
@@ -11684,7 +11719,13 @@ def test_overview_interpretation_guardrail_card_flags_needs_data_workflow():
             "tickers_dcf_ready": 0,
             "tickers_peer_ready": 0,
             "data_gaps": 19,
-        }
+        },
+        "coverage_populations": {
+            "saved_readiness": {
+                "status": "available", "total": 12, "price_ready": 3,
+                "dcf_ready": 0, "peer_ready": 0,
+            }
+        },
     }
 
     card = dashboard.overview_interpretation_guardrail_card(
@@ -11694,7 +11735,7 @@ def test_overview_interpretation_guardrail_card_flags_needs_data_workflow():
     )
     rendered = " ".join(str(value) for value in card.values()).lower()
 
-    assert "needs data review readiness" in rendered
+    assert "workflow health: needs data" in rendered
     assert card["command"] == "make onboarding"
     assert "coverage is still the main blocker" in rendered
     assert "3/12 tickers have usable prices" in rendered
@@ -11710,7 +11751,13 @@ def test_overview_interpretation_guardrail_card_supports_ready_workflow():
             "tickers_dcf_ready": 8,
             "tickers_peer_ready": 7,
             "data_gaps": 0,
-        }
+        },
+        "coverage_populations": {
+            "saved_readiness": {
+                "status": "available", "total": 10, "price_ready": 10,
+                "dcf_ready": 8, "peer_ready": 7,
+            }
+        },
     }
 
     card = dashboard.overview_interpretation_guardrail_card(
@@ -11720,7 +11767,7 @@ def test_overview_interpretation_guardrail_card_supports_ready_workflow():
     )
     rendered = " ".join(str(value) for value in card.values()).lower()
 
-    assert "ready review readiness" in rendered
+    assert "workflow health: ready" in rendered
     assert card["command"] == "make dashboard-smoke"
     assert "10/10 tickers have prices" in rendered
     assert "buy" not in rendered
@@ -29386,7 +29433,7 @@ def test_data_health_selected_lane_answer_cards_make_one_clear_lane_answer():
     assert "broker" not in rendered
 
 
-def test_data_health_price_lane_uses_saved_project_status_counts(tmp_path: Path):
+def test_data_health_price_lane_does_not_trust_legacy_status_without_saved_report(tmp_path: Path):
     outputs_dir = tmp_path / "outputs"
     outputs_dir.mkdir()
     (outputs_dir / "project_status.json").write_text(
@@ -29420,8 +29467,9 @@ def test_data_health_price_lane_uses_saved_project_status_counts(tmp_path: Path)
     )
     rendered = " ".join(str(value) for card in cards for value in card.values()).lower()
 
-    assert "3,538 tickers have price rows" in rendered
+    assert "price-row count is unavailable" in rendered
     assert "0 tickers have price rows" not in rendered
+    assert "3,538 tickers have price rows" not in rendered
     assert "make " not in rendered
     assert "not a recommendation" in rendered
 
@@ -30279,7 +30327,7 @@ def test_data_health_price_drawer_hides_summary_commands():
     )
     batch_ladder_command_visibility_index = source.index("show_commands=False", batch_ladder_index)
     price_plan_index = source.index(
-        "price_refresh_operator_plan_cards(readiness_summary)",
+        "price_refresh_operator_plan_cards(readiness_summary, project_status_payload=project_status_payload)",
         batch_ladder_command_visibility_index,
     )
     price_plan_command_visibility_index = source.index("show_commands=False", price_plan_index)

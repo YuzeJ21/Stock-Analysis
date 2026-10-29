@@ -386,7 +386,12 @@ from src.peer_mapping_source_review import (
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
 from src.review_metrics import build_metric_readiness_summary, configured_risk_free_rate
 from src.risk_context_workflow import data_health_risk_context_cards, split_risk_context_by_price_ready
-from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
+from src.project_status import (
+    PROJECT_STATUS_NEXT_STEPS_CSV,
+    _apply_population_stage_evidence,
+    _saved_readiness_population,
+    build_project_status_payload,
+)
 from src.profile_context import ProfileContext, build_profile_context
 from src.observation_recency import ObservationRecency, ObservationRecencySet, load_observation_recency
 from src.company_workbench_cash_generation_preview import (
@@ -12290,14 +12295,64 @@ def _cached_session_source_preflight_payload(root: Path | None = None) -> dict[s
 def load_saved_project_status_payload(root: Path | None = None) -> dict[str, Any] | None:
     """Load the latest saved project status without refreshing generated artifacts."""
 
-    path = (root or BASE_DIR) / "outputs" / "project_status.json"
+    project_root = Path(root or BASE_DIR).resolve()
+    context = build_profile_context(project_root=project_root)
+    path = context.outputs_dir / "project_status.json"
     if not path.exists():
         return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    return payload if isinstance(payload, dict) else None
+    if not isinstance(payload, dict):
+        return None
+    populations = payload.get("coverage_populations")
+    populations = dict(populations) if isinstance(populations, dict) else {}
+
+    def identity_state(record: object) -> str:
+        if not isinstance(record, dict):
+            return "missing"
+        profile_key = str(record.get("profile_key") or "").strip()
+        data_dir = str(record.get("data_dir") or "").strip()
+        if not profile_key or not data_dir:
+            return "missing"
+        data_path = Path(data_dir).expanduser()
+        if not data_path.is_absolute():
+            data_path = project_root / data_path
+        if profile_key != context.profile_key or data_path.resolve() != context.data_dir:
+            return "mismatch"
+        return "match"
+
+    identities = [identity_state(payload)] + [
+        identity_state(populations.get(name))
+        for name in ("saved_readiness", "working_universe")
+    ]
+    if "mismatch" in identities:
+        return None
+    if not all(state == "match" for state in identities):
+        populations = {}
+    saved = _saved_readiness_population(project_root, context.data_dir)
+    saved["profile_key"] = context.profile_key
+    saved["data_dir"] = str(context.data_dir)
+    saved["loaded_from_current_profile"] = True
+    populations["saved_readiness"] = saved
+    populations.setdefault(
+        "working_universe",
+        {
+            "status": "unavailable", "total": None, "has_prices": None, "momentum_usable": None,
+            "profile_key": context.profile_key, "data_dir": str(context.data_dir),
+        },
+    )
+    payload["coverage_populations"] = populations
+    stage_rows = payload.get("remaining_public_stage_rows")
+    if isinstance(stage_rows, list):
+        payload["remaining_public_stage_rows"] = [
+            _apply_population_stage_evidence([dict(row)], populations)[0]
+            if isinstance(row, dict)
+            else row
+            for row in stage_rows
+        ]
+    return payload
 
 
 def _source_activation_free_tier_limit_summary(console: dict[str, object]) -> str:
@@ -25063,6 +25118,18 @@ def data_health_selected_lane_answer_cards(
         if saved_count is not None:
             return saved_count
         return _summary_optional_count(project_summary, *keys)
+
+    saved_population_state, saved_population = _project_status_population(
+        project_status_payload, "saved_readiness"
+    )
+
+    def resolved_readiness_count(population_key: str, *legacy_keys: str) -> int | None:
+        if saved_population_state == "available":
+            return _summary_optional_count(saved_population, population_key)
+        if saved_population_state == "unavailable":
+            return None
+        return resolved_count(*legacy_keys)
+
     recommended_rows = (
         project_status_payload.get("recommended_next_command_rows", [])
         if isinstance(project_status_payload, dict)
@@ -25135,18 +25202,20 @@ def data_health_selected_lane_answer_cards(
         or "project-status" in source_gate_command
     )
 
-    price_ready = resolved_count("price_ready", "tickers_with_prices")
-    fundamentals_ready = resolved_count(
+    price_ready = resolved_readiness_count("price_ready", "price_ready", "tickers_with_prices")
+    fundamentals_ready = resolved_readiness_count(
+        "fundamentals_ready",
         "fundamentals_ready",
         "input_ready",
         "tickers_fundamentals_ready",
     )
-    dcf_ready = resolved_count(
+    dcf_ready = resolved_readiness_count(
+        "dcf_ready",
         "dcf_ready",
         "operating_company_dcf_ready",
         "tickers_dcf_ready",
     )
-    peer_ready = resolved_count("peer_ready", "tickers_peer_ready")
+    peer_ready = resolved_readiness_count("peer_ready", "peer_ready", "tickers_peer_ready")
     data_gaps = resolved_count(
         "data_gaps",
         "locked_input_rows",
@@ -25929,22 +25998,69 @@ def workflow_health_score(
     return score, "Needs Data"
 
 
+def _project_status_population(
+    payload: Mapping[str, object] | None,
+    name: str,
+) -> tuple[str, Mapping[str, object] | None]:
+    populations = payload.get("coverage_populations") if isinstance(payload, Mapping) else None
+    if not isinstance(populations, Mapping) or name not in populations:
+        return "legacy", None
+    population = populations[name]
+    if not isinstance(population, Mapping) or population.get("status") != "available":
+        return "unavailable", None
+    return "available", population
+
+
+def _project_saved_readiness_counts(
+    payload: Mapping[str, object] | None,
+) -> tuple[dict[str, int | None], str]:
+    state, population = _project_status_population(payload, "saved_readiness")
+    if state == "available":
+        return {
+            key: _summary_optional_count(population, key)
+            for key in ("total", "price_ready", "dcf_ready", "peer_ready")
+        }, state
+    return {key: None for key in ("total", "price_ready", "dcf_ready", "peer_ready")}, state
+
+
+def _project_working_price_counts(
+    payload: Mapping[str, object] | None,
+) -> tuple[int | None, int | None, str]:
+    state, population = _project_status_population(payload, "working_universe")
+    if state == "available":
+        return _summary_optional_count(population, "total"), _summary_optional_count(population, "has_prices"), state
+    return None, None, state
+
+
+def _project_coverage_fraction(ready: int | None, total: int | None) -> str:
+    if ready is None or total is None or total <= 0:
+        return "Not available"
+    return f"{ready}/{total}"
+
+
 def project_status_metric_cards(payload: dict[str, Any] | None) -> list[tuple[str, object, str]]:
     if not payload:
         return []
     summary = payload.get("summary", {})
     total_sources = int(summary.get("data_sources_total") or 0)
     available_sources = int(summary.get("data_sources_available") or 0)
-    total_tickers = int(summary.get("tickers_total") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or 0)
-    dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
-    peer_ready = int(summary.get("tickers_peer_ready") or 0)
+    saved, saved_state = _project_saved_readiness_counts(payload)
+    _, saved_population = _project_status_population(payload, "saved_readiness")
+    coverage_note = (
+        "Selected-profile saved readiness report read at page load; freshness checked separately"
+        if saved_state == "available" and saved_population and saved_population.get("loaded_from_current_profile")
+        else "Saved readiness report"
+        if saved_state == "available"
+        else "Legacy summary; population unverified"
+        if saved_state == "legacy"
+        else "Saved readiness unavailable"
+    )
     return [
         ("Data Sources", f"{available_sources}/{total_sources}", "Available local/source coverage"),
         ("Locked Inputs", int(summary.get("data_gaps") or 0), "Rows waiting on trusted local data"),
-        ("Price Ready", f"{price_ready}/{total_tickers}", "Tickers with usable local prices"),
-        ("DCF Ready", f"{dcf_ready}/{total_tickers}", "Tickers with enough local valuation fields"),
-        ("Peer Ready", f"{peer_ready}/{total_tickers}", "Tickers with local peer context"),
+        ("Price Ready", _project_coverage_fraction(saved["price_ready"], saved["total"]), f"{coverage_note}; tickers with usable local prices"),
+        ("DCF Ready", _project_coverage_fraction(saved["dcf_ready"], saved["total"]), f"{coverage_note}; tickers with enough local valuation fields"),
+        ("Peer Ready", _project_coverage_fraction(saved["peer_ready"], saved["total"]), f"{coverage_note}; tickers with local peer context"),
         (
             "Urgent Unlock Steps",
             int(summary.get("critical_actions") or 0),
@@ -26200,10 +26316,11 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
             tone="warning",
         )
     summary = payload.get("summary", {})
-    total_tickers = int(summary.get("tickers_total") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or 0)
-    dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
-    peer_ready = int(summary.get("tickers_peer_ready") or 0)
+    saved, saved_state = _project_saved_readiness_counts(payload)
+    total_tickers = saved["total"]
+    price_ready = saved["price_ready"]
+    dcf_ready = saved["dcf_ready"]
+    peer_ready = saved["peer_ready"]
     critical_actions = int(summary.get("critical_actions") or 0)
     data_gaps = int(summary.get("data_gaps") or 0)
     tone = "danger" if critical_actions else "warning" if data_gaps else "neutral"
@@ -26211,10 +26328,18 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
         f"{critical_actions} critical actions and {data_gaps} data gaps are currently visible. "
         "The review stays usable because missing inputs are labeled instead of guessed."
     )
+    _, saved_population = _project_status_population(payload, "saved_readiness")
+    if saved_state == "available" and saved_population and saved_population.get("loaded_from_current_profile"):
+        summary_copy += " Saved coverage was read from the selected-profile report at page load; freshness checked separately."
+    elif saved_state == "legacy":
+        summary_copy += " Coverage uses a legacy summary; its population is unverified."
+    elif saved_state == "unavailable":
+        summary_copy += " Saved readiness coverage is unavailable."
+    coverage_note = "" if saved_state == "available" else " (population unverified)" if saved_state == "legacy" else " (saved readiness unavailable)"
     lanes = [
-        ("Price Coverage", f"{price_ready}/{total_tickers}", "Momentum and track-record readiness", "danger" if price_ready < total_tickers else "neutral"),
-        ("Valuation Coverage", f"{dcf_ready}/{total_tickers}", "DCF-ready local fundamentals", "warning" if dcf_ready < total_tickers else "neutral"),
-        ("Peer Context", f"{peer_ready}/{total_tickers}", "Manual peer mappings plus peer data", "warning" if peer_ready < total_tickers else "neutral"),
+        ("Price Coverage", _project_coverage_fraction(price_ready, total_tickers), f"Saved price readiness{coverage_note}", "danger" if price_ready is not None and total_tickers is not None and price_ready < total_tickers else "neutral"),
+        ("Valuation Coverage", _project_coverage_fraction(dcf_ready, total_tickers), f"Saved DCF readiness{coverage_note}", "warning" if dcf_ready is not None and total_tickers is not None and dcf_ready < total_tickers else "neutral"),
+        ("Peer Context", _project_coverage_fraction(peer_ready, total_tickers), f"Saved peer readiness{coverage_note}", "warning" if peer_ready is not None and total_tickers is not None and peer_ready < total_tickers else "neutral"),
     ]
     lane_html = "".join(
         (
@@ -26229,8 +26354,8 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
     return (
         "<div class='cockpit-panel'>"
         f"<div class='cockpit-summary {html.escape(tone)}'>"
-        "<div class='cockpit-kicker'>Research Readiness</div>"
-        f"<div class='cockpit-title'>{html.escape(health_label)} review readiness, {health_score}/100</div>"
+        "<div class='cockpit-kicker'>Workflow Health</div>"
+        f"<div class='cockpit-title'>Workflow health: {html.escape(health_label)}, {health_score}/100</div>"
         f"<div class='cockpit-copy'>{html.escape(summary_copy)}</div>"
         "</div>"
         f"<div class='cockpit-lanes'>{lane_html}</div>"
@@ -26248,10 +26373,11 @@ def overview_landing_cards(
 ) -> list[dict[str, object]]:
     summary = {} if not project_status_payload else project_status_payload.get("summary", {})
     readiness = readiness_summary or {}
-    total_tickers = int(summary.get("tickers_total") or readiness.get("master_universe") or readiness.get("universe_count") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or readiness.get("price_ready") or 0)
-    dcf_ready = int(summary.get("tickers_dcf_ready") or readiness.get("dcf_ready") or 0)
-    peer_ready = int(summary.get("tickers_peer_ready") or readiness.get("peer_ready") or 0)
+    saved, saved_state = _project_saved_readiness_counts(project_status_payload)
+    price_fraction = _project_coverage_fraction(saved["price_ready"], saved["total"])
+    dcf_ready = saved["dcf_ready"]
+    peer_ready = saved["peer_ready"]
+    coverage_note = " Legacy summary; population unverified." if saved_state == "legacy" and project_status_payload else ""
     gap_count = int(summary.get("data_gaps") or readiness.get("blocked") or readiness.get("blocked_by_data") or 0)
     return [
         {
@@ -26263,15 +26389,19 @@ def overview_landing_cards(
         },
         {
             "kicker": "PRICE COVERAGE",
-            "title": f"{price_ready}/{total_tickers}",
-            "body": "Tickers with enough local price context for momentum and track-record workflows.",
+            "title": price_fraction,
+            "body": f"Saved price-ready tickers. Momentum requires its own history check.{coverage_note}",
             "badges": ["highest leverage"],
             "command": "make runbook-prices-broader",
         },
         {
             "kicker": "VALUATION PATH",
-            "title": f"{dcf_ready} DCF-ready",
-            "body": f"{peer_ready} tickers also have peer-relative context. {gap_count} data gaps remain visible, not guessed.",
+            "title": f"{dcf_ready} DCF-ready" if dcf_ready is not None else "DCF readiness unavailable",
+            "body": (
+                f"{peer_ready} tickers also have peer-relative context. "
+                if peer_ready is not None
+                else "Peer readiness is unavailable. "
+            ) + f"{gap_count} data gaps remain visible, not guessed.{coverage_note}",
             "badges": ["research only"],
             "command": "make runbook-fundamentals-broader",
         },
@@ -26293,17 +26423,22 @@ def overview_interpretation_guardrail_card(
 ) -> dict[str, object]:
     summary = {} if not project_status_payload else project_status_payload.get("summary", {})
     readiness = readiness_summary or {}
-    total_tickers = int(summary.get("tickers_total") or readiness.get("master_universe") or readiness.get("universe_count") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or readiness.get("price_ready") or 0)
-    dcf_ready = int(summary.get("tickers_dcf_ready") or readiness.get("dcf_ready") or 0)
-    peer_ready = int(summary.get("tickers_peer_ready") or readiness.get("peer_ready") or 0)
+    saved, saved_state = _project_saved_readiness_counts(project_status_payload)
+    price_fraction = _project_coverage_fraction(saved["price_ready"], saved["total"])
+    dcf_ready = saved["dcf_ready"]
+    peer_ready = saved["peer_ready"]
+    dcf_copy = f"{dcf_ready} are DCF-ready" if dcf_ready is not None else "DCF readiness is unavailable"
+    peer_copy = f"{peer_ready} have peer-relative context" if peer_ready is not None else "peer readiness is unavailable"
+    coverage_note = " Legacy summary; population unverified." if saved_state == "legacy" and project_status_payload else ""
     data_gaps = int(summary.get("data_gaps") or readiness.get("blocked") or readiness.get("blocked_by_data") or 0)
     health_score, health_label = workflow_health_score(queue_summary, health_summary)
 
     if health_label == "Ready":
         body = (
-            f"Local coverage is strong enough to read momentum, watchlist, and valuation context with fewer blockers. "
-            f"{price_ready}/{total_tickers} tickers have prices, {dcf_ready} are DCF-ready, and {peer_ready} have peer-relative context."
+            f"The local review path has fewer visible blockers. Check each analysis lane's own readiness. "
+            f"{price_fraction} tickers have prices, {dcf_copy}, and {peer_copy}.{coverage_note}"
+            if price_fraction != "Not available"
+            else f"Saved price readiness is Not available; {dcf_copy}, and {peer_copy}.{coverage_note}"
         )
         badges = ["ready", "read with context"]
         command = "make dashboard-smoke"
@@ -26317,15 +26452,19 @@ def overview_interpretation_guardrail_card(
     else:
         body = (
             f"Coverage is still the main blocker. "
-            f"Only {price_ready}/{total_tickers} tickers have usable prices, while DCF-ready and peer-ready coverage remain sparse. "
-            "Use onboarding and Data Health before leaning on downstream rankings."
+            + (
+                f"Only {price_fraction} tickers have usable prices, while DCF-ready and peer-ready coverage remain sparse. "
+                if price_fraction != "Not available"
+                else "Saved price readiness is Not available. "
+            )
+            + f"Use onboarding and Data Health before leaning on downstream rankings.{coverage_note}"
         )
         badges = ["needs data", "coverage first"]
         command = "make onboarding"
 
     return {
         "kicker": "INTERPRETATION GUARDRAIL",
-        "title": f"{health_label} review readiness · {health_score}/100",
+        "title": f"Workflow health: {health_label} · {health_score}/100",
         "body": body,
         "badges": badges,
         "command": command,
@@ -27639,10 +27778,8 @@ def overview_benchmark_pressure_cards(
     price_status_frame: pd.DataFrame | None,
     project_status_payload: dict[str, Any] | None,
 ) -> list[dict[str, object]]:
-    summary = {} if not project_status_payload else project_status_payload.get("summary", {})
-    total_tickers = int(summary.get("tickers_total") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or 0)
-    missing_prices = max(total_tickers - price_ready, 0)
+    total_tickers, price_ready, working_state = _project_working_price_counts(project_status_payload)
+    missing_prices = max(total_tickers - price_ready, 0) if total_tickers is not None and price_ready is not None else None
     price_counts = summarize_price_update_status(price_status_frame)
     parse_or_source_errors = sum(
         price_counts.get(status, 0) for status in ("parse_error", "source_unavailable", "network_error", "failed", "no_rows")
@@ -27660,12 +27797,20 @@ def overview_benchmark_pressure_cards(
                 strongest_theme = format_missing(top_row.get("Theme"), "Not available")
                 relative_spy = report_display_value(top_row.get("RelativeReturnVsSPY"), "percent")
 
-    pressure_title = "Missing local prices" if missing_prices else "Local prices present"
+    pressure_title = (
+        "Price coverage unavailable"
+        if missing_prices is None
+        else "Missing local prices" if missing_prices else "Local prices present"
+    )
     pressure_body = (
-        f"{missing_prices}/{total_tickers} tickers still need verified local price history."
+        "Working-universe price coverage is unavailable in this status snapshot."
+        if missing_prices is None
+        else f"{missing_prices}/{total_tickers} tickers still need verified local price history."
         if total_tickers
         else "Ticker coverage is not ready yet."
     )
+    if working_state == "legacy" and project_status_payload and missing_prices is not None:
+        pressure_body += " Legacy summary; population unverified."
     if parse_or_source_errors:
         pressure_body += f" Latest refresh surfaced {parse_or_source_errors} price-source issue(s), so reviewed local import files may still be the safer path."
 
@@ -27675,18 +27820,20 @@ def overview_benchmark_pressure_cards(
         else "Local benchmark-relative theme context is not ready yet."
     )
 
+    pressure_card: dict[str, object] = {
+        "kicker": "BENCHMARK PRESSURE",
+        "title": pressure_title,
+        "body": pressure_body,
+        "badges": ["price moat", "local only"],
+    }
+    if missing_prices is not None:
+        pressure_card["command"] = (
+            "make runbook-prices-broader"
+            if not total_tickers or missing_prices or parse_or_source_errors
+            else "make price-status TOP_N=10"
+        )
     return [
-        {
-            "kicker": "BENCHMARK PRESSURE",
-            "title": pressure_title,
-            "body": pressure_body,
-            "badges": ["price moat", "local only"],
-            "command": (
-                "make runbook-prices-broader"
-                if (not total_tickers or missing_prices or parse_or_source_errors)
-                else "make price-status TOP_N=10"
-            ),
-        },
+        pressure_card,
         {
             "kicker": "SPY CONTEXT",
             "title": strongest_theme,
@@ -31400,10 +31547,24 @@ def render_stock_selector(
         st.dataframe(clean_display_frame(filtered.head(120)), width="stretch", hide_index=True)
 
 
-def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
-    summary = summary or {}
-    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
-    price_ready = int(summary.get("price_ready") or 0)
+def price_refresh_operator_plan_cards(
+    summary: dict[str, object] | None = None,
+    *,
+    project_status_payload: dict[str, Any] | None = None,
+) -> list[dict[str, object]]:
+    master, price_ready, working_state = _project_working_price_counts(project_status_payload)
+    if working_state != "available" or master is None or price_ready is None or master <= 0:
+        return [
+            {
+                "kicker": "CURRENT PRICE STATE",
+                "title": "Working-universe price coverage unavailable",
+                "body": (
+                    "A separate reviewed status rebuild is needed before showing a numeric price-refresh plan. "
+                    "Review the selected-profile input evidence first; this snapshot may still lack working-universe counts."
+                ),
+                "badges": ["count unavailable", "review inputs"],
+            }
+        ]
     missing = max(master - price_ready, 0) if master else 0
     missing_label = f"{missing:,} ticker(s)" if missing else "missing-price tickers"
     broad_target = min(max(missing, 100), 3500) if missing else 3500
@@ -31955,7 +32116,7 @@ def render_home_page(
                 render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)
 
                 render_section_header("Scalable Price Updates", "How to expand price coverage without repeating tiny batches by hand.")
-                render_signal_cards(price_refresh_operator_plan_cards(summary), show_commands=False)
+                render_signal_cards(price_refresh_operator_plan_cards(summary, project_status_payload=project_status_payload), show_commands=False)
 
                 render_section_header("Example Reports", "Use these small examples to see each analysis mode without running a full-market refresh.")
                 st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
@@ -34877,7 +35038,7 @@ def render_data_health(
                 show_commands=False,
             )
             render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
-            render_signal_cards(price_refresh_operator_plan_cards(readiness_summary), show_commands=False)
+            render_signal_cards(price_refresh_operator_plan_cards(readiness_summary, project_status_payload=project_status_payload), show_commands=False)
     elif selected_lane == "Fundamentals / DCF":
         fundamentals_preview_cards = data_health_trusted_pilot_cards(readiness_summary) + data_health_analysis_unlock_cards(readiness_summary)
         if pilot_preview.empty:

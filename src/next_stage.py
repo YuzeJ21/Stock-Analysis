@@ -10,6 +10,7 @@ from src.hosted_demo_readiness import build_hosted_demo_readiness
 from src.paths import resolve_project_root
 from src.profile_context import build_profile_context
 from src.project_status import build_project_status_payload
+from src.readiness_coverage import coverage_fraction as _population_fraction
 from src.source_activation_guide import build_provider_setup_checklist
 
 
@@ -75,11 +76,25 @@ def _provider_status(root: Path) -> tuple[str, str, str]:
 def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str:
     project_root = resolve_project_root(Path(root or "."))
     project_status = build_project_status_payload(project_root, top_n=top_n)
-    summary = project_status["summary"]
+    populations = project_status.get("coverage_populations") or {}
+    saved = populations.get("saved_readiness") or {}
+    working = populations.get("working_universe") or {}
+    saved_coverage = (
+        f"prices {_population_fraction(saved, 'price_ready')}; "
+        f"fundamentals {_population_fraction(saved, 'fundamentals_ready')}; "
+        f"DCF {_population_fraction(saved, 'dcf_ready')}; "
+        f"peers {_population_fraction(saved, 'peer_ready')}"
+        if saved.get("status") == "available" else "unavailable (no saved readiness rows)"
+    )
+    working_coverage = (
+        f"{working['total']} ticker rows; not saved readiness"
+        if working.get("status") == "available" and working.get("total") is not None
+        else "unavailable (no verified working-universe rows)"
+    )
     linkedin_state, linkedin_evidence, linkedin_next = _stage_state(project_status, "LinkedIn publish")
     source_state, source_evidence, source_next = _stage_state(project_status, "Source-proof queues")
     generated_state, generated_evidence, generated_next = _stage_state(project_status, "Generated artifacts")
-    coverage_state, coverage_evidence, coverage_next = _stage_state(project_status, "Coverage depth")
+    coverage_state, _, coverage_next = _stage_state(project_status, "Coverage depth")
     hosted_status = _hosted_url_status(project_root)
     missing_keys, configured_keys, smoke_command = _provider_status(project_root)
     workflow_continuation = project_status.get("workflow_continuation", {})
@@ -156,10 +171,11 @@ def render_next_stage(root: Path | str | None = None, *, top_n: int = 10) -> str
         "",
         "Current package answer:",
         f"- Public/GitHub share: {linkedin_state}; {linkedin_evidence or 'run make public-check before sharing'}",
-        f"- Coverage depth: {coverage_state}; {coverage_evidence or 'run make project-status-check before quoting counts'}",
+        f"- Coverage planning state: {coverage_state}; inspect saved readiness and proposed changes separately",
         f"- Generated artifacts: {generated_state}; {generated_evidence or 'keep generated churn excluded by default'}",
         f"- Roadmap continuation: {continuation_state}; {continuation_evidence or 'run make project-status-check'}",
-        f"- Current counts: prices {summary['tickers_with_prices']}/{summary['tickers_total']}; fundamentals/input {summary.get('tickers_fundamentals_ready', 0)}/{summary['tickers_total']}; DCF {summary['tickers_dcf_ready']}/{summary['tickers_total']}; peers {summary['tickers_peer_ready']}/{summary['tickers_total']}",
+        f"- Saved readiness coverage: {saved_coverage}",
+        f"- Working universe for planning: {working_coverage}",
         "",
         "Next executable repo-side item:",
         *executable_lines,

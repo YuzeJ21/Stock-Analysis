@@ -108,6 +108,43 @@ def test_other_profile_and_missing_or_malformed_saved_pair_fail_closed(tmp_path:
     assert "QCOM" not in study_discover_html(missing)
 
 
+def test_missing_local_inspections_explain_why_field_changes_are_withheld(tmp_path: Path):
+    _save_pair(tmp_path, _report(), _report(as_of="2026-10-27"))
+    (tmp_path / "outputs" / "local" / "cohort_field_evidence_2026-10-27.json").unlink()
+
+    study = load_bounded_field_study(tmp_path, profile_key="default", data_dir=tmp_path / "data")
+
+    assert study.status == "unavailable"
+    assert study.field_count == 0
+    for rendered in (
+        study_discover_html(study), study_company_html(study, "QCOM"), study_monitor_html(study),
+    ):
+        assert "saved local evidence inspections" in rendered
+        assert "Field changes remain withheld" in rendered
+        assert "No field difference" not in rendered
+
+
+def test_malformed_saved_inspection_is_a_verification_failure(tmp_path: Path):
+    _save_pair(tmp_path, _report(), _report(as_of="2026-10-27"))
+    (tmp_path / "outputs" / "local" / "cohort_field_evidence_2026-10-27.json").write_text("{broken")
+
+    study = load_bounded_field_study(tmp_path, profile_key="default", data_dir=tmp_path / "data")
+
+    assert study.status == "unavailable"
+    assert "could not be verified" in study.message
+    assert "inspections are not available" not in study.message
+
+
+def test_non_utf8_saved_inspection_is_a_verification_failure(tmp_path: Path):
+    _save_pair(tmp_path, _report(), _report(as_of="2026-10-27"))
+    (tmp_path / "outputs" / "local" / "cohort_field_evidence_2026-10-27.json").write_bytes(b"\xff")
+
+    study = load_bounded_field_study(tmp_path, profile_key="default", data_dir=tmp_path / "data")
+
+    assert study.status == "unavailable"
+    assert "could not be verified" in study.message
+
+
 def test_study_comparison_names_field_dimensions_without_monitor_events(tmp_path: Path):
     prior = _report()
     current = _report(as_of="2026-10-27", digest="b" * 64)
