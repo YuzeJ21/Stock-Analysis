@@ -2274,13 +2274,13 @@ def test_discover_primary_answer_separates_saved_access_from_strict_eligibility(
         8, 0, research_boundary=dashboard.QUEUE_BOUNDARY
     )
 
-    assert "class='research-discover-intro'" in rendered
+    assert "class='research-discover-scope'" in rendered
     assert "data-sr-region='primary-answer'" in rendered
     assert rendered.count("data-sr-region='stop-rule'") == 1
-    assert f"Research-only. {dashboard.QUEUE_BOUNDARY}" in rendered
-    assert "8 saved companies are available for evidence review" in rendered
-    assert "0 currently pass the strict screen" in rendered
-    assert "alphabetical" in rendered.lower()
+    assert dashboard.QUEUE_BOUNDARY in rendered
+    assert "8 saved companies" in rendered
+    assert "0 strict-screen eligible" in rendered
+    assert "Scope and limits" in rendered
     assert "not a ranking" in rendered.lower()
 
 
@@ -2575,6 +2575,71 @@ def test_discover_row_answers_three_saved_evidence_questions_without_ranking_cop
     assert "Peer evidence remains unavailable." in rendered
     assert "High review priority" not in rendered
     assert rendered.count("Open NVDA Company Brief") == 1
+
+
+def test_research_discover_row_shows_compact_saved_status_and_one_gap_before_details():
+    frame = pd.DataFrame(
+        [
+            {
+                "Ticker": "NVDA",
+                "Readiness": "partial",
+                "Sector / Theme": "SMH / AI Semiconductors",
+                "Price Ready": True,
+                "Fundamentals Ready": True,
+                "DCF Ready": True,
+                "Trusted Peer Ready": False,
+                "Why Inspectable": "Saved evidence is available for price, fundamentals, and DCF review.",
+                "Supported Now": "price, fundamentals, dcf",
+                "Blocked / Missing": "peers: source-backed mapping needed; earnings: trusted input missing",
+                "Proof Freshness": "2026-10-27T15:00:00Z",
+            }
+        ]
+    )
+
+    rendered = dashboard.stock_selector_result_table_html(
+        frame,
+        total_count=25,
+        target_mode="research",
+        target_page="company-workbench",
+    )
+    visible, disclosure = rendered.split("<details", 1)
+
+    assert "Saved readiness" in visible
+    assert "partial" in visible
+    assert "price, fundamentals, DCF" in visible
+    assert "peers: source-backed mapping needed" in visible
+    assert "earnings: trusted input missing" not in visible
+    assert "2026-10-27T15:00:00Z" not in visible
+    assert "Why inspectable" not in visible
+    assert "Why inspectable" in disclosure
+    assert "2026-10-27T15:00:00Z" in disclosure
+    assert "earnings: trusted input missing" in disclosure
+    assert "Open NVDA Company Brief" in rendered
+
+
+def test_research_discover_row_escapes_saved_context_and_does_not_invent_a_date():
+    rendered = dashboard.stock_selector_result_table_html(
+        pd.DataFrame(
+            [
+                {
+                    "Ticker": "NVDA",
+                    "Readiness": "partial",
+                    "Supported Now": "price & DCF",
+                    "Blocked / Missing": "peers: <review required>",
+                    "Proof Freshness": "Saved readiness freshness is unavailable.",
+                }
+            ]
+        ),
+        total_count=1,
+        target_mode="research",
+        target_page="company-workbench",
+    )
+    visible, _ = rendered.split("<details", 1)
+
+    assert "price &amp; DCF" in visible
+    assert "&lt;review required&gt;" in visible
+    assert "<review required>" not in rendered
+    assert "Saved evidence context" not in visible
 
 
 def test_discover_research_answer_fails_closed_for_missing_saved_fields():

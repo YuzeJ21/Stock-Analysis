@@ -911,12 +911,12 @@ def test_discover_search_first_keeps_strict_queue_in_advanced_context(monkeypatc
     primary_index = next(
         index
         for index, event in enumerate(events)
-        if event[0] == "markdown" and "8 saved companies are available" in event[1]
+        if event[0] == "markdown" and "8 saved companies" in event[1]
     )
     search_index = events.index(("text_input", "Search saved companies"))
-    assert "0 currently pass the strict screen" in events[primary_index][1]
+    assert "0 strict-screen eligible" in events[primary_index][1]
     assert search_index < primary_index
-    assert f"Research-only. {dashboard.QUEUE_BOUNDARY}" in events[primary_index][1]
+    assert dashboard.QUEUE_BOUNDARY in events[primary_index][1]
     assert sum(
         str(value).count("data-sr-region='stop-rule'")
         for event_type, value in events
@@ -1708,7 +1708,11 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
     cards: list[object] = []
 
     class Expander:
+        def __init__(self, label: str):
+            self.label = label
+
         def __enter__(self):
+            rendered.append(f"BEGIN {self.label}")
             return self
 
         def __exit__(self, *args):
@@ -1721,15 +1725,17 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
     monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard, "observation_recency_summary_html", lambda *args, **kwargs: "")
     monkeypatch.setattr(dashboard, "observation_recency_evidence_html", lambda *args, **kwargs: "")
-    monkeypatch.setattr(
-        dashboard,
-        "render_signal_cards",
-        lambda values, **kwargs: cards.extend(values),
-    )
+    original_render_signal_cards = dashboard.render_signal_cards
+
+    def record_signal_cards(values, **kwargs):
+        cards.extend(values)
+        original_render_signal_cards(values, **kwargs)
+
+    monkeypatch.setattr(dashboard, "render_signal_cards", record_signal_cards)
     monkeypatch.setattr(dashboard.st, "markdown", lambda value, **kwargs: rendered.append(value))
     monkeypatch.setattr(dashboard.st, "caption", lambda value, **kwargs: rendered.append(value))
     monkeypatch.setattr(dashboard.st, "dataframe", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+    monkeypatch.setattr(dashboard.st, "expander", lambda label, **kwargs: Expander(label))
 
     dashboard.render_research_monitor(
         {"queue": ()},
@@ -1773,6 +1779,14 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
         "scheduled_context",
         "evidence_freshness",
     }
+    queue_heading = rendered.index("## Follow-up Queue")
+    queue_cards = next(index for index, value in enumerate(rendered) if "evidence-monitor-grid" in value)
+    advanced = rendered.index("BEGIN Advanced: Monitor evidence")
+    explanation = next(
+        index for index, value in enumerate(rendered)
+        if "The named saved-readiness or market-observation condition" in value
+    )
+    assert queue_heading < queue_cards < advanced < explanation
 
 
 def test_direct_tickerless_company_workbench_fails_closed_without_report_or_default_ticker(
@@ -1909,10 +1923,10 @@ def test_direct_registered_company_workbench_without_open_preserves_query_and_re
     assert any("Check SEC annual facts to request filing evidence" in card for card in sec_cards)
 
 
-def test_registered_company_workbench_renders_one_document_overview_with_evidence_placeholder(
+def test_registered_company_workbench_renders_one_document_with_inline_evidence_placeholder(
     monkeypatch,
 ):
-    """Catches a Workbench overview rendered outside its document grid or without its evidence rail."""
+    """The first read follows one document order without a detached status rail."""
 
     calls: list[tuple[str, object, object]] = []
     contexts: list[str] = []
@@ -1981,15 +1995,13 @@ def test_registered_company_workbench_renders_one_document_overview_with_evidenc
 
     assert [call for call in calls if call[0] == "container"] == [
         ("container", "company-workbench-document", None),
-        ("container", "company-sec-annual-check", "overview"),
+        ("container", "company-sec-annual-check", "document"),
     ]
-    assert [call for call in calls if call[0] == "columns"] == [
-        ("columns", [3, 1], "document")
+    assert [call for call in calls if call[0] == "columns"] == []
+    assert [call for call in calls if call == ("empty", None, "document")] == [
+        ("empty", None, "document"),
+        ("empty", None, "document"),
     ]
-    assert [call for call in calls if call == ("empty", None, "evidence")] == [
-        ("empty", None, "evidence")
-    ]
-    assert ("empty", None, "overview") in calls
     assert ("button", "Check SEC annual facts", "sec") in calls
     assert any(
         call[0] == "placeholder-markdown"
@@ -1998,11 +2010,11 @@ def test_registered_company_workbench_renders_one_document_overview_with_evidenc
         for call in calls
     )
     assert any(
-        call[0] == "markdown" and "sr-evidence-timeline" in str(call[1]) and call[2] == "overview"
+        call[0] == "markdown" and "sr-evidence-timeline" in str(call[1]) and call[2] == "document"
         for call in calls
     )
-    assert ("expander", "Review path", "overview") in calls
-    assert ("expander", "Advanced: selected-company lane coverage", "overview") in calls
+    assert ("expander", "Review path", "document") in calls
+    assert ("expander", "Advanced: selected-company lane coverage", "document") in calls
 
 
 def test_research_workbench_report_is_internally_open_without_changing_public_open_semantics():

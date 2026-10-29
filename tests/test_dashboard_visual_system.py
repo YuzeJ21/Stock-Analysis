@@ -155,7 +155,9 @@ def test_dashboard_visual_css_uses_local_fonts_tokens_and_responsive_complete_co
     assert "url(" not in css.lower()
     assert "min-height: 44px" in css
     mobile = css[css.index("@media (max-width: 640px)") :]
-    assert "overflow-x: auto" not in mobile
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in mobile
+    assert ".company-sec-annual-preview .sec-annual-table-scroll {\n  max-width: 100%;\n  overflow-x: auto;" in css
+    assert mobile.count("overflow-x: auto") == 1
     assert "grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr))" in mobile
     assert "overflow: visible" in mobile
     assert "text-overflow: ellipsis" not in css

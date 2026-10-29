@@ -368,7 +368,7 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
         ),
         (
             "/?mode=research&page=discover",
-            "Find a Company",
+            "Search saved companies",
             "Discover",
             True,
         ),
@@ -431,7 +431,7 @@ def test_task4_discover_evidence_access_requires_search_and_one_actual_saved_res
     )
 
     passing = evaluate_discover_evidence_access(
-        primary_answer="8 saved companies are available for evidence review; 0 currently pass the strict screen.",
+        primary_answer="8 saved companies; 0 strict-screen eligible",
         search_count=1,
         quick_link_count=0,
         first_result=(
@@ -449,8 +449,7 @@ def test_task4_discover_evidence_access_requires_search_and_one_actual_saved_res
 
     baseline = {
         "primary_answer": (
-            "8 saved companies are available for evidence review; "
-            "0 currently pass the strict screen."
+            "8 saved companies; 0 strict-screen eligible"
         ),
         "search_count": 1,
         "quick_link_count": 0,
@@ -464,7 +463,7 @@ def test_task4_discover_evidence_access_requires_search_and_one_actual_saved_res
         "result_after_filters": True,
     }
     for changed in (
-        {"primary_answer": "8 saved companies are available for evidence review."},
+        {"primary_answer": "8 saved companies"},
         {"search_count": 0},
         {"quick_link_count": 1},
         {"first_result": ("Open AACI Company Brief", "?mode=research&page=monitor&ticker=AACI")},
@@ -483,8 +482,7 @@ def test_task4_discover_evidence_access_requires_search_and_one_actual_saved_res
         **{
             **baseline,
             "primary_answer": (
-                "8 saved companies are available for evidence review; "
-                "1 currently pass the strict screen."
+                "8 saved companies; 1 strict-screen eligible"
             ),
             "expected_strict_count": 0,
         }
@@ -496,8 +494,7 @@ def test_task4_discover_evidence_access_requires_search_and_one_actual_saved_res
         **{
             **baseline,
             "primary_answer": (
-                "1,234 saved companies are available for evidence review; "
-                "1,000 currently pass the strict screen."
+                "1,234 saved companies; 1,000 strict-screen eligible"
             ),
             "expected_strict_count": 1000,
         }
@@ -592,15 +589,20 @@ def test_company_workbench_primary_brief_contract_fails_closed_per_requirement()
         "answer_labels": (
             "Use now",
             "Still withheld",
-            "What changed",
             "Next research task",
+            "What changed",
         ),
         "answer_texts": (
             "Saved evidence can be reviewed.",
             "Consensus remains withheld.",
-            "No queued change.",
             "Review source gaps.",
+            "No queued change.",
         ),
+        "answer_visible": (True, True, True, False),
+        "change_detail_count": 1,
+        "change_detail_open": False,
+        "change_detail_summary_visible": True,
+        "change_detail_summary_text": "What changed",
         "stop_count": 1,
         "stop_visible": True,
         "stop_text": (
@@ -640,6 +642,12 @@ def test_company_workbench_primary_brief_contract_fails_closed_per_requirement()
         {"display_title": "AVGO Company Brief"},
         {"display_title": "NVDA COMPANY BRIEF"},
         {"answer_labels": ("Use now", "Still withheld")},
+        {"answer_visible": (True, True, False, False)},
+        {"answer_visible": (True, True, True, True)},
+        {"change_detail_count": 0},
+        {"change_detail_open": True},
+        {"change_detail_summary_visible": False},
+        {"change_detail_summary_text": "Changes"},
         {"answer_texts": ("Saved evidence can be reviewed.", "", "No queued change.", "Review source gaps.")},
         {"stop_count": 0},
         {"stop_text": "Research-only."},
@@ -2784,40 +2792,41 @@ def test_discover_action_contract_uses_every_actual_row_and_fails_when_empty():
     assert "unique" in str(duplicate["detail"])
 
 
-def test_discover_row_contract_requires_three_visible_answers_and_ticker_action():
+def test_discover_row_contract_requires_compact_summary_closed_detail_and_ticker_action():
     from src.research_accessibility_browser_gate import evaluate_discover_rows
 
+    passed_row = {
+        "ticker": "NVDA",
+        "summary_labels": ("SAVED READINESS", ""),
+        "summary_values": ("partial", "Can inspect: price, fundamentals", " · Gap: Point-in-time consensus is missing."),
+        "summary_answers_visible": True,
+        "detail_labels": ("Why inspectable", "Usable evidence", "Main evidence gap"),
+        "detail_values": ("Saved readiness supports review.", "SEC quarterly actuals.", "Point-in-time consensus is missing."),
+        "detail_count": 1,
+        "detail_open": False,
+        "detail_summary_visible": True,
+        "detail_summary_text": "Evidence details",
+        "detail_answers_hidden": True,
+        "action_name": "Open NVDA Company Brief",
+        "action_ticker": "NVDA",
+        "action_height": 44.0,
+        "visible": True,
+    }
     passed = evaluate_discover_rows(
         (
-            {
-                "ticker": "NVDA",
-                "labels": (
-                    "WHY INSPECTABLE",
-                    "USABLE EVIDENCE",
-                    "MAIN EVIDENCE GAP",
-                ),
-                "values": (
-                    "Saved readiness supports review.",
-                    "SEC quarterly actuals.",
-                    "Point-in-time consensus is missing.",
-                ),
-                "action_name": "Open NVDA Company Brief",
-                "action_ticker": "NVDA",
-                "action_height": 44.0,
-                "visible": True,
-            },
+            passed_row,
             {
                 "ticker": "AVGO",
-                "labels": (
-                    "Why inspectable",
-                    "Usable evidence",
-                    "Main evidence gap",
-                ),
-                "values": (
-                    "Saved readiness supports review.",
-                    "Historical valuation context.",
-                    "No principal blocker is recorded.",
-                ),
+                "summary_labels": ("Saved readiness", ""),
+                "summary_values": ("partial", "Can inspect: historical valuation", " · Gap: Main gap not recorded"),
+                "summary_answers_visible": True,
+                "detail_labels": ("Why inspectable", "Usable evidence", "Main evidence gap"),
+                "detail_values": ("Saved readiness supports review.", "Historical valuation context.", "No principal blocker is recorded."),
+                "detail_count": 1,
+                "detail_open": False,
+                "detail_summary_visible": True,
+                "detail_summary_text": "Evidence details",
+                "detail_answers_hidden": True,
                 "action_name": "Open AVGO Company Brief",
                 "action_ticker": "AVGO",
                 "action_height": 48.0,
@@ -2825,12 +2834,20 @@ def test_discover_row_contract_requires_three_visible_answers_and_ticker_action(
             },
         )
     )
-    missing_answer = evaluate_discover_rows(
+    missing_summary = evaluate_discover_rows(
         (
             {
                 "ticker": "NVDA",
-                "labels": ("Why inspectable", "Usable evidence"),
-                "values": ("Saved readiness supports review.", ""),
+                "summary_labels": ("Saved readiness", ""),
+                "summary_values": ("partial", "Can inspect: price", ""),
+                "summary_answers_visible": True,
+                "detail_labels": ("Why inspectable", "Usable evidence", "Main evidence gap"),
+                "detail_values": ("Saved readiness supports review.", "SEC quarterly actuals.", "Point-in-time consensus is missing."),
+                "detail_count": 1,
+                "detail_open": False,
+                "detail_summary_visible": True,
+                "detail_summary_text": "Evidence details",
+                "detail_answers_hidden": True,
                 "action_name": "Open NVDA Company Brief",
                 "action_ticker": "NVDA",
                 "action_height": 44.0,
@@ -2841,8 +2858,17 @@ def test_discover_row_contract_requires_three_visible_answers_and_ticker_action(
 
     assert passed["passed"] is True
     assert passed["actual_count"] == 2
-    assert missing_answer["passed"] is False
-    assert "three visible non-empty answers" in str(missing_answer["detail"])
+    assert missing_summary["passed"] is False
+    assert "visible compact summary" in str(missing_summary["detail"])
+    for mutation in (
+        {"detail_count": 0},
+        {"detail_open": True},
+        {"detail_summary_visible": False},
+        {"detail_answers_hidden": False},
+        {"detail_values": ("Saved readiness supports review.", "", "Gap.")},
+    ):
+        row = {**passed_row, **mutation}
+        assert evaluate_discover_rows((row,))["passed"] is False
 
 
 def test_monitor_row_contract_accepts_filtered_order_and_rejects_monitor_or_rank_fields():

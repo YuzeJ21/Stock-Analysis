@@ -8029,7 +8029,7 @@ def single_stock_loading_state_html(ticker: object) -> str:
 
 
 def company_workbench_evidence_loading_html(ticker: object) -> str:
-    """Render a neutral Workbench evidence rail until the saved report is available."""
+    """Render a neutral inline source-status placeholder during saved review load."""
 
     ticker_label = html.escape(format_missing(ticker, "Selected company").upper())
     return (
@@ -8038,11 +8038,6 @@ def company_workbench_evidence_loading_html(ticker: object) -> str:
         "<div class='company-workbench-evidence-heading'>"
         "<h2>Company evidence status</h2>"
         f"<span>{ticker_label}: preparing saved review</span>"
-        "</div>"
-        "<div class='company-workbench-evidence-lanes'>"
-        "<article class='company-workbench-evidence-lane'>"
-        "<span>Saved review</span><strong>Preparing</strong>"
-        "</article>"
         "</div>"
         "<p class='company-workbench-evidence-loading-note'>"
         "No data is being refreshed or changed. This temporary state does not state that any analysis section is ready or blocked."
@@ -30583,29 +30578,31 @@ def discover_primary_answer_html(
     *,
     research_boundary: str | None = None,
 ) -> str:
-    """Render saved access, strict eligibility, and the research boundary together."""
+    """Keep saved access, strict eligibility, and the boundary in one short strip."""
 
     saved_count = max(int(saved_company_count), 0)
     eligible_count = max(int(strict_eligible_count), 0)
-    saved_noun = "saved company" if saved_count == 1 else "saved companies"
-    answer = (
-        f"{saved_count:,} {saved_noun} {'is' if saved_count == 1 else 'are'} "
-        f"available for evidence review; {eligible_count:,} currently pass the strict screen."
-    )
-    reason = (
-        "Saved-company availability and strict-screen eligibility are separate. "
-        "The results below are alphabetical evidence paths, not a ranking; strict thresholds remain unchanged."
-    )
-    panel = answer_panel_html(
-        question="Find a Company · Evidence access first",
-        answer=answer,
-        reason=reason,
-        action=None,
-        stop_rule=None,
-    ).value
     boundary = str(research_boundary or "").strip()
-    stop = stop_rule_html(f"Research-only. {boundary}").value if boundary else ""
-    return f"<div class='research-discover-intro'>{panel}{stop}</div>"
+    saved_noun = "saved company" if saved_count == 1 else "saved companies"
+    scope_detail = (
+        "<details class='research-discover-scope-detail'>"
+        "<summary>Scope and limits</summary>"
+        f"<p>{html.escape(boundary)}</p>"
+        "</details>"
+        if boundary
+        else ""
+    )
+    return (
+        "<section class='research-discover-scope' data-sr-region='primary-answer' "
+        "aria-label='Saved company scope'>"
+        "<div class='research-discover-scope-counts'>"
+        f"<strong>{saved_count:,} {saved_noun}</strong>"
+        f"<span>{eligible_count:,} strict-screen eligible</span>"
+        "</div>"
+        "<p data-sr-region='stop-rule'>Research only · Saved evidence paths are not a ranking or recommendation.</p>"
+        f"{scope_detail}"
+        "</section>"
+    )
 
 
 def discover_quick_company_links_html(frame: pd.DataFrame, *, limit: int = 4) -> str:
@@ -30993,9 +30990,55 @@ def stock_selector_result_table_html(
         )
         if research_discover:
             answers = discover_research_answer(row)
+            ready_lanes = [
+                label
+                for column, label in (
+                    ("Price Ready", "price"),
+                    ("Fundamentals Ready", "fundamentals"),
+                    ("DCF Ready", "DCF"),
+                    ("Trusted Peer Ready", "trusted peers"),
+                )
+                if str(row.get(column, "")).strip().lower() in {"true", "1"}
+            ]
+            usable_summary = (
+                ", ".join(ready_lanes)
+                if ready_lanes
+                else _selector_public_fragment(
+                    answers["usable_evidence"], max_chars=72
+                )
+            )
+            readiness = _selector_public_fragment(
+                row.get("Readiness", "Not assessed"), max_chars=36
+            ) or "Not assessed"
+            gap = answers["main_evidence_gap"]
+            gap_summary = (
+                "Main gap not recorded"
+                if gap.startswith("No principal evidence gap is recorded")
+                else _selector_public_fragment(gap.split(";", 1)[0], max_chars=86)
+            )
+            saved_context = format_missing(row.get("Proof Freshness"), "").strip()
+            if saved_context == "Saved readiness freshness is unavailable.":
+                saved_context = ""
+            context_html = (
+                "<span class='research-discover-saved-context'>"
+                f"Saved evidence context: {html.escape(_selector_public_fragment(saved_context, max_chars=64))}"
+                "</span>"
+                if saved_context
+                else ""
+            )
             answer_html = (
                 "<div class='selector-result-summary research-discover-answers'>"
                 "<div class='research-discover-answer'>"
+                "<span class='research-discover-answer-label'>Saved readiness</span>"
+                f"<span class='research-discover-answer-value'>{html.escape(readiness)}</span>"
+                "</div>"
+                "<div class='research-discover-answer'>"
+                f"<span class='research-discover-answer-value'>Can inspect: {html.escape(usable_summary)}</span>"
+                f"<span class='research-discover-answer-value'> · Gap: {html.escape(gap_summary)}</span>"
+                "</div>"
+                "<details class='research-discover-details'><summary>Evidence details</summary>"
+                + context_html
+                + "<div class='research-discover-answer'>"
                 "<span class='research-discover-answer-label'>Why inspectable</span>"
                 f"<span class='research-discover-answer-value'>{html.escape(answers['why_inspectable'])}</span>"
                 "</div>"
@@ -31005,8 +31048,8 @@ def stock_selector_result_table_html(
                 "</div>"
                 "<div class='research-discover-answer'>"
                 "<span class='research-discover-answer-label'>Main evidence gap</span>"
-                f"<span class='research-discover-answer-value'>{html.escape(answers['main_evidence_gap'])}</span>"
-                "</div>"
+                f"<span class='research-discover-answer-value'>{html.escape(gap)}</span>"
+                "</div></details>"
                 "</div>"
             )
         else:
@@ -32546,11 +32589,41 @@ def render_single_stock_report(
         st.button("Open Review", key="single-stock-report-button")
         return
     provider_name = "yfinance" if use_yfinance else "local"
+    selected_profile = profile_context or build_profile_context(project_root=BASE_DIR)
+    expected_cache_scope = {
+        "single_stock_report_profile_key": selected_profile.profile_key,
+        "single_stock_report_data_dir": str(selected_profile.data_dir.resolve()),
+        "single_stock_report_outputs_dir": str(selected_profile.outputs_dir.resolve()),
+        "single_stock_report_snapshot_identity": selected_profile.snapshot_identity,
+    }
+
+    def cached_selected_report() -> dict[str, object] | None:
+        cached = st.session_state.get("single_stock_report_payload")
+        expected_report_provider = {
+            "local": "LocalCSVMarketDataProvider",
+            "yfinance": "YFinanceProvider",
+        }[provider_name]
+        if (
+            not isinstance(cached, dict)
+            or cached.get("ticker") != ticker
+            or cached.get("provider_name") != expected_report_provider
+            or st.session_state.get("single_stock_report_ticker") != ticker
+            or st.session_state.get("single_stock_report_provider") != provider_name
+            or any(st.session_state.get(key) != value for key, value in expected_cache_scope.items())
+        ):
+            return None
+        return cached
+
     coverage = pd.DataFrame()
     peer_summary: dict[str, object] = {}
-    report_payload = st.session_state.get("single_stock_report_payload")
-    if st.session_state.get("single_stock_report_ticker") != ticker:
-        report_payload = None
+    report_payload = cached_selected_report()
+    if report_payload is None:
+        for key in (
+            "single_stock_report_payload", "single_stock_report_download",
+            "single_stock_report_ticker", "single_stock_report_provider",
+            "single_stock_report_history", *expected_cache_scope,
+        ):
+            st.session_state.pop(key, None)
     single_stock_loading_placeholder = None
     if public_mode and compact_public_open_report and not report_payload:
         single_stock_loading_placeholder = (
@@ -32574,7 +32647,15 @@ def render_single_stock_report(
             st.warning("Enter a ticker to show a local report.")
             return
         try:
-            chosen_provider = build_provider(provider_name, base_dir=BASE_DIR)
+            chosen_provider = (
+                build_provider(
+                    "local", base_dir=BASE_DIR,
+                    data_dir=selected_profile.data_dir,
+                    output_dir=selected_profile.outputs_dir,
+                )
+                if provider_name == "local"
+                else build_provider(provider_name, base_dir=BASE_DIR)
+            )
             report = build_stock_report(ticker, chosen_provider)
             history = chosen_provider.get_price_history(ticker, period="1y", interval="1d")
             st.session_state["single_stock_report_payload"] = report.to_dict()
@@ -32582,6 +32663,8 @@ def render_single_stock_report(
             st.session_state["single_stock_report_ticker"] = ticker
             st.session_state["single_stock_report_provider"] = provider_name
             st.session_state["single_stock_report_history"] = history
+            for key, value in expected_cache_scope.items():
+                st.session_state[key] = value
             report_payload = st.session_state["single_stock_report_payload"]
         except RuntimeError as exc:
             st.error(str(exc))
@@ -32658,6 +32741,7 @@ def render_single_stock_report(
                 ticker=evidence_ticker,
                 readiness=report_readiness,
                 freshness_label=evidence_freshness,
+                report_payload=report_payload if isinstance(report_payload, dict) else None,
             ),
             unsafe_allow_html=True,
         )
@@ -33112,9 +33196,7 @@ def render_single_stock_report(
         if public_mode and st.session_state.get("single_stock_report_payload"):
             st.rerun()
 
-    report_payload = st.session_state.get("single_stock_report_payload")
-    if st.session_state.get("single_stock_report_ticker") != ticker:
-        report_payload = None
+    report_payload = cached_selected_report()
     with st.expander("Advanced: review workflow", expanded=False):
         render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))
     with st.expander("Advanced: example report states", expanded=False):
@@ -37667,33 +37749,7 @@ def render_research_monitor(
         )
     st.markdown("## Follow-up Queue")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
-    if queue.has_saved_follow_up:
-        st.markdown(
-            supporting_detail_html(
-                title="Saved follow-up evidence",
-                body=(
-                    "Follow-up reasons retain saved cohort order and remain separate from "
-                    "company scoring or urgency."
-                ),
-            ).value,
-            unsafe_allow_html=True,
-        )
-        render_signal_cards(
-            [asdict(panel) for panel in queue.panels],
-            show_commands=False,
-            variant="evidence-monitor",
-        )
-    elif queue.has_freshness_attention:
-        st.markdown(
-            supporting_detail_html(
-                title=monitor_freshness_condition_label(queue).capitalize(),
-                body=(
-                    "The named saved-readiness or market-observation condition needs Data Health "
-                    "review; this is not a saved follow-up item or a live alert."
-                ),
-            ).value,
-            unsafe_allow_html=True,
-        )
+    if queue.has_saved_follow_up or queue.has_freshness_attention:
         render_signal_cards(
             [asdict(panel) for panel in queue.panels],
             show_commands=False,
@@ -37712,6 +37768,28 @@ def render_research_monitor(
 
     st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
     with st.expander("Advanced: Monitor evidence", expanded=False):
+        if queue.has_saved_follow_up:
+            st.markdown(
+                supporting_detail_html(
+                    title="Saved follow-up evidence",
+                    body=(
+                        "Follow-up reasons retain saved cohort order and remain separate from "
+                        "company scoring or urgency."
+                    ),
+                ).value,
+                unsafe_allow_html=True,
+            )
+        elif queue.has_freshness_attention:
+            st.markdown(
+                supporting_detail_html(
+                    title=monitor_freshness_condition_label(queue).capitalize(),
+                    body=(
+                        "The named saved-readiness or market-observation condition needs Data Health "
+                        "review; this is not a saved follow-up item or a live alert."
+                    ),
+                ).value,
+                unsafe_allow_html=True,
+            )
         if observation_recency is not None:
             st.markdown(
                 observation_recency_summary_html(
@@ -37840,59 +37918,56 @@ def render_company_workbench(
     if company_workbench_cash_preview_requested(st.query_params.get("cash_preview")):
         cash_generation_preview = load_company_workbench_cash_generation_preview(ticker)
     with st.container(key="company-workbench-document"):
-        overview_column, evidence_column = st.columns([3, 1])
-        with overview_column:
-            selected_answer_target = st.empty()
-            render_company_sec_annual_check(ticker)
-            timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
-            st.markdown(
-                evidence_timeline_html(
-                    tuple(
-                        TimelineRecord(
-                            record_id=str(row.get("event_id") or ""),
-                            timestamp=str(row.get("detected_at") or "").strip() or None,
-                            label=str(row.get("change") or "Evidence change"),
-                            summary=(
-                                f"{str(row.get('evidence_status') or 'unavailable').replace('_', ' ')}. "
-                                f"{str(row.get('research_task') or 'No saved research task is available.')}"
-                            ),
-                        )
-                        for row in timeline
-                    ),
-                    empty_title="No traceable saved change for this company",
-                    empty_body=(
-                        "No authoritative saved change row is available. This does not prove that "
-                        "no external event occurred."
-                    ),
-                ).value,
-                unsafe_allow_html=True,
-            )
-            section_names = [section["title"] for section in company_workbench_section_contract()]
-            with st.expander("Review path", expanded=False):
-                st.caption(" -> ".join(section_names[:-1]))
-            with st.expander("Advanced: selected-company lane coverage", expanded=False):
-                render_signal_cards(
-                    focused_ticker_coverage_cards(coverage, ticker),
-                    show_commands=False,
-                    variant="queue",
-                )
-                st.caption(
-                    "Lane coverage is technical evidence only; blocked and candidate-only states remain separate."
-                )
-                if observation_recency is not None:
-                    st.markdown(
-                        observation_recency_summary_html(
-                            observation_recency,
-                            include_selected=True,
+        selected_answer_target = st.empty()
+        evidence_status_target = st.empty()
+        render_company_sec_annual_check(ticker)
+        timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
+        st.markdown(
+            evidence_timeline_html(
+                tuple(
+                    TimelineRecord(
+                        record_id=str(row.get("event_id") or ""),
+                        timestamp=str(row.get("detected_at") or "").strip() or None,
+                        label=str(row.get("change") or "Evidence change"),
+                        summary=(
+                            f"{str(row.get('evidence_status') or 'unavailable').replace('_', ' ')}. "
+                            f"{str(row.get('research_task') or 'No saved research task is available.')}"
                         ),
-                        unsafe_allow_html=True,
                     )
-                    st.markdown(
-                        observation_recency_evidence_html(observation_recency),
-                        unsafe_allow_html=True,
-                    )
-        with evidence_column:
-            evidence_status_target = st.empty()
+                    for row in timeline
+                ),
+                empty_title="No traceable saved change for this company",
+                empty_body=(
+                    "No authoritative saved change row is available. This does not prove that "
+                    "no external event occurred."
+                ),
+            ).value,
+            unsafe_allow_html=True,
+        )
+        section_names = [section["title"] for section in company_workbench_section_contract()]
+        with st.expander("Review path", expanded=False):
+            st.caption(" -> ".join(section_names[:-1]))
+        with st.expander("Advanced: selected-company lane coverage", expanded=False):
+            render_signal_cards(
+                focused_ticker_coverage_cards(coverage, ticker),
+                show_commands=False,
+                variant="queue",
+            )
+            st.caption(
+                "Lane coverage is technical evidence only; blocked and candidate-only states remain separate."
+            )
+            if observation_recency is not None:
+                st.markdown(
+                    observation_recency_summary_html(
+                        observation_recency,
+                        include_selected=True,
+                    ),
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    observation_recency_evidence_html(observation_recency),
+                    unsafe_allow_html=True,
+                )
     selected_detail_target = st.empty()
     render_single_stock_report(
         provider,

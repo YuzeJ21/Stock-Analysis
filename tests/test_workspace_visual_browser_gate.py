@@ -192,7 +192,7 @@ def test_pure_browser_evaluators_use_one_pixel_tolerance_and_44_pixel_targets():
 
 
 def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_layout():
-    """Catches a rail, title, action, or responsive order drifting from the brief."""
+    """Catches a missing source section, title, action, or document order."""
 
     from src.workspace_visual_browser_gate import (
         evaluate_company_workbench_document_contract,
@@ -213,7 +213,12 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         "aside_count": 1,
         "aside_visible_count": 1,
         "aside_labelled_count": 1,
+        "sec_count": 1,
+        "sec_visible_count": 1,
+        "sec_labelled_count": 1,
         "evidence_lane_count": 5,
+        "change_detail_count": 1,
+        "change_detail_open_count": 0,
         "positive_tabindex_count": 0,
         "primary_action_count": 1,
         "primary_action_visible_count": 1,
@@ -221,14 +226,14 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         "primary_action_height": 44,
         "module_gate_count": 1,
         "module_gate_visible_count": 1,
-        "brief_box": {"left": 16, "right": 1030, "top": 220, "bottom": 620},
-        "aside_box": {"left": 1060, "right": 1424, "top": 220, "bottom": 650},
-        "module_gate_box": {"left": 16, "right": 1030, "top": 680, "bottom": 724},
+        "brief_box": {"left": 16, "right": 1424, "top": 220, "bottom": 620},
+        "aside_box": {"left": 16, "right": 1424, "top": 650, "bottom": 1100},
+        "sec_box": {"left": 16, "right": 1424, "top": 1120, "bottom": 1420},
+        "module_gate_box": {"left": 16, "right": 1424, "top": 1450, "bottom": 1494},
         "brief_lane_boxes": (
-            {"left": 16, "right": 500, "top": 300, "bottom": 430},
-            {"left": 515, "right": 1030, "top": 300, "bottom": 430},
-            {"left": 16, "right": 500, "top": 445, "bottom": 570},
-            {"left": 515, "right": 1030, "top": 445, "bottom": 570},
+            {"name": "usable", "left": 16, "right": 700, "top": 300, "bottom": 430},
+            {"name": "withheld", "left": 720, "right": 1424, "top": 300, "bottom": 430},
+            {"name": "next-task", "left": 16, "right": 1424, "top": 450, "bottom": 500},
         ),
     }
     assert evaluate_company_workbench_document_contract(**desktop).passed
@@ -239,12 +244,12 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         "phone_layout": True,
         "brief_box": {"left": 12, "right": 378, "top": 340, "bottom": 1040},
         "aside_box": {"left": 12, "right": 378, "top": 1060, "bottom": 1540},
-        "module_gate_box": {"left": 12, "right": 378, "top": 1560, "bottom": 1604},
+        "sec_box": {"left": 12, "right": 378, "top": 1560, "bottom": 1900},
+        "module_gate_box": {"left": 12, "right": 378, "top": 1920, "bottom": 1964},
         "brief_lane_boxes": (
-            {"left": 12, "right": 378, "top": 430, "bottom": 550},
-            {"left": 12, "right": 378, "top": 560, "bottom": 680},
-            {"left": 12, "right": 378, "top": 690, "bottom": 810},
-            {"left": 12, "right": 378, "top": 820, "bottom": 980},
+            {"name": "usable", "left": 12, "right": 378, "top": 430, "bottom": 550},
+            {"name": "withheld", "left": 12, "right": 378, "top": 560, "bottom": 680},
+            {"name": "next-task", "left": 12, "right": 378, "top": 690, "bottom": 810},
         ),
     }
     assert evaluate_company_workbench_document_contract(**phone).passed
@@ -254,6 +259,11 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         "viewport_width": 720,
         "zoom": 2,
         "phone_layout": False,
+        "brief_lane_boxes": (
+            {"name": "usable", "left": 12, "right": 190, "top": 430, "bottom": 550},
+            {"name": "withheld", "left": 200, "right": 378, "top": 430, "bottom": 550},
+            {"name": "next-task", "left": 12, "right": 378, "top": 560, "bottom": 680},
+        ),
     }
     assert evaluate_company_workbench_document_contract(**zoomed_desktop).passed
 
@@ -265,10 +275,13 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         {"aside_count": 0},
         {"aside_visible_count": 0},
         {"aside_labelled_count": 0},
+        {"sec_visible_count": 0},
+        {"sec_labelled_count": 0},
+        {"change_detail_open_count": 1},
         {"positive_tabindex_count": 1},
         {"primary_action_height": 43.9},
         {"module_gate_visible_count": 0},
-        {"brief_box": {"left": 16, "right": 1200, "top": 220, "bottom": 620}},
+        {"sec_box": {"left": 16, "right": 1424, "top": 1080, "bottom": 1420}},
     )
     for mutation in mutations:
         assert not evaluate_company_workbench_document_contract(
@@ -277,17 +290,16 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
 
     wrong_reflow = {
         **zoomed_desktop,
-        "aside_box": {"left": 12, "right": 708, "top": 900, "bottom": 1540},
+        "aside_box": {"left": 12, "right": 378, "top": 900, "bottom": 1540},
     }
     assert not evaluate_company_workbench_document_contract(**wrong_reflow).passed
 
     old_four_column_brief = {
         **desktop,
         "brief_lane_boxes": (
-            {"left": 16, "right": 260, "top": 300, "bottom": 460},
-            {"left": 270, "right": 514, "top": 300, "bottom": 460},
-            {"left": 524, "right": 768, "top": 300, "bottom": 460},
-            {"left": 778, "right": 1030, "top": 300, "bottom": 460},
+            {"name": "usable", "left": 16, "right": 350, "top": 300, "bottom": 460},
+            {"name": "withheld", "left": 370, "right": 700, "top": 300, "bottom": 460},
+            {"name": "next-task", "left": 720, "right": 1040, "top": 300, "bottom": 460},
         ),
     }
     assert not evaluate_company_workbench_document_contract(
@@ -297,10 +309,9 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
     overlapping_phone_lanes = {
         **phone,
         "brief_lane_boxes": (
-            {"left": 12, "right": 378, "top": 430, "bottom": 550},
-            {"left": 12, "right": 378, "top": 540, "bottom": 680},
-            {"left": 12, "right": 378, "top": 690, "bottom": 810},
-            {"left": 12, "right": 378, "top": 820, "bottom": 980},
+            {"name": "usable", "left": 12, "right": 378, "top": 430, "bottom": 550},
+            {"name": "withheld", "left": 12, "right": 378, "top": 540, "bottom": 680},
+            {"name": "next-task", "left": 12, "right": 378, "top": 690, "bottom": 810},
         ),
     }
     assert not evaluate_company_workbench_document_contract(
@@ -839,13 +850,23 @@ def test_personal_route_hierarchy_evaluator_requires_one_ordered_answer_contract
         "advanced-detail",
     )
     counts = {name: ordered.count(name) for name in ordered}
+    visible_counts = (
+        {**counts, "supporting-evidence": 0}
+        if slug == "discover"
+        else counts
+    )
+    visible_order = (
+        tuple(name for name in ordered if name != "supporting-evidence")
+        if slug == "discover"
+        else ordered
+    )
 
     assert evaluate_personal_route_hierarchy(
         slug=slug,
         region_counts=counts,
         region_order=ordered,
-        visible_region_counts=counts,
-        visible_region_order=ordered,
+        visible_region_counts=visible_counts,
+        visible_region_order=visible_order,
         primary_action_focusable_count=1,
         legacy_pre_answer_action_count=0,
     ).passed
@@ -1486,6 +1507,16 @@ def _evaluate_personal_observation_checks(
         "advanced-detail",
     )
     counts = {name: 1 for name in order}
+    visible_counts = (
+        {**counts, "supporting-evidence": 0}
+        if slug == "discover"
+        else counts
+    )
+    visible_order = (
+        tuple(name for name in order if name != "supporting-evidence")
+        if slug == "discover"
+        else order
+    )
     observation = {
         "client_width": 1280,
         "client_height": 720,
@@ -1516,9 +1547,9 @@ def _evaluate_personal_observation_checks(
             {"name": "stop-rule", "left": 280, "right": 1220, "top": 400 if slug == "discover" else 675, "bottom": 450 if slug == "discover" else 776},
         ),
         "region_counts": counts,
-        "visible_region_counts": counts,
+        "visible_region_counts": visible_counts,
         "region_order": order,
-        "visible_region_order": order,
+        "visible_region_order": visible_order,
         "primary_action_focusable_count": 1,
         "legacy_pre_answer_action_count": 0,
         "h1_count": 1,
@@ -1951,20 +1982,20 @@ def test_task4_resolved_report_state_requires_one_completed_brief_and_no_busy_lo
 
     assert evaluate_resolved_report_state(
         company_brief_count=1,
-        primary_answer_count=4,
+        primary_answer_count=3,
         evidence_lane_count=5,
         busy_loading_count=0,
     ).passed
     baseline = {
         "company_brief_count": 1,
-        "primary_answer_count": 4,
+        "primary_answer_count": 3,
         "evidence_lane_count": 5,
         "busy_loading_count": 0,
     }
     for changed in (
         {"company_brief_count": 0},
         {"company_brief_count": 2},
-        {"primary_answer_count": 3},
+        {"primary_answer_count": 2},
         {"evidence_lane_count": 4},
         {"busy_loading_count": 1},
     ):

@@ -62,7 +62,7 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
         "discover",
         "Discover",
         "/?mode=research&page=discover",
-        "Find a Company",
+        "Search saved companies",
         "Discover",
         "research",
     ),
@@ -269,7 +269,12 @@ def evaluate_company_workbench_document_contract(
     aside_count: int,
     aside_visible_count: int,
     aside_labelled_count: int,
+    sec_count: int,
+    sec_visible_count: int,
+    sec_labelled_count: int,
     evidence_lane_count: int,
+    change_detail_count: int,
+    change_detail_open_count: int,
     positive_tabindex_count: int,
     primary_action_count: int,
     primary_action_visible_count: int,
@@ -279,10 +284,11 @@ def evaluate_company_workbench_document_contract(
     module_gate_visible_count: int,
     brief_box: dict[str, object],
     aside_box: dict[str, object],
+    sec_box: dict[str, object],
     module_gate_box: dict[str, object],
     brief_lane_boxes: tuple[dict[str, object], ...],
 ) -> BrowserEvaluation:
-    """Require the Workbench's document/aside hierarchy across reflow states."""
+    """Require the Workbench's source-first document order across reflow states."""
 
     def coordinates(box: dict[str, object]) -> tuple[float, float, float, float] | None:
         try:
@@ -301,6 +307,7 @@ def evaluate_company_workbench_document_contract(
 
     brief = coordinates(brief_box)
     aside = coordinates(aside_box)
+    sec = coordinates(sec_box)
     module_gate = coordinates(module_gate_box)
     action_target = evaluate_control_target(
         width=primary_action_width,
@@ -318,7 +325,12 @@ def evaluate_company_workbench_document_contract(
         and aside_count == 1
         and aside_visible_count == 1
         and aside_labelled_count == 1
+        and sec_count == 1
+        and sec_visible_count == 1
+        and sec_labelled_count == 1
         and evidence_lane_count == 5
+        and change_detail_count == 1
+        and change_detail_open_count == 0
         and positive_tabindex_count == 0
         and primary_action_count == 1
         and primary_action_visible_count == 1
@@ -327,71 +339,45 @@ def evaluate_company_workbench_document_contract(
         and module_gate_visible_count == 1
     )
 
-    reflowed = zoom == 2 or viewport_width < 1100
     geometry_passed = False
-    if brief is not None and aside is not None and module_gate is not None:
-        brief_left, brief_right, brief_top, brief_bottom = brief
-        aside_left, aside_right, aside_top, aside_bottom = aside
-        _gate_left, _gate_right, gate_top, _gate_bottom = module_gate
-        if reflowed:
-            geometry_passed = (
-                brief_bottom <= aside_top + 1
-                and aside_bottom <= gate_top + 1
-            )
-        else:
-            vertical_overlap = min(brief_bottom, aside_bottom) - max(
-                brief_top, aside_top
-            )
-            geometry_passed = (
-                brief_right <= aside_left + 1
-                and vertical_overlap > 1
-                and max(brief_bottom, aside_bottom) <= gate_top + 1
-            )
+    if all(box is not None for box in (brief, aside, sec, module_gate)):
+        assert brief is not None and aside is not None and sec is not None and module_gate is not None
+        geometry_passed = (
+            brief[3] <= aside[2] + 1
+            and aside[3] <= sec[2] + 1
+            and sec[3] <= module_gate[2] + 1
+        )
 
     phone_lanes_passed = True
-    if phone_layout:
-        lanes = tuple(coordinates(dict(box)) for box in brief_lane_boxes)
-        if brief is None or len(lanes) != 4 or any(lane is None for lane in lanes):
-            phone_lanes_passed = False
-        else:
-            assert all(lane is not None for lane in lanes)
-            normalized_lanes = tuple(lane for lane in lanes if lane is not None)
-            brief_left, brief_right, _brief_top, _brief_bottom = brief
-            phone_lanes_passed = all(
-                previous[3] <= current[2] + 1
-                for previous, current in zip(
-                    normalized_lanes, normalized_lanes[1:]
-                )
-            ) and all(
-                lane[0] >= brief_left - 1 and lane[1] <= brief_right + 1
-                for lane in normalized_lanes
-            )
-
     desktop_lanes_passed = True
-    if not reflowed:
-        lanes = tuple(coordinates(dict(box)) for box in brief_lane_boxes)
-        if brief is None or len(lanes) != 4 or any(lane is None for lane in lanes):
-            desktop_lanes_passed = False
-        else:
-            assert all(lane is not None for lane in lanes)
-            first, second, third, fourth = tuple(
-                lane for lane in lanes if lane is not None
-            )
-            desktop_lanes_passed = (
-                abs(first[2] - second[2]) <= 1
-                and abs(third[2] - fourth[2]) <= 1
-                and first[1] <= second[0] + 1
-                and third[1] <= fourth[0] + 1
-                and max(first[3], second[3]) <= min(third[2], fourth[2]) + 1
-                and abs(first[0] - third[0]) <= 1
-                and abs(second[0] - fourth[0]) <= 1
-            )
+    lanes = tuple(coordinates(dict(box)) for box in brief_lane_boxes)
+    lane_names = tuple(str(box.get("name") or "") for box in brief_lane_boxes)
+    if brief is None or len(lanes) != 3 or any(lane is None for lane in lanes) or lane_names != (
+        "usable", "withheld", "next-task"
+    ):
+        phone_lanes_passed = False
+        desktop_lanes_passed = False
+    else:
+        assert all(lane is not None for lane in lanes)
+        first, second, third = tuple(lane for lane in lanes if lane is not None)
+        brief_left, brief_right, _brief_top, _brief_bottom = brief
+        contained = all(
+            lane[0] >= brief_left - 1 and lane[1] <= brief_right + 1
+            for lane in (first, second, third)
+        )
+        phone_lanes_passed = contained and first[3] <= second[2] + 1 and second[3] <= third[2] + 1
+        desktop_lanes_passed = (
+            contained
+            and abs(first[2] - second[2]) <= 1
+            and first[1] <= second[0] + 1
+            and min(first[3], second[3]) - max(first[2], second[2]) > 1
+            and max(first[3], second[3]) <= third[2] + 1
+        )
 
     passed = (
         semantic_structure
         and geometry_passed
-        and phone_lanes_passed
-        and desktop_lanes_passed
+        and (phone_lanes_passed if phone_layout else desktop_lanes_passed)
     )
     return BrowserEvaluation(
         passed,
@@ -401,11 +387,13 @@ def evaluate_company_workbench_document_contract(
             f"navigation={navigation_labelled_count}/{navigation_count}; "
             f"brief={brief_visible_count}/{brief_count} labelled={brief_labelled_count}; "
             f"aside={aside_visible_count}/{aside_count} labelled={aside_labelled_count} "
+            f"sec={sec_visible_count}/{sec_count} labelled={sec_labelled_count}; "
             f"lanes={evidence_lane_count}; positive_tabindex={positive_tabindex_count}; "
+            f"change_detail={change_detail_count} open={change_detail_open_count}; "
             f"primary_action={primary_action_visible_count}/{primary_action_count} "
             f"{primary_action_width:.1f}x{primary_action_height:.1f}; "
             f"module_gate={module_gate_visible_count}/{module_gate_count}; "
-            f"reflowed={reflowed}; geometry={geometry_passed}; "
+            f"geometry={geometry_passed}; "
             f"phone_lanes={phone_lanes_passed}; desktop_lanes={desktop_lanes_passed}"
         ),
     )
@@ -446,7 +434,7 @@ def evaluate_resolved_report_state(
 
     passed = (
         company_brief_count == 1
-        and primary_answer_count == 4
+        and primary_answer_count == 3
         and evidence_lane_count == 5
         and busy_loading_count == 0
     )
@@ -1302,7 +1290,11 @@ def evaluate_personal_route_hierarchy(
     visible_supporting_count = int(
         visible_region_counts.get("supporting-evidence", 0)
     )
-    visible_supporting_count_passed = visible_supporting_count == supporting_count
+    visible_supporting_count_passed = (
+        supporting_count == 1 and visible_supporting_count == 0
+        if slug == "discover"
+        else visible_supporting_count == supporting_count
+    )
     try:
         visible_indexes = {
             name: visible_region_order.index(name) for name in required
@@ -1908,6 +1900,8 @@ def _browser_observation(page: Any) -> dict[str, object]:
 () => {
   const visible = (node) => {
     if (!node) return false;
+    const closedDetails = node.closest('details:not([open])');
+    if (closedDetails && node !== closedDetails && !node.closest('summary')) return false;
     const box = node.getBoundingClientRect();
     const style = getComputedStyle(node);
     return box.width > 0 && box.height > 0 &&
@@ -2021,6 +2015,14 @@ def _browser_observation(page: Any) -> dict[str, object]:
   )];
   const visibleWorkbenchAsides = workbenchAsides.filter(visible);
   const firstWorkbenchAside = visibleWorkbenchAsides[0] || null;
+  const workbenchSecSections = [...document.querySelectorAll(
+    ".company-sec-annual-preview"
+  )];
+  const visibleWorkbenchSecSections = workbenchSecSections.filter(visible);
+  const firstWorkbenchSecSection = visibleWorkbenchSecSections[0] || null;
+  const workbenchChangeDetails = [...document.querySelectorAll(
+    "details.company-workbench-follow-up"
+  )];
   const workbenchEvidenceLanes = firstWorkbenchAside
     ? [...firstWorkbenchAside.querySelectorAll(".company-workbench-evidence-lane")].filter(visible)
     : [];
@@ -2223,7 +2225,16 @@ def _browser_observation(page: Any) -> dict[str, object]:
     workbench_aside_labelled_count: workbenchAsides.filter(
       (node) => Boolean(node.getAttribute("aria-label")?.trim())
     ).length,
+    workbench_sec_count: workbenchSecSections.length,
+    workbench_sec_visible_count: visibleWorkbenchSecSections.length,
+    workbench_sec_labelled_count: workbenchSecSections.filter(
+      (node) => Boolean(node.getAttribute("aria-label")?.trim())
+    ).length,
     workbench_evidence_lane_count: workbenchEvidenceLanes.length,
+    workbench_change_detail_count: workbenchChangeDetails.length,
+    workbench_change_detail_open_count: workbenchChangeDetails.filter(
+      (node) => node.hasAttribute("open")
+    ).length,
     workbench_primary_answer_count: firstWorkbenchBrief
       ? [...firstWorkbenchBrief.querySelectorAll(".company-workbench-primary-answer")].filter(visible).length
       : 0,
@@ -2255,6 +2266,9 @@ def _browser_observation(page: Any) -> dict[str, object]:
       : null,
     workbench_aside_box: firstWorkbenchAside
       ? boxFor(firstWorkbenchAside, "company-evidence-status")
+      : null,
+    workbench_sec_box: firstWorkbenchSecSection
+      ? boxFor(firstWorkbenchSecSection, "sec-annual-facts")
       : null,
     workbench_module_gate_box: workbenchModuleGates[0]
       ? boxFor(workbenchModuleGates[0], "module-gate")
@@ -3036,8 +3050,21 @@ def _evaluate_observation(
                 aside_labelled_count=int(
                     observation.get("workbench_aside_labelled_count") or 0
                 ),
+                sec_count=int(observation.get("workbench_sec_count") or 0),
+                sec_visible_count=int(
+                    observation.get("workbench_sec_visible_count") or 0
+                ),
+                sec_labelled_count=int(
+                    observation.get("workbench_sec_labelled_count") or 0
+                ),
                 evidence_lane_count=int(
                     observation.get("workbench_evidence_lane_count") or 0
+                ),
+                change_detail_count=int(
+                    observation.get("workbench_change_detail_count") or 0
+                ),
+                change_detail_open_count=int(
+                    observation.get("workbench_change_detail_open_count") or 0
                 ),
                 positive_tabindex_count=int(
                     observation.get("positive_tabindex_count") or 0
@@ -3062,6 +3089,7 @@ def _evaluate_observation(
                 ),
                 brief_box=dict(observation.get("workbench_brief_box") or {}),
                 aside_box=dict(observation.get("workbench_aside_box") or {}),
+                sec_box=dict(observation.get("workbench_sec_box") or {}),
                 module_gate_box=dict(
                     observation.get("workbench_module_gate_box") or {}
                 ),

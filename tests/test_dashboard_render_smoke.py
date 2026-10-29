@@ -510,10 +510,11 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
 
     assert not app.exception
     assert [button.label for button in app.button] == [
-        "Open evidence and analysis modules"
+        "Check SEC annual facts",
+        "Open evidence and analysis modules",
     ]
 
-    app.button[0].click().run(timeout=120)
+    app.button[1].click().run(timeout=120)
 
     rendered = "\n".join(
         str(getattr(item, "value", ""))
@@ -954,6 +955,72 @@ render_single_stock_report(
     assert rails[0].count("Reviewable") == 5
     assert "Withheld" not in rails[0]
     assert "Unavailable" not in rails[0]
+
+
+def test_company_workbench_rebuilds_same_ticker_yfinance_cache_from_selected_local_profile():
+    """Catches a prior Operator online report masquerading as saved Workbench evidence."""
+
+    app = AppTest.from_string(
+        """
+from pathlib import Path
+import streamlit as st
+from src.dashboard import build_profile_context, build_provider, build_stock_report, render_single_stock_report
+
+context = build_profile_context(project_root=Path('.'))
+if not st.session_state.get('cache_seeded'):
+    report = build_stock_report('NVDA', build_provider('local', base_dir=Path('.'))).to_dict()
+    report['provider_name'] = 'YFinanceProvider'
+    report['financial_summary']['source']['provider'] = 'synthetic-online-source'
+    st.session_state['single_stock_report_payload'] = report
+    st.session_state['single_stock_report_ticker'] = 'NVDA'
+    st.session_state['single_stock_report_provider'] = 'yfinance'
+    st.session_state['cache_seeded'] = True
+render_single_stock_report(
+    None, False, public_mode=True, profile_context=context, research_mode=True,
+)
+""",
+        default_timeout=120,
+    )
+    app.query_params.update({"ticker": "NVDA", "open": "1"})
+    app.run(timeout=120)
+
+    assert not app.exception
+    assert app.session_state["single_stock_report_provider"] == "local"
+    assert app.session_state["single_stock_report_payload"]["provider_name"] == "LocalCSVMarketDataProvider"
+    assert app.session_state["single_stock_report_payload"]["financial_summary"]["source"]["provider"] != "synthetic-online-source"
+
+
+def test_company_workbench_rebuilds_same_ticker_cache_from_another_profile():
+    """Catches saved rows from another data profile appearing under the selected profile."""
+
+    app = AppTest.from_string(
+        """
+from pathlib import Path
+import streamlit as st
+from src.dashboard import build_profile_context, build_provider, build_stock_report, render_single_stock_report
+
+context = build_profile_context(project_root=Path('.'))
+if not st.session_state.get('cache_seeded'):
+    report = build_stock_report('NVDA', build_provider('local', base_dir=Path('.'))).to_dict()
+    report['financial_summary']['source']['provider'] = 'foreign-profile-marker'
+    st.session_state['single_stock_report_payload'] = report
+    st.session_state['single_stock_report_ticker'] = 'NVDA'
+    st.session_state['single_stock_report_provider'] = 'local'
+    st.session_state['single_stock_report_profile_key'] = 'another-profile'
+    st.session_state['single_stock_report_data_dir'] = '/tmp/another-profile'
+    st.session_state['cache_seeded'] = True
+render_single_stock_report(
+    None, False, public_mode=True, profile_context=context, research_mode=True,
+)
+""",
+        default_timeout=120,
+    )
+    app.query_params.update({"ticker": "NVDA", "open": "1"})
+    app.run(timeout=120)
+
+    assert not app.exception
+    assert app.session_state["single_stock_report_profile_key"] == "default"
+    assert app.session_state["single_stock_report_payload"]["financial_summary"]["source"]["provider"] != "foreign-profile-marker"
 
 
 def test_company_workbench_cold_failure_projects_an_unavailable_evidence_rail_without_a_brief_answer():

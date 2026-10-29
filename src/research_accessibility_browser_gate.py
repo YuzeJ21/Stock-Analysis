@@ -194,7 +194,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
     ResearchRoute(
         "Discover",
         "/?mode=research&page=discover",
-        "Find a Company",
+        "Search saved companies",
         "Discover",
         ".selector-result-table.research-discover-result",
         "[data-testid='stTextInput'] input[aria-label='Search saved companies']",
@@ -447,19 +447,15 @@ def evaluate_discover_evidence_access(
     """Require search-first Discover and one actual saved-company evidence route."""
 
     answer = str(primary_answer or "").strip()
-    normalized_answer = answer.casefold()
-    answer_parts = answer.split("; ")
-    answer_has_counts = (
-        len(answer_parts) == 2
-        and answer_parts[0].split(" ", 1)[0].replace(",", "").isdigit()
-        and "saved compan" in answer_parts[0].casefold()
-        and "available for evidence review" in normalized_answer
-        and answer_parts[1].split(" ", 1)[0].replace(",", "").isdigit()
-        and "currently pass the strict screen" in normalized_answer
+    count_match = re.fullmatch(
+        r"([\d,]+) saved compan(?:y|ies); ([\d,]+) strict-screen eligible",
+        answer,
+        flags=re.IGNORECASE,
     )
+    answer_has_counts = count_match is not None
     strict_count = (
-        int(answer_parts[1].split(" ", 1)[0].replace(",", ""))
-        if answer_has_counts
+        int(count_match.group(2).replace(",", ""))
+        if count_match is not None
         else None
     )
     strict_count_matches = (
@@ -561,7 +557,7 @@ def evaluate_monitor_return_context(
 def evaluate_discover_rows(
     rows: Iterable[dict[str, object]],
 ) -> dict[str, object]:
-    """Require each visible Discover result to answer the three research questions."""
+    """Require compact visible evidence and a closed, complete detail per row."""
 
     expected_labels = (
         "Why inspectable",
@@ -576,9 +572,18 @@ def evaluate_discover_rows(
         failures.append("no visible Discover research rows were rendered")
     for index, row in enumerate(observed, start=1):
         ticker = str(row.get("ticker") or "").strip().upper()
-        labels = tuple(str(value or "").strip() for value in row.get("labels", ()))
-        label_keys = tuple(label.casefold() for label in labels)
-        values = tuple(str(value or "").strip() for value in row.get("values", ()))
+        summary_labels = tuple(
+            str(value or "").strip() for value in row.get("summary_labels", ())
+        )
+        summary_values = tuple(
+            str(value or "").strip() for value in row.get("summary_values", ())
+        )
+        detail_labels = tuple(
+            str(value or "").strip() for value in row.get("detail_labels", ())
+        )
+        detail_values = tuple(
+            str(value or "").strip() for value in row.get("detail_values", ())
+        )
         action_name = str(row.get("action_name") or "").strip()
         action_ticker = str(row.get("action_ticker") or "").strip().upper()
         try:
@@ -588,12 +593,30 @@ def evaluate_discover_rows(
         visible = row.get("visible") is True
         if (
             not visible
-            or label_keys != expected_label_keys
-            or len(values) != 3
-            or any(not value for value in values)
+            or tuple(label.casefold() for label in summary_labels)
+            != ("saved readiness", "")
+            or len(summary_values) != 3
+            or not summary_values[0]
+            or not summary_values[1].casefold().startswith("can inspect: ")
+            or not summary_values[2].casefold().lstrip().startswith("· gap: ")
+            or row.get("summary_answers_visible") is not True
         ):
             failures.append(
-                f"row {index} must expose three visible non-empty answers"
+                f"row {index} must expose a visible compact summary with readiness, usable evidence, and one gap"
+            )
+        if (
+            tuple(label.casefold() for label in detail_labels)
+            != expected_label_keys
+            or len(detail_values) != 3
+            or any(not value for value in detail_values)
+            or row.get("detail_count") != 1
+            or row.get("detail_open") is not False
+            or row.get("detail_summary_visible") is not True
+            or str(row.get("detail_summary_text") or "").strip() != "Evidence details"
+            or row.get("detail_answers_hidden") is not True
+        ):
+            failures.append(
+                f"row {index} must keep three complete answers inside one closed Evidence details disclosure"
             )
         if (
             not ticker
@@ -614,7 +637,7 @@ def evaluate_discover_rows(
         "passed": not failures,
         "actual_count": len(observed),
         "detail": (
-            f"{len(observed)} Discover rows expose three answers and usable actions"
+            f"{len(observed)} Discover rows expose compact summaries, closed evidence details, and usable actions"
             if not failures
             else "; ".join(failures)
         ),
@@ -631,8 +654,8 @@ def evaluate_company_workbench_primary_brief(
     expected_labels = (
         "Use now",
         "Still withheld",
-        "What changed",
         "Next research task",
+        "What changed",
     )
     failures: list[str] = []
 
@@ -684,6 +707,16 @@ def evaluate_company_workbench_primary_brief(
         or any(not value for value in answer_texts)
     ):
         failures.append("expected four labelled non-empty primary answers")
+    if tuple(observation.get("answer_visible", ())) != (True, True, True, False):
+        failures.append("next research task must be visible while change details stay collapsed")
+    if (
+        number("change_detail_count") != 1
+        or observation.get("change_detail_open") is not False
+        or observation.get("change_detail_summary_visible") is not True
+        or str(observation.get("change_detail_summary_text") or "").strip().casefold()
+        != "what changed"
+    ):
+        failures.append("expected one closed, visible What changed disclosure")
     if number("stop_count") != 1 or observation.get("stop_visible") is not True:
         failures.append("expected one visible research-only stop rule")
     if any(token not in stop_text.casefold() for token in stop_tokens):
@@ -2849,11 +2882,10 @@ def _discover_evidence_access_assertion(page: Any) -> dict[str, object]:
     "[data-testid='stTextInput'] input[aria-label='Search saved companies']"
   )];
   const quickCount = document.querySelectorAll(".discover-quick-company-links a").length;
-  const answer = [...document.querySelectorAll(".sr-answer-panel")].find(
-    (node) => node.innerText.includes("available for evidence review") &&
-      node.innerText.includes("currently pass the strict screen")
+  const answer = document.querySelector(".research-discover-scope-counts");
+  const stop = document.querySelector(
+    ".research-discover-scope [data-sr-region='stop-rule']"
   );
-  const stop = document.querySelector(".research-discover-intro .sr-stop-rule");
   const advanced = [...document.querySelectorAll("details")].find(
     (node) => node.querySelector("summary")?.innerText.trim() ===
       "Advanced: filters and selection guidance"
@@ -2864,7 +2896,10 @@ def _discover_evidence_access_assertion(page: Any) -> dict[str, object]:
   const before = (first, second) => Boolean(first && second &&
     (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING));
   return {
-    primary_answer: answer?.querySelector("h2")?.innerText.trim() || "",
+    primary_answer: answer ? [
+      answer.querySelector("strong")?.textContent.trim() || "",
+      answer.querySelector("span")?.textContent.trim() || "",
+    ].join("; ") : "",
     search_count: searches.length,
     quick_link_count: quickCount,
     first_result: [result?.innerText.trim() || "", result?.getAttribute("href") || ""],
@@ -2901,18 +2936,36 @@ def _discover_rows_assertion(page: Any) -> dict[str, object]:
     for index in range(rows.count()):
         row = rows.nth(index)
         ticker = row.locator(".selector-result-ticker").inner_text().strip()
-        labels = tuple(
-            text.strip()
-            for text in row.locator(
-                ".research-discover-answer-label"
-            ).all_inner_texts()
+        summary_answers = row.locator(
+            ".research-discover-answers > .research-discover-answer"
         )
-        values = tuple(
-            text.strip()
-            for text in row.locator(
+        summary_labels = tuple(
+            (answer.locator(".research-discover-answer-label").first.text_content() or "").strip()
+            if answer.locator(".research-discover-answer-label").count() == 1
+            else ""
+            for answer in (summary_answers.nth(i) for i in range(summary_answers.count()))
+        )
+        summary_values = tuple(
+            (value or "").strip()
+            for value in summary_answers.locator(
                 ".research-discover-answer-value"
-            ).all_inner_texts()
+            ).all_text_contents()
         )
+        detail = row.locator("details.research-discover-details")
+        detail_answers = detail.locator(".research-discover-answer")
+        detail_labels = tuple(
+            (value or "").strip()
+            for value in detail.locator(
+                ".research-discover-answer-label"
+            ).all_text_contents()
+        )
+        detail_values = tuple(
+            (value or "").strip()
+            for value in detail.locator(
+                ".research-discover-answer-value"
+            ).all_text_contents()
+        )
+        detail_summary = detail.locator("summary")
         action = row.locator("a.selector-action-link")
         href = action.get_attribute("href") or ""
         action_ticker = (
@@ -2925,8 +2978,36 @@ def _discover_rows_assertion(page: Any) -> dict[str, object]:
         observed.append(
             {
                 "ticker": ticker,
-                "labels": labels,
-                "values": values,
+                "summary_labels": summary_labels,
+                "summary_values": summary_values,
+                "summary_answers_visible": (
+                    summary_answers.count() == 2
+                    and all(summary_answers.nth(i).is_visible() for i in range(2))
+                ),
+                "detail_labels": detail_labels,
+                "detail_values": detail_values,
+                "detail_count": detail.count(),
+                "detail_open": (
+                    detail.first.get_attribute("open") is not None
+                    if detail.count() == 1
+                    else None
+                ),
+                "detail_summary_visible": (
+                    detail_summary.count() == 1
+                    and detail_summary.first.is_visible()
+                ),
+                "detail_summary_text": (
+                    detail_summary.first.inner_text().strip()
+                    if detail_summary.count() == 1
+                    else ""
+                ),
+                "detail_answers_hidden": (
+                    detail_answers.count() == 3
+                    and all(
+                        not detail_answers.nth(i).is_visible()
+                        for i in range(3)
+                    )
+                ),
                 "action_name": action.inner_text().strip(),
                 "action_ticker": action_ticker,
                 "action_height": geometry.get("height", 0),
@@ -3224,6 +3305,7 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
     )
     answer_labels: list[str] = []
     answer_texts: list[str] = []
+    answer_visible: list[bool] = []
     for index in range(answer_nodes.count()):
         answer = answer_nodes.nth(index)
         label = answer.locator("span").first
@@ -3231,6 +3313,9 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
             label.inner_text().strip() if label.count() == 1 else ""
         )
         answer_texts.append(_company_workbench_primary_answer_text(answer))
+        answer_visible.append(answer.is_visible())
+    change_detail = primary.locator("details.company-workbench-follow-up")
+    change_summary = change_detail.locator("summary")
     secondary_module_count = sum(
         page.get_by_role("heading", level=2, name=heading, exact=True).count()
         for heading in (
@@ -3256,6 +3341,21 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
             ),
             "answer_labels": tuple(answer_labels),
             "answer_texts": tuple(answer_texts),
+            "answer_visible": tuple(answer_visible),
+            "change_detail_count": change_detail.count(),
+            "change_detail_open": (
+                change_detail.first.get_attribute("open") is not None
+                if change_detail.count() == 1
+                else None
+            ),
+            "change_detail_summary_visible": (
+                change_summary.count() == 1 and change_summary.first.is_visible()
+            ),
+            "change_detail_summary_text": (
+                change_summary.first.inner_text().strip()
+                if change_summary.count() == 1
+                else ""
+            ),
             "stop_count": stop.count(),
             "stop_visible": stop.count() == 1 and stop.first.is_visible(),
             "stop_text": stop.first.inner_text().strip() if stop.count() == 1 else "",

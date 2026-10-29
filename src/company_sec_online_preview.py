@@ -278,11 +278,11 @@ def company_sec_annual_preview_html(view: Mapping[str, Any]) -> str:
             f"{escape(str(view.get('accession') or 'unavailable')[:24])}. "
             "Ticker association still requires separate identity review.</p>"
         )
-        approved_rows: list[str] = []
+        field_rows: list[str] = []
         approved_input = view.get("approved_direct_fields")
         if not isinstance(approved_input, (list, tuple)):
             approved_input = []
-        for row in approved_input[:3]:
+        for row in approved_input[:32]:
             if not isinstance(row, Mapping):
                 continue
             value = row.get("value")
@@ -296,19 +296,16 @@ def company_sec_annual_preview_html(view: Mapping[str, Any]) -> str:
                 display_value = value[:80]
             field_name = str(row.get("field") or "unknown")[:40]
             field_label = "Filing date" if field_name == "filing_dates" else field_name.replace("_", " ").title()
-            unit_label = "" if row.get("unit") == "date" else f" {str(row.get('unit') or '')[:16]}"
-            approved_rows.append(
-                '<div class="sec-annual-fact">'
-                + f'<span class="sec-annual-fact-name">{escape(field_label)}</span>'
-                + f'<strong>{escape(display_value)}{escape(unit_label)}</strong>'
-                + f'<small>Period ended {escape(str(row.get("period_end") or "unknown")[:20])}</small>'
-                + "</div>"
+            field_rows.append(
+                '<tr class="sec-annual-field-row is-available">'
+                + '<th scope="row"><span class="sec-annual-field-name">'
+                + f"{escape(field_label)}</span><code>{escape(field_name)}</code></th>"
+                + f'<td class="sec-annual-field-value">{escape(display_value)}</td>'
+                + f'<td>{escape(str(row.get("unit") or "unknown")[:16])}</td>'
+                + f'<td>{escape(str(row.get("period_end") or "unknown")[:20])}</td>'
+                + "</tr>"
             )
-        approved_html = (
-            '<div class="sec-annual-facts">' + "".join(approved_rows) + "</div>"
-            if approved_rows
-            else "<p>No direct-approved annual facts are available.</p>"
-        )
+        approved_count = len(field_rows)
         reason_labels = {
             "derived_field_scope_unreviewed": "Derived field scope needs review",
             "unsupported_online_field": "This field is outside the SEC annual-facts scope",
@@ -319,35 +316,45 @@ def company_sec_annual_preview_html(view: Mapping[str, Any]) -> str:
             "source_evidence_unreviewed": "Source evidence needs review",
             "duplicate_direct_field": "Conflicting or duplicate source facts need review",
         }
-        withheld_rows: list[str] = []
         withheld_input = view.get("withheld_fields")
         if not isinstance(withheld_input, (list, tuple)):
             withheld_input = []
-        for row in withheld_input[:20]:
+        withheld_count = 0
+        for row in withheld_input[: max(32 - approved_count, 0)]:
             if not isinstance(row, Mapping):
                 continue
             field_name = str(row.get("field") or "unknown")[:40]
-            withheld_rows.append(
-                "<li>"
-                + f'<span>{escape(field_name.replace("_", " ").title())} '
-                + f'<code>{escape(field_name)}</code></span>'
-                + f'<span>{escape(reason_labels.get(row.get("reason"), "Evidence needs review"))}</span>'
-                + "</li>"
+            withheld_count += 1
+            field_rows.append(
+                '<tr class="sec-annual-field-row is-withheld">'
+                + '<th scope="row"><span class="sec-annual-field-name">'
+                + f'{escape(field_name.replace("_", " ").title())}</span>'
+                + f"<code>{escape(field_name)}</code></th>"
+                + '<td class="sec-annual-field-reason">Withheld · '
+                + f'{escape(reason_labels.get(row.get("reason"), "Evidence needs review"))}</td>'
+                + '<td aria-label="Unit not verified">—</td>'
+                + '<td aria-label="Field period not verified">—</td>'
+                + "</tr>"
             )
-        withheld_html = (
-            "<ul>" + "".join(withheld_rows) + "</ul>"
-            if withheld_rows
-            else "<p>No additional field gaps were reported.</p>"
+        empty_approved = (
+            "<p>No direct-approved annual facts are available.</p>"
+            if approved_count == 0
+            else ""
+        )
+        field_table = (
+            '<div class="sec-annual-table-scroll" role="region" '
+            'aria-label="Annual filing fields" tabindex="0">'
+            '<table class="sec-annual-field-table">'
+            f'<caption>Annual fields · {approved_count} direct · {withheld_count} withheld</caption>'
+            '<thead><tr><th scope="col">Field</th><th scope="col">Value or reason</th>'
+            '<th scope="col">Unit</th><th scope="col">Period end</th></tr></thead>'
+            '<tbody>' + "".join(field_rows) + '</tbody></table></div>'
         )
         body = (
             details
-            + "<h4>Direct fields in registered SEC scope for this annual period</h4>"
-            + approved_html
-            + '<details class="sec-annual-gaps"><summary>'
-            + f"Still withheld ({len(withheld_rows)})"
-            + "</summary>"
-            + withheld_html
-            + "</details>"
+            + "<h4>Annual filing field evidence</h4>"
+            + empty_approved
+            + field_table
         )
     return (
         '<section class="company-sec-annual-preview" aria-label="SEC annual facts">'

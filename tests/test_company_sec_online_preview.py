@@ -329,7 +329,7 @@ def test_html_inspection_shows_approved_and_withheld_with_escaped_text() -> None
     assert 'href="https://data.sec.gov/api/xbrl/companyfacts/CIK0000001234.json"' in html
 
 
-def test_html_inspection_uses_compact_fact_cards_and_discloses_field_gaps() -> None:
+def test_html_inspection_shows_every_approved_and_withheld_field_in_one_visible_table() -> None:
     preview = _synthetic_preview()
     preview["tickers"][0]["fields"][0]["candidate_value"] = 1000000.0
     filing_date = dict(preview["tickers"][0]["fields"][0])
@@ -339,15 +339,25 @@ def test_html_inspection_uses_compact_fact_cards_and_discloses_field_gaps() -> N
 
     html = company_sec_annual_preview_html(view)
 
-    assert 'class="sec-annual-facts"' in html
-    assert 'class="sec-annual-fact"' in html
-    assert "1,000,000 USD" in html
-    assert "1,000,000.0 USD" not in html
+    assert (
+        'class="sec-annual-table-scroll" role="region" '
+        'aria-label="Annual filing fields" tabindex="0"'
+    ) in html
+    assert '<table class="sec-annual-field-table">' in html
+    assert '<th scope="col">Field</th>' in html
+    assert '<th scope="col">Value or reason</th>' in html
+    assert '<th scope="row">' in html
+    assert html.count('<tr class="sec-annual-field-row') == 3
+    assert "1,000,000" in html
+    assert "1,000,000.0" not in html
+    assert "USD" in html
+    assert "2025-12-31" in html
     assert "Filing date" in html
     assert "2026-03-01 date" not in html
-    assert '<details class="sec-annual-gaps">' in html
-    assert "Still withheld (1)" in html
+    assert '<details class="sec-annual-gaps">' not in html
     assert "free_cash_flow" in html
+    assert "Derived field scope needs review" in html
+    assert "250000" not in html
     assert "Saved readiness is unchanged" in html
 
 
@@ -417,17 +427,18 @@ def test_html_explains_configuration_and_fetch_failure_without_source_values() -
     assert "href=" not in configuration + failure
 
 
-def test_html_caps_withheld_rows_even_when_given_a_larger_view() -> None:
+def test_html_shows_all_validated_size_field_rows_and_caps_untrusted_larger_views() -> None:
     view = present_company_sec_annual_preview("FICT", _synthetic_preview())
     view["withheld_fields"] = [
         {"field": f"gap{i:02d}", "reason": "source_evidence_unreviewed"}
-        for i in range(30)
+        for i in range(35)
     ]
 
     html = company_sec_annual_preview_html(view)
 
-    assert "gap19" in html
-    assert "gap20" not in html
+    assert "gap30" in html
+    assert "gap31" not in html
+    assert html.count('<tr class="sec-annual-field-row') == 32
 
 
 def test_loader_rejects_multi_ticker_input_before_online_fetch() -> None:
