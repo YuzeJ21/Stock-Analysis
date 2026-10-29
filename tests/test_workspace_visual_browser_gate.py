@@ -835,6 +835,7 @@ def test_focus_sequence_evaluator_requires_natural_dom_and_physical_tab_order():
 def test_personal_route_hierarchy_evaluator_requires_one_ordered_answer_contract(slug):
     from src.workspace_visual_browser_gate import evaluate_personal_route_hierarchy
 
+    title_region = () if slug == "company-workbench" else ("page-title",)
     answer_action = (
         ("primary-action", "primary-answer")
         if slug == "discover"
@@ -843,7 +844,7 @@ def test_personal_route_hierarchy_evaluator_requires_one_ordered_answer_contract
     ordered = (
         "workflow-nav",
         "context",
-        "page-title",
+        *title_region,
         *answer_action,
         "stop-rule",
         "supporting-evidence",
@@ -894,7 +895,7 @@ def test_personal_route_hierarchy_evaluator_requires_one_ordered_answer_contract
         region_order=(
             "workflow-nav",
             "context",
-            "page-title",
+            *title_region,
             "primary-answer",
             "supporting-evidence",
             "primary-action",
@@ -938,7 +939,7 @@ def test_personal_route_hierarchy_evaluator_requires_one_ordered_answer_contract
         visible_region_order=(
             "workflow-nav",
             "context",
-            "page-title",
+            *title_region,
             *reversed(answer_action),
             "stop-rule",
             "supporting-evidence",

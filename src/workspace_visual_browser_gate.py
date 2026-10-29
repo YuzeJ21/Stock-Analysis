@@ -1259,7 +1259,7 @@ def evaluate_personal_route_hierarchy(
     required = (
         "workflow-nav",
         "context",
-        "page-title",
+        *(("page-title",) if slug != "company-workbench" else ()),
         *answer_and_action,
         "stop-rule",
         "advanced-detail",
