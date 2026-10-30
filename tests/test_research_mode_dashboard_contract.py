@@ -1996,6 +1996,7 @@ def test_registered_company_workbench_renders_one_document_with_inline_evidence_
     assert [call for call in calls if call[0] == "container"] == [
         ("container", "company-workbench-document", None),
         ("container", "company-sec-annual-check", "document"),
+        ("container", "company-online-prices", "document"),
     ]
     assert [call for call in calls if call[0] == "columns"] == []
     assert [call for call in calls if call == ("empty", None, "document")] == [

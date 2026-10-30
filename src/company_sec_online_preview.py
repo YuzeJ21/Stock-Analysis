@@ -396,20 +396,18 @@ def get_company_sec_annual_preview(
         }
         session_state[SESSION_KEY] = {"ticker": normalized, "view": view}
         return view
-    if preview_builder is None:
-        from functools import partial
-        from src.sec_fundamentals_preview import build_sec_fundamentals_preview
-
-        preview_builder = partial(
-            build_sec_fundamentals_preview, canonical_path=None, staged_path=None
-        )
     try:
-        preview = preview_builder(normalized, user_agent=user_agent)
+        if preview_builder is None:
+            from src.sec_annual_history import fetch_sec_online_research_view
+
+            view = fetch_sec_online_research_view(normalized, user_agent=user_agent)
+        else:
+            preview = preview_builder(normalized, user_agent=user_agent)
+            view = present_company_sec_annual_preview(normalized, preview)
     except (RuntimeError, ValueError, TypeError, OSError, TimeoutError):
         view = _unavailable(normalized, "sec_fetch_unavailable")
         session_state[SESSION_KEY] = {"ticker": normalized, "view": view}
         return view
-    view = present_company_sec_annual_preview(normalized, preview)
     session_state[SESSION_KEY] = {"ticker": normalized, "view": view}
     return view
 

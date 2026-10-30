@@ -79,6 +79,7 @@ def test_online_only_workbench_opens_sec_check_without_saved_analysis(monkeypatc
         ),
     )
     monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_company_online_prices", lambda ticker: None)
     monkeypatch.setattr(
         dashboard,
         "search_sec_company_candidates",

@@ -71,7 +71,9 @@ def test_company_workbench_sec_component_proof_requires_click_and_reflows_at_pho
                 }],
             }
 
-        def _synthetic_preview(ticker, *, user_agent):
+        def _synthetic_preview(ticker, *, user_agent, canonical_path=None, staged_path=None, companyfacts_fetcher=None):
+            assert canonical_path is None and staged_path is None
+            assert callable(companyfacts_fetcher)
             with CALLS.open("a", encoding="utf-8") as handle:
                 handle.write(ticker + "\\n")
             return {

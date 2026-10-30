@@ -32,6 +32,8 @@ from src.online_company_search import (
 )
 from src.providers.sec_company_discovery import search_sec_company_candidates
 from src.online_company_analysis import build_online_company_analysis, online_company_analysis_html
+from src.online_company_prices import get_online_company_prices
+from src.online_research_history_view import annual_history_html, online_price_history_html
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
@@ -37920,9 +37922,17 @@ def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None
             }
         analysis = build_online_company_analysis(view)
         preview_target.markdown(
-            online_company_analysis_html(analysis) + company_sec_annual_preview_html(view),
+            online_company_analysis_html(analysis) + annual_history_html(view) + company_sec_annual_preview_html(view),
             unsafe_allow_html=True,
         )
+
+
+def render_company_online_prices(ticker: str) -> None:
+    """Inspect personal-use daily prices independently from SEC identity and facts."""
+    with st.container(key="company-online-prices"):
+        requested = st.button("Check online price history", key=f"company-online-price-refresh-{ticker}")
+        result = get_online_company_prices(ticker, st.session_state, refresh_requested=requested)
+        st.markdown(online_price_history_html(result), unsafe_allow_html=True)
 
 
 def render_company_workbench(
@@ -38007,6 +38017,7 @@ def render_company_workbench(
             unsafe_allow_html=True,
         )
         render_company_sec_annual_check(ticker, expected_cik=online_candidate["cik"])
+        render_company_online_prices(ticker)
         st.markdown(
             "<p><a href='?mode=research&amp;page=discover' target='_self'>"
             "Back to Discover</a></p>",
@@ -38065,6 +38076,7 @@ def render_company_workbench(
         selected_answer_target = st.empty()
         evidence_status_target = st.empty()
         render_company_sec_annual_check(ticker)
+        render_company_online_prices(ticker)
         timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
         st.markdown(
             evidence_timeline_html(

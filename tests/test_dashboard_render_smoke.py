@@ -511,10 +511,11 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
     assert not app.exception
     assert [button.label for button in app.button] == [
         "Check SEC annual facts",
+        "Check online price history",
         "Open evidence and analysis modules",
     ]
 
-    app.button[1].click().run(timeout=120)
+    next(button for button in app.button if button.label == "Open evidence and analysis modules").click().run(timeout=120)
 
     rendered = "\n".join(
         str(getattr(item, "value", ""))

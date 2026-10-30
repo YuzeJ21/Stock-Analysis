@@ -91,9 +91,12 @@ def build_online_company_analysis(view: Mapping[str, Any]) -> dict[str, Any]:
         str(row["field"]): row for row in fields
         if eligible(row, str(revenue["period_start"]))
     }
+    from src.online_history_contract import validated_annual_history
+    history = validated_annual_history(view)
+    has_history = bool(history and any(x["status"] == "comparable" for x in history["comparisons"]))
     findings = [{
-        "key": "revenue_anchor", "title": "Revenue available; growth history incomplete",
-        "detail": "Annual revenue is available for this period. A growth conclusion needs a separately validated prior year.",
+        "key": "revenue_anchor", "title": "Historical revenue comparison available" if has_history else "Revenue available; growth history incomplete",
+        "detail": "Comparable direct annual revenues and their observed filing history appear below. Percentage growth retains its own field-scope gate." if has_history else "Annual revenue is available for this period. A growth conclusion needs a separately validated prior year.",
         "source_fields": ["revenue"],
     }]
     operating = approved.get("operating_income")
@@ -152,8 +155,8 @@ def build_online_company_analysis(view: Mapping[str, Any]) -> dict[str, Any]:
             ("operating", "Operating result", operating is not None, "Requires matching approved operating income."),
             ("cash", "Operating cash flow", cash is not None, "Requires matching approved operating cash flow."),
             ("investment", "Cash flow / PP&E spending", cash_spend_comparable, "Requires total operating cash flow and PP&E spending with aligned source, period and component definitions."),
-            ("growth", "Growth history", False, "Prior annual periods are not yet independently validated in this view."),
-            ("prices", "Current price and market context", False, "A permitted price source and observation date are required."),
+            ("growth", "Percentage growth", False, "Comparable annual revenue direction appears in historical review when supported; a numeric growth rate requires registered derived-field scope."),
+            ("prices", "Price input for valuation", False, "Personal price history is inspected separately; issuer identity, adjustment basis and commercial scope must be reviewed before reuse."),
             ("valuation", "Valuation and scenarios", False, "Requires price, share basis, approved cash-flow definitions and explicit assumptions."),
             ("peers", "Peer comparison", False, "Requires reviewed relationships and comparable peer periods and definitions."),
             ("forecasts", "Forecasts and consensus", False, "Requires permitted point-in-time consensus and validated historical inputs."),
