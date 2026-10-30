@@ -2269,6 +2269,11 @@ def test_stock_selector_search_widget_behavior_removes_only_discover_help(monkey
 
     monkeypatch.setattr(dashboard, "stock_selector_current_filter_values", current_values)
     monkeypatch.setattr(dashboard.st, "text_input", capture_text_input)
+    monkeypatch.setattr(
+        dashboard,
+        "render_online_company_search",
+        lambda **kwargs: None,
+    )
 
     with pytest.raises(SearchCaptured):
         dashboard.render_stock_selector(

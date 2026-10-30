@@ -115,9 +115,9 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         required_markers=(
             "Discover",
             "Focused cohort",
-            "Find a Company",
-            "available for evidence review",
-            "currently pass the strict screen",
+            "Find a Company Online",
+            "Search SEC ticker and company-name associations.",
+            "strict-screen eligible",
             "Browse saved companies",
             "Research-only",
         ),

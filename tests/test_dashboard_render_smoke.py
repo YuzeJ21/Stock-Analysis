@@ -399,9 +399,9 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     discover_route = next(
         route for route in RESEARCH_RENDER_ROUTES if route.name == "Discover"
     )
-    assert "Find a Company" in discover_route.required_markers
-    assert "available for evidence review" in discover_route.required_markers
-    assert "currently pass the strict screen" in discover_route.required_markers
+    assert "Find a Company Online" in discover_route.required_markers
+    assert "Search SEC ticker and company-name associations." in discover_route.required_markers
+    assert "strict-screen eligible" in discover_route.required_markers
     assert "Screen eligibility — when supported" not in discover_route.required_markers
     assert "Browse saved companies" in discover_route.required_markers
     data_health_route = next(

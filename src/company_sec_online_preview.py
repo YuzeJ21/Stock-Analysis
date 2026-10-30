@@ -421,6 +421,8 @@ def company_sec_annual_preview_html(view: Mapping[str, Any]) -> str:
         body = "<p>Check SEC annual facts to request filing evidence for this company.</p>"
     elif status == "configuration_required":
         body = "<p>SEC identifying User-Agent is required before an online check.</p>"
+    elif status == "unavailable" and view.get("reason") == "sec_identity_mismatch":
+        body = "<p>SEC ticker identity did not match the selected online candidate. Annual facts are withheld.</p>"
     elif status != "inspection_only":
         body = "<p>SEC annual facts are unavailable. No field was promoted.</p>"
     else:

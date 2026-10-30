@@ -35,6 +35,7 @@ _CANONICAL_ROUTE_KEYS = frozenset(
         "ticker",
         "open",
         "cash_preview",
+        "online",
         "lane",
         "drawer",
         "queue_details",

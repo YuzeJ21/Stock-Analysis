@@ -25,6 +25,12 @@ from src.company_sec_online_preview import (
     company_sec_annual_preview_html,
     get_company_sec_annual_preview,
 )
+from src.online_company_search import (
+    ONLINE_COMPANY_SESSION_KEY,
+    online_company_candidate_for_route,
+    online_company_results_html,
+)
+from src.providers.sec_company_discovery import search_sec_company_candidates
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
@@ -31257,6 +31263,35 @@ def discover_saved_browser_jump_html() -> str:
     )
 
 
+def render_online_company_search(*, saved_tickers: Iterable[str] = ()) -> None:
+    """Search SEC associations on explicit request without changing saved evidence."""
+
+    st.markdown(
+        "<h2>Find a Company Online</h2>"
+        "<p>Search SEC ticker and company-name associations. "
+        "The saved research browser below remains a separate evidence collection.</p>",
+        unsafe_allow_html=True,
+    )
+    with st.form("online-company-search-form"):
+        query = st.text_input(
+            "Search SEC companies online",
+            placeholder="Company name or ticker",
+            help="Fetches the SEC association directory only after you press Search SEC now.",
+            key="online-company-query",
+        ).strip()
+        requested = st.form_submit_button("Search SEC now")
+    if requested:
+        st.session_state[ONLINE_COMPANY_SESSION_KEY] = search_sec_company_candidates(
+            query,
+            user_agent=os.getenv("SEC_USER_AGENT"),
+        )
+    result = st.session_state.get(ONLINE_COMPANY_SESSION_KEY)
+    st.markdown(
+        online_company_results_html(result, saved_tickers=set(saved_tickers)),
+        unsafe_allow_html=True,
+    )
+
+
 def render_stock_selector(
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
     *,
@@ -31267,6 +31302,7 @@ def render_stock_selector(
     research_boundary: str | None = None,
     strict_eligible_count: int | None = None,
     field_study: BoundedFieldStudy | None = None,
+    registered_tickers: tuple[str, ...] | None = None,
 ) -> None:
     research_discover = (
         str(target_mode).strip().lower() == RESEARCH_MODE
@@ -31308,6 +31344,16 @@ def render_stock_selector(
             selector_frame,
             allowed_tickers,
         )
+
+    if research_discover:
+        saved_tickers: tuple[str, ...] = registered_tickers or ()
+        if registered_tickers is None:
+            ticker_column = _selector_column(ticker_readiness_frame, "ticker", "Ticker")
+            if ticker_readiness_frame is not None and ticker_column:
+                saved_tickers = tuple(
+                    ticker_readiness_frame[ticker_column].dropna().astype(str).str.upper()
+                )
+        render_online_company_search(saved_tickers=saved_tickers)
 
     saved_presets = stock_selector_saved_filter_presets()
     current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
@@ -37843,7 +37889,7 @@ def render_research_monitor(
         st.caption("Source identifiers and raw change rows remain in the separate evidence drawer below.")
 
 
-def render_company_sec_annual_check(ticker: str) -> None:
+def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None) -> None:
     """Inspect one selected company's SEC annual facts only after an explicit click."""
 
     with st.container(key="company-sec-annual-check"):
@@ -37858,6 +37904,19 @@ def render_company_sec_annual_check(ticker: str) -> None:
             refresh_requested=refresh_requested,
             user_agent=os.getenv("SEC_USER_AGENT"),
         )
+        if (
+            expected_cik is not None
+            and view.get("status") == "inspection_only"
+            and view.get("sec_cik") != expected_cik
+        ):
+            view = {
+                "status": "unavailable",
+                "ticker": ticker,
+                "reason": "sec_identity_mismatch",
+                "approved_direct_fields": [],
+                "withheld_fields": [],
+                "safe_to_apply": False,
+            }
         preview_target.markdown(company_sec_annual_preview_html(view), unsafe_allow_html=True)
 
 
@@ -37879,6 +37938,29 @@ def render_company_workbench(
         if str(value or "").strip()
     }
     has_registered_company = bool(ticker and ticker in registered_tickers)
+    online_requested = str(st.query_params.get("online") or "") == "1"
+    session_state = getattr(st, "session_state", {})
+    online_candidate = (
+        online_company_candidate_for_route(
+            ticker,
+            session_state,
+        )
+        if online_requested
+        else None
+    )
+    if online_requested and online_candidate is None:
+        cached_search = session_state.get(ONLINE_COMPANY_SESSION_KEY)
+        attempted_this_ticker = (
+            isinstance(cached_search, Mapping)
+            and str(cached_search.get("query") or "").strip().upper() == ticker
+        )
+        if not attempted_this_ticker:
+            online_result = search_sec_company_candidates(
+                ticker,
+                user_agent=os.getenv("SEC_USER_AGENT"),
+            )
+            session_state[ONLINE_COMPANY_SESSION_KEY] = online_result
+            online_candidate = online_company_candidate_for_route(ticker, session_state)
     render_research_workspace_header(
         "Company Workbench",
         context,
@@ -37886,11 +37968,58 @@ def render_company_workbench(
         primary_action="Review usable evidence, then record what remains uncertain",
         compact=True,
         include_boundary=False,
-        context_only=has_registered_company,
+        context_only=has_registered_company and not online_requested,
     )
-    if not has_registered_company:
+    if online_candidate is not None:
+        st.markdown(
+            empty_state_html(
+                title=f"SEC online candidate: {ticker}",
+                absence=(
+                    "Saved local data is separate; its issuer identity has not been reconciled "
+                    "to this SEC association. Inspect exact SEC annual facts below after a separate online check."
+                    if has_registered_company
+                    else "No saved research record is available for this company. "
+                    "You can inspect exact SEC annual facts below after a separate online check."
+                ),
+                not_proven=(
+                    "its U.S. issuer domicile, security type, active listing, point-in-time "
+                    "coverage, financial coverage, valuation, or analysis eligibility"
+                ),
+                action=None,
+            ).value,
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<p class='online-company-source-meta' style='overflow-wrap:anywhere'>SEC ticker candidate "
+            f"{html.escape(ticker)} · CIK {html.escape(online_candidate['cik'])} · "
+            f"{html.escape(online_candidate['title'][:140])} · "
+            f"observed {html.escape(online_candidate['observed_at'])} · "
+            f"source last modified {html.escape(str(online_candidate['source_last_modified'] or 'unavailable'))} · "
+            f"SHA-256 <code>{html.escape(online_candidate['payload_sha256'])}</code> · "
+            f"<a href='{html.escape(online_candidate['source_url'], quote=True)}' "
+            "target='_blank' rel='noopener noreferrer'>SEC association source</a>. "
+            "Identity association rights require review before distribution.</p>",
+            unsafe_allow_html=True,
+        )
+        render_company_sec_annual_check(ticker, expected_cik=online_candidate["cik"])
+        st.markdown(
+            "<p><a href='?mode=research&amp;page=discover' target='_self'>"
+            "Back to Discover</a></p>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            stop_rule_html(
+                "Research-only. This online association does not activate saved analysis, "
+                "valuation, peer comparison, or recommendations."
+            ).value,
+            unsafe_allow_html=True,
+        )
+        return
+    if online_requested or not has_registered_company:
         title = (
-            f"No registered saved company matches {ticker}"
+            f"Online SEC identity is unavailable for {ticker}"
+            if ticker and online_requested
+            else f"No registered saved company matches {ticker}"
             if ticker
             else "Choose a company in Discover first"
         )
@@ -37898,7 +38027,10 @@ def render_company_workbench(
             empty_state_html(
                 title=title,
                 absence=(
-                    "No registered ticker was supplied for this Company Workbench route. "
+                    "The online SEC association could not be verified for this ticker. "
+                    "No saved-company or financial claim has been substituted."
+                    if online_requested
+                    else "No registered ticker was supplied for this Company Workbench route. "
                     "The workspace will not infer a default saved company."
                 ),
                 not_proven=(
@@ -37914,7 +38046,9 @@ def render_company_workbench(
         )
         st.markdown(
             stop_rule_html(
-                "Research-only. Select an explicit saved company before opening a Company Brief."
+                "Research-only. Retry the online search in Discover before inspecting facts."
+                if online_requested
+                else "Research-only. Select an explicit saved company before opening a Company Brief."
             ).value,
             unsafe_allow_html=True,
         )
@@ -38028,7 +38162,7 @@ def render_personal_research_route(
         render_research_workspace_header(
             "Discover",
             context,
-            primary_action="Check strict eligibility or browse one saved company",
+            primary_action="Search SEC online or inspect saved evidence",
             compact=True,
             include_boundary=False,
         )
@@ -38042,6 +38176,11 @@ def render_personal_research_route(
             research_boundary=QUEUE_BOUNDARY,
             strict_eligible_count=len(daily_queue.result.eligible),
             field_study=load_dashboard_bounded_field_study(context),
+            registered_tickers=(
+                tuple(provider.list_local_tickers())
+                if provider is not None and hasattr(provider, "list_local_tickers")
+                else ()
+            ),
         )
         st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
         with st.expander("Advanced: cohort readiness context", expanded=False):
