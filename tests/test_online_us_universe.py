@@ -180,3 +180,22 @@ def test_directory_transport_requests_text_not_json_and_preserves_raw_receipt(mo
     raw, headers, url = universe._fetch_directory(N_URL, 'Research contact')
     assert raw == N_BODY.encode() and url == N_URL
     assert requests[0].get_header('Accept') == 'text/plain'
+
+
+def test_sec_access_limit_preserves_completed_row_and_pauses_remaining_issuer_requests():
+    from urllib.error import HTTPError
+    from src.online_us_universe import inspect_next_universe_batch
+    calls=[];state={'inventory':_inventory(),'observations':[]};base=_fetch(calls)
+    def limited(url,agent):
+        if '/companyfacts/' in url and '0000005678' in url:
+            calls.append(url)
+            raise HTTPError(url,429,'Too many requests',{'Retry-After':'120'},None)
+        return base(url,agent)
+    result=inspect_next_universe_batch(state,user_agent='Research',batch_size=3,source_fetcher=limited,observed_at=OBSERVED)
+    assert result['coverage']['attempted_issuer_count']==2
+    assert result['coverage']['source_failure_count']==1 and result['coverage']['unprobed_issuer_count']==1
+    assert result['source_access_pause']['http_status']==429
+    assert not any('CIK0000009876' in u for u in calls)
+    before=len(calls)
+    same=inspect_next_universe_batch(result,user_agent='Research',source_fetcher=limited,observed_at=OBSERVED)
+    assert len(calls)==before and same['source_access_pause']==result['source_access_pause']

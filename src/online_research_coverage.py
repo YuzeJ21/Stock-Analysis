@@ -7,6 +7,7 @@ import re
 from collections import defaultdict
 from collections.abc import Mapping
 from datetime import timedelta
+from urllib.error import HTTPError
 
 from src.company_sec_online_preview import _iso_date, _utc_timestamp
 from src.online_company_identity import financial_identity_valid, validated_sec_company_profile, fetch_sec_company_profile, _mode_reason
@@ -184,10 +185,16 @@ def run_online_coverage_study(tickers=DEFAULT_SAMPLE,*,user_agent,source_fetcher
     requested=_tickers(tickers); reason=_mode_reason(workspace_mode)
     if reason or requested is None: return {'status':'unavailable','reason':reason or 'invalid_sample'}
     from src.online_sec_receipt import _fetch_raw
-    calls=[]
+    calls=[];access_limit={}
     def fetch(url,agent):
         calls.append(url)
-        return (source_fetcher or _fetch_raw)(url,agent)
+        try:return (source_fetcher or _fetch_raw)(url,agent)
+        except HTTPError as error:
+            if error.code in {403,429,503}:
+                retry=error.headers.get('Retry-After') if error.headers else None
+                retry=int(retry) if isinstance(retry,str) and re.fullmatch(r'\d{1,6}',retry) else 300
+                access_limit.update(source_url=url,http_status=error.code,retry_after_seconds=max(1,min(retry,3600)))
+            raise
     mapping=ticker_map_receipt if ticker_map_receipt is not None else fetch_sec_json_receipt(MAP_URL,user_agent=user_agent,fetcher=fetch,observed_at=observed_at)
     if not isinstance(mapping,Mapping) or mapping.get('source_url')!=MAP_URL or mapping.get('status') not in {'ready','unavailable'}: return {'status':'invalid','reason':'invalid_map_receipt'}
     observations=[]
@@ -203,8 +210,10 @@ def run_online_coverage_study(tickers=DEFAULT_SAMPLE,*,user_agent,source_fetcher
             if financial_identity_valid(ticker,identity):
                 profile=fetch_sec_company_profile(identity['sec_cik'],user_agent=user_agent,fetcher=fetch,observed_at=observed_at)
         observations.append({'ticker':ticker,'view':view,'profile':profile})
+        if access_limit:break
     result=summarize_online_research_coverage(observations,requested)
     result['source_request_count']=len(calls)
+    if access_limit:result['source_access_limit']=access_limit
     return result
 
 

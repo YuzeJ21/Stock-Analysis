@@ -14,10 +14,12 @@ _URL = re.compile(r'https://(?:www\.sec\.gov/files/company_tickers(?:_exchange)?
 
 
 def _fetch_raw(url, user_agent):
-    with urlopen(Request(url, headers={'User-Agent':user_agent,'Accept':'application/json'}), timeout=30) as response:
-        result = response.read(MAX_SEC_RESPONSE_BYTES + 1), dict(response.headers.items()), response.geturl()
-    time.sleep(0.2)
-    return result
+    try:
+        with urlopen(Request(url, headers={'User-Agent':user_agent,'Accept':'application/json'}), timeout=30) as response:
+            return response.read(MAX_SEC_RESPONSE_BYTES + 1), dict(response.headers.items()), response.geturl()
+    finally:
+        # Failed access is throttled too; callers can pause rather than storming.
+        time.sleep(0.2)
 
 
 def fetch_sec_json_receipt(url, *, user_agent, fetcher=None, observed_at=None):

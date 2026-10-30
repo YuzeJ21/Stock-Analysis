@@ -4,6 +4,7 @@ import argparse
 from collections import Counter, defaultdict
 from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
+import sys
 import hashlib
 import json
 import os
@@ -214,6 +215,17 @@ def build_universe_coverage(inventory, observations):
         unresolved_listing_count=inventory['unmatched_listing_count'], rows=rows)
 
 
+def validated_access_pause(value):
+    from src.online_sec_receipt import _URL
+    if not isinstance(value,Mapping) or set(value)!={'source_url','http_status','retry_after_seconds','paused_at','resume_after'}:return None
+    if (not isinstance(value.get('source_url'),str) or not _URL.fullmatch(value['source_url'])
+        or type(value.get('http_status')) is not int or value['http_status'] not in {403,429,503}
+        or type(value.get('retry_after_seconds')) is not int or not 1<=value['retry_after_seconds']<=3600):return None
+    paused=_utc_timestamp(value.get('paused_at'));resume=_utc_timestamp(value.get('resume_after'))
+    if paused is None or resume is None or resume-paused!=timedelta(seconds=value['retry_after_seconds']):return None
+    return dict(value)
+
+
 def inspect_next_universe_batch(state, *, user_agent, batch_size=20, source_fetcher=None, observed_at=None, workspace_mode='research'):
     reason = _mode_reason(workspace_mode)
     if reason: return {'status': 'unavailable', 'reason': reason}
@@ -225,16 +237,30 @@ def inspect_next_universe_batch(state, *, user_agent, batch_size=20, source_fetc
     if (not isinstance(now, datetime) or now.utcoffset() is None
         or not timedelta(0) <= now - _utc_timestamp(inventory['observed_from']) <= timedelta(hours=24)):
         return {'status': 'unavailable', 'reason': 'inventory_refresh_required'}
+    pause=state.get('source_access_pause')
+    if pause is not None:
+        pause=validated_access_pause(pause)
+        if pause is None:return {'status':'unavailable','reason':'invalid_source_access_pause'}
+        if now<_utc_timestamp(pause['resume_after']):
+            return dict(status='inspection_only',inventory=inventory,observations=observations,coverage=coverage,source_access_pause=pause)
     attempted = {r['sec_cik'] for r in observations}
     pending = [r for r in inventory['issuer_queue'] if r['sec_cik'] not in attempted][:batch_size]
-    result = [*observations]
+    result = [*observations];pause=None
     for issuer in pending:
         study = run_online_coverage_study([issuer['ticker']], user_agent=user_agent, source_fetcher=source_fetcher,
             observed_at=observed_at, workspace_mode=workspace_mode, ticker_map_receipt=inventory['map_receipt'])
         checked = validated_coverage_summary(study)
         if checked is None: return {'status': 'unavailable', 'reason': 'invalid_issuer_probe'}
         result.append(dict(inventory_fingerprint=inventory['inventory_fingerprint'], sec_cik=issuer['sec_cik'], row=checked['rows'][0]))
-    return dict(status='inspection_only', inventory=inventory, observations=result, coverage=build_universe_coverage(inventory, result))
+        limit=study.get('source_access_limit')
+        if limit:
+            paused=(observed_at or datetime.now(timezone.utc)).astimezone(timezone.utc).replace(microsecond=0)
+            pause={**limit,'paused_at':paused.strftime('%Y-%m-%dT%H:%M:%SZ'),
+                   'resume_after':(paused+timedelta(seconds=limit['retry_after_seconds'])).strftime('%Y-%m-%dT%H:%M:%SZ')}
+            break
+    state=dict(status='inspection_only', inventory=inventory, observations=result, coverage=build_universe_coverage(inventory, result))
+    if pause:state['source_access_pause']=pause
+    return state
 
 
 def get_online_us_universe(session_state, *, user_agent, load_requested=False, inspect_requested=False,
@@ -261,7 +287,12 @@ def get_online_us_universe(session_state, *, user_agent, load_requested=False, i
     inventory = validated_us_universe(state.get('inventory'))
     coverage = build_universe_coverage(inventory, state.get('observations', []))
     if coverage['status'] != 'inspection_only': return coverage
-    return dict(status='inspection_only', inventory=inventory, observations=state.get('observations', []), coverage=coverage)
+    result=dict(status='inspection_only', inventory=inventory, observations=state.get('observations', []), coverage=coverage)
+    if state.get('source_access_pause') is not None:
+        pause=validated_access_pause(state['source_access_pause'])
+        if pause is None:return {'status':'unavailable','reason':'invalid_source_access_pause'}
+        result['source_access_pause']=pause
+    return result
 
 
 def main(argv=None):
@@ -269,16 +300,37 @@ def main(argv=None):
     parser.add_argument('--scan-all', action='store_true', help='Attempt the complete observed issuer queue with serialized SEC access.')
     parser.add_argument('--batch-size', type=int, default=20)
     parser.add_argument('--batches', type=int, default=0, help='Number of financial batches; zero loads inventory only.')
+    parser.add_argument('--checkpoint',help='Explicit private reduced JSON checkpoint; no raw financial amounts.')
+    parser.add_argument('--resume',action='store_true',help='Restore this checkpoint without refetching its inventory.')
     args = parser.parse_args(argv)
     if not 1 <= args.batch_size <= 20 or not 0 <= args.batches <= 100000: parser.error('invalid batch limits')
-    inventory = load_online_us_universe(user_agent=os.getenv('SEC_USER_AGENT'))
-    if inventory['status'] != 'inspection_only': print(json.dumps(inventory)); return 2
-    state = dict(inventory=inventory, observations=[])
+    from src.online_coverage_checkpoint import load_coverage_checkpoint,save_coverage_checkpoint
+    if args.resume and not args.checkpoint:parser.error('--resume requires --checkpoint')
+    expected_digest=None
+    if args.resume:
+        restored=load_coverage_checkpoint(args.checkpoint)
+        if restored['status']!='ready':print(json.dumps(restored));return 2
+        state=restored['state'];inventory=state['inventory'];expected_digest=restored['checkpoint_digest']
+    else:
+        inventory=load_online_us_universe(user_agent=os.getenv('SEC_USER_AGENT'))
+        if inventory['status']!='inspection_only':print(json.dumps(inventory));return 2
+        state=dict(inventory=inventory,observations=[])
+    def persist():
+        nonlocal expected_digest
+        if not args.checkpoint:return True
+        saved=save_coverage_checkpoint(args.checkpoint,state,expected_digest=expected_digest)
+        if saved['status']!='saved':print(json.dumps(saved));return False
+        expected_digest=saved['checkpoint_digest'];return True
+    if not persist():return 2
     batches = 0
     while args.scan_all or batches < args.batches:
         state = inspect_next_universe_batch(state, user_agent=os.getenv('SEC_USER_AGENT'), batch_size=args.batch_size)
         if state.get('status') != 'inspection_only': print(json.dumps(state)); return 2
         batches += 1
+        if not persist():return 2
+        print('Coverage checked '+str(state['coverage']['attempted_issuer_count'])+'/'+str(state['coverage']['issuer_denominator'])+' issuer candidates',file=sys.stderr,flush=True)
+        if state.get('source_access_pause'):
+            print(json.dumps({'status':'paused','coverage':state['coverage'],'source_access_pause':state['source_access_pause']},indent=2));return 3
         if state['coverage']['all_probe_candidates_attempted']: break
     summary = {k: v for k, v in inventory.items() if k not in {'map_receipt', 'rows', 'issuer_queue'}}
     print(json.dumps(dict(inventory=summary, coverage=build_universe_coverage(inventory, state['observations'])), indent=2))
