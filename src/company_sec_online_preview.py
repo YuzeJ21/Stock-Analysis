@@ -11,9 +11,37 @@ from typing import Any, Callable, Mapping, MutableMapping
 
 
 SESSION_KEY = "company_sec_annual_preview_v1"
-ALLOWED_DIRECT_FIELDS = frozenset({"revenue", "shares_outstanding", "filing_dates"})
+ALLOWED_DIRECT_FIELDS = frozenset({
+    "revenue", "shares_outstanding", "filing_dates",
+    "operating_income", "cash_from_operations", "capital_expenditures",
+})
 ANNUAL_FORMS = frozenset({"10-K", "10-K/A", "20-F", "20-F/A", "40-F", "40-F/A"})
-EXPECTED_UNITS = {"revenue": "USD", "shares_outstanding": "shares", "filing_dates": "date"}
+EXPECTED_UNITS = {
+    "revenue": "USD", "shares_outstanding": "shares", "filing_dates": "date",
+    "operating_income": "USD", "cash_from_operations": "USD",
+    "capital_expenditures": "USD",
+}
+REVENUE_CONCEPTS = frozenset({
+    ("us-gaap", "Revenues"),
+    ("us-gaap", "RevenueFromContractWithCustomerExcludingAssessedTax"),
+    ("us-gaap", "SalesRevenueNet"),
+    ("us-gaap", "SalesRevenueGoodsNet"),
+})
+OPERATING_COMPONENT_CONCEPTS = {
+    "operating_income": frozenset({("us-gaap", "OperatingIncomeLoss")}),
+    "cash_from_operations": frozenset({
+        ("us-gaap", "NetCashProvidedByUsedInOperatingActivities"),
+        ("us-gaap", "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations"),
+    }),
+    "capital_expenditures": frozenset({
+        ("us-gaap", "PaymentsToAcquirePropertyPlantAndEquipment"),
+        ("us-gaap", "PaymentsToAcquireProductiveAssets"),
+    }),
+}
+SCHEMA_REVIEW_BLOCKER = (
+    "Direct SEC field is approved, but adding a canonical column "
+    "requires a separate schema decision."
+)
 
 
 def _unavailable(ticker: str, reason: str) -> dict[str, Any]:
@@ -53,6 +81,69 @@ def _finite_direct_number(value: Any) -> bool:
         return math.isfinite(value) and abs(value) <= 1e20
     except OverflowError:
         return False
+
+
+def _source_reference(
+    field: Mapping[str, Any], *, field_name: str, source_url: str,
+    retrieval_timestamp: str, anchor_start: str | None, anchor_end: str,
+    anchor_filed: str, anchor_accession: str, anchor_form: str | None,
+    anchor_concept: tuple[str, str] | None,
+) -> tuple[str | None, Mapping[str, Any] | None]:
+    refs = field.get("source_refs")
+    if not isinstance(refs, list) or len(refs) != 1 or not isinstance(refs[0], Mapping):
+        return "source_reference_missing", None
+    ref = refs[0]
+    taxonomy, concept = ref.get("taxonomy"), ref.get("concept")
+    if not isinstance(taxonomy, str) or not taxonomy or not isinstance(concept, str) or not concept:
+        return "source_reference_missing", None
+    if ref.get("form") not in ANNUAL_FORMS:
+        return "nonannual_source", None
+    if ref.get("unit") != EXPECTED_UNITS.get(field_name):
+        return "field_unit_mismatch", None
+    if (
+        ref.get("period_end") != anchor_end
+        or field.get("period_end") != ref.get("period_end")
+    ):
+        return "field_period_mismatch", None
+    if field_name == "revenue" or field_name in OPERATING_COMPONENT_CONCEPTS:
+        start = ref.get("period_start")
+        start_date = _iso_date(start)
+        end_date = _iso_date(anchor_end)
+        if (
+            start_date is None or end_date is None
+            or not 300 <= (end_date - start_date).days <= 430
+            or field.get("period_start") != start
+            or (anchor_start is not None and start != anchor_start)
+        ):
+            return "field_period_mismatch", None
+    concept_key = (taxonomy, concept)
+    if (
+        field_name == "revenue" and concept_key not in REVENUE_CONCEPTS
+        or field_name == "shares_outstanding"
+        and concept_key != ("dei", "EntityCommonStockSharesOutstanding")
+        or field_name == "filing_dates"
+        and (anchor_concept is None or concept_key != anchor_concept)
+        or field_name in OPERATING_COMPONENT_CONCEPTS
+        and concept_key not in OPERATING_COMPONENT_CONCEPTS[field_name]
+    ):
+        return "field_concept_mismatch", None
+    if field_name == "filing_dates" and (
+        ref.get("underlying_fact_unit") != "USD"
+        or anchor_start is None
+        or ref.get("period_start") != anchor_start
+        or field.get("period_start") != anchor_start
+    ):
+        return "field_period_mismatch", None
+    if (
+        ref.get("source_url") != source_url
+        or ref.get("retrieval_timestamp") != retrieval_timestamp
+        or ref.get("filed") != anchor_filed
+        or ref.get("accession") != anchor_accession
+        or (anchor_form is not None and ref.get("form") != anchor_form)
+        or field.get("form") != ref.get("form")
+    ):
+        return "field_source_mismatch", None
+    return None, ref
 
 
 def present_company_sec_annual_preview(ticker: str, preview: Mapping[str, Any]) -> dict[str, Any]:
@@ -104,11 +195,60 @@ def present_company_sec_annual_preview(ticker: str, preview: Mapping[str, Any]) 
         or not re.fullmatch(r"\d{10}-\d{2}-\d{6}", accession)
     ):
         return _unavailable(normalized, "invalid_annual_source_anchor")
+    components = row.get("source_components", [])
+    if (
+        not isinstance(components, list) or len(fields) + len(components) > 32
+        or any(not isinstance(component, Mapping) for component in components)
+    ):
+        return _unavailable(normalized, "invalid_preview")
+    source_rows = [(field, False) for field in fields] + [
+        (component, True) for component in components
+    ]
+    revenue_rows = [field for field in fields if field.get("field") == "revenue"]
+    anchor_start: str | None = None
+    anchor_form: str | None = None
+    anchor_concept: tuple[str, str] | None = None
+    revenue = revenue_rows[0] if len(revenue_rows) == 1 else {}
+    revenue_anchor_ready = bool(
+        revenue.get("classification") == "approved_direct"
+        and revenue.get("value_kind") == "direct"
+        and _finite_direct_number(revenue.get("candidate_value"))
+        and revenue.get("sec_cik") == cik
+        and revenue.get("accession") == accession
+        and revenue.get("period_end") == row["candidate_period_end"]
+        and revenue.get("filing_date") == row["candidate_filing_date"]
+        and revenue.get("source_url") == expected_source_url
+        and revenue.get("retrieval_timestamp") == preview["retrieval_timestamp"]
+        and revenue.get("form") in ANNUAL_FORMS
+        and revenue.get("unit") == "USD"
+        and revenue.get("field_scope_status") == "approved"
+        and revenue.get("source_rights_status") == "approved"
+        and revenue.get("commercial_rights_approved") is True
+        and revenue.get("publishability_blocker") == "none"
+    )
+    if revenue_anchor_ready:
+        anchor_reason, anchor_ref = _source_reference(
+            revenue, field_name="revenue", source_url=expected_source_url,
+            retrieval_timestamp=str(preview["retrieval_timestamp"]),
+            anchor_start=None, anchor_end=str(row["candidate_period_end"]),
+            anchor_filed=str(row["candidate_filing_date"]),
+            anchor_accession=accession, anchor_form=None, anchor_concept=None,
+        )
+        if anchor_reason is None and anchor_ref is not None:
+            anchor_start = str(anchor_ref["period_start"])
+            anchor_form = str(anchor_ref["form"])
+            anchor_concept = (str(anchor_ref["taxonomy"]), str(anchor_ref["concept"]))
+
     approved: list[dict[str, Any]] = []
     withheld: list[dict[str, str]] = []
     approved_forms: set[str] = set()
-    for field in fields:
+    for field, is_component in source_rows:
         field_name = str(field.get("field") or "unknown")
+        schema_hold = bool(
+            is_component
+            and field.get("schema_status") == "candidate_component_not_canonical"
+            and field.get("publishability_blocker") == SCHEMA_REVIEW_BLOCKER
+        )
         unit_ok = field.get("unit") == EXPECTED_UNITS.get(field_name)
         value = field.get("candidate_value")
         value_ok = (
@@ -122,49 +262,76 @@ def present_company_sec_annual_preview(ticker: str, preview: Mapping[str, Any]) 
             and field.get("period_end") == row.get("candidate_period_end")
             and field.get("filing_date") == row.get("candidate_filing_date")
             and field.get("source_url") == expected_source_url
+            and field.get("retrieval_timestamp") == preview["retrieval_timestamp"]
         )
-        if same_source and (
-            field_name in ALLOWED_DIRECT_FIELDS
-            and field.get("form") in ANNUAL_FORMS
-            and unit_ok
-            and value_ok
-            and field.get("classification") == "approved_direct"
-            and field.get("field_scope_status") == "approved"
-            and field.get("source_rights_status") == "approved"
-            and field.get("commercial_rights_approved") is True
-            and field.get("publishability_blocker") == "none"
-        ):
+        reference_reason: str | None = None
+        source_ref: Mapping[str, Any] | None = None
+        if field_name in ALLOWED_DIRECT_FIELDS:
+            reference_reason, source_ref = _source_reference(
+                field, field_name=field_name, source_url=expected_source_url,
+                retrieval_timestamp=str(preview["retrieval_timestamp"]),
+                anchor_start=anchor_start, anchor_end=str(row["candidate_period_end"]),
+                anchor_filed=str(row["candidate_filing_date"]),
+                anchor_accession=accession, anchor_form=anchor_form,
+                anchor_concept=anchor_concept,
+            )
+        reason = (
+            "derived_field_scope_unreviewed"
+            if field.get("classification") == "derived_scope_review_required"
+            or field_name in ALLOWED_DIRECT_FIELDS and field.get("value_kind") != "direct"
+            else "unsupported_online_field"
+            if field_name not in ALLOWED_DIRECT_FIELDS
+            or is_component and field_name not in OPERATING_COMPONENT_CONCEPTS
+            or not is_component and field_name in OPERATING_COMPONENT_CONCEPTS and anchor_start is not None
+            else "nonannual_source"
+            if field.get("classification") == "approved_direct" and field.get("form") not in ANNUAL_FORMS
+            else "field_source_mismatch"
+            if field.get("classification") == "approved_direct" and not same_source
+            else "field_unit_mismatch"
+            if field.get("classification") == "approved_direct" and not unit_ok
+            else "invalid_direct_value"
+            if field.get("classification") == "approved_direct" and not value_ok
+            else "annual_anchor_reference_missing"
+            if field_name in OPERATING_COMPONENT_CONCEPTS and anchor_start is None
+            else reference_reason
+            if field.get("classification") == "approved_direct" and reference_reason
+            else "source_evidence_unreviewed"
+            if field.get("classification") != "approved_direct"
+            or field.get("field_scope_status") != "approved"
+            or field.get("source_rights_status") != "approved"
+            or field.get("commercial_rights_approved") is not True
+            or not (
+                schema_hold if is_component else field.get("publishability_blocker") == "none"
+            )
+            else None
+        )
+        if reason is None and source_ref is not None:
             approved_forms.add(str(field.get("form")))
             approved.append(
                 {
                     "field": field_name,
                     "value": field.get("candidate_value"),
                     "unit": field.get("unit"),
+                    "taxonomy": source_ref["taxonomy"],
+                    "concept": source_ref["concept"],
+                    "period_start": source_ref.get("period_start"),
                     "period_end": field.get("period_end"),
-                }
-            )
-        else:
-            withheld.append(
-                {
-                    "field": field_name,
-                    "reason": (
-                        "derived_field_scope_unreviewed"
-                        if field.get("classification") == "derived_scope_review_required"
-                        else "unsupported_online_field"
-                        if field_name not in ALLOWED_DIRECT_FIELDS
-                        else "nonannual_source"
-                        if field.get("classification") == "approved_direct" and field.get("form") not in ANNUAL_FORMS
-                        else "field_source_mismatch"
-                        if field.get("classification") == "approved_direct" and not same_source
-                        else "field_unit_mismatch"
-                        if field.get("classification") == "approved_direct" and not unit_ok
-                        else "invalid_direct_value"
-                        if field.get("classification") == "approved_direct" and not value_ok
-                        else "source_evidence_unreviewed"
+                    "source_ref": expected_source_url,
+                    "accession": accession,
+                    "rights_status": "approved_field_scope_raw_redistribution_held",
+                    "observed_at_utc": preview["retrieval_timestamp"],
+                    "canonical_schema_status": (
+                        "unchanged"
+                        if not is_component and field.get("schema_status") == "existing_canonical"
+                        else "review_required"
                     ),
                 }
             )
-    field_counts = Counter(str(field.get("field") or "unknown") for field in fields)
+        else:
+            withheld.append({"field": field_name, "reason": reason or "source_evidence_unreviewed"})
+    field_counts = Counter(
+        str(field.get("field") or "unknown") for field, _is_component in source_rows
+    )
     duplicate_direct = {
         name for name, count in field_counts.items() if name in ALLOWED_DIRECT_FIELDS and count > 1
     }
@@ -296,11 +463,27 @@ def company_sec_annual_preview_html(view: Mapping[str, Any]) -> str:
                 display_value = value[:80]
             field_name = str(row.get("field") or "unknown")[:40]
             field_label = "Filing date" if field_name == "filing_dates" else field_name.replace("_", " ").title()
+            proof = (
+                '<div class="sec-annual-field-proof">'
+                f'<div>Source: {escape(str(row.get("taxonomy") or "unknown")[:32])}:'
+                f'{escape(str(row.get("concept") or "unknown")[:96])}; accession '
+                f'{escape(str(row.get("accession") or "unavailable")[:24])}</div>'
+                f'<div>Period: {escape(str(row.get("period_start") or "not stated")[:20])} to '
+                f'{escape(str(row.get("period_end") or "unknown")[:20])}</div>'
+                '<div>Field scope: approved; raw redistribution held</div>'
+                f'<div>Observed: {escape(str(row.get("observed_at_utc") or "unknown")[:40])}</div>'
+                + (
+                    '<div>Canonical schema: review required</div>'
+                    if row.get("canonical_schema_status") == "review_required"
+                    else ""
+                )
+                + '</div>'
+            )
             field_rows.append(
                 '<tr class="sec-annual-field-row is-available">'
                 + '<th scope="row"><span class="sec-annual-field-name">'
                 + f"{escape(field_label)}</span><code>{escape(field_name)}</code></th>"
-                + f'<td class="sec-annual-field-value">{escape(display_value)}</td>'
+                + f'<td class="sec-annual-field-value">{escape(display_value)}{proof}</td>'
                 + f'<td>{escape(str(row.get("unit") or "unknown")[:16])}</td>'
                 + f'<td>{escape(str(row.get("period_end") or "unknown")[:20])}</td>'
                 + "</tr>"
@@ -315,6 +498,10 @@ def company_sec_annual_preview_html(view: Mapping[str, Any]) -> str:
             "invalid_direct_value": "A valid direct value was not available",
             "source_evidence_unreviewed": "Source evidence needs review",
             "duplicate_direct_field": "Conflicting or duplicate source facts need review",
+            "source_reference_missing": "Exact SEC field reference is missing",
+            "field_concept_mismatch": "SEC concept does not match this field",
+            "field_period_mismatch": "Field period does not match the annual filing",
+            "annual_anchor_reference_missing": "Revenue annual source anchor is missing",
         }
         withheld_input = view.get("withheld_fields")
         if not isinstance(withheld_input, (list, tuple)):

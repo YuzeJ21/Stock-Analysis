@@ -14,6 +14,21 @@ from src.company_sec_online_preview import (
 def _synthetic_preview() -> dict[str, object]:
     source_url = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000001234.json"
     accession = "0000001234-26-000001"
+    source_ref = {
+        "source_url": source_url,
+        "retrieval_timestamp": "2026-10-29T19:00:00Z",
+        "taxonomy": "us-gaap",
+        "concept": "Revenues",
+        "unit": "USD",
+        "underlying_fact_unit": "USD",
+        "period_start": "2025-01-01",
+        "period_end": "2025-12-31",
+        "filed": "2026-03-01",
+        "form": "10-K",
+        "accession": accession,
+        "fiscal_year": 2025,
+        "fiscal_period": "FY",
+    }
     return {
         "status": "inspection_only",
         "source": "sec_companyfacts",
@@ -34,7 +49,9 @@ def _synthetic_preview() -> dict[str, object]:
                 "fields": [
                     {
                         "field": "revenue",
+                        "value_kind": "direct",
                         "classification": "approved_direct",
+                        "schema_status": "existing_canonical",
                         "field_scope_status": "approved",
                         "source_rights_status": "approved",
                         "commercial_rights_approved": True,
@@ -44,9 +61,12 @@ def _synthetic_preview() -> dict[str, object]:
                         "form": "10-K",
                         "sec_cik": "0000001234",
                         "accession": accession,
+                        "period_start": "2025-01-01",
                         "period_end": "2025-12-31",
                         "filing_date": "2026-03-01",
                         "source_url": source_url,
+                        "retrieval_timestamp": "2026-10-29T19:00:00Z",
+                        "source_refs": [source_ref],
                     },
                     {
                         "field": "free_cash_flow",
@@ -62,6 +82,276 @@ def _synthetic_preview() -> dict[str, object]:
     }
 
 
+def _preview_with_operating_components() -> dict[str, object]:
+    preview = _synthetic_preview()
+    revenue = preview["tickers"][0]["fields"][0]
+    for name, concept, value in (
+        ("operating_income", "OperatingIncomeLoss", 180_000),
+        ("cash_from_operations", "NetCashProvidedByUsedInOperatingActivities", 250_000),
+        ("capital_expenditures", "PaymentsToAcquirePropertyPlantAndEquipment", 40_000),
+    ):
+        reference = dict(revenue["source_refs"][0], concept=concept)
+        preview["tickers"][0].setdefault("source_components", []).append(
+            {
+                **revenue,
+                "field": name,
+                "candidate_value": value,
+                "schema_status": "candidate_component_not_canonical",
+                "publishability_blocker": (
+                    "Direct SEC field is approved, but adding a canonical column "
+                    "requires a separate schema decision."
+                ),
+                "source_refs": [reference],
+            }
+        )
+    return preview
+
+
+def test_registered_operating_components_appear_only_as_read_only_source_facts() -> None:
+    preview = _preview_with_operating_components()
+
+    view = present_company_sec_annual_preview("FICT", preview)
+
+    assert [row["field"] for row in view["approved_direct_fields"]] == [
+        "revenue", "operating_income", "cash_from_operations", "capital_expenditures"
+    ]
+    assert [row["value"] for row in view["approved_direct_fields"][1:]] == [
+        180_000, 250_000, 40_000
+    ]
+    assert all(row["canonical_schema_status"] == "review_required" for row in view["approved_direct_fields"][1:])
+    assert view["safe_to_apply"] is False
+
+
+@pytest.mark.parametrize(
+    ("change", "reason"),
+    [
+        ("missing_reference", "source_reference_missing"),
+        ("wrong_concept", "field_concept_mismatch"),
+        ("wrong_start", "field_period_mismatch"),
+        ("wrong_end", "field_period_mismatch"),
+        ("wrong_accession", "field_source_mismatch"),
+        ("wrong_filed", "field_source_mismatch"),
+        ("wrong_form", "nonannual_source"),
+        ("wrong_unit", "field_unit_mismatch"),
+        ("wrong_source_url", "field_source_mismatch"),
+        ("wrong_observation", "field_source_mismatch"),
+    ],
+)
+def test_operating_component_with_mismatched_source_reference_is_withheld(
+    change: str, reason: str
+) -> None:
+    preview = _preview_with_operating_components()
+    component = preview["tickers"][0]["source_components"][0]
+    reference = component["source_refs"][0]
+    if change == "missing_reference":
+        component["source_refs"] = []
+    elif change == "wrong_concept":
+        reference["concept"] = "NetIncomeLoss"
+    elif change == "wrong_start":
+        reference["period_start"] = "2025-02-01"
+    elif change == "wrong_end":
+        reference["period_end"] = "2025-11-30"
+    elif change == "wrong_accession":
+        reference["accession"] = "0000001234-26-000002"
+    elif change == "wrong_filed":
+        reference["filed"] = "2026-03-02"
+    elif change == "wrong_form":
+        reference["form"] = "10-Q"
+    elif change == "wrong_unit":
+        reference["unit"] = "shares"
+    elif change == "wrong_source_url":
+        reference["source_url"] = "https://example.invalid/other.json"
+    else:
+        reference["retrieval_timestamp"] = "2026-10-28T19:00:00Z"
+
+    view = present_company_sec_annual_preview("FICT", preview)
+
+    assert "operating_income" not in {row["field"] for row in view["approved_direct_fields"]}
+    assert {"field": "operating_income", "reason": reason} in view["withheld_fields"]
+    assert "180,000" not in company_sec_annual_preview_html(view)
+
+
+def test_missing_revenue_source_reference_blocks_operating_component_alignment() -> None:
+    preview = _preview_with_operating_components()
+    preview["tickers"][0]["fields"][0]["source_refs"] = []
+
+    view = present_company_sec_annual_preview("FICT", preview)
+
+    assert view["approved_direct_fields"] == []
+    assert {"field": "revenue", "reason": "source_reference_missing"} in view["withheld_fields"]
+    assert all(
+        {"field": field, "reason": "annual_anchor_reference_missing"} in view["withheld_fields"]
+        for field in ("operating_income", "cash_from_operations", "capital_expenditures")
+    )
+
+
+def test_revenue_anchor_identity_failure_withholds_operating_components() -> None:
+    preview = _preview_with_operating_components()
+    preview["tickers"][0]["fields"][0]["sec_cik"] = "0000009999"
+
+    view = present_company_sec_annual_preview("FICT", preview)
+
+    assert {"field": "revenue", "reason": "field_source_mismatch"} in view["withheld_fields"]
+    assert all(
+        {"field": field, "reason": "annual_anchor_reference_missing"} in view["withheld_fields"]
+        for field in ("operating_income", "cash_from_operations", "capital_expenditures")
+    )
+
+
+@pytest.mark.parametrize(
+    ("change", "reason"),
+    [
+        ("wrong_concept", "field_concept_mismatch"),
+        ("derived_kind", "derived_field_scope_unreviewed"),
+    ],
+)
+def test_untrusted_revenue_anchor_cannot_approve_direct_value_or_components(
+    change: str, reason: str
+) -> None:
+    preview = _preview_with_operating_components()
+    revenue = preview["tickers"][0]["fields"][0]
+    if change == "wrong_concept":
+        revenue["source_refs"][0]["concept"] = "NetIncomeLoss"
+    else:
+        revenue["value_kind"] = "derived"
+
+    view = present_company_sec_annual_preview("FICT", preview)
+
+    assert {"field": "revenue", "reason": reason} in view["withheld_fields"]
+    assert all(
+        {"field": field, "reason": "annual_anchor_reference_missing"} in view["withheld_fields"]
+        for field in ("operating_income", "cash_from_operations", "capital_expenditures")
+    )
+
+
+@pytest.mark.parametrize("field_name", ["shares_outstanding", "filing_dates"])
+def test_direct_instant_and_filing_date_reject_unrelated_concepts(field_name: str) -> None:
+    preview = _synthetic_preview()
+    revenue = preview["tickers"][0]["fields"][0]
+    field = dict(revenue, field=field_name)
+    if field_name == "shares_outstanding":
+        field.update(candidate_value=1_000, unit="shares", period_start=None)
+        field["source_refs"] = [
+            dict(revenue["source_refs"][0], taxonomy="dei", concept="NetIncomeLoss",
+                 unit="shares", period_start=None)
+        ]
+    else:
+        field.update(candidate_value="2026-03-01", unit="date")
+        field["source_refs"] = [
+            dict(revenue["source_refs"][0], concept="NetIncomeLoss", unit="date",
+                 underlying_fact_unit="USD")
+        ]
+    preview["tickers"][0]["fields"].append(field)
+
+    view = present_company_sec_annual_preview("FICT", preview)
+
+    assert {"field": field_name, "reason": "field_concept_mismatch"} in view["withheld_fields"]
+    assert field_name not in {row["field"] for row in view["approved_direct_fields"]}
+
+
+def test_direct_field_with_missing_canonical_column_keeps_schema_review_open() -> None:
+    preview = _synthetic_preview()
+    preview["tickers"][0]["fields"][0]["schema_status"] = "canonical_column_missing"
+
+    view = present_company_sec_annual_preview("FICT", preview)
+
+    assert view["approved_direct_fields"][0]["canonical_schema_status"] == "review_required"
+    assert view["safe_to_apply"] is False
+
+
+@pytest.mark.parametrize("observed", [None, "2026-10-28T19:00:00Z"])
+def test_field_observation_must_match_top_level_source_capture(observed: str | None) -> None:
+    preview = _preview_with_operating_components()
+    preview["tickers"][0]["fields"][0]["retrieval_timestamp"] = observed
+
+    view = present_company_sec_annual_preview("FICT", preview)
+
+    assert {"field": "revenue", "reason": "field_source_mismatch"} in view["withheld_fields"]
+    assert all(
+        {"field": field, "reason": "annual_anchor_reference_missing"} in view["withheld_fields"]
+        for field in ("operating_income", "cash_from_operations", "capital_expenditures")
+    )
+
+
+def test_operating_field_moved_to_fields_cannot_bypass_missing_revenue_anchor() -> None:
+    preview = _preview_with_operating_components()
+    row = preview["tickers"][0]
+    component = row["source_components"].pop(0)
+    component.update(schema_status="existing_canonical", publishability_blocker="none")
+    row["fields"].append(component)
+    row["fields"][0]["source_refs"] = []
+
+    view = present_company_sec_annual_preview("FICT", preview)
+
+    assert {"field": "operating_income", "reason": "annual_anchor_reference_missing"} in view["withheld_fields"]
+    assert "operating_income" not in {field["field"] for field in view["approved_direct_fields"]}
+
+
+def test_operating_field_moved_out_of_source_components_is_not_approved() -> None:
+    preview = _preview_with_operating_components()
+    row = preview["tickers"][0]
+    component = row["source_components"].pop(0)
+    component.update(schema_status="existing_canonical", publishability_blocker="none")
+    row["fields"].append(component)
+
+    view = present_company_sec_annual_preview("FICT", preview)
+
+    assert {"field": "operating_income", "reason": "unsupported_online_field"} in view["withheld_fields"]
+    assert "operating_income" not in {field["field"] for field in view["approved_direct_fields"]}
+
+
+def test_derived_operating_component_is_withheld_even_with_registered_field_name() -> None:
+    preview = _preview_with_operating_components()
+    preview["tickers"][0]["source_components"][0]["value_kind"] = "derived"
+
+    view = present_company_sec_annual_preview("FICT", preview)
+
+    assert "operating_income" not in {row["field"] for row in view["approved_direct_fields"]}
+    assert {"field": "operating_income", "reason": "derived_field_scope_unreviewed"} in view["withheld_fields"]
+
+
+def test_html_exposes_field_concept_period_rights_observation_and_schema_boundary() -> None:
+    view = present_company_sec_annual_preview("FICT", _preview_with_operating_components())
+
+    html = company_sec_annual_preview_html(view)
+
+    assert "Source: us-gaap:OperatingIncomeLoss" in html
+    assert "Period: 2025-01-01 to 2025-12-31" in html
+    assert "Field scope: approved; raw redistribution held" in html
+    assert "Observed: 2026-10-29T19:00:00Z" in html
+    assert "Canonical schema: review required" in html
+    assert "0000001234-26-000001" in html
+
+
+@pytest.mark.parametrize(
+    ("change", "label"),
+    [
+        ("missing_reference", "Exact SEC field reference is missing"),
+        ("wrong_concept", "SEC concept does not match this field"),
+        ("wrong_period", "Field period does not match the annual filing"),
+        ("missing_anchor", "Revenue annual source anchor is missing"),
+    ],
+)
+def test_html_names_source_proof_gaps_instead_of_generic_review_copy(
+    change: str, label: str
+) -> None:
+    preview = _preview_with_operating_components()
+    component = preview["tickers"][0]["source_components"][0]
+    if change == "missing_reference":
+        component["source_refs"] = []
+    elif change == "wrong_concept":
+        component["source_refs"][0]["concept"] = "NetIncomeLoss"
+    elif change == "wrong_period":
+        component["source_refs"][0]["period_start"] = "2025-02-01"
+    else:
+        preview["tickers"][0]["fields"][0]["source_refs"] = []
+
+    html = company_sec_annual_preview_html(present_company_sec_annual_preview("FICT", preview))
+
+    assert label in html
+    assert "180,000" not in html
+
+
 def test_presenter_shows_only_direct_approved_fields_and_withholds_derived_values() -> None:
     view = present_company_sec_annual_preview("FICT", _synthetic_preview())
 
@@ -75,7 +365,16 @@ def test_presenter_shows_only_direct_approved_fields_and_withholds_derived_value
     assert view["accession"] == "0000001234-26-000001"
     assert view["annual_form"] == "10-K"
     assert view["approved_direct_fields"] == [
-        {"field": "revenue", "value": 1000000, "unit": "USD", "period_end": "2025-12-31"}
+        {
+            "field": "revenue", "value": 1000000, "unit": "USD",
+            "taxonomy": "us-gaap", "concept": "Revenues",
+            "period_start": "2025-01-01", "period_end": "2025-12-31",
+            "source_ref": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000001234.json",
+            "accession": "0000001234-26-000001",
+            "rights_status": "approved_field_scope_raw_redistribution_held",
+            "observed_at_utc": "2026-10-29T19:00:00Z",
+            "canonical_schema_status": "unchanged",
+        }
     ]
     assert view["withheld_fields"] == [
         {"field": "free_cash_flow", "reason": "derived_field_scope_unreviewed"}
@@ -334,6 +633,9 @@ def test_html_inspection_shows_every_approved_and_withheld_field_in_one_visible_
     preview["tickers"][0]["fields"][0]["candidate_value"] = 1000000.0
     filing_date = dict(preview["tickers"][0]["fields"][0])
     filing_date.update(field="filing_dates", candidate_value="2026-03-01", unit="date")
+    filing_date["source_refs"] = [
+        dict(filing_date["source_refs"][0], unit="date", underlying_fact_unit="USD")
+    ]
     preview["tickers"][0]["fields"].append(filing_date)
     view = present_company_sec_annual_preview("FICT", preview)
 

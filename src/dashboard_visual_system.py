@@ -1887,6 +1887,14 @@ def research_dossier_css() -> str:
   font-weight: 740;
   font-variant-numeric: tabular-nums;
 }
+.company-sec-annual-preview .sec-annual-field-proof {
+  margin-top: 6px;
+  color: #52615c;
+  font-size: .75rem;
+  font-weight: 400;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
 .company-sec-annual-preview .sec-annual-field-reason { color: #79551c; }
 .research-discover-result .research-discover-details {
   margin-top: 0;
@@ -1928,6 +1936,50 @@ def research_dossier_css() -> str:
   .research-workspace-mode { grid-column: 2; grid-row: 1; }
 }
 @media (max-width: 640px) {
+  .company-sec-annual-preview .sec-annual-field-table,
+  .company-sec-annual-preview .sec-annual-field-table tbody,
+  .company-sec-annual-preview .sec-annual-field-row {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  .company-sec-annual-preview .sec-annual-field-table caption {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .company-sec-annual-preview .sec-annual-field-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+  .company-sec-annual-preview .sec-annual-field-row {
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-top: 1px solid #e0e6e2;
+  }
+  .company-sec-annual-preview .sec-annual-field-table th,
+  .company-sec-annual-preview .sec-annual-field-table td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    border: 0;
+  }
+  .company-sec-annual-preview .sec-annual-field-table td { margin-top: 5px; }
+  .company-sec-annual-preview .sec-annual-field-table td:nth-child(3),
+  .company-sec-annual-preview .sec-annual-field-table td:nth-child(4) {
+    color: #52615c;
+    font-size: .75rem;
+  }
+  .company-sec-annual-preview .sec-annual-field-table td:nth-child(3)::before { content: "Unit · "; }
+  .company-sec-annual-preview .sec-annual-field-table td:nth-child(4)::before { content: "Period end · "; }
   .stApp:has(.research-workflow-navigation) [data-testid="stMainBlockContainer"] { padding: 0 12px 40px !important; }
   .research-workflow-navigation {
     position: sticky !important;

@@ -2,11 +2,180 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import textwrap
 from pathlib import Path
 
 import pytest
+
+
+def test_company_workbench_sec_component_proof_requires_click_and_reflows_at_phone_size(
+    tmp_path, monkeypatch
+):
+    """An online check must expose exact component proof only after the user asks."""
+    from playwright.sync_api import sync_playwright
+    from src.research_accessibility_browser_gate import _captured_local_demo_server
+    from src.workspace_visual_browser_gate import find_chrome_executable
+
+    calls_path = tmp_path / "sec-preview-calls.txt"
+    bootstrap_dir = tmp_path / "bootstrap"
+    bootstrap_dir.mkdir()
+    bootstrap_code = textwrap.dedent(
+        """
+        from pathlib import Path
+        import src.sec_fundamentals_preview as sec_preview
+
+        CALLS = Path(__CALLS_PATH__)
+        SOURCE_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000001234.json"
+        ACCESSION = "0000001234-26-000001"
+
+        def _field(name, concept, value):
+            return {
+                "field": name,
+                "value_kind": "direct",
+                "classification": "approved_direct",
+                "field_scope_status": "approved",
+                "source_rights_status": "approved",
+                "commercial_rights_approved": True,
+                "publishability_blocker": (
+                    "none" if name == "revenue" else
+                    "Direct SEC field is approved, but adding a canonical column "
+                    "requires a separate schema decision."
+                ),
+                "candidate_value": value,
+                "unit": "USD",
+                "form": "10-K",
+                "sec_cik": "0000001234",
+                "accession": ACCESSION,
+                "period_start": "2025-01-01",
+                "period_end": "2025-12-31",
+                "filing_date": "2026-03-01",
+                "source_url": SOURCE_URL,
+                    "retrieval_timestamp": "2026-10-29T19:00:00Z",
+                "schema_status": "candidate_component_not_canonical",
+                "source_refs": [{
+                    "source_url": SOURCE_URL,
+                    "retrieval_timestamp": "2026-10-29T19:00:00Z",
+                    "taxonomy": "us-gaap",
+                    "concept": concept,
+                    "unit": "USD",
+                    "underlying_fact_unit": "USD",
+                    "period_start": "2025-01-01",
+                    "period_end": "2025-12-31",
+                    "filed": "2026-03-01",
+                    "form": "10-K",
+                    "accession": ACCESSION,
+                    "fiscal_year": 2025,
+                    "fiscal_period": "FY",
+                }],
+            }
+
+        def _synthetic_preview(ticker, *, user_agent):
+            with CALLS.open("a", encoding="utf-8") as handle:
+                handle.write(ticker + "\\n")
+            return {
+                "status": "inspection_only",
+                "source": "sec_companyfacts",
+                "requested_tickers": [ticker],
+                "retrieval_timestamp": "2026-10-29T19:00:00Z",
+                "source_rights_mutated": False,
+                "canonical_apply_authorized": False,
+                "repository_writes": [],
+                "tickers": [{
+                    "ticker": ticker,
+                    "status": "compared",
+                    "sec_cik": "0000001234",
+                    "candidate_source_url": SOURCE_URL,
+                    "candidate_accession": ACCESSION,
+                    "candidate_filing_date": "2026-03-01",
+                    "candidate_period_end": "2025-12-31",
+                    "fields": [
+                        _field("revenue", "Revenues", 1_000_000),
+                        {
+                            **_field("free_cash_flow", "SyntheticDerivedValue", 210_000),
+                            "classification": "derived_scope_review_required",
+                            "field_scope_status": "review_required",
+                        },
+                    ],
+                    "source_components": [
+                        _field("operating_income", "OperatingIncomeLoss", 180_000),
+                        _field("cash_from_operations", "NetCashProvidedByUsedInOperatingActivities", 250_000),
+                        _field("capital_expenditures", "PaymentsToAcquirePropertyPlantAndEquipment", 40_000),
+                    ],
+                }],
+            }
+
+        sec_preview.build_sec_fundamentals_preview = _synthetic_preview
+        """
+    ).replace("__CALLS_PATH__", repr(str(calls_path)))
+    (bootstrap_dir / "sitecustomize.py").write_text(bootstrap_code, encoding="utf-8")
+    monkeypatch.setenv("PYTHONPATH", str(bootstrap_dir) + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    monkeypatch.setenv("SEC_USER_AGENT", "Synthetic browser check contact@example.invalid")
+
+    def call_count() -> int:
+        return len(calls_path.read_text(encoding="utf-8").splitlines()) if calls_path.exists() else 0
+
+    root = Path(__file__).resolve().parents[1]
+    with _captured_local_demo_server(root, timeout_seconds=45) as server:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(
+                executable_path=find_chrome_executable(), headless=True
+            )
+            try:
+                proof_weights = []
+                for width, height in ((1280, 720), (390, 844)):
+                    page = browser.new_page(viewport={"width": width, "height": height})
+                    page.goto(
+                        server.base_url + "/?mode=research&page=company-workbench&ticker=AMD&open=1",
+                        wait_until="domcontentloaded",
+                        timeout=45_000,
+                    )
+                    check = page.get_by_role("button", name="Check SEC annual facts")
+                    check.wait_for(state="visible", timeout=45_000)
+                    before_click = call_count()
+                    assert page.get_by_text(
+                        "Check SEC annual facts to request filing evidence for this company."
+                    ).is_visible()
+                    assert page.get_by_role("heading", name="Annual filing field evidence").count() == 0
+                    assert call_count() == before_click
+
+                    check.click()
+                    page.get_by_role("heading", name="Annual filing field evidence").wait_for(
+                        state="visible", timeout=45_000
+                    )
+                    assert call_count() == before_click + 1
+                    table = page.get_by_role("region", name="Annual filing fields")
+                    assert table.is_visible()
+                    for label, concept in (
+                        ("Operating Income", "OperatingIncomeLoss"),
+                        ("Cash From Operations", "NetCashProvidedByUsedInOperatingActivities"),
+                        ("Capital Expenditures", "PaymentsToAcquirePropertyPlantAndEquipment"),
+                    ):
+                        row = table.get_by_role("row", name=re.compile(label))
+                        proof = row.inner_text()
+                        assert f"Source: us-gaap:{concept}" in proof
+                        assert "Period: 2025-01-01 to 2025-12-31" in proof
+                        assert "Observed: 2026-10-29T19:00:00Z" in proof
+                        assert "Field scope: approved; raw redistribution held" in proof
+                        assert "Canonical schema: review required" in proof
+                    withheld = table.get_by_role("row", name=re.compile("Free Cash Flow"))
+                    assert "Withheld · Derived field scope needs review" in withheld.inner_text()
+                    region_width = table.evaluate(
+                        "(element) => ({ client: element.clientWidth, scroll: element.scrollWidth })"
+                    )
+                    assert region_width["scroll"] <= region_width["client"] + 1
+                    proof_weight = table.locator(".sec-annual-field-proof").first.evaluate(
+                        "(element) => Number(getComputedStyle(element).fontWeight)"
+                    )
+                    proof_weights.append(proof_weight)
+                    assert page.evaluate(
+                        "document.documentElement.scrollWidth <= window.innerWidth + 1"
+                    )
+                    page.close()
+                assert all(weight <= 500 for weight in proof_weights)
+            finally:
+                browser.close()
 
 
 def test_company_workbench_phone_evidence_caption_and_period_share_readable_width():
