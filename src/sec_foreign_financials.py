@@ -41,11 +41,33 @@ def _records(payload, concept):
     return payload['facts'].get('ifrs-full', {}).get(concept, {}).get('units', {})
 
 
+def _reported_anchors(payload, observed):
+    """Period metadata across IFRS concepts, independent of usable revenue."""
+    groups = defaultdict(list)
+    for fact in payload['facts'].get('ifrs-full', {}).values():
+        for records in fact['units'].values():
+            for raw in records:
+                kind = _context(raw, observed)
+                if kind: groups[kind].append(raw)
+    result = {}
+    for kind in ('annual', 'quarterly', 'interim'):
+        records = groups[kind]
+        if not records:
+            result[kind] = None
+            continue
+        end = max(r['end'] for r in records)
+        relevant = [r for r in records if r['end'] == end]
+        filed = max(r['filed'] for r in relevant)
+        starts = {r['start'] for r in relevant if r['filed'] == filed}
+        result[kind] = dict(period_end=end, filed=filed, period_start=next(iter(starts)) if len(starts) == 1 else None)
+    return result
+
+
 def _revision_hold(payload, concepts, context, kind, observed):
     for concept in concepts:
         for records in _records(payload, concept).values():
             for raw in records:
-                if raw.get('end') != context['end']: continue
+                if raw.get('end') != context['end'] and not (_iso_date(raw.get('end')) is None and raw.get('start') == context['start']): continue
                 start, end, filed = (_iso_date(raw.get(k)) for k in ('start', 'end', 'filed'))
                 raw_kind = _kind(start, end, raw.get('form'))
                 if raw_kind and raw_kind != kind: continue
@@ -81,6 +103,8 @@ def build_sec_foreign_financials(ticker, payload, *, expected_cik, observed_at, 
     if type(raw_cik) not in {int, str} or not re.fullmatch(r'\d{1,10}', str(raw_cik)) or str(int(raw_cik)).zfill(10) != expected_cik:
         return {**held, 'reason': 'companyfacts_identity_mismatch'}
     if 'ifrs-full' not in payload['facts']: return {**held, 'reason': 'ifrs_standard_facts_unavailable'}
+    anchors = _reported_anchors(payload, observed)
+    held['reported_period_anchors'] = anchors
     permitted = {f: field_is_permitted(f) for f in FIELDS}
     if not permitted['revenue']: return {**held, 'reason': 'field_scope_unreviewed'}
     candidates = [(unit, r) for unit, rows in _records(payload, 'Revenue').items() for r in rows
@@ -118,7 +142,13 @@ def build_sec_foreign_financials(ticker, payload, *, expected_cik, observed_at, 
                     if field: row['fields'][name] = field
                     else: row['withheld_fields'][name] = reason
         result[kind].append(row)
-    for kind, maximum in [('annual', 6), ('quarterly', 12), ('interim', 12)]: result[kind] = result[kind][-maximum:]
+    for kind, maximum in [('annual', 6), ('quarterly', 12), ('interim', 12)]:
+        latest = anchors[kind]
+        if latest and (not result[kind] or latest['period_end'] > result[kind][-1]['period_end']):
+            result[kind].append(dict(**latest, status='withheld', fields={},
+                withheld_fields={f: 'revenue_anchor_withheld' for f in FIELDS},
+                reason='latest_reported_foreign_revenue_unavailable'))
+        result[kind] = result[kind][-maximum:]
     return result
 
 
@@ -140,7 +170,7 @@ def validated_foreign_financials(view):
             if not end or not filed or not end <= filed <= observed.date() or previous and end <= previous: return None
             previous = end
             if row.get('status') == 'withheld':
-                if row.get('fields') != {} or row.get('reason') not in {'ambiguous_filing_context', REVISION_HOLD, 'raw_source_conflict', 'matching_direct_fact_unavailable'}: return None
+                if row.get('fields') != {} or row.get('reason') not in {'ambiguous_filing_context', REVISION_HOLD, 'raw_source_conflict', 'matching_direct_fact_unavailable', 'latest_reported_foreign_revenue_unavailable'}: return None
                 continue
             if (row.get('status') != 'available' or not start or _kind(start, end, row.get('form')) != kind
                 or row.get('form') not in FORMS or not isinstance(row.get('accession'), str)

@@ -149,3 +149,33 @@ def test_malformed_foreign_form_is_held_without_exception(bad_form):
     for unit in p['facts']['ifrs-full']['Revenue']['units'].values(): unit[1]['form'] = bad_form
     result = _foreign(p)
     assert not any(r['status'] == 'available' for r in result['quarterly'])
+
+
+def test_foreign_same_start_revision_with_malformed_end_holds_the_old_quarter():
+    p = _foreign_payload(); rows = p['facts']['ifrs-full']['Revenue']['units']['EUR']
+    rows.append({**rows[1], 'end': 'bad', 'filed': '2026-09-01', 'accn': '0000001234-26-000003'})
+    result = _foreign(p)
+    assert result['quarterly'][-1]['status'] == 'withheld'
+    assert not result['quarterly'][-1]['fields']
+
+
+@pytest.mark.parametrize('start,end,kind', [('2026-07-01','2026-09-30','quarterly'), ('2026-01-01','2026-09-30','interim')])
+def test_later_ifrs_6k_reporting_period_without_revenue_stays_in_coverage(start,end,kind):
+    import json
+    from datetime import datetime, timezone
+    from src.online_research_coverage import run_online_coverage_study
+    from src.sec_foreign_financials import validated_foreign_financials
+    from test_online_company_identity import _profile_payload
+    p = _foreign_payload()
+    p['facts']['ifrs-full']['ProfitLossFromOperatingActivities']['units']['EUR'].append(
+        _record(start,end,9,'2026-10-20','6-K','0000001234-26-000003'))
+    view = _foreign_view(p)
+    latest = view['foreign_financials'][kind][-1]
+    assert latest['period_end'] == end and latest['status'] == 'withheld'
+    assert validated_foreign_financials(view) is not None
+    def fetch(url,agent):
+        body = {'0':{'ticker':'FICT','cik_str':1234}} if 'company_tickers' in url else p if '/companyfacts/' in url else _profile_payload()
+        return json.dumps(body).encode(),{},url
+    result = run_online_coverage_study(['FICT'],user_agent='Research',source_fetcher=fetch,observed_at=datetime(2026,10,30,18,tzinfo=timezone.utc))
+    assert result['rows'][0][kind+'_period'] == end
+    assert result['counts'][kind+'_revenue'] == 0

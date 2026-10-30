@@ -136,8 +136,8 @@ def summarize_online_research_coverage(observations,requested_tickers):
             'quarterly_unit':foreign['unit'] if native_quarter else 'USD' if quarter_current else None,
             'interim_unit':foreign['unit'] if interim_fields else None,
             'industry_reason':'available' if profile and profile.get('sic') else _reason(obs.get('profile',{}).get('reason') if isinstance(obs.get('profile'),Mapping) else None,profile_issue),
-            'annual_reason':'available' if annual_current else 'latest_reported_annual_not_covered' if a.get('period_end') and annual_target and a['period_end']<annual_target else _reason(a.get('reason') or view.get('reason'),'annual_evidence_unavailable'),
-            'quarterly_reason':'available' if quarter_current else 'latest_reported_quarter_not_covered' if q.get('period_end') and quarter_target and q['period_end']<quarter_target else _reason(q.get('reason') or raw_quarter.get('reason'),'quarterly_evidence_unavailable'),
+            'annual_reason':'available' if annual_current else 'latest_reported_annual_not_covered' if a.get('period_end') and annual_target and a['period_end']<annual_target else _reason(selected_a.get('reason') or view.get('reason'),'annual_evidence_unavailable'),
+            'quarterly_reason':'available' if quarter_current else 'latest_reported_quarter_not_covered' if q.get('period_end') and quarter_target and q['period_end']<quarter_target else _reason(selected_q.get('reason') or raw_quarter.get('reason'),'quarterly_evidence_unavailable'),
             'source_receipts':refs})
     return _aggregate(rows,requested)
 

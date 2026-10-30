@@ -157,4 +157,9 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
         from src.sec_foreign_financials import build_sec_foreign_financials
         view['foreign_financials']=build_sec_foreign_financials(ticker,payload,expected_cik=cik,
             observed_at=receipt['observed_at'],source_url=receipt['source_url'],payload_sha256=receipt['payload_sha256'])
+        foreign_anchors=view['foreign_financials'].get('reported_period_anchors',{})
+        for kind, marker in foreign_anchors.items():
+            previous=view['reported_period_anchors'].get(kind)
+            if marker and (not previous or marker['period_end']>previous['period_end']):
+                view['reported_period_anchors'][kind]=marker
     return view
