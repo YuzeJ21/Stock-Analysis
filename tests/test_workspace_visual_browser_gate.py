@@ -9,6 +9,50 @@ from pathlib import Path
 import pytest
 
 
+def test_company_workbench_phone_evidence_caption_and_period_share_readable_width():
+    """The real phone layout must keep the caption and both source lines aligned."""
+    from playwright.sync_api import sync_playwright
+    from src.research_accessibility_browser_gate import _captured_local_demo_server
+    from src.workspace_visual_browser_gate import find_chrome_executable
+
+    root = Path(__file__).resolve().parents[1]
+    with _captured_local_demo_server(root, timeout_seconds=45) as server:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(
+                executable_path=find_chrome_executable(), headless=True
+            )
+            try:
+                page = browser.new_page(viewport={"width": 390, "height": 844})
+                page.goto(
+                    server.base_url + "/?mode=research&page=company-workbench&ticker=AVGO",
+                    wait_until="domcontentloaded",
+                    timeout=45_000,
+                )
+                page.locator(".company-workbench-evidence-lane").first.wait_for(
+                    state="attached", timeout=45_000
+                )
+                observed = page.evaluate("""() => {
+                  const table = document.querySelector('.company-workbench-evidence-table');
+                  const caption = table?.querySelector('caption');
+                  const source = table?.querySelector('tbody tr:first-child td[data-label="Source and period"]');
+                  const lines = [...(source?.querySelectorAll('small') || [])];
+                  if (!table || !caption || lines.length !== 2) return null;
+                  const tableWidth = table.getBoundingClientRect().width;
+                  const firstLeft = lines[0].getBoundingClientRect().left;
+                  const secondLeft = lines[1].getBoundingClientRect().left;
+                  return {
+                    caption_wide: caption.getBoundingClientRect().width >= tableWidth * .8,
+                    source_lines_aligned: Math.abs(firstLeft - secondLeft) <= 1,
+                  };
+                }""")
+                assert observed == {
+                    "caption_wide": True,
+                    "source_lines_aligned": True,
+                }
+            finally:
+                browser.close()
+
+
 @pytest.mark.parametrize(
     ("route", "final_selector"),
     (

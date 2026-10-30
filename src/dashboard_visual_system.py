@@ -1994,6 +1994,12 @@ def research_dossier_css() -> str:
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table,
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table tbody,
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane { display: block; }
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table caption {
+    display: block;
+    width: 100%;
+    padding: 6px 0;
+    text-align: left;
+  }
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table thead {
     position: absolute;
     width: 1px;
@@ -2019,6 +2025,13 @@ def research_dossier_css() -> str:
     font-size: .72rem;
     font-weight: 700;
   }
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table td[data-label="Source and period"]::before {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+  }
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table td[data-label="Source and period"] > small {
+    grid-column: 2;
+  }
 }
 @media (max-width: 300px) {
   .research-workflow-routes {
@@ -2029,6 +2042,12 @@ def research_dossier_css() -> str:
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table td {
     grid-template-columns: minmax(0, 1fr);
     gap: 2px;
+  }
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table td[data-label="Source and period"]::before {
+    grid-row: auto;
+  }
+  .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-table td[data-label="Source and period"] > small {
+    grid-column: 1;
   }
   .stApp:has(.st-key-company-workbench-document) .company-workbench-evidence-lane td:first-child span {
     white-space: normal;
