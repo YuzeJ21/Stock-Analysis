@@ -113,14 +113,16 @@ def test_history_is_bounded_to_six_periods_and_never_changes_source_payload():
 
 
 def test_explicit_action_reuses_one_facts_response_and_rerenders_reuse_history(monkeypatch):
+    import json
     from src.company_sec_online_preview import get_company_sec_annual_preview
-    from src.providers import sec_companyfacts
+    from src import online_sec_receipt
 
     calls = []
     def fetch(url, *_args):
         calls.append(url)
-        return _payload() if 'companyfacts/' in url else {"0": {"ticker": "FICT", "cik_str": 1234}}
-    monkeypatch.setattr(sec_companyfacts, "_fetch_json", fetch)
+        payload=_payload() if 'companyfacts/' in url else {"0": {"ticker": "FICT", "cik_str": 1234}}
+        return json.dumps(payload).encode(),{},url
+    monkeypatch.setattr(online_sec_receipt, "_fetch_raw", fetch)
     session = {}
     view = get_company_sec_annual_preview("FICT", session, refresh_requested=True, user_agent="Research contact")
     assert len(view["annual_history"]["periods"]) == 3

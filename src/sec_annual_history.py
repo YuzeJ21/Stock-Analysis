@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import re
 from typing import Any, Mapping
 
 from src.company_sec_online_preview import ANNUAL_FORMS, REVENUE_CONCEPTS, present_company_sec_annual_preview
@@ -96,20 +97,55 @@ def build_sec_annual_history(
     }
 
 
-def fetch_sec_online_research_view(ticker: str, *, user_agent: str) -> dict[str, Any]:
-    """Fetch Companyfacts once for both the selected annual view and its history."""
-    from src.providers.sec_companyfacts import _fetch_json
+def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_receipt=None) -> dict[str, Any]:
+    """Fetch Companyfacts once for independent annual and direct quarterly views."""
     from src.sec_fundamentals_preview import build_sec_fundamentals_preview
+    from src.online_sec_receipt import fetch_sec_json_receipt
+    from src.sec_quarterly_history import build_sec_quarterly_history
 
     captured = {}
     def fetch(url, agent, sleep):
-        captured["payload"] = _fetch_json(url, agent, sleep)
-        return captured["payload"]
+        receipt=fetch_sec_json_receipt(url,user_agent=agent)
+        if receipt['status']!='ready': raise RuntimeError('SEC facts receipt unavailable')
+        captured['receipt']=receipt
+        return receipt['payload']
+    def fetch_map(url,agent,sleep):
+        receipt=ticker_map_receipt if ticker_map_receipt is not None else fetch_sec_json_receipt(url,user_agent=agent)
+        if not isinstance(receipt,Mapping) or receipt.get('status')!='ready' or receipt.get('source_url')!=url:
+            raise RuntimeError('SEC ticker map receipt unavailable')
+        payload=receipt.get('payload')
+        if not isinstance(payload,Mapping) or not 1<=len(payload)<=100000: raise ValueError('Invalid SEC ticker map')
+        aliases={ticker,ticker.replace('.','-'),ticker.replace('-','.')}
+        ciks=set()
+        for row in payload.values():
+            if not isinstance(row,Mapping) or row.get('ticker') not in aliases: continue
+            raw=row.get('cik_str')
+            if type(raw) not in {int,str} or not re.fullmatch(r'\d{1,10}',str(raw)) or int(raw)==0:
+                raise ValueError('Invalid mapped CIK')
+            ciks.add(str(int(raw)).zfill(10))
+        if len(ciks)>1: raise ValueError('Ambiguous SEC ticker association')
+        captured['expected_cik']=next(iter(ciks)) if ciks else None
+        captured['map_receipt']=receipt
+        return payload
     preview = build_sec_fundamentals_preview(
         ticker, canonical_path=None, staged_path=None, user_agent=user_agent,
-        companyfacts_fetcher=fetch,
+        companyfacts_fetcher=fetch, ticker_map_fetcher=fetch_map,
     )
     view = present_company_sec_annual_preview(ticker, preview)
-    if view["status"] == "inspection_only" and "payload" in captured:
-        view["annual_history"] = build_sec_annual_history(view, captured["payload"])
+    receipt=captured.get('receipt'); cik=captured.get('expected_cik')
+    if receipt and cik:
+        payload=receipt['payload']; raw_cik=payload.get('cik')
+        if type(raw_cik) not in {int,str} or not re.fullmatch(r'\d{1,10}',str(raw_cik)) or str(int(raw_cik)).zfill(10)!=cik:
+            return {**view,'companyfacts_identity':{'status':'withheld','reason':'companyfacts_identity_mismatch'}}
+        identity={k:receipt[k] for k in ('source_url','observed_at','source_last_modified','payload_sha256')}
+        mapping=captured['map_receipt']
+        identity.update(status='source_matched',ticker=ticker,sec_cik=cik,
+                        association_source_url=mapping['source_url'],association_payload_sha256=mapping['payload_sha256'],
+                        association_observed_at=mapping['observed_at'])
+        view['companyfacts_identity']=identity
+        if view['status']=='inspection_only':
+            view['annual_history']=build_sec_annual_history(view,payload)
+        anchor=next(((f['taxonomy'],f['concept']) for f in view.get('approved_direct_fields',[]) if f['field']=='revenue'),None)
+        view['quarterly_history']=build_sec_quarterly_history(ticker,payload,expected_cik=cik,
+            observed_at=receipt['observed_at'],source_url=receipt['source_url'],payload_sha256=receipt['payload_sha256'],anchor_concept=anchor)
     return view
