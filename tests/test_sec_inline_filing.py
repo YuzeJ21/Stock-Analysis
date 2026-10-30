@@ -137,3 +137,21 @@ def test_ambiguous_period_structure_or_unusable_dei_cannot_bind_the_filing(probl
     elif problem=='nil_dei':xml=xml.replace('id="dei-cik"','id="dei-cik" xsi:nil="true"')
     else:xml=xml.replace('id="dei-cik"','id="dei-cik" continuedAt="outside"')
     assert _extract(xml)['status']=='withheld'
+
+
+def test_excluded_numeric_descendant_is_held_instead_of_entering_reported_amount():
+    xml=_xml().replace('>1,234</ix:nonFraction>','>123<ix:exclude>4</ix:exclude></ix:nonFraction>')
+    packet=_extract(xml);quarter=packet['periods'][0]
+    assert 'revenue' not in quarter['fields']
+    assert quarter['withheld_fields']['revenue']
+
+
+def test_unsupported_utf16_dtd_cannot_expand_into_inspected_financial_amounts():
+    from src.sec_inline_filing import extract_inline_filing
+    xml='<!DOCTYPE html [<!ENTITY amount "1234">]>'+_xml().replace('>1,234</ix:nonFraction>','>&amount;</ix:nonFraction>')
+    raw=xml.encode('utf-16');receipt=dict(status='ready',source_url=SOURCE,observed_at='2026-10-30T21:00:00Z',payload_sha256=hashlib.sha256(raw).hexdigest())
+    assert extract_inline_filing(raw,_selection(),receipt)['status']=='withheld'
+
+
+def test_explicit_ascii_encoding_used_by_primary_sec_documents_remains_supported():
+    assert _extract("<?xml version='1.0' encoding='ASCII'?>"+_xml())['status']=='inspection_only'

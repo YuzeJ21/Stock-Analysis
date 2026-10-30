@@ -133,3 +133,51 @@ def test_session_save_restore_is_explicit_local_and_does_not_fetch_on_read(tmp_p
     before=path.read_bytes()
     assert handle_coverage_checkpoint_action(session,path=path,save_requested=True,restore_requested=True,observed_at=OBSERVED)['status']=='unavailable'
     assert path.read_bytes()==before
+
+
+def test_stale_browser_cannot_adopt_new_disk_digest_to_overwrite_newer_progress(tmp_path):
+    from src.online_coverage_checkpoint import handle_coverage_checkpoint_action
+    from src.online_us_universe import SESSION_KEY
+    path=tmp_path/'stale.json';session={SESSION_KEY:_state(1)}
+    first=handle_coverage_checkpoint_action(session,path=path,save_requested=True,observed_at=OBSERVED)
+    assert first['status']=='saved'
+    advanced=_save(path,_state(2),first['checkpoint_digest']);assert advanced['status']=='saved'
+    stale=handle_coverage_checkpoint_action(session,path=path,save_requested=True,observed_at=OBSERVED)
+    assert stale['status']=='unavailable'
+    assert _load(path)['state']['coverage']['attempted_issuer_count']==2
+
+
+def test_same_inventory_cannot_lose_completed_observations_even_with_current_digest(tmp_path):
+    path=tmp_path/'monotonic.json';saved=_save(path,_state(2))
+    assert _save(path,_state(1),saved['checkpoint_digest'])['status']=='unavailable'
+    assert _load(path)['state']['coverage']['attempted_issuer_count']==2
+
+
+def test_pending_source_pause_cannot_be_removed_by_older_session_snapshot(tmp_path):
+    path=tmp_path/'pause.json';state=_state(2)
+    state['source_access_pause']=dict(source_url='https://data.sec.gov/api/xbrl/companyfacts/CIK0000005678.json',http_status=429,retry_after_seconds=120,paused_at='2026-10-30T22:00:00Z',resume_after='2026-10-30T22:02:00Z')
+    saved=_save(path,state);assert saved['status']=='saved'
+    assert _save(path,_state(2),saved['checkpoint_digest'])['status']=='unavailable'
+    assert _load(path)['state']['source_access_pause']['http_status']==429
+
+
+def test_new_run_captures_version_before_network_work_and_cannot_adopt_a_later_writer(tmp_path):
+    from src.online_coverage_checkpoint import handle_coverage_checkpoint_action
+    from src.online_us_universe import SESSION_KEY
+    path=tmp_path/'new-run.json';first=_save(path,_state(1));session={}
+    assert handle_coverage_checkpoint_action(session,path=path,new_run_requested=True,observed_at=OBSERVED)['status']=='run_prepared'
+    assert _save(path,_state(2),first['checkpoint_digest'])['status']=='saved'
+    session[SESSION_KEY]=_state(3)
+    assert handle_coverage_checkpoint_action(session,path=path,save_requested=True,observed_at=OBSERVED)['status']=='unavailable'
+    assert _load(path)['state']['coverage']['attempted_issuer_count']==2
+    assert handle_coverage_checkpoint_action(session,path=path,restore_requested=True,observed_at=OBSERVED)['status']=='restored'
+    session[SESSION_KEY]=_state(3)
+    assert handle_coverage_checkpoint_action(session,path=path,save_requested=True,observed_at=OBSERVED)['status']=='saved'
+
+
+def test_existing_checkpoint_requires_a_session_version_before_save(tmp_path):
+    from src.online_coverage_checkpoint import handle_coverage_checkpoint_action
+    from src.online_us_universe import SESSION_KEY
+    path=tmp_path/'existing.json';_save(path,_state(1));before=path.read_bytes()
+    result=handle_coverage_checkpoint_action({SESSION_KEY:_state(2)},path=path,save_requested=True,observed_at=OBSERVED)
+    assert result['reason']=='checkpoint_restore_required' and path.read_bytes()==before

@@ -61,7 +61,8 @@ def _number(node,namespaces):
     raw=''.join(node.itertext()).strip();fmt=_transform(node.get('format'),namespaces)
     if (node.get(f'{{{XSI}}}nil') not in {None,'false','0'} or node.get('continuedAt') is not None
         or node.get('target') not in {None,''} or node.get('tupleRef') is not None
-        or any(n.tag==f'{{{IX}}}nonFraction' for n in node.iter() if n is not node)
+        or any(n.tag not in {f'{{http://www.w3.org/1999/xhtml}}{tag}' for tag in ('span','b','strong','i','em','u','font','small')}
+               for n in node.iter() if n is not node)
         or len(raw)>100):return None,'unsupported_or_nil_numeric_fact'
     scale=node.get('scale','0');sign=node.get('sign','');decimals=node.get('decimals')
     if (not re.fullmatch(r'-?\d{1,2}',scale) or not -12<=int(scale)<=12 or sign not in {'','-'}
@@ -84,6 +85,12 @@ def _number(node,namespaces):
 
 def _tree(raw):
     if not isinstance(raw,bytes) or not 0<len(raw)<=MAX_FILING_BYTES or b'<!doctype' in raw.lower() or b'<!entity' in raw.lower():raise ValueError('unsafe_or_unbounded_filing_xml')
+    # The validated subset is UTF-8; reject encodings that hide markup from the byte guards.
+    if b'\x00' in raw:raise ValueError('unsupported_filing_encoding')
+    try:text=raw.decode('utf-8-sig')
+    except UnicodeDecodeError as error:raise ValueError('unsupported_filing_encoding') from error
+    declaration=re.match(r'\s*<\?xml\b[^?]*\bencoding\s*=\s*[\'"]([^\'"]+)[\'"]',text,re.I)
+    if declaration and declaration[1].lower() not in {'utf-8','utf8','us-ascii','ascii'}:raise ValueError('unsupported_filing_encoding')
     namespaces={};ids=set();count=0
     parser=ET.iterparse(BytesIO(raw),events=('start-ns','start','end'))
     for event,node in parser:

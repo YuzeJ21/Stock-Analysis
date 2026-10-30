@@ -31311,7 +31311,7 @@ def render_online_coverage_study() -> None:
         load_requested=st.button("Load U.S. listing inventory",key="online-us-universe-load")
         restore_requested=st.button("Restore saved coverage",key="online-us-universe-restore")
         save_requested=st.button("Save coverage progress",key="online-us-universe-save")
-        checkpoint_action=handle_coverage_checkpoint_action(st.session_state,save_requested=save_requested,restore_requested=restore_requested)
+        checkpoint_action=handle_coverage_checkpoint_action(st.session_state,save_requested=save_requested,restore_requested=restore_requested,new_run_requested=load_requested)
         if checkpoint_action['status']=="saved":st.caption("Coverage progress saved on this computer; the previous checkpoint is backed up.")
         elif checkpoint_action['status']=="restored":st.caption("Saved coverage restored. Its original source dates still apply.")
         elif checkpoint_action['status']=="unavailable":st.caption("Coverage checkpoint unavailable: "+str(checkpoint_action.get("reason","validation required")).replace("_"," "))

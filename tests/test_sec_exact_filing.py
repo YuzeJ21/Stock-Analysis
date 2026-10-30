@@ -91,3 +91,40 @@ def test_sec_next_business_day_filing_date_preserves_earlier_acceptance_timestam
     selection=select_sec_filing('FICT','0000001234',_receipt(body),period_kind='quarterly')
     assert selection['status']=='selected'
     assert selection['filed']=='2026-08-03' and selection['accepted_at']=='2026-07-31T22:00:00Z'
+
+
+@pytest.mark.parametrize("problem",["document","inline","xbrl"])
+def test_malformed_tied_amendment_cannot_be_discarded_to_select_original(problem):
+    from src.sec_exact_filing import select_sec_filing
+    body=_submission();r=body['filings']['recent']
+    for values in r.values():values.append(values[0])
+    r['form'][1]='10-Q/A';r['accessionNumber'][1]='0000004321-26-000002'
+    if problem=='document':r['primaryDocument'][1]=None
+    else:
+        r['form'][1]=r['form'][0];r['accessionNumber'][1]=r['accessionNumber'][0]
+        r['isInlineXBRL' if problem=='inline' else 'isXBRL'][1]=0
+    assert select_sec_filing('FICT','0000001234',_receipt(body),period_kind='quarterly')['status']=='withheld'
+
+
+@pytest.mark.parametrize('transport',['archive','json','directory'])
+def test_redirect_destination_never_receives_an_identifying_request(transport):
+    import threading
+    from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
+    from urllib.error import HTTPError
+    from src.sec_exact_filing import _fetch_html
+    from src.online_sec_receipt import _fetch_raw
+    from src.online_us_universe import _fetch_directory
+    calls=[]
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            calls.append(self.path)
+            if self.path=='/origin':self.send_response(302);self.send_header('Location','/unexpected')
+            else:self.send_response(200)
+            self.end_headers();self.wfile.write(b'{}')
+        def log_message(self,*args):pass
+    server=ThreadingHTTPServer(('127.0.0.1',0),Handler);thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()
+    try:
+        fetch={'archive':_fetch_html,'json':_fetch_raw,'directory':_fetch_directory}[transport]
+        with pytest.raises(HTTPError):fetch(f'http://127.0.0.1:{server.server_port}/origin','Synthetic test contact')
+        assert calls==['/origin']
+    finally:server.shutdown();server.server_close();thread.join(timeout=5)

@@ -4,13 +4,26 @@ import hashlib
 import re
 import time
 from datetime import datetime, timezone
-from urllib.request import Request, urlopen
+from urllib.request import Request, HTTPRedirectHandler, build_opener
 
 from src.providers.sec_company_discovery import _modified_at
 from src.sec_association_receipt import _json_object
 
 MAX_SEC_RESPONSE_BYTES = 16 * 1024 * 1024
 _URL = re.compile(r'https://(?:www\.sec\.gov/files/company_tickers(?:_exchange)?\.json|data\.sec\.gov/(?:api/xbrl/companyfacts|submissions)/CIK\d{10}\.json)\Z')
+
+
+class _ExactSourceRedirectHandler(HTTPRedirectHandler):
+    def redirect_request(self, request, response, code, message, headers, new_url):
+        # Refuse before issuing another request or forwarding identifying headers.
+        return None
+
+
+def open_exact_source(request, *, timeout=30):
+    return build_opener(_ExactSourceRedirectHandler()).open(request, timeout=timeout)
+
+
+urlopen = open_exact_source
 
 
 def _fetch_raw(url, user_agent):

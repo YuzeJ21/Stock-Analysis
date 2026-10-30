@@ -20,6 +20,7 @@ SCHEMA='online-coverage-checkpoint-v1'
 CONTRACT='online-us-coverage-20261030-v1'
 MAX_CHECKPOINT_BYTES=32*1024*1024
 DEFAULT_CHECKPOINT=PROJECT_ROOT/'outputs/local/online_us_coverage.json'
+SESSION_RECEIPT_KEY='coverage_checkpoint_write_receipt_v1'
 ROW_KEYS={'ticker','attempted','sec_cik','financial_source_matched','sic','sic_description','fields','annual_period','quarterly_period','annual_available_period','quarterly_available_period','interim_period','interim_available_period','annual_unit','quarterly_unit','interim_unit','industry_reason','annual_reason','quarterly_reason','source_receipts'}
 LISTING_KEYS={'listing_id','symbol','source','venue_code','venue','etf','sec_cik','sec_ticker','association_reason'}
 
@@ -150,6 +151,13 @@ def save_coverage_checkpoint(path,state,*,expected_digest=None,observed_at=None,
             if path.exists():
                 old_raw,previous,_=_read(path,now)
                 if expected_digest!=previous['content_digest']:raise CheckpointError('checkpoint_digest_conflict')
+                old=previous['state']
+                if old['inventory']['inventory_fingerprint']==reduced['inventory']['inventory_fingerprint']:
+                    prior=old['observations']
+                    if reduced['observations'][:len(prior)]!=prior:raise CheckpointError('checkpoint_progress_conflict')
+                pause=old.get('source_access_pause')
+                if pause and now<_utc_timestamp(pause['resume_after']) and reduced.get('source_access_pause')!=pause:
+                    raise CheckpointError('checkpoint_access_pause_conflict')
             elif expected_digest is not None:raise CheckpointError('checkpoint_digest_conflict')
             obj=dict(schema_version=SCHEMA,contract_version=CONTRACT,sequence=previous['sequence']+1 if previous else 1,
                 previous_digest=previous['content_digest'] if previous else None,written_at=now.strftime('%Y-%m-%dT%H:%M:%SZ'),state=reduced)
@@ -171,24 +179,33 @@ def save_coverage_checkpoint(path,state,*,expected_digest=None,observed_at=None,
 
 
 def handle_coverage_checkpoint_action(session_state,*,path=DEFAULT_CHECKPOINT,save_requested=False,
-                                      restore_requested=False,observed_at=None,workspace_mode='research'):
+                                      restore_requested=False,new_run_requested=False,observed_at=None,workspace_mode='research'):
     from src.online_us_universe import SESSION_KEY
     reason=_mode_reason(workspace_mode)
     if reason:return dict(status='unavailable',reason=reason)
-    if save_requested and restore_requested:return dict(status='unavailable',reason='ambiguous_checkpoint_action')
-    if not save_requested and not restore_requested:return dict(status='not_requested')
-    if restore_requested:
-        loaded=load_coverage_checkpoint(path,observed_at=observed_at,workspace_mode=workspace_mode)
-        if loaded['status']!='ready':return loaded
-        session_state[SESSION_KEY]=loaded['state']
-        return dict(status='restored',checkpoint_digest=loaded['checkpoint_digest'],sequence=loaded['sequence'],probing_allowed=loaded['probing_allowed'])
-    expected=None
-    try:
-        target=_path(path)
+    if sum(bool(v) for v in (save_requested,restore_requested,new_run_requested))>1:return dict(status='unavailable',reason='ambiguous_checkpoint_action')
+    if not any((save_requested,restore_requested,new_run_requested)):return dict(status='not_requested')
+    try:target=_path(path)
+    except (OSError,ValueError,TypeError):return dict(status='unavailable',reason='invalid_checkpoint_path')
+    if new_run_requested:
+        expected=None
         if target.exists():
             loaded=load_coverage_checkpoint(target,observed_at=observed_at,workspace_mode=workspace_mode)
             if loaded['status']!='ready':return loaded
             expected=loaded['checkpoint_digest']
-    except (OSError,ValueError,TypeError):return dict(status='unavailable',reason='invalid_checkpoint_path')
-    return save_coverage_checkpoint(target,session_state.get(SESSION_KEY),expected_digest=expected,
+        session_state[SESSION_RECEIPT_KEY]=dict(path=str(target),checkpoint_digest=expected)
+        return dict(status='run_prepared')
+    if restore_requested:
+        loaded=load_coverage_checkpoint(target,observed_at=observed_at,workspace_mode=workspace_mode)
+        if loaded['status']!='ready':return loaded
+        session_state[SESSION_KEY]=loaded['state']
+        session_state[SESSION_RECEIPT_KEY]=dict(path=str(target),checkpoint_digest=loaded['checkpoint_digest'])
+        return dict(status='restored',checkpoint_digest=loaded['checkpoint_digest'],sequence=loaded['sequence'],probing_allowed=loaded['probing_allowed'])
+    receipt=session_state.get(SESSION_RECEIPT_KEY)
+    if receipt is None and not target.exists():receipt=dict(path=str(target),checkpoint_digest=None)
+    if not isinstance(receipt,Mapping) or receipt.get('path')!=str(target):
+        return dict(status='unavailable',reason='checkpoint_restore_required')
+    result=save_coverage_checkpoint(target,session_state.get(SESSION_KEY),expected_digest=receipt.get('checkpoint_digest'),
         observed_at=observed_at,workspace_mode=workspace_mode)
+    if result['status']=='saved':session_state[SESSION_RECEIPT_KEY]=dict(path=str(target),checkpoint_digest=result['checkpoint_digest'])
+    return result

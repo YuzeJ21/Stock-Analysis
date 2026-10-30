@@ -6,11 +6,11 @@ import json
 import re
 import time
 from urllib.error import HTTPError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 from src.company_sec_online_preview import _iso_date, _utc_timestamp, ANNUAL_FORMS
 from src.online_company_identity import _mode_reason
-from src.online_sec_receipt import fetch_sec_json_receipt
+from src.online_sec_receipt import fetch_sec_json_receipt, open_exact_source as urlopen
 from src.providers.sec_company_discovery import _modified_at
 
 MAX_FILING_BYTES = 32 * 1024 * 1024
@@ -60,7 +60,10 @@ def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind):
     if any(_utc_timestamp(r['acceptanceDateTime']) is None for r in candidates): return {**held,'reason':'unresolved_acceptance_time'}
     accepted=max(_utc_timestamp(r['acceptanceDateTime']) for r in candidates)
     candidates=[r for r in candidates if _utc_timestamp(r['acceptanceDateTime'])==accepted]
-    identities={tuple(r[k] for k in columns[:6]) for r in candidates if all(isinstance(r[k],str) for k in columns[:6])}
+    if any(not all(isinstance(r[k],str) for k in columns[:6])
+        or any(type(r[k]) is not int or r[k]!=1 for k in ('isInlineXBRL','isXBRL')) for r in candidates):
+        return {**held,'reason':'latest_filing_identity_or_inline_metadata_invalid'}
+    identities={tuple(r[k] for k in columns) for r in candidates}
     if len(identities)!=1: return {**held,'reason':'ambiguous_latest_filing'}
     r=candidates[0];document=r['primaryDocument']; accession=r['accessionNumber']
     if (not _iso_date(end)<=_iso_date(filed)<=observed.date() or not _iso_date(end)<=accepted.date()<=observed.date() or accepted>observed

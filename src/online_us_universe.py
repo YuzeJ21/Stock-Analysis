@@ -10,13 +10,13 @@ import json
 import os
 import re
 import time
-from urllib.request import Request, urlopen
+from urllib.request import Request
 from zoneinfo import ZoneInfo
 
 from src.company_sec_online_preview import _utc_timestamp
 from src.online_company_identity import _mode_reason
 from src.online_research_coverage import METRICS, run_online_coverage_study, validated_coverage_summary
-from src.online_sec_receipt import fetch_sec_json_receipt
+from src.online_sec_receipt import fetch_sec_json_receipt, open_exact_source as urlopen
 from src.providers.sec_company_discovery import _modified_at
 from src.us_listing_receipt_audit import _SOURCES, _parse_directory, _MAX_DIRECTORY_BYTES
 
