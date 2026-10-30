@@ -355,6 +355,9 @@ def extract_fundamentals_from_companyfacts(companyfacts_json: dict[str, Any]) ->
         ("us-gaap", "RevenueFromContractWithCustomerExcludingAssessedTax"),
         ("us-gaap", "SalesRevenueNet"),
         ("us-gaap", "SalesRevenueGoodsNet"),
+        ("us-gaap", "RevenuesNetOfInterestExpense"),
+        ("us-gaap", "RegulatedAndUnregulatedOperatingRevenue"),
+        ("us-gaap", "RevenueFromContractWithCustomerIncludingAssessedTax"),
     ]
     net_income_concepts = [("us-gaap", "NetIncomeLoss")]
     eps_concepts = [

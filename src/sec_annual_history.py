@@ -154,4 +154,7 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
         view['quarterly_history']=build_sec_quarterly_history(ticker,payload,expected_cik=cik,
             observed_at=receipt['observed_at'],source_url=receipt['source_url'],payload_sha256=receipt['payload_sha256'],anchor_concept=anchor)
         view['reported_period_anchors']=view['quarterly_history'].get('reported_period_anchors',{})
+        from src.sec_foreign_financials import build_sec_foreign_financials
+        view['foreign_financials']=build_sec_foreign_financials(ticker,payload,expected_cik=cik,
+            observed_at=receipt['observed_at'],source_url=receipt['source_url'],payload_sha256=receipt['payload_sha256'])
     return view

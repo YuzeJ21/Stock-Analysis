@@ -26,6 +26,9 @@ REVENUE_CONCEPTS = frozenset({
     ("us-gaap", "RevenueFromContractWithCustomerExcludingAssessedTax"),
     ("us-gaap", "SalesRevenueNet"),
     ("us-gaap", "SalesRevenueGoodsNet"),
+    ("us-gaap", "RevenuesNetOfInterestExpense"),
+    ("us-gaap", "RegulatedAndUnregulatedOperatingRevenue"),
+    ("us-gaap", "RevenueFromContractWithCustomerIncludingAssessedTax"),
 })
 OPERATING_COMPONENT_CONCEPTS = {
     "operating_income": frozenset({("us-gaap", "OperatingIncomeLoss")}),

@@ -15,7 +15,7 @@ FIELDS=('revenue','operating_income','cash_from_operations','capital_expenditure
 FORMS=ANNUAL_FORMS | {'10-Q','10-Q/A'}
 RIGHTS='approved_field_scope_raw_redistribution_held'
 REVISION_HOLD='newer_or_unresolved_filing_context'
-_REVENUES=[('us-gaap',x) for x in ('RevenueFromContractWithCustomerExcludingAssessedTax','Revenues','SalesRevenueNet','SalesRevenueGoodsNet')]
+_REVENUES=[('us-gaap',x) for x in ('RevenueFromContractWithCustomerExcludingAssessedTax','Revenues','SalesRevenueNet','SalesRevenueGoodsNet','RevenuesNetOfInterestExpense','RegulatedAndUnregulatedOperatingRevenue','RevenueFromContractWithCustomerIncludingAssessedTax')]
 
 
 def field_is_permitted(field):
