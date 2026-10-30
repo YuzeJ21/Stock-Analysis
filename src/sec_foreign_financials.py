@@ -20,7 +20,7 @@ BASIS = 'latest_reported_as_observed_not_point_in_time'
 
 
 def _kind(start, end, form):
-    if start is None or end is None: return None
+    if start is None or end is None or not isinstance(form, str): return None
     days = (end - start).days
     if 300 <= days <= 430 and form in ANNUAL_FORMS: return 'annual'
     if 70 <= days <= 105: return 'quarterly'
@@ -31,7 +31,7 @@ def _kind(start, end, form):
 def _context(raw, observed):
     start, end, filed = (_iso_date(raw.get(k)) for k in ('start', 'end', 'filed'))
     if (not start or not end or not filed or not start < end <= filed <= observed.date()
-        or raw.get('form') not in FORMS or not isinstance(raw.get('accn'), str)
+        or not isinstance(raw.get('form'), str) or raw['form'] not in FORMS or not isinstance(raw.get('accn'), str)
         or not re.fullmatch(r'\d{10}-\d{2}-\d{6}', raw['accn'])): return None
     kind = _kind(start, end, raw['form'])
     return kind if kind else None

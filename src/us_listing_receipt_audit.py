@@ -130,7 +130,7 @@ def _last_modified(value: object) -> datetime:
 
 
 def _parse_directory(
-    raw: bytes, source: str, columns: tuple[str, ...]
+    raw: bytes, source: str, columns: tuple[str, ...], *, allow_unknown_venues: bool = False
 ) -> tuple[int, int, set[str], str, list[dict[str, str]]]:
     try:
         text = raw.decode("utf-8-sig")
@@ -172,7 +172,7 @@ def _parse_directory(
                     raise ValueError("financial_status_invalid")
                 if row["NextShares"].strip().upper() not in {"Y", "N"}:
                     raise ValueError("nextshares_flag_invalid")
-            if source == "other" and row["Exchange"].strip().upper() not in _EXCHANGE_CODES:
+            if source == "other" and row["Exchange"].strip().upper() not in _EXCHANGE_CODES and (not allow_unknown_venues or re.fullmatch(r"[A-Z0-9]{1,8}", row["Exchange"].strip().upper()) is None):
                 raise ValueError("exchange_code_unrecognized")
             if test_issue == "Y":
                 excluded += 1

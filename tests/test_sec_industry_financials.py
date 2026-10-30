@@ -122,3 +122,30 @@ def test_foreign_wrong_issuer_and_unreviewed_field_scope_are_held(monkeypatch):
     assert _foreign(p)['status'] == 'withheld'
     monkeypatch.setattr(sec_foreign_financials, 'field_is_permitted', lambda *_: False)
     assert _foreign()['reason'] == 'field_scope_unreviewed'
+
+
+def test_online_coverage_counts_native_annual_quarter_and_interim_separately_without_amounts():
+    import json
+    from datetime import datetime, timezone
+    from src.online_research_coverage import run_online_coverage_study, validated_coverage_summary
+    from test_online_company_identity import _profile_payload
+    def fetch(url, agent):
+        if 'company_tickers' in url: body = {'0': {'ticker': 'FICT', 'cik_str': 1234}}
+        elif '/companyfacts/' in url: body = _foreign_payload()
+        else: body = _profile_payload()
+        return json.dumps(body).encode(), {}, url
+    result = run_online_coverage_study(['FICT'], user_agent='Research', source_fetcher=fetch, observed_at=datetime(2026, 10, 30, 18, tzinfo=timezone.utc))
+    assert result['counts']['annual_revenue'] == result['counts']['quarterly_revenue'] == 1
+    assert result['counts']['quarterly_cash_from_operations'] == 0
+    assert result['counts']['interim_cash_from_operations'] == 1
+    assert result['rows'][0]['annual_unit'] == result['rows'][0]['interim_unit'] == 'EUR'
+    assert validated_coverage_summary(result) is not None
+    assert '"value"' not in json.dumps(result)
+
+
+@pytest.mark.parametrize('bad_form', [[], {}, 3])
+def test_malformed_foreign_form_is_held_without_exception(bad_form):
+    p = _foreign_payload()
+    for unit in p['facts']['ifrs-full']['Revenue']['units'].values(): unit[1]['form'] = bad_form
+    result = _foreign(p)
+    assert not any(r['status'] == 'available' for r in result['quarterly'])

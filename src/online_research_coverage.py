@@ -14,10 +14,11 @@ from src.online_history_contract import validated_annual_history
 from src.online_sec_receipt import fetch_sec_json_receipt
 from src.sec_annual_history import fetch_sec_online_research_view
 from src.sec_quarterly_history import FIELDS, validated_quarterly_history
+from src.sec_foreign_financials import validated_foreign_financials
 
 DEFAULT_SAMPLE=('MSFT','JPM','JNJ','XOM','PG','MCD','CAT','NEM','DUK','O','VZ','TSM')
 SESSION_KEY='online_research_coverage_sample_v1'
-METRICS=tuple(f'{period}_{field}' for period in ('annual','quarterly') for field in FIELDS)+('cumulative_cash_from_operations','cumulative_capital_expenditures')
+METRICS=tuple(f'{period}_{field}' for period in ('annual','quarterly') for field in FIELDS)+('cumulative_cash_from_operations','cumulative_capital_expenditures')+tuple('interim_'+f for f in FIELDS)
 MAP_URL='https://www.sec.gov/files/company_tickers.json'
 
 
@@ -64,7 +65,7 @@ def _aggregate(rows,requested):
         'attempted_count':sum(r['attempted'] for r in rows),'resolved_issuer_count':len({r['sec_cik'] for r in rows if r['sec_cik']}),
         'counts':{m:sum(r['fields'][m] for r in rows) for m in METRICS},
         'source_failure_count':sum(not r['financial_source_matched'] for r in rows),
-        'unsupported_financial_count':sum(r['financial_source_matched'] and not r['fields']['annual_revenue'] and not r['fields']['quarterly_revenue'] for r in rows),
+        'unsupported_financial_count':sum(r['financial_source_matched'] and not r['fields']['annual_revenue'] and not r['fields']['quarterly_revenue'] and not r['fields']['interim_revenue'] for r in rows),
         'unknown_industry_count':sum(r['sic'] is None for r in rows),'by_industry':industries,'rows':rows,
         'observed_from':min(times) if times else None,'observed_to':max(times) if times else None,
         'market_universe_coverage_established':False,'price_coverage_assessed':False,
@@ -97,15 +98,26 @@ def summarize_online_research_coverage(observations,requested_tickers):
         annual=validated_annual_history(view) if source_ok else None
         quarterly=validated_quarterly_history(view) if source_ok else None
         a=annual['periods'][-1] if annual else {}; q=quarterly['periods'][-1] if quarterly else {}
-        annual_target=_target_period(view,profile,'annual',a,identity)
-        quarter_target=_target_period(view,profile,'quarterly',q,identity)
+        foreign=validated_foreign_financials(view) if source_ok else None
+        fa=foreign['annual'][-1] if foreign and foreign['annual'] else {}
+        fq=foreign['quarterly'][-1] if foreign and foreign['quarterly'] else {}
+        interim=foreign['interim'][-1] if foreign and foreign['interim'] else {}
+        selected_a=max((a,fa),key=lambda r:r.get('period_end',''))
+        selected_q=max((q,fq),key=lambda r:r.get('period_end',''))
+        annual_target=_target_period(view,profile,'annual',selected_a,identity)
+        quarter_target=_target_period(view,profile,'quarterly',selected_q,identity)
         annual_current=a.get('status')=='available' and a.get('period_end')==annual_target
         quarter_current=q.get('status')=='available' and q.get('period_end')==quarter_target
         af={f['field'] for f in a.get('fields',[])} if annual_current else set()
         qf=set(q.get('fields',{})) if quarter_current else set()
         cf=set(q.get('cumulative_fields',{})) if quarter_current else set()
+        native_annual=fa.get('status')=='available' and fa.get('period_end')==annual_target
+        native_quarter=fq.get('status')=='available' and fq.get('period_end')==quarter_target
+        if native_annual: af=set(fa['fields']); annual_current=True
+        if native_quarter: qf=set(fq['fields']); quarter_current=True
+        interim_fields=set(interim.get('fields',{})) if interim.get('status')=='available' else set()
         fields={**{'annual_'+f:f in af for f in FIELDS},**{'quarterly_'+f:f in qf for f in FIELDS},
-                'cumulative_cash_from_operations':'cash_from_operations' in cf,'cumulative_capital_expenditures':'capital_expenditures' in cf}
+                'cumulative_cash_from_operations':'cash_from_operations' in cf,'cumulative_capital_expenditures':'capital_expenditures' in cf,**{'interim_'+f:f in interim_fields for f in FIELDS}}
         refs=[]
         if source_ok:
             refs.append({k:identity[k] for k in ('source_url','observed_at','payload_sha256')})
@@ -116,8 +128,13 @@ def summarize_online_research_coverage(observations,requested_tickers):
         rows.append({'ticker':ticker,'attempted':bool(obs),'sec_cik':cik,'financial_source_matched':source_ok,
             'sic':profile.get('sic') if profile else None,'sic_description':profile.get('sic_description') if profile else None,
             'fields':fields,'annual_period':annual_target,'quarterly_period':quarter_target,
-            'annual_available_period':max((r['period_end'] for r in annual['periods'] if r['status']=='available'),default=None) if annual else None,
-            'quarterly_available_period':max((r['period_end'] for r in quarterly['periods'] if r['status']=='available'),default=None) if quarterly else None,
+            'annual_available_period':max([r['period_end'] for r in (annual['periods'] if annual else [])+(foreign['annual'] if foreign else []) if r['status']=='available'],default=None),
+            'quarterly_available_period':max([r['period_end'] for r in (quarterly['periods'] if quarterly else [])+(foreign['quarterly'] if foreign else []) if r['status']=='available'],default=None),
+            'interim_period':interim.get('period_end'),
+            'interim_available_period':interim.get('period_end') if interim.get('status')=='available' else None,
+            'annual_unit':foreign['unit'] if native_annual else 'USD' if annual_current else None,
+            'quarterly_unit':foreign['unit'] if native_quarter else 'USD' if quarter_current else None,
+            'interim_unit':foreign['unit'] if interim_fields else None,
             'industry_reason':'available' if profile and profile.get('sic') else _reason(obs.get('profile',{}).get('reason') if isinstance(obs.get('profile'),Mapping) else None,profile_issue),
             'annual_reason':'available' if annual_current else 'latest_reported_annual_not_covered' if a.get('period_end') and annual_target and a['period_end']<annual_target else _reason(a.get('reason') or view.get('reason'),'annual_evidence_unavailable'),
             'quarterly_reason':'available' if quarter_current else 'latest_reported_quarter_not_covered' if q.get('period_end') and quarter_target and q['period_end']<quarter_target else _reason(q.get('reason') or raw_quarter.get('reason'),'quarterly_evidence_unavailable'),
@@ -140,11 +157,13 @@ def validated_coverage_summary(result):
         if sic is not None and (not isinstance(sic,str) or not re.fullmatch(r'\d{4}',sic) or sic=='0000'): return None
         if row.get('sic_description') is not None and not isinstance(row['sic_description'],str): return None
         if not row['financial_source_matched'] and (any(fields.values()) or cik is not None or sic is not None): return None
-        if any(row.get(k) is not None and _iso_date(row[k]) is None for k in ('annual_period','quarterly_period','annual_available_period','quarterly_available_period')): return None
+        if any(row.get(k) is not None and _iso_date(row[k]) is None for k in ('annual_period','quarterly_period','annual_available_period','quarterly_available_period','interim_period','interim_available_period')): return None
         if any(not isinstance(row.get(k),str) for k in ('annual_reason','quarterly_reason','industry_reason')): return None
-        for kind in ('annual','quarterly'):
-            prefix='annual_' if kind=='annual' else ('quarterly_','cumulative_')
+        for kind in ('annual','quarterly','interim'):
+            prefix=('quarterly_','cumulative_') if kind=='quarterly' else kind+'_'
             if any(value for name,value in fields.items() if name.startswith(prefix)):
+                unit=row.get(kind+'_unit')
+                if not isinstance(unit,str) or not re.fullmatch(r'[A-Z]{3}',unit): return None
                 if row.get(kind+'_period') is None or row.get(kind+'_available_period')!=row[kind+'_period']: return None
         if not isinstance(refs,list) or len(refs)>3: return None
         expected_urls=[]
@@ -161,7 +180,7 @@ def validated_coverage_summary(result):
     return _aggregate(rows,requested)
 
 
-def run_online_coverage_study(tickers=DEFAULT_SAMPLE,*,user_agent,source_fetcher=None,observed_at=None,workspace_mode='research'):
+def run_online_coverage_study(tickers=DEFAULT_SAMPLE,*,user_agent,source_fetcher=None,observed_at=None,workspace_mode='research',ticker_map_receipt=None):
     requested=_tickers(tickers); reason=_mode_reason(workspace_mode)
     if reason or requested is None: return {'status':'unavailable','reason':reason or 'invalid_sample'}
     from src.online_sec_receipt import _fetch_raw
@@ -169,7 +188,8 @@ def run_online_coverage_study(tickers=DEFAULT_SAMPLE,*,user_agent,source_fetcher
     def fetch(url,agent):
         calls.append(url)
         return (source_fetcher or _fetch_raw)(url,agent)
-    mapping=fetch_sec_json_receipt(MAP_URL,user_agent=user_agent,fetcher=fetch,observed_at=observed_at)
+    mapping=ticker_map_receipt if ticker_map_receipt is not None else fetch_sec_json_receipt(MAP_URL,user_agent=user_agent,fetcher=fetch,observed_at=observed_at)
+    if not isinstance(mapping,Mapping) or mapping.get('source_url')!=MAP_URL or mapping.get('status') not in {'ready','unavailable'}: return {'status':'invalid','reason':'invalid_map_receipt'}
     observations=[]
     for ticker in requested:
         view={'status':'unavailable','ticker':ticker,'reason':_reason(mapping.get('reason'),'sec_ticker_map_unavailable')}
