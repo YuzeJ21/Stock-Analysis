@@ -33,6 +33,16 @@ The same Companyfacts response supports direct bank revenue net of interest expe
 
 A separate IFRS view retains one reporting currency and exact standard concepts for annual, direct-quarter and cumulative/interim statements. A single non-USD source currency is preferred to convenience USD translations; multiple plausible native currencies are withheld. No FX conversion, ADS ratio, quarter subtraction or valuation joins are performed. Foreign issuers without supported current standard facts retain dated historical evidence and a latest-period coverage gap; a 6-K date alone cannot create a quarter.
 
+## Exact primary-filing inspection
+
+Open **Exact SEC filing evidence** in Company Workbench, choose **Latest quarter** or **Latest annual**, then press **Check latest SEC filing**. The source selector rechecks the symbol/CIK association and selects the newest matching report and publication from current SEC submissions. The accession may identify a filing agent; the archive directory remains bound to the issuer CIK. A malformed or tied latest amendment is withheld rather than replaced by an older filing. Automatic selection currently supports10-Q and annual10-K/20-F/40-F forms with Inline XBRL, not arbitrary6-K releases.
+
+The separate archive adapter validates the exact primary-document URL, source dates/digest, DEI issuer/form/period, context entity CIK and absence of dimensions/scenarios. Combined utility filings cannot silently contribute subsidiary numbers. Supported namespace URIs, currency measures and numeric transformations/scale/sign/decimals are retained. Invalid/nil/conflicting facts and unsupported/custom concepts remain withheld. IFRS customer-contract revenue retains its definition; a unique non-USD currency is preferred to convenience USD translations. Capital purchases retain their outflow definition without manufacturing FCF or netting other investing items. Quarter and cumulative periods are separate; six-month cash flow never becomes a quarter by subtraction.
+
+SEC archive display is **unregistered personal inspection only**. It does not inherit Companyfacts commercial field approval or authorize raw redistribution, canonical import, saved-readiness changes, valuation or Companyfacts coverage promotion. Ordinary rerenders reuse validated ticker/period-scoped results without new source requests.
+
+The [SEC filing-status guide](https://www.sec.gov/submit-filings/filer-support-resources/how-do-i-guides/determine-status-my-filing) explains why a formal filing date can follow acceptance time. Both source fields remain separate, each checked against the report and observation dates; the adapter does not infer publication time or filing deadlines.
+
 ## Price inspection scope
 
 `yahoo_chart` is a distinct unregistered exact-source inspection adapter. It does not inherit the `yfinance` registry entry as an approval. Commercial mode and non-Personal routes cannot activate it. Results stay in session memory; no source cache, import, readiness update, numerical price-to-financial join or export is produced. Provider symbol, equity type, USD currency, exchange timezone, raw numeric OHLCV, chronology, duplicate daily bars and split events are validated. Raw source bars that are entirely missing are counted, not filled. The provider close adjustment basis is unverified, so no total return is computed. The displayed price is dated and may be stale; it is not a real-time quote.
@@ -41,7 +51,7 @@ After an explicit price or SEC action, the identity panel can inspect the select
 
 ## Next expansion
 
-1. Add reproducible permitted receipt replay and point-in-time revision evidence to the annual and reported-quarter paths.
+1. Expand the exact-primary-filing adapter from measured remaining definition/context gaps; preserve permitted receipt replay and separate point-in-time revision evidence.
 2. Reconcile dated official listing and issuer receipts, including missing venues, foreign issuers, test issues and inactive securities.
 3. Review exact price-source rights, an independent vendor issuer identifier and adjustment/share basis before any numerical price-to-fundamentals join or valuation. The current listing association is qualified personal inspection only.
 4. Extend remaining exact-source definitions from full-inventory probe failures, reconcile residual venues and distinguish foreign reporting cadences. The full observed inventory and bank / utility / IFRS direct paths are implemented; universal field coverage remains unproven. Assess peers and point-in-time consensus separately.

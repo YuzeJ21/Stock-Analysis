@@ -68,6 +68,7 @@ def test_online_route_requires_valid_session_candidate_and_never_guesses_identit
 def test_online_only_workbench_opens_sec_check_without_saved_analysis(monkeypatch, registered):
     rendered: list[str] = []
     sec_checks: list[tuple[str, str | None]] = []
+    filing_checks: list[tuple[str, str | None]] = []
     result = _result()
     monkeypatch.setattr(
         dashboard,
@@ -80,6 +81,7 @@ def test_online_only_workbench_opens_sec_check_without_saved_analysis(monkeypatc
     )
     monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard, "render_company_online_prices", lambda ticker, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_company_sec_filing_check", lambda ticker, expected_cik=None: filing_checks.append((ticker, expected_cik)), raising=False)
     monkeypatch.setattr(
         dashboard,
         "search_sec_company_candidates",
@@ -116,6 +118,7 @@ def test_online_only_workbench_opens_sec_check_without_saved_analysis(monkeypatc
     assert "https://www.sec.gov/files/company_tickers_exchange.json" in copy
     assert "<summary>SEC identity evidence</summary>" in copy
     assert sec_checks == [("FICT", "0000001234")]
+    assert filing_checks == [("FICT", "0000001234")]
     assert "valuation" in copy.lower()
     assert copy.index("SEC check marker") < copy.index("Back to Discover")
 

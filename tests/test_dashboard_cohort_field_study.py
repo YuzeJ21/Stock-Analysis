@@ -72,6 +72,9 @@ def test_company_workbench_shows_qcom_reasons_and_keeps_raw_proof_advanced(monke
                 markdown=lambda value, **kwargs: rendered.append((location[-1], str(value)))
             )
 
+        def radio(self, label, options, **kwargs):
+            return options[0]
+
         def button(self, *args, **kwargs):
             return False
 

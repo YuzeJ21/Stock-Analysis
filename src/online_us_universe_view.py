@@ -5,7 +5,7 @@ from html import escape
 from src.online_company_identity import _mode_reason
 from src.online_research_expansion_view import _STYLE, _amount, _receipts, _reason
 from src.online_research_coverage import METRICS
-from src.online_us_universe import validated_us_universe, build_universe_coverage
+from src.online_us_universe import validated_us_universe, build_universe_coverage, validated_access_pause
 from src.sec_foreign_financials import validated_foreign_financials
 from src.sec_quarterly_history import FIELDS
 
@@ -51,6 +51,11 @@ def universe_coverage_html(state):
     coverage = build_universe_coverage(inventory, state.get('observations', []))
     if inventory is None or coverage['status'] != 'inspection_only':
         return '<p>Listing coverage unavailable · ' + _reason(state.get('reason') or coverage.get('reason')) + '.</p>'
+    pause=state.get('source_access_pause')
+    if pause is not None:
+        pause=validated_access_pause(pause)
+        if pause is None:return '<p>Listing coverage unavailable · invalid source pause.</p>'
+    pause_html='<p><strong>SEC access paused.</strong> Verified progress is retained; resume after '+escape(pause['resume_after'])+'. No further issuer request is made during the pause.</p>' if isinstance(pause,Mapping) else ''
     n = coverage['issuer_denominator']
     venues = ''.join('<li>' + escape(venue) + ': ' + str(count) + ' listing records</li>' for venue, count in sorted(inventory['by_venue'].items()))
     counts = ''.join('<li>' + escape(name.replace('_', ' ')) + ': ' + str(coverage['counts'][name]) + '/' + str(n) + ' issuer candidates</li>' for name in METRICS)
@@ -58,7 +63,7 @@ def universe_coverage_html(state):
     industries = ''.join('<li>SIC ' + escape(row['sic'] or 'unknown') + ': ' + str(row['attempted_issuer_count']) + ' attempted; annual revenue ' + str(row['counts']['annual_revenue']) + ', quarterly revenue ' + str(row['counts']['quarterly_revenue']) + '</li>' for row in coverage['by_industry'])
     rows = ''.join('<li>' + escape(r['ticker']) + ': annual ' + _reason(r['annual_reason']) + '; quarterly ' + _reason(r['quarterly_reason']) + '; annual unit ' + escape(r['annual_unit'] or 'withheld') + '; latest reporting periods annual ' + escape(r['annual_period'] or 'unavailable') + ', quarter ' + escape(r['quarterly_period'] or 'unavailable') + '</li>' for r in coverage['rows'])
     return (STYLE + '<section class="online-universe" aria-label="U.S. listing coverage"><h3>U.S. listing coverage · full observed inventory</h3>'
-        '<p><strong>' + str(inventory['listing_count']) + ' observed listings</strong> · ' + str(n) + ' issuer candidates · ' + str(inventory['known_etf_count']) + ' known ETF records · ' + str(inventory['excluded_test_issue_count']) + ' test issues excluded.</p>'
+        + pause_html + '<p><strong>' + str(inventory['listing_count']) + ' observed listings</strong> · ' + str(n) + ' issuer candidates · ' + str(inventory['known_etf_count']) + ' known ETF records · ' + str(inventory['excluded_test_issue_count']) + ' test issues excluded.</p>'
         '<p><strong>' + str(coverage['attempted_issuer_count']) + ' attempted · ' + str(coverage['unprobed_issuer_count']) + ' unprobed</strong> · ' + str(coverage['source_failure_count']) + ' financial source failures · ' + str(coverage['unsupported_financial_count']) + ' unsupported financial paths.</p>'
         '<p>Complete U.S. market coverage is not yet established. This denominator is the union of the fetched official inventories. Issuer domicile, active status, non-ETF security type, analysis eligibility and point-in-time coverage remain unverified. Multiple share classes count once in the financial queue.</p>'
         '<p>' + str(inventory['resolved_issuer_count']) + ' CIKs resolved across listing records; ' + str(inventory['unmatched_listing_count']) + ' listing records unmatched, including ETFs. Non-ETF does not establish an operating company. SIC unknown or unprobed: ' + str(coverage['unknown_industry_count']) + ' issuer candidates.</p>'

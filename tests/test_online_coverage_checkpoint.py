@@ -116,3 +116,20 @@ def test_personal_checkpoint_restore_and_save_are_blocked_in_commercial_mode(tmp
     assert _load(path)['status']=='unavailable'
     assert _save(path,_state())['status']=='unavailable'
     assert path.read_bytes()==before
+
+
+def test_session_save_restore_is_explicit_local_and_does_not_fetch_on_read(tmp_path):
+    from src.online_coverage_checkpoint import handle_coverage_checkpoint_action
+    from src.online_us_universe import SESSION_KEY
+    path=tmp_path/'session.json';session={SESSION_KEY:_state(1)}
+    assert handle_coverage_checkpoint_action(session,path=path,observed_at=OBSERVED)['status']=='not_requested'
+    assert not path.exists()
+    saved=handle_coverage_checkpoint_action(session,path=path,save_requested=True,observed_at=OBSERVED)
+    assert saved['status']=='saved'
+    session.clear()
+    result=handle_coverage_checkpoint_action(session,path=path,restore_requested=True,observed_at=OBSERVED)
+    assert result['status']=='restored'
+    assert session[SESSION_KEY]['coverage']['attempted_issuer_count']==1
+    before=path.read_bytes()
+    assert handle_coverage_checkpoint_action(session,path=path,save_requested=True,restore_requested=True,observed_at=OBSERVED)['status']=='unavailable'
+    assert path.read_bytes()==before

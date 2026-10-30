@@ -1886,6 +1886,7 @@ def test_direct_registered_company_workbench_without_open_preserves_query_and_re
             markdown=lambda *args, **kwargs: None,
             empty=lambda: target,
             button=lambda *args, **kwargs: False,
+            radio=lambda label, options, **kwargs: options[0],
             container=lambda *args, **kwargs: Expander(),
             columns=lambda *args, **kwargs: (Expander(), Expander()),
             expander=lambda *args, **kwargs: Expander(),
@@ -1964,6 +1965,9 @@ def test_registered_company_workbench_renders_one_document_with_inline_evidence_
                     ("placeholder-markdown", value, contexts[-1] if contexts else None)
                 )
             )
+
+        def radio(self, label, options, **kwargs):
+            return options[0]
 
         def button(self, label, **kwargs):
             calls.append(("button", label, contexts[-1] if contexts else None))

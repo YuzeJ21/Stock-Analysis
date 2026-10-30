@@ -168,3 +168,27 @@ def save_coverage_checkpoint(path,state,*,expected_digest=None,observed_at=None,
             return dict(status='saved',checkpoint_digest=obj['content_digest'],sequence=obj['sequence'],path=str(path))
     except CheckpointError as e:return dict(status='unavailable',reason=str(e))
     except (OSError,TypeError,ValueError,KeyError,RecursionError):return dict(status='unavailable',reason='checkpoint_write_failed')
+
+
+def handle_coverage_checkpoint_action(session_state,*,path=DEFAULT_CHECKPOINT,save_requested=False,
+                                      restore_requested=False,observed_at=None,workspace_mode='research'):
+    from src.online_us_universe import SESSION_KEY
+    reason=_mode_reason(workspace_mode)
+    if reason:return dict(status='unavailable',reason=reason)
+    if save_requested and restore_requested:return dict(status='unavailable',reason='ambiguous_checkpoint_action')
+    if not save_requested and not restore_requested:return dict(status='not_requested')
+    if restore_requested:
+        loaded=load_coverage_checkpoint(path,observed_at=observed_at,workspace_mode=workspace_mode)
+        if loaded['status']!='ready':return loaded
+        session_state[SESSION_KEY]=loaded['state']
+        return dict(status='restored',checkpoint_digest=loaded['checkpoint_digest'],sequence=loaded['sequence'],probing_allowed=loaded['probing_allowed'])
+    expected=None
+    try:
+        target=_path(path)
+        if target.exists():
+            loaded=load_coverage_checkpoint(target,observed_at=observed_at,workspace_mode=workspace_mode)
+            if loaded['status']!='ready':return loaded
+            expected=loaded['checkpoint_digest']
+    except (OSError,ValueError,TypeError):return dict(status='unavailable',reason='invalid_checkpoint_path')
+    return save_coverage_checkpoint(target,session_state.get(SESSION_KEY),expected_digest=expected,
+        observed_at=observed_at,workspace_mode=workspace_mode)

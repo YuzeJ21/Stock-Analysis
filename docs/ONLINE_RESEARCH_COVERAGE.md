@@ -1,6 +1,6 @@
 # Online Research Coverage Method
 
-Discover offers **U.S. listing coverage · online**. **Load U.S. listing inventory** retrieves the complete observed inventory from the Nasdaq Trader nasdaqlisted.txt / otherlisted.txt directory pair and SEC ticker / exchange maps. **Check next 20 issuers** separately inspects the next unique CIK candidates; ordinary rerenders reuse and revalidate session results. No per-company CSV or API subscription is required. Requests need the existing identifying SEC_USER_AGENT.
+Discover offers **U.S. listing coverage · online**. **Load U.S. listing inventory** retrieves the complete observed inventory from the Nasdaq Trader nasdaqlisted.txt / otherlisted.txt directory pair and SEC ticker / exchange maps. **Check next 20 issuers** separately inspects the next unique CIK candidates; ordinary rerenders reuse and revalidate session results. **Save coverage progress** writes a private reduced checkpoint and **Restore saved coverage** revalidates it without source requests. The default file stays under outputs/local, outside Git. No per-company CSV or API subscription is required. Requests need the existing identifying SEC_USER_AGENT.
 
 ## Denominators and gaps
 
@@ -23,12 +23,22 @@ Counts are availability evidence, not comparisons of amounts or investment signa
 ```sh
 python3 -m src.online_us_universe
 python3 -m src.online_us_universe --batches 1 --batch-size 20
-python3 -m src.online_us_universe --scan-all
+python3 -m src.online_us_universe --checkpoint /absolute/private/path/coverage.json --batches 25
+python3 -m src.online_us_universe --checkpoint /absolute/private/path/coverage.json --resume --batches 5
+python3 -m src.online_us_universe --checkpoint /absolute/private/path/coverage.json --resume --scan-all
 python3 -m src.online_research_coverage --tickers JPM,DUK,TSM,SAP
 ```
 
-The first command loads all observed listing records without Companyfacts probes. Batches serialize SEC requests and share one map per inventory. --scan-all attempts the full observed issuer queue and can be lengthy; it never bulk-queries prices. Source failures stay recorded. Inventory observations expire for new probing after 24 hours; load a new inventory to start a new run instead of mixing cutoffs. CLI prints reduced availability evidence without raw financial amounts. Progress is session memory only: refreshing inventory, closing a process or losing the session starts a new run. No raw cache, canonical import or saved-readiness rebuild is performed.
+The first command loads all observed listing records without Companyfacts probes. Batches serialize SEC requests and share one map per inventory. --scan-all attempts the full observed issuer queue and can be lengthy; it never bulk-queries prices. Source failures stay recorded. Inventory observations expire for new probing after 24 hours; load a new inventory to start a new run instead of mixing cutoffs. CLI prints reduced availability evidence without raw financial amounts. Without an explicit checkpoint, progress is session memory only. Explicit checkpoints retain normalized inventory/map metadata, reduced field-availability rows and source references, never raw Companyfacts/filing bodies or financial amounts. Resume uses the same inventory fingerprint and contract, preserving unique CIK counts and source failures. It does not claim past browser-only observations were saved. Refreshing inventory starts a distinct run. No raw cache, canonical import or saved-readiness rebuild is performed.
 
 SEC Companyfacts uses the existing registered direct-field scope; raw redistribution remains held. Nasdaq directory and SEC listing/SIC metadata remain distinct unregistered personal-inspection sources. Commercial/non-Personal mode cannot activate or reuse this feature. Code delivery does not distribute captured source data or grant commercial metadata rights.
 
 Sources: [SEC APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces), [Nasdaq symbol-directory definitions](https://www.nasdaqtrader.com/trader.aspx?id=symboldirdefs), [SEC registered exchanges](https://www.sec.gov/about/divisions-offices/division-trading-markets/national-securities-exchanges).
+
+## Checkpoint and source-access boundaries
+
+The local POSIX writer uses0600 files, an exclusive file lock, expected-content-digest checks, atomic replacement/fsync and a byte-exact .previous.json backup. It refuses canonical/config/code destinations, symlink targets, unrelated existing files, corruption and incompatible schemas/contracts. A failed replacement preserves the prior checkpoint. A restored snapshot can be inspected after its probing window expires; further source requests require a fresh inventory. Metadata authenticity and source rights are not established by a local content digest.
+
+HTTP403/429/503 pauses later issuer requests, records the affected failed observation and keeps the full denominator/unprobed remainder. The source access pause is retained in the checkpoint. No request is made before its recorded resume time; resumption remains explicit. A previously blocked issuer remains a recorded failed first-pass observation, rather than being counted twice. The default SEC transport throttles failed requests too. No credentials, paid feeds or anti-block workarounds are introduced.
+
+Exact-primary-filing inspection is separate from the Companyfacts field counters shown here. The archive source remains personal-only and does not promote saved readiness or these registered-source coverage metrics.

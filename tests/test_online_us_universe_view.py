@@ -78,3 +78,10 @@ def test_inventory_and_foreign_cards_reflow_in_real_browser(tmp_path):
                 sizes=page.evaluate("() => [...document.querySelectorAll('.online-universe,.online-foreign,.online-foreign article')].map(x=>[x.clientWidth,x.scrollWidth])")
                 assert all(a==b for a,b in sizes)
             browser.close()
+
+
+def test_invalid_source_pause_is_withheld_before_rendering_inventory():
+    from src.online_us_universe_view import universe_coverage_html
+    state=dict(inventory=_inventory(),observations=[],source_access_pause={'http_status':429})
+    html=universe_coverage_html(state)
+    assert '6 observed listings' not in html and 'unavailable' in html.lower()

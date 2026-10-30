@@ -39,6 +39,9 @@ from src.online_research_coverage import DEFAULT_SAMPLE, get_online_coverage_stu
 from src.online_us_universe import get_online_us_universe
 from src.online_us_universe_view import universe_coverage_html, foreign_financials_html
 from src.sec_foreign_financials import validated_foreign_financials
+from src.sec_exact_filing import get_company_filing_preview
+from src.sec_exact_filing_view import filing_preview_html
+from src.online_coverage_checkpoint import handle_coverage_checkpoint_action
 from src.online_research_expansion_view import quarterly_history_html, price_filing_association_html, coverage_study_html
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
@@ -31306,6 +31309,12 @@ def render_online_coverage_study() -> None:
     with st.expander("U.S. listing coverage · online", expanded=False):
         st.markdown("Load the full observed official listing inventory, then check financial coverage by issuer. Unprobed and unmatched records remain visible.")
         load_requested=st.button("Load U.S. listing inventory",key="online-us-universe-load")
+        restore_requested=st.button("Restore saved coverage",key="online-us-universe-restore")
+        save_requested=st.button("Save coverage progress",key="online-us-universe-save")
+        checkpoint_action=handle_coverage_checkpoint_action(st.session_state,save_requested=save_requested,restore_requested=restore_requested)
+        if checkpoint_action['status']=="saved":st.caption("Coverage progress saved on this computer; the previous checkpoint is backed up.")
+        elif checkpoint_action['status']=="restored":st.caption("Saved coverage restored. Its original source dates still apply.")
+        elif checkpoint_action['status']=="unavailable":st.caption("Coverage checkpoint unavailable: "+str(checkpoint_action.get("reason","validation required")).replace("_"," "))
         with st.spinner("Loading dated listing inventory…"):
             universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),load_requested=load_requested)
         can_inspect=universe.get("status")=="inspection_only" and universe.get("coverage",{}).get("unprobed_issuer_count",0)>0
@@ -37956,6 +37965,17 @@ def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None
     return refresh_requested
 
 
+def render_company_sec_filing_check(ticker: str, expected_cik: str | None = None) -> None:
+    """Fetch one metadata-bound primary document only on explicit request."""
+    with st.expander("Exact SEC filing evidence",expanded=False):
+        period=st.radio("Filing period",options=("quarterly","annual"),
+            format_func=lambda value:"Latest quarter" if value=="quarterly" else "Latest annual",key=f"company-exact-filing-period-{ticker}")
+        requested=st.button("Check latest SEC filing",key=f"company-exact-filing-refresh-{ticker}")
+        packet=get_company_filing_preview(ticker,st.session_state,period_kind=period,refresh_requested=requested,
+            user_agent=os.getenv("SEC_USER_AGENT"),expected_cik=expected_cik)
+        st.markdown(filing_preview_html(packet,ticker,period),unsafe_allow_html=True)
+
+
 def render_company_online_prices(ticker: str, *, sec_refresh_requested: bool = False) -> None:
     """Inspect daily prices and qualify their current SEC listing association."""
     with st.container(key="company-online-prices"):
@@ -38054,6 +38074,7 @@ def render_company_workbench(
             unsafe_allow_html=True,
         )
         sec_refreshed=render_company_sec_annual_check(ticker, expected_cik=online_candidate["cik"])
+        render_company_sec_filing_check(ticker,expected_cik=online_candidate["cik"])
         render_company_online_prices(ticker,sec_refresh_requested=bool(sec_refreshed))
         st.markdown(
             "<p><a href='?mode=research&amp;page=discover' target='_self'>"
@@ -38113,6 +38134,7 @@ def render_company_workbench(
         selected_answer_target = st.empty()
         evidence_status_target = st.empty()
         sec_refreshed=render_company_sec_annual_check(ticker)
+        render_company_sec_filing_check(ticker)
         render_company_online_prices(ticker,sec_refresh_requested=bool(sec_refreshed))
         timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
         st.markdown(

@@ -17,6 +17,7 @@ MAX_FILING_BYTES = 32 * 1024 * 1024
 SOURCE_ID = 'sec_archive_inline'
 RIGHTS = 'unregistered_sec_archive_personal_inspection_only'
 SCHEMA = 'sec-exact-filing-v1'
+SESSION_KEY = 'company_exact_sec_filing_v1'
 MAP_URL = 'https://www.sec.gov/files/company_tickers.json'
 FORMS = {'annual': ANNUAL_FORMS, 'quarterly': frozenset({'10-Q','10-Q/A'})}
 
@@ -157,3 +158,25 @@ def validated_filing_preview(packet,ticker,period_kind):
         if packet.get('packet_digest')!=_digest({k:v for k,v in packet.items() if k!='packet_digest'}): return None
     except (TypeError,ValueError): return None
     return dict(packet)
+
+
+def get_company_filing_preview(ticker,session_state,*,period_kind,refresh_requested,user_agent,fetcher=None,
+                               observed_at=None,expected_cik=None,workspace_mode='research'):
+    reason=_mode_reason(workspace_mode)
+    if reason:return dict(status='withheld',ticker=ticker,period_kind=period_kind,reason=reason)
+    if refresh_requested:
+        packet=fetch_sec_filing_preview(ticker,period_kind=period_kind,user_agent=user_agent,fetcher=fetcher,
+            observed_at=observed_at,expected_cik=expected_cik,workspace_mode=workspace_mode)
+        session_state[SESSION_KEY]=dict(ticker=ticker,period_kind=period_kind,packet=packet)
+        return packet
+    cached=session_state.get(SESSION_KEY)
+    if not isinstance(cached,Mapping) or cached.get('ticker')!=ticker or cached.get('period_kind')!=period_kind:
+        return dict(status='not_requested',ticker=ticker,period_kind=period_kind)
+    packet=cached.get('packet')
+    if isinstance(packet,Mapping) and packet.get('status')=='withheld':
+        reason=packet.get('reason')
+        return dict(status='withheld',ticker=ticker,period_kind=period_kind,
+            reason=reason if isinstance(reason,str) and len(reason)<=160 else 'filing_evidence_unavailable')
+    validated=validated_filing_preview(packet,ticker,period_kind)
+    if validated and (expected_cik is None or validated['sec_cik']==expected_cik):return validated
+    return dict(status='withheld',ticker=ticker,period_kind=period_kind,reason='invalid_cached_filing_or_identity')
