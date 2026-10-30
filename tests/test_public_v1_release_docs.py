@@ -329,8 +329,11 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert "| Now | Local controlled demo" in readme
     assert "explicit live SEC company lookup" in readme
     assert "including companies absent from local CSVs" in readme
-    assert "| Next | Make one company-period SEC evidence case repeatable" in readme
-    assert "dated U.S. issuer/listing coverage gap" in readme
+    assert "| Next | Expand exact-filing support from measured source gaps" in readme
+    assert "continue recoverable issuer checks" in readme
+    assert "remaining dated venue/security-identity gaps" in readme
+    assert "**Exact SEC filing evidence**" in readme
+    assert "save and restore reduced coverage progress" in readme
     assert "| Later | Carry permitted snapshot changes" in readme
     assert "Hosting, full coverage, calibration, and commercial operation require their own direct evidence" in readme
     assert "local Commercial Research Beta foundation" in readme
