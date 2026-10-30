@@ -113,6 +113,7 @@ def test_online_only_workbench_opens_sec_check_without_saved_analysis(monkeypatc
     assert "2026-10-30T10:00:00Z" in copy
     assert "a" * 64 in copy
     assert "https://www.sec.gov/files/company_tickers_exchange.json" in copy
+    assert "<summary>SEC identity evidence</summary>" in copy
     assert sec_checks == [("FICT", "0000001234")]
     assert "valuation" in copy.lower()
     assert copy.index("SEC check marker") < copy.index("Back to Discover")

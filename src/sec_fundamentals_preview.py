@@ -186,6 +186,38 @@ def _valid_companyfacts_payload(payload: Any) -> bool:
     return True
 
 
+def _raw_direct_issue(payload: Mapping[str, Any], row: Mapping[str, Any]) -> str | None:
+    """Check selected raw facts before lossy numeric coercion or deduplication."""
+    for ref in row.get("source_refs", []):
+        unit = ref.get("underlying_fact_unit") if row.get("field") == "filing_dates" else ref.get("unit")
+        records = payload["facts"].get(ref.get("taxonomy"), {}).get(ref.get("concept"), {}).get("units", {}).get(unit, [])
+        matches = [
+            item for item in records
+            if all(item.get(raw) == ref.get(normalized) for raw, normalized in (
+                ("start", "period_start"), ("end", "period_end"), ("filed", "filed"),
+                ("form", "form"), ("accn", "accession"),
+            ))
+        ]
+        if not matches:
+            return "raw_source_conflict"
+        values = []
+        for item in matches:
+            value = item.get("val")
+            try:
+                valid = type(value) in {int, float} and math.isfinite(value) and abs(value) <= 1e20
+            except OverflowError:
+                valid = False
+            if not valid:
+                return "raw_source_value_invalid"
+            values.append(value)
+        if len(set(values)) != 1:
+            return "raw_source_conflict"
+        expected = ref.get("filed") if row.get("field") == "filing_dates" else values[0]
+        if row.get("candidate_value") != expected:
+            return "raw_source_conflict"
+    return None
+
+
 def _valid_annual_anchor(record: Mapping[str, Any]) -> bool:
     return bool(
         record.get("period_start")
@@ -562,8 +594,8 @@ def build_sec_fundamentals_preview(
     tickers: str | Iterable[str],
     *,
     retrieval_timestamp: str | None = None,
-    canonical_path: str | Path = "data/fundamentals.csv",
-    staged_path: str | Path = "data/imports/fundamentals.csv",
+    canonical_path: str | Path | None = "data/fundamentals.csv",
+    staged_path: str | Path | None = "data/imports/fundamentals.csv",
     rights_path: str | Path = DEFAULT_REGISTRY_PATH,
     user_agent: str | None = None,
     cache_dir: str | Path = "data/cache/sec",
@@ -573,8 +605,17 @@ def build_sec_fundamentals_preview(
 ) -> dict[str, Any]:
     requested = parse_preview_tickers(tickers)
     normalized_retrieval_timestamp = _retrieval_timestamp(retrieval_timestamp)
-    canonical, canonical_columns = _read_canonical(Path(canonical_path))
-    staged_columns = _read_header(Path(staged_path))
+    # Explicit online inspection has no dependency on local CSV availability.
+    # The default comparison path still requires its canonical input to exist.
+    comparison_requested = canonical_path is not None
+    canonical, canonical_columns = (
+        _read_canonical(Path(canonical_path))
+        if comparison_requested
+        else (pd.DataFrame(columns=["ticker"]).set_index("ticker", drop=False), [])
+    )
+    staged_columns = (
+        _read_header(Path(staged_path)) if comparison_requested and staged_path is not None else []
+    )
     registry = load_source_rights_registry(Path(rights_path))
     ticker_map = load_sec_ticker_map(
         cache_dir=cache_dir,
@@ -766,6 +807,23 @@ def build_sec_fundamentals_preview(
             )
             for field in CANDIDATE_COMPONENT_FIELDS
         ]
+        for field_row in [*field_rows, *source_component_rows]:
+            if field_row["classification"] == "approved_direct":
+                raw_issue = _raw_direct_issue(payload, field_row)
+                if raw_issue:
+                    field_row.update({
+                        "classification": raw_issue, "candidate_value": None,
+                        "value_status": "withheld", "proposed_delta": None,
+                        "publishability_blocker": raw_issue,
+                        "required_owner_action": "resolve_raw_source_value_or_duplicate_conflict",
+                    })
+        if not comparison_requested:
+            for field_row in [*field_rows, *source_component_rows]:
+                field_row["value_status"] = (
+                    "not_compared" if field_row.get("candidate_value") is not None else "missing"
+                )
+                field_row["proposed_delta"] = None
+                field_row["required_owner_action"] = "online_inspection_only_no_canonical_comparison"
         future_apply_candidate_fields = [
             row["field"]
             for row in field_rows
@@ -809,10 +867,13 @@ def build_sec_fundamentals_preview(
                 "sec_cik": str(cik).zfill(10),
                 "retrieval_timestamp": normalized_retrieval_timestamp,
                 "status": (
-                    "compared" if canonical_present else "compared_canonical_missing"
+                    "online_only" if not comparison_requested
+                    else "compared" if canonical_present else "compared_canonical_missing"
                 ),
                 "blocker": (
-                    "Canonical apply and source-rights decisions remain separately gated."
+                    "Canonical comparison not requested; online inspection has no apply proposal."
+                    if not comparison_requested
+                    else "Canonical apply and source-rights decisions remain separately gated."
                     if canonical_present
                     else "Canonical fundamentals row is unavailable; a row-level apply proposal is blocked."
                 ),
@@ -822,7 +883,8 @@ def build_sec_fundamentals_preview(
                 "candidate_accession": anchor_accession,
                 "candidate_source_url": source_url,
                 "canonical_period_status": (
-                    "aligned"
+                    "not_requested" if not comparison_requested
+                    else "aligned"
                     if canonical_period_end and canonical_period_end == anchor_period_end
                     else "period_mismatch"
                     if canonical_period_end
@@ -863,6 +925,7 @@ def build_sec_fundamentals_preview(
         "requested_tickers": requested,
         "retrieval_timestamp": normalized_retrieval_timestamp,
         "source": "sec_companyfacts",
+        "canonical_comparison_status": "compared" if comparison_requested else "not_requested",
         "source_rights_mutated": False,
         "canonical_apply_authorized": False,
         "repository_writes": [],

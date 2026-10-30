@@ -169,7 +169,7 @@ def present_company_sec_annual_preview(ticker: str, preview: Mapping[str, Any]) 
     row = rows[0]
     fields = row.get("fields")
     if (
-        row.get("status") not in {"compared", "compared_canonical_missing"}
+        row.get("status") not in {"compared", "compared_canonical_missing", "online_only"}
         or not isinstance(fields, list)
         or len(fields) > 32
         or any(not isinstance(field, Mapping) for field in fields)
@@ -276,7 +276,9 @@ def present_company_sec_annual_preview(ticker: str, preview: Mapping[str, Any]) 
                 anchor_concept=anchor_concept,
             )
         reason = (
-            "derived_field_scope_unreviewed"
+            str(field["classification"])
+            if field.get("classification") in {"raw_source_value_invalid", "raw_source_conflict"}
+            else "derived_field_scope_unreviewed"
             if field.get("classification") == "derived_scope_review_required"
             or field_name in ALLOWED_DIRECT_FIELDS and field.get("value_kind") != "direct"
             else "unsupported_online_field"
@@ -395,9 +397,12 @@ def get_company_sec_annual_preview(
         session_state[SESSION_KEY] = {"ticker": normalized, "view": view}
         return view
     if preview_builder is None:
+        from functools import partial
         from src.sec_fundamentals_preview import build_sec_fundamentals_preview
 
-        preview_builder = build_sec_fundamentals_preview
+        preview_builder = partial(
+            build_sec_fundamentals_preview, canonical_path=None, staged_path=None
+        )
     try:
         preview = preview_builder(normalized, user_agent=user_agent)
     except (RuntimeError, ValueError, TypeError, OSError, TimeoutError):
@@ -423,6 +428,8 @@ def company_sec_annual_preview_html(view: Mapping[str, Any]) -> str:
         body = "<p>SEC identifying User-Agent is required before an online check.</p>"
     elif status == "unavailable" and view.get("reason") == "sec_identity_mismatch":
         body = "<p>SEC ticker identity did not match the selected online candidate. Annual facts are withheld.</p>"
+    elif status == "unavailable" and view.get("reason") == "invalid_annual_source_anchor":
+        body = "<p>SEC annual facts are unavailable: a compatible annual revenue anchor was not established under the current reporting definitions. Review the source filing; this is a field-coverage gap.</p>"
     elif status != "inspection_only":
         body = "<p>SEC annual facts are unavailable. No field was promoted.</p>"
     else:
@@ -492,6 +499,8 @@ def company_sec_annual_preview_html(view: Mapping[str, Any]) -> str:
             )
         approved_count = len(field_rows)
         reason_labels = {
+            "raw_source_value_invalid": "Raw SEC amount is malformed or nonnumeric",
+            "raw_source_conflict": "Raw SEC records conflict for this exact filing context",
             "derived_field_scope_unreviewed": "Derived field scope needs review",
             "unsupported_online_field": "This field is outside the SEC annual-facts scope",
             "field_source_mismatch": "Source identity or period does not match",

@@ -29,6 +29,7 @@ def _synthetic_preview() -> dict[str, object]:
         "fiscal_year": 2025,
         "fiscal_period": "FY",
     }
+
     return {
         "status": "inspection_only",
         "source": "sec_companyfacts",
@@ -80,6 +81,29 @@ def _synthetic_preview() -> dict[str, object]:
             }
         ],
     }
+
+
+def test_default_online_action_explicitly_disables_local_csv_comparison(monkeypatch):
+    from src import sec_fundamentals_preview
+
+    calls = []
+    def build(ticker, **kwargs):
+        calls.append((ticker, kwargs))
+        return _synthetic_preview()
+    monkeypatch.setattr(sec_fundamentals_preview, "build_sec_fundamentals_preview", build)
+    view = get_company_sec_annual_preview(
+        "FICT", {}, refresh_requested=True, user_agent="Research Contact"
+    )
+    assert view["status"] == "inspection_only"
+    assert calls[0][1]["canonical_path"] is None
+    assert calls[0][1]["staged_path"] is None
+
+
+def test_incompatible_annual_anchor_explains_reporting_gap():
+    rendered = company_sec_annual_preview_html({
+        "status": "unavailable", "ticker": "FICT", "reason": "invalid_annual_source_anchor",
+    })
+    assert "compatible annual revenue anchor" in rendered
 
 
 def _preview_with_operating_components() -> dict[str, object]:

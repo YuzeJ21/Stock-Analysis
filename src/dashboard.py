@@ -31,6 +31,7 @@ from src.online_company_search import (
     online_company_results_html,
 )
 from src.providers.sec_company_discovery import search_sec_company_candidates
+from src.online_company_analysis import build_online_company_analysis, online_company_analysis_html
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
@@ -37917,7 +37918,11 @@ def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None
                 "withheld_fields": [],
                 "safe_to_apply": False,
             }
-        preview_target.markdown(company_sec_annual_preview_html(view), unsafe_allow_html=True)
+        analysis = build_online_company_analysis(view)
+        preview_target.markdown(
+            online_company_analysis_html(analysis) + company_sec_annual_preview_html(view),
+            unsafe_allow_html=True,
+        )
 
 
 def render_company_workbench(
@@ -37971,25 +37976,25 @@ def render_company_workbench(
         context_only=has_registered_company and not online_requested,
     )
     if online_candidate is not None:
+        absence = (
+            "Saved local data is separate; its issuer identity has not been reconciled "
+            "to this SEC association. Inspect annual facts and financial review below."
+            if has_registered_company
+            else "No saved research record is available for this company. "
+            "Request its online annual facts and financial review below."
+        )
         st.markdown(
-            empty_state_html(
-                title=f"SEC online candidate: {ticker}",
-                absence=(
-                    "Saved local data is separate; its issuer identity has not been reconciled "
-                    "to this SEC association. Inspect exact SEC annual facts below after a separate online check."
-                    if has_registered_company
-                    else "No saved research record is available for this company. "
-                    "You can inspect exact SEC annual facts below after a separate online check."
-                ),
-                not_proven=(
-                    "its U.S. issuer domicile, security type, active listing, point-in-time "
-                    "coverage, financial coverage, valuation, or analysis eligibility"
-                ),
-                action=None,
-            ).value,
+            "<style>.online-company-intro h2{font-size:1.5rem;line-height:1.25;margin:.25rem 0 .65rem}"
+            ".online-company-intro p{margin:.4rem 0}.online-company-identity{font-size:.85rem;overflow-wrap:anywhere}</style>"
+            "<section class='sr-empty-state online-company-intro' data-sr-region='primary-answer'>"
+            f"<h2>SEC online candidate: {html.escape(ticker)}</h2><p>{html.escape(absence)}</p>"
+            "<details><summary>Scope of this company page</summary>"
+            "<p>The SEC association does not establish U.S. issuer domicile, security type, active listing, "
+            "point-in-time coverage, financial coverage, valuation, or analysis eligibility.</p></details></section>",
             unsafe_allow_html=True,
         )
         st.markdown(
+            "<details class='online-company-identity'><summary>SEC identity evidence</summary>"
             "<p class='online-company-source-meta' style='overflow-wrap:anywhere'>SEC ticker candidate "
             f"{html.escape(ticker)} · CIK {html.escape(online_candidate['cik'])} · "
             f"{html.escape(online_candidate['title'][:140])} · "
@@ -37998,7 +38003,7 @@ def render_company_workbench(
             f"SHA-256 <code>{html.escape(online_candidate['payload_sha256'])}</code> · "
             f"<a href='{html.escape(online_candidate['source_url'], quote=True)}' "
             "target='_blank' rel='noopener noreferrer'>SEC association source</a>. "
-            "Identity association rights require review before distribution.</p>",
+            "Identity association rights require review before distribution.</p></details>",
             unsafe_allow_html=True,
         )
         render_company_sec_annual_check(ticker, expected_cik=online_candidate["cik"])

@@ -20,7 +20,7 @@ historical/review-only or are withheld where proof is absent. This local
 implementation does not establish current-market, hosted, commercial, nowcast,
 or calibration completion.
 
-Historical pre-fix evidence: Task 4 local matrix completed at `c8c313b9c`. Check release gates for the exact branch head before distribution; local product development follows the Product Decision outcome order in `ROADMAP.md`. Broad-review repairs must be evaluated only through direct current-head local and exact-head CI evidence; their presence alone establishes neither gate. Prior accessibility and Discover work is historical/completed context.
+Historical pre-fix evidence: Task 4 local matrix completed at `c8c313b9c`. Check release gates for the exact branch head before distribution; local product development follows the Product Decision outcome order in `ROADMAP.md`. Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization. Broad-review repairs must be evaluated only through direct current-head local and exact-head CI evidence; their presence alone establishes neither gate. Prior accessibility and Discover work is historical/completed context.
 
 Priority 7 remains open. Preserve its external manual-accessibility boundary: point-in-time data, consensus, peer review, hosted controls, independent sessions, assistive-technology review, and calibration remain incomplete and must be classified once rather than retried without changed evidence.
 
