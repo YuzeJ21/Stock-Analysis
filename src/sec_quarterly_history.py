@@ -14,6 +14,7 @@ from src.sec_fundamentals_preview import _valid_companyfacts_payload
 FIELDS=('revenue','operating_income','cash_from_operations','capital_expenditures')
 FORMS=ANNUAL_FORMS | {'10-Q','10-Q/A'}
 RIGHTS='approved_field_scope_raw_redistribution_held'
+REVISION_HOLD='newer_or_unresolved_filing_context'
 _REVENUES=[('us-gaap',x) for x in ('RevenueFromContractWithCustomerExcludingAssessedTax','Revenues','SalesRevenueNet','SalesRevenueGoodsNet')]
 
 
@@ -58,8 +59,35 @@ def _reported_period_anchors(payload,observed):
     return result
 
 
+def _revision_gap(payload,concepts,context,observed_at):
+    """Inspect competing raw publications before filtering usable unit/context rows."""
+    observed=_utc_timestamp(observed_at); selected=_iso_date(context['filed'])
+    start,end=_iso_date(context['start']),_iso_date(context['end'])
+    selected_quarter=70<=(end-start).days<=105
+    gaps=[]
+    for taxonomy,concept in concepts:
+        units=payload['facts'].get(taxonomy,{}).get(concept,{}).get('units',{})
+        for records in units.values():
+            for raw in records:
+                if raw.get('end')!=context['end'] and (raw.get('start')!=context['start'] or _iso_date(raw.get('end')) is not None): continue
+                raw_start,raw_end=_iso_date(raw.get('start')),_iso_date(raw.get('end'))
+                if raw_start is not None and raw_end is not None and raw.get('start')!=context['start']:
+                    days=(raw_end-raw_start).days
+                    same_kind=(70<=days<=105) if selected_quarter else (105<days<=320)
+                    if not same_kind: continue
+                filed=_iso_date(raw.get('filed'))
+                if filed is not None and (filed>observed.date() or filed<selected): continue
+                same_context=all(raw.get(k)==v for k,v in context.items())
+                if filed is None or filed>selected or not same_context:
+                    gaps.append({'reason':REVISION_HOLD,'filed':filed.isoformat() if filed else None})
+    if not gaps: return None
+    return max(gaps,key=lambda gap:gap['filed'] or '9999-99-99')
+
+
 def _direct(payload, field, concepts, context, source, observed_at, permitted):
     if not permitted: return None,'field_scope_unreviewed'
+    gap=_revision_gap(payload,_REVENUES if field=='revenue' else concepts,context,observed_at)
+    if gap: return None,REVISION_HOLD
     for taxonomy,concept in concepts:
         rows=[r for r in _records(payload,(taxonomy,concept)) if all(r.get(k)==v for k,v in context.items())]
         if not rows: continue
@@ -96,8 +124,8 @@ def build_sec_quarterly_history(ticker,payload,*,expected_cik,observed_at,source
         if quarter_rows: candidates.append((key,quarter_rows))
     if not candidates: return {**held,'reason':'supported_direct_quarter_revenue_unavailable'}
     # Pin one reported revenue definition across history; never stitch definitions.
-    newest=max(max(r['end'] for r in rows) for _,rows in candidates)
-    key,quarter_rows=next((k,rows) for k,rows in candidates if max(r['end'] for r in rows)==newest)
+    newest=max(max((r['end'],r['filed']) for r in rows) for _,rows in candidates)
+    key,quarter_rows=next((k,rows) for k,rows in candidates if max((r['end'],r['filed']) for r in rows)==newest)
     groups=defaultdict(list)
     for raw in quarter_rows: groups[raw['end']].append(raw)
     periods=[]
@@ -107,6 +135,7 @@ def build_sec_quarterly_history(ticker,payload,*,expected_cik,observed_at,source
         starts={r['start'] for r in rows}
         row={'period_end':end,'period_start':next(iter(starts)) if len(starts)==1 else None,'filed':filed,
              'status':'withheld','fields':{},'cumulative_fields':{},'cumulative_anchor':None,
+             'revision_gaps':{},'cumulative_withheld_fields':{},
              'withheld_fields':{f:'quarter_revenue_withheld' for f in FIELDS},'reason':'ambiguous_quarter_context'}
         if len(contexts)!=1 or len(starts)!=1:
             periods.append(row); continue
@@ -114,6 +143,8 @@ def build_sec_quarterly_history(ticker,payload,*,expected_cik,observed_at,source
         context={'start':start,'end':end,'filed':filed,'accn':accession,'form':form}
         anchor,reason=_direct(payload,'revenue',[key],context,source_url,observed_at,True)
         if anchor is None:
+            if reason==REVISION_HOLD:
+                row['revision_gaps']['revenue']=_revision_gap(payload,_REVENUES,context,observed_at)
             row['reason']=reason; periods.append(row); continue
         row.update(status='available',reason=None,accession=accession,form=form,fields={'revenue':anchor},withheld_fields={})
         cumulative=[r for r in _records(payload,key) if r.get('end')==end and r.get('accn')==accession
@@ -123,23 +154,32 @@ def build_sec_quarterly_history(ticker,payload,*,expected_cik,observed_at,source
         cumulative_context=None
         if len(cumulative_starts)==1:
             cumulative_context={**context,'start':next(iter(cumulative_starts))}
-            row['cumulative_anchor'],_=_direct(payload,'revenue',[key],cumulative_context,source_url,observed_at,True)
-            if row['cumulative_anchor'] is None: cumulative_context=None
+            row['cumulative_anchor'],cumulative_reason=_direct(payload,'revenue',[key],cumulative_context,source_url,observed_at,True)
+            if row['cumulative_anchor'] is None:
+                row['cumulative_withheld_fields']={f:'cumulative_revenue_anchor_withheld' for f in ('cash_from_operations','capital_expenditures')}
+                if cumulative_reason==REVISION_HOLD: row['revision_gaps']['cumulative_revenue']=_revision_gap(payload,_REVENUES,cumulative_context,observed_at)
+                cumulative_context=None
         for field in FIELDS[1:]:
             concepts=sorted(OPERATING_COMPONENT_CONCEPTS[field],key=lambda k:('ContinuingOperations' in k[1],k[1]))
             direct,reason=_direct(payload,field,concepts,context,source_url,observed_at,permitted[field])
             if direct is not None: row['fields'][field]=direct
-            else: row['withheld_fields'][field]=reason
+            else:
+                row['withheld_fields'][field]=reason
+                if reason==REVISION_HOLD: row['revision_gaps'][field]=_revision_gap(payload,concepts,context,observed_at)
             if field in {'cash_from_operations','capital_expenditures'} and cumulative_context:
-                cumulative_field,_=_direct(payload,field,concepts,cumulative_context,source_url,observed_at,permitted[field])
+                cumulative_field,cumulative_reason=_direct(payload,field,concepts,cumulative_context,source_url,observed_at,permitted[field])
                 if cumulative_field:
                     row['cumulative_fields'][field]=cumulative_field
                     if direct is None and reason=='matching_direct_fact_unavailable':
                         row['withheld_fields'][field]='only_cumulative_fact_available'
+                else:
+                    row['cumulative_withheld_fields'][field]=cumulative_reason
+                    if cumulative_reason==REVISION_HOLD: row['revision_gaps']['cumulative_'+field]=_revision_gap(payload,concepts,cumulative_context,observed_at)
         periods.append(row)
     latest=anchors['quarterly']
     if latest and latest['period_end']>periods[-1]['period_end']:
         periods.append({**latest,'status':'withheld','fields':{},'cumulative_fields':{},'cumulative_anchor':None,
+            'revision_gaps':{},'cumulative_withheld_fields':{},
             'withheld_fields':{f:'quarter_revenue_withheld' for f in FIELDS},'reason':'latest_reported_quarter_revenue_unavailable'})
         periods=periods[-min(max_periods,12):]
     return {'status':'inspection_only','ticker':ticker,'sec_cik':expected_cik,'source_url':source_url,
@@ -183,10 +223,18 @@ def validated_quarterly_history(view):
         start,end,filed=(_iso_date(row.get(k)) for k in ('period_start','period_end','filed'))
         if end is None or filed is None or not end<=filed<=observed.date() or previous is not None and end<=previous: return None
         previous=end
+        gaps=row.get('revision_gaps',{}); cumulative_holds=row.get('cumulative_withheld_fields',{})
+        if not isinstance(gaps,Mapping) or not set(gaps)<=set(FIELDS)|{'cumulative_revenue','cumulative_cash_from_operations','cumulative_capital_expenditures'}: return None
+        for gap in gaps.values():
+            if not isinstance(gap,Mapping) or gap.get('reason')!=REVISION_HOLD: return None
+            day=gap.get('filed')
+            if day is not None and (_iso_date(day) is None or _iso_date(day)>observed.date()): return None
+        if not isinstance(cumulative_holds,Mapping) or not set(cumulative_holds)<={'cash_from_operations','capital_expenditures'}: return None
+        if any(not isinstance(reason,str) or reason not in {REVISION_HOLD,'field_scope_unreviewed','raw_source_conflict','matching_direct_fact_unavailable','cumulative_revenue_anchor_withheld'} for reason in cumulative_holds.values()): return None
         if row.get('status')=='withheld':
             if row.get('period_start') is not None and (start is None or not 70<=(end-start).days<=105): return None
             if row.get('fields')!={} or row.get('cumulative_fields')!={} or row.get('cumulative_anchor') is not None: return None
-            if not isinstance(row.get('reason'),str) or row['reason'] not in {'ambiguous_quarter_context','raw_source_conflict','matching_direct_fact_unavailable','latest_reported_quarter_revenue_unavailable'}: return None
+            if not isinstance(row.get('reason'),str) or row['reason'] not in {'ambiguous_quarter_context','raw_source_conflict','matching_direct_fact_unavailable','latest_reported_quarter_revenue_unavailable',REVISION_HOLD}: return None
             continue
         if (row.get('status')!='available' or start is None or not 70<=(end-start).days<=105
             or not isinstance(row.get('accession'),str) or not re.fullmatch(r'\d{10}-\d{2}-\d{6}',row['accession'])
@@ -195,8 +243,13 @@ def validated_quarterly_history(view):
         if not all(isinstance(v,Mapping) for v in (fields,withheld,cumulative)): return None
         if ('revenue' not in fields or set(fields)|set(withheld)!=set(FIELDS) or set(fields)&set(withheld)
             or not set(cumulative)<={'cash_from_operations','capital_expenditures'}): return None
+        if set(cumulative)&set(cumulative_holds): return None
+        for name in gaps:
+            if name in FIELDS and name in fields: return None
+            if name=='cumulative_revenue' and row.get('cumulative_anchor') is not None: return None
+            if name.startswith('cumulative_') and name.removeprefix('cumulative_') in cumulative: return None
         if any(not valid_field(f,name,row) for name,f in fields.items()): return None
-        if any(not isinstance(reason,str) or reason not in {'field_scope_unreviewed','raw_source_conflict','matching_direct_fact_unavailable','only_cumulative_fact_available'} for reason in withheld.values()): return None
+        if any(not isinstance(reason,str) or reason not in {'field_scope_unreviewed','raw_source_conflict','matching_direct_fact_unavailable','only_cumulative_fact_available',REVISION_HOLD} for reason in withheld.values()): return None
         anchor=row.get('cumulative_anchor')
         if cumulative or anchor is not None:
             if not valid_field(anchor,'revenue',row,cumulative=True): return None

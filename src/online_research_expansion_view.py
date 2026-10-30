@@ -28,6 +28,13 @@ def _receipts(refs):
     return '<ul>'+''.join(f'<li><a href="{escape(r["source_url"],quote=True)}" target="_blank" rel="noopener noreferrer">Source</a> · observed {escape(r["observed_at"])} · SHA-256 {escape(r["payload_sha256"])}</li>' for r in refs)+'</ul>'
 
 
+def _revision_gaps(row):
+    gaps=row.get('revision_gaps',{})
+    if not gaps: return ''
+    items=''.join('<li>'+escape(name.replace('_',' '))+' · competing publication '+escape(gap.get('filed') or 'date unresolved')+' · '+_reason(gap['reason'])+'</li>' for name,gap in gaps.items())
+    return '<details><summary>Revision context holds</summary><ul>'+items+'</ul></details>'
+
+
 def quarterly_history_html(view):
     if 'quarterly_history' not in view: return ''
     h=validated_quarterly_history(view)
@@ -48,18 +55,19 @@ def quarterly_history_html(view):
         points.append((row['period_end'],revenue['value'] if revenue else None)); previous=row
     for row in reversed(h['periods']):
         if row['status']!='available':
-            cards.append('<article><h4>Quarter ended '+escape(row['period_end'])+'</h4><p>Withheld · '+_reason(row['reason'])+'</p></article>'); continue
+            cards.append('<article><h4>Quarter ended '+escape(row['period_end'])+'</h4><p>Withheld · '+_reason(row['reason'])+'</p>'+_revision_gaps(row)+'</article>'); continue
         values=''.join('<div><dt>'+_label(name,row['fields'].get(name))+'</dt><dd>'+(_amount(row['fields'][name]['value']) if name in row['fields'] else 'Withheld')+'</dd></div>' for name in FIELDS)
         missing='; '.join(_LABELS[name]+': '+reason.replace('_',' ') for name,reason in row['withheld_fields'].items())
         cumulative=''
-        if row['cumulative_fields']:
+        if row['cumulative_fields'] or row.get('cumulative_withheld_fields') and row.get('cumulative_anchor'):
             anchor=row['cumulative_anchor']
             amounts=''.join('<div><dt>'+_label(name,field)+'</dt><dd>'+_amount(field['value'])+'</dd></div>' for name,field in row['cumulative_fields'].items())
             cumulative='<div class="cumulative-flow"><strong>Cumulative cash flow · not single-quarter</strong><p>'+escape(anchor['period_start'])+' to '+escape(row['period_end'])+' · USD</p><dl>'+amounts+'</dl></div>'
+        cumulative_missing='; '.join('cumulative '+_LABELS[name]+': '+reason.replace('_',' ') for name,reason in row.get('cumulative_withheld_fields',{}).items())
         definitions='; '.join(f'{name}: {f["taxonomy"]}:{f["concept"]}' for name,f in row['fields'].items())
         definitions+='; '+'; '.join(f'cumulative {name}: {f["taxonomy"]}:{f["concept"]}' for name,f in row['cumulative_fields'].items())
         cards.append('<article><h4>Quarter ended '+escape(row['period_end'])+'</h4><small>'+escape(row['period_start'])+' to '+escape(row['period_end'])+' · USD</small><dl>'+values+'</dl>'+cumulative
-            +'<details><summary>Quarter evidence and gaps</summary><p>Filed '+escape(row['filed'])+' · '+escape(row['form'])+' · accession '+escape(row['accession'])+'</p><p>'+escape(definitions)+'</p><p>'+escape(missing)+'</p></details></article>')
+            +'<details><summary>Quarter evidence and gaps</summary><p>Filed '+escape(row['filed'])+' · '+escape(row['form'])+' · accession '+escape(row['accession'])+'</p><p>'+escape(definitions)+'</p><p>'+escape(missing)+'</p><p>'+escape(cumulative_missing)+'</p></details>'+_revision_gaps(row)+'</article>')
     latest='<div class="online-quarter-grid">'+''.join(cards[:4])+'</div>'
     earlier='<details><summary>Earlier reported quarters ('+str(len(cards)-4)+')</summary><div class="online-quarter-grid">'+''.join(cards[4:])+'</div></details>' if len(cards)>4 else ''
     return (_STYLE+'<section class="online-quarterly" aria-label="Reported quarterly financials"><h3>Reported quarterly financials</h3>'

@@ -53,6 +53,16 @@ def test_quarter_revenue_definition_is_visible_beside_customer_contract_values()
     assert 'Revenue · customer contracts, excluding assessed tax' in html
 
 
+def test_component_revision_hold_and_publication_date_are_visible_without_the_old_value():
+    from test_sec_quarterly_history import _quarter_payload
+    from src.online_research_expansion_view import quarterly_history_html
+    p=_quarter_payload(); rows=p['facts']['us-gaap']['OperatingIncomeLoss']['units']['USD']
+    rows.append({**rows[-1],'val':999,'filed':'2026-03-01','accn':'0000001234-26-000003'})
+    html=quarterly_history_html(_wrapped(_build(p)))
+    assert '<dt>Operating income</dt><dd>Withheld</dd>' in html
+    assert 'Revision context holds' in html and '2026-03-01' in html
+
+
 def test_expansion_sections_survive_real_streamlit_composition_and_reflow(tmp_path):
     from playwright.sync_api import sync_playwright
     from src.public_performance_gate import _local_demo_server

@@ -160,3 +160,39 @@ def test_latest_reported_quarter_gap_is_visible_instead_of_substituting_a_decade
     assert h['periods'][-1]['period_end']=='2026-09-30'
     assert h['periods'][-1]['status']=='withheld'
     assert h['periods'][-1]['reason']=='latest_reported_quarter_revenue_unavailable'
+
+
+@pytest.mark.parametrize('change',['accession','start','form','currency','publication'])
+def test_later_unusable_revenue_context_cannot_restore_older_success(change):
+    p=_quarter_payload(); fact=p['facts']['us-gaap']['Revenues']; rows=fact['units']['USD']
+    raw={**rows[2],'val':999,'filed':'2026-03-01','accn':'0000001234-26-000003'}
+    if change=='accession': raw['accn']='malformed'
+    elif change=='start': raw['start']='malformed'
+    elif change=='form': raw['form']='unknown'
+    elif change=='publication': raw['filed']='malformed'
+    if change=='currency': fact['units']['EUR']=[raw]
+    else: rows.append(raw)
+    h=_build(p)
+    assert h['periods'][-1]['status']=='withheld'
+    assert h['periods'][-1]['fields']=={}
+    assert h['periods'][0]['fields']['revenue']['value']==100
+    assert h['periods'][-1]['reason']=='newer_or_unresolved_filing_context'
+
+
+def test_component_only_revision_withholds_that_field_without_cross_accession_join():
+    p=_quarter_payload(); rows=p['facts']['us-gaap']['OperatingIncomeLoss']['units']['USD']
+    rows.append({**rows[-1],'val':999,'filed':'2026-03-01','accn':'0000001234-26-000003'})
+    row=_build(p)['periods'][-1]
+    assert row['status']=='available' and row['fields']['revenue']['value']==130
+    assert 'operating_income' not in row['fields']
+    assert row['withheld_fields']['operating_income']=='newer_or_unresolved_filing_context'
+    assert row['revision_gaps']['operating_income']['filed']=='2026-03-01'
+
+
+def test_cumulative_component_only_revision_does_not_reuse_its_old_cash_value():
+    p=_quarter_payload(); rows=p['facts']['us-gaap']['NetCashProvidedByUsedInOperatingActivities']['units']['USD']
+    rows.append({**rows[-1],'val':999,'filed':'2026-03-01','accn':'0000001234-26-000003'})
+    row=_build(p)['periods'][-1]
+    assert 'cash_from_operations' not in row['cumulative_fields']
+    assert row['cumulative_fields']['capital_expenditures']['value']==20
+    assert row['cumulative_withheld_fields']['cash_from_operations']=='newer_or_unresolved_filing_context'
