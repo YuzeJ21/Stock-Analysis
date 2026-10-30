@@ -51,6 +51,7 @@ def _line(points, title):
 
 
 def annual_history_html(view):
+    from src.company_sec_online_preview import REVENUE_LABELS
     if view.get("status") != "inspection_only": return ""
     history = validated_annual_history(view)
     if history is None:
@@ -63,7 +64,7 @@ def annual_history_html(view):
         continuing = any(f.get("concept") == "NetCashProvidedByUsedInOperatingActivitiesContinuingOperations" for f in row["fields"])
         cash_label = "Operating cash flow · continuing operations" if continuing else "Operating cash flow"
         values = "".join(f'<div><dt>{label}</dt><dd>{_amount(fields.get(name))}</dd></div>' for name, label in (
-            ("revenue", "Revenue"), ("operating_income", "Operating income"),
+            ("revenue", REVENUE_LABELS.get(history["concept"], "Revenue")), ("operating_income", "Operating income"),
             ("cash_from_operations", cash_label), ("capital_expenditures", "Capital spending"),
         ))
         context = (

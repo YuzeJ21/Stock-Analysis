@@ -36,6 +36,9 @@ from src.online_company_prices import get_online_company_prices
 from src.online_research_history_view import annual_history_html, online_price_history_html
 from src.online_company_identity import get_price_filing_association
 from src.online_research_coverage import DEFAULT_SAMPLE, get_online_coverage_study
+from src.online_us_universe import get_online_us_universe
+from src.online_us_universe_view import universe_coverage_html, foreign_financials_html
+from src.sec_foreign_financials import validated_foreign_financials
 from src.online_research_expansion_view import quarterly_history_html, price_filing_association_html, coverage_study_html
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
@@ -31300,6 +31303,17 @@ def render_online_company_search(*, saved_tickers: Iterable[str] = ()) -> None:
 
 def render_online_coverage_study() -> None:
     """Run a declared SEC industry sample only after an explicit Personal action."""
+    with st.expander("U.S. listing coverage · online", expanded=False):
+        st.markdown("Load the full observed official listing inventory, then check financial coverage by issuer. Unprobed and unmatched records remain visible.")
+        load_requested=st.button("Load U.S. listing inventory",key="online-us-universe-load")
+        with st.spinner("Loading dated listing inventory…"):
+            universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),load_requested=load_requested)
+        can_inspect=universe.get("status")=="inspection_only" and universe.get("coverage",{}).get("unprobed_issuer_count",0)>0
+        inspect_requested=st.button("Check next 20 issuers",key="online-us-universe-inspect",disabled=not can_inspect)
+        if inspect_requested:
+            with st.spinner("Checking the next issuer batch…"):
+                universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),inspect_requested=True)
+        st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
     with st.expander("Cross-industry coverage · online sample", expanded=False):
         st.markdown("A bounded sample of " + str(len(DEFAULT_SAMPLE)) + " tickers across SEC industries. This is a field-availability study, not a market-wide census; prices are not queried.")
         requested=st.button("Run online coverage sample",key="online-coverage-sample-refresh")
@@ -37911,7 +37925,7 @@ def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None
         refresh_requested = st.button(
             "Check SEC annual facts",
             key=f"company-sec-annual-refresh-{ticker}",
-            help="Loads annual and directly reported quarterly evidence from one SEC Companyfacts response.",
+            help="Loads annual, directly reported quarterly and supported IFRS native-currency evidence from one SEC Companyfacts response.",
         )
         preview_target = st.empty()
         view = get_company_sec_annual_preview(
@@ -37935,7 +37949,8 @@ def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None
             st.session_state[SESSION_KEY]={"ticker":ticker,"view":view}
         analysis = build_online_company_analysis(view)
         preview_target.markdown(
-            online_company_analysis_html(analysis) + quarterly_history_html(view) + annual_history_html(view) + company_sec_annual_preview_html(view),
+            (foreign_financials_html(view) if validated_foreign_financials(view) else
+             online_company_analysis_html(analysis) + foreign_financials_html(view) + quarterly_history_html(view) + annual_history_html(view) + company_sec_annual_preview_html(view)),
             unsafe_allow_html=True,
         )
     return refresh_requested

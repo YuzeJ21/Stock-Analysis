@@ -12,7 +12,7 @@ Open Discover, enter a company name or ticker, and press **Search SEC now**. Cho
 - Up to twelve directly reported quarter-length periods from that same response. Quarter revenue and operating income stay separate from cumulative cash flow. A valid quarterly path can remain available when annual definitions are unsupported; missing quarters, including Q4, are never inferred by subtraction.
 - A separate **Check online price history** action for one year of dated Yahoo provider daily closes, excluding the observation day and retaining split-event context.
 - A qualified price/filing listing association using the SEC CIK, current SEC ticker/exchange context and the price provider's explicit symbol/venue metadata. Share-class aliases are explicit; ambiguous venues and conflicting observations remain withheld.
-- An explicit **Run online coverage sample** action in Discover, covering a declared twelve-ticker cross-industry sample with SEC SIC classifications, field counts and failure reasons. The sample is not a market-wide denominator. See [Online Coverage Method](ONLINE_RESEARCH_COVERAGE.md).
+- **Load U.S. listing inventory** and **Check next 20 issuers** actions in Discover, with full observed listing / issuer-candidate denominators, test exclusions, ETF flags, unknown venues, failed / unprobed counts and residual venue gates. A separate explicit **Run online coverage sample** action in Discover, covering a declared twelve-ticker cross-industry sample with SEC SIC classifications, field counts and failure reasons. The sample is not a market-wide denominator. See [Online Coverage Method](ONLINE_RESEARCH_COVERAGE.md).
 - A capability panel showing supported analysis and the exact missing inputs for other lanes.
 
 The adapter is generic across SEC search candidates and has no fixed six-company allowlist. Each result can still be unavailable: some issuers do not report supported standard concepts or USD units, and company-specific taxonomies are outside this adapter. A missing operating field does not become zero or prevent valid sibling fields from being inspected. Continuing-operations cash flow retains that scope and cannot be compared with total PP&E spending. Boolean or string amounts and conflicting same-context raw facts remain withheld before numeric extraction.
@@ -27,6 +27,12 @@ The online wrapper now uses bounded exact-URL SEC JSON receipts with raw-byte di
 
 Registered SEC Companyfacts direct-field scope is distinct from directory identity distribution rights. Raw financial redistribution remains held under the current registry. Percentage growth rates, numerical margins, free cash flow, valuation and forecasts are not manufactured from these inspection results. Direct annual revenue charts and increase/decrease/unchanged comparisons are supported only for matching concepts, units and adjacent non-overlapping annual periods. The review does not establish current-market interpretation, full U.S. venue coverage, issuer domicile, security type or listing activity.
 
+## Industry and foreign-issuer definitions
+
+The same Companyfacts response supports direct bank revenue net of interest expense, regulated / unregulated utility operating revenue and qualified tax-inclusive customer revenue. Each label retains its definition; no aggregate is manufactured by adding components. Operating income stays withheld when only bank pretax income is present.
+
+A separate IFRS view retains one reporting currency and exact standard concepts for annual, direct-quarter and cumulative/interim statements. A single non-USD source currency is preferred to convenience USD translations; multiple plausible native currencies are withheld. No FX conversion, ADS ratio, quarter subtraction or valuation joins are performed. Foreign issuers without supported current standard facts retain dated historical evidence and a latest-period coverage gap; a 6-K date alone cannot create a quarter.
+
 ## Price inspection scope
 
 `yahoo_chart` is a distinct unregistered exact-source inspection adapter. It does not inherit the `yfinance` registry entry as an approval. Commercial mode and non-Personal routes cannot activate it. Results stay in session memory; no source cache, import, readiness update, numerical price-to-financial join or export is produced. Provider symbol, equity type, USD currency, exchange timezone, raw numeric OHLCV, chronology, duplicate daily bars and split events are validated. Raw source bars that are entirely missing are counted, not filled. The provider close adjustment basis is unverified, so no total return is computed. The displayed price is dated and may be stale; it is not a real-time quote.
@@ -38,7 +44,7 @@ After an explicit price or SEC action, the identity panel can inspect the select
 1. Add reproducible permitted receipt replay and point-in-time revision evidence to the annual and reported-quarter paths.
 2. Reconcile dated official listing and issuer receipts, including missing venues, foreign issuers, test issues and inactive securities.
 3. Review exact price-source rights, an independent vendor issuer identifier and adjustment/share basis before any numerical price-to-fundamentals join or valuation. The current listing association is qualified personal inspection only.
-4. Expand taxonomy and industry support from the measured sample failures, then measure a dated broad U.S. denominator. Assess peers and point-in-time consensus separately.
+4. Extend remaining exact-source definitions from full-inventory probe failures, reconcile residual venues and distinguish foreign reporting cadences. The full observed inventory and bank / utility / IFRS direct paths are implemented; universal field coverage remains unproven. Assess peers and point-in-time consensus separately.
 
 ## Source references
 

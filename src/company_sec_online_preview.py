@@ -30,6 +30,14 @@ REVENUE_CONCEPTS = frozenset({
     ("us-gaap", "RegulatedAndUnregulatedOperatingRevenue"),
     ("us-gaap", "RevenueFromContractWithCustomerIncludingAssessedTax"),
 })
+REVENUE_LABELS = {
+    "RevenuesNetOfInterestExpense": "Revenue · net of interest expense",
+    "RegulatedAndUnregulatedOperatingRevenue": "Revenue · regulated and unregulated operations",
+    "RevenueFromContractWithCustomerIncludingAssessedTax": "Revenue · customer contracts, including assessed tax",
+    "RevenueFromContractWithCustomerExcludingAssessedTax": "Revenue · customer contracts, excluding assessed tax",
+    "SalesRevenueNet": "Revenue · net sales",
+    "SalesRevenueGoodsNet": "Revenue · goods sales",
+}
 OPERATING_COMPONENT_CONCEPTS = {
     "operating_income": frozenset({("us-gaap", "OperatingIncomeLoss")}),
     "cash_from_operations": frozenset({

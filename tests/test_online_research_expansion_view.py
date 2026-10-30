@@ -128,3 +128,15 @@ def test_explicit_sec_action_can_complete_identity_after_prices_were_loaded_firs
     assert len(calls)==1 and 'Listing association matched' in ''.join(rendered)
     dashboard.render_company_online_prices('FICT',sec_refresh_requested=False)
     assert len(calls)==1
+
+
+@pytest.mark.parametrize('concept,label', [
+    ('RevenuesNetOfInterestExpense','Revenue · net of interest expense'),
+    ('RegulatedAndUnregulatedOperatingRevenue','Revenue · regulated and unregulated operations'),
+    ('RevenueFromContractWithCustomerIncludingAssessedTax','Revenue · customer contracts, including assessed tax'),
+])
+def test_bank_and_utility_source_definition_is_visible_next_to_values(concept,label):
+    from test_sec_quarterly_history import _quarter_payload
+    from src.online_research_expansion_view import quarterly_history_html
+    p=_quarter_payload(); p['facts']['us-gaap'][concept]=p['facts']['us-gaap'].pop('Revenues')
+    assert label in quarterly_history_html(_wrapped(_build(p)))

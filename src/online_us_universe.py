@@ -237,6 +237,33 @@ def inspect_next_universe_batch(state, *, user_agent, batch_size=20, source_fetc
     return dict(status='inspection_only', inventory=inventory, observations=result, coverage=build_universe_coverage(inventory, result))
 
 
+def get_online_us_universe(session_state, *, user_agent, load_requested=False, inspect_requested=False,
+                           batch_size=20, source_fetcher=None, observed_at=None, workspace_mode='research'):
+    reason = _mode_reason(workspace_mode)
+    if reason: return {'status': 'unavailable', 'reason': reason}
+    if load_requested:
+        inventory = load_online_us_universe(user_agent=user_agent, fetcher=source_fetcher,
+            observed_at=observed_at, workspace_mode=workspace_mode)
+        if inventory['status'] != 'inspection_only':
+            session_state[SESSION_KEY] = inventory
+            return inventory
+        session_state[SESSION_KEY] = dict(status='inspection_only', inventory=inventory, observations=[])
+    state = session_state.get(SESSION_KEY)
+    if state is None: return {'status': 'not_requested'}
+    if not isinstance(state, Mapping) or 'inventory' not in state:
+        return {'status': 'unavailable', 'reason': 'listing_source_unavailable'}
+    if inspect_requested:
+        result = inspect_next_universe_batch(state, user_agent=user_agent, batch_size=batch_size,
+            source_fetcher=source_fetcher, observed_at=observed_at, workspace_mode=workspace_mode)
+        if result.get('status') != 'inspection_only': return result
+        session_state[SESSION_KEY] = result
+        return result
+    inventory = validated_us_universe(state.get('inventory'))
+    coverage = build_universe_coverage(inventory, state.get('observations', []))
+    if coverage['status'] != 'inspection_only': return coverage
+    return dict(status='inspection_only', inventory=inventory, observations=state.get('observations', []), coverage=coverage)
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description='Online full observed listing inventory and serialized issuer coverage; no raw source files or price batch.')
     parser.add_argument('--scan-all', action='store_true', help='Attempt the complete observed issuer queue with serialized SEC access.')
