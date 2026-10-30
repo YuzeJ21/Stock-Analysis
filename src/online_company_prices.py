@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import math
 import re
+import unicodedata
 from datetime import datetime, timezone
 from typing import Any, Callable, Mapping, MutableMapping
 from urllib.parse import quote
@@ -20,6 +21,14 @@ from src.sec_association_receipt import _json_object
 
 MAX_PRICE_BYTES = 2 * 1024 * 1024
 SESSION_KEY = "online_company_price_inspection_v1"
+
+
+def price_source_url(symbol: str) -> str:
+    return f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol, safe='')}?range=1y&interval=1d&events=div%2Csplits&includeAdjustedClose=true"
+
+
+def _metadata_text(value):
+    return value if isinstance(value,str) and 0<len(value)<=200 and not any(unicodedata.category(c) in {'Cc','Cf'} for c in value) else None
 
 
 def _held(ticker: str, reason: str) -> dict[str, Any]:
@@ -61,7 +70,7 @@ def fetch_online_company_prices(
     if observed_at is not None and (not isinstance(observed_at, datetime) or observed_at.utcoffset() is None):
         return _held(ticker, "invalid_observation")
     symbol = ticker.replace(".", "-")
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol, safe='')}?range=1y&interval=1d&events=div%2Csplits&includeAdjustedClose=true"
+    url = price_source_url(symbol)
     try:
         raw, response_url = (fetcher or _raw_fetch)(url)
     except (OSError, RuntimeError, TimeoutError, ValueError, TypeError):
@@ -132,6 +141,8 @@ def fetch_online_company_prices(
     return {
         "status": "inspection_only", "ticker": ticker, "provider_symbol": symbol,
         "currency": "USD", "source_id": "yahoo_chart", "source_url": url,
+        "instrument_type": "EQUITY", "exchange_code": _metadata_text(meta.get("exchangeName")),
+        "full_exchange_name": _metadata_text(meta.get("fullExchangeName")), "provider_name": _metadata_text(meta.get("longName")),
         "observed_at": observed.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "payload_sha256": hashlib.sha256(raw).hexdigest(), "exchange_timezone": meta["exchangeTimezoneName"],
         "bars": bars, "splits": splits, "last_price_date": bars[-1]["date"],
