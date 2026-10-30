@@ -36,6 +36,28 @@ def _records(payload, key):
     return payload['facts'].get(key[0],{}).get(key[1],{}).get('units',{}).get('USD',[])
 
 
+def _reported_period_anchors(payload,observed):
+    """Inspect reporting dates across concepts without accepting their amounts."""
+    groups={'annual':[],'quarterly':[]}
+    for taxonomy in payload['facts'].values():
+        for fact in taxonomy.values():
+            for records in fact['units'].values():
+                for raw in records:
+                    c=_context(raw,observed)
+                    if c is None: continue
+                    days=(c[1]-c[0]).days
+                    if 300<=days<=430 and raw['form'] in ANNUAL_FORMS: groups['annual'].append(raw)
+                    if 70<=days<=105: groups['quarterly'].append(raw)
+    result={}
+    for kind,records in groups.items():
+        if not records: result[kind]=None; continue
+        end=max(r['end'] for r in records); relevant=[r for r in records if r['end']==end]
+        filed=max(r['filed'] for r in relevant); relevant=[r for r in relevant if r['filed']==filed]
+        starts={r['start'] for r in relevant}
+        result[kind]={'period_end':end,'filed':filed,'period_start':next(iter(starts)) if len(starts)==1 else None}
+    return result
+
+
 def _direct(payload, field, concepts, context, source, observed_at, permitted):
     if not permitted: return None,'field_scope_unreviewed'
     for taxonomy,concept in concepts:
@@ -65,8 +87,11 @@ def build_sec_quarterly_history(ticker,payload,*,expected_cik,observed_at,source
     permitted={f:field_is_permitted(f) for f in FIELDS}
     if not permitted['revenue']: return {**held,'reason':'field_scope_unreviewed'}
     if anchor_concept is not None and (not isinstance(anchor_concept,tuple) or not all(isinstance(v,str) for v in anchor_concept) or anchor_concept not in REVENUE_CONCEPTS): return held
+    anchors=_reported_period_anchors(payload,observed)
+    held['reported_period_anchors']=anchors
     candidates=[]
-    for key in ([anchor_concept] if anchor_concept else _REVENUES):
+    concepts=([anchor_concept] if anchor_concept else [])+[k for k in _REVENUES if k!=anchor_concept]
+    for key in concepts:
         quarter_rows=[r for r in _records(payload,key) if (c:=_context(r,observed)) and 70<=(c[1]-c[0]).days<=105]
         if quarter_rows: candidates.append((key,quarter_rows))
     if not candidates: return {**held,'reason':'supported_direct_quarter_revenue_unavailable'}
@@ -112,9 +137,14 @@ def build_sec_quarterly_history(ticker,payload,*,expected_cik,observed_at,source
                     if direct is None and reason=='matching_direct_fact_unavailable':
                         row['withheld_fields'][field]='only_cumulative_fact_available'
         periods.append(row)
+    latest=anchors['quarterly']
+    if latest and latest['period_end']>periods[-1]['period_end']:
+        periods.append({**latest,'status':'withheld','fields':{},'cumulative_fields':{},'cumulative_anchor':None,
+            'withheld_fields':{f:'quarter_revenue_withheld' for f in FIELDS},'reason':'latest_reported_quarter_revenue_unavailable'})
+        periods=periods[-min(max_periods,12):]
     return {'status':'inspection_only','ticker':ticker,'sec_cik':expected_cik,'source_url':source_url,
             'observed_at':observed_at,'payload_sha256':payload_sha256,'taxonomy':key[0],'concept':key[1],
-            'unit':'USD','history_basis':'latest_reported_as_observed_not_point_in_time','periods':periods}
+            'unit':'USD','history_basis':'latest_reported_as_observed_not_point_in_time','periods':periods,'reported_period_anchors':anchors}
 
 
 def validated_quarterly_history(view):
@@ -156,7 +186,7 @@ def validated_quarterly_history(view):
         if row.get('status')=='withheld':
             if row.get('period_start') is not None and (start is None or not 70<=(end-start).days<=105): return None
             if row.get('fields')!={} or row.get('cumulative_fields')!={} or row.get('cumulative_anchor') is not None: return None
-            if not isinstance(row.get('reason'),str) or row['reason'] not in {'ambiguous_quarter_context','raw_source_conflict','matching_direct_fact_unavailable'}: return None
+            if not isinstance(row.get('reason'),str) or row['reason'] not in {'ambiguous_quarter_context','raw_source_conflict','matching_direct_fact_unavailable','latest_reported_quarter_revenue_unavailable'}: return None
             continue
         if (row.get('status')!='available' or start is None or not 70<=(end-start).days<=105
             or not isinstance(row.get('accession'),str) or not re.fullmatch(r'\d{10}-\d{2}-\d{6}',row['accession'])
@@ -173,4 +203,3 @@ def validated_quarterly_history(view):
             if any(not valid_field(f,name,row,cumulative=True) or f['period_start']!=anchor['period_start'] for name,f in cumulative.items()): return None
         if any(withheld.get(name)=='only_cumulative_fact_available' and name not in cumulative for name in FIELDS): return None
     return dict(h)
-

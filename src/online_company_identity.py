@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from datetime import timedelta
 
 from src.company_sec_online_preview import _iso_date, _utc_timestamp, _finite_direct_number
+from src.company_sec_online_preview import ANNUAL_FORMS
 from src.commercial_source_rights import commercial_mode_enabled
 from src.online_company_prices import price_source_url
 from src.online_sec_receipt import fetch_sec_json_receipt
@@ -61,7 +62,27 @@ def validated_sec_company_profile(profile,expected_cik):
     sic=profile.get('sic'); description=profile.get('sic_description')
     if sic is not None and (not isinstance(sic,str) or not re.fullmatch(r'\d{4}',sic) or sic=='0000'): return None
     if description is not None and not _text(description): return None
+    observed=_utc_timestamp(profile['observed_at'])
+    for name in ('latest_annual_period_end','latest_quarterly_period_end'):
+        value=profile.get(name)
+        if value is not None and (_iso_date(value) is None or _iso_date(value)>observed.date()): return None
     return dict(profile)
+
+
+def _filing_periods(raw,observed):
+    result={'latest_annual_period_end':None,'latest_quarterly_period_end':None,'reporting_metadata_status':'unavailable'}
+    filings=raw.get('filings'); recent=filings.get('recent') if isinstance(filings,Mapping) else None
+    if not isinstance(recent,Mapping): return result
+    forms,ends,filed=(recent.get(k) for k in ('form','reportDate','filingDate'))
+    if not all(isinstance(v,list) for v in (forms,ends,filed)) or len(forms)!=len(ends) or len(forms)!=len(filed) or len(forms)>2000: return result
+    annual=[]; quarterly=[]
+    for form,end,published in zip(forms,ends,filed):
+        if not isinstance(form,str) or form not in ANNUAL_FORMS|{'10-Q','10-Q/A'}: continue
+        end_date,filed_date=_iso_date(end),_iso_date(published)
+        if end_date is None or filed_date is None or end_date>filed_date: return result
+        if filed_date>observed.date(): continue
+        (annual if form in ANNUAL_FORMS else quarterly).append(end)
+    return {'latest_annual_period_end':max(annual) if annual else None,'latest_quarterly_period_end':max(quarterly) if quarterly else None,'reporting_metadata_status':'inspected'}
 
 
 def fetch_sec_company_profile(cik,*,user_agent,fetcher=None,observed_at=None,workspace_mode='research'):
@@ -75,10 +96,13 @@ def fetch_sec_company_profile(cik,*,user_agent,fetcher=None,observed_at=None,wor
     sic=raw.get('sic'); sic=str(sic) if type(sic) in {int,str} else ''
     sic=sic if re.fullmatch(r'\d{4}',sic) and sic!='0000' else None
     result={k:receipt[k] for k in ('source_url','observed_at','source_last_modified','payload_sha256')}
-    result.update(status='inspection_only',sec_cik=cik,name=raw.get('name'),tickers=raw.get('tickers'),exchanges=raw.get('exchanges'),
+    exchanges=raw.get('exchanges')
+    if isinstance(exchanges,list) and all(isinstance(v,str) for v in exchanges): exchanges=list(dict.fromkeys(exchanges))
+    result.update(status='inspection_only',sec_cik=cik,name=raw.get('name').strip() if isinstance(raw.get('name'),str) else raw.get('name'),tickers=raw.get('tickers'),exchanges=exchanges,
         sic=sic,sic_description=raw.get('sicDescription') if _text(raw.get('sicDescription')) else None,
         rights_status=PROFILE_RIGHTS,commercial_eligible=False)
-    return validated_sec_company_profile(result,cik) or held
+    result.update(_filing_periods(raw,_utc_timestamp(receipt['observed_at'])))
+    return validated_sec_company_profile(result,cik) or {**held,'reason':'sec_profile_schema_invalid'}
 
 
 def _price_identity_valid(ticker,prices):
@@ -129,8 +153,34 @@ def build_price_filing_association(ticker,financial_identity,prices,profile):
                  'payload_sha256':financial_identity['association_payload_sha256']})
     return {'status':'matched_listing_association','ticker':ticker,'sec_cik':cik,'provider_symbol':symbol,'sec_ticker':matched[0],
             'exchange':venue[0],'share_class_alias_applied':ticker!=symbol,'source_receipts':refs,
+            'provider_exchange_code':code,'provider_full_exchange_name':full_name,'sec_exchanges':list(profile['exchanges']),
             'issuer_identity_status':'vendor_issuer_identifier_unavailable','point_in_time_continuity_status':'unverified',
             'valuation_eligible':False,'reason':None}
+
+
+def validated_price_filing_association(link):
+    if not isinstance(link,Mapping) or link.get('status')!='matched_listing_association' or _mode_reason('research'): return None
+    ticker=link.get('ticker'); cik=link.get('sec_cik'); symbol=link.get('provider_symbol'); sec_ticker=link.get('sec_ticker')
+    if not isinstance(ticker,str) or not re.fullmatch(r'[A-Z0-9][A-Z0-9.-]{0,19}',ticker) or not _cik(cik): return None
+    if symbol!=ticker.replace('.','-') or not isinstance(sec_ticker,str) or sec_ticker.replace('.','-')!=symbol: return None
+    code=link.get('provider_exchange_code'); venue=_VENUES.get(code) if isinstance(code,str) else None
+    if venue is None or link.get('exchange')!=venue[0] or link.get('sec_exchanges')!=[venue[0]]: return None
+    full=link.get('provider_full_exchange_name')
+    if full is not None and (not isinstance(full,str) or full not in venue[1]): return None
+    if (link.get('share_class_alias_applied') is not (ticker!=symbol) or link.get('valuation_eligible') is not False
+        or link.get('issuer_identity_status')!='vendor_issuer_identifier_unavailable' or link.get('point_in_time_continuity_status')!='unverified'): return None
+    refs=link.get('source_receipts')
+    urls=[f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',price_source_url(symbol),
+          f'https://data.sec.gov/submissions/CIK{cik}.json','https://www.sec.gov/files/company_tickers.json']
+    if not isinstance(refs,list) or len(refs)!=4: return None
+    times=[]
+    for ref,url in zip(refs,urls):
+        if not isinstance(ref,Mapping) or ref.get('source_url')!=url or not _digest(ref.get('payload_sha256')): return None
+        observed=_utc_timestamp(ref.get('observed_at'))
+        if observed is None: return None
+        times.append(observed)
+    if max(times)-min(times)>timedelta(hours=24): return None
+    return dict(link)
 
 
 def get_price_filing_association(ticker,financial_identity,prices,session_state,*,refresh_requested,user_agent,
@@ -146,4 +196,3 @@ def get_price_filing_association(ticker,financial_identity,prices,session_state,
     else:
         profile=cached.get('profile') if isinstance(cached,Mapping) and cached.get('ticker')==ticker and cached.get('sec_cik')==cik else None
     return build_price_filing_association(ticker,financial_identity,prices,profile)
-

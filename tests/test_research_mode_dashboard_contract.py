@@ -778,6 +778,7 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
         "render_stock_selector",
         lambda *args, **kwargs: calls.append("saved browsing"),
     )
+    monkeypatch.setattr(dashboard,"render_online_coverage_study",lambda:calls.append("coverage sample"))
     monkeypatch.setattr(
         dashboard,
         "dashboard_output_frames_for_page",
@@ -810,7 +811,7 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
 
     assert all(value != "## Find a Company" for value in headings)
     assert all("Browse saved companies" not in value for value in headings)
-    assert calls == ["saved browsing", "advanced"]
+    assert calls == ["saved browsing", "coverage sample", "advanced"]
 
 
 def test_discover_search_first_keeps_strict_queue_in_advanced_context(monkeypatch):

@@ -39,4 +39,3 @@ def fetch_sec_json_receipt(url, *, user_agent, fetcher=None, observed_at=None):
     return {'status':'ready','payload':payload,'source_url':url,
             'observed_at':observed.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'source_last_modified':modified,'payload_sha256':hashlib.sha256(raw).hexdigest()}
-

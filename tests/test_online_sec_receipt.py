@@ -46,4 +46,3 @@ def test_receipt_digest_changes_with_the_exact_response_bytes():
     a=fetch_sec_json_receipt(URL,user_agent='Research',fetcher=lambda *a:(b'{"cik":1234}',{},URL))
     b=fetch_sec_json_receipt(URL,user_agent='Research',fetcher=lambda *a:(b'{ "cik":1234}',{},URL))
     assert a['payload']==b['payload'] and a['payload_sha256']!=b['payload_sha256']
-

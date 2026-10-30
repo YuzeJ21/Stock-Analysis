@@ -122,7 +122,7 @@ def online_price_history_html(result):
         f'<p><strong>USD {_amount(bars[-1]["close"])}</strong> · provider daily close dated {escape(bars[-1]["date"])} · {len(bars)} completed daily bars.</p>'
         f'<p>{escape(str(result.get("observation_state", "unavailable")).replace("_", " "))}. The observation day is excluded to avoid an incomplete daily bar. This is a dated observation, not a real-time quote.</p>'
         + _line([(r["date"], r["close"]) for r in bars], "Yahoo provider daily closing prices in USD")
-        + '<p>Adjustment basis is unverified. Splits and dividends can affect comparisons; no total-return calculation is shown. The issuer link to SEC has not been reconciled. Commercial use and redistribution remain held for this exact unregistered source.</p>'
+        + '<p>Adjustment basis is unverified. Splits and dividends can affect comparisons; no total-return calculation is shown. The issuer link is assessed separately below; a symbol match is not an independently verified vendor issuer identifier. Commercial use and redistribution remain held for this exact unregistered source.</p>'
         + f'<details><summary>Price source evidence</summary><p>Source: yahoo_chart · requested {escape(ticker)} · provider symbol {escape(symbol)} · observed {escape(result["observed_at"])} · timezone {escape(str(result.get("exchange_timezone", "unknown")))}.</p>'
         f'<p>Split event dates: {escape(split_dates)}. Missing source bars: {escape(str(result.get("missing_bar_count", 0)))}.</p>'
         f'<p><a href="{escape(result["source_url"], quote=True)}" target="_blank" rel="noopener noreferrer">Yahoo chart source</a> · payload SHA-256 {escape(str(result.get("payload_sha256", "unavailable")))}</p></details></section>'

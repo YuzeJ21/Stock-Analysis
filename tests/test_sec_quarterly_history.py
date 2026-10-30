@@ -143,3 +143,20 @@ def test_malformed_optional_anchor_and_unbounded_cik_are_withheld_without_crashi
     assert _build(p)['status']=='withheld'
 
 
+def test_newer_supported_quarter_definition_is_not_hidden_by_an_old_annual_concept():
+    p=_quarter_payload()
+    p['facts']['us-gaap']['RevenueFromContractWithCustomerExcludingAssessedTax']={'units':{'USD':[
+        {'start':'2026-07-01','end':'2026-09-30','filed':'2026-10-20','form':'10-Q','accn':'0000001234-26-000002','val':200}]}}
+    h=_build(p,anchor_concept=('us-gaap','Revenues'))
+    assert h['periods'][-1]['period_end']=='2026-09-30'
+    assert h['concept']=='RevenueFromContractWithCustomerExcludingAssessedTax'
+
+
+def test_latest_reported_quarter_gap_is_visible_instead_of_substituting_a_decade_old_concept():
+    p=_quarter_payload()
+    p['facts']['us-gaap']['UnsupportedIndustryRevenue']={'units':{'USD':[
+        {'start':'2026-07-01','end':'2026-09-30','filed':'2026-10-20','form':'10-Q','accn':'0000001234-26-000002','val':200}]}}
+    h=_build(p)
+    assert h['periods'][-1]['period_end']=='2026-09-30'
+    assert h['periods'][-1]['status']=='withheld'
+    assert h['periods'][-1]['reason']=='latest_reported_quarter_revenue_unavailable'

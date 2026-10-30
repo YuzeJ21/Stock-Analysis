@@ -34,6 +34,9 @@ from src.providers.sec_company_discovery import search_sec_company_candidates
 from src.online_company_analysis import build_online_company_analysis, online_company_analysis_html
 from src.online_company_prices import get_online_company_prices
 from src.online_research_history_view import annual_history_html, online_price_history_html
+from src.online_company_identity import get_price_filing_association
+from src.online_research_coverage import DEFAULT_SAMPLE, get_online_coverage_study
+from src.online_research_expansion_view import quarterly_history_html, price_filing_association_html, coverage_study_html
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
@@ -31295,6 +31298,15 @@ def render_online_company_search(*, saved_tickers: Iterable[str] = ()) -> None:
     )
 
 
+def render_online_coverage_study() -> None:
+    """Run a declared SEC industry sample only after an explicit Personal action."""
+    with st.expander("Cross-industry coverage · online sample", expanded=False):
+        st.markdown("A bounded sample of " + str(len(DEFAULT_SAMPLE)) + " tickers across SEC industries. This is a field-availability study, not a market-wide census; prices are not queried.")
+        requested=st.button("Run online coverage sample",key="online-coverage-sample-refresh")
+        result=get_online_coverage_study(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
+        st.markdown(coverage_study_html(result),unsafe_allow_html=True)
+
+
 def render_stock_selector(
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
     *,
@@ -37892,13 +37904,14 @@ def render_research_monitor(
         st.caption("Source identifiers and raw change rows remain in the separate evidence drawer below.")
 
 
-def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None) -> None:
-    """Inspect one selected company's SEC annual facts only after an explicit click."""
+def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None) -> bool:
+    """Inspect annual and direct quarterly facts only after an explicit click."""
 
     with st.container(key="company-sec-annual-check"):
         refresh_requested = st.button(
             "Check SEC annual facts",
             key=f"company-sec-annual-refresh-{ticker}",
+            help="Loads annual and directly reported quarterly evidence from one SEC Companyfacts response.",
         )
         preview_target = st.empty()
         view = get_company_sec_annual_preview(
@@ -37907,11 +37920,9 @@ def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None
             refresh_requested=refresh_requested,
             user_agent=os.getenv("SEC_USER_AGENT"),
         )
-        if (
-            expected_cik is not None
-            and view.get("status") == "inspection_only"
-            and view.get("sec_cik") != expected_cik
-        ):
+        source_identity=view.get("companyfacts_identity")
+        observed_cik=(source_identity.get("sec_cik") if isinstance(source_identity,Mapping) else None) or view.get("sec_cik")
+        if expected_cik is not None and observed_cik is not None and observed_cik!=expected_cik:
             view = {
                 "status": "unavailable",
                 "ticker": ticker,
@@ -37920,19 +37931,30 @@ def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None
                 "withheld_fields": [],
                 "safe_to_apply": False,
             }
+            from src.company_sec_online_preview import SESSION_KEY
+            st.session_state[SESSION_KEY]={"ticker":ticker,"view":view}
         analysis = build_online_company_analysis(view)
         preview_target.markdown(
-            online_company_analysis_html(analysis) + annual_history_html(view) + company_sec_annual_preview_html(view),
+            online_company_analysis_html(analysis) + quarterly_history_html(view) + annual_history_html(view) + company_sec_annual_preview_html(view),
             unsafe_allow_html=True,
         )
+    return refresh_requested
 
 
-def render_company_online_prices(ticker: str) -> None:
-    """Inspect personal-use daily prices independently from SEC identity and facts."""
+def render_company_online_prices(ticker: str, *, sec_refresh_requested: bool = False) -> None:
+    """Inspect daily prices and qualify their current SEC listing association."""
     with st.container(key="company-online-prices"):
         requested = st.button("Check online price history", key=f"company-online-price-refresh-{ticker}")
         result = get_online_company_prices(ticker, st.session_state, refresh_requested=requested)
         st.markdown(online_price_history_html(result), unsafe_allow_html=True)
+        if result.get("status")!="not_requested":
+            from src.company_sec_online_preview import SESSION_KEY
+            cached=st.session_state.get(SESSION_KEY,{})
+            view=cached.get("view",{}) if isinstance(cached,Mapping) and cached.get("ticker")==ticker else {}
+            identity=view.get("companyfacts_identity",{}) if isinstance(view,Mapping) else {}
+            link=get_price_filing_association(ticker,identity,result,st.session_state,
+                refresh_requested=bool(requested or sec_refresh_requested),user_agent=os.getenv("SEC_USER_AGENT"))
+            st.markdown(price_filing_association_html(link),unsafe_allow_html=True)
 
 
 def render_company_workbench(
@@ -38016,8 +38038,8 @@ def render_company_workbench(
             "Identity association rights require review before distribution.</p></details>",
             unsafe_allow_html=True,
         )
-        render_company_sec_annual_check(ticker, expected_cik=online_candidate["cik"])
-        render_company_online_prices(ticker)
+        sec_refreshed=render_company_sec_annual_check(ticker, expected_cik=online_candidate["cik"])
+        render_company_online_prices(ticker,sec_refresh_requested=bool(sec_refreshed))
         st.markdown(
             "<p><a href='?mode=research&amp;page=discover' target='_self'>"
             "Back to Discover</a></p>",
@@ -38075,8 +38097,8 @@ def render_company_workbench(
     with st.container(key="company-workbench-document"):
         selected_answer_target = st.empty()
         evidence_status_target = st.empty()
-        render_company_sec_annual_check(ticker)
-        render_company_online_prices(ticker)
+        sec_refreshed=render_company_sec_annual_check(ticker)
+        render_company_online_prices(ticker,sec_refresh_requested=bool(sec_refreshed))
         timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
         st.markdown(
             evidence_timeline_html(
@@ -38199,6 +38221,7 @@ def render_personal_research_route(
                 else ()
             ),
         )
+        render_online_coverage_study()
         st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
         with st.expander("Advanced: cohort readiness context", expanded=False):
             if observation_recency is not None:

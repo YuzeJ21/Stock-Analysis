@@ -98,6 +98,17 @@ def test_optional_industry_gaps_do_not_destroy_the_profile_identity():
     assert p['status']=='inspection_only' and p['sic'] is None
 
 
+def test_repeated_identical_exchange_entries_do_not_look_like_multiple_venues():
+    from src.online_company_identity import fetch_sec_company_profile,build_price_filing_association
+    raw=_profile_payload(); raw['tickers']=['FICT','FICT-PA']; raw['exchanges']=['Nasdaq','Nasdaq']
+    raw['filings']={'recent':{'form':['10-K','10-Q'],'reportDate':['2025-12-31','2026-09-30'],'filingDate':['2026-03-01','2026-10-20']}}
+    profile=fetch_sec_company_profile('0000001234',user_agent='Research',fetcher=_profile_fetch(raw),observed_at=OBSERVED)
+    assert profile['status']=='inspection_only' and profile['exchanges']==['Nasdaq']
+    assert profile['latest_annual_period_end']=='2025-12-31' and profile['latest_quarterly_period_end']=='2026-09-30'
+    i,prices,_=_inputs()
+    assert build_price_filing_association('FICT',i,prices,profile)['status']=='matched_listing_association'
+
+
 @pytest.mark.parametrize('change',['cik','tickers','exchanges','name'])
 def test_malformed_profile_identity_is_withheld(change):
     from src.online_company_identity import fetch_sec_company_profile
@@ -129,4 +140,3 @@ def test_no_profile_request_without_both_sources_or_outside_personal_mode():
     for financial,price,mode in [({},prices,'research'),(i,{},'research'),(i,prices,'public')]:
         result=get_price_filing_association('FICT',financial,price,{},refresh_requested=True,user_agent='Research',fetcher=no_fetch,workspace_mode=mode)
         assert result['status']=='withheld'
-

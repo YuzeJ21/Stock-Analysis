@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 import re
+from datetime import datetime, timezone
 from typing import Any, Mapping
 
 from src.company_sec_online_preview import ANNUAL_FORMS, REVENUE_CONCEPTS, present_company_sec_annual_preview
@@ -97,7 +98,7 @@ def build_sec_annual_history(
     }
 
 
-def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_receipt=None) -> dict[str, Any]:
+def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_receipt=None, source_fetcher=None, observed_at=None) -> dict[str, Any]:
     """Fetch Companyfacts once for independent annual and direct quarterly views."""
     from src.sec_fundamentals_preview import build_sec_fundamentals_preview
     from src.online_sec_receipt import fetch_sec_json_receipt
@@ -105,12 +106,12 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
 
     captured = {}
     def fetch(url, agent, sleep):
-        receipt=fetch_sec_json_receipt(url,user_agent=agent)
+        receipt=fetch_sec_json_receipt(url,user_agent=agent,fetcher=source_fetcher,observed_at=observed_at)
         if receipt['status']!='ready': raise RuntimeError('SEC facts receipt unavailable')
         captured['receipt']=receipt
         return receipt['payload']
     def fetch_map(url,agent,sleep):
-        receipt=ticker_map_receipt if ticker_map_receipt is not None else fetch_sec_json_receipt(url,user_agent=agent)
+        receipt=ticker_map_receipt if ticker_map_receipt is not None else fetch_sec_json_receipt(url,user_agent=agent,fetcher=source_fetcher,observed_at=observed_at)
         if not isinstance(receipt,Mapping) or receipt.get('status')!='ready' or receipt.get('source_url')!=url:
             raise RuntimeError('SEC ticker map receipt unavailable')
         payload=receipt.get('payload')
@@ -127,9 +128,13 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
         captured['expected_cik']=next(iter(ciks)) if ciks else None
         captured['map_receipt']=receipt
         return payload
+    options={}
+    if observed_at is not None:
+        if not isinstance(observed_at,datetime) or observed_at.utcoffset() is None: raise ValueError('Invalid SEC observation')
+        options['retrieval_timestamp']=observed_at.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     preview = build_sec_fundamentals_preview(
         ticker, canonical_path=None, staged_path=None, user_agent=user_agent,
-        companyfacts_fetcher=fetch, ticker_map_fetcher=fetch_map,
+        companyfacts_fetcher=fetch, ticker_map_fetcher=fetch_map, **options,
     )
     view = present_company_sec_annual_preview(ticker, preview)
     receipt=captured.get('receipt'); cik=captured.get('expected_cik')
@@ -148,4 +153,5 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
         anchor=next(((f['taxonomy'],f['concept']) for f in view.get('approved_direct_fields',[]) if f['field']=='revenue'),None)
         view['quarterly_history']=build_sec_quarterly_history(ticker,payload,expected_cik=cik,
             observed_at=receipt['observed_at'],source_url=receipt['source_url'],payload_sha256=receipt['payload_sha256'],anchor_concept=anchor)
+        view['reported_period_anchors']=view['quarterly_history'].get('reported_period_anchors',{})
     return view
