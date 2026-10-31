@@ -12,7 +12,7 @@ from src.company_sec_online_preview import _utc_timestamp
 
 SCHEMA='security-classification-v1'
 RIGHTS='unregistered_listing_metadata_personal_inspection_only'
-RULES='directory-description-20261031-v1'
+RULES='directory-description-20261031-v2'
 SESSION_KEY='company_security_context_v1'
 
 def _digest(v):return hashlib.sha256(json.dumps(v,sort_keys=True,separators=(',',':'),allow_nan=False).encode()).hexdigest()
@@ -25,7 +25,7 @@ def classify_description(name,etf):
  if etf is True:
   return dict(security_type='unknown' if debt else 'etf',rule='conflicting_etf_description' if debt else 'declared_etf_flag',basis='directory_flag',reason='conflicting_source_labels' if debt else None)
  candidates=[]
- patterns={'unit':r'\bunits?\b','warrant':r'(?:\s-\s|\b)warrants?\s+(?:to purchase|exercisable|expiring)|\s-\s+warrants?\b|\bwarrants?$',
+ patterns={'unit':r'\bunits?\b','warrant':r'\bwarrants?\b',
   'right':r'\bright[s]?\s+to (?:receive|purchase)|\s-\s+rights?\b|\brights?$',
   'depositary_receipt':r'\b(?:american |global )?deposit[ao]ry (?:shares?|receipts?)\b|\b(?:adr|ads)\b',
   'preferred':r'\bpreferred\b|\bpreference shares?\b','common_shares':r'\b(?:common|ordinary) (?:stock|shares?)\b'}
@@ -36,8 +36,13 @@ def classify_description(name,etf):
  for primary in ('unit','warrant','right','depositary_receipt'):
   if primary in candidates:
    wrappers=set(candidates)&{'unit','warrant','right','depositary_receipt'}
-   if primary in {'warrant','right'} and 'common_shares' in candidates and not re.search(r'\s-\s+(?:warrants?|rights?)\b|\b(?:warrants? to purchase|rights? to (?:receive|purchase))\b',s):
-    return {**result,'reason':'ambiguous_composite_instrument'}
+   if primary in {'warrant','right'} and 'common_shares' in candidates:
+    explicit=re.search(r'\s-\s+(?:warrants?|rights?)\b|\b(?:warrants? to purchase|rights? to (?:receive|purchase))\b',s)
+    if primary=='warrant':
+     warrant=re.search(r'\bwarrants?\b',s);underlying=re.search(patterns['common_shares'],s)
+     qualified=re.search(r'\bwarrants?[\s,(]+(?:each|entitling|exercisable|expiring)\b',s)
+     explicit=explicit or (qualified and warrant.start()<underlying.start())
+    if not explicit:return {**result,'reason':'ambiguous_composite_instrument'}
    allowed={'unit','warrant','right'} if primary=='unit' else {primary}
    if not wrappers<=allowed:return {**result,'reason':'ambiguous_composite_instrument'}
    return dict(security_type=primary,rule='explicit_'+primary,basis='directory_description',reason=None)

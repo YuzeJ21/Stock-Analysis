@@ -9,6 +9,7 @@ from src.company_sec_online_preview import _iso_date,_utc_timestamp
 
 SOURCE_ID='sec_archive_html_bank'
 SCHEMA='sec-html-bank-v1'
+RULES='ibn-consolidated-html-20261031-v2'
 CIK='0001103838'
 CAPTIONS={'income':'Consolidated Profit and Loss Account','cash':'Consolidated Cash Flow Statement'}
 DEFINITIONS={
@@ -55,7 +56,7 @@ class _Tables(HTMLParser):
     except ValueError:span=0;rowspan=0
     if not 1<=span<=64 or rowspan!=1:self.table['bad']=True
     self.cell=dict(text='',span=span,bad=hidden or not 1<=span<=64 or rowspan!=1)
-   elif self.cell is not None and hidden:self.cell['bad']=True
+   elif self.cell is not None and (hidden or tag in {'sup','sub','small','a'} or re.search(r'vertical-align\s*:\s*(?:super|sub)',a.get('style',''),re.I)):self.cell['bad']=True
   elif not self.depth and tag=='p':self.p=[]
  def handle_data(self,data):
   visible=not any(h for _,h in self.stack)
@@ -82,7 +83,8 @@ class _Tables(HTMLParser):
    if self.stack[i][0]==tag:del self.stack[i:];break
 
 def _amount(text):
- raw=re.sub(r'\s+','',text)
+ raw=text.strip()
+ if raw.startswith('(') and raw.endswith(')'):raw='-'+raw[1:-1].strip()
  if re.fullmatch(r'\((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?\)',raw):raw='-'+raw[1:-1]
  if not re.fullmatch(r'-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?',raw):return None
  try:
@@ -106,7 +108,32 @@ def _grid(table,end):
  _,header,dates,width=headers[0];year=int(end[:4])
  if (len(dates)!=3 or [c['text'] for c in dates]!=[f'March 31, {year-n}' for n in range(3)] or any(c['bad'] for c in header)
      or not any('Year ended' in ' '.join(c['text'] for c in row) for row in table['rows'][:headers[0][0]+1])):raise ValueError('unverified_annual_columns')
+ body_labels={v[1].casefold() for v in DEFINITIONS.values()}|{'i. income','cash flow from/(used in) operating activities'}
+ body=[i for i,(cells,_) in enumerate(rows) if cells and cells[0]['text'].casefold() in body_labels]
+ if not body or min(body)<=headers[0][0]:raise ValueError('statement_header_scope_unverified')
+ allowed={'','Year ended','Schedule','INR','Rs.','Rupees','(Rs. in thousands)','(Rs. in thousands, except per share data)'}
+ for cells,_ in rows[:min(body)]:
+  if any(c['bad'] or c['text'] not in allowed and not re.fullmatch(r'March 31, \d{4}',c['text']) for c in cells):raise ValueError('conflicting_or_unsupported_column_header')
  return rows,dates,width
+
+def _basis_evidence(paragraphs):
+ proof=[]
+ pattern=re.compile(r'\bconsolidated (?:financial )?statements(?: of the (?:Group|Company))? (?:are|have been) prepared (?:in accordance with|according to|under|in conformity with) ([^.;]{1,160})',re.I)
+ for paragraph in paragraphs:
+  if not isinstance(paragraph,str) or len(paragraph)>2000:continue
+  negative=re.search(r'\bconsolidated (?:financial )?statements(?: of the (?:Group|Company))? (?:are|have been) not prepared (?:in accordance with|according to|under|in conformity with) Indian GAAP',paragraph,re.I)
+  if negative:
+   times=list(re.finditer(r'\b(previous(?:ly)?|prior|historical(?:ly)?|formerly|current(?:ly)?)\b',paragraph[:negative.start()],re.I))
+   if not times or times[-1][1].lower().startswith('current'):raise ValueError('conflicting_current_accounting_basis')
+  for match in pattern.finditer(paragraph):
+   prefix=paragraph[:match.start()]
+   temporal=list(re.finditer(r'\b(previous(?:ly)?|prior|historical(?:ly)?|formerly|current(?:ly)?)\b',prefix,re.I))
+   if temporal and not temporal[-1][1].lower().startswith('current'):continue
+   if re.search(r'\b(?:in|for|during) (?:the )?(?:prior|previous|earlier|historical) (?:years?|periods?|statements?)\b',match[1],re.I):continue
+   if not re.match(r'Indian GAAP\b',match[1],re.I):raise ValueError('conflicting_current_accounting_basis')
+   if paragraph not in proof:proof.append(paragraph)
+ if not proof:raise ValueError('current_consolidated_basis_unverified')
+ return proof
 
 def _registration(parser,document,selection):
  held=dict(status='withheld',reason='qualified_cover_security_disclosure_unavailable',current_legal_type_established=False)
@@ -127,6 +154,7 @@ def extract_bank_html(raw,selection,receipt):
       or not isinstance(raw,bytes) or not 0<len(raw)<=MAX_FILING_BYTES or b'\0' in raw or b'<!entity' in raw.lower()
       or receipt.get('payload_sha256')!=hashlib.sha256(raw).hexdigest()):return held
   text=raw.decode('utf-8-sig');parser=_Tables();parser.feed(text);parser.close();document=_norm(' '.join(parser.all_text))
+  basis_evidence=_basis_evidence(parser.context)
   end=selection['period_end'];year=int(end[:4])
   if (not _iso_date(end) or end[4:]!='-03-31' or 'ICICI BANK LIMITED' not in document[:20000]
       or f'For the fiscal year ended March 31, {year}.' not in document[:20000]
@@ -155,6 +183,7 @@ def extract_bank_html(raw,selection,receipt):
   keys=('ticker','sec_cik','period_kind','period_end','form','filed','accepted_at','accession','primary_document','source_url')
   result={k:selection[k] for k in keys};result.update(status='inspection_only',schema_version=SCHEMA,source_id=SOURCE_ID,accounting_basis='Indian GAAP',unit='INR',source_scale='thousands',rights_status=RIGHTS,commercial_eligible=False,readiness_promoted=False,financial_coverage_promoted=False,periods=periods,withheld_fields=WITHHELD.copy(),observed_at=receipt['observed_at'],payload_sha256=receipt['payload_sha256'],source_receipts=[*selection['source_receipts'],{k:receipt[k] for k in ('source_url','observed_at','payload_sha256')}])
   result['registration_observation']=_registration(parser,document,selection)
+  result['extraction_rules']=RULES;result['basis_evidence']=basis_evidence
   result['packet_digest']=_digest({k:v for k,v in result.items() if k!='packet_digest'})
   return result if validated_bank_html(result,'IBN','annual') is not None else {**held,'reason':'bank_packet_validation_failed'}
  except ValueError as error:
@@ -166,7 +195,7 @@ def validated_bank_html(p,ticker,period_kind):
  if not isinstance(p,Mapping) or ticker!='IBN' or period_kind!='annual':return None
  try:
   if (p.get('schema_version')!=SCHEMA or p.get('source_id')!=SOURCE_ID or p.get('status')!='inspection_only' or p.get('ticker')!=ticker or p.get('sec_cik')!=CIK or p.get('period_kind')!=period_kind
-      or p.get('accounting_basis')!='Indian GAAP' or p.get('unit')!='INR' or p.get('source_scale')!='thousands' or p.get('rights_status')!=RIGHTS
+      or p.get('accounting_basis')!='Indian GAAP' or p.get('extraction_rules')!=RULES or p.get('unit')!='INR' or p.get('source_scale')!='thousands' or p.get('rights_status')!=RIGHTS
       or any(p.get(k) is not False for k in ('commercial_eligible','readiness_promoted','financial_coverage_promoted')) or p.get('withheld_fields')!=WITHHELD):return None
   acc=p['accession'];doc=p['primary_document']
   if not isinstance(acc,str) or not re.fullmatch(r'\d{10}-\d{2}-\d{6}',acc) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,180}\.(?:htm|html|xhtml)',doc) or '..' in doc:return None
@@ -187,6 +216,7 @@ def validated_bank_html(p,ticker,period_kind):
         or not isinstance(span,list) or len(span)!=2 or any(type(n) is not int for n in span) or not 0<=span[0]<span[1]<=64
         or not isinstance(anchor,str) or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.-]{0,127}',anchor) or f['source_ref']!=url+'#'+anchor):return None
   if p['packet_digest']!=_digest({k:v for k,v in p.items() if k!='packet_digest'}):return None
+  if not isinstance(p.get('basis_evidence'),list) or _basis_evidence(p['basis_evidence'])!=p['basis_evidence']:return None
   r=p['registration_observation']
   if r.get('current_legal_type_established') is not False:return None
   if r.get('status')=='observed_as_filed':

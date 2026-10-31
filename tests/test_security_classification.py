@@ -96,3 +96,13 @@ def test_directory_common_label_never_certifies_current_legal_instrument_type():
  p=packet()
  assert p['legal_security_type_established'] is False
  assert all(r['legal_security_type_established'] is False for r in p['rows'])
+
+@pytest.mark.parametrize('name',[
+ 'Fict Inc. Warrants, each exercisable for one share of Common Stock',
+ 'Fict Warrants entitling the holder to purchase ordinary shares',
+ 'Fict Redeemable Warrants, each warrant exercisable for Class A Common Stock',
+ 'Fict Warrants (each exercisable for ordinary shares)',
+])
+def test_warrant_description_grammar_never_selects_underlying_common_shares(name):
+ from src.security_classification import classify_description
+ assert classify_description(name,False)['security_type']=='warrant'
