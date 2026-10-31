@@ -96,3 +96,26 @@ def test_unknown_definitions_and_stale_financial_periods_cannot_be_current(case)
   elif case=='old_annual':row.update(basis='annual',period_start='2016-07-01',period_end='2017-06-30',published_at='2017-08-01')
   else:row.update(period_start='2025-01-01',period_end='2025-12-31',published_at='2026-02-01')
  assert build(p)['metrics']['pe']['premium_fraction'] is None
+
+def test_mixed_investment_reporting_cannot_receive_ordinary_company_comparison():
+ from test_company_research_scope import context
+ from src.company_valuation_overview import build_valuation_overview
+ c=context('',entity='investment-company',forms=['N-CSR','10-K'])
+ v=build_valuation_overview('FICT',report(),as_of_date=DAY,research_context=c)
+ assert v['status']=='separate_research_path'
+ assert v['metrics']['pe']['premium_fraction'] is None
+
+def test_subject_cik_must_match_validated_selected_company_context():
+ from test_company_research_scope import context
+ from src.company_valuation_overview import build_valuation_overview
+ p=report();p['valuation_snapshot']['relative_valuation']['comparison_inputs']['pe']['subject']['sec_cik']='0000099999'
+ v=build_valuation_overview('FICT',p,as_of_date=DAY,research_context=context())
+ assert v['metrics']['pe']['premium_fraction'] is None
+
+@pytest.mark.parametrize('invalid_status',['withheld','corrupt_context'])
+def test_failed_selected_identity_context_cannot_fall_back_to_ready_report(invalid_status):
+ from src.company_valuation_overview import build_valuation_overview
+ from test_company_research_scope import context
+ c={'status':'withheld','ticker':'FICT'} if invalid_status=='withheld' else context()
+ if invalid_status=='corrupt_context':c['issuer_profile']['sec_cik']='0000099999'
+ assert build_valuation_overview('FICT',report(),as_of_date=DAY,research_context=c)['metrics']['pe']['premium_fraction'] is None

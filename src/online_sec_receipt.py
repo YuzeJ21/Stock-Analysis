@@ -1,5 +1,6 @@
 """Bounded, exact-URL SEC JSON receipts kept entirely in memory."""
 
+import base64
 import hashlib
 import re
 import time
@@ -10,6 +11,7 @@ from src.providers.sec_company_discovery import _modified_at
 from src.sec_association_receipt import _json_object
 
 MAX_SEC_RESPONSE_BYTES = 16 * 1024 * 1024
+MAX_RETAINED_SEC_JSON_BYTES = 2 * 1024 * 1024
 _URL = re.compile(r'https://(?:www\.sec\.gov/files/company_tickers(?:_exchange)?\.json|data\.sec\.gov/(?:api/xbrl/companyfacts|submissions)/CIK\d{10}\.json)\Z')
 
 
@@ -35,8 +37,9 @@ def _fetch_raw(url, user_agent):
         time.sleep(0.2)
 
 
-def fetch_sec_json_receipt(url, *, user_agent, fetcher=None, observed_at=None):
+def fetch_sec_json_receipt(url, *, user_agent, fetcher=None, observed_at=None, retain_raw=False):
     held={'status':'unavailable','source_url':url if isinstance(url,str) and _URL.fullmatch(url) else None}
+    if type(retain_raw) is not bool:return {**held,'reason':'invalid_retention_request'}
     if not isinstance(url,str) or not _URL.fullmatch(url): return {**held,'reason':'unsupported_sec_url'}
     if not isinstance(user_agent,str) or not user_agent.strip() or any(c in user_agent for c in '\r\n'):
         return {**held,'reason':'sec_user_agent_required'}
@@ -51,6 +54,8 @@ def fetch_sec_json_receipt(url, *, user_agent, fetcher=None, observed_at=None):
         payload=_json_object(raw,'invalid_sec_json')
     except (OSError,RuntimeError,TimeoutError,ValueError,TypeError,AttributeError,RecursionError):
         return {**held,'reason':'sec_receipt_unavailable'}
-    return {'status':'ready','payload':payload,'source_url':url,
+    result={'status':'ready','payload':payload,'source_url':url,
             'observed_at':observed.strftime('%Y-%m-%dT%H:%M:%SZ'),
             'source_last_modified':modified,'payload_sha256':hashlib.sha256(raw).hexdigest()}
+    if retain_raw and len(raw)<=MAX_RETAINED_SEC_JSON_BYTES:result['payload_raw_base64']=base64.b64encode(raw).decode('ascii')
+    return result

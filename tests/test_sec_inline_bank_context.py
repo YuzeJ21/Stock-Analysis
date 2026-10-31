@@ -1,11 +1,13 @@
 from copy import deepcopy
+import base64
+import json
 import hashlib
 import pytest
 from test_sec_inline_filing import _selection,_xml,SOURCE
 
 
 def bank_input():
- selection=_selection();selection['bank_scope']={'sec_cik':'0000001234','sic':'6022','source_receipt':deepcopy(selection['source_receipts'][1])}
+ selection=_selection();raw_metadata=json.dumps({'cik':1234,'sic':'6022'}).encode();selection['source_receipts'][1]['payload_sha256']=hashlib.sha256(raw_metadata).hexdigest();selection['bank_scope']={'sec_cik':'0000001234','sic':'6022','source_receipt':deepcopy(selection['source_receipts'][1]),'submissions_raw_base64':base64.b64encode(raw_metadata).decode()}
  xml=_xml().replace('g:RegulatedAndUnregulatedOperatingRevenue','g:InterestIncomeExpenseNet').replace('id="revenue">1,234','id="interest">50')
  xml=xml.replace('</body>', '<ix:nonFraction name="g:NoninterestIncome" contextRef="cur" unitRef="money" scale="6" decimals="-6" format="ixt:num-dot-decimal" id="noninterest">20</ix:nonFraction></body>')
  return xml,selection
@@ -68,9 +70,11 @@ def test_selection_binds_bank_sic_to_same_submissions_identity():
  from src.sec_exact_filing import select_sec_filing
  s=_selection();row={'accessionNumber':s['accession'],'reportDate':s['period_end'],'filingDate':s['filed'],'acceptanceDateTime':s['accepted_at'],'form':s['form'],'primaryDocument':s['primary_document'],'isInlineXBRL':1,'isXBRL':1}
  ref={'status':'ready',**s['source_receipts'][1],'payload':{'cik':1234,'sic':'6022','filings':{'recent':{k:[v]for k,v in row.items()}}}}
+ raw=json.dumps(ref['payload']).encode();ref['payload_sha256']=hashlib.sha256(raw).hexdigest();ref['payload_raw_base64']=base64.b64encode(raw).decode()
  p=select_sec_filing('FICT','0000001234',ref,period_kind='quarterly')
  assert p['bank_scope']['sic']=='6022'
- assert p['bank_scope']['source_receipt']==s['source_receipts'][1]
+ assert p['bank_scope']['source_receipt']=={k:ref[k]for k in ('source_url','observed_at','payload_sha256')}
+ assert base64.b64decode(p['bank_scope']['submissions_raw_base64'],validate=True)==raw
 
 @pytest.mark.parametrize('field,bad',[('sic',[]),('sign',[]),('transformation',[])])
 def test_malformed_bank_cache_metadata_is_held_without_throwing(field,bad):
@@ -80,3 +84,31 @@ def test_malformed_bank_cache_metadata_is_held_without_throwing(field,bad):
  else:p['periods'][0]['fields']['net_interest_income'][field]=bad
  p['packet_digest']=_digest({k:v for k,v in p.items()if k!='packet_digest'})
  assert validated_filing_preview(p,'FICT','quarterly') is None
+
+def test_adding_bank_scope_to_genuine_nonbank_selection_cannot_activate_bank_parser():
+ import json,base64
+ from src.sec_exact_filing import select_sec_filing
+ from src.sec_inline_filing import extract_inline_filing
+ xml,bank=bank_input();s=_selection();record={'accessionNumber':s['accession'],'reportDate':s['period_end'],'filingDate':s['filed'],'acceptanceDateTime':s['accepted_at'],'form':s['form'],'primaryDocument':s['primary_document'],'isInlineXBRL':1,'isXBRL':1}
+ body={'cik':1234,'sic':'3571','filings':{'recent':{k:[v]for k,v in record.items()}}};raw=json.dumps(body).encode();ref={'status':'ready',**s['source_receipts'][1],'payload':body,'payload_sha256':hashlib.sha256(raw).hexdigest(),'payload_raw_base64':base64.b64encode(raw).decode()}
+ selection=select_sec_filing('FICT','0000001234',ref,period_kind='quarterly');selection['bank_scope']=bank['bank_scope'];selection['bank_scope']['source_receipt']={k:ref[k]for k in ('source_url','observed_at','payload_sha256')}
+ packet=extract_inline_filing(xml.encode(),selection,dict(status='ready',source_url=SOURCE,observed_at='2026-10-30T21:00:00Z',payload_sha256=hashlib.sha256(xml.encode()).hexdigest()))
+ assert packet['status']=='withheld'
+
+def test_optional_raw_json_receipt_retains_exact_bytes_only_on_request():
+ import base64,json
+ from src.online_sec_receipt import fetch_sec_json_receipt
+ url='https://data.sec.gov/submissions/CIK0000001234.json';raw=json.dumps({'cik':1234,'sic':'6022'},indent=2).encode()
+ def fetch(url,agent):return raw,{},url
+ normal=fetch_sec_json_receipt(url,user_agent='Synthetic',fetcher=fetch)
+ proof=fetch_sec_json_receipt(url,user_agent='Synthetic',fetcher=fetch,retain_raw=True)
+ assert 'payload_raw_base64' not in normal
+ assert base64.b64decode(proof['payload_raw_base64'],validate=True)==raw
+ assert proof['payload_sha256']==hashlib.sha256(raw).hexdigest()
+
+def test_oversized_metadata_is_not_retained_as_bank_classification_proof():
+ import json
+ from src.online_sec_receipt import fetch_sec_json_receipt
+ url='https://data.sec.gov/submissions/CIK0000001234.json';raw=json.dumps({'cik':1234,'sic':'6022','extra':'x'*(2*1024*1024)}).encode()
+ p=fetch_sec_json_receipt(url,user_agent='Synthetic',fetcher=lambda url,agent:(raw,{},url),retain_raw=True)
+ assert p['status']=='ready' and 'payload_raw_base64' not in p

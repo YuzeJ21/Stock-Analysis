@@ -47,3 +47,9 @@ def test_commercial_mode_cannot_reuse_a_valid_personal_context(monkeypatch):
  cached=context()
  monkeypatch.setenv('COMMERCIAL_RESEARCH_MODE','1')
  assert research_scope(cached,'FICT')['path']=='unresolved'
+
+def test_mixed_forms_keep_affirmative_investment_company_evidence():
+ from src.company_research_scope import research_scope
+ c=context('',entity='investment-company',forms=['N-CSR','10-K'])
+ assert c['issuer_profile']['reporting_profile']=='mixed_reporting'
+ assert research_scope(c,'FICT')['path']=='investment_company'

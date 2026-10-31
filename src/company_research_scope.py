@@ -17,7 +17,7 @@ PATHS={
 
 
 def research_scope(context,ticker):
- result=dict(ticker=ticker,path='unresolved',issuer_path='unresolved',security_types=[],
+ result=dict(ticker=ticker,sec_cik=None,path='unresolved',issuer_path='unresolved',security_types=[],
   analysis_eligibility_established=False,legal_security_type_established=False,
   domicile_established=False,active_status_established=False,point_in_time_established=False)
  if _mode_reason('research'):return result
@@ -27,11 +27,12 @@ def research_scope(context,ticker):
  profile=p['issuer_profile'];issuer='issuer_review'
  if profile.get('status')=='inspection_only':
   reporting=profile['reporting_profile'];sic=profile['sic']
-  if reporting=='investment_company_reporting':issuer='investment_company'
+  if (reporting=='investment_company_reporting' or profile.get('entity_type')=='investment-company'
+      or any(form in profile.get('form_counts',{}) for form in ('N-CSR','N-CSRS','N-CEN','NPORT-P','N-PORT'))):issuer='investment_company'
   elif sic=='6770':issuer='blank_check'
   elif sic in BANK_SICS:issuer='bank'
   elif profile.get('entity_type')=='operating' and reporting in {'domestic_annual_reporting','foreign_annual_reporting'}:issuer='operating_company_candidate'
- result.update(issuer_path=issuer,security_types=types,path='security_wrapper' if WRAPPERS.intersection(types) else issuer)
+ result.update(sec_cik=p['sec_cik'],issuer_path=issuer,security_types=types,path='security_wrapper' if WRAPPERS.intersection(types) else issuer)
  return result
 
 

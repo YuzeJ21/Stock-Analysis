@@ -58,10 +58,11 @@ def _empty_metric(reason):
  return dict(status='withheld',subject_multiple=None,peer_median=None,premium_fraction=None,peer_count=0,peer_tickers=[],excluded=[],reason=reason,source_observations=[])
 
 
-def _compare(metric,inputs,ticker,as_of,evidence_date):
+def _compare(metric,inputs,ticker,as_of,evidence_date,expected_cik=None):
  result=_empty_metric('Comparable company and peer observations are missing.')
  subject=_mapping(inputs).get('subject');peers=_mapping(inputs).get('peers')
  if (not _observation_valid(subject,metric,as_of) or subject['ticker']!=ticker or subject['price_date']!=evidence_date
+     or expected_cik is not None and subject['sec_cik']!=expected_cik
      or not isinstance(peers,list) or len(peers)>100):return result
  result['reason']='At least three distinct reviewed and compatible peer companies are needed.'
  signature=tuple(subject[k]for k in ('basis','currency','period_start','period_end','price_date','denominator_definition'))
@@ -105,7 +106,12 @@ def build_valuation_overview(ticker,report_payload=None,*,as_of_date=None,resear
  result=dict(ticker=ticker,status='withheld',reason='Current comparable valuation evidence has not been established.',
   metrics={k:_empty_metric('Source-bound company and peer inputs are needed.')for k in METRICS},as_of_date=as_of.isoformat())
  if _mode_reason('research') or not _symbol(ticker):return result
- path=research_scope(research_context,ticker)['path']
+ scope=research_scope(research_context,ticker);path=scope['path']
+ if research_context is not None:
+  context=_mapping(research_context)
+  if (context.get('status') not in ('inspection_only','not_requested')
+      or context.get('ticker')!=ticker or context.get('status')=='inspection_only' and scope['sec_cik'] is None):
+   result['reason']='The selected issuer identity needs source verification.';return result
  report=_mapping(report_payload);ready={**_mapping(report.get('readiness')),**_mapping(report.get('valuation_readiness'))}
  asset=report.get('asset_type',ready.get('asset_type'))
  if path in {'investment_company','security_wrapper','blank_check'} or asset in ('etf','fund','index_proxy'):
@@ -115,7 +121,7 @@ def build_valuation_overview(ticker,report_payload=None,*,as_of_date=None,resear
  for metric in METRICS:
   if path=='bank' and metric!='pe':
    result['metrics'][metric]=_empty_metric('A bank-specific valuation definition and capital context are needed.');continue
-  result['metrics'][metric]=_compare(metric,inputs.get(metric),ticker,as_of,_mapping(_mapping(report.get('quant_interpretation')).get('valuation')).get('observation_through_date'))
+  result['metrics'][metric]=_compare(metric,inputs.get(metric),ticker,as_of,_mapping(_mapping(report.get('quant_interpretation')).get('valuation')).get('observation_through_date'),scope['sec_cik'])
  if any(r['status']=='supported'for r in result['metrics'].values()):result.update(status='supported',reason='Compare each metric separately; a higher multiple is not proof of overvaluation.')
  return result
 

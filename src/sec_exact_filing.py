@@ -1,6 +1,8 @@
 """Exact SEC primary-document inspection; distinct from Companyfacts approval."""
 from collections.abc import Mapping
 from datetime import datetime, timezone, timedelta
+import base64
+import binascii
 import hashlib
 import json
 import re
@@ -10,7 +12,8 @@ from urllib.request import Request
 
 from src.company_sec_online_preview import _iso_date, _utc_timestamp, ANNUAL_FORMS
 from src.online_company_identity import _mode_reason
-from src.online_sec_receipt import fetch_sec_json_receipt, open_exact_source as urlopen
+from src.online_sec_receipt import fetch_sec_json_receipt, MAX_RETAINED_SEC_JSON_BYTES, open_exact_source as urlopen
+from src.sec_association_receipt import _json_object
 from src.providers.sec_company_discovery import _modified_at
 
 MAX_FILING_BYTES = 32 * 1024 * 1024
@@ -40,11 +43,19 @@ def _reference_valid(ref, url=None):
 
 
 def valid_bank_scope(scope,cik,refs):
-    if not isinstance(scope,Mapping) or set(scope)!={'sec_cik','sic','source_receipt'}:return False
-    if scope.get('sec_cik')!=cik or not isinstance(scope.get('sic'),str) or scope.get('sic') not in BANK_SICS or not isinstance(refs,list):return False
+    if not isinstance(scope,Mapping) or set(scope)!={'sec_cik','sic','source_receipt','submissions_raw_base64'}:return False
+    if scope.get('sec_cik')!=cik or not isinstance(scope.get('sic'),str) or scope['sic'] not in BANK_SICS or not isinstance(refs,list):return False
     url=f'https://data.sec.gov/submissions/CIK{cik}.json'
     matches=[r for r in refs if isinstance(r,Mapping) and r.get('source_url')==url]
-    return len(matches)==1 and _reference_valid(matches[0],url) and scope['source_receipt']==matches[0]
+    if len(matches)!=1 or not _reference_valid(matches[0],url) or scope['source_receipt']!=matches[0]:return False
+    encoded=scope.get('submissions_raw_base64')
+    if not isinstance(encoded,str) or not 0<len(encoded)<=4*((MAX_RETAINED_SEC_JSON_BYTES+2)//3):return False
+    try:
+        raw=base64.b64decode(encoded,validate=True)
+        if not 0<len(raw)<=MAX_RETAINED_SEC_JSON_BYTES or hashlib.sha256(raw).hexdigest()!=matches[0]['payload_sha256']:return False
+        body=_json_object(raw,'invalid_bank_classification_json')
+        return isinstance(body,Mapping) and _cik(body.get('cik')) and str(int(body['cik'])).zfill(10)==cik and str(body.get('sic'))==scope['sic']
+    except (ValueError,TypeError,binascii.Error,RecursionError):return False
 
 
 def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind,allow_non_inline=False):
@@ -87,7 +98,11 @@ def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind,allow_non_inl
     url=f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-","")}/{document}'
     ref={k:submissions_receipt[k] for k in ('source_url','observed_at','payload_sha256')}
     adapter={'adapter':'ibn_html_bank'} if r['isInlineXBRL']==0 else {}
-    bank={'bank_scope':dict(sec_cik=cik,sic=str(body.get('sic')),source_receipt=ref)} if r['isInlineXBRL']==1 and str(body.get('sic')) in BANK_SICS else {}
+    bank={}
+    if r['isInlineXBRL']==1 and str(body.get('sic')) in BANK_SICS:
+        scope=dict(sec_cik=cik,sic=str(body['sic']),source_receipt=ref,submissions_raw_base64=submissions_receipt.get('payload_raw_base64'))
+        if not valid_bank_scope(scope,cik,[ref]):return {**held,'reason':'bank_classification_source_evidence_unavailable'}
+        bank={'bank_scope':scope}
     return dict(status='selected',ticker=ticker,sec_cik=cik,period_kind=period_kind,period_end=end,form=r['form'],
         filed=filed,accepted_at=r['acceptanceDateTime'],accession=accession,primary_document=document,source_url=url,source_receipts=[ref],**adapter,**bank)
 
@@ -116,7 +131,7 @@ def fetch_sec_filing_preview(ticker,*,period_kind,user_agent,fetcher=None,observ
     if len(ciks)!=1: return {**held,'reason':'ambiguous_or_missing_sec_association'}
     cik=next(iter(ciks))
     if expected_cik is not None and expected_cik!=cik: return {**held,'reason':'selected_company_identity_mismatch'}
-    submissions=fetch_sec_json_receipt(f'https://data.sec.gov/submissions/CIK{cik}.json',user_agent=user_agent,fetcher=fetcher,observed_at=observed_at)
+    submissions=fetch_sec_json_receipt(f'https://data.sec.gov/submissions/CIK{cik}.json',user_agent=user_agent,fetcher=fetcher,observed_at=observed_at,retain_raw=True)
     selection=select_sec_filing(ticker,cik,submissions,period_kind=period_kind,allow_non_inline=True)
     if selection['status']!='selected': return selection
     selection['source_receipts'].insert(0,{k:mapping[k] for k in ('source_url','observed_at','payload_sha256')})
