@@ -5,10 +5,10 @@ from collections.abc import Mapping
 from src.online_company_identity import _mode_reason
 from src.online_research_history_view import STYLE, _amount
 from src.sec_exact_filing import validated_filing_preview
-from src.sec_inline_filing import FIELDS
+from src.sec_inline_filing import FIELDS,BANK_FIELDS
 
 _STYLE=STYLE+'<style>.exact-sec-filing{margin:16px 0;padding:16px;border:1px solid #d9e0dc;border-radius:8px;min-width:0;box-sizing:border-box;overflow-wrap:anywhere}.exact-filing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,21rem),1fr));gap:12px}.exact-sec-filing article{min-width:0;box-sizing:border-box;padding:12px;border:1px solid #d9e0dc;border-radius:8px;background:white}.exact-sec-filing dl div{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 12px}.exact-sec-filing dd{margin:0;font-weight:650}.exact-sec-filing small{color:#52615c}</style>'
-_LABELS={'revenue':'Revenue','operating_income':'Operating income','cash_from_operations':'Operating cash flow','capital_expenditures':'PP&E purchases'}
+_LABELS={'revenue':'Revenue','operating_income':'Operating income','cash_from_operations':'Operating cash flow','capital_expenditures':'PP&E purchases','net_interest_income':'Net interest income','noninterest_income':'Noninterest income'}
 
 
 def _label(name,field):
@@ -34,11 +34,13 @@ def filing_preview_html(packet,ticker,period_kind):
         reason=packet.get('reason','Filing evidence failed validation')
         return '<p>Exact filing evidence withheld · '+escape(str(reason).replace('_',' '))+'.</p>'
     if view.get('source_id')=='sec_archive_html_bank':return _bank_html(view)
+    bank_note='<p>Bank income context: net interest income and noninterest income are direct reported components, not combined into revenue. A banking SIC observation does not establish analysis eligibility.</p>' if view.get('source_id')=='sec_archive_inline_bank' else ''
+    field_names=BANK_FIELDS if view.get('source_id')=='sec_archive_inline_bank' else FIELDS
     cards=[]
     for row in view['periods']:
         title={'annual':'Annual statement','quarterly':'Direct reported quarter','cumulative':'Cumulative · not a single quarter'}[row['kind']]
         values=''.join('<div><dt>'+escape(_label(name,row['fields'].get(name)))+'</dt><dd>'
-            +(escape(view['unit'])+' '+_amount(row['fields'][name]['value']) if name in row['fields'] else 'Withheld')+'</dd></div>' for name in FIELDS)
+            +(escape(view['unit'])+' '+_amount(row['fields'][name]['value']) if name in row['fields'] else 'Withheld')+'</dd></div>' for name in field_names)
         evidence=''.join('<li>'+escape(name.replace('_',' '))+': '+escape(f['taxonomy']+':'+f['concept'])
             +' · context '+escape(f['context_id'])+' · unit '+escape(f['unit_id'])+' · displayed '+escape(f['raw_text'])
             +' · scale '+str(f['scale'])+' · sign '+escape(f['sign'] or 'positive')+' · decimals '+escape(f['decimals'])
@@ -46,7 +48,7 @@ def filing_preview_html(packet,ticker,period_kind):
         gaps=''.join('<li>'+escape(_LABELS[name])+': '+escape(reason.replace('_',' '))+'</li>' for name,reason in row['withheld_fields'].items())
         cards.append('<article><h4>'+title+'</h4><p>'+escape(row['period_start'])+' to '+escape(row['period_end'])+' · '+escape(view['unit'])+'</p><dl>'+values+'</dl><details><summary>Field definitions and gaps</summary><ul>'+evidence+gaps+'</ul></details></article>')
     refs=''.join('<li><a href="'+escape(r['source_url'],quote=True)+'" target="_blank" rel="noopener noreferrer">SEC source</a> · observed '+escape(r['observed_at'])+' · SHA-256 '+escape(r['payload_sha256'])+'</li>' for r in view['source_receipts'])
-    return (_STYLE+'<section class="exact-sec-filing" aria-label="Exact SEC filing"><h3>Exact SEC filing · '+escape(view['form'])+'</h3>'
+    return (_STYLE+'<section class="exact-sec-filing" aria-label="Exact SEC filing"><h3>Exact SEC filing · '+escape(view['form'])+'</h3>'+bank_note+
         '<p>One issuer and one primary document. Direct amounts retain their reporting currency; missing quarters and cash flows are never inferred.</p>'
         '<div class="exact-filing-grid">'+''.join(cards)+'</div>'
         '<details><summary>Filing identity and source receipts</summary><p>SEC CIK '+escape(view['sec_cik'])+' · accession '+escape(view['accession'])

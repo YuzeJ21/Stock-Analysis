@@ -7,7 +7,7 @@ import re
 import xml.etree.ElementTree as ET
 
 from src.company_sec_online_preview import _iso_date, _utc_timestamp
-from src.sec_exact_filing import RIGHTS, SCHEMA, SOURCE_ID, MAX_FILING_BYTES, _digest
+from src.sec_exact_filing import RIGHTS, SCHEMA, SOURCE_ID, MAX_FILING_BYTES, _digest, BANK_SCHEMA, BANK_SOURCE_ID, valid_bank_scope
 
 X='http://www.xbrl.org/2003/instance'
 IX='http://www.xbrl.org/2013/inlineXBRL'
@@ -26,6 +26,23 @@ CATALOG={
   'operating_income':('ProfitLossFromOperatingActivities',),
   'cash_from_operations':('CashFlowsFromUsedInOperatingActivities','CashFlowsFromUsedInOperatingActivitiesContinuingOperations'),
   'capital_expenditures':('PurchaseOfPropertyPlantAndEquipmentClassifiedAsInvestingActivities',)}}
+
+BANK_FIELDS=FIELDS+('net_interest_income','noninterest_income')
+BANK_CATALOG={'us-gaap':{**CATALOG['us-gaap'],
+ 'net_interest_income':('InterestIncomeExpenseNet',),
+ 'noninterest_income':('NoninterestIncome',)}}
+
+
+def valid_numeric_proof(field):
+    if not isinstance(field,dict) or not isinstance(field.get('raw_text'),str):return False
+    if type(field.get('scale')) is not int or field.get('sign') not in {'','-'} or not isinstance(field.get('decimals'),str):return False
+    transformation=field.get('transformation')
+    if transformation not in {None,'num-dot-decimal','fixed-zero'}:return False
+    node=ET.Element('number',dict(scale=str(field['scale']),sign=field['sign'],decimals=field['decimals']))
+    node.text=field['raw_text']
+    if transformation is not None:node.set('format','ixt:'+transformation)
+    proof,_=_number(node,{'ixt':'http://www.xbrl.org/inlineXBRL/transformation/2020-02-12'})
+    return proof is not None and all(field.get(k)==v for k,v in proof.items())
 
 
 def _qname(value,namespaces):
@@ -113,6 +130,9 @@ def extract_inline_filing(raw,selection,receipt):
     if (selection.get('status')!='selected' or receipt.get('status')!='ready'
         or receipt.get('source_url')!=selection.get('source_url') or not isinstance(raw,bytes)
         or receipt.get('payload_sha256')!=hashlib.sha256(raw).hexdigest()):return held
+    bank='bank_scope' in selection
+    if bank and not valid_bank_scope(selection['bank_scope'],selection.get('sec_cik'),selection.get('source_receipts')):return {**held,'reason':'bank_classification_unverified'}
+    catalog,field_names=(BANK_CATALOG,BANK_FIELDS) if bank else (CATALOG,FIELDS)
     try:root,namespaces=_tree(raw)
     except (ET.ParseError,ValueError,TypeError,RecursionError) as error:return {**held,'reason':str(error) if isinstance(error,ValueError) and not isinstance(error,ET.ParseError) else 'invalid_filing_xml'}
     cik=selection['sec_cik'];end=selection['period_end'];kind=selection['period_kind']
@@ -151,12 +171,13 @@ def extract_inline_filing(raw,selection,receipt):
     facts=[]
     for node in root.iter(f'{{{IX}}}nonFraction'):
         context=contexts.get(node.get('contextRef'));uri,name=_qname(node.get('name'),namespaces);tax=_taxonomy(uri)
-        if not context or not tax or not any(name in concepts for concepts in CATALOG[tax].values()):continue
+        if not context or tax not in catalog or not any(name in concepts for concepts in catalog[tax].values()):continue
         days=(_iso_date(end)-_iso_date(context['start'])).days
         target='annual' if kind=='annual' and 300<=days<=430 else 'quarterly' if kind=='quarterly' and 70<=days<=105 else 'cumulative' if kind=='quarterly' and 105<days<=320 else None
         if not target:continue
         facts.append(dict(node=node,taxonomy=tax,namespace_uri=uri,concept=name,context=context,kind=target,unit=units.get(node.get('unitRef'))))
-    primary=[f for f in facts if f['kind']==kind and f['concept'] in CATALOG[f['taxonomy']]['revenue']]
+    primary=[f for f in facts if f['kind']==kind and f['concept'] in catalog[f['taxonomy']]['revenue']]
+    if bank and not primary:primary=[f for f in facts if f['kind']==kind and f['concept']=='InterestIncomeExpenseNet']
     taxonomies={f['taxonomy'] for f in primary}
     if len(taxonomies)!=1:return {**held,'reason':'ambiguous_or_missing_reporting_taxonomy'}
     tax=next(iter(taxonomies));primary=[f for f in primary if f['taxonomy']==tax]
@@ -164,6 +185,7 @@ def extract_inline_filing(raw,selection,receipt):
     native={f['unit'] for f in primary}-{'USD'}
     if len(native)>1:return {**held,'reason':'ambiguous_reporting_currency'}
     unit=next(iter(native)) if native else 'USD'
+    if bank and unit!='USD':return {**held,'reason':'bank_native_usd_required'}
     periods=[]
     for target in (kind,'cumulative') if kind=='quarterly' else (kind,):
         eligible=[f for f in facts if f['taxonomy']==tax and f['kind']==target and f['unit']==unit]
@@ -173,9 +195,9 @@ def extract_inline_filing(raw,selection,receipt):
             if target==kind:return {**held,'reason':'ambiguous_filing_period_start'}
             continue
         start=next(iter(starts));fields={};holds={}
-        for field in FIELDS:
+        for field in field_names:
             candidates=[]
-            for concept in CATALOG[tax][field]:
+            for concept in catalog[tax][field]:
                 candidates=[f for f in eligible if f['concept']==concept]
                 if candidates:break
             if not candidates:holds[field]='matching_direct_native_unit_fact_unavailable';continue
@@ -190,7 +212,7 @@ def extract_inline_filing(raw,selection,receipt):
                 **numbers[0][0])
         periods.append(dict(kind=target,period_start=start,period_end=end,fields=fields,withheld_fields=holds))
     result={k:v for k,v in selection.items() if k not in {'status','source_receipts'}}
-    result.update(status='inspection_only',schema_version=SCHEMA,source_id=SOURCE_ID,rights_status=RIGHTS,
+    result.update(status='inspection_only',schema_version=BANK_SCHEMA if bank else SCHEMA,source_id=BANK_SOURCE_ID if bank else SOURCE_ID,rights_status=RIGHTS,
         commercial_eligible=False,readiness_promoted=False,taxonomy=tax,unit=unit,periods=periods,
         observed_at=receipt['observed_at'],payload_sha256=receipt['payload_sha256'],
         source_receipts=[*selection['source_receipts'],{k:receipt[k] for k in ('source_url','observed_at','payload_sha256')}])

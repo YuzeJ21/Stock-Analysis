@@ -17,6 +17,9 @@ MAX_FILING_BYTES = 32 * 1024 * 1024
 SOURCE_ID = 'sec_archive_inline'
 RIGHTS = 'unregistered_sec_archive_personal_inspection_only'
 SCHEMA = 'sec-exact-filing-v1'
+BANK_SCHEMA = 'sec-exact-bank-context-v1'
+BANK_SOURCE_ID = 'sec_archive_inline_bank'
+BANK_SICS = frozenset({'6021','6022','6029','6035','6036'})
 SESSION_KEY = 'company_exact_sec_filing_v1'
 MAP_URL = 'https://www.sec.gov/files/company_tickers.json'
 FORMS = {'annual': ANNUAL_FORMS, 'quarterly': frozenset({'10-Q','10-Q/A'})}
@@ -34,6 +37,14 @@ def _reference_valid(ref, url=None):
     return (isinstance(ref,Mapping) and (url is None or ref.get('source_url')==url)
         and _utc_timestamp(ref.get('observed_at')) is not None
         and isinstance(ref.get('payload_sha256'),str) and re.fullmatch(r'[0-9a-f]{64}',ref['payload_sha256']) is not None)
+
+
+def valid_bank_scope(scope,cik,refs):
+    if not isinstance(scope,Mapping) or set(scope)!={'sec_cik','sic','source_receipt'}:return False
+    if scope.get('sec_cik')!=cik or scope.get('sic') not in BANK_SICS or not isinstance(refs,list):return False
+    url=f'https://data.sec.gov/submissions/CIK{cik}.json'
+    matches=[r for r in refs if isinstance(r,Mapping) and r.get('source_url')==url]
+    return len(matches)==1 and _reference_valid(matches[0],url) and scope['source_receipt']==matches[0]
 
 
 def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind,allow_non_inline=False):
@@ -76,8 +87,9 @@ def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind,allow_non_inl
     url=f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-","")}/{document}'
     ref={k:submissions_receipt[k] for k in ('source_url','observed_at','payload_sha256')}
     adapter={'adapter':'ibn_html_bank'} if r['isInlineXBRL']==0 else {}
+    bank={'bank_scope':dict(sec_cik=cik,sic=str(body.get('sic')),source_receipt=ref)} if r['isInlineXBRL']==1 and str(body.get('sic')) in BANK_SICS else {}
     return dict(status='selected',ticker=ticker,sec_cik=cik,period_kind=period_kind,period_end=end,form=r['form'],
-        filed=filed,accepted_at=r['acceptanceDateTime'],accession=accession,primary_document=document,source_url=url,source_receipts=[ref],**adapter)
+        filed=filed,accepted_at=r['acceptanceDateTime'],accession=accession,primary_document=document,source_url=url,source_receipts=[ref],**adapter,**bank)
 
 
 def _fetch_html(url,user_agent):
@@ -130,7 +142,9 @@ def validated_filing_preview(packet,ticker,period_kind):
         from src.sec_html_bank import validated_bank_html
         return validated_bank_html(packet,ticker,period_kind)
     if not isinstance(packet,Mapping) or packet.get('status')!='inspection_only': return None
-    if (packet.get('schema_version')!=SCHEMA or packet.get('source_id')!=SOURCE_ID or packet.get('ticker')!=ticker
+    bank=packet.get('source_id')==BANK_SOURCE_ID
+    schema,source=(BANK_SCHEMA,BANK_SOURCE_ID) if bank else (SCHEMA,SOURCE_ID)
+    if (packet.get('schema_version')!=schema or packet.get('source_id')!=source or packet.get('ticker')!=ticker
         or packet.get('period_kind')!=period_kind or period_kind not in FORMS or packet.get('rights_status')!=RIGHTS
         or packet.get('commercial_eligible') is not False or packet.get('readiness_promoted') is not False): return None
     cik=packet.get('sec_cik');acc=packet.get('accession');doc=packet.get('primary_document')
@@ -146,10 +160,13 @@ def validated_filing_preview(packet,ticker,period_kind):
     if any(packet.get(k)!=refs[-1].get(k) for k in ('observed_at','payload_sha256')): return None
     observed=_utc_timestamp(packet.get('observed_at'));end=_iso_date(packet.get('period_end'));filed=_iso_date(packet.get('filed'));accepted=_utc_timestamp(packet.get('accepted_at'))
     if not end or not filed or not accepted or not end<=filed<=observed.date() or not end<=accepted.date()<=observed.date() or accepted>observed or packet.get('form') not in FORMS[period_kind]: return None
+    if bank and (not valid_bank_scope(packet.get('bank_scope'),cik,refs) or packet.get('taxonomy')!='us-gaap' or packet.get('unit')!='USD'):return None
+    if not bank and 'bank_scope' in packet:return None
     if packet.get('taxonomy') not in {'us-gaap','ifrs-full'} or not isinstance(packet.get('unit'),str) or not re.fullmatch(r'[A-Z]{3}',packet['unit']): return None
     periods=packet.get('periods')
     if not isinstance(periods,list) or not 1<=len(periods)<=2: return None
-    from src.sec_inline_filing import CATALOG, FIELDS
+    from src.sec_inline_filing import CATALOG, FIELDS, BANK_CATALOG, BANK_FIELDS, valid_numeric_proof
+    catalog,field_names=(BANK_CATALOG,BANK_FIELDS) if bank else (CATALOG,FIELDS)
     seen=set()
     for row in periods:
         if not isinstance(row,Mapping): return None
@@ -158,10 +175,11 @@ def validated_filing_preview(packet,ticker,period_kind):
         seen.add(kind);days=(end-start).days
         if not (300<=days<=430 if kind=='annual' else 70<=days<=105 if kind=='quarterly' else 105<days<=320): return None
         fields=row.get('fields');holds=row.get('withheld_fields')
-        if not isinstance(fields,Mapping) or not isinstance(holds,Mapping) or set(fields)|set(holds)!=set(FIELDS) or set(fields)&set(holds): return None
+        if not isinstance(fields,Mapping) or not isinstance(holds,Mapping) or set(fields)|set(holds)!=set(field_names) or set(fields)&set(holds): return None
         if any(not isinstance(v,str) or not v for v in holds.values()): return None
         for name,f in fields.items():
-            if not isinstance(f,Mapping) or f.get('field')!=name or f.get('concept') not in CATALOG[packet['taxonomy']][name] or f.get('taxonomy')!=packet['taxonomy']: return None
+            if bank and not valid_numeric_proof(f):return None
+            if not isinstance(f,Mapping) or f.get('field')!=name or f.get('concept') not in catalog[packet['taxonomy']][name] or f.get('taxonomy')!=packet['taxonomy']: return None
             if (type(f.get('value')) not in {int,float} or not (-1e20<=f['value']<=1e20)
                 or f.get('unit')!=packet['unit'] or f.get('period_start')!=row['period_start'] or f.get('period_end')!=row['period_end']
                 or f.get('rights_status')!=RIGHTS or not isinstance(f.get('fact_id'),str) or f.get('source_ref')!=url+'#'+f['fact_id']): return None
