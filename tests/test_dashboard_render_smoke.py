@@ -512,6 +512,7 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
     assert [button.label for button in app.button] == [
         "Check SEC annual facts",
         "Check latest SEC filing",
+        "Check listing and issuer type",
         "Check online price history",
         "Open evidence and analysis modules",
     ]

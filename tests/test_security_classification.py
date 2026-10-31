@@ -84,3 +84,15 @@ def test_malformed_submissions_are_held_without_losing_the_selected_company(body
  from src.security_classification import issuer_profile
  p=issuer_profile('0000001234',dict(status='ready',source_url='https://data.sec.gov/submissions/CIK0000001234.json',observed_at='2026-10-30T22:00:00Z',payload_sha256='a'*64,payload=body))
  assert p['status']=='withheld' and p['sec_cik']=='0000001234'
+
+def test_failed_explicit_refresh_cannot_restore_prior_context_on_rerender():
+ from src.security_classification import get_company_security_context
+ state={};get_company_security_context('FICT',state,refresh_requested=True,user_agent='Synthetic',fetcher=fixture_fetch([]),observed_at=OBSERVED)
+ def fail(*args):raise OSError('Synthetic unavailable')
+ assert get_company_security_context('FICT',state,refresh_requested=True,user_agent='Synthetic',fetcher=fail,observed_at=OBSERVED)['status']=='withheld'
+ assert get_company_security_context('FICT',state,refresh_requested=False,user_agent='Synthetic')['status']=='withheld'
+
+def test_directory_common_label_never_certifies_current_legal_instrument_type():
+ p=packet()
+ assert p['legal_security_type_established'] is False
+ assert all(r['legal_security_type_established'] is False for r in p['rows'])

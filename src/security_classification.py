@@ -60,8 +60,9 @@ def build_classification(inventory,directory_rows):
  rows=[]
  for r in inv['rows']:
   name=descriptions.get(r['listing_id']);kind=classify_description(name,r['etf']) if name else dict(security_type='unknown',rule='sec_issuer_name_only',basis='unresolved',reason='issuer_name_is_not_security_description')
-  rows.append({**r,'description':name,**kind})
+  rows.append({**r,'description':name,**kind,'legal_security_type_established':False})
  result=dict(status='inspection_only',schema_version=SCHEMA,rules_version=RULES,rights_status=RIGHTS,inventory=inv,descriptions=descriptions,rows=rows,counts=dict(Counter(r['security_type'] for r in rows)),financial_coverage_promoted=False,analysis_eligibility_established=False,domicile_established=False,active_status_established=False,point_in_time_established=False)
+ result['legal_security_type_established']=False
  result['packet_digest']=_digest(result);return result
 
 def validated_classification(packet):
@@ -146,6 +147,7 @@ def get_company_security_context(ticker,session_state,*,refresh_requested,user_a
   if not isinstance(cached,Mapping) or cached.get('ticker')!=ticker:return dict(status='not_requested',ticker=ticker)
   return validated_company_context(cached,ticker,expected_cik) or held
  snapshot=fetch_classification(user_agent=user_agent,fetcher=fetcher,observed_at=observed_at,workspace_mode=workspace_mode)
+ session_state[SESSION_KEY]=held
  try:
   if snapshot['status']!='inspection_only':return held
   cik,rows=_selected(snapshot,ticker,expected_cik)

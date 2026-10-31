@@ -108,6 +108,17 @@ def _grid(table,end):
      or not any('Year ended' in ' '.join(c['text'] for c in row) for row in table['rows'][:headers[0][0]+1])):raise ValueError('unverified_annual_columns')
  return rows,dates,width
 
+def _registration(parser,document,selection):
+ held=dict(status='withheld',reason='qualified_cover_security_disclosure_unavailable',current_legal_type_established=False)
+ tables=[t for t in parser.tables if t['index']<20 and not t['bad'] and len(t['rows'])<50
+         and 'Title of each class' in ' '.join(c['text'] for r in t['rows'] for c in r)]
+ if len(tables)!=1:return held
+ table=tables[0];text=' '.join(c['text'] for r in table['rows'] for c in r)
+ prefix=document[:20000]
+ if (not all(s in text for s in ('American Depositary Shares','IBN','The New York Stock Exchange','Trading Symbol'))
+     or 'Not for trading, but only in connection with the registration of American Depositary Shares' not in prefix):return held
+ return dict(status='observed_as_filed',declared_type='depositary_receipt',label='American Depositary Shares',as_of=selection['filed'],current_legal_type_established=False,source_ref=selection['source_url'],table_index=table['index'],raw_cover_table=text,underlying_note='Not for trading, but only in connection with the registration of American Depositary Shares')
+
 def extract_bank_html(raw,selection,receipt):
  held=dict(status='withheld',ticker=selection.get('ticker'),period_kind=selection.get('period_kind'),reason='bank_html_evidence_unavailable')
  try:
@@ -143,7 +154,8 @@ def extract_bank_html(raw,selection,receipt):
    periods.append(dict(period_start=f'{year-y-1}-04-01',period_end=f'{year-y}-03-31',fields=fields,withheld_fields=gaps))
   keys=('ticker','sec_cik','period_kind','period_end','form','filed','accepted_at','accession','primary_document','source_url')
   result={k:selection[k] for k in keys};result.update(status='inspection_only',schema_version=SCHEMA,source_id=SOURCE_ID,accounting_basis='Indian GAAP',unit='INR',source_scale='thousands',rights_status=RIGHTS,commercial_eligible=False,readiness_promoted=False,financial_coverage_promoted=False,periods=periods,withheld_fields=WITHHELD.copy(),observed_at=receipt['observed_at'],payload_sha256=receipt['payload_sha256'],source_receipts=[*selection['source_receipts'],{k:receipt[k] for k in ('source_url','observed_at','payload_sha256')}])
-  result['packet_digest']=_digest(result)
+  result['registration_observation']=_registration(parser,document,selection)
+  result['packet_digest']=_digest({k:v for k,v in result.items() if k!='packet_digest'})
   return result if validated_bank_html(result,'IBN','annual') is not None else {**held,'reason':'bank_packet_validation_failed'}
  except ValueError as error:
   reason=str(error)
@@ -175,5 +187,14 @@ def validated_bank_html(p,ticker,period_kind):
         or not isinstance(span,list) or len(span)!=2 or any(type(n) is not int for n in span) or not 0<=span[0]<span[1]<=64
         or not isinstance(anchor,str) or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_.-]{0,127}',anchor) or f['source_ref']!=url+'#'+anchor):return None
   if p['packet_digest']!=_digest({k:v for k,v in p.items() if k!='packet_digest'}):return None
+  r=p['registration_observation']
+  if r.get('current_legal_type_established') is not False:return None
+  if r.get('status')=='observed_as_filed':
+   if (r.get('declared_type')!='depositary_receipt' or r.get('label')!='American Depositary Shares' or r.get('as_of')!=p['filed'] or r.get('source_ref')!=url
+       or type(r.get('table_index')) is not int or not 0<=r['table_index']<20
+       or not isinstance(r.get('raw_cover_table'),str) or len(r['raw_cover_table'])>10000
+       or not all(s in r['raw_cover_table'] for s in ('American Depositary Shares','IBN','The New York Stock Exchange','Trading Symbol'))
+       or r.get('underlying_note')!='Not for trading, but only in connection with the registration of American Depositary Shares'):return None
+  elif r!=dict(status='withheld',reason='qualified_cover_security_disclosure_unavailable',current_legal_type_established=False):return None
   return dict(p)
  except (KeyError,TypeError,ValueError,AttributeError,RecursionError):return None

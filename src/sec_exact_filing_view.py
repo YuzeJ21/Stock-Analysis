@@ -33,6 +33,7 @@ def filing_preview_html(packet,ticker,period_kind):
     if view is None:
         reason=packet.get('reason','Filing evidence failed validation')
         return '<p>Exact filing evidence withheld · '+escape(str(reason).replace('_',' '))+'.</p>'
+    if view.get('source_id')=='sec_archive_html_bank':return _bank_html(view)
     cards=[]
     for row in view['periods']:
         title={'annual':'Annual statement','quarterly':'Direct reported quarter','cumulative':'Cumulative · not a single quarter'}[row['kind']]
@@ -51,3 +52,21 @@ def filing_preview_html(packet,ticker,period_kind):
         '<details><summary>Filing identity and source receipts</summary><p>SEC CIK '+escape(view['sec_cik'])+' · accession '+escape(view['accession'])
         +' · report ended '+escape(view['period_end'])+' · filed '+escape(view['filed'])+' · accepted '+escape(view['accepted_at'])+'</p><ul>'+refs+'</ul></details>'
         '<p><strong>Archive source rights:</strong> unregistered personal inspection only; commercial use and raw redistribution remain held. Companyfacts coverage and saved readiness stay separate. This is an observed filing, not point-in-time research history or valuation.</p></section>')
+
+
+def _bank_html(view):
+    from src.sec_html_bank import DEFINITIONS
+    cards=[]
+    for row in view['periods']:
+        values=''.join('<div><dt>'+escape(DEFINITIONS[name][2])+'</dt><dd>'
+            +('INR '+_amount(row['fields'][name]['value']) if name in row['fields'] else 'Withheld')+'</dd></div>' for name in DEFINITIONS)
+        facts=''.join('<li>'+escape(f['label'])+' · reported '+escape(f['raw_text'])+' thousand INR · table '+str(f['table_index'])+', row '+str(f['row_index'])+', columns '+escape(str(f['column_span']))
+            +' · <a href="'+escape(f['source_ref'],quote=True)+'" target="_blank" rel="noopener noreferrer">Statement source</a></li>' for f in row['fields'].values())
+        gaps=''.join('<li>'+escape(name.replace('_',' '))+': '+escape(reason.replace('_',' '))+'</li>' for name,reason in row['withheld_fields'].items())
+        cards.append('<article><h4>Annual bank statement · '+escape(row['period_end'])+'</h4><p>'+escape(row['period_start'])+' to '+escape(row['period_end'])+' · INR</p><dl>'+values+'</dl><details><summary>Reported definitions and gaps</summary><ul>'+facts+gaps+'</ul></details></article>')
+    refs=''.join('<li><a href="'+escape(r['source_url'],quote=True)+'" target="_blank" rel="noopener noreferrer">SEC source</a> · observed '+escape(r['observed_at'])+' · SHA-256 '+escape(r['payload_sha256'])+'</li>' for r in view['source_receipts'])
+    registration=view['registration_observation']
+    registration_html=''
+    if registration['status']=='observed_as_filed':
+        registration_html='<p>As-filed security disclosure · '+escape(registration['as_of'])+': American Depositary Shares; underlying equity shares are not for trading independently. Current legal security type remains unverified.</p>'
+    return (_STYLE+'<section class="exact-sec-filing" aria-label="Exact SEC filing"><h3>Exact SEC filing · '+escape(view['form'])+' · Indian GAAP</h3><p>ICICI Bank consolidated annual statements. Direct source amounts in thousands of rupees are normalized to INR; purchase cash flows keep their reported negative sign.</p><div class="exact-filing-grid">'+cards[0]+'</div><details><summary>Earlier annual bank statements (2)</summary><div class="exact-filing-grid">'+''.join(cards[1:])+'</div></details><p>Generic revenue, operating income, net interest income, FCF and valuation remain withheld; bank total income retains its gross-interest definition.</p><details><summary>Filing identity and source receipts</summary><p>SEC CIK '+escape(view['sec_cik'])+' · accession '+escape(view['accession'])+' · filed '+escape(view['filed'])+' · accepted '+escape(view['accepted_at'])+'</p>'+registration_html+'<ul>'+refs+'</ul></details><p><strong>Archive source rights:</strong> unregistered personal inspection only; commercial use and raw redistribution remain held. Companyfacts coverage and saved readiness stay separate.</p></section>')

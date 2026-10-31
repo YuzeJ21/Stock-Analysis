@@ -69,7 +69,9 @@ def test_online_only_workbench_opens_sec_check_without_saved_analysis(monkeypatc
     rendered: list[str] = []
     sec_checks: list[tuple[str, str | None]] = []
     filing_checks: list[tuple[str, str | None]] = []
+    type_checks: list[tuple[str,str | None]] = []
     result = _result()
+    monkeypatch.setattr(dashboard,"render_company_security_check",lambda ticker,expected_cik=None:type_checks.append((ticker,expected_cik)),raising=False)
     monkeypatch.setattr(
         dashboard,
         "st",
@@ -119,6 +121,7 @@ def test_online_only_workbench_opens_sec_check_without_saved_analysis(monkeypatc
     assert "<summary>SEC identity evidence</summary>" in copy
     assert sec_checks == [("FICT", "0000001234")]
     assert filing_checks == [("FICT", "0000001234")]
+    assert type_checks == [("FICT", "0000001234")]
     assert "valuation" in copy.lower()
     assert copy.index("SEC check marker") < copy.index("Back to Discover")
 

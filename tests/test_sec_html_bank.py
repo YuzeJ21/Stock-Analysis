@@ -93,3 +93,11 @@ def test_exact_source_api_dispatches_only_qualified_ibn_annual_and_caches_by_com
  assert get_company_filing_preview('IBN',state,period_kind='annual',refresh_requested=False,user_agent='Synthetic')['status']=='inspection_only'
  assert get_company_filing_preview('OTHER',state,period_kind='annual',refresh_requested=False,user_agent='Synthetic')['status']=='not_requested'
  assert len(calls)==3
+
+def test_cover_ads_disclosure_is_an_independent_as_filed_observation():
+ t=html().replace('<p>Indian GAAP</p>','<p>Indian GAAP</p><p>Securities registered or to be registered pursuant to Section 12(b) of the Act:</p><table><tr><td>Title of each class</td><td>Trading Symbol(s)</td><td>Name of each exchange on which registered</td></tr><tr><td>Equity Shares and American Depositary Shares</td><td>IBN</td><td>The New York Stock Exchange</td></tr></table><p>Not for trading, but only in connection with the registration of American Depositary Shares.</p>')
+ p=extract(t);assert p['status']=='inspection_only'
+ assert p['registration_observation']['declared_type']=='depositary_receipt'
+ assert p['registration_observation']['as_of']=='2026-08-01'
+ assert p['registration_observation']['current_legal_type_established'] is False
+ assert extract()['registration_observation']['status']=='withheld'
