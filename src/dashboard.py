@@ -32578,6 +32578,7 @@ def render_single_stock_report(
     selected_answer_target=None,
     selected_detail_target=None,
     selected_evidence_target=None,
+    selected_valuation_target=None,
 ) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -32817,6 +32818,8 @@ def render_single_stock_report(
         if isinstance(report_payload, dict)
         else None
     )
+    if selected_valuation_target is not None:
+        render_company_valuation_summary(ticker,report_payload,target=selected_valuation_target)
     if selected_evidence_target is not None:
         evidence_ticker = (
             str(report_payload.get("ticker") or ticker)
@@ -37934,6 +37937,14 @@ def render_research_monitor(
         st.caption("Source identifiers and raw change rows remain in the separate evidence drawer below.")
 
 
+def render_company_valuation_summary(ticker: str, report_payload=None, *, target=None) -> None:
+    """Project comparison evidence without fetching sources or changing research state."""
+    from src.company_valuation_overview import build_valuation_overview,valuation_overview_html
+    context=get_company_security_context(ticker,st.session_state,refresh_requested=False,user_agent=None)
+    view=build_valuation_overview(ticker,report_payload,research_context=context)
+    (target if target is not None else st).markdown(valuation_overview_html(view),unsafe_allow_html=True)
+
+
 def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None) -> bool:
     """Inspect annual and direct quarterly facts only after an explicit click."""
 
@@ -38087,10 +38098,12 @@ def render_company_workbench(
             "Identity association rights require review before distribution.</p></details>",
             unsafe_allow_html=True,
         )
+        online_valuation_target=st.empty()
         sec_refreshed=render_company_sec_annual_check(ticker, expected_cik=online_candidate["cik"])
         render_company_sec_filing_check(ticker,expected_cik=online_candidate["cik"])
         render_company_security_check(ticker,expected_cik=online_candidate["cik"])
         render_company_online_prices(ticker,sec_refresh_requested=bool(sec_refreshed))
+        render_company_valuation_summary(ticker,target=online_valuation_target)
         st.markdown(
             "<p><a href='?mode=research&amp;page=discover' target='_self'>"
             "Back to Discover</a></p>",
@@ -38147,6 +38160,8 @@ def render_company_workbench(
         cash_generation_preview = load_company_workbench_cash_generation_preview(ticker)
     with st.container(key="company-workbench-document"):
         selected_answer_target = st.empty()
+        selected_valuation_target = st.empty()
+        render_company_valuation_summary(ticker,target=selected_valuation_target)
         evidence_status_target = st.empty()
         sec_refreshed=render_company_sec_annual_check(ticker)
         render_company_sec_filing_check(ticker)
@@ -38213,6 +38228,7 @@ def render_company_workbench(
         selected_answer_target=selected_answer_target,
         selected_detail_target=selected_detail_target,
         selected_evidence_target=evidence_status_target,
+        selected_valuation_target=selected_valuation_target,
     )
     field_study = load_dashboard_bounded_field_study(context)
     st.markdown(study_company_html(field_study, ticker), unsafe_allow_html=True)

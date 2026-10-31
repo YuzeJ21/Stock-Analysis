@@ -35,9 +35,9 @@ BANK_CATALOG={'us-gaap':{**CATALOG['us-gaap'],
 
 def valid_numeric_proof(field):
     if not isinstance(field,dict) or not isinstance(field.get('raw_text'),str):return False
-    if type(field.get('scale')) is not int or field.get('sign') not in {'','-'} or not isinstance(field.get('decimals'),str):return False
+    if type(field.get('scale')) is not int or not isinstance(field.get('sign'),str) or field.get('sign') not in {'','-'} or not isinstance(field.get('decimals'),str):return False
     transformation=field.get('transformation')
-    if transformation not in {None,'num-dot-decimal','fixed-zero'}:return False
+    if transformation is not None and (not isinstance(transformation,str) or transformation not in {'num-dot-decimal','fixed-zero'}):return False
     node=ET.Element('number',dict(scale=str(field['scale']),sign=field['sign'],decimals=field['decimals']))
     node.text=field['raw_text']
     if transformation is not None:node.set('format','ixt:'+transformation)

@@ -41,7 +41,7 @@ def _reference_valid(ref, url=None):
 
 def valid_bank_scope(scope,cik,refs):
     if not isinstance(scope,Mapping) or set(scope)!={'sec_cik','sic','source_receipt'}:return False
-    if scope.get('sec_cik')!=cik or scope.get('sic') not in BANK_SICS or not isinstance(refs,list):return False
+    if scope.get('sec_cik')!=cik or not isinstance(scope.get('sic'),str) or scope.get('sic') not in BANK_SICS or not isinstance(refs,list):return False
     url=f'https://data.sec.gov/submissions/CIK{cik}.json'
     matches=[r for r in refs if isinstance(r,Mapping) and r.get('source_url')==url]
     return len(matches)==1 and _reference_valid(matches[0],url) and scope['source_receipt']==matches[0]

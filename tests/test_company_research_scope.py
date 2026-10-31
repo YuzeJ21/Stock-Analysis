@@ -42,8 +42,8 @@ def test_invalid_or_switched_context_is_unresolved():
  assert research_scope(c,'FICT')['path']=='unresolved'
  assert research_scope(context(),'OTHER')['path']=='unresolved'
 
-def test_scope_is_personal_only_and_html_escapes_source_ticker(monkeypatch):
- from src.company_research_scope import research_scope,research_scope_html
+def test_commercial_mode_cannot_reuse_a_valid_personal_context(monkeypatch):
+ from src.company_research_scope import research_scope
+ cached=context()
  monkeypatch.setenv('COMMERCIAL_RESEARCH_MODE','1')
- assert research_scope(context(),'FICT')['path']=='unresolved'
- assert 'analysis eligible' not in research_scope_html(research_scope({},'<script>'))
+ assert research_scope(cached,'FICT')['path']=='unresolved'

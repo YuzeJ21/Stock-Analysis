@@ -71,3 +71,12 @@ def test_selection_binds_bank_sic_to_same_submissions_identity():
  p=select_sec_filing('FICT','0000001234',ref,period_kind='quarterly')
  assert p['bank_scope']['sic']=='6022'
  assert p['bank_scope']['source_receipt']==s['source_receipts'][1]
+
+@pytest.mark.parametrize('field,bad',[('sic',[]),('sign',[]),('transformation',[])])
+def test_malformed_bank_cache_metadata_is_held_without_throwing(field,bad):
+ from src.sec_exact_filing import validated_filing_preview,_digest
+ p=extract()
+ if field=='sic':p['bank_scope']['sic']=bad
+ else:p['periods'][0]['fields']['net_interest_income'][field]=bad
+ p['packet_digest']=_digest({k:v for k,v in p.items()if k!='packet_digest'})
+ assert validated_filing_preview(p,'FICT','quarterly') is None

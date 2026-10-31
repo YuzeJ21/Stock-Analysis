@@ -1717,3 +1717,16 @@ def test_normal_amd_company_workbench_route_never_loads_cash_preview():
         result = render_public_routes(Path("."), routes=(route,))[0]
     assert result.exceptions == ()
     assert result.missing_markers == ()
+
+
+def test_company_workbench_primary_valuation_is_visible_without_opening_deep_modules():
+ app=AppTest.from_file(str(DASHBOARD_APP),default_timeout=120)
+ app.query_params.update({'mode':'research','page':'company-workbench','ticker':'NVDA','open':'1'})
+ app.run(timeout=120)
+ assert not app.exception
+ rendered='\n'.join(str(item.value)for item in app.markdown)
+ assert 'Valuation and peers' in rendered
+ assert rendered.index('Valuation and peers')<rendered.index('Company evidence status')
+ assert 'No supported peer comparison yet' in rendered
+ assert 'Illustrative example' in rendered
+ assert len([b for b in app.button if b.label=='Open evidence and analysis modules'])==1

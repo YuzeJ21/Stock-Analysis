@@ -78,6 +78,7 @@ def test_online_only_workbench_opens_sec_check_without_saved_analysis(monkeypatc
         SimpleNamespace(
             query_params={"ticker": "FICT", "online": "1"},
             session_state={},
+            empty=lambda: SimpleNamespace(markdown=lambda value, **kwargs: rendered.append(str(value))),
             markdown=lambda value, **kwargs: rendered.append(str(value)),
         ),
     )
@@ -119,6 +120,8 @@ def test_online_only_workbench_opens_sec_check_without_saved_analysis(monkeypatc
     assert "a" * 64 in copy
     assert "https://www.sec.gov/files/company_tickers_exchange.json" in copy
     assert "<summary>SEC identity evidence</summary>" in copy
+    assert "Valuation and peers" in copy
+    assert "No supported peer comparison yet" in copy
     assert sec_checks == [("FICT", "0000001234")]
     assert filing_checks == [("FICT", "0000001234")]
     assert type_checks == [("FICT", "0000001234")]
