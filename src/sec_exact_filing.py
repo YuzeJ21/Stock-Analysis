@@ -36,7 +36,7 @@ def _reference_valid(ref, url=None):
         and isinstance(ref.get('payload_sha256'),str) and re.fullmatch(r'[0-9a-f]{64}',ref['payload_sha256']) is not None)
 
 
-def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind):
+def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind,allow_non_inline=False):
     held=dict(status='withheld',ticker=ticker,period_kind=period_kind,reason='filing_selection_unavailable')
     if (not isinstance(ticker,str) or not re.fullmatch(r'[A-Z0-9][A-Z0-9.-]{0,19}',ticker)
         or not isinstance(cik,str) or not re.fullmatch(r'\d{10}',cik) or int(cik)==0
@@ -60,8 +60,11 @@ def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind):
     if any(_utc_timestamp(r['acceptanceDateTime']) is None for r in candidates): return {**held,'reason':'unresolved_acceptance_time'}
     accepted=max(_utc_timestamp(r['acceptanceDateTime']) for r in candidates)
     candidates=[r for r in candidates if _utc_timestamp(r['acceptanceDateTime'])==accepted]
+    supported_bank=allow_non_inline and cik=='0001103838' and ticker=='IBN' and period_kind=='annual'
     if any(not all(isinstance(r[k],str) for k in columns[:6])
-        or any(type(r[k]) is not int or r[k]!=1 for k in ('isInlineXBRL','isXBRL')) for r in candidates):
+        or any(type(r[k]) is not int or r[k] not in {0,1} for k in ('isInlineXBRL','isXBRL'))
+        or r['isInlineXBRL']==1 and r['isXBRL']!=1
+        or not supported_bank and (r['isInlineXBRL'],r['isXBRL'])!=(1,1) for r in candidates):
         return {**held,'reason':'latest_filing_identity_or_inline_metadata_invalid'}
     identities={tuple(r[k] for k in columns) for r in candidates}
     if len(identities)!=1: return {**held,'reason':'ambiguous_latest_filing'}
@@ -69,12 +72,12 @@ def select_sec_filing(ticker,cik,submissions_receipt,*,period_kind):
     if (not _iso_date(end)<=_iso_date(filed)<=observed.date() or not _iso_date(end)<=accepted.date()<=observed.date() or accepted>observed
         or not isinstance(accession,str) or not re.fullmatch(r'\d{10}-\d{2}-\d{6}',accession)
         or not isinstance(document,str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,180}\.(?:htm|html|xhtml)',document)
-        or '..' in document or type(r['isInlineXBRL']) is not int or r['isInlineXBRL']!=1
-        or type(r['isXBRL']) is not int or r['isXBRL']!=1): return {**held,'reason':'latest_filing_identity_or_inline_metadata_invalid'}
+        or '..' in document): return {**held,'reason':'latest_filing_identity_or_inline_metadata_invalid'}
     url=f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-","")}/{document}'
     ref={k:submissions_receipt[k] for k in ('source_url','observed_at','payload_sha256')}
+    adapter={'adapter':'ibn_html_bank'} if r['isInlineXBRL']==0 else {}
     return dict(status='selected',ticker=ticker,sec_cik=cik,period_kind=period_kind,period_end=end,form=r['form'],
-        filed=filed,accepted_at=r['acceptanceDateTime'],accession=accession,primary_document=document,source_url=url,source_receipts=[ref])
+        filed=filed,accepted_at=r['acceptanceDateTime'],accession=accession,primary_document=document,source_url=url,source_receipts=[ref],**adapter)
 
 
 def _fetch_html(url,user_agent):
@@ -102,7 +105,7 @@ def fetch_sec_filing_preview(ticker,*,period_kind,user_agent,fetcher=None,observ
     cik=next(iter(ciks))
     if expected_cik is not None and expected_cik!=cik: return {**held,'reason':'selected_company_identity_mismatch'}
     submissions=fetch_sec_json_receipt(f'https://data.sec.gov/submissions/CIK{cik}.json',user_agent=user_agent,fetcher=fetcher,observed_at=observed_at)
-    selection=select_sec_filing(ticker,cik,submissions,period_kind=period_kind)
+    selection=select_sec_filing(ticker,cik,submissions,period_kind=period_kind,allow_non_inline=True)
     if selection['status']!='selected': return selection
     selection['source_receipts'].insert(0,{k:mapping[k] for k in ('source_url','observed_at','payload_sha256')})
     try:
@@ -112,6 +115,9 @@ def fetch_sec_filing_preview(ticker,*,period_kind,user_agent,fetcher=None,observ
             return {**held,'reason':'unverified_filing_document'}
         receipt=dict(status='ready',source_url=selection['source_url'],observed_at=now.strftime('%Y-%m-%dT%H:%M:%SZ'),
                      payload_sha256=hashlib.sha256(raw).hexdigest(),source_last_modified=_modified_at(headers,now))
+        if selection.get('adapter')=='ibn_html_bank':
+            from src.sec_html_bank import extract_bank_html
+            return extract_bank_html(raw,selection,receipt)
         from src.sec_inline_filing import extract_inline_filing
         return extract_inline_filing(raw,selection,receipt)
     except HTTPError as exc:
@@ -120,6 +126,9 @@ def fetch_sec_filing_preview(ticker,*,period_kind,user_agent,fetcher=None,observ
 
 
 def validated_filing_preview(packet,ticker,period_kind):
+    if isinstance(packet,Mapping) and packet.get('source_id')=='sec_archive_html_bank':
+        from src.sec_html_bank import validated_bank_html
+        return validated_bank_html(packet,ticker,period_kind)
     if not isinstance(packet,Mapping) or packet.get('status')!='inspection_only': return None
     if (packet.get('schema_version')!=SCHEMA or packet.get('source_id')!=SOURCE_ID or packet.get('ticker')!=ticker
         or packet.get('period_kind')!=period_kind or period_kind not in FORMS or packet.get('rights_status')!=RIGHTS

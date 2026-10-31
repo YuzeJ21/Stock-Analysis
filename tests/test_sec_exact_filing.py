@@ -128,3 +128,13 @@ def test_redirect_destination_never_receives_an_identifying_request(transport):
         with pytest.raises(HTTPError):fetch(f'http://127.0.0.1:{server.server_port}/origin','Synthetic test contact')
         assert calls==['/origin']
     finally:server.shutdown();server.server_close();thread.join(timeout=5)
+
+def test_ibn_non_xbrl_is_narrowly_selected_without_weakening_latest_tie_gate():
+ from src.sec_exact_filing import select_sec_filing
+ body=_submission();body['cik']=1103838;r=body['filings']['recent'];r['form']=['20-F'];r['isInlineXBRL']=[0];r['isXBRL']=[0]
+ receipt=_receipt(body);receipt['source_url']='https://data.sec.gov/submissions/CIK0001103838.json'
+ p=select_sec_filing('IBN','0001103838',receipt,period_kind='annual',allow_non_inline=True)
+ assert p['status']=='selected' and p['adapter']=='ibn_html_bank'
+ for values in r.values():values.append(values[0])
+ r['isInlineXBRL'][1]=1;r['isXBRL'][1]=1
+ assert select_sec_filing('IBN','0001103838',receipt,period_kind='annual',allow_non_inline=True)['status']=='withheld'
