@@ -37405,8 +37405,25 @@ def render_research_workspace_styles() -> None:
             margin-top: .5rem;
             min-height: 44px;
         }
-        div[data-testid="stButton"] > button {
+        div[data-testid="stButton"] button,
+        div[data-testid="stDownloadButton"] button {
             min-height: 44px;
+            background: #f1f6f3 !important;
+            border-color: #b8c9be !important;
+            color: #173e30 !important;
+        }
+        div[data-testid="stButton"] button :is(p, span),
+        div[data-testid="stDownloadButton"] button :is(p, span) {
+            color: inherit !important;
+        }
+        div[data-testid="stButton"] button:hover,
+        div[data-testid="stDownloadButton"] button:hover {
+            background: #e1eee6 !important;
+        }
+        div[data-testid="stButton"] button[kind="primary"] {
+            background: #155e4b !important;
+            border-color: #155e4b !important;
+            color: #fff !important;
         }
         [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button {
             min-height: 44px;
@@ -37427,20 +37444,20 @@ def render_research_workspace_styles() -> None:
             background: #fff;
             box-shadow: 0 12px 32px rgba(15, 23, 42, .06);
         }
-        .st-key-company-sec-annual-check [data-testid="stButton"] > button {
-            background: #155e4b;
-            border-color: #155e4b;
-            color: #fff;
+        .st-key-company-sec-annual-check [data-testid="stButton"] button {
+            background: #155e4b !important;
+            border-color: #155e4b !important;
+            color: #fff !important;
             font-weight: 700;
         }
-        .st-key-company-sec-annual-check [data-testid="stButton"] > button p {
-            color: #fff;
+        .st-key-company-sec-annual-check [data-testid="stButton"] button p {
+            color: #fff !important;
         }
-        .st-key-company-sec-annual-check [data-testid="stButton"] > button:hover {
-            background: #0f4c3a;
-            border-color: #0f4c3a;
+        .st-key-company-sec-annual-check [data-testid="stButton"] button:hover {
+            background: #0f4c3a !important;
+            border-color: #0f4c3a !important;
         }
-        .st-key-company-sec-annual-check [data-testid="stButton"] > button:focus-visible {
+        .st-key-company-sec-annual-check [data-testid="stButton"] button:focus-visible {
             outline: 3px solid #0b6bff;
             outline-offset: 3px;
         }
