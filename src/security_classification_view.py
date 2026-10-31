@@ -2,6 +2,7 @@
 from collections.abc import Mapping
 from html import escape
 from src.online_company_identity import _mode_reason
+from src.company_research_scope import research_scope,research_scope_html
 from src.security_classification import fetch_classification,validated_classification,validated_company_context
 
 SESSION_KEY='listing_classification_v1'
@@ -38,4 +39,4 @@ def company_security_html(context,ticker):
   body='<p>Reporting profile: <strong>'+escape(profile['reporting_profile'].replace('_',' '))+'</strong> · SEC industry '+escape(profile['sic'] or 'unknown')+'.</p>'
   forms='<p>Observed forms: '+escape(', '.join(sorted(profile['form_counts'])))+'.</p>'
   refs=[profile['source_receipt']]
- return (STYLE+'<section class="security-context" aria-label="Listing and issuer type"><h3>Listing and issuer type · '+escape(ticker)+'</h3><p>SEC CIK '+escape(p['sec_cik'])+'</p><ul>'+rows+'</ul>'+body+'<p>Legal security type is not independently verified; a depositary receipt may carry a common-share directory label. Reporting forms and instrument descriptions remain separate. Issuer domicile, active status, operating-company classification, financial eligibility and point-in-time coverage remain unresolved.</p><details><summary>Source dates and rights</summary>'+forms+_refs([*p['classification']['inventory']['source_receipts'],*refs])+'<p>Listing and submissions metadata: unregistered personal inspection only. Financial evidence and saved readiness remain separate.</p></details></section>')
+ return (STYLE+'<section class="security-context" aria-label="Listing and issuer type"><h3>Listing and issuer type · '+escape(ticker)+'</h3><p>SEC CIK '+escape(p['sec_cik'])+'</p><ul>'+rows+'</ul>'+body+research_scope_html(research_scope(p,ticker))+'<p>Legal security type is not independently verified; a depositary receipt may carry a common-share directory label. Reporting forms and instrument descriptions remain separate. Issuer domicile, active status, operating-company classification, financial eligibility and point-in-time coverage remain unresolved.</p><details><summary>Source dates and rights</summary>'+forms+_refs([*p['classification']['inventory']['source_receipts'],*refs])+'<p>Listing and submissions metadata: unregistered personal inspection only. Financial evidence and saved readiness remain separate.</p></details></section>')
