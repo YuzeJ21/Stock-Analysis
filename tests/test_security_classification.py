@@ -106,3 +106,28 @@ def test_directory_common_label_never_certifies_current_legal_instrument_type():
 def test_warrant_description_grammar_never_selects_underlying_common_shares(name):
  from src.security_classification import classify_description
  assert classify_description(name,False)['security_type']=='warrant'
+
+
+def test_missing_industry_does_not_hide_verified_fund_reporting_profile_or_break_cache():
+ from src.security_classification import get_company_security_context,validated_company_context
+ original=fixture_fetch([])
+ def fetch(url,agent):
+  raw,headers,final_url=original(url,agent)
+  if '/submissions/' in url:
+   body=json.loads(raw);body.update(sic='',sicDescription='',entityType='other');body['filings']['recent']['form']=['N-CSR','NPORT-P'];raw=json.dumps(body).encode()
+  return raw,headers,final_url
+ p=get_company_security_context('FICT',{},refresh_requested=True,user_agent='Synthetic',fetcher=fetch,expected_cik='0000001234',observed_at=OBSERVED)
+ assert p['status']=='inspection_only'
+ assert p['issuer_profile']['status']=='inspection_only'
+ assert p['issuer_profile']['reporting_profile']=='investment_company_reporting'
+ assert p['issuer_profile']['sic'] is None
+ assert p['issuer_profile']['source_metadata']['sic']==''
+ assert validated_company_context(p,'FICT','0000001234')==p
+ assert p['issuer_profile']['security_type']=='unknown'
+ assert p['issuer_profile']['analysis_eligibility_established'] is False
+
+@pytest.mark.parametrize('sic',[' ','unknown','12345'])
+def test_nonempty_malformed_industry_code_remains_held(sic):
+ from src.security_classification import issuer_profile
+ ref=dict(status='ready',source_url='https://data.sec.gov/submissions/CIK0000001234.json',observed_at='2026-10-30T22:00:00Z',payload_sha256='a'*64,payload=dict(cik=1234,entityType='other',sic=sic,sicDescription='',tickers=['FICT'],exchanges=['NYSE'],filings={'recent':{'form':['N-CSR']}}))
+ assert issuer_profile('0000001234',ref)['status']=='withheld'

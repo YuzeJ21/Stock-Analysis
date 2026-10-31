@@ -113,7 +113,7 @@ def issuer_profile(cik,receipt):
   if any(f in {'N-CSR','N-CSRS','N-CEN','NPORT-P','N-PORT'} for f in forms) or body.get('entityType')=='investment-company':kinds.append('investment_company_reporting')
   if any(f in {'10-K','10-K/A'} for f in forms):kinds.append('domestic_annual_reporting')
   if any(f in {'20-F','20-F/A','40-F','40-F/A'} for f in forms):kinds.append('foreign_annual_reporting')
-  sic=body.get('sic');sic=str(sic) if type(sic) in {str,int} else None
+  sic=body.get('sic');sic=str(sic) if type(sic) in {str,int} and sic!='' else None
   if sic is not None and not re.fullmatch(r'\d{1,4}',sic):return held
   metadata={k:body.get(k) for k in ('cik','entityType','sic','sicDescription','tickers','exchanges')};metadata['filings']={'recent':{'form':forms}}
   result=dict(status='inspection_only',sec_cik=cik,reporting_profile=kinds[0] if len(kinds)==1 else 'mixed_reporting' if kinds else 'unknown',form_counts=dict(Counter(forms)),entity_type=body.get('entityType'),sic=sic,security_type='unknown',domicile_established=False,active_status_established=False,analysis_eligibility_established=False,rights_status='unregistered_submissions_metadata_personal_inspection_only',source_receipt={k:receipt[k] for k in ('source_url','observed_at','payload_sha256')},source_metadata=metadata)
