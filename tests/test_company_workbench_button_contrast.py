@@ -26,6 +26,7 @@ def test_research_action_labels_remain_readable_in_light_and_dark_system_appeara
     page=browser.new_page(color_scheme=scheme,viewport={'width':390,'height':844})
     page.goto(base,wait_until='domcontentloaded')
     page.get_by_role('button',name='Check online price history',exact=True).wait_for(timeout=15000)
+    page.get_by_role('button',name='Check SEC annual facts',exact=True).hover()
     rows=page.evaluate('''() => [...document.querySelectorAll('[data-testid="stButton"] button')].filter(b=>{const r=b.getBoundingClientRect();return r.width>0&&r.height>0}).map(b=>({label:b.textContent,background:getComputedStyle(b).backgroundColor,foreground:getComputedStyle(b.querySelector('p')||b).color,height:b.getBoundingClientRect().height}))''')
     assert len(rows)>=5
     for row in rows:

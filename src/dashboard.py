@@ -37407,7 +37407,7 @@ def render_research_workspace_styles() -> None:
         }
         div[data-testid="stButton"] button,
         div[data-testid="stDownloadButton"] button {
-            min-height: 44px;
+            min-height: 44px !important;
             background: #f1f6f3 !important;
             border-color: #b8c9be !important;
             color: #173e30 !important;
