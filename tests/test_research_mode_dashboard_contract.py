@@ -2007,7 +2007,16 @@ def test_registered_company_workbench_renders_one_document_with_inline_evidence_
     assert [call for call in calls if call == ("empty", None, "document")] == [
         ("empty", None, "document"),
         ("empty", None, "document"),
+        ("empty", None, "document"),
     ]
+    valuations = [
+        call for call in calls
+        if call[0] == "placeholder-markdown" and 'aria-label="Valuation and peers"' in str(call[1])
+    ]
+    assert len(valuations) == 1
+    assert valuations[0][2] == "document"
+    assert "AVGO · P/E" in valuations[0][1]
+    assert calls.index(valuations[0]) < calls.index(("button", "Check SEC annual facts", "sec"))
     assert ("button", "Check SEC annual facts", "sec") in calls
     assert any(
         call[0] == "placeholder-markdown"
@@ -2912,11 +2921,11 @@ def test_company_workbench_primary_actions_use_explicit_44px_browser_targets():
     assert "display: inline-flex;" in data_health_rule
     assert "align-items: center;" in data_health_rule
     assert "min-height: 44px;" in data_health_rule
-    assert (
-        'div[data-testid="stButton"] > button {\n'
-        "            min-height: 44px;\n"
-        "        }"
-    ) in styles
+    button_start = styles.index('div[data-testid="stButton"] button,')
+    button_rule = styles[button_start : styles.index("}", button_start)]
+    # Native buttons can be nested inside framework tooltip wrappers. The
+    # priority must also beat the shared 24px tooltip-icon minimum.
+    assert "min-height: 44px !important;" in button_rule
 
 
 def test_company_workbench_html_brief_download_target_is_a_keyed_44px_control():
@@ -2928,12 +2937,24 @@ def test_company_workbench_html_brief_download_target_is_a_keyed_44px_control():
     styles = source[styles_start:styles_end]
 
     selector = '[class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button'
-    assert styles.count('[data-testid="stDownloadButton"]') == 1
+    import re
+
+    download_selectors = [
+        selector.strip()
+        for header in re.findall(r"([^{}]+)\{[^{}]*\}", styles)
+        for selector in header.split(",")
+        if '[data-testid="stDownloadButton"]' in selector
+    ]
+    assert download_selectors
+    assert all(
+        selector.startswith('[class*="st-key-company-workbench-html-"]')
+        for selector in download_selectors
+    ), download_selectors
     download_start = styles.index(selector)
     download_end = styles.index("}", download_start)
     download_rule = styles[download_start:download_end]
 
-    assert "min-height: 44px;" in download_rule
+    assert re.search(r"min-height:\s*44px(?:\s+!important)?;", download_rule)
 
 
 def test_company_workbench_uses_two_mobile_lanes_then_one_at_two_hundred_percent():

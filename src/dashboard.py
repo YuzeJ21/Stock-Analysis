@@ -37406,18 +37406,18 @@ def render_research_workspace_styles() -> None:
             min-height: 44px;
         }
         div[data-testid="stButton"] button,
-        div[data-testid="stDownloadButton"] button {
+        [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button {
             min-height: 44px !important;
             background: #f1f6f3 !important;
             border-color: #b8c9be !important;
             color: #173e30 !important;
         }
         div[data-testid="stButton"] button :is(p, span),
-        div[data-testid="stDownloadButton"] button :is(p, span) {
+        [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button :is(p, span) {
             color: inherit !important;
         }
         div[data-testid="stButton"] button:hover,
-        div[data-testid="stDownloadButton"] button:hover {
+        [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button:hover {
             background: #e1eee6 !important;
         }
         div[data-testid="stButton"] button[kind="primary"] {

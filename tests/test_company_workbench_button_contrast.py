@@ -17,7 +17,7 @@ def test_research_action_labels_remain_readable_in_light_and_dark_system_appeara
  from src.public_performance_gate import _local_demo_server
  root=Path(__file__).resolve().parents[1]
  (tmp_path/'src').mkdir()
- (tmp_path/'src/dashboard.py').write_text('import sys\nimport streamlit as st\nsys.path.insert(0,'+repr(str(root))+')\nfrom src.dashboard import apply_dashboard_theme,render_research_workspace_styles\napply_dashboard_theme()\nrender_research_workspace_styles()\nwith st.container(key="company-sec-annual-check"):\n st.button("Check SEC annual facts",key="company-sec-annual-refresh-FICT",help="Synthetic read-only source check")\nst.button("Check latest SEC filing",key="company-exact-filing-refresh-FICT")\nst.button("Check listing and issuer type",key="company-security-refresh-FICT")\nst.button("Check online price history",key="company-online-price-refresh-FICT")\nst.button("Open evidence and analysis modules")\n')
+ (tmp_path/'src/dashboard.py').write_text('import sys\nimport streamlit as st\nsys.path.insert(0,'+repr(str(root))+')\nfrom src.dashboard import apply_dashboard_theme,render_research_workspace_styles\napply_dashboard_theme()\nrender_research_workspace_styles()\nwith st.container(key="company-sec-annual-check"):\n st.button("Check SEC annual facts",key="company-sec-annual-refresh-FICT",help="Synthetic read-only source check")\nst.button("Check latest SEC filing",key="company-exact-filing-refresh-FICT")\nst.button("Check listing and issuer type",key="company-security-refresh-FICT")\nst.button("Check online price history",key="company-online-price-refresh-FICT")\nst.button("Open evidence and analysis modules")\nst.download_button("Download company brief",data="Synthetic company brief",file_name="example.txt",key="company-workbench-html-test")\nst.download_button("Unrelated download",data="Synthetic unrelated output",file_name="other.txt",key="unrelated-download")\n')
  with _local_demo_server(tmp_path,timeout_seconds=30) as base:
   with sync_playwright() as p:
    browser=p.chromium.launch(headless=True)
@@ -27,8 +27,10 @@ def test_research_action_labels_remain_readable_in_light_and_dark_system_appeara
     page.goto(base,wait_until='domcontentloaded')
     page.get_by_role('button',name='Check online price history',exact=True).wait_for(timeout=15000)
     page.get_by_role('button',name='Check SEC annual facts',exact=True).hover()
-    rows=page.evaluate('''() => [...document.querySelectorAll('[data-testid="stButton"] button')].filter(b=>{const r=b.getBoundingClientRect();return r.width>0&&r.height>0}).map(b=>({label:b.textContent,background:getComputedStyle(b).backgroundColor,foreground:getComputedStyle(b.querySelector('p')||b).color,height:b.getBoundingClientRect().height}))''')
-    assert len(rows)>=5
+    rows=page.evaluate('''() => [...document.querySelectorAll('[data-testid="stButton"] button, [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button')].filter(b=>{const r=b.getBoundingClientRect();return r.width>0&&r.height>0}).map(b=>({label:b.textContent,background:getComputedStyle(b).backgroundColor,foreground:getComputedStyle(b.querySelector('p')||b).color,height:b.getBoundingClientRect().height}))''')
+    assert len(rows)>=6
+    assert any("Download company brief" in row["label"] for row in rows)
+    assert all("Unrelated download" not in row["label"] for row in rows)
     for row in rows:
      background='rgb(255,255,255)' if row['background']=='rgba(0, 0, 0, 0)' else row['background']
      if _contrast(row['foreground'],background)<4.5 or row['height']<44:failures.append({'appearance':scheme,'contrast':_contrast(row['foreground'],background),**row})
