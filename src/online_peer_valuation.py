@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 from src.company_sec_online_preview import _iso_date, _utc_timestamp
 from src.online_company_identity import _mode_reason, _VENUES
 from src.online_company_prices import price_source_url
+from src.online_peer_earnings import annual_eps_context
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
 
@@ -238,7 +239,8 @@ def _issuer(row, classification, industry_key, as_of):
     _need(_positive(multiple) and multiple<=1e6, 'multiple_outside_supported_range')
     filing_ref=f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{eps["accession"].replace("-", "")}/{eps["primary_document"]}'
     return dict(ticker=ticker,sec_cik=cik,sic=str(sic),industry_key=industry_key,price=float(price),price_date=price_date.isoformat(),
-                multiple=multiple,**eps,concept='EarningsPerShareDiluted',taxonomy='us-gaap',unit='USD/shares',currency='USD',
+                multiple=multiple,**eps,earnings_context=annual_eps_context(facts,eps),
+                concept='EarningsPerShareDiluted',taxonomy='us-gaap',unit='USD/shares',currency='USD',
                 basis='reported_annual_diluted_GAAP_EPS',identity_basis='vendor_filing_matched_to_independent_sec_metadata',
                 vendor_filing=identity,filing_ref=filing_ref,source_ref=row['facts']['source_url'],
                 observed_at=row['facts']['observed_at'],price_observed_at=prices['observed_at'],
@@ -291,7 +293,8 @@ def _exclusion_diagnostics(row,classification,ticker,industry_source_ref,as_of,o
         facts=_receipt(row.get('facts'),context['facts_query_ref'],as_of)
         _need(_cik(profile.get('cik'))==cik and _cik(facts.get('cik'))==cik,'issuer_identity_mismatch')
         eps=_annual_eps(facts,_filings(profile,as_of),as_of.date())
-        context['annual_eps_observation']={**eps,'unit':'USD/shares','concept':'EarningsPerShareDiluted',
+        context['annual_eps_observation']={**eps,'earnings_context':annual_eps_context(facts,eps),
+            'unit':'USD/shares','concept':'EarningsPerShareDiluted',
             'source_ref':context['facts_query_ref'],'observed_at':row['facts']['observed_at'],
             'filing_ref':f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{eps["accession"].replace("-", "")}/{eps["primary_document"]}'}
     except (ValueError,TypeError,KeyError,AttributeError,OverflowError):pass
