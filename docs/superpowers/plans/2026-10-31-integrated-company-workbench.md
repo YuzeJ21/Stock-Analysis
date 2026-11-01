@@ -25,17 +25,17 @@
 ### Task 1: Source-bound section projection
 **Files:** create src/company_workbench_sections.py, tests/test_company_workbench_sections.py.
 **Interfaces:** workbench_projection(ticker, financial_view, prices, expected_cik=None) -> dict; workbench_header_html(ticker, projection, saved_scope) -> str. Existing strict financial validators/presenters remain authoritative. Five-section constant and normalized selection are pure.
-- [ ] RED tests for exact sections, available annual/quarterly versus blocked model status, wrong ticker/CIK, malformed cached facts, unavailable sibling sources and zero versus missing.
-- [ ] Implement read-only projection; no network or state mutation.
-- [ ] Run new tests plus existing online financial/history tests; commit and ledger exact results.
+- [x] RED tests for exact sections, available annual/quarterly versus blocked model status, wrong ticker/CIK, malformed cached facts, unavailable sibling sources and zero versus missing.
+- [x] Implement read-only projection; no network or state mutation.
+- [x] Run new tests plus existing online financial/history tests; commit and ledger exact results.
 
 ### Task 2: Integrated company UI and saved tools
 **Files:** create src/company_workbench_ui.py and integration/AppTest tests; modify src/dashboard.py, compact history presenters, peer empty-state rendering and native control styles.
-**Interfaces:** render_integrated_company(st_api, ticker, financial_view, prices, association, expected_cik, online_candidate, saved_available, callbacks) renders one selected pane. render_single_stock_report(..., workbench_section=None) reuses existing scoped saved preparation and dispatches only valuation or notes when supplied; default behavior unchanged.
-- [ ] RED tests for all five visible sections, one selected body, no legacy unavailable-quarter statement beside loaded online facts, no refetch on pane switch, combined explicit update, source-failure independence and saved/online identity isolation.
-- [ ] Reuse existing annual/quarterly/foreign charts, price chart, exact source controls, DCF controls, authoring and HTML brief. Add compact history mode without changing default presenters.
-- [ ] Update obsolete journey/recording-double tests to the approved flow, retaining their data-isolation and protected-write checks. Extend native light/dark regression to enabled form-submit controls.
-- [ ] Run focused suites including all dashboard contracts; commit and ledger results.
+**Interfaces:** render_integrated_company(st_api, ticker, profile_scope, saved_available, online_candidate, render_saved, render_sources) owns explicit controls, loads one observation bundle and renders one selected pane. render_single_stock_report(..., workbench_section=None) reuses existing scoped saved preparation and dispatches only valuation or notes when supplied; default behavior unchanged.
+- [x] RED tests for all five visible sections, one selected body, no legacy unavailable-quarter statement beside loaded online facts, no refetch on pane switch, combined explicit update, source-failure independence and saved/online identity isolation.
+- [x] Reuse existing annual/quarterly/foreign charts, price chart, exact source controls, DCF controls, authoring and HTML brief. Add compact history mode without changing default presenters.
+- [x] Update obsolete journey/recording-double tests to the approved flow, retaining their data-isolation and protected-write checks. Extend native light/dark regression to enabled form-submit controls.
+- [x] Run focused suites including all dashboard contracts; commit and ledger results.
 
 ### Task 3: Browser regression and delivery
 **Files:** adapt src/research_accessibility_browser_gate.py and its journey tests; update PRODUCT_SPEC.md, ROADMAP.md and online/personal workflow docs.

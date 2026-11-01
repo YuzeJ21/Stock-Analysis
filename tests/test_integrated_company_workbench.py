@@ -44,6 +44,7 @@ def test_five_sections_are_visible_without_loading_legacy_tools_or_fetching(monk
     calls=_sources(monkeypatch)
     at=AppTest.from_function(_app).run()
     assert not at.exception
+    assert 'section' not in at.query_params
     assert at.radio[0].options==['概览','财务趋势','估值与同行','研究记录','数据来源']
     assert text(at).count('<h1')==1
     assert 'SAVED-TOOL' not in text(at)

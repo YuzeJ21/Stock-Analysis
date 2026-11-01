@@ -1026,6 +1026,7 @@ def test_actual_company_workbench_one_pager_in_app_contract():
     repository_after = gate._repository_content_snapshot(repository_root)
     observation = result["observation"]
     assert repository_after == repository_before
+    assert result["passed"], "\n".join(str(item) for item in result["assertions"])
     assert (
         observation["one_pager_min_text_contrast_ratio"] >= 4.5
         and observation["download_button_height"] >= 44

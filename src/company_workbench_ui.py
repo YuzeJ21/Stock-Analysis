@@ -70,7 +70,8 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
         selected=st_api.radio('公司研究分区',tuple(dict(SECTIONS)),format_func=dict(SECTIONS).get,
                               horizontal=True,label_visibility='collapsed',key=nav_key)
     selected=section_key(selected)
-    st_api.query_params['section']=selected
+    if selected!='overview' or 'section' in st_api.query_params:
+        st_api.query_params['section']=selected
     with st_api.container(key='company-section-body'):
         st_api.markdown('## '+dict(SECTIONS)[selected])
         if selected=='overview':
