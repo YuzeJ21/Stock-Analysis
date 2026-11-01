@@ -217,3 +217,22 @@ def test_daily_close_cannot_predate_its_quote_observation():
     c['observed_at']=now.isoformat()
     v=build_online_peer_valuation(c,ticker='FICT',as_of=now)
     assert v['status']=='withheld'
+
+
+@pytest.mark.parametrize('has_amended_eps',[False,True])
+def test_same_day_annual_versions_use_acceptance_time_without_falling_back(has_amended_eps):
+    c=collection();r=c['issuers'][0];recent=r['profile']['payload']['filings']['recent']
+    recent['acceptanceDateTime']=['2026-02-01T20:00:00Z']
+    amended=dict(form='10-K/A',reportDate='2025-12-31',filingDate='2026-02-01',
+                 accessionNumber='0000001001-26-000000',primaryDocument='amend.htm',
+                 acceptanceDateTime='2026-02-01T21:00:00Z')
+    for k,v in amended.items():recent[k].append(v)
+    if has_amended_eps:
+        eps=r['facts']['payload']['facts']['us-gaap']['EarningsPerShareDiluted']['units']['USD/shares']
+        eps.append({**eps[0],'form':'10-K/A','accn':amended['accessionNumber'],'val':2.0})
+    v=build(c)
+    if has_amended_eps:
+        assert v['status']=='research_comparison' and v['subject']['multiple']==15
+        assert v['subject']['accession']==amended['accessionNumber']
+    else:
+        assert v['reason']=='latest_annual_eps_missing_including_amendment' and v['premium_fraction'] is None

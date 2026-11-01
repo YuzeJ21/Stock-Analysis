@@ -72,6 +72,8 @@ def _receipt(receipt, url, as_of):
     _need(isinstance(receipt.get('payload_sha256'), str) and re.fullmatch(r'[0-9a-f]{64}', receipt['payload_sha256']) is not None,
           'source_digest_missing')
     _need(isinstance(receipt.get('payload'), Mapping), 'sec_payload_invalid')
+    if 'normalized_sha256' in receipt:
+        _need(receipt['normalized_sha256']==normalized_digest(receipt['payload']), 'normalized_sec_observation_changed')
     return receipt['payload']
 
 
@@ -87,6 +89,8 @@ def _normalized(receipt, source_ref, as_of):
 def _filings(profile, as_of):
     recent=profile.get('filings', {}).get('recent')
     keys=('form', 'reportDate', 'filingDate', 'accessionNumber', 'primaryDocument')
+    if isinstance(recent,Mapping) and 'acceptanceDateTime' in recent:
+        keys+=('acceptanceDateTime',)
     _need(isinstance(recent, Mapping) and all(isinstance(recent.get(k), list) for k in keys), 'filing_metadata_missing')
     count=len(recent['form'])
     _need(0<count<=2000 and all(len(recent[k])==count for k in keys), 'filing_metadata_invalid')
@@ -100,6 +104,9 @@ def _filings(profile, as_of):
               and isinstance(row['accessionNumber'], str) and re.fullmatch(r'\d{10}-\d{2}-\d{6}',row['accessionNumber'])
               and isinstance(row['primaryDocument'], str) and re.fullmatch(r'[A-Za-z0-9_.-]{1,200}',row['primaryDocument']),
               'filing_metadata_invalid')
+        if 'acceptanceDateTime' in row:
+            accepted=_utc_timestamp(row['acceptanceDateTime'])
+            _need(accepted is not None and end<=accepted.date() and accepted<=as_of, 'filing_acceptance_time_invalid')
         result.append(row)
     return result
 
@@ -131,6 +138,9 @@ def _annual_eps(facts, filings, price_date):
     latest_end=max(r['reportDate'] for r in annual)
     latest_filed=max(r['filingDate'] for r in annual if r['reportDate']==latest_end)
     selected=[r for r in annual if r['reportDate']==latest_end and r['filingDate']==latest_filed]
+    if len(selected)>1 and all(r.get('acceptanceDateTime') for r in selected):
+        latest_accepted=max(_utc_timestamp(r['acceptanceDateTime']) for r in selected)
+        selected=[r for r in selected if _utc_timestamp(r['acceptanceDateTime'])==latest_accepted]
     _need(len(selected)==1, 'annual_filing_tie_unresolved')
     filing=selected[0]
     _need(_iso_date(latest_filed)<=price_date and 0<=(price_date-_iso_date(latest_end)).days<=550,
