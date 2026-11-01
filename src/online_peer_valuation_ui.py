@@ -65,6 +65,9 @@ REASONS = {
     'comparative_eps_value_invalid':'上年度 EPS 数值未通过核对。',
     'comparative_eps_growth_outside_range':'EPS 变化超出本方法支持的范围。',
     'comparative_eps_input_invalid':'尚未取得可核对的同一申报年度 EPS 背景。',
+    'amendment_source_unavailable':'修订范围核对所需的具体 SEC 文件暂未取得。',
+    'amendment_scope_unverified':'修订范围或精确文件未通过核对，继续保留 EPS 缺口。',
+    'amendment_original_eps_conflict':'原始文件 EPS 与 Companyfacts 记录不一致，暂不采用。',
 }
 
 STYLE='''<style>
@@ -152,6 +155,7 @@ def _diagnostic_html(d):
     if isinstance(eps,Mapping) and _number(eps.get('eps')):
         html+='<p>申报稀释每股收益：'+_text(f'{eps["eps"]:,.6g}')+' USD/shares · '+_text(eps.get('period_start'))+' → '+_text(eps.get('period_end'))+' · 发布 '+_text(eps.get('filed'))+' · 观察 '+_text(eps.get('observed_at'))+' · '+_link(eps.get('source_ref'),'SEC 收益观察')+' · '+_link(eps.get('filing_ref'),'对应申报')+'</p>'
         html+=_earnings_table([{**eps,'ticker':d.get('ticker',d.get('sec_cik'))}])
+        html+=_amendment_html(eps.get('amendment_scope'))
         digest=eps.get('facts_sha256')
         html+='<p>SEC 原始响应 SHA-256：<code>'+(_text(digest) if isinstance(digest,str) and re.fullmatch(r'[0-9a-f]{64}',digest) else '未取得')+'</code></p>'
     price=d.get('price_observation')
@@ -164,6 +168,17 @@ def _diagnostic_html(d):
     observation=d.get('independent_observation_not_in_benchmark')
     if isinstance(observation,Mapping):html+='<p>本公司独立计算，但不纳入参照中位数：</p>'+_source_table([observation])
     return html
+
+
+def _amendment_html(scope):
+    if not isinstance(scope,Mapping) or scope.get('status')!='supported':return ''
+    html='<details><summary>修订范围与原始年度申报 EPS 依据</summary><p>原始年度申报 EPS 已与具体文件及 Companyfacts 交叉核对。已知修订仅更正经营讨论中的百分比，并声明其他披露不变；继续采用原始 EPS 是有边界的技术证据解释，不是来源权限或模型批准。</p>'
+    html+='<p>修订元数据为 10-K/A，文档记录 AmendmentFlag=false；通用财报解析仍保持受限，未修改其校验规则。</p>'
+    receipts=scope.get('source_receipts',[])
+    for index,(key,label) in enumerate([('original','原始申报'),('amendment','最新修订')]):
+        filing=scope.get(key,{}) if isinstance(scope.get(key),Mapping) else {};ref=receipts[index] if isinstance(receipts,list) and len(receipts)>index else {}
+        html+='<p>'+label+' · '+_text(filing.get('form'))+' · '+_text(filing.get('accessionNumber'))+' · 发布 '+_text(filing.get('filingDate'))+' · 接收 '+_text(filing.get('acceptanceDateTime'))+' · '+_link(ref.get('source_url'),'具体文件')+' · 观察 '+_text(ref.get('observed_at'))+'</p><p>SHA-256 <code>'+_text(ref.get('payload_sha256'))+'</code></p>'
+    return html+'</details>'
 
 
 def _disclosure(v,rows):
@@ -184,6 +199,7 @@ def _disclosure(v,rows):
     html+='<details><summary>字段定义、观察日期与来源摘要</summary>'
     for row in rows:
         html+='<h4>'+_text(row.get('ticker'))+'</h4><p>us-gaap:EarningsPerShareDiluted · USD/shares · '+_text(row.get('form'))+' · accession '+_text(row.get('accession'))+' · 发布 '+_text(row.get('filed'))+'</p>'
+        html+=_amendment_html(row.get('amendment_scope'))
         html+='<p>财报观察 '+_text(row.get('observed_at'))+'；价格观察 '+_text(row.get('price_observed_at'))+'；供应商身份观察 '+_text(row.get('vendor_observed_at'))+'。</p>'
         html+='<p>价格与拆股观察请求 '+_text(row.get('price_history_range'))+'；实际 '+_text(row.get('price_history_first_date'))+' → '+_text(row.get('price_history_last_date'))+'；请求范围不保证历史完整。</p>'
         identity=row.get('vendor_filing') if isinstance(row.get('vendor_filing'),Mapping) else {}
@@ -221,7 +237,8 @@ def online_peer_valuation_html(view,*,sources_only=False):
     html+='<dl class="peer-stats">'+''.join('<div><dt>'+label+'</dt><dd>'+value+'</dd></div>' for label,value in stats)+'</dl>'
     if subject:
         html+='<h4>盈利变化背景</h4><p><strong>'+_text(_earnings_phrase(subject))+'</strong> · 同一年度申报列示值。</p><p>历史变化不代表未来增长；同行倍数未按增长调整。展开下方可核对每家公司的本年、上年 EPS 与实际期间。</p>'
+        if subject.get('amendment_scope'):html+='<p>EPS 采用已交叉核对的原始年度申报；具体修订范围、来源与标记差异见下方依据。</p>'
     if not supported:html+='<p>至少 3 家同口径参照公司通过核对后才显示溢价或折价；当前 '+str(len(peers))+' 家。</p>'
     html+='<details><summary>查看同行、实际期间、来源与缺失原因</summary>'+_disclosure(v,rows)+'</details>'
-    html+='<details><summary>其他估值口径为什么尚未显示</summary><p>TTM / 预测 P/E、P/S、P/FCF、EV/EBITDA 还需要分别核对期间、股数、企业价值与成分定义；本次不会从股票存在或其他倍数推断。</p></details></section>'
+    html+='<details><summary>其他估值口径为什么尚未显示</summary><p>TTM / 预测 P/E、P/S、P/FCF、EV/EBITDA 还需要分别核对期间、股数、企业价值与成分定义；本次不会从股票存在或其他倍数推断。</p></details><p><a href="?mode=research&amp;page=discover#peer-coverage-sample" target="_self">查看跨行业同行覆盖</a></p></section>'
     return html

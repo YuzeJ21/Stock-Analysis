@@ -167,3 +167,13 @@ def test_changed_shared_evidence_cannot_be_promoted_even_with_a_resealed_outer_s
     saved['digest']=digest({k:v for k,v in saved.items() if k!='digest'})
     before=list(calls)
     assert audit(state,deps=d)['status']=='unavailable' and calls==before
+
+
+def test_explicit_retry_drops_an_unreferenced_old_classification_receipt():
+    from src.online_peer_coverage import SESSION_KEY
+    from test_online_peer_valuation import classification
+    d,calls=dependencies();state={};audit(state,inspect=True,deps=d)
+    later=NOW+timedelta(days=2)
+    d['classification']=lambda **kwargs:classification(observed_at=later)
+    audit(state,retry='FICT',deps=d,as_of=later)
+    assert len(state[SESSION_KEY]['classifications'])==1

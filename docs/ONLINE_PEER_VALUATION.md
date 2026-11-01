@@ -15,7 +15,15 @@ The industry reference group is automatically screened, not analyst-approved eco
 - A price must be within seven calendar days. Provider regular-market price/time must match the latest completed daily bar/date, allowing only floating-point encoding precision. The quote cannot postdate either source observation. An intraday quote cannot be treated as an earlier close.
 - A vendor SEC filing link must match an independent SEC issuer CIK, accession, form, publication date and primary document. Accession prefixes can identify a filing agent; they are not assumed to be issuer identifiers. Explicit common-share descriptions, one issuer class/ticker and exchange agreement are required. This does not establish domicile, legal security type, active status or historical continuity.
 - Post-period splits, insufficient split-history range, ADRs, ambiguous classes, foreign currency, investment companies and unsupported financial definitions remain withheld. Zero/negative EPS is not a cheap P/E. Failed, conflicting, missing, stale and excluded observations are not filled or silently removed from the gap report.
-- Same-day annual versions use SEC acceptance timestamps when available. Without a unique supported latest version, or when its EPS is absent, the comparison remains withheld. An older original does not mask an amendment gap.
+- Same-day annual versions use SEC acceptance timestamps when available. Without a unique supported latest version, or when its EPS is absent, the comparison remains withheld unless the separately bound exact-scope bridge below qualifies. An older original never silently masks an amendment gap.
+
+## Exact AMD amendment scope
+
+A separate AMD-only bridge handles the known2025 annual amendment accession0000002488-26-000021 and original0000002488-26-000018. The [amendment's explanatory note](https://www.sec.gov/Archives/edgar/data/2488/000000248826000021/amd-20251227.htm) limits its change to transposed Client MD&A percentages and affirmatively leaves other disclosures unchanged. Retaining original EPS is a **technical interpretation of that affirmative scope**, not an inference merely because amended EPS is missing, and not a source/legal/commercial approval.
+
+On explicit refresh, both exact primary documents are fetched online and matched to pinned byte digests, current SEC identities, report/filed/acceptance dates and inline metadata. The original's dimensionless annual diluted EPS with divided USD/shares units must independently agree with Companyfacts from that same original accession. Changed bytes, a new annual/amendment, missing scope, conflicting EPS or unavailable source keeps the gap. No EPS value is hardcoded or calculated from earnings/shares.
+
+The amendment has DocumentType10-K/A but AmendmentFlag=false. The page discloses this discrepancy and retains the generic financial parser's rejection; that parser is unchanged. The bridge preserves original financial accession/form/publication identity and shows the amendment separately, with both source URLs, observation dates and digests. Generic amendments and the other financial, security, price, split, period and peer gates remain held. See [industry coverage](PEER_COVERAGE_METHOD.md) for a failure-inclusive declared query sample.
 
 ## Earnings context beside the multiple
 

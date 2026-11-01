@@ -172,6 +172,8 @@ def get_peer_coverage(session_state,*,inspect_requested=False,reset_requested=Fa
         workspace_mode=workspace_mode,dependencies={name:counted(name,fn) for name,fn in deps.items()})
     if sources.SESSION_KEY not in slot:return dict(status='unavailable',reason='peer_coverage_attempt_unavailable')
     state['packets'][target]=_compact_packet(slot[sources.SESSION_KEY],state)
+    referenced={p['collection']['classification_ref'] for p in state['packets'].values() if isinstance(p.get('collection'),Mapping)}
+    state['classifications']={k:v for k,v in state['classifications'].items() if k in referenced}
     state['adapter_operation_count']+=len(operations)
     streak=0 if retry_ticker is not None else state['source_failure_streak']
     state['source_failure_streak']=min(2,streak+1) if view.get('reason') in _SOURCE_FAILURES else 0

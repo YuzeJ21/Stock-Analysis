@@ -31309,6 +31309,8 @@ def render_online_company_search(*, saved_tickers: Iterable[str] = ()) -> None:
 
 def render_online_coverage_study() -> None:
     """Run a declared SEC industry sample only after an explicit Personal action."""
+    from src.online_peer_coverage_ui import render_peer_coverage
+    render_peer_coverage(st)
     with st.expander("U.S. listing coverage · online", expanded=False):
         st.markdown("Load the full observed official listing inventory, then check financial coverage by issuer. Unprobed and unmatched records remain visible.")
         load_requested=st.button("Load U.S. listing inventory",key="online-us-universe-load")
