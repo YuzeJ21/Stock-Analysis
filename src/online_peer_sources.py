@@ -17,6 +17,7 @@ from src.online_peer_valuation import (
 )
 from src.online_sec_receipt import fetch_sec_json_receipt
 from src.security_classification import fetch_classification, validated_classification, _selected
+from src.annual_amendment_evidence import fetch_amendment_evidence, amendment_candidate
 
 SESSION_KEY = 'online_peer_valuation_observation_v1'
 _INFO_FIELDS = ('symbol','quoteType','currency','financialCurrency','exchange','exchangeTimezoneName',
@@ -100,6 +101,8 @@ def _reduce_sec(receipt, kind):
         body['filings']={'recent':{k:recent.get(k) for k in ('form','reportDate','filingDate','accessionNumber','primaryDocument')}}
         if 'acceptanceDateTime' in recent:
             body['filings']['recent']['acceptanceDateTime']=recent['acceptanceDateTime']
+        for key in ('isInlineXBRL','isXBRL'):
+            if key in recent:body['filings']['recent'][key]=recent[key]
     result.update(payload=body,normalized_sha256=normalized_digest(body),normalization='annual_peer_source_subset_v1')
     return result
 
@@ -125,6 +128,8 @@ def _collect_issuer(ticker,cik,deps,user_agent,as_of,vendor=None):
     facts=_reduce_sec(_attempt_source(deps['sec'],f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',user_agent=user_agent,observed_at=as_of),'facts')
     prices=_attempt_source(deps['prices'],ticker,observed_at=as_of,history_range='2y')
     result=dict(ticker=ticker,vendor=vendor,profile=profile,facts=facts,prices=prices)
+    if amendment_candidate(ticker,cik,profile,as_of=as_of):
+        result['amendment_evidence']=_attempt_source(deps['amendment'],ticker,cik,profile,user_agent=user_agent,observed_at=as_of)
     if any(not isinstance(r,Mapping) or r.get('status') not in {'ready','inspection_only'} for r in (profile,facts,prices)):
         result.update(status='unavailable',reason='issuer_source_unavailable')
     return result
@@ -166,7 +171,7 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
         # Clear a previous successful result before the first fallible request.
         _cache(state,ticker,None,'peer_refresh_incomplete',as_of)
         deps=dict(classification=fetch_classification,vendor=observe_vendor,industry=observe_industry,
-                  sec=fetch_sec_json_receipt,prices=fetch_online_company_prices)
+                  sec=fetch_sec_json_receipt,prices=fetch_online_company_prices,amendment=fetch_amendment_evidence)
         if dependencies is not None:
             deps.update(dependencies)
         classification=validated_classification(deps['classification'](user_agent=user_agent or os.getenv('SEC_USER_AGENT'),observed_at=as_of))

@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 from src.company_sec_online_preview import _iso_date, _utc_timestamp
 from src.online_company_identity import _mode_reason, _VENUES
 from src.online_peer_earnings import annual_eps_context
+from src.annual_amendment_evidence import validate_amendment_evidence
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
 
@@ -96,6 +97,8 @@ def _filings(profile, as_of):
     keys=('form', 'reportDate', 'filingDate', 'accessionNumber', 'primaryDocument')
     if isinstance(recent,Mapping) and 'acceptanceDateTime' in recent:
         keys+=('acceptanceDateTime',)
+    if isinstance(recent,Mapping) and ('isInlineXBRL' in recent or 'isXBRL' in recent):
+        keys+=('isInlineXBRL','isXBRL')
     _need(isinstance(recent, Mapping) and all(isinstance(recent.get(k), list) for k in keys), 'filing_metadata_missing')
     count=len(recent['form'])
     _need(0<count<=2000 and all(len(recent[k])==count for k in keys), 'filing_metadata_invalid')
@@ -104,6 +107,8 @@ def _filings(profile, as_of):
         row=dict(zip(keys, values))
         if row['form'] not in _PERIODIC:
             continue
+        if 'isInlineXBRL' in row:
+            _need(all(type(row[k]) is int and row[k] in {0,1} for k in ('isInlineXBRL','isXBRL')),'filing_metadata_invalid')
         end, filed=(_iso_date(row[k]) for k in ('reportDate', 'filingDate'))
         _need(end and filed and end<=filed<=as_of.date()
               and isinstance(row['accessionNumber'], str) and re.fullmatch(r'\d{10}-\d{2}-\d{6}',row['accessionNumber'])
@@ -178,6 +183,22 @@ def _annual_eps(facts, filings, price_date):
                 form=filing['form'],primary_document=filing['primaryDocument'])
 
 
+def _resolved_annual_eps(row,facts,filings,price_date,ticker,cik,as_of):
+    try:return _annual_eps(facts,filings,price_date)
+    except _Hold as error:
+        if str(error)!='latest_annual_eps_missing_including_amendment' or 'amendment_evidence' not in row:raise
+    packet=row['amendment_evidence']
+    if isinstance(packet,Mapping) and packet.get('status')=='unavailable':
+        raise _Hold('amendment_source_unavailable')
+    proof=validate_amendment_evidence(packet,ticker=ticker,cik=cik,filings=filings,as_of=as_of)
+    _need(proof.get('status')=='supported','amendment_scope_unverified')
+    original=[r for r in filings if r.get('accessionNumber')==proof['original']['accessionNumber']]
+    eps=_annual_eps(facts,original,price_date);parsed=proof['original_eps']
+    _need(all(eps[k]==parsed[k] for k in ('period_start','period_end','eps')),'amendment_original_eps_conflict')
+    eps['amendment_scope']=proof
+    return eps
+
+
 def _issuer(row, classification, industry_key, as_of):
     ticker=row.get('ticker')
     _need(_symbol(ticker), 'issuer_symbol_invalid')
@@ -223,7 +244,7 @@ def _issuer(row, classification, industry_key, as_of):
           'quote_not_same_recent_completed_day')
     price=info.get('regularMarketPrice')
     _need(_positive(price) and math.isclose(price,prices['bars'][-1]['close'],rel_tol=1e-7,abs_tol=1e-6), 'quote_and_daily_close_differ')
-    eps=_annual_eps(facts,filings,price_date)
+    eps=_resolved_annual_eps(row,facts,filings,price_date,ticker,cik,as_of)
     _need(eps['eps']>0, 'annual_eps_nonpositive_or_invalid')
     _need(_iso_date(prices['bars'][0]['date'])<=_iso_date(eps['period_end']), 'split_history_does_not_cover_period_end')
     splits=prices.get('splits')
@@ -293,7 +314,7 @@ def _exclusion_diagnostics(row,classification,ticker,industry_source_ref,as_of,o
         profile=_receipt(row.get('profile'),context['profile_source_ref'],as_of)
         facts=_receipt(row.get('facts'),context['facts_query_ref'],as_of)
         _need(_cik(profile.get('cik'))==cik and _cik(facts.get('cik'))==cik,'issuer_identity_mismatch')
-        eps=_annual_eps(facts,_filings(profile,as_of),as_of.date())
+        eps=_resolved_annual_eps(row,facts,_filings(profile,as_of),as_of.date(),ticker,cik,as_of)
         context['annual_eps_observation']={**eps,'earnings_context':annual_eps_context(facts,eps),
             'unit':'USD/shares','concept':'EarningsPerShareDiluted',
             'facts_sha256':row['facts']['payload_sha256'],
