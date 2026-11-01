@@ -17,6 +17,14 @@ The industry reference group is automatically screened, not analyst-approved eco
 - Post-period splits, insufficient split-history range, ADRs, ambiguous classes, foreign currency, investment companies and unsupported financial definitions remain withheld. Zero/negative EPS is not a cheap P/E. Failed, conflicting, missing, stale and excluded observations are not filled or silently removed from the gap report.
 - Same-day annual versions use SEC acceptance timestamps when available. Without a unique supported latest version, or when its EPS is absent, the comparison remains withheld. An older original does not mask an amendment gap.
 
+## Earnings context beside the multiple
+
+The page also shows **盈利变化背景**: reported current/prior annual diluted EPS from the **same selected accession, form and publication date**. The prior period must end exactly one day before the current period begins and span350–380 days. An older filing's value never substitutes for the comparative printed in the selected filing. Values are latest reported in that observed filing, not point-in-time history or organic earnings growth.
+
+EPS change is current EPS divided by positive prior EPS, minus one. The page shows both values, actual dates and the same source links. A zero/negative base, absent comparative, conflicting value/period/unit or invalid metadata withholds the percentage with a reason. Missing growth context does not remove a valid P/E or change median membership. Historical EPS change is not a forecast, sustainable-growth estimate, PEG or growth-adjusted valuation; business differences remain unadjusted.
+
+Peer collection explicitly requests **two years** of daily prices and split events, with at most800 rows; standalone price-history inspection retains its one-year request and400-row limit. Source URLs and declared ranges must agree. Source details show the actual first/last completed observations: a requested range does not guarantee complete history. If the actual history still begins after annual end, or a later split exists, the ratio remains withheld. No inferred share adjustment or hidden range fallback is used.
+
 ## Sources and rights
 
 Official [SEC APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces) supply submissions and Companyfacts. Standard tags do not eliminate differences in reporting calendars. The collector retains source URLs, original-response digests and separately identified normalized subset digests. It never invents a raw HTTP digest for a public SDK return value.

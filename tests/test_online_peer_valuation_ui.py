@@ -87,11 +87,11 @@ def _app():
                               render_sources=lambda bundle:st.markdown('EXISTING-SOURCES'))
 
 
-def _setup(monkeypatch):
+def _setup(monkeypatch, evidence=None):
     import src.online_peer_sources as sources
     from test_integrated_company_workbench import _sources
     other_calls=_sources(monkeypatch)
-    dependencies,calls=source_dependencies()
+    dependencies,calls=source_dependencies(evidence)
     for name,key in [('fetch_classification','classification'),('observe_vendor','vendor'),('observe_industry','industry'),('fetch_sec_json_receipt','sec'),('fetch_online_company_prices','prices')]:
         monkeypatch.setattr(sources,name,dependencies[key])
     monkeypatch.setattr(sources,'_now',lambda value=None:NOW if value is None else value)
@@ -142,3 +142,62 @@ def test_failed_retry_replaces_the_visible_success_and_preserves_saved_tools(mon
     _peer_button(at).click().run(timeout=30)
     assert '高于同行参照 20.0%' not in _text(at) and '暂不判断相对贵便宜' in _text(at)
     assert 'SAVED-valuation' in _text(at) and 'private exception' not in _text(at) and not at.exception
+
+
+def earnings_collection(value=.8):
+    from test_online_peer_valuation import digest
+    c=collection()
+    for row in c['issuers']:
+        rows=row['facts']['payload']['facts']['us-gaap']['EarningsPerShareDiluted']['units']['USD/shares']
+        rows.append({**rows[0],'start':'2024-01-01','end':'2024-12-31','val':value})
+        row['facts']['normalized_sha256']=digest(row['facts']['payload'])
+    return c
+
+
+@pytest.mark.parametrize('sources_only',[False,True])
+def test_reported_earnings_context_has_exact_values_periods_and_source_without_growth_adjusted_claim(sources_only):
+    from src.online_peer_valuation_ui import online_peer_valuation_html
+    html=online_peer_valuation_html(build(earnings_collection()),sources_only=sources_only)
+    assert '盈利变化背景' in html and '年度 EPS 同比 +25.0%' in html
+    assert '同一年度申报' in html and '0.8 USD/shares' in html and '1 USD/shares' in html
+    assert '2024-01-01' in html and '2024-12-31' in html and '2025-12-31' in html
+    assert '未按增长调整' in html and '不代表未来增长' in html
+    assert 'CIK0000001001.json' in html and '0000001001-26-000001' in html
+
+
+@pytest.mark.parametrize('prior,phrase',[(0,'基期 EPS 为零或负值'),(-1,'基期 EPS 为零或负值'),(None,'同一申报缺少相邻上年度 EPS')])
+def test_missing_or_nonpositive_growth_has_a_plain_reason_without_erasing_pe(prior,phrase):
+    from src.online_peer_valuation_ui import online_peer_valuation_html
+    v=build(collection() if prior is None else earnings_collection(prior))
+    html=online_peer_valuation_html(v)
+    assert '年度 P/E 高于同行参照 20.0%' in html
+    assert phrase in html and 'EPS 同比暂不计算' in html
+    assert '年度 EPS 同比 +25.0%' not in html
+
+
+def test_reported_earnings_decline_and_actual_extended_price_range_are_visible():
+    from src.online_peer_valuation_ui import online_peer_valuation_html
+    from test_peer_price_coverage import two_year_prices
+    html=online_peer_valuation_html(build(two_year_prices(earnings_collection(2))))
+    assert '年度 EPS 同比 -50.0%' in html
+    assert '价格与拆股观察请求 2y' in html and '2024-11-01 → 2026-10-30' in html
+    assert '请求范围不保证历史完整' in html
+
+
+def test_excluded_loss_observations_include_earnings_context_without_median_membership():
+    from src.online_peer_valuation_ui import online_peer_valuation_html
+    c=earnings_collection(); row=c['issuers'][1]
+    row['facts']['payload']['facts']['us-gaap']['EarningsPerShareDiluted']['units']['USD/shares'][0]['val']=-.2
+    from test_online_peer_valuation import digest
+    row['facts']['normalized_sha256']=digest(row['facts']['payload'])
+    html=online_peer_valuation_html(build(c),sources_only=True)
+    assert '年度 EPS 同比 -125.0%' in html and '不参与 P/E 或参照中位数' in html
+    assert 'data-label="公司">FA</td>' in html
+
+
+def test_compositor_reuses_new_context_across_source_and_valuation_without_a_second_fetch(monkeypatch):
+    calls,_=_setup(monkeypatch,earnings_collection())
+    at=AppTest.from_function(_app).run();at.radio[0].set_value('valuation').run();_peer_button(at).click().run(timeout=30)
+    assert '年度 EPS 同比 +25.0%' in _text(at) and not at.exception
+    before=list(calls);at.radio[0].set_value('sources').run()
+    assert '年度 EPS 同比 +25.0%' in _text(at) and calls==before and not at.exception

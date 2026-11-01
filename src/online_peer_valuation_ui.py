@@ -56,6 +56,15 @@ REASONS = {
     'peer_source_unavailable':'本次在线来源未完成，旧结论已撤下。',
     'commercial_identity_rights_unreviewed':'当前商业模式的来源权限尚未通过核对。',
     'invalid_commercial_mode_configuration':'运行模式配置无法核对，保留来源限制。',
+    'comparative_eps_missing':'同一申报缺少相邻上年度 EPS。',
+    'comparative_eps_base_nonpositive':'基期 EPS 为零或负值，百分比不适合解释本次变化。',
+    'comparative_eps_metadata_mismatch':'上年度 EPS 与选定申报的类型或发布日期不一致。',
+    'comparative_eps_period_invalid':'上年度 EPS 的实际期间不是已支持的完整年度。',
+    'comparative_eps_conflict':'同一申报中的上年度 EPS 或期间存在冲突。',
+    'comparative_eps_unit_conflict':'上年度 EPS 存在币种或单位冲突。',
+    'comparative_eps_value_invalid':'上年度 EPS 数值未通过核对。',
+    'comparative_eps_growth_outside_range':'EPS 变化超出本方法支持的范围。',
+    'comparative_eps_input_invalid':'尚未取得可核对的同一申报年度 EPS 背景。',
 }
 
 STYLE='''<style>
@@ -108,6 +117,30 @@ def _source_table(rows):
     return '<table aria-label="年度 P/E 与实际期间"><thead><tr>'+''.join('<th scope="col">'+k+'</th>' for k in ('公司','年度 P/E','年度稀释 EPS','实际财报期间','价格及日期','来源'))+'</tr></thead><tbody>'+body+'</tbody></table>'
 
 
+def _earnings_phrase(row):
+    context=row.get('earnings_context') if isinstance(row.get('earnings_context'),Mapping) else {}
+    growth=context.get('growth_fraction')
+    if (context.get('status')=='supported' and _number(growth) and abs(growth)<=1e6
+            and context.get('accession')==row.get('accession')):
+        return '年度 EPS 同比 '+f'{growth*100:+.1f}%'
+    return 'EPS 同比暂不计算：'+_reason(context.get('reason','comparative_eps_input_invalid'))
+
+
+def _earnings_table(rows):
+    body=''
+    for row in rows:
+        context=row.get('earnings_context') if isinstance(row.get('earnings_context'),Mapping) else {}
+        def period(label):
+            value=context.get(label+'_eps')
+            if not _number(value):return '未取得'
+            return _text(f'{value:,.6g}')+' USD/shares<br>'+_text(context.get(label+'_period_start'))+' → '+_text(context.get(label+'_period_end'))
+        cells=[('公司',_text(row.get('ticker'))),('年度 EPS 变化',_text(_earnings_phrase(row))),
+               ('上年度列示值',period('prior')),('本年度列示值',period('current')),
+               ('同一申报来源',_link(row.get('source_ref'),'SEC 收益')+' · '+_link(row.get('filing_ref'),'对应申报'))]
+        body+='<tr>'+''.join('<td data-label="'+escape(k,quote=True)+'">'+v+'</td>' for k,v in cells)+'</tr>'
+    return '<h4>盈利变化背景</h4><p>同一年度申报的稀释 EPS 列示值；历史变化不代表未来增长，同行倍数未按增长调整。</p><table aria-label="同一年度申报的 EPS 变化"><thead><tr>'+''.join('<th scope="col">'+k+'</th>' for k in ('公司','年度 EPS 变化','上年度列示值','本年度列示值','同一申报来源'))+'</tr></thead><tbody>'+body+'</tbody></table>'
+
+
 def _diagnostic_html(d):
     if not isinstance(d,Mapping):return '<p>未取得可独立核对的观察。</p>'
     html='<p>以下是独立来源观察，不参与 P/E 或参照中位数。'+_link(d.get('candidate_source_ref'),'候选组来源')+'</p>'
@@ -118,9 +151,11 @@ def _diagnostic_html(d):
     eps=d.get('annual_eps_observation')
     if isinstance(eps,Mapping) and _number(eps.get('eps')):
         html+='<p>申报稀释每股收益：'+_text(f'{eps["eps"]:,.6g}')+' USD/shares · '+_text(eps.get('period_start'))+' → '+_text(eps.get('period_end'))+' · 发布 '+_text(eps.get('filed'))+' · 观察 '+_text(eps.get('observed_at'))+' · '+_link(eps.get('source_ref'),'SEC 收益观察')+' · '+_link(eps.get('filing_ref'),'对应申报')+'</p>'
+        html+=_earnings_table([{**eps,'ticker':d.get('ticker',d.get('sec_cik'))}])
     price=d.get('price_observation')
     if isinstance(price,Mapping):
         html+='<p>单独价格观察（未用于估值）：'+_text(price.get('provider_symbol'))+' · '+_text(price.get('price'))+' USD · '+_text(price.get('date'))+' · 观察 '+_text(price.get('observed_at'))+' · '+_link(price.get('source_ref'),'价格源')+'</p>'
+        html+='<p>价格与拆股观察请求 '+_text(price.get('history_range'))+'；实际 '+_text(price.get('first_date'))+' → '+_text(price.get('last_date'))+'；请求范围不保证历史完整。</p>'
     else:html+='<p>价格来源尚未取得或未通过独立字段核对。</p>'
     for split in d.get('splits_observed',[]):
         html+='<p>观察到拆股：'+_text(split.get('date'))+' · '+_text(split.get('numerator'))+':'+_text(split.get('denominator'))+'；未推导调整后收益。</p>'
@@ -140,7 +175,7 @@ def _disclosure(v,rows):
         for filing in context.get('annual_versions',[]):
             html+='<li>'+_text(filing.get('form'))+' · '+_text(filing.get('accession'))+' · 期间末 '+_text(filing.get('period_end'))+' · 发布 '+_text(filing.get('filed'))+' · 接收 '+_text(filing.get('accepted_at'))+' · '+_link(filing.get('source_ref'),'具体申报')+'</li>'
         html+='</ul>'
-    if rows:html+=_source_table(rows)
+    if rows:html+=_source_table(rows)+_earnings_table(rows)
     excluded=v.get('excluded') if isinstance(v.get('excluded'),list) else []
     if excluded:
         html+='<h4>未纳入参照的公司与原因</h4><ul>'+''.join('<li><details><summary>'+_text(r.get('ticker'))+'：'+_text(_reason(r.get('reason')))+'</summary>'+_diagnostic_html(r.get('diagnostics'))+'</details></li>' for r in excluded if isinstance(r,Mapping))+'</ul>'
@@ -148,6 +183,7 @@ def _disclosure(v,rows):
     for row in rows:
         html+='<h4>'+_text(row.get('ticker'))+'</h4><p>us-gaap:EarningsPerShareDiluted · USD/shares · '+_text(row.get('form'))+' · accession '+_text(row.get('accession'))+' · 发布 '+_text(row.get('filed'))+'</p>'
         html+='<p>财报观察 '+_text(row.get('observed_at'))+'；价格观察 '+_text(row.get('price_observed_at'))+'；供应商身份观察 '+_text(row.get('vendor_observed_at'))+'。</p>'
+        html+='<p>价格与拆股观察请求 '+_text(row.get('price_history_range'))+'；实际 '+_text(row.get('price_history_first_date'))+' → '+_text(row.get('price_history_last_date'))+'；请求范围不保证历史完整。</p>'
         identity=row.get('vendor_filing') if isinstance(row.get('vendor_filing'),Mapping) else {}
         html+='<p>CIK '+_text(row.get('sec_cik'))+' · '+_link(identity.get('source_ref'),'供应商申报身份依据')+'。当前匹配不证明历史证券连续性或发行人所在地。</p>'
         for key,label in [('facts_sha256','SEC 原始响应 SHA-256'),('price_sha256','价格原始响应 SHA-256'),('vendor_normalized_sha256','供应商 normalized SHA-256')]:
@@ -181,6 +217,8 @@ def online_peer_valuation_html(view,*,sources_only=False):
            ('同行参照中位数',_multiple(v.get('peer_median')) if supported else '暂不显示'),
            ('通过筛选',str(len(peers))+' 家'),('价格日期',_text(subject.get('price_date')) if subject else '未取得')]
     html+='<dl class="peer-stats">'+''.join('<div><dt>'+label+'</dt><dd>'+value+'</dd></div>' for label,value in stats)+'</dl>'
+    if subject:
+        html+='<h4>盈利变化背景</h4><p><strong>'+_text(_earnings_phrase(subject))+'</strong> · 同一年度申报列示值。</p><p>历史变化不代表未来增长；同行倍数未按增长调整。展开下方可核对每家公司的本年、上年 EPS 与实际期间。</p>'
     if not supported:html+='<p>至少 3 家同口径参照公司通过核对后才显示溢价或折价；当前 '+str(len(peers))+' 家。</p>'
     html+='<details><summary>查看同行、实际期间、来源与缺失原因</summary>'+_disclosure(v,rows)+'</details>'
     html+='<details><summary>其他估值口径为什么尚未显示</summary><p>TTM / 预测 P/E、P/S、P/FCF、EV/EBITDA 还需要分别核对期间、股数、企业价值与成分定义；本次不会从股票存在或其他倍数推断。</p></details></section>'

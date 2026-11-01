@@ -280,7 +280,7 @@ def _subject_source_context(row,classification,ticker,expected_cik,as_of):
 
 def _exclusion_diagnostics(row,classification,ticker,industry_source_ref,as_of,observation=None):
     """Independent reported fields remain inspectable, never comparison inputs."""
-    context=dict(candidate_source_ref=industry_source_ref)
+    context=dict(ticker=ticker,candidate_source_ref=industry_source_ref)
     try:
         cik,_=_selected(classification,ticker,None)
     except (ValueError,TypeError,KeyError,AttributeError):
