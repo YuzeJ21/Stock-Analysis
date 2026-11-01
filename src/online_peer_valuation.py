@@ -49,6 +49,11 @@ def _positive(value):
         return False
 
 
+def _finite(value):
+    try:return type(value) in {int,float} and abs(value)<=1e20 and math.isfinite(value)
+    except (OverflowError,ValueError):return False
+
+
 def _symbol(value):
     return isinstance(value, str) and _SYMBOL.fullmatch(value) is not None
 
@@ -159,7 +164,7 @@ def _annual_eps(facts, filings, price_date):
         if not 350<=(end-start).days<=380:
             continue
         _need(row.get('form')==filing['form'] and row.get('filed')==latest_filed, 'annual_eps_filing_mismatch')
-        _need(_positive(row.get('val')), 'annual_eps_nonpositive_or_invalid')
+        _need(_finite(row.get('val')), 'annual_eps_nonpositive_or_invalid')
         candidates.append((row['start'],row['end'],float(row['val'])))
     _need(bool(candidates), 'latest_annual_eps_missing_including_amendment')
     _need(len(set(candidates))==1, 'annual_eps_conflict')
@@ -219,6 +224,7 @@ def _issuer(row, classification, industry_key, as_of):
     price=info.get('regularMarketPrice')
     _need(_positive(price) and math.isclose(price,prices['bars'][-1]['close'],rel_tol=1e-7,abs_tol=1e-6), 'quote_and_daily_close_differ')
     eps=_annual_eps(facts,filings,price_date)
+    _need(eps['eps']>0, 'annual_eps_nonpositive_or_invalid')
     _need(_iso_date(prices['bars'][0]['date'])<=_iso_date(eps['period_end']), 'split_history_does_not_cover_period_end')
     splits=prices.get('splits')
     _need(isinstance(splits,list) and len(splits)<=64, 'split_evidence_invalid')
@@ -269,6 +275,44 @@ def _subject_source_context(row,classification,ticker,expected_cik,as_of):
         return {}
 
 
+def _exclusion_diagnostics(row,classification,ticker,industry_source_ref,as_of,observation=None):
+    """Independent reported fields remain inspectable, never comparison inputs."""
+    context=dict(candidate_source_ref=industry_source_ref)
+    try:
+        cik,_=_selected(classification,ticker,None)
+    except (ValueError,TypeError,KeyError,AttributeError):
+        return context
+    context.update(sec_cik=cik,profile_source_ref=f'https://data.sec.gov/submissions/CIK{cik}.json',
+                   facts_query_ref=f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json')
+    if not isinstance(row,Mapping):return context
+    context.update(_subject_source_context(row,classification,ticker,cik,as_of))
+    try:
+        profile=_receipt(row.get('profile'),context['profile_source_ref'],as_of)
+        facts=_receipt(row.get('facts'),context['facts_query_ref'],as_of)
+        _need(_cik(profile.get('cik'))==cik and _cik(facts.get('cik'))==cik,'issuer_identity_mismatch')
+        eps=_annual_eps(facts,_filings(profile,as_of),as_of.date())
+        context['annual_eps_observation']={**eps,'unit':'USD/shares','concept':'EarningsPerShareDiluted',
+            'source_ref':context['facts_query_ref'],'observed_at':row['facts']['observed_at'],
+            'filing_ref':f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{eps["accession"].replace("-", "")}/{eps["primary_document"]}'}
+    except (ValueError,TypeError,KeyError,AttributeError,OverflowError):pass
+    context['price_source_status']='unavailable'
+    try:
+        prices=validated_online_price_history(row.get('prices'),ticker=ticker)
+        _need(prices is not None and prices.get('source_url')==price_source_url(ticker.replace('.','-')),'price_source_unverified')
+        _observed(prices.get('observed_at'),as_of)
+        _need(isinstance(prices.get('payload_sha256'),str) and re.fullmatch(r'[0-9a-f]{64}',prices['payload_sha256']),'price_source_digest_missing')
+        context['price_source_status']='observed_not_used_for_valuation'
+        context['price_observation']=dict(price=prices['bars'][-1]['close'],date=prices['last_price_date'],
+            provider_symbol=prices['provider_symbol'],source_ref=prices['source_url'],observed_at=prices['observed_at'])
+        splits=prices.get('splits')
+        if (isinstance(splits,list) and len(splits)<=64 and all(isinstance(s,Mapping) and _iso_date(s.get('date')) is not None
+                and _iso_date(s['date'])<=as_of.date() and _positive(s.get('numerator')) and _positive(s.get('denominator')) for s in splits)):
+            context['splits_observed']=[dict(s) for s in splits]
+    except (ValueError,TypeError,KeyError,AttributeError,OverflowError):pass
+    if observation is not None:context['independent_observation_not_in_benchmark']=observation
+    return context
+
+
 def build_online_peer_valuation(collection, *, ticker, expected_cik=None, as_of=None):
     """Revalidate every observation; never trust a precomputed verdict or readiness flag."""
     result=_empty(ticker,_mode_reason('research') or 'online_peer_evidence_unavailable')
@@ -305,6 +349,7 @@ def build_online_peer_valuation(collection, *, ticker, expected_cik=None, as_of=
         result['subject']=subject
         seen={subject['sec_cik']}
         for symbol in candidates:
+            peer=None
             try:
                 _need(symbol in rows, 'peer_not_collected')
                 if rows[symbol].get('status')=='unavailable':
@@ -317,7 +362,8 @@ def build_online_peer_valuation(collection, *, ticker, expected_cik=None, as_of=
                       'peer_fiscal_window_differs')
                 result['peers'].append(peer);seen.add(peer['sec_cik'])
             except (ValueError,TypeError,KeyError,AttributeError,OverflowError) as error:
-                result['excluded'].append(dict(ticker=symbol,reason=str(error) if isinstance(error,_Hold) else 'invalid_peer_source_evidence'))
+                result['excluded'].append(dict(ticker=symbol,reason=str(error) if isinstance(error,_Hold) else 'invalid_peer_source_evidence',
+                    diagnostics=_exclusion_diagnostics(rows.get(symbol),classification,symbol,result['industry_source_ref'],now,peer)))
         result['peer_count']=len(result['peers'])
         _need(result['peer_count']>=MIN_PEERS, 'at_least_three_compatible_industry_references_required')
         middle=float(median(p['multiple'] for p in result['peers']))

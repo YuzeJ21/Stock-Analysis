@@ -55,6 +55,9 @@ def test_source_failure_during_peer_collection_is_counted_and_not_fabricated():
     v=get(state,refresh=True,dependencies=d)
     assert v['peer_count']==2 and v['peer_median'] is None
     assert v['excluded'][0]['ticker']=='FA' and 'private source detail' not in str(v)
+    diagnostic=v['excluded'][0]['diagnostics']
+    assert diagnostic['annual_eps_observation']['eps']==1.0
+    assert diagnostic['price_source_status']=='unavailable'
 
 
 @pytest.mark.parametrize('change',['ticker','expected_cik','time','payload','seal'])

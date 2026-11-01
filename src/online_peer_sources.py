@@ -112,13 +112,18 @@ def _ordinary_identity(classification,ticker,expected_cik=None):
     return cik
 
 
+def _attempt_source(function,*args,**kwargs):
+    try:return function(*args,**kwargs)
+    except Exception:return dict(status='unavailable',reason='source_component_unavailable')
+
+
 def _collect_issuer(ticker,cik,deps,user_agent,as_of,vendor=None):
     vendor=vendor if vendor is not None else deps['vendor'](ticker,observed_at=as_of)
     if not isinstance(vendor,Mapping) or vendor.get('status')!='observed':
         return dict(ticker=ticker,status='unavailable',reason='vendor_context_source_unavailable')
-    profile=_reduce_sec(deps['sec'](f'https://data.sec.gov/submissions/CIK{cik}.json',user_agent=user_agent,observed_at=as_of),'profile')
-    facts=_reduce_sec(deps['sec'](f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',user_agent=user_agent,observed_at=as_of),'facts')
-    prices=deps['prices'](ticker,observed_at=as_of)
+    profile=_reduce_sec(_attempt_source(deps['sec'],f'https://data.sec.gov/submissions/CIK{cik}.json',user_agent=user_agent,observed_at=as_of),'profile')
+    facts=_reduce_sec(_attempt_source(deps['sec'],f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',user_agent=user_agent,observed_at=as_of),'facts')
+    prices=_attempt_source(deps['prices'],ticker,observed_at=as_of)
     result=dict(ticker=ticker,vendor=vendor,profile=profile,facts=facts,prices=prices)
     if any(not isinstance(r,Mapping) or r.get('status') not in {'ready','inspection_only'} for r in (profile,facts,prices)):
         result.update(status='unavailable',reason='issuer_source_unavailable')

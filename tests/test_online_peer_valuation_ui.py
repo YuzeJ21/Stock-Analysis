@@ -68,6 +68,15 @@ def test_missing_amended_eps_keeps_the_exact_filing_metadata_trace_visible():
     assert '申报元数据' in html and '收益字段' in html
 
 
+def test_excluded_loss_source_and_value_are_visible_but_not_a_valuation_input():
+    from src.online_peer_valuation_ui import online_peer_valuation_html
+    c=collection();c['issuers'][1]['facts']['payload']['facts']['us-gaap']['EarningsPerShareDiluted']['units']['USD/shares'][0]['val']=-1
+    html=online_peer_valuation_html(build(c),sources_only=True)
+    assert '不参与 P/E 或参照中位数' in html
+    assert 'CIK0000001002.json' in html and '-1 USD/shares' in html
+    assert '2025-01-01' in html and '2026-02-01' in html and '0000001002-26-000001' in html
+
+
 def _app():
     import streamlit as st
     from src.company_workbench_ui import render_integrated_company

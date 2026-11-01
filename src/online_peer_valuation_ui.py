@@ -108,6 +108,27 @@ def _source_table(rows):
     return '<table aria-label="年度 P/E 与实际期间"><thead><tr>'+''.join('<th scope="col">'+k+'</th>' for k in ('公司','年度 P/E','年度稀释 EPS','实际财报期间','价格及日期','来源'))+'</tr></thead><tbody>'+body+'</tbody></table>'
 
 
+def _diagnostic_html(d):
+    if not isinstance(d,Mapping):return '<p>未取得可独立核对的观察。</p>'
+    html='<p>以下是独立来源观察，不参与 P/E 或参照中位数。'+_link(d.get('candidate_source_ref'),'候选组来源')+'</p>'
+    if d.get('sec_cik'):
+        html+='<p>SEC 上市关联 CIK '+_text(d['sec_cik'])+' · '+_link(d.get('profile_source_ref'),'申报元数据查询地址')+' · '+_link(d.get('facts_query_ref'),'收益字段查询地址')+'。查询地址不代表字段已取得。</p>'
+    for filing in d.get('annual_versions',[]):
+        html+='<p>'+_text(filing.get('form'))+' · '+_text(filing.get('accession'))+' · 期间末 '+_text(filing.get('period_end'))+' · 发布 '+_text(filing.get('filed'))+' · '+_link(filing.get('source_ref'),'具体申报')+'</p>'
+    eps=d.get('annual_eps_observation')
+    if isinstance(eps,Mapping) and _number(eps.get('eps')):
+        html+='<p>申报稀释每股收益：'+_text(f'{eps["eps"]:,.6g}')+' USD/shares · '+_text(eps.get('period_start'))+' → '+_text(eps.get('period_end'))+' · 发布 '+_text(eps.get('filed'))+' · 观察 '+_text(eps.get('observed_at'))+' · '+_link(eps.get('source_ref'),'SEC 收益观察')+' · '+_link(eps.get('filing_ref'),'对应申报')+'</p>'
+    price=d.get('price_observation')
+    if isinstance(price,Mapping):
+        html+='<p>单独价格观察（未用于估值）：'+_text(price.get('provider_symbol'))+' · '+_text(price.get('price'))+' USD · '+_text(price.get('date'))+' · 观察 '+_text(price.get('observed_at'))+' · '+_link(price.get('source_ref'),'价格源')+'</p>'
+    else:html+='<p>价格来源尚未取得或未通过独立字段核对。</p>'
+    for split in d.get('splits_observed',[]):
+        html+='<p>观察到拆股：'+_text(split.get('date'))+' · '+_text(split.get('numerator'))+':'+_text(split.get('denominator'))+'；未推导调整后收益。</p>'
+    observation=d.get('independent_observation_not_in_benchmark')
+    if isinstance(observation,Mapping):html+='<p>本公司独立计算，但不纳入参照中位数：</p>'+_source_table([observation])
+    return html
+
+
 def _disclosure(v,rows):
     html='<p>自动筛选的行业参照组：同供应商行业、同 SEC 行业代码、普通股、独立发行人、同一价格日期。每家实际财年起止日期与本公司相差不超过 '+str(FISCAL_WINDOW_DAYS)+' 天；这不是完全相同的期间，也不是分析师审核的经济可比组。</p>'
     html+='<p>候选列表共 '+_text(v.get('industry_candidate_total'))+' 个记录，本次最多核查 12 家其他公司，按供应商列表顺序保留；不是完整行业覆盖。</p>'
@@ -122,7 +143,7 @@ def _disclosure(v,rows):
     if rows:html+=_source_table(rows)
     excluded=v.get('excluded') if isinstance(v.get('excluded'),list) else []
     if excluded:
-        html+='<h4>未纳入参照的公司与原因</h4><ul>'+''.join('<li><strong>'+_text(r.get('ticker'))+'</strong>：'+_text(_reason(r.get('reason')))+'</li>' for r in excluded if isinstance(r,Mapping))+'</ul>'
+        html+='<h4>未纳入参照的公司与原因</h4><ul>'+''.join('<li><details><summary>'+_text(r.get('ticker'))+'：'+_text(_reason(r.get('reason')))+'</summary>'+_diagnostic_html(r.get('diagnostics'))+'</details></li>' for r in excluded if isinstance(r,Mapping))+'</ul>'
     html+='<details><summary>字段定义、观察日期与来源摘要</summary>'
     for row in rows:
         html+='<h4>'+_text(row.get('ticker'))+'</h4><p>us-gaap:EarningsPerShareDiluted · USD/shares · '+_text(row.get('form'))+' · accession '+_text(row.get('accession'))+' · 发布 '+_text(row.get('filed'))+'</p>'

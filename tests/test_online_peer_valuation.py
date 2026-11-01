@@ -247,3 +247,38 @@ def test_identity_disclosure_selects_most_recent_matched_filing_not_last_list_it
         exhibits={'10-K':'https://cdn.yahoofinance.com/prod/sec-filings/0000001001/000000100122000001/old.htm'}))
     rehash_vendor(r)
     assert build(c)['subject']['vendor_filing']['filed']=='2026-02-01'
+
+
+@pytest.mark.parametrize('case',['loss','amendment','fiscal_window','split'])
+def test_excluded_peer_retains_independent_source_diagnostics_without_joining_the_median(case):
+    c=collection();r=c['issuers'][1];recent=r['profile']['payload']['filings']['recent']
+    eps=r['facts']['payload']['facts']['us-gaap']['EarningsPerShareDiluted']['units']['USD/shares'][0]
+    if case=='loss':eps['val']=-1
+    elif case=='amendment':
+        for k,v in dict(form='10-K/A',reportDate='2025-12-31',filingDate='2026-03-01',accessionNumber='0000001002-26-000099',primaryDocument='amend.htm').items():recent[k].append(v)
+    elif case=='fiscal_window':
+        eps.update(start='2025-03-01',end='2026-02-28',filed='2026-04-01')
+        recent.update(reportDate=['2026-02-28'],filingDate=['2026-04-01'])
+        r['vendor']['payload']['filings'][0]['date']='2026-04-01';rehash_vendor(r)
+    else:r['prices']['splits']=[dict(date='2026-05-01',numerator=2,denominator=1)]
+    v=build(c);excluded=v['excluded'][0];d=excluded['diagnostics']
+    assert v['peer_count']==2 and v['peer_median'] is None and excluded['ticker']=='FA'
+    assert d['sec_cik']=='0000001002' and d['facts_query_ref'].endswith('/CIK0000001002.json')
+    assert d['candidate_source_ref']=='https://finance.yahoo.com/sectors/technology/semiconductors/'
+    if case=='amendment':
+        assert any(a['accession']=='0000001002-26-000099' for a in d['annual_versions'])
+        assert 'annual_eps_observation' not in d
+    else:
+        observation=d['annual_eps_observation']
+        assert observation['eps']==(-1 if case=='loss' else 1)
+        assert observation['unit']=='USD/shares' and observation['filed']
+        assert observation['source_ref'].endswith('/CIK0000001002.json')
+    if case=='split':assert d['splits_observed']==[dict(date='2026-05-01',numerator=2,denominator=1)]
+
+
+def test_unresolved_peer_identity_keeps_discovery_source_without_a_fabricated_cik():
+    c=collection();c['industry']['payload']['symbols']=['UNKNOWN','FA','FB','FC']
+    c['industry']['normalized_sha256']=digest(c['industry']['payload'])
+    v=build(c);d=next(r['diagnostics'] for r in v['excluded'] if r['ticker']=='UNKNOWN')
+    assert d['candidate_source_ref'].startswith('https://finance.yahoo.com/sectors/')
+    assert 'sec_cik' not in d and 'annual_eps_observation' not in d
