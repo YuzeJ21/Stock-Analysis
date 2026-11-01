@@ -152,6 +152,8 @@ def _diagnostic_html(d):
     if isinstance(eps,Mapping) and _number(eps.get('eps')):
         html+='<p>申报稀释每股收益：'+_text(f'{eps["eps"]:,.6g}')+' USD/shares · '+_text(eps.get('period_start'))+' → '+_text(eps.get('period_end'))+' · 发布 '+_text(eps.get('filed'))+' · 观察 '+_text(eps.get('observed_at'))+' · '+_link(eps.get('source_ref'),'SEC 收益观察')+' · '+_link(eps.get('filing_ref'),'对应申报')+'</p>'
         html+=_earnings_table([{**eps,'ticker':d.get('ticker',d.get('sec_cik'))}])
+        digest=eps.get('facts_sha256')
+        html+='<p>SEC 原始响应 SHA-256：<code>'+(_text(digest) if isinstance(digest,str) and re.fullmatch(r'[0-9a-f]{64}',digest) else '未取得')+'</code></p>'
     price=d.get('price_observation')
     if isinstance(price,Mapping):
         html+='<p>单独价格观察（未用于估值）：'+_text(price.get('provider_symbol'))+' · '+_text(price.get('price'))+' USD · '+_text(price.get('date'))+' · 观察 '+_text(price.get('observed_at'))+' · '+_link(price.get('source_ref'),'价格源')+'</p>'

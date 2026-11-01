@@ -113,3 +113,23 @@ def test_context_is_recomputed_from_bound_facts_and_retained_for_excluded_loss_d
     assert result['peer_count'] == 2
     diagnostic = result['excluded'][0]['diagnostics']['annual_eps_observation']
     assert diagnostic['earnings_context']['growth_fraction'] == -1.25
+
+
+@pytest.mark.parametrize('unit', ['USD/shares','EUR/shares'])
+def test_same_filing_quarterly_rows_do_not_suppress_the_valid_annual_comparative(unit):
+    facts, current, prior = evidence()
+    units = facts['facts']['us-gaap']['EarningsPerShareDiluted']['units']
+    units.setdefault(unit, []).append({**prior, 'start': '2024-10-01', 'val': .2})
+    result = context(facts, current)
+    assert result['status'] == 'supported' and result['growth_fraction'] == .25
+    assert result['prior_period_start'] == '2024-01-01'
+
+
+def test_excluded_earnings_context_retains_the_bound_facts_receipt_digest():
+    c=collection();row=c['issuers'][1]
+    row['facts']['payload']['facts']['us-gaap']['EarningsPerShareDiluted']['units']['USD/shares'][0]['val']=-1
+    diagnostic=build(c)['excluded'][0]['diagnostics']
+    assert diagnostic['annual_eps_observation']['facts_sha256']==row['facts']['payload_sha256']
+    from src.online_peer_valuation_ui import _diagnostic_html
+    html=_diagnostic_html(diagnostic)
+    assert 'SEC 原始响应 SHA-256' in html and row['facts']['payload_sha256'] in html

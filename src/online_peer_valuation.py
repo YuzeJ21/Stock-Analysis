@@ -296,6 +296,7 @@ def _exclusion_diagnostics(row,classification,ticker,industry_source_ref,as_of,o
         eps=_annual_eps(facts,_filings(profile,as_of),as_of.date())
         context['annual_eps_observation']={**eps,'earnings_context':annual_eps_context(facts,eps),
             'unit':'USD/shares','concept':'EarningsPerShareDiluted',
+            'facts_sha256':row['facts']['payload_sha256'],
             'source_ref':context['facts_query_ref'],'observed_at':row['facts']['observed_at'],
             'filing_ref':f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{eps["accession"].replace("-", "")}/{eps["primary_document"]}'}
     except (ValueError,TypeError,KeyError,AttributeError,OverflowError):pass
