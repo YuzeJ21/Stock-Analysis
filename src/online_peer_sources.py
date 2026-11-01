@@ -123,7 +123,7 @@ def _collect_issuer(ticker,cik,deps,user_agent,as_of,vendor=None):
         return dict(ticker=ticker,status='unavailable',reason='vendor_context_source_unavailable')
     profile=_reduce_sec(_attempt_source(deps['sec'],f'https://data.sec.gov/submissions/CIK{cik}.json',user_agent=user_agent,observed_at=as_of),'profile')
     facts=_reduce_sec(_attempt_source(deps['sec'],f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',user_agent=user_agent,observed_at=as_of),'facts')
-    prices=_attempt_source(deps['prices'],ticker,observed_at=as_of)
+    prices=_attempt_source(deps['prices'],ticker,observed_at=as_of,history_range='2y')
     result=dict(ticker=ticker,vendor=vendor,profile=profile,facts=facts,prices=prices)
     if any(not isinstance(r,Mapping) or r.get('status') not in {'ready','inspection_only'} for r in (profile,facts,prices)):
         result.update(status='unavailable',reason='issuer_source_unavailable')

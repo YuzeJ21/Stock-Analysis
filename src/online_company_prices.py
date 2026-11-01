@@ -21,10 +21,13 @@ from src.sec_association_receipt import _json_object
 
 MAX_PRICE_BYTES = 2 * 1024 * 1024
 SESSION_KEY = "online_company_price_inspection_v1"
+PRICE_HISTORY_LIMITS = {'1y': 400, '2y': 800}
 
 
-def price_source_url(symbol: str) -> str:
-    return f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol, safe='')}?range=1y&interval=1d&events=div%2Csplits&includeAdjustedClose=true"
+def price_source_url(symbol: str, history_range: str = '1y') -> str:
+    if not isinstance(history_range, str) or history_range not in PRICE_HISTORY_LIMITS:
+        raise ValueError('unsupported_price_history_range')
+    return f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol, safe='')}?range={history_range}&interval=1d&events=div%2Csplits&includeAdjustedClose=true"
 
 
 def _metadata_text(value):
@@ -60,17 +63,20 @@ def _number(value: Any, *, positive: bool = True) -> bool:
 def fetch_online_company_prices(
     ticker: str, *, observed_at: datetime | None = None,
     fetcher: Callable[[str], tuple[bytes, str]] | None = None, workspace_mode: str = "research",
+    history_range: str = '1y',
 ) -> dict[str, Any]:
     ticker = ticker.strip().upper() if isinstance(ticker, str) else ""
     reason = _scope(workspace_mode)
     if reason:
         return _held(ticker, reason)
+    if not isinstance(history_range, str) or history_range not in PRICE_HISTORY_LIMITS:
+        return _held(ticker, 'unsupported_price_history_range')
     if re.fullmatch(r"[A-Z0-9][A-Z0-9.-]{0,19}", ticker) is None:
         return _held(ticker[:24], "invalid_ticker")
     if observed_at is not None and (not isinstance(observed_at, datetime) or observed_at.utcoffset() is None):
         return _held(ticker, "invalid_observation")
     symbol = ticker.replace(".", "-")
-    url = price_source_url(symbol)
+    url = price_source_url(symbol, history_range)
     try:
         raw, response_url = (fetcher or _raw_fetch)(url)
     except (OSError, RuntimeError, TimeoutError, ValueError, TypeError):
@@ -93,7 +99,7 @@ def fetch_online_company_prices(
         market_today = observed.astimezone(market_zone).date()
         timestamps = result["timestamp"]
         quotes = result["indicators"]["quote"]
-        if not isinstance(timestamps, list) or not 1 <= len(timestamps) <= 400 or not isinstance(quotes, list) or len(quotes) != 1:
+        if not isinstance(timestamps, list) or not 1 <= len(timestamps) <= PRICE_HISTORY_LIMITS[history_range] or not isinstance(quotes, list) or len(quotes) != 1:
             return _held(ticker, "invalid_price_schema")
         q = quotes[0]
         if any(not isinstance(q.get(k), list) or len(q[k]) != len(timestamps) for k in ("open", "high", "low", "close", "volume")):
@@ -145,7 +151,7 @@ def fetch_online_company_prices(
         "full_exchange_name": _metadata_text(meta.get("fullExchangeName")), "provider_name": _metadata_text(meta.get("longName")),
         "observed_at": observed.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "payload_sha256": hashlib.sha256(raw).hexdigest(), "exchange_timezone": meta["exchangeTimezoneName"],
-        "bars": bars, "splits": splits, "last_price_date": bars[-1]["date"],
+        "bars": bars, "splits": splits, "last_price_date": bars[-1]["date"], "history_range": history_range,
         "observation_state": "recent_dated_observation" if age <= 7 else "stale_observation",
         "missing_bar_count": missing, "excluded_incomplete_day_count": excluded,
         "adjustment_basis": "provider_close_adjustment_basis_unverified", "issuer_identity_status": "not_reconciled_to_sec",

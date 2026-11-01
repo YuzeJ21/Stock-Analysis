@@ -14,7 +14,6 @@ from zoneinfo import ZoneInfo
 
 from src.company_sec_online_preview import _iso_date, _utc_timestamp
 from src.online_company_identity import _mode_reason, _VENUES
-from src.online_company_prices import price_source_url
 from src.online_peer_earnings import annual_eps_context
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
@@ -209,7 +208,7 @@ def _issuer(row, classification, industry_key, as_of):
     _need(venue is not None and profile['exchanges']==[venue[0]] and all(r['venue']==venue[0] for r in explicit), 'quote_exchange_mismatch')
     identity=_vendor_filing_match(vendor.get('filings'),filings,ticker,cik)
     prices=validated_online_price_history(row.get('prices'),ticker=ticker)
-    _need(prices is not None and prices.get('source_url')==price_source_url(ticker.replace('.','-')), 'completed_price_source_unverified')
+    _need(prices is not None, 'completed_price_source_unverified')
     price_observed=_observed(prices.get('observed_at'),as_of)
     _need(isinstance(prices.get('payload_sha256'),str) and re.fullmatch(r'[0-9a-f]{64}',prices['payload_sha256']), 'price_source_digest_missing')
     _need(prices.get('exchange_code')==info['exchange'], 'price_exchange_mismatch')
@@ -245,6 +244,8 @@ def _issuer(row, classification, industry_key, as_of):
                 vendor_filing=identity,filing_ref=filing_ref,source_ref=row['facts']['source_url'],
                 observed_at=row['facts']['observed_at'],price_observed_at=prices['observed_at'],
                 vendor_observed_at=row['vendor']['observed_at'],price_source_ref=prices['source_url'],
+                price_history_range=prices.get('history_range','1y'),
+                price_history_first_date=prices['bars'][0]['date'],price_history_last_date=prices['bars'][-1]['date'],
                 facts_sha256=row['facts']['payload_sha256'],price_sha256=prices.get('payload_sha256'),
                 vendor_normalized_sha256=row['vendor']['normalized_sha256'],rights_status=RIGHTS)
 
@@ -301,12 +302,13 @@ def _exclusion_diagnostics(row,classification,ticker,industry_source_ref,as_of,o
     context['price_source_status']='unavailable'
     try:
         prices=validated_online_price_history(row.get('prices'),ticker=ticker)
-        _need(prices is not None and prices.get('source_url')==price_source_url(ticker.replace('.','-')),'price_source_unverified')
+        _need(prices is not None,'price_source_unverified')
         _observed(prices.get('observed_at'),as_of)
         _need(isinstance(prices.get('payload_sha256'),str) and re.fullmatch(r'[0-9a-f]{64}',prices['payload_sha256']),'price_source_digest_missing')
         context['price_source_status']='observed_not_used_for_valuation'
         context['price_observation']=dict(price=prices['bars'][-1]['close'],date=prices['last_price_date'],
-            provider_symbol=prices['provider_symbol'],source_ref=prices['source_url'],observed_at=prices['observed_at'])
+            provider_symbol=prices['provider_symbol'],source_ref=prices['source_url'],observed_at=prices['observed_at'],
+            history_range=prices.get('history_range','1y'),first_date=prices['bars'][0]['date'],last_date=prices['bars'][-1]['date'])
         splits=prices.get('splits')
         if (isinstance(splits,list) and len(splits)<=64 and all(isinstance(s,Mapping) and _iso_date(s.get('date')) is not None
                 and _iso_date(s['date'])<=as_of.date() and _positive(s.get('numerator')) and _positive(s.get('denominator')) for s in splits)):

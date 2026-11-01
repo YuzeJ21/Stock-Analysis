@@ -2,7 +2,6 @@
 
 import re
 from html import escape
-from urllib.parse import quote
 
 from src.company_sec_online_preview import _iso_date, _finite_direct_number, _utc_timestamp
 from src.online_history_contract import validated_annual_history
@@ -99,18 +98,22 @@ def annual_history_html(view, *, compact=False):
 def validated_online_price_history(result, *, ticker=None):
     """Reuse the price display contract without interpreting it as valuation identity."""
     from collections.abc import Mapping
+    from src.online_company_prices import PRICE_HISTORY_LIMITS, price_source_url
     if not isinstance(result, Mapping) or result.get("status") != "inspection_only":
         return None
     if ticker is not None and result.get("ticker") != ticker:
         return None
     ticker, symbol, bars = result.get("ticker"), result.get("provider_symbol"), result.get("bars")
+    period = result.get('history_range', '1y')
+    if not isinstance(period, str) or period not in PRICE_HISTORY_LIMITS:
+        return None
     if (
         not isinstance(ticker, str) or re.fullmatch(r"[A-Z0-9][A-Z0-9.-]{0,19}", ticker) is None
-        or symbol != ticker.replace('.', '-') or not isinstance(bars, list) or not 1 <= len(bars) <= 400
+        or symbol != ticker.replace('.', '-') or not isinstance(bars, list) or not 1 <= len(bars) <= PRICE_HISTORY_LIMITS[period]
         or result.get("currency") != "USD" or result.get("source_id") != "yahoo_chart"
         or result.get("rights_status") != "exact_source_unregistered_personal_inspection_only"
         or result.get("commercial_eligible") is not False or _utc_timestamp(result.get("observed_at")) is None
-        or not str(result.get("source_url", "")).startswith(f'https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol, safe="")}?')
+        or result.get('source_url') != price_source_url(symbol, period)
         or any(not isinstance(r, dict) or _iso_date(r.get("date")) is None or not _finite_direct_number(r.get("close")) or r["close"] <= 0 for r in bars)
     ):
         return None
