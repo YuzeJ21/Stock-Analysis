@@ -21,7 +21,7 @@ from src.annual_amendment_evidence import fetch_amendment_evidence, amendment_ca
 
 SESSION_KEY = 'online_peer_valuation_observation_v1'
 _INFO_FIELDS = ('symbol','quoteType','currency','financialCurrency','exchange','exchangeTimezoneName',
-                'industryKey','sectorKey','regularMarketTime','regularMarketPrice')
+                'industryKey','industry','sectorKey','regularMarketTime','regularMarketPrice')
 
 
 def _now(value=None):
@@ -97,7 +97,7 @@ def _reduce_sec(receipt, kind):
         body=dict(cik=body.get('cik'),facts={'us-gaap': {'EarningsPerShareDiluted':eps} if isinstance(eps,Mapping) else {}})
     else:
         recent=body.get('filings',{}).get('recent',{})
-        body={k:body.get(k) for k in ('cik','entityType','sic','tickers','exchanges')}
+        body={k:body.get(k) for k in ('cik','entityType','sic','sicDescription','tickers','exchanges')}
         body['filings']={'recent':{k:recent.get(k) for k in ('form','reportDate','filingDate','accessionNumber','primaryDocument')}}
         if 'acceptanceDateTime' in recent:
             body['filings']['recent']['acceptanceDateTime']=recent['acceptanceDateTime']

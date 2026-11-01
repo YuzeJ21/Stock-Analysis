@@ -293,8 +293,22 @@ def _subject_source_context(row,classification,ticker,expected_cik,as_of):
             versions.append(dict(form=filing['form'],period_end=filing['reportDate'],filed=filing['filingDate'],
                                  accepted_at=filing.get('acceptanceDateTime'),accession=accession,
                                  source_ref=f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-", "")}/{filing["primaryDocument"]}'))
-        return dict(sec_cik=cik,profile_source_ref=url,profile_observed_at=row['profile']['observed_at'],
+        context=dict(sec_cik=cik,profile_source_ref=url,profile_observed_at=row['profile']['observed_at'],
+                    profile_sha256=row['profile']['payload_sha256'],
                     facts_query_ref=f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',annual_versions=versions)
+        try:
+            vendor=_normalized(row.get('vendor'),f'https://finance.yahoo.com/quote/{ticker.replace(".","-")}/',as_of)
+            info=vendor.get('info',{});sic=str(profile.get('sic'))
+            _need(info.get('symbol')==ticker.replace('.','-') and ticker in profile.get('tickers',[])
+                  and re.fullmatch(r'\d{4}',sic) and sic not in {'0000','6770'}
+                  and isinstance(info.get('industryKey'),str) and _KEY.fullmatch(info['industryKey']),'industry_attribution_unverified')
+            _vendor_filing_match(vendor.get('filings'),_filings(profile,as_of),ticker,cik)
+            context['industry_observation']=dict(industry_key=info['industryKey'],sic=sic,
+                industry_label=info.get('industry') if isinstance(info.get('industry'),str) and len(info['industry'])<=160 else info['industryKey'],
+                source_refs=[dict(source_url=url,observed_at=row['profile']['observed_at'],payload_sha256=row['profile']['payload_sha256']),
+                    dict(source_url=row['vendor']['source_ref'],observed_at=row['vendor']['observed_at'],normalized_sha256=row['vendor']['normalized_sha256'])])
+        except (ValueError,TypeError,KeyError,AttributeError,OverflowError):pass
+        return context
     except (ValueError,TypeError,KeyError,AttributeError,OverflowError):
         return {}
 
