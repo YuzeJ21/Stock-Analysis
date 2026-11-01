@@ -1,5 +1,7 @@
 # Dashboard QA Notes
 
+Current Company Workbench uses **概览、财务趋势、估值与同行、研究记录、数据来源**. Only one selected body renders. Sources holds independent selected-company/profile/SPY/QQQ observation evidence; notes holds exact-preview authoring and the unchanged offline HTML brief. The dated observations below retain their historical scope and are not proof of the current layout. Current acceptance requires fresh automated results for the tested commit.
+
 This file records lightweight browser QA evidence for public-facing dashboard polish.
 
 ## 2026-08-11 Calm Institutional Workspace acceptance contract

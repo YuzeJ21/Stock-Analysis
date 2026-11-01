@@ -90,6 +90,7 @@ STYLE='''<style>
 def workbench_header_html(ticker, projection, saved_scope, title=None):
     p=projection
     scope='已保存研究；在线查询结果独立展示' if saved_scope else '在线公司候选；与已保存研究的身份仍需核对'
+    scope+=' · Research-only'
     status=(f"可阅读财报：{p['annual_count']} 个年度 / {p['quarter_count']} 个季度 · 价格：{p['price_count']} 个日线观察"
             if any(p[k] for k in ('annual_count','quarter_count','price_count')) else '尚未请求在线数据；可分别更新财报与价格')
     if p.get('attempted') and not any(p[k] for k in ('annual_count','quarter_count','price_count')):

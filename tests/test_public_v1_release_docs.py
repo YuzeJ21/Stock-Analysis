@@ -324,7 +324,7 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in readme
     assert "Secondary controlled demo" in readme
     assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in readme
-    assert "Data Health and Proof History stay under **Advanced Evidence**" in readme
+    assert "Data Health and Proof History remain available from Company Workbench **数据来源**" in readme
     assert "## Now / Next / Later" in readme
     assert "| Now | Local controlled demo" in readme
     assert "explicit live SEC company lookup" in readme
@@ -1574,7 +1574,8 @@ def test_research_decision_lab_release_docs_bind_local_completion_to_current_evi
     assert "writes no journal, outcome, source, readiness, proof, report, screenshot, or timing artifact" in provenance
     assert "A valid lane cannot promote, repair, or clear another lane" in provenance
 
-    assert "What Changed -> Research Decision Lab -> Business Trend" in personal
+    assert "概览、财务趋势、估值与同行、研究记录、数据来源" in personal
+    assert "exact-preview authoring" in personal
     assert "one **Follow-up Queue**" in personal
     assert "does not prove that no external event, risk, or research need exists" in personal
 
@@ -1585,7 +1586,8 @@ def test_research_decision_lab_release_docs_bind_local_completion_to_current_evi
     assert "Status:** Implemented locally; external maturity gates remain separate" in design
 
     assert "Research Decision Lab" in browser_contract
-    assert "Open evidence and analysis modules" in browser_contract
+    assert "Only the selected company section renders" in browser_contract
+    assert "研究记录" in browser_contract and "数据来源" in browser_contract
     assert '"Follow-up Queue"' in browser_contract
     assert "Research Decision Lab" in readme
     assert "Follow-up Queue" in readme

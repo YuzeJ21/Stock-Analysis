@@ -38217,6 +38217,7 @@ def render_company_workbench(
             st.caption("保存来源状态："+saved_readiness_display_label(context.freshness_state))
             render_signal_cards(focused_ticker_coverage_cards(coverage,ticker),show_commands=False,variant="queue")
             if observation_recency is not None:
+                st.markdown(observation_recency_summary_html(observation_recency,include_selected=True),unsafe_allow_html=True)
                 st.markdown(observation_recency_evidence_html(observation_recency),unsafe_allow_html=True)
             detail=study_company_detail_html(field_study,ticker)
             if detail:st.markdown(detail,unsafe_allow_html=True)

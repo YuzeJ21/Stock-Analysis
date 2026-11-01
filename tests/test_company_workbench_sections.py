@@ -35,6 +35,7 @@ def test_reported_facts_and_prices_do_not_promote_saved_models_or_mutate_inputs(
     assert rendered.count('<h1') == 1
     assert 'FICT Company Brief' in rendered
     assert '模型资格独立' in rendered
+    assert 'Research-only' in rendered
 
 
 def test_foreign_or_missing_source_does_not_turn_into_zero_or_reuse_another_ticker():
