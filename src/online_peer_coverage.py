@@ -8,6 +8,7 @@ from src import online_peer_sources as sources
 from src.online_company_identity import _mode_reason
 from src.online_peer_valuation import normalized_digest, _symbol
 from src.company_sec_online_preview import _utc_timestamp
+from src.security_classification import validated_classification
 
 SESSION_KEY='online_peer_coverage_session_v1'
 SCHEMA='online-peer-coverage-v1'
@@ -42,7 +43,8 @@ def _valid(state,requested):
             and state.get('method_version')==METHOD and state.get('requested_tickers')==requested
             and isinstance(state.get('packets'),Mapping) and set(state['packets'])<=set(requested)
             and isinstance(state.get('classifications'),Mapping) and len(state['classifications'])<=20
-            and all(isinstance(v,Mapping) and normalized_digest(v)==key for key,v in state['classifications'].items())
+            and all(isinstance(v,Mapping) and normalized_digest(v)==key and validated_classification(v) is not None
+                for key,v in state['classifications'].items())
             and all(isinstance(v,Mapping) for v in state['packets'].values())
             and all(not isinstance(p.get('collection'),Mapping) or ('classification' not in p['collection']
                 and p['collection'].get('classification_ref') in state['classifications']) for p in state['packets'].values())
@@ -88,6 +90,23 @@ def reason_gate(reason):
     return 'validation'
 
 
+def _subject_source_failure(view,packet):
+    """Access failures and financial eligibility blockers are independent signals."""
+    if view.get('reason') in _SOURCE_FAILURES:return True
+    collection=packet.get('collection') if isinstance(packet,Mapping) else None
+    if not isinstance(collection,Mapping):return False
+    issuers=collection.get('issuers',[])
+    if not isinstance(issuers,list):return False
+    for row in issuers:
+        if not isinstance(row,Mapping) or row.get('ticker')!=view.get('ticker'):continue
+        for key in ('prices','profile','facts','amendment_evidence'):
+            component=row.get(key)
+            if (isinstance(component,Mapping) and component.get('status')=='unavailable'
+                    and component.get('reason') in {'price_source_unavailable','sec_receipt_unavailable',
+                        'amendment_source_unavailable','source_component_unavailable'}):return True
+    return False
+
+
 def _summary(state,as_of,workspace_mode):
     rows=[];primary=Counter();excluded=Counter();groups=defaultdict(list)
     for ticker in state['requested_tickers']:
@@ -106,6 +125,7 @@ def _summary(state,as_of,workspace_mode):
             refs.extend([dict(source_url=subject['source_ref'],observed_at=subject['observed_at'],payload_sha256=subject['facts_sha256']),
                          dict(source_url=subject['price_source_ref'],observed_at=subject['price_observed_at'],payload_sha256=subject['price_sha256'])])
         row=dict(ticker=ticker,attempted=attempted,attempted_at=packet.get('observed_at') if packet else None,
+            subject_source_failure=_subject_source_failure(view,packet) if attempted else False,
             sec_cik=subject['sec_cik'] if subject else context.get('sec_cik') if isinstance(context,Mapping) else None,
             industry_key=key if key and sic else None,sic=sic if key and sic else None,
             industry_label=attribution.get('industry_label') if key and sic else None,
@@ -130,6 +150,7 @@ def _summary(state,as_of,workspace_mode):
         requested_count=len(rows),attempted_count=sum(r['attempted'] for r in rows),pending_count=sum(not r['attempted'] for r in rows),
         subject_pe_count=sum(r['subject_pe_state']=='available' for r in rows),reference_assessed_count=sum(r['reference_state']=='assessed' for r in rows),
         comparison_count=sum(r['comparison_state']=='available' for r in rows),rows=rows,by_industry=by_industry,
+        source_failure_count=sum(r['subject_source_failure'] for r in rows),
         primary_reason_counts=dict(primary),excluded_reason_counts=dict(excluded),
         adapter_operation_count=state['adapter_operation_count'],paused=state['source_failure_streak']>=2,
         session_only=True,market_universe_coverage_established=False,canonical_changed=False,
@@ -176,6 +197,6 @@ def get_peer_coverage(session_state,*,inspect_requested=False,reset_requested=Fa
     state['classifications']={k:v for k,v in state['classifications'].items() if k in referenced}
     state['adapter_operation_count']+=len(operations)
     streak=0 if retry_ticker is not None else state['source_failure_streak']
-    state['source_failure_streak']=min(2,streak+1) if view.get('reason') in _SOURCE_FAILURES else 0
+    state['source_failure_streak']=min(2,streak+1) if _subject_source_failure(view,slot[sources.SESSION_KEY]) else 0
     session_state[SESSION_KEY]=_seal(state)
     return _summary(state,as_of,workspace_mode)

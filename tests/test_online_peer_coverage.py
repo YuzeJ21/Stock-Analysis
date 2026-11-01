@@ -177,3 +177,37 @@ def test_explicit_retry_drops_an_unreferenced_old_classification_receipt():
     d['classification']=lambda **kwargs:classification(observed_at=later)
     audit(state,retry='FICT',deps=d,as_of=later)
     assert len(state[SESSION_KEY]['classifications'])==1
+
+
+@pytest.mark.parametrize('failure',['unavailable','exception'])
+def test_two_subject_price_access_failures_pause_and_third_next_makes_no_calls(failure):
+    d,calls=dependencies()
+    def prices(ticker,**kwargs):
+        calls.append(('price_failure',ticker))
+        if failure=='exception':raise OSError('private transport error')
+        return dict(status='unavailable',reason='price_source_unavailable')
+    d['prices']=prices;state={}
+    first=audit(state,inspect=True,deps=d);second=audit(state,inspect=True,deps=d)
+    assert first['rows'][0]['subject_source_failure'] is True
+    assert second['attempted_count']==2 and second['paused'] is True
+    before=list(calls);third=audit(state,inspect=True,deps=d)
+    assert third==second and calls==before and third['pending_count']==2
+
+
+def test_unsupported_price_definition_is_a_gap_without_a_false_source_access_pause():
+    d,calls=dependencies();d['prices']=lambda *a,**kw:dict(status='unavailable',reason='unsupported_price_currency')
+    state={};audit(state,inspect=True,deps=d);second=audit(state,inspect=True,deps=d)
+    assert second['paused'] is False and second['rows'][0]['subject_source_failure'] is False
+
+
+@pytest.mark.parametrize('action',['next','retry'])
+def test_malformed_but_resealed_shared_receipt_returns_a_stable_gap_on_actions(action):
+    from src.online_peer_coverage import SESSION_KEY
+    d,calls=dependencies();state={};audit(state,inspect=True,deps=d);saved=state[SESSION_KEY]
+    oldkey=next(iter(saved['classifications']));bad={'inventory':None};newkey=digest(bad)
+    saved['classifications']={newkey:bad}
+    for packet in saved['packets'].values():packet['collection']['classification_ref']=newkey
+    saved['digest']=digest({k:v for k,v in saved.items() if k!='digest'})
+    before=list(calls)
+    result=audit(state,inspect=action=='next',retry='FICT' if action=='retry' else None,deps=d)
+    assert result['status']=='unavailable' and calls==before
