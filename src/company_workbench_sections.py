@@ -26,7 +26,9 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None):
     result=dict(ticker=ticker, annual_count=0, quarter_count=0, price_count=0,
                 facts={}, period_end=None, period_start=None, period_kind=None,
                 unit=None, identity_conflict=False, model_eligibility='independent',
-                readiness_promoted=False)
+                readiness_promoted=False, attempted=any(
+                    isinstance(item,Mapping) and item.get('status') not in (None,'not_requested')
+                    for item in (financial_view,prices)))
     if _mode_reason('research'):
         return result
     identities=[view.get('sec_cik')]
@@ -67,7 +69,7 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None):
 
 STYLE='''<style>
 .company-integrated{min-width:0}.company-integrated-header{padding:16px 0 12px!important;border:0!important;background:transparent!important;box-shadow:none!important;border-radius:0!important;margin:0!important}
-.company-integrated-header h1{font-size:2rem!important;line-height:1.2!important;margin:0 0 8px!important;padding:0!important}.company-integrated-header p{margin:5px 0;font-size:.9rem}.company-integrated-header .public-primary-action{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border:1px solid #b8c9be;border-radius:7px;color:#173e30;background:#f1f6f3;text-decoration:none}
+.company-integrated-header h1{font-size:2rem!important;line-height:1.2!important;margin:0 0 8px!important;padding:0!important}.company-integrated-header p{margin:5px 0;font-size:.9rem}.company-integrated-header .public-primary-action{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border:1px solid #b8c9be;border-radius:7px;color:#173e30!important;background:#f1f6f3;text-decoration:none}
 .company-fact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));gap:10px;margin:12px 0}.company-fact-grid div{background:#fff;border:1px solid #dce3de;padding:14px;border-radius:8px;min-width:0;overflow-wrap:anywhere}.company-fact-grid dt{font-size:.85rem;color:#52615c}.company-fact-grid dd{font-weight:700;margin:6px 0 0;font-size:1.15rem}.company-fact-grid small{display:block;color:#52615c;font-size:.78rem;margin-top:6px}.company-scope-note{font-size:.86rem;color:#52615c;overflow-wrap:anywhere}
 .st-key-company-section-navigation [role="radiogroup"]{display:flex;flex-wrap:wrap;gap:6px}.st-key-company-section-navigation label{min-height:44px;padding:8px 12px!important;border:1px solid #dce3de;border-radius:7px;background:#fff;box-sizing:border-box}.st-key-company-section-navigation label:has(input:checked){background:#e6f0e9;border-color:#426a55}.st-key-company-section-navigation label p{color:#173e30!important;margin:0!important}.st-key-company-section-navigation input{accent-color:#155e4b}
 @media(max-width:640px){.company-integrated-header h1{font-size:1.55rem!important}.st-key-company-section-navigation label{flex:1 1 25%;justify-content:center;padding:8px 5px!important}.company-fact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:260px){.company-fact-grid{grid-template-columns:1fr}.st-key-company-section-navigation label{flex-basis:40%}}
@@ -79,6 +81,8 @@ def workbench_header_html(ticker, projection, saved_scope, title=None):
     scope='已保存研究；在线查询结果独立展示' if saved_scope else '在线公司候选；与已保存研究的身份仍需核对'
     status=(f"可阅读财报：{p['annual_count']} 个年度 / {p['quarter_count']} 个季度 · 价格：{p['price_count']} 个日线观察"
             if any(p[k] for k in ('annual_count','quarter_count','price_count')) else '尚未请求在线数据；可分别更新财报与价格')
+    if p.get('attempted') and not any(p[k] for k in ('annual_count','quarter_count','price_count')):
+        status='暂无通过核对的在线数据；请在数据来源查看原因，或明确重试更新'
     if p['identity_conflict']:status='来源公司身份冲突；数值暂不展示'
     return (STYLE+'<section class="company-workbench-primary-brief company-integrated-header" aria-label="Company Brief">'
             '<h1>'+escape(ticker)+' Company Brief</h1>'

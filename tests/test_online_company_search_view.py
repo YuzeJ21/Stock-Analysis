@@ -66,67 +66,23 @@ def test_online_route_requires_valid_session_candidate_and_never_guesses_identit
 
 @pytest.mark.parametrize("registered", [("AMD",), ("AMD", "FICT")])
 def test_online_only_workbench_opens_sec_check_without_saved_analysis(monkeypatch, registered):
-    rendered: list[str] = []
-    sec_checks: list[tuple[str, str | None]] = []
-    filing_checks: list[tuple[str, str | None]] = []
-    type_checks: list[tuple[str,str | None]] = []
-    result = _result()
-    monkeypatch.setattr(dashboard,"render_company_security_check",lambda ticker,expected_cik=None:type_checks.append((ticker,expected_cik)),raising=False)
-    monkeypatch.setattr(
-        dashboard,
-        "st",
-        SimpleNamespace(
-            query_params={"ticker": "FICT", "online": "1"},
-            session_state={},
-            empty=lambda: SimpleNamespace(markdown=lambda value, **kwargs: rendered.append(str(value))),
-            markdown=lambda value, **kwargs: rendered.append(str(value)),
-        ),
-    )
-    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "render_company_online_prices", lambda ticker, **kwargs: None)
-    monkeypatch.setattr(dashboard, "render_company_sec_filing_check", lambda ticker, expected_cik=None: filing_checks.append((ticker, expected_cik)), raising=False)
-    monkeypatch.setattr(
-        dashboard,
-        "search_sec_company_candidates",
-        lambda query, *, user_agent: result,
-    )
-    monkeypatch.setattr(
-        dashboard,
-        "render_company_sec_annual_check",
-        lambda ticker, expected_cik=None: (
-            sec_checks.append((ticker, expected_cik)), rendered.append("SEC check marker")
-        ),
-    )
-    monkeypatch.setattr(
-        dashboard,
-        "render_single_stock_report",
-        lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("saved report loaded")),
-    )
-
+    from tests.test_research_mode_dashboard_contract import _capture_integrated_company_route
+    query, context, captured, reports, calls = _capture_integrated_company_route(monkeypatch)
+    monkeypatch.setattr(dashboard,"render_company_sec_filing_check",lambda ticker,expected_cik=None:calls.append(("filing",ticker,expected_cik)))
+    monkeypatch.setattr(dashboard,"render_company_security_check",lambda ticker,expected_cik=None:calls.append(("security",ticker,expected_cik)))
+    dashboard.st.query_params.update(ticker="FICT",online="1")
+    dashboard.st.session_state.clear()
+    monkeypatch.setattr(dashboard,"search_sec_company_candidates",lambda *a,**k:_result())
     dashboard.render_company_workbench(
-        SimpleNamespace(list_local_tickers=lambda: list(registered)),
-        SimpleNamespace(), {}, object(),
-    )
-
-    copy = " ".join(rendered)
-    if "FICT" in registered:
-        assert "Saved local data is separate" in copy
-        assert "No saved research record" not in copy
-    else:
-        assert "No saved research record" in copy
-    assert "SEC ticker" in copy
-    assert "0000001234" in copy
-    assert "2026-10-30T10:00:00Z" in copy
-    assert "a" * 64 in copy
-    assert "https://www.sec.gov/files/company_tickers_exchange.json" in copy
-    assert "<summary>SEC identity evidence</summary>" in copy
-    assert "Valuation and peers" in copy
-    assert "No supported peer comparison yet" in copy
-    assert sec_checks == [("FICT", "0000001234")]
-    assert filing_checks == [("FICT", "0000001234")]
-    assert type_checks == [("FICT", "0000001234")]
-    assert "valuation" in copy.lower()
-    assert copy.index("SEC check marker") < copy.index("Back to Discover")
+        SimpleNamespace(list_local_tickers=lambda:list(registered)),
+        SimpleNamespace(profile_key="default",freshness_state="stale"),{},object())
+    assert captured['online_candidate']['cik']=="0000001234"
+    assert captured['saved_available']==("FICT" in registered)
+    assert reports==[] and calls==[]
+    captured['render_sources']({'financial':{'status':'not_requested'},'prices':{'status':'not_requested'}})
+    assert ('filing',"FICT","0000001234") in calls
+    assert ('security',"FICT","0000001234") in calls
+    assert reports==[]
 
 
 def test_online_search_runs_only_on_explicit_submit_and_survives_zero_saved_rows(monkeypatch):

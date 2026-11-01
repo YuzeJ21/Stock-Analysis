@@ -526,3 +526,12 @@ def test_dashboard_navigation_route_rail_query_update_is_canonical_and_clean():
         )
         == "Universe Manager"
     )
+
+
+def test_workbench_keeps_only_supported_section_deep_links():
+    for section in ('overview','financials','valuation','notes','sources'):
+        query=nav.canonical_workspace_query('research','Company Workbench',{'ticker':'AMD','section':section})
+        assert query['section']==section
+    invalid=nav.canonical_workspace_query('research','Company Workbench',{'ticker':'AMD','section':'orders'})
+    assert 'section' not in invalid
+    assert 'section' not in nav.canonical_workspace_query('research','Monitor',{'section':'notes'})

@@ -50,7 +50,7 @@ def _line(points, title):
     )
 
 
-def annual_history_html(view):
+def annual_history_html(view, *, compact=False):
     from src.company_sec_online_preview import REVENUE_LABELS
     if view.get("status") != "inspection_only": return ""
     history = validated_annual_history(view)
@@ -76,6 +76,11 @@ def annual_history_html(view):
             f'<article><h4>Year ended {escape(row["period_end"])}</h4><small>{escape(row["period_start"] or "Unresolved start")} to {escape(row["period_end"])} · USD</small>'
             f'<dl>{values}</dl><details><summary>Period evidence</summary><p>{context}</p><small>{escape(definitions)}</small></details></article>'
         )
+    cards_html='<div class="online-history-grid">'+''.join(cards)+'</div>'
+    if compact and cards:
+        cards_html='<div class="online-history-grid">'+cards[-1]+'</div>'
+        if len(cards)>1:
+            cards_html+='<details><summary>Earlier annual periods ('+str(len(cards)-1)+')</summary><div class="online-history-grid">'+''.join(reversed(cards[:-1]))+'</div></details>'
     directions = "".join(
         f'<li>{escape(x["from_period"])} → {escape(x["to_period"])}: '
         + (f'Revenue {escape(x["direction"])}' if x["status"] == "comparable" else 'Comparison withheld · annual period or source gap') + '</li>'
@@ -86,7 +91,7 @@ def annual_history_html(view):
         '<p>Latest reported values as observed now, including later revisions; this is not point-in-time history.</p>'
         + _line(points, "Reported annual revenue in USD; source or period gaps break the line")
         + '<ul>' + directions + '</ul><p>Percentage growth remains withheld until its derived field scope is reviewed.</p>'
-        + '<div class="online-history-grid">' + "".join(cards) + '</div>'
+        + cards_html
         + f'<p><a href="{escape(history["source_url"], quote=True)}" target="_blank" rel="noopener noreferrer">SEC Companyfacts history source</a> · observed {escape(history["observed_at"])} · {escape(history["taxonomy"])}:{escape(history["concept"])} · USD. Direct-field scope inspected; raw redistribution held.</p></section>'
     )
 

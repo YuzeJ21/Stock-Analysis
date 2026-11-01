@@ -49,18 +49,15 @@ def test_company_summary_keeps_next_task_visible_and_change_detail_collapsed():
     assert rendered.index("data-sr-region='stop-rule'") < rendered.index("<details class='company-workbench-follow-up'>")
 
 
-def test_company_evidence_map_precedes_online_filing_action():
-    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
-    start = source.index("def render_company_workbench(")
-    end = source.index("\ndef render_personal_research_route(", start)
-    workbench = source[start:end]
-
-    assert workbench.index("selected_answer_target = st.empty()") < workbench.index(
-        "evidence_status_target = st.empty()"
-    )
-    assert workbench.index("evidence_status_target = st.empty()") < workbench.index(
-        "render_company_sec_annual_check(ticker)"
-    )
+def test_company_evidence_map_is_lazy_in_explicit_sources_section(monkeypatch):
+    from tests.test_research_mode_dashboard_contract import _capture_integrated_company_route
+    query,context,captured,reports,calls=_capture_integrated_company_route(monkeypatch)
+    assert calls==[] and reports==[]
+    captured['render_sources']({'financial':{'status':'not_requested'},'prices':{'status':'not_requested'}})
+    assert ('filing','AVGO') in calls
+    assert ('security','AVGO') in calls
+    assert ('coverage','AVGO') in calls
+    assert reports==[]
 
 
 def test_phone_evidence_table_keeps_real_headers_accessible():

@@ -379,6 +379,7 @@ from src.research_decision_lab import (
     research_discipline_rows,
     unavailable_research_decision_lab_state,
 )
+from src.company_workbench_ui import render_integrated_company
 from src.scenario_lab import ScenarioLabResult
 from src.scenario_lab_session import (
     ScenarioLabSessionSnapshot,
@@ -32579,6 +32580,7 @@ def render_single_stock_report(
     selected_detail_target=None,
     selected_evidence_target=None,
     selected_valuation_target=None,
+    workbench_section=None,
 ) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -32800,14 +32802,17 @@ def render_single_stock_report(
         if compact_public_open_report and report_payload:
             st.rerun()
 
+    if workbench_section is not None and not report_payload:
+        st.info("已保存模型暂不可读；在线财报与价格仍可在概览和财务趋势中独立查看。")
+        return
     if report_payload:
-        if not compact_public_open_report:
+        if not compact_public_open_report and workbench_section is None:
             render_context_note(
                 "Review is open.",
                 "The selected ticker review is shown below. It was built from saved local outputs and did not refresh prices, import files, or contact external accounts.",
             )
         open_review_clicked = False
-    else:
+    elif workbench_section is None:
         render_context_note(
             "What happens next.",
             "Open Review shows the selected ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
@@ -32964,6 +32969,19 @@ def render_single_stock_report(
                 change_answer,
                 authoritative_task,
             )
+        if workbench_section is not None:
+            _render_company_saved_section(
+                workbench_section, ticker=ticker, report_payload=report_payload,
+                context=selected_context, scenario_session=scenario_session,
+                journal_state=journal_state, journal_error=journal_error,
+                decision_lab_state=decision_lab_state, outcome_status=outcome_status,
+                single_answer_frame=single_answer_frame, answer_snapshot=report_one_answer_snapshot,
+                authoritative_task=authoritative_task, change_answer=change_answer,
+                trend_packet=trend_packet, forward_view_packet=forward_view_packet,
+                valuation_regime=valuation_regime, catalyst_timeline=catalyst_timeline,
+                nowcast_packet=nowcast_packet, observation_recency=observation_recency,
+            )
+            return
         if public_mode:
             render_single_stock_public_summary(
                 single_answer_frame,
@@ -37406,21 +37424,25 @@ def render_research_workspace_styles() -> None:
             min-height: 44px;
         }
         div[data-testid="stButton"] button,
+        div[data-testid="stFormSubmitButton"] button,
         [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button {
             min-height: 44px !important;
             background: #f1f6f3 !important;
             border-color: #b8c9be !important;
             color: #173e30 !important;
         }
-        div[data-testid="stButton"] button :is(p, span),
-        [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button :is(p, span) {
+        div[data-testid="stButton"] button *,
+        div[data-testid="stFormSubmitButton"] button *,
+        [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button * {
             color: inherit !important;
         }
         div[data-testid="stButton"] button:hover,
+        div[data-testid="stFormSubmitButton"] button:hover,
         [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button:hover {
             background: #e1eee6 !important;
         }
-        div[data-testid="stButton"] button[kind="primary"] {
+        div[data-testid="stButton"] button[kind="primary"],
+        div[data-testid="stFormSubmitButton"] button[kind="primaryFormSubmit"] {
             background: #155e4b !important;
             border-color: #155e4b !important;
             color: #fff !important;
@@ -38034,6 +38056,61 @@ def render_company_online_prices(ticker: str, *, sec_refresh_requested: bool = F
             st.markdown(price_filing_association_html(link),unsafe_allow_html=True)
 
 
+def _render_company_saved_section(
+    section, *, ticker, report_payload, context, scenario_session, journal_state,
+    journal_error, decision_lab_state, outcome_status, single_answer_frame, answer_snapshot,
+    authoritative_task, change_answer, trend_packet, forward_view_packet, valuation_regime,
+    catalyst_timeline, nowcast_packet, observation_recency,
+):
+    """Reuse saved model and record tools without joining online facts into them."""
+    st.caption("已保存研究集合 · 输入日期与资格独立。此处不自动采用本次在线财报或价格。")
+    if section == "valuation":
+        from src.company_valuation_overview import build_valuation_overview, valuation_overview_html
+        security=get_company_security_context(ticker,st.session_state,refresh_requested=False,user_agent=None)
+        view=build_valuation_overview(ticker,report_payload,research_context=security)
+        st.markdown(valuation_overview_html(view,compact=True),unsafe_allow_html=True)
+        st.markdown("### 已保存输入的情景分析")
+        st.caption("保存来源状态："+saved_readiness_display_label(context.freshness_state)+"。陈旧输入仅供历史复核；情景结果不是当前目标价。")
+        render_scenario_lab(scenario_session)
+        with st.expander("模型定义、来源与历史估值",expanded=False):
+            render_signal_cards(stock_report_valuation_boundary_cards(report_payload),show_commands=False,variant="queue")
+            render_signal_cards(valuation_regime_cards(valuation_regime),show_commands=False,variant="queue")
+            render_signal_cards(stock_report_quant_interpretation_cards(report_payload),show_commands=False,variant="queue")
+        return
+    if journal_state is not None:
+        summary=research_thesis_journal_summary(journal_state)
+    else:
+        summary={"status":"unavailable","title":"Research journal unavailable",
+                 "answer":"The selected-profile journal could not be verified.","evidence":"No record claim is shown.",
+                 "boundary":journal_error,"confidence":"","primary_action":"Review journal source"}
+    st.markdown(research_thesis_journal_html(summary),unsafe_allow_html=True)
+    render_research_record_authoring(st_api=st,profile_key=context.profile_key,ticker=ticker,
+        paths=AuthoringPaths(journal=DATA_DIR/"research_thesis_journal.csv",
+                            catalysts=DATA_DIR/"catalyst_evidence.csv",outcomes=DATA_DIR/"research_outcome_reviews.csv"))
+    st.markdown("## Research Decision Lab")
+    st.caption("研究过程记录与财务就绪度分别判断；填写记录不会解除模型或来源限制。")
+    with st.expander("研究过程、历史记录与跟进",expanded=False):
+        render_signal_cards(decision_lab_cards(decision_lab_state),show_commands=False,variant="queue")
+        render_signal_cards(outcome_status_cards(outcome_status),show_commands=False,variant="queue")
+        if journal_state is not None and journal_state.entries:
+            st.dataframe(pd.DataFrame(research_thesis_journal_detail_rows(journal_state)),width="stretch",hide_index=True)
+    selected_answer=single_answer_frame.iloc[0].to_dict()
+    selected_answer["state"]=answer_snapshot["status"]
+    snapshot=build_company_workbench_html_snapshot(CompanyWorkbenchHtmlInputs(
+        report_payload=report_payload,profile_context=context,observation_recency=observation_recency,
+        selected_answer=selected_answer,authoritative_task=authoritative_task,
+        change_answer=change_answer or {},change_ticker=ticker,change_profile_key=context.profile_key,
+        scenario_lab_result=scenario_session.result,nowcast_packet=nowcast_packet,
+        decision_lab_state=decision_lab_state,quarterly_trend=trend_packet,forward_view=forward_view_packet,
+        journal_state=journal_state,valuation_regime=valuation_regime,catalyst_timeline=catalyst_timeline))
+    with st.expander("HTML Research Brief",expanded=False):
+        st.caption("已保存证据与情景计算的离线快照，不含本次在线查询；来源使用权限仍独立保留。")
+        st.html(render_company_workbench_html_fragment(snapshot),unsafe_allow_javascript=False)
+        download=company_workbench_html_download_spec(snapshot)
+        st.download_button("Download HTML Research Brief",data=download.data,file_name=download.file_name,
+                           mime=download.mime,key=f"company-workbench-html:{context.profile_key}:{ticker}",on_click="ignore")
+
+
 def render_company_workbench(
     provider,
     context: ProfileContext,
@@ -38075,66 +38152,9 @@ def render_company_workbench(
             )
             session_state[ONLINE_COMPANY_SESSION_KEY] = online_result
             online_candidate = online_company_candidate_for_route(ticker, session_state)
-    render_research_workspace_header(
-        "Company Workbench",
-        context,
-        ticker=ticker,
-        primary_action="Review usable evidence, then record what remains uncertain",
-        compact=True,
-        include_boundary=False,
-        context_only=has_registered_company and not online_requested,
-    )
-    if online_candidate is not None:
-        absence = (
-            "Saved local data is separate; its issuer identity has not been reconciled "
-            "to this SEC association. Inspect annual facts and financial review below."
-            if has_registered_company
-            else "No saved research record is available for this company. "
-            "Request its online annual facts and financial review below."
-        )
-        st.markdown(
-            "<style>.online-company-intro h2{font-size:1.5rem;line-height:1.25;margin:.25rem 0 .65rem}"
-            ".online-company-intro p{margin:.4rem 0}.online-company-identity{font-size:.85rem;overflow-wrap:anywhere}</style>"
-            "<section class='sr-empty-state online-company-intro' data-sr-region='primary-answer'>"
-            f"<h2>SEC online candidate: {html.escape(ticker)}</h2><p>{html.escape(absence)}</p>"
-            "<details><summary>Scope of this company page</summary>"
-            "<p>The SEC association does not establish U.S. issuer domicile, security type, active listing, "
-            "point-in-time coverage, financial coverage, valuation, or analysis eligibility.</p></details></section>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            "<details class='online-company-identity'><summary>SEC identity evidence</summary>"
-            "<p class='online-company-source-meta' style='overflow-wrap:anywhere'>SEC ticker candidate "
-            f"{html.escape(ticker)} · CIK {html.escape(online_candidate['cik'])} · "
-            f"{html.escape(online_candidate['title'][:140])} · "
-            f"observed {html.escape(online_candidate['observed_at'])} · "
-            f"source last modified {html.escape(str(online_candidate['source_last_modified'] or 'unavailable'))} · "
-            f"SHA-256 <code>{html.escape(online_candidate['payload_sha256'])}</code> · "
-            f"<a href='{html.escape(online_candidate['source_url'], quote=True)}' "
-            "target='_blank' rel='noopener noreferrer'>SEC association source</a>. "
-            "Identity association rights require review before distribution.</p></details>",
-            unsafe_allow_html=True,
-        )
-        online_valuation_target=st.empty()
-        sec_refreshed=render_company_sec_annual_check(ticker, expected_cik=online_candidate["cik"])
-        render_company_sec_filing_check(ticker,expected_cik=online_candidate["cik"])
-        render_company_security_check(ticker,expected_cik=online_candidate["cik"])
-        render_company_online_prices(ticker,sec_refresh_requested=bool(sec_refreshed))
-        render_company_valuation_summary(ticker,target=online_valuation_target)
-        st.markdown(
-            "<p><a href='?mode=research&amp;page=discover' target='_self'>"
-            "Back to Discover</a></p>",
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            stop_rule_html(
-                "Research-only. This online association does not activate saved analysis, "
-                "valuation, peer comparison, or recommendations."
-            ).value,
-            unsafe_allow_html=True,
-        )
-        return
-    if online_requested or not has_registered_company:
+    if online_candidate is None and (online_requested or not has_registered_company):
+        render_research_workspace_header("Company Workbench",context,ticker=ticker,
+            primary_action="Choose an explicit company in Discover",compact=True,include_boundary=False)
         title = (
             f"Online SEC identity is unavailable for {ticker}"
             if ticker and online_requested
@@ -38172,91 +38192,42 @@ def render_company_workbench(
             unsafe_allow_html=True,
         )
         return
-    cash_generation_preview = None
-    if company_workbench_cash_preview_requested(st.query_params.get("cash_preview")):
-        cash_generation_preview = load_company_workbench_cash_generation_preview(ticker)
-    with st.container(key="company-workbench-document"):
-        selected_answer_target = st.empty()
-        selected_valuation_target = st.empty()
-        render_company_valuation_summary(ticker,target=selected_valuation_target)
-        evidence_status_target = st.empty()
-        sec_refreshed=render_company_sec_annual_check(ticker)
-        render_company_sec_filing_check(ticker)
-        render_company_security_check(ticker)
-        render_company_online_prices(ticker,sec_refresh_requested=bool(sec_refreshed))
-        timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
-        st.markdown(
-            evidence_timeline_html(
-                tuple(
-                    TimelineRecord(
-                        record_id=str(row.get("event_id") or ""),
-                        timestamp=str(row.get("detected_at") or "").strip() or None,
-                        label=str(row.get("change") or "Evidence change"),
-                        summary=(
-                            f"{str(row.get('evidence_status') or 'unavailable').replace('_', ' ')}. "
-                            f"{str(row.get('research_task') or 'No saved research task is available.')}"
-                        ),
-                    )
-                    for row in timeline
-                ),
-                empty_title="No traceable saved change for this company",
-                empty_body=(
-                    "No authoritative saved change row is available. This does not prove that "
-                    "no external event occurred."
-                ),
-            ).value,
-            unsafe_allow_html=True,
-        )
-        section_names = [section["title"] for section in company_workbench_section_contract()]
-        with st.expander("Review path", expanded=False):
-            st.caption(" -> ".join(section_names[:-1]))
-        with st.expander("Advanced: selected-company lane coverage", expanded=False):
-            render_signal_cards(
-                focused_ticker_coverage_cards(coverage, ticker),
-                show_commands=False,
-                variant="queue",
-            )
-            st.caption(
-                "Lane coverage is technical evidence only; blocked and candidate-only states remain separate."
-            )
+    expected_cik=online_candidate["cik"] if online_candidate else None
+    def saved_section(section):
+        render_single_stock_report(provider,False,public_mode=True,profile_context=context,
+            research_mode=True,research_review_items=state.get("queue") or (),
+            observation_recency=observation_recency,workbench_section=section)
+    def sources(bundle):
+        view=bundle["financial"]
+        if online_candidate:
+            st.markdown("<p class='company-scope-note'>SEC CIK "+html.escape(expected_cik)+
+                " · observed "+html.escape(online_candidate["observed_at"])+
+                " · SHA-256 "+html.escape(online_candidate["payload_sha256"])+
+                ". Identity association rights require review before distribution.</p>",unsafe_allow_html=True)
+        with st.expander("财报字段与原始来源",expanded=False):
+            if view.get("status")=="not_requested":st.caption("使用上方更新操作取得本公司的字段证据。")
+            else:st.markdown(company_sec_annual_preview_html(view),unsafe_allow_html=True)
+        render_company_sec_filing_check(ticker,expected_cik=expected_cik)
+        render_company_security_check(ticker,expected_cik=expected_cik)
+        with st.expander("价格证据与使用范围",expanded=False):
+            st.markdown(online_price_history_html(bundle["prices"]),unsafe_allow_html=True)
+        field_study=load_dashboard_bounded_field_study(context)
+        st.markdown(study_company_html(field_study,ticker),unsafe_allow_html=True)
+        with st.expander("保存研究的来源与复核状态",expanded=False):
+            st.caption("保存来源状态："+saved_readiness_display_label(context.freshness_state))
+            render_signal_cards(focused_ticker_coverage_cards(coverage,ticker),show_commands=False,variant="queue")
             if observation_recency is not None:
-                st.markdown(
-                    observation_recency_summary_html(
-                        observation_recency,
-                        include_selected=True,
-                    ),
-                    unsafe_allow_html=True,
-                )
-                st.markdown(
-                    observation_recency_evidence_html(observation_recency),
-                    unsafe_allow_html=True,
-                )
-    selected_detail_target = st.empty()
-    render_single_stock_report(
-        provider,
-        False,
-        public_mode=True,
-        profile_context=context,
-        research_mode=True,
-        research_review_items=state.get("queue") or (),
-        quarterly_trend_packet=load_dashboard_quarterly_trend(ticker),
-        cash_generation_preview=cash_generation_preview,
-        observation_recency=observation_recency,
-        selected_answer_target=selected_answer_target,
-        selected_detail_target=selected_detail_target,
-        selected_evidence_target=evidence_status_target,
-        selected_valuation_target=selected_valuation_target,
-    )
-    field_study = load_dashboard_bounded_field_study(context)
-    st.markdown(study_company_html(field_study, ticker), unsafe_allow_html=True)
-    st.markdown("## Advanced Evidence")
-    with st.expander("Advanced Evidence", expanded=False):
-        advanced_field_study = study_company_detail_html(field_study, ticker)
-        if advanced_field_study:
-            st.markdown(advanced_field_study, unsafe_allow_html=True)
-        st.markdown(advanced_evidence_links_html(ticker), unsafe_allow_html=True)
-        st.caption("Detailed ticker-change evidence remains in the separate evidence drawer below.")
-    render_research_change_route_summary("Single-Stock Report", state, ticker=ticker)
+                st.markdown(observation_recency_evidence_html(observation_recency),unsafe_allow_html=True)
+            detail=study_company_detail_html(field_study,ticker)
+            if detail:st.markdown(detail,unsafe_allow_html=True)
+            if company_workbench_cash_preview_requested(st.query_params.get("cash_preview")):
+                preview=load_company_workbench_cash_generation_preview(ticker)
+                render_signal_cards(cash_generation_preview_cards(preview),show_commands=False,variant="queue")
+            st.markdown(advanced_evidence_links_html(ticker),unsafe_allow_html=True)
+        render_research_change_route_summary("Single-Stock Report",state,ticker=ticker)
+    render_integrated_company(st,ticker,profile_scope=context.profile_key,
+        saved_available=has_registered_company,online_candidate=online_candidate,
+        render_saved=saved_section,render_sources=sources)
 
 
 def render_personal_research_route(

@@ -34,7 +34,7 @@ def _revision_gaps(row):
     return '<details><summary>Revision context holds</summary><ul>'+items+'</ul></details>'
 
 
-def quarterly_history_html(view):
+def quarterly_history_html(view, *, compact=False):
     if 'quarterly_history' not in view: return ''
     h=validated_quarterly_history(view)
     annual_gap=''
@@ -67,8 +67,9 @@ def quarterly_history_html(view):
         definitions+='; '+'; '.join(f'cumulative {name}: {f["taxonomy"]}:{f["concept"]}' for name,f in row['cumulative_fields'].items())
         cards.append('<article><h4>Quarter ended '+escape(row['period_end'])+'</h4><small>'+escape(row['period_start'])+' to '+escape(row['period_end'])+' · USD</small><dl>'+values+'</dl>'+cumulative
             +'<details><summary>Quarter evidence and gaps</summary><p>Filed '+escape(row['filed'])+' · '+escape(row['form'])+' · accession '+escape(row['accession'])+'</p><p>'+escape(definitions)+'</p><p>'+escape(missing)+'</p><p>'+escape(cumulative_missing)+'</p></details>'+_revision_gaps(row)+'</article>')
-    latest='<div class="online-quarter-grid">'+''.join(cards[:4])+'</div>'
-    earlier='<details><summary>Earlier reported quarters ('+str(len(cards)-4)+')</summary><div class="online-quarter-grid">'+''.join(cards[4:])+'</div></details>' if len(cards)>4 else ''
+    visible=1 if compact else 4
+    latest='<div class="online-quarter-grid">'+''.join(cards[:visible])+'</div>'
+    earlier='<details><summary>Earlier reported quarters ('+str(len(cards)-visible)+')</summary><div class="online-quarter-grid">'+''.join(cards[visible:])+'</div></details>' if len(cards)>visible else ''
     return (_STYLE+'<section class="online-quarterly" aria-label="Reported quarterly financials"><h3>Reported quarterly financials</h3>'
         '<p>Latest reported values as observed, including revisions; not point-in-time history. Only directly reported quarter-length periods are shown. No missing quarter is inferred.</p>'+annual_gap
         +_line(points,'Direct reported quarterly revenue in USD; reporting gaps break the line')+latest+earlier

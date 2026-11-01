@@ -129,7 +129,7 @@ def build_valuation_overview(ticker,report_payload=None,*,as_of_date=None,resear
 STYLE='''<style>.company-valuation{margin:16px 0;padding:20px;background:#fff;border:1px solid #d9e0dc;border-radius:12px;min-width:0;box-sizing:border-box;overflow-wrap:anywhere}.company-valuation h2{font-size:1.25rem;margin:0 0 .5rem}.company-valuation h3{font-size:1.1rem;line-height:1.35;margin:.65rem 0}.company-valuation p{margin:.5rem 0}.valuation-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));gap:10px;margin:14px 0}.valuation-grid div{background:#f4f7f5;border:1px solid #dfe6e1;border-radius:8px;padding:12px;min-width:0}.valuation-grid dt{font-size:.85rem;color:#44584e}.valuation-grid dd{margin:.4rem 0 0;font-size:1.15rem;font-weight:700}.company-valuation details{padding:9px 0;border-top:1px solid #e4e9e5}.company-valuation summary{font-weight:650;cursor:pointer}.company-valuation li{margin:.4rem 0}.company-valuation ul{padding-left:20px}.valuation-kicker{font-size:.8rem;font-weight:650;color:#52675c}.company-valuation table{width:100%;table-layout:fixed;border-collapse:collapse}.company-valuation th,.company-valuation td{text-align:left;padding:8px 4px;overflow-wrap:anywhere;border-bottom:1px solid #e4e9e5}</style>'''
 
 
-def valuation_overview_html(view):
+def valuation_overview_html(view, *, compact=False):
  v=_mapping(view);ticker=str(v.get('ticker')or'Selected company');metrics=_mapping(v.get('metrics'))
  supported=[(k,_mapping(metrics.get(k)))for k in METRICS if _mapping(metrics.get(k)).get('status')=='supported']
  headline='No supported peer comparison yet';values=['Needs dated inputs','Needs comparable peers','Not established','0 verified'];label='P/E'
@@ -143,6 +143,7 @@ def valuation_overview_html(view):
   values=[f"{m['subject_multiple']:.1f}×",f"{m['peer_median']:.1f}×",f'{p:+.1%}',str(m['peer_count'])]
  if v.get('status')=='separate_research_path':headline='Use the instrument-specific research path first'
  cards=''.join('<div><dt>'+escape(title)+'</dt><dd>'+escape(value)+'</dd></div>'for title,value in zip((ticker+' · '+label,'Peer median','Premium / discount','Comparable peers'),values))
+ if compact and not supported:cards=''
  rows=''.join('<tr><th scope="row">'+name+' · '+str(_mapping(metrics.get(k)).get('peer_count',0))+' comparable peers</th><td>'+escape(str(_mapping(metrics.get(k)).get('reason')or'Data needed'))+'</td></tr>'for k,name in METRICS.items())
  sources=''
  for key in METRICS:

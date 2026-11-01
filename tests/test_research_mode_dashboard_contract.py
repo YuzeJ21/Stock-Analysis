@@ -1173,45 +1173,52 @@ def test_empty_strict_screen_preserves_saved_browsing_boundary(monkeypatch):
     assert "discover_saved_browser_jump_html()" in selector_source
 
 
-def test_company_workbench_anchors_answer_before_collapsed_navigation_and_passes_target_to_report():
-    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
-    workbench_start = source.index("def render_company_workbench(")
-    workbench_end = source.index("\ndef main()", workbench_start)
-    workbench = source[workbench_start:workbench_end]
+def _capture_integrated_company_route(monkeypatch, *, cash_preview="0"):
+    calls=[]
+    query={"ticker":"AVGO","cash_preview":cash_preview}
+    class FakeSt:
+        query_params=query
+        session_state={}
+        def markdown(self,value,**kwargs):calls.append(("markdown",value))
+        def caption(self,value,**kwargs):calls.append(("caption",value))
+        def expander(self,*args,**kwargs):
+            from contextlib import nullcontext
+            return nullcontext()
+    fake=FakeSt();captured={};reports=[]
+    context=SimpleNamespace(profile_key="default",data_dir=None,freshness_state="stale")
+    monkeypatch.setattr(dashboard,"st",fake)
+    monkeypatch.setattr(dashboard,"render_integrated_company",lambda st_api,ticker,**kw:captured.update(ticker=ticker,**kw))
+    monkeypatch.setattr(dashboard,"render_single_stock_report",lambda *args,**kw:reports.append(kw))
+    monkeypatch.setattr(dashboard,"render_company_sec_filing_check",lambda ticker,**kw:calls.append(("filing",ticker)))
+    monkeypatch.setattr(dashboard,"render_company_security_check",lambda ticker,**kw:calls.append(("security",ticker)))
+    monkeypatch.setattr(dashboard,"focused_ticker_coverage_cards",lambda coverage,ticker:calls.append(("coverage",ticker)) or [])
+    monkeypatch.setattr(dashboard,"render_signal_cards",lambda *args,**kwargs:None)
+    monkeypatch.setattr(dashboard,"render_research_change_route_summary",lambda *args,**kw:calls.append(("changes",kw.get("ticker"))))
+    dashboard.render_company_workbench(SimpleNamespace(list_local_tickers=lambda:["AVGO"]),context,{},object())
+    return query,context,captured,reports,calls
 
-    header = workbench.index("render_research_workspace_header(")
-    target = workbench.index("selected_answer_target = st.empty()", header)
-    review = workbench.index('with st.expander("Review path", expanded=False):', target)
-    advanced = workbench.index('with st.expander("Advanced: selected-company lane coverage", expanded=False):', review)
-    report = workbench.index("render_single_stock_report(", advanced)
 
-    assert header < target < review < advanced < report
-    assert "compact=True" in workbench[header:target]
-    assert "selected_answer_target=selected_answer_target" in workbench[report:]
-    assert 'st.markdown("### Selected Company")' not in workbench
+def test_company_workbench_anchors_answer_before_collapsed_navigation_and_passes_target_to_report(monkeypatch):
+    query,context,view,reports,calls=_capture_integrated_company_route(monkeypatch)
+    assert view["ticker"]=="AVGO" and view["saved_available"] is True
+    assert view["profile_scope"]=="default"
+    assert reports==[] and calls==[]  # The initial page does not enter deep saved tools or sources.
+    view["render_saved"]("valuation")
+    assert reports[0]["workbench_section"]=="valuation"
+    assert reports[0]["profile_context"] is context
+    assert reports[0]["research_mode"] is True
 
 
-def test_company_workbench_loads_cash_preview_only_for_explicit_flag():
-    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
-    workbench_start = source.index("def render_company_workbench(")
-    workbench_end = source.index("\ndef main()", workbench_start)
-    workbench = source[workbench_start:workbench_end]
-
-    assert 'company_workbench_cash_preview_requested(st.query_params.get("cash_preview"))' in source
-    assert "load_company_workbench_cash_generation_preview(ticker)" in source
-    gate = workbench.index(
-        'company_workbench_cash_preview_requested(st.query_params.get("cash_preview"))'
-    )
-    load = workbench.index(
-        "load_company_workbench_cash_generation_preview(ticker)",
-        gate,
-    )
-    report = workbench.index("render_single_stock_report(", load)
-    canonical = workbench.index("load_dashboard_quarterly_trend(ticker)", report)
-
-    assert gate < load < report < canonical
-    assert workbench.index("cash_generation_preview = None") < gate
-    assert "cash_generation_preview=cash_generation_preview" in workbench[report:]
+@pytest.mark.parametrize("flag,expected",[("0",[]),("1",["AVGO"])])
+def test_company_workbench_loads_cash_preview_only_for_explicit_flag(monkeypatch,flag,expected):
+    loaded=[]
+    monkeypatch.setattr(dashboard,"load_company_workbench_cash_generation_preview",lambda ticker:loaded.append(ticker))
+    monkeypatch.setattr(dashboard,"cash_generation_preview_cards",lambda preview:[])
+    query,context,view,reports,calls=_capture_integrated_company_route(monkeypatch,cash_preview=flag)
+    assert loaded==[]
+    view["render_sources"]({"financial":{"status":"not_requested"},"prices":{"status":"not_requested"}})
+    assert loaded==expected
+    assert reports==[]
 
 
 def test_cash_preview_renders_after_business_trend_answer_and_before_advanced_lineage():
@@ -1488,20 +1495,13 @@ def test_research_workspace_styles_inject_media_preferences_after_normal_styles(
     )
 
 
-def test_company_workbench_keeps_review_path_and_lane_coverage_after_anchored_answer():
-    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
-    start = source.index("def render_company_workbench(")
-    end = source.index("\ndef main()", start)
-    workbench = source[start:end]
-
-    selected_answer = workbench.index("selected_answer_target = st.empty()")
-    review = workbench.index('with st.expander("Review path", expanded=False):', selected_answer)
-    path = workbench.index('st.caption(" -> ".join(section_names[:-1]))', review)
-    coverage = workbench.index('with st.expander("Advanced: selected-company lane coverage", expanded=False):', path)
-    report = workbench.index("render_single_stock_report(", coverage)
-
-    assert selected_answer < review < path < coverage < report
-    assert 'st.caption("Review path: "' not in workbench
+def test_company_workbench_keeps_review_path_and_lane_coverage_after_anchored_answer(monkeypatch):
+    query,context,view,reports,calls=_capture_integrated_company_route(monkeypatch)
+    assert calls==[]
+    view["render_sources"]({"financial":{"status":"not_requested"},"prices":{"status":"not_requested"}})
+    assert ("filing","AVGO") in calls and ("security","AVGO") in calls
+    assert ("coverage","AVGO") in calls and ("changes","AVGO") in calls
+    assert reports==[]
 
 
 def test_company_workbench_uses_composed_forward_view_and_keeps_details_advanced():
@@ -1862,174 +1862,30 @@ def test_direct_unregistered_company_workbench_fails_closed_without_saved_ticker
     assert copy.count("data-sr-region='stop-rule'") == 1
 
 
-def test_direct_registered_company_workbench_without_open_preserves_query_and_renders_report(
-    monkeypatch,
-):
-    reports: list[dict[str, object]] = []
-    sec_cards: list[str] = []
-    query = {"ticker": "AVGO", "cash_preview": "0"}
-
-    class Expander:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-    target = SimpleNamespace(markdown=lambda value, **kwargs: sec_cards.append(str(value)))
-    monkeypatch.setattr(
-        dashboard,
-        "st",
-        SimpleNamespace(
-            query_params=query,
-            session_state={},
-            markdown=lambda *args, **kwargs: None,
-            empty=lambda: target,
-            button=lambda *args, **kwargs: False,
-            radio=lambda label, options, **kwargs: options[0],
-            container=lambda *args, **kwargs: Expander(),
-            columns=lambda *args, **kwargs: (Expander(), Expander()),
-            expander=lambda *args, **kwargs: Expander(),
-            caption=lambda *args, **kwargs: None,
-        ),
-    )
-    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "focused_ticker_coverage_cards", lambda *args, **kwargs: [])
-    monkeypatch.setattr(
-        dashboard,
-        "load_company_workbench_cash_generation_preview",
-        lambda ticker: pytest.fail("cash_preview=0 must not load the preview"),
-    )
-    monkeypatch.setattr(dashboard, "load_dashboard_quarterly_trend", lambda ticker: None)
-    monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
-    monkeypatch.setattr(
-        dashboard,
-        "render_single_stock_report",
-        lambda *args, **kwargs: reports.append(kwargs),
-    )
-
-    dashboard.render_company_workbench(
-        SimpleNamespace(list_local_tickers=lambda: ["AVGO"]),
-        SimpleNamespace(),
-        {},
-        object(),
-    )
-
-    assert query == {"ticker": "AVGO", "cash_preview": "0"}
-    assert len(reports) == 1
-    assert reports[0]["research_mode"] is True
-    assert reports[0]["selected_answer_target"] is target
-    assert reports[0]["selected_detail_target"] is target
-    assert reports[0]["selected_evidence_target"] is target
-    assert any("Check SEC annual facts to request filing evidence" in card for card in sec_cards)
+def test_direct_registered_company_workbench_without_open_preserves_query_and_renders_report(monkeypatch):
+    query,context,view,reports,calls=_capture_integrated_company_route(monkeypatch)
+    assert query=={"ticker":"AVGO","cash_preview":"0"}
+    assert reports==[]
+    view["render_saved"]("notes")
+    assert len(reports)==1 and reports[0]["workbench_section"]=="notes"
+    assert reports[0]["profile_context"] is context
+    assert query=={"ticker":"AVGO","cash_preview":"0"}
 
 
-def test_registered_company_workbench_renders_one_document_with_inline_evidence_placeholder(
-    monkeypatch,
-):
-    """The first read follows one document order without a detached status rail."""
-
-    calls: list[tuple[str, object, object]] = []
-    contexts: list[str] = []
-
-    class RecordedContext:
-        def __init__(self, name: str):
-            self.name = name
-
-        def __enter__(self):
-            contexts.append(self.name)
-            return self
-
-        def __exit__(self, *args):
-            contexts.pop()
-            return False
-
-    class RecordingStreamlit:
-        query_params = {"ticker": "AVGO", "cash_preview": "0"}
-        session_state = {}
-
-        def container(self, *args, **kwargs):
-            key = kwargs.get("key")
-            calls.append(("container", key, contexts[-1] if contexts else None))
-            return RecordedContext("sec" if key == "company-sec-annual-check" else "document")
-
-        def columns(self, spec):
-            calls.append(("columns", spec, contexts[-1] if contexts else None))
-            return (RecordedContext("overview"), RecordedContext("evidence"))
-
-        def empty(self):
-            calls.append(("empty", None, contexts[-1] if contexts else None))
-            return SimpleNamespace(
-                markdown=lambda value, **kwargs: calls.append(
-                    ("placeholder-markdown", value, contexts[-1] if contexts else None)
-                )
-            )
-
-        def radio(self, label, options, **kwargs):
-            return options[0]
-
-        def button(self, label, **kwargs):
-            calls.append(("button", label, contexts[-1] if contexts else None))
-            return False
-
-        def markdown(self, value, **kwargs):
-            calls.append(("markdown", value, contexts[-1] if contexts else None))
-
-        def expander(self, label, **kwargs):
-            calls.append(("expander", label, contexts[-1] if contexts else None))
-            return RecordedContext(f"expander:{label}")
-
-        def caption(self, value, **kwargs):
-            calls.append(("caption", value, contexts[-1] if contexts else None))
-
-    monkeypatch.setattr(dashboard, "st", RecordingStreamlit())
-    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "focused_ticker_coverage_cards", lambda *args, **kwargs: [])
-    monkeypatch.setattr(dashboard, "load_dashboard_quarterly_trend", lambda ticker: None)
-    monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "render_single_stock_report", lambda *args, **kwargs: None)
-
-    dashboard.render_company_workbench(
-        SimpleNamespace(list_local_tickers=lambda: ["AVGO"]),
-        SimpleNamespace(),
-        {},
-        object(),
-    )
-
-    assert [call for call in calls if call[0] == "container"] == [
-        ("container", "company-workbench-document", None),
-        ("container", "company-sec-annual-check", "document"),
-        ("container", "company-online-prices", "document"),
-    ]
-    assert [call for call in calls if call[0] == "columns"] == []
-    assert [call for call in calls if call == ("empty", None, "document")] == [
-        ("empty", None, "document"),
-        ("empty", None, "document"),
-        ("empty", None, "document"),
-    ]
-    valuations = [
-        call for call in calls
-        if call[0] == "placeholder-markdown" and 'aria-label="Valuation and peers"' in str(call[1])
-    ]
-    assert len(valuations) == 1
-    assert valuations[0][2] == "document"
-    assert "AVGO · P/E" in valuations[0][1]
-    assert calls.index(valuations[0]) < calls.index(("button", "Check SEC annual facts", "sec"))
-    assert ("button", "Check SEC annual facts", "sec") in calls
-    assert any(
-        call[0] == "placeholder-markdown"
-        and "Check SEC annual facts to request filing evidence" in str(call[1])
-        and call[2] == "sec"
-        for call in calls
-    )
-    assert any(
-        call[0] == "markdown" and "sr-evidence-timeline" in str(call[1]) and call[2] == "document"
-        for call in calls
-    )
-    assert ("expander", "Review path", "document") in calls
-    assert ("expander", "Advanced: selected-company lane coverage", "document") in calls
+def test_registered_company_workbench_renders_one_document_with_inline_evidence_placeholder():
+    from streamlit.testing.v1 import AppTest
+    from tests.test_integrated_company_workbench import _dashboard_app, text
+    at=AppTest.from_function(_dashboard_app,default_timeout=30)
+    at.query_params.update({"mode":"research","page":"company-workbench","ticker":"AMD"})
+    at.run()
+    assert not at.exception
+    assert text(at).count("<h1")==1
+    at.radio[0].set_value("sources").run()
+    assert not at.exception
+    assert text(at).count("<h1")==1
+    assert any(e.label=="Exact SEC filing evidence" for e in at.expander)
+    assert any(e.label=="保存研究的来源与复核状态" for e in at.expander)
+    assert "No source-backed quarterly actual is available" not in text(at)
 
 
 def test_research_workbench_report_is_internally_open_without_changing_public_open_semantics():
@@ -2897,7 +2753,6 @@ def test_research_primary_sections_follow_route_h1_with_level_two_headings():
         "Forward View",
         "What Remains Withheld",
         "Research Conclusion",
-        "Advanced Evidence",
     )
 
     for heading in expected_level_two:

@@ -123,3 +123,12 @@ def test_commercial_mode_cannot_reuse_personal_inspection_cache(monkeypatch):
     result=workbench_projection('FICT',view,prices)
     assert result['annual_count']==result['price_count']==0
     assert result['facts']=={}
+
+
+def test_failed_source_attempt_is_not_presented_as_not_requested():
+    from src.company_workbench_sections import workbench_projection,workbench_header_html
+    unavailable={'ticker':'FICT','status':'unavailable','reason':'source_timeout'}
+    projection=workbench_projection('FICT',unavailable,unavailable)
+    rendered=workbench_header_html('FICT',projection,True)
+    assert '尚未请求在线数据' not in rendered
+    assert '暂无通过核对的在线数据' in rendered

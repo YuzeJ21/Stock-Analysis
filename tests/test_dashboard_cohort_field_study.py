@@ -47,76 +47,20 @@ def test_discover_study_markup_keeps_qcom_blocked_and_all_six_company_links():
 
 
 def test_company_workbench_shows_qcom_reasons_and_keeps_raw_proof_advanced(monkeypatch):
-    rendered: list[tuple[str, str]] = []
-    location = ["first view"]
-
-    class Context:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-    class Streamlit:
-        query_params = {"ticker": "QCOM", "cash_preview": "0"}
-        session_state = {}
-
-        def markdown(self, value, **kwargs):
-            rendered.append((location[-1], str(value)))
-
-        def caption(self, *args, **kwargs):
-            pass
-
-        def empty(self):
-            return SimpleNamespace(
-                markdown=lambda value, **kwargs: rendered.append((location[-1], str(value)))
-            )
-
-        def radio(self, label, options, **kwargs):
-            return options[0]
-
-        def button(self, *args, **kwargs):
-            return False
-
-        def container(self, **kwargs):
-            return Context()
-
-        def columns(self, spec):
-            return Context(), Context()
-
-        def expander(self, label, **kwargs):
-            class Expander(Context):
-                def __enter__(self):
-                    location.append(label)
-                    return self
-
-                def __exit__(self, *args):
-                    location.pop()
-                    return False
-            return Expander()
-
-    monkeypatch.setattr(dashboard, "st", Streamlit())
-    monkeypatch.setattr(dashboard, "load_dashboard_bounded_field_study", lambda context: _study())
-    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "render_single_stock_report", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "load_dashboard_quarterly_trend", lambda ticker: None)
-    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "focused_ticker_coverage_cards", lambda *args: [])
-
-    dashboard.render_company_workbench(
-        SimpleNamespace(list_local_tickers=lambda: ["QCOM"]),
-        SimpleNamespace(), {}, object(),
-    )
-
-    first_view = " ".join(value for place, value in rendered if place == "first view")
-    advanced = " ".join(value for place, value in rendered if place == "Advanced Evidence")
-    assert "QCOM saved-field evidence" in first_view
-    assert "Check SEC annual facts to request filing evidence" in first_view
-    assert first_view.count("No saved value") == 9
-    assert "saved_field_missing" not in first_view
-    assert "Raw saved field references" in advanced
-    assert "Input digest:" in advanced
+    from tests.test_research_mode_dashboard_contract import _capture_integrated_company_route
+    query, context, captured, reports, calls = _capture_integrated_company_route(monkeypatch)
+    rendered=[]
+    monkeypatch.setattr(dashboard.st,'markdown',lambda value,**kwargs:rendered.append(str(value)))
+    monkeypatch.setattr(dashboard,'load_dashboard_bounded_field_study',lambda context:_study())
+    dashboard.st.query_params['ticker']='QCOM'
+    dashboard.render_company_workbench(SimpleNamespace(list_local_tickers=lambda:['QCOM']),
+        SimpleNamespace(profile_key='default',freshness_state='stale'),{},object())
+    assert rendered==[] and reports==[]
+    captured['render_sources']({'financial':{'status':'not_requested'},'prices':{'status':'not_requested'}})
+    copy=' '.join(rendered)
+    assert 'QCOM saved-field evidence' in copy
+    assert copy.count('No saved value')==9
+    assert 'Raw saved field references' in copy and 'Input digest:' in copy
 
 
 def test_monitor_study_comparison_is_separate_from_follow_up_queue(monkeypatch):
