@@ -17,10 +17,13 @@ def _reason(value):
     return escape(value.replace('_',' ')) if isinstance(value,str) else 'Evidence validation required'
 
 
-def _label(name,field):
+def financial_field_label(name,field):
     if name=='revenue' and field:
         return REVENUE_LABELS.get(field.get('concept'),'Revenue')
     return _LABELS[name]+(' · continuing operations' if field and field.get('concept')=='NetCashProvidedByUsedInOperatingActivitiesContinuingOperations' else '')
+
+
+_label = financial_field_label
 
 
 def _receipts(refs):

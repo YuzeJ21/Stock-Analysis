@@ -132,3 +132,48 @@ def test_failed_source_attempt_is_not_presented_as_not_requested():
     rendered=workbench_header_html('FICT',projection,True)
     assert '尚未请求在线数据' not in rendered
     assert '暂无通过核对的在线数据' in rendered
+
+
+@pytest.mark.parametrize('status',['unavailable','not_requested'])
+def test_unavailable_parent_cannot_reuse_an_old_annual_history(status):
+    from src.company_workbench_sections import workbench_projection
+    view=financial_view();view.update(status=status,reason='sec_fetch_unavailable')
+    projection=workbench_projection('FICT',view,price_view())
+    assert projection['annual_count']==0 and projection['facts']=={}
+    assert projection['price_count']==3
+
+
+def test_summary_preserves_customer_contract_and_continuing_operations_scope():
+    from src.company_workbench_sections import workbench_projection,workbench_facts_html
+    from src.sec_annual_history import build_sec_annual_history
+    payload=_payload();facts=payload['facts']['us-gaap']
+    facts['RevenueFromContractWithCustomerExcludingAssessedTax']=facts.pop('Revenues')
+    facts['NetCashProvidedByUsedInOperatingActivitiesContinuingOperations']=facts.pop('NetCashProvidedByUsedInOperatingActivities')
+    view=_view(payload);view['annual_history']=build_sec_annual_history(view,payload)
+    projection=workbench_projection('FICT',view,price_view())
+    assert projection['facts']
+    rendered=workbench_facts_html(projection)
+    assert 'Revenue · customer contracts, excluding assessed tax' in rendered
+    assert 'Operating cash flow · continuing operations' in rendered
+    assert '最新报告值' not in rendered
+    assert '当前可核对期间' in rendered
+
+
+def test_older_annual_summary_discloses_newer_withheld_quarter_and_reason():
+    from src.company_workbench_sections import workbench_projection,workbench_facts_html
+    from tests.test_sec_quarterly_history import _quarter_payload,_build
+    payload=_quarter_payload()
+    payload['facts']['us-gaap']['UnsupportedIndustryRevenue']={'units':{'USD':[
+        {'start':'2026-07-01','end':'2026-09-30','filed':'2026-10-20',
+         'form':'10-Q','accn':'0000001234-26-000002','val':200}]}}
+    view=financial_view();history=_build(payload);view['quarterly_history']=history
+    view['companyfacts_identity']={'status':'source_matched',**{key:history[key]
+        for key in ('ticker','sec_cik','source_url','observed_at','payload_sha256')}}
+    from src.sec_quarterly_history import validated_quarterly_history
+    assert validated_quarterly_history(view) is not None
+    projection=workbench_projection('FICT',view,price_view())
+    assert projection['period_end']=='2025-12-31'
+    rendered=workbench_facts_html(projection)
+    assert '2026-09-30' in rendered
+    assert 'latest_reported_quarter_revenue_unavailable' in rendered
+    assert '较新申报期间' in rendered

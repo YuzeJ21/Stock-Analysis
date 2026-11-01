@@ -17,6 +17,18 @@ from src.online_us_universe_view import foreign_financials_html
 from src.sec_foreign_financials import validated_foreign_financials
 from src.company_valuation_overview import build_valuation_overview, valuation_overview_html
 from src.security_classification import get_company_security_context
+from src.scenario_lab_session import scenario_lab_widget_keys
+from src.research_record_authoring_ui import FIELD_CONTRACTS, authoring_session_key
+
+
+def retain_saved_tool_inputs(state,profile_scope,ticker):
+    """Keep scoped editable inputs across lazy panes, never action or consent state."""
+    keys=list(scenario_lab_widget_keys(profile_scope,ticker).values())
+    keys.append(authoring_session_key(profile_scope,ticker,'kind'))
+    keys.extend(authoring_session_key(profile_scope,ticker,f'field:{kind}:{name}')
+                for kind,fields in FIELD_CONTRACTS.items() for name in fields)
+    for key in keys:
+        if key in state:state[key]=state[key]
 
 
 def load_workbench_observations(ticker, state, *, refresh_financials=False, refresh_prices=False,
@@ -51,6 +63,8 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
     candidate=online_candidate if isinstance(online_candidate,Mapping) else None
     expected_cik=candidate.get('cik') if candidate else None
     scope='online:'+str(expected_cik) if candidate else 'saved'
+    if saved_available and candidate is None:
+        retain_saved_tool_inputs(st_api.session_state,profile_scope,ticker)
     header=st_api.empty()
     update_all=st_api.button('更新财报与价格',key='company-refresh-all',type='primary')
     with st_api.expander('分别更新',expanded=False):

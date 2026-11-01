@@ -8,6 +8,7 @@ from src.online_history_contract import validated_annual_history
 from src.sec_quarterly_history import validated_quarterly_history
 from src.sec_foreign_financials import validated_foreign_financials
 from src.online_research_history_view import validated_online_price_history
+from src.online_research_expansion_view import financial_field_label
 
 SECTIONS = (
     ('overview', '概览'), ('financials', '财务趋势'), ('valuation', '估值与同行'),
@@ -26,7 +27,7 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None):
     result=dict(ticker=ticker, annual_count=0, quarter_count=0, price_count=0,
                 facts={}, period_end=None, period_start=None, period_kind=None,
                 unit=None, identity_conflict=False, model_eligibility='independent',
-                readiness_promoted=False, attempted=any(
+                readiness_promoted=False, withheld_periods=[], attempted=any(
                     isinstance(item,Mapping) and item.get('status') not in (None,'not_requested')
                     for item in (financial_view,prices)))
     if _mode_reason('research'):
@@ -44,26 +45,36 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None):
     result['price_count']=len(price['bars']) if price else 0
     if view.get('ticker')!=ticker:
         return result
-    annual=validated_annual_history(view)
+    annual=validated_annual_history(view) if view.get('status')=='inspection_only' else None
     quarter=validated_quarterly_history(view)
     foreign=validated_foreign_financials(view)
     candidates=[]
+    def inspect_latest(kind,rows,history):
+        if not rows:return
+        row=rows[-1]
+        if row['status']=='available':
+            candidates.append((kind,row,history['unit']))
+        else:
+            result['withheld_periods'].append(dict(kind=kind,period_end=row['period_end'],
+                reason=row['reason'],filed=row.get('filed'),source_ref=history.get('source_url'),
+                observed_at=history.get('observed_at')))
     for kind,history in (('annual',annual),('quarterly',quarter)):
         if history is None:continue
         rows=history['periods'];available=[r for r in rows if r['status']=='available']
         result['annual_count' if kind=='annual' else 'quarter_count']=len(available)
-        if rows and rows[-1]['status']=='available':
-            candidates.append((kind,rows[-1],history['unit']))
+        inspect_latest(kind,rows,history)
     if foreign is not None:
         for kind,key in (('annual','annual_count'),('quarterly','quarter_count')):
             rows=foreign[kind]
             result[key]=len([r for r in rows if r['status']=='available'])
-            if rows and rows[-1]['status']=='available':candidates.append((kind,rows[-1],foreign['unit']))
+            inspect_latest(kind,rows,foreign)
     if candidates:
         kind,row,unit=max(candidates,key=lambda item:item[1]['period_end'])
         fields=row['fields'];fields={f['field']:f for f in fields} if isinstance(fields,list) else fields
         result.update(facts={k:dict(v) for k,v in fields.items() if k in FIELD_LABELS},
                       period_start=row['period_start'],period_end=row['period_end'],period_kind=kind,unit=unit)
+    result['withheld_periods']=[row for row in result['withheld_periods']
+                               if result['period_end'] is None or row['period_end']>result['period_end']]
     return result
 
 
@@ -94,14 +105,23 @@ def workbench_header_html(ticker, projection, saved_scope, title=None):
 
 def workbench_facts_html(projection):
     p=projection
+    reasons={'latest_reported_quarter_revenue_unavailable':'该报告季度缺少可核对的收入字段',
+             'raw_source_conflict':'来源字段存在冲突',
+             'matching_direct_fact_unavailable':'缺少期间匹配的直接申报字段',
+             'ambiguous_quarter_context':'申报期间或上下文仍有歧义'}
+    gaps=''.join('<p class="company-scope-note" data-withheld-reason="'+escape(row['reason'],quote=True)
+        +'">较新申报期间 · '+('季度' if row['kind']=='quarterly' else '年度')+' '+escape(row['period_end'])
+        +' 仍待补充：'+escape(reasons.get(row['reason'],row['reason'].replace('_',' ')))
+        +'。较早的可读数值不代表该期间已覆盖；来源与原因见数据来源。</p>' for row in p.get('withheld_periods',[]))
     if not p['facts']:
-        return '<p class="company-scope-note">财报事实尚未取得或来源未通过核对。使用上方更新操作；逐字段原因可在数据来源查看。</p>'
+        return gaps+'<p class="company-scope-note">财报事实尚未取得或来源未通过核对。使用上方更新操作；逐字段原因可在数据来源查看。</p>'
     cards=[]
     for key,label in FIELD_LABELS.items():
         field=p['facts'].get(key)
         amount=format(field['value'],',.0f') if field else '待补充'
-        definition=field.get('concept','') if field else '该期间没有可核对的直接字段'
+        scope=financial_field_label(key,field) if field else '该期间没有可核对的直接字段'
+        definition=scope+(' · '+field.get('concept','') if field else '')
         cards.append('<div><dt>'+label+'</dt><dd>'+escape(amount)+'</dd><small>'+escape(definition)+'</small></div>')
     kind='直接报告季度' if p['period_kind']=='quarterly' else '报告年度'
-    return ('<h3>可核对财报摘要</h3><p class="company-scope-note">'+escape(kind+' · '+p['period_start']+' → '+p['period_end']+' · '+p['unit'])
-            +' · 最新报告值，不是点时历史；未取得的单季度现金流不会由累计值推导。</p><dl class="company-fact-grid">'+''.join(cards)+'</dl>')
+    return (gaps+'<h3>可核对财报摘要</h3><p class="company-scope-note">'+escape(kind+' · '+p['period_start']+' → '+p['period_end']+' · '+p['unit'])
+            +' · 当前可核对期间，不代表最新申报已覆盖，也不是点时历史；未取得的单季度现金流不会由累计值推导。</p><dl class="company-fact-grid">'+''.join(cards)+'</dl>')

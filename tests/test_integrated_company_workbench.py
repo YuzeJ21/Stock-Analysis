@@ -166,3 +166,61 @@ def test_real_workbench_route_is_lazy_and_reuses_saved_tools_when_requested(monk
     assert 'Research Decision Lab' in text(at)
     assert any(e.label=='Add a reviewed research record' for e in at.expander)
     assert any(e.label=='HTML Research Brief' for e in at.expander)
+
+
+def test_saved_scenario_assumptions_survive_section_roundtrip_without_cross_company_reuse(monkeypatch):
+    from src import dashboard
+    prepared=[];snapshots=[]
+    prepare=dashboard.run_scenario_lab_from_state
+    build=dashboard.build_company_workbench_html_snapshot
+    def tracked_prepare(*args,**kwargs):
+        session=prepare(*args,**kwargs);prepared.append(session);return session
+    def tracked_build(inputs):
+        snapshots.append(inputs);return build(inputs)
+    monkeypatch.setattr(dashboard,'run_scenario_lab_from_state',tracked_prepare)
+    monkeypatch.setattr(dashboard,'build_company_workbench_html_snapshot',tracked_build)
+    at=AppTest.from_function(_dashboard_app,default_timeout=30)
+    at.query_params.update(mode='research',page='company-workbench',ticker='NVDA')
+    at.run();at.radio[0].set_value('valuation').run()
+    next(s for s in at.slider if s.label=='WACC').set_value(.12).run()
+    at.radio[0].set_value('notes').run()
+    at.run()  # A second notes rerun must retain the scenario used by the exported snapshot.
+    assert prepared[-1].parameters.wacc==pytest.approx(.12)
+    assert snapshots[-1].scenario_lab_result is prepared[-1].result
+    at.radio[0].set_value('financials').run()
+    at.radio[0].set_value('valuation').run()
+    assert not at.exception
+    assert next(s for s in at.slider if s.label=='WACC').value==pytest.approx(.12)
+    at.query_params['ticker']='AMD';at.run()
+    at.radio[0].set_value('valuation').run()
+    assert not at.exception
+    assert next(s for s in at.slider if s.label=='WACC').value!=pytest.approx(.12)
+
+
+def test_unsaved_research_draft_survives_section_roundtrip():
+    at=AppTest.from_function(_dashboard_app,default_timeout=30)
+    at.query_params.update(mode='research',page='company-workbench',ticker='NVDA')
+    at.run();at.radio[0].set_value('notes').run()
+    next(t for t in at.text_area if t.label=='Summary').input('Synthetic unsaved draft').run()
+    at.radio[0].set_value('financials').run()
+    at.radio[0].set_value('notes').run()
+    assert not at.exception
+    assert next(t for t in at.text_area if t.label=='Summary').value=='Synthetic unsaved draft'
+
+
+def test_retention_touches_only_current_scope_editable_inputs():
+    from src.company_workbench_ui import retain_saved_tool_inputs
+    from src.scenario_lab_session import scenario_lab_widget_keys
+    from src.research_record_authoring_ui import authoring_session_key
+    touched=[]
+    class State(dict):
+        def __setitem__(self,key,value):
+            touched.append(key);super().__setitem__(key,value)
+    scenario=scenario_lab_widget_keys('default','FICT')['wacc']
+    draft=authoring_session_key('default','FICT','field:thesis:summary')
+    confirmed=authoring_session_key('default','FICT','confirmed')
+    action=authoring_session_key('default','FICT','validate')
+    other=scenario_lab_widget_keys('other-profile','FICT')['wacc']
+    state=State({scenario:.12,draft:'Synthetic unsaved note',confirmed:True,action:True,other:.15})
+    retain_saved_tool_inputs(state,'default','FICT')
+    assert set(touched)=={scenario,draft}
