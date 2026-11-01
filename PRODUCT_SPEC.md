@@ -10,6 +10,8 @@ The supported workflow is `Research Desk -> Discover -> Company Workbench -> Mon
 
 ## In-App Reviewed Research Records
 
+The valuation section also supports an explicit online annual diluted P/E comparison for Personal Research. It requires source-bound issuer/class identity, a completed matched price, directly filed annual GAAP EPS and at least three references passing the disclosed industry and fiscal-calendar rules. Actual dates, field definitions and exclusion reasons remain visible; no saved readiness or record is promoted. See [Online Peer Valuation](docs/ONLINE_PEER_VALUATION.md).
+
 Company Workbench has five sections: **概览、财务趋势、估值与同行、研究记录、数据来源**. Only the selected section renders. **更新财报与价格** requests both existing source adapters; separate financial and price actions remain available. Ordinary section changes reuse successful or unavailable session attempts without fetching. The overview shows directly reported fields and dated prices; annual, direct-quarter and native-currency histories retain their existing source and duration rules. The valuation section reuses saved scenarios and explains missing per-metric peer evidence. The notes section retains thesis, evidence, catalyst, outcome and offline HTML brief tools. Sources retains exact filings, security-type context, raw references and independent readiness/observation evidence. Same-symbol online candidates cannot enter saved models or authoring without separate identity reconciliation.
 
 Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer. It appears inside **研究记录**.

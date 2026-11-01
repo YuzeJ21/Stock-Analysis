@@ -19,6 +19,8 @@ from src.company_valuation_overview import build_valuation_overview, valuation_o
 from src.security_classification import get_company_security_context
 from src.scenario_lab_session import scenario_lab_widget_keys
 from src.research_record_authoring_ui import FIELD_CONTRACTS, authoring_session_key
+from src.online_peer_sources import get_online_peer_valuation
+from src.online_peer_valuation_ui import online_peer_valuation_html
 
 
 def retain_saved_tool_inputs(state,profile_scope,ticker):
@@ -114,14 +116,30 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                 with st_api.expander('财务观察与可用分析',expanded=False):
                     st_api.markdown(online_company_analysis_html(build_online_company_analysis(financial)),unsafe_allow_html=True)
         elif selected in ('valuation','notes'):
+            peer_view=None
+            if selected=='valuation':
+                requested=st_api.button('更新在线同行估值',key=f'company-refresh-peers:{ticker}:{scope}')
+                if requested:
+                    with st_api.spinner('正在核对公司、年度收益和同行来源…'):
+                        peer_view=get_online_peer_valuation(ticker,st_api.session_state,refresh_requested=True,expected_cik=expected_cik)
+                else:
+                    peer_view=get_online_peer_valuation(ticker,st_api.session_state,refresh_requested=False,expected_cik=expected_cik)
+                if peer_view['status']!='not_requested':
+                    st_api.markdown(online_peer_valuation_html(peer_view),unsafe_allow_html=True)
+                else:
+                    st_api.caption('按需查询已披露年度 P/E 与行业参照；每家公司独立核对身份、期间、价格和来源。')
             if saved_available and candidate is None:
-                render_saved(selected)
+                if selected=='valuation' and peer_view['status']!='not_requested':
+                    with st_api.expander('已保存的估值与情景分析',expanded=False):
+                        render_saved(selected)
+                else:render_saved(selected)
             elif selected=='valuation':
-                research_context=get_company_security_context(ticker,st_api.session_state,
-                    refresh_requested=False,user_agent=None,expected_cik=expected_cik)
-                st_api.markdown(valuation_overview_html(build_valuation_overview(ticker,
-                    research_context=research_context),compact=True),unsafe_allow_html=True)
-                st_api.info('在线财报与价格仅供分别阅读。估值还需要核对股类、财务定义、价格日期、来源权限和同行依据。')
+                if peer_view['status']=='not_requested':
+                    research_context=get_company_security_context(ticker,st_api.session_state,
+                        refresh_requested=False,user_agent=None,expected_cik=expected_cik)
+                    st_api.markdown(valuation_overview_html(build_valuation_overview(ticker,
+                        research_context=research_context),compact=True),unsafe_allow_html=True)
+                    st_api.info('在线财报与价格仅供分别阅读。估值还需要核对股类、财务定义、价格日期、来源权限和同行依据。')
                 if saved_available:st_api.markdown(_separate_saved_link(ticker),unsafe_allow_html=True)
             else:
                 st_api.info('在线公司身份尚未与已保存研究集合核对，当前页面不会读取或写入同代码的已保存记录。')
@@ -129,5 +147,8 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
         else:
             st_api.caption('来源、期间、单位、观察日期与权限分别保留；在线查询不更新正式财务、readiness 或覆盖统计。')
             st_api.markdown(price_filing_association_html(bundle['association']),unsafe_allow_html=True)
+            peer_view=get_online_peer_valuation(ticker,st_api.session_state,refresh_requested=False,expected_cik=expected_cik)
+            if peer_view['status']!='not_requested':
+                st_api.markdown(online_peer_valuation_html(peer_view,sources_only=True),unsafe_allow_html=True)
             render_sources(bundle)
     return bundle

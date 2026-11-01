@@ -22,3 +22,7 @@ Missing or unverified prices, definitions, financial periods, source identity, f
 The source disclosure shows contributing companies, definitions, dates and exclusions where evidence exists. A shared industry classification is a candidate-discovery aid, not proof of comparability. Banks, funds, blank-check companies and security wrappers need appropriate research methods and independent input evidence.
 
 The current repository's aggregate peer outputs alone do not provide the new per-metric comparison evidence. Real-company results remain withheld until that source path is established. The labelled example explains the calculation while keeping the selected company's fields unchanged.
+
+## Connected online annual method
+
+The explicit online action now provides a separate personal-research annual diluted P/E industry reference. It checks source identity, matching completed prices and directly reported annual EPS, and discloses each fiscal period and its35-day boundary window. At least three distinct companies must pass the automatic industry rules. This is not an analyst-approved exact-period peer group, TTM multiple or upgrade of saved model readiness. The source drawer preserves exclusions and missing reasons. See [Online Peer Valuation](ONLINE_PEER_VALUATION.md) for the exact method and source-rights limits.

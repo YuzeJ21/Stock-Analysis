@@ -127,7 +127,8 @@ def _vendor_filing_match(filings, sec_filings, ticker, cik):
                 continue
             exhibit='https://cdn.yahoofinance.com/prod/sec-filings/'+cik+'/'+link[1].replace('-','')+'/'+sec['primaryDocument']
             if isinstance(row.get('exhibits'),Mapping) and row['exhibits'].get(row['type'])==exhibit:
-                matched=dict(source_ref=url, accession=link[1], filed=sec['filingDate'])
+                if matched is None or sec['filingDate']>matched['filed']:
+                    matched=dict(source_ref=url, accession=link[1], filed=sec['filingDate'])
     _need(matched is not None, 'vendor_filing_not_matched_to_sec')
     return matched
 
@@ -247,6 +248,27 @@ def _empty(ticker, reason):
                 fiscal_window_days=FISCAL_WINDOW_DAYS,minimum_peers=MIN_PEERS,candidate_count=0)
 
 
+def _subject_source_context(row,classification,ticker,expected_cik,as_of):
+    """Keep exact filing metadata traceable even when its EPS cannot be used."""
+    try:
+        cik,_=_selected(classification,ticker,expected_cik)
+        url=f'https://data.sec.gov/submissions/CIK{cik}.json'
+        profile=_receipt(row.get('profile'),url,as_of)
+        _need(_cik(profile.get('cik'))==cik,'issuer_identity_mismatch')
+        annual=[r for r in _filings(profile,as_of) if r['form'] in _ANNUAL]
+        latest=max((r['reportDate'] for r in annual),default=None)
+        versions=[]
+        for filing in [r for r in annual if r['reportDate']==latest][:4]:
+            accession=filing['accessionNumber']
+            versions.append(dict(form=filing['form'],period_end=filing['reportDate'],filed=filing['filingDate'],
+                                 accepted_at=filing.get('acceptanceDateTime'),accession=accession,
+                                 source_ref=f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-", "")}/{filing["primaryDocument"]}'))
+        return dict(sec_cik=cik,profile_source_ref=url,profile_observed_at=row['profile']['observed_at'],
+                    facts_query_ref=f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',annual_versions=versions)
+    except (ValueError,TypeError,KeyError,AttributeError,OverflowError):
+        return {}
+
+
 def build_online_peer_valuation(collection, *, ticker, expected_cik=None, as_of=None):
     """Revalidate every observation; never trust a precomputed verdict or readiness flag."""
     result=_empty(ticker,_mode_reason('research') or 'online_peer_evidence_unavailable')
@@ -277,6 +299,7 @@ def build_online_peer_valuation(collection, *, ticker, expected_cik=None, as_of=
         _need(isinstance(packets,list) and 0<len(packets)<=MAX_CANDIDATES+1 and all(isinstance(p,Mapping) and _symbol(p.get('ticker')) for p in packets), 'issuer_collection_invalid')
         rows={p['ticker']:p for p in packets}
         _need(len(rows)==len(packets) and set(rows)<={ticker,*candidates} and ticker in rows, 'duplicate_or_unrequested_issuer')
+        result['subject_source_context']=_subject_source_context(rows[ticker],classification,ticker,expected_cik,now)
         subject=_issuer(rows[ticker],classification,key,now)
         _need(expected_cik is None or subject['sec_cik']==expected_cik, 'selected_company_cik_mismatch')
         result['subject']=subject

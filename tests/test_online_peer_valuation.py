@@ -236,3 +236,14 @@ def test_same_day_annual_versions_use_acceptance_time_without_falling_back(has_a
         assert v['subject']['accession']==amended['accessionNumber']
     else:
         assert v['reason']=='latest_annual_eps_missing_including_amendment' and v['premium_fraction'] is None
+
+
+def test_identity_disclosure_selects_most_recent_matched_filing_not_last_list_item():
+    c=collection();r=c['issuers'][0];recent=r['profile']['payload']['filings']['recent']
+    old=dict(form='10-K',reportDate='2021-12-31',filingDate='2022-02-01',accessionNumber='0000001001-22-000001',primaryDocument='old.htm')
+    for k,v in old.items():recent[k].append(v)
+    r['vendor']['payload']['filings'].append(dict(type='10-K',date='2022-02-01',
+        edgarUrl='https://finance.yahoo.com/sec-filing/FICT/0000001001-22-000001_1001',
+        exhibits={'10-K':'https://cdn.yahoofinance.com/prod/sec-filings/0000001001/000000100122000001/old.htm'}))
+    rehash_vendor(r)
+    assert build(c)['subject']['vendor_filing']['filed']=='2026-02-01'

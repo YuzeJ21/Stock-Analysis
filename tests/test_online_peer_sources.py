@@ -129,6 +129,20 @@ def test_missing_sdk_capability_is_an_explicit_gap():
     assert observe_industry('semiconductors','technology',sdk=object(),observed_at=NOW)['status']=='unavailable'
 
 
+def test_industry_adapter_retains_provider_order_without_turning_it_into_a_ranking():
+    from src.online_peer_sources import observe_industry
+    import pandas as pd
+    class Industry:
+        sector_key='technology'
+        top_companies=pd.DataFrame({'name':['Synthetic B','Synthetic A']},index=['FB','FA'])
+        def __init__(self,key):assert key=='semiconductors'
+    class SDK:pass
+    SDK.Industry=Industry
+    v=observe_industry('semiconductors','technology',sdk=SDK,observed_at=NOW)
+    assert v['status']=='observed' and v['payload']['symbols']==['FB','FA']
+    assert v['normalized_sha256']==digest(v['payload']) and 'ranking' not in v
+
+
 def test_collector_retains_raw_sec_digest_and_binds_its_reduced_payload():
     from src.online_peer_sources import SESSION_KEY
     d,calls=source_dependencies();state={};v=get(state,refresh=True,dependencies=d)

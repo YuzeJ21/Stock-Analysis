@@ -1,0 +1,166 @@
+"""Readable online comparison and source disclosure; no transport or state writes."""
+from collections.abc import Mapping
+from html import escape
+import math
+import re
+from urllib.parse import urlsplit
+
+from src.online_peer_valuation import FISCAL_WINDOW_DAYS, MIN_PEERS
+
+REASONS = {
+    'reported_annual_pe_industry_reference_only':'已取得通过规则核对的年度 P/E 行业参照，仅描述倍数差异。',
+    'annual_filing_missing':'未取得本方法支持的年度 10-K / 20-F 申报。',
+    'latest_annual_eps_missing_including_amendment':'最新年度或修订申报没有匹配的稀释每股收益，保留缺口。',
+    'annual_filing_tie_unresolved':'同日有多份年度申报，缺少可区分版本顺序的证据。',
+    'annual_eps_nonpositive_or_invalid':'年度稀释每股收益为零、负值或无效；P/E 不适用。',
+    'annual_diluted_eps_usd_missing':'没有取得 USD/shares 口径的已披露年度稀释每股收益。',
+    'annual_eps_conflict':'相同年度申报存在冲突的收益字段。',
+    'annual_eps_filing_mismatch':'收益字段与选定申报的类型或发布日期不一致。',
+    'annual_eps_unit_conflict':'同一年度收益字段存在币种或单位冲突。',
+    'annual_period_or_publication_not_current_for_price':'年度期间过旧，或申报尚未在所用价格日期发布。',
+    'peer_fiscal_window_differs':'实际财年起止日期差异超过 35 天。',
+    'provider_industry_differs':'供应商行业分类不同。',
+    'sec_industry_differs':'SEC 行业代码不同。',
+    'post_period_split_requires_share_basis_review':'财报期间后发生拆股，缺少可核对的收益调整口径。',
+    'split_history_does_not_cover_period_end':'拆股观察范围未覆盖收益期间末，股数口径暂不能核对。',
+    'split_evidence_invalid':'拆股记录的日期或比例未通过核对。',
+    'peer_price_date_differs':'所用收盘价格日期与本公司不同。',
+    'quote_not_same_recent_completed_day':'报价不是同一已完成交易日的近期价格。',
+    'quote_and_daily_close_differ':'供应商报价与日线收盘值无法核对一致。',
+    'price_quote_chronology_invalid':'价格来源的观察时间早于对应报价，暂不能采用。',
+    'price_source_digest_missing':'缺少价格来源摘要。',
+    'source_observation_stale_or_future':'来源观察已超过 24 小时或时间在未来，请重新更新。',
+    'vendor_filing_not_matched_to_sec':'供应商申报链接未能与 SEC 申报元数据核对。',
+    'vendor_filing_issuer_conflict':'供应商申报链接的发行人身份存在冲突。',
+    'quote_identity_or_type_mismatch':'供应商代码或证券类型不一致。',
+    'quote_exchange_mismatch':'供应商交易所与独立上市来源不一致。',
+    'unsupported_quote_or_financial_currency':'价格与财务币种不是已支持的 USD 口径。',
+    'peer_listing_or_share_basis_unverified':'未核对到独立、明确的普通股上市身份。',
+    'selected_listing_or_cik_unverified':'本公司的上市身份、CIK 或普通股类型尚未核对。',
+    'multiple_issuer_share_classes_unresolved':'同一发行人有多个股类，尚未核对收益对应股类。',
+    'ordinary_share_basis_unverified':'该证券缺少明确普通股依据，须采用适合其类型的方法。',
+    'operating_issuer_required':'该发行人尚未通过经营性公司口径核对。',
+    'investment_company_requires_separate_method':'投资公司需独立研究方法，不能直接采用这组 P/E。',
+    'industry_or_operating_scope_unverified':'行业或经营性公司范围尚未核对。',
+    'at_least_three_compatible_industry_references_required':'通过同口径筛选的参照公司不足，至少 3 家才显示差异。',
+    'vendor_context_source_unavailable':'暂未取得供应商报价与申报身份资料。',
+    'industry_candidate_source_unavailable':'暂未取得供应商行业候选列表。',
+    'industry_metadata_missing':'本公司的行业分类缺失。',
+    'listing_classification_unavailable':'独立上市与证券类型来源暂不可用。',
+    'issuer_source_unavailable':'该公司的申报或价格来源暂不可用。',
+    'peer_not_collected':'尚未采集；先处理本公司来源缺口。',
+    'source_paused_after_repeated_failures':'连续来源失败后暂停后续请求，保留未完成项。',
+    'cached_observation_changed':'缓存内容与来源摘要不一致，请重新更新。',
+    'normalized_sec_observation_changed':'财报字段与保存的来源摘要不一致。',
+    'normalized_observation_changed':'供应商字段与保存的来源摘要不一致。',
+    'peer_source_unavailable':'本次在线来源未完成，旧结论已撤下。',
+    'commercial_identity_rights_unreviewed':'当前商业模式的来源权限尚未通过核对。',
+    'invalid_commercial_mode_configuration':'运行模式配置无法核对，保留来源限制。',
+}
+
+STYLE='''<style>
+.online-peer-valuation{box-sizing:border-box;min-width:0;margin:12px 0 20px;padding:22px;border:1px solid #d7e1dc;border-radius:14px;background:#fff;color:#22372d;overflow-wrap:anywhere}
+.online-peer-valuation h3{font-size:1.4rem;line-height:1.4;margin:.35rem 0 .7rem}.online-peer-valuation h4{font-size:1.05rem;margin:1rem 0 .5rem}.online-peer-valuation p{line-height:1.6;margin:.55rem 0}
+.online-peer-valuation .peer-kicker{font-size:.85rem;color:#496253}.peer-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}.peer-stats div{padding:14px;background:#f2f6f3;border:1px solid #dce5df;border-radius:10px;min-width:0}.peer-stats dt{font-size:.85rem;color:#496253}.peer-stats dd{font-size:1.35rem;font-weight:700;margin:.4rem 0 0}
+.online-peer-valuation details{border-top:1px solid #dce5df;margin-top:14px;padding-top:7px}.online-peer-valuation summary{cursor:pointer;min-height:44px;display:list-item;align-content:center;font-weight:650;line-height:1.5}.online-peer-valuation a{color:#245842;text-decoration:underline}.online-peer-valuation summary:focus-visible,.online-peer-valuation a:focus-visible{outline:2px solid #245842;outline-offset:3px}
+.online-peer-valuation table{width:100%;table-layout:fixed;border-collapse:collapse;margin:12px 0}.online-peer-valuation th,.online-peer-valuation td{padding:9px 6px;text-align:left;vertical-align:top;border-bottom:1px solid #dce5df;font-size:.88rem;overflow-wrap:anywhere}.online-peer-valuation code{white-space:normal;word-break:break-all;font-size:.78rem}.online-peer-valuation ul{padding-left:20px}.online-peer-valuation li{margin:.5rem 0}
+@media(max-width:640px){.online-peer-valuation{padding:15px}.peer-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.online-peer-valuation table,.online-peer-valuation tbody{display:block}.online-peer-valuation thead{display:none}.online-peer-valuation tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid #dce5df;border-radius:9px;margin:12px 0;padding:7px}.online-peer-valuation td{display:block;border:0;min-width:0}.online-peer-valuation td::before{content:attr(data-label);display:block;font-size:.78rem;color:#496253;margin-bottom:4px}.online-peer-valuation td:first-child,.online-peer-valuation td:last-child{grid-column:1/-1}}
+</style>'''
+
+
+def _text(value):
+    return escape(str(value if value is not None else '未取得'))
+
+
+def _number(value):
+    try:return type(value) in {int,float} and abs(value)<=1e20 and math.isfinite(value)
+    except (ValueError,OverflowError):return False
+
+
+def _multiple(value):
+    return (f'{value:,.1f}' if value>=.1 else f'{value:.3g}')+'×' if _number(value) and value>0 else '未取得'
+
+
+def _link(url,label):
+    try:
+        p=urlsplit(url) if isinstance(url,str) and len(url)<=2048 else None
+        if p and p.scheme=='https' and p.hostname in {'www.sec.gov','data.sec.gov','query1.finance.yahoo.com','finance.yahoo.com','cdn.yahoofinance.com'} and p.username is None and p.password is None and p.port is None:
+            return '<a href="'+escape(url,quote=True)+'" target="_blank" rel="noopener noreferrer">'+escape(label)+'</a>'
+    except ValueError:pass
+    return escape(label)+'（链接未通过核对）'
+
+
+def _reason(value):
+    return REASONS.get(value if isinstance(value,str) else None,'来源、身份或字段记录未通过核对，暂不采用。')
+
+
+def _source_table(rows):
+    body=''
+    for row in rows:
+        eps=f'{row["eps"]:,.6g}' if _number(row.get('eps')) else '未取得'
+        price=f'{row["price"]:,.6g}' if _number(row.get('price')) else '未取得'
+        cells=[('公司',_text(row.get('ticker'))),('年度 P/E',_multiple(row.get('multiple'))),
+               ('年度稀释 EPS',_text(eps)+' USD/shares'),
+               ('实际财报期间',_text(row.get('period_start'))+' → '+_text(row.get('period_end'))),
+               ('价格及日期',_text(price)+' USD · '+_text(row.get('price_date'))),
+               ('来源',_link(row.get('source_ref'),'SEC 收益')+' · '+_link(row.get('filing_ref'),'申报文件')+' · '+_link(row.get('price_source_ref'),'价格源'))]
+        body+='<tr>'+''.join('<td data-label="'+escape(k,quote=True)+'">'+v+'</td>' for k,v in cells)+'</tr>'
+    return '<table aria-label="年度 P/E 与实际期间"><thead><tr>'+''.join('<th scope="col">'+k+'</th>' for k in ('公司','年度 P/E','年度稀释 EPS','实际财报期间','价格及日期','来源'))+'</tr></thead><tbody>'+body+'</tbody></table>'
+
+
+def _disclosure(v,rows):
+    html='<p>自动筛选的行业参照组：同供应商行业、同 SEC 行业代码、普通股、独立发行人、同一价格日期。每家实际财年起止日期与本公司相差不超过 '+str(FISCAL_WINDOW_DAYS)+' 天；这不是完全相同的期间，也不是分析师审核的经济可比组。</p>'
+    html+='<p>候选列表共 '+_text(v.get('industry_candidate_total'))+' 个记录，本次最多核查 12 家其他公司，按供应商列表顺序保留；不是完整行业覆盖。</p>'
+    if v.get('industry_source_ref'):
+        html+='<p>'+_link(v['industry_source_ref'],'候选组来源')+' · 观察 '+_text(v.get('industry_observed_at'))+'</p>'
+    context=v.get('subject_source_context')
+    if isinstance(context,Mapping) and context:
+        html+='<h4>本公司申报元数据与收益字段线索</h4><p>CIK '+_text(context.get('sec_cik'))+' · '+_link(context.get('profile_source_ref'),'SEC 申报元数据')+' · '+_link(context.get('facts_query_ref'),'收益字段查询地址')+' · 观察 '+_text(context.get('profile_observed_at'))+'。列出元数据不代表对应收益字段已通过核对。</p><ul>'
+        for filing in context.get('annual_versions',[]):
+            html+='<li>'+_text(filing.get('form'))+' · '+_text(filing.get('accession'))+' · 期间末 '+_text(filing.get('period_end'))+' · 发布 '+_text(filing.get('filed'))+' · 接收 '+_text(filing.get('accepted_at'))+' · '+_link(filing.get('source_ref'),'具体申报')+'</li>'
+        html+='</ul>'
+    if rows:html+=_source_table(rows)
+    excluded=v.get('excluded') if isinstance(v.get('excluded'),list) else []
+    if excluded:
+        html+='<h4>未纳入参照的公司与原因</h4><ul>'+''.join('<li><strong>'+_text(r.get('ticker'))+'</strong>：'+_text(_reason(r.get('reason')))+'</li>' for r in excluded if isinstance(r,Mapping))+'</ul>'
+    html+='<details><summary>字段定义、观察日期与来源摘要</summary>'
+    for row in rows:
+        html+='<h4>'+_text(row.get('ticker'))+'</h4><p>us-gaap:EarningsPerShareDiluted · USD/shares · '+_text(row.get('form'))+' · accession '+_text(row.get('accession'))+' · 发布 '+_text(row.get('filed'))+'</p>'
+        html+='<p>财报观察 '+_text(row.get('observed_at'))+'；价格观察 '+_text(row.get('price_observed_at'))+'；供应商身份观察 '+_text(row.get('vendor_observed_at'))+'。</p>'
+        identity=row.get('vendor_filing') if isinstance(row.get('vendor_filing'),Mapping) else {}
+        html+='<p>CIK '+_text(row.get('sec_cik'))+' · '+_link(identity.get('source_ref'),'供应商申报身份依据')+'。当前匹配不证明历史证券连续性或发行人所在地。</p>'
+        for key,label in [('facts_sha256','SEC 原始响应 SHA-256'),('price_sha256','价格原始响应 SHA-256'),('vendor_normalized_sha256','供应商 normalized SHA-256')]:
+            value=row.get(key)
+            html+='<p>'+label+'：<code>'+(_text(value) if isinstance(value,str) and re.fullmatch(r'[0-9a-f]{64}',value) else '未取得')+'</code></p>'
+    html+='</details><p>来源权限：仅个人研究检查。价格与供应商资料的商业使用及再分发权限未通过核对；本字段不新增 SEC 商业字段批准，不更新已保存模型、记录或覆盖状态。</p>'
+    return html
+
+
+def online_peer_valuation_html(view,*,sources_only=False):
+    v=view if isinstance(view,Mapping) else {}
+    if v.get('status')=='not_requested':return ''
+    subject=v.get('subject') if isinstance(v.get('subject'),Mapping) else None
+    peers=[r for r in v.get('peers',[]) if isinstance(r,Mapping)] if isinstance(v.get('peers'),list) else []
+    rows=([subject] if subject else [])+peers
+    if sources_only:
+        return STYLE+'<section class="online-peer-valuation" aria-label="Online peer valuation sources"><h3>在线同行估值来源</h3><p>'+_text(_reason(v.get('reason')))+'</p>'+_disclosure(v,rows)+'</section>'
+    supported=(v.get('status')=='research_comparison' and subject is not None and subject.get('ticker')==v.get('ticker')
+               and len(peers)>=MIN_PEERS and v.get('peer_count')==len(peers)
+               and _number(v.get('premium_fraction')) and _number(v.get('peer_median')) and v['peer_median']>0)
+    headline='暂不判断相对贵便宜'
+    if supported:
+        premium=v['premium_fraction'];amount=f'{abs(premium)*100:.1f}%' if abs(premium)>=.0005 else '<0.1%'
+        headline=('年度 P/E 等于同行参照中位数' if premium==0 else '年度 P/E '+('高于' if premium>0 else '低于')+'同行参照 '+amount)
+    kicker='在线来源 · 已披露年度稀释 P/E · 非 TTM / 非预测值'
+    html=STYLE+'<section class="online-peer-valuation" aria-label="Online peer valuation"><p class="peer-kicker">'+kicker+'</p><h3>'+_text(headline)+'</h3>'
+    if v.get('attempted_at'):html+='<p>本次来源查询：'+_text(v['attempted_at'])+'</p>'
+    if not supported:html+='<p>'+_text(_reason(v.get('reason')))+'</p>'
+    html+='<p>这是单一指标的相对比较，不是低估或高估结论。业务结构、增长、利润率、资本需求和风险差异尚未调整。</p>'
+    stats=[('本公司年度 P/E',_multiple(subject.get('multiple')) if subject else '未取得'),
+           ('同行参照中位数',_multiple(v.get('peer_median')) if supported else '暂不显示'),
+           ('通过筛选',str(len(peers))+' 家'),('价格日期',_text(subject.get('price_date')) if subject else '未取得')]
+    html+='<dl class="peer-stats">'+''.join('<div><dt>'+label+'</dt><dd>'+value+'</dd></div>' for label,value in stats)+'</dl>'
+    if not supported:html+='<p>至少 3 家同口径参照公司通过核对后才显示溢价或折价；当前 '+str(len(peers))+' 家。</p>'
+    html+='<details><summary>查看同行、实际期间、来源与缺失原因</summary>'+_disclosure(v,rows)+'</details>'
+    html+='<details><summary>其他估值口径为什么尚未显示</summary><p>TTM / 预测 P/E、P/S、P/FCF、EV/EBITDA 还需要分别核对期间、股数、企业价值与成分定义；本次不会从股票存在或其他倍数推断。</p></details></section>'
+    return html

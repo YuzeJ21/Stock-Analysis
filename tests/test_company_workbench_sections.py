@@ -131,8 +131,8 @@ def test_failed_source_attempt_is_not_presented_as_not_requested():
     unavailable={'ticker':'FICT','status':'unavailable','reason':'source_timeout'}
     projection=workbench_projection('FICT',unavailable,unavailable)
     rendered=workbench_header_html('FICT',projection,True)
-    assert '尚未请求在线数据' not in rendered
-    assert '暂无通过核对的在线数据' in rendered
+    assert '财报趋势与日线历史尚未请求' not in rendered
+    assert '暂无通过核对的财报趋势或日线历史' in rendered
 
 
 @pytest.mark.parametrize('status',['unavailable','not_requested'])
