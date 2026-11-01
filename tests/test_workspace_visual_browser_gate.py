@@ -130,20 +130,21 @@ def test_company_workbench_sec_component_proof_requires_click_and_reflows_at_pho
                 for width, height in ((1280, 720), (390, 844)):
                     page = browser.new_page(viewport={"width": width, "height": height})
                     page.goto(
-                        server.base_url + "/?mode=research&page=company-workbench&ticker=AMD&open=1",
+                        server.base_url + "/?mode=research&page=company-workbench&ticker=AMD&open=1&section=sources",
                         wait_until="domcontentloaded",
                         timeout=45_000,
                     )
-                    check = page.get_by_role("button", name="Check SEC annual facts")
+                    page.get_by_role("heading",name="数据来源",exact=True).wait_for(state="visible")
+                    page.get_by_text("分别更新",exact=True).click()
+                    check = page.get_by_role("button", name="只更新财报",exact=True)
                     check.wait_for(state="visible", timeout=45_000)
                     before_click = call_count()
-                    assert page.get_by_text(
-                        "Check SEC annual facts to request filing evidence for this company."
-                    ).is_visible()
+                    assert page.get_by_text("使用上方更新操作取得本公司的字段证据。",exact=True).count()==1
                     assert page.get_by_role("heading", name="Annual filing field evidence").count() == 0
                     assert call_count() == before_click
 
                     check.click()
+                    page.get_by_text("财报字段与原始来源",exact=True).click()
                     page.get_by_role("heading", name="Annual filing field evidence").wait_for(
                         state="visible", timeout=45_000
                     )
@@ -181,14 +182,24 @@ def test_company_workbench_sec_component_proof_requires_click_and_reflows_at_pho
                 browser.close()
 
 
-def test_company_workbench_phone_evidence_caption_and_period_share_readable_width():
-    """The real phone layout must keep the caption and both source lines aligned."""
+def test_company_workbench_phone_evidence_caption_and_period_share_readable_width(tmp_path):
+    """The reusable saved-evidence table retains phone width in the Sources slot."""
     from playwright.sync_api import sync_playwright
     from src.research_accessibility_browser_gate import _captured_local_demo_server
     from src.workspace_visual_browser_gate import find_chrome_executable
 
     root = Path(__file__).resolve().parents[1]
-    with _captured_local_demo_server(root, timeout_seconds=45) as server:
+    (tmp_path/'src').mkdir()
+    (tmp_path/'src/dashboard.py').write_text(
+        "import sys\nimport streamlit as st\nsys.path.insert(0,"+repr(str(root))+")\n"
+        "from src.dashboard import apply_dashboard_theme,render_research_workspace_styles,company_workbench_evidence_status_html\n"
+        "from src.company_workbench_ui import render_integrated_company\n"
+        "apply_dashboard_theme()\nrender_research_workspace_styles()\n"
+        "def sources(bundle):\n"
+        " with st.container(key='company-workbench-document'):\n"
+        "  st.markdown(company_workbench_evidence_status_html(ticker='AVGO',readiness={'price_ready':False,'dcf_ready':False,'peer_ready':False,'earnings_ready':False,'analyst_estimates_ready':False},freshness_label='Synthetic unavailable',report_payload={'ticker':'AVGO','financial_summary':{'source':{'provider':'synthetic-source'},'reporting_period':'Synthetic period'}}),unsafe_allow_html=True)\n"
+        "render_integrated_company(st,'AVGO',profile_scope='synthetic',saved_available=False,render_saved=lambda section:None,render_sources=sources)\n")
+    with _captured_local_demo_server(tmp_path, timeout_seconds=45) as server:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(
                 executable_path=find_chrome_executable(), headless=True
@@ -196,7 +207,7 @@ def test_company_workbench_phone_evidence_caption_and_period_share_readable_widt
             try:
                 page = browser.new_page(viewport={"width": 390, "height": 844})
                 page.goto(
-                    server.base_url + "/?mode=research&page=company-workbench&ticker=AVGO",
+                    server.base_url + "/?section=sources",
                     wait_until="domcontentloaded",
                     timeout=45_000,
                 )
@@ -228,7 +239,7 @@ def test_company_workbench_phone_evidence_caption_and_period_share_readable_widt
 @pytest.mark.parametrize(
     ("route", "final_selector"),
     (
-        ("/?mode=research&page=company-workbench&ticker=AVGO&open=1", ".company-workbench-primary-brief"),
+        ("/?mode=research&page=company-workbench&ticker=AVGO&open=1&section=valuation", ".company-valuation"),
         ("/?mode=public&page=single-stock-report&ticker=AVGO&open=1", ".public-ticker-summary"),
     ),
 )
@@ -286,7 +297,10 @@ def test_task4_production_report_cold_transition_is_neutral_then_resolved(
                     assert page.locator(final_selector).count() == 1
                     resolved_text = page.locator(final_selector).inner_text()
                     resolved_url = page.url
-                    assert "AVGO" in resolved_text
+                    if "mode=research" in route:
+                        assert page.get_by_role("heading",level=1,name="AVGO Company Brief",exact=True).count()==1
+                    else:
+                        assert "AVGO" in resolved_text
                     assert page.locator(".single-stock-loading-state, [aria-busy='true']").count() == 0
                     assert resolved_url == server.base_url + route and "ticker=AVGO" in resolved_url
                     page.wait_for_timeout(500)

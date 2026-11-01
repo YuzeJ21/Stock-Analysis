@@ -4389,7 +4389,12 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                         }
                     }
                 };
-                if (hitTestEligible) return strictCurrentHitTest();
+                if (hitTestEligible) {
+                    const currentVisible = strictCurrentHitTest();
+                    if (currentVisible || node !== onePager) return currentVisible;
+                    // A tall compound summary may have only its covered footer in view.
+                    // Try its reachable beginning; each required child is checked separately.
+                }
                 const scrollPositions = [];
                 const remembered = new Set();
                 const remember = element => {
@@ -4423,7 +4428,8 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                         }
                         if (['auto', 'scroll'].includes(style.overflowY) &&
                             current.scrollHeight > current.clientHeight + 1) {
-                            if (targetRect.top < ancestorTop) {
+                            if (targetRect.top < ancestorTop ||
+                                node === onePager && targetRect.height > current.clientHeight) {
                                 current.scrollTop += targetRect.top - ancestorTop;
                             } else if (targetRect.bottom > ancestorBottom) {
                                 current.scrollTop += targetRect.bottom - ancestorBottom;
@@ -4436,7 +4442,8 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                     } else if (targetRect.right > window.innerWidth) {
                         scrollingElement.scrollLeft += targetRect.right - window.innerWidth;
                     }
-                    if (targetRect.top < 0) {
+                    if (targetRect.top < 0 ||
+                        node === onePager && targetRect.height > window.innerHeight) {
                         scrollingElement.scrollTop += targetRect.top;
                     } else if (targetRect.bottom > window.innerHeight) {
                         scrollingElement.scrollTop += targetRect.bottom - window.innerHeight;

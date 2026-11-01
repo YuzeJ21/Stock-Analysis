@@ -1752,7 +1752,7 @@ def test_actual_company_workbench_one_pager_collector_rejects_hidden_summary_wit
             and observation["one_pager_share_basis_visible_count"] == 1
             and observation["advanced_evidence_count"] == 1
             and observation["advanced_evidence_after_one_pager"] is True
-        ), observation
+        ), gate.json.dumps(observation,sort_keys=True)
     else:
         assert (
             observation["one_pager_visible"] is False
