@@ -91,6 +91,29 @@ def annual_history_html(view):
     )
 
 
+def validated_online_price_history(result, *, ticker=None):
+    """Reuse the price display contract without interpreting it as valuation identity."""
+    from collections.abc import Mapping
+    if not isinstance(result, Mapping) or result.get("status") != "inspection_only":
+        return None
+    if ticker is not None and result.get("ticker") != ticker:
+        return None
+    ticker, symbol, bars = result.get("ticker"), result.get("provider_symbol"), result.get("bars")
+    if (
+        not isinstance(ticker, str) or re.fullmatch(r"[A-Z0-9][A-Z0-9.-]{0,19}", ticker) is None
+        or symbol != ticker.replace('.', '-') or not isinstance(bars, list) or not 1 <= len(bars) <= 400
+        or result.get("currency") != "USD" or result.get("source_id") != "yahoo_chart"
+        or result.get("rights_status") != "exact_source_unregistered_personal_inspection_only"
+        or result.get("commercial_eligible") is not False or _utc_timestamp(result.get("observed_at")) is None
+        or not str(result.get("source_url", "")).startswith(f'https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol, safe="")}?')
+        or any(not isinstance(r, dict) or _iso_date(r.get("date")) is None or not _finite_direct_number(r.get("close")) or r["close"] <= 0 for r in bars)
+    ):
+        return None
+    if result.get("last_price_date") != bars[-1]["date"] or any(a["date"] >= b["date"] for a, b in zip(bars, bars[1:])):
+        return None
+    return result
+
+
 def online_price_history_html(result):
     if result.get("status") == "not_requested":
         return '<p>Inspect one year of dated daily prices for this ticker on request.</p>'
@@ -104,19 +127,9 @@ def online_price_history_html(result):
         }
         message = reasons.get(result.get("reason"), 'Price evidence failed validation; no price was accepted.')
         return f'<section class="online-price-inspection"><h3>Daily price history · personal research</h3><p>{escape(message)}</p></section>'
-    ticker, symbol, bars = result.get("ticker"), result.get("provider_symbol"), result.get("bars")
-    if (
-        not isinstance(ticker, str) or re.fullmatch(r"[A-Z0-9][A-Z0-9.-]{0,19}", ticker) is None
-        or symbol != ticker.replace('.', '-') or not isinstance(bars, list) or not 1 <= len(bars) <= 400
-        or result.get("currency") != "USD" or result.get("source_id") != "yahoo_chart"
-        or result.get("rights_status") != "exact_source_unregistered_personal_inspection_only"
-        or result.get("commercial_eligible") is not False or _utc_timestamp(result.get("observed_at")) is None
-        or not str(result.get("source_url", "")).startswith(f'https://query1.finance.yahoo.com/v8/finance/chart/{quote(symbol, safe="")}?')
-        or any(not isinstance(r, dict) or _iso_date(r.get("date")) is None or not _finite_direct_number(r.get("close")) or r["close"] <= 0 for r in bars)
-    ):
+    if validated_online_price_history(result) is None:
         return '<section class="online-price-inspection"><p>Price evidence is unavailable.</p></section>'
-    if result.get("last_price_date") != bars[-1]["date"] or any(a["date"] >= b["date"] for a, b in zip(bars, bars[1:])):
-        return '<section class="online-price-inspection"><p>Price chronology is unavailable.</p></section>'
+    ticker, symbol, bars = result["ticker"], result["provider_symbol"], result["bars"]
     split_dates = ", ".join(str(x.get("date", "unknown")) for x in result.get("splits", [])) or "none reported in this response"
     return (
         STYLE + '<section class="online-price-inspection" aria-label="Daily price history"><h3>Daily price history · personal research</h3>'
