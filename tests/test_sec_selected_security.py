@@ -137,3 +137,32 @@ def test_exact_sec_cover_variants_keep_identity_dates_separate_from_financial_du
     if variant=='exchange_name':row['profile']['payload']['exchanges']=['NYSE','NYSE'];row['profile']['normalized_sha256']=digest(row['profile']['payload'])
     install(monkeypatch,policy);result=validate(policy,row,packet)
     assert result['status']=='supported_common' and result['original_eps']['period_start']=='2025-01-01'
+
+
+def test_a_recorded_annual_gap_cannot_survive_new_annual_metadata(monkeypatch):
+    policy,row,packet,_=fixture();policy.update(kind='inspection_only',reason='successor_annual_basis_unverified',requires_absent_annual=True);policy['documents']={'cover':policy['documents']['cover']};install(monkeypatch,policy)
+    assert validate(policy,row,packet)['status']=='withheld'
+
+
+@pytest.mark.parametrize('variant',['different_request_path','no_transport_decoration','financial_change','inline_script','script_attributes','non_tail_script'])
+def test_explicit_sec_body_binding_preserves_raw_receipts_and_never_ignores_financial_changes(monkeypatch,variant):
+    policy,row,packet,raw=fixture()
+    old_script=b'<script type="text/javascript"  src="/old/path/token"></script>'
+    new_script=b'<script type="text/javascript"  src="/new/request/token"></script>'
+    for role,body in raw.items():
+        reference=body.replace(b'</html>',old_script+b'</body></html>') if b'</body>' not in body else body.replace(b'</body>',old_script+b'</body>')
+        # Fixture html has no body wrapper; use a complete literal body for both captures.
+        if b'<body>' not in body:
+            body=body.replace(b'<x:context',b'<body><x:context',1).replace(b'</html>',b'</body></html>');reference=body.replace(b'</body>',old_script+b'</body>')
+        changed=body if variant=='no_transport_decoration' else body.replace(b'</body>',new_script+b'</body>')
+        if variant=='financial_change':changed=changed.replace(b'>1</ix:nonFraction>',b'>2</ix:nonFraction>')
+        if variant=='inline_script':changed=changed.replace(b'></script>',b'>changed()</script>')
+        if variant=='script_attributes':changed=changed.replace(b'<script type=',b'<script data-extra="x" type=')
+        if variant=='non_tail_script':changed=changed.replace(new_script,new_script+b'<p>after</p>')
+        policy['documents'][role].update(sha256=hashlib.sha256(reference).hexdigest(),body_sha256=hashlib.sha256(body).hexdigest(),normalization='sec-empty-tail-script-v1')
+        packet['documents'][role].update(payload_sha256=hashlib.sha256(changed).hexdigest(),payload_raw_base64=base64.b64encode(changed).decode())
+    install(monkeypatch,policy);result=validate(policy,row,packet)
+    assert (result['status']=='supported_common')==(variant in {'different_request_path','no_transport_decoration'})
+    if result['status']=='supported_common':
+        assert result['documents'][0]['payload_sha256']==packet['documents']['annual']['payload_sha256']
+        assert result['documents'][0]['body_sha256']==policy['documents']['annual']['body_sha256']

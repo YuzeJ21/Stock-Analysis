@@ -99,11 +99,11 @@ def _subject_source_failure(view,packet):
     if not isinstance(issuers,list):return False
     for row in issuers:
         if not isinstance(row,Mapping) or row.get('ticker')!=view.get('ticker'):continue
-        for key in ('prices','profile','facts','amendment_evidence','selected_security_evidence'):
+        for key in ('prices','profile','facts','amendment_evidence','selected_security_evidence','vendor_history'):
             component=row.get(key)
             if (isinstance(component,Mapping) and component.get('status')=='unavailable'
                     and component.get('reason') in {'price_source_unavailable','sec_receipt_unavailable',
-                        'amendment_source_unavailable','selected_security_source_unavailable','source_component_unavailable'}):return True
+                        'amendment_source_unavailable','selected_security_source_unavailable','vendor_history_source_unavailable','source_component_unavailable'}):return True
     return False
 
 

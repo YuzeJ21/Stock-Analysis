@@ -142,6 +142,8 @@ def _collect_issuer(ticker,cik,deps,user_agent,as_of,vendor=None):
         result['amendment_evidence']=_attempt_source(deps['amendment'],ticker,cik,profile,user_agent=user_agent,observed_at=as_of)
     if any(not isinstance(r,Mapping) or r.get('status') not in {'ready','inspection_only'} for r in (profile,facts,prices)):
         result.update(status='unavailable',reason='issuer_source_unavailable')
+    if any(isinstance(result.get(k),Mapping) and result[k].get('status')=='unavailable' and result[k].get('reason') in {'vendor_history_source_unavailable','selected_security_source_unavailable','source_component_unavailable'} for k in ('vendor_history','selected_security_evidence')):
+        result.update(status='unavailable',reason='issuer_source_unavailable')
     return result
 
 

@@ -18,6 +18,15 @@ ANNUAL={'10-K','10-K/A','20-F','20-F/A'}
 IDENTITY_FORMS={'8-K','8-K/A','8-K12B','8-K12B/A'}
 FINANCIAL_FORMS=ANNUAL|{'10-Q','10-Q/A'}
 FUND_FORMS={'N-CSR','N-CSRS','N-CEN','NPORT-P','N-PORT'}
+_TAIL_SCRIPT=re.compile(rb'<script type="text/javascript"\s+src="/[A-Za-z0-9_-]{1,80}(?:/[A-Za-z0-9_-]{1,80}){1,15}"></script>(?=</(?:body|BODY)>\s*</(?:html|HTML)>\s*(?:</TEXT>\s*</DOCUMENT>\s*)?\Z)')
+
+
+def _bound_body(raw,normalization):
+    if normalization is None:return raw
+    _require(normalization=='sec-empty-tail-script-v1')
+    # Only this empty, relative-path, external tail script is response decoration.
+    # Every other source byte remains bound; scripts are never executed here.
+    return _TAIL_SCRIPT.sub(b'',raw)
 
 
 def _fresh(stamp,now):
@@ -48,6 +57,7 @@ def _policy(ticker,cik,profile,now):
     policies=[p for p in POLICIES if (p['ticker'],p['sec_cik'])==(ticker,cik)]
     if len(policies)!=1:return None
     p=policies[0];rows=_metadata(profile)
+    if p.get('requires_absent_annual'):_require(not any(r['form'] in ANNUAL for r in rows))
     _require(isinstance(body.get('tickers'),list) and len(set(body['tickers']))==len(body['tickers']) and sorted(body['tickers'])==p['issuer_symbols'])
     _require(isinstance(body.get('exchanges'),list) and len(body['exchanges'])==len(body['tickers']))
     for role,doc in p['documents'].items():
@@ -152,8 +162,10 @@ def validate_selected_security_evidence(packet,*,ticker,cik,profile,issuer_symbo
             _require(ref.get('status')=='ready' and ref.get('source_url')==url and _fresh(ref.get('observed_at'),as_of))
             _require(isinstance(encoded,str) and 0<len(encoded)<=4*((MAX_FILING_BYTES+2)//3))
             raw=base64.b64decode(encoded,validate=True)
-            _require(0<len(raw)<=MAX_FILING_BYTES and hashlib.sha256(raw).hexdigest()==doc['sha256']==ref.get('payload_sha256'))
-            item=dict(role=role,**doc['metadata'],source_ref=url,observed_at=ref['observed_at'],payload_sha256=doc['sha256'])
+            _require(0<len(raw)<=MAX_FILING_BYTES and hashlib.sha256(raw).hexdigest()==ref.get('payload_sha256'))
+            body_sha=hashlib.sha256(_bound_body(raw,doc.get('normalization'))).hexdigest()
+            _require(body_sha==doc.get('body_sha256',doc['sha256']))
+            item=dict(role=role,**doc['metadata'],source_ref=url,observed_at=ref['observed_at'],payload_sha256=ref['payload_sha256'],body_sha256=body_sha,binding_normalization=doc.get('normalization','identity_bytes'),reference_capture_sha256=doc['sha256'])
             if p['kind']=='supported_common':
                 root,ns,contexts,common,other=_cover(raw,cik,doc['metadata'],doc,url);_require(common['ticker']==ticker)
                 item.update(selected_common=common,raw_cover_observations=other)
