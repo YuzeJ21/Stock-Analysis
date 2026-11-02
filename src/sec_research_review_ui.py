@@ -9,7 +9,8 @@ from src.sec_research_review import (
 PROJECT_ROOT=Path(__file__).resolve().parent.parent
 LABELS={'revenue':'收入','operating_income':'营业利润','cash_from_operations':'经营现金流',
         'capital_expenditures':'资本支出','all':'整个证据包'}
-REASONS={'direct_field_missing':'没有同一申报、同一期间的直接字段，需核对原文',
+REASONS={'source_evidence_unreviewed':'直接来源证据尚未通过核查，需检查具体申报字段',
+    'direct_field_missing':'没有同一申报、同一期间的直接字段，需核对原文',
     'prior_direct_field_missing':'上一份证据缺少直接字段', 'baseline_missing':'尚缺第二份可比较的保存证据',
     'duration_mismatch':'期间长度或起止日期不一致', 'period_end_mismatch':'报告期不同',
     'concept_mismatch':'财务定义不同', 'unit_mismatch':'单位或币种不同',
