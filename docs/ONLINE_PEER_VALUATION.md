@@ -2,6 +2,14 @@
 
 Open a company, choose **估值与同行**, and select **更新在线同行估值**. The page requests source observations on that action only. Switching sections reuses the same attempt, including its failures. **数据来源** shows the same field definitions, actual periods, source links, observation dates and digests. An explicit failed retry withdraws the prior answer.
 
+## Listing-source continuity
+
+Before the action, the page explains that a temporarily unavailable listing source may use a complete classification previously obtained in this session. A refresh makes one classification acquisition attempt, with no automatic retry. Recovery requires all four original source observations to remain within24 hours, neither future-dated nor altered, and directory creation to remain within seven days. A malformed successful packet, source access limit, missing prior receipt or expired receipt keeps the result withheld. There is no disk cache and no automatic import of private captures.
+
+The result distinguishes the latest attempt from the original listing-observation range and directory creation dates. Source details retain safe response status, URL, size and raw digest when available; exceptions and headers are not exposed. Recovery never renews dates or reinstates an earlier financial verdict. The company identity, current financial/price observations and peer rules are checked again. A subsequent financial failure withdraws the old answer even when listing recovery succeeded. Discover uses the same freshness validator for its existing bounded session classification pool.
+
+The five company sections remain the product workflow. Listing continuity improves the acquisition prerequisite; persistent online review history, cross-session replay and a Monitor change handoff remain later deliverables with separate source permissions.
+
 ## What the answer means
 
 The first connected metric is **price divided by directly reported annual diluted GAAP earnings per share**. It is neither trailing-twelve-month nor forecast P/E. Compare its company multiple with the median among at least three qualifying industry references. Premium/discount is company multiple divided by reference median, minus one. A higher multiple is not proof of overvaluation; a lower multiple is not proof of undervaluation. Business mix, growth, profitability, capital needs and risk are not adjusted.
