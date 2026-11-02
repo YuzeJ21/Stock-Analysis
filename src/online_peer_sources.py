@@ -18,6 +18,7 @@ from src.online_peer_valuation import (
 from src.online_sec_receipt import fetch_sec_json_receipt
 from src.security_classification import fetch_classification, validated_classification, _selected
 from src.annual_amendment_evidence import fetch_amendment_evidence, amendment_candidate
+from src.sec_selected_security import fetch_selected_security_evidence,known_security_scope,FINANCIAL_FORMS,IDENTITY_FORMS,FUND_FORMS
 
 SESSION_KEY = 'online_peer_valuation_observation_v1'
 _INFO_FIELDS = ('symbol','quoteType','currency','financialCurrency','exchange','exchangeTimezoneName',
@@ -97,12 +98,17 @@ def _reduce_sec(receipt, kind):
         body=dict(cik=body.get('cik'),facts={'us-gaap': {'EarningsPerShareDiluted':eps} if isinstance(eps,Mapping) else {}})
     else:
         recent=body.get('filings',{}).get('recent',{})
+        columns=('form','reportDate','filingDate','accessionNumber','primaryDocument')
+        if 'acceptanceDateTime' in recent:columns+=('acceptanceDateTime',)
+        if 'isInlineXBRL' in recent or 'isXBRL' in recent:columns+=('isInlineXBRL','isXBRL')
+        if (not all(isinstance(recent.get(k),list) for k in columns) or not 0<len(recent['form'])<=50000
+                or any(len(recent[k])!=len(recent['form']) for k in columns) or not all(isinstance(f,str) for f in recent['form'])):
+            return dict(status='unavailable',reason='filing_metadata_schema_invalid',source_url=result.get('source_url'))
+        indices=[i for i,f in enumerate(recent['form']) if f in FINANCIAL_FORMS|IDENTITY_FORMS|FUND_FORMS]
+        files=body.get('filings',{}).get('files')
         body={k:body.get(k) for k in ('cik','entityType','sic','sicDescription','tickers','exchanges')}
-        body['filings']={'recent':{k:recent.get(k) for k in ('form','reportDate','filingDate','accessionNumber','primaryDocument')}}
-        if 'acceptanceDateTime' in recent:
-            body['filings']['recent']['acceptanceDateTime']=recent['acceptanceDateTime']
-        for key in ('isInlineXBRL','isXBRL'):
-            if key in recent:body['filings']['recent'][key]=recent[key]
+        body['filings']={'recent':{k:[recent[k][i] for i in indices] for k in columns}}
+        if files is not None:body['filings']['files']=files
     result.update(payload=body,normalized_sha256=normalized_digest(body),normalization='annual_peer_source_subset_v1')
     return result
 
@@ -128,6 +134,8 @@ def _collect_issuer(ticker,cik,deps,user_agent,as_of,vendor=None):
     facts=_reduce_sec(_attempt_source(deps['sec'],f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',user_agent=user_agent,observed_at=as_of),'facts')
     prices=_attempt_source(deps['prices'],ticker,observed_at=as_of,history_range='2y')
     result=dict(ticker=ticker,vendor=vendor,profile=profile,facts=facts,prices=prices)
+    if known_security_scope(ticker,cik):
+        result['selected_security_evidence']=_attempt_source(deps['security'],ticker,cik,profile,user_agent=user_agent,observed_at=as_of)
     if amendment_candidate(ticker,cik,profile,as_of=as_of):
         result['amendment_evidence']=_attempt_source(deps['amendment'],ticker,cik,profile,user_agent=user_agent,observed_at=as_of)
     if any(not isinstance(r,Mapping) or r.get('status') not in {'ready','inspection_only'} for r in (profile,facts,prices)):
@@ -171,7 +179,7 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
         # Clear a previous successful result before the first fallible request.
         _cache(state,ticker,None,'peer_refresh_incomplete',as_of)
         deps=dict(classification=fetch_classification,vendor=observe_vendor,industry=observe_industry,
-                  sec=fetch_sec_json_receipt,prices=fetch_online_company_prices,amendment=fetch_amendment_evidence)
+                  sec=fetch_sec_json_receipt,prices=fetch_online_company_prices,amendment=fetch_amendment_evidence,security=fetch_selected_security_evidence)
         if dependencies is not None:
             deps.update(dependencies)
         classification=validated_classification(deps['classification'](user_agent=user_agent or os.getenv('SEC_USER_AGENT'),observed_at=as_of))
@@ -180,7 +188,12 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
         try:
             cik=_ordinary_identity(classification,ticker,expected_cik)
         except (ValueError,KeyError,TypeError):
-            return _read(_cache(state,ticker,None,'selected_listing_or_cik_unverified',as_of),ticker,expected_cik,as_of)
+            try:
+                cik,listings=_selected(classification,ticker,expected_cik)
+                explicit=[r for r in listings if r['source']!='sec']
+                if not (known_security_scope(ticker,cik) and explicit and all(r['security_type']=='unknown' and r['reason']=='explicit_instrument_description_unavailable' for r in explicit)):raise ValueError()
+            except (ValueError,KeyError,TypeError):
+                return _read(_cache(state,ticker,None,'selected_listing_or_cik_unverified',as_of),ticker,expected_cik,as_of)
         vendor=deps['vendor'](ticker,observed_at=as_of)
         if not isinstance(vendor,Mapping) or vendor.get('status')!='observed':
             return _read(_cache(state,ticker,None,'vendor_context_source_unavailable',as_of),ticker,expected_cik,as_of)

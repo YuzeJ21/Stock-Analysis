@@ -30,14 +30,14 @@
 
 ### Task 1: Exact selected-security proof and source/core integration
 
-**Files:** Create src/sec_selected_security_policies.py, src/sec_selected_security.py, tests/selected_security_fixtures.py, tests/test_sec_selected_security.py; modify src/online_peer_sources.py, src/online_peer_valuation.py and their tests.
+**Files:** Create src/sec_selected_security_policies.py, src/sec_selected_security.py, tests/selected_security_fixtures.py, tests/test_sec_selected_security.py, tests/test_peer_security_collection.py; modify src/online_peer_sources.py, src/online_peer_valuation.py and their tests.
 
 **Interfaces:** fetch_selected_security_evidence(ticker,cik,profile,*,user_agent,fetcher=None,observed_at=None,workspace_mode='research')->dict; validate_selected_security_evidence(packet,*,ticker,cik,profile,issuer_symbols,as_of)->dict returns supported_common with direct annual EPS + source scopes for DUK/JPM; inspection_only with explicit reason for NEM/TSM/XOM. Optional issuer row.selected_security_evidence. Supported observation becomes subject.selected_security_scope; blocked observations become subject_source_context.selected_security_scope.
 
 - [ ] Synthetic proof tests: literal common success/EPSagreement, raw other symbols retained; missing/changed hash, metadata/new version/sibling set, context/units/dimension/duplicate conflicts, stale/future/ticker/CIK/source URL/redirect/size/mode, raw cache tamper; general DEI false-common TSM-like inspection remains held.
 - [ ] Run python3 -m pytest tests/test_sec_selected_security.py -q; Expected: missing-feature RED.
 - [ ] Implement source-bound proof, profile projection and optional proof consumer. Keep legacy path unchanged without proof. Source reduction must preserve unknown malformed metadata as a hold; allow inspection collection only for exact declared scope pairs.
-- [ ] Run python3 -m pytest tests/test_sec_selected_security.py tests/test_online_peer_sources.py tests/test_online_peer_valuation.py tests/test_online_peer_coverage.py -q; Expected: GREEN. Replay saved official sources privately with original observations.
+- [ ] Run python3 -m pytest tests/test_sec_selected_security.py tests/test_peer_security_collection.py tests/test_online_peer_sources.py tests/test_online_peer_valuation.py tests/test_online_peer_coverage.py -q; Expected: GREEN. Replay saved official sources privately with original observations.
 - [ ] Commit; complete task with the same focused command.
 
 ### Task 2: Bounded archived SEC vendor identity

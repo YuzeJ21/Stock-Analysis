@@ -16,6 +16,7 @@ from src.company_sec_online_preview import _iso_date, _utc_timestamp
 from src.online_company_identity import _mode_reason, _VENUES
 from src.online_peer_earnings import annual_eps_context
 from src.annual_amendment_evidence import validate_amendment_evidence
+from src.sec_selected_security import validate_selected_security_evidence
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
 
@@ -205,14 +206,18 @@ def _issuer(row, classification, industry_key, as_of):
     cik,listings=_selected(classification,ticker,None)
     issuer_symbols={r['ticker'].replace('.','-') for r in classification['inventory']['map_receipt']['payload'].values()
                     if _cik(r['cik_str'])==cik}
-    _need(len(issuer_symbols)==1, 'multiple_issuer_share_classes_unresolved')
+    scope=validate_selected_security_evidence(row.get('selected_security_evidence'),ticker=ticker,cik=cik,profile=row.get('profile'),issuer_symbols=issuer_symbols,as_of=as_of)
+    if scope['status']=='inspection_only' and scope['reason'] in {'depositary_security_requires_separate_method','selected_common_other_security_basis_unresolved'}:raise _Hold(scope['reason'])
+    supported=scope['status']=='supported_common'
+    other_common=[r for r in classification['rows'] if r['sec_cik']==cik and r['source']!='sec' and r['symbol'].replace('.','-')!=ticker.replace('.','-') and r['security_type']=='common_shares']
+    _need((supported and not other_common) or len(issuer_symbols)==1, 'multiple_issuer_share_classes_unresolved')
     explicit=[r for r in listings if r['source']!='sec']
     _need(bool(explicit) and all(r['security_type']=='common_shares' for r in explicit), 'ordinary_share_basis_unverified')
     profile=_receipt(row.get('profile'),f'https://data.sec.gov/submissions/CIK{cik}.json',as_of)
     facts=_receipt(row.get('facts'),f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',as_of)
     _need(_cik(profile.get('cik'))==cik and _cik(facts.get('cik'))==cik, 'issuer_identity_mismatch')
     _need(profile.get('entityType')=='operating', 'operating_issuer_required')
-    _need(profile.get('tickers')==[ticker] and isinstance(profile.get('exchanges'),list) and len(profile['exchanges'])==1,
+    _need((supported and ticker in profile.get('tickers',[]) or profile.get('tickers')==[ticker]) and isinstance(profile.get('exchanges'),list) and len(profile['exchanges'])==len(profile['tickers']),
           'sec_security_class_or_exchange_unresolved')
     sic=profile.get('sic')
     _need(type(sic) in {str,int} and re.fullmatch(r'\d{4}',str(sic)) is not None and str(sic) not in {'0000','6770'},
@@ -226,7 +231,8 @@ def _issuer(row, classification, industry_key, as_of):
     _need(info.get('currency')=='USD' and info.get('financialCurrency')=='USD', 'unsupported_quote_or_financial_currency')
     _need(info.get('industryKey')==industry_key, 'provider_industry_differs')
     venue=_VENUES.get(info.get('exchange'))
-    _need(venue is not None and profile['exchanges']==[venue[0]] and all(r['venue']==venue[0] for r in explicit), 'quote_exchange_mismatch')
+    _need(venue is not None and profile['exchanges'][profile['tickers'].index(ticker)]==venue[0] and all(r['venue']==venue[0] for r in explicit), 'quote_exchange_mismatch')
+    if supported:_need(all(d['selected_common']['venue']==venue[0] for d in scope['documents']),'quote_exchange_mismatch')
     identity=_vendor_filing_match(vendor.get('filings'),filings,ticker,cik)
     prices=validated_online_price_history(row.get('prices'),ticker=ticker)
     _need(prices is not None, 'completed_price_source_unverified')
@@ -245,6 +251,8 @@ def _issuer(row, classification, industry_key, as_of):
     price=info.get('regularMarketPrice')
     _need(_positive(price) and math.isclose(price,prices['bars'][-1]['close'],rel_tol=1e-7,abs_tol=1e-6), 'quote_and_daily_close_differ')
     eps=_resolved_annual_eps(row,facts,filings,price_date,ticker,cik,as_of)
+    if supported:
+        _need(all(eps[k]==scope['original_eps'][k] for k in ('period_start','period_end','eps')) and eps['accession']==scope['documents'][0]['accessionNumber'],'selected_security_eps_conflict')
     _need(eps['eps']>0, 'annual_eps_nonpositive_or_invalid')
     _need(_iso_date(prices['bars'][0]['date'])<=_iso_date(eps['period_end']), 'split_history_does_not_cover_period_end')
     splits=prices.get('splits')
@@ -268,7 +276,7 @@ def _issuer(row, classification, industry_key, as_of):
                 price_history_range=prices.get('history_range','1y'),
                 price_history_first_date=prices['bars'][0]['date'],price_history_last_date=prices['bars'][-1]['date'],
                 facts_sha256=row['facts']['payload_sha256'],price_sha256=prices.get('payload_sha256'),
-                vendor_normalized_sha256=row['vendor']['normalized_sha256'],rights_status=RIGHTS)
+                vendor_normalized_sha256=row['vendor']['normalized_sha256'],rights_status=RIGHTS,**({'selected_security_scope':scope} if supported else {}))
 
 
 def _empty(ticker, reason):
@@ -296,6 +304,9 @@ def _subject_source_context(row,classification,ticker,expected_cik,as_of):
         context=dict(sec_cik=cik,profile_source_ref=url,profile_observed_at=row['profile']['observed_at'],
                     profile_sha256=row['profile']['payload_sha256'],
                     facts_query_ref=f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',annual_versions=versions)
+        symbols={r['ticker'].replace('.','-') for r in classification['inventory']['map_receipt']['payload'].values() if _cik(r['cik_str'])==cik}
+        scope=validate_selected_security_evidence(row.get('selected_security_evidence'),ticker=ticker,cik=cik,profile=row.get('profile'),issuer_symbols=symbols,as_of=as_of)
+        if scope['status'] in {'supported_common','inspection_only'}:context['selected_security_scope']=scope
         try:
             vendor=_normalized(row.get('vendor'),f'https://finance.yahoo.com/quote/{ticker.replace(".","-")}/',as_of)
             info=vendor.get('info',{});sic=str(profile.get('sic'))
