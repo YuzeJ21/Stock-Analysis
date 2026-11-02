@@ -176,8 +176,15 @@ def _cover(raw,cik,meta,doc,url,*,parsed=None,source_refs=None):
         if [values[k][1] for k in ('Security12bTitle','TradingSymbol','SecurityExchangeName')]==doc['cover_fact_ids']:
             members=list(contexts[context_id].iter('{http://xbrl.org/2006/xbrldi}explicitMember'))
             _require(len(list(contexts[context_id].iter('{http://xbrl.org/2006/xbrldi}typedMember')))==0 and contexts[context_id].find(f'{{{X}}}scenario') is None)
-            _require(len(members)==1 and _qname(members[0].get('dimension'),ns)[1]=='StatementClassOfStockAxis' and _taxonomy(_qname(members[0].get('dimension'),ns)[0])=='us-gaap')
-            _require(_qname(members[0].text,ns)[1]=='CommonStockMember' and _taxonomy(_qname(members[0].text,ns)[0])=='us-gaap')
+            declared=doc.get('cover_context')
+            if declared is not None:
+                _require(isinstance(declared,Mapping) and declared.get('kind')=='dimensionless' and context_id==declared.get('context_id'))
+                context=contexts[context_id];entity=context.find(f'{{{X}}}entity');period=context.find(f'{{{X}}}period')
+                _require(len(context)==2 and len(entity)==1 and len(members)==0 and len(period)==2)
+                _require(period.findtext(f'{{{X}}}startDate')==declared.get('period_start') and _iso_date(declared.get('period_start')) is not None)
+            else:
+                _require(len(members)==1 and _qname(members[0].get('dimension'),ns)[1]=='StatementClassOfStockAxis' and _taxonomy(_qname(members[0].get('dimension'),ns)[0])=='us-gaap')
+                _require(_qname(members[0].text,ns)[1]=='CommonStockMember' and _taxonomy(_qname(members[0].text,ns)[0])=='us-gaap')
             venue={'The New York Stock Exchange':'NYSE','New York Stock Exchange':'NYSE','New York Stock Exchange LLC':'NYSE','NYSE':'NYSE','Nasdaq':'Nasdaq','NASDAQ':'Nasdaq'}.get(exchange)
             _require(venue is not None)
             common=dict(ticker=symbol,title=title,exchange=exchange,venue=venue,context_id=context_id,fact_refs=[source_refs[i] if source_refs is not None else url+'#'+i for i in doc['cover_fact_ids']])
@@ -230,7 +237,7 @@ def validate_selected_security_evidence(packet,*,ticker,cik,profile,issuer_symbo
                         basis.append(dict(concept=name,source_ref=source_refs[identity] if source_refs is not None else url+'#'+identity,context_id=n.get('contextRef')))
             documents.append(item)
             if extra is not None:documents.append(extra)
-        result=dict(status=p['kind'],reason=p['reason'],policy_id=p['policy_id'],ticker=ticker,sec_cik=cik,issuer_symbols=p['issuer_symbols'],documents=documents,basis_refs=basis,alias_mappings_established=False,technical_interpretation_only=True,commercial_eligible=False,rights_status=RIGHTS)
+        result=dict(status=p['kind'],reason=p['reason'],policy_id=p['policy_id'],ticker=ticker,sec_cik=cik,issuer_symbols=p['issuer_symbols'],unassigned_issuer_symbols=[s for s in p['issuer_symbols'] if s!=ticker],documents=documents,basis_refs=basis,alias_mappings_established=False,technical_interpretation_only=True,commercial_eligible=False,rights_status=RIGHTS)
         if p['kind']=='supported_common':_require(eps is not None);result['original_eps']=eps
         return result
     except (ValueError,KeyError,TypeError,AttributeError,OverflowError,RecursionError,binascii.Error,ET.ParseError):return held

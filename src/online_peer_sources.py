@@ -116,7 +116,10 @@ def _reduce_sec(receipt, kind):
 def _ordinary_identity(classification,ticker,expected_cik=None):
     cik,rows=_selected(classification,ticker,expected_cik)
     explicit=[r for r in rows if r['source']!='sec']
-    if not explicit or any(r['security_type']!='common_shares' for r in explicit):
+    # This permits collection only. The issuer validator must independently
+    # establish the exact literal common security before financial admission.
+    scoped=known_security_scope(ticker,cik)
+    if not explicit or any(not (r['security_type']=='common_shares' or scoped and r['security_type']=='unknown' and r['reason']=='explicit_instrument_description_unavailable') for r in explicit):
         raise ValueError('ordinary_share_basis_unverified')
     return cik
 

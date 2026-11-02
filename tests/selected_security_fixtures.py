@@ -42,7 +42,7 @@ def validate(policy,row,packet,**kwargs):
     return validate_selected_security_evidence(packet,ticker=kwargs.pop('ticker','FICT'),cik=kwargs.pop('cik','0000001001'),profile=row['profile'],issuer_symbols=kwargs.pop('issuer_symbols',{'FICT','FP'}),as_of=kwargs.pop('as_of',NOW),**kwargs)
 
 
-def scoped_collection(other_common=False):
+def scoped_collection(other_common=False,unknown_literal=False):
     import json
     from test_online_peer_valuation import collection
     from test_online_us_universe import N_URL,O_URL,M_URL,E_URL
@@ -52,6 +52,7 @@ def scoped_collection(other_common=False):
     exchange=dict(fields=['cik','name','ticker','exchange'],data=[[r['cik_str'],'Synthetic',r['ticker'],'Nasdaq'] for r in mapping.values()])
     nasdaq='Symbol|Security Name|Market Category|Test Issue|Financial Status|Round Lot Size|ETF|NextShares\n'+''.join(f'{s}|Synthetic - {"Preferred Stock" if s=="FP" and not other_common else "Common Stock"}|Q|N|N|100|N|N\n' for s in symbols)+'File Creation Time: 1030202615:41|||||||\n'
     other='ACT Symbol|Security Name|Exchange|CQS Symbol|ETF|Round Lot Size|Test Issue|NASDAQ Symbol\nUNMAP|Unmapped - Common Stock|N|UNMAP|N|100|N|UNMAP\nFile Creation Time: 1030202615:41|||||||\n'
+    if unknown_literal:nasdaq=nasdaq.replace('FICT|Synthetic - Common Stock|','FICT|Synthetic Company|')
     bodies={N_URL:nasdaq.encode(),O_URL:other.encode(),M_URL:json.dumps(mapping).encode(),E_URL:json.dumps(exchange).encode()}
     c['classification']=fetch_classification(user_agent='Synthetic contact',fetcher=lambda url,agent:(bodies[url],{},url),observed_at=NOW)
     return policy,c

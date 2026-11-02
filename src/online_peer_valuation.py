@@ -221,7 +221,7 @@ def _issuer(row, classification, industry_key, as_of):
     other_common=[r for r in classification['rows'] if r['sec_cik']==cik and r['source']!='sec' and r['symbol'].replace('.','-')!=ticker.replace('.','-') and r['security_type']=='common_shares']
     _need((supported and not other_common) or len(issuer_symbols)==1, 'multiple_issuer_share_classes_unresolved')
     explicit=[r for r in listings if r['source']!='sec']
-    _need(bool(explicit) and all(r['security_type']=='common_shares' for r in explicit), 'ordinary_share_basis_unverified')
+    _need(bool(explicit) and all(r['security_type']=='common_shares' or supported and r['security_type']=='unknown' and r['reason']=='explicit_instrument_description_unavailable' for r in explicit), 'ordinary_share_basis_unverified')
     profile=_receipt(row.get('profile'),f'https://data.sec.gov/submissions/CIK{cik}.json',as_of)
     facts=_receipt(row.get('facts'),f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',as_of)
     _need(_cik(profile.get('cik'))==cik and _cik(facts.get('cik'))==cik, 'issuer_identity_mismatch')
