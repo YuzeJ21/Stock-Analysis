@@ -10,7 +10,12 @@ from test_online_peer_sources import source_dependencies
 def dependencies():
     c=collection();c['industry']['payload']['symbols']=list(SYMBOLS)
     c['industry']['normalized_sha256']=digest(c['industry']['payload'])
-    return source_dependencies(c)
+    deps,calls=source_dependencies(c)
+    from src.online_peer_sec_history import fetch_vendor_history_match
+    def history(*args,**kwargs):
+        calls.append(('history',args[0]));return fetch_vendor_history_match(*args,**kwargs)
+    deps['history']=history
+    return deps,calls
 
 
 def audit(state,*,inspect=False,retry=None,reset=False,tickers=SYMBOLS,as_of=NOW,deps=None,mode='research'):

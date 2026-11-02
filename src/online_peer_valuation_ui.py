@@ -37,7 +37,14 @@ REASONS = {
     'unsupported_quote_or_financial_currency':'价格与财务币种不是已支持的 USD 口径。',
     'peer_listing_or_share_basis_unverified':'未核对到独立、明确的普通股上市身份。',
     'selected_listing_or_cik_unverified':'本公司的上市身份、CIK 或普通股类型尚未核对。',
-    'multiple_issuer_share_classes_unresolved':'同一发行人有多个股类，尚未核对收益对应股类。',
+    'multiple_issuer_share_classes_unresolved':'同一发行人有多个关联代码，所选证券的每股收益口径尚未核对。',
+    'selected_common_other_security_basis_unresolved':'所选普通股已有文件依据，其他关联证券的收益口径仍未核对。',
+    'depositary_security_requires_separate_method':'纽约交易的是 ADS，须单独核对每 ADS 收益、币种及转换口径。',
+    'successor_annual_basis_unverified':'已见发行人连续性依据，当前发行人的年度收益分母仍未建立。',
+    'selected_security_scope_unverified':'所选证券的具体文件或当前版本尚未通过核对。',
+    'selected_security_eps_conflict':'具体文件中的普通股 EPS 与年度财报字段不一致。',
+    'selected_security_source_unavailable':'所选证券依据所需的具体 SEC 文件暂未取得。',
+    'vendor_history_source_unavailable':'供应商身份核对所需的 SEC 历史索引暂未取得。',
     'ordinary_share_basis_unverified':'该证券缺少明确普通股依据，须采用适合其类型的方法。',
     'operating_issuer_required':'该发行人尚未通过经营性公司口径核对。',
     'investment_company_requires_separate_method':'投资公司需独立研究方法，不能直接采用这组 P/E。',
@@ -151,6 +158,8 @@ def _diagnostic_html(d):
         html+='<p>SEC 上市关联 CIK '+_text(d['sec_cik'])+' · '+_link(d.get('profile_source_ref'),'申报元数据查询地址')+' · '+_link(d.get('facts_query_ref'),'收益字段查询地址')+'。查询地址不代表字段已取得。</p>'
     for filing in d.get('annual_versions',[]):
         html+='<p>'+_text(filing.get('form'))+' · '+_text(filing.get('accession'))+' · 期间末 '+_text(filing.get('period_end'))+' · 发布 '+_text(filing.get('filed'))+' · '+_link(filing.get('source_ref'),'具体申报')+'</p>'
+    html+=_selected_security_html(d.get('selected_security_scope'))
+    html+=_history_html(d.get('vendor_identity_observation'))
     eps=d.get('annual_eps_observation')
     if isinstance(eps,Mapping) and _number(eps.get('eps')):
         html+='<p>申报稀释每股收益：'+_text(f'{eps["eps"]:,.6g}')+' USD/shares · '+_text(eps.get('period_start'))+' → '+_text(eps.get('period_end'))+' · 发布 '+_text(eps.get('filed'))+' · 观察 '+_text(eps.get('observed_at'))+' · '+_link(eps.get('source_ref'),'SEC 收益观察')+' · '+_link(eps.get('filing_ref'),'对应申报')+'</p>'
@@ -181,6 +190,34 @@ def _amendment_html(scope):
     return html+'</details>'
 
 
+def _selected_security_html(scope):
+    if not isinstance(scope,Mapping) or scope.get('status') not in {'supported_common','inspection_only'}:return ''
+    html='<details><summary>所选证券与其他关联代码</summary>'
+    if scope['status']=='supported_common':html+='<p>所选普通股与已披露年度 EPS 的口径已按具体文件核对；完整估值资格和同行可比性仍分别检查。这是有边界的技术证据解释。</p>'
+    else:html+='<p>'+_text(_reason(scope.get('reason')))+'</p>'
+    if scope.get('reason')=='successor_annual_basis_unverified':html+='<p>已见新旧发行人的证券与报告连续性依据；不将旧 CIK 的 EPS 拼接为当前年度分母，供应商身份冲突也不会自动消失。</p>'
+    if scope.get('reason')=='depositary_security_requires_separate_method':html+='<p>封面普通股标题还带有不直接交易的限制，不能把它当成纽约交易的 ADS 本身。</p>'
+    symbols=scope.get('issuer_symbols',[])
+    html+='<p>SEC 关联代码：'+_text('、'.join(str(s) for s in symbols))+'。不代表这些代码已逐一完成证券映射；下列封面原始代码作为独立观察保留。</p>'
+    labels={'annual':'年度财报','cover':'已核对的 8-K 封面','successor':'继承发行人申报','quarter':'季度财报'}
+    for doc in scope.get('documents',[]):
+        html+='<p>'+_text(labels.get(doc.get('role'),doc.get('role')))+' · '+_text(doc.get('form'))+' · '+_text(doc.get('accessionNumber'))+' · 期间末 '+_text(doc.get('reportDate'))+' · 发布 '+_text(doc.get('filingDate'))+' · 接收 '+_text(doc.get('acceptanceDateTime'))+' · 观察 '+_text(doc.get('observed_at'))+' · '+_link(doc.get('source_ref'),'具体文件')+'</p>'
+        selected=doc.get('selected_common')
+        if isinstance(selected,Mapping):html+='<p>所选证券：'+_text(selected.get('ticker'))+' · '+_text(selected.get('title'))+' · '+_text(selected.get('exchange'))+'</p>'
+        observations=doc.get('raw_cover_observations',[])
+        if observations:html+='<ul>'+''.join('<li>'+_text(r.get('raw_symbol'))+' · '+_text(r.get('title'))+'</li>' for r in observations if isinstance(r,Mapping))+'</ul>'
+        html+='<p>原始响应 SHA-256 <code>'+_text(doc.get('payload_sha256'))+'</code><br>已核对正文 SHA-256 <code>'+_text(doc.get('body_sha256'))+'</code></p>'
+    for ref in scope.get('basis_refs',[]):html+='<p>'+_link(ref.get('source_ref'),'普通股资本与收益定义')+' · '+_text(ref.get('concept'))+'</p>'
+    if any(d.get('binding_normalization')=='sec-empty-tail-script-v1' for d in scope.get('documents',[])):
+        html+='<p>正文核对仅排除 SEC 响应末尾已声明的空外部脚本；每次响应的原始摘要仍完整保留，财务正文变更继续受限。</p>'
+    return html+'<p>仅个人研究，不授予法律证券分类、来源商业权限或正式数据资格。</p></details>'
+
+
+def _history_html(identity):
+    if not isinstance(identity,Mapping) or not identity.get('history_source_ref'):return ''
+    return '<p>历史 SEC 索引仅用于供应商身份核对；年度 EPS 仍使用当前选定的年度申报。'+_link(identity.get('history_source_ref'),'官方历史索引')+' · 观察 '+_text(identity.get('history_observed_at'))+' · SHA-256 <code>'+_text(identity.get('history_sha256'))+'</code></p>'
+
+
 def _disclosure(v,rows):
     html='<p>自动筛选的行业参照组：同供应商行业、同 SEC 行业代码、普通股、独立发行人、同一价格日期。每家实际财年起止日期与本公司相差不超过 '+str(FISCAL_WINDOW_DAYS)+' 天；这不是完全相同的期间，也不是分析师审核的经济可比组。</p>'
     html+='<p>候选列表共 '+_text(v.get('industry_candidate_total'))+' 个记录，本次最多核查 12 家其他公司，按供应商列表顺序保留；不是完整行业覆盖。</p>'
@@ -192,6 +229,8 @@ def _disclosure(v,rows):
         for filing in context.get('annual_versions',[]):
             html+='<li>'+_text(filing.get('form'))+' · '+_text(filing.get('accession'))+' · 期间末 '+_text(filing.get('period_end'))+' · 发布 '+_text(filing.get('filed'))+' · 接收 '+_text(filing.get('accepted_at'))+' · '+_link(filing.get('source_ref'),'具体申报')+'</li>'
         html+='</ul>'
+        html+=_selected_security_html(context.get('selected_security_scope'))
+        if not rows:html+=_history_html(context.get('vendor_identity_observation'))
     if rows:html+=_source_table(rows)+_earnings_table(rows)
     excluded=v.get('excluded') if isinstance(v.get('excluded'),list) else []
     if excluded:
@@ -200,10 +239,12 @@ def _disclosure(v,rows):
     for row in rows:
         html+='<h4>'+_text(row.get('ticker'))+'</h4><p>us-gaap:EarningsPerShareDiluted · USD/shares · '+_text(row.get('form'))+' · accession '+_text(row.get('accession'))+' · 发布 '+_text(row.get('filed'))+'</p>'
         html+=_amendment_html(row.get('amendment_scope'))
+        if row.get('ticker')!=v.get('ticker'):html+=_selected_security_html(row.get('selected_security_scope'))
         html+='<p>财报观察 '+_text(row.get('observed_at'))+'；价格观察 '+_text(row.get('price_observed_at'))+'；供应商身份观察 '+_text(row.get('vendor_observed_at'))+'。</p>'
         html+='<p>价格与拆股观察请求 '+_text(row.get('price_history_range'))+'；实际 '+_text(row.get('price_history_first_date'))+' → '+_text(row.get('price_history_last_date'))+'；请求范围不保证历史完整。</p>'
         identity=row.get('vendor_filing') if isinstance(row.get('vendor_filing'),Mapping) else {}
         html+='<p>CIK '+_text(row.get('sec_cik'))+' · '+_link(identity.get('source_ref'),'供应商申报身份依据')+'。当前匹配不证明历史证券连续性或发行人所在地。</p>'
+        html+=_history_html(identity)
         for key,label in [('facts_sha256','SEC 原始响应 SHA-256'),('price_sha256','价格原始响应 SHA-256'),('vendor_normalized_sha256','供应商 normalized SHA-256')]:
             value=row.get(key)
             html+='<p>'+label+'：<code>'+(_text(value) if isinstance(value,str) and re.fullmatch(r'[0-9a-f]{64}',value) else '未取得')+'</code></p>'

@@ -54,12 +54,12 @@
 
 ### Task 3: Source explanation, measured coverage and delivery
 
-**Files:** Modify src/online_peer_valuation_ui.py, src/online_peer_coverage.py, relevant UI/coverage tests, ROADMAP.md, docs/PEER_COVERAGE_METHOD.md and docs/ONLINE_PEER_VALUATION.md.
+**Files:** Modify src/online_peer_valuation_ui.py, src/online_peer_coverage.py, tests/test_selected_security_ui.py and relevant UI/coverage tests, ROADMAP.md, docs/PEER_COVERAGE_METHOD.md and docs/ONLINE_PEER_VALUATION.md.
 
 **Interfaces:** Existing presenters show recomputed selected_security_scope evidence, current/historical vendor-source roles, raw sibling sets and explicit gaps in valuation/sources/industry sample. New coverage method reported-annual-pe-selected-security-v1 requires explicit reset of old audit state.
 
 - [ ] UI tests: scope does not promote withheld NEM/TSM/XOM; original/current document refs, publication/observation/digests, unassigned siblings, history identity vs annual denominator, escaping and no pane-read network.
-- [ ] Run python3 -m pytest tests/test_online_peer_valuation_ui.py tests/test_online_peer_coverage_ui.py tests/test_online_peer_coverage.py tests/test_sec_selected_security.py tests/test_online_peer_sec_history.py tests/test_integrated_company_workbench.py -q; Expected: RED for missing presenter behavior, then GREEN.
+- [ ] Run python3 -m pytest tests/test_selected_security_ui.py tests/test_online_peer_valuation_ui.py tests/test_online_peer_coverage_ui.py tests/test_online_peer_coverage.py tests/test_sec_selected_security.py tests/test_online_peer_sec_history.py tests/test_peer_security_collection.py tests/test_integrated_company_workbench.py -q; Expected: RED for missing presenter behavior, then GREEN.
 - [ ] Explicitly refresh5blocked targets with production sources; revalidate10other saved packets preserving observations; compare counts/reasons against prior15target evidence. No full-US claim.
 - [ ] Commit. One fresh independent whole-stage review; regrade effects, fix Important/Critical once through RED->GREEN; ledger all declined judgments and deferred Minors.
 - [ ] Capture exact-head desktop/phone5target valuation/source states plus sample outcomes using labelled real saved-source replay and real online refresh. Stop only owned previews; run guarded full suite once at final head through task-done; Expected: exit0 with exact counts/skips/warnings.

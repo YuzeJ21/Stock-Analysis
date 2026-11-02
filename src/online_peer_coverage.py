@@ -12,7 +12,7 @@ from src.security_classification import validated_classification
 
 SESSION_KEY='online_peer_coverage_session_v1'
 SCHEMA='online-peer-coverage-v1'
-METHOD='reported-annual-pe-amendment-scope-v1'
+METHOD='reported-annual-pe-selected-security-v1'
 DEFAULT_SAMPLE=('AMD','TXN','QCOM','MSFT','JPM','JNJ','XOM','PG','MCD','CAT','NEM','DUK','O','VZ','TSM')
 _SOURCE_FAILURES={'vendor_context_source_unavailable','industry_candidate_source_unavailable','listing_classification_unavailable',
     'issuer_source_unavailable','sec_source_unavailable_or_mismatched','peer_source_unavailable','amendment_source_unavailable'}
@@ -121,10 +121,14 @@ def _summary(state,as_of,workspace_mode):
         if subject:
             reference_state='partially_assessed' if any(r.get('reason') in {'peer_not_collected','source_paused_after_repeated_failures'} for r in outcomes) else 'assessed'
         refs=list(attribution.get('source_refs',[]))
+        scope=subject.get('selected_security_scope',{}) if subject else context.get('selected_security_scope',{})
+        if not isinstance(scope,Mapping):scope={}
+        refs.extend(dict(source_url=d['source_ref'],observed_at=d['observed_at'],payload_sha256=d['payload_sha256'],body_sha256=d.get('body_sha256')) for d in scope.get('documents',[]))
         if subject:
             refs.extend([dict(source_url=subject['source_ref'],observed_at=subject['observed_at'],payload_sha256=subject['facts_sha256']),
                          dict(source_url=subject['price_source_ref'],observed_at=subject['price_observed_at'],payload_sha256=subject['price_sha256'])])
         row=dict(ticker=ticker,attempted=attempted,attempted_at=packet.get('observed_at') if packet else None,
+            selected_security_state=scope.get('status','unverified'),selected_security_reason=scope.get('reason'),
             subject_source_failure=_subject_source_failure(view,packet) if attempted else False,
             sec_cik=subject['sec_cik'] if subject else context.get('sec_cik') if isinstance(context,Mapping) else None,
             industry_key=key if key and sic else None,sic=sic if key and sic else None,
@@ -178,7 +182,8 @@ def get_peer_coverage(session_state,*,inspect_requested=False,reset_requested=Fa
     if target is None:return _summary(state,as_of,workspace_mode)
     state=deepcopy(state)
     deps=dict(classification=sources.fetch_classification,vendor=sources.observe_vendor,industry=sources.observe_industry,
-              sec=sources.fetch_sec_json_receipt,prices=sources.fetch_online_company_prices,amendment=sources.fetch_amendment_evidence)
+              sec=sources.fetch_sec_json_receipt,prices=sources.fetch_online_company_prices,amendment=sources.fetch_amendment_evidence,
+              security=sources.fetch_selected_security_evidence,history=sources.fetch_vendor_history_match)
     if dependencies is not None:
         if not isinstance(dependencies,Mapping) or not set(dependencies)<=set(deps):return dict(status='unavailable',reason='invalid_peer_coverage_dependencies')
         deps.update(dependencies)

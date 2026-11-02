@@ -46,10 +46,13 @@ def peer_coverage_html(view):
         elif row['reference_state']=='not_assessed_subject_blocked':html+='<p>同行尚未核查；先处理本公司来源或身份缺口，不能把未核查写成零家同行。</p>'
         else:html+='<p>通过的参照 '+str(row['accepted_reference_count'])+' 家；'+('参照核查未完成，保留暂停项。' if row['reference_state']=='partially_assessed' else '本次已检查有上限的参照候选。')+'</p>'
         if row['comparison_state']!='available':html+='<p>第一项阻碍：'+('尚未核查。' if not row['attempted'] else _text(_reason(row['primary_reason'])))+'</p>'
+        if row.get('selected_security_state') in {'supported_common','inspection_only'}:
+            html+='<p>所选证券依据：'+('已核对所选普通股与年度收益口径，估值资格仍分别检查。' if row['selected_security_state']=='supported_common' else _text(_reason(row.get('selected_security_reason'))))+'</p>'
         url='?'+urlencode(dict(mode='research',page='company-workbench',ticker=row['ticker'],online='1',section='valuation'))
         html+='<p><a href="'+escape(url,quote=True)+'" target="_self">在线打开公司估值页</a></p>'
         for ref in row['source_refs']:
             html+='<p>'+_link(ref.get('source_url'),'来源观察')+' · '+_text(ref.get('observed_at'))+' · SHA-256 <code>'+_text(ref.get('payload_sha256') or ref.get('normalized_sha256'))+'</code></p>'
+            if ref.get('body_sha256'):html+='<p>已核对正文 SHA-256 <code>'+_text(ref['body_sha256'])+'</code></p>'
         html+='</details>'
     html+='</details><details><summary>主要缺口与候选参照排除原因</summary><h4>主要缺口</h4><p>每个目标只计第一项阻碍；不表示后续所有规则已经核查。</p><ul>'
     html+=''.join('<li>'+_text(_reason(reason))+' · '+str(count)+' 个目标</li>' for reason,count in view['primary_reason_counts'].items()) or '<li>目前没有已记录的主要缺口。</li>'
