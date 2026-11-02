@@ -119,3 +119,51 @@ def test_new_observation_of_same_response_is_unchanged():
     for row in v['approved_direct_fields']:row['observed_at_utc']=v['retrieved_at_utc']
     result=review.compare_reviews(packet(),packet(v))
     assert result['status']=='unchanged' and not result['changes']
+
+
+def reseal(p):
+    import hashlib
+    p=copy.deepcopy(p)
+    p.pop('receipt_id')
+    raw=json.dumps(p,sort_keys=True,separators=(',',':'),ensure_ascii=True,allow_nan=False).encode()
+    p['receipt_id']=hashlib.sha256(raw).hexdigest()
+    return p
+
+
+def test_import_field_order_does_not_create_changes():
+    p=packet();q=copy.deepcopy(p);q['fields'].reverse();q=reseal(q)
+    assert review.compare_reviews(p,review.load_review(json.dumps(q).encode()))['status']=='unchanged'
+
+
+def test_saved_history_uses_chronological_utc_order(tmp_path):
+    a=packet(when='2026-11-02T22:00:00Z');b=packet(when='2026-11-02T22:00:00.500000+00:00')
+    review.save_review(a,tmp_path);review.save_review(b,tmp_path)
+    assert [p['receipt_id'] for p in review.list_reviews(tmp_path,'default')]==[a['receipt_id'],b['receipt_id']]
+
+
+def test_existing_store_file_is_an_error_not_empty(tmp_path):
+    p=review.save_review(packet(),tmp_path);directory=p.parent
+    p.unlink();directory.rmdir();directory.write_bytes(b'not a directory')
+    with pytest.raises((ValueError,OSError)):review.list_reviews(tmp_path,'default')
+
+
+def test_inaccessible_store_is_an_error_not_empty(tmp_path):
+    p=review.save_review(packet(),tmp_path);directory=p.parent
+    directory.chmod(0)
+    try:
+        with pytest.raises((ValueError,OSError)):review.list_reviews(tmp_path,'default')
+    finally:directory.chmod(0o700)
+
+
+def test_import_cannot_mix_component_durations():
+    p=packet();p['fields'][1]['period_start']='2025-02-01';p=reseal(p)
+    with pytest.raises(ValueError):review.load_review(json.dumps(p).encode())
+
+
+def test_capture_withholds_mixed_duration_and_preserves_source_conflict():
+    v=view();v['approved_direct_fields'][1]['period_start']='2025-02-01'
+    p=packet(v)
+    assert {'field':'operating_income','reason':'duration_mismatch'} in p['gaps']
+    v=view();v['approved_direct_fields'].pop(1)
+    v['withheld_fields']=[dict(field='operating_income',reason='raw_source_conflict')]
+    assert {'field':'operating_income','reason':'raw_source_conflict'} in packet(v)['gaps']

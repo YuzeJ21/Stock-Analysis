@@ -95,6 +95,7 @@ def _validate(packet):
                 or not isinstance(gap['reason'],str) or not re.fullmatch('[a-z_]{1,100}',gap['reason'])):
             raise ValueError('invalid_gap')
         names.append(gap['field'])
+    if len({row['period_start'] for row in rows})>1:raise ValueError('mixed_packet_duration')
     if set(names)!=set(FIELDS) or len(set(names))!=len(names):raise ValueError('duplicate_or_missing_field')
     if packet['receipt_id']!=_digest(_json({k:v for k,v in packet.items() if k!='receipt_id'})):
         raise ValueError('receipt_checksum_mismatch')
@@ -118,9 +119,17 @@ def capture_review(view, *, profile_key, saved_at=None, registry_path=DEFAULT_RE
     # describe the same fetch; retain the actual receipt observation on all rows.
     rows=view.get('approved_direct_fields')
     if not isinstance(rows,list) or len(rows)>32 or any(not isinstance(r,dict) for r in rows):raise ValueError('invalid_fields')
+    revenue=[r for r in rows if r.get('field')=='revenue']
+    anchor_start=revenue[0].get('period_start') if len(revenue)==1 else None
+    source_gaps=view.get('withheld_fields',[])
+    if not isinstance(source_gaps,list):raise ValueError('invalid_source_gaps')
     for field in FIELDS:
         found=[r for r in rows if r.get('field')==field]
         reason='direct_field_missing' if not found else 'duplicate_direct_field' if len(found)>1 else None
+        if reason=='direct_field_missing':
+            supplied=[g.get('reason') for g in source_gaps if isinstance(g,dict) and g.get('field')==field]
+            if len(supplied)==1 and isinstance(supplied[0],str) and re.fullmatch('[a-z_]{1,100}',supplied[0]):
+                reason=supplied[0]
         if reason is None:
             source_row=found[0]
             row={k:source_row.get(k) for k in ROW_KEYS}
@@ -128,6 +137,8 @@ def capture_review(view, *, profile_key, saved_at=None, registry_path=DEFAULT_RE
             else:
                 row['observed_at_utc']=packet['source_observed_at']
                 reason=_row_reason(row,packet)
+                if reason is None and field!='revenue' and row['period_start']!=anchor_start:
+                    reason='duration_mismatch'
         if reason:packet['gaps'].append(dict(field=field,reason=reason))
         else:packet['fields'].append(row)
     packet['receipt_id']=_digest(_json(packet))
@@ -191,7 +202,7 @@ def compare_reviews(before, after, *, registry_path=DEFAULT_REGISTRY_PATH):
             result['gaps'].append(dict(field=field,reason=mismatch));basis_held=True
         else:compatible.append(field)
     def comparable_rows(packet):
-        return [{k:v for k,v in r.items() if k!='observed_at_utc'} for r in packet['fields']]
+        return sorted(({k:v for k,v in r.items() if k!='observed_at_utc'} for r in packet['fields']),key=lambda r:r['field'])
     # Retrieval time alone is not a revision of the filing.
     if before['raw_payload_sha256']==after['raw_payload_sha256'] and comparable_rows(before)!=comparable_rows(after):
         basis_held=True
@@ -204,7 +215,7 @@ def compare_reviews(before, after, *, registry_path=DEFAULT_REGISTRY_PATH):
         if dimensions:
             event=next((asdict(e) for e in events if e.source_ref.endswith('#'+field)),None)
             result['changes'].append(dict(field=field,before=a,after=b,changed_dimensions=dimensions,event=event))
-    input_same=comparable_rows(before)==comparable_rows(after) and before['gaps']==after['gaps'] and before['accession']==after['accession']
+    input_same=comparable_rows(before)==comparable_rows(after) and sorted(before['gaps'],key=lambda g:g['field'])==sorted(after['gaps'],key=lambda g:g['field']) and before['accession']==after['accession']
     result['status']='withheld' if basis_held else 'changed' if result['changes'] else 'unchanged' if input_same else 'gaps_changed'
     return result
 
@@ -221,7 +232,8 @@ def _directory(root,profile_key):
 
 def list_reviews(root,profile_key):
     directory=_directory(root,profile_key)
-    paths=sorted(directory.glob('*.json'))
+    try:paths=sorted(p for p in directory.iterdir() if p.suffix=='.json')
+    except FileNotFoundError:return []
     if len(paths)>MAX_RECEIPTS:raise ValueError('receipt_history_limit')
     result=[]
     for path in paths:
@@ -229,7 +241,7 @@ def list_reviews(root,profile_key):
         p=load_review(path.read_bytes())
         if p['profile_key']!=profile_key or path.stem!=p['receipt_id']:raise ValueError('saved_receipt_scope_mismatch')
         result.append(p)
-    return sorted(result,key=lambda p:(p['saved_at'],p['receipt_id']))
+    return sorted(result,key=lambda p:(_utc_timestamp(p['saved_at']),p['receipt_id']))
 
 
 def save_review(packet,root):

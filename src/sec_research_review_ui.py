@@ -15,7 +15,8 @@ REASONS={'direct_field_missing':'没有同一申报、同一期间的直接字�
     'concept_mismatch':'财务定义不同', 'unit_mismatch':'单位或币种不同',
     'rights_policy_changed':'来源权限登记已变化，需重新核查', 'profile_key_mismatch':'研究集合不同',
     'same_source_digest_conflict':'相同来源摘要对应不同字段，需核查证据一致性',
-    'rights_mismatch':'字段权限不一致'}
+    'rights_mismatch':'字段权限不一致', 'raw_source_conflict':'原始来源包含冲突值，需核查申报语境',
+    'raw_source_value_invalid':'原始来源数值无法通过核查'}
 STATUS={'unchanged':'未变化','changed':'发现变化，需核查','withheld':'口径不一致，保留缺口',
         'gaps_changed':'缺口状态变化，需核查','baseline_missing':'已保存，等待比较基线'}
 
@@ -57,8 +58,8 @@ def render_company_review(st,ticker,view,*,profile_key):
         except (ValueError,OSError):st.error('证据未保存。请检查来源口径、保存目录或历史数量。')
     if candidate is None:st.caption('先使用上方「只更新财报」取得合格的 NEM SEC 观察。已有证据仍可重放。')
     with st.expander('导入证据包',expanded=False):
-        st.caption('只接受本研究集合的 NEM 证据 JSON。文件校验确认内容一致性，不能证明文件未经他人重新生成；导入不会向 SEC 重新认证。')
-        upload=st.file_uploader('选择已导出的证据包',type=['json'],key='sec-review-upload:'+scope)
+        st.caption('只接受本研究集合的 NEM 证据 JSON，内容上限 64 KB。文件校验确认内容一致性，不能证明文件未经他人重新生成；导入不会向 SEC 重新认证。')
+        upload=st.file_uploader('选择已导出的证据包',type=['json'],max_upload_size=1,key='sec-review-upload:'+scope)
         if st.button('导入并保存证据包',key='sec-review-import:'+scope,disabled=upload is None):
             try:
                 upload.seek(0);packet=load_review(upload.read(MAX_BYTES+1))
@@ -110,4 +111,4 @@ def render_review_monitor(st,*,profile_key):
     st.caption('独立的数据核查事项，不计入研究日志、流程事件或投资信号。最新保存时间 '+packets[-1]['saved_at'])
     st.markdown(_gaps_html(result),unsafe_allow_html=True)
     for change in result['changes']:st.markdown('- '+LABELS[change['field']]+' · 已保存字段有变化，请核对两份申报来源。')
-    st.link_button('返回 NEM 证据复核','?mode=research&page=company-workbench&ticker=NEM&online=1&section=notes')
+    st.link_button('返回 NEM 证据复核','?mode=research&page=company-workbench&ticker=NEM&section=notes')

@@ -51,3 +51,20 @@ def test_non_nem_has_no_receipt_controls(tmp_path,monkeypatch):
         render_company_review(st,'AMD',{},profile_key='test')
     at=AppTest.from_function(other).run()
     assert not at.button and not at.exception
+
+
+def test_normal_nem_company_route_exposes_receipts_without_fetch(tmp_path,monkeypatch):
+    from src import sec_research_review_ui as ui
+    from src.sec_research_review import capture_review,save_review
+    monkeypatch.setattr(ui,'PROJECT_ROOT',tmp_path)
+    p=capture_review(view(),profile_key='test');save_review(p,tmp_path)
+    def workbench():
+        import streamlit as st
+        from src.company_workbench_ui import render_integrated_company
+        render_integrated_company(st,'NEM',profile_scope='test',saved_available=False,
+            render_saved=lambda section:None,render_sources=lambda bundle:None)
+    at=AppTest.from_function(workbench);at.query_params['section']='notes';at.run()
+    assert not at.exception
+    assert at.button(key='sec-review-save:test:NEM').disabled
+    assert at.selectbox[0].value==0
+    assert any('SEC 财报证据复核' in x.value for x in at.markdown)
