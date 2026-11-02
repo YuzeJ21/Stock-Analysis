@@ -62,3 +62,25 @@ def test_sample_accepts_and_counts_security_and_history_components(monkeypatch):
     result=get_peer_coverage({},tickers=['FICT'],inspect_requested=True,dependencies=deps,user_agent='Synthetic contact',as_of=NOW)
     assert result['subject_pe_count']==1 and result['comparison_count']==1
     assert result['adapter_operation_count']==len(calls)+len(extra) and extra.count('security')==1 and extra.count('history')==4
+
+
+@pytest.mark.parametrize('sources',[False,True])
+def test_bank_source_disclosure_distinguishes_incorporated_roles_and_actual_fact_resources(monkeypatch,sources):
+    from test_bank_peer_security import bank_collection
+    v=build(bank_collection(monkeypatch));html=online_peer_valuation_html(v,sources_only=sources)
+    assert '同次申报附件' in html and 'EX-13' in html and 'EX-99.01' in html
+    assert '主文件引用' in html and 'annual-linked.htm#eps-fact' in html
+    assert 'annual-linked.htm#base' in html and 'annual-linked.htm#eps' in html
+    assert 'annual-linked.htm#title' in html and 'annual.htm#common' in html
+    assert 'EPS 原始事实' in html and '事实期间与单位' in html
+    assert v['peer_count']==3 and '来源权限' in html
+
+
+def test_bank_link_labels_escape_untrusted_parent_text_and_reject_unsafe_fact_urls(monkeypatch):
+    from test_bank_peer_security import bank_collection
+    v=build(bank_collection(monkeypatch));scope=v['peers'][0]['selected_security_scope']
+    scope['documents'][1]['parent_href']='<img src=x onerror=alert(1)>'
+    scope['original_eps']['proofs'][0]['source_ref']='javascript:alert(1)'
+    html=online_peer_valuation_html(v,sources_only=True)
+    assert '&lt;img src=x onerror=alert(1)&gt;' in html
+    assert '<img src=x' not in html and 'javascript:' not in html

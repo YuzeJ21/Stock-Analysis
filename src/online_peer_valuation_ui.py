@@ -199,15 +199,30 @@ def _selected_security_html(scope):
     if scope.get('reason')=='depositary_security_requires_separate_method':html+='<p>封面普通股标题还带有不直接交易的限制，不能把它当成纽约交易的 ADS 本身。</p>'
     symbols=scope.get('issuer_symbols',[])
     html+='<p>SEC 关联代码：'+_text('、'.join(str(s) for s in symbols))+'。不代表这些代码已逐一完成证券映射；下列封面原始代码作为独立观察保留。</p>'
-    labels={'annual':'年度财报','cover':'已核对的 8-K 封面','successor':'继承发行人申报','quarter':'季度财报'}
+    labels={'annual':'年度财报','cover':'已核对的 8-K 封面','successor':'继承发行人申报','quarter':'季度财报','annual_companion':'年度财报的同次申报附件','cover_companion':'8-K 的同次申报附件'}
     for doc in scope.get('documents',[]):
         html+='<p>'+_text(labels.get(doc.get('role'),doc.get('role')))+' · '+_text(doc.get('form'))+' · '+_text(doc.get('accessionNumber'))+' · 期间末 '+_text(doc.get('reportDate'))+' · 发布 '+_text(doc.get('filingDate'))+' · 接收 '+_text(doc.get('acceptanceDateTime'))+' · 观察 '+_text(doc.get('observed_at'))+' · '+_link(doc.get('source_ref'),'具体文件')+'</p>'
         selected=doc.get('selected_common')
-        if isinstance(selected,Mapping):html+='<p>所选证券：'+_text(selected.get('ticker'))+' · '+_text(selected.get('title'))+' · '+_text(selected.get('exchange'))+'</p>'
+        if doc.get('parent_source_ref'):
+            html+='<p>'+_text(doc.get('parent_form'))+' '+_link(doc.get('parent_source_ref'),'主文件引用')+'：'+_text(doc.get('parent_href'))+'。上列期间、发布与接收日期属于同次主申报，附件类型单独列示。</p>'
+        if isinstance(selected,Mapping):
+            html+='<p>所选证券：'+_text(selected.get('ticker'))+' · '+_text(selected.get('title'))+' · '+_text(selected.get('exchange'))+'</p>'
+            html+='<p>'+ ' · '.join(_link(ref,label) for ref,label in zip(selected.get('fact_refs',[]),('封面证券标题','封面交易代码','封面交易所')))+'</p>'
+            if selected.get('context_source_ref'):html+='<p>'+_link(selected['context_source_ref'],'证券上下文来源')+'</p>'
+            if selected.get('consistent_duplicate_refs'):html+='<p>已核对的一致交易所列示：'+' · '.join(_link(ref,'原始事实') for ref in selected['consistent_duplicate_refs'])+'</p>'
         observations=doc.get('raw_cover_observations',[])
         if observations:html+='<ul>'+''.join('<li>'+_text(r.get('raw_symbol'))+' · '+_text(r.get('title'))+'</li>' for r in observations if isinstance(r,Mapping))+'</ul>'
         html+='<p>原始响应 SHA-256 <code>'+_text(doc.get('payload_sha256'))+'</code><br>已核对正文 SHA-256 <code>'+_text(doc.get('body_sha256'))+'</code></p>'
     for ref in scope.get('basis_refs',[]):html+='<p>'+_link(ref.get('source_ref'),'普通股资本与收益定义')+' · '+_text(ref.get('concept'))+'</p>'
+    eps=scope.get('original_eps')
+    if isinstance(eps,Mapping):
+        html+='<p>事实期间与单位：'+_text(eps.get('period_start'))+' → '+_text(eps.get('period_end'))+' · USD/shares。直接年度稀释 EPS 与 Companyfacts 同次申报记录另行核对。</p>'
+        for proof in eps.get('proofs',[]):
+            if not isinstance(proof,Mapping):continue
+            html+='<p>'+_link(proof.get('source_ref'),'EPS 原始事实')
+            if proof.get('context_source_ref'):html+=' · '+_link(proof['context_source_ref'],'EPS 期间与实体上下文')
+            if proof.get('unit_source_ref'):html+=' · '+_link(proof['unit_source_ref'],'EPS 单位定义')
+            html+='</p>'
     if any(d.get('binding_normalization')=='sec-empty-tail-script-v1' for d in scope.get('documents',[])):
         html+='<p>正文核对仅排除 SEC 响应末尾已声明的空外部脚本；每次响应的原始摘要仍完整保留，财务正文变更继续受限。</p>'
     return html+'<p>仅个人研究，不授予法律证券分类、来源商业权限或正式数据资格。</p></details>'
