@@ -105,8 +105,8 @@ def _document(packet,key,policy,cik,now):
     return raw,receipt,selected
 
 
-def _original_eps(raw,cik,end,url):
-    root,namespaces=_tree(raw);contexts={};units=set()
+def _original_eps(raw,cik,end,url,*,parsed=None,source_refs=None):
+    root,namespaces=_tree(raw) if parsed is None else parsed;contexts={};units=set()
     for node in root.iter(f'{{{X}}}context'):
         entity=node.find(f'{{{X}}}entity');period=node.find(f'{{{X}}}period')
         if entity is None or period is None or len(node)!=2 or len(entity)!=1 or len(period)!=2:continue
@@ -129,8 +129,10 @@ def _original_eps(raw,cik,end,url):
         numeric,reason=_number(node,namespaces)
         if reason or numeric is None:raise ValueError()
         observations.append((contexts[node.get('contextRef')],end,numeric['value']))
-        proofs.append(dict(**numeric,context_id=node.get('contextRef'),unit_id=node.get('unitRef'),unit='USD/shares',
-            concept=name,namespace_uri=uri,source_ref=url+('#'+node.get('id') if node.get('id') else '')))
+        proof=dict(**numeric,context_id=node.get('contextRef'),unit_id=node.get('unitRef'),unit='USD/shares',
+            concept=name,namespace_uri=uri,source_ref=source_refs[node.get('id')] if source_refs is not None else url+('#'+node.get('id') if node.get('id') else ''))
+        if source_refs is not None:proof.update(context_source_ref=source_refs[node.get('contextRef')],unit_source_ref=source_refs[node.get('unitRef')])
+        proofs.append(proof)
     if not observations or len(set(observations))!=1:raise ValueError()
     start,end,value=observations[0]
     return dict(period_start=start,period_end=end,eps=value,proofs=proofs)

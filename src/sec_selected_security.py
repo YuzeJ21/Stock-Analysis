@@ -11,6 +11,7 @@ from src.sec_exact_filing import MAX_FILING_BYTES,_fetch_html,_digest,RIGHTS
 from src.sec_inline_filing import X,IX,_tree,_qname,_taxonomy,_date_fact
 from src.annual_amendment_evidence import _original_eps
 from src.security_classification import classify_description
+from src.sec_security_document_set import companion_source,bind_document_set,MAX_SCOPE_BYTES
 
 SCHEMA='sec-selected-security-v1'
 KEYS=('form','reportDate','filingDate','acceptanceDateTime','accessionNumber','primaryDocument','isInlineXBRL','isXBRL')
@@ -104,12 +105,19 @@ def fetch_selected_security_evidence(ticker,cik,profile,*,user_agent,fetcher=Non
     if p is None:return dict(status='not_applicable',reason='selected_security_scope_unverified')
     try:
         _require(isinstance(user_agent,str) and user_agent.strip() and not any(c in user_agent for c in '\r\n'))
-        documents={}
-        for role,doc in p['documents'].items():
-            url=_url(cik,doc['metadata']);raw,headers,final=(fetcher or _fetch_html)(url,user_agent.strip())
+        documents={};total=0
+        _require(0<len(p['documents'])<=2)
+        def capture(url):
+            nonlocal total
+            raw,headers,final=(fetcher or _fetch_html)(url,user_agent.strip())
             _require(isinstance(raw,bytes) and 0<len(raw)<=MAX_FILING_BYTES and final==url)
+            total+=len(raw);_require(total<=MAX_SCOPE_BYTES)
             stamp=(observed_at or datetime.now(timezone.utc)).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-            documents[role]=dict(status='ready',source_url=url,observed_at=stamp,payload_sha256=hashlib.sha256(raw).hexdigest(),payload_raw_base64=base64.b64encode(raw).decode())
+            return dict(status='ready',source_url=url,observed_at=stamp,payload_sha256=hashlib.sha256(raw).hexdigest(),payload_raw_base64=base64.b64encode(raw).decode())
+        for role,doc in p['documents'].items():
+            url=_url(cik,doc['metadata']);documents[role]=capture(url)
+            companion=companion_source(doc,url)
+            if companion is not None:documents[role]['companion']=capture(companion[1])
         return dict(schema_version=SCHEMA,status='observed',ticker=ticker,sec_cik=cik,documents=documents)
     except (ValueError,KeyError,TypeError,AttributeError,OSError,RuntimeError,OverflowError):return held
 
@@ -133,8 +141,8 @@ def _cover_date(node,ns):
     return _iso_date(f'{match[3]}-{months[match[1]]:02d}-{int(match[2]):02d}') if match and match[1] in months else None
 
 
-def _cover(raw,cik,meta,doc,url):
-    root,ns=_tree(raw);contexts=_contexts(root,cik);facts={};groups={};forms=set();ends=set()
+def _cover(raw,cik,meta,doc,url,*,parsed=None,source_refs=None):
+    root,ns=_tree(raw) if parsed is None else parsed;contexts=_contexts(root,cik);facts={};groups={};forms=set();ends=set()
     for node in root.iter(f'{{{IX}}}nonNumeric'):
         uri,name=_qname(node.get('name'),ns)
         if not uri or not re.fullmatch(r'https?://xbrl.sec.gov/dei/\d{4}',uri) or node.get('contextRef') not in contexts:continue
@@ -146,8 +154,19 @@ def _cover(raw,cik,meta,doc,url):
         if name=='DocumentPeriodEndDate':ends.add(_cover_date(node,ns))
         if name in {'TradingSymbol','Security12bTitle','SecurityExchangeName'}:
             _require(node.get('continuedAt') is None and node.get('target') in {None,''} and node.get('tupleRef') is None and node.get('{http://www.w3.org/2001/XMLSchema-instance}nil') in {None,'false','0'})
-            values=groups.setdefault(node.get('contextRef'),{});_require(name not in values);values[name]=(text,node.get('id'))
+            values=groups.setdefault(node.get('contextRef'),{});values.setdefault(name,[]).append((text,node.get('id'),uri,node))
     _require(forms=={meta['form']} and ends=={_iso_date(meta['reportDate'])})
+    allowed=doc.get('cover_duplicate_groups',[]);_require(isinstance(allowed,list) and len(allowed)<=4);used=set();duplicate_refs=[]
+    for context_id,values in groups.items():
+        for name,entries in values.items():
+            if len(entries)>1:
+                matching=[(i,g) for i,g in enumerate(allowed) if isinstance(g,Mapping) and g.get('concept')==name and g.get('context_id')==context_id and all(e[2]==g.get('namespace_uri') for e in entries) and sorted(g.get('fact_ids',[]))==sorted(e[1] for e in entries)]
+                _require(len(matching)==1 and name=='SecurityExchangeName' and len(entries)==2 and len({e[0] for e in entries})==1)
+                _require(all(all(e[3].get(a) is None for a in ('target','continuedAt','tupleRef','format','{http://www.w3.org/2001/XMLSchema-instance}nil')) for e in entries))
+                used.add(matching[0][0]);duplicate_refs.extend((source_refs[e[1]] if source_refs is not None else url+'#'+e[1]) for e in entries)
+            chosen=[e for e in entries if e[1] in doc['cover_fact_ids']]
+            values[name]=(chosen[0] if len(chosen)==1 else entries[0])[:2]
+    _require(used==set(range(len(allowed))))
     selected=[];observations=[];common_symbols=set()
     for context_id,values in groups.items():
         if set(values)!={'TradingSymbol','Security12bTitle','SecurityExchangeName'}:continue
@@ -161,7 +180,10 @@ def _cover(raw,cik,meta,doc,url):
             _require(_qname(members[0].text,ns)[1]=='CommonStockMember' and _taxonomy(_qname(members[0].text,ns)[0])=='us-gaap')
             venue={'The New York Stock Exchange':'NYSE','New York Stock Exchange':'NYSE','New York Stock Exchange LLC':'NYSE','NYSE':'NYSE','Nasdaq':'Nasdaq','NASDAQ':'Nasdaq'}.get(exchange)
             _require(venue is not None)
-            selected.append(dict(ticker=symbol,title=title,exchange=exchange,venue=venue,context_id=context_id,fact_refs=[url+'#'+i for i in doc['cover_fact_ids']]))
+            common=dict(ticker=symbol,title=title,exchange=exchange,venue=venue,context_id=context_id,fact_refs=[source_refs[i] if source_refs is not None else url+'#'+i for i in doc['cover_fact_ids']])
+            if source_refs is not None:common['context_source_ref']=source_refs[context_id]
+            if duplicate_refs:common['consistent_duplicate_refs']=duplicate_refs
+            selected.append(common)
     _require(len(selected)==1 and common_symbols=={selected[0]['ticker']})
     return root,ns,contexts,selected[0],observations
 
@@ -172,28 +194,42 @@ def validate_selected_security_evidence(packet,*,ticker,cik,profile,issuer_symbo
     try:
         _require(isinstance(packet,Mapping) and packet.get('schema_version')==SCHEMA and packet.get('status')=='observed' and (packet.get('ticker'),packet.get('sec_cik'))==(ticker,cik))
         p=_policy(ticker,cik,profile,as_of);_require(p is not None and sorted(issuer_symbols)==p['issuer_symbols'])
-        documents=[];eps=None;basis=[]
+        documents=[];eps=None;basis=[];total=0
+        _require(0<len(p['documents'])<=2 and set(packet['documents'])==set(p['documents']))
         for role,doc in p['documents'].items():
             ref=packet['documents'][role];encoded=ref['payload_raw_base64'];url=_url(cik,doc['metadata'])
             _require(ref.get('status')=='ready' and ref.get('source_url')==url and _fresh(ref.get('observed_at'),as_of))
             _require(isinstance(encoded,str) and 0<len(encoded)<=4*((MAX_FILING_BYTES+2)//3))
             raw=base64.b64decode(encoded,validate=True)
+            total+=len(raw);_require(total<=MAX_SCOPE_BYTES)
             _require(0<len(raw)<=MAX_FILING_BYTES and hashlib.sha256(raw).hexdigest()==ref.get('payload_sha256'))
             body_sha=hashlib.sha256(_bound_body(raw,doc.get('normalization'))).hexdigest()
             _require(body_sha==doc.get('body_sha256',doc['sha256']))
             item=dict(role=role,**doc['metadata'],source_ref=url,observed_at=ref['observed_at'],payload_sha256=ref['payload_sha256'],body_sha256=body_sha,binding_normalization=doc.get('normalization','identity_bytes'),reference_capture_sha256=doc['sha256'])
+            parsed=None;source_refs=None;extra=None;companion=companion_source(doc,url)
+            if companion is not None:
+                c,curl=companion;cref=ref['companion'];_require(p['kind']=='supported_common' and role in {'annual','cover'})
+                _require(cref.get('status')=='ready' and cref.get('source_url')==curl and _fresh(cref.get('observed_at'),as_of))
+                encoded=cref['payload_raw_base64'];_require(isinstance(encoded,str) and 0<len(encoded)<=4*((MAX_FILING_BYTES+2)//3))
+                craw=base64.b64decode(encoded,validate=True);total+=len(craw)
+                _require(0<len(craw)<=MAX_FILING_BYTES and total<=MAX_SCOPE_BYTES and hashlib.sha256(craw).hexdigest()==cref.get('payload_sha256'))
+                cbody=hashlib.sha256(_bound_body(craw,c.get('normalization'))).hexdigest();_require(cbody==c.get('body_sha256',c['sha256']))
+                parsed,source_refs=bind_document_set(raw,craw,url=url,companion_url=curl,href=c['href'])
+                extra=dict(item,role=role+'_companion',form=c['document_type'],parent_form=doc['metadata']['form'],primaryDocument=c['primaryDocument'],source_ref=curl,parent_source_ref=url,parent_href=c['href'],observed_at=cref['observed_at'],payload_sha256=cref['payload_sha256'],body_sha256=cbody,binding_normalization=c.get('normalization','identity_bytes'),reference_capture_sha256=c['sha256'])
+            else:_require('companion' not in ref)
             if p['kind']=='supported_common':
-                root,ns,contexts,common,other=_cover(raw,cik,doc['metadata'],doc,url);_require(common['ticker']==ticker)
+                root,ns,contexts,common,other=_cover(raw,cik,doc['metadata'],doc,url,parsed=parsed,source_refs=source_refs);_require(common['ticker']==ticker)
                 item.update(selected_common=common,raw_cover_observations=other)
                 if role=='annual':
-                    eps=_original_eps(raw,cik,doc['metadata']['reportDate'],url)
+                    eps=_original_eps(raw,cik,doc['metadata']['reportDate'],url,parsed=parsed,source_refs=source_refs)
                     ids={n.get('id'):n for n in root.iter() if n.get('id')}
                     for identity in p['basis_fact_ids']:
                         n=ids[identity];uri,name=_qname(n.get('name'),ns)
                         _require(_taxonomy(uri)=='us-gaap' and name in {'CommonStockParOrStatedValuePerShare','StockholdersEquityNoteDisclosureTextBlock','EarningsPerSharePolicyTextBlock','ScheduleOfEarningsPerShareBasicAndDilutedTableTextBlock'} and n.get('contextRef') in contexts)
                         _require(bool(''.join(n.itertext()).strip()))
-                        basis.append(dict(concept=name,source_ref=url+'#'+identity,context_id=n.get('contextRef')))
+                        basis.append(dict(concept=name,source_ref=source_refs[identity] if source_refs is not None else url+'#'+identity,context_id=n.get('contextRef')))
             documents.append(item)
+            if extra is not None:documents.append(extra)
         result=dict(status=p['kind'],reason=p['reason'],policy_id=p['policy_id'],ticker=ticker,sec_cik=cik,issuer_symbols=p['issuer_symbols'],documents=documents,basis_refs=basis,alias_mappings_established=False,technical_interpretation_only=True,commercial_eligible=False,rights_status=RIGHTS)
         if p['kind']=='supported_common':_require(eps is not None);result['original_eps']=eps
         return result
