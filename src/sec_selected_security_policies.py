@@ -154,3 +154,13 @@ POLICIES = ({'policy_id': 'duk-selected-common-2026-v2',
 
 from src.sec_bank_security_policies import BANK_POLICIES
 POLICIES += BANK_POLICIES
+
+
+from src.sec_cross_security_policies import INSPECTION_OBSERVATIONS
+POLICIES = tuple(
+    {**p, 'documents': {
+        role: {**doc, **({'inspection_observations': INSPECTION_OBSERVATIONS[p['ticker']][role]}
+                        if role in INSPECTION_OBSERVATIONS.get(p['ticker'], {}) else {})}
+        for role, doc in p['documents'].items()}}
+    for p in POLICIES
+)

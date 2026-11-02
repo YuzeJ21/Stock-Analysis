@@ -12,6 +12,7 @@ from src.sec_inline_filing import X,IX,_tree,_qname,_taxonomy,_date_fact
 from src.annual_amendment_evidence import _original_eps
 from src.security_classification import classify_description
 from src.sec_security_document_set import companion_source,bind_document_set,MAX_SCOPE_BYTES
+from src.sec_security_observations import inspect_observations
 
 SCHEMA='sec-selected-security-v1'
 KEYS=('form','reportDate','filingDate','acceptanceDateTime','accessionNumber','primaryDocument','isInlineXBRL','isXBRL')
@@ -201,7 +202,7 @@ def validate_selected_security_evidence(packet,*,ticker,cik,profile,issuer_symbo
     try:
         _require(isinstance(packet,Mapping) and packet.get('schema_version')==SCHEMA and packet.get('status')=='observed' and (packet.get('ticker'),packet.get('sec_cik'))==(ticker,cik))
         p=_policy(ticker,cik,profile,as_of);_require(p is not None and sorted(issuer_symbols)==p['issuer_symbols'])
-        documents=[];eps=None;basis=[];total=0
+        documents=[];eps=None;basis=[];observations=[];total=0
         _require(0<len(p['documents'])<=2 and set(packet['documents'])==set(p['documents']))
         for role,doc in p['documents'].items():
             ref=packet['documents'][role];encoded=ref['payload_raw_base64'];url=_url(cik,doc['metadata'])
@@ -235,9 +236,12 @@ def validate_selected_security_evidence(packet,*,ticker,cik,profile,issuer_symbo
                         _require(_taxonomy(uri)=='us-gaap' and name in {'CommonStockParOrStatedValuePerShare','StockholdersEquityNoteDisclosureTextBlock','EarningsPerSharePolicyTextBlock','ScheduleOfEarningsPerShareBasicAndDilutedTableTextBlock'} and n.get('contextRef') in contexts)
                         _require(bool(''.join(n.itertext()).strip()))
                         basis.append(dict(concept=name,source_ref=source_refs[identity] if source_refs is not None else url+'#'+identity,context_id=n.get('contextRef')))
+            if doc.get('inspection_observations'):
+                _require(p['kind']=='inspection_only' and companion is None)
+                observations.extend(dict(o,role=role,observed_at=ref['observed_at'],publication_date=doc['metadata']['filingDate'],accession=doc['metadata']['accessionNumber'],rights_status=RIGHTS) for o in inspect_observations(raw,cik=cik,metadata=doc['metadata'],url=url,contracts=doc['inspection_observations']))
             documents.append(item)
             if extra is not None:documents.append(extra)
-        result=dict(status=p['kind'],reason=p['reason'],policy_id=p['policy_id'],ticker=ticker,sec_cik=cik,issuer_symbols=p['issuer_symbols'],unassigned_issuer_symbols=[s for s in p['issuer_symbols'] if s!=ticker],documents=documents,basis_refs=basis,alias_mappings_established=False,technical_interpretation_only=True,commercial_eligible=False,rights_status=RIGHTS)
+        result=dict(status=p['kind'],reason=p['reason'],policy_id=p['policy_id'],ticker=ticker,sec_cik=cik,issuer_symbols=p['issuer_symbols'],unassigned_issuer_symbols=[s for s in p['issuer_symbols'] if s!=ticker],documents=documents,basis_refs=basis,evidence_observations=observations,alias_mappings_established=False,technical_interpretation_only=True,commercial_eligible=False,rights_status=RIGHTS)
         if p['kind']=='supported_common':_require(eps is not None);result['original_eps']=eps
         return result
     except (ValueError,KeyError,TypeError,AttributeError,OverflowError,RecursionError,binascii.Error,ET.ParseError):return held
