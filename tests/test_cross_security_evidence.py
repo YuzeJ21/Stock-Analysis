@@ -28,6 +28,16 @@ def test_explicit_dimensionless_scope_qualifies_literal_common_without_assigning
     assert c==before
 
 
+@pytest.mark.parametrize('tag', ['identifier', 'startDate', 'endDate'])
+def test_resealed_dimensionless_primitive_with_nested_markup_is_withheld(monkeypatch, tag):
+    policy,c=dimensionless();receipt=c['issuers'][0]['selected_security_evidence']['documents']['annual']
+    raw=base64.b64decode(receipt['payload_raw_base64'])
+    closing=f'</x:{tag}>'.encode()
+    raw=raw.replace(closing,b'<span>ignored content</span>'+closing)
+    seal(policy['documents']['annual'],receipt,raw);install(monkeypatch,policy)
+    assert build(c)['subject'] is None
+
+
 @pytest.mark.parametrize('mutation',[
     lambda raw:raw.replace(b'id="common"',b'id="different"'),
     lambda raw:raw.replace(b'<x:startDate>2025-01-01</x:startDate>',b'<x:startDate>2024-01-01</x:startDate>'),

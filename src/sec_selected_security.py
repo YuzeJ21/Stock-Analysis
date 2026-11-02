@@ -129,7 +129,8 @@ def _contexts(root,cik):
         entity=node.find(f'{{{X}}}entity');period=node.find(f'{{{X}}}period')
         if entity is None or period is None:continue
         identifiers=entity.findall(f'{{{X}}}identifier')
-        if len(identifiers)!=1 or identifiers[0].get('scheme')!='http://www.sec.gov/CIK' or identifiers[0].text!=cik:continue
+        if len(identifiers)!=1 or len(identifiers[0])!=0 or identifiers[0].get('scheme')!='http://www.sec.gov/CIK' or identifiers[0].text!=cik:continue
+        if any(len(value)!=0 for value in period if value.tag in {f'{{{X}}}startDate',f'{{{X}}}endDate',f'{{{X}}}instant'}):continue
         result[node.get('id')]=node
     return result
 

@@ -33,6 +33,13 @@ def test_direct_ads_native_and_convenience_facts_keep_distinct_source_context_an
     assert all(o['financial_eligible'] is False for o in r)
 
 
+@pytest.mark.parametrize('tag', ['identifier', 'startDate', 'endDate'])
+def test_inspection_context_primitives_cannot_hide_nested_markup(tag):
+    body,contracts=observation_fixture();closing=f'</x:{tag}>'.encode()
+    with pytest.raises(ValueError):
+        parse(body.replace(closing,b'<span>ignored content</span>'+closing),contracts)
+
+
 @pytest.mark.parametrize('old,new',[
     (b'e:ADSMember',b'e:OrdinaryMember'),(b'iso:TWD',b'iso:USD'),(b'2025-01-01',b'2024-01-01'),
     (b'0000001001</x:identifier>',b'0000009999</x:identifier>'),

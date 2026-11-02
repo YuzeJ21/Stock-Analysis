@@ -52,7 +52,9 @@ def _context(ids,ns,c,metadata):
             _need(member.tag==f'{{{D}}}explicitMember' and len(member)==0)
             actual.append([*_qname(member.get('dimension'),ns),*_qname(member.text,ns)])
     _need(actual==dims)
-    start,end=period.findtext(f'{{{X}}}startDate'),period.findtext(f'{{{X}}}endDate')
+    first,last=period.find(f'{{{X}}}startDate'),period.find(f'{{{X}}}endDate')
+    _need(first is not None and last is not None and len(first)==len(last)==0)
+    start,end=first.text,last.text
     _need(start==c['period_start'] and end==c['period_end']==metadata['reportDate'] and _iso_date(start) and _iso_date(end) and start<=end)
     return dict(entity_cik=ident.text,period_start=start,period_end=end,dimensions=actual,context_id=c['context_id'])
 
