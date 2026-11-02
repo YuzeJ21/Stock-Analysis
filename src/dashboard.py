@@ -37899,6 +37899,9 @@ def render_research_monitor(
             unsafe_allow_html=True,
         )
 
+    from src.sec_research_review_ui import render_review_monitor
+    render_review_monitor(st,profile_key=context.profile_key)
+
     st.markdown(
         study_monitor_html(load_dashboard_bounded_field_study(context)),
         unsafe_allow_html=True,

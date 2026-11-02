@@ -116,6 +116,9 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                 with st_api.expander('财务观察与可用分析',expanded=False):
                     st_api.markdown(online_company_analysis_html(build_online_company_analysis(financial)),unsafe_allow_html=True)
         elif selected in ('valuation','notes'):
+            if selected=='notes':
+                from src.sec_research_review_ui import render_company_review
+                render_company_review(st_api,ticker,financial,profile_key=profile_scope)
             peer_view=None
             if selected=='valuation':
                 requested=st_api.button('更新在线同行估值',key=f'company-refresh-peers:{ticker}:{scope}')
