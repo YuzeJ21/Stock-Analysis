@@ -241,7 +241,9 @@ def _issuer(row, classification, industry_key, as_of):
     _need(info.get('industryKey')==industry_key, 'provider_industry_differs')
     venue=_VENUES.get(info.get('exchange'))
     _need(venue is not None and profile['exchanges'][profile['tickers'].index(ticker)]==venue[0] and all(r['venue']==venue[0] for r in explicit), 'quote_exchange_mismatch')
-    if supported:_need(all(d['selected_common']['venue']==venue[0] for d in scope['documents']),'quote_exchange_mismatch')
+    if supported:
+        covers=[d for d in scope['documents'] if d['role'] in {'annual','cover'}]
+        _need(len(covers)==2 and all(d['selected_common']['venue']==venue[0] for d in covers),'quote_exchange_mismatch')
     identity=_vendor_identity(row,vendor,filings,ticker,cik,as_of)
     prices=validated_online_price_history(row.get('prices'),ticker=ticker)
     _need(prices is not None, 'completed_price_source_unverified')

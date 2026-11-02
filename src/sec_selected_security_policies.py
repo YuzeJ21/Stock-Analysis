@@ -130,3 +130,7 @@ POLICIES = ({'policy_id': 'duk-selected-common-2026-v2',
                             'body_sha256': 'a258b9e876acf7c68dd26a64d1cc51dbe9b6aae76fd1b6ad5b37c83e5721de13'}},
   'reason': 'successor_annual_basis_unverified',
   'requires_absent_annual': True})
+
+
+from src.sec_bank_security_policies import BANK_POLICIES
+POLICIES += BANK_POLICIES

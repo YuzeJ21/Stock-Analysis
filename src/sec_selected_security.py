@@ -135,7 +135,7 @@ def _contexts(root,cik):
 
 def _cover_date(node,ns):
     uri,name=_qname(node.get('format'),ns)
-    if (uri,name)!=('http://www.xbrl.org/inlineXBRL/transformation/2015-02-26','datemonthdayyearen'):return _date_fact(node,ns)
+    if (uri,name) not in {('http://www.xbrl.org/inlineXBRL/transformation/2015-02-26','datemonthdayyearen'),('http://www.xbrl.org/inlineXBRL/transformation/2022-02-16','date-monthname-day-year-en')}:return _date_fact(node,ns)
     text=' '.join(''.join(node.itertext()).split());match=re.fullmatch(r'([A-Za-z]+) (\d{1,2}), (\d{4})',text)
     months={m:i+1 for i,m in enumerate(('January','February','March','April','May','June','July','August','September','October','November','December'))}
     return _iso_date(f'{match[3]}-{months[match[1]]:02d}-{int(match[2]):02d}') if match and match[1] in months else None

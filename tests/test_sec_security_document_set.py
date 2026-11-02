@@ -112,3 +112,12 @@ def test_total_scope_budget_stops_collection_before_a_fourth_large_document(monk
         return b'x'*(24*1024*1024),{},url
     result=fetch_selected_security_evidence('FICT','0000001001',row['profile'],user_agent='Synthetic contact',fetcher=fetch,observed_at=NOW)
     assert result['status']=='unavailable' and len(calls)==3
+
+
+@pytest.mark.parametrize('valid',[True,False])
+def test_bound_cover_supports_only_the_exact_2022_english_month_date_transform(monkeypatch,valid):
+    policy,row,packet,raw=document_set_fixture('cover')
+    raw['cover']=raw['cover'].replace(b'<html ',b'<html xmlns:t="http://www.xbrl.org/inlineXBRL/transformation/2022-02-16" ',1).replace(b'id="period"',b'id="period" format="t:date-monthname-day-year-en"').replace(b'>2026-10-20</ix:nonNumeric>',b'>October 20, 2026</ix:nonNumeric>')
+    if not valid:raw['cover']=raw['cover'].replace(b't:date-monthname-day-year-en',b't:unknown-transform')
+    reseal(policy,packet,raw,'cover');install(monkeypatch,policy)
+    assert validate(policy,row,packet)['status']==('supported_common' if valid else 'withheld')
