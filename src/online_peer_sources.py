@@ -195,7 +195,7 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
         if dependencies is not None:
             deps.update(dependencies)
         classification,listing_context=acquire_classification(state,
-            lambda:deps['classification'](user_agent=user_agent or os.getenv('SEC_USER_AGENT'),observed_at=as_of),as_of=_now(as_of))
+            lambda:deps['classification'](user_agent=user_agent or os.getenv('SEC_USER_AGENT'),observed_at=as_of),as_of=as_of,clock=_now)
         if classification is None:
             return _read(_cache(state,ticker,None,'listing_classification_unavailable',as_of,listing_context),ticker,expected_cik,as_of)
         try:

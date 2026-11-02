@@ -93,6 +93,33 @@ def test_recovered_receipt_does_not_bypass_expected_company_identity():
     assert view['subject'] is None and calls==before
 
 
+def test_default_clock_accepts_receipts_observed_while_acquisition_runs(monkeypatch):
+    import src.online_peer_sources as sources
+    from src.online_listing_session import SESSION_KEY
+    clock=[NOW];monkeypatch.setattr(sources,'_now',lambda value=None:clock[0] if value is None else value)
+    deps,calls=source_dependencies()
+    def acquire(**kw):
+        clock[0]+=timedelta(seconds=2)
+        return classification(observed_at=clock[0])
+    deps['classification']=acquire;state={}
+    view=get(state,refresh=True,dependencies=deps,as_of=None)
+    assert view['status']=='research_comparison' and state[SESSION_KEY]['classification']['inventory']['observed_from']=='2026-11-01T04:00:02Z'
+    assert view['listing_context']['attempted_at']=='2026-11-01T04:00:00Z'
+    assert view['listing_context']['completed_at']=='2026-11-01T04:00:02Z'
+
+
+def test_receipt_expiring_during_failed_acquisition_stops_before_financial_transport(monkeypatch):
+    import src.online_peer_sources as sources
+    clock=[NOW];monkeypatch.setattr(sources,'_now',lambda value=None:clock[0] if value is None else value)
+    deps,calls=source_dependencies();state={};get(state,refresh=True,dependencies=deps,as_of=None)
+    clock[0]=NOW+timedelta(hours=24,seconds=-1)
+    def fail(**kw):clock[0]+=timedelta(seconds=3);return unavailable()
+    deps['classification']=fail;before=list(calls)
+    view=get(state,refresh=True,dependencies=deps,as_of=None)
+    assert view['subject'] is None and view['listing_context']['selection']=='none'
+    assert calls==before
+
+
 def test_empty_directory_keeps_safe_source_specific_diagnostic_and_no_retry():
     from src.security_classification import fetch_classification
     from test_online_us_universe import O_URL

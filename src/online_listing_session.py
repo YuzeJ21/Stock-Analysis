@@ -51,18 +51,24 @@ def _attempts(value):
     return result
 
 
-def acquire_classification(state, fetch, *, as_of):
+def acquire_classification(state, fetch, *, as_of=None, clock=None):
     """One explicit acquisition; unavailable source may use this session's receipt."""
     context=dict(schema_version=SCHEMA,selection='none',attempt_status='unavailable',
                  source_attempts=[],source_receipts=[],reason='classification_source_unavailable')
     if _mode_reason('research'):
         context['reason']=_mode_reason('research');return None,context
-    if not isinstance(as_of,datetime) or as_of.utcoffset() is None:
+    clock=clock or (lambda:datetime.now(timezone.utc))
+    started=as_of if as_of is not None else clock()
+    if not isinstance(started,datetime) or started.utcoffset() is None:
         context['reason']='invalid_observation';return None,context
-    context['attempted_at']=as_of.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    context['attempted_at']=started.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     try:incoming=fetch()
     except Exception:incoming=dict(status='unavailable',reason='classification_source_unavailable')
-    packet=fresh_classification(incoming,as_of)
+    completed=as_of if as_of is not None else clock()
+    if not isinstance(completed,datetime) or completed.utcoffset() is None or completed<started:
+        context['reason']='invalid_observation';return None,context
+    context['completed_at']=completed.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    packet=fresh_classification(incoming,completed)
     if packet is not None:
         envelope=dict(schema_version=SCHEMA,classification=deepcopy(packet))
         envelope['digest']=_digest(envelope);state[SESSION_KEY]=envelope
@@ -77,7 +83,7 @@ def acquire_classification(state, fetch, *, as_of):
         try:
             valid=(isinstance(saved,Mapping) and saved.get('schema_version')==SCHEMA
                    and saved.get('digest')==_digest({k:v for k,v in saved.items() if k!='digest'}))
-            packet=fresh_classification(saved.get('classification'),as_of) if valid else None
+            packet=fresh_classification(saved.get('classification'),completed) if valid else None
         except (ValueError,TypeError,AttributeError,RecursionError):packet=None
         if packet is None:return None,context
         context['selection']='recent_session'

@@ -282,6 +282,7 @@ def _listing_html(v,*,compact=False):
         html+='<p>上市观察：'+_text(context['observed_from'])+' → '+_text(context.get('observed_to'))+'。</p>'
     if not compact:
         html+='<details><summary>上市来源日期、摘要与本次获取记录</summary>'
+        html+='<p>上市获取尝试：'+_text(context.get('attempted_at'))+' → '+_text(context.get('completed_at'))+'。</p>'
         for ref in context.get('source_receipts',[])[:4]:
             html+='<p>'+_link(ref.get('source_url'),'上市或 SEC 关联来源')+' · 原始观察 '+_text(ref.get('observed_at'))
             if ref.get('source_created_at'):html+=' · 目录创建 '+_text(ref['source_created_at'])+'（纽约时间）'
