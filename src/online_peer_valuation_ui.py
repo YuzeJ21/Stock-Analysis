@@ -103,7 +103,7 @@ def _multiple(value):
 def _link(url,label):
     try:
         p=urlsplit(url) if isinstance(url,str) and len(url)<=2048 else None
-        if p and p.scheme=='https' and p.hostname in {'www.sec.gov','data.sec.gov','query1.finance.yahoo.com','finance.yahoo.com','cdn.yahoofinance.com'} and p.username is None and p.password is None and p.port is None:
+        if p and p.scheme=='https' and p.hostname in {'www.sec.gov','data.sec.gov','query1.finance.yahoo.com','finance.yahoo.com','cdn.yahoofinance.com','www.nasdaqtrader.com'} and p.username is None and p.password is None and p.port is None:
             return '<a href="'+escape(url,quote=True)+'" target="_blank" rel="noopener noreferrer">'+escape(label)+'</a>'
     except ValueError:pass
     return escape(label)+'（链接未通过核对）'
@@ -268,8 +268,39 @@ def _history_html(identity):
     return '<p>历史 SEC 索引仅用于供应商身份核对；年度 EPS 仍使用当前选定的年度申报。'+_link(identity.get('history_source_ref'),'官方历史索引')+' · 观察 '+_text(identity.get('history_observed_at'))+' · SHA-256 <code>'+_text(identity.get('history_sha256'))+'</code></p>'
 
 
+def _listing_html(v,*,compact=False):
+    context=v.get('listing_context')
+    if not isinstance(context,Mapping):return ''
+    selection=context.get('selection')
+    if selection=='recent_session':
+        answer='上市来源本次暂不可用；沿用本会话 24 小时内的完整上市观察。原始日期未续期，财报与价格仍独立核查。'
+    elif selection=='returned_receipt':
+        answer='上市证据采用本次返回的完整来源回执；以下为来源原始观察日期，未续期。'
+    else:answer='没有可用的近期完整上市观察，本次财报与价格核查未继续；请稍后重试。'
+    html='<div class="peer-listing-context"><p><strong>'+answer+'</strong></p>'
+    if context.get('observed_from'):
+        html+='<p>上市观察：'+_text(context['observed_from'])+' → '+_text(context.get('observed_to'))+'。</p>'
+    if not compact:
+        html+='<details><summary>上市来源日期、摘要与本次获取记录</summary>'
+        for ref in context.get('source_receipts',[])[:4]:
+            html+='<p>'+_link(ref.get('source_url'),'上市或 SEC 关联来源')+' · 原始观察 '+_text(ref.get('observed_at'))
+            if ref.get('source_created_at'):html+=' · 目录创建 '+_text(ref['source_created_at'])+'（纽约时间）'
+            html+=' · SHA-256 <code>'+_text(ref.get('payload_sha256'))+'</code></p>'
+        failures={'directory_incomplete':'目录内容不完整','source_access_limited':'来源限制访问，未自动重试',
+                  'source_transport_unavailable':'来源暂不可访问','source_response_unverified':'响应地址或内容未核对',
+                  'directory_schema_invalid':'目录结构未通过核对','directory_date_invalid':'目录创建日期过旧或在未来'}
+        for attempt in context.get('source_attempts',[])[:4]:
+            message=failures.get(attempt.get('reason'),'仅收到响应；不代表整套上市证据已通过核对')
+            html+='<p>本次获取 '+_text(attempt.get('observed_at',context.get('attempted_at')))+' · '+_link(attempt.get('source_url'),'查询来源')+' · '+message
+            if type(attempt.get('byte_count')) is int:html+=' · '+str(attempt['byte_count'])+' bytes'
+            if attempt.get('payload_sha256'):html+=' · SHA-256 <code>'+_text(attempt['payload_sha256'])+'</code>'
+            html+='</p>'
+        html+='</details>'
+    return html+'</div>'
+
+
 def _disclosure(v,rows):
-    html='<p>自动筛选的行业参照组：同供应商行业、同 SEC 行业代码、普通股、独立发行人、同一价格日期。每家实际财年起止日期与本公司相差不超过 '+str(FISCAL_WINDOW_DAYS)+' 天；这不是完全相同的期间，也不是分析师审核的经济可比组。</p>'
+    html=_listing_html(v)+'<p>自动筛选的行业参照组：同供应商行业、同 SEC 行业代码、普通股、独立发行人、同一价格日期。每家实际财年起止日期与本公司相差不超过 '+str(FISCAL_WINDOW_DAYS)+' 天；这不是完全相同的期间，也不是分析师审核的经济可比组。</p>'
     html+='<p>候选列表共 '+_text(v.get('industry_candidate_total'))+' 个记录，本次最多核查 12 家其他公司，按供应商列表顺序保留；不是完整行业覆盖。</p>'
     if v.get('industry_source_ref'):
         html+='<p>'+_link(v['industry_source_ref'],'候选组来源')+' · 观察 '+_text(v.get('industry_observed_at'))+'</p>'
@@ -320,6 +351,7 @@ def online_peer_valuation_html(view,*,sources_only=False):
     kicker='在线来源 · 已披露年度稀释 P/E · 非 TTM / 非预测值'
     html=STYLE+'<section class="online-peer-valuation" aria-label="Online peer valuation"><p class="peer-kicker">'+kicker+'</p><h3>'+_text(headline)+'</h3>'
     if v.get('attempted_at'):html+='<p>本次来源查询：'+_text(v['attempted_at'])+'</p>'
+    html+=_listing_html(v,compact=True)
     if not supported:html+='<p>'+_text(_reason(v.get('reason')))+'</p>'
     html+='<p>这是单一指标的相对比较，不是低估或高估结论。业务结构、增长、利润率、资本需求和风险差异尚未调整。</p>'
     stats=[('本公司年度 P/E',_multiple(subject.get('multiple')) if subject else '未取得'),

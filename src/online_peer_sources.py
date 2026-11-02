@@ -20,6 +20,7 @@ from src.security_classification import fetch_classification, validated_classifi
 from src.annual_amendment_evidence import fetch_amendment_evidence, amendment_candidate
 from src.sec_selected_security import fetch_selected_security_evidence,known_security_scope,FINANCIAL_FORMS,IDENTITY_FORMS,is_investment_company_form,valid_profile_metadata_shape
 from src.online_peer_sec_history import fetch_vendor_history_match
+from src.online_listing_session import acquire_classification
 
 SESSION_KEY = 'online_peer_valuation_observation_v1'
 _INFO_FIELDS = ('symbol','quoteType','currency','financialCurrency','exchange','exchangeTimezoneName',
@@ -149,8 +150,9 @@ def _collect_issuer(ticker,cik,deps,user_agent,as_of,vendor=None):
     return result
 
 
-def _cache(state,ticker,collection,error,as_of):
+def _cache(state,ticker,collection,error,as_of,listing_context=None):
     cached=dict(ticker=ticker,collection=collection,error=error,observed_at=_stamp(as_of))
+    if listing_context is not None:cached['listing_context']=deepcopy(listing_context)
     cached['packet_digest']=normalized_digest(cached)
     state[SESSION_KEY]=cached
     return cached
@@ -163,9 +165,12 @@ def _read(cached,ticker,expected_cik,as_of):
         if cached.get('packet_digest')!=normalized_digest({k:v for k,v in cached.items() if k!='packet_digest'}):
             return _empty(ticker,'cached_observation_changed')
         if cached.get('error'):
-            return {**_empty(ticker,cached['error']),'attempted_at':cached['observed_at']}
+            view={**_empty(ticker,cached['error']),'attempted_at':cached['observed_at']}
+            if 'listing_context' in cached:view['listing_context']=deepcopy(cached['listing_context'])
+            return view
         view=build_online_peer_valuation(cached.get('collection'),ticker=ticker,expected_cik=expected_cik,as_of=_now(as_of))
         view['attempted_at']=cached['observed_at']
+        if 'listing_context' in cached:view['listing_context']=deepcopy(cached['listing_context'])
         return view
     except (ValueError,TypeError,KeyError,AttributeError,OverflowError,RecursionError):
         return _empty(ticker,'cached_observation_invalid')
@@ -180,6 +185,7 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
         return _empty(ticker,reason or 'invalid_ticker')
     if not refresh_requested:
         return _read(state.get(SESSION_KEY),ticker,expected_cik,as_of)
+    listing_context=None
     try:
         _now(as_of)
         # Clear a previous successful result before the first fallible request.
@@ -188,9 +194,10 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
                   sec=fetch_sec_json_receipt,prices=fetch_online_company_prices,amendment=fetch_amendment_evidence,security=fetch_selected_security_evidence,history=fetch_vendor_history_match)
         if dependencies is not None:
             deps.update(dependencies)
-        classification=validated_classification(deps['classification'](user_agent=user_agent or os.getenv('SEC_USER_AGENT'),observed_at=as_of))
+        classification,listing_context=acquire_classification(state,
+            lambda:deps['classification'](user_agent=user_agent or os.getenv('SEC_USER_AGENT'),observed_at=as_of),as_of=_now(as_of))
         if classification is None:
-            return _read(_cache(state,ticker,None,'listing_classification_unavailable',as_of),ticker,expected_cik,as_of)
+            return _read(_cache(state,ticker,None,'listing_classification_unavailable',as_of,listing_context),ticker,expected_cik,as_of)
         try:
             cik=_ordinary_identity(classification,ticker,expected_cik)
         except (ValueError,KeyError,TypeError):
@@ -199,19 +206,19 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
                 explicit=[r for r in listings if r['source']!='sec']
                 if not (known_security_scope(ticker,cik) and explicit and all(r['security_type']=='unknown' and r['reason']=='explicit_instrument_description_unavailable' for r in explicit)):raise ValueError()
             except (ValueError,KeyError,TypeError):
-                return _read(_cache(state,ticker,None,'selected_listing_or_cik_unverified',as_of),ticker,expected_cik,as_of)
+                return _read(_cache(state,ticker,None,'selected_listing_or_cik_unverified',as_of,listing_context),ticker,expected_cik,as_of)
         vendor=deps['vendor'](ticker,observed_at=as_of)
         if not isinstance(vendor,Mapping) or vendor.get('status')!='observed':
-            return _read(_cache(state,ticker,None,'vendor_context_source_unavailable',as_of),ticker,expected_cik,as_of)
+            return _read(_cache(state,ticker,None,'vendor_context_source_unavailable',as_of,listing_context),ticker,expected_cik,as_of)
         info=vendor.get('payload',{}).get('info',{})
         key,sector=info.get('industryKey'),info.get('sectorKey')
         if not isinstance(key,str) or not _KEY.fullmatch(key) or not isinstance(sector,str) or not _KEY.fullmatch(sector):
-            return _read(_cache(state,ticker,None,'industry_metadata_missing',as_of),ticker,expected_cik,as_of)
+            return _read(_cache(state,ticker,None,'industry_metadata_missing',as_of,listing_context),ticker,expected_cik,as_of)
         industry=deps['industry'](key,sector,observed_at=as_of)
         payload=industry.get('payload',{}) if isinstance(industry,Mapping) else {}
         symbols=payload.get('symbols')
         if (industry.get('status')!='observed' or not isinstance(symbols,list) or len(symbols)>200 or not all(_symbol(s) for s in symbols)):
-            return _read(_cache(state,ticker,None,'industry_candidate_source_unavailable',as_of),ticker,expected_cik,as_of)
+            return _read(_cache(state,ticker,None,'industry_candidate_source_unavailable',as_of,listing_context),ticker,expected_cik,as_of)
         candidates=list(dict.fromkeys(s for s in symbols if s.replace('.','-')!=ticker.replace('.','-')))[:MAX_CANDIDATES]
         collection=dict(schema_version=SCHEMA,ticker=ticker,classification=classification,industry=industry,
                         issuers=[_collect_issuer(ticker,cik,deps,user_agent or os.getenv('SEC_USER_AGENT'),as_of,vendor)],observed_at=_stamp(as_of))
@@ -234,7 +241,8 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
                 failures=failures+1 if packet.get('status')=='unavailable' else 0
                 collection['issuers'].append(packet)
         collection['observed_at']=_stamp(as_of)
-        cached=_cache(state,ticker,collection,None,as_of)
+        cached=_cache(state,ticker,collection,None,as_of,listing_context)
     except Exception:
-        cached=_cache(state,ticker,None,'peer_source_unavailable',as_of=None)
+        valid_time=isinstance(as_of,datetime) and as_of.utcoffset() is not None
+        cached=_cache(state,ticker,None,'peer_source_unavailable',as_of=as_of if valid_time else None,listing_context=listing_context)
     return _read(cached,ticker,expected_cik,as_of)

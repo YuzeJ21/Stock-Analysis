@@ -1,4 +1,5 @@
 from copy import deepcopy
+from datetime import timedelta
 
 import pytest
 from streamlit.testing.v1 import AppTest
@@ -102,6 +103,26 @@ def _text(at):return '\n'.join(m.value for m in at.markdown)
 
 
 def _peer_button(at):return next(b for b in at.button if b.label=='更新在线同行估值')
+
+
+@pytest.mark.parametrize('sources',[False,True])
+def test_listing_recovery_discloses_original_dates_and_latest_failure(sources):
+    from src.online_peer_valuation_ui import online_peer_valuation_html
+    from test_online_peer_sources import get
+    deps,_=source_dependencies();state={};get(state,refresh=True,dependencies=deps)
+    deps['classification']=lambda **kw:{'status':'withheld','reason':'classification_source_unavailable','source_attempts':[dict(source_url='https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt',observed_at='2026-11-01T04:05:00Z',status='unavailable',reason='directory_incomplete',byte_count=130,payload_sha256='c'*64)]}
+    view=get(state,refresh=True,dependencies=deps,as_of=NOW+timedelta(minutes=5))
+    html=online_peer_valuation_html(view,sources_only=sources)
+    assert '本会话' in html and '24 小时' in html and '未续期' in html
+    assert '2026-11-01T04:00:00Z' in html and '2026-11-01T04:05:00Z' in html
+    assert '2026-10-30T15:41' in html and '130' in html and 'c'*64 in html
+    assert '目录内容不完整' in html and 'https://www.nasdaqtrader.com/dynamic/symdir/otherlisted.txt' in html
+
+
+def test_workbench_discloses_recent_listing_policy_before_the_action(monkeypatch):
+    _setup(monkeypatch);at=AppTest.from_function(_app).run();at.radio[0].set_value('valuation').run()
+    assert not at.exception
+    assert any('24 小时' in c.value and '上市' in c.value for c in at.caption)
 
 
 def test_real_compositor_fetches_only_on_peer_action_and_reuses_sources_across_panes(monkeypatch):

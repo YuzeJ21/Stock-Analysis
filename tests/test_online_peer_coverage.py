@@ -164,6 +164,15 @@ def test_shared_classification_receipt_is_stored_once_and_reused_without_relabel
     assert audit(state,deps=d)['comparison_count']==2
 
 
+def test_shared_classification_uses_newest_valid_source_cut_not_insertion_order():
+    from src.online_peer_coverage import _recent_classification
+    from test_online_peer_valuation import classification
+    earlier=classification();later=classification(observed_at=NOW+timedelta(minutes=5))
+    state={'classifications':{'later':later,'earlier':earlier}}
+    chosen=_recent_classification(state,NOW+timedelta(minutes=6))
+    assert chosen['inventory']['observed_from']=='2026-11-01T04:05:00Z'
+
+
 def test_changed_shared_evidence_cannot_be_promoted_even_with_a_resealed_outer_state():
     from src.online_peer_coverage import SESSION_KEY
     d,calls=dependencies();state={};audit(state,inspect=True,deps=d)

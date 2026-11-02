@@ -70,12 +70,10 @@ def _expand_packet(packet,state):
 
 
 def _recent_classification(state,as_of):
+    from src.online_listing_session import fresh_classification
     now=sources._now(as_of)
-    for classification in reversed(list(state['classifications'].values())):
-        receipts=classification.get('inventory',{}).get('source_receipts',[])
-        if receipts and all(_utc_timestamp(r.get('observed_at')) is not None
-                and timedelta(0)<=now-_utc_timestamp(r['observed_at'])<=timedelta(hours=24) for r in receipts):return classification
-    return None
+    valid=[checked for packet in state['classifications'].values() if (checked:=fresh_classification(packet,now)) is not None]
+    return max(valid,key=lambda p:(p['inventory']['observed_from'],p['packet_digest'])) if valid else None
 
 
 def reason_gate(reason):

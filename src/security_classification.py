@@ -3,6 +3,8 @@ from collections import Counter
 from collections.abc import Mapping
 from datetime import datetime,timezone,timedelta
 import hashlib,json,re
+from urllib.error import HTTPError
+from zoneinfo import ZoneInfo
 
 from src.online_company_identity import _mode_reason
 from src.online_us_universe import load_online_us_universe,validated_us_universe,_fetch_directory,_alias,MAP_URL
@@ -81,12 +83,33 @@ def validated_classification(packet):
 def fetch_classification(*,user_agent,fetcher=None,observed_at=None,workspace_mode='research'):
  held=dict(status='withheld',reason=_mode_reason(workspace_mode) or 'classification_source_unavailable')
  if _mode_reason(workspace_mode):return held
- captured={}
+ captured={};attempts=[]
  def capture(url,agent):
-  result=(fetcher or (_fetch_directory if url in {s[2] for s in _SOURCES} else _fetch_raw))(url,agent)
-  captured[url]=result[0];return result
+  now=(observed_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
+  row=dict(source_url=url,observed_at=now.strftime('%Y-%m-%dT%H:%M:%SZ'),status='received',reason=None);attempts.append(row)
+  try:
+   result=(fetcher or (_fetch_directory if url in {s[2] for s in _SOURCES} else _fetch_raw))(url,agent)
+   raw,headers,final=result
+   if isinstance(raw,bytes):row.update(byte_count=len(raw),payload_sha256=hashlib.sha256(raw).hexdigest())
+   if final!=url or not isinstance(raw,bytes) or not 0<len(raw)<=8*1024*1024:
+    row.update(status='unavailable',reason='source_response_unverified');raise ValueError('unverified_listing_response')
+   for source,_,source_url,columns in _SOURCES:
+    if url==source_url:
+     try:
+      created=_parse_directory(raw,source,columns,allow_unknown_venues=True)[3]
+      created_time=datetime.fromisoformat(created).replace(tzinfo=ZoneInfo('America/New_York')).astimezone(timezone.utc)
+      if not timedelta(0)<=now-created_time<=timedelta(days=7):
+       row.update(status='unavailable',reason='directory_date_invalid');raise ValueError('directory_date_invalid')
+     except ValueError as exc:
+      row.update(status='unavailable',reason='directory_date_invalid' if str(exc) in {'directory_date_invalid','date_invalid','creation_time_invalid'} else 'directory_incomplete' if str(exc) in {'source_rows_invalid','source_rows_empty'} else 'directory_schema_invalid')
+      raise
+   captured[url]=raw;return result
+  except HTTPError as exc:
+   row.update(status='unavailable',reason='source_access_limited' if exc.code in {403,429} else 'source_transport_unavailable');raise
+  except (OSError,RuntimeError):
+   row.update(status='unavailable',reason='source_transport_unavailable');raise
  inv=load_online_us_universe(user_agent=user_agent,fetcher=capture,observed_at=observed_at,workspace_mode=workspace_mode)
- if inv.get('status')!='inspection_only':return held
+ if inv.get('status')!='inspection_only':return {**held,'source_attempts':attempts}
  try:
   rows=[]
   for source,_,url,columns in _SOURCES:rows.extend(_parse_directory(captured[url],source,columns,allow_unknown_venues=True)[-1])
