@@ -45,8 +45,26 @@ def _render_comparison(st,result):
     st.markdown(_gaps_html(result),unsafe_allow_html=True)
 
 
+CONTROL_STYLE='''<style>
+.st-key-sec-review-panel [data-testid="stDownloadButton"] button,
+.st-key-sec-review-panel [data-testid="stDownloadButton"] button p,
+.st-key-sec-review-panel [data-testid="stDownloadButton"] button span,
+.sec-review-link {background:#155e4b!important;color:#fff!important;}
+.st-key-sec-review-panel [data-testid="stDownloadButton"] button {min-height:44px!important;}
+.sec-review-link {display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;
+box-sizing:border-box;border-radius:7px;text-decoration:none!important;white-space:normal;}
+.sec-review-link:focus-visible {outline:3px solid #b45309;outline-offset:3px;}
+</style>'''
+
+
 def render_company_review(st,ticker,view,*,profile_key):
     if ticker!='NEM' or _mode_reason('research'):return
+    st.markdown(CONTROL_STYLE,unsafe_allow_html=True)
+    with st.container(key='sec-review-panel'):
+        _render_company_review(st,ticker,view,profile_key=profile_key)
+
+
+def _render_company_review(st,ticker,view,*,profile_key):
     st.markdown('### SEC 财报证据复核')
     st.caption('NEM 年度直接字段试点。显式保存后可以离线重放与比较；不会修改正式财务、来源权限或研究日志。')
     scope=f'{profile_key}:NEM'
@@ -83,7 +101,7 @@ def render_company_review(st,ticker,view,*,profile_key):
     st.caption('当前显示来自已保存证据，没有重新查询网络。保存时间与 SEC 观察时间分开记录；新的保存时间不表示财报变化。')
     st.download_button('下载当前证据包',data=encode_review(current),file_name='NEM-SEC-'+current['receipt_id'][:12]+'.json',
         mime='application/json',key='sec-review-download:'+scope)
-    st.link_button('在 Monitor 查看待核查事项','?mode=research&page=monitor&ticker=NEM')
+    st.markdown('<a class="sec-review-link" href="?mode=research&amp;page=monitor&amp;ticker=NEM" target="_self">在 Monitor 查看待核查事项</a>',unsafe_allow_html=True)
     with st.expander('证据来源与字段口径',expanded=False):
         st.write('报告期截至 '+current['period_end']+' · '+current['form'])
         st.write('申报发布日期 '+current['filing_date']+'（日期精度）')
@@ -111,4 +129,4 @@ def render_review_monitor(st,*,profile_key):
     st.caption('独立的数据核查事项，不计入研究日志、流程事件或投资信号。最新保存时间 '+packets[-1]['saved_at'])
     st.markdown(_gaps_html(result),unsafe_allow_html=True)
     for change in result['changes']:st.markdown('- '+LABELS[change['field']]+' · 已保存字段有变化，请核对两份申报来源。')
-    st.link_button('返回 NEM 证据复核','?mode=research&page=company-workbench&ticker=NEM&section=notes')
+    st.markdown(CONTROL_STYLE+'<a class="sec-review-link" href="?mode=research&amp;page=company-workbench&amp;ticker=NEM&amp;section=notes" target="_self">返回 NEM 证据复核</a>',unsafe_allow_html=True)
