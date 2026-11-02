@@ -84,3 +84,34 @@ def test_bank_link_labels_escape_untrusted_parent_text_and_reject_unsafe_fact_ur
     html=online_peer_valuation_html(v,sources_only=True)
     assert '&lt;img src=x onerror=alert(1)&gt;' in html
     assert '<img src=x' not in html and 'javascript:' not in html
+
+
+def inspected_view(monkeypatch):
+    from test_security_inspection_observations import observation_fixture
+    import hashlib,base64
+    policy,c=scoped_collection();policy.update(kind='inspection_only',reason='depositary_security_requires_separate_method');doc=policy['documents']['annual'];receipt=c['issuers'][0]['selected_security_evidence']['documents']['annual']
+    body,contracts=observation_fixture();doc.update(sha256=hashlib.sha256(body).hexdigest(),inspection_observations=contracts);receipt.update(payload_sha256=doc['sha256'],payload_raw_base64=base64.b64encode(body).decode());install(monkeypatch,policy)
+    return build(c)
+
+
+@pytest.mark.parametrize('sources',[False,True])
+def test_inspected_ads_currency_and_complete_note_sources_remain_outside_pe(monkeypatch,sources):
+    v=inspected_view(monkeypatch);html=online_peer_valuation_html(v,sources_only=sources)
+    assert '15.21' in html and '0.49' in html and 'TWD/ADS' in html and 'USD/ADS' in html
+    assert '原始单位' in html and '便利折算' in html and '不参与 P/E' in html
+    assert 'annual.htm#ads-native' in html and 'annual.htm#ads' in html and 'annual.htm#twd' in html
+    assert 'annual.htm#note-tail' in html and '/html[1]/div[1]' in html
+    assert v['subject'] is None and v['premium_fraction'] is None
+
+
+def test_inspection_labels_and_source_locations_are_escaped(monkeypatch):
+    v=inspected_view(monkeypatch);scope=v['subject_source_context']['selected_security_scope'];o=scope['evidence_observations'][0]
+    o.update(label='<img src=x onerror=alert(1)>',source_ref='javascript:alert(1)')
+    html=online_peer_valuation_html(v,sources_only=True)
+    assert '&lt;img src=x' in html and '<img src=x' not in html and 'javascript:' not in html
+
+
+def test_unknown_sibling_mapping_does_not_erase_qualified_literal_common(monkeypatch):
+    from test_cross_security_evidence import dimensionless
+    policy,c=dimensionless();install(monkeypatch,policy);v=build(c);html=online_peer_valuation_html(v,sources_only=True)
+    assert '尚未逐一建立证券映射' in html and 'FP' in html and v['status']=='research_comparison'

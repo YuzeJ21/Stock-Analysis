@@ -190,15 +190,46 @@ def _amendment_html(scope):
     return html+'</details>'
 
 
+def _observations_html(scope,*,compact=False):
+    observations=scope.get('evidence_observations',[])
+    if not isinstance(observations,list) or not observations:return ''
+    html='<h4>已核对的证券与收益观察</h4><p>以下观察不参与 P/E、同行中位数或已保存模型。</p>'
+    if scope.get('reason')=='depositary_security_requires_separate_method':
+        html+='<p>ADS 与普通股分别列示。美元便利折算不等于按交易日汇率换算的收益；不从四舍五入后的普通股 EPS 计算 ADS EPS。</p>'
+    for o in observations:
+        if not isinstance(o,Mapping):continue
+        if compact and (o.get('kind')!='numeric' or o.get('security_basis')!='ADS'):continue
+        html+='<p><strong>'+_text(o.get('label'))+'</strong>'
+        if _number(o.get('value')):
+            unit=o.get('unit','')
+            display_unit=unit.replace('/shares','/ADS' if o.get('security_basis')=='ADS' else '/普通股')
+            html+='：'+_text(f'{o["value"]:,.6g}')+' '+_text(display_unit)
+        html+='</p>'
+        if compact:continue
+        if o.get('kind')=='numeric':
+            html+='<p>'+_text(o.get('period_start'))+' → '+_text(o.get('period_end'))+' · 原始单位 '+_text(o.get('unit'))+' · '+_text(o.get('concept'))+' · '+_text(o.get('namespace_uri'))+'</p>'
+        if o.get('entity_cik'):
+            html+='<p>申报 CIK '+_text(o.get('filing_cik'))+' · 事实上下文实体 CIK '+_text(o.get('entity_cik'))+'</p>'
+        html+='<p>'+_link(o.get('source_ref'),'原始观察来源')
+        for key,label in [('context_source_ref','实体与期间上下文'),('unit_source_ref','原始单位定义')]:
+            if o.get(key):html+=' · '+_link(o[key],label)
+        html+='</p>'
+        if o.get('source_refs'):html+='<p>完整附注链：'+' · '.join(_link(ref,'附注原文') for ref in o['source_refs'])+'</p>'
+        if o.get('location'):html+='<p>正文内位置 '+_text(o['location'])+'；使用整份文件链接，原文没有可用的片段锚点。</p>'
+        html+='<p>发布 '+_text(o.get('publication_date'))+' · 观察 '+_text(o.get('observed_at'))+'</p>'
+    return html
+
+
 def _selected_security_html(scope):
     if not isinstance(scope,Mapping) or scope.get('status') not in {'supported_common','inspection_only'}:return ''
     html='<details><summary>所选证券与其他关联代码</summary>'
     if scope['status']=='supported_common':html+='<p>所选普通股与已披露年度 EPS 的口径已按具体文件核对；完整估值资格和同行可比性仍分别检查。这是有边界的技术证据解释。</p>'
     else:html+='<p>'+_text(_reason(scope.get('reason')))+'</p>'
-    if scope.get('reason')=='successor_annual_basis_unverified':html+='<p>已见新旧发行人的证券与报告连续性依据；不将旧 CIK 的 EPS 拼接为当前年度分母，供应商身份冲突也不会自动消失。</p>'
+    if scope.get('reason')=='successor_annual_basis_unverified':html+='<p>已见新旧发行人的证券与报告连续性依据；当前发行人年度收益分母仍缺失。不将旧 CIK 的 EPS 拼接为当前年度分母，供应商身份冲突也不会自动消失。</p>'
     if scope.get('reason')=='depositary_security_requires_separate_method':html+='<p>封面普通股标题还带有不直接交易的限制，不能把它当成纽约交易的 ADS 本身。</p>'
     symbols=scope.get('issuer_symbols',[])
     html+='<p>SEC 关联代码：'+_text('、'.join(str(s) for s in symbols))+'。不代表这些代码已逐一完成证券映射；下列封面原始代码作为独立观察保留。</p>'
+    if scope.get('unassigned_issuer_symbols'):html+='<p>尚未逐一建立证券映射：'+_text('、'.join(scope['unassigned_issuer_symbols']))+'。本次仅核对所选证券，不授予关联代码相同的价格或估值资格。</p>'
     labels={'annual':'年度财报','cover':'已核对的 8-K 封面','successor':'继承发行人申报','quarter':'季度财报','annual_companion':'年度财报的同次申报附件','cover_companion':'8-K 的同次申报附件'}
     for doc in scope.get('documents',[]):
         html+='<p>'+_text(labels.get(doc.get('role'),doc.get('role')))+' · '+_text(doc.get('form'))+' · '+_text(doc.get('accessionNumber'))+' · 期间末 '+_text(doc.get('reportDate'))+' · 发布 '+_text(doc.get('filingDate'))+' · 接收 '+_text(doc.get('acceptanceDateTime'))+' · 观察 '+_text(doc.get('observed_at'))+' · '+_link(doc.get('source_ref'),'具体文件')+'</p>'
@@ -214,6 +245,7 @@ def _selected_security_html(scope):
         if observations:html+='<ul>'+''.join('<li>'+_text(r.get('raw_symbol'))+' · '+_text(r.get('title'))+'</li>' for r in observations if isinstance(r,Mapping))+'</ul>'
         html+='<p>原始响应 SHA-256 <code>'+_text(doc.get('payload_sha256'))+'</code><br>已核对正文 SHA-256 <code>'+_text(doc.get('body_sha256'))+'</code></p>'
     for ref in scope.get('basis_refs',[]):html+='<p>'+_link(ref.get('source_ref'),'普通股资本与收益定义')+' · '+_text(ref.get('concept'))+'</p>'
+    html+=_observations_html(scope)
     eps=scope.get('original_eps')
     if isinstance(eps,Mapping):
         html+='<p>事实期间与单位：'+_text(eps.get('period_start'))+' → '+_text(eps.get('period_end'))+' · USD/shares。直接年度稀释 EPS 与 Companyfacts 同次申报记录另行核对。</p>'
@@ -291,6 +323,8 @@ def online_peer_valuation_html(view,*,sources_only=False):
            ('同行参照中位数',_multiple(v.get('peer_median')) if supported else '暂不显示'),
            ('通过筛选',str(len(peers))+' 家'),('价格日期',_text(subject.get('price_date')) if subject else '未取得')]
     html+='<dl class="peer-stats">'+''.join('<div><dt>'+label+'</dt><dd>'+value+'</dd></div>' for label,value in stats)+'</dl>'
+    scope=v.get('subject_source_context',{}).get('selected_security_scope',{}) if isinstance(v.get('subject_source_context'),Mapping) else {}
+    if not subject and isinstance(scope,Mapping) and scope.get('status')=='inspection_only':html+=_observations_html(scope,compact=True)
     if subject:
         html+='<h4>盈利变化背景</h4><p><strong>'+_text(_earnings_phrase(subject))+'</strong> · 同一年度申报列示值。</p><p>历史变化不代表未来增长；同行倍数未按增长调整。展开下方可核对每家公司的本年、上年 EPS 与实际期间。</p>'
         if subject.get('amendment_scope'):html+='<p>EPS 采用已交叉核对的原始年度申报；具体修订范围、来源与标记差异见下方依据。</p>'
