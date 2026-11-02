@@ -12,7 +12,7 @@ from src.sec_association_receipt import _json_object
 
 MAX_SEC_RESPONSE_BYTES = 16 * 1024 * 1024
 MAX_RETAINED_SEC_JSON_BYTES = 2 * 1024 * 1024
-_URL = re.compile(r'https://(?:www\.sec\.gov/files/company_tickers(?:_exchange)?\.json|data\.sec\.gov/(?:api/xbrl/companyfacts|submissions)/CIK\d{10}\.json)\Z')
+_URL = re.compile(r'https://(?:www\.sec\.gov/files/company_tickers(?:_exchange)?\.json|data\.sec\.gov/(?:api/xbrl/companyfacts/CIK\d{10}\.json|submissions/CIK\d{10}(?:-submissions-\d{3})?\.json))\Z')
 
 
 class _ExactSourceRedirectHandler(HTTPRedirectHandler):

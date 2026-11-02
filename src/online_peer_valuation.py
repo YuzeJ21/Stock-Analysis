@@ -17,6 +17,7 @@ from src.online_company_identity import _mode_reason, _VENUES
 from src.online_peer_earnings import annual_eps_context
 from src.annual_amendment_evidence import validate_amendment_evidence
 from src.sec_selected_security import validate_selected_security_evidence
+from src.online_peer_sec_history import validated_vendor_history_match
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
 
@@ -144,6 +145,14 @@ def _vendor_filing_match(filings, sec_filings, ticker, cik):
     return matched
 
 
+def _vendor_identity(row,vendor,filings,ticker,cik,as_of):
+    historical=validated_vendor_history_match(row.get('vendor_history'),cik=cik,profile=row.get('profile'),vendor=row.get('vendor'),as_of=as_of)
+    identity=_vendor_filing_match(vendor.get('filings'),filings+historical,ticker,cik)
+    if any(r['accessionNumber']==identity['accession'] for r in historical):
+        receipt=row['vendor_history']['receipt'];identity.update(history_source_ref=receipt['source_url'],history_observed_at=receipt['observed_at'],history_sha256=receipt['payload_sha256'],financial_denominator_modified=False)
+    return identity
+
+
 def _annual_eps(facts, filings, price_date):
     annual=[r for r in filings if r['form'] in _ANNUAL]
     _need(bool(annual), 'annual_filing_missing')
@@ -233,7 +242,7 @@ def _issuer(row, classification, industry_key, as_of):
     venue=_VENUES.get(info.get('exchange'))
     _need(venue is not None and profile['exchanges'][profile['tickers'].index(ticker)]==venue[0] and all(r['venue']==venue[0] for r in explicit), 'quote_exchange_mismatch')
     if supported:_need(all(d['selected_common']['venue']==venue[0] for d in scope['documents']),'quote_exchange_mismatch')
-    identity=_vendor_filing_match(vendor.get('filings'),filings,ticker,cik)
+    identity=_vendor_identity(row,vendor,filings,ticker,cik,as_of)
     prices=validated_online_price_history(row.get('prices'),ticker=ticker)
     _need(prices is not None, 'completed_price_source_unverified')
     price_observed=_observed(prices.get('observed_at'),as_of)
@@ -313,7 +322,7 @@ def _subject_source_context(row,classification,ticker,expected_cik,as_of):
             _need(info.get('symbol')==ticker.replace('.','-') and ticker in profile.get('tickers',[])
                   and re.fullmatch(r'\d{4}',sic) and sic not in {'0000','6770'}
                   and isinstance(info.get('industryKey'),str) and _KEY.fullmatch(info['industryKey']),'industry_attribution_unverified')
-            _vendor_filing_match(vendor.get('filings'),_filings(profile,as_of),ticker,cik)
+            context['vendor_identity_observation']=_vendor_identity(row,vendor,_filings(profile,as_of),ticker,cik,as_of)
             context['industry_observation']=dict(industry_key=info['industryKey'],sic=sic,
                 industry_label=info.get('industry') if isinstance(info.get('industry'),str) and len(info['industry'])<=160 else info['industryKey'],
                 source_refs=[dict(source_url=url,observed_at=row['profile']['observed_at'],payload_sha256=row['profile']['payload_sha256']),
