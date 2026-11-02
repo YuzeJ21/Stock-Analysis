@@ -115,3 +115,11 @@ def test_unknown_sibling_mapping_does_not_erase_qualified_literal_common(monkeyp
     from test_cross_security_evidence import dimensionless
     policy,c=dimensionless();install(monkeypatch,policy);v=build(c);html=online_peer_valuation_html(v,sources_only=True)
     assert '尚未逐一建立证券映射' in html and 'FP' in html and v['status']=='research_comparison'
+
+
+def test_note_only_inspection_summary_shows_verified_evidence_instead_of_empty_heading(monkeypatch):
+    from src.online_peer_valuation_ui import _observations_html
+    v=inspected_view(monkeypatch);scope=v['subject_source_context']['selected_security_scope'];scope['evidence_observations']=[o for o in scope['evidence_observations'] if o['kind']=='note']
+    html=_observations_html(scope,compact=True)
+    assert 'Convenience basis' in html and 'annual.htm#fx-note' in html
+    assert '不参与 P/E' in html

@@ -196,16 +196,19 @@ def _observations_html(scope,*,compact=False):
     html='<h4>已核对的证券与收益观察</h4><p>以下观察不参与 P/E、同行中位数或已保存模型。</p>'
     if scope.get('reason')=='depositary_security_requires_separate_method':
         html+='<p>ADS 与普通股分别列示。美元便利折算不等于按交易日汇率换算的收益；不从四舍五入后的普通股 EPS 计算 ADS EPS。</p>'
+    has_numbers=any(isinstance(o,Mapping) and o.get('kind')=='numeric' for o in observations)
     for o in observations:
         if not isinstance(o,Mapping):continue
-        if compact and (o.get('kind')!='numeric' or o.get('security_basis')!='ADS'):continue
+        if compact and has_numbers and (o.get('kind')!='numeric' or o.get('security_basis')!='ADS'):continue
         html+='<p><strong>'+_text(o.get('label'))+'</strong>'
         if _number(o.get('value')):
             unit=o.get('unit','')
             display_unit=unit.replace('/shares','/ADS' if o.get('security_basis')=='ADS' else '/普通股')
             html+='：'+_text(f'{o["value"]:,.6g}')+' '+_text(display_unit)
         html+='</p>'
-        if compact:continue
+        if compact:
+            if not has_numbers:html+='<p>'+_link(o.get('source_ref'),'已核对的原始依据')+'</p>'
+            continue
         if o.get('kind')=='numeric':
             html+='<p>'+_text(o.get('period_start'))+' → '+_text(o.get('period_end'))+' · 原始单位 '+_text(o.get('unit'))+' · '+_text(o.get('concept'))+' · '+_text(o.get('namespace_uri'))+'</p>'
         if o.get('entity_cik'):
