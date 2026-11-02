@@ -166,3 +166,13 @@ def test_explicit_sec_body_binding_preserves_raw_receipts_and_never_ignores_fina
     if result['status']=='supported_common':
         assert result['documents'][0]['payload_sha256']==packet['documents']['annual']['payload_sha256']
         assert result['documents'][0]['body_sha256']==policy['documents']['annual']['body_sha256']
+
+
+@pytest.mark.parametrize('form',['8-K12B','8-K12B/A'])
+def test_new_successor_identity_filing_withdraws_the_earlier_common_scope(monkeypatch,form):
+    from selected_security_fixtures import scoped_collection
+    from test_online_peer_valuation import build
+    policy,c=scoped_collection();install(monkeypatch,policy);profile=c['issuers'][0]['profile'];recent=profile['payload']['filings']['recent']
+    changed=dict(form=form,reportDate='2026-10-29',filingDate='2026-10-29',acceptanceDateTime='2026-10-29T12:00:00Z',accessionNumber='0000001001-26-000099',primaryDocument='successor.htm',isInlineXBRL=1,isXBRL=1)
+    for k,v in recent.items():v.append(changed[k])
+    profile['normalized_sha256']=digest(profile['payload']);assert build(c)['subject'] is None

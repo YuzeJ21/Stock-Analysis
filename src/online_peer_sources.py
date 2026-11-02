@@ -18,7 +18,7 @@ from src.online_peer_valuation import (
 from src.online_sec_receipt import fetch_sec_json_receipt
 from src.security_classification import fetch_classification, validated_classification, _selected
 from src.annual_amendment_evidence import fetch_amendment_evidence, amendment_candidate
-from src.sec_selected_security import fetch_selected_security_evidence,known_security_scope,FINANCIAL_FORMS,IDENTITY_FORMS,FUND_FORMS
+from src.sec_selected_security import fetch_selected_security_evidence,known_security_scope,FINANCIAL_FORMS,IDENTITY_FORMS,is_investment_company_form,valid_profile_metadata_shape
 from src.online_peer_sec_history import fetch_vendor_history_match
 
 SESSION_KEY = 'online_peer_valuation_observation_v1'
@@ -102,10 +102,9 @@ def _reduce_sec(receipt, kind):
         columns=('form','reportDate','filingDate','accessionNumber','primaryDocument')
         if 'acceptanceDateTime' in recent:columns+=('acceptanceDateTime',)
         if 'isInlineXBRL' in recent or 'isXBRL' in recent:columns+=('isInlineXBRL','isXBRL')
-        if (not all(isinstance(recent.get(k),list) for k in columns) or not 0<len(recent['form'])<=50000
-                or any(len(recent[k])!=len(recent['form']) for k in columns) or not all(isinstance(f,str) for f in recent['form'])):
+        if not valid_profile_metadata_shape(recent,max_rows=50000):
             return dict(status='unavailable',reason='filing_metadata_schema_invalid',source_url=result.get('source_url'))
-        indices=[i for i,f in enumerate(recent['form']) if f in FINANCIAL_FORMS|IDENTITY_FORMS|FUND_FORMS]
+        indices=[i for i,f in enumerate(recent['form']) if f in FINANCIAL_FORMS|IDENTITY_FORMS or is_investment_company_form(f)]
         files=body.get('filings',{}).get('files')
         body={k:body.get(k) for k in ('cik','entityType','sic','sicDescription','tickers','exchanges')}
         body['filings']={'recent':{k:[recent[k][i] for i in indices] for k in columns}}

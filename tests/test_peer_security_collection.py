@@ -63,3 +63,29 @@ def test_history_source_outages_pause_peer_candidates_and_are_counted_for_subjec
     assert next(r for r in v['excluded'] if r['ticker']=='FC')['reason']=='source_paused_after_repeated_failures'
     row=dict(ticker='FICT',vendor_history=dict(status='unavailable',reason='vendor_history_source_unavailable'))
     assert _subject_source_failure(dict(ticker='FICT',reason='vendor_filing_not_matched_to_sec'),dict(collection=dict(issuers=[row]))) is True
+
+
+@pytest.mark.parametrize('form',['N-CSR/A','N-CSRS/A','N-CEN/A','NPORT-P/A','N-PORT/A'])
+def test_investment_company_amendment_is_retained_and_excludes_an_operating_comparison(monkeypatch,form):
+    from test_online_peer_valuation import build
+    policy,c=scoped_collection();install(monkeypatch,policy);profile=c['issuers'][0]['profile'];recent=profile['payload']['filings']['recent']
+    for k,values in recent.items():values.append(form if k=='form' else values[-1])
+    profile=_reduce_sec(profile,'profile');c['issuers'][0]['profile']=profile
+    assert form in profile['payload']['filings']['recent']['form'] and build(c)['reason']=='investment_company_requires_separate_method'
+
+
+@pytest.mark.parametrize('column',['reportDate','filingDate','accessionNumber','primaryDocument','acceptanceDateTime','isInlineXBRL','isXBRL'])
+def test_large_profile_cannot_discard_structurally_malformed_cells(column):
+    _,row,_,_=fixture();receipt=deepcopy(row['profile']);recent=receipt['payload']['filings']['recent']
+    for k,values in recent.items():values[:0]=['424B2' if k=='form' else values[0]]*3000
+    recent[column][1000]={'malformed':'cell'}
+    assert _reduce_sec(receipt,'profile')['status']=='unavailable'
+
+
+def test_cached_profile_with_malformed_nonfinancial_cells_also_withholds(monkeypatch):
+    from test_online_peer_valuation import build
+    from selected_security_fixtures import digest
+    policy,c=scoped_collection();install(monkeypatch,policy);profile=c['issuers'][0]['profile'];recent=profile['payload']['filings']['recent']
+    for key,values in recent.items():values.append('424B2' if key=='form' else {'malformed':'cell'} if key=='filingDate' else values[-1])
+    profile['normalized_sha256']=digest(profile['payload'])
+    assert build(c)['subject'] is None

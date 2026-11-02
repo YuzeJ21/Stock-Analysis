@@ -16,7 +16,7 @@ from src.company_sec_online_preview import _iso_date, _utc_timestamp
 from src.online_company_identity import _mode_reason, _VENUES
 from src.online_peer_earnings import annual_eps_context
 from src.annual_amendment_evidence import validate_amendment_evidence
-from src.sec_selected_security import validate_selected_security_evidence
+from src.sec_selected_security import validate_selected_security_evidence,is_investment_company_form,valid_profile_metadata_shape
 from src.online_peer_sec_history import validated_vendor_history_match
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
@@ -103,7 +103,7 @@ def _filings(profile, as_of):
         keys+=('isInlineXBRL','isXBRL')
     _need(isinstance(recent, Mapping) and all(isinstance(recent.get(k), list) for k in keys), 'filing_metadata_missing')
     count=len(recent['form'])
-    _need(0<count<=2000 and all(len(recent[k])==count for k in keys), 'filing_metadata_invalid')
+    _need(0<count<=2000 and all(len(recent[k])==count for k in keys) and valid_profile_metadata_shape(recent,max_rows=2000), 'filing_metadata_invalid')
     result=[]
     for values in zip(*(recent[k] for k in keys)):
         row=dict(zip(keys, values))
@@ -232,7 +232,7 @@ def _issuer(row, classification, industry_key, as_of):
     _need(type(sic) in {str,int} and re.fullmatch(r'\d{4}',str(sic)) is not None and str(sic) not in {'0000','6770'},
           'industry_or_operating_scope_unverified')
     forms=profile.get('filings',{}).get('recent',{}).get('form',[])
-    _need(not any(f in {'N-CSR','N-CSRS','N-CEN','NPORT-P','N-PORT'} for f in forms), 'investment_company_requires_separate_method')
+    _need(not any(is_investment_company_form(f) for f in forms), 'investment_company_requires_separate_method')
     filings=_filings(profile,as_of)
     vendor=_normalized(row.get('vendor'),f'https://finance.yahoo.com/quote/{ticker.replace(".","-")}/',as_of)
     info=vendor.get('info')

@@ -17,7 +17,8 @@ KEYS=('form','reportDate','filingDate','acceptanceDateTime','accessionNumber','p
 ANNUAL={'10-K','10-K/A','20-F','20-F/A'}
 IDENTITY_FORMS={'8-K','8-K/A','8-K12B','8-K12B/A'}
 FINANCIAL_FORMS=ANNUAL|{'10-Q','10-Q/A'}
-FUND_FORMS={'N-CSR','N-CSRS','N-CEN','NPORT-P','N-PORT'}
+_FUND_BASE_FORMS={'N-CSR','N-CSRS','N-CEN','NPORT-P','N-PORT'}
+FUND_FORMS=_FUND_BASE_FORMS|{form+'/A' for form in _FUND_BASE_FORMS}
 _TAIL_SCRIPT=re.compile(rb'<script type="text/javascript"\s+src="/[A-Za-z0-9_-]{1,80}(?:/[A-Za-z0-9_-]{1,80}){1,15}"></script>(?=</(?:body|BODY)>\s*</(?:html|HTML)>\s*(?:</TEXT>\s*</DOCUMENT>\s*)?\Z)')
 
 
@@ -34,6 +35,21 @@ def _fresh(stamp,now):
     return observed is not None and timedelta(0)<=now-observed<=timedelta(hours=24)
 
 
+def is_investment_company_form(form):
+    return isinstance(form,str) and form in FUND_FORMS
+
+
+def valid_profile_metadata_shape(recent,*,max_rows):
+    if not isinstance(recent,Mapping):return False
+    columns=('form','reportDate','filingDate','accessionNumber','primaryDocument')
+    if 'acceptanceDateTime' in recent:columns+=('acceptanceDateTime',)
+    if 'isInlineXBRL' in recent or 'isXBRL' in recent:columns+=('isInlineXBRL','isXBRL')
+    if not all(isinstance(recent.get(k),list) for k in columns):return False
+    n=len(recent['form'])
+    if not 0<n<=max_rows or any(len(recent[k])!=n for k in columns):return False
+    return all(all(type(v) is int and v in {0,1} for v in recent[k]) if k in {'isInlineXBRL','isXBRL'} else all(isinstance(v,str) for v in recent[k]) for k in columns)
+
+
 def _require(value):
     if not value:raise ValueError('selected_security_scope_unverified')
 
@@ -44,7 +60,7 @@ def known_security_scope(ticker,cik):
 
 def _metadata(profile):
     recent=profile['payload']['filings']['recent']
-    _require(all(isinstance(recent.get(k),list) for k in KEYS))
+    _require(all(isinstance(recent.get(k),list) for k in KEYS) and valid_profile_metadata_shape(recent,max_rows=2000))
     n=len(recent['form']);_require(0<n<=2000 and all(len(recent[k])==n for k in KEYS))
     return [dict(zip(KEYS,r)) for r in zip(*(recent[k] for k in KEYS))]
 
@@ -61,7 +77,7 @@ def _policy(ticker,cik,profile,now):
     _require(isinstance(body.get('tickers'),list) and len(set(body['tickers']))==len(body['tickers']) and sorted(body['tickers'])==p['issuer_symbols'])
     _require(isinstance(body.get('exchanges'),list) and len(body['exchanges'])==len(body['tickers']))
     for role,doc in p['documents'].items():
-        forms=ANNUAL if role=='annual' else {'8-K','8-K/A'} if role=='cover' else {'8-K12B','8-K12B/A'} if role=='successor' else {'10-Q','10-Q/A'}
+        forms=ANNUAL if role=='annual' else IDENTITY_FORMS if role=='cover' else {'8-K12B','8-K12B/A'} if role=='successor' else {'10-Q','10-Q/A'}
         chosen=[r for r in rows if r['form'] in forms];_require(chosen)
         _require(all(_iso_date(r['reportDate']) and _iso_date(r['filingDate']) and _utc_timestamp(r['acceptanceDateTime']) for r in chosen))
         if role in {'annual','quarter'}:
