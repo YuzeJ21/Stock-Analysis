@@ -357,14 +357,16 @@ def online_peer_valuation_html(view,*,sources_only=False):
     html+='<p>这是单一指标的相对比较，不是低估或高估结论。业务结构、增长、利润率、资本需求和风险差异尚未调整。</p>'
     stats=[('本公司年度 P/E',_multiple(subject.get('multiple')) if subject else '未取得'),
            ('同行参照中位数',_multiple(v.get('peer_median')) if supported else '暂不显示'),
-           ('通过筛选',str(len(peers))+' 家'),('价格日期',_text(subject.get('price_date')) if subject else '未取得')]
+           ('通过筛选',str(len(peers))+' 家' if subject else '未核查'),('价格日期',_text(subject.get('price_date')) if subject else '未取得')]
     html+='<dl class="peer-stats">'+''.join('<div><dt>'+label+'</dt><dd>'+value+'</dd></div>' for label,value in stats)+'</dl>'
     scope=v.get('subject_source_context',{}).get('selected_security_scope',{}) if isinstance(v.get('subject_source_context'),Mapping) else {}
     if not subject and isinstance(scope,Mapping) and scope.get('status')=='inspection_only':html+=_observations_html(scope,compact=True)
     if subject:
         html+='<h4>盈利变化背景</h4><p><strong>'+_text(_earnings_phrase(subject))+'</strong> · 同一年度申报列示值。</p><p>历史变化不代表未来增长；同行倍数未按增长调整。展开下方可核对每家公司的本年、上年 EPS 与实际期间。</p>'
         if subject.get('amendment_scope'):html+='<p>EPS 采用已交叉核对的原始年度申报；具体修订范围、来源与标记差异见下方依据。</p>'
-    if not supported:html+='<p>至少 3 家同口径参照公司通过核对后才显示溢价或折价；当前 '+str(len(peers))+' 家。</p>'
+    if not supported:
+        html+=('<p>至少 3 家同口径参照公司通过核对后才显示溢价或折价；当前 '+str(len(peers))+' 家。</p>' if subject
+               else '<p>本公司估值依据尚未通过核对，同行尚未核查。至少 3 家同口径参照公司通过核对后才显示溢价或折价。</p>')
     html+='<details><summary>查看同行、实际期间、来源与缺失原因</summary>'+_disclosure(v,rows)+'</details>'
     html+='<details><summary>其他估值口径为什么尚未显示</summary><p>TTM / 预测 P/E、P/S、P/FCF、EV/EBITDA 还需要分别核对期间、股数、企业价值与成分定义；本次不会从股票存在或其他倍数推断。</p></details><p><a href="?mode=research&amp;page=discover#peer-coverage-sample" target="_self">查看跨行业同行覆盖</a></p></section>'
     return html

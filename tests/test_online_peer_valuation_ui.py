@@ -36,6 +36,15 @@ def test_thin_group_keeps_count_reasons_and_source_links_without_a_premium():
     assert 'FA' in html and '负值' in html and '20.0%' not in html
 
 
+def test_blocked_subject_does_not_present_unassessed_references_as_zero_results():
+    from src.online_peer_valuation_ui import online_peer_valuation_html
+    c=collection();c['issuers'][0]['facts']['payload']['facts']['us-gaap']['EarningsPerShareDiluted']['units']['USD/shares'][0]['val']=-1
+    view=build(c);assert view['subject'] is None
+    html=online_peer_valuation_html(view)
+    assert '<dd>未核查</dd>' in html
+    assert '<dd>0 家</dd>' not in html and '当前 0 家' not in html
+
+
 def test_amended_annual_gap_and_other_metric_absence_are_visible():
     from src.online_peer_valuation_ui import online_peer_valuation_html
     v=build();v.update(status='withheld',reason='latest_annual_eps_missing_including_amendment',subject=None,peer_median=None,premium_fraction=None)
