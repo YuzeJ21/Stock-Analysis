@@ -163,7 +163,7 @@ def test_real_workbench_route_is_lazy_and_reuses_saved_tools_when_requested(monk
     at.radio[0].set_value('notes').run()
     assert not at.exception
     assert calls==['AMD']
-    assert 'Research Decision Lab' in text(at)
+    assert any(e.label=='研究过程、历史记录与跟进' for e in at.expander)
     assert any(e.label=='Add a reviewed research record' for e in at.expander)
     assert any(e.label=='HTML Research Brief' for e in at.expander)
 

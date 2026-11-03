@@ -94,15 +94,12 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
             st_api.markdown(workbench_facts_html(projection),unsafe_allow_html=True)
             if prices.get('status')!='not_requested':
                 st_api.markdown(online_price_history_html(prices),unsafe_allow_html=True)
-            else:
-                st_api.caption('更新后在此查看有日期的价格图和可核对财报摘要。来源或模型缺口不会被填成零。')
             with st_api.expander('身份与模型使用范围',expanded=False):
                 st_api.markdown(price_filing_association_html(bundle['association']),unsafe_allow_html=True)
                 st_api.caption('当前上市关联不等于独立供应商发行人身份、历史连续性、证券类型或估值资格。')
         elif selected=='financials':
-            st_api.caption('同一份在线财报结果供概览和财务页复用。直接报告事实与已保存模型输入分别判断。')
             if financial.get('status')=='not_requested':
-                st_api.info('先使用上方更新操作取得财报；不需要为每家公司准备 CSV。')
+                st_api.info('使用上方更新操作取得财报。')
             else:
                 foreign=validated_foreign_financials(financial)
                 if foreign:
@@ -122,7 +119,6 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
             peer_view=None
             if selected=='valuation':
                 requested=st_api.button('更新在线同行估值',key=f'company-refresh-peers:{ticker}:{scope}')
-                st_api.caption('优先查询上市来源；暂不可用时可沿用本会话 24 小时内的完整上市观察，保留原始日期。财报与价格仍重新核查。')
                 if requested:
                     with st_api.spinner('正在核对公司、年度收益和同行来源…'):
                         peer_view=get_online_peer_valuation(ticker,st_api.session_state,refresh_requested=True,expected_cik=expected_cik)
@@ -131,9 +127,9 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                 if peer_view['status']!='not_requested':
                     st_api.markdown(online_peer_valuation_html(peer_view),unsafe_allow_html=True)
                 else:
-                    st_api.caption('按需查询已披露年度 P/E 与行业参照；每家公司独立核对身份、期间、价格和来源。')
+                    st_api.caption('查询已披露年度 P/E 与行业参照。')
             if saved_available and candidate is None:
-                if selected=='valuation' and peer_view['status']!='not_requested':
+                if selected=='valuation':
                     with st_api.expander('已保存的估值与情景分析',expanded=False):
                         render_saved(selected)
                 else:render_saved(selected)

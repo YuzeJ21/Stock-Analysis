@@ -93,7 +93,7 @@ def workbench_header_html(ticker, projection, saved_scope, title=None,saved_rece
     if saved_receipt_only:scope='已保存 SEC 证据；当前上市身份与本地模型资格仍需独立核对'
     scope+=' · Research-only'
     status=(f"可阅读财报：{p['annual_count']} 个年度 / {p['quarter_count']} 个季度 · 价格：{p['price_count']} 个日线观察"
-            if any(p[k] for k in ('annual_count','quarter_count','price_count')) else '财报趋势与日线历史尚未请求；可使用上方更新操作')
+            if any(p[k] for k in ('annual_count','quarter_count','price_count')) else '财报与价格尚未查询')
     if p.get('attempted') and not any(p[k] for k in ('annual_count','quarter_count','price_count')):
         status='暂无通过核对的财报趋势或日线历史；请在数据来源查看原因，或明确重试更新'
     if p['identity_conflict']:status='来源公司身份冲突；数值暂不展示'
@@ -126,4 +126,4 @@ def workbench_facts_html(projection):
         cards.append('<div><dt>'+label+'</dt><dd>'+escape(amount)+'</dd><small>'+escape(definition)+'</small></div>')
     kind='直接报告季度' if p['period_kind']=='quarterly' else '报告年度'
     return (gaps+'<h3>可核对财报摘要</h3><p class="company-scope-note">'+escape(kind+' · '+p['period_start']+' → '+p['period_end']+' · '+p['unit'])
-            +' · 当前可核对期间，不代表最新申报已覆盖，也不是点时历史；未取得的单季度现金流不会由累计值推导。</p><dl class="company-fact-grid">'+''.join(cards)+'</dl>')
+            +' · 当前可核对期间，不代表最新申报已覆盖，也不是点时历史。</p><dl class="company-fact-grid">'+''.join(cards)+'</dl>')

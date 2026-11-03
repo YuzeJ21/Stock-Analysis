@@ -38067,8 +38067,8 @@ def _render_company_saved_section(
     catalyst_timeline, nowcast_packet, observation_recency,
 ):
     """Reuse saved model and record tools without joining online facts into them."""
-    st.caption("已保存研究集合 · 输入日期与资格独立。此处不自动采用本次在线财报或价格。")
     if section == "valuation":
+        st.caption("已保存研究集合 · 输入日期与资格独立。此处不自动采用本次在线财报或价格。")
         from src.company_valuation_overview import build_valuation_overview, valuation_overview_html
         security=get_company_security_context(ticker,st.session_state,refresh_requested=False,user_agent=None)
         view=build_valuation_overview(ticker,report_payload,research_context=security)
@@ -38087,13 +38087,15 @@ def _render_company_saved_section(
         summary={"status":"unavailable","title":"Research journal unavailable",
                  "answer":"The selected-profile journal could not be verified.","evidence":"No record claim is shown.",
                  "boundary":journal_error,"confidence":"","primary_action":"Review journal source"}
-    st.markdown(research_thesis_journal_html(summary),unsafe_allow_html=True)
+    if summary["status"] == "not_started":
+        st.caption("尚无研究假设记录。")
+    else:
+        st.markdown(research_thesis_journal_html(summary),unsafe_allow_html=True)
     render_research_record_authoring(st_api=st,profile_key=context.profile_key,ticker=ticker,
         paths=AuthoringPaths(journal=DATA_DIR/"research_thesis_journal.csv",
                             catalysts=DATA_DIR/"catalyst_evidence.csv",outcomes=DATA_DIR/"research_outcome_reviews.csv"))
-    st.markdown("## Research Decision Lab")
-    st.caption("研究过程记录与财务就绪度分别判断；填写记录不会解除模型或来源限制。")
     with st.expander("研究过程、历史记录与跟进",expanded=False):
+        st.caption("研究过程记录与财务就绪度分别判断；填写记录不会解除模型或来源限制。")
         render_signal_cards(decision_lab_cards(decision_lab_state),show_commands=False,variant="queue")
         render_signal_cards(outcome_status_cards(outcome_status),show_commands=False,variant="queue")
         if journal_state is not None and journal_state.entries:

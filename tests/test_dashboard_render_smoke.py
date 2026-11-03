@@ -499,12 +499,14 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
     assert [button.label for button in app.button]==["更新财报与价格","只更新财报","只更新价格"]
     assert not any(e.label=="HTML Research Brief" for e in app.expander)
     _workbench_section(app,"valuation")
-    assert any(m.value=="#### Scenario Lab" for m in app.markdown)
+    saved_valuation = next(e for e in app.expander if e.label == "已保存的估值与情景分析")
+    assert any(m.value == "#### Scenario Lab" for m in saved_valuation.markdown)
     assert not any(e.label=="Add a reviewed research record" for e in app.expander)
     _workbench_section(app,"notes")
     assert not app.exception
     assert [e.label for e in app.expander].count("HTML Research Brief")==1
     assert [e.label for e in app.expander].count("Add a reviewed research record")==1
+    assert not any(m.value == "## Research Decision Lab" for m in app.markdown)
     assert sum("<h1>NVDA Company Brief</h1>" in str(m.value) for m in app.markdown)==1
     assert not any(b.label=="Open evidence and analysis modules" for b in app.button)
 
@@ -1503,7 +1505,7 @@ def test_avgo_company_workbench_renders_one_six_lane_decision_lab_after_selected
     assert not app.exception
     assert [lane.key for lane in snapshot.decision_lanes]==[
         "plan","evidence","invalidation","scenario","review-trigger","learning"]
-    assert [m.value for m in app.markdown].count("## Research Decision Lab")==1
+    assert [e.label for e in app.expander].count("研究过程、历史记录与跟进") == 1
     assert not any(e.proto.expanded for e in app.expander)
     assert len([answer for answer in snapshot.answers if answer.label=="Next research task"])==1
 
