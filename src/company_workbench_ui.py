@@ -119,6 +119,8 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
             peer_view=None
             if selected=='valuation':
                 requested=st_api.button('更新在线同行估值',key=f'company-refresh-peers:{ticker}:{scope}')
+                with st_api.expander('上市来源暂不可用时', expanded=False):
+                    st_api.caption('可沿用本会话 24 小时内完整的上市观察，保留原始日期。财报和价格仍分别核查。')
                 if requested:
                     with st_api.spinner('正在核对公司、年度收益和同行来源…'):
                         peer_view=get_online_peer_valuation(ticker,st_api.session_state,refresh_requested=True,expected_cik=expected_cik)

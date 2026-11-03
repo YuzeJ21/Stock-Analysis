@@ -14,6 +14,10 @@ def test_online_answer_leads_with_metric_qualified_difference_and_actual_source_
     assert '年度 P/E 高于同行参照 20.0%' in html and '30.0×' in html and '25.0×' in html
     assert '非 TTM' in html and '35 天' in html and '自动筛选' in html
     assert '2026-10-30' in html and '2025-01-01' in html and '2025-12-31' in html
+    summary = html.split('查看实际财年、价格与来源', 1)[0]
+    assert '同日收盘价 ÷ 已披露年度稀释 EPS' in summary
+    assert '本公司 30.0× ÷ 同行中位数 25.0× − 1' in summary
+    assert all(peer['ticker'] in summary for peer in view['peers'])
     assert 'EarningsPerShareDiluted' in html and 'USD/shares' in html and '2026-02-01' in html
     assert '不是低估或高估结论' in html and '<h1' not in html
     assert 'SEC 收益' in html and 'https://data.sec.gov/' in html and view==before
@@ -34,6 +38,9 @@ def test_thin_group_keeps_count_reasons_and_source_links_without_a_premium():
     html=online_peer_valuation_html(build(c))
     assert '暂不判断相对贵便宜' in html and '2 家' in html and '至少 3 家' in html
     assert 'FA' in html and '负值' in html and '20.0%' not in html
+    summary = html.split('查看实际财年、价格与来源', 1)[0]
+    assert '未纳入参照的公司与原因（1 家）' in summary and 'FA' in summary
+    assert '差距怎么算' not in summary
 
 
 def test_blocked_subject_does_not_present_unassessed_references_as_zero_results():

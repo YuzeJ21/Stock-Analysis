@@ -300,7 +300,20 @@ def _listing_html(v,*,compact=False):
     return html+'</div>'
 
 
-def _disclosure(v,rows):
+def _excluded_html(v):
+    excluded = v.get('excluded')
+    rows = [row for row in excluded if isinstance(row, Mapping)] if isinstance(excluded, list) else []
+    if not rows:
+        return ''
+    items = ''.join(
+        '<li><details><summary>'+_text(row.get('ticker'))+'：'+_text(_reason(row.get('reason')))
+        +'</summary>'+_diagnostic_html(row.get('diagnostics'))+'</details></li>'
+        for row in rows
+    )
+    return '<details><summary>未纳入参照的公司与原因（'+str(len(rows))+' 家）</summary><ul>'+items+'</ul></details>'
+
+
+def _disclosure(v,rows,*,include_excluded=True):
     html=_listing_html(v)+'<p>自动筛选的行业参照组：同供应商行业、同 SEC 行业代码、普通股、独立发行人、同一价格日期。每家实际财年起止日期与本公司相差不超过 '+str(FISCAL_WINDOW_DAYS)+' 天；这不是完全相同的期间，也不是分析师审核的经济可比组。</p>'
     html+='<p>候选列表共 '+_text(v.get('industry_candidate_total'))+' 个记录，本次最多核查 12 家其他公司，按供应商列表顺序保留；不是完整行业覆盖。</p>'
     if v.get('industry_source_ref'):
@@ -314,9 +327,7 @@ def _disclosure(v,rows):
         html+=_selected_security_html(context.get('selected_security_scope'))
         if not rows:html+=_history_html(context.get('vendor_identity_observation'))
     if rows:html+=_source_table(rows)+_earnings_table(rows)
-    excluded=v.get('excluded') if isinstance(v.get('excluded'),list) else []
-    if excluded:
-        html+='<h4>未纳入参照的公司与原因</h4><ul>'+''.join('<li><details><summary>'+_text(r.get('ticker'))+'：'+_text(_reason(r.get('reason')))+'</summary>'+_diagnostic_html(r.get('diagnostics'))+'</details></li>' for r in excluded if isinstance(r,Mapping))+'</ul>'
+    if include_excluded:html+=_excluded_html(v)
     html+='<details><summary>字段定义、观察日期与来源摘要</summary>'
     for row in rows:
         html+='<h4>'+_text(row.get('ticker'))+'</h4><p>us-gaap:EarningsPerShareDiluted · USD/shares · '+_text(row.get('form'))+' · accession '+_text(row.get('accession'))+' · 发布 '+_text(row.get('filed'))+'</p>'
@@ -359,6 +370,17 @@ def online_peer_valuation_html(view,*,sources_only=False):
            ('同行参照中位数',_multiple(v.get('peer_median')) if supported else '暂不显示'),
            ('通过筛选',str(len(peers))+' 家' if subject else '未核查'),('价格日期',_text(subject.get('price_date')) if subject else '未取得')]
     html+='<dl class="peer-stats">'+''.join('<div><dt>'+label+'</dt><dd>'+value+'</dd></div>' for label,value in stats)+'</dl>'
+    if subject:
+        html += '<p><strong>倍数怎么算</strong>　同日收盘价 ÷ 已披露年度稀释 EPS。</p>'
+        if supported:
+            html += ('<p><strong>差距怎么算</strong>　本公司 '+_multiple(subject.get('multiple'))
+                     +' ÷ 同行中位数 '+_multiple(v['peer_median'])+' − 1。百分比按未四舍五入的倍数计算。</p>')
+        if peers:
+            members = '、'.join(_text(peer.get('ticker')) for peer in peers)
+            html += ('<p><strong>为什么纳入这些公司</strong>　'+members
+                     +'。供应商行业与 SEC 行业代码均匹配，均为独立发行人的普通股，使用同日价格，'
+                     +'财年起止各相差不超过 '+str(FISCAL_WINDOW_DAYS)+' 天。</p>')
+        html += _excluded_html(v)
     scope=v.get('subject_source_context',{}).get('selected_security_scope',{}) if isinstance(v.get('subject_source_context'),Mapping) else {}
     if not subject and isinstance(scope,Mapping) and scope.get('status')=='inspection_only':html+=_observations_html(scope,compact=True)
     if subject:
@@ -367,6 +389,6 @@ def online_peer_valuation_html(view,*,sources_only=False):
     if not supported:
         html+=('<p>至少 3 家同口径参照公司通过核对后才显示溢价或折价；当前 '+str(len(peers))+' 家。</p>' if subject
                else '<p>本公司估值依据尚未通过核对，同行尚未核查。至少 3 家同口径参照公司通过核对后才显示溢价或折价。</p>')
-    html+='<details><summary>查看同行、实际期间、来源与缺失原因</summary>'+_disclosure(v,rows)+'</details>'
+    html+='<details><summary>查看实际财年、价格与来源</summary>'+_disclosure(v,rows,include_excluded=not subject)+'</details>'
     html+='<details><summary>其他估值口径为什么尚未显示</summary><p>TTM / 预测 P/E、P/S、P/FCF、EV/EBITDA 还需要分别核对期间、股数、企业价值与成分定义；本次不会从股票存在或其他倍数推断。</p></details><p><a href="?mode=research&amp;page=discover#peer-coverage-sample" target="_self">查看跨行业同行覆盖</a></p></section>'
     return html
