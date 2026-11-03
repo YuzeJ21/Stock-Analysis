@@ -118,3 +118,18 @@ def test_conflicting_facts_and_unusable_numeric_proofs_stay_distinct_gaps():
         p=attach(source=source)
         assert p['gaps'][0]['reason']==expected
         assert review.compare_reviews(p,p)['status']=='unchanged'
+
+
+def test_valid_next_business_day_filing_date_roundtrips():
+    from src.sec_inline_filing import _digest
+    source=preview();source['accepted_at']='2026-02-18T23:00:00Z'
+    source['packet_digest']=_digest({k:v for k,v in source.items() if k!='packet_digest'})
+    assert validated_filing_preview(source,'NEM','annual') is not None
+    p=attach(source=source)
+    assert review.load_review(review.encode_review(p))==p
+    assert review.compare_reviews(p,p)['status']=='unchanged'
+
+
+def test_acceptance_before_report_period_rejected():
+    p=attach();p['operating_income_check']['accepted_at']='2025-01-01T23:00:00Z'
+    with pytest.raises(ValueError):review.load_review(json.dumps(reseal(p)).encode())

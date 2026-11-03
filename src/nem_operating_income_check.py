@@ -32,7 +32,8 @@ def validate_check(check, packet):
         raise ValueError('invalid_exact_filing_provenance')
     saved=_utc_timestamp(packet['saved_at']);observed=_utc_timestamp(check['observed_at'])
     accepted=_utc_timestamp(check['accepted_at']);filed=_iso_date(check['filed'])
-    if not observed or not accepted or not filed or not accepted<=observed<=saved or not filed<=observed.date() or accepted.date()!=filed:
+    if (not observed or not accepted or not filed or not accepted<=observed<=saved
+            or not filed<=observed.date() or not _iso_date(packet['period_end'])<=accepted.date()<=observed.date()):
         raise ValueError('invalid_exact_filing_dates')
     if [g for g in packet['gaps'] if g['field']=='operating_income']!=[dict(field='operating_income',reason=check['reason'])]:
         raise ValueError('exact_filing_gap_mismatch')
