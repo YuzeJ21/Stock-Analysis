@@ -7,6 +7,8 @@ import hashlib
 import json
 from pathlib import Path
 import re
+from copy import deepcopy
+from src.nem_operating_income_check import build_check, validate_check, comparable_check
 
 from src.commercial_source_rights import DEFAULT_REGISTRY_PATH, parse_source_rights_registry
 from src.company_sec_online_preview import (
@@ -17,6 +19,7 @@ from src.research_change_snapshot import ResearchChangeSnapshot, TickerResearchS
 from src.research_change_monitor import compare_research_snapshots
 
 SCHEMA = 'sec-research-review-v1'
+CHECK_SCHEMA = 'sec-research-review-v2'
 FIELDS = ('revenue', 'operating_income', 'cash_from_operations', 'capital_expenditures')
 CIK = '0001164727'
 SOURCE = f'https://data.sec.gov/api/xbrl/companyfacts/CIK{CIK}.json'
@@ -68,8 +71,10 @@ def _row_reason(row, packet):
 
 
 def _validate(packet):
-    if not isinstance(packet,dict) or set(packet)!=PACKET_KEYS:raise ValueError('invalid_packet_schema')
-    if packet['schema_version']!=SCHEMA or packet['ticker']!='NEM' or packet['sec_cik']!=CIK or packet['source_url']!=SOURCE:
+    if not isinstance(packet,dict):raise ValueError('invalid_packet_schema')
+    expected=PACKET_KEYS|{'operating_income_check'} if packet.get('schema_version')==CHECK_SCHEMA else PACKET_KEYS
+    if set(packet)!=expected:raise ValueError('invalid_packet_schema')
+    if packet['schema_version'] not in (SCHEMA,CHECK_SCHEMA) or packet['ticker']!='NEM' or packet['sec_cik']!=CIK or packet['source_url']!=SOURCE:
         raise ValueError('unsupported_receipt_identity')
     profile=packet['profile_key']
     if not isinstance(profile,str) or not 1<=len(profile)<=200 or any(ord(c)<32 for c in profile):raise ValueError('invalid_profile')
@@ -97,6 +102,7 @@ def _validate(packet):
         names.append(gap['field'])
     if len({row['period_start'] for row in rows})>1:raise ValueError('mixed_packet_duration')
     if set(names)!=set(FIELDS) or len(set(names))!=len(names):raise ValueError('duplicate_or_missing_field')
+    if packet['schema_version']==CHECK_SCHEMA:validate_check(packet['operating_income_check'],packet)
     if packet['receipt_id']!=_digest(_json({k:v for k,v in packet.items() if k!='receipt_id'})):
         raise ValueError('receipt_checksum_mismatch')
     return packet
@@ -143,6 +149,20 @@ def capture_review(view, *, profile_key, saved_at=None, registry_path=DEFAULT_RE
         else:packet['fields'].append(row)
     packet['receipt_id']=_digest(_json(packet))
     return _validate(packet)
+
+
+def attach_operating_income_check(packet, preview, *, saved_at=None):
+    """Attach a reviewed gap, retaining the approved fields and original receipt."""
+    _validate(packet)
+    if not any(g['field']=='operating_income' for g in packet['gaps']):
+        raise ValueError('operating_income_already_present')
+    result=deepcopy(packet)
+    check=build_check(preview,result)
+    result.update(schema_version=CHECK_SCHEMA,operating_income_check=check,
+        saved_at=saved_at or datetime.now(timezone.utc).isoformat())
+    result['gaps']=[dict(field=g['field'],reason=check['reason']) if g['field']=='operating_income' else g for g in result['gaps']]
+    result['receipt_id']=_digest(_json({k:v for k,v in result.items() if k!='receipt_id'}))
+    return _validate(result)
 
 
 def encode_review(packet):
@@ -216,7 +236,9 @@ def compare_reviews(before, after, *, registry_path=DEFAULT_REGISTRY_PATH):
             event=next((asdict(e) for e in events if e.source_ref.endswith('#'+field)),None)
             result['changes'].append(dict(field=field,before=a,after=b,changed_dimensions=dimensions,event=event))
     input_same=comparable_rows(before)==comparable_rows(after) and sorted(before['gaps'],key=lambda g:g['field'])==sorted(after['gaps'],key=lambda g:g['field']) and before['accession']==after['accession']
+    result['review_changes']=[] if comparable_check(before)==comparable_check(after) else ['operating_income_check']
     result['status']='withheld' if basis_held else 'changed' if result['changes'] else 'unchanged' if input_same else 'gaps_changed'
+    if result['status']=='unchanged' and result['review_changes']:result['status']='review_changed'
     return result
 
 

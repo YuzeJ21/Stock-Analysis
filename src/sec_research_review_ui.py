@@ -1,9 +1,11 @@
 """Explicit NEM receipt actions, shared by company records and Monitor."""
 from html import escape
 from pathlib import Path
+import os
+from src.sec_exact_filing import get_company_filing_preview
 from src.online_company_identity import _mode_reason
 from src.sec_research_review import (
-    MAX_BYTES, capture_review, compare_reviews, encode_review, list_reviews, load_review, save_review,
+    MAX_BYTES, attach_operating_income_check, capture_review, compare_reviews, encode_review, list_reviews, load_review, save_review,
 )
 
 PROJECT_ROOT=Path(__file__).resolve().parent.parent
@@ -18,8 +20,14 @@ REASONS={'source_evidence_unreviewed':'直接来源证据尚未通过核查，�
     'same_source_digest_conflict':'相同来源摘要对应不同字段，需核查证据一致性',
     'rights_mismatch':'字段权限不一致', 'raw_source_conflict':'原始来源包含冲突值，需核查申报语境',
     'raw_source_value_invalid':'原始来源数值无法通过核查'}
+REASONS.update({
+    'matching_direct_native_unit_fact_unavailable':'具体申报中没有匹配的标准营业利润直接事实；税前收益、分部指标和 EBITDA 不能代替',
+    'conflicting_direct_facts':'具体申报中有冲突的营业利润直接事实，暂不取值',
+    'exact_direct_fact_rights_held':'原文存在直接字段，但该档案来源的字段权限尚未登记，暂不取值',
+    'exact_direct_fact_unusable':'原文直接字段未通过数值或来源核验，暂不取值'})
 STATUS={'unchanged':'未变化','changed':'发现变化，需核查','withheld':'口径不一致，保留缺口',
         'gaps_changed':'缺口状态变化，需核查','baseline_missing':'已保存，等待比较基线'}
+STATUS['review_changed']='核查依据变化，财务数值未变'
 
 
 def _label(packet):
@@ -37,6 +45,7 @@ def _render_comparison(st,result):
     if result['status']=='unchanged':st.success(label+' · 已保存的字段数值与口径一致。')
     elif result['status']=='changed':st.warning(label)
     else:st.info(label)
+    if result.get('review_changes'):st.caption('营业利润的原始申报核查依据已更新；这本身不是财务数值修订。')
     for change in result['changes']:
         left,right=change['before'],change['after']
         st.markdown('**'+LABELS[change['field']]+'**')
@@ -44,6 +53,44 @@ def _render_comparison(st,result):
         st.caption('变化维度：'+', '.join(change['changed_dimensions'])+
             ' · 原申报 '+left['accession']+' · 当前申报 '+right['accession'])
     st.markdown(_gaps_html(result),unsafe_allow_html=True)
+
+
+def _render_exact_check(st, packet):
+    check=packet.get('operating_income_check')
+    if not check:return
+    st.markdown('**营业利润 · 原始申报已核查，缺口保留**')
+    st.markdown(REASONS[check['reason']])
+    st.markdown('[查看已核查的 SEC 原始申报]('+check['source_url']+')')
+    st.caption(check['form']+' · '+check['accession']+' · '+check['period_start']+' 至 '+check['period_end']+
+        ' · '+check['taxonomy']+':'+check['concept']+' · '+check['unit'])
+    st.caption('申报日 '+check['filed']+' · 接收时间 '+check['accepted_at']+' · 核查观察 '+check['observed_at'])
+    st.caption('原文仅供个人研究核查；本包只保存核查元数据，不纳入档案数值，也未扩大来源权限。')
+    with st.expander('原始申报核查摘要',expanded=False):
+        st.code(check['payload_sha256'],language=None)
+        st.caption('来源权限：'+check['rights_status'])
+
+
+def _check_candidate(st, candidate, scope):
+    eligible=candidate is not None and any(g['field']=='operating_income' for g in candidate['gaps'])
+    key='sec-review-exact-result:'+scope
+    # Bind the action to this Companyfacts observation, not just a ticker or year.
+    anchor={k:v for k,v in candidate.items() if k not in {'saved_at','receipt_id'}} if eligible else None
+    if st.button('核查营业利润原始申报',key='sec-review-exact:'+scope,disabled=not eligible):
+        st.session_state[key]={'anchor':anchor,'preview':{'status':'withheld'}}
+        with st.spinner('正在核对 SEC 具体申报与当前财报口径…'):
+            source=get_company_filing_preview('NEM',st.session_state,period_kind='annual',
+                refresh_requested=True,user_agent=os.getenv('SEC_USER_AGENT'),expected_cik='0001164727')
+        st.session_state[key]={'anchor':anchor,'preview':source}
+    cached=st.session_state.get(key)
+    if eligible and isinstance(cached,dict) and cached.get('anchor')==anchor:
+        try:
+            candidate=attach_operating_income_check(candidate,cached['preview'])
+            st.info('原始申报核查已完成。点击下方保存，将本次核查随证据一起保留。')
+            with st.expander('本次待保存的核查详情',expanded=False):
+                _render_exact_check(st,candidate)
+        except (ValueError,TypeError,KeyError):
+            st.warning('本次原始申报核查未接入：来源不可用或申报、期间、单位不匹配。原缺口保留，请核对「数据来源」。')
+    return candidate
 
 
 CONTROL_STYLE='''<style>
@@ -72,6 +119,7 @@ def _render_company_review(st,ticker,view,*,profile_key):
     try:
         candidate=capture_review(view,profile_key=profile_key)
     except (ValueError,TypeError,OSError):candidate=None
+    candidate=_check_candidate(st,candidate,scope)
     if st.button('保存当前 SEC 证据',key='sec-review-save:'+scope,disabled=candidate is None):
         try:save_review(candidate,PROJECT_ROOT);st.success('已保存本次观察。')
         except (ValueError,OSError):st.error('证据未保存。请检查来源口径、保存目录或历史数量。')
@@ -88,6 +136,7 @@ def _render_company_review(st,ticker,view,*,profile_key):
     try:packets=list_reviews(PROJECT_ROOT,profile_key)
     except (ValueError,OSError):st.error('已保存证据无法完整核验，比较暂停。请保留文件并检查保存目录。');return
     if not packets:st.info('尚未保存证据。保存第一次观察后，可再次保存或导入另一份证据进行比较。');return
+    st.markdown('#### 已保存证据重放')
     options=list(range(len(packets)))
     current_index=st.selectbox('重放哪份证据',options,index=len(packets)-1,
         format_func=lambda i:_label(packets[i]),key=f'sec-review-current:{scope}:{len(packets)}')
@@ -99,6 +148,7 @@ def _render_company_review(st,ticker,view,*,profile_key):
     before=None if prior_index is None else packets[prior_index]
     result=compare_reviews(before,current)
     _render_comparison(st,result)
+    _render_exact_check(st,current)
     st.caption('当前显示来自已保存证据，没有重新查询网络。保存时间与 SEC 观察时间分开记录；新的保存时间不表示财报变化。')
     st.download_button('下载当前证据包',data=encode_review(current),file_name='NEM-SEC-'+current['receipt_id'][:12]+'.json',
         mime='application/json',key='sec-review-download:'+scope)
@@ -129,5 +179,7 @@ def render_review_monitor(st,*,profile_key):
     st.markdown('**'+STATUS[result['status']]+'** · 最近两次保存的年度财报复核')
     st.caption('独立的数据核查事项，不计入研究日志、流程事件或投资信号。最新保存时间 '+packets[-1]['saved_at'])
     st.markdown(_gaps_html(result),unsafe_allow_html=True)
+    _render_exact_check(st,packets[-1])
+    if result.get('review_changes'):st.caption('营业利润核查依据发生变化；不表示财务数值修订。')
     for change in result['changes']:st.markdown('- '+LABELS[change['field']]+' · 已保存字段有变化，请核对两份申报来源。')
     st.markdown(CONTROL_STYLE+'<a class="sec-review-link" href="?mode=research&amp;page=company-workbench&amp;ticker=NEM&amp;section=notes" target="_self">返回 NEM 证据复核</a>',unsafe_allow_html=True)

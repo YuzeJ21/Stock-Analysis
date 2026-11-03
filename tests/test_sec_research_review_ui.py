@@ -68,3 +68,52 @@ def test_normal_nem_company_route_exposes_receipts_without_fetch(tmp_path,monkey
     assert at.button(key='sec-review-save:test:NEM').disabled
     assert at.selectbox[0].value==0
     assert any('SEC 财报证据复核' in x.value for x in at.markdown)
+
+
+def test_exact_gap_check_save_replay_and_monitor(tmp_path,monkeypatch):
+    from src import sec_research_review_ui as ui
+    from tests.test_nem_operating_income_review import preview
+    monkeypatch.setattr(ui,'PROJECT_ROOT',tmp_path)
+    calls=[]
+    def fetch(*args,**kwargs):
+        calls.append(1);return preview()
+    monkeypatch.setattr(ui,'get_company_filing_preview',fetch)
+    v=view();v['approved_direct_fields']=[r for r in v['approved_direct_fields'] if r['field']!='operating_income']
+    at=AppTest.from_function(app);at.session_state['test_view']=v;at.run()
+    assert not calls
+    at.button(key='sec-review-exact:test:NEM').click().run()
+    assert not at.exception and len(calls)==1
+    at.button(key='sec-review-save:test:NEM').click().run()
+    at.button(key='sec-review-save:test:NEM').click().run()
+    assert not at.exception and len(calls)==1
+    assert any('未变化' in e.value for e in at.success)
+    assert '没有匹配的标准营业利润直接事实' in '\n'.join(e.value for e in at.markdown)
+    at.radio[0].set_value('monitor').run()
+    assert 'nem-synthetic.htm' in '\n'.join(e.value for e in at.markdown)
+    assert not (tmp_path/'data').exists()
+    # Offline new session replays the exact provenance without transport.
+    fresh=AppTest.from_function(app);fresh.session_state['test_view']={'status':'not_requested'};fresh.run()
+    assert not fresh.exception and len(calls)==1
+    assert 'nem-synthetic.htm' in '\n'.join(e.value for e in fresh.markdown)
+    # Failed explicit refresh must clear the previous successful attachment.
+    at.radio[0].set_value('company').run()
+    monkeypatch.setattr(ui,'get_company_filing_preview',lambda *a,**k:{'status':'withheld','reason':'sec_filing_unavailable'})
+    at.button(key='sec-review-exact:test:NEM').click().run()
+    assert any('未接入' in e.value for e in at.warning)
+    at.button(key='sec-review-save:test:NEM').click().run()
+    from src.sec_research_review import list_reviews
+    assert list_reviews(tmp_path,'test')[-1]['schema_version']=='sec-research-review-v1'
+
+
+def test_cached_check_cannot_attach_to_changed_companyfacts_observation(tmp_path,monkeypatch):
+    from src import sec_research_review_ui as ui
+    from tests.test_nem_operating_income_review import preview
+    from src.sec_research_review import list_reviews
+    monkeypatch.setattr(ui,'PROJECT_ROOT',tmp_path)
+    monkeypatch.setattr(ui,'get_company_filing_preview',lambda *a,**k:preview())
+    v=view();v['approved_direct_fields']=[r for r in v['approved_direct_fields'] if r['field']!='operating_income']
+    at=AppTest.from_function(app);at.session_state['test_view']=v;at.run()
+    at.button(key='sec-review-exact:test:NEM').click().run()
+    v['companyfacts_identity']['payload_sha256']='f'*64;at.session_state['test_view']=v;at.run()
+    at.button(key='sec-review-save:test:NEM').click().run()
+    assert list_reviews(tmp_path,'test')[-1]['schema_version']=='sec-research-review-v1'
