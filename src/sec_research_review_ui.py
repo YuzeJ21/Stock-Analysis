@@ -195,6 +195,8 @@ def render_review_monitor(st,*,profile_key):
     try:queue=review_queue(PROJECT_ROOT,profile_key)
     except (ValueError,OSError):
         st.warning('SEC 证据目录无法核验或超过 100 家公司的保存上限，数据复核队列暂不可读。');return
+    if queue['store_errors']:
+        st.warning(f"SEC 证据目录有 {len(queue['store_errors'])} 个名称无法核验的条目，已单独保留且未读取。请检查目录；这些条目不计入公司数量，正常公司的记录仍可查看和保存。")
     if not queue['items']:return
     st.markdown('### SEC 财报证据复核队列')
     st.caption(f"已保存 {queue['companies']} 家公司 · 字段缺口 {queue['field_gap_companies']} 家 · 等待基线 {queue['baseline_companies']} 家 · 发现变化 {queue['changed_companies']} 家 · 不可读 {queue['unreadable_companies']} 家")

@@ -127,3 +127,17 @@ def test_offline_unregistered_receipt_renders_without_company_csv_or_network(tmp
     assert at.button(key='sec-review-save:test:FICT').disabled
     assert at.selectbox(key='sec-review-current:test:FICT:1').value==0
     assert not (tmp_path/'data').exists()
+
+
+def test_malformed_inventory_entry_is_visible_separately_from_company_counts(tmp_path,monkeypatch):
+    from src import sec_research_review_ui as ui
+    from src.sec_research_review import _profile_directory
+    monkeypatch.setattr(ui,'PROJECT_ROOT',tmp_path)
+    save_review(capture(),tmp_path)
+    (_profile_directory(tmp_path,'test')/'DUK.bak').mkdir()
+    at=AppTest.from_function(app);at.session_state['test_ticker']='AMD';at.session_state['test_view']={};at.run()
+    at.radio[0].set_value('monitor').run()
+    assert not at.exception
+    assert '已保存 1 家公司' in '\n'.join(c.value for c in at.caption)
+    assert any('1 个名称无法核验' in w.value for w in at.warning)
+    assert at.selectbox(key='sec-review-monitor-company:test').value=='AMD'

@@ -151,3 +151,20 @@ def test_receipt_moved_to_wrong_company_directory_is_not_replayed(tmp_path):
     with pytest.raises(ValueError,match='saved_receipt_scope_mismatch'):review.list_reviews(tmp_path,'test','DUK')
     q=review.review_queue(tmp_path,'test')
     assert q['unreadable_companies']==1 and q['companies']==2
+
+
+@pytest.mark.parametrize('kind',['directory','file','symlink'])
+def test_malformed_child_is_reported_without_hiding_or_blocking_healthy_company(tmp_path,kind):
+    a=capture();review.save_review(a,tmp_path)
+    child=review._profile_directory(tmp_path,'test')/'DUK.bak'
+    if kind=='directory':child.mkdir()
+    elif kind=='file':child.write_text('unrelated backup')
+    else:
+        outside=tmp_path/'outside';outside.mkdir();(outside/'must-not-read.json').write_text('{}')
+        child.symlink_to(outside,target_is_directory=True)
+    q=review.review_queue(tmp_path,'test')
+    assert q['companies']==1 and q['items'][0]['latest']==a
+    assert q['store_errors']==[{'entry':'DUK.bak','reason':'invalid_company_store'}]
+    review.save_review(capture(when='2026-11-02T22:01:00Z'),tmp_path)
+    assert len(review.list_reviews(tmp_path,'test','AMD'))==2
+    assert child.exists()

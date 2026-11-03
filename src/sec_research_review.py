@@ -332,14 +332,16 @@ def _company_names(root,profile_key):
     try:names=sorted(p.name for p in directory.iterdir() if p.name!='.DS_Store')
     except FileNotFoundError:return []
     if len(names)>MAX_COMPANIES:raise ValueError('company_history_limit')
-    if any(not _ticker(name) for name in names):raise ValueError('invalid_company_store')
     return names
 
 
 def review_queue(root,profile_key,*,registry_path=DEFAULT_REGISTRY_PATH):
     """Inspect only saved companies; a damaged company does not hide other rows."""
-    items=[]
+    items=[];store_errors=[]
     for ticker in _company_names(root,profile_key):
+        if not _ticker(ticker):
+            store_errors.append(dict(entry=ticker,reason='invalid_company_store'))
+            continue
         try:
             packets=list_reviews(root,profile_key,ticker)
             if not packets:continue
@@ -348,7 +350,7 @@ def review_queue(root,profile_key,*,registry_path=DEFAULT_REGISTRY_PATH):
             items.append(dict(ticker=ticker,latest=packets[-1],previous=before,comparison=result,error=None))
         except (ValueError,OSError):
             items.append(dict(ticker=ticker,latest=None,previous=None,comparison=None,error='saved_receipts_unreadable'))
-    return dict(items=items,companies=len(items),
+    return dict(items=items,store_errors=store_errors,companies=len(items),
         field_gap_companies=sum(bool(i['latest'] and i['latest']['gaps']) for i in items),
         baseline_companies=sum(bool(i['comparison'] and i['comparison']['status']=='baseline_missing') for i in items),
         changed_companies=sum(bool(i['comparison'] and i['comparison']['status'] in {'changed','gaps_changed','review_changed'}) for i in items),
