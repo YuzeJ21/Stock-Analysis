@@ -42,7 +42,7 @@ def test_monitor_reports_gaps_without_process_records(tmp_path,monkeypatch):
     assert not (tmp_path/'data').exists()
 
 
-def test_non_nem_has_no_receipt_controls(tmp_path,monkeypatch):
+def test_other_company_without_observation_has_disabled_receipt_controls(tmp_path,monkeypatch):
     from src import sec_research_review_ui as ui
     monkeypatch.setattr(ui,'PROJECT_ROOT',tmp_path)
     def other():
@@ -50,7 +50,9 @@ def test_non_nem_has_no_receipt_controls(tmp_path,monkeypatch):
         from src.sec_research_review_ui import render_company_review
         render_company_review(st,'AMD',{},profile_key='test')
     at=AppTest.from_function(other).run()
-    assert not at.button and not at.exception
+    assert not at.exception
+    assert at.button(key='sec-review-save:test:AMD').disabled
+    assert not any('核查营业利润原始申报'==b.label for b in at.button)
 
 
 def test_normal_nem_company_route_exposes_receipts_without_fetch(tmp_path,monkeypatch):

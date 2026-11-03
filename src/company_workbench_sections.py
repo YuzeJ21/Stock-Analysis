@@ -87,9 +87,10 @@ STYLE='''<style>
 </style>'''
 
 
-def workbench_header_html(ticker, projection, saved_scope, title=None):
+def workbench_header_html(ticker, projection, saved_scope, title=None,saved_receipt_only=False):
     p=projection
     scope='已保存研究；在线查询结果独立展示' if saved_scope else '在线公司候选；与已保存研究的身份仍需核对'
+    if saved_receipt_only:scope='已保存 SEC 证据；当前上市身份与本地模型资格仍需独立核对'
     scope+=' · Research-only'
     status=(f"可阅读财报：{p['annual_count']} 个年度 / {p['quarter_count']} 个季度 · 价格：{p['price_count']} 个日线观察"
             if any(p[k] for k in ('annual_count','quarter_count','price_count')) else '财报趋势与日线历史尚未请求；可使用上方更新操作')

@@ -60,11 +60,11 @@ def _separate_saved_link(ticker):
 
 
 def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
-                              online_candidate=None, render_saved, render_sources):
+                              online_candidate=None, render_saved, render_sources,saved_receipt_only=False):
     """Render one company section, keeping online and saved identities distinct."""
     candidate=online_candidate if isinstance(online_candidate,Mapping) else None
     expected_cik=candidate.get('cik') if candidate else None
-    scope='online:'+str(expected_cik) if candidate else 'saved'
+    scope='online:'+str(expected_cik) if candidate else 'receipts' if saved_receipt_only else 'saved'
     if saved_available and candidate is None:
         retain_saved_tool_inputs(st_api.session_state,profile_scope,ticker)
     header=st_api.empty()
@@ -77,7 +77,7 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
         expected_cik=expected_cik)
     financial,prices,projection=bundle['financial'],bundle['prices'],bundle['projection']
     header.markdown(workbench_header_html(ticker,projection,saved_scope=candidate is None,
-        title=candidate.get('title') if candidate else None),unsafe_allow_html=True)
+        title=candidate.get('title') if candidate else None,saved_receipt_only=saved_receipt_only),unsafe_allow_html=True)
     nav_key=f'company-section:{profile_scope}:{ticker}:{scope}'
     if st_api.session_state.get(nav_key) not in dict(SECTIONS):
         st_api.session_state[nav_key]=section_key(st_api.query_params.get('section'))
@@ -146,7 +146,8 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                     st_api.info('在线财报与价格仅供分别阅读。估值还需要核对股类、财务定义、价格日期、来源权限和同行依据。')
                 if saved_available:st_api.markdown(_separate_saved_link(ticker),unsafe_allow_html=True)
             else:
-                st_api.info('在线公司身份尚未与已保存研究集合核对，当前页面不会读取或写入同代码的已保存记录。')
+                st_api.info('本页重放已保存的 SEC 事实；这不建立本地模型、研究日志资格或当前上市身份。' if saved_receipt_only else
+                    '在线公司身份尚未与已保存研究集合核对，当前页面不会自动读取或写入同代码的本地模型和研究日志。SEC 证据保存独立处理。')
                 if saved_available:st_api.markdown(_separate_saved_link(ticker),unsafe_allow_html=True)
         else:
             st_api.caption('来源、期间、单位、观察日期与权限分别保留；在线查询不更新正式财务、readiness 或覆盖统计。')

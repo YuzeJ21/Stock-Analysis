@@ -1,5 +1,7 @@
 # NEM SEC evidence review
 
+The [multi-company review contract](SEC_RESEARCH_REVIEWS.md) now reuses this workflow for qualified annual Companyfacts observations. This document retains the NEM v1/v2 and exact-filing method boundaries; NEM's unresolved field is not a gate on independent issuer qualification.
+
 In Company Workbench → 研究记录, use **只更新财报**, then **保存当前 SEC 证据**. Save again to compare the same observation, or refresh explicitly before a later capture. The two selectors replay any saved pair. **下载当前证据包** and **导入证据包** provide portable JSON replay. Imported files must match the selected profile. No human tester is needed for this engineering workflow.
 
 The first scope is NEM, CIK 0001164727, annual direct revenue, operating income, cash from operations and capital expenditures. A packet keeps normalized facts, concept, unit, start/end, accession, form, filing/publication day, original SEC observation, source URL, raw-response digest and the unchanged source-rights registry digest. Publication has date precision only. The HTTP receipt completion is used for observation time, rather than the earlier request-start timestamp. Missing direct facts retain the bounded upstream reason where supplied.

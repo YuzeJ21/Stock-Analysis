@@ -37885,6 +37885,8 @@ def render_research_monitor(
             f"{str(return_ticker).strip().upper()} is only the return destination and "
             "does not filter these follow-up items."
         )
+    from src.sec_research_review_ui import render_review_monitor
+    render_review_monitor(st,profile_key=context.profile_key)
     st.markdown("## Follow-up Queue")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
     if queue.has_saved_follow_up or queue.has_freshness_attention:
@@ -37898,9 +37900,6 @@ def render_research_monitor(
             research_discipline_table_html(queue.primary_rows),
             unsafe_allow_html=True,
         )
-
-    from src.sec_research_review_ui import render_review_monitor
-    render_review_monitor(st,profile_key=context.profile_key)
 
     st.markdown(
         study_monitor_html(load_dashboard_bounded_field_study(context)),
@@ -38135,6 +38134,9 @@ def render_company_workbench(
     }
     has_registered_company = bool(ticker and ticker in registered_tickers)
     online_requested = str(st.query_params.get("online") or "") == "1"
+    from src.sec_research_review_ui import saved_review_route_available
+    saved_receipt_only = bool(not has_registered_company and not online_requested
+        and saved_review_route_available(ticker,getattr(context,"profile_key",None)))
     session_state = getattr(st, "session_state", {})
     online_candidate = (
         online_company_candidate_for_route(
@@ -38157,7 +38159,7 @@ def render_company_workbench(
             )
             session_state[ONLINE_COMPANY_SESSION_KEY] = online_result
             online_candidate = online_company_candidate_for_route(ticker, session_state)
-    if online_candidate is None and (online_requested or not has_registered_company):
+    if online_candidate is None and (online_requested or not (has_registered_company or saved_receipt_only)):
         render_research_workspace_header("Company Workbench",context,ticker=ticker,
             primary_action="Choose an explicit company in Discover",compact=True,include_boundary=False)
         title = (
@@ -38233,7 +38235,8 @@ def render_company_workbench(
         render_research_change_route_summary("Single-Stock Report",state,ticker=ticker)
     render_integrated_company(st,ticker,profile_scope=context.profile_key,
         saved_available=has_registered_company,online_candidate=online_candidate,
-        render_saved=saved_section,render_sources=sources)
+        render_saved=saved_section,render_sources=sources,
+        **({'saved_receipt_only':True} if saved_receipt_only else {}))
 
 
 def render_personal_research_route(

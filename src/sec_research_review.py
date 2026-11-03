@@ -1,4 +1,4 @@
-"""Portable normalized NEM SEC receipts. No transport or canonical writes."""
+"""Portable normalized SEC receipts. No transport or canonical writes."""
 from __future__ import annotations
 
 from dataclasses import asdict
@@ -20,12 +20,16 @@ from src.research_change_monitor import compare_research_snapshots
 
 SCHEMA = 'sec-research-review-v1'
 CHECK_SCHEMA = 'sec-research-review-v2'
+COMPANY_SCHEMA = 'sec-research-review-v3'
 FIELDS = ('revenue', 'operating_income', 'cash_from_operations', 'capital_expenditures')
 CIK = '0001164727'
 SOURCE = f'https://data.sec.gov/api/xbrl/companyfacts/CIK{CIK}.json'
 RIGHTS = 'approved_field_scope_raw_redistribution_held'
 MAX_BYTES = 65536
 MAX_RECEIPTS = 100
+MAX_COMPANIES = 100
+IDENTITY_KEYS = {'status','ticker','sec_cik','source_url','observed_at','source_last_modified',
+    'payload_sha256','association_source_url','association_payload_sha256','association_observed_at'}
 CONCEPTS = {'revenue': REVENUE_CONCEPTS, **OPERATING_COMPONENT_CONCEPTS}
 PACKET_KEYS = {'schema_version','ticker','sec_cik','profile_key','saved_at','source_url',
     'source_observed_at','source_last_modified','raw_payload_sha256','rights_registry_sha256',
@@ -46,6 +50,16 @@ def _hex(value):
     return isinstance(value,str) and re.fullmatch('[0-9a-f]{64}',value) is not None
 
 
+def _ticker(value):
+    return isinstance(value,str) and re.fullmatch(r'[A-Z0-9][A-Z0-9.-]{0,19}',value) is not None and '..' not in value
+
+
+def _source(cik):
+    if not isinstance(cik,str) or not re.fullmatch(r'\d{10}',cik) or int(cik)==0:
+        raise ValueError('invalid_issuer_identity')
+    return f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json'
+
+
 def _policy(path=DEFAULT_REGISTRY_PATH):
     raw=Path(path).read_bytes()
     rule=parse_source_rights_registry(raw).get('sec_companyfacts')
@@ -64,7 +78,7 @@ def _row_reason(row, packet):
     start,end=_iso_date(row['period_start']),_iso_date(row['period_end'])
     if not start or not end or not 300<=(end-start).days<=430:return 'duration_mismatch'
     if row['period_end']!=packet['period_end']:return 'period_mismatch'
-    if row['accession']!=packet['accession'] or row['source_ref']!=SOURCE:return 'source_mismatch'
+    if row['accession']!=packet['accession'] or row['source_ref']!=packet['source_url']:return 'source_mismatch'
     if row['observed_at_utc']!=packet['source_observed_at']:return 'observation_mismatch'
     if row['rights_status']!=RIGHTS:return 'rights_mismatch'
     return None
@@ -73,9 +87,19 @@ def _row_reason(row, packet):
 def _validate(packet):
     if not isinstance(packet,dict):raise ValueError('invalid_packet_schema')
     expected=PACKET_KEYS|{'operating_income_check'} if packet.get('schema_version')==CHECK_SCHEMA else PACKET_KEYS
+    if packet.get('schema_version')==COMPANY_SCHEMA:expected=PACKET_KEYS|{'companyfacts_identity'}
     if set(packet)!=expected:raise ValueError('invalid_packet_schema')
-    if packet['schema_version'] not in (SCHEMA,CHECK_SCHEMA) or packet['ticker']!='NEM' or packet['sec_cik']!=CIK or packet['source_url']!=SOURCE:
+    if packet['schema_version'] not in (SCHEMA,CHECK_SCHEMA,COMPANY_SCHEMA) or not _ticker(packet['ticker']) or packet['source_url']!=_source(packet['sec_cik']):
         raise ValueError('unsupported_receipt_identity')
+    if packet['schema_version']!=COMPANY_SCHEMA and (packet['ticker']!='NEM' or packet['sec_cik']!=CIK):
+        raise ValueError('unsupported_receipt_identity')
+    if packet['schema_version']==COMPANY_SCHEMA:
+        identity=packet['companyfacts_identity']
+        if not isinstance(identity,dict) or set(identity)!=IDENTITY_KEYS or not financial_identity_valid(packet['ticker'],identity):
+            raise ValueError('invalid_issuer_association')
+        for key,identity_key in (('sec_cik','sec_cik'),('source_url','source_url'),('source_observed_at','observed_at'),
+                ('source_last_modified','source_last_modified'),('raw_payload_sha256','payload_sha256')):
+            if packet[key]!=identity[identity_key]:raise ValueError('issuer_source_mismatch')
     profile=packet['profile_key']
     if not isinstance(profile,str) or not 1<=len(profile)<=200 or any(ord(c)<32 for c in profile):raise ValueError('invalid_profile')
     saved,observed=_utc_timestamp(packet['saved_at']),_utc_timestamp(packet['source_observed_at'])
@@ -102,6 +126,9 @@ def _validate(packet):
         names.append(gap['field'])
     if len({row['period_start'] for row in rows})>1:raise ValueError('mixed_packet_duration')
     if set(names)!=set(FIELDS) or len(set(names))!=len(names):raise ValueError('duplicate_or_missing_field')
+    if packet['schema_version']==COMPANY_SCHEMA and (not any(r['field']=='revenue' for r in rows)
+            or any(r['taxonomy']!='us-gaap' for r in rows)):
+        raise ValueError('supported_annual_usd_basis_required')
     if packet['schema_version']==CHECK_SCHEMA:validate_check(packet['operating_income_check'],packet)
     if packet['receipt_id']!=_digest(_json({k:v for k,v in packet.items() if k!='receipt_id'})):
         raise ValueError('receipt_checksum_mismatch')
@@ -111,16 +138,19 @@ def _validate(packet):
 def capture_review(view, *, profile_key, saved_at=None, registry_path=DEFAULT_REGISTRY_PATH):
     """Copy only qualified direct fields from an existing online observation."""
     if (not isinstance(view,dict) or view.get('status')!='inspection_only' or view.get('safe_to_apply') is not False
-            or view.get('ticker')!='NEM' or view.get('sec_cik')!=CIK or view.get('source_url')!=SOURCE
-            or not financial_identity_valid('NEM',view.get('companyfacts_identity'))
-            or view['companyfacts_identity']['sec_cik']!=CIK):raise ValueError('unqualified_nem_source')
+            or not _ticker(view.get('ticker')) or not financial_identity_valid(view.get('ticker'),view.get('companyfacts_identity'))
+            or view['companyfacts_identity']['sec_cik']!=view.get('sec_cik')
+            or view.get('source_url')!=_source(view.get('sec_cik'))
+            or view['ticker']=='NEM' and view['sec_cik']!=CIK):raise ValueError('unqualified_company_source')
     identity=view['companyfacts_identity']
-    packet=dict(schema_version=SCHEMA,ticker='NEM',sec_cik=CIK,profile_key=profile_key,
-        saved_at=saved_at or datetime.now(timezone.utc).isoformat(),source_url=SOURCE,
+    packet=dict(schema_version=SCHEMA if view['ticker']=='NEM' else COMPANY_SCHEMA,ticker=view['ticker'],sec_cik=view['sec_cik'],profile_key=profile_key,
+        saved_at=saved_at or datetime.now(timezone.utc).isoformat(),source_url=view['source_url'],
         source_observed_at=identity['observed_at'],source_last_modified=identity.get('source_last_modified'),
         raw_payload_sha256=identity['payload_sha256'],rights_registry_sha256=_policy(registry_path),
         period_end=view.get('period_end'),filing_date=view.get('filing_date'),accession=view.get('accession'),
         form=view.get('annual_form'),fields=[],gaps=[])
+    if packet['schema_version']==COMPANY_SCHEMA:
+        packet['companyfacts_identity']={key:identity.get(key) for key in IDENTITY_KEYS}
     # Upstream preview timestamps may precede completion of the HTTP request. They
     # describe the same fetch; retain the actual receipt observation on all rows.
     rows=view.get('approved_direct_fields')
@@ -154,6 +184,8 @@ def capture_review(view, *, profile_key, saved_at=None, registry_path=DEFAULT_RE
 def attach_operating_income_check(packet, preview, *, saved_at=None):
     """Attach a reviewed gap, retaining the approved fields and original receipt."""
     _validate(packet)
+    if packet['ticker']!='NEM' or packet['schema_version'] not in (SCHEMA,CHECK_SCHEMA):
+        raise ValueError('exact_check_company_scope_unqualified')
     if not any(g['field']=='operating_income' for g in packet['gaps']):
         raise ValueError('operating_income_already_present')
     result=deepcopy(packet)
@@ -188,7 +220,7 @@ def load_review(raw):
 
 def _snapshot(packet, rows):
     fundamentals=tuple((r['field'],str(r['value'])) for r in rows)
-    state=TickerResearchState('NEM',(),fundamentals,'','','',(),(f"sec-accession:{packet['accession']}",))
+    state=TickerResearchState(packet['ticker'],(),fundamentals,'','','',(),(f"sec-accession:{packet['accession']}",))
     return ResearchChangeSnapshot(SNAPSHOT_SCHEMA,packet['profile_key'],packet['receipt_id'],
         packet['source_observed_at'],packet['filing_date'],(state,))
 
@@ -237,14 +269,20 @@ def compare_reviews(before, after, *, registry_path=DEFAULT_REGISTRY_PATH):
             result['changes'].append(dict(field=field,before=a,after=b,changed_dimensions=dimensions,event=event))
     input_same=comparable_rows(before)==comparable_rows(after) and sorted(before['gaps'],key=lambda g:g['field'])==sorted(after['gaps'],key=lambda g:g['field']) and before['accession']==after['accession']
     result['review_changes']=[] if comparable_check(before)==comparable_check(after) else ['operating_income_check']
+    def association(p):
+        identity=p.get('companyfacts_identity',{})
+        return {key:identity.get(key) for key in ('association_source_url','association_payload_sha256')}
+    if association(before)!=association(after):result['review_changes'].append('issuer_association')
     result['status']='withheld' if basis_held else 'changed' if result['changes'] else 'unchanged' if input_same else 'gaps_changed'
     if result['status']=='unchanged' and result['review_changes']:result['status']='review_changed'
     return result
 
 
-def _directory(root,profile_key):
+def _profile_directory(root,profile_key):
+    if not isinstance(profile_key,str) or not 1<=len(profile_key)<=200 or any(ord(c)<32 for c in profile_key):
+        raise ValueError('invalid_profile')
     base=Path(root).resolve()
-    path=base/'outputs'/'local'/'sec-research-reviews'/_digest(profile_key.encode())/'NEM'
+    path=base/'outputs'/'local'/'sec-research-reviews'/_digest(profile_key.encode())
     cursor=path
     while cursor!=base:
         if cursor.is_symlink():raise ValueError('symlink_receipt_store')
@@ -252,8 +290,15 @@ def _directory(root,profile_key):
     return path
 
 
-def list_reviews(root,profile_key):
-    directory=_directory(root,profile_key)
+def _directory(root,profile_key,ticker='NEM'):
+    if not _ticker(ticker):raise ValueError('invalid_company_symbol')
+    path=_profile_directory(root,profile_key)/ticker
+    if path.is_symlink():raise ValueError('symlink_receipt_store')
+    return path
+
+
+def list_reviews(root,profile_key,ticker='NEM'):
+    directory=_directory(root,profile_key,ticker)
     try:paths=sorted(p for p in directory.iterdir() if p.suffix=='.json')
     except FileNotFoundError:return []
     if len(paths)>MAX_RECEIPTS:raise ValueError('receipt_history_limit')
@@ -261,15 +306,17 @@ def list_reviews(root,profile_key):
     for path in paths:
         if path.is_symlink() or path.stat().st_size>MAX_BYTES:raise ValueError('invalid_saved_receipt')
         p=load_review(path.read_bytes())
-        if p['profile_key']!=profile_key or path.stem!=p['receipt_id']:raise ValueError('saved_receipt_scope_mismatch')
+        if p['profile_key']!=profile_key or p['ticker']!=ticker or path.stem!=p['receipt_id']:raise ValueError('saved_receipt_scope_mismatch')
         result.append(p)
     return sorted(result,key=lambda p:(_utc_timestamp(p['saved_at']),p['receipt_id']))
 
 
 def save_review(packet,root):
     raw=encode_review(packet)
-    directory=_directory(root,packet['profile_key'])
-    existing=list_reviews(root,packet['profile_key'])
+    directory=_directory(root,packet['profile_key'],packet['ticker'])
+    existing=list_reviews(root,packet['profile_key'],packet['ticker'])
+    companies=_company_names(root,packet['profile_key'])
+    if packet['ticker'] not in companies and len(companies)>=MAX_COMPANIES:raise ValueError('company_history_limit')
     target=directory/(packet['receipt_id']+'.json')
     if target.exists():
         if target.is_symlink() or target.read_bytes()!=raw:raise ValueError('immutable_receipt_conflict')
@@ -278,3 +325,31 @@ def save_review(packet,root):
     directory.mkdir(parents=True,exist_ok=True)
     with target.open('xb') as handle:handle.write(raw)
     return target
+
+
+def _company_names(root,profile_key):
+    directory=_profile_directory(root,profile_key)
+    try:names=sorted(p.name for p in directory.iterdir() if p.name!='.DS_Store')
+    except FileNotFoundError:return []
+    if len(names)>MAX_COMPANIES:raise ValueError('company_history_limit')
+    if any(not _ticker(name) for name in names):raise ValueError('invalid_company_store')
+    return names
+
+
+def review_queue(root,profile_key,*,registry_path=DEFAULT_REGISTRY_PATH):
+    """Inspect only saved companies; a damaged company does not hide other rows."""
+    items=[]
+    for ticker in _company_names(root,profile_key):
+        try:
+            packets=list_reviews(root,profile_key,ticker)
+            if not packets:continue
+            before=packets[-2] if len(packets)>1 else None
+            result=compare_reviews(before,packets[-1],registry_path=registry_path)
+            items.append(dict(ticker=ticker,latest=packets[-1],previous=before,comparison=result,error=None))
+        except (ValueError,OSError):
+            items.append(dict(ticker=ticker,latest=None,previous=None,comparison=None,error='saved_receipts_unreadable'))
+    return dict(items=items,companies=len(items),
+        field_gap_companies=sum(bool(i['latest'] and i['latest']['gaps']) for i in items),
+        baseline_companies=sum(bool(i['comparison'] and i['comparison']['status']=='baseline_missing') for i in items),
+        changed_companies=sum(bool(i['comparison'] and i['comparison']['status'] in {'changed','gaps_changed','review_changed'}) for i in items),
+        unreadable_companies=sum(bool(i['error']) for i in items))

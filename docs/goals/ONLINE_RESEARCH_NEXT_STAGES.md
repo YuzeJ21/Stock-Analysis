@@ -6,15 +6,19 @@ Act as senior engineer, architect and product manager for Stock Research Command
 
 Exit: returned, recovered and held paths are verified, source dates remain unchanged and protected data does not change. This does not establish persistent online research history.
 
-## Current stage: NEM reproducible company review
+## Completed foundation: NEM reproducible company review
 
 Act as senior engineer, architect and product manager for Stock Research Command Center. Start with the live branch, roadmap, source-rights registry and existing snapshot, field-study, journal and Monitor contracts. Select one permitted direct SEC company-period observation and deliver a portable read-only receipt replay/comparison loop without relying on ignored local captures. Reuse existing components instead of creating another record system.
 
 Preserve exact issuer/security identity, accession, concept, unit, duration, filing/publication/observation dates, raw digest and rights scope. Require explicit capture/import actions, bounded schema validation and deterministic comparison: identical observations unchanged; compatible field changes traceable; incompatible identity, period, unit or rights withheld. Compare two actual saved permitted receipts when available; otherwise retain the missing real pair as a blocker and prove software behavior with labelled synthetic inputs. Carry the result to a distinct Monitor data-gap handoff without inflating journal/process-event counts. Do not persist Yahoo or other vendor material without its own qualified rights decision, update canonical data or promote readiness. Complete automatic tests and desktop/phone checks without human testers, document real-source boundaries, commit and sync the authorized developer branch. Do not merge, deploy, publish, purchase or change credentials.
 
-The NEM implementation is described in [NEM SEC review](../NEM_SEC_REVIEW.md). Same real observation saved twice is verified separately from synthetic changed-value tests. The exact NEM operating-income check now preserves a source-backed gap with its original filing and rights boundary in saved receipts and Monitor. Next obtain an independently changed permitted observation before expanding the capture scope; do not repeatedly retry an unchanged missing-direct-field source.
+The NEM implementation is described in [NEM SEC review](../NEM_SEC_REVIEW.md). Same real observation saved twice is verified separately from synthetic changed-value tests. The exact NEM operating-income check now preserves a source-backed gap with its original filing and rights boundary in saved receipts and Monitor. An independently changed permitted observation remains necessary to claim real revision detection, but does not block independent company qualification. Do not repeatedly retry an unchanged missing-direct-field source.
 
 Exit: clean-checkout replay works with the declared permitted input; an unchanged second review is visibly unchanged; changed fields link to exact evidence; the next review action is clear. Demand, source rights and independent validation remain separate.
+
+## Current stage: reusable multi-company review
+
+Execute [the multi-company goal](MULTI_COMPANY_REVIEW_GOAL.md): reuse qualified annual US-GAAP/USD Companyfacts capture, import and comparison across issuers, preserve NEM v1/v2, and show saved-company data gaps separately from research-process counts in Monitor. Validate real AMD and DUK observations alongside NEM; report exact scope, unsupported bases and unchanged protected data. No universally complete analysis claim follows from this software scope.
 
 ## Following stages and exit gates
 
