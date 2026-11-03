@@ -1566,7 +1566,10 @@ def test_monitor_and_workbench_integrate_new_evidence_layers_without_new_routes(
     assert dashboard.workspace_path_options("Research Desk", nav.RESEARCH_MODE) == nav.RESEARCH_PATH_PAGE_TITLES
 
 
-def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeypatch):
+def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeypatch, tmp_path):
+    # Exercise the real profile-scoped handoff against isolated empty storage.
+    from src import sec_research_review_ui
+    monkeypatch.setattr(sec_research_review_ui, "PROJECT_ROOT", tmp_path)
     rendered: list[str] = []
     actions: list[tuple[str, str]] = []
     cards: list[tuple[list[dict[str, object]], str]] = []
@@ -1608,6 +1611,7 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     dashboard.render_research_monitor(
         {"queue": ()},
         SimpleNamespace(
+            profile_key="monitor-test",
             freshness_state="current",
             freshness_message="Saved readiness is current.",
         ),
@@ -1646,8 +1650,11 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     assert copy.count("data-sr-region='stop-rule'") == 1
 
 
-def test_monitor_return_context_renders_once_without_changing_monitor_scope(monkeypatch):
+def test_monitor_return_context_renders_once_without_changing_monitor_scope(monkeypatch, tmp_path):
     """Catches return context being treated as a Monitor filter rather than a detour action."""
+    # Exercise the real profile-scoped handoff against isolated empty storage.
+    from src import sec_research_review_ui
+    monkeypatch.setattr(sec_research_review_ui, "PROJECT_ROOT", tmp_path)
 
     class Expander:
         def __enter__(self):
@@ -1673,7 +1680,7 @@ def test_monitor_return_context_renders_once_without_changing_monitor_scope(monk
 
     args = (
         {"queue": ()},
-        SimpleNamespace(freshness_state="current", freshness_message="Saved readiness is current."),
+        SimpleNamespace(profile_key="monitor-test", freshness_state="current", freshness_message="Saved readiness is current."),
         WeeklyResearchSummary(
             status="no_changes",
             as_of="2026-08-04T00:00:00+00:00",
@@ -1703,8 +1710,11 @@ def test_monitor_return_context_renders_once_without_changing_monitor_scope(monk
 
 
 def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_health(
-    monkeypatch,
+    monkeypatch, tmp_path,
 ):
+    # Exercise the real profile-scoped handoff against isolated empty storage.
+    from src import sec_research_review_ui
+    monkeypatch.setattr(sec_research_review_ui, "PROJECT_ROOT", tmp_path)
     rendered: list[str] = []
     cards: list[object] = []
 
@@ -1741,6 +1751,7 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
     dashboard.render_research_monitor(
         {"queue": ()},
         SimpleNamespace(
+            profile_key="monitor-test",
             freshness_state="current",
             freshness_message="Saved readiness is current for saved sources.",
         ),
@@ -1933,8 +1944,11 @@ def test_dashboard_keeps_authoring_call_scoped_to_the_selected_profile_and_ticke
 
 
 def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_action(
-    monkeypatch,
+    monkeypatch, tmp_path,
 ):
+    # Exercise the real profile-scoped handoff against isolated empty storage.
+    from src import sec_research_review_ui
+    monkeypatch.setattr(sec_research_review_ui, "PROJECT_ROOT", tmp_path)
     cards: list[tuple[list[dict[str, object]], str]] = []
     actions: list[tuple[str, str]] = []
     headers: list[dict[str, object]] = []
@@ -1991,6 +2005,7 @@ def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_a
     dashboard.render_research_monitor(
         {"queue": ()},
         SimpleNamespace(
+            profile_key="monitor-test",
             freshness_state="current",
             freshness_message="Saved readiness is current.",
         ),

@@ -63,7 +63,10 @@ def test_company_workbench_shows_qcom_reasons_and_keeps_raw_proof_advanced(monke
     assert 'Raw saved field references' in copy and 'Input digest:' in copy
 
 
-def test_monitor_study_comparison_is_separate_from_follow_up_queue(monkeypatch):
+def test_monitor_study_comparison_is_separate_from_follow_up_queue(monkeypatch, tmp_path):
+    # Exercise the real profile-scoped handoff against isolated empty storage.
+    from src import sec_research_review_ui
+    monkeypatch.setattr(sec_research_review_ui, "PROJECT_ROOT", tmp_path)
     rendered: list[str] = []
 
     class Expander:
@@ -86,7 +89,7 @@ def test_monitor_study_comparison_is_separate_from_follow_up_queue(monkeypatch):
 
     dashboard.render_research_monitor(
         {"queue": ()},
-        SimpleNamespace(freshness_state="current", freshness_message="Current"),
+        SimpleNamespace(profile_key="monitor-test", freshness_state="current", freshness_message="Current"),
         WeeklyResearchSummary("no_changes", "2026-10-27T00:00:00+00:00", 0, 0, (), "No changes"),
         object(),
     )
