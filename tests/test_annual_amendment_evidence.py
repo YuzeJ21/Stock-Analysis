@@ -180,3 +180,26 @@ def test_transport_and_mode_guards_keep_the_source_unavailable(monkeypatch,probl
         user_agent='bad\nagent' if problem=='agent' else 'Synthetic contact',fetcher=fetch,observed_at=NOW)
     assert result['status']=='unavailable' and 'private diagnostic' not in str(result)
     if problem in {'commercial','invalid_mode','agent'}:assert not calls
+
+
+@pytest.mark.parametrize("change", ["tail_only", "body_change", "raw_digest_mismatch"])
+def test_normalized_binding_allows_only_empty_external_tail_script(monkeypatch, change):
+    c, packet, policy = fixture(monkeypatch)
+    policy["binding_normalization"] = "sec-empty-tail-script-v1"
+    receipt = packet["amendment"]
+    raw = base64.b64decode(receipt["payload_raw_base64"])
+    raw = raw.replace(b"</body>", b'<script type="text/javascript"  src="/rotated/tail"></script></body>')
+    if change == "body_change":
+        raw = raw.replace(b">100</ix:nonFraction>", b">101</ix:nonFraction>")
+    receipt["payload_raw_base64"] = base64.b64encode(raw).decode()
+    if change != "raw_digest_mismatch":
+        receipt["payload_sha256"] = hashlib.sha256(raw).hexdigest()
+
+    proof = validate(c, packet)
+    if change == "tail_only":
+        assert proof["status"] == "supported"
+        bound = proof["source_receipts"][1]
+        assert bound["body_sha256"] == policy["amendment_sha256"]
+        assert bound["payload_sha256"] == receipt["payload_sha256"]
+    else:
+        assert proof["status"] == "withheld"

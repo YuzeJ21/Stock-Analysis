@@ -187,6 +187,8 @@ def _amendment_html(scope):
     for index,(key,label) in enumerate([('original','原始申报'),('amendment','最新修订')]):
         filing=scope.get(key,{}) if isinstance(scope.get(key),Mapping) else {};ref=receipts[index] if isinstance(receipts,list) and len(receipts)>index else {}
         html+='<p>'+label+' · '+_text(filing.get('form'))+' · '+_text(filing.get('accessionNumber'))+' · 发布 '+_text(filing.get('filingDate'))+' · 接收 '+_text(filing.get('acceptanceDateTime'))+' · '+_link(ref.get('source_url'),'具体文件')+' · 观察 '+_text(ref.get('observed_at'))+'</p><p>SHA-256 <code>'+_text(ref.get('payload_sha256'))+'</code></p>'
+        if ref.get('binding_normalization')=='sec-empty-tail-script-v1':
+            html+='<p>正文 SHA-256 <code>'+_text(ref.get('body_sha256'))+'</code> · 仅排除 SEC 响应末尾的空外部脚本。</p>'
     return html+'</details>'
 
 

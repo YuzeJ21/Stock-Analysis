@@ -1,4 +1,4 @@
-"""Exact-byte-bound scope interpretation, never a general amendment fallback.
+"""Filing-body-bound scope interpretation, never a general amendment fallback.
 
 The known amendment corrects MD&A percentages, affirming other disclosures are
 unchanged. Its false AmendmentFlag is retained as a discrepancy, not repaired.
@@ -25,8 +25,9 @@ POLICIES=({
                     accessionNumber='0000002488-26-000018',primaryDocument='amd-20251227.htm',isInlineXBRL=1,isXBRL=1),
     'amendment':dict(form='10-K/A',reportDate='2025-12-27',filingDate='2026-02-04',acceptanceDateTime='2026-02-04T20:06:57Z',
                      accessionNumber='0000002488-26-000021',primaryDocument='amd-20251227.htm',isInlineXBRL=1,isXBRL=1),
-    'original_sha256':'1d7f6ab4bb68480687dc1a72b1795beb7c5fb544ff73cbc0b985afa69140282e',
-    'amendment_sha256':'8eefb69edbe045fcf3a9e08d27a4261aa205f374ff22076586ea85f49a929a17',
+    'binding_normalization':'sec-empty-tail-script-v1',
+    'original_sha256':'247b08e661e15f3c3a18a77ea40c0fa8702d23c4b05e2d5303e305840c45b111',
+    'amendment_sha256':'a6fad5f21c20eab090a655dfd8372f04152fe715f14676339e53a9a7858bc7cb',
 },)
 
 
@@ -95,11 +96,19 @@ def fetch_amendment_evidence(ticker,cik,profile,*,user_agent,fetcher=None,observ
 
 
 def _document(packet,key,policy,cik,now):
+    from src.sec_selected_security import _bound_body
+
     receipt=packet[key];encoded=receipt.get('payload_raw_base64')
     if (receipt.get('status')!='ready' or receipt.get('source_url')!=_url(cik,policy[key]) or not _fresh(receipt.get('observed_at'),now)
             or not isinstance(encoded,str) or not 0<len(encoded)<=4*((MAX_FILING_BYTES+2)//3)):raise ValueError()
     raw=base64.b64decode(encoded,validate=True)
-    if not 0<len(raw)<=MAX_FILING_BYTES or hashlib.sha256(raw).hexdigest()!=policy[key+'_sha256'] or receipt.get('payload_sha256')!=policy[key+'_sha256']:raise ValueError()
+    if not 0<len(raw)<=MAX_FILING_BYTES or hashlib.sha256(raw).hexdigest()!=receipt.get('payload_sha256'):
+        raise ValueError()
+    normalization=policy.get('binding_normalization')
+    body_digest=hashlib.sha256(_bound_body(raw,normalization)).hexdigest()
+    if body_digest!=policy[key+'_sha256']:
+        raise ValueError()
+    receipt=dict(receipt,body_sha256=body_digest,binding_normalization=normalization)
     selected=dict(status='selected',ticker=policy['ticker'],sec_cik=cik,period_kind='annual',period_end=policy[key]['reportDate'],
         form=policy[key]['form'],source_url=receipt['source_url'],source_receipts=[])
     return raw,receipt,selected
@@ -167,5 +176,5 @@ def validate_amendment_evidence(packet,*,ticker,cik,filings,as_of):
             scope_basis='known_mdna_correction_other_disclosures_unchanged_technical_interpretation',
             shared_amendment_parser_reason=amended['reason'],commercial_eligible=False,readiness_promoted=False,
             rights_status='unregistered_sec_archive_personal_inspection_only',
-            source_receipts=[{k:r[k] for k in ('source_url','observed_at','payload_sha256')} for r in (oreceipt,areceipt)])
+            source_receipts=[{k:r[k] for k in ('source_url','observed_at','payload_sha256','body_sha256','binding_normalization')} for r in (oreceipt,areceipt)])
     except (ValueError,TypeError,KeyError,AttributeError,OverflowError,RecursionError,ET.ParseError,binascii.Error):return held
