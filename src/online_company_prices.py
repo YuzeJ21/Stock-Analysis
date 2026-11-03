@@ -60,10 +60,23 @@ def _number(value: Any, *, positive: bool = True) -> bool:
         return False
 
 
+def completed_regular_session(proof, zone, observed):
+    """Validate the chart's dated regular session and final quote timestamp."""
+    if not isinstance(proof, Mapping):
+        return None
+    stamps = [proof.get(key) for key in ("start", "end", "quote_time")]
+    if any(type(stamp) is not int or not 0 < stamp <= observed.timestamp() for stamp in stamps):
+        return None
+    start, end, quote_time = (datetime.fromtimestamp(stamp, timezone.utc).astimezone(zone) for stamp in stamps)
+    if start.date() == end.date() == quote_time.date() and start.weekday() < 5 and start < end <= quote_time:
+        return end
+    return None
+
+
 def fetch_online_company_prices(
     ticker: str, *, observed_at: datetime | None = None,
     fetcher: Callable[[str], tuple[bytes, str]] | None = None, workspace_mode: str = "research",
-    history_range: str = '1y',
+    history_range: str = '1y', include_verified_session_close: bool = False,
 ) -> dict[str, Any]:
     ticker = ticker.strip().upper() if isinstance(ticker, str) else ""
     reason = _scope(workspace_mode)
@@ -97,6 +110,14 @@ def fetch_online_company_prices(
             return _held(ticker, "unsupported_price_currency")
         market_zone = ZoneInfo(meta["exchangeTimezoneName"])
         market_today = observed.astimezone(market_zone).date()
+        regular = meta.get("currentTradingPeriod", {})
+        regular = regular.get("regular") if isinstance(regular, Mapping) else None
+        proof = None
+        if include_verified_session_close and isinstance(regular, Mapping):
+            proof = {"start": regular.get("start"), "end": regular.get("end"),
+                     "quote_time": meta.get("regularMarketTime"), "price": meta.get("regularMarketPrice")}
+        session_end = completed_regular_session(proof, market_zone, observed)
+        admitted_session = None
         timestamps = result["timestamp"]
         quotes = result["indicators"]["quote"]
         if not isinstance(timestamps, list) or not 1 <= len(timestamps) <= PRICE_HISTORY_LIMITS[history_range] or not isinstance(quotes, list) or len(quotes) != 1:
@@ -116,7 +137,11 @@ def fetch_online_company_prices(
             if day in dates:
                 return _held(ticker, "duplicate_daily_price")
             dates.add(day)
-            if day >= market_today:
+            same_day_close = (day == market_today and session_end is not None and session_end.date() == day
+                              and stamp == proof["start"] and _number(proof["price"])
+                              and _number(q["close"][index])
+                              and math.isclose(proof["price"], q["close"][index], rel_tol=1e-7, abs_tol=1e-6))
+            if day >= market_today and not same_day_close:
                 excluded += 1
                 continue
             values = {key: q[key][index] for key in ("open", "high", "low", "close", "volume")}
@@ -128,6 +153,8 @@ def fetch_online_company_prices(
             if values["high"] < max(values["open"], values["low"], values["close"]) or values["low"] > min(values["open"], values["high"], values["close"]):
                 return _held(ticker, "inconsistent_ohlc")
             bars.append({"date": day.isoformat(), **values})
+            if same_day_close:
+                admitted_session = proof
         if not bars:
             return _held(ticker, "no_completed_daily_prices")
         raw_splits = result.get("events", {}).get("splits", {})
@@ -156,6 +183,7 @@ def fetch_online_company_prices(
         "missing_bar_count": missing, "excluded_incomplete_day_count": excluded,
         "adjustment_basis": "provider_close_adjustment_basis_unverified", "issuer_identity_status": "not_reconciled_to_sec",
         "rights_status": "exact_source_unregistered_personal_inspection_only", "commercial_eligible": False,
+        **({"completed_regular_session": admitted_session} if admitted_session else {}),
     }
 
 

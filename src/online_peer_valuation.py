@@ -257,10 +257,17 @@ def _issuer(row, classification, industry_key, as_of):
     _need(stamp<=min(price_observed,_utc_timestamp(row['vendor']['observed_at'])).timestamp(), 'price_quote_chronology_invalid')
     quote_date=datetime.fromtimestamp(stamp,tz=timezone.utc).astimezone(zone).date()
     price_date=_iso_date(prices['last_price_date'])
-    _need(quote_date==price_date and price_date<as_of.astimezone(zone).date() and 0<=(as_of.astimezone(zone).date()-price_date).days<=7,
+    _need(quote_date==price_date and 0<=(as_of.astimezone(zone).date()-price_date).days<=7,
           'quote_not_same_recent_completed_day')
     price=info.get('regularMarketPrice')
     _need(_positive(price) and math.isclose(price,prices['bars'][-1]['close'],rel_tol=1e-7,abs_tol=1e-6), 'quote_and_daily_close_differ')
+    if price_date >= min(price_observed, _utc_timestamp(row['vendor']['observed_at'])).astimezone(zone).date():
+        from src.online_company_prices import completed_regular_session
+        proof=prices.get('completed_regular_session')
+        close=completed_regular_session(proof,zone,price_observed)
+        _need(close is not None and close.date()==price_date and stamp>=close.timestamp()
+              and _positive(proof.get('price')) and math.isclose(proof['price'],price,rel_tol=1e-7,abs_tol=1e-6),
+              'quote_not_same_recent_completed_day')
     eps=_resolved_annual_eps(row,facts,filings,price_date,ticker,cik,as_of)
     if supported:
         _need(all(eps[k]==scope['original_eps'][k] for k in ('period_start','period_end','eps')) and eps['accession']==scope['documents'][0]['accessionNumber'],'selected_security_eps_conflict')

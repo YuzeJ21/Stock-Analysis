@@ -104,3 +104,36 @@ def test_public_mode_cannot_activate_personal_price_inspection():
     from src.online_company_prices import get_online_company_prices
     result = get_online_company_prices("FICT", {}, refresh_requested=True, workspace_mode="public", fetcher=lambda _: pytest.fail("public fetch"))
     assert result["status"] == "unavailable"
+
+
+@pytest.mark.parametrize("case,accepted", [
+    ("completed", True), ("before_close", False), ("wrong_day", False),
+    ("quote_before_close", False), ("price_mismatch", False), ("default", False),
+])
+def test_observation_day_requires_matching_completed_regular_session(case, accepted):
+    from src.online_company_prices import fetch_online_company_prices
+
+    payload = _payload()
+    result = payload["chart"]["result"][0]
+    start = result["timestamp"][-1]
+    end = int(OBSERVED.replace(hour=20).timestamp())
+    result["meta"].update(
+        currentTradingPeriod={"regular": {"start": start, "end": end}},
+        regularMarketTime=end, regularMarketPrice=11,
+    )
+    observed = OBSERVED.replace(hour=21)
+    if case == "before_close":
+        observed = OBSERVED
+    elif case == "wrong_day":
+        result["meta"]["currentTradingPeriod"]["regular"] = {"start": start - 86400, "end": end - 86400}
+        result["meta"]["regularMarketTime"] -= 86400
+    elif case == "quote_before_close":
+        result["meta"]["regularMarketTime"] -= 1
+    elif case == "price_mismatch":
+        result["meta"]["regularMarketPrice"] = 12
+    view = fetch_online_company_prices(
+        "FICT", observed_at=observed, fetcher=_fetch(payload),
+        include_verified_session_close=case != "default",
+    )
+    assert view["last_price_date"] == ("2026-10-30" if accepted else "2026-10-29")
+    assert ("completed_regular_session" in view) is accepted

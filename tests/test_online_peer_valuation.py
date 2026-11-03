@@ -282,3 +282,35 @@ def test_unresolved_peer_identity_keeps_discovery_source_without_a_fabricated_ci
     v=build(c);d=next(r['diagnostics'] for r in v['excluded'] if r['ticker']=='UNKNOWN')
     assert d['candidate_source_ref'].startswith('https://finance.yahoo.com/sectors/')
     assert 'sec_cik' not in d and 'annual_eps_observation' not in d
+
+
+@pytest.mark.parametrize("proof_kind", ["matching", "missing", "wrong_date", "mismatched_price"])
+def test_same_day_observation_needs_close_proof_even_on_later_replay(proof_kind):
+    from src.online_peer_valuation import build_online_peer_valuation
+
+    c = collection()
+    now = datetime(2026, 10, 31, 4, tzinfo=timezone.utc)
+    c["classification"] = classification(observed_at=now)
+    c["industry"]["observed_at"] = c["observed_at"] = now.isoformat()
+    for issuer_row in c["issuers"]:
+        for key in ("facts", "profile", "vendor", "prices"):
+            issuer_row[key]["observed_at"] = now.isoformat()
+    row = c["issuers"][0]
+    prices = row["prices"]
+    prices["observed_at"] = "2026-10-30T21:00:00Z"
+    stamp = row["vendor"]["payload"]["info"]["regularMarketTime"]
+    if proof_kind != "missing":
+        offset = 86400 if proof_kind == "wrong_date" else 0
+        prices["completed_regular_session"] = {
+            "start": stamp - 23400 - offset,
+            "end": stamp - offset,
+            "quote_time": stamp - offset,
+            "price": 31 if proof_kind == "mismatched_price" else 30,
+        }
+    view = build_online_peer_valuation(c, ticker="FICT", as_of=now)
+    if proof_kind == "matching":
+        assert view["status"] == "research_comparison"
+        assert view["subject"]["price_date"] == "2026-10-30"
+    else:
+        assert view["status"] == "withheld"
+        assert view["reason"] == "quote_not_same_recent_completed_day"
