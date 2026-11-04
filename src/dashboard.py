@@ -31342,6 +31342,9 @@ def render_online_coverage_study() -> None:
         with st.spinner("Checking dated LTSE listing evidence…"):
             audit = get_ltse(st.session_state, refresh=requested, user_agent=os.getenv("SEC_USER_AGENT"))
         st.markdown(ltse_html(audit), unsafe_allow_html=True)
+    with st.expander("Green Impact Exchange (GIX) listing check", expanded=False):
+        from src.gix_reconciliation import gix_review_markdown
+        st.markdown(gix_review_markdown())
     with st.expander("Security types · online",expanded=False):
         requested=st.button("Classify observed listings",key="security-classification-refresh")
         classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
