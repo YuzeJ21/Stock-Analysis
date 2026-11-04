@@ -31335,6 +31335,13 @@ def render_online_coverage_study() -> None:
         with st.spinner("Checking dated SEC filings…"):
             audit = get_nyse_texas(st.session_state, refresh=requested, user_agent=os.getenv("SEC_USER_AGENT"))
         st.markdown(reconciliation_html(audit), unsafe_allow_html=True)
+    with st.expander("LTSE listing check", expanded=False):
+        from src.ltse_reconciliation import get_ltse, ltse_html
+        st.caption("Check the share class and both listing venues for three LTSE spotlight companies.")
+        requested = st.button("Check LTSE filings", key="ltse-filing-check")
+        with st.spinner("Checking dated LTSE listing evidence…"):
+            audit = get_ltse(st.session_state, refresh=requested, user_agent=os.getenv("SEC_USER_AGENT"))
+        st.markdown(ltse_html(audit), unsafe_allow_html=True)
     with st.expander("Security types · online",expanded=False):
         requested=st.button("Classify observed listings",key="security-classification-refresh")
         classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
