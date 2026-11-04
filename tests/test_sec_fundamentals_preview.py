@@ -169,6 +169,71 @@ def test_preview_requires_explicit_tickers_and_caps_unique_cohort_at_five():
         parse_preview_tickers("A,B,C,D,E,F")
 
 
+def test_explicit_online_mode_reads_no_csv_and_does_not_report_a_saved_change(tmp_path, monkeypatch):
+    monkeypatch.setattr(pd, "read_csv", lambda *a, **kw: pytest.fail("online review read a CSV"))
+    result = build_sec_fundamentals_preview(
+        "AAPL", canonical_path=None,
+        user_agent="Test test@example.com",
+        retrieval_timestamp="2026-10-30T12:00:00Z",
+        ticker_map_fetcher=lambda *_: _ticker_map_payload(),
+        companyfacts_fetcher=lambda *_: _companyfacts_payload(),
+        cache_dir=tmp_path / "cache",
+    )
+    row = result["tickers"][0]
+    assert result["canonical_comparison_status"] == "not_requested"
+    assert row["status"] == "online_only"
+    assert row["canonical_period_status"] == "not_requested"
+    assert row["changed_fields"] == row["future_apply_candidate_fields"] == []
+    revenue = next(x for x in row["fields"] if x["field"] == "revenue")
+    assert revenue["classification"] == "approved_direct"
+    assert revenue["value_status"] == "not_compared"
+    assert revenue["proposed_delta"] is None
+    assert result["repository_writes"] == []
+    assert not list(tmp_path.iterdir())
+
+
+def test_default_comparison_still_rejects_a_missing_canonical_file(tmp_path):
+    with pytest.raises(ValueError, match="canonical fundamentals file is unavailable"):
+        build_sec_fundamentals_preview("AAPL", canonical_path=tmp_path / "missing.csv")
+
+
+@pytest.mark.parametrize("concept, field", [("OperatingIncomeLoss", "operating_income"), ("Revenues", "revenue")])
+@pytest.mark.parametrize("change", ["boolean", "numeric_string", "conflicting_duplicate"])
+def test_raw_invalid_or_conflicting_facts_do_not_become_approved_after_extraction(concept, field, change):
+    from src.company_sec_online_preview import present_company_sec_annual_preview
+    from src.online_company_analysis import build_online_company_analysis
+
+    payload = _companyfacts_payload()
+    records = payload["facts"]["us-gaap"][concept]["units"]["USD"]
+    if change == "conflicting_duplicate": records.append({**records[0], "val": -999})
+    else: records[0]["val"] = True if change == "boolean" else "-999"
+    result = build_sec_fundamentals_preview(
+        "AAPL", canonical_path=None, staged_path=None,
+        retrieval_timestamp="2026-10-30T12:00:00Z", user_agent="Test test@example.com",
+        ticker_map_fetcher=lambda *_: _ticker_map_payload(), companyfacts_fetcher=lambda *_: payload,
+    )
+    view = present_company_sec_annual_preview("AAPL", result)
+    assert field not in {x["field"] for x in view["approved_direct_fields"]}
+    review = build_online_company_analysis(view)
+    assert "operating_result" not in {x["key"] for x in review["findings"]}
+    if field == "operating_income":
+        assert "operating_cash" in {x["key"] for x in review["findings"]}
+
+
+def test_identical_repeated_raw_fact_remains_inspectable():
+    from src.company_sec_online_preview import present_company_sec_annual_preview
+
+    payload = _companyfacts_payload()
+    records = payload["facts"]["us-gaap"]["OperatingIncomeLoss"]["units"]["USD"]
+    records.append(dict(records[0]))
+    result = build_sec_fundamentals_preview(
+        "AAPL", canonical_path=None, staged_path=None,
+        retrieval_timestamp="2026-10-30T12:00:00Z", user_agent="Test test@example.com",
+        ticker_map_fetcher=lambda *_: _ticker_map_payload(), companyfacts_fetcher=lambda *_: payload,
+    )
+    assert "operating_income" in {x["field"] for x in present_company_sec_annual_preview("AAPL", result)["approved_direct_fields"]}
+
+
 def test_preview_uses_only_official_sec_endpoints_and_writes_no_cache(tmp_path: Path):
     result, urls = _build(tmp_path)
 

@@ -10,6 +10,7 @@ import json
 import math
 import os
 import platform
+import re
 import subprocess
 import sys
 import tempfile
@@ -193,7 +194,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
     ResearchRoute(
         "Discover",
         "/?mode=research&page=discover",
-        "Find a Company",
+        "Search saved companies",
         "Discover",
         ".selector-result-table.research-discover-result",
         "[data-testid='stTextInput'] input[aria-label='Search saved companies']",
@@ -202,7 +203,7 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "Company Workbench",
         "/?mode=research&page=company-workbench&ticker=NVDA&open=1",
         "Company Brief",
-        "Company Workbench",
+        "NVDA Company Brief",
         ".company-workbench-primary-brief[aria-label='Company Brief']",
         ".company-workbench-primary-brief .public-primary-action",
     ),
@@ -434,77 +435,73 @@ def evaluate_discover_action_names(names: Iterable[str]) -> dict[str, object]:
 def evaluate_discover_evidence_access(
     *,
     primary_answer: object,
-    quick_links: Iterable[tuple[object, object]],
-    primary_before_quick_links: bool,
-    quick_links_before_advanced_filters: bool,
+    search_count: int,
+    quick_link_count: int,
+    first_result: tuple[object, object],
+    search_before_answer: bool,
+    answer_before_stop_rule: bool,
+    stop_rule_before_result: bool,
+    result_after_filters: bool,
     expected_strict_count: int | None = None,
 ) -> dict[str, object]:
-    """Require the live Discover answer and compact evidence paths before filters."""
+    """Require search-first Discover and one actual saved-company evidence route."""
 
     answer = str(primary_answer or "").strip()
-    normalized_answer = answer.casefold()
-    answer_parts = answer.split("; ")
-    answer_has_counts = (
-        len(answer_parts) == 2
-        and answer_parts[0].split(" ", 1)[0].replace(",", "").isdigit()
-        and "saved compan" in answer_parts[0].casefold()
-        and "available for evidence review" in normalized_answer
-        and answer_parts[1].split(" ", 1)[0].replace(",", "").isdigit()
-        and "currently pass the strict screen" in normalized_answer
+    count_match = re.fullmatch(
+        r"([\d,]+) saved compan(?:y|ies); ([\d,]+) strict-screen eligible",
+        answer,
+        flags=re.IGNORECASE,
     )
+    answer_has_counts = count_match is not None
     strict_count = (
-        int(answer_parts[1].split(" ", 1)[0].replace(",", ""))
-        if answer_has_counts
+        int(count_match.group(2).replace(",", ""))
+        if count_match is not None
         else None
     )
     strict_count_matches = (
         expected_strict_count is None or strict_count == expected_strict_count
     )
-    observed_links = tuple(
-        (str(label or "").strip(), str(href or "").strip())
-        for label, href in quick_links
+    label = str(first_result[0] or "").strip()
+    href = str(first_result[1] or "").strip()
+    match = re.fullmatch(r"Open ([A-Z0-9][A-Z0-9./-]*) Company Brief", label)
+    ticker = match.group(1) if match else ""
+    parsed = urlparse(href)
+    result_is_bound = bool(ticker) and (
+        not parsed.scheme
+        and not parsed.netloc
+        and parsed.path in {"", "/"}
+        and not parsed.fragment
+        and parse_qs(parsed.query, keep_blank_values=True)
+        == {
+            "mode": ["research"],
+            "page": ["company-workbench"],
+            "ticker": [ticker],
+            "open": ["1"],
+        }
     )
-    tickers: list[str] = []
-    links_are_bound = True
-    for label, href in observed_links:
-        if not label.startswith("Open ") or not label.endswith(" Company Brief"):
-            links_are_bound = False
-            continue
-        ticker = label.removeprefix("Open ").removesuffix(" Company Brief").strip()
-        query = parse_qs(urlparse(href).query)
-        if (
-            not ticker
-            or query.get("mode", [""])[0] != "research"
-            or query.get("page", [""])[0] != "company-workbench"
-            or query.get("ticker", [""])[0].strip().upper() != ticker.upper()
-            or query.get("open", [""])[0] != "1"
-        ):
-            links_are_bound = False
-        tickers.append(ticker)
-    links_are_alphabetical = tickers == sorted(tickers, key=str.casefold)
-    links_are_unique = len(tickers) == len(set(ticker.upper() for ticker in tickers))
     passed = (
         answer_has_counts
         and strict_count_matches
-        and len(observed_links) >= 4
-        and links_are_bound
-        and links_are_unique
-        and links_are_alphabetical
-        and primary_before_quick_links is True
-        and quick_links_before_advanced_filters is True
+        and search_count == 1
+        and quick_link_count == 0
+        and result_is_bound
+        and search_before_answer is True
+        and answer_before_stop_rule is True
+        and stop_rule_before_result is True
+        and result_after_filters is True
     )
     return {
         "passed": passed,
-        "quick_links": observed_links,
+        "first_result": (label, href),
         "detail": (
-            "Discover exposes both live counts and four alphabetical Company Brief evidence paths before advanced filters"
+            "Discover starts with search, live counts, and the first saved-company result after the stop rule"
             if passed
             else (
-                f"answer_has_counts={answer_has_counts}; strict_count={strict_count}; expected_strict_count={expected_strict_count}; quick_link_count={len(observed_links)}; "
-                f"links_are_bound={links_are_bound}; links_are_unique={links_are_unique}; "
-                f"links_are_alphabetical={links_are_alphabetical}; "
-                f"primary_before_quick_links={primary_before_quick_links}; "
-                f"quick_links_before_advanced_filters={quick_links_before_advanced_filters}"
+                f"answer_has_counts={answer_has_counts}; strict_count={strict_count}; expected_strict_count={expected_strict_count}; "
+                f"search_count={search_count}; quick_link_count={quick_link_count}; "
+                f"result_is_bound={result_is_bound}; search_before_answer={search_before_answer}; "
+                f"answer_before_stop_rule={answer_before_stop_rule}; "
+                f"stop_rule_before_result={stop_rule_before_result}; result_after_filters={result_after_filters}"
             )
         ),
     }
@@ -560,7 +557,7 @@ def evaluate_monitor_return_context(
 def evaluate_discover_rows(
     rows: Iterable[dict[str, object]],
 ) -> dict[str, object]:
-    """Require each visible Discover result to answer the three research questions."""
+    """Require compact visible evidence and a closed, complete detail per row."""
 
     expected_labels = (
         "Why inspectable",
@@ -575,9 +572,18 @@ def evaluate_discover_rows(
         failures.append("no visible Discover research rows were rendered")
     for index, row in enumerate(observed, start=1):
         ticker = str(row.get("ticker") or "").strip().upper()
-        labels = tuple(str(value or "").strip() for value in row.get("labels", ()))
-        label_keys = tuple(label.casefold() for label in labels)
-        values = tuple(str(value or "").strip() for value in row.get("values", ()))
+        summary_labels = tuple(
+            str(value or "").strip() for value in row.get("summary_labels", ())
+        )
+        summary_values = tuple(
+            str(value or "").strip() for value in row.get("summary_values", ())
+        )
+        detail_labels = tuple(
+            str(value or "").strip() for value in row.get("detail_labels", ())
+        )
+        detail_values = tuple(
+            str(value or "").strip() for value in row.get("detail_values", ())
+        )
         action_name = str(row.get("action_name") or "").strip()
         action_ticker = str(row.get("action_ticker") or "").strip().upper()
         try:
@@ -587,12 +593,30 @@ def evaluate_discover_rows(
         visible = row.get("visible") is True
         if (
             not visible
-            or label_keys != expected_label_keys
-            or len(values) != 3
-            or any(not value for value in values)
+            or tuple(label.casefold() for label in summary_labels)
+            != ("saved readiness", "")
+            or len(summary_values) != 3
+            or not summary_values[0]
+            or not summary_values[1].casefold().startswith("can inspect: ")
+            or not summary_values[2].casefold().lstrip().startswith("· gap: ")
+            or row.get("summary_answers_visible") is not True
         ):
             failures.append(
-                f"row {index} must expose three visible non-empty answers"
+                f"row {index} must expose a visible compact summary with readiness, usable evidence, and one gap"
+            )
+        if (
+            tuple(label.casefold() for label in detail_labels)
+            != expected_label_keys
+            or len(detail_values) != 3
+            or any(not value for value in detail_values)
+            or row.get("detail_count") != 1
+            or row.get("detail_open") is not False
+            or row.get("detail_summary_visible") is not True
+            or str(row.get("detail_summary_text") or "").strip() != "Evidence details"
+            or row.get("detail_answers_hidden") is not True
+        ):
+            failures.append(
+                f"row {index} must keep three complete answers inside one closed Evidence details disclosure"
             )
         if (
             not ticker
@@ -613,11 +637,40 @@ def evaluate_discover_rows(
         "passed": not failures,
         "actual_count": len(observed),
         "detail": (
-            f"{len(observed)} Discover rows expose three answers and usable actions"
+            f"{len(observed)} Discover rows expose compact summaries, closed evidence details, and usable actions"
             if not failures
             else "; ".join(failures)
         ),
     }
+
+
+def evaluate_integrated_company_workbench(observation, *, expected_ticker="NVDA"):
+    """Require one selected body and five visible, usable section controls."""
+    from src.company_workbench_sections import SECTIONS
+    labels=[label for _,label in SECTIONS]
+    failures=[]
+    def number(key):
+        try:return float(observation.get(key,0))
+        except (TypeError,ValueError):return 0
+    if number('brief_count')!=1 or observation.get('brief_visible') is not True:
+        failures.append('expected one visible company header')
+    if observation.get('display_title')!=expected_ticker.strip().upper()+' Company Brief' or number('h1_count')!=1:
+        failures.append('expected one ticker-bound H1')
+    if (observation.get('sections')!=labels or observation.get('section_visible')!=[True]*5
+        or len(observation.get('section_heights',[]))!=5
+        or any(not isinstance(h,(int,float)) or h<44 for h in observation.get('section_heights',[]))):
+        failures.append('expected five ordered visible 44px sections')
+    if observation.get('selected')!=['概览'] or observation.get('body_headings')!=['概览']:
+        failures.append('expected only the selected overview body')
+    if number('update_count')!=1 or observation.get('update_visible') is not True or number('update_height')<44:
+        failures.append('expected one usable combined update action')
+    scope=str(observation.get('scope_text',''))
+    if any(token not in scope for token in ('模型资格独立','在线事实不更新已保存数据','估值输入或研究记录')):
+        failures.append('missing online-versus-saved model boundary')
+    if number('legacy_module_count')!=0:
+        failures.append('saved modules rendered before explicit selection')
+    return dict(passed=not failures,detail='; '.join(failures) if failures else
+                'one company header, five usable sections and a lazy overview retain the source/model boundary')
 
 
 def evaluate_company_workbench_primary_brief(
@@ -630,8 +683,8 @@ def evaluate_company_workbench_primary_brief(
     expected_labels = (
         "Use now",
         "Still withheld",
-        "What changed",
         "Next research task",
+        "What changed",
     )
     failures: list[str] = []
 
@@ -683,6 +736,16 @@ def evaluate_company_workbench_primary_brief(
         or any(not value for value in answer_texts)
     ):
         failures.append("expected four labelled non-empty primary answers")
+    if tuple(observation.get("answer_visible", ())) != (True, True, True, False):
+        failures.append("next research task must be visible while change details stay collapsed")
+    if (
+        number("change_detail_count") != 1
+        or observation.get("change_detail_open") is not False
+        or observation.get("change_detail_summary_visible") is not True
+        or str(observation.get("change_detail_summary_text") or "").strip().casefold()
+        != "what changed"
+    ):
+        failures.append("expected one closed, visible What changed disclosure")
     if number("stop_count") != 1 or observation.get("stop_visible") is not True:
         failures.append("expected one visible research-only stop rule")
     if any(token not in stop_text.casefold() for token in stop_tokens):
@@ -2839,40 +2902,53 @@ def _discover_action_assertion(page: Any) -> dict[str, object]:
 
 
 def _discover_evidence_access_assertion(page: Any) -> dict[str, object]:
-    """Read the rendered Discover sequence rather than inferring it from source text."""
+    """Read the search-first Discover sequence and its actual saved result."""
 
     observed = page.evaluate(
         """
 () => {
-  const quick = document.querySelector(".discover-quick-company-links");
-  const answer = [...document.querySelectorAll(".sr-answer-panel")].find(
-    (node) => node.innerText.includes("available for evidence review") &&
-      node.innerText.includes("currently pass the strict screen")
+  const searches = [...document.querySelectorAll(
+    "[data-testid='stTextInput'] input[aria-label='Search saved companies']"
+  )];
+  const quickCount = document.querySelectorAll(".discover-quick-company-links a").length;
+  const answer = document.querySelector(".research-discover-scope-counts");
+  const stop = document.querySelector(
+    ".research-discover-scope [data-sr-region='stop-rule']"
   );
   const advanced = [...document.querySelectorAll("details")].find(
     (node) => node.querySelector("summary")?.innerText.trim() ===
       "Advanced: filters and selection guidance"
   );
+  const result = document.querySelector(
+    ".research-discover-result .selector-result-row a.selector-action-link"
+  );
   const before = (first, second) => Boolean(first && second &&
     (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING));
   return {
-    primary_answer: answer?.querySelector("h2")?.innerText.trim() || "",
-    quick_links: quick ? [...quick.querySelectorAll("a")].map((node) => [
-      node.innerText.trim(), node.getAttribute("href") || ""
-    ]) : [],
-    primary_before_quick_links: before(answer, quick),
-    quick_links_before_advanced_filters: before(quick, advanced),
+    primary_answer: answer ? [
+      answer.querySelector("strong")?.textContent.trim() || "",
+      answer.querySelector("span")?.textContent.trim() || "",
+    ].join("; ") : "",
+    search_count: searches.length,
+    quick_link_count: quickCount,
+    first_result: [result?.innerText.trim() || "", result?.getAttribute("href") || ""],
+    search_before_answer: before(searches[0], answer),
+    answer_before_stop_rule: before(answer, stop),
+    stop_rule_before_result: before(stop, result),
+    result_after_filters: before(advanced, result),
   };
 }
 """
     )
     evaluated = evaluate_discover_evidence_access(
         primary_answer=observed.get("primary_answer"),
-        quick_links=tuple(observed.get("quick_links") or ()),
-        primary_before_quick_links=observed.get("primary_before_quick_links") is True,
-        quick_links_before_advanced_filters=(
-            observed.get("quick_links_before_advanced_filters") is True
-        ),
+        search_count=int(observed.get("search_count") or 0),
+        quick_link_count=int(observed.get("quick_link_count") or 0),
+        first_result=tuple(observed.get("first_result") or ("", "")),
+        search_before_answer=observed.get("search_before_answer") is True,
+        answer_before_stop_rule=observed.get("answer_before_stop_rule") is True,
+        stop_rule_before_result=observed.get("stop_rule_before_result") is True,
+        result_after_filters=observed.get("result_after_filters") is True,
     )
     return _assertion(
         "discover_evidence_access_first",
@@ -2889,18 +2965,36 @@ def _discover_rows_assertion(page: Any) -> dict[str, object]:
     for index in range(rows.count()):
         row = rows.nth(index)
         ticker = row.locator(".selector-result-ticker").inner_text().strip()
-        labels = tuple(
-            text.strip()
-            for text in row.locator(
-                ".research-discover-answer-label"
-            ).all_inner_texts()
+        summary_answers = row.locator(
+            ".research-discover-answers > .research-discover-answer"
         )
-        values = tuple(
-            text.strip()
-            for text in row.locator(
+        summary_labels = tuple(
+            (answer.locator(".research-discover-answer-label").first.text_content() or "").strip()
+            if answer.locator(".research-discover-answer-label").count() == 1
+            else ""
+            for answer in (summary_answers.nth(i) for i in range(summary_answers.count()))
+        )
+        summary_values = tuple(
+            (value or "").strip()
+            for value in summary_answers.locator(
                 ".research-discover-answer-value"
-            ).all_inner_texts()
+            ).all_text_contents()
         )
+        detail = row.locator("details.research-discover-details")
+        detail_answers = detail.locator(".research-discover-answer")
+        detail_labels = tuple(
+            (value or "").strip()
+            for value in detail.locator(
+                ".research-discover-answer-label"
+            ).all_text_contents()
+        )
+        detail_values = tuple(
+            (value or "").strip()
+            for value in detail.locator(
+                ".research-discover-answer-value"
+            ).all_text_contents()
+        )
+        detail_summary = detail.locator("summary")
         action = row.locator("a.selector-action-link")
         href = action.get_attribute("href") or ""
         action_ticker = (
@@ -2913,8 +3007,36 @@ def _discover_rows_assertion(page: Any) -> dict[str, object]:
         observed.append(
             {
                 "ticker": ticker,
-                "labels": labels,
-                "values": values,
+                "summary_labels": summary_labels,
+                "summary_values": summary_values,
+                "summary_answers_visible": (
+                    summary_answers.count() == 2
+                    and all(summary_answers.nth(i).is_visible() for i in range(2))
+                ),
+                "detail_labels": detail_labels,
+                "detail_values": detail_values,
+                "detail_count": detail.count(),
+                "detail_open": (
+                    detail.first.get_attribute("open") is not None
+                    if detail.count() == 1
+                    else None
+                ),
+                "detail_summary_visible": (
+                    detail_summary.count() == 1
+                    and detail_summary.first.is_visible()
+                ),
+                "detail_summary_text": (
+                    detail_summary.first.inner_text().strip()
+                    if detail_summary.count() == 1
+                    else ""
+                ),
+                "detail_answers_hidden": (
+                    detail_answers.count() == 3
+                    and all(
+                        not detail_answers.nth(i).is_visible()
+                        for i in range(3)
+                    )
+                ),
                 "action_name": action.inner_text().strip(),
                 "action_ticker": action_ticker,
                 "action_height": geometry.get("height", 0),
@@ -3171,16 +3293,16 @@ def _monitor_return_context_assertion(
 
 
 def _company_workbench_primary_answer_text(answer: Any) -> str:
-    """Read one direct answer body while rejecting missing or ambiguous markup."""
+    """Read one direct answer body, including content in a closed disclosure."""
 
     body = answer.locator(":scope > p, :scope > strong")
-    return body.first.inner_text().strip() if body.count() == 1 else ""
+    return (body.first.text_content() or "").strip() if body.count() == 1 else ""
 
 
 def _company_workbench_display_title(primary: Any, *, brief_count: int) -> str:
-    """Read the one semantic Company Brief H2 without legacy decoration fallback."""
+    """Read the one semantic Company Brief H1 without legacy decoration fallback."""
 
-    title = primary.locator(".company-workbench-primary-heading h2")
+    title = primary.locator(".company-workbench-primary-heading h1")
     if brief_count != 1 or title.count() != 1:
         return ""
     return title.first.inner_text().strip()
@@ -3190,6 +3312,27 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
     brief = page.locator(
         ".company-workbench-primary-brief[aria-label='Company Brief']"
     )
+    if brief.locator(".company-scope-note").count() and page.locator(".st-key-company-section-navigation").count():
+        nav=page.locator('.st-key-company-section-navigation label:has(input[type="radio"])')
+        update=page.get_by_role("button",name="更新财报与价格",exact=True)
+        observation=dict(brief_count=brief.count(),brief_visible=brief.count()==1 and brief.first.is_visible(),
+            display_title=brief.first.locator('h1').inner_text().strip() if brief.count()==1 and brief.first.locator('h1').count()==1 else '',
+            h1_count=page.get_by_role("heading",level=1).count(),
+            sections=[nav.nth(i).inner_text().strip() for i in range(nav.count())],
+            section_visible=[nav.nth(i).is_visible() for i in range(nav.count())],
+            section_heights=[(nav.nth(i).bounding_box() or {}).get('height',0) for i in range(nav.count())],
+            selected=page.locator(".st-key-company-section-navigation label").filter(
+                has=page.locator('input:checked')).all_text_contents(),
+            body_headings=page.locator('.st-key-company-section-body h2').all_text_contents(),
+            update_count=update.count(),update_visible=update.count()==1 and update.first.is_visible(),
+            update_height=(update.first.bounding_box() or {}).get('height',0) if update.count()==1 else 0,
+            scope_text=brief.inner_text(),
+            legacy_module_count=page.get_by_role('heading',name='Research Decision Lab',exact=True).count()
+                +page.get_by_role('heading',name='Scenario Lab',exact=True).count())
+        observation['selected']=[text.strip() for text in observation['selected']]
+        observation['body_headings']=[text.strip() for text in observation['body_headings']]
+        evaluated=evaluate_integrated_company_workbench(observation)
+        return _assertion('company_workbench_primary_brief',evaluated['passed'],evaluated['detail'])
     brief_count = brief.count()
     primary = brief.first if brief_count else brief
     answer_nodes = primary.locator(".company-workbench-primary-answer")
@@ -3212,13 +3355,17 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
     )
     answer_labels: list[str] = []
     answer_texts: list[str] = []
+    answer_visible: list[bool] = []
     for index in range(answer_nodes.count()):
         answer = answer_nodes.nth(index)
         label = answer.locator("span").first
         answer_labels.append(
-            label.inner_text().strip() if label.count() == 1 else ""
+            (label.text_content() or "").strip() if label.count() == 1 else ""
         )
         answer_texts.append(_company_workbench_primary_answer_text(answer))
+        answer_visible.append(answer.is_visible())
+    change_detail = primary.locator("details.company-workbench-follow-up")
+    change_summary = change_detail.locator("summary")
     secondary_module_count = sum(
         page.get_by_role("heading", level=2, name=heading, exact=True).count()
         for heading in (
@@ -3244,6 +3391,21 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
             ),
             "answer_labels": tuple(answer_labels),
             "answer_texts": tuple(answer_texts),
+            "answer_visible": tuple(answer_visible),
+            "change_detail_count": change_detail.count(),
+            "change_detail_open": (
+                change_detail.first.get_attribute("open") is not None
+                if change_detail.count() == 1
+                else None
+            ),
+            "change_detail_summary_visible": (
+                change_summary.count() == 1 and change_summary.first.is_visible()
+            ),
+            "change_detail_summary_text": (
+                change_summary.first.inner_text().strip()
+                if change_summary.count() == 1
+                else ""
+            ),
             "stop_count": stop.count(),
             "stop_visible": stop.count() == 1 and stop.first.is_visible(),
             "stop_text": stop.first.inner_text().strip() if stop.count() == 1 else "",
@@ -3285,11 +3447,11 @@ def _open_company_workbench_modules(
     *,
     timeout_seconds: float,
 ) -> dict[str, object]:
-    button = page.get_by_role(
-        "button",
-        name="Open evidence and analysis modules",
-        exact=True,
-    )
+    section_radio=page.get_by_role('radio',name='研究记录',exact=True)
+    integrated=section_radio.count()==1
+    module_label = "研究过程、历史记录与跟进" if integrated else "Research Decision Lab"
+    button = (page.locator('.st-key-company-section-navigation label').filter(has=section_radio) if integrated else page.get_by_role(
+        "button", name="Open evidence and analysis modules", exact=True))
     if button.count() != 1 or not button.first.is_visible():
         return _assertion(
             "company_workbench_module_open",
@@ -3303,18 +3465,21 @@ def _open_company_workbench_modules(
     try:
         _wait_for_visible_text(
             page,
-            "Research Decision Lab",
+            module_label,
             timeout_seconds=pointer_wait_seconds,
         )
     except TimeoutError:
         if button.count() == 1 and button.first.is_visible():
             activation_attempts += 1
             button.first.focus()
-            button.first.press("Enter")
+            if integrated:
+                section_radio.first.focus()
+                section_radio.first.press("Space")
+            else:button.first.press("Enter")
         try:
             _wait_for_visible_text(
                 page,
-                "Research Decision Lab",
+                module_label,
                 timeout_seconds=max(2.0, timeout_seconds - pointer_wait_seconds),
             )
         except TimeoutError:
@@ -3326,7 +3491,7 @@ def _open_company_workbench_modules(
                 "company_workbench_module_open",
                 False,
                 (
-                    "module-open actions did not restore Research Decision Lab; "
+                    f"module-open actions did not reveal {module_label}; "
                     f"activation_attempts={activation_attempts}; "
                     f"button_remaining={button.count()}; "
                     f"script_state={script_state!r}; "
@@ -3334,16 +3499,15 @@ def _open_company_workbench_modules(
                 ),
             )
     _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
-    decision_lab = page.get_by_role(
-        "heading",
-        level=2,
-        name="Research Decision Lab",
-        exact=True,
+    decision_lab = (
+        page.locator("summary").filter(has=page.get_by_text(module_label, exact=True))
+        if integrated
+        else page.get_by_role("heading", level=2, name=module_label, exact=True)
     )
     composer = page.locator("details").filter(
         has=page.get_by_text("Add a reviewed research record", exact=True)
     )
-    passed = decision_lab.count() == 1 and composer.count() == 1
+    passed = decision_lab.count() == 1 and decision_lab.first.is_visible() and composer.count() == 1
     return _assertion(
         "company_workbench_module_open",
         passed,
@@ -4225,7 +4389,12 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                         }
                     }
                 };
-                if (hitTestEligible) return strictCurrentHitTest();
+                if (hitTestEligible) {
+                    const currentVisible = strictCurrentHitTest();
+                    if (currentVisible || node !== onePager) return currentVisible;
+                    // A tall compound summary may have only its covered footer in view.
+                    // Try its reachable beginning; each required child is checked separately.
+                }
                 const scrollPositions = [];
                 const remembered = new Set();
                 const remember = element => {
@@ -4259,7 +4428,8 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                         }
                         if (['auto', 'scroll'].includes(style.overflowY) &&
                             current.scrollHeight > current.clientHeight + 1) {
-                            if (targetRect.top < ancestorTop) {
+                            if (targetRect.top < ancestorTop ||
+                                node === onePager && targetRect.height > current.clientHeight) {
                                 current.scrollTop += targetRect.top - ancestorTop;
                             } else if (targetRect.bottom > ancestorBottom) {
                                 current.scrollTop += targetRect.bottom - ancestorBottom;
@@ -4272,7 +4442,8 @@ def _company_workbench_one_pager_dom_observation(page: Any) -> dict[str, object]
                     } else if (targetRect.right > window.innerWidth) {
                         scrollingElement.scrollLeft += targetRect.right - window.innerWidth;
                     }
-                    if (targetRect.top < 0) {
+                    if (targetRect.top < 0 ||
+                        node === onePager && targetRect.height > window.innerHeight) {
                         scrollingElement.scrollTop += targetRect.top;
                     } else if (targetRect.bottom > window.innerHeight) {
                         scrollingElement.scrollTop += targetRect.bottom - window.innerHeight;

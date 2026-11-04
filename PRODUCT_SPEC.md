@@ -2,7 +2,7 @@
 
 ## Product Purpose
 
-This project is a local, CSV-first stock research command center. It helps a user understand which tickers are available, which tickers are actively being researched, which analyses are trustworthy today, and what data should be imported next.
+This project is a stock research command center with online, user-requested company evidence and separately qualified saved research. A company lookup does not require per-company CSV preparation. Saved CSV inputs remain a distinct, inspectable baseline for historical models, journals and readiness; online observations do not promote that baseline.
 
 The product is not a trading bot. It does not place orders, connect to brokers, recommend options trades, or fabricate missing market, fundamentals, earnings, or analyst-estimate data.
 
@@ -10,7 +10,11 @@ The supported workflow is `Research Desk -> Discover -> Company Workbench -> Mon
 
 ## In-App Reviewed Research Records
 
-Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer.
+The valuation section also supports an explicit online annual diluted P/E comparison for Personal Research. It requires source-bound issuer/class identity, a completed matched price, directly filed annual GAAP EPS and at least three references passing the disclosed industry and fiscal-calendar rules. Actual dates, field definitions and exclusion reasons remain visible; no saved readiness or record is promoted. See [Online Peer Valuation](docs/ONLINE_PEER_VALUATION.md).
+
+Company Workbench has five sections: **概览、财务趋势、估值与同行、研究记录、数据来源**. Only the selected section renders. **更新财报与价格** requests both existing source adapters; separate financial and price actions remain available. Ordinary section changes reuse successful or unavailable session attempts without fetching. The overview shows directly reported fields and dated prices; annual, direct-quarter and native-currency histories retain their existing source and duration rules. The valuation section reuses saved scenarios and explains missing per-metric peer evidence. The notes section retains thesis, evidence, catalyst, outcome and offline HTML brief tools. Sources retains exact filings, security-type context, raw references and independent readiness/observation evidence. Same-symbol online candidates cannot enter saved models or authoring without separate identity reconciliation.
+
+Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer. It appears inside **研究记录**.
 A valid record requires an exact preview and explicit confirmation before save.
 Final integrity commit `e3a090dba` ensures confirmation appends only the receipt-matched recomputed record and enforces one readable active thesis lineage: revisions must supersede the exact active entry and preserve its thesis ID. The Company Workbench locks and explains that relationship, with temporary-ledger create -> revise -> reload coverage.
 Confirmation-integrity commit `5a6c55921` binds every displayed preview field, preview time, and destination label to the exact receipt. If an append raises after it may have written, confirmation returns one-shot `save_pending_reload` with the exact record ID unless the locked ledger is provably unchanged; it never invites a blind duplicate retry.
@@ -20,7 +24,7 @@ A saved record cannot change readiness, forecasts, probabilities, recommendation
 
 Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.
 Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.
-If the current branch head lacks direct local matrix, branch synchronization, draft-PR update, or exact-head CI evidence, complete those release steps first; otherwise select the first incomplete safe roadmap priority. Modal modifiers and active exposure fail closed. Broad-review repairs must be evaluated only through direct current-head local and exact-head CI evidence; their presence alone establishes neither gate.
+Check release gates for the exact branch head before distribution; local product development follows the Product Decision outcome order in `ROADMAP.md`. Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization. Modal modifiers and active exposure fail closed. Broad-review repairs must be evaluated only through direct current-head local and exact-head CI evidence; their presence alone establishes neither gate.
 
 ## Target User
 

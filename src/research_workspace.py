@@ -920,19 +920,63 @@ def company_workbench_evidence_status_html(
     ticker: str,
     readiness: Mapping[str, object] | None,
     freshness_label: str,
+    report_payload: Mapping[str, object] | None = None,
 ) -> str:
-    """Render the selected company's read-only five-lane evidence status rail."""
+    """Render five saved-readiness lanes with explicit source and period limits."""
 
     def safe_text(value: object, fallback: str) -> str:
         if value is None:
             return fallback
-        text = str(value).strip()
+        text = str(value).strip()[:120]
         return text or fallback
 
     safe_ticker = html.escape(safe_text(ticker, "Selected company"))
     safe_freshness = html.escape(safe_text(freshness_label, "Unavailable"))
     is_missing = readiness is None
     safe_readiness = readiness if isinstance(readiness, Mapping) else {}
+    same_report_identity = (
+        isinstance(report_payload, Mapping)
+        and safe_text(report_payload.get("ticker"), "").upper()
+        == safe_text(ticker, "").upper()
+    )
+    saved_report = report_payload if same_report_identity else {}
+
+    def source_and_period(lane_id: str, state: str) -> tuple[str, str]:
+        section_name = {
+            "fundamentals": "financial_summary",
+            "earnings": "earnings_summary",
+            "estimates": "analyst_estimate_summary",
+        }.get(lane_id)
+        if section_name is None:
+            return "Source unknown", "Period unknown"
+        section = saved_report.get(section_name) if isinstance(saved_report, Mapping) else None
+        if not isinstance(section, Mapping):
+            return "Source unknown", "Period unknown"
+        source = section.get("source")
+        provider = source.get("provider") if isinstance(source, Mapping) else None
+        freshness = source.get("freshness") if isinstance(source, Mapping) else None
+        if isinstance(freshness, str) and freshness.strip().lower() == "not available in local csvs":
+            source_label = "No saved field source"
+        elif isinstance(provider, str) and provider.strip():
+            prefix = (
+                "Saved source label"
+                if state == "Reviewable"
+                else "Saved input label (field withheld)"
+            )
+            source_label = f"{prefix}: {safe_text(provider, '')}"
+        else:
+            source_label = "Source unknown"
+        period_key = "reporting_period" if lane_id == "fundamentals" else "fiscal_period"
+        raw_period = section.get(period_key)
+        period_label = (
+            f"Period: {safe_text(raw_period, '')}"
+            if isinstance(raw_period, str) and raw_period.strip()
+            else "Period unknown"
+        )
+        raw_as_of = section.get("as_of_date") if lane_id == "fundamentals" else None
+        if isinstance(raw_as_of, str) and raw_as_of.strip():
+            period_label += f"; as of {safe_text(raw_as_of, '')}"
+        return source_label, period_label
 
     lanes = (
         ("fundamentals", "Fundamentals", ("fundamentals_ready",)),
@@ -946,6 +990,52 @@ def company_workbench_evidence_status_html(
         ),
     )
 
+    next_checks = {
+        "fundamentals": (
+            "Review field-level source proof",
+            "Verify source, reporting period, and field proof",
+        ),
+        "dcf": (
+            "Inspect model assumptions and input evidence",
+            "Verify cash flow, shares, and balance-sheet inputs",
+        ),
+        "peers": (
+            "Inspect reviewed peer mapping and inputs",
+            "Verify issuer-to-peer mapping and peer inputs",
+        ),
+        "earnings": (
+            "Review field-level source proof",
+            "Add a reviewed earnings period and source",
+        ),
+        "estimates": (
+            "Review field-level source proof",
+            "Add dated, permitted consensus evidence",
+        ),
+    }
+
+    def reported_gap(lane_id: str) -> str:
+        field_key = {
+            "dcf": "dcf_missing_fields",
+            "peers": "relative_missing_fields",
+        }.get(lane_id)
+        if field_key is None or not isinstance(saved_report, Mapping):
+            return ""
+        valuation_readiness = saved_report.get("valuation_readiness")
+        if not isinstance(valuation_readiness, Mapping):
+            return ""
+        missing = valuation_readiness.get(field_key)
+        if not isinstance(missing, (list, tuple)):
+            return ""
+        names = [
+            safe_text(value, "").replace("_", " ").capitalize()
+            for value in missing[:3]
+            if isinstance(value, str) and value.strip()
+        ]
+        if not names:
+            return ""
+        prefix = "Missing saved inputs" if lane_id == "dcf" else "Missing peer inputs"
+        return f"{prefix}: {'; '.join(names)}"
+
     lane_html: list[str] = []
     for lane_id, label, readiness_keys in lanes:
         if is_missing:
@@ -956,13 +1046,26 @@ def company_workbench_evidence_status_html(
                 if any(safe_readiness.get(key) is True for key in readiness_keys)
                 else "Withheld"
             )
+        source_label, period_label = source_and_period(lane_id, state)
+        next_check = (
+            "Verify saved readiness first"
+            if is_missing
+            else next_checks[lane_id][0 if state == "Reviewable" else 1]
+        )
+        if state == "Withheld":
+            next_check = reported_gap(lane_id) or next_check
         lane_html.append(
-            "<article "
+            "<tr "
             f"id='{lane_id}' class='company-workbench-evidence-lane' "
-            f"data-evidence-lane='{html.escape(lane_id, quote=True)}'>"
-            f"<span>{html.escape(label)}</span>"
-            f"<strong>{html.escape(state)}</strong>"
-            "</article>"
+            f"data-evidence-lane='{html.escape(lane_id, quote=True)}' "
+            f"data-evidence-state='{state.lower()}'>"
+            f"<td data-label='Area'><span>{html.escape(label)}</span></td>"
+            f"<td data-label='State'><strong>{html.escape(state)}</strong></td>"
+            "<td data-label='Source and period'>"
+            f"<small>{html.escape(source_label)}</small>"
+            f"<small>{html.escape(period_label)}</small></td>"
+            f"<td data-label='Next check'><small>{html.escape(next_check)}</small></td>"
+            "</tr>"
         )
 
     return (
@@ -972,9 +1075,15 @@ def company_workbench_evidence_status_html(
         "<h2>Company evidence status</h2>"
         f"<span>{safe_ticker} · {safe_freshness}</span>"
         "</div>"
-        "<div class='company-workbench-evidence-lanes'>"
+        "<table class='company-workbench-evidence-lanes company-workbench-evidence-table'>"
+        "<caption>Saved evidence by research lane</caption>"
+        "<thead><tr><th scope='col'>Area</th><th scope='col'>State</th>"
+        "<th scope='col'>Source and period</th><th scope='col'>Next check</th></tr></thead><tbody>"
         + "".join(lane_html)
-        + "</div>"
+        + "</tbody></table>"
+        "<p class='company-workbench-evidence-boundary'>"
+        "Saved readiness does not establish source rights or current-market coverage."
+        "</p>"
         "</aside>"
     )
 
@@ -1001,7 +1110,7 @@ def company_workbench_primary_brief_html(brief: Mapping[str, object]) -> str:
     change_summary = {
         "none": "No source-backed change is queued.",
         "snapshot_only": "Snapshot-only change context is available.",
-        "source_backed": "Source-backed change context is available.",
+        "source_backed": escaped("what_changed", "Source-backed change context is available."),
     }[raw_change_kind]
     change_state = escaped("change_state", "monitor").replace("_", " ")
     task_state = escaped("next_task_state", "wait for evidence").replace("_", " ")
@@ -1009,32 +1118,39 @@ def company_workbench_primary_brief_html(brief: Mapping[str, object]) -> str:
         "<section class='company-workbench-primary-brief' data-sr-region='primary-answer' "
         "aria-label='Company Brief'>"
         "<div class='company-workbench-primary-heading'>"
-        f"<h2>{escaped('ticker', 'Selected company')} Company Brief</h2>"
+        f"<h1>{escaped('ticker', 'Selected company')} Company Brief</h1>"
+        "<span class='company-workbench-brief-mode'>Research only</span>"
         "</div>"
         "<div class='company-workbench-primary-grid'>"
-        "<article class='company-workbench-primary-answer use-now' data-workbench-lane='usable'>"
+        "<article class='company-workbench-primary-answer use-now' data-workbench-lane='usable' data-workbench-priority='primary'>"
         "<span>Use now</span>"
         f"<p>{escaped('use_now', 'No supported evidence lane is available.')}</p>"
         "</article>"
-        "<article class='company-workbench-primary-answer withheld' data-workbench-lane='withheld'>"
+        "<article class='company-workbench-primary-answer withheld' data-workbench-lane='withheld' data-workbench-priority='primary'>"
         "<span>Still withheld</span>"
         f"<p>{escaped('still_withheld', 'Evidence availability is unverified.')}</p>"
         "</article>"
-        "<article class='company-workbench-primary-answer changed' data-workbench-lane='change'>"
+        "<div class='company-workbench-priority-action'>"
+        f"<a class='public-primary-action' data-sr-region='primary-action' href='{href}' target='_self'>{escaped('data_health_label', 'Open Data Health')}</a>"
+        "<p class='company-workbench-primary-stop research-workspace-boundary' data-sr-region='stop-rule'>"
+        f"{escaped('stop_rule', 'Research-only: do not infer a recommendation or unsupported conclusion.')}"
+        "</p>"
+        "</div>"
+        "<article class='company-workbench-primary-answer next-task' data-workbench-lane='next-task' data-workbench-priority='secondary'>"
+        "<span>Next research task</span>"
+        f"<strong>{escaped('next_task_title', 'Wait for reviewed evidence or choose another company')}</strong>"
+        f"<small>{task_state}</small>"
+        "</article>"
+        "<details class='company-workbench-follow-up'>"
+        "<summary>What changed</summary>"
+        "<div class='company-workbench-follow-up-grid'>"
+        "<article class='company-workbench-primary-answer changed' data-workbench-lane='change' data-workbench-priority='secondary'>"
         "<span>What changed</span>"
         f"<p>{change_summary}</p>"
         f"<small>{change_kind} · {change_state}</small>"
         "</article>"
-        "<article class='company-workbench-primary-answer next-task' data-workbench-lane='next-task'>"
-        "<span>Next research task</span>"
-        f"<strong>{escaped('next_task_title', 'Wait for reviewed evidence or choose another company')}</strong>"
-        f"<small>{task_state}</small>"
-        f"<a class='public-primary-action' data-sr-region='primary-action' href='{href}' target='_self'>{escaped('data_health_label', 'Open Data Health')}</a>"
-        "</article>"
+        "</div></details>"
         "</div>"
-        "<p class='company-workbench-primary-stop research-workspace-boundary' data-sr-region='stop-rule'>"
-        f"{escaped('stop_rule', 'Research-only: do not infer a recommendation or unsupported conclusion.')}"
-        "</p>"
         "</section>"
     )
 
@@ -1470,11 +1586,11 @@ def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> 
         "<a class='research-workspace-brand' href='?mode=research&amp;page=research-desk' target='_self'>"
         "<span>Readiness-first</span><strong>Stock Research Command Center</strong></a>"
         f"<div class='research-workflow-routes'>{''.join(links)}{evidence_current}</div>"
-        "<div class='research-workspace-mode' role='group' aria-label='Workspace mode'>"
-        "<span>Workspace mode</span>"
+        "<details class='research-workspace-mode' aria-label='Workspace mode'>"
+        "<summary>Other workspaces</summary><div class='research-workspace-mode-links'>"
         "<a href='?mode=public' target='_self'>Public</a>"
         "<a href='?mode=operator' target='_self'>Operator</a>"
-        "</div></nav>"
+        "</div></details></nav>"
     )
 
 
@@ -1526,9 +1642,12 @@ def research_workspace_header_html(
     primary_action: str,
     compact: bool = False,
     include_boundary: bool = True,
+    context_only: bool = False,
 ) -> str:
     scope = str(ticker or "Focused research scope").strip().upper() if ticker else "Focused research scope"
     header_class = "research-workspace-header compact" if compact else "research-workspace-header"
+    if context_only:
+        header_class += " company-workbench-context-header"
     meta_html = "" if compact else (
         "<dl class='research-workspace-meta'>"
         f"<div class='research-workspace-meta-item research-workspace-freshness'><dt>Saved readiness</dt><dd>{html.escape(str(freshness or 'Check saved readiness'))}</dd></div>"
@@ -1548,10 +1667,14 @@ def research_workspace_header_html(
             ("Mode", "Personal research"),
         )
     ).value
-    title = page_title_html(
-        title=str(page_title or "Research Desk"),
-        purpose=f"{scope} · {str(profile_label or 'Local research')}",
-    ).value
+    title = (
+        ""
+        if context_only
+        else page_title_html(
+            title=str(page_title or "Research Desk"),
+            purpose=f"{scope} · {str(profile_label or 'Local research')}",
+        ).value
+    )
     return (
         f"<section class='{header_class}' aria-label='Personal research workspace'>"
         f"{context}{title}"

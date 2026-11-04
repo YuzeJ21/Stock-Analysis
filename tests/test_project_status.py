@@ -9,6 +9,7 @@ import pytest
 
 import src.project_status as project_status
 from src.continuation_gate import ContinuationGate
+from src.profile_context import CoverageCounts
 from src.project_status import build_project_status_payload, main, write_project_status_output
 
 
@@ -144,6 +145,38 @@ def test_project_status_prefers_central_readiness_dcf_count(tmp_path: Path):
     payload = build_project_status_payload(tmp_path, top_n=3)
 
     assert payload["summary"]["tickers_fundamentals_ready"] == 2
+    assert payload["summary"]["tickers_dcf_ready"] == 1
+    assert payload["coverage_populations"]["working_universe"]["total"] == 1
+    assert payload["coverage_populations"]["saved_readiness"] == {
+        "status": "available",
+        "total": 2,
+        "price_ready": None,
+        "momentum_ready": None,
+        "fundamentals_ready": 2,
+        "dcf_ready": 1,
+        "peer_ready": None,
+        "source": "data/reports/ticker_readiness_report.csv",
+        "profile_key": "default",
+        "data_dir": str(tmp_path / "data"),
+    }
+    assert payload["summary_count_origins"]["tickers_fundamentals_ready"] == "saved_readiness"
+    assert "fundamentals 2/1" not in str(payload["remaining_public_stage_rows"])
+    assert "DCF 1/1" not in str(payload["remaining_public_stage_rows"])
+
+
+def test_project_status_saved_summary_uses_same_valid_rows_as_explicit_population(tmp_path: Path):
+    _write_minimal_local_data(tmp_path)
+    reports_dir = tmp_path / "data" / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame([
+        {"ticker": "NVDA", "fundamentals_ready": True, "dcf_ready": True},
+        {"ticker": "", "fundamentals_ready": True, "dcf_ready": True},
+    ]).to_csv(reports_dir / "ticker_readiness_report.csv", index=False)
+
+    payload = build_project_status_payload(tmp_path, top_n=2)
+
+    assert payload["coverage_populations"]["saved_readiness"]["total"] == 1
+    assert payload["summary"]["tickers_fundamentals_ready"] == 1
     assert payload["summary"]["tickers_dcf_ready"] == 1
 
 
@@ -575,9 +608,13 @@ def test_project_status_write_output_persists_machine_readable_files(tmp_path: P
 
     written_payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert written_payload["summary"]["tickers_total"] == 1
+    assert written_payload["coverage_contract_version"] == 1
+    assert written_payload["coverage_populations"]["working_universe"]["total"] == 1
 
     summary_frame = pd.read_csv(summary_path)
     assert summary_frame.iloc[0]["tickers_total"] == 1
+    assert summary_frame.iloc[0]["working_universe_total"] == 1
+    assert summary_frame.iloc[0]["saved_readiness_status"] == "unavailable"
 
     actions_frame = pd.read_csv(top_actions_path)
     assert actions_frame.iloc[0]["focus_command"] == "make focus-price TICKER=NVDA"
@@ -795,9 +832,9 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
 
     assert "Project status summary:" in output
     assert "First read:" in output
-    assert "Ready in saved snapshot: 1 with price rows, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready." in output
-    assert "Fundamentals/input-ready tickers: 1/2" in output
-    assert "Operating-company DCF-ready tickers: 1/2" in output
+    assert "Ready in saved snapshot: 1/2 price-ready, 1/2 fundamentals/input-ready, 1/2 operating-company DCF-ready, 0/2 peer-ready." in output
+    assert "Saved fundamentals/input-ready tickers: 1/2" in output
+    assert "Saved operating-company DCF-ready tickers: 1/2" in output
     assert "Best next proof: make readiness-preview TOP_N=20" in output
     assert "Read-only project snapshot." in output
     assert "Read-only operator snapshot." not in output
@@ -810,8 +847,8 @@ def test_project_status_cli_check_uses_fast_generated_artifacts(
     assert "data: data" in output
     assert "outputs: outputs" in output
     assert str(tmp_path) not in output
-    assert "Tickers with prices: 1/2" in output
-    assert "Operating-company DCF-ready tickers: 1/2" in output
+    assert "Saved price-ready tickers: 1/2" in output
+    assert "Saved operating-company DCF-ready tickers: 1/2" in output
     assert "Required data sources needing attention: 0" in output
     assert "Optional/manual lanes locked: 2" in output
     assert "make focus-fundamentals TICKER=AMD" not in output
@@ -1750,10 +1787,15 @@ def test_project_status_fast_check_distinguishes_price_rows_from_price_ready(
 
     assert payload is not None
     assert payload["summary"]["tickers_with_prices"] == 2
+    assert payload["summary_count_origins"]["tickers_with_prices"] == "price_coverage_report"
+    coverage_stage = next(row for row in payload["remaining_public_stage_rows"] if row["Stage"] == "Coverage depth")
+    assert coverage_stage["State"] == "ready_with_known_gaps"
+    assert "Saved readiness: price 1/2" in coverage_stage["Evidence"]
     project_status._print_human(payload)
     output = capsys.readouterr().out
-    assert "Ready now: 2 with price rows" in output
-    assert "2 price-ready" not in output
+    assert "Saved price-ready tickers: 1/2" in output
+    assert "Working-universe planning coverage: unavailable" in output
+    assert "Ready now: 2 with price rows" not in output
 
 
 def test_project_status_fast_check_warns_when_source_csv_is_newer(tmp_path: Path):
@@ -1843,7 +1885,7 @@ def test_project_status_cli_check_labels_stale_generated_snapshot_before_counts(
     warning_index = output.index("Warning: Generated status artifacts may be stale")
     summary_index = output.index("Project status summary (stale generated snapshot):")
     ready_index = output.index(
-        "Ready in saved snapshot: 1 with price rows, 1 fundamentals/input-ready, 1 operating-company DCF-ready, 0 peer-ready."
+        "Ready in saved snapshot: 1/2 price-ready, 1/2 fundamentals/input-ready, 1/2 operating-company DCF-ready, 0/2 peer-ready."
     )
 
     assert freshness_index < warning_index < summary_index < ready_index
@@ -2116,6 +2158,243 @@ def test_project_status_stale_gate_suppresses_broad_next_steps(
     assert "Top locked inputs to review:" not in output
     assert "make price-refresh-loop DRY_RUN=1" not in output
     assert "make trusted-data-pilot-candidates TOP_N=10" not in output
+
+
+def test_project_status_human_keeps_saved_readiness_out_of_working_denominator(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=2)
+    assert payload is not None
+    payload["summary"]["tickers_total"] = 4
+    payload["coverage_populations"]["working_universe"] = {
+        "status": "available", "total": 4, "has_prices": 2, "momentum_usable": 2,
+    }
+    payload["remaining_public_stage_rows"] = [
+        {"Stage": "Coverage depth", "State": "price_gap_remaining", "Evidence": "fundamentals 1/4; DCF 1/4"},
+        {"Stage": "Peer readiness upgrade", "State": "awaiting_reviewed_source", "Evidence": "0/4 peer-ready"},
+    ]
+    gate = ContinuationGate(
+        state="inspection_only", next_safe_command="make readiness-preview TOP_N=20",
+        reason="Saved readiness is stale.", rebuild_command="", stop_rule="No broad refresh.",
+        suppress_execution=True,
+    )
+
+    project_status._print_human(
+        payload, continuation_gate=gate,
+        saved_coverage=CoverageCounts(total=2, price_ready=1, fundamentals_ready=1, dcf_ready=1, peer_ready=0),
+    )
+    output = capsys.readouterr().out
+
+    assert "Working-universe planning rows: 4" in output
+    assert "Saved fundamentals/input-ready tickers: 1/2" in output
+    assert "Saved operating-company DCF-ready tickers: 1/2" in output
+    assert "Saved peer-ready tickers: 0/2" in output
+    assert "fundamentals 1/4" not in output
+    assert "DCF 1/4" not in output
+    assert "0/4 peer-ready" not in output
+
+
+def test_fast_status_exposes_saved_coverage_without_inventing_working_coverage(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=2)
+
+    assert payload is not None
+    assert payload["coverage_populations"]["saved_readiness"] == {
+        "status": "available",
+        "total": 2,
+        "price_ready": 1,
+        "momentum_ready": 1,
+        "fundamentals_ready": 1,
+        "dcf_ready": 1,
+        "peer_ready": 0,
+        "source": "data/reports/ticker_readiness_report.csv",
+        "profile_key": "default",
+        "data_dir": str(tmp_path / "data"),
+    }
+    assert payload["coverage_populations"]["working_universe"]["status"] == "unavailable"
+    assert payload["coverage_populations"]["working_universe"]["total"] is None
+    assert "0/2 peer-ready" in str(payload["remaining_public_stage_rows"])
+    assert "Working-universe planning coverage unavailable" in str(payload["remaining_public_stage_rows"])
+
+
+def test_fast_status_marks_legacy_count_unverified_when_saved_flag_is_missing(tmp_path: Path):
+    _write_fast_status_artifacts(tmp_path)
+    report_path = tmp_path / "data" / "reports" / "ticker_readiness_report.csv"
+    frame = pd.read_csv(report_path, dtype=str)
+    frame.loc[0, "price_ready"] = ""
+    frame.to_csv(report_path, index=False)
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=2)
+
+    assert payload is not None
+    assert payload["coverage_populations"]["saved_readiness"]["price_ready"] is None
+    assert payload["summary_count_origins"]["tickers_price_ready"] == "saved_readiness_unverified"
+    assert payload["summary_coverage_authority"] == "coverage_populations"
+
+
+def test_working_population_does_not_count_false_text_as_true():
+    population = project_status._working_universe_population(
+        [
+            {"has_prices": "False", "usable_for_momentum": "False"},
+            {"has_prices": "True", "usable_for_momentum": "yes"},
+        ]
+    )
+
+    assert population == {
+        "status": "available", "total": 2, "has_prices": 1, "momentum_usable": 1,
+    }
+
+
+def test_saved_population_uses_profile_readiness_truth_values(tmp_path: Path):
+    report_path = tmp_path / "data" / "reports" / "ticker_readiness_report.csv"
+    report_path.parent.mkdir(parents=True)
+    pd.DataFrame([{
+        "ticker": "NVDA", "price_ready": "ready", "momentum_ready": "y",
+        "fundamentals_ready": "yes", "dcf_ready": "1", "peer_ready": "False",
+    }]).to_csv(report_path, index=False)
+
+    population = project_status._saved_readiness_population(tmp_path, tmp_path / "data")
+
+    assert population["price_ready"] == 1
+    assert population["momentum_ready"] == 1
+    assert population["fundamentals_ready"] == 1
+    assert population["dcf_ready"] == 1
+    assert population["peer_ready"] == 0
+
+
+def test_saved_population_truncated_row_withholds_unknown_flags(tmp_path: Path):
+    report_path = tmp_path / "data" / "reports" / "ticker_readiness_report.csv"
+    report_path.parent.mkdir(parents=True)
+    report_path.write_text(
+        "ticker,price_ready,momentum_ready,fundamentals_ready,dcf_ready,peer_ready\nAAA\n",
+        encoding="utf-8",
+    )
+
+    population = project_status._saved_readiness_population(tmp_path, tmp_path / "data")
+
+    assert population["status"] == "available"
+    assert population["total"] == 1
+    assert population["price_ready"] is None
+    assert population["momentum_ready"] is None
+    assert population["fundamentals_ready"] is None
+    assert population["dcf_ready"] is None
+    assert population["peer_ready"] is None
+
+
+def test_status_coverage_sections_identify_selected_profile(tmp_path: Path, monkeypatch):
+    _write_fast_status_artifacts(tmp_path)
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "default")
+
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=2)
+
+    assert payload is not None
+    assert payload["profile_key"] == "default"
+    for population in payload["coverage_populations"].values():
+        assert population["profile_key"] == "default"
+        assert population["data_dir"] == str(tmp_path / "data")
+
+
+def test_status_header_missing_readiness_column_is_unavailable(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    report_path = tmp_path / "data" / "reports" / "ticker_readiness_report.csv"
+    frame = pd.read_csv(report_path).drop(columns=["price_ready"])
+    frame.to_csv(report_path, index=False)
+
+    main(["--check", "--project-root", str(tmp_path), "--top-n", "2"])
+    output = capsys.readouterr().out
+
+    assert "Saved readiness coverage: price=unavailable; fundamentals=1/2" in output
+    assert "Saved readiness coverage: price=0/2" not in output
+
+
+def test_population_evidence_does_not_change_stage_decisions():
+    rows = [
+        {"Stage": "Peer readiness upgrade", "State": "awaiting_reviewed_source", "Diagnostic State": "source_gated", "Next Action": "Review peers", "Evidence": "legacy"},
+        {"Stage": "Coverage depth", "State": "ready_with_known_gaps", "Next Action": "Review coverage", "Evidence": "legacy"},
+    ]
+    populations = {
+        "saved_readiness": {
+            "status": "available", "total": 2, "price_ready": 1, "momentum_ready": 1,
+            "fundamentals_ready": 1, "dcf_ready": 1, "peer_ready": 1,
+        },
+        "working_universe": {
+            "status": "unavailable", "total": None, "has_prices": None, "momentum_usable": None,
+        },
+    }
+
+    updated = project_status._apply_population_stage_evidence(rows, populations)
+
+    assert [{key: value for key, value in row.items() if key != "Evidence"} for row in updated] == [
+        {key: value for key, value in row.items() if key != "Evidence"} for row in rows
+    ]
+    assert "Saved peer-ready: 1/2" in updated[0]["Evidence"]
+    assert "Working-universe planning coverage unavailable" in updated[1]["Evidence"]
+
+
+def test_population_evidence_withholds_malformed_saved_status_count():
+    rows = [{"Stage": "Coverage depth", "State": "price_gap_remaining", "Evidence": "legacy"}]
+    populations = {
+        "saved_readiness": {"status": "available", "total": 2, "price_ready": 1},
+        "working_universe": {"status": "available", "total": "bad", "has_prices": 1, "momentum_usable": 1},
+    }
+
+    updated = project_status._apply_population_stage_evidence(rows, populations)
+
+    assert "Working-universe planning: price rows unavailable" in updated[0]["Evidence"]
+    assert updated[0]["State"] == "price_gap_remaining"
+
+
+def test_project_status_human_uses_explicit_cohorts_even_when_totals_match(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=2)
+    assert payload is not None
+    payload["coverage_populations"] = {
+        "saved_readiness": {
+            "status": "available", "total": 2, "price_ready": 1,
+            "momentum_ready": 1, "fundamentals_ready": 1,
+            "dcf_ready": 1, "peer_ready": 0,
+        },
+        "working_universe": {
+            "status": "available", "total": 2,
+            "has_prices": 2, "momentum_usable": 2,
+        },
+    }
+
+    project_status._print_human(payload)
+    output = capsys.readouterr().out
+
+    assert "Saved price-ready tickers: 1/2" in output
+    assert "Working-universe price rows: 2/2" in output
+    assert "Saved fundamentals/input-ready tickers: 1/2" in output
+    assert "Ready in saved snapshot: 1/2 price-ready" in output
+    assert "Ready now: 2 with price rows" not in output
+
+
+def test_project_status_human_does_not_count_missing_readiness_as_zero(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str],
+):
+    _write_fast_status_artifacts(tmp_path)
+    payload = project_status._fast_status_payload_from_outputs(tmp_path, top_n=2)
+    assert payload is not None
+    payload["summary"]["tickers_total"] = 4
+    payload["coverage_populations"]["saved_readiness"] = {
+        "status": "unavailable", "total": None, "price_ready": None,
+        "momentum_ready": None, "fundamentals_ready": None,
+        "dcf_ready": None, "peer_ready": None,
+    }
+
+    project_status._print_human(payload, saved_coverage=CoverageCounts())
+    output = capsys.readouterr().out
+
+    assert "Saved readiness coverage: unavailable (no verified saved readiness rows)" in output
+    assert "0/0" not in output
+    assert "Ready in saved snapshot: 1 with price rows" not in output
 
 
 def test_project_status_json_includes_fail_closed_continuation_gate(

@@ -119,8 +119,13 @@ def load_bounded_field_study(root: Path | str, *, profile_key: str, data_dir: Pa
     paths = tuple(selected_root / "outputs" / "local" / name for name in SAVED_NAMES)
     try:
         before, after = (json.loads(path.read_text(encoding="utf-8")) for path in paths)
-    except (OSError, UnicodeError, json.JSONDecodeError):
-        return _unavailable("Comparable saved field reports are unavailable locally.")
+    except OSError:
+        return _unavailable(
+            "Two saved local evidence inspections are not available in this workspace. "
+            "Field changes remain withheld."
+        )
+    except (UnicodeError, json.JSONDecodeError):
+        return _unavailable("The saved field reports could not be verified.")
     if not _valid_report(before) or not _valid_report(after):
         return _unavailable("The saved field reports could not be verified.")
     comparison = compare_reports(before, after)

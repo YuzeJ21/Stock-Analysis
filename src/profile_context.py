@@ -19,6 +19,7 @@ from src.paths import (
     resolve_outputs_dir,
     resolve_project_root,
 )
+from src.readiness_coverage import coverage_fraction, inspect_saved_readiness, parse_readiness_flag
 
 
 READINESS_FILES = (
@@ -103,7 +104,7 @@ def _read_csv(path: Path) -> list[dict[str, str]]:
 
 
 def _truthy(value: object) -> bool:
-    return str(value or "").strip().lower() in {"true", "1", "yes", "y", "ready"}
+    return parse_readiness_flag(value) is True
 
 
 def _coverage_counts(path: Path) -> CoverageCounts:
@@ -379,7 +380,7 @@ def build_profile_context(
 
 
 def render_profile_context_text(context: ProfileContext) -> str:
-    coverage = context.coverage
+    coverage = inspect_saved_readiness(context.data_dir / READINESS_FILES[0])
     return "\n".join(
         [
             f"Profile: {context.profile_label} ({context.profile_key})",
@@ -392,9 +393,9 @@ def render_profile_context_text(context: ProfileContext) -> str:
                 f"{context.readiness_evidence_state} - {context.readiness_evidence_message}"
             ),
             (
-                f"Saved readiness coverage: price={coverage.price_ready}/{coverage.total}; "
-                f"fundamentals={coverage.fundamentals_ready}/{coverage.total}; "
-                f"DCF={coverage.dcf_ready}/{coverage.total}; peers={coverage.peer_ready}/{coverage.total}"
+                f"Saved readiness coverage: price={coverage_fraction(coverage, 'price_ready')}; "
+                f"fundamentals={coverage_fraction(coverage, 'fundamentals_ready')}; "
+                f"DCF={coverage_fraction(coverage, 'dcf_ready')}; peers={coverage_fraction(coverage, 'peer_ready')}"
             ),
         ]
     )
@@ -404,6 +405,8 @@ def profile_context_payload(context: ProfileContext) -> dict[str, object]:
     payload = asdict(context)
     payload["data_dir"] = str(context.data_dir)
     payload["outputs_dir"] = str(context.outputs_dir)
+    payload["verified_coverage"] = inspect_saved_readiness(context.data_dir / READINESS_FILES[0])
+    payload["coverage_count_authority"] = "verified_coverage"
     return payload
 
 

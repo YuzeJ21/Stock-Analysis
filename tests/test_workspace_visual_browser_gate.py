@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import textwrap
 from pathlib import Path
@@ -9,10 +10,236 @@ from pathlib import Path
 import pytest
 
 
+def test_company_workbench_sec_component_proof_requires_click_and_reflows_at_phone_size(
+    tmp_path, monkeypatch
+):
+    """An online check must expose exact component proof only after the user asks."""
+    from playwright.sync_api import sync_playwright
+    from src.research_accessibility_browser_gate import _captured_local_demo_server
+    from src.workspace_visual_browser_gate import find_chrome_executable
+
+    calls_path = tmp_path / "sec-preview-calls.txt"
+    bootstrap_dir = tmp_path / "bootstrap"
+    bootstrap_dir.mkdir()
+    bootstrap_code = textwrap.dedent(
+        """
+        from pathlib import Path
+        import src.sec_fundamentals_preview as sec_preview
+
+        CALLS = Path(__CALLS_PATH__)
+        SOURCE_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK0000001234.json"
+        ACCESSION = "0000001234-26-000001"
+
+        def _field(name, concept, value):
+            return {
+                "field": name,
+                "value_kind": "direct",
+                "classification": "approved_direct",
+                "field_scope_status": "approved",
+                "source_rights_status": "approved",
+                "commercial_rights_approved": True,
+                "publishability_blocker": (
+                    "none" if name == "revenue" else
+                    "Direct SEC field is approved, but adding a canonical column "
+                    "requires a separate schema decision."
+                ),
+                "candidate_value": value,
+                "unit": "USD",
+                "form": "10-K",
+                "sec_cik": "0000001234",
+                "accession": ACCESSION,
+                "period_start": "2025-01-01",
+                "period_end": "2025-12-31",
+                "filing_date": "2026-03-01",
+                "source_url": SOURCE_URL,
+                    "retrieval_timestamp": "2026-10-29T19:00:00Z",
+                "schema_status": "candidate_component_not_canonical",
+                "source_refs": [{
+                    "source_url": SOURCE_URL,
+                    "retrieval_timestamp": "2026-10-29T19:00:00Z",
+                    "taxonomy": "us-gaap",
+                    "concept": concept,
+                    "unit": "USD",
+                    "underlying_fact_unit": "USD",
+                    "period_start": "2025-01-01",
+                    "period_end": "2025-12-31",
+                    "filed": "2026-03-01",
+                    "form": "10-K",
+                    "accession": ACCESSION,
+                    "fiscal_year": 2025,
+                    "fiscal_period": "FY",
+                }],
+            }
+
+        def _synthetic_preview(ticker, *, user_agent, canonical_path=None, staged_path=None, companyfacts_fetcher=None, ticker_map_fetcher=None):
+            assert canonical_path is None and staged_path is None
+            assert callable(companyfacts_fetcher)
+            assert callable(ticker_map_fetcher)
+            with CALLS.open("a", encoding="utf-8") as handle:
+                handle.write(ticker + "\\n")
+            return {
+                "status": "inspection_only",
+                "source": "sec_companyfacts",
+                "requested_tickers": [ticker],
+                "retrieval_timestamp": "2026-10-29T19:00:00Z",
+                "source_rights_mutated": False,
+                "canonical_apply_authorized": False,
+                "repository_writes": [],
+                "tickers": [{
+                    "ticker": ticker,
+                    "status": "compared",
+                    "sec_cik": "0000001234",
+                    "candidate_source_url": SOURCE_URL,
+                    "candidate_accession": ACCESSION,
+                    "candidate_filing_date": "2026-03-01",
+                    "candidate_period_end": "2025-12-31",
+                    "fields": [
+                        _field("revenue", "Revenues", 1_000_000),
+                        {
+                            **_field("free_cash_flow", "SyntheticDerivedValue", 210_000),
+                            "classification": "derived_scope_review_required",
+                            "field_scope_status": "review_required",
+                        },
+                    ],
+                    "source_components": [
+                        _field("operating_income", "OperatingIncomeLoss", 180_000),
+                        _field("cash_from_operations", "NetCashProvidedByUsedInOperatingActivities", 250_000),
+                        _field("capital_expenditures", "PaymentsToAcquirePropertyPlantAndEquipment", 40_000),
+                    ],
+                }],
+            }
+
+        sec_preview.build_sec_fundamentals_preview = _synthetic_preview
+        """
+    ).replace("__CALLS_PATH__", repr(str(calls_path)))
+    (bootstrap_dir / "sitecustomize.py").write_text(bootstrap_code, encoding="utf-8")
+    monkeypatch.setenv("PYTHONPATH", str(bootstrap_dir) + os.pathsep + os.environ.get("PYTHONPATH", ""))
+    monkeypatch.setenv("SEC_USER_AGENT", "Synthetic browser check contact@example.invalid")
+
+    def call_count() -> int:
+        return len(calls_path.read_text(encoding="utf-8").splitlines()) if calls_path.exists() else 0
+
+    root = Path(__file__).resolve().parents[1]
+    with _captured_local_demo_server(root, timeout_seconds=45) as server:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(
+                executable_path=find_chrome_executable(), headless=True
+            )
+            try:
+                proof_weights = []
+                for width, height in ((1280, 720), (390, 844)):
+                    page = browser.new_page(viewport={"width": width, "height": height})
+                    page.goto(
+                        server.base_url + "/?mode=research&page=company-workbench&ticker=AMD&open=1&section=sources",
+                        wait_until="domcontentloaded",
+                        timeout=45_000,
+                    )
+                    page.get_by_role("heading",name="数据来源",exact=True).wait_for(state="visible")
+                    page.get_by_text("分别更新",exact=True).click()
+                    check = page.get_by_role("button", name="只更新财报",exact=True)
+                    check.wait_for(state="visible", timeout=45_000)
+                    before_click = call_count()
+                    assert page.get_by_text("使用上方更新操作取得本公司的字段证据。",exact=True).count()==1
+                    assert page.get_by_role("heading", name="Annual filing field evidence").count() == 0
+                    assert call_count() == before_click
+
+                    check.click()
+                    page.get_by_text("财报字段与原始来源",exact=True).click()
+                    page.get_by_role("heading", name="Annual filing field evidence").wait_for(
+                        state="visible", timeout=45_000
+                    )
+                    assert call_count() == before_click + 1
+                    table = page.get_by_role("region", name="Annual filing fields")
+                    assert table.is_visible()
+                    for label, concept in (
+                        ("Operating Income", "OperatingIncomeLoss"),
+                        ("Cash From Operations", "NetCashProvidedByUsedInOperatingActivities"),
+                        ("Capital Expenditures", "PaymentsToAcquirePropertyPlantAndEquipment"),
+                    ):
+                        row = table.get_by_role("row", name=re.compile(label))
+                        proof = row.inner_text()
+                        assert f"Source: us-gaap:{concept}" in proof
+                        assert "Period: 2025-01-01 to 2025-12-31" in proof
+                        assert "Observed: 2026-10-29T19:00:00Z" in proof
+                        assert "Field scope: approved; raw redistribution held" in proof
+                        assert "Canonical schema: review required" in proof
+                    withheld = table.get_by_role("row", name=re.compile("Free Cash Flow"))
+                    assert "Withheld · Derived field scope needs review" in withheld.inner_text()
+                    region_width = table.evaluate(
+                        "(element) => ({ client: element.clientWidth, scroll: element.scrollWidth })"
+                    )
+                    assert region_width["scroll"] <= region_width["client"] + 1
+                    proof_weight = table.locator(".sec-annual-field-proof").first.evaluate(
+                        "(element) => Number(getComputedStyle(element).fontWeight)"
+                    )
+                    proof_weights.append(proof_weight)
+                    assert page.evaluate(
+                        "document.documentElement.scrollWidth <= window.innerWidth + 1"
+                    )
+                    page.close()
+                assert all(weight <= 500 for weight in proof_weights)
+            finally:
+                browser.close()
+
+
+def test_company_workbench_phone_evidence_caption_and_period_share_readable_width(tmp_path):
+    """The reusable saved-evidence table retains phone width in the Sources slot."""
+    from playwright.sync_api import sync_playwright
+    from src.research_accessibility_browser_gate import _captured_local_demo_server
+    from src.workspace_visual_browser_gate import find_chrome_executable
+
+    root = Path(__file__).resolve().parents[1]
+    (tmp_path/'src').mkdir()
+    (tmp_path/'src/dashboard.py').write_text(
+        "import sys\nimport streamlit as st\nsys.path.insert(0,"+repr(str(root))+")\n"
+        "from src.dashboard import apply_dashboard_theme,render_research_workspace_styles,company_workbench_evidence_status_html\n"
+        "from src.company_workbench_ui import render_integrated_company\n"
+        "apply_dashboard_theme()\nrender_research_workspace_styles()\n"
+        "def sources(bundle):\n"
+        " with st.container(key='company-workbench-document'):\n"
+        "  st.markdown(company_workbench_evidence_status_html(ticker='AVGO',readiness={'price_ready':False,'dcf_ready':False,'peer_ready':False,'earnings_ready':False,'analyst_estimates_ready':False},freshness_label='Synthetic unavailable',report_payload={'ticker':'AVGO','financial_summary':{'source':{'provider':'synthetic-source'},'reporting_period':'Synthetic period'}}),unsafe_allow_html=True)\n"
+        "render_integrated_company(st,'AVGO',profile_scope='synthetic',saved_available=False,render_saved=lambda section:None,render_sources=sources)\n")
+    with _captured_local_demo_server(tmp_path, timeout_seconds=45) as server:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(
+                executable_path=find_chrome_executable(), headless=True
+            )
+            try:
+                page = browser.new_page(viewport={"width": 390, "height": 844})
+                page.goto(
+                    server.base_url + "/?section=sources",
+                    wait_until="domcontentloaded",
+                    timeout=45_000,
+                )
+                page.locator(".company-workbench-evidence-lane").first.wait_for(
+                    state="attached", timeout=45_000
+                )
+                observed = page.evaluate("""() => {
+                  const table = document.querySelector('.company-workbench-evidence-table');
+                  const caption = table?.querySelector('caption');
+                  const source = table?.querySelector('tbody tr:first-child td[data-label="Source and period"]');
+                  const lines = [...(source?.querySelectorAll('small') || [])];
+                  if (!table || !caption || lines.length !== 2) return null;
+                  const tableWidth = table.getBoundingClientRect().width;
+                  const firstLeft = lines[0].getBoundingClientRect().left;
+                  const secondLeft = lines[1].getBoundingClientRect().left;
+                  return {
+                    caption_wide: caption.getBoundingClientRect().width >= tableWidth * .8,
+                    source_lines_aligned: Math.abs(firstLeft - secondLeft) <= 1,
+                  };
+                }""")
+                assert observed == {
+                    "caption_wide": True,
+                    "source_lines_aligned": True,
+                }
+            finally:
+                browser.close()
+
+
 @pytest.mark.parametrize(
     ("route", "final_selector"),
     (
-        ("/?mode=research&page=company-workbench&ticker=AVGO&open=1", ".company-workbench-primary-brief"),
+        ("/?mode=research&page=company-workbench&ticker=AVGO&open=1&section=valuation", ".company-valuation"),
         ("/?mode=public&page=single-stock-report&ticker=AVGO&open=1", ".public-ticker-summary"),
     ),
 )
@@ -57,20 +284,32 @@ def test_task4_production_report_cold_transition_is_neutral_then_resolved(
                     page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
                     page.add_init_script("""
               window.__cold = [];
-              new MutationObserver(() => { const loader=document.querySelector('.single-stock-loading-state[role="status"][aria-live="polite"][aria-busy="true"]'); const final=document.querySelectorAll(%s); if (loader || final.length) window.__cold.push({kind:loader?'loader':'final', loader:!!loader, final:final.length, text:loader?.innerText||'', contained:!!loader?.closest('[data-sr-region="primary-answer"], .company-workbench-primary-brief')}); }).observe(document,{childList:true,subtree:true});
+              new MutationObserver(() => { const loader=document.querySelector('.single-stock-loading-state[role="status"][aria-live="polite"][aria-busy="true"]'); const final=document.querySelectorAll(%s); if (loader || final.length) window.__cold.push({kind:loader?'loader':'final', loader:!!loader, final:final.length, text:loader?.textContent||'', contained:!!loader?.closest('[data-sr-region="primary-answer"], .company-workbench-primary-brief')}); }).observe(document,{childList:true,subtree:true});
             """ % json.dumps(final_selector))
                     page.goto(server.base_url + route, wait_until="domcontentloaded")
-                    page.wait_for_selector(final_selector, state="visible", timeout=30000)
+                    final = page.locator(final_selector)
+                    if "mode=research" in route:
+                        final.wait_for(state="attached", timeout=30000)
+                        assert not final.is_visible()
+                        page.get_by_text("已保存的估值与情景分析", exact=True).click()
+                    final.wait_for(state="visible", timeout=30000)
                     observed = page.evaluate("() => window.__cold")
                     loader = [row for row in observed if row["loader"]]
                     assert observed and observed[0]["kind"] == "loader" and loader[0]["contained"]
                     assert all(row["final"] == 0 for row in loader)
-                    assert "No data is being refreshed or changed" in loader[0]["text"]
-                    assert "does not state that any analysis section is ready or blocked" in loader[0]["text"].lower()
+                    # Streamlit may attach the status node before its text arrives.
+                    assert any(
+                        "No data is being refreshed or changed" in row["text"]
+                        and "does not state that any analysis section is ready or blocked" in row["text"].lower()
+                        for row in loader
+                    )
                     assert page.locator(final_selector).count() == 1
                     resolved_text = page.locator(final_selector).inner_text()
                     resolved_url = page.url
-                    assert "AVGO" in resolved_text
+                    if "mode=research" in route:
+                        assert page.get_by_role("heading",level=1,name="AVGO Company Brief",exact=True).count()==1
+                    else:
+                        assert "AVGO" in resolved_text
                     assert page.locator(".single-stock-loading-state, [aria-busy='true']").count() == 0
                     assert resolved_url == server.base_url + route and "ticker=AVGO" in resolved_url
                     page.wait_for_timeout(500)
@@ -192,7 +431,7 @@ def test_pure_browser_evaluators_use_one_pixel_tolerance_and_44_pixel_targets():
 
 
 def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_layout():
-    """Catches a rail, title, action, or responsive order drifting from the brief."""
+    """Catches a missing source section, title, action, or document order."""
 
     from src.workspace_visual_browser_gate import (
         evaluate_company_workbench_document_contract,
@@ -213,7 +452,12 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         "aside_count": 1,
         "aside_visible_count": 1,
         "aside_labelled_count": 1,
+        "sec_count": 1,
+        "sec_visible_count": 1,
+        "sec_labelled_count": 1,
         "evidence_lane_count": 5,
+        "change_detail_count": 1,
+        "change_detail_open_count": 0,
         "positive_tabindex_count": 0,
         "primary_action_count": 1,
         "primary_action_visible_count": 1,
@@ -221,14 +465,14 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         "primary_action_height": 44,
         "module_gate_count": 1,
         "module_gate_visible_count": 1,
-        "brief_box": {"left": 16, "right": 1030, "top": 220, "bottom": 620},
-        "aside_box": {"left": 1060, "right": 1424, "top": 220, "bottom": 650},
-        "module_gate_box": {"left": 16, "right": 1030, "top": 680, "bottom": 724},
+        "brief_box": {"left": 16, "right": 1424, "top": 220, "bottom": 620},
+        "aside_box": {"left": 16, "right": 1424, "top": 650, "bottom": 1100},
+        "sec_box": {"left": 16, "right": 1424, "top": 1120, "bottom": 1420},
+        "module_gate_box": {"left": 16, "right": 1424, "top": 1450, "bottom": 1494},
         "brief_lane_boxes": (
-            {"left": 16, "right": 260, "top": 300, "bottom": 460},
-            {"left": 270, "right": 514, "top": 300, "bottom": 460},
-            {"left": 524, "right": 768, "top": 300, "bottom": 460},
-            {"left": 778, "right": 1030, "top": 300, "bottom": 460},
+            {"name": "usable", "left": 16, "right": 700, "top": 300, "bottom": 430},
+            {"name": "withheld", "left": 720, "right": 1424, "top": 300, "bottom": 430},
+            {"name": "next-task", "left": 16, "right": 1424, "top": 450, "bottom": 500},
         ),
     }
     assert evaluate_company_workbench_document_contract(**desktop).passed
@@ -239,12 +483,12 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         "phone_layout": True,
         "brief_box": {"left": 12, "right": 378, "top": 340, "bottom": 1040},
         "aside_box": {"left": 12, "right": 378, "top": 1060, "bottom": 1540},
-        "module_gate_box": {"left": 12, "right": 378, "top": 1560, "bottom": 1604},
+        "sec_box": {"left": 12, "right": 378, "top": 1560, "bottom": 1900},
+        "module_gate_box": {"left": 12, "right": 378, "top": 1920, "bottom": 1964},
         "brief_lane_boxes": (
-            {"left": 12, "right": 378, "top": 430, "bottom": 550},
-            {"left": 12, "right": 378, "top": 560, "bottom": 680},
-            {"left": 12, "right": 378, "top": 690, "bottom": 810},
-            {"left": 12, "right": 378, "top": 820, "bottom": 980},
+            {"name": "usable", "left": 12, "right": 378, "top": 430, "bottom": 550},
+            {"name": "withheld", "left": 12, "right": 378, "top": 560, "bottom": 680},
+            {"name": "next-task", "left": 12, "right": 378, "top": 690, "bottom": 810},
         ),
     }
     assert evaluate_company_workbench_document_contract(**phone).passed
@@ -254,6 +498,11 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         "viewport_width": 720,
         "zoom": 2,
         "phone_layout": False,
+        "brief_lane_boxes": (
+            {"name": "usable", "left": 12, "right": 190, "top": 430, "bottom": 550},
+            {"name": "withheld", "left": 200, "right": 378, "top": 430, "bottom": 550},
+            {"name": "next-task", "left": 12, "right": 378, "top": 560, "bottom": 680},
+        ),
     }
     assert evaluate_company_workbench_document_contract(**zoomed_desktop).passed
 
@@ -265,10 +514,13 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
         {"aside_count": 0},
         {"aside_visible_count": 0},
         {"aside_labelled_count": 0},
+        {"sec_visible_count": 0},
+        {"sec_labelled_count": 0},
+        {"change_detail_open_count": 1},
         {"positive_tabindex_count": 1},
         {"primary_action_height": 43.9},
         {"module_gate_visible_count": 0},
-        {"brief_box": {"left": 16, "right": 1200, "top": 220, "bottom": 620}},
+        {"sec_box": {"left": 16, "right": 1424, "top": 1080, "bottom": 1420}},
     )
     for mutation in mutations:
         assert not evaluate_company_workbench_document_contract(
@@ -277,17 +529,28 @@ def test_company_workbench_document_contract_rejects_missing_semantics_or_wrong_
 
     wrong_reflow = {
         **zoomed_desktop,
-        "aside_box": {"left": 12, "right": 708, "top": 900, "bottom": 1540},
+        "aside_box": {"left": 12, "right": 378, "top": 900, "bottom": 1540},
     }
     assert not evaluate_company_workbench_document_contract(**wrong_reflow).passed
+
+    old_four_column_brief = {
+        **desktop,
+        "brief_lane_boxes": (
+            {"name": "usable", "left": 16, "right": 350, "top": 300, "bottom": 460},
+            {"name": "withheld", "left": 370, "right": 700, "top": 300, "bottom": 460},
+            {"name": "next-task", "left": 720, "right": 1040, "top": 300, "bottom": 460},
+        ),
+    }
+    assert not evaluate_company_workbench_document_contract(
+        **old_four_column_brief
+    ).passed
 
     overlapping_phone_lanes = {
         **phone,
         "brief_lane_boxes": (
-            {"left": 12, "right": 378, "top": 430, "bottom": 550},
-            {"left": 12, "right": 378, "top": 540, "bottom": 680},
-            {"left": 12, "right": 378, "top": 690, "bottom": 810},
-            {"left": 12, "right": 378, "top": 820, "bottom": 980},
+            {"name": "usable", "left": 12, "right": 378, "top": 430, "bottom": 550},
+            {"name": "withheld", "left": 12, "right": 378, "top": 540, "bottom": 680},
+            {"name": "next-task", "left": 12, "right": 378, "top": 690, "bottom": 810},
         ),
     }
     assert not evaluate_company_workbench_document_contract(
@@ -811,24 +1074,39 @@ def test_focus_sequence_evaluator_requires_natural_dom_and_physical_tab_order():
 def test_personal_route_hierarchy_evaluator_requires_one_ordered_answer_contract(slug):
     from src.workspace_visual_browser_gate import evaluate_personal_route_hierarchy
 
+    title_region = () if slug == "company-workbench" else ("page-title",)
+    answer_action = (
+        ("primary-action", "primary-answer")
+        if slug == "discover"
+        else ("primary-answer", "primary-action")
+    )
     ordered = (
         "workflow-nav",
         "context",
-        "page-title",
-        "primary-answer",
-        "primary-action",
+        *title_region,
+        *answer_action,
         "stop-rule",
         "supporting-evidence",
         "advanced-detail",
     )
     counts = {name: ordered.count(name) for name in ordered}
+    visible_counts = (
+        {**counts, "supporting-evidence": 0}
+        if slug == "discover"
+        else counts
+    )
+    visible_order = (
+        tuple(name for name in ordered if name != "supporting-evidence")
+        if slug == "discover"
+        else ordered
+    )
 
     assert evaluate_personal_route_hierarchy(
         slug=slug,
         region_counts=counts,
         region_order=ordered,
-        visible_region_counts=counts,
-        visible_region_order=ordered,
+        visible_region_counts=visible_counts,
+        visible_region_order=visible_order,
         primary_action_focusable_count=1,
         legacy_pre_answer_action_count=0,
     ).passed
@@ -856,7 +1134,7 @@ def test_personal_route_hierarchy_evaluator_requires_one_ordered_answer_contract
         region_order=(
             "workflow-nav",
             "context",
-            "page-title",
+            *title_region,
             "primary-answer",
             "supporting-evidence",
             "primary-action",
@@ -900,9 +1178,8 @@ def test_personal_route_hierarchy_evaluator_requires_one_ordered_answer_contract
         visible_region_order=(
             "workflow-nav",
             "context",
-            "page-title",
-            "primary-action",
-            "primary-answer",
+            *title_region,
+            *reversed(answer_action),
             "stop-rule",
             "supporting-evidence",
             "advanced-detail",
@@ -1211,71 +1488,65 @@ def test_initial_viewport_hierarchy_rejects_regions_above_or_below_the_viewport(
     ).passed
 
 
-def _valid_discover_evidence_access_layout() -> dict[str, object]:
-    links = (
-        {
-            "label": "Open AMD Company Brief",
-            "href": "?mode=research&page=company-workbench&ticker=AMD&open=1",
-            "visible": True,
-            "focusable": True,
-            "left": 280,
-            "right": 500,
-            "width": 220,
-            "height": 44,
-            "top": 500,
-            "clipped": False,
-        },
-        {
-            "label": "Open AVGO Company Brief",
-            "href": "?mode=research&page=company-workbench&ticker=AVGO&open=1",
-            "visible": True,
-            "focusable": True,
-            "left": 510,
-            "right": 730,
-            "width": 220,
-            "height": 44,
-            "top": 500,
-            "clipped": False,
-        },
-        {
-            "label": "Open COHR Company Brief",
-            "href": "?mode=research&page=company-workbench&ticker=COHR&open=1",
-            "visible": True,
-            "focusable": True,
-            "left": 740,
-            "right": 960,
-            "width": 220,
-            "height": 44,
-            "top": 500,
-            "clipped": False,
-        },
-        {
-            "label": "Open NVDA Company Brief",
-            "href": "?mode=research&page=company-workbench&ticker=NVDA&open=1",
-            "visible": True,
-            "focusable": True,
-            "left": 970,
-            "right": 1190,
-            "width": 220,
-            "height": 44,
-            "top": 500,
-            "clipped": False,
-        },
+def test_workbench_first_fold_requires_answer_start_and_complete_action_and_stop():
+    from src.workspace_visual_browser_gate import (
+        evaluate_company_workbench_initial_viewport_hierarchy,
+        evaluate_initial_viewport_hierarchy,
     )
+
+    measured = {
+        "primary-answer": {"top": 250, "bottom": 780.7},
+        "primary-action": {"top": 568, "bottom": 612.2},
+        "stop-rule": {"top": 575, "bottom": 619.1},
+    }
+    assert evaluate_company_workbench_initial_viewport_hierarchy(
+        region_boxes=measured, viewport_height=720
+    ).passed
+    assert not evaluate_initial_viewport_hierarchy(
+        region_boxes=measured, viewport_height=720, require_complete=True
+    ).passed
+    for region in ("primary-action", "stop-rule"):
+        outside = {
+            **measured,
+            region: {**measured[region], "bottom": 722},
+        }
+        assert not evaluate_company_workbench_initial_viewport_hierarchy(
+            region_boxes=outside, viewport_height=720
+        ).passed
+    assert not evaluate_company_workbench_initial_viewport_hierarchy(
+        region_boxes={**measured, "primary-answer": {"top": 722, "bottom": 900}},
+        viewport_height=720,
+    ).passed
+
+
+def _valid_discover_evidence_access_layout() -> dict[str, object]:
+    result = {
+        "label": "Open AACI Company Brief",
+        "href": "?mode=research&page=company-workbench&ticker=AACI&open=1",
+        "visible": True,
+        "focusable": True,
+        "left": 280,
+        "right": 500,
+        "width": 220,
+        "height": 44,
+        "top": 500,
+        "clipped": False,
+    }
     return {
         "primary_answer_count": 1,
-        "quick_links": links,
+        "quick_link_count": 0,
+        "first_result_link": result,
         "native_search_count": 1,
         "stop_rule_count": 1,
         "supporting_evidence_count": 1,
-        "advanced_detail_count": 1,
+        "advanced_filter_count": 1,
         "dom_order": (
-            "primary-answer",
-            "quick-links",
             "native-search",
+            "primary-answer",
             "stop-rule",
+            "advanced-filter",
+            "first-result",
             "supporting-evidence",
-            "advanced-detail",
         ),
         "client_width": 1280,
         "location_path": "/",
@@ -1285,8 +1556,7 @@ def _valid_discover_evidence_access_layout() -> dict[str, object]:
     }
 
 
-def test_discover_evidence_access_layout_accepts_the_exact_secondary_link_contract():
-    """Catches the Discover-only gate rejecting approved secondary evidence actions."""
+def test_discover_evidence_access_layout_accepts_search_and_actual_saved_result():
 
     from src.workspace_visual_browser_gate import (
         evaluate_discover_evidence_access_layout,
@@ -1304,15 +1574,16 @@ def test_discover_evidence_access_layout_accepts_the_exact_secondary_link_contra
         {"native_search_count": 0},
         {"stop_rule_count": 0},
         {"supporting_evidence_count": 0},
-        {"advanced_detail_count": 0},
+        {"advanced_filter_count": 0},
+        {"quick_link_count": 1},
         {
             "dom_order": (
-                "primary-answer",
                 "native-search",
-                "quick-links",
+                "primary-answer",
                 "stop-rule",
+                "first-result",
+                "advanced-filter",
                 "supporting-evidence",
-                "advanced-detail",
             )
         },
         {"location_search": "?mode=research&page=monitor"},
@@ -1336,23 +1607,17 @@ def test_discover_evidence_access_layout_rejects_link_regressions():
     )
 
     valid = _valid_discover_evidence_access_layout()
-    links = tuple(dict(link) for link in valid["quick_links"])
+    link = dict(valid["first_result_link"])
     mutations = (
-        {"quick_links": links[:3]},
-        {"quick_links": (links[1], links[0], links[2], links[3])},
-        {"quick_links": (links[0], links[1], links[2], dict(links[2]))},
-        {
-            "quick_links": (
-                {**links[0], "href": "?mode=research&page=monitor&ticker=AMD&open=1"},
-                *links[1:],
-            )
-        },
-        {"quick_links": ({**links[0], "visible": False}, *links[1:])},
-        {"quick_links": ({**links[0], "focusable": False}, *links[1:])},
-        {"quick_links": ({**links[0], "width": 43}, *links[1:])},
-        {"quick_links": ({**links[0], "height": 43}, *links[1:])},
-        {"quick_links": ({**links[0], "left": -2}, *links[1:])},
-        {"quick_links": ({**links[0], "clipped": True}, *links[1:])},
+        {"first_result_link": {}},
+        {"first_result_link": {**link, "href": "?mode=research&page=monitor&ticker=AACI&open=1"}},
+        {"first_result_link": {**link, "label": "Open AMD Company Brief"}},
+        {"first_result_link": {**link, "visible": False}},
+        {"first_result_link": {**link, "focusable": False}},
+        {"first_result_link": {**link, "width": 43}},
+        {"first_result_link": {**link, "height": 43}},
+        {"first_result_link": {**link, "left": -2}},
+        {"first_result_link": {**link, "clipped": True}},
     )
     for mutation in mutations:
         assert not evaluate_discover_evidence_access_layout(
@@ -1369,13 +1634,9 @@ def _valid_discover_focus_sequence() -> dict[str, object]:
         "Monitor",
         "Data Health",
         "Proof History",
-        "Open AACI Company Brief",
-        "Open ACIC Company Brief",
-        "Open AMD Company Brief",
-        "Open AVGO Company Brief",
-        "Browse all saved companies",
         "Search saved companies",
-        "Advanced: cohort readiness context",
+        "Advanced: filters and selection guidance",
+        "Open AACI Company Brief",
     )
     return {
         "focused_roles": (
@@ -1386,21 +1647,18 @@ def _valid_discover_focus_sequence() -> dict[str, object]:
             "navigation",
             "navigation",
             "navigation",
-            "evidence-path",
-            "evidence-path",
-            "evidence-path",
-            "evidence-path",
-            "browse-navigation",
-            "primary-action",
+            "search",
             "advanced-detail",
+            "result-link",
         ),
         "focused_labels": labels,
         "outline_widths": (3,) * len(labels),
         "positive_tabindex_count": 0,
+        "expected_result_label": "Open AACI Company Brief",
     }
 
 
-def test_discover_focus_sequence_requires_the_complete_evidence_search_order():
+def test_discover_focus_sequence_requires_search_before_actual_result():
     from src.workspace_visual_browser_gate import evaluate_discover_focus_sequence
 
     valid = _valid_discover_focus_sequence()
@@ -1410,54 +1668,45 @@ def test_discover_focus_sequence_requires_the_complete_evidence_search_order():
         {
             "focused_roles": (
                 *valid["focused_roles"][:7],
-                *reversed(valid["focused_roles"][7:11]),
-                *valid["focused_roles"][11:],
-            ),
-            "focused_labels": (
-                *valid["focused_labels"][:7],
-                *reversed(valid["focused_labels"][7:11]),
-                *valid["focused_labels"][11:],
-            ),
-        },
-        {
-            "focused_labels": (
-                *valid["focused_labels"][:7],
-                "Open ACIC Company Brief",
-                "Open AACI Company Brief",
-                *valid["focused_labels"][9:],
-            )
-        },
-        {
-            "focused_roles": (
-                *valid["focused_roles"][:11],
-                "primary-action",
-                "browse-navigation",
+                "result-link",
                 "advanced-detail",
+                "search",
+            ),
+            "focused_labels": (
+                *valid["focused_labels"][:7],
+                "Open AACI Company Brief",
+                "Advanced: filters and selection guidance",
+                "Search saved companies",
+            ),
+        },
+        {
+            "focused_labels": (
+                *valid["focused_labels"][:-1],
+                "Open AMD Company Brief",
             )
         },
         {"positive_tabindex_count": 1},
-        {"outline_widths": (*valid["outline_widths"][:9], 2, *valid["outline_widths"][10:])},
+        {"outline_widths": (*valid["outline_widths"][:-1], 2)},
     ):
         assert not evaluate_discover_focus_sequence(**{**valid, **mutation}).passed
 
 
 @pytest.mark.parametrize(
-    ("viewport_height", "primary_top", "evidence_top"),
-    ((720, 230, 500), (844, 300, 780)),
+    ("viewport_height", "search_top", "answer_top", "stop_top", "result_top"),
+    ((720, 160, 230, 400, 500), (844, 160, 230, 440, 780)),
 )
-def test_discover_initial_viewport_requires_answer_and_evidence_starts_on_screen(
-    viewport_height, primary_top, evidence_top
+def test_discover_initial_viewport_requires_search_answer_stop_and_result_starts_on_screen(
+    viewport_height, search_top, answer_top, stop_top, result_top
 ):
     from src.workspace_visual_browser_gate import (
         evaluate_discover_initial_viewport_hierarchy,
     )
 
     valid = {
-        "primary_answer_box": {"top": primary_top, "bottom": primary_top + 260},
-        "quick_links": tuple(
-            {**link, "top": evidence_top}
-            for link in _valid_discover_evidence_access_layout()["quick_links"]
-        ),
+        "search_box": {"top": search_top, "bottom": search_top + 44},
+        "primary_answer_box": {"top": answer_top, "bottom": answer_top + 100},
+        "stop_rule_box": {"top": stop_top, "bottom": stop_top + 50},
+        "first_result_link": {**_valid_discover_evidence_access_layout()["first_result_link"], "top": result_top},
         "viewport_height": viewport_height,
     }
     assert evaluate_discover_initial_viewport_hierarchy(**valid).passed
@@ -1467,53 +1716,47 @@ def test_discover_initial_viewport_requires_answer_and_evidence_starts_on_screen
     assert not evaluate_discover_initial_viewport_hierarchy(
         **{
             **valid,
-            "quick_links": ({**valid["quick_links"][0], "top": viewport_height + 2},),
+            "first_result_link": {**valid["first_result_link"], "top": viewport_height + 2},
         }
     ).passed
     assert not evaluate_discover_initial_viewport_hierarchy(
-        **{**valid, "quick_links": valid["quick_links"][:3]}
-    ).passed
-
-
-@pytest.mark.parametrize("link_index", (1, 2, 3))
-def test_discover_initial_viewport_rejects_any_later_evidence_link_below_fold(
-    link_index,
-):
-    from src.workspace_visual_browser_gate import (
-        evaluate_discover_initial_viewport_hierarchy,
-    )
-
-    quick_links = [
-        {**link, "top": 500}
-        for link in _valid_discover_evidence_access_layout()["quick_links"]
-    ]
-    quick_links[link_index] = {**quick_links[link_index], "top": 722}
-
-    assert not evaluate_discover_initial_viewport_hierarchy(
-        primary_answer_box={"top": 230, "bottom": 490},
-        quick_links=tuple(quick_links),
-        viewport_height=720,
+        **{**valid, "stop_rule_box": {"top": search_top - 2}}
     ).passed
 
 
 def _evaluate_personal_observation_checks(
     slug: str,
     contract: dict[str, object] | None = None,
+    regions: tuple[dict[str, object], ...] | None = None,
 ):
     from src import workspace_visual_browser_gate as gate
 
     route = gate.parse_routes(slug)[0]
+    answer_action = (
+        ("primary-action", "primary-answer")
+        if slug == "discover"
+        else ("primary-answer", "primary-action")
+    )
     order = (
         "workflow-nav",
         "context",
         "page-title",
-        "primary-answer",
-        "primary-action",
+        *answer_action,
         "stop-rule",
         "supporting-evidence",
         "advanced-detail",
     )
     counts = {name: 1 for name in order}
+    visible_counts = (
+        {**counts, "supporting-evidence": 0}
+        if slug == "discover"
+        else counts
+    )
+    visible_order = (
+        tuple(name for name in order if name != "supporting-evidence")
+        if slug == "discover"
+        else order
+    )
     observation = {
         "client_width": 1280,
         "client_height": 720,
@@ -1539,14 +1782,14 @@ def _evaluate_personal_observation_checks(
         "research_workflow_nav_scroll_left": 0,
         "research_workflow_nav_scroll_top": 0,
         "regions": (
-            {"name": "primary-answer", "left": 280, "right": 1220, "top": 230, "bottom": 490},
-            {"name": "primary-action", "left": 280, "right": 1220, "top": 620, "bottom": 664},
-            {"name": "stop-rule", "left": 280, "right": 1220, "top": 675, "bottom": 776},
+            {"name": "primary-answer", "left": 280, "right": 1220, "top": 230, "bottom": 330 if slug == "discover" else 490},
+            {"name": "primary-action", "left": 280, "right": 1220, "top": 160 if slug == "discover" else 620, "bottom": 204 if slug == "discover" else 664},
+            {"name": "stop-rule", "left": 280, "right": 1220, "top": 400 if slug == "discover" else 675, "bottom": 450 if slug == "discover" else 776},
         ),
         "region_counts": counts,
-        "visible_region_counts": counts,
+        "visible_region_counts": visible_counts,
         "region_order": order,
-        "visible_region_order": order,
+        "visible_region_order": visible_order,
         "primary_action_focusable_count": 1,
         "legacy_pre_answer_action_count": 0,
         "h1_count": 1,
@@ -1572,8 +1815,14 @@ def _evaluate_personal_observation_checks(
         "traceback_visible": False,
         "spinner_count": 0,
     }
+    if regions is not None:
+        observation["regions"] = regions
     if contract is not None:
-        observation["discover_evidence_access"] = dict(contract)
+        observation["discover_evidence_access"] = {
+            **contract,
+            "search_box": {"top": 160, "bottom": 204},
+            "stop_rule_box": {"top": 400, "bottom": 450},
+        }
     focus = (
         _valid_discover_focus_sequence()
         if slug == "discover"
@@ -1635,13 +1884,13 @@ def test_discover_replaces_named_fold_and_focus_checks_without_omitting_them():
     assert by_name["natural_focus_sequence_normal"]["passed"] is True
     assert by_name["natural_focus_sequence_forced-colors"]["passed"] is True
     assert "discover" in by_name["initial_viewport_hierarchy"]["detail"].lower()
-    assert "evidence-path" in by_name["natural_focus_sequence_normal"]["detail"]
+    assert "result-link" in by_name["natural_focus_sequence_normal"]["detail"]
     assert by_name["unique_shared_regions"]["passed"] is True
     assert by_name["personal_route_answer_hierarchy"]["passed"] is True
     assert by_name["single_navigation_authority"]["passed"] is True
 
 
-@pytest.mark.parametrize("slug", ("research-desk", "company-workbench", "monitor"))
+@pytest.mark.parametrize("slug", ("research-desk", "monitor"))
 def test_other_personal_routes_retain_the_generic_named_fold_and_focus_checks(slug):
     checks = _evaluate_personal_observation_checks(slug)
     by_name = {str(check["name"]): check for check in checks}
@@ -1651,6 +1900,20 @@ def test_other_personal_routes_retain_the_generic_named_fold_and_focus_checks(sl
     assert by_name["natural_focus_sequence_normal"]["passed"] is True
     assert by_name["natural_focus_sequence_forced-colors"]["passed"] is True
     assert "evidence-path" not in by_name["natural_focus_sequence_normal"]["detail"]
+
+
+def test_workbench_route_accepts_readable_brief_continuing_below_first_fold():
+    checks = _evaluate_personal_observation_checks(
+        "company-workbench",
+        regions=(
+            {"name": "primary-answer", "left": 280, "right": 1220, "top": 250, "bottom": 780.7},
+            {"name": "primary-action", "left": 280, "right": 500, "top": 568, "bottom": 612.2},
+            {"name": "stop-rule", "left": 280, "right": 1220, "top": 575, "bottom": 619.1},
+        ),
+    )
+    by_name = {str(check["name"]): check for check in checks}
+    assert by_name["initial_viewport_hierarchy"]["passed"] is True
+    assert by_name["personal_route_answer_hierarchy"]["passed"] is True
 
 
 @pytest.mark.parametrize(
@@ -1959,20 +2222,20 @@ def test_task4_resolved_report_state_requires_one_completed_brief_and_no_busy_lo
 
     assert evaluate_resolved_report_state(
         company_brief_count=1,
-        primary_answer_count=4,
+        primary_answer_count=3,
         evidence_lane_count=5,
         busy_loading_count=0,
     ).passed
     baseline = {
         "company_brief_count": 1,
-        "primary_answer_count": 4,
+        "primary_answer_count": 3,
         "evidence_lane_count": 5,
         "busy_loading_count": 0,
     }
     for changed in (
         {"company_brief_count": 0},
         {"company_brief_count": 2},
-        {"primary_answer_count": 3},
+        {"primary_answer_count": 2},
         {"evidence_lane_count": 4},
         {"busy_loading_count": 1},
     ):
@@ -2763,51 +3026,13 @@ def test_personal_focus_sequence_allows_intervening_native_controls():
     ).passed
 
 
-def test_discover_saved_browser_jump_is_classified_as_in_page_navigation():
-    from src.workspace_visual_browser_gate import evaluate_focus_sequence
-
+def test_discover_focus_capture_uses_search_and_real_result_without_quick_links():
     source = Path("src/workspace_visual_browser_gate.py").read_text(encoding="utf-8")
 
-    assert "a[href='#saved-company-browser']" in source
-    assert "role = \"navigation\"" in source
-    assert not evaluate_focus_sequence(
-        focused_roles=(
-            "skip",
-            "navigation",
-            "primary-action-help",
-            "primary-action",
-            "advanced-detail",
-        ),
-        region_order=(
-            "workflow-nav",
-            "primary-answer",
-            "primary-action",
-            "stop-rule",
-            "supporting-evidence",
-            "advanced-detail",
-        ),
-        outline_widths=(3, 3, 3, 3, 3),
-        positive_tabindex_count=0,
-    ).passed
-    assert not evaluate_focus_sequence(
-        focused_roles=(
-            "skip",
-            "navigation",
-            "primary-action",
-            "navigation",
-            "advanced-detail",
-        ),
-        region_order=(
-            "workflow-nav",
-            "primary-answer",
-            "primary-action",
-            "stop-rule",
-            "supporting-evidence",
-            "advanced-detail",
-        ),
-        outline_widths=(3, 3, 3, 3, 3),
-        positive_tabindex_count=0,
-    ).passed
+    assert "element.matches(\".research-discover-result .selector-result-row a.selector-action-link[href]\")" in source
+    assert 'else if (selectorSearch) role = window.location.search.includes("page=discover")' in source
+    assert "role = \"evidence-path\"" not in source
+    assert "a[href='#saved-company-browser']" not in source
 
 
 def test_source_snapshot_state_matches_the_presence_of_worktree_changes():

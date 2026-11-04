@@ -1,0 +1,81 @@
+# Online annual P/E and industry references
+
+Open a company, choose **估值与同行**, and select **更新在线同行估值**. The page requests source observations on that action only. Switching sections reuses the same attempt, including its failures. **数据来源** shows the same field definitions, actual periods, source links, observation dates and digests. An explicit failed retry withdraws the prior answer.
+
+## Listing-source continuity
+
+Before the action, the page explains that a temporarily unavailable listing source may use a complete classification previously obtained in this session. A refresh makes one classification acquisition attempt, with no automatic retry. Recovery requires all four original source observations to remain within24 hours, neither future-dated nor altered, and directory creation to remain within seven days. A malformed successful packet, source access limit, missing prior receipt or expired receipt keeps the result withheld. There is no disk cache and no automatic import of private captures.
+
+The result distinguishes the latest attempt from the original listing-observation range and directory creation dates. Source details retain safe response status, URL, size and raw digest when available; exceptions and headers are not exposed. Recovery never renews dates or reinstates an earlier financial verdict. The company identity, current financial/price observations and peer rules are checked again. A subsequent financial failure withdraws the old answer even when listing recovery succeeded. Discover uses the same freshness validator for its existing bounded session classification pool.
+
+The five company sections remain the product workflow. Listing continuity improves the acquisition prerequisite; persistent online review history, cross-session replay and a Monitor change handoff remain later deliverables with separate source permissions.
+
+## What the answer means
+
+The first connected metric is **price divided by directly reported annual diluted GAAP earnings per share**. It is neither trailing-twelve-month nor forecast P/E. Compare its company multiple with the median among at least three qualifying industry references. Premium/discount is company multiple divided by reference median, minus one. A higher multiple is not proof of overvaluation; a lower multiple is not proof of undervaluation. Business mix, growth, profitability, capital needs and risk are not adjusted.
+
+The industry reference group is automatically screened, not analyst-approved economic peers. Candidate discovery follows the price/context provider's industry list, preserving its order, and attempts at most12 other symbols. The page reports the list size, limit, accepted companies and every exclusion. This is not an exhaustive sector benchmark or an investment ranking.
+
+## Consistent definitions and disclosed differences
+
+- The exact denominator is `us-gaap:EarningsPerShareDiluted`, `USD/shares`, in the latest supported annual10-K/20-F or amendment, for a350–380 day duration. No adjusted earnings, quarter arithmetic or TTM inference is used. The annual end must be within550 days of the price date.
+- Every reference uses that same definition, USD price/financial currency, the same completed price date, and the same provider industry and SEC SIC. Actual financial start/end boundaries may each differ from the subject by at most35 calendar days. Dates are shown individually; the method does not claim identical fiscal periods. The prior saved comparison retains its stricter exact-period requirements.
+- A price must be within seven calendar days. Provider regular-market price/time must match the latest completed daily bar/date, allowing only floating-point encoding precision. The quote cannot postdate either source observation. An intraday quote cannot be treated as an earlier close.
+- A vendor SEC filing link must match an independent SEC issuer CIK, accession, form, publication date and primary document. Accession prefixes can identify a filing agent; they are not assumed to be issuer identifiers. Explicit common-share descriptions, one issuer class/ticker and exchange agreement are required. This does not establish domicile, legal security type, active status or historical continuity.
+- Post-period splits, insufficient split-history range, ADRs, ambiguous classes, foreign currency, investment companies and unsupported financial definitions remain withheld. Zero/negative EPS is not a cheap P/E. Failed, conflicting, missing, stale and excluded observations are not filled or silently removed from the gap report.
+- Same-day annual versions use SEC acceptance timestamps when available. Without a unique supported latest version, or when its EPS is absent, the comparison remains withheld unless the separately bound exact-scope bridge below qualifies. An older original never silently masks an amendment gap.
+
+## Exact AMD amendment scope
+
+A separate AMD-only bridge handles the known2025 annual amendment accession0000002488-26-000021 and original0000002488-26-000018. The [amendment's explanatory note](https://www.sec.gov/Archives/edgar/data/2488/000000248826000021/amd-20251227.htm) limits its change to transposed Client MD&A percentages and affirmatively leaves other disclosures unchanged. Retaining original EPS is a **technical interpretation of that affirmative scope**, not an inference merely because amended EPS is missing, and not a source/legal/commercial approval.
+
+On explicit refresh, both exact primary documents are fetched online and matched to pinned filing-body digests, current SEC identities, report/filed/acceptance dates and inline metadata. Each raw response retains its own verified digest. The body binding removes only the existing SEC empty external tail-script pattern. The current bodies were compared byte for byte with the previously reviewed captures after removing that script. The original's dimensionless annual diluted EPS with divided USD/shares units must independently agree with Companyfacts from that same original accession. A body change, a new annual or amendment, missing scope, conflicting EPS or unavailable source keeps the gap. No EPS value is hardcoded or calculated from earnings/shares.
+
+The amendment has DocumentType10-K/A but AmendmentFlag=false. The page discloses this discrepancy and retains the generic financial parser's rejection; that parser is unchanged. The bridge preserves original financial accession/form/publication identity and shows the amendment separately, with both source URLs, observation dates and digests. Generic amendments and the other financial, security, price, split, period and peer gates remain held. See [industry coverage](PEER_COVERAGE_METHOD.md) for a failure-inclusive declared query sample.
+
+## Earnings context beside the multiple
+
+The page also shows **盈利变化背景**: reported current/prior annual diluted EPS from the **same selected accession, form and publication date**. The prior period must end exactly one day before the current period begins and span350–380 days. An older filing's value never substitutes for the comparative printed in the selected filing. Values are latest reported in that observed filing, not point-in-time history or organic earnings growth.
+
+EPS change is current EPS divided by positive prior EPS, minus one. The page shows both values, actual dates and the same source links. A zero/negative base, absent comparative, conflicting value/period/unit or invalid metadata withholds the percentage with a reason. Missing growth context does not remove a valid P/E or change median membership. Historical EPS change is not a forecast, sustainable-growth estimate, PEG or growth-adjusted valuation; business differences remain unadjusted.
+
+Peer collection explicitly requests **two years** of daily prices and split events, with at most800 rows; standalone price-history inspection retains its one-year request and400-row limit. Source URLs and declared ranges must agree. Source details show the actual first/last completed observations: a requested range does not guarantee complete history. If the actual history still begins after annual end, or a later split exists, the ratio remains withheld. No inferred share adjustment or hidden range fallback is used.
+
+## Sources and rights
+
+Official [SEC APIs](https://www.sec.gov/search-filings/edgar-application-programming-interfaces) supply submissions and Companyfacts. Standard tags do not eliminate differences in reporting calendars. The collector retains source URLs, original-response digests and separately identified normalized subset digests. It never invents a raw HTTP digest for a public SDK return value.
+
+The installed yfinance public methods provide bounded quote/context, SEC-link and industry-list observations. The existing chart adapter supplies daily prices and observed splits. [Yahoo's adjustment explanation](https://help.yahoo.com/kb/SLN28256.html) describes why share actions matter; this method does not infer a split adjustment. Current source gates are retained: Personal Research only, blocked in commercial or invalid mode, no new source approval, commercial field authorization or redistribution clearance. SEC annual EPS in this independent inspection is not added to the registered commercial field scope.
+
+No alternate quote-page scraping was added. The reviewed [Nasdaq website terms](https://www.nasdaq.com/legal) and [Stock Analysis terms](https://stockanalysis.com/terms-of-use/) did not establish an authorized automated product-data path for this implementation. No paid feed, trial or new credentials are required.
+
+Results stay in session memory and are revalidated on each read. Protected financials, source-rights registry, research ledgers, saved readiness and universe checkpoints remain unchanged. SDK operational caches are managed by the existing library. Screenshots and source-backed delivery receipts are local evidence, not cleared distribution assets.
+
+## Separate saved work and remaining gaps
+
+After an online attempt, **已保存的估值与情景分析** retains the prior saved tools, qualifications and input dates separately. Online-only company identities do not read same-symbol saved tools. The offline HTML brief remains a snapshot of its existing saved scope.
+
+TTM/forward P/E, P/S, P/FCF and EV/EBITDA need independent financial, share-count, enterprise-value and component definitions. Custom economic-peer approval, source distribution rights and complete all-company coverage remain separate work. The next evidence expansion should address measured exclusion reasons and specific missing filings, rather than manufacture values for the other measures.
+
+## Selected common securities and identity gaps
+
+A source-bound DUK/JPM/BAC/WFC/C technical scope can supplement the legacy single-code test. It requires literal common symbols, issuer-bound cover contexts, affirmative annual common-capital/EPS definitions, direct dimensionless annual USD/shares EPS agreeing with Companyfacts, unchanged current metadata and symbol sets, plus all existing price, currency, fiscal, split and peer rules. It does not classify all other issuer-associated codes or infer issuer domicile, legal security status or point-in-time continuity. Sources show each raw response digest separately from an explicitly normalized exact reviewed-body digest; see [Peer coverage method](PEER_COVERAGE_METHOD.md). Changed financial bytes or unreviewed filing versions remain withheld.
+
+NEMCL association, TSM's ADS method and XOM's successor annual earnings basis remain separate gaps. A common title alone cannot admit a wrapper, and a one-for-one security exchange does not authorize splicing annual EPS across issuer identifiers. A single current-declared historical SEC archive may verify an old vendor link while current annual financial selection remains unchanged. Company Workbench's valuation and sources sections explain these source roles and blocked reasons; Discover keeps security-scope evidence separate from qualified annual P/E and comparison counts.
+
+## Incorporated bank filing documents
+
+Some bank filings distribute cover facts and financial resources across documents explicitly linked in the same accession. The bounded bank scope can inspect one incorporated companion for each annual or latest identity primary: WFC uses its linked EX-13 financial report, and C uses linked EX-99.01 cover exhibits. The primary remains selected by current submissions; an exhibit is never relabelled as the primary or another filing. Exact parent links, safe same-accession paths, original response and reviewed-body digests, freshness, compatible namespaces and globally unique identifiers are required before shared contexts or units can be resolved. Limits are two documents per role, four per scope,32MiB per document and64MiB total. No external XML resource is retrieved.
+
+Only explicitly enumerated WFC exchange facts may be repeated, and every listed unqualified literal must agree in concept, context and value. Other duplicates or changed source versions remain withheld. The selected-cover date reader accepts the exact2022 English month/day/year transformation for the bound C cover; the generic financial transform parser and AMD scope are unchanged. EPS still comes from directly reported entity-only annual USD/shares facts and must agree with Companyfacts from that same accession.
+
+Valuation and sources disclose the primary/companion relationship and individual raw/body digests. Cover, EPS, context, unit and basis links identify the actual supplying document. Companion period/publication metadata is explicitly inherited from its parent filing. These source scopes do not relax the existing minimum-three, industry/SIC, fiscal-window, price-date, currency, split or issuer rules, and do not establish preferred-symbol aliases, independent economic comparability or source rights.
+
+
+## Cross-security evidence
+
+NEM has a separate exact literal-common scope with explicitly declared dimensionless cover contexts in its annual and latest8-K, direct annual EPS and Companyfacts agreement. A missing independent directory instrument description can be supplemented only by that validated literal security proof; an explicit conflicting security type remains held. NEMCL remains separately associated and is not admitted as an alias or ordinary-price input. Private official FINRA/CDI and SEC security-description reconnaissance records its relationship; this does not add a FINRA runtime feed or establish NEMCL price/currency eligibility.
+
+TSM's exact annual source exposes ordinary and ADS diluted IFRS EPS separately, including native TWD and source-reported USD convenience presentation, with actual class context and units. The source directly reports ADS EPS; the app does not multiply rounded ordinary EPS or apply FX. The ratio and complete convenience/nontrading notes have their own source locations. These are inspection observations and do not enter the ordinary US-GAAP USD annual P/E denominator, median or saved readiness. A general ADS/IFRS/FX comparison method remains separate work.
+
+XOM's exact successor8-K12B and quarter Note1 expose security exchange, registration and financial-reporting continuity. Non-inline prose is located by a body-bound paragraph ordinal and normalized-text digest, with a full-document link rather than an invented DOM fragment. Continued inline notes preserve every actual source fragment. The quarter's predecessor entity context remains distinct from current filing CIK. Current-CIK annual absence and vendor issuer conflict remain independent blockers; predecessor/quarter EPS is not spliced into the current annual method.

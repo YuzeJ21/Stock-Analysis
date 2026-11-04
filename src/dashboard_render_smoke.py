@@ -115,9 +115,9 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         required_markers=(
             "Discover",
             "Focused cohort",
-            "Find a Company",
-            "available for evidence review",
-            "currently pass the strict screen",
+            "Find a Company Online",
+            "Search SEC ticker and company-name associations.",
+            "strict-screen eligible",
             "Browse saved companies",
             "Research-only",
         ),
@@ -131,15 +131,8 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
             ("open", "1"),
         ),
         required_markers=(
-            "Company Workbench",
-            "Company Brief",
-            "Use now",
-            "Still withheld",
-            "What changed",
-            "Next research task",
-            "Open evidence and analysis modules",
-            "Advanced Evidence",
-            "Research-only",
+            "Company Workbench", "Company Brief", "概览", "财务趋势", "估值与同行",
+            "研究记录", "数据来源", "更新财报与价格", "模型资格独立", "Research-only",
         ),
     ),
     DashboardRenderRoute(
@@ -216,6 +209,9 @@ def _rendered_blocks(app: AppTest) -> tuple[str, ...]:
             value = getattr(item, "value", "")
             if value:
                 values.append(str(value))
+    for radio in app.radio:
+        if radio.label=="公司研究分区":
+            values.extend(str(option) for option in radio.options)
     for item in app.button:
         label = getattr(item, "label", "")
         if label:

@@ -62,7 +62,7 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
         "discover",
         "Discover",
         "/?mode=research&page=discover",
-        "Find a Company",
+        "Search saved companies",
         "Discover",
         "research",
     ),
@@ -71,7 +71,7 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
         "AVGO Company Workbench",
         "/?mode=research&page=company-workbench&ticker=AVGO",
         "Company Brief",
-        "Company Workbench",
+        "AVGO Company Brief",
         "research",
     ),
     WorkspaceVisualRoute(
@@ -269,7 +269,12 @@ def evaluate_company_workbench_document_contract(
     aside_count: int,
     aside_visible_count: int,
     aside_labelled_count: int,
+    sec_count: int,
+    sec_visible_count: int,
+    sec_labelled_count: int,
     evidence_lane_count: int,
+    change_detail_count: int,
+    change_detail_open_count: int,
     positive_tabindex_count: int,
     primary_action_count: int,
     primary_action_visible_count: int,
@@ -279,10 +284,11 @@ def evaluate_company_workbench_document_contract(
     module_gate_visible_count: int,
     brief_box: dict[str, object],
     aside_box: dict[str, object],
+    sec_box: dict[str, object],
     module_gate_box: dict[str, object],
     brief_lane_boxes: tuple[dict[str, object], ...],
 ) -> BrowserEvaluation:
-    """Require the Workbench's document/aside hierarchy across reflow states."""
+    """Require the Workbench's source-first document order across reflow states."""
 
     def coordinates(box: dict[str, object]) -> tuple[float, float, float, float] | None:
         try:
@@ -301,6 +307,7 @@ def evaluate_company_workbench_document_contract(
 
     brief = coordinates(brief_box)
     aside = coordinates(aside_box)
+    sec = coordinates(sec_box)
     module_gate = coordinates(module_gate_box)
     action_target = evaluate_control_target(
         width=primary_action_width,
@@ -318,7 +325,12 @@ def evaluate_company_workbench_document_contract(
         and aside_count == 1
         and aside_visible_count == 1
         and aside_labelled_count == 1
+        and sec_count == 1
+        and sec_visible_count == 1
+        and sec_labelled_count == 1
         and evidence_lane_count == 5
+        and change_detail_count == 1
+        and change_detail_open_count == 0
         and positive_tabindex_count == 0
         and primary_action_count == 1
         and primary_action_visible_count == 1
@@ -327,47 +339,46 @@ def evaluate_company_workbench_document_contract(
         and module_gate_visible_count == 1
     )
 
-    reflowed = zoom == 2 or viewport_width < 1100
     geometry_passed = False
-    if brief is not None and aside is not None and module_gate is not None:
-        brief_left, brief_right, brief_top, brief_bottom = brief
-        aside_left, aside_right, aside_top, aside_bottom = aside
-        _gate_left, _gate_right, gate_top, _gate_bottom = module_gate
-        if reflowed:
-            geometry_passed = (
-                brief_bottom <= aside_top + 1
-                and aside_bottom <= gate_top + 1
-            )
-        else:
-            vertical_overlap = min(brief_bottom, aside_bottom) - max(
-                brief_top, aside_top
-            )
-            geometry_passed = (
-                brief_right <= aside_left + 1
-                and vertical_overlap > 1
-                and max(brief_bottom, aside_bottom) <= gate_top + 1
-            )
+    if all(box is not None for box in (brief, aside, sec, module_gate)):
+        assert brief is not None and aside is not None and sec is not None and module_gate is not None
+        geometry_passed = (
+            brief[3] <= aside[2] + 1
+            and aside[3] <= sec[2] + 1
+            and sec[3] <= module_gate[2] + 1
+        )
 
     phone_lanes_passed = True
-    if phone_layout:
-        lanes = tuple(coordinates(dict(box)) for box in brief_lane_boxes)
-        if brief is None or len(lanes) != 4 or any(lane is None for lane in lanes):
-            phone_lanes_passed = False
-        else:
-            assert all(lane is not None for lane in lanes)
-            normalized_lanes = tuple(lane for lane in lanes if lane is not None)
-            brief_left, brief_right, _brief_top, _brief_bottom = brief
-            phone_lanes_passed = all(
-                previous[3] <= current[2] + 1
-                for previous, current in zip(
-                    normalized_lanes, normalized_lanes[1:]
-                )
-            ) and all(
-                lane[0] >= brief_left - 1 and lane[1] <= brief_right + 1
-                for lane in normalized_lanes
-            )
+    desktop_lanes_passed = True
+    lanes = tuple(coordinates(dict(box)) for box in brief_lane_boxes)
+    lane_names = tuple(str(box.get("name") or "") for box in brief_lane_boxes)
+    if brief is None or len(lanes) != 3 or any(lane is None for lane in lanes) or lane_names != (
+        "usable", "withheld", "next-task"
+    ):
+        phone_lanes_passed = False
+        desktop_lanes_passed = False
+    else:
+        assert all(lane is not None for lane in lanes)
+        first, second, third = tuple(lane for lane in lanes if lane is not None)
+        brief_left, brief_right, _brief_top, _brief_bottom = brief
+        contained = all(
+            lane[0] >= brief_left - 1 and lane[1] <= brief_right + 1
+            for lane in (first, second, third)
+        )
+        phone_lanes_passed = contained and first[3] <= second[2] + 1 and second[3] <= third[2] + 1
+        desktop_lanes_passed = (
+            contained
+            and abs(first[2] - second[2]) <= 1
+            and first[1] <= second[0] + 1
+            and min(first[3], second[3]) - max(first[2], second[2]) > 1
+            and max(first[3], second[3]) <= third[2] + 1
+        )
 
-    passed = semantic_structure and geometry_passed and phone_lanes_passed
+    passed = (
+        semantic_structure
+        and geometry_passed
+        and (phone_lanes_passed if phone_layout else desktop_lanes_passed)
+    )
     return BrowserEvaluation(
         passed,
         (
@@ -376,12 +387,14 @@ def evaluate_company_workbench_document_contract(
             f"navigation={navigation_labelled_count}/{navigation_count}; "
             f"brief={brief_visible_count}/{brief_count} labelled={brief_labelled_count}; "
             f"aside={aside_visible_count}/{aside_count} labelled={aside_labelled_count} "
+            f"sec={sec_visible_count}/{sec_count} labelled={sec_labelled_count}; "
             f"lanes={evidence_lane_count}; positive_tabindex={positive_tabindex_count}; "
+            f"change_detail={change_detail_count} open={change_detail_open_count}; "
             f"primary_action={primary_action_visible_count}/{primary_action_count} "
             f"{primary_action_width:.1f}x{primary_action_height:.1f}; "
             f"module_gate={module_gate_visible_count}/{module_gate_count}; "
-            f"reflowed={reflowed}; geometry={geometry_passed}; "
-            f"phone_lanes={phone_lanes_passed}"
+            f"geometry={geometry_passed}; "
+            f"phone_lanes={phone_lanes_passed}; desktop_lanes={desktop_lanes_passed}"
         ),
     )
 
@@ -421,7 +434,7 @@ def evaluate_resolved_report_state(
 
     passed = (
         company_brief_count == 1
-        and primary_answer_count == 4
+        and primary_answer_count == 3
         and evidence_lane_count == 5
         and busy_loading_count == 0
     )
@@ -970,11 +983,12 @@ def evaluate_focus_sequence(
 def evaluate_discover_evidence_access_layout(
     *,
     primary_answer_count: int,
-    quick_links: tuple[dict[str, object], ...],
+    quick_link_count: int,
+    first_result_link: dict[str, object],
     native_search_count: int,
     stop_rule_count: int,
     supporting_evidence_count: int,
-    advanced_detail_count: int,
+    advanced_filter_count: int,
     dom_order: tuple[str, ...],
     client_width: float,
     location_path: str,
@@ -982,15 +996,15 @@ def evaluate_discover_evidence_access_layout(
     current_page_count: int,
     current_page_label: str,
 ) -> BrowserEvaluation:
-    """Require exact Discover evidence routes around the shared global checks."""
+    """Require search before the first real saved-company evidence route."""
 
     expected_dom_order = (
-        "primary-answer",
-        "quick-links",
         "native-search",
+        "primary-answer",
         "stop-rule",
+        "advanced-filter",
+        "first-result",
         "supporting-evidence",
-        "advanced-detail",
     )
 
     def discover_route_matches(path: object, search: object) -> bool:
@@ -1005,50 +1019,32 @@ def evaluate_discover_evidence_access_layout(
             == {"mode": ["research"], "page": ["discover"]}
         )
 
-    observed_links = tuple(dict(link) for link in quick_links)
-    tickers: list[str] = []
-    links_are_bound = len(observed_links) == 4
-    links_are_usable = len(observed_links) == 4
-    for link in observed_links:
-        label = str(link.get("label") or "").strip()
-        href = str(link.get("href") or "").strip()
-        label_match = re.fullmatch(
-            r"Open ([A-Z0-9][A-Z0-9./-]*) Company Brief",
-            label,
-        )
-        ticker = label_match.group(1) if label_match else ""
-        parsed = urlsplit(href)
-        query = parse_qs(parsed.query, keep_blank_values=True)
-        if (
-            not ticker
-            or parsed.scheme
-            or parsed.netloc
-            or parsed.path not in {"", "/"}
-            or parsed.fragment
-            or query
-            != {
-                "mode": ["research"],
-                "page": ["company-workbench"],
-                "ticker": [ticker],
-                "open": ["1"],
-            }
-        ):
-            links_are_bound = False
-        tickers.append(ticker)
-        links_are_usable = links_are_usable and (
-            link.get("visible") is True
-            and link.get("focusable") is True
-            and float(link.get("width") or 0) >= 44
-            and float(link.get("height") or 0) >= 44
-            and float(link.get("left") or 0) >= -1
-            and float(link.get("right") or 0) <= client_width + 1
-            and link.get("clipped") is False
-        )
-    links_are_unique_and_alphabetical = (
-        len(tickers) == 4
-        and all(tickers)
-        and len(set(tickers)) == 4
-        and tickers == sorted(tickers, key=str.casefold)
+    link = dict(first_result_link)
+    label = str(link.get("label") or "").strip()
+    label_match = re.fullmatch(r"Open ([A-Z0-9][A-Z0-9./-]*) Company Brief", label)
+    ticker = label_match.group(1) if label_match else ""
+    parsed = urlsplit(str(link.get("href") or ""))
+    query = parse_qs(parsed.query, keep_blank_values=True)
+    link_is_bound = bool(ticker) and (
+        not parsed.scheme
+        and not parsed.netloc
+        and parsed.path in {"", "/"}
+        and not parsed.fragment
+        and query == {
+            "mode": ["research"],
+            "page": ["company-workbench"],
+            "ticker": [ticker],
+            "open": ["1"],
+        }
+    )
+    link_is_usable = (
+        link.get("visible") is True
+        and link.get("focusable") is True
+        and float(link.get("width") or 0) >= 44
+        and float(link.get("height") or 0) >= 44
+        and float(link.get("left") or 0) >= -1
+        and float(link.get("right") or 0) <= client_width + 1
+        and link.get("clipped") is False
     )
 
     route_is_stable = discover_route_matches(location_path, location_search)
@@ -1058,17 +1054,17 @@ def evaluate_discover_evidence_access_layout(
     )
     structure_is_exact = (
         primary_answer_count == 1
+        and quick_link_count == 0
         and native_search_count == 1
         and stop_rule_count == 1
         and supporting_evidence_count == 1
-        and advanced_detail_count == 1
+        and advanced_filter_count == 1
         and dom_order == expected_dom_order
     )
 
     passed = (
-        links_are_bound
-        and links_are_usable
-        and links_are_unique_and_alphabetical
+        link_is_bound
+        and link_is_usable
         and structure_is_exact
         and route_is_stable
         and current_location_is_stable
@@ -1076,9 +1072,8 @@ def evaluate_discover_evidence_access_layout(
     return BrowserEvaluation(
         passed,
         (
-            f"quick_link_count={len(observed_links)}; tickers={tickers!r}; "
-            f"links_bound={links_are_bound}; links_usable={links_are_usable}; "
-            f"unique_alphabetical={links_are_unique_and_alphabetical}; "
+            f"quick_link_count={quick_link_count}; first_result_ticker={ticker!r}; "
+            f"link_bound={link_is_bound}; link_usable={link_is_usable}; "
             f"structure_exact={structure_is_exact}; dom_order={dom_order!r}; "
             f"route_stable={route_is_stable}; "
             f"current_location_stable={current_location_is_stable}"
@@ -1088,33 +1083,35 @@ def evaluate_discover_evidence_access_layout(
 
 def evaluate_discover_initial_viewport_hierarchy(
     *,
+    search_box: dict[str, object],
     primary_answer_box: dict[str, object],
-    quick_links: tuple[dict[str, object], ...],
+    stop_rule_box: dict[str, object],
+    first_result_link: dict[str, object],
     viewport_height: float,
 ) -> BrowserEvaluation:
-    """Require the Discover answer and all four evidence paths to begin in view."""
+    """Require search, answer, boundary, and real result to begin in view."""
 
-    primary_top_raw = primary_answer_box.get("top")
-    evidence_top_raw = tuple(dict(link).get("top") for link in quick_links)
+    raw_tops = (
+        search_box.get("top"),
+        primary_answer_box.get("top"),
+        stop_rule_box.get("top"),
+        first_result_link.get("top"),
+    )
     coordinates_present = all(
         isinstance(value, (int, float)) and math.isfinite(float(value))
-        for value in (primary_top_raw, *evidence_top_raw, viewport_height)
+        for value in (*raw_tops, viewport_height)
     )
-    primary_top = float(primary_top_raw or 0)
-    evidence_tops = tuple(float(value or 0) for value in evidence_top_raw)
+    tops = tuple(float(value or 0) for value in raw_tops)
     passed = (
-        len(quick_links) == 4
-        and coordinates_present
+        coordinates_present
         and viewport_height > 0
-        and -1 <= primary_top <= viewport_height + 1
-        and all(-1 <= top <= viewport_height + 1 for top in evidence_tops)
-        and all(primary_top <= top for top in evidence_tops)
+        and all(-1 <= top <= viewport_height + 1 for top in tops)
+        and tops == tuple(sorted(tops))
     )
     return BrowserEvaluation(
         passed,
         (
-            f"discover primary_answer_top={primary_top:.1f}; "
-            f"evidence_tops={evidence_tops!r}; "
+            f"discover search_answer_stop_result_tops={tops!r}; "
             f"viewport_height={viewport_height:.1f}; "
             f"coordinates_present={coordinates_present}"
         ),
@@ -1127,37 +1124,17 @@ def evaluate_discover_focus_sequence(
     focused_labels: tuple[str, ...],
     outline_widths: tuple[float, ...],
     positive_tabindex_count: int,
+    expected_result_label: str,
 ) -> BrowserEvaluation:
-    """Require Discover's full keyboard path through evidence and native search."""
+    """Require natural keyboard access to search and the first saved result."""
 
-    evidence_indexes = tuple(
-        index for index, role in enumerate(focused_roles) if role == "evidence-path"
-    )
-    evidence_labels = tuple(
-        focused_labels[index]
-        for index in evidence_indexes
-        if index < len(focused_labels)
-    )
-    tickers: list[str] = []
-    for label in evidence_labels:
-        match = re.fullmatch(
-            r"Open ([A-Z0-9][A-Z0-9./-]*) Company Brief",
-            str(label or "").strip(),
-        )
-        tickers.append(match.group(1) if match else "")
-    ordered_evidence = (
-        len(evidence_indexes) == 4
-        and evidence_indexes == tuple(range(evidence_indexes[0], evidence_indexes[0] + 4))
-        if evidence_indexes
-        else False
-    )
-    evidence_start = evidence_indexes[0] if evidence_indexes else -1
-    leading_roles = focused_roles[1:evidence_start] if evidence_start > 0 else ()
-    expected_tail = (
-        "browse-navigation",
-        "primary-action",
-        "advanced-detail",
-    )
+    search_indexes = tuple(i for i, role in enumerate(focused_roles) if role == "search")
+    result_indexes = tuple(i for i, role in enumerate(focused_roles) if role == "result-link")
+    search_index = search_indexes[0] if len(search_indexes) == 1 else -1
+    result_index = result_indexes[0] if len(result_indexes) == 1 else -1
+    leading_roles = focused_roles[1:search_index] if search_index > 0 else ()
+    result_label = focused_labels[result_index] if 0 <= result_index < len(focused_labels) else ""
+    bound_result = bool(re.fullmatch(r"Open [A-Z0-9][A-Z0-9./-]* Company Brief", result_label))
     passed = (
         positive_tabindex_count == 0
         and len(focused_roles) == len(focused_labels) == len(outline_widths)
@@ -1165,20 +1142,22 @@ def evaluate_discover_focus_sequence(
         and focused_roles[0] == "skip"
         and bool(leading_roles)
         and all(role == "navigation" for role in leading_roles)
-        and ordered_evidence
-        and focused_roles[evidence_indexes[-1] + 1 :] == expected_tail
-        and len(tickers) == 4
-        and all(tickers)
-        and len(set(tickers)) == 4
-        and tickers == sorted(tickers, key=str.casefold)
+        and search_index > 0
+        and focused_labels[search_index] == "Search saved companies"
+        and result_index > search_index
+        and result_index == len(focused_roles) - 1
+        and bound_result
+        and result_label == expected_result_label
+        and "evidence-path" not in focused_roles
+        and "browse-navigation" not in focused_roles
         and all(width >= 3 for width in outline_widths)
     )
     return BrowserEvaluation(
         passed,
         (
             f"Discover focus positive_tabindex={positive_tabindex_count}; "
-            f"roles={focused_roles!r}; evidence-path labels={evidence_labels!r}; "
-            f"tickers={tickers!r}; outlines={outline_widths!r}"
+            f"roles={focused_roles!r}; result_label={result_label!r}; "
+            f"outlines={outline_widths!r}"
         ),
     )
 
@@ -1268,16 +1247,20 @@ def evaluate_personal_route_hierarchy(
     primary_action_focusable_count: int,
     legacy_pre_answer_action_count: int,
 ) -> BrowserEvaluation:
-    """Require one answer-first hierarchy for a modernized personal route."""
+    """Require each personal route's observed answer and action hierarchy."""
 
     if slug not in {"research-desk", "discover", "company-workbench", "monitor"}:
         return BrowserEvaluation(False, f"unsupported personal route {slug!r}")
+    answer_and_action = (
+        ("primary-action", "primary-answer")
+        if slug == "discover"
+        else ("primary-answer", "primary-action")
+    )
     required = (
         "workflow-nav",
         "context",
-        "page-title",
-        "primary-answer",
-        "primary-action",
+        *(("page-title",) if slug != "company-workbench" else ()),
+        *answer_and_action,
         "stop-rule",
         "advanced-detail",
     )
@@ -1307,7 +1290,11 @@ def evaluate_personal_route_hierarchy(
     visible_supporting_count = int(
         visible_region_counts.get("supporting-evidence", 0)
     )
-    visible_supporting_count_passed = visible_supporting_count == supporting_count
+    visible_supporting_count_passed = (
+        supporting_count == 1 and visible_supporting_count == 0
+        if slug == "discover"
+        else visible_supporting_count == supporting_count
+    )
     try:
         visible_indexes = {
             name: visible_region_order.index(name) for name in required
@@ -1476,6 +1463,51 @@ def evaluate_initial_viewport_hierarchy(
         starts_visible and complete,
         (
             f"viewport_height={viewport_height:.0f}; require_complete={require_complete}; "
+            f"tops={tops!r}; bottoms={bottoms!r}"
+        ),
+    )
+
+
+def evaluate_company_workbench_initial_viewport_hierarchy(
+    *,
+    region_boxes: dict[str, dict[str, object]],
+    viewport_height: float,
+) -> BrowserEvaluation:
+    """Keep Workbench's action and full stop in view around a readable brief."""
+
+    required = ("primary-answer", "primary-action", "stop-rule")
+    missing = tuple(name for name in required if name not in region_boxes)
+    if missing:
+        return BrowserEvaluation(False, f"missing Workbench regions={missing!r}")
+    coordinates = (
+        viewport_height,
+        *(region_boxes[name].get(edge) for name in required for edge in ("top", "bottom")),
+    )
+    if not all(
+        isinstance(value, (int, float)) and math.isfinite(float(value))
+        for value in coordinates
+    ):
+        return BrowserEvaluation(False, f"invalid Workbench coordinates={coordinates!r}")
+    tops = {name: float(region_boxes[name]["top"]) for name in required}
+    bottoms = {name: float(region_boxes[name]["bottom"]) for name in required}
+    starts_visible = all(-1 <= top <= viewport_height + 1 for top in tops.values())
+    boxes_are_valid = all(bottoms[name] >= tops[name] for name in required)
+    action_and_stop_complete = all(
+        bottoms[name] <= viewport_height + 1
+        for name in ("primary-action", "stop-rule")
+    )
+    passed = (
+        viewport_height > 0
+        and starts_visible
+        and boxes_are_valid
+        and action_and_stop_complete
+    )
+    return BrowserEvaluation(
+        passed,
+        (
+            f"Workbench viewport_height={viewport_height:.0f}; "
+            f"starts_visible={starts_visible}; boxes_valid={boxes_are_valid}; "
+            f"action_and_stop_complete={action_and_stop_complete}; "
             f"tops={tops!r}; bottoms={bottoms!r}"
         ),
     )
@@ -1868,6 +1900,8 @@ def _browser_observation(page: Any) -> dict[str, object]:
 () => {
   const visible = (node) => {
     if (!node) return false;
+    const closedDetails = node.closest('details:not([open])');
+    if (closedDetails && node !== closedDetails && !node.closest('summary')) return false;
     const box = node.getBoundingClientRect();
     const style = getComputedStyle(node);
     return box.width > 0 && box.height > 0 &&
@@ -1974,13 +2008,21 @@ def _browser_observation(page: Any) -> dict[str, object]:
   const visibleWorkbenchBriefs = workbenchBriefs.filter(visible);
   const firstWorkbenchBrief = visibleWorkbenchBriefs[0] || null;
   const workbenchDisplayTitles = [...document.querySelectorAll(
-    ".company-workbench-primary-heading h2"
+    ".company-workbench-primary-heading h1"
   )].filter(visible);
   const workbenchAsides = [...document.querySelectorAll(
     "aside.company-workbench-evidence-status[aria-label]"
   )];
   const visibleWorkbenchAsides = workbenchAsides.filter(visible);
   const firstWorkbenchAside = visibleWorkbenchAsides[0] || null;
+  const workbenchSecSections = [...document.querySelectorAll(
+    ".company-sec-annual-preview"
+  )];
+  const visibleWorkbenchSecSections = workbenchSecSections.filter(visible);
+  const firstWorkbenchSecSection = visibleWorkbenchSecSections[0] || null;
+  const workbenchChangeDetails = [...document.querySelectorAll(
+    "details.company-workbench-follow-up"
+  )];
   const workbenchEvidenceLanes = firstWorkbenchAside
     ? [...firstWorkbenchAside.querySelectorAll(".company-workbench-evidence-lane")].filter(visible)
     : [];
@@ -2183,7 +2225,16 @@ def _browser_observation(page: Any) -> dict[str, object]:
     workbench_aside_labelled_count: workbenchAsides.filter(
       (node) => Boolean(node.getAttribute("aria-label")?.trim())
     ).length,
+    workbench_sec_count: workbenchSecSections.length,
+    workbench_sec_visible_count: visibleWorkbenchSecSections.length,
+    workbench_sec_labelled_count: workbenchSecSections.filter(
+      (node) => Boolean(node.getAttribute("aria-label")?.trim())
+    ).length,
     workbench_evidence_lane_count: workbenchEvidenceLanes.length,
+    workbench_change_detail_count: workbenchChangeDetails.length,
+    workbench_change_detail_open_count: workbenchChangeDetails.filter(
+      (node) => node.hasAttribute("open")
+    ).length,
     workbench_primary_answer_count: firstWorkbenchBrief
       ? [...firstWorkbenchBrief.querySelectorAll(".company-workbench-primary-answer")].filter(visible).length
       : 0,
@@ -2215,6 +2266,9 @@ def _browser_observation(page: Any) -> dict[str, object]:
       : null,
     workbench_aside_box: firstWorkbenchAside
       ? boxFor(firstWorkbenchAside, "company-evidence-status")
+      : null,
+    workbench_sec_box: firstWorkbenchSecSection
+      ? boxFor(firstWorkbenchSecSection, "sec-annual-facts")
       : null,
     workbench_module_gate_box: workbenchModuleGates[0]
       ? boxFor(workbenchModuleGates[0], "module-gate")
@@ -2267,7 +2321,7 @@ def _browser_observation(page: Any) -> dict[str, object]:
 
 
 def _discover_evidence_access_observation(page: Any) -> dict[str, object]:
-    """Capture the exact visible Discover evidence-link and search hierarchy."""
+    """Capture search-led Discover and its first actual saved-company result."""
 
     return page.evaluate(
         """
@@ -2301,12 +2355,7 @@ def _discover_evidence_access_observation(page: Any) -> dict[str, object]:
     `[data-sr-region='${name}']`
   )].filter(visible);
   const primaryAnswers = byRegion("primary-answer");
-  const quickSections = [...document.querySelectorAll(
-    ".discover-quick-company-links"
-  )].filter(visible);
-  const quickLinks = [...document.querySelectorAll(
-    ".discover-quick-company-links a[href]"
-  )].filter(visible);
+  const quickLinks = document.querySelectorAll(".discover-quick-company-links a[href]");
   const nativeSearches = [...document.querySelectorAll(
     "[data-testid='stTextInput'] input"
   )].filter((node) => {
@@ -2316,15 +2365,24 @@ def _discover_evidence_access_observation(page: Any) -> dict[str, object]:
     );
   });
   const stopRules = byRegion("stop-rule");
-  const supportingEvidence = byRegion("supporting-evidence");
-  const advancedDetails = byRegion("advanced-detail");
+  const supportingEvidence = [...document.querySelectorAll(
+    "[data-sr-region='supporting-evidence']"
+  )];
+  const advancedFilters = [...document.querySelectorAll("summary")].filter(
+    (node) => visible(node) && node.textContent.trim().includes(
+      "Advanced: filters and selection guidance"
+    )
+  );
+  const firstResult = [...document.querySelectorAll(
+    ".research-discover-result .selector-result-row a.selector-action-link[href]"
+  )].find(visible);
   const milestones = [
-    ...primaryAnswers.map((node) => ({node, name: "primary-answer"})),
-    ...quickSections.map((node) => ({node, name: "quick-links"})),
     ...nativeSearches.map((node) => ({node, name: "native-search"})),
+    ...primaryAnswers.map((node) => ({node, name: "primary-answer"})),
     ...stopRules.map((node) => ({node, name: "stop-rule"})),
+    ...advancedFilters.map((node) => ({node, name: "advanced-filter"})),
+    ...(firstResult ? [{node: firstResult, name: "first-result"}] : []),
     ...supportingEvidence.map((node) => ({node, name: "supporting-evidence"})),
-    ...advancedDetails.map((node) => ({node, name: "advanced-detail"})),
   ];
   milestones.sort((left, right) => {
     if (left.node === right.node) return 0;
@@ -2336,27 +2394,32 @@ def _discover_evidence_access_observation(page: Any) -> dict[str, object]:
     "nav[aria-label='Personal research workflow'] [aria-current='page']"
   )];
   const doc = document.documentElement;
+  const firstBox = firstResult ? firstResult.getBoundingClientRect() : null;
+  const searchBox = nativeSearches.length === 1
+    ? nativeSearches[0].getBoundingClientRect() : null;
+  const stopBox = stopRules.length === 1
+    ? stopRules[0].getBoundingClientRect() : null;
   return {
     primary_answer_count: primaryAnswers.length,
-    quick_links: quickLinks.map((node) => {
-      const box = node.getBoundingClientRect();
-      return {
-        label: node.textContent.trim(),
-        href: node.getAttribute("href") || "",
-        visible: visible(node),
-        focusable: focusable(node),
-        left: box.left,
-        right: box.right,
-        top: box.top,
-        width: box.width,
-        height: box.height,
-        clipped: clipped(node),
-      };
-    }),
+    quick_link_count: quickLinks.length,
+    first_result_link: firstResult ? {
+      label: firstResult.textContent.trim(),
+      href: firstResult.getAttribute("href") || "",
+      visible: visible(firstResult),
+      focusable: focusable(firstResult),
+      left: firstBox.left,
+      right: firstBox.right,
+      top: firstBox.top,
+      width: firstBox.width,
+      height: firstBox.height,
+      clipped: clipped(firstResult),
+    } : {},
+    search_box: searchBox ? {top: searchBox.top, bottom: searchBox.bottom} : {},
+    stop_rule_box: stopBox ? {top: stopBox.top, bottom: stopBox.bottom} : {},
     native_search_count: nativeSearches.length,
     stop_rule_count: stopRules.length,
     supporting_evidence_count: supportingEvidence.length,
-    advanced_detail_count: advancedDetails.length,
+    advanced_filter_count: advancedFilters.length,
     dom_order: milestones.map((entry) => entry.name),
     client_width: doc.clientWidth,
     location_path: window.location.pathname,
@@ -2390,13 +2453,14 @@ def _reset_initial_scroll(page: Any) -> None:
 
 
 def _focus_sequence_observation(page: Any) -> dict[str, object]:
+    discover_route = "page=discover" in page.url
     page.evaluate(
         "() => document.activeElement instanceof HTMLElement && document.activeElement.blur()"
     )
     focused_roles: list[str] = []
     focused_labels: list[str] = []
     outline_widths: list[float] = []
-    for _ in range(20):
+    for _ in range(30):
         page.keyboard.press("Tab")
         observed = page.evaluate(
             """
@@ -2411,9 +2475,9 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
   let role = "other";
   if (element.matches("a.public-skip-link")) role = "skip";
   else if (element.matches("[data-sr-region='primary-action']")) role = "primary-action";
-  else if (element.matches(".discover-quick-company-links a[href]")) role = "evidence-path";
-  else if (element.matches("a[href='#saved-company-browser']")) role = "browse-navigation";
-  else if (selectorSearch) role = "primary-action";
+  else if (element.matches(".research-discover-result .selector-result-row a.selector-action-link[href]")) role = "result-link";
+  else if (selectorSearch) role = window.location.search.includes("page=discover")
+    ? "search" : "primary-action";
   else if (
     element.closest("nav[aria-label='Personal research workflow']") ||
     element.closest(".public-app-shell")
@@ -2422,7 +2486,8 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
   const style = getComputedStyle(element);
   return {
     role,
-    label: element.textContent.trim(),
+    label: selectorSearch && window.location.search.includes("page=discover")
+      ? "Search saved companies" : element.textContent.trim(),
     outline_width: Number.parseFloat(style.outlineWidth) || 0,
   };
 }
@@ -2431,7 +2496,9 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
         focused_roles.append(str(observed.get("role") or "other"))
         focused_labels.append(str(observed.get("label") or ""))
         outline_widths.append(float(observed.get("outline_width") or 0))
-        if observed.get("role") == "advanced-detail":
+        if (discover_route and observed.get("role") == "result-link") or (
+            not discover_route and observed.get("role") == "advanced-detail"
+        ):
             break
     return {
         "focused_roles": focused_roles,
@@ -2659,15 +2726,14 @@ def _evaluate_observation(
         discover = dict(observation.get("discover_evidence_access") or {})
         discover_evaluation = evaluate_discover_evidence_access_layout(
             primary_answer_count=int(discover.get("primary_answer_count") or 0),
-            quick_links=tuple(
-                dict(link) for link in discover.get("quick_links") or ()
-            ),
+            quick_link_count=int(discover.get("quick_link_count") or 0),
+            first_result_link=dict(discover.get("first_result_link") or {}),
             native_search_count=int(discover.get("native_search_count") or 0),
             stop_rule_count=int(discover.get("stop_rule_count") or 0),
             supporting_evidence_count=int(
                 discover.get("supporting_evidence_count") or 0
             ),
-            advanced_detail_count=int(discover.get("advanced_detail_count") or 0),
+            advanced_filter_count=int(discover.get("advanced_filter_count") or 0),
             dom_order=tuple(str(value) for value in discover.get("dom_order") or ()),
             client_width=float(discover.get("client_width") or 0),
             location_path=str(discover.get("location_path") or ""),
@@ -2887,10 +2953,18 @@ def _evaluate_observation(
                 add(
                     "initial_viewport_hierarchy",
                     evaluate_discover_initial_viewport_hierarchy(
+                        search_box=dict(discover.get("search_box") or {}),
                         primary_answer_box=dict(boxes.get("primary-answer") or {}),
-                        quick_links=tuple(
-                            dict(link) for link in discover.get("quick_links") or ()
-                        ),
+                        stop_rule_box=dict(discover.get("stop_rule_box") or {}),
+                        first_result_link=dict(discover.get("first_result_link") or {}),
+                        viewport_height=observed_height,
+                    ),
+                )
+            elif route.slug == "company-workbench":
+                add(
+                    "initial_viewport_hierarchy",
+                    evaluate_company_workbench_initial_viewport_hierarchy(
+                        region_boxes=boxes,
                         viewport_height=observed_height,
                     ),
                 )
@@ -2976,8 +3050,21 @@ def _evaluate_observation(
                 aside_labelled_count=int(
                     observation.get("workbench_aside_labelled_count") or 0
                 ),
+                sec_count=int(observation.get("workbench_sec_count") or 0),
+                sec_visible_count=int(
+                    observation.get("workbench_sec_visible_count") or 0
+                ),
+                sec_labelled_count=int(
+                    observation.get("workbench_sec_labelled_count") or 0
+                ),
                 evidence_lane_count=int(
                     observation.get("workbench_evidence_lane_count") or 0
+                ),
+                change_detail_count=int(
+                    observation.get("workbench_change_detail_count") or 0
+                ),
+                change_detail_open_count=int(
+                    observation.get("workbench_change_detail_open_count") or 0
                 ),
                 positive_tabindex_count=int(
                     observation.get("positive_tabindex_count") or 0
@@ -3002,6 +3089,7 @@ def _evaluate_observation(
                 ),
                 brief_box=dict(observation.get("workbench_brief_box") or {}),
                 aside_box=dict(observation.get("workbench_aside_box") or {}),
+                sec_box=dict(observation.get("workbench_sec_box") or {}),
                 module_gate_box=dict(
                     observation.get("workbench_module_gate_box") or {}
                 ),
@@ -3123,6 +3211,9 @@ def _evaluate_observation(
                     ),
                     positive_tabindex_count=int(
                         observation.get("positive_tabindex_count") or 0
+                    ),
+                    expected_result_label=str(
+                        (discover.get("first_result_link") or {}).get("label") or ""
                     ),
                 )
             else:

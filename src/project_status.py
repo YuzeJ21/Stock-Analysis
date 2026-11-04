@@ -21,11 +21,12 @@ from src.action_queue import write_action_queue_output
 from src.dcf_input_proof_queue import build_dcf_input_proof_queue_from_files
 from src.dcf_input_proof_queue import _reviewed_non_actionable_tickers as _reviewed_non_actionable_dcf_tickers
 from src.hosted_demo_readiness import read_hosted_demo_url
-from src.paths import resolve_data_dir, resolve_outputs_dir, resolve_project_root
-from src.profile_context import build_profile_context, render_profile_context_text
+from src.paths import resolve_data_dir, resolve_data_profile, resolve_outputs_dir, resolve_project_root
+from src.profile_context import CoverageCounts, build_profile_context, render_profile_context_text
 from src.price_history_proof_queue import _reviewed_non_actionable_price_tickers
 from src.public_ux_review_checklist import SUCCESSFUL_REVIEW_CLASSIFICATIONS, public_ux_review_notes_status
 from src.purpose_evaluation import PURPOSE_EVALUATION_SUMMARY_CSV, write_purpose_evaluation_summary
+from src.readiness_coverage import TRUE_VALUES, coverage_fraction as _coverage_fraction, inspect_saved_readiness
 from src.readiness_ops import build_reviewed_batch_ledger_summaries
 from src.research_health import research_health_outputs_current
 from src.research_health import run as run_research_health
@@ -46,7 +47,7 @@ def _truthy_value(value: object) -> bool:
     if isinstance(value, bool):
         return value
     text = str(value or "").strip().lower()
-    return text in {"true", "1", "yes"}
+    return text in TRUE_VALUES
 
 
 def _source_needs_required_attention(row: dict[str, Any]) -> bool:
@@ -294,22 +295,6 @@ def _load_price_status_lookup(output_path: Path) -> dict[str, dict[str, Any]]:
     return lookup
 
 
-def _count_readiness_true(data_path: Path, field: str) -> int | None:
-    path = data_path / "reports" / "ticker_readiness_report.csv"
-    if not path.exists():
-        return None
-    try:
-        frame = pd.read_csv(path)
-    except Exception:
-        return None
-    if frame.empty or field not in frame.columns:
-        return None
-    values = frame[field]
-    if pd.api.types.is_bool_dtype(values):
-        return int(values.fillna(False).sum())
-    return int(values.fillna("").astype(str).str.strip().str.lower().isin({"true", "1", "yes"}).sum())
-
-
 def _count_tickers_with_price_rows(data_path: Path, allowed: set[str] | None = None) -> int | None:
     path = data_path / "price_coverage_report.csv"
     if not path.exists():
@@ -330,7 +315,86 @@ def _count_tickers_with_price_rows(data_path: Path, allowed: set[str] | None = N
 def _truthy_series(values: pd.Series) -> pd.Series:
     if pd.api.types.is_bool_dtype(values):
         return values.fillna(False).astype(bool)
-    return values.fillna("").astype(str).str.strip().str.lower().isin({"true", "1", "yes"})
+    return values.fillna("").astype(str).str.strip().str.lower().isin(TRUE_VALUES)
+
+
+def _saved_readiness_population(
+    root: Path, data_path: Path, allowed: set[str] | None = None,
+) -> dict[str, Any]:
+    """Count only rows in the selected saved readiness report."""
+    path = data_path / "reports" / "ticker_readiness_report.csv"
+    try:
+        source = path.relative_to(root).as_posix()
+    except ValueError:
+        source = str(path)
+    return {**inspect_saved_readiness(path, allowed), "source": source}
+
+
+def _working_universe_population(coverage: list[dict[str, Any]] | None) -> dict[str, Any]:
+    if not coverage:
+        return {"status": "unavailable", "total": None, "has_prices": None, "momentum_usable": None}
+    return {
+        "status": "available",
+        "total": len(coverage),
+        "has_prices": sum(_truthy_value(row.get("has_prices")) for row in coverage),
+        "momentum_usable": sum(_truthy_value(row.get("usable_for_momentum")) for row in coverage),
+    }
+
+
+def _unavailable_working_population() -> dict[str, Any]:
+    return {"status": "unavailable", "total": None, "has_prices": None, "momentum_usable": None}
+
+
+def _attach_population_identity(
+    root: Path, data_path: Path, output_path: Path, populations: dict[str, dict[str, Any]],
+) -> str:
+    selected = resolve_data_profile(project_root=root)
+    profile_key = (
+        selected.name
+        if data_path == selected.data_dir and output_path == selected.outputs_dir
+        else "custom"
+    )
+    for population in populations.values():
+        population["profile_key"] = profile_key
+        population["data_dir"] = str(data_path)
+    return profile_key
+
+
+def _apply_population_stage_evidence(
+    rows: list[dict[str, str]], populations: dict[str, dict[str, Any]],
+) -> list[dict[str, str]]:
+    saved = populations["saved_readiness"]
+    working = populations["working_universe"]
+    updated: list[dict[str, str]] = []
+    for original in rows:
+        row = dict(original)
+        if row.get("Stage") == "Peer readiness upgrade":
+            peer = _coverage_fraction(saved, "peer_ready")
+            if peer == "unavailable":
+                row["Evidence"] = "Saved peer readiness is unavailable; source proof remains a separate gate."
+            else:
+                row["Evidence"] = f"Saved peer-ready: {peer} peer-ready; the count alone does not establish source proof."
+        elif row.get("Stage") == "Coverage depth":
+            if working.get("status") == "available":
+                working_text = (
+                    f"Working-universe planning: price rows {_coverage_fraction(working, 'has_prices')}; "
+                    f"momentum usable {_coverage_fraction(working, 'momentum_usable')}"
+                )
+            else:
+                working_text = "Working-universe planning coverage unavailable"
+            if saved.get("status") == "available":
+                saved_text = (
+                    f"Saved readiness: price {_coverage_fraction(saved, 'price_ready')}; "
+                    f"momentum {_coverage_fraction(saved, 'momentum_ready')}; "
+                    f"fundamentals {_coverage_fraction(saved, 'fundamentals_ready')}; "
+                    f"DCF {_coverage_fraction(saved, 'dcf_ready')}; "
+                    f"peer {_coverage_fraction(saved, 'peer_ready')}"
+                )
+            else:
+                saved_text = "Saved readiness coverage unavailable"
+            row["Evidence"] = f"{working_text}. {saved_text}."
+        updated.append(row)
+    return updated
 
 
 def _stale_generated_artifact_warnings(data_path: Path, output_path: Path) -> list[str]:
@@ -861,6 +925,7 @@ def _fast_status_payload_from_outputs(
             return 0
         return int(_truthy_series(readiness[field]).sum())
 
+    price_rows_count = _count_tickers_with_price_rows(data_path, allowed)
     summary = {
         "data_sources_total": len(sources),
         "data_sources_available": sum(1 for row in sources if row.get("availability_status") == "available"),
@@ -868,7 +933,7 @@ def _fast_status_payload_from_outputs(
         "data_sources_optional_locked": len(optional_locked_sources),
         "data_gaps": len(gaps),
         "tickers_total": len(readiness),
-        "tickers_with_prices": _count_tickers_with_price_rows(data_path, allowed) or readiness_count("price_ready"),
+        "tickers_with_prices": price_rows_count or readiness_count("price_ready"),
         "tickers_price_ready": readiness_count("price_ready"),
         "tickers_usable_for_momentum": readiness_count("momentum_ready"),
         "tickers_fundamentals_ready": readiness_count("fundamentals_ready"),
@@ -960,12 +1025,37 @@ def _fast_status_payload_from_outputs(
         public_ux_review_status=_public_ux_review_status_for_root(root),
         hosted_demo_url=_hosted_demo_url_for_root(root),
     )
+    coverage_populations = {
+        "saved_readiness": _saved_readiness_population(root, data_path, allowed),
+        "working_universe": _unavailable_working_population(),
+    }
+    profile_key = _attach_population_identity(root, data_path, output_path, coverage_populations)
+    remaining_stage_rows = _apply_population_stage_evidence(remaining_stage_rows, coverage_populations)
+    saved_population = coverage_populations["saved_readiness"]
+
+    def saved_origin(field: str) -> str:
+        return "saved_readiness" if saved_population.get(field) is not None else "saved_readiness_unverified"
+
+    summary_count_origins = {
+        "tickers_total": saved_origin("total"),
+        "tickers_with_prices": "price_coverage_report" if price_rows_count else saved_origin("price_ready"),
+        "tickers_price_ready": saved_origin("price_ready"),
+        "tickers_usable_for_momentum": saved_origin("momentum_ready"),
+        "tickers_fundamentals_ready": saved_origin("fundamentals_ready"),
+        "tickers_dcf_ready": saved_origin("dcf_ready"),
+        "tickers_peer_ready": saved_origin("peer_ready"),
+    }
     workflow_continuation = _workflow_continuation_from_stage_rows(remaining_stage_rows)
     return {
         "project_root": str(root),
         "data_dir": str(data_path),
         "outputs_dir": str(output_path),
+        "coverage_contract_version": 1,
+        "summary_coverage_authority": "coverage_populations",
+        "profile_key": profile_key,
         "summary": summary,
+        "coverage_populations": coverage_populations,
+        "summary_count_origins": summary_count_origins,
         "data_sources_needing_attention": required_problem_sources[:top_n],
         "data_sources_optional_locked": optional_locked_sources[:top_n],
         "top_data_gaps": gaps[:top_n],
@@ -1828,6 +1918,7 @@ def build_project_status_payload(
     sources = source_payload["data_sources"]
     gaps = source_payload["data_gaps"]
     coverage = onboarding_payload["ticker_coverage"]
+    allowed: set[str] | None = None
     if tickers:
         allowed = {str(ticker).upper().strip() for ticker in tickers if str(ticker).strip()}
         coverage = [row for row in coverage if str(row.get("ticker", "")).upper().strip() in allowed]
@@ -1854,9 +1945,10 @@ def build_project_status_payload(
     command_problem_sources = [] if tickers else problem_sources
     if optional_context_covered:
         command_problem_sources = _drop_optional_context_problem_sources(command_problem_sources)
-    readiness_fundamentals_ready = None if tickers else _count_readiness_true(data_path, "fundamentals_ready")
-    readiness_dcf_ready = None if tickers else _count_readiness_true(data_path, "dcf_ready")
-    readiness_price_ready = None if tickers else _count_readiness_true(data_path, "price_ready")
+    saved_readiness = _saved_readiness_population(root, data_path, allowed)
+    readiness_fundamentals_ready = None if tickers else saved_readiness["fundamentals_ready"]
+    readiness_dcf_ready = None if tickers else saved_readiness["dcf_ready"]
+    readiness_price_ready = None if tickers else saved_readiness["price_ready"]
     purpose_evaluation_rows = [] if tickers else _load_purpose_evaluation_summary(output_path, top_n)
     summary = {
         "data_sources_total": len(sources),
@@ -1912,12 +2004,32 @@ def build_project_status_payload(
         public_ux_review_status=_public_ux_review_status_for_root(root),
         hosted_demo_url=_hosted_demo_url_for_root(root),
     )
+    coverage_populations = {
+        "saved_readiness": saved_readiness,
+        "working_universe": _working_universe_population(coverage),
+    }
+    profile_key = _attach_population_identity(root, data_path, output_path, coverage_populations)
+    remaining_stage_rows = _apply_population_stage_evidence(remaining_stage_rows, coverage_populations)
+    summary_count_origins = {
+        "tickers_total": "working_universe",
+        "tickers_with_prices": "working_universe",
+        "tickers_price_ready": "saved_readiness" if readiness_price_ready is not None else "working_universe",
+        "tickers_usable_for_momentum": "working_universe",
+        "tickers_fundamentals_ready": "saved_readiness" if readiness_fundamentals_ready is not None else "working_universe",
+        "tickers_dcf_ready": "saved_readiness" if readiness_dcf_ready is not None else "working_universe",
+        "tickers_peer_ready": "working_universe",
+    }
     workflow_continuation = _workflow_continuation_from_stage_rows(remaining_stage_rows)
     return {
         "project_root": str(root),
         "data_dir": str(data_path),
         "outputs_dir": str(output_path),
+        "coverage_contract_version": 1,
+        "summary_coverage_authority": "coverage_populations",
+        "profile_key": profile_key,
         "summary": summary,
+        "coverage_populations": coverage_populations,
+        "summary_count_origins": summary_count_origins,
         "data_sources_needing_attention": required_problem_sources[:top_n],
         "data_sources_optional_locked": optional_locked_sources[:top_n],
         "top_data_gaps": gaps[:top_n],
@@ -1977,7 +2089,26 @@ def write_project_status_output(
     purpose_summary_path = output_path / PURPOSE_EVALUATION_SUMMARY_CSV
 
     json_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    pd.DataFrame([payload["summary"]]).to_csv(summary_path, index=False)
+    populations = payload["coverage_populations"]
+    population_summary = {
+        **payload["summary"],
+        "coverage_contract_version": 1,
+        "summary_coverage_authority": payload["summary_coverage_authority"],
+        **{
+            f"saved_readiness_{field}": value
+            for field, value in populations["saved_readiness"].items()
+            if field != "source"
+        },
+        **{
+            f"working_universe_{field}": value
+            for field, value in populations["working_universe"].items()
+        },
+        **{
+            f"{field}_origin": origin
+            for field, origin in payload["summary_count_origins"].items()
+        },
+    }
+    pd.DataFrame([population_summary]).to_csv(summary_path, index=False)
     pd.DataFrame(payload["top_onboarding_actions"]).to_csv(top_actions_path, index=False)
     pd.DataFrame(payload["recommended_next_command_rows"]).to_csv(next_steps_path, index=False)
     pd.DataFrame(payload["remaining_public_stage_rows"]).to_csv(remaining_stages_path, index=False)
@@ -1999,8 +2130,19 @@ def _print_human(
     payload: dict[str, Any],
     *,
     continuation_gate: ContinuationGate | None = None,
+    saved_coverage: CoverageCounts | None = None,
 ) -> None:
     summary = payload["summary"]
+    explicit_populations = payload.get("coverage_populations")
+    has_explicit_populations = (
+        isinstance(explicit_populations, dict)
+        and isinstance(explicit_populations.get("saved_readiness"), dict)
+        and isinstance(explicit_populations.get("working_universe"), dict)
+    )
+    working_total = int(summary.get("tickers_total") or 0)
+    populations_differ = saved_coverage is not None and (
+        saved_coverage.total != working_total or saved_coverage.total == 0
+    )
     warnings = list(payload.get("warnings", []))
     has_stale_snapshot_warning = any(
         "generated status artifacts may be stale" in str(warning).strip().lower()
@@ -2050,11 +2192,40 @@ def _print_human(
         print(f"- Optional provider setup gaps: {len(source_needs_setup)} ({', '.join(source_needs_setup)})")
     print(f"- Optional/manual lanes locked: {summary.get('data_sources_optional_locked', 0)}")
     print(f"- Locked input rows: {summary['data_gaps']}")
-    print(f"- Tickers with prices: {summary['tickers_with_prices']}/{summary['tickers_total']}")
-    print(f"- Tickers usable for momentum: {summary['tickers_usable_for_momentum']}/{summary['tickers_total']}")
-    print(f"- Fundamentals/input-ready tickers: {summary.get('tickers_fundamentals_ready', 0)}/{summary['tickers_total']}")
-    print(f"- Operating-company DCF-ready tickers: {summary['tickers_dcf_ready']}/{summary['tickers_total']}")
-    print(f"- Peer-ready tickers: {summary['tickers_peer_ready']}/{summary['tickers_total']}")
+    if has_explicit_populations:
+        saved = explicit_populations["saved_readiness"]
+        working = explicit_populations["working_universe"]
+        if working.get("status") == "available":
+            print(f"- Working-universe planning rows: {working['total']}")
+            print(f"- Working-universe price rows: {_coverage_fraction(working, 'has_prices')}")
+            print(f"- Working-universe momentum-usable rows: {_coverage_fraction(working, 'momentum_usable')}")
+        else:
+            print("- Working-universe planning coverage: unavailable in this snapshot")
+        if saved.get("status") == "available":
+            print(f"- Saved readiness rows: {saved['total']}")
+            print(f"- Saved price-ready tickers: {_coverage_fraction(saved, 'price_ready')}")
+            print(f"- Saved momentum-ready tickers: {_coverage_fraction(saved, 'momentum_ready')}")
+            print(f"- Saved fundamentals/input-ready tickers: {_coverage_fraction(saved, 'fundamentals_ready')}")
+            print(f"- Saved operating-company DCF-ready tickers: {_coverage_fraction(saved, 'dcf_ready')}")
+            print(f"- Saved peer-ready tickers: {_coverage_fraction(saved, 'peer_ready')}")
+        else:
+            print("- Saved readiness coverage: unavailable (no verified saved readiness rows)")
+    elif populations_differ:
+        print(f"- Working-universe planning rows: {working_total}")
+        print(f"- Working-universe price rows: {summary['tickers_with_prices']}/{working_total}")
+        print(f"- Working-universe momentum-usable rows: {summary['tickers_usable_for_momentum']}/{working_total}")
+        if saved_coverage.total:
+            print(f"- Saved fundamentals/input-ready tickers: {saved_coverage.fundamentals_ready}/{saved_coverage.total}")
+            print(f"- Saved operating-company DCF-ready tickers: {saved_coverage.dcf_ready}/{saved_coverage.total}")
+            print(f"- Saved peer-ready tickers: {saved_coverage.peer_ready}/{saved_coverage.total}")
+        else:
+            print("- Saved readiness coverage: unavailable (no saved readiness rows)")
+    else:
+        print(f"- Tickers with prices: {summary['tickers_with_prices']}/{summary['tickers_total']}")
+        print(f"- Tickers usable for momentum: {summary['tickers_usable_for_momentum']}/{summary['tickers_total']}")
+        print(f"- Fundamentals/input-ready tickers: {summary.get('tickers_fundamentals_ready', 0)}/{summary['tickers_total']}")
+        print(f"- Operating-company DCF-ready tickers: {summary['tickers_dcf_ready']}/{summary['tickers_total']}")
+        print(f"- Peer-ready tickers: {summary['tickers_peer_ready']}/{summary['tickers_total']}")
     print(f"- Missing-data steps: {summary['onboarding_actions']} ({summary['critical_actions']} urgent)")
     print(f"- Research-purpose groups: {summary.get('purpose_evaluation_groups', 0)} ({summary.get('purpose_evaluation_active_groups', 0)} active-universe groups)")
     command_rows = payload.get("recommended_next_command_rows") or [
@@ -2075,12 +2246,34 @@ def _print_human(
     ready_label = "Ready now"
     if has_stale_snapshot_warning or suppress_execution:
         ready_label = "Ready in saved snapshot"
-    print(
-        f"- {ready_label}: {summary['tickers_with_prices']} with price rows, "
-        f"{summary.get('tickers_fundamentals_ready', 0)} fundamentals/input-ready, "
-        f"{summary['tickers_dcf_ready']} operating-company DCF-ready, "
-        f"{summary['tickers_peer_ready']} peer-ready."
-    )
+    if has_explicit_populations:
+        saved = explicit_populations["saved_readiness"]
+        if saved.get("status") != "available":
+            print("- Ready in saved snapshot: unavailable; no verified saved readiness rows.")
+        else:
+            print(
+                "- Ready in saved snapshot: "
+                f"{_coverage_fraction(saved, 'price_ready')} price-ready, "
+                f"{_coverage_fraction(saved, 'fundamentals_ready')} fundamentals/input-ready, "
+                f"{_coverage_fraction(saved, 'dcf_ready')} operating-company DCF-ready, "
+                f"{_coverage_fraction(saved, 'peer_ready')} peer-ready."
+            )
+    elif populations_differ and not saved_coverage.total:
+        print("- Ready in saved snapshot: unavailable; no saved readiness rows.")
+    elif populations_differ:
+        print(
+            f"- Ready in saved snapshot: {saved_coverage.price_ready} price-ready, "
+            f"{saved_coverage.fundamentals_ready} fundamentals/input-ready, "
+            f"{saved_coverage.dcf_ready} operating-company DCF-ready, "
+            f"{saved_coverage.peer_ready} peer-ready."
+        )
+    else:
+        print(
+            f"- {ready_label}: {summary['tickers_with_prices']} with price rows, "
+            f"{summary.get('tickers_fundamentals_ready', 0)} fundamentals/input-ready, "
+            f"{summary['tickers_dcf_ready']} operating-company DCF-ready, "
+            f"{summary['tickers_peer_ready']} peer-ready."
+        )
     if has_stale_snapshot_warning:
         print("- Inspection needed: run make readiness-preview TOP_N=20 before using exact saved counts. In-memory preview only; it does not refresh or persist saved readiness.")
     print(
@@ -2141,6 +2334,8 @@ def _print_human(
             print(f"- Avoid repeating now: {_friendly_cli_guidance(', '.join(avoid_repeating))}.")
     print("- Details below are capped and copy-only.")
     stage_rows = payload.get("remaining_public_stage_rows") or []
+    if has_explicit_populations:
+        stage_rows = _apply_population_stage_evidence(stage_rows, explicit_populations)
     if stage_rows:
         print("Remaining public/product stages:")
         for row in stage_rows:
@@ -2149,6 +2344,17 @@ def _print_human(
             diagnostic_state = str(row.get("Diagnostic State") or "").strip()
             next_action = str(row.get("Next Action") or "").strip()
             evidence = str(row.get("Evidence") or "").strip()
+            if not has_explicit_populations and populations_differ and stage == "Coverage depth":
+                evidence = (
+                    f"Working-universe planning has {working_total} rows; saved readiness has "
+                    f"{saved_coverage.total} rows. Inspect proposed changes separately."
+                )
+            elif not has_explicit_populations and populations_differ and stage == "Peer readiness upgrade":
+                evidence = (
+                    f"Saved peer-ready: {saved_coverage.peer_ready}/{saved_coverage.total}; "
+                    "source-backed peer mappings still need review."
+                    if saved_coverage.total else "Saved peer readiness is unavailable."
+                )
             print(f"- {stage}: {state}")
             if diagnostic_state and diagnostic_state != state:
                 print(f"  diagnostic: {diagnostic_state}")
@@ -2287,7 +2493,7 @@ def main(argv: list[str] | None = None) -> None:
 
     print(render_profile_context_text(profile_context))
     print(_format_operator_path_context(root, data_path, output_path))
-    _print_human(payload, continuation_gate=continuation_gate)
+    _print_human(payload, continuation_gate=continuation_gate, saved_coverage=profile_context.coverage)
     if args.write_output:
         print("Wrote:")
         for path in payload.get("written_files", {}).values():

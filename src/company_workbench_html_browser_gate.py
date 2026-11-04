@@ -2454,7 +2454,12 @@ def _summary_scope_observation(page) -> dict[str, object]:
                         }
                     }
                 };
-                if (hitTestEligible) return strictCurrentHitTest();
+                if (hitTestEligible) {
+                    const currentVisible = strictCurrentHitTest();
+                    if (currentVisible || node !== onePager) return currentVisible;
+                    // A tall compound summary may have only its covered footer in view.
+                    // Its required children still receive independent paint checks.
+                }
                 const scrollPositions = [];
                 const remembered = new Set();
                 const remember = element => {
@@ -2488,7 +2493,8 @@ def _summary_scope_observation(page) -> dict[str, object]:
                         }
                         if (['auto', 'scroll'].includes(style.overflowY) &&
                             current.scrollHeight > current.clientHeight + 1) {
-                            if (targetRect.top < ancestorTop) {
+                            if (targetRect.top < ancestorTop ||
+                                node === onePager && targetRect.height > current.clientHeight) {
                                 current.scrollTop += targetRect.top - ancestorTop;
                             } else if (targetRect.bottom > ancestorBottom) {
                                 current.scrollTop += targetRect.bottom - ancestorBottom;
@@ -2501,7 +2507,8 @@ def _summary_scope_observation(page) -> dict[str, object]:
                     } else if (targetRect.right > window.innerWidth) {
                         scrollingElement.scrollLeft += targetRect.right - window.innerWidth;
                     }
-                    if (targetRect.top < 0) {
+                    if (targetRect.top < 0 ||
+                        node === onePager && targetRect.height > window.innerHeight) {
                         scrollingElement.scrollTop += targetRect.top;
                     } else if (targetRect.bottom > window.innerHeight) {
                         scrollingElement.scrollTop += targetRect.bottom - window.innerHeight;

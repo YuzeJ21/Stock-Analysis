@@ -21,6 +21,30 @@ import pandas as pd
 import streamlit as st
 
 from src.accessibility_bridge import render_semantic_main_bridge
+from src.company_sec_online_preview import (
+    company_sec_annual_preview_html,
+    get_company_sec_annual_preview,
+)
+from src.online_company_search import (
+    ONLINE_COMPANY_SESSION_KEY,
+    online_company_candidate_for_route,
+    online_company_results_html,
+)
+from src.providers.sec_company_discovery import search_sec_company_candidates
+from src.online_company_analysis import build_online_company_analysis, online_company_analysis_html
+from src.online_company_prices import get_online_company_prices
+from src.online_research_history_view import annual_history_html, online_price_history_html
+from src.online_company_identity import get_price_filing_association
+from src.online_research_coverage import DEFAULT_SAMPLE, get_online_coverage_study
+from src.online_us_universe import get_online_us_universe
+from src.online_us_universe_view import universe_coverage_html, foreign_financials_html
+from src.sec_foreign_financials import validated_foreign_financials
+from src.sec_exact_filing import get_company_filing_preview
+from src.sec_exact_filing_view import filing_preview_html
+from src.security_classification import get_company_security_context
+from src.security_classification_view import get_listing_classification,classification_html,company_security_html
+from src.online_coverage_checkpoint import handle_coverage_checkpoint_action
+from src.online_research_expansion_view import quarterly_history_html, price_filing_association_html, coverage_study_html
 from src.artifact_freshness import generated_artifact_stale_warning
 from src.action_queue import write_action_queue_output
 from src.auto_refresh_orchestrator import build_auto_refresh_status_payload, build_scheduler_plan
@@ -355,6 +379,7 @@ from src.research_decision_lab import (
     research_discipline_rows,
     unavailable_research_decision_lab_state,
 )
+from src.company_workbench_ui import render_integrated_company
 from src.scenario_lab import ScenarioLabResult
 from src.scenario_lab_session import (
     ScenarioLabSessionSnapshot,
@@ -386,7 +411,12 @@ from src.peer_mapping_source_review import (
 from src.reviewed_data_proof import DEFAULT_LEDGER_PATH, lane_history_rows, latest_reviewed_proof, load_reviewed_proofs
 from src.review_metrics import build_metric_readiness_summary, configured_risk_free_rate
 from src.risk_context_workflow import data_health_risk_context_cards, split_risk_context_by_price_ready
-from src.project_status import PROJECT_STATUS_NEXT_STEPS_CSV, build_project_status_payload
+from src.project_status import (
+    PROJECT_STATUS_NEXT_STEPS_CSV,
+    _apply_population_stage_evidence,
+    _saved_readiness_population,
+    build_project_status_payload,
+)
 from src.profile_context import ProfileContext, build_profile_context
 from src.observation_recency import ObservationRecency, ObservationRecencySet, load_observation_recency
 from src.company_workbench_cash_generation_preview import (
@@ -8020,7 +8050,7 @@ def single_stock_loading_state_html(ticker: object) -> str:
 
 
 def company_workbench_evidence_loading_html(ticker: object) -> str:
-    """Render a neutral Workbench evidence rail until the saved report is available."""
+    """Render a neutral inline source-status placeholder during saved review load."""
 
     ticker_label = html.escape(format_missing(ticker, "Selected company").upper())
     return (
@@ -8029,11 +8059,6 @@ def company_workbench_evidence_loading_html(ticker: object) -> str:
         "<div class='company-workbench-evidence-heading'>"
         "<h2>Company evidence status</h2>"
         f"<span>{ticker_label}: preparing saved review</span>"
-        "</div>"
-        "<div class='company-workbench-evidence-lanes'>"
-        "<article class='company-workbench-evidence-lane'>"
-        "<span>Saved review</span><strong>Preparing</strong>"
-        "</article>"
         "</div>"
         "<p class='company-workbench-evidence-loading-note'>"
         "No data is being refreshed or changed. This temporary state does not state that any analysis section is ready or blocked."
@@ -12290,14 +12315,64 @@ def _cached_session_source_preflight_payload(root: Path | None = None) -> dict[s
 def load_saved_project_status_payload(root: Path | None = None) -> dict[str, Any] | None:
     """Load the latest saved project status without refreshing generated artifacts."""
 
-    path = (root or BASE_DIR) / "outputs" / "project_status.json"
+    project_root = Path(root or BASE_DIR).resolve()
+    context = build_profile_context(project_root=project_root)
+    path = context.outputs_dir / "project_status.json"
     if not path.exists():
         return None
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    return payload if isinstance(payload, dict) else None
+    if not isinstance(payload, dict):
+        return None
+    populations = payload.get("coverage_populations")
+    populations = dict(populations) if isinstance(populations, dict) else {}
+
+    def identity_state(record: object) -> str:
+        if not isinstance(record, dict):
+            return "missing"
+        profile_key = str(record.get("profile_key") or "").strip()
+        data_dir = str(record.get("data_dir") or "").strip()
+        if not profile_key or not data_dir:
+            return "missing"
+        data_path = Path(data_dir).expanduser()
+        if not data_path.is_absolute():
+            data_path = project_root / data_path
+        if profile_key != context.profile_key or data_path.resolve() != context.data_dir:
+            return "mismatch"
+        return "match"
+
+    identities = [identity_state(payload)] + [
+        identity_state(populations.get(name))
+        for name in ("saved_readiness", "working_universe")
+    ]
+    if "mismatch" in identities:
+        return None
+    if not all(state == "match" for state in identities):
+        populations = {}
+    saved = _saved_readiness_population(project_root, context.data_dir)
+    saved["profile_key"] = context.profile_key
+    saved["data_dir"] = str(context.data_dir)
+    saved["loaded_from_current_profile"] = True
+    populations["saved_readiness"] = saved
+    populations.setdefault(
+        "working_universe",
+        {
+            "status": "unavailable", "total": None, "has_prices": None, "momentum_usable": None,
+            "profile_key": context.profile_key, "data_dir": str(context.data_dir),
+        },
+    )
+    payload["coverage_populations"] = populations
+    stage_rows = payload.get("remaining_public_stage_rows")
+    if isinstance(stage_rows, list):
+        payload["remaining_public_stage_rows"] = [
+            _apply_population_stage_evidence([dict(row)], populations)[0]
+            if isinstance(row, dict)
+            else row
+            for row in stage_rows
+        ]
+    return payload
 
 
 def _source_activation_free_tier_limit_summary(console: dict[str, object]) -> str:
@@ -25063,6 +25138,18 @@ def data_health_selected_lane_answer_cards(
         if saved_count is not None:
             return saved_count
         return _summary_optional_count(project_summary, *keys)
+
+    saved_population_state, saved_population = _project_status_population(
+        project_status_payload, "saved_readiness"
+    )
+
+    def resolved_readiness_count(population_key: str, *legacy_keys: str) -> int | None:
+        if saved_population_state == "available":
+            return _summary_optional_count(saved_population, population_key)
+        if saved_population_state == "unavailable":
+            return None
+        return resolved_count(*legacy_keys)
+
     recommended_rows = (
         project_status_payload.get("recommended_next_command_rows", [])
         if isinstance(project_status_payload, dict)
@@ -25135,18 +25222,20 @@ def data_health_selected_lane_answer_cards(
         or "project-status" in source_gate_command
     )
 
-    price_ready = resolved_count("price_ready", "tickers_with_prices")
-    fundamentals_ready = resolved_count(
+    price_ready = resolved_readiness_count("price_ready", "price_ready", "tickers_with_prices")
+    fundamentals_ready = resolved_readiness_count(
+        "fundamentals_ready",
         "fundamentals_ready",
         "input_ready",
         "tickers_fundamentals_ready",
     )
-    dcf_ready = resolved_count(
+    dcf_ready = resolved_readiness_count(
+        "dcf_ready",
         "dcf_ready",
         "operating_company_dcf_ready",
         "tickers_dcf_ready",
     )
-    peer_ready = resolved_count("peer_ready", "tickers_peer_ready")
+    peer_ready = resolved_readiness_count("peer_ready", "peer_ready", "tickers_peer_ready")
     data_gaps = resolved_count(
         "data_gaps",
         "locked_input_rows",
@@ -25929,22 +26018,69 @@ def workflow_health_score(
     return score, "Needs Data"
 
 
+def _project_status_population(
+    payload: Mapping[str, object] | None,
+    name: str,
+) -> tuple[str, Mapping[str, object] | None]:
+    populations = payload.get("coverage_populations") if isinstance(payload, Mapping) else None
+    if not isinstance(populations, Mapping) or name not in populations:
+        return "legacy", None
+    population = populations[name]
+    if not isinstance(population, Mapping) or population.get("status") != "available":
+        return "unavailable", None
+    return "available", population
+
+
+def _project_saved_readiness_counts(
+    payload: Mapping[str, object] | None,
+) -> tuple[dict[str, int | None], str]:
+    state, population = _project_status_population(payload, "saved_readiness")
+    if state == "available":
+        return {
+            key: _summary_optional_count(population, key)
+            for key in ("total", "price_ready", "dcf_ready", "peer_ready")
+        }, state
+    return {key: None for key in ("total", "price_ready", "dcf_ready", "peer_ready")}, state
+
+
+def _project_working_price_counts(
+    payload: Mapping[str, object] | None,
+) -> tuple[int | None, int | None, str]:
+    state, population = _project_status_population(payload, "working_universe")
+    if state == "available":
+        return _summary_optional_count(population, "total"), _summary_optional_count(population, "has_prices"), state
+    return None, None, state
+
+
+def _project_coverage_fraction(ready: int | None, total: int | None) -> str:
+    if ready is None or total is None or total <= 0:
+        return "Not available"
+    return f"{ready}/{total}"
+
+
 def project_status_metric_cards(payload: dict[str, Any] | None) -> list[tuple[str, object, str]]:
     if not payload:
         return []
     summary = payload.get("summary", {})
     total_sources = int(summary.get("data_sources_total") or 0)
     available_sources = int(summary.get("data_sources_available") or 0)
-    total_tickers = int(summary.get("tickers_total") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or 0)
-    dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
-    peer_ready = int(summary.get("tickers_peer_ready") or 0)
+    saved, saved_state = _project_saved_readiness_counts(payload)
+    _, saved_population = _project_status_population(payload, "saved_readiness")
+    coverage_note = (
+        "Selected-profile saved readiness report read at page load; freshness checked separately"
+        if saved_state == "available" and saved_population and saved_population.get("loaded_from_current_profile")
+        else "Saved readiness report"
+        if saved_state == "available"
+        else "Legacy summary; population unverified"
+        if saved_state == "legacy"
+        else "Saved readiness unavailable"
+    )
     return [
         ("Data Sources", f"{available_sources}/{total_sources}", "Available local/source coverage"),
         ("Locked Inputs", int(summary.get("data_gaps") or 0), "Rows waiting on trusted local data"),
-        ("Price Ready", f"{price_ready}/{total_tickers}", "Tickers with usable local prices"),
-        ("DCF Ready", f"{dcf_ready}/{total_tickers}", "Tickers with enough local valuation fields"),
-        ("Peer Ready", f"{peer_ready}/{total_tickers}", "Tickers with local peer context"),
+        ("Price Ready", _project_coverage_fraction(saved["price_ready"], saved["total"]), f"{coverage_note}; tickers with usable local prices"),
+        ("DCF Ready", _project_coverage_fraction(saved["dcf_ready"], saved["total"]), f"{coverage_note}; tickers with enough local valuation fields"),
+        ("Peer Ready", _project_coverage_fraction(saved["peer_ready"], saved["total"]), f"{coverage_note}; tickers with local peer context"),
         (
             "Urgent Unlock Steps",
             int(summary.get("critical_actions") or 0),
@@ -26200,10 +26336,11 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
             tone="warning",
         )
     summary = payload.get("summary", {})
-    total_tickers = int(summary.get("tickers_total") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or 0)
-    dcf_ready = int(summary.get("tickers_dcf_ready") or 0)
-    peer_ready = int(summary.get("tickers_peer_ready") or 0)
+    saved, saved_state = _project_saved_readiness_counts(payload)
+    total_tickers = saved["total"]
+    price_ready = saved["price_ready"]
+    dcf_ready = saved["dcf_ready"]
+    peer_ready = saved["peer_ready"]
     critical_actions = int(summary.get("critical_actions") or 0)
     data_gaps = int(summary.get("data_gaps") or 0)
     tone = "danger" if critical_actions else "warning" if data_gaps else "neutral"
@@ -26211,10 +26348,18 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
         f"{critical_actions} critical actions and {data_gaps} data gaps are currently visible. "
         "The review stays usable because missing inputs are labeled instead of guessed."
     )
+    _, saved_population = _project_status_population(payload, "saved_readiness")
+    if saved_state == "available" and saved_population and saved_population.get("loaded_from_current_profile"):
+        summary_copy += " Saved coverage was read from the selected-profile report at page load; freshness checked separately."
+    elif saved_state == "legacy":
+        summary_copy += " Coverage uses a legacy summary; its population is unverified."
+    elif saved_state == "unavailable":
+        summary_copy += " Saved readiness coverage is unavailable."
+    coverage_note = "" if saved_state == "available" else " (population unverified)" if saved_state == "legacy" else " (saved readiness unavailable)"
     lanes = [
-        ("Price Coverage", f"{price_ready}/{total_tickers}", "Momentum and track-record readiness", "danger" if price_ready < total_tickers else "neutral"),
-        ("Valuation Coverage", f"{dcf_ready}/{total_tickers}", "DCF-ready local fundamentals", "warning" if dcf_ready < total_tickers else "neutral"),
-        ("Peer Context", f"{peer_ready}/{total_tickers}", "Manual peer mappings plus peer data", "warning" if peer_ready < total_tickers else "neutral"),
+        ("Price Coverage", _project_coverage_fraction(price_ready, total_tickers), f"Saved price readiness{coverage_note}", "danger" if price_ready is not None and total_tickers is not None and price_ready < total_tickers else "neutral"),
+        ("Valuation Coverage", _project_coverage_fraction(dcf_ready, total_tickers), f"Saved DCF readiness{coverage_note}", "warning" if dcf_ready is not None and total_tickers is not None and dcf_ready < total_tickers else "neutral"),
+        ("Peer Context", _project_coverage_fraction(peer_ready, total_tickers), f"Saved peer readiness{coverage_note}", "warning" if peer_ready is not None and total_tickers is not None and peer_ready < total_tickers else "neutral"),
     ]
     lane_html = "".join(
         (
@@ -26229,8 +26374,8 @@ def project_status_cockpit_html(payload: dict[str, Any] | None, health_score: in
     return (
         "<div class='cockpit-panel'>"
         f"<div class='cockpit-summary {html.escape(tone)}'>"
-        "<div class='cockpit-kicker'>Research Readiness</div>"
-        f"<div class='cockpit-title'>{html.escape(health_label)} review readiness, {health_score}/100</div>"
+        "<div class='cockpit-kicker'>Workflow Health</div>"
+        f"<div class='cockpit-title'>Workflow health: {html.escape(health_label)}, {health_score}/100</div>"
         f"<div class='cockpit-copy'>{html.escape(summary_copy)}</div>"
         "</div>"
         f"<div class='cockpit-lanes'>{lane_html}</div>"
@@ -26248,10 +26393,11 @@ def overview_landing_cards(
 ) -> list[dict[str, object]]:
     summary = {} if not project_status_payload else project_status_payload.get("summary", {})
     readiness = readiness_summary or {}
-    total_tickers = int(summary.get("tickers_total") or readiness.get("master_universe") or readiness.get("universe_count") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or readiness.get("price_ready") or 0)
-    dcf_ready = int(summary.get("tickers_dcf_ready") or readiness.get("dcf_ready") or 0)
-    peer_ready = int(summary.get("tickers_peer_ready") or readiness.get("peer_ready") or 0)
+    saved, saved_state = _project_saved_readiness_counts(project_status_payload)
+    price_fraction = _project_coverage_fraction(saved["price_ready"], saved["total"])
+    dcf_ready = saved["dcf_ready"]
+    peer_ready = saved["peer_ready"]
+    coverage_note = " Legacy summary; population unverified." if saved_state == "legacy" and project_status_payload else ""
     gap_count = int(summary.get("data_gaps") or readiness.get("blocked") or readiness.get("blocked_by_data") or 0)
     return [
         {
@@ -26263,15 +26409,19 @@ def overview_landing_cards(
         },
         {
             "kicker": "PRICE COVERAGE",
-            "title": f"{price_ready}/{total_tickers}",
-            "body": "Tickers with enough local price context for momentum and track-record workflows.",
+            "title": price_fraction,
+            "body": f"Saved price-ready tickers. Momentum requires its own history check.{coverage_note}",
             "badges": ["highest leverage"],
             "command": "make runbook-prices-broader",
         },
         {
             "kicker": "VALUATION PATH",
-            "title": f"{dcf_ready} DCF-ready",
-            "body": f"{peer_ready} tickers also have peer-relative context. {gap_count} data gaps remain visible, not guessed.",
+            "title": f"{dcf_ready} DCF-ready" if dcf_ready is not None else "DCF readiness unavailable",
+            "body": (
+                f"{peer_ready} tickers also have peer-relative context. "
+                if peer_ready is not None
+                else "Peer readiness is unavailable. "
+            ) + f"{gap_count} data gaps remain visible, not guessed.{coverage_note}",
             "badges": ["research only"],
             "command": "make runbook-fundamentals-broader",
         },
@@ -26293,17 +26443,22 @@ def overview_interpretation_guardrail_card(
 ) -> dict[str, object]:
     summary = {} if not project_status_payload else project_status_payload.get("summary", {})
     readiness = readiness_summary or {}
-    total_tickers = int(summary.get("tickers_total") or readiness.get("master_universe") or readiness.get("universe_count") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or readiness.get("price_ready") or 0)
-    dcf_ready = int(summary.get("tickers_dcf_ready") or readiness.get("dcf_ready") or 0)
-    peer_ready = int(summary.get("tickers_peer_ready") or readiness.get("peer_ready") or 0)
+    saved, saved_state = _project_saved_readiness_counts(project_status_payload)
+    price_fraction = _project_coverage_fraction(saved["price_ready"], saved["total"])
+    dcf_ready = saved["dcf_ready"]
+    peer_ready = saved["peer_ready"]
+    dcf_copy = f"{dcf_ready} are DCF-ready" if dcf_ready is not None else "DCF readiness is unavailable"
+    peer_copy = f"{peer_ready} have peer-relative context" if peer_ready is not None else "peer readiness is unavailable"
+    coverage_note = " Legacy summary; population unverified." if saved_state == "legacy" and project_status_payload else ""
     data_gaps = int(summary.get("data_gaps") or readiness.get("blocked") or readiness.get("blocked_by_data") or 0)
     health_score, health_label = workflow_health_score(queue_summary, health_summary)
 
     if health_label == "Ready":
         body = (
-            f"Local coverage is strong enough to read momentum, watchlist, and valuation context with fewer blockers. "
-            f"{price_ready}/{total_tickers} tickers have prices, {dcf_ready} are DCF-ready, and {peer_ready} have peer-relative context."
+            f"The local review path has fewer visible blockers. Check each analysis lane's own readiness. "
+            f"{price_fraction} tickers have prices, {dcf_copy}, and {peer_copy}.{coverage_note}"
+            if price_fraction != "Not available"
+            else f"Saved price readiness is Not available; {dcf_copy}, and {peer_copy}.{coverage_note}"
         )
         badges = ["ready", "read with context"]
         command = "make dashboard-smoke"
@@ -26317,15 +26472,19 @@ def overview_interpretation_guardrail_card(
     else:
         body = (
             f"Coverage is still the main blocker. "
-            f"Only {price_ready}/{total_tickers} tickers have usable prices, while DCF-ready and peer-ready coverage remain sparse. "
-            "Use onboarding and Data Health before leaning on downstream rankings."
+            + (
+                f"Only {price_fraction} tickers have usable prices, while DCF-ready and peer-ready coverage remain sparse. "
+                if price_fraction != "Not available"
+                else "Saved price readiness is Not available. "
+            )
+            + f"Use onboarding and Data Health before leaning on downstream rankings.{coverage_note}"
         )
         badges = ["needs data", "coverage first"]
         command = "make onboarding"
 
     return {
         "kicker": "INTERPRETATION GUARDRAIL",
-        "title": f"{health_label} review readiness · {health_score}/100",
+        "title": f"Workflow health: {health_label} · {health_score}/100",
         "body": body,
         "badges": badges,
         "command": command,
@@ -27639,10 +27798,8 @@ def overview_benchmark_pressure_cards(
     price_status_frame: pd.DataFrame | None,
     project_status_payload: dict[str, Any] | None,
 ) -> list[dict[str, object]]:
-    summary = {} if not project_status_payload else project_status_payload.get("summary", {})
-    total_tickers = int(summary.get("tickers_total") or 0)
-    price_ready = int(summary.get("tickers_with_prices") or 0)
-    missing_prices = max(total_tickers - price_ready, 0)
+    total_tickers, price_ready, working_state = _project_working_price_counts(project_status_payload)
+    missing_prices = max(total_tickers - price_ready, 0) if total_tickers is not None and price_ready is not None else None
     price_counts = summarize_price_update_status(price_status_frame)
     parse_or_source_errors = sum(
         price_counts.get(status, 0) for status in ("parse_error", "source_unavailable", "network_error", "failed", "no_rows")
@@ -27660,12 +27817,20 @@ def overview_benchmark_pressure_cards(
                 strongest_theme = format_missing(top_row.get("Theme"), "Not available")
                 relative_spy = report_display_value(top_row.get("RelativeReturnVsSPY"), "percent")
 
-    pressure_title = "Missing local prices" if missing_prices else "Local prices present"
+    pressure_title = (
+        "Price coverage unavailable"
+        if missing_prices is None
+        else "Missing local prices" if missing_prices else "Local prices present"
+    )
     pressure_body = (
-        f"{missing_prices}/{total_tickers} tickers still need verified local price history."
+        "Working-universe price coverage is unavailable in this status snapshot."
+        if missing_prices is None
+        else f"{missing_prices}/{total_tickers} tickers still need verified local price history."
         if total_tickers
         else "Ticker coverage is not ready yet."
     )
+    if working_state == "legacy" and project_status_payload and missing_prices is not None:
+        pressure_body += " Legacy summary; population unverified."
     if parse_or_source_errors:
         pressure_body += f" Latest refresh surfaced {parse_or_source_errors} price-source issue(s), so reviewed local import files may still be the safer path."
 
@@ -27675,18 +27840,20 @@ def overview_benchmark_pressure_cards(
         else "Local benchmark-relative theme context is not ready yet."
     )
 
+    pressure_card: dict[str, object] = {
+        "kicker": "BENCHMARK PRESSURE",
+        "title": pressure_title,
+        "body": pressure_body,
+        "badges": ["price moat", "local only"],
+    }
+    if missing_prices is not None:
+        pressure_card["command"] = (
+            "make runbook-prices-broader"
+            if not total_tickers or missing_prices or parse_or_source_errors
+            else "make price-status TOP_N=10"
+        )
     return [
-        {
-            "kicker": "BENCHMARK PRESSURE",
-            "title": pressure_title,
-            "body": pressure_body,
-            "badges": ["price moat", "local only"],
-            "command": (
-                "make runbook-prices-broader"
-                if (not total_tickers or missing_prices or parse_or_source_errors)
-                else "make price-status TOP_N=10"
-            ),
-        },
+        pressure_card,
         {
             "kicker": "SPY CONTEXT",
             "title": strongest_theme,
@@ -30426,27 +30593,38 @@ def discover_saved_company_browse_frame(
     return result.head(max(limit, 1)).reset_index(drop=True)
 
 
-def discover_primary_answer_html(saved_company_count: int, strict_eligible_count: int) -> str:
-    """Render the Discover answer with saved evidence access before strict screening."""
+def discover_primary_answer_html(
+    saved_company_count: int,
+    strict_eligible_count: int,
+    *,
+    research_boundary: str | None = None,
+) -> str:
+    """Keep saved access, strict eligibility, and the boundary in one short strip."""
 
     saved_count = max(int(saved_company_count), 0)
     eligible_count = max(int(strict_eligible_count), 0)
+    boundary = str(research_boundary or "").strip()
     saved_noun = "saved company" if saved_count == 1 else "saved companies"
-    answer = (
-        f"{saved_count:,} {saved_noun} {'is' if saved_count == 1 else 'are'} "
-        f"available for evidence review; {eligible_count:,} currently pass the strict screen."
+    scope_detail = (
+        "<details class='research-discover-scope-detail'>"
+        "<summary>Scope and limits</summary>"
+        f"<p>{html.escape(boundary)}</p>"
+        "</details>"
+        if boundary
+        else ""
     )
-    reason = (
-        "Saved-company availability and strict-screen eligibility are separate. "
-        "The links below are alphabetical evidence paths, not a ranking; strict thresholds remain unchanged."
+    return (
+        "<section class='research-discover-scope' data-sr-region='primary-answer' "
+        "aria-label='Saved company scope'>"
+        "<div class='research-discover-scope-counts'>"
+        f"<strong>{saved_count:,} {saved_noun}</strong>"
+        f"<span>{eligible_count:,} strict-screen eligible</span>"
+        "</div>"
+        "<p class='sr-stop-rule research-workspace-boundary' data-sr-region='stop-rule'>"
+        "Research-only · Saved evidence paths are not a ranking or recommendation.</p>"
+        f"{scope_detail}"
+        "</section>"
     )
-    return answer_panel_html(
-        question="Find a Company · Evidence access first",
-        answer=answer,
-        reason=reason,
-        action=None,
-        stop_rule=None,
-    ).value
 
 
 def discover_quick_company_links_html(frame: pd.DataFrame, *, limit: int = 4) -> str:
@@ -30834,9 +31012,55 @@ def stock_selector_result_table_html(
         )
         if research_discover:
             answers = discover_research_answer(row)
+            ready_lanes = [
+                label
+                for column, label in (
+                    ("Price Ready", "price"),
+                    ("Fundamentals Ready", "fundamentals"),
+                    ("DCF Ready", "DCF"),
+                    ("Trusted Peer Ready", "trusted peers"),
+                )
+                if str(row.get(column, "")).strip().lower() in {"true", "1"}
+            ]
+            usable_summary = (
+                ", ".join(ready_lanes)
+                if ready_lanes
+                else _selector_public_fragment(
+                    answers["usable_evidence"], max_chars=72
+                )
+            )
+            readiness = _selector_public_fragment(
+                row.get("Readiness", "Not assessed"), max_chars=36
+            ) or "Not assessed"
+            gap = answers["main_evidence_gap"]
+            gap_summary = (
+                "Main gap not recorded"
+                if gap.startswith("No principal evidence gap is recorded")
+                else _selector_public_fragment(gap.split(";", 1)[0], max_chars=86)
+            )
+            saved_context = format_missing(row.get("Proof Freshness"), "").strip()
+            if saved_context == "Saved readiness freshness is unavailable.":
+                saved_context = ""
+            context_html = (
+                "<span class='research-discover-saved-context'>"
+                f"Saved evidence context: {html.escape(_selector_public_fragment(saved_context, max_chars=64))}"
+                "</span>"
+                if saved_context
+                else ""
+            )
             answer_html = (
                 "<div class='selector-result-summary research-discover-answers'>"
                 "<div class='research-discover-answer'>"
+                "<span class='research-discover-answer-label'>Saved readiness</span>"
+                f"<span class='research-discover-answer-value'>{html.escape(readiness)}</span>"
+                "</div>"
+                "<div class='research-discover-answer'>"
+                f"<span class='research-discover-answer-value'>Can inspect: {html.escape(usable_summary)}</span>"
+                f"<span class='research-discover-answer-value'> · Gap: {html.escape(gap_summary)}</span>"
+                "</div>"
+                "<details class='research-discover-details'><summary>Evidence details</summary>"
+                + context_html
+                + "<div class='research-discover-answer'>"
                 "<span class='research-discover-answer-label'>Why inspectable</span>"
                 f"<span class='research-discover-answer-value'>{html.escape(answers['why_inspectable'])}</span>"
                 "</div>"
@@ -30846,8 +31070,8 @@ def stock_selector_result_table_html(
                 "</div>"
                 "<div class='research-discover-answer'>"
                 "<span class='research-discover-answer-label'>Main evidence gap</span>"
-                f"<span class='research-discover-answer-value'>{html.escape(answers['main_evidence_gap'])}</span>"
-                "</div>"
+                f"<span class='research-discover-answer-value'>{html.escape(gap)}</span>"
+                "</div></details>"
                 "</div>"
             )
         else:
@@ -31054,6 +31278,68 @@ def discover_saved_browser_jump_html() -> str:
     )
 
 
+def render_online_company_search(*, saved_tickers: Iterable[str] = ()) -> None:
+    """Search SEC associations on explicit request without changing saved evidence."""
+
+    st.markdown(
+        "<h2>Find a Company Online</h2>"
+        "<p>Search SEC ticker and company-name associations. "
+        "The saved research browser below remains a separate evidence collection.</p>",
+        unsafe_allow_html=True,
+    )
+    with st.form("online-company-search-form"):
+        query = st.text_input(
+            "Search SEC companies online",
+            placeholder="Company name or ticker",
+            help="Fetches the SEC association directory only after you press Search SEC now.",
+            key="online-company-query",
+        ).strip()
+        requested = st.form_submit_button("Search SEC now")
+    if requested:
+        st.session_state[ONLINE_COMPANY_SESSION_KEY] = search_sec_company_candidates(
+            query,
+            user_agent=os.getenv("SEC_USER_AGENT"),
+        )
+    result = st.session_state.get(ONLINE_COMPANY_SESSION_KEY)
+    st.markdown(
+        online_company_results_html(result, saved_tickers=set(saved_tickers)),
+        unsafe_allow_html=True,
+    )
+
+
+def render_online_coverage_study() -> None:
+    """Run a declared SEC industry sample only after an explicit Personal action."""
+    from src.online_peer_coverage_ui import render_peer_coverage
+    render_peer_coverage(st)
+    with st.expander("U.S. listing coverage · online", expanded=False):
+        st.markdown("Load the full observed official listing inventory, then check financial coverage by issuer. Unprobed and unmatched records remain visible.")
+        load_requested=st.button("Load U.S. listing inventory",key="online-us-universe-load")
+        restore_requested=st.button("Restore saved coverage",key="online-us-universe-restore")
+        save_requested=st.button("Save coverage progress",key="online-us-universe-save")
+        checkpoint_action=handle_coverage_checkpoint_action(st.session_state,save_requested=save_requested,restore_requested=restore_requested,new_run_requested=load_requested)
+        if checkpoint_action['status']=="saved":st.caption("Coverage progress saved on this computer; the previous checkpoint is backed up.")
+        elif checkpoint_action['status']=="restored":st.caption("Saved coverage restored. Its original source dates still apply.")
+        elif checkpoint_action['status']=="unavailable":st.caption("Coverage checkpoint unavailable: "+str(checkpoint_action.get("reason","validation required")).replace("_"," "))
+        with st.spinner("Loading dated listing inventory…"):
+            universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),load_requested=load_requested)
+        can_inspect=universe.get("status")=="inspection_only" and universe.get("coverage",{}).get("unprobed_issuer_count",0)>0
+        inspect_requested=st.button("Check next 20 issuers",key="online-us-universe-inspect",disabled=not can_inspect)
+        if inspect_requested:
+            with st.spinner("Checking the next issuer batch…"):
+                universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),inspect_requested=True)
+        st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
+    with st.expander("Security types · online",expanded=False):
+        requested=st.button("Classify observed listings",key="security-classification-refresh")
+        classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
+        query=st.text_input("Filter classified listings",key="security-classification-query") if classified.get("status")=="inspection_only" else ""
+        st.markdown(classification_html(classified,query),unsafe_allow_html=True)
+    with st.expander("Cross-industry coverage · online sample", expanded=False):
+        st.markdown("A bounded sample of " + str(len(DEFAULT_SAMPLE)) + " tickers across SEC industries. This is a field-availability study, not a market-wide census; prices are not queried.")
+        requested=st.button("Run online coverage sample",key="online-coverage-sample-refresh")
+        result=get_online_coverage_study(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
+        st.markdown(coverage_study_html(result),unsafe_allow_html=True)
+
+
 def render_stock_selector(
     output_frames: dict[str, tuple[pd.DataFrame | None, str | None]],
     *,
@@ -31064,6 +31350,7 @@ def render_stock_selector(
     research_boundary: str | None = None,
     strict_eligible_count: int | None = None,
     field_study: BoundedFieldStudy | None = None,
+    registered_tickers: tuple[str, ...] | None = None,
 ) -> None:
     research_discover = (
         str(target_mode).strip().lower() == RESEARCH_MODE
@@ -31107,19 +31394,35 @@ def render_stock_selector(
         )
 
     if research_discover:
+        saved_tickers: tuple[str, ...] = registered_tickers or ()
+        if registered_tickers is None:
+            ticker_column = _selector_column(ticker_readiness_frame, "ticker", "Ticker")
+            if ticker_readiness_frame is not None and ticker_column:
+                saved_tickers = tuple(
+                    ticker_readiness_frame[ticker_column].dropna().astype(str).str.upper()
+                )
+        render_online_company_search(saved_tickers=saved_tickers)
+
+    saved_presets = stock_selector_saved_filter_presets()
+    current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
+    if research_discover:
+        search = st.text_input(
+            "Search saved companies",
+            value=str(current_filter_values.get("search") or ""),
+            placeholder="Search ticker, theme, blocker, or proof step",
+            help=None,
+            key="stock-selector-search",
+        ).strip()
+
+    if research_discover:
         st.markdown(
             discover_primary_answer_html(
                 len(selector_frame),
                 0 if strict_eligible_count is None else strict_eligible_count,
+                research_boundary=research_boundary,
             ),
             unsafe_allow_html=True,
         )
-        st.markdown(
-            discover_quick_company_links_html(selector_frame),
-            unsafe_allow_html=True,
-        )
-        if field_study is not None:
-            st.markdown(study_discover_html(field_study), unsafe_allow_html=True)
 
     if public_mode and not research_discover and selector_frame.empty:
         st.markdown(
@@ -31148,7 +31451,7 @@ def render_stock_selector(
             ).value,
             unsafe_allow_html=True,
         )
-    if not public_mode:
+    if not public_mode and not research_discover:
         render_section_header(
             STOCK_SELECTOR_PATH_TITLE,
             "Choose one readiness-backed ticker first; use filters only when you need a narrower queue.",
@@ -31194,54 +31497,17 @@ def render_stock_selector(
                 ).value,
                 unsafe_allow_html=True,
             )
-            st.markdown(
-                stop_rule_html(f"Research-only. {research_boundary}").value,
-                unsafe_allow_html=True,
-            )
         return
 
-    saved_presets = stock_selector_saved_filter_presets()
-    current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
-    if research_discover:
-        st.markdown(
-            discover_saved_browser_jump_html(),
-            unsafe_allow_html=True,
-        )
-    search = st.text_input(
-        "Search saved companies" if research_discover else "Search this review queue",
-        value=str(current_filter_values.get("search") or ""),
-        placeholder="Search ticker, theme, blocker, or proof step",
-        help=(
-            None
-            if research_discover
-            else "Search readiness-backed rows before opening one saved report."
-        ),
-        key="stock-selector-search",
-    ).strip()
-    if research_discover and research_boundary:
-        st.markdown(
-            stop_rule_html(f"Research-only. {research_boundary}").value,
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            supporting_detail_html(
-                title="Browse saved companies",
-                body=(
-                    "Search and filters apply only to the readiness-backed saved-company set. "
-                    "They do not change strict screen eligibility or create a ranking."
-                ),
-            ).value,
-            unsafe_allow_html=True,
-        )
-        render_context_note(
-            "Saved-company browsing is not strict screen eligibility.",
-            (
-                "Rows are alphabetical evidence-access paths. Availability does not mean "
-                "the company passed momentum and valuation screening, has attractive "
-                "valuation, or is a recommendation."
-            ),
-        )
-    elif public_mode and not research_discover:
+    if not research_discover:
+        search = st.text_input(
+            "Search this review queue",
+            value=str(current_filter_values.get("search") or ""),
+            placeholder="Search ticker, theme, blocker, or proof step",
+            help="Search readiness-backed rows before opening one saved report.",
+            key="stock-selector-search",
+        ).strip()
+    if public_mode and not research_discover:
         st.markdown(
             stop_rule_html(
                 "Research-only. This page helps choose what to review next; it does not rank "
@@ -31392,6 +31658,29 @@ def render_stock_selector(
         ),
         unsafe_allow_html=True,
     )
+    if research_discover and research_boundary:
+        with st.expander("Advanced: browsing guidance", expanded=False):
+            st.markdown(
+                supporting_detail_html(
+                    title="Browse saved companies",
+                    body=(
+                        "Search and filters apply only to the readiness-backed saved-company set. "
+                        "They do not change strict screen eligibility or create a ranking."
+                    ),
+                ).value,
+                unsafe_allow_html=True,
+            )
+            render_context_note(
+                "Saved-company browsing is not strict screen eligibility.",
+                (
+                    "Rows are alphabetical evidence-access paths. Availability does not mean "
+                    "the company passed momentum and valuation screening, has attractive "
+                    "valuation, or is a recommendation."
+                ),
+            )
+    if research_discover and field_study is not None:
+        with st.expander("Advanced: six-company field evidence", expanded=False):
+            st.markdown(study_discover_html(field_study), unsafe_allow_html=True)
     with st.expander("Advanced: full filtered selector rows", expanded=False):
         render_context_note(
             "Detailed selector evidence.",
@@ -31400,10 +31689,24 @@ def render_stock_selector(
         st.dataframe(clean_display_frame(filtered.head(120)), width="stretch", hide_index=True)
 
 
-def price_refresh_operator_plan_cards(summary: dict[str, object] | None = None) -> list[dict[str, object]]:
-    summary = summary or {}
-    master = int(summary.get("master_universe") or summary.get("universe_count") or 0)
-    price_ready = int(summary.get("price_ready") or 0)
+def price_refresh_operator_plan_cards(
+    summary: dict[str, object] | None = None,
+    *,
+    project_status_payload: dict[str, Any] | None = None,
+) -> list[dict[str, object]]:
+    master, price_ready, working_state = _project_working_price_counts(project_status_payload)
+    if working_state != "available" or master is None or price_ready is None or master <= 0:
+        return [
+            {
+                "kicker": "CURRENT PRICE STATE",
+                "title": "Working-universe price coverage unavailable",
+                "body": (
+                    "A separate reviewed status rebuild is needed before showing a numeric price-refresh plan. "
+                    "Review the selected-profile input evidence first; this snapshot may still lack working-universe counts."
+                ),
+                "badges": ["count unavailable", "review inputs"],
+            }
+        ]
     missing = max(master - price_ready, 0) if master else 0
     missing_label = f"{missing:,} ticker(s)" if missing else "missing-price tickers"
     broad_target = min(max(missing, 100), 3500) if missing else 3500
@@ -31955,7 +32258,7 @@ def render_home_page(
                 render_signal_cards(_plain_home_evaluation_workflow_cards(), show_commands=False)
 
                 render_section_header("Scalable Price Updates", "How to expand price coverage without repeating tiny batches by hand.")
-                render_signal_cards(price_refresh_operator_plan_cards(summary), show_commands=False)
+                render_signal_cards(price_refresh_operator_plan_cards(summary, project_status_payload=project_status_payload), show_commands=False)
 
                 render_section_header("Example Reports", "Use these small examples to see each analysis mode without running a full-market refresh.")
                 st.dataframe(clean_display_frame(_plain_home_demo_example_frame()), width="stretch", hide_index=True)
@@ -32278,6 +32581,8 @@ def render_single_stock_report(
     selected_answer_target=None,
     selected_detail_target=None,
     selected_evidence_target=None,
+    selected_valuation_target=None,
+    workbench_section=None,
 ) -> None:
     show_card_commands = not public_mode
     local_tickers = provider.list_local_tickers() if provider is not None and hasattr(provider, "list_local_tickers") else []
@@ -32381,11 +32686,41 @@ def render_single_stock_report(
         st.button("Open Review", key="single-stock-report-button")
         return
     provider_name = "yfinance" if use_yfinance else "local"
+    selected_profile = profile_context or build_profile_context(project_root=BASE_DIR)
+    expected_cache_scope = {
+        "single_stock_report_profile_key": selected_profile.profile_key,
+        "single_stock_report_data_dir": str(selected_profile.data_dir.resolve()),
+        "single_stock_report_outputs_dir": str(selected_profile.outputs_dir.resolve()),
+        "single_stock_report_snapshot_identity": selected_profile.snapshot_identity,
+    }
+
+    def cached_selected_report() -> dict[str, object] | None:
+        cached = st.session_state.get("single_stock_report_payload")
+        expected_report_provider = {
+            "local": "LocalCSVMarketDataProvider",
+            "yfinance": "YFinanceProvider",
+        }[provider_name]
+        if (
+            not isinstance(cached, dict)
+            or cached.get("ticker") != ticker
+            or cached.get("provider_name") != expected_report_provider
+            or st.session_state.get("single_stock_report_ticker") != ticker
+            or st.session_state.get("single_stock_report_provider") != provider_name
+            or any(st.session_state.get(key) != value for key, value in expected_cache_scope.items())
+        ):
+            return None
+        return cached
+
     coverage = pd.DataFrame()
     peer_summary: dict[str, object] = {}
-    report_payload = st.session_state.get("single_stock_report_payload")
-    if st.session_state.get("single_stock_report_ticker") != ticker:
-        report_payload = None
+    report_payload = cached_selected_report()
+    if report_payload is None:
+        for key in (
+            "single_stock_report_payload", "single_stock_report_download",
+            "single_stock_report_ticker", "single_stock_report_provider",
+            "single_stock_report_history", *expected_cache_scope,
+        ):
+            st.session_state.pop(key, None)
     single_stock_loading_placeholder = None
     if public_mode and compact_public_open_report and not report_payload:
         single_stock_loading_placeholder = (
@@ -32409,7 +32744,15 @@ def render_single_stock_report(
             st.warning("Enter a ticker to show a local report.")
             return
         try:
-            chosen_provider = build_provider(provider_name, base_dir=BASE_DIR)
+            chosen_provider = (
+                build_provider(
+                    "local", base_dir=BASE_DIR,
+                    data_dir=selected_profile.data_dir,
+                    output_dir=selected_profile.outputs_dir,
+                )
+                if provider_name == "local"
+                else build_provider(provider_name, base_dir=BASE_DIR)
+            )
             report = build_stock_report(ticker, chosen_provider)
             history = chosen_provider.get_price_history(ticker, period="1y", interval="1d")
             st.session_state["single_stock_report_payload"] = report.to_dict()
@@ -32417,6 +32760,8 @@ def render_single_stock_report(
             st.session_state["single_stock_report_ticker"] = ticker
             st.session_state["single_stock_report_provider"] = provider_name
             st.session_state["single_stock_report_history"] = history
+            for key, value in expected_cache_scope.items():
+                st.session_state[key] = value
             report_payload = st.session_state["single_stock_report_payload"]
         except RuntimeError as exc:
             st.error(str(exc))
@@ -32459,14 +32804,17 @@ def render_single_stock_report(
         if compact_public_open_report and report_payload:
             st.rerun()
 
+    if workbench_section is not None and not report_payload:
+        st.info("已保存模型暂不可读；在线财报与价格仍可在概览和财务趋势中独立查看。")
+        return
     if report_payload:
-        if not compact_public_open_report:
+        if not compact_public_open_report and workbench_section is None:
             render_context_note(
                 "Review is open.",
                 "The selected ticker review is shown below. It was built from saved local outputs and did not refresh prices, import files, or contact external accounts.",
             )
         open_review_clicked = False
-    else:
+    elif workbench_section is None:
         render_context_note(
             "What happens next.",
             "Open Review shows the selected ticker review on this page. It does not refresh prices, import files, or contact external accounts.",
@@ -32477,6 +32825,8 @@ def render_single_stock_report(
         if isinstance(report_payload, dict)
         else None
     )
+    if selected_valuation_target is not None:
+        render_company_valuation_summary(ticker,report_payload,target=selected_valuation_target)
     if selected_evidence_target is not None:
         evidence_ticker = (
             str(report_payload.get("ticker") or ticker)
@@ -32493,6 +32843,7 @@ def render_single_stock_report(
                 ticker=evidence_ticker,
                 readiness=report_readiness,
                 freshness_label=evidence_freshness,
+                report_payload=report_payload if isinstance(report_payload, dict) else None,
             ),
             unsafe_allow_html=True,
         )
@@ -32620,6 +32971,19 @@ def render_single_stock_report(
                 change_answer,
                 authoritative_task,
             )
+        if workbench_section is not None:
+            _render_company_saved_section(
+                workbench_section, ticker=ticker, report_payload=report_payload,
+                context=selected_context, scenario_session=scenario_session,
+                journal_state=journal_state, journal_error=journal_error,
+                decision_lab_state=decision_lab_state, outcome_status=outcome_status,
+                single_answer_frame=single_answer_frame, answer_snapshot=report_one_answer_snapshot,
+                authoritative_task=authoritative_task, change_answer=change_answer,
+                trend_packet=trend_packet, forward_view_packet=forward_view_packet,
+                valuation_regime=valuation_regime, catalyst_timeline=catalyst_timeline,
+                nowcast_packet=nowcast_packet, observation_recency=observation_recency,
+            )
+            return
         if public_mode:
             render_single_stock_public_summary(
                 single_answer_frame,
@@ -32947,9 +33311,7 @@ def render_single_stock_report(
         if public_mode and st.session_state.get("single_stock_report_payload"):
             st.rerun()
 
-    report_payload = st.session_state.get("single_stock_report_payload")
-    if st.session_state.get("single_stock_report_ticker") != ticker:
-        report_payload = None
+    report_payload = cached_selected_report()
     with st.expander("Advanced: review workflow", expanded=False):
         render_research_loop_strip(**single_stock_research_loop_context(ticker, report_payload))
     with st.expander("Advanced: example report states", expanded=False):
@@ -34877,7 +35239,7 @@ def render_data_health(
                 show_commands=False,
             )
             render_section_header("Scalable Price Updates", "Preview capped broad coverage first, then review local file changes.")
-            render_signal_cards(price_refresh_operator_plan_cards(readiness_summary), show_commands=False)
+            render_signal_cards(price_refresh_operator_plan_cards(readiness_summary, project_status_payload=project_status_payload), show_commands=False)
     elif selected_lane == "Fundamentals / DCF":
         fundamentals_preview_cards = data_health_trusted_pilot_cards(readiness_summary) + data_health_analysis_unlock_cards(readiness_summary)
         if pilot_preview.empty:
@@ -37031,7 +37393,7 @@ def render_research_workspace_styles() -> None:
         .company-workbench-primary-grid {
             display: grid;
             gap: .75rem;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         .company-workbench-primary-answer {
             border-left: 3px solid #9aa7a2;
@@ -37050,21 +37412,42 @@ def render_research_workspace_styles() -> None:
         }
         .company-workbench-primary-answer p {
             color: #253746;
-            font-size: .84rem;
-            line-height: 1.4;
+            font-size: .875rem;
+            line-height: 1.45;
         }
         .company-workbench-primary-answer small {
             color: #667085;
             font-size: .72rem;
         }
-        .company-workbench-primary-answer .public-primary-action {
+        .company-workbench-priority-action .public-primary-action {
             display: inline-flex;
             align-items: center;
             margin-top: .5rem;
             min-height: 44px;
         }
-        div[data-testid="stButton"] > button {
-            min-height: 44px;
+        div[data-testid="stButton"] button,
+        div[data-testid="stFormSubmitButton"] button,
+        [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button {
+            min-height: 44px !important;
+            background: #f1f6f3 !important;
+            border-color: #b8c9be !important;
+            color: #173e30 !important;
+        }
+        div[data-testid="stButton"] button *,
+        div[data-testid="stFormSubmitButton"] button *,
+        [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button * {
+            color: inherit !important;
+        }
+        div[data-testid="stButton"] button:hover,
+        div[data-testid="stFormSubmitButton"] button:hover,
+        [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button:hover {
+            background: #e1eee6 !important;
+        }
+        div[data-testid="stButton"] button[kind="primary"],
+        div[data-testid="stFormSubmitButton"] button[kind="primaryFormSubmit"] {
+            background: #155e4b !important;
+            border-color: #155e4b !important;
+            color: #fff !important;
         }
         [class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button {
             min-height: 44px;
@@ -37076,6 +37459,140 @@ def render_research_workspace_styles() -> None:
             line-height: 1.4;
             margin: .75rem 0 0;
             padding-top: .65rem;
+        }
+        .st-key-company-sec-annual-check {
+            margin: .85rem 0 1rem;
+            padding: 1.2rem 1.25rem;
+            border: 1px solid #cfdcd5;
+            border-radius: 18px;
+            background: #fff;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, .06);
+        }
+        .st-key-company-sec-annual-check [data-testid="stButton"] button {
+            background: #155e4b !important;
+            border-color: #155e4b !important;
+            color: #fff !important;
+            font-weight: 700;
+        }
+        .st-key-company-sec-annual-check [data-testid="stButton"] button p {
+            color: #fff !important;
+        }
+        .st-key-company-sec-annual-check [data-testid="stButton"] button:hover {
+            background: #0f4c3a !important;
+            border-color: #0f4c3a !important;
+        }
+        .st-key-company-sec-annual-check [data-testid="stButton"] button:focus-visible {
+            outline: 3px solid #0b6bff;
+            outline-offset: 3px;
+        }
+        .company-sec-annual-preview {
+            color: #253746;
+            font-size: .9rem;
+            line-height: 1.5;
+        }
+        .company-sec-annual-preview .sec-annual-kicker {
+            color: #0f766e;
+            display: block;
+            font-size: .7rem;
+            font-weight: 800;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+        }
+        .company-sec-annual-preview h3 {
+            margin: .15rem 0 .55rem;
+            color: #102a43;
+            font-family: Inter, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+            font-size: 1.25rem;
+            font-weight: 750;
+        }
+        .company-sec-annual-preview h4 {
+            margin: .9rem 0 .5rem;
+            font-size: .82rem;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+        .company-sec-annual-preview p { margin: .3rem 0; }
+        .company-sec-annual-preview a { overflow-wrap: anywhere; }
+        .company-sec-annual-preview .sec-annual-source-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .4rem 1rem;
+            color: #52615c;
+            font-size: .78rem;
+        }
+        .company-sec-annual-preview .sec-annual-identity {
+            color: #52615c;
+            font-size: .76rem;
+        }
+        .company-sec-annual-preview .sec-annual-facts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+            gap: .65rem;
+        }
+        .company-sec-annual-preview .sec-annual-fact {
+            display: grid;
+            gap: .15rem;
+            min-width: 0;
+            padding: .75rem .85rem;
+            border: 1px solid #d9e8e1;
+            border-radius: 12px;
+            background: #f4faf7;
+        }
+        .company-sec-annual-preview .sec-annual-fact-name {
+            color: #52615c;
+            font-size: .76rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .03em;
+        }
+        .company-sec-annual-preview .sec-annual-fact strong {
+            color: #102a43;
+            font-size: 1.1rem;
+            font-variant-numeric: tabular-nums;
+            overflow-wrap: anywhere;
+        }
+        .company-sec-annual-preview .sec-annual-fact small {
+            color: #52615c;
+        }
+        .company-sec-annual-preview .sec-annual-gaps {
+            margin-top: .85rem;
+            border-top: 1px solid #dce8e1;
+            padding-top: .65rem;
+        }
+        .company-sec-annual-preview .sec-annual-gaps summary {
+            color: #854d0e;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .company-sec-annual-preview .sec-annual-gaps summary:focus-visible {
+            outline: 3px solid #0b6bff;
+            outline-offset: 3px;
+        }
+        .company-sec-annual-preview .sec-annual-gaps ul {
+            display: grid;
+            gap: .4rem;
+            list-style: none;
+            margin: .75rem 0 .25rem;
+            padding: 0;
+        }
+        .company-sec-annual-preview .sec-annual-gaps li {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: .2rem 1rem;
+            border-bottom: 1px solid #e5e9e7;
+            padding: .35rem 0;
+        }
+        .company-sec-annual-preview .sec-annual-gaps code {
+            color: #64748b;
+            font-size: .7rem;
+        }
+        .company-sec-annual-preview .sec-annual-boundary {
+            margin-top: .8rem;
+            padding-top: .6rem;
+            border-top: 1px solid #dce8e1;
+            color: #52615c;
         }
         @media (max-width: 640px) {
             .observation-recency-summary {
@@ -37169,7 +37686,7 @@ def render_research_workspace_styles() -> None:
             .company-workbench-primary-answer strong,
             .company-workbench-primary-answer small { margin-top: .14rem; }
             .company-workbench-primary-answer p { line-height: 1.3; }
-            .company-workbench-primary-answer .public-primary-action {
+            .company-workbench-priority-action .public-primary-action {
                 align-items: center;
                 display: inline-flex;
                 margin-top: .3rem;
@@ -37201,6 +37718,7 @@ def render_research_workspace_header(
     primary_action: str,
     compact: bool = False,
     include_boundary: bool = True,
+    context_only: bool = False,
     observation_recency: ObservationRecencySet | None = None,
     include_selected_observation: bool = False,
 ) -> None:
@@ -37213,6 +37731,7 @@ def render_research_workspace_header(
             primary_action=primary_action,
             compact=compact,
             include_boundary=include_boundary,
+            context_only=context_only,
         ),
         unsafe_allow_html=True,
     )
@@ -37366,35 +37885,11 @@ def render_research_monitor(
             f"{str(return_ticker).strip().upper()} is only the return destination and "
             "does not filter these follow-up items."
         )
+    from src.sec_research_review_ui import render_review_monitor
+    render_review_monitor(st,profile_key=context.profile_key)
     st.markdown("## Follow-up Queue")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
-    if queue.has_saved_follow_up:
-        st.markdown(
-            supporting_detail_html(
-                title="Saved follow-up evidence",
-                body=(
-                    "Follow-up reasons retain saved cohort order and remain separate from "
-                    "company scoring or urgency."
-                ),
-            ).value,
-            unsafe_allow_html=True,
-        )
-        render_signal_cards(
-            [asdict(panel) for panel in queue.panels],
-            show_commands=False,
-            variant="evidence-monitor",
-        )
-    elif queue.has_freshness_attention:
-        st.markdown(
-            supporting_detail_html(
-                title=monitor_freshness_condition_label(queue).capitalize(),
-                body=(
-                    "The named saved-readiness or market-observation condition needs Data Health "
-                    "review; this is not a saved follow-up item or a live alert."
-                ),
-            ).value,
-            unsafe_allow_html=True,
-        )
+    if queue.has_saved_follow_up or queue.has_freshness_attention:
         render_signal_cards(
             [asdict(panel) for panel in queue.panels],
             show_commands=False,
@@ -37413,6 +37908,28 @@ def render_research_monitor(
 
     st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
     with st.expander("Advanced: Monitor evidence", expanded=False):
+        if queue.has_saved_follow_up:
+            st.markdown(
+                supporting_detail_html(
+                    title="Saved follow-up evidence",
+                    body=(
+                        "Follow-up reasons retain saved cohort order and remain separate from "
+                        "company scoring or urgency."
+                    ),
+                ).value,
+                unsafe_allow_html=True,
+            )
+        elif queue.has_freshness_attention:
+            st.markdown(
+                supporting_detail_html(
+                    title=monitor_freshness_condition_label(queue).capitalize(),
+                    body=(
+                        "The named saved-readiness or market-observation condition needs Data Health "
+                        "review; this is not a saved follow-up item or a live alert."
+                    ),
+                ).value,
+                unsafe_allow_html=True,
+            )
         if observation_recency is not None:
             st.markdown(
                 observation_recency_summary_html(
@@ -37463,6 +37980,143 @@ def render_research_monitor(
         st.caption("Source identifiers and raw change rows remain in the separate evidence drawer below.")
 
 
+def render_company_valuation_summary(ticker: str, report_payload=None, *, target=None) -> None:
+    """Project comparison evidence without fetching sources or changing research state."""
+    from src.company_valuation_overview import build_valuation_overview,valuation_overview_html
+    context=get_company_security_context(ticker,st.session_state,refresh_requested=False,user_agent=None)
+    view=build_valuation_overview(ticker,report_payload,research_context=context)
+    (target if target is not None else st).markdown(valuation_overview_html(view),unsafe_allow_html=True)
+
+
+def render_company_sec_annual_check(ticker: str, expected_cik: str | None = None) -> bool:
+    """Inspect annual and direct quarterly facts only after an explicit click."""
+
+    with st.container(key="company-sec-annual-check"):
+        refresh_requested = st.button(
+            "Check SEC annual facts",
+            key=f"company-sec-annual-refresh-{ticker}",
+            help="Loads annual, directly reported quarterly and supported IFRS native-currency evidence from one SEC Companyfacts response.",
+        )
+        preview_target = st.empty()
+        view = get_company_sec_annual_preview(
+            ticker,
+            st.session_state,
+            refresh_requested=refresh_requested,
+            user_agent=os.getenv("SEC_USER_AGENT"),
+        )
+        source_identity=view.get("companyfacts_identity")
+        observed_cik=(source_identity.get("sec_cik") if isinstance(source_identity,Mapping) else None) or view.get("sec_cik")
+        if expected_cik is not None and observed_cik is not None and observed_cik!=expected_cik:
+            view = {
+                "status": "unavailable",
+                "ticker": ticker,
+                "reason": "sec_identity_mismatch",
+                "approved_direct_fields": [],
+                "withheld_fields": [],
+                "safe_to_apply": False,
+            }
+            from src.company_sec_online_preview import SESSION_KEY
+            st.session_state[SESSION_KEY]={"ticker":ticker,"view":view}
+        analysis = build_online_company_analysis(view)
+        preview_target.markdown(
+            (foreign_financials_html(view) if validated_foreign_financials(view) else
+             online_company_analysis_html(analysis) + foreign_financials_html(view) + quarterly_history_html(view) + annual_history_html(view) + company_sec_annual_preview_html(view)),
+            unsafe_allow_html=True,
+        )
+    return refresh_requested
+
+
+def render_company_sec_filing_check(ticker: str, expected_cik: str | None = None) -> None:
+    """Fetch one metadata-bound primary document only on explicit request."""
+    with st.expander("Exact SEC filing evidence",expanded=False):
+        period=st.radio("Filing period",options=("quarterly","annual"),
+            format_func=lambda value:"Latest quarter" if value=="quarterly" else "Latest annual",key=f"company-exact-filing-period-{ticker}")
+        requested=st.button("Check latest SEC filing",key=f"company-exact-filing-refresh-{ticker}")
+        packet=get_company_filing_preview(ticker,st.session_state,period_kind=period,refresh_requested=requested,
+            user_agent=os.getenv("SEC_USER_AGENT"),expected_cik=expected_cik)
+        st.markdown(filing_preview_html(packet,ticker,period),unsafe_allow_html=True)
+
+
+def render_company_security_check(ticker: str, expected_cik: str | None = None) -> None:
+    with st.expander("Listing and issuer type",expanded=False):
+        requested=st.button("Check listing and issuer type",key=f"company-security-refresh-{ticker}")
+        context=get_company_security_context(ticker,st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"),expected_cik=expected_cik)
+        st.markdown(company_security_html(context,ticker),unsafe_allow_html=True)
+
+
+def render_company_online_prices(ticker: str, *, sec_refresh_requested: bool = False) -> None:
+    """Inspect daily prices and qualify their current SEC listing association."""
+    with st.container(key="company-online-prices"):
+        requested = st.button("Check online price history", key=f"company-online-price-refresh-{ticker}")
+        result = get_online_company_prices(ticker, st.session_state, refresh_requested=requested)
+        st.markdown(online_price_history_html(result), unsafe_allow_html=True)
+        if result.get("status")!="not_requested":
+            from src.company_sec_online_preview import SESSION_KEY
+            cached=st.session_state.get(SESSION_KEY,{})
+            view=cached.get("view",{}) if isinstance(cached,Mapping) and cached.get("ticker")==ticker else {}
+            identity=view.get("companyfacts_identity",{}) if isinstance(view,Mapping) else {}
+            link=get_price_filing_association(ticker,identity,result,st.session_state,
+                refresh_requested=bool(requested or sec_refresh_requested),user_agent=os.getenv("SEC_USER_AGENT"))
+            st.markdown(price_filing_association_html(link),unsafe_allow_html=True)
+
+
+def _render_company_saved_section(
+    section, *, ticker, report_payload, context, scenario_session, journal_state,
+    journal_error, decision_lab_state, outcome_status, single_answer_frame, answer_snapshot,
+    authoritative_task, change_answer, trend_packet, forward_view_packet, valuation_regime,
+    catalyst_timeline, nowcast_packet, observation_recency,
+):
+    """Reuse saved model and record tools without joining online facts into them."""
+    if section == "valuation":
+        st.caption("已保存研究集合 · 输入日期与资格独立。此处不自动采用本次在线财报或价格。")
+        from src.company_valuation_overview import build_valuation_overview, valuation_overview_html
+        security=get_company_security_context(ticker,st.session_state,refresh_requested=False,user_agent=None)
+        view=build_valuation_overview(ticker,report_payload,research_context=security)
+        st.markdown(valuation_overview_html(view,compact=True),unsafe_allow_html=True)
+        st.markdown("### 已保存输入的情景分析")
+        st.caption("保存来源状态："+saved_readiness_display_label(context.freshness_state)+"。陈旧输入仅供历史复核；情景结果不是当前目标价。")
+        render_scenario_lab(scenario_session)
+        with st.expander("模型定义、来源与历史估值",expanded=False):
+            render_signal_cards(stock_report_valuation_boundary_cards(report_payload),show_commands=False,variant="queue")
+            render_signal_cards(valuation_regime_cards(valuation_regime),show_commands=False,variant="queue")
+            render_signal_cards(stock_report_quant_interpretation_cards(report_payload),show_commands=False,variant="queue")
+        return
+    if journal_state is not None:
+        summary=research_thesis_journal_summary(journal_state)
+    else:
+        summary={"status":"unavailable","title":"Research journal unavailable",
+                 "answer":"The selected-profile journal could not be verified.","evidence":"No record claim is shown.",
+                 "boundary":journal_error,"confidence":"","primary_action":"Review journal source"}
+    if summary["status"] == "not_started":
+        st.caption("尚无研究假设记录。")
+    else:
+        st.markdown(research_thesis_journal_html(summary),unsafe_allow_html=True)
+    render_research_record_authoring(st_api=st,profile_key=context.profile_key,ticker=ticker,
+        paths=AuthoringPaths(journal=DATA_DIR/"research_thesis_journal.csv",
+                            catalysts=DATA_DIR/"catalyst_evidence.csv",outcomes=DATA_DIR/"research_outcome_reviews.csv"))
+    with st.expander("研究过程、历史记录与跟进",expanded=False):
+        st.caption("研究过程记录与财务就绪度分别判断；填写记录不会解除模型或来源限制。")
+        render_signal_cards(decision_lab_cards(decision_lab_state),show_commands=False,variant="queue")
+        render_signal_cards(outcome_status_cards(outcome_status),show_commands=False,variant="queue")
+        if journal_state is not None and journal_state.entries:
+            st.dataframe(pd.DataFrame(research_thesis_journal_detail_rows(journal_state)),width="stretch",hide_index=True)
+    selected_answer=single_answer_frame.iloc[0].to_dict()
+    selected_answer["state"]=answer_snapshot["status"]
+    snapshot=build_company_workbench_html_snapshot(CompanyWorkbenchHtmlInputs(
+        report_payload=report_payload,profile_context=context,observation_recency=observation_recency,
+        selected_answer=selected_answer,authoritative_task=authoritative_task,
+        change_answer=change_answer or {},change_ticker=ticker,change_profile_key=context.profile_key,
+        scenario_lab_result=scenario_session.result,nowcast_packet=nowcast_packet,
+        decision_lab_state=decision_lab_state,quarterly_trend=trend_packet,forward_view=forward_view_packet,
+        journal_state=journal_state,valuation_regime=valuation_regime,catalyst_timeline=catalyst_timeline))
+    with st.expander("HTML Research Brief",expanded=False):
+        st.caption("已保存证据与情景计算的离线快照，不含本次在线查询；来源使用权限仍独立保留。")
+        st.html(render_company_workbench_html_fragment(snapshot),unsafe_allow_javascript=False)
+        download=company_workbench_html_download_spec(snapshot)
+        st.download_button("Download HTML Research Brief",data=download.data,file_name=download.file_name,
+                           mime=download.mime,key=f"company-workbench-html:{context.profile_key}:{ticker}",on_click="ignore")
+
+
 def render_company_workbench(
     provider,
     context: ProfileContext,
@@ -37471,14 +38125,6 @@ def render_company_workbench(
     observation_recency: ObservationRecencySet | None = None,
 ) -> None:
     ticker = str(st.query_params.get("ticker") or "").strip().upper()
-    render_research_workspace_header(
-        "Company Workbench",
-        context,
-        ticker=ticker,
-        primary_action="Review usable evidence, then record what remains uncertain",
-        compact=True,
-        include_boundary=False,
-    )
     registered_tickers = {
         str(value or "").strip().upper()
         for value in (
@@ -37488,9 +38134,40 @@ def render_company_workbench(
         )
         if str(value or "").strip()
     }
-    if not ticker or ticker not in registered_tickers:
+    has_registered_company = bool(ticker and ticker in registered_tickers)
+    online_requested = str(st.query_params.get("online") or "") == "1"
+    from src.sec_research_review_ui import saved_review_route_available
+    saved_receipt_only = bool(not has_registered_company and not online_requested
+        and saved_review_route_available(ticker,getattr(context,"profile_key",None)))
+    session_state = getattr(st, "session_state", {})
+    online_candidate = (
+        online_company_candidate_for_route(
+            ticker,
+            session_state,
+        )
+        if online_requested
+        else None
+    )
+    if online_requested and online_candidate is None:
+        cached_search = session_state.get(ONLINE_COMPANY_SESSION_KEY)
+        attempted_this_ticker = (
+            isinstance(cached_search, Mapping)
+            and str(cached_search.get("query") or "").strip().upper() == ticker
+        )
+        if not attempted_this_ticker:
+            online_result = search_sec_company_candidates(
+                ticker,
+                user_agent=os.getenv("SEC_USER_AGENT"),
+            )
+            session_state[ONLINE_COMPANY_SESSION_KEY] = online_result
+            online_candidate = online_company_candidate_for_route(ticker, session_state)
+    if online_candidate is None and (online_requested or not (has_registered_company or saved_receipt_only)):
+        render_research_workspace_header("Company Workbench",context,ticker=ticker,
+            primary_action="Choose an explicit company in Discover",compact=True,include_boundary=False)
         title = (
-            f"No registered saved company matches {ticker}"
+            f"Online SEC identity is unavailable for {ticker}"
+            if ticker and online_requested
+            else f"No registered saved company matches {ticker}"
             if ticker
             else "Choose a company in Discover first"
         )
@@ -37498,7 +38175,10 @@ def render_company_workbench(
             empty_state_html(
                 title=title,
                 absence=(
-                    "No registered ticker was supplied for this Company Workbench route. "
+                    "The online SEC association could not be verified for this ticker. "
+                    "No saved-company or financial claim has been substituted."
+                    if online_requested
+                    else "No registered ticker was supplied for this Company Workbench route. "
                     "The workspace will not infer a default saved company."
                 ),
                 not_proven=(
@@ -37514,92 +38194,51 @@ def render_company_workbench(
         )
         st.markdown(
             stop_rule_html(
-                "Research-only. Select an explicit saved company before opening a Company Brief."
+                "Research-only. Retry the online search in Discover before inspecting facts."
+                if online_requested
+                else "Research-only. Select an explicit saved company before opening a Company Brief."
             ).value,
             unsafe_allow_html=True,
         )
         return
-    cash_generation_preview = None
-    if company_workbench_cash_preview_requested(st.query_params.get("cash_preview")):
-        cash_generation_preview = load_company_workbench_cash_generation_preview(ticker)
-    with st.container(key="company-workbench-document"):
-        overview_column, evidence_column = st.columns([3, 1])
-        with overview_column:
-            selected_answer_target = st.empty()
-            timeline = ticker_change_timeline(tuple(state.get("events") or ()), ticker=ticker)
-            st.markdown(
-                evidence_timeline_html(
-                    tuple(
-                        TimelineRecord(
-                            record_id=str(row.get("event_id") or ""),
-                            timestamp=str(row.get("detected_at") or "").strip() or None,
-                            label=str(row.get("change") or "Evidence change"),
-                            summary=(
-                                f"{str(row.get('evidence_status') or 'unavailable').replace('_', ' ')}. "
-                                f"{str(row.get('research_task') or 'No saved research task is available.')}"
-                            ),
-                        )
-                        for row in timeline
-                    ),
-                    empty_title="No traceable saved change for this company",
-                    empty_body=(
-                        "No authoritative saved change row is available. This does not prove that "
-                        "no external event occurred."
-                    ),
-                ).value,
-                unsafe_allow_html=True,
-            )
-            section_names = [section["title"] for section in company_workbench_section_contract()]
-            with st.expander("Review path", expanded=False):
-                st.caption(" -> ".join(section_names[:-1]))
-            with st.expander("Advanced: selected-company lane coverage", expanded=False):
-                render_signal_cards(
-                    focused_ticker_coverage_cards(coverage, ticker),
-                    show_commands=False,
-                    variant="queue",
-                )
-                st.caption(
-                    "Lane coverage is technical evidence only; blocked and candidate-only states remain separate."
-                )
-                if observation_recency is not None:
-                    st.markdown(
-                        observation_recency_summary_html(
-                            observation_recency,
-                            include_selected=True,
-                        ),
-                        unsafe_allow_html=True,
-                    )
-                    st.markdown(
-                        observation_recency_evidence_html(observation_recency),
-                        unsafe_allow_html=True,
-                    )
-        with evidence_column:
-            evidence_status_target = st.empty()
-    selected_detail_target = st.empty()
-    render_single_stock_report(
-        provider,
-        False,
-        public_mode=True,
-        profile_context=context,
-        research_mode=True,
-        research_review_items=state.get("queue") or (),
-        quarterly_trend_packet=load_dashboard_quarterly_trend(ticker),
-        cash_generation_preview=cash_generation_preview,
-        observation_recency=observation_recency,
-        selected_answer_target=selected_answer_target,
-        selected_detail_target=selected_detail_target,
-        selected_evidence_target=evidence_status_target,
-    )
-    field_study = load_dashboard_bounded_field_study(context)
-    st.markdown(study_company_html(field_study, ticker), unsafe_allow_html=True)
-    st.markdown("## Advanced Evidence")
-    with st.expander("Advanced Evidence", expanded=False):
-        advanced_field_study = study_company_detail_html(field_study, ticker)
-        if advanced_field_study:
-            st.markdown(advanced_field_study, unsafe_allow_html=True)
-        st.markdown(advanced_evidence_links_html(ticker), unsafe_allow_html=True)
-        st.caption("Detailed ticker-change evidence remains in the separate evidence drawer below.")
-    render_research_change_route_summary("Single-Stock Report", state, ticker=ticker)
+    expected_cik=online_candidate["cik"] if online_candidate else None
+    def saved_section(section):
+        render_single_stock_report(provider,False,public_mode=True,profile_context=context,
+            research_mode=True,research_review_items=state.get("queue") or (),
+            observation_recency=observation_recency,workbench_section=section)
+    def sources(bundle):
+        view=bundle["financial"]
+        if online_candidate:
+            st.markdown("<p class='company-scope-note'>SEC CIK "+html.escape(expected_cik)+
+                " · observed "+html.escape(online_candidate["observed_at"])+
+                " · SHA-256 "+html.escape(online_candidate["payload_sha256"])+
+                ". Identity association rights require review before distribution.</p>",unsafe_allow_html=True)
+        with st.expander("财报字段与原始来源",expanded=False):
+            if view.get("status")=="not_requested":st.caption("使用上方更新操作取得本公司的字段证据。")
+            else:st.markdown(company_sec_annual_preview_html(view),unsafe_allow_html=True)
+        render_company_sec_filing_check(ticker,expected_cik=expected_cik)
+        render_company_security_check(ticker,expected_cik=expected_cik)
+        with st.expander("价格证据与使用范围",expanded=False):
+            st.markdown(online_price_history_html(bundle["prices"]),unsafe_allow_html=True)
+        field_study=load_dashboard_bounded_field_study(context)
+        st.markdown(study_company_html(field_study,ticker),unsafe_allow_html=True)
+        with st.expander("保存研究的来源与复核状态",expanded=False):
+            st.caption("保存来源状态："+saved_readiness_display_label(context.freshness_state))
+            render_signal_cards(focused_ticker_coverage_cards(coverage,ticker),show_commands=False,variant="queue")
+            if observation_recency is not None:
+                st.markdown(observation_recency_summary_html(observation_recency,include_selected=True),unsafe_allow_html=True)
+                st.markdown(observation_recency_evidence_html(observation_recency),unsafe_allow_html=True)
+            detail=study_company_detail_html(field_study,ticker)
+            if detail:st.markdown(detail,unsafe_allow_html=True)
+            if company_workbench_cash_preview_requested(st.query_params.get("cash_preview")):
+                preview=load_company_workbench_cash_generation_preview(ticker)
+                render_signal_cards(cash_generation_preview_cards(preview),show_commands=False,variant="queue")
+            st.markdown(advanced_evidence_links_html(ticker),unsafe_allow_html=True)
+        render_research_change_route_summary("Single-Stock Report",state,ticker=ticker)
+    render_integrated_company(st,ticker,profile_scope=context.profile_key,
+        saved_available=has_registered_company,online_candidate=online_candidate,
+        render_saved=saved_section,render_sources=sources,
+        **({'saved_receipt_only':True} if saved_receipt_only else {}))
 
 
 def render_personal_research_route(
@@ -37630,7 +38269,7 @@ def render_personal_research_route(
         render_research_workspace_header(
             "Discover",
             context,
-            primary_action="Check strict eligibility or browse one saved company",
+            primary_action="Search SEC online or inspect saved evidence",
             compact=True,
             include_boundary=False,
         )
@@ -37644,7 +38283,13 @@ def render_personal_research_route(
             research_boundary=QUEUE_BOUNDARY,
             strict_eligible_count=len(daily_queue.result.eligible),
             field_study=load_dashboard_bounded_field_study(context),
+            registered_tickers=(
+                tuple(provider.list_local_tickers())
+                if provider is not None and hasattr(provider, "list_local_tickers")
+                else ()
+            ),
         )
+        render_online_coverage_study()
         st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
         with st.expander("Advanced: cohort readiness context", expanded=False):
             if observation_recency is not None:

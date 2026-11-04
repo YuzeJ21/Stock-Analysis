@@ -87,14 +87,10 @@ def test_linkedin_asset_contract_is_count_safe_workbench_answer_evidence():
     asset = DEFAULT_BROWSER_QA_EVIDENCE[0]
 
     assert asset.name == "LinkedIn Company Workbench thumbnail"
-    assert asset.route.endswith("?mode=research&page=company-workbench&ticker=AVGO&open=1")
+    assert asset.route.endswith("?mode=research&page=company-workbench&ticker=AVGO&section=valuation")
     assert asset.expected_markers == (
-        "Company Workbench",
-        "Use now",
-        "Still withheld",
-        "Open Data Health",
-        "Stop if peer mappings or peer valuation inputs lack source-backed rows.",
-        "Research-only",
+        "AVGO Company Brief", "Research-only", "财务趋势", "估值与同行",
+        "研究记录", "数据来源", "更新在线同行估值",
     )
     assert (asset.min_width, asset.min_height) == (1200, 627)
     assert "answer-first" in asset.use.lower()
@@ -502,10 +498,13 @@ def test_browser_qa_responsive_route_rows_cover_public_flow_without_raw_ops():
     assert pages[5:] == ["Research Desk", "Discover", "Company Workbench", "Monitor"]
     assert all(row["Desktop Viewport"] == "1280x720" for row in rows)
     assert all(row["Phone Viewport"] == "390x844" for row in rows)
-    assert all("Saved readiness" in str(row["First View Must Keep"]) for row in rows)
+    assert all("Saved readiness" in str(row["First View Must Keep"]) for row in rows if row["Page"]!="Company Workbench")
+    company=next(row for row in rows if row["Page"]=="Company Workbench")
+    assert "five visible research sections" in str(company["First View Must Keep"])
+    assert "independent model scope" in str(company["First View Must Keep"])
     assert "lane coverage summary" in rendered
     assert "which stock can i review?" in rendered
-    assert "one data health handoff" in rendered
+    assert "one combined online update" in rendered
     assert "latest evidence" in rendered
     assert "advanced collapsed" in rendered
     assert "raw tables" in rendered
@@ -573,9 +572,8 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     workbench = next(row for row in rows if row["Route Check"] == "Research Company Workbench")
     assert "Company Workbench" in str(workbench["First View Markers"])
     assert "Company Brief" in str(workbench["First View Markers"])
-    assert "Next research task" in str(workbench["First View Markers"])
-    assert "Open evidence and analysis modules" in str(workbench["First View Markers"])
-    assert "Open Data Health" in str(workbench["First View Markers"])
+    for label in ("概览","财务趋势","估值与同行","研究记录","数据来源","更新财报与价格"):
+        assert label in str(workbench["First View Markers"])
     assert "Research Decision Lab" not in str(workbench["First View Markers"])
     assert "Selected Company" not in str(workbench["First View Markers"])
     assert "choose a reviewable ticker" in str(stock_selector["QA Focus"])
@@ -733,7 +731,7 @@ def test_company_workbench_browser_qa_keeps_secondary_modules_behind_explicit_op
 
     assert "Add a reviewed research record" not in route.first_view_markers
     assert (
-        "Trend, valuation, scenarios, Research Decision Lab, authoring, methodology, conclusion detail, and the HTML brief stay closed until `Open evidence and analysis modules`; Advanced evidence remains collapsed."
+        "Only the selected company section renders. Financial trends reuse online observations; valuation retains saved scenarios; Research Decision Lab, authoring and the HTML brief are in 研究记录; raw proof and Data Health are in 数据来源."
         == route.details_boundary
     )
     assert (
@@ -746,7 +744,7 @@ def test_company_workbench_browser_qa_keeps_secondary_modules_behind_explicit_op
     )
     assert "Add a reviewed research record" not in responsive.first_view_must_keep
     assert "collapsed composer" not in responsive.first_view_must_keep
-    assert "module-open action" in responsive.mobile_risk
+    assert "section controls" in responsive.mobile_risk
     assert (
         "Stop if the phone view overflows, shows traceback text, loses a primary answer or stop rule, or renders a secondary module before the explicit action."
         == responsive.stop_rule

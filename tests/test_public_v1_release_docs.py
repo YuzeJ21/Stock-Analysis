@@ -324,17 +324,23 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in readme
     assert "Secondary controlled demo" in readme
     assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in readme
-    assert "Data Health and Proof History stay under **Advanced Evidence**" in readme
-    assert "## Now / Next / Not Yet" in readme
-    assert "| Now | GitHub/LinkedIn portfolio demo with public workflow, screenshots, methodology, local run commands, manual gates, and a locally passed performance gate. | Use `make public-check` before sharing; keep generated churn excluded and do not treat local timing as hosted proof. |" in readme
-    assert "| Next | Optional controlled hosted preview and task-based external pilot review. | Hosting remains external until a URL is verified; reviewer feedback must remain anonymous workflow evidence, not investment opinion. |" in readme
-    assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim this until external hosting, provider keys, source proof, validation, preview, apply, rebuilt readiness, and proof history support it. |" in readme
-    assert "This is the fastest reviewer answer: the product is shareable as a controlled demo now, deeper coverage is source-gated, and hosting/provider automation stays optional until verified." in readme
+    assert "Data Health and Proof History remain available from Company Workbench **数据来源**" in readme
+    assert "## Now / Next / Later" in readme
+    assert "| Now | Local controlled demo" in readme
+    assert "explicit live SEC company lookup" in readme
+    assert "including companies absent from local CSVs" in readme
+    assert "| Next | Expand exact-filing support from measured source gaps" in readme
+    assert "continue recoverable issuer checks" in readme
+    assert "remaining dated venue/security-identity gaps" in readme
+    assert "**Exact SEC filing evidence**" in readme
+    assert "save and restore reduced coverage progress" in readme
+    assert "| Later | Carry permitted snapshot changes" in readme
+    assert "Hosting, full coverage, calibration, and commercial operation require their own direct evidence" in readme
     assert "local Commercial Research Beta foundation" in readme
     assert "not a hosted or commercially launched product" in readme
     assert "Authentication, private workspaces, operated data rights, real beta users, and repeatable provider operations remain separate gates" in readme
-    assert readme.index("## External Reviewer Start Here") < readme.index("## Now / Next / Not Yet")
-    assert readme.index("## Now / Next / Not Yet") < readme.index("## What You Can Analyze")
+    assert readme.index("## External Reviewer Start Here") < readme.index("## Now / Next / Later")
+    assert readme.index("## Now / Next / Later") < readme.index("## What You Can Analyze")
 
 
 def test_readme_explains_no_key_sec_preview_without_claiming_activation():
@@ -1274,8 +1280,7 @@ def test_active_maturity_handoff_matches_current_sync_priority_and_ui_contracts(
     assert "automated media-preference" in roadmap.lower()
     assert "direct-platform, independent-human, screen-reader, and assistive-technology" in roadmap
     assert (
-        "If the current branch head lacks direct local matrix, branch synchronization, "
-        "draft-PR update, or exact-head CI evidence"
+        "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization"
     ) in next_stage
 
     assert "contained horizontal phone strip" not in personal
@@ -1569,7 +1574,8 @@ def test_research_decision_lab_release_docs_bind_local_completion_to_current_evi
     assert "writes no journal, outcome, source, readiness, proof, report, screenshot, or timing artifact" in provenance
     assert "A valid lane cannot promote, repair, or clear another lane" in provenance
 
-    assert "What Changed -> Research Decision Lab -> Business Trend" in personal
+    assert "概览、财务趋势、估值与同行、研究记录、数据来源" in personal
+    assert "exact-preview authoring" in personal
     assert "one **Follow-up Queue**" in personal
     assert "does not prove that no external event, risk, or research need exists" in personal
 
@@ -1580,7 +1586,8 @@ def test_research_decision_lab_release_docs_bind_local_completion_to_current_evi
     assert "Status:** Implemented locally; external maturity gates remain separate" in design
 
     assert "Research Decision Lab" in browser_contract
-    assert "Open evidence and analysis modules" in browser_contract
+    assert "Only the selected company section renders" in browser_contract
+    assert "研究记录" in browser_contract and "数据来源" in browser_contract
     assert '"Follow-up Queue"' in browser_contract
     assert "Research Decision Lab" in readme
     assert "Follow-up Queue" in readme
@@ -2360,12 +2367,12 @@ def test_broad_review_docs_use_durable_release_routing_and_fail_closed_boundarie
     )
 
     durable_routing = (
-        "If the current branch head lacks direct local matrix, branch synchronization, "
-        "draft-PR update, or exact-head CI evidence, complete those release steps first; "
-        "otherwise select the first incomplete safe roadmap priority."
+        "Check release gates for the exact branch head before distribution; local product development "
+        "follows the Product Decision outcome order in `ROADMAP.md`."
     )
     for document in (product_spec, next_stage):
         assert durable_routing in document
+        assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in document
     for document in (readme, roadmap, continuation):
         assert durable_routing not in document
     for document in (readme,):

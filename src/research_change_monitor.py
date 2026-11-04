@@ -39,6 +39,9 @@ READINESS_SUBTYPES = {
     "overall_readiness_state": "overall_readiness_changed",
 }
 FUNDAMENTAL_VALUE_FIELDS = {
+    "operating_income",
+    "cash_from_operations",
+    "capital_expenditures",
     "revenue",
     "eps",
     "free_cash_flow",

@@ -48,6 +48,7 @@ This document is the historical completion log for Stock Research Command Center
 
 ## Provenance And Source Boundaries
 
+- The October 2026 code-only merge added read-only NVIDIA Q1 FY2027 SEC cash-generation packet software and a six-company field-comparison view. The exact source capture and comparison reports are local ignored inputs, so a clean checkout shows the study as unavailable. The merge did not add raw filing material, canonical financial rows, listing expansion, or source-rights approvals.
 - `docs/PROVENANCE_CONTRACT.md` defines readiness state, source, as-of date, reporting period, currency, retrieved-at date, method version, missing inputs, and confidence boundary.
 - Reports surface `readiness-first-v1` provenance, source records, financial as-of date, reporting period, price/financial currency when present, missing inputs, and a research-only confidence boundary.
 - Public Single-Stock first view shows the selected-ticker answer and compact provenance before advanced performance, valuation, and metric summaries; missing provenance stays visible rather than inferred.

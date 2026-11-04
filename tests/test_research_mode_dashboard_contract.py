@@ -778,6 +778,7 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
         "render_stock_selector",
         lambda *args, **kwargs: calls.append("saved browsing"),
     )
+    monkeypatch.setattr(dashboard,"render_online_coverage_study",lambda:calls.append("coverage sample"))
     monkeypatch.setattr(
         dashboard,
         "dashboard_output_frames_for_page",
@@ -810,10 +811,10 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
 
     assert all(value != "## Find a Company" for value in headings)
     assert all("Browse saved companies" not in value for value in headings)
-    assert calls == ["saved browsing", "advanced"]
+    assert calls == ["saved browsing", "coverage sample", "advanced"]
 
 
-def test_discover_evidence_access_first_keeps_strict_queue_in_advanced_context(monkeypatch):
+def test_discover_search_first_keeps_strict_queue_in_advanced_context(monkeypatch):
     events: list[tuple[str, object]] = []
     context = SimpleNamespace(data_dir=Path("/selected-profile/data"))
     tickers = ("NVDA", "AMD", "AVGO", "COHR", "TSLA", "XOM", "PLTR", "ZZZ")
@@ -911,14 +912,21 @@ def test_discover_evidence_access_first_keeps_strict_queue_in_advanced_context(m
     primary_index = next(
         index
         for index, event in enumerate(events)
-        if event[0] == "markdown" and "8 saved companies are available" in event[1]
+        if event[0] == "markdown" and "8 saved companies" in event[1]
     )
     search_index = events.index(("text_input", "Search saved companies"))
-    assert "0 currently pass the strict screen" in events[primary_index][1]
-    assert primary_index < search_index
-    assert all(
-        ticker in " ".join(event[1] for event in events if event[0] == "markdown")
-        for ticker in ("AMD", "AVGO", "COHR", "NVDA")
+    assert "0 strict-screen eligible" in events[primary_index][1]
+    assert search_index < primary_index
+    assert dashboard.QUEUE_BOUNDARY in events[primary_index][1]
+    assert sum(
+        str(value).count("data-sr-region='stop-rule'")
+        for event_type, value in events
+        if event_type == "markdown"
+    ) == 1
+    assert not any(
+        "discover-quick-company-links" in event[1]
+        for event in events
+        if event[0] == "markdown"
     )
     advanced_index = events.index(("expander", "Advanced: cohort readiness context"))
     strict_detail_index = next(
@@ -928,6 +936,19 @@ def test_discover_evidence_access_first_keeps_strict_queue_in_advanced_context(m
     )
     assert advanced_index < strict_detail_index
     assert selector_counts == [0]
+
+
+def test_discover_browsing_guidance_follows_the_saved_company_result():
+    source = Path(dashboard.__file__).read_text(encoding="utf-8")
+    selector = source[
+        source.index("def render_stock_selector(") : source.index(
+            "\ndef price_refresh_operator_plan_cards",
+            source.index("def render_stock_selector("),
+        )
+    ]
+    assert selector.index("stock_selector_result_table_html(filtered") < selector.index(
+        'title="Browse saved companies"'
+    )
 
 
 def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser(
@@ -1152,45 +1173,52 @@ def test_empty_strict_screen_preserves_saved_browsing_boundary(monkeypatch):
     assert "discover_saved_browser_jump_html()" in selector_source
 
 
-def test_company_workbench_anchors_answer_before_collapsed_navigation_and_passes_target_to_report():
-    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
-    workbench_start = source.index("def render_company_workbench(")
-    workbench_end = source.index("\ndef main()", workbench_start)
-    workbench = source[workbench_start:workbench_end]
+def _capture_integrated_company_route(monkeypatch, *, cash_preview="0"):
+    calls=[]
+    query={"ticker":"AVGO","cash_preview":cash_preview}
+    class FakeSt:
+        query_params=query
+        session_state={}
+        def markdown(self,value,**kwargs):calls.append(("markdown",value))
+        def caption(self,value,**kwargs):calls.append(("caption",value))
+        def expander(self,*args,**kwargs):
+            from contextlib import nullcontext
+            return nullcontext()
+    fake=FakeSt();captured={};reports=[]
+    context=SimpleNamespace(profile_key="default",data_dir=None,freshness_state="stale")
+    monkeypatch.setattr(dashboard,"st",fake)
+    monkeypatch.setattr(dashboard,"render_integrated_company",lambda st_api,ticker,**kw:captured.update(ticker=ticker,**kw))
+    monkeypatch.setattr(dashboard,"render_single_stock_report",lambda *args,**kw:reports.append(kw))
+    monkeypatch.setattr(dashboard,"render_company_sec_filing_check",lambda ticker,**kw:calls.append(("filing",ticker)))
+    monkeypatch.setattr(dashboard,"render_company_security_check",lambda ticker,**kw:calls.append(("security",ticker)))
+    monkeypatch.setattr(dashboard,"focused_ticker_coverage_cards",lambda coverage,ticker:calls.append(("coverage",ticker)) or [])
+    monkeypatch.setattr(dashboard,"render_signal_cards",lambda *args,**kwargs:None)
+    monkeypatch.setattr(dashboard,"render_research_change_route_summary",lambda *args,**kw:calls.append(("changes",kw.get("ticker"))))
+    dashboard.render_company_workbench(SimpleNamespace(list_local_tickers=lambda:["AVGO"]),context,{},object())
+    return query,context,captured,reports,calls
 
-    header = workbench.index("render_research_workspace_header(")
-    target = workbench.index("selected_answer_target = st.empty()", header)
-    review = workbench.index('with st.expander("Review path", expanded=False):', target)
-    advanced = workbench.index('with st.expander("Advanced: selected-company lane coverage", expanded=False):', review)
-    report = workbench.index("render_single_stock_report(", advanced)
 
-    assert header < target < review < advanced < report
-    assert "compact=True" in workbench[header:target]
-    assert "selected_answer_target=selected_answer_target" in workbench[report:]
-    assert 'st.markdown("### Selected Company")' not in workbench
+def test_company_workbench_anchors_answer_before_collapsed_navigation_and_passes_target_to_report(monkeypatch):
+    query,context,view,reports,calls=_capture_integrated_company_route(monkeypatch)
+    assert view["ticker"]=="AVGO" and view["saved_available"] is True
+    assert view["profile_scope"]=="default"
+    assert reports==[] and calls==[]  # The initial page does not enter deep saved tools or sources.
+    view["render_saved"]("valuation")
+    assert reports[0]["workbench_section"]=="valuation"
+    assert reports[0]["profile_context"] is context
+    assert reports[0]["research_mode"] is True
 
 
-def test_company_workbench_loads_cash_preview_only_for_explicit_flag():
-    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
-    workbench_start = source.index("def render_company_workbench(")
-    workbench_end = source.index("\ndef main()", workbench_start)
-    workbench = source[workbench_start:workbench_end]
-
-    assert 'company_workbench_cash_preview_requested(st.query_params.get("cash_preview"))' in source
-    assert "load_company_workbench_cash_generation_preview(ticker)" in source
-    gate = workbench.index(
-        'company_workbench_cash_preview_requested(st.query_params.get("cash_preview"))'
-    )
-    load = workbench.index(
-        "load_company_workbench_cash_generation_preview(ticker)",
-        gate,
-    )
-    report = workbench.index("render_single_stock_report(", load)
-    canonical = workbench.index("load_dashboard_quarterly_trend(ticker)", report)
-
-    assert gate < load < report < canonical
-    assert workbench.index("cash_generation_preview = None") < gate
-    assert "cash_generation_preview=cash_generation_preview" in workbench[report:]
+@pytest.mark.parametrize("flag,expected",[("0",[]),("1",["AVGO"])])
+def test_company_workbench_loads_cash_preview_only_for_explicit_flag(monkeypatch,flag,expected):
+    loaded=[]
+    monkeypatch.setattr(dashboard,"load_company_workbench_cash_generation_preview",lambda ticker:loaded.append(ticker))
+    monkeypatch.setattr(dashboard,"cash_generation_preview_cards",lambda preview:[])
+    query,context,view,reports,calls=_capture_integrated_company_route(monkeypatch,cash_preview=flag)
+    assert loaded==[]
+    view["render_sources"]({"financial":{"status":"not_requested"},"prices":{"status":"not_requested"}})
+    assert loaded==expected
+    assert reports==[]
 
 
 def test_cash_preview_renders_after_business_trend_answer_and_before_advanced_lineage():
@@ -1467,20 +1495,13 @@ def test_research_workspace_styles_inject_media_preferences_after_normal_styles(
     )
 
 
-def test_company_workbench_keeps_review_path_and_lane_coverage_after_anchored_answer():
-    source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
-    start = source.index("def render_company_workbench(")
-    end = source.index("\ndef main()", start)
-    workbench = source[start:end]
-
-    selected_answer = workbench.index("selected_answer_target = st.empty()")
-    review = workbench.index('with st.expander("Review path", expanded=False):', selected_answer)
-    path = workbench.index('st.caption(" -> ".join(section_names[:-1]))', review)
-    coverage = workbench.index('with st.expander("Advanced: selected-company lane coverage", expanded=False):', path)
-    report = workbench.index("render_single_stock_report(", coverage)
-
-    assert selected_answer < review < path < coverage < report
-    assert 'st.caption("Review path: "' not in workbench
+def test_company_workbench_keeps_review_path_and_lane_coverage_after_anchored_answer(monkeypatch):
+    query,context,view,reports,calls=_capture_integrated_company_route(monkeypatch)
+    assert calls==[]
+    view["render_sources"]({"financial":{"status":"not_requested"},"prices":{"status":"not_requested"}})
+    assert ("filing","AVGO") in calls and ("security","AVGO") in calls
+    assert ("coverage","AVGO") in calls and ("changes","AVGO") in calls
+    assert reports==[]
 
 
 def test_company_workbench_uses_composed_forward_view_and_keeps_details_advanced():
@@ -1545,7 +1566,10 @@ def test_monitor_and_workbench_integrate_new_evidence_layers_without_new_routes(
     assert dashboard.workspace_path_options("Research Desk", nav.RESEARCH_MODE) == nav.RESEARCH_PATH_PAGE_TITLES
 
 
-def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeypatch):
+def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeypatch, tmp_path):
+    # Exercise the real profile-scoped handoff against isolated empty storage.
+    from src import sec_research_review_ui
+    monkeypatch.setattr(sec_research_review_ui, "PROJECT_ROOT", tmp_path)
     rendered: list[str] = []
     actions: list[tuple[str, str]] = []
     cards: list[tuple[list[dict[str, object]], str]] = []
@@ -1587,6 +1611,7 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     dashboard.render_research_monitor(
         {"queue": ()},
         SimpleNamespace(
+            profile_key="monitor-test",
             freshness_state="current",
             freshness_message="Saved readiness is current.",
         ),
@@ -1625,8 +1650,11 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     assert copy.count("data-sr-region='stop-rule'") == 1
 
 
-def test_monitor_return_context_renders_once_without_changing_monitor_scope(monkeypatch):
+def test_monitor_return_context_renders_once_without_changing_monitor_scope(monkeypatch, tmp_path):
     """Catches return context being treated as a Monitor filter rather than a detour action."""
+    # Exercise the real profile-scoped handoff against isolated empty storage.
+    from src import sec_research_review_ui
+    monkeypatch.setattr(sec_research_review_ui, "PROJECT_ROOT", tmp_path)
 
     class Expander:
         def __enter__(self):
@@ -1652,7 +1680,7 @@ def test_monitor_return_context_renders_once_without_changing_monitor_scope(monk
 
     args = (
         {"queue": ()},
-        SimpleNamespace(freshness_state="current", freshness_message="Saved readiness is current."),
+        SimpleNamespace(profile_key="monitor-test", freshness_state="current", freshness_message="Saved readiness is current."),
         WeeklyResearchSummary(
             status="no_changes",
             as_of="2026-08-04T00:00:00+00:00",
@@ -1682,13 +1710,20 @@ def test_monitor_return_context_renders_once_without_changing_monitor_scope(monk
 
 
 def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_health(
-    monkeypatch,
+    monkeypatch, tmp_path,
 ):
+    # Exercise the real profile-scoped handoff against isolated empty storage.
+    from src import sec_research_review_ui
+    monkeypatch.setattr(sec_research_review_ui, "PROJECT_ROOT", tmp_path)
     rendered: list[str] = []
     cards: list[object] = []
 
     class Expander:
+        def __init__(self, label: str):
+            self.label = label
+
         def __enter__(self):
+            rendered.append(f"BEGIN {self.label}")
             return self
 
         def __exit__(self, *args):
@@ -1701,19 +1736,22 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
     monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard, "observation_recency_summary_html", lambda *args, **kwargs: "")
     monkeypatch.setattr(dashboard, "observation_recency_evidence_html", lambda *args, **kwargs: "")
-    monkeypatch.setattr(
-        dashboard,
-        "render_signal_cards",
-        lambda values, **kwargs: cards.extend(values),
-    )
+    original_render_signal_cards = dashboard.render_signal_cards
+
+    def record_signal_cards(values, **kwargs):
+        cards.extend(values)
+        original_render_signal_cards(values, **kwargs)
+
+    monkeypatch.setattr(dashboard, "render_signal_cards", record_signal_cards)
     monkeypatch.setattr(dashboard.st, "markdown", lambda value, **kwargs: rendered.append(value))
     monkeypatch.setattr(dashboard.st, "caption", lambda value, **kwargs: rendered.append(value))
     monkeypatch.setattr(dashboard.st, "dataframe", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+    monkeypatch.setattr(dashboard.st, "expander", lambda label, **kwargs: Expander(label))
 
     dashboard.render_research_monitor(
         {"queue": ()},
         SimpleNamespace(
+            profile_key="monitor-test",
             freshness_state="current",
             freshness_message="Saved readiness is current for saved sources.",
         ),
@@ -1753,6 +1791,14 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
         "scheduled_context",
         "evidence_freshness",
     }
+    queue_heading = rendered.index("## Follow-up Queue")
+    queue_cards = next(index for index, value in enumerate(rendered) if "evidence-monitor-grid" in value)
+    advanced = rendered.index("BEGIN Advanced: Monitor evidence")
+    explanation = next(
+        index for index, value in enumerate(rendered)
+        if "The named saved-readiness or market-observation condition" in value
+    )
+    assert queue_heading < queue_cards < advanced < explanation
 
 
 def test_direct_tickerless_company_workbench_fails_closed_without_report_or_default_ticker(
@@ -1827,140 +1873,30 @@ def test_direct_unregistered_company_workbench_fails_closed_without_saved_ticker
     assert copy.count("data-sr-region='stop-rule'") == 1
 
 
-def test_direct_registered_company_workbench_without_open_preserves_query_and_renders_report(
-    monkeypatch,
-):
-    reports: list[dict[str, object]] = []
-    query = {"ticker": "AVGO", "cash_preview": "0"}
-
-    class Expander:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-    target = SimpleNamespace(markdown=lambda *args, **kwargs: None)
-    monkeypatch.setattr(
-        dashboard,
-        "st",
-        SimpleNamespace(
-            query_params=query,
-            markdown=lambda *args, **kwargs: None,
-            empty=lambda: target,
-            container=lambda *args, **kwargs: Expander(),
-            columns=lambda *args, **kwargs: (Expander(), Expander()),
-            expander=lambda *args, **kwargs: Expander(),
-            caption=lambda *args, **kwargs: None,
-        ),
-    )
-    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "focused_ticker_coverage_cards", lambda *args, **kwargs: [])
-    monkeypatch.setattr(
-        dashboard,
-        "load_company_workbench_cash_generation_preview",
-        lambda ticker: pytest.fail("cash_preview=0 must not load the preview"),
-    )
-    monkeypatch.setattr(dashboard, "load_dashboard_quarterly_trend", lambda ticker: None)
-    monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
-    monkeypatch.setattr(
-        dashboard,
-        "render_single_stock_report",
-        lambda *args, **kwargs: reports.append(kwargs),
-    )
-
-    dashboard.render_company_workbench(
-        SimpleNamespace(list_local_tickers=lambda: ["AVGO"]),
-        SimpleNamespace(),
-        {},
-        object(),
-    )
-
-    assert query == {"ticker": "AVGO", "cash_preview": "0"}
-    assert len(reports) == 1
-    assert reports[0]["research_mode"] is True
-    assert reports[0]["selected_answer_target"] is target
-    assert reports[0]["selected_detail_target"] is target
-    assert reports[0]["selected_evidence_target"] is target
+def test_direct_registered_company_workbench_without_open_preserves_query_and_renders_report(monkeypatch):
+    query,context,view,reports,calls=_capture_integrated_company_route(monkeypatch)
+    assert query=={"ticker":"AVGO","cash_preview":"0"}
+    assert reports==[]
+    view["render_saved"]("notes")
+    assert len(reports)==1 and reports[0]["workbench_section"]=="notes"
+    assert reports[0]["profile_context"] is context
+    assert query=={"ticker":"AVGO","cash_preview":"0"}
 
 
-def test_registered_company_workbench_renders_one_document_overview_with_evidence_placeholder(
-    monkeypatch,
-):
-    """Catches a Workbench overview rendered outside its document grid or without its evidence rail."""
-
-    calls: list[tuple[str, object, object]] = []
-    contexts: list[str] = []
-
-    class RecordedContext:
-        def __init__(self, name: str):
-            self.name = name
-
-        def __enter__(self):
-            contexts.append(self.name)
-            return self
-
-        def __exit__(self, *args):
-            contexts.pop()
-            return False
-
-    class RecordingStreamlit:
-        query_params = {"ticker": "AVGO", "cash_preview": "0"}
-
-        def container(self, *args, **kwargs):
-            calls.append(("container", kwargs.get("key"), contexts[-1] if contexts else None))
-            return RecordedContext("document")
-
-        def columns(self, spec):
-            calls.append(("columns", spec, contexts[-1] if contexts else None))
-            return (RecordedContext("overview"), RecordedContext("evidence"))
-
-        def empty(self):
-            calls.append(("empty", None, contexts[-1] if contexts else None))
-            return SimpleNamespace()
-
-        def markdown(self, value, **kwargs):
-            calls.append(("markdown", value, contexts[-1] if contexts else None))
-
-        def expander(self, label, **kwargs):
-            calls.append(("expander", label, contexts[-1] if contexts else None))
-            return RecordedContext(f"expander:{label}")
-
-        def caption(self, value, **kwargs):
-            calls.append(("caption", value, contexts[-1] if contexts else None))
-
-    monkeypatch.setattr(dashboard, "st", RecordingStreamlit())
-    monkeypatch.setattr(dashboard, "render_research_workspace_header", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "focused_ticker_coverage_cards", lambda *args, **kwargs: [])
-    monkeypatch.setattr(dashboard, "load_dashboard_quarterly_trend", lambda ticker: None)
-    monkeypatch.setattr(dashboard, "render_research_change_route_summary", lambda *args, **kwargs: None)
-    monkeypatch.setattr(dashboard, "render_single_stock_report", lambda *args, **kwargs: None)
-
-    dashboard.render_company_workbench(
-        SimpleNamespace(list_local_tickers=lambda: ["AVGO"]),
-        SimpleNamespace(),
-        {},
-        object(),
-    )
-
-    assert [call for call in calls if call[0] == "container"] == [
-        ("container", "company-workbench-document", None)
-    ]
-    assert [call for call in calls if call[0] == "columns"] == [
-        ("columns", [3, 1], "document")
-    ]
-    assert [call for call in calls if call == ("empty", None, "evidence")] == [
-        ("empty", None, "evidence")
-    ]
-    assert ("empty", None, "overview") in calls
-    assert any(
-        call[0] == "markdown" and "sr-evidence-timeline" in str(call[1]) and call[2] == "overview"
-        for call in calls
-    )
-    assert ("expander", "Review path", "overview") in calls
-    assert ("expander", "Advanced: selected-company lane coverage", "overview") in calls
+def test_registered_company_workbench_renders_one_document_with_inline_evidence_placeholder():
+    from streamlit.testing.v1 import AppTest
+    from tests.test_integrated_company_workbench import _dashboard_app, text
+    at=AppTest.from_function(_dashboard_app,default_timeout=30)
+    at.query_params.update({"mode":"research","page":"company-workbench","ticker":"AMD"})
+    at.run()
+    assert not at.exception
+    assert text(at).count("<h1")==1
+    at.radio[0].set_value("sources").run()
+    assert not at.exception
+    assert text(at).count("<h1")==1
+    assert any(e.label=="Exact SEC filing evidence" for e in at.expander)
+    assert any(e.label=="保存研究的来源与复核状态" for e in at.expander)
+    assert "No source-backed quarterly actual is available" not in text(at)
 
 
 def test_research_workbench_report_is_internally_open_without_changing_public_open_semantics():
@@ -2008,8 +1944,11 @@ def test_dashboard_keeps_authoring_call_scoped_to_the_selected_profile_and_ticke
 
 
 def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_action(
-    monkeypatch,
+    monkeypatch, tmp_path,
 ):
+    # Exercise the real profile-scoped handoff against isolated empty storage.
+    from src import sec_research_review_ui
+    monkeypatch.setattr(sec_research_review_ui, "PROJECT_ROOT", tmp_path)
     cards: list[tuple[list[dict[str, object]], str]] = []
     actions: list[tuple[str, str]] = []
     headers: list[dict[str, object]] = []
@@ -2066,6 +2005,7 @@ def test_monitor_actionable_state_renders_five_panels_without_duplicate_return_a
     dashboard.render_research_monitor(
         {"queue": ()},
         SimpleNamespace(
+            profile_key="monitor-test",
             freshness_state="current",
             freshness_message="Saved readiness is current.",
         ),
@@ -2129,11 +2069,13 @@ def test_discover_supporting_region_is_owned_by_selector_after_action_and_stop()
     route = source[route_start:route_end]
 
     search = selector.index("search = st.text_input(")
-    stop = selector.index("stop_rule_html(", search)
-    supporting = selector.index('title="Browse saved companies"', stop)
-    filters = selector.index("open_change_counts:", supporting)
+    status = selector.index("discover_primary_answer_html(", search)
+    filters = selector.index("open_change_counts:", status)
+    result = selector.index("stock_selector_result_table_html(filtered", filters)
+    supporting = selector.index('title="Browse saved companies"', result)
 
-    assert search < stop < supporting < filters
+    assert search < status < filters < result < supporting
+    assert "research_boundary=research_boundary" in selector[status:filters]
     assert 'title="Browse saved companies"' not in route
 
 
@@ -2142,17 +2084,18 @@ def test_discover_search_omits_redundant_help_focus_stop_while_public_keeps_help
     selector_start = source.index("def render_stock_selector(")
     selector_end = source.index("\ndef price_refresh_operator_plan_cards", selector_start)
     selector = source[selector_start:selector_end]
-    search_start = selector.index("search = st.text_input(")
-    search_end = selector.index(").strip()", search_start)
-    search_call = selector[search_start:search_end]
+    discover_start = selector.index('"Search saved companies"')
+    public_start = selector.index('"Search this review queue"')
+    assert discover_start < public_start
+    discover_call = selector[discover_start : selector.index(").strip()", discover_start)]
+    public_call = selector[public_start : selector.index(").strip()", public_start)]
 
-    assert '"Search saved companies" if research_discover else "Search this review queue"' in search_call
-    assert 'value=str(current_filter_values.get("search") or "")' in search_call
-    assert 'placeholder="Search ticker, theme, blocker, or proof step"' in search_call
-    assert 'key="stock-selector-search"' in search_call
-    assert "None\n            if research_discover" in search_call
-    assert "Search readiness-backed rows before opening one saved report." in search_call
-    assert "Search alphabetical saved-company evidence paths." not in search_call
+    assert 'value=str(current_filter_values.get("search") or "")' in discover_call
+    assert 'placeholder="Search ticker, theme, blocker, or proof step"' in discover_call
+    assert 'key="stock-selector-search"' in discover_call
+    assert "help=None" in discover_call
+    assert "Search readiness-backed rows before opening one saved report." in public_call
+    assert "Search alphabetical saved-company evidence paths." not in selector
     assert "stock_selector_current_filter_values(saved_presets, st.session_state)" in selector
     assert "Search and filters apply only to the readiness-backed saved-company set." in selector
     assert "They do not change strict screen eligibility or create a ranking." in selector
@@ -2212,6 +2155,11 @@ def test_stock_selector_search_widget_behavior_removes_only_discover_help(monkey
 
     monkeypatch.setattr(dashboard, "stock_selector_current_filter_values", current_values)
     monkeypatch.setattr(dashboard.st, "text_input", capture_text_input)
+    monkeypatch.setattr(
+        dashboard,
+        "render_online_company_search",
+        lambda **kwargs: None,
+    )
 
     with pytest.raises(SearchCaptured):
         dashboard.render_stock_selector(
@@ -2820,7 +2768,6 @@ def test_research_primary_sections_follow_route_h1_with_level_two_headings():
         "Forward View",
         "What Remains Withheld",
         "Research Conclusion",
-        "Advanced Evidence",
     )
 
     for heading in expected_level_two:
@@ -2836,7 +2783,7 @@ def test_company_workbench_primary_actions_use_explicit_44px_browser_targets():
     styles = source[styles_start:styles_end]
 
     data_health_start = styles.index(
-        ".company-workbench-primary-answer .public-primary-action {"
+        ".company-workbench-priority-action .public-primary-action {"
     )
     data_health_end = styles.index("}", data_health_start)
     data_health_rule = styles[data_health_start:data_health_end]
@@ -2844,11 +2791,11 @@ def test_company_workbench_primary_actions_use_explicit_44px_browser_targets():
     assert "display: inline-flex;" in data_health_rule
     assert "align-items: center;" in data_health_rule
     assert "min-height: 44px;" in data_health_rule
-    assert (
-        'div[data-testid="stButton"] > button {\n'
-        "            min-height: 44px;\n"
-        "        }"
-    ) in styles
+    button_start = styles.index('div[data-testid="stButton"] button,')
+    button_rule = styles[button_start : styles.index("}", button_start)]
+    # Native buttons can be nested inside framework tooltip wrappers. The
+    # priority must also beat the shared 24px tooltip-icon minimum.
+    assert "min-height: 44px !important;" in button_rule
 
 
 def test_company_workbench_html_brief_download_target_is_a_keyed_44px_control():
@@ -2860,12 +2807,24 @@ def test_company_workbench_html_brief_download_target_is_a_keyed_44px_control():
     styles = source[styles_start:styles_end]
 
     selector = '[class*="st-key-company-workbench-html-"] [data-testid="stDownloadButton"] button'
-    assert styles.count('[data-testid="stDownloadButton"]') == 1
+    import re
+
+    download_selectors = [
+        selector.strip()
+        for header in re.findall(r"([^{}]+)\{[^{}]*\}", styles)
+        for selector in header.split(",")
+        if '[data-testid="stDownloadButton"]' in selector
+    ]
+    assert download_selectors
+    assert all(
+        selector.startswith('[class*="st-key-company-workbench-html-"]')
+        for selector in download_selectors
+    ), download_selectors
     download_start = styles.index(selector)
     download_end = styles.index("}", download_start)
     download_rule = styles[download_start:download_end]
 
-    assert "min-height: 44px;" in download_rule
+    assert re.search(r"min-height:\s*44px(?:\s+!important)?;", download_rule)
 
 
 def test_company_workbench_uses_two_mobile_lanes_then_one_at_two_hundred_percent():

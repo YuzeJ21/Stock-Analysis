@@ -10,6 +10,16 @@ def _inspection_only_payload():
             "tickers_dcf_ready": 169,
             "tickers_peer_ready": 9,
         },
+        "coverage_populations": {
+            "saved_readiness": {
+                "status": "available", "total": 3538, "price_ready": 265,
+                "fundamentals_ready": 23, "dcf_ready": 23, "peer_ready": 9,
+            },
+            "working_universe": {
+                "status": "available", "total": 3541,
+                "has_prices": 265, "momentum_usable": 262,
+            },
+        },
         "remaining_public_stage_rows": [
             {
                 "Stage": "LinkedIn publish",
@@ -146,3 +156,68 @@ def test_next_stage_restores_configured_host_and_provider_actions_when_execution
     assert "Provider credentials: configured=FMP" not in output.split(
         "Remaining external unblock conditions:", 1
     )[1].split("\n\nHosted demo status:", 1)[0]
+
+
+def test_next_stage_separates_saved_readiness_from_working_universe(monkeypatch):
+    payload = _inspection_only_payload()
+    payload["summary"].update({
+        "tickers_total": 4,
+        "tickers_with_prices": 1,
+        "tickers_fundamentals_ready": 1,
+        "tickers_dcf_ready": 0,
+        "tickers_peer_ready": 0,
+    })
+    payload["coverage_populations"] = {
+        "saved_readiness": {
+            "status": "available", "total": 3, "price_ready": 1,
+            "fundamentals_ready": 1, "dcf_ready": 0, "peer_ready": 0,
+        },
+        "working_universe": {
+            "status": "available", "total": 4, "has_prices": 1,
+            "momentum_usable": 1,
+        },
+    }
+    monkeypatch.setattr("src.next_stage.build_project_status_payload", lambda *_a, **_k: payload)
+    monkeypatch.setattr("src.next_stage._hosted_url_status", lambda _root: "external_account_required; no hosted account")
+    monkeypatch.setattr("src.next_stage._provider_status", lambda _root: ("FMP", "-", "make fmp-smoke TICKER=<ticker>"))
+
+    output = render_next_stage(".", top_n=1)
+
+    assert "Saved readiness coverage: prices 1/3; fundamentals 1/3; DCF 0/3; peers 0/3" in output
+    assert "Working universe for planning: 4 ticker rows; not saved readiness" in output
+    assert "Current counts: prices 1/4" not in output
+    assert "fundamentals/input 1/4" not in output
+
+
+def test_next_stage_does_not_call_missing_saved_readiness_zero_coverage(monkeypatch):
+    payload = _inspection_only_payload()
+    payload["coverage_populations"]["saved_readiness"] = {"status": "unavailable", "total": None}
+    monkeypatch.setattr("src.next_stage.build_project_status_payload", lambda *_a, **_k: payload)
+    monkeypatch.setattr("src.next_stage._hosted_url_status", lambda _root: "external_account_required; no hosted account")
+    monkeypatch.setattr("src.next_stage._provider_status", lambda _root: ("FMP", "-", "make fmp-smoke TICKER=<ticker>"))
+
+    output = render_next_stage(".", top_n=1)
+
+    assert "Saved readiness coverage: unavailable (no saved readiness rows)" in output
+    assert "0/0" not in output
+
+
+def test_next_stage_missing_saved_columns_are_unavailable_not_zero(monkeypatch):
+    payload = _inspection_only_payload()
+    payload["coverage_populations"] = {
+        "saved_readiness": {
+            "status": "available", "total": 3, "price_ready": None,
+            "fundamentals_ready": 1, "dcf_ready": None, "peer_ready": None,
+        },
+        "working_universe": {
+            "status": "available", "total": 4, "has_prices": 1,
+        },
+    }
+    monkeypatch.setattr("src.next_stage.build_project_status_payload", lambda *_a, **_k: payload)
+    monkeypatch.setattr("src.next_stage._hosted_url_status", lambda _root: "external_account_required; no hosted account")
+    monkeypatch.setattr("src.next_stage._provider_status", lambda _root: ("FMP", "-", "make fmp-smoke TICKER=<ticker>"))
+
+    output = render_next_stage(".", top_n=1)
+
+    assert "Saved readiness coverage: prices unavailable; fundamentals 1/3; DCF unavailable; peers unavailable" in output
+    assert "Working universe for planning: 4 ticker rows" in output

@@ -921,6 +921,123 @@ def test_company_workbench_evidence_status_projects_independent_reviewable_lanes
     assert "AVGO" in rendered
     assert "Stale" in rendered
     assert "href=" not in rendered
+    assert rendered.count("data-evidence-state='reviewable'") == 2
+    assert rendered.count("data-evidence-state='withheld'") == 3
+
+
+def test_company_workbench_evidence_status_shows_saved_source_period_and_next_check():
+    rendered = company_workbench_evidence_status_html(
+        ticker="AVGO",
+        readiness={"fundamentals_ready": True, "earnings_ready": True},
+        freshness_label="Stale",
+        report_payload={
+            "ticker": "AVGO",
+            "financial_summary": {
+                "source": {"provider": "local:fundamentals.csv"},
+                "reporting_period": "2026-Q2",
+                "as_of_date": "2026-06-30",
+            },
+            "earnings_summary": {
+                "source": {"provider": "local:earnings.csv"},
+                "fiscal_period": "2026-Q2",
+            },
+            "analyst_estimate_summary": {
+                "source": {
+                    "provider": "local:analyst_estimates.csv",
+                    "freshness": "not available in local CSVs",
+                },
+            },
+        },
+    )
+
+    assert "<table class='company-workbench-evidence-lanes company-workbench-evidence-table'>" in rendered
+    assert "<caption>Saved evidence by research lane</caption>" in rendered
+    assert "data-label='Source and period'" in rendered
+    assert "data-label='Next check'" in rendered
+    fundamentals = re.search(r"<tr id='fundamentals'.*?</tr>", rendered, re.DOTALL)
+    earnings = re.search(r"<tr id='earnings'.*?</tr>", rendered, re.DOTALL)
+    estimates = re.search(r"<tr id='estimates'.*?</tr>", rendered, re.DOTALL)
+    assert fundamentals and earnings and estimates
+    assert "local:fundamentals.csv" in fundamentals.group(0)
+    assert "2026-Q2" in fundamentals.group(0)
+    assert "2026-06-30" in fundamentals.group(0)
+    assert "Review field-level source proof" in fundamentals.group(0)
+    assert "local:earnings.csv" in earnings.group(0)
+    assert "2026-Q2" in earnings.group(0)
+    assert "No saved field source" in estimates.group(0)
+    assert "local:analyst_estimates.csv" not in estimates.group(0)
+    assert "Period unknown" in estimates.group(0)
+    assert "Saved readiness does not establish source rights" in rendered
+
+
+def test_company_workbench_evidence_status_rejects_mismatched_report_identity():
+    rendered = company_workbench_evidence_status_html(
+        ticker="AVGO",
+        readiness={"fundamentals_ready": True},
+        freshness_label="Stale",
+        report_payload={
+            "ticker": "NVDA",
+            "financial_summary": {
+                "source": {"provider": "wrong-company-source"},
+                "reporting_period": "wrong-company-period",
+            },
+        },
+    )
+
+    assert "wrong-company-source" not in rendered
+    assert "wrong-company-period" not in rendered
+    assert "Source unknown" in rendered
+    assert "Period unknown" in rendered
+
+
+def test_company_workbench_withheld_optional_lanes_do_not_present_configured_paths_as_sources():
+    rendered = company_workbench_evidence_status_html(
+        ticker="NVDA",
+        readiness={"earnings_available": False, "analyst_estimates_available": False},
+        freshness_label="Stale",
+        report_payload={
+            "ticker": "NVDA",
+            "earnings_summary": {
+                "source": {
+                    "provider": "local:earnings.csv",
+                    "freshness": "not available in local CSVs",
+                }
+            },
+            "analyst_estimate_summary": {
+                "source": {
+                    "provider": "local:analyst_estimates.csv",
+                    "freshness": "not available in local CSVs",
+                }
+            },
+        },
+    )
+
+    for lane in ("earnings", "estimates"):
+        row = re.search(rf"<tr id='{lane}'.*?</tr>", rendered, re.DOTALL)
+        assert row
+        assert "No saved field source" in row.group(0)
+        assert "local:" not in row.group(0)
+
+
+def test_company_workbench_evidence_status_names_exact_saved_dcf_and_peer_gaps():
+    rendered = company_workbench_evidence_status_html(
+        ticker="AVGO",
+        readiness={"dcf_ready": False, "peer_ready": False},
+        freshness_label="Stale",
+        report_payload={
+            "ticker": "AVGO",
+            "valuation_readiness": {
+                "dcf_missing_fields": ["free_cash_flow", "shares_outstanding"],
+                "relative_missing_fields": ["peer_inputs"],
+            },
+        },
+    )
+
+    dcf = re.search(r"<tr id='dcf'.*?</tr>", rendered, re.DOTALL)
+    peers = re.search(r"<tr id='peers'.*?</tr>", rendered, re.DOTALL)
+    assert dcf and peers
+    assert "Missing saved inputs: Free cash flow; Shares outstanding" in dcf.group(0)
+    assert "Missing peer inputs: Peer inputs" in peers.group(0)
 
 
 def test_company_workbench_evidence_status_is_one_labelled_complementary_landmark():
@@ -1036,7 +1153,7 @@ def test_company_workbench_evidence_status_has_unique_ids_and_escapes_dynamic_va
     assert "AVGO\"><script>" not in rendered
     assert "AVGO&quot;&gt;&lt;script&gt;" in rendered
     assert "Fresh &amp; &lt;unsafe&gt;" in rendered
-    assert rendered.count("<article ") == 5
+    assert rendered.count("<tr id='") == 5
     assert "<script>" not in rendered
 
 
@@ -1049,12 +1166,15 @@ def test_company_workbench_primary_brief_exposes_editorial_title_and_authoritati
 
     rendered = company_workbench_primary_brief_html(brief)
 
-    assert "<h2>AVGO Company Brief</h2>" in rendered
+    assert "<h1>AVGO Company Brief</h1>" in rendered
     heading = re.search(
         r"<div class='company-workbench-primary-heading'>(.*?)</div>", rendered
     )
     assert heading is not None
-    assert heading.group(1) == "<h2>AVGO Company Brief</h2>"
+    assert heading.group(1) == (
+        "<h1>AVGO Company Brief</h1>"
+        "<span class='company-workbench-brief-mode'>Research only</span>"
+    )
     for label in ("Use now", "Still withheld", "What changed", "Next research task"):
         assert rendered.count(f"<span>{label}</span>") == 1
     assert rendered.count("class='public-primary-action'") == 1
@@ -1088,7 +1208,7 @@ def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_regio
 
     rendered = company_workbench_primary_brief_html(brief)
 
-    assert "<h2>NVDA&lt;SCRIPT&gt; Company Brief</h2>" in rendered
+    assert "<h1>NVDA&lt;SCRIPT&gt; Company Brief</h1>" in rendered
     assert rendered.count("aria-label='Company Brief'") == 1
     for label in ("Use now", "Still withheld", "What changed", "Next research task"):
         assert rendered.count(f"<span>{label}</span>") == 1
@@ -1101,8 +1221,8 @@ def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_regio
     assert "Revenue &lt;verified&gt;" in rendered
     assert "EPS &amp; consensus" in rendered
     primary = rendered[: rendered.index("data-sr-region='stop-rule'")]
-    assert "No source-backed change is queued." in primary
-    assert "No source-backed change &lt;queued&gt;." not in primary
+    assert "No source-backed change is queued." in rendered
+    assert "No source-backed change &lt;queued&gt;." not in rendered
     assert "Review valuation &gt; evidence" in rendered
     assert "<script>" not in rendered
     assert rendered.count("data-sr-region='primary-answer'") == 1
@@ -1112,12 +1232,17 @@ def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_regio
     assert rendered.count("data-workbench-lane='withheld'") == 1
     assert rendered.count("data-workbench-lane='change'") == 1
     assert rendered.count("data-workbench-lane='next-task'") == 1
+    assert rendered.count("data-workbench-priority='primary'") == 2
+    assert rendered.count("data-workbench-priority='secondary'") == 2
+    assert rendered.count("class='company-workbench-brief-mode'") == 1
     assert rendered.count("class='sr-detail-disclosure'") == 0
     assert "Blocked: EPS &amp; consensus Context only: Peer candidate" in primary
     assert rendered.index("data-workbench-lane='usable'") < rendered.index(
         "data-workbench-lane='withheld'"
     ) < rendered.index("data-sr-region='primary-action'") < rendered.index(
         "data-sr-region='stop-rule'"
+    ) < rendered.index("data-workbench-lane='next-task'") < rendered.index(
+        "data-workbench-lane='change'"
     )
 
     detail = research_workspace.company_workbench_detail_disclosure_html(brief)
@@ -1126,6 +1251,24 @@ def test_company_workbench_primary_brief_html_renders_one_safe_five_answer_regio
     assert "Full Company Brief evidence" in detail
     assert "No source-backed change &lt;queued&gt;." in detail
     assert "Wait for permitted history." in detail
+
+
+def test_company_workbench_primary_brief_shows_only_source_backed_change_detail():
+    brief = company_workbench_primary_brief(
+        pd.DataFrame([{"Ticker": "AVGO", "Use Now": "Review saved filing context."}]),
+        {
+            "state": "review_now",
+            "answer": "Filed revenue period changed <after review>.",
+            "change_context_kind": "source_backed",
+        },
+        {"title": "Check the filed period", "state": "review_now"},
+    )
+
+    rendered = company_workbench_primary_brief_html(brief)
+
+    assert "Filed revenue period changed &lt;after review&gt;." in rendered
+    assert "Filed revenue period changed <after review>." not in rendered
+    assert rendered.count("data-workbench-lane='change'") == 1
 
 
 def test_company_workbench_peer_task_routes_to_exact_review_only_peer_lane():
@@ -1695,6 +1838,17 @@ def test_personal_workflow_navigation_is_single_labelled_dom_on_core_and_evidenc
     assert "aria-label='Workspace mode'" in rendered
 
 
+def test_personal_workflow_navigation_hides_secondary_modes_in_closed_keyboard_disclosure():
+    rendered = research_workspace.research_workflow_navigation_html(active_page="discover", ticker="AVGO")
+
+    assert "<details class='research-workspace-mode'" in rendered
+    assert "<summary>Other workspaces</summary>" in rendered
+    assert "<details class='research-workspace-mode' open" not in rendered
+    assert rendered.index("<summary>Other workspaces</summary>") < rendered.index("href='?mode=public'")
+    assert rendered.index("href='?mode=public'") < rendered.index("href='?mode=operator'")
+    assert rendered.count("class='research-workflow-link'") == 4
+
+
 def test_tickerless_workbench_destination_is_visible_disabled_and_does_not_infer_a_company():
     rendered = research_workspace.research_workflow_navigation_html(active_page="discover")
 
@@ -1743,6 +1897,27 @@ def test_compact_research_workspace_header_keeps_context_identity_and_boundary_w
     assert "Current through 2026-07-16" in rendered
     assert "Review source-backed sections" not in rendered
     assert "research-workspace-meta" not in rendered
+
+
+def test_context_only_company_workbench_header_keeps_trust_context_without_duplicate_title():
+    rendered = research_workspace_header_html(
+        "Company Workbench",
+        ticker="AVGO",
+        profile_label="Demo",
+        freshness="Current for saved sources",
+        primary_action="Review usable evidence",
+        compact=True,
+        include_boundary=False,
+        context_only=True,
+    )
+
+    assert "company-workbench-context-header" in rendered
+    assert "Data profile" in rendered
+    assert "Saved readiness" in rendered
+    assert "Demo" in rendered
+    assert "Current for saved sources" in rendered
+    assert "<h1" not in rendered
+    assert "data-sr-region='page-title'" not in rendered
 
 
 def test_research_desk_brief_and_advanced_evidence_html_stay_answer_first_and_command_free():
