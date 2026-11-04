@@ -31330,9 +31330,9 @@ def render_online_coverage_study() -> None:
         st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
     with st.expander("NYSE Texas listing check", expanded=False):
         from src.nyse_texas_reconciliation import get_nyse_texas, reconciliation_html
-        st.caption("Check four selected SEC filing covers for the same security registered on two exchanges.")
+        st.caption("Check five selected securities using SEC filing covers or a registration and exchange certification pair.")
         requested = st.button("Check NYSE Texas filings", key="nyse-texas-filing-check")
-        with st.spinner("Checking dated SEC filing covers…"):
+        with st.spinner("Checking dated SEC filings…"):
             audit = get_nyse_texas(st.session_state, refresh=requested, user_agent=os.getenv("SEC_USER_AGENT"))
         st.markdown(reconciliation_html(audit), unsafe_allow_html=True)
     with st.expander("Security types · online",expanded=False):

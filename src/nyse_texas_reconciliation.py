@@ -1,5 +1,4 @@
-"""A bounded NYSE Texas registration audit using dated SEC filing covers."""
-from collections.abc import Mapping
+"""A bounded NYSE Texas registration audit using dated SEC filings."""
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
@@ -14,7 +13,7 @@ from src.online_sec_receipt import _fetch_raw, fetch_sec_json_receipt
 from src.sec_exact_filing import RIGHTS, _fetch_html
 from src.sec_html_bank import _hidden
 
-SESSION_KEY = 'nyse_texas_reconciliation_v1'
+SESSION_KEY = 'nyse_texas_reconciliation_v2'
 MAX_COVER_BYTES = 2 * 1024 * 1024
 HIDDEN_TAGS = {'hidden', 'header', 'script', 'style', 'template'}
 HEADERS = (
@@ -40,6 +39,7 @@ class FilingCase:
     cik: str
     accession: str
     document: str
+    form: str = '8-K'
 
     @property
     def metadata_url(self):
@@ -56,6 +56,18 @@ CASES = (
     FilingCase('ABT', '0000001800', '0001104659-26-099247', 'tm2623675d1_8k.htm'),
     FilingCase('OIS', '0001121484', '0001121484-26-000036', 'ois-20261030.htm'),
 )
+
+DIT_FILINGS = (
+    FilingCase('DIT', '0000928465', '0001104659-26-094454', 'tm2622611d1_8a12b.htm', '8-A12B'),
+    FilingCase('DIT', '0000928465', '0000876882-26-000018', 'DIT081226.pdf', 'CERT'),
+)
+DIT_FILED = '2026-08-12'
+# Reviewed exact bytes bind the one security class across the two forms.
+# A replacement document requires a fresh content review, even at the same URL.
+DIT_REVIEWED_DIGESTS = {
+    '8-A12B': '72f4bef64b1e8f7bcf55718f6092744066198200300b65fb891d63988907e15b',
+    'CERT': '74a1dbe48d0d7c66c802acf3cbb52fe9287b90e20d8bbbe44bc0d900221ce5dd',
+}
 
 
 def _text(node):
@@ -149,14 +161,57 @@ def _filing_metadata(receipt, case):
         _, form, document, filed, reported, accepted = (recent[key][index] for key in keys)
         filed_date, report_date = _iso_date(filed), _iso_date(reported)
         accepted_at, observed = _utc_timestamp(accepted), _utc_timestamp(receipt['observed_at'])
-        if (form != '8-K' or document != case.document or not all((filed_date, report_date, accepted_at, observed))
-                or not report_date <= filed_date <= observed.date()
-                or not report_date <= accepted_at.date() or accepted_at > observed):
+        if (form != case.form or document != case.document or not all((filed_date, accepted_at, observed))
+                or filed_date > observed.date() or accepted_at > observed):
             return None
-        return dict(filed=filed, report_date=reported, accepted_at=accepted,
+        if case.form == '8-K':
+            if report_date is None or report_date > min(filed_date, accepted_at.date()):
+                return None
+        elif reported != '' or filed != DIT_FILED or accepted_at.date() != filed_date:
+            return None
+        return dict(filed=filed, report_date=reported or None, accepted_at=accepted,
                     metadata_observed_at=receipt['observed_at'], metadata_sha256=receipt['payload_sha256'])
     except (KeyError, TypeError, AttributeError):
         return None
+
+
+def _document_receipt(raw, final, case, observed_at):
+    if final != case.source_url or not isinstance(raw, bytes) or not 0 < len(raw) <= MAX_COVER_BYTES:
+        return None
+    now = (observed_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
+    return dict(observed_at=now.strftime('%Y-%m-%dT%H:%M:%SZ'), payload_sha256=hashlib.sha256(raw).hexdigest())
+
+
+def _check_dit(user_agent, transport, observed_at, *, paused):
+    form, certificate = DIT_FILINGS
+    filings = [dict(form=case.form, accession=case.accession, source_url=case.source_url) for case in DIT_FILINGS]
+    row = dict(symbol=form.symbol, cik=form.cik, metadata_url=form.metadata_url, filings=filings,
+               confirmed=False, security_type=None, reason='sec_access_paused' if paused else 'filing_metadata_unavailable')
+    if paused:
+        return row
+    metadata_receipt = fetch_sec_json_receipt(form.metadata_url, user_agent=user_agent, fetcher=transport,
+                                              observed_at=observed_at)
+    if metadata_receipt['status'] != 'ready':
+        return row
+    row.update(metadata_observed_at=metadata_receipt['observed_at'], metadata_sha256=metadata_receipt['payload_sha256'])
+    for case, evidence, role in zip((form, certificate), filings, ('form_8a', 'certificate')):
+        metadata = _filing_metadata(metadata_receipt, case)
+        if metadata is None:
+            return {**row, 'reason': role + '_metadata_mismatch'}
+        evidence.update(filed=metadata['filed'], report_date=metadata['report_date'], accepted_at=metadata['accepted_at'])
+        try:
+            raw, _, final = transport(case.source_url, user_agent)
+        except (OSError, RuntimeError, ValueError):
+            return {**row, 'reason': role + '_unavailable'}
+        receipt = _document_receipt(raw, final, case, observed_at)
+        if receipt is None:
+            return {**row, 'reason': role + '_response_unverified'}
+        if receipt['payload_sha256'] != DIT_REVIEWED_DIGESTS[case.form]:
+            return {**row, 'reason': role + '_digest_mismatch'}
+        evidence.update(receipt)
+        if case == form:
+            row.update(security_type='common_shares', par_value='USD 0.01 per share', exchanges=('NYSE American',))
+    return {**row, 'confirmed': True, 'reason': None, 'exchanges': ('NYSE American', 'NYSE Texas')}
 
 
 def check_nyse_texas(*, user_agent, fetcher=None, observed_at=None, workspace_mode='research'):
@@ -176,7 +231,8 @@ def check_nyse_texas(*, user_agent, fetcher=None, observed_at=None, workspace_mo
             if fetcher is not None:
                 return fetcher(url, agent)
             if url.startswith('https://www.sec.gov/Archives/'):
-                return _fetch_html(url, agent, max_bytes=MAX_COVER_BYTES)
+                accept = 'application/pdf' if url == DIT_FILINGS[1].source_url else 'text/html'
+                return _fetch_html(url, agent, max_bytes=MAX_COVER_BYTES, accept=accept)
             return _fetch_raw(url, agent)
         except HTTPError as exc:
             paused = exc.code in {403, 429, 503}
@@ -205,11 +261,11 @@ def check_nyse_texas(*, user_agent, fetcher=None, observed_at=None, workspace_mo
         except (OSError, RuntimeError, ValueError):
             row['reason'] = 'sec_access_paused' if paused else 'filing_unavailable'
             continue
-        if final != case.source_url or not isinstance(raw, bytes) or not 0 < len(raw) <= MAX_COVER_BYTES:
+        receipt = _document_receipt(raw, final, case, observed_at)
+        if receipt is None:
             row['reason'] = 'filing_response_unverified'
             continue
-        now = (observed_at or datetime.now(timezone.utc)).astimezone(timezone.utc)
-        row.update(observed_at=now.strftime('%Y-%m-%dT%H:%M:%SZ'), payload_sha256=hashlib.sha256(raw).hexdigest())
+        row.update(receipt)
         registration = cover_registration(raw, case.symbol)
         if registration is None:
             row['reason'] = 'cover_security_row_missing_or_ambiguous'
@@ -224,7 +280,11 @@ def check_nyse_texas(*, user_agent, fetcher=None, observed_at=None, workspace_mo
             row['reason'] = 'second_venue_unverified'
         else:
             row.update(confirmed=True, reason=None)
-    return dict(status='inspection_only', rights_status=RIGHTS, rows=rows, sample_count=len(CASES),
+    dit = _check_dit(user_agent, transport, observed_at, paused=paused)
+    if paused:
+        dit['reason'] = 'sec_access_paused'
+    rows.append(dit)
+    return dict(status='inspection_only', rights_status=RIGHTS, rows=rows, sample_count=len(rows),
                 confirmed_count=sum(row['confirmed'] for row in rows),
                 security_identity_count=sum(row['security_type'] is not None for row in rows))
 
@@ -238,25 +298,42 @@ def get_nyse_texas(state, *, refresh, user_agent, workspace_mode='research', fet
     return state.get(SESSION_KEY, dict(status='not_requested'))
 
 
+def _filing_html(filing):
+    form = filing.get('form', '8-K')
+    label = {'8-K': 'Form 8-K', '8-A12B': 'Form 8-A', 'CERT': 'Exchange certification'}[form]
+    link = (f'<a href="{filing["source_url"]}" target="_blank" rel="noopener noreferrer">'
+            f'{label} {filing["accession"]}</a>')
+    dates = ''
+    if 'filed' in filing:
+        dates = f' · filed {filing["filed"]} · accepted {filing["accepted_at"]}'
+        if filing['report_date']:
+            dates += f' · report date {filing["report_date"]}'
+    observation = (f'<br>Observed {filing["observed_at"]} · SHA-256 {filing["payload_sha256"]}'
+                   if 'observed_at' in filing else '')
+    return f'<p>{link}{dates}{observation}.</p>'
+
+
 def reconciliation_html(result):
     if result['status'] != 'inspection_only':
-        return '<p>' + escape(result.get('reason', 'Run the check to inspect the four selected SEC filings.')) + '</p>'
+        return '<p>' + escape(result.get('reason', 'Run the check to inspect five selected securities in SEC filings.')) + '</p>'
     details = []
     for row in result['rows']:
         outcome = 'Dual registration observed' if row['confirmed'] else 'Withheld · ' + row['reason'].replace('_', ' ')
         venues = ', '.join(row.get('exchanges', ()))
-        cover = (f'<p>Filed {row["filed"]} · report date {row["report_date"]} · accepted {row["accepted_at"]}. '
-                 f'Cover observed {row["observed_at"]} · SHA-256 {row["payload_sha256"]}.</p>'
-                 if 'observed_at' in row else '')
+        filings = ''.join(_filing_html(filing) for filing in row.get('filings', [row]))
+        par_value = ' · ' + escape(row['par_value']) if 'par_value' in row else ''
+        roles = ('<p>Form 8-A identifies the ticker, share class and NYSE American listing. '
+                 'The certificate covers NYSE Texas approval for the same issuer and share class.</p>'
+                 if 'filings' in row else '')
         metadata = (f'<p><a href="{row["metadata_url"]}">SEC submissions</a> observed {row["metadata_observed_at"]}'
                     f' · SHA-256 {row["metadata_sha256"]}.</p>' if 'metadata_sha256' in row else '')
         details.append(
             f'<li><strong>{row["symbol"]}</strong> · {escape(outcome)}'
-            + (' · Common shares as filed' if row['security_type'] else '')
+            + (' · Common shares as filed' + par_value if row['security_type'] else '')
             + (f' · {escape(venues)}' if venues else '')
             + f'<details><summary>Filing evidence for {row["symbol"]}</summary>'
-              f'<p>CIK {row["cik"]} · <a href="{row["source_url"]}">Form 8-K {row["accession"]}</a>.</p>'
-            + cover + metadata + '</details></li>'
+              f'<p>CIK {row["cik"]}.</p>'
+            + roles + filings + metadata + '</details></li>'
         )
     count = result['sample_count']
     confirmed = result['confirmed_count']

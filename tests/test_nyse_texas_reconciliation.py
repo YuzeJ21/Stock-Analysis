@@ -1,9 +1,11 @@
 from datetime import datetime, timezone
+import hashlib
 import json
 from urllib.error import HTTPError
 
 import pytest
 
+import src.nyse_texas_reconciliation as audit
 from src.nyse_texas_reconciliation import (
     CASES, SESSION_KEY, check_nyse_texas, cover_registration, get_nyse_texas,
     reconciliation_html,
@@ -47,6 +49,8 @@ def transport(*, wrong_document=False, future=False, redirected=False, single_ve
 
     def fetch(url, user_agent):
         calls.append(url)
+        if url == audit.DIT_FILINGS[0].metadata_url:
+            raise OSError('Registration pair unavailable for the cover-only fixture')
         case = next(c for c in CASES if url in {c.metadata_url, c.source_url})
         if url == case.metadata_url:
             payload = {
@@ -74,16 +78,16 @@ def test_filing_evidence_is_bounded_session_only_and_no_request_on_rerender():
     result = get_nyse_texas(state, refresh=True, user_agent='Test', fetcher=fetch, observed_at=NOW)
     assert set(state) == {'canonical', SESSION_KEY} and state['canonical'] == {'unchanged': True}
     assert result['confirmed_count'] == len(CASES) == result['security_identity_count']
-    assert len(calls) == 2 * len(CASES)
+    assert len(calls) == 2 * len(CASES) + 1
     first = result['rows'][0]
     assert first['filed'] == '2026-11-02' and first['observed_at'] == '2026-11-04T20:00:00Z'
     assert len(first['payload_sha256']) == len(first['metadata_sha256']) == 64
     assert 'Current active status' in reconciliation_html(result)
     assert get_nyse_texas(state, refresh=False, user_agent='Test', fetcher=fetch) == result
-    assert len(calls) == 2 * len(CASES)
+    assert len(calls) == 2 * len(CASES) + 1
     public = get_nyse_texas(state, refresh=True, user_agent='Test', fetcher=fetch, workspace_mode='public')
     assert public['status'] == 'withheld'
-    assert len(calls) == 2 * len(CASES)
+    assert len(calls) == 2 * len(CASES) + 1
 
 
 @pytest.mark.parametrize(('options', 'reason'), [
@@ -95,8 +99,9 @@ def test_filing_evidence_is_bounded_session_only_and_no_request_on_rerender():
 def test_failures_remain_in_denominator(options, reason):
     fetch, _ = transport(**options)
     result = check_nyse_texas(user_agent='Test', fetcher=fetch, observed_at=NOW)
-    assert result['confirmed_count'] == 0 and result['sample_count'] == len(CASES)
-    assert all(row['reason'] == reason for row in result['rows'])
+    assert result['confirmed_count'] == 0 and result['sample_count'] == len(CASES) + 1
+    assert all(row['reason'] == reason for row in result['rows'][:-1])
+    assert result['rows'][-1]['reason'] == 'filing_metadata_unavailable'
     if options.get('single_venue'):
         assert result['security_identity_count'] == len(CASES)
 
@@ -118,4 +123,69 @@ def test_sec_access_limit_pauses_remaining_candidates():
     result = check_nyse_texas(user_agent='Test', fetcher=fetch, observed_at=NOW)
     assert calls == [CASES[0].metadata_url]
     assert result['confirmed_count'] == 0
-    assert [r['reason'] for r in result['rows']] == ['sec_access_paused'] * len(CASES)
+    assert [r['reason'] for r in result['rows']] == ['sec_access_paused'] * (len(CASES) + 1)
+
+
+@pytest.mark.parametrize(('fault', 'reason', 'identity_count'), [
+    (None, None, 5),
+    ('form_bytes', 'form_8a_digest_mismatch', 4),
+    ('certificate_bytes', 'certificate_digest_mismatch', 5),
+    ('certificate_redirect', 'certificate_response_unverified', 5),
+    ('certificate_type', 'certificate_metadata_mismatch', 5),
+    ('certificate_date', 'certificate_metadata_mismatch', 5),
+    ('wrong_cik', 'form_8a_metadata_mismatch', 4),
+    ('certificate_access', 'sec_access_paused', 5),
+])
+def test_dit_requires_reviewed_registration_and_certificate(fault, reason, identity_count, monkeypatch):
+    form, certificate = audit.DIT_FILINGS
+    form_body = b'<html>Synthetic Form 8-A</html>'
+    certificate_body = b'%PDF-1.7 synthetic certificate'
+    monkeypatch.setattr(audit, 'DIT_REVIEWED_DIGESTS', {
+        form.form: hashlib.sha256(form_body).hexdigest(),
+        certificate.form: hashlib.sha256(certificate_body).hexdigest(),
+    })
+    fetch_base, calls = transport()
+
+    def fetch(url, agent):
+        if url not in {form.metadata_url, form.source_url, certificate.source_url}:
+            return fetch_base(url, agent)
+        calls.append(url)
+        if url == form.metadata_url:
+            return json.dumps({
+                'cik': '0000000001' if fault == 'wrong_cik' else form.cik,
+                'filings': {'recent': {
+                    'accessionNumber': [form.accession, certificate.accession],
+                    'form': [form.form, '8-K' if fault == 'certificate_type' else certificate.form],
+                    'primaryDocument': [form.document, certificate.document],
+                    'filingDate': ['2026-08-12', '2026-08-13' if fault == 'certificate_date' else '2026-08-12'],
+                    'reportDate': ['', ''],
+                    'acceptanceDateTime': ['2026-08-12T11:20:19Z', '2026-08-12T12:47:49Z'],
+                }},
+            }).encode(), {}, url
+        if url == form.source_url:
+            return (form_body + b' changed' if fault == 'form_bytes' else form_body), {}, url
+        if fault == 'certificate_access':
+            raise HTTPError(url, 429, 'Limited', {}, None)
+        return ((certificate_body + b' changed' if fault == 'certificate_bytes' else certificate_body), {},
+                form.source_url if fault == 'certificate_redirect' else url)
+
+    result = check_nyse_texas(user_agent='Test', fetcher=fetch, observed_at=NOW)
+    dit = result['rows'][-1]
+    assert dit['symbol'] == 'DIT'
+    assert dit['reason'] == reason
+    assert result['sample_count'] == 5
+    assert result['security_identity_count'] == identity_count
+    assert result['confirmed_count'] == (5 if fault is None else 4)
+    assert calls.count(form.metadata_url) == 1
+    if fault in {'form_bytes', 'certificate_type', 'certificate_date', 'wrong_cik'}:
+        assert certificate.source_url not in calls
+    if fault is None:
+        assert dit['exchanges'] == ('NYSE American', 'NYSE Texas')
+        assert [filing['filed'] for filing in dit['filings']] == ['2026-08-12', '2026-08-12']
+        assert [filing['report_date'] for filing in dit['filings']] == [None, None]
+        assert [filing['payload_sha256'] for filing in dit['filings']] == list(audit.DIT_REVIEWED_DIGESTS.values())
+        html = reconciliation_html(result)
+        assert 'Form 8-A' in html and 'Exchange certification' in html and 'USD 0.01 per share' in html
+        assert '5 of 5 dual registrations confirmed as filed' in html
+    elif identity_count == 5:
+        assert dit['exchanges'] == ('NYSE American',)
