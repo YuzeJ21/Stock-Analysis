@@ -13,7 +13,7 @@ from src.online_sec_receipt import _fetch_raw, fetch_sec_json_receipt
 from src.sec_exact_filing import RIGHTS, _fetch_html
 from src.sec_html_bank import _hidden
 
-SESSION_KEY = 'nyse_texas_reconciliation_v2'
+SESSION_KEY = 'nyse_texas_reconciliation_v3'
 MAX_COVER_BYTES = 2 * 1024 * 1024
 HIDDEN_TAGS = {'hidden', 'header', 'script', 'style', 'template'}
 HEADERS = (
@@ -61,12 +61,19 @@ DIT_FILINGS = (
     FilingCase('DIT', '0000928465', '0001104659-26-094454', 'tm2622611d1_8a12b.htm', '8-A12B'),
     FilingCase('DIT', '0000928465', '0000876882-26-000018', 'DIT081226.pdf', 'CERT'),
 )
+DIT_NOTICE = FilingCase('DIT', '0000928465', '0001104659-26-094451', 'tm2622611d2_8k.htm')
 DIT_FILED = '2026-08-12'
-# Reviewed exact bytes bind the one security class across the two forms.
-# A replacement document requires a fresh content review, even at the same URL.
+DIT_ANNOUNCED_EFFECTIVE = '2026-08-13'
+DIT_DIRECTORY_URL = 'https://www.nyse.com/markets/nyse-texas'
+# Dated browser review of the DIT row. The exchange page supplies no as-of timestamp.
+DIT_DIRECTORY_REVIEW_DATE = '2026-11-04'
+DIT_SHORT_VOLUME_URL = 'https://ftp.nyse.com/ShortData/Texasshvol/Texasshvol2026/Texasshvol202608/Texasshvol20260813.pdf'
+# Exact reviewed bytes bind the registration pair and the issuer's announcement.
+# Replacements require a fresh content review, even at the same URL.
 DIT_REVIEWED_DIGESTS = {
     '8-A12B': '72f4bef64b1e8f7bcf55718f6092744066198200300b65fb891d63988907e15b',
     'CERT': '74a1dbe48d0d7c66c802acf3cbb52fe9287b90e20d8bbbe44bc0d900221ce5dd',
+    '8-K': 'cf370e90e2274e9b6f90cf4c3798afa53658668d85b8cc1c203f93195e0bd52d',
 }
 
 
@@ -182,36 +189,62 @@ def _document_receipt(raw, final, case, observed_at):
     return dict(observed_at=now.strftime('%Y-%m-%dT%H:%M:%SZ'), payload_sha256=hashlib.sha256(raw).hexdigest())
 
 
-def _check_dit(user_agent, transport, observed_at, *, paused):
+def _reviewed_dit_filing(case, metadata_receipt, transport, user_agent, observed_at):
+    evidence = dict(form=case.form, accession=case.accession, source_url=case.source_url)
+    metadata = _filing_metadata(metadata_receipt, case)
+    if metadata is None or metadata['filed'] != DIT_FILED:
+        return evidence, 'metadata_mismatch'
+    evidence.update(filed=metadata['filed'], report_date=metadata['report_date'], accepted_at=metadata['accepted_at'])
+    try:
+        raw, _, final = transport(case.source_url, user_agent)
+    except (OSError, RuntimeError, ValueError):
+        return evidence, 'unavailable'
+    receipt = _document_receipt(raw, final, case, observed_at)
+    if receipt is None:
+        return evidence, 'response_unverified'
+    if receipt['payload_sha256'] != DIT_REVIEWED_DIGESTS[case.form]:
+        return evidence, 'digest_mismatch'
+    return {**evidence, **receipt}, None
+
+
+def _check_dit(user_agent, transport, observed_at, *, access_paused):
     form, certificate = DIT_FILINGS
     filings = [dict(form=case.form, accession=case.accession, source_url=case.source_url) for case in DIT_FILINGS]
+    today = (observed_at or datetime.now(timezone.utc)).astimezone(timezone.utc).date().isoformat()
+    directory_date = DIT_DIRECTORY_REVIEW_DATE if today >= DIT_DIRECTORY_REVIEW_DATE else None
     row = dict(symbol=form.symbol, cik=form.cik, metadata_url=form.metadata_url, filings=filings,
-               confirmed=False, security_type=None, reason='sec_access_paused' if paused else 'filing_metadata_unavailable')
-    if paused:
+               confirmed=False, security_type=None, reason='filing_metadata_unavailable',
+               announced_effective_date=None, first_trade_date=None, directory_observed_on=directory_date,
+               announcement_reason='filing_metadata_unavailable')
+    if access_paused():
+        row.update(reason='sec_access_paused', announcement_reason='sec_access_paused')
         return row
     metadata_receipt = fetch_sec_json_receipt(form.metadata_url, user_agent=user_agent, fetcher=transport,
                                               observed_at=observed_at)
     if metadata_receipt['status'] != 'ready':
+        if access_paused():
+            row.update(reason='sec_access_paused', announcement_reason='sec_access_paused')
         return row
     row.update(metadata_observed_at=metadata_receipt['observed_at'], metadata_sha256=metadata_receipt['payload_sha256'])
     for case, evidence, role in zip((form, certificate), filings, ('form_8a', 'certificate')):
-        metadata = _filing_metadata(metadata_receipt, case)
-        if metadata is None:
-            return {**row, 'reason': role + '_metadata_mismatch'}
-        evidence.update(filed=metadata['filed'], report_date=metadata['report_date'], accepted_at=metadata['accepted_at'])
-        try:
-            raw, _, final = transport(case.source_url, user_agent)
-        except (OSError, RuntimeError, ValueError):
-            return {**row, 'reason': role + '_unavailable'}
-        receipt = _document_receipt(raw, final, case, observed_at)
-        if receipt is None:
-            return {**row, 'reason': role + '_response_unverified'}
-        if receipt['payload_sha256'] != DIT_REVIEWED_DIGESTS[case.form]:
-            return {**row, 'reason': role + '_digest_mismatch'}
+        receipt, reason = _reviewed_dit_filing(case, metadata_receipt, transport, user_agent, observed_at)
         evidence.update(receipt)
+        if reason is not None:
+            row['reason'] = 'sec_access_paused' if access_paused() else role + '_' + reason
+            break
         if case == form:
             row.update(security_type='common_shares', par_value='USD 0.01 per share', exchanges=('NYSE American',))
-    return {**row, 'confirmed': True, 'reason': None, 'exchanges': ('NYSE American', 'NYSE Texas')}
+    else:
+        row.update(confirmed=True, reason=None, exchanges=('NYSE American', 'NYSE Texas'))
+
+    if not access_paused():
+        receipt, reason = _reviewed_dit_filing(DIT_NOTICE, metadata_receipt, transport, user_agent, observed_at)
+        row.update(announcement=receipt, announcement_reason='sec_access_paused' if access_paused() else reason)
+        if reason is None:
+            row['announced_effective_date'] = DIT_ANNOUNCED_EFFECTIVE
+    else:
+        row['announcement_reason'] = 'sec_access_paused'
+    return row
 
 
 def check_nyse_texas(*, user_agent, fetcher=None, observed_at=None, workspace_mode='research'):
@@ -280,10 +313,7 @@ def check_nyse_texas(*, user_agent, fetcher=None, observed_at=None, workspace_mo
             row['reason'] = 'second_venue_unverified'
         else:
             row.update(confirmed=True, reason=None)
-    dit = _check_dit(user_agent, transport, observed_at, paused=paused)
-    if paused:
-        dit['reason'] = 'sec_access_paused'
-    rows.append(dit)
+    rows.append(_check_dit(user_agent, transport, observed_at, access_paused=lambda: paused))
     return dict(status='inspection_only', rights_status=RIGHTS, rows=rows, sample_count=len(rows),
                 confirmed_count=sum(row['confirmed'] for row in rows),
                 security_identity_count=sum(row['security_type'] is not None for row in rows))
@@ -313,6 +343,23 @@ def _filing_html(filing):
     return f'<p>{link}{dates}{observation}.</p>'
 
 
+def _dit_trading_html(row):
+    announced = row['announced_effective_date'] or 'Withheld · ' + row['announcement_reason'].replace('_', ' ')
+    notice = _filing_html(row['announcement']) if 'announcement' in row else ''
+    reviewed = row['directory_observed_on']
+    directory = (f'Present when reviewed on {reviewed}. The directory gives no effective timestamp.'
+                 if reviewed else 'Withheld · no reviewed directory observation by this cutoff.')
+    return (
+        '<section aria-label="DIT trading and listing evidence">'
+        f'<p><strong>Announced listing effective date</strong> · {escape(announced)}</p>' + notice
+        + '<p><strong>Actual first trade</strong> · Withheld. No venue-specific execution was verified. '
+        'The 2026-08-13 report covers short-volume activity and did not establish a DIT execution. '
+        f'<a href="{DIT_SHORT_VOLUME_URL}" target="_blank" rel="noopener noreferrer">NYSE Texas daily short-volume report</a>.</p>'
+        f'<p><strong>NYSE Texas directory</strong> · {escape(directory)} '
+        f'<a href="{DIT_DIRECTORY_URL}" target="_blank" rel="noopener noreferrer">Official dual-listing directory</a>.</p></section>'
+    )
+
+
 def reconciliation_html(result):
     if result['status'] != 'inspection_only':
         return '<p>' + escape(result.get('reason', 'Run the check to inspect five selected securities in SEC filings.')) + '</p>'
@@ -325,6 +372,7 @@ def reconciliation_html(result):
         roles = ('<p>Form 8-A identifies the ticker, share class and NYSE American listing. '
                  'The certificate covers NYSE Texas approval for the same issuer and share class.</p>'
                  if 'filings' in row else '')
+        trading = _dit_trading_html(row) if row['symbol'] == 'DIT' else ''
         metadata = (f'<p><a href="{row["metadata_url"]}">SEC submissions</a> observed {row["metadata_observed_at"]}'
                     f' · SHA-256 {row["metadata_sha256"]}.</p>' if 'metadata_sha256' in row else '')
         details.append(
@@ -333,7 +381,7 @@ def reconciliation_html(result):
             + (f' · {escape(venues)}' if venues else '')
             + f'<details><summary>Filing evidence for {row["symbol"]}</summary>'
               f'<p>CIK {row["cik"]}.</p>'
-            + roles + filings + metadata + '</details></li>'
+            + trading + roles + filings + metadata + '</details></li>'
         )
     count = result['sample_count']
     confirmed = result['confirmed_count']
@@ -342,7 +390,7 @@ def reconciliation_html(result):
         f'<h3>NYSE Texas filing reconciliation</h3>'
         f'<p><strong>{confirmed} of {count} dual registrations confirmed as filed</strong> · '
         f'{result["security_identity_count"]} security identities supported · {count - confirmed} sample records unresolved.</p>'
-        '<p>Selected SEC filings only. Current active status, the venue-wide count, issuer domicile, analysis eligibility, '
+        '<p>Current active status beyond the dated directory review, the venue-wide count, issuer domicile, analysis eligibility, '
         'and historical membership remain unverified. Personal inspection only. The saved inventory and financial coverage are separate.</p>'
         '<ul>' + ''.join(details) + '</ul></section>'
     )

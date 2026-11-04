@@ -135,47 +135,62 @@ def test_sec_access_limit_pauses_remaining_candidates():
     ('certificate_date', 'certificate_metadata_mismatch', 5),
     ('wrong_cik', 'form_8a_metadata_mismatch', 4),
     ('certificate_access', 'sec_access_paused', 5),
+    ('notice_bytes', None, 5),
+    ('notice_access', None, 5),
+    ('notice_metadata', None, 5),
+    ('past_directory_cutoff', None, 5),
 ])
 def test_dit_requires_reviewed_registration_and_certificate(fault, reason, identity_count, monkeypatch):
     form, certificate = audit.DIT_FILINGS
+    notice = audit.DIT_NOTICE
     form_body = b'<html>Synthetic Form 8-A</html>'
     certificate_body = b'%PDF-1.7 synthetic certificate'
+    notice_body = b'<html>Synthetic issuer listing announcement</html>'
     monkeypatch.setattr(audit, 'DIT_REVIEWED_DIGESTS', {
         form.form: hashlib.sha256(form_body).hexdigest(),
         certificate.form: hashlib.sha256(certificate_body).hexdigest(),
+        notice.form: hashlib.sha256(notice_body).hexdigest(),
     })
     fetch_base, calls = transport()
 
     def fetch(url, agent):
-        if url not in {form.metadata_url, form.source_url, certificate.source_url}:
+        if url not in {form.metadata_url, form.source_url, certificate.source_url, notice.source_url}:
             return fetch_base(url, agent)
         calls.append(url)
         if url == form.metadata_url:
             return json.dumps({
                 'cik': '0000000001' if fault == 'wrong_cik' else form.cik,
                 'filings': {'recent': {
-                    'accessionNumber': [form.accession, certificate.accession],
-                    'form': [form.form, '8-K' if fault == 'certificate_type' else certificate.form],
-                    'primaryDocument': [form.document, certificate.document],
-                    'filingDate': ['2026-08-12', '2026-08-13' if fault == 'certificate_date' else '2026-08-12'],
-                    'reportDate': ['', ''],
-                    'acceptanceDateTime': ['2026-08-12T11:20:19Z', '2026-08-12T12:47:49Z'],
+                    'accessionNumber': [form.accession, certificate.accession, notice.accession],
+                    'form': [form.form, '8-K' if fault == 'certificate_type' else certificate.form, notice.form],
+                    'primaryDocument': [form.document, certificate.document,
+                                        'other.htm' if fault == 'notice_metadata' else notice.document],
+                    'filingDate': ['2026-08-12', '2026-08-13' if fault == 'certificate_date' else '2026-08-12',
+                                   '2026-08-12'],
+                    'reportDate': ['', '', '2026-08-06'],
+                    'acceptanceDateTime': ['2026-08-12T11:20:19Z', '2026-08-12T12:47:49Z',
+                                           '2026-08-12T11:16:28Z'],
                 }},
             }).encode(), {}, url
         if url == form.source_url:
             return (form_body + b' changed' if fault == 'form_bytes' else form_body), {}, url
+        if url == notice.source_url:
+            if fault == 'notice_access':
+                raise HTTPError(url, 429, 'Limited', {}, None)
+            return (notice_body + b' changed' if fault == 'notice_bytes' else notice_body), {}, url
         if fault == 'certificate_access':
             raise HTTPError(url, 429, 'Limited', {}, None)
         return ((certificate_body + b' changed' if fault == 'certificate_bytes' else certificate_body), {},
                 form.source_url if fault == 'certificate_redirect' else url)
 
-    result = check_nyse_texas(user_agent='Test', fetcher=fetch, observed_at=NOW)
+    cutoff = NOW.replace(day=3) if fault == 'past_directory_cutoff' else NOW
+    result = check_nyse_texas(user_agent='Test', fetcher=fetch, observed_at=cutoff)
     dit = result['rows'][-1]
     assert dit['symbol'] == 'DIT'
     assert dit['reason'] == reason
     assert result['sample_count'] == 5
     assert result['security_identity_count'] == identity_count
-    assert result['confirmed_count'] == (5 if fault is None else 4)
+    assert result['confirmed_count'] == (5 if reason is None else 4)
     assert calls.count(form.metadata_url) == 1
     if fault in {'form_bytes', 'certificate_type', 'certificate_date', 'wrong_cik'}:
         assert certificate.source_url not in calls
@@ -183,9 +198,25 @@ def test_dit_requires_reviewed_registration_and_certificate(fault, reason, ident
         assert dit['exchanges'] == ('NYSE American', 'NYSE Texas')
         assert [filing['filed'] for filing in dit['filings']] == ['2026-08-12', '2026-08-12']
         assert [filing['report_date'] for filing in dit['filings']] == [None, None]
-        assert [filing['payload_sha256'] for filing in dit['filings']] == list(audit.DIT_REVIEWED_DIGESTS.values())
+        assert [filing['payload_sha256'] for filing in dit['filings']] == [audit.DIT_REVIEWED_DIGESTS[c.form] for c in (form, certificate)]
         html = reconciliation_html(result)
         assert 'Form 8-A' in html and 'Exchange certification' in html and 'USD 0.01 per share' in html
         assert '5 of 5 dual registrations confirmed as filed' in html
     elif identity_count == 5:
-        assert dit['exchanges'] == ('NYSE American',)
+        assert dit['exchanges'] == (('NYSE American', 'NYSE Texas') if reason is None else ('NYSE American',))
+
+    assert dit['first_trade_date'] is None
+    assert dit['directory_observed_on'] == (None if fault == 'past_directory_cutoff' else '2026-11-04')
+    notice_failures = {'notice_bytes': 'digest_mismatch', 'notice_metadata': 'metadata_mismatch',
+                       'notice_access': 'sec_access_paused', 'certificate_access': 'sec_access_paused',
+                       'wrong_cik': 'metadata_mismatch'}
+    assert dit['announcement_reason'] == notice_failures.get(fault)
+    if fault in notice_failures:
+        assert dit['announced_effective_date'] is None
+    else:
+        assert dit['announced_effective_date'] == '2026-08-13'
+        assert dit['announcement']['filed'] == '2026-08-12'
+    html = reconciliation_html(result)
+    assert 'Actual first trade</strong> · Withheld' in html
+    assert ('Present when reviewed on 2026-11-04' in html) == (fault != 'past_directory_cutoff')
+    assert 'First trade confirmed' not in html
