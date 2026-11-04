@@ -31328,6 +31328,13 @@ def render_online_coverage_study() -> None:
             with st.spinner("Checking the next issuer batch…"):
                 universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),inspect_requested=True)
         st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
+    with st.expander("NYSE Texas listing check", expanded=False):
+        from src.nyse_texas_reconciliation import get_nyse_texas, reconciliation_html
+        st.caption("Check four selected SEC filing covers for the same security registered on two exchanges.")
+        requested = st.button("Check NYSE Texas filings", key="nyse-texas-filing-check")
+        with st.spinner("Checking dated SEC filing covers…"):
+            audit = get_nyse_texas(st.session_state, refresh=requested, user_agent=os.getenv("SEC_USER_AGENT"))
+        st.markdown(reconciliation_html(audit), unsafe_allow_html=True)
     with st.expander("Security types · online",expanded=False):
         requested=st.button("Classify observed listings",key="security-classification-refresh")
         classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
