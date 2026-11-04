@@ -6,7 +6,7 @@ from urllib.parse import urlencode
 
 from src.online_peer_coverage import get_peer_coverage,SESSION_KEY,DEFAULT_SAMPLE
 from src.online_peer_valuation import _symbol
-from src.online_peer_valuation_ui import STYLE,_text,_reason,_link
+from src.online_peer_valuation_ui import STYLE,_text,_reason,_link,online_peer_valuation_html
 
 _INDUSTRIES={'semiconductors':'半导体','software-infrastructure':'基础软件','drug-manufacturers-general':'综合制药',
  'household-personal-products':'家庭与个人用品','restaurants':'餐饮','farm-heavy-construction-machinery':'农业与工程机械',
@@ -82,6 +82,13 @@ def render_peer_coverage(st_api):
             st_api.selectbox('重新核查公司',attempted,key='peer-coverage-retry')
             st_api.button('重试所选公司',key='peer-coverage-retry-action',on_click=act,args=('retry',))
         st_api.button('重新开始样本',key='peer-coverage-reset',on_click=act,args=('reset',))
-        result=get_peer_coverage(st_api.session_state,user_agent=os.getenv('SEC_USER_AGENT'))
+        selected = st_api.selectbox(
+            '查看本次核查详情', attempted, index=None, key='peer-coverage-detail',
+            placeholder='选择已核查公司',
+        ) if attempted else None
+        result=get_peer_coverage(st_api.session_state,user_agent=os.getenv('SEC_USER_AGENT'),detail_ticker=selected)
+        if detail := result.get('selected_detail'):
+            st_api.caption(f"{detail['ticker']} · 本会话核查详情。按原观察时间重新校验。")
+            st_api.markdown(online_peer_valuation_html(detail, show_coverage_link=False),unsafe_allow_html=True)
         st_api.markdown(peer_coverage_html(result),unsafe_allow_html=True)
         return result

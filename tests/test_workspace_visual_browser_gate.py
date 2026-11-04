@@ -3166,3 +3166,18 @@ def test_late_console_error_rebuilds_the_final_runtime_check_and_forces_failure(
     assert idle["passed"] is False
     assert "late sentinel" in idle["detail"]
     assert not all(bool(check["passed"]) for check in finalized)
+
+
+def test_integrated_workbench_focus_reaches_refresh_then_section_with_visible_outline():
+    from src.workspace_visual_browser_gate import evaluate_integrated_workbench_focus
+
+    roles = ("skip", "navigation", "other", "workbench-update", "advanced-detail", "workbench-section")
+    assert evaluate_integrated_workbench_focus(
+        focused_roles=roles, outline_widths=(3,) * len(roles), positive_tabindex_count=0
+    ).passed
+    assert not evaluate_integrated_workbench_focus(
+        focused_roles=roles, outline_widths=(3,) * (len(roles) - 1) + (0,), positive_tabindex_count=0
+    ).passed
+    assert not evaluate_integrated_workbench_focus(
+        focused_roles=roles[:-1], outline_widths=(3,) * (len(roles) - 1), positive_tabindex_count=0
+    ).passed

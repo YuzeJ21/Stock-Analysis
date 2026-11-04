@@ -1,6 +1,6 @@
 # Industry peer-valuation coverage sample
 
-Discover contains **同行估值覆盖 · 行业样本**; Company Workbench's valuation pane links directly to it. **核查下一家公司** explicitly inspects one requested target. Ordinary reads, switching panes and opening disclosures never fetch sources. **重试所选公司** replaces that target's previous observation; **重新开始样本** clears only this session audit. No persistent checkpoint is silently restored or overwritten.
+Discover contains **同行估值覆盖 · 行业样本**; Company Workbench's valuation pane links directly to it. **核查下一家公司** explicitly inspects one requested target. Choose **查看本次核查详情** to reopen the checked company’s comparison, exclusions and source dates in Discover. The detail uses the same comparison as Company Workbench and revalidates the original session observation. Ordinary reads, switching panes and opening disclosures never fetch sources. **重试所选公司** replaces that target's previous observation; **重新开始样本** clears only this session audit. No persistent checkpoint is silently restored or overwritten.
 
 The declared default queries are AMD, TXN, QCOM, MSFT, JPM, JNJ, XOM, PG, MCD, CAT, NEM, DUK, O, VZ and TSM. The engine accepts at most20 unique normalized symbols. These are specified query targets, including potentially unsupported listing paths; they are not a representative sample, all U.S. companies, active U.S.-domiciled issuers or a market-wide denominator. The existing financial-universe checkpoint remains separate and unchanged.
 

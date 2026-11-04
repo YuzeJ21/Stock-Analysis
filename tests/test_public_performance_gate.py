@@ -42,31 +42,22 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
     assert RESEARCH_ROUTE_SPECS[0].full_markers == (
         "What needs my attention today?",
         "Freshness",
-        "Open Discover",
+        "Research boundary",
         "market-complete event feed",
         "Research-only",
     )
-    assert RESEARCH_ROUTE_SPECS[1].first_useful_marker == "Find a Company"
+    assert RESEARCH_ROUTE_SPECS[1].first_useful_marker == "Find a Company Online"
     assert RESEARCH_ROUTE_SPECS[1].full_markers == (
         "Discover",
-        "Screen eligibility — when supported",
-        "Browse saved companies",
+        "Search SEC companies online",
         "Search saved companies",
-        "Advanced: cohort readiness context",
+        "Scope and limits",
+        "Advanced: filters and selection guidance",
         "Research-only",
     )
     assert RESEARCH_ROUTE_SPECS[2].full_markers == (
-        "Company Workbench",
-        "Advanced: selected-company lane coverage",
-        "WHAT CHANGED",
-        "Research Decision Lab",
-        "Business Trend",
-        "Valuation",
-        "Forward View",
-        "What Remains Withheld",
-        "Research Conclusion",
-        "NEXT RESEARCH TASK",
-        "Research-only",
+        "NVDA Company Brief", "更新财报与价格", "概览", "财务趋势",
+        "估值与同行", "研究记录", "数据来源", "Research-only",
     )
     assert RESEARCH_ROUTE_SPECS[3].first_useful_marker == "Follow-up Queue"
     assert RESEARCH_ROUTE_SPECS[3].full_markers == (
@@ -81,11 +72,8 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
         "Research-only",
     )
     assert RESEARCH_ROUTE_SPECS[2].route == "/?mode=research&page=company-workbench&ticker=NVDA&open=1"
-    assert RESEARCH_ROUTE_SPECS[2].first_useful_marker == "USE NOW"
-    assert RESEARCH_ROUTE_SPECS[2].full_reveal_action == "Open evidence and analysis modules"
-    assert "Selected Company" not in RESEARCH_ROUTE_SPECS[2].full_markers
-    assert "Forward View" in RESEARCH_ROUTE_SPECS[2].full_markers
-    assert "What Remains Withheld" in RESEARCH_ROUTE_SPECS[2].full_markers
+    assert RESEARCH_ROUTE_SPECS[2].first_useful_marker == "NVDA Company Brief"
+    assert not RESEARCH_ROUTE_SPECS[2].full_reveal_action
     assert RESEARCH_ROUTE_SPECS[3].full_markers[0] == "Follow-up Queue"
 
 
@@ -101,27 +89,8 @@ def test_company_workbench_route_measurement_accepts_its_rendered_answer_markers
         _measure_route,
     )
 
-    initial_body = " ".join(
-        (
-            "Company Workbench",
-            "USE NOW",
-            "Advanced: selected-company lane coverage",
-            "WHAT CHANGED",
-            "Open evidence and analysis modules",
-            "Research-only",
-        )
-    )
-    revealed_body = " ".join(
-        (
-            initial_body,
-            "Research Decision Lab",
-            "Business Trend",
-            "Valuation",
-            "Forward View",
-            "What Remains Withheld",
-            "Research Conclusion",
-            "NEXT RESEARCH TASK",
-        )
+    initial_body = (
+        "NVDA Company Brief Research-only 更新财报与价格 概览 财务趋势 估值与同行 研究记录 数据来源"
     )
 
     class Locator:
@@ -140,14 +109,6 @@ def test_company_workbench_route_measurement_accepts_its_rendered_answer_markers
         def count(self):
             return 0
 
-    class Button:
-        def __init__(self, page):
-            self.page = page
-
-        def click(self, *, timeout):
-            assert timeout == 1000
-            self.page.rendered_body = revealed_body
-
     class Page:
         def __init__(self):
             self.url = "http://127.0.0.1:8501/?mode=research&page=company-workbench&ticker=NVDA&open=1"
@@ -163,11 +124,8 @@ def test_company_workbench_route_measurement_accepts_its_rendered_answer_markers
             locator.page = self
             return locator
 
-        def get_by_role(self, role, *, name, exact):
-            assert role == "button"
-            assert name == "Open evidence and analysis modules"
-            assert exact is True
-            return Button(self)
+        def get_by_role(self, *args, **kwargs):
+            pytest.fail("The initial Workbench performance check must not activate saved tools.")
 
         def wait_for_function(self, expression, *, arg, timeout):
             assert "document.body.innerText.includes(marker)" in expression

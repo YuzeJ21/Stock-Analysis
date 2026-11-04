@@ -347,7 +347,7 @@ def _disclosure(v,rows,*,include_excluded=True):
     return html
 
 
-def online_peer_valuation_html(view,*,sources_only=False):
+def online_peer_valuation_html(view,*,sources_only=False,show_coverage_link=True):
     v=view if isinstance(view,Mapping) else {}
     if v.get('status')=='not_requested':return ''
     subject=v.get('subject') if isinstance(v.get('subject'),Mapping) else None
@@ -392,5 +392,7 @@ def online_peer_valuation_html(view,*,sources_only=False):
         html+=('<p>至少 3 家同口径参照公司通过核对后才显示溢价或折价；当前 '+str(len(peers))+' 家。</p>' if subject
                else '<p>本公司估值依据尚未通过核对，同行尚未核查。至少 3 家同口径参照公司通过核对后才显示溢价或折价。</p>')
     html+='<details><summary>查看实际财年、价格与来源</summary>'+_disclosure(v,rows,include_excluded=not subject)+'</details>'
-    html+='<details><summary>其他估值口径为什么尚未显示</summary><p>TTM / 预测 P/E、P/S、P/FCF、EV/EBITDA 还需要分别核对期间、股数、企业价值与成分定义；本次不会从股票存在或其他倍数推断。</p></details><p><a href="?mode=research&amp;page=discover#peer-coverage-sample" target="_self">查看跨行业同行覆盖</a></p></section>'
-    return html
+    html+='<details><summary>其他估值口径为什么尚未显示</summary><p>TTM / 预测 P/E、P/S、P/FCF、EV/EBITDA 还需要分别核对期间、股数、企业价值与成分定义；本次不会从股票存在或其他倍数推断。</p></details>'
+    if show_coverage_link:
+        html+='<p><a href="?mode=research&amp;page=discover#peer-coverage-sample" target="_self">查看跨行业同行覆盖</a></p>'
+    return html+'</section>'

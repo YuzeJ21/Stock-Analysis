@@ -91,3 +91,19 @@ def test_company_valuation_links_directly_to_the_industry_audit():
     from src.online_peer_valuation_ui import online_peer_valuation_html
     html=online_peer_valuation_html(build())
     assert '查看跨行业同行覆盖' in html and 'page=discover#peer-coverage-sample' in html
+
+
+def test_inspected_company_detail_opens_without_another_source_request(monkeypatch):
+    calls = setup(monkeypatch)
+    at = AppTest.from_function(_app).run()
+    at.button(key="peer-coverage-next").click().run(timeout=30)
+    before = list(calls)
+    at.selectbox(key="peer-coverage-detail").select("FICT").run(timeout=30)
+    text = "\n".join(item.value for item in at.markdown)
+    assert "年度 P/E 高于同行参照 20.0%" in text
+    assert "2026-10-30" in text
+    assert "查看实际财年、价格与来源" in text
+    assert calls == before and not at.exception
+    at.button(key="peer-coverage-reset").click().run(timeout=30)
+    assert "年度 P/E 高于同行参照" not in "\n".join(item.value for item in at.markdown)
+    assert calls == before and not at.exception

@@ -3308,7 +3308,7 @@ def _company_workbench_display_title(primary: Any, *, brief_count: int) -> str:
     return title.first.inner_text().strip()
 
 
-def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
+def _company_workbench_primary_brief_assertion(page: Any, *, expected_ticker="NVDA") -> dict[str, object]:
     brief = page.locator(
         ".company-workbench-primary-brief[aria-label='Company Brief']"
     )
@@ -3331,7 +3331,7 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
                 +page.get_by_role('heading',name='Scenario Lab',exact=True).count())
         observation['selected']=[text.strip() for text in observation['selected']]
         observation['body_headings']=[text.strip() for text in observation['body_headings']]
-        evaluated=evaluate_integrated_company_workbench(observation)
+        evaluated=evaluate_integrated_company_workbench(observation, expected_ticker=expected_ticker)
         return _assertion('company_workbench_primary_brief',evaluated['passed'],evaluated['detail'])
     brief_count = brief.count()
     primary = brief.first if brief_count else brief

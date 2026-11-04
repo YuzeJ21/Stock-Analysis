@@ -105,11 +105,14 @@ def _subject_source_failure(view,packet):
     return False
 
 
-def _summary(state,as_of,workspace_mode):
+def _summary(state,as_of,workspace_mode,*,detail_ticker=None):
     rows=[];primary=Counter();excluded=Counter();groups=defaultdict(list)
+    selected_detail = None
     for ticker in state['requested_tickers']:
         attempted=ticker in state['packets'];packet=_expand_packet(state['packets'][ticker],state) if attempted else None
         view=sources.get_online_peer_valuation(ticker,{sources.SESSION_KEY:packet},refresh_requested=False,as_of=as_of,workspace_mode=workspace_mode) if attempted else {}
+        if attempted and ticker == detail_ticker:
+            selected_detail = view
         subject=view.get('subject');subject=subject if isinstance(subject,Mapping) else None
         context=view.get('subject_source_context',{});attribution=context.get('industry_observation',{}) if isinstance(context,Mapping) else {}
         key,sic=attribution.get('industry_key'),attribution.get('sic')
@@ -152,6 +155,7 @@ def _summary(state,as_of,workspace_mode):
         requested_count=len(rows),attempted_count=sum(r['attempted'] for r in rows),pending_count=sum(not r['attempted'] for r in rows),
         subject_pe_count=sum(r['subject_pe_state']=='available' for r in rows),reference_assessed_count=sum(r['reference_state']=='assessed' for r in rows),
         comparison_count=sum(r['comparison_state']=='available' for r in rows),rows=rows,by_industry=by_industry,
+        selected_detail=selected_detail,
         source_failure_count=sum(r['subject_source_failure'] for r in rows),
         primary_reason_counts=dict(primary),excluded_reason_counts=dict(excluded),
         adapter_operation_count=state['adapter_operation_count'],paused=state['source_failure_streak']>=2,
@@ -160,7 +164,7 @@ def _summary(state,as_of,workspace_mode):
 
 
 def get_peer_coverage(session_state,*,inspect_requested=False,reset_requested=False,retry_ticker=None,tickers=DEFAULT_SAMPLE,
-                      user_agent=None,dependencies=None,as_of=None,workspace_mode='research'):
+                      user_agent=None,dependencies=None,as_of=None,workspace_mode='research',detail_ticker=None):
     reason=_mode_reason(workspace_mode);requested=_targets(tickers)
     if reason or requested is None:return dict(status='unavailable',reason=reason or 'invalid_peer_coverage_sample')
     try:sources._now(as_of)
@@ -177,7 +181,7 @@ def get_peer_coverage(session_state,*,inspect_requested=False,reset_requested=Fa
     target=retry_ticker
     if target is None and inspect_requested and state['source_failure_streak']<2:
         target=next((t for t in requested if t not in state['packets']),None)
-    if target is None:return _summary(state,as_of,workspace_mode)
+    if target is None:return _summary(state,as_of,workspace_mode,detail_ticker=detail_ticker)
     state=deepcopy(state)
     deps=dict(classification=sources.fetch_classification,vendor=sources.observe_vendor,industry=sources.observe_industry,
               sec=sources.fetch_sec_json_receipt,prices=sources.fetch_online_company_prices,amendment=sources.fetch_amendment_evidence,

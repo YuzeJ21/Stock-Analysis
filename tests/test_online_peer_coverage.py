@@ -225,3 +225,29 @@ def test_malformed_but_resealed_shared_receipt_returns_a_stable_gap_on_actions(a
     before=list(calls)
     result=audit(state,inspect=action=='next',retry='FICT' if action=='retry' else None,deps=d)
     assert result['status']=='unavailable' and calls==before
+
+
+def test_selected_sample_detail_revalidates_without_fetch_or_state_mutation():
+    from src.online_peer_coverage import get_peer_coverage
+
+    deps, calls = dependencies()
+    state = {}
+    audit(state, inspect=True, deps=deps)
+    before = deepcopy(state)
+    requests = list(calls)
+
+    def detail(ticker, as_of=NOW):
+        return get_peer_coverage(
+            state, tickers=SYMBOLS, as_of=as_of, dependencies=deps, detail_ticker=ticker
+        ).get("selected_detail")
+
+    assert detail("FA") is None
+    assert detail("OTHER") is None
+    current = detail("FICT")
+    assert current["status"] == "research_comparison"
+    assert current["ticker"] == "FICT"
+    assert current["peer_count"] == 3
+    expired = detail("FICT", NOW + timedelta(days=2))
+    assert expired["status"] == "withheld"
+    assert expired["peer_median"] is None
+    assert state == before and calls == requests

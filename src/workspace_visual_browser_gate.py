@@ -22,7 +22,10 @@ from src.public_performance_gate import (
     _wait_for_visible_text,
     find_chrome_executable,
 )
-from src.research_accessibility_browser_gate import _captured_local_demo_server
+from src.research_accessibility_browser_gate import (
+    _captured_local_demo_server,
+    _company_workbench_primary_brief_assertion,
+)
 
 
 VIEWPORTS: tuple[tuple[int, int], ...] = ((1280, 720), (1440, 1024), (390, 844))
@@ -978,6 +981,26 @@ def evaluate_focus_sequence(
             f"regions={region_order!r}; outlines={outline_widths!r}"
         ),
     )
+
+
+def evaluate_integrated_workbench_focus(
+    *, focused_roles: tuple[str, ...], outline_widths: tuple[float, ...],
+    positive_tabindex_count: int,
+) -> BrowserEvaluation:
+    try:
+        navigation = focused_roles.index("navigation", 1)
+        refresh = focused_roles.index("workbench-update", navigation + 1)
+        section = focused_roles.index("workbench-section", refresh + 1)
+    except ValueError:
+        navigation = refresh = section = -1
+    passed = (
+        positive_tabindex_count == 0
+        and 0 < navigation < refresh < section == len(focused_roles) - 1
+        and focused_roles[0] == "skip"
+        and len(outline_widths) == len(focused_roles)
+        and all(width >= 3 for width in outline_widths)
+    )
+    return BrowserEvaluation(passed, f"focus={focused_roles!r}; outlines={outline_widths!r}")
 
 
 def evaluate_discover_evidence_access_layout(
@@ -2454,6 +2477,10 @@ def _reset_initial_scroll(page: Any) -> None:
 
 def _focus_sequence_observation(page: Any) -> dict[str, object]:
     discover_route = "page=discover" in page.url
+    integrated_workbench = (
+        "page=company-workbench" in page.url
+        and page.locator(".company-integrated-header").count() == 1
+    )
     page.evaluate(
         "() => document.activeElement instanceof HTMLElement && document.activeElement.blur()"
     )
@@ -2474,6 +2501,8 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
     })();
   let role = "other";
   if (element.matches("a.public-skip-link")) role = "skip";
+  else if (element.matches(".st-key-company-refresh-all button")) role = "workbench-update";
+  else if (element.matches(".st-key-company-section-navigation input[type='radio']")) role = "workbench-section";
   else if (element.matches("[data-sr-region='primary-action']")) role = "primary-action";
   else if (element.matches(".research-discover-result .selector-result-row a.selector-action-link[href]")) role = "result-link";
   else if (selectorSearch) role = window.location.search.includes("page=discover")
@@ -2483,7 +2512,7 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
     element.closest(".public-app-shell")
   ) role = "navigation";
   else if (element.matches("summary")) role = "advanced-detail";
-  const style = getComputedStyle(element);
+  const style = getComputedStyle(role === "workbench-section" ? element.closest("label") || element : element);
   return {
     role,
     label: selectorSearch && window.location.search.includes("page=discover")
@@ -2496,9 +2525,11 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
         focused_roles.append(str(observed.get("role") or "other"))
         focused_labels.append(str(observed.get("label") or ""))
         outline_widths.append(float(observed.get("outline_width") or 0))
-        if (discover_route and observed.get("role") == "result-link") or (
-            not discover_route and observed.get("role") == "advanced-detail"
-        ):
+        final_role = (
+            "result-link" if discover_route else
+            "workbench-section" if integrated_workbench else "advanced-detail"
+        )
+        if observed.get("role") == final_role:
             break
     return {
         "focused_roles": focused_roles,
@@ -2637,6 +2668,7 @@ def _evaluate_observation(
     focus_sequences: dict[str, dict[str, object]],
 ) -> list[dict[str, object]]:
     checks: list[dict[str, object]] = []
+    integrated_workbench = observation.get("integrated_workbench_check") if route.slug == "company-workbench" else None
 
     def add(name: str, result: BrowserEvaluation) -> None:
         checks.append({"name": name, "passed": result.passed, "detail": result.detail})
@@ -2934,7 +2966,7 @@ def _evaluate_observation(
         "personal-data-health",
         "personal-proof-history",
     }
-    if route.slug in first_view_routes:
+    if route.slug in first_view_routes and integrated_workbench is None:
         boxes = {
             str(row.get("name")): row for row in observation.get("regions") or ()
         }
@@ -2977,7 +3009,7 @@ def _evaluate_observation(
                         require_complete=observed_width >= 1280,
                     ),
                 )
-    if route.slug in {"research-desk", "discover", "company-workbench", "monitor"}:
+    if route.slug in {"research-desk", "discover", "company-workbench", "monitor"} and integrated_workbench is None:
         checks.append(
             {
                 "name": "one_stop_rule",
@@ -2985,7 +3017,7 @@ def _evaluate_observation(
                 "detail": f"stop-rule count={region_counts.get('stop-rule', 0)}",
             }
         )
-    if route.slug in {"research-desk", "discover", "company-workbench", "monitor"}:
+    if route.slug in {"research-desk", "discover", "company-workbench", "monitor"} and integrated_workbench is None:
         add(
             "personal_route_answer_hierarchy",
             evaluate_personal_route_hierarchy(
@@ -3012,7 +3044,14 @@ def _evaluate_observation(
                 ),
             ),
         )
-    if route.slug == "company-workbench":
+    if integrated_workbench is not None:
+        checks.append(integrated_workbench)
+        checks.append({
+            "name": "resolved_report_state",
+            "passed": observation.get("workbench_busy_loading_count") == 0,
+            "detail": f"busy_loading_count={observation.get('workbench_busy_loading_count')!r}",
+        })
+    elif route.slug == "company-workbench":
         add(
             "company_workbench_document_contract",
             evaluate_company_workbench_document_contract(
@@ -3198,7 +3237,13 @@ def _evaluate_observation(
     if route.slug in PERSONAL_FOCUS_ROUTE_SLUGS:
         for media_mode in ("normal", "forced-colors"):
             sequence = focus_sequences.get(media_mode) or {}
-            if route.slug == "discover":
+            if integrated_workbench is not None:
+                evaluation = evaluate_integrated_workbench_focus(
+                    focused_roles=tuple(sequence.get("focused_roles") or ()),
+                    outline_widths=tuple(sequence.get("outline_widths") or ()),
+                    positive_tabindex_count=int(observation.get("positive_tabindex_count") or 0),
+                )
+            elif route.slug == "discover":
                 evaluation = evaluate_discover_focus_sequence(
                     focused_roles=tuple(
                         str(value) for value in sequence.get("focused_roles") or ()
@@ -3546,6 +3591,11 @@ def _run_matrix_cell(
                         load_route()
                         _reset_initial_scroll(page)
                         observation = _browser_observation(page)
+                        if route.slug == "company-workbench" and page.locator(".company-integrated-header").count():
+                            ticker = parse_qs(urlsplit(route.route).query).get("ticker", [""])[0]
+                            observation["integrated_workbench_check"] = _company_workbench_primary_brief_assertion(
+                                page, expected_ticker=ticker,
+                            )
                         if route.slug == "discover":
                             observation["discover_evidence_access"] = (
                                 _discover_evidence_access_observation(page)
