@@ -31345,6 +31345,11 @@ def render_online_coverage_study() -> None:
     with st.expander("Green Impact Exchange (GIX) listing check", expanded=False):
         from src.gix_reconciliation import gix_review_markdown
         st.markdown(gix_review_markdown())
+    with st.expander("Texas Stock Exchange (TXSE) listing check", expanded=False):
+        from src.txse_reconciliation import txse_identity_markdown, txse_review_markdown
+        st.markdown(txse_review_markdown())
+        if st.checkbox("Show verified TXSE security identities", key="txse-identity-details"):
+            st.markdown(txse_identity_markdown())
     with st.expander("Security types · online",expanded=False):
         requested=st.button("Classify observed listings",key="security-classification-refresh")
         classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))

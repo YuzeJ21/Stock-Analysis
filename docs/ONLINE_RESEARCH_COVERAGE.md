@@ -8,7 +8,7 @@ All non-test directory rows are retained, including known ETFs, unknown venues a
 
 Listing records, resolved CIKs, financial-probe issuer candidates, attempted, failed and unprobed counts remain separate. Known ETF records are excluded from the financial queue; non-ETF and SEC-only status does not prove operating-company eligibility. Unprobed and unknown-industry candidates remain in their denominator. Field coverage uses the latest observed reporting period found in Companyfacts and compatible submissions metadata; older supported values never replace a newer gap.
 
-This is a full **observed inventory**, not a verified census of every U.S. company. The full LTSE and NYSE Texas listing populations, Green Impact Exchange and remaining registered-venue scope retain explicit reconciliation gates. The two Nasdaq directories alone cannot prove every venue or dual listing. Presence establishes neither U.S. domicile, current listing activity, security type, analysis eligibility nor historical point-in-time membership.
+This is a full **observed inventory**, not a verified census of every U.S. company. The full LTSE and NYSE Texas listing populations, Green Impact Exchange and remaining registered-venue scope retain explicit reconciliation gates. The separate TXSE review covers one dated venue roster. The two Nasdaq directories alone cannot prove every venue or dual listing. Presence establishes neither U.S. domicile, current listing activity, security type, analysis eligibility nor historical point-in-time membership.
 
 ## LTSE filing reconciliation
 
@@ -36,6 +36,29 @@ Exact response digests observed November 4, 2026. The product retains a dated su
 | GIX July release | `05f0bbff5bc4f8e43e51819761d930c328a4b70a2370535ca7931d70edd6af4f` |
 | GIX homepage | `2851fa2353974ccb5a985677477f7d09c7a68895fb3e82d89dd8e98086d6092e` |
 | EDGAR query response | `a6884e810a4ff489def3d122eb31787814fd4eda3290ba3f0fc5d2075a87d236` |
+
+## Texas Stock Exchange (TXSE) launch and listing reconciliation
+
+Discover → **Texas Stock Exchange (TXSE) listing check** is a dated review of Texas Stock Exchange LLC, a separate venue from NYSE Texas. The SEC registration order is dated September 30, 2025. The TXSE rollout schedule designated July 6, 2026 for test symbols and July 10 for the first live symbols. TXSE confirmed completed production rollout on July 31. The exact first execution date remains open. The July Rule 605 download was inaccessible during the review, and monthly aggregates would only establish activity within a month. [SEC order 34-104146](https://www.sec.gov/files/rules/other/2025/34-104146.pdf) · [Rollout schedule](https://www.txse.com/alerts/july-2026-symbol-rollout-schedule) · [Launch confirmation](https://www.txse.com/press/texas-stock-exchange-celebrates-successful-launch-of-trading) · [Rule 605 reports](https://www.txse.com/regulations/605-reports)
+
+TXSE reported that its first primary-listed ETFs, TXS and OILT, began trading on September 16, 2026. On October 5 it confirmed the first corporate primary listings of ET, SUN, SUNC and USAC. The exchange's rendered all-listings directory was observed on November 4 and displayed 23 of 23 rows with a November 3 as-of date. SEC certificates, Form 8-A, a fund prospectus or an issuer filing cover substantiate the issuer or fund and security class on each row. The 23 comprise 10 ETFs, 6 common stocks, 4 common-unit classes, 1 preferred-unit class, 1 depositary-share class and 1 trust capital security. The directory's broad labels are refined by SEC evidence in Discover. [First ETFs](https://www.txse.com/press/texas-stock-exchange-celebrates-transfer-of-texas-capital-s-txs-and-oilt-exchange-traded-funds) · [First corporate listings](https://www.txse.com/press/texas-stock-exchange-celebrates-move-of-energy-transfer-partnership-s-primary-listings) · [TXSE all-listings directory](https://www.txse.com/all-listings)
+
+The November 4 TXSE symbol file had 13,305 rows with unique root/suffix and symbol IDs. After excluding 68 test rows, `TXSEListed=Y` selected 22. The November 3 file had the same selected set. November 4 Nasdaq `otherlisted.txt` agreed on all 22 and their ETF flags after excluding four Nasdaq test rows with exchange code `F` and explicitly joining `ET$I` to `ET-PRI` and `TCBI$B` to `TCBI-PRB`. DIT was in the TXSE trading-symbol file with `TXSEListed=N`. The 22 primary listings cover a narrower scope than the all-listings directory. [TXSE November 4 archive](https://download.web.txse.com/historical/symbols/public_symbols_2026_11_04.txt) · [Nasdaq directory](https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt)
+
+SCHW is the additional row in the all-listings directory. The October 6 market-action file shows effective admission of SCHW common stock as a dual listing on October 7. The October 15 SEC cover reports NYSE and TXSE in the common-stock row. Its preferred depositary shares appear in separate NYSE rows. No extra primary listing was counted. Changes after the dated directory, complete historical listing and delisting events, and security-by-security first executions remain outside this review. Discover displays a fixed summary and filing references for research. No listing, price or entitlement feed was imported. [TXSE dual-listing notice](https://www.txse.com/alerts/b73ae818-f4d2-4437-8cc9-8370719ecbe2) · [TXSE dated market action](https://download.web.txse.com/calf/TXSE_MAF/2026/10/TXSE_MAF_20261006_2000_FINAL_NO_CUSIP.csv) · [SCHW SEC cover](https://www.sec.gov/Archives/edgar/data/316709/000031670926000035/schw-20261015.htm)
+
+Exact response digests observed November 4, 2026.
+
+| Response | SHA-256 |
+| --- | --- |
+| SEC order 34-104146 | `dcaf812980d6cf2aabb58b19e7937368e636bead5777627f19a9bdf93b674a49` |
+| TXSE launch confirmation | `85f95c1ca269ba5a195a8627f37b9378c3e2cff736a720412d0c7bc5cba2d9e0` |
+| TXSE directory CSV export, November 3 | `5732a11f09367a08b106562473dbe4b6ba1390a35d7fe09ae828b9ad73205ad3` |
+| TXSE November 3 symbol archive | `12975fde59150dbd1c5aa3d8764309395b6212de482744fa175b5413966c3925` |
+| TXSE November 4 symbol archive | `44b3097898340966729cb909a7afe85ea70987e586c50b422e40a0b51b1e432e` |
+| Nasdaq directory, November 4 at 15:41 file time | `9dfd11e570ff8631250cfc3940eebcec9a5b159cde408c7031d8f78f5300ca73` |
+| TXSE October 6 market-action file | `2c74d2f2cd812518e436fc3e5db2658a9656be1f6ec277c8de1ac2f51b9be817` |
+| SCHW October 15 SEC cover | `3aa633f507d5d7c633921efe76700daedbbfcc286051a197e955561bee4917f3` |
 
 ## NYSE Texas filing reconciliation
 
