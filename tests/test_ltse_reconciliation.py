@@ -1,9 +1,11 @@
 from datetime import datetime, timezone
+import hashlib
 import json
 from urllib.error import HTTPError
 
 import pytest
 
+import src.ltse_reconciliation as ltse
 from src.ltse_reconciliation import CASES, SESSION_KEY, check_ltse, get_ltse, ltse_html
 
 NOW = datetime(2026, 11, 4, 23, tzinfo=timezone.utc)
@@ -58,6 +60,8 @@ def test_ltse_confirms_exact_classes_and_keeps_the_spotlight_denominator_separat
     result = get_ltse(state, refresh=True, user_agent='Test', fetcher=fetch, observed_at=NOW)
     assert result['sample_count'] == result['confirmed_count'] == result['security_identity_count'] == 3
     assert result['spotlight_observed_on'] == '2026-11-04'
+    assert result['roster_status'] == 'withheld'
+    assert all(row['current_listing_status'] == 'withheld' for row in result['rows'])
     assert [(r['symbol'], r['security_class'], r['exchanges']) for r in result['rows']] == [
         ('ASAN', 'Class A common stock', ('NYSE', LTSE)),
         ('TDUP', 'Class A common stock', ('Nasdaq', LTSE)),
@@ -101,3 +105,80 @@ def test_ltse_stops_after_sec_access_limit():
     assert calls == [CASES[0].filing.metadata_url]
     assert result['confirmed_count'] == 0
     assert [r['reason'] for r in result['rows']] == ['sec_access_paused'] * 3
+
+
+@pytest.mark.parametrize('fault', [None, 'duplicate', 'bad_acceptance'])
+def test_post_filing_screen_uses_acceptance_time_and_never_promotes_listing_status(fault):
+    fetch, _ = fixture_transport()
+    target = CASES[1].filing
+
+    def transport(url, agent):
+        raw, headers, final = fetch(url, agent)
+        if url != target.metadata_url:
+            return raw, headers, final
+        body = json.loads(raw)
+        recent = body['filings']['recent']
+        rows = (
+            ('0001484778-26-000034', '25-NSE', '2026-11-04', '2026-11-04T12:05:00Z'),
+            ('0001484778-26-000035', 'CERT', '2026-11-05', '2026-11-05T12:00:00Z'),
+            ('0001484778-26-000032', '25', '2026-11-04', '2026-11-04T11:59:59Z'),
+        )
+        for accession, form, filed, accepted in rows:
+            recent['accessionNumber'].append(recent['accessionNumber'][-1] if fault == 'duplicate' else accession)
+            recent['form'].append(form)
+            recent['filingDate'].append(filed)
+            recent['acceptanceDateTime'].append('invalid' if fault == 'bad_acceptance' else accepted)
+            recent['primaryDocument'].append('synthetic.htm')
+            recent['reportDate'].append('')
+        return json.dumps(body).encode(), headers, final
+
+    result = check_ltse(user_agent='Test', fetcher=transport, observed_at=NOW)
+    row = result['rows'][1]
+    assert row['current_listing_status'] == 'withheld'
+    if fault == 'duplicate':
+        assert row['confirmed'] is False
+        assert 'post_filing_scan' not in row
+    elif fault:
+        assert row['confirmed'] is True
+        assert row['post_filing_scan'] is None
+    else:
+        scan = row['post_filing_scan']
+        assert scan['later_count'] == 1
+        assert [event['form'] for event in scan['registration_candidates']] == ['25-NSE']
+        assert 'Venue and share class require review' in ltse_html(result)
+
+
+@pytest.mark.parametrize('changed', [False, True])
+def test_bladex_rename_is_exact_evidence_separate_from_membership(changed, monkeypatch):
+    event = ltse.BLX_RENAME
+    raw_notice = b'<html>Synthetic corporate name amendment</html>'
+    monkeypatch.setattr(ltse, 'BLX_RENAME_SHA256', hashlib.sha256(raw_notice).hexdigest())
+    fetch, calls = fixture_transport()
+
+    def transport(url, agent):
+        if url == event.source_url:
+            calls.append(url)
+            return (raw_notice + b' changed' if changed else raw_notice), {}, url
+        raw, headers, final = fetch(url, agent)
+        if url != event.metadata_url:
+            return raw, headers, final
+        body = json.loads(raw)
+        recent = body['filings']['recent']
+        for key, value in dict(accessionNumber=event.accession, form=event.form, primaryDocument=event.document,
+                               filingDate='2026-06-08', reportDate='2026-06-04',
+                               acceptanceDateTime='2026-06-06T00:40:20Z').items():
+            recent[key].append(value)
+        return json.dumps(body).encode(), headers, final
+
+    result = check_ltse(user_agent='Test', fetcher=transport, observed_at=NOW)
+    row = result['rows'][2]
+    assert calls.count(event.source_url) == 1
+    assert row['confirmed'] is True and row['current_listing_status'] == 'withheld'
+    assert row['post_filing_scan']['registration_candidates'] == []
+    if changed:
+        assert row['issuer_change'] is None
+        assert 'renamed Bladex, Inc.' not in ltse_html(result)
+    else:
+        assert row['issuer_change']['effective'] == '2026-06-04'
+        assert row['issuer_change']['filed'] == '2026-06-08'
+        assert 'renamed Bladex, Inc.' in ltse_html(result)
