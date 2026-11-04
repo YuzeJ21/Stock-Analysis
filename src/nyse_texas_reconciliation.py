@@ -13,7 +13,7 @@ from src.online_sec_receipt import _fetch_raw, fetch_sec_json_receipt
 from src.sec_exact_filing import RIGHTS, _fetch_html
 from src.sec_html_bank import _hidden
 
-SESSION_KEY = 'nyse_texas_reconciliation_v3'
+SESSION_KEY = 'nyse_texas_reconciliation_v4'
 MAX_COVER_BYTES = 2 * 1024 * 1024
 HIDDEN_TAGS = {'hidden', 'header', 'script', 'style', 'template'}
 HEADERS = (
@@ -67,7 +67,24 @@ DIT_ANNOUNCED_EFFECTIVE = '2026-08-13'
 DIT_DIRECTORY_URL = 'https://www.nyse.com/markets/nyse-texas'
 # Dated browser review of the DIT row. The exchange page supplies no as-of timestamp.
 DIT_DIRECTORY_REVIEW_DATE = '2026-11-04'
+DIT_FIRST_TRADE_REVIEW_DATE = '2026-11-04'
 DIT_SHORT_VOLUME_URL = 'https://ftp.nyse.com/ShortData/Texasshvol/Texasshvol2026/Texasshvol202608/Texasshvol20260813.pdf'
+DIT_TAQ_URL = 'https://www.nyse.com/market-data/historical/taq-trades'
+DIT_TAQ_SAMPLE_URL = 'https://ftp.nyse.com/Historical%20Data%20Samples/TAQ%20NYSE%20TEXAS%20TRADES/'
+DIT_TRADER_UPDATES_URL = 'https://www.nyse.com/trader-update/history'
+DIT_UTP_NOTICE_URL = 'https://www.sec.gov/files/rules/sro/nysetex/2026/34-105815.pdf'
+DIT_FIRST_TRADE_SOURCES = (
+    ('NYSE TAQ Trades catalog', DIT_TAQ_URL,
+     'Lists a historical NYSE Texas trade-by-trade product for purchase. No entitled DIT trade file was reviewed.'),
+    ('NYSE Texas TAQ public sample index', DIT_TAQ_SAMPLE_URL,
+     'The listed files cover July 1–2, 2026 only. The index supplies neither the August 13 file nor continuous earlier coverage.'),
+    ('NYSE Trader Updates archive', DIT_TRADER_UPDATES_URL,
+     'The AMCON and NYSE Texas ticker searches did not surface a notice confirming a DIT execution.'),
+    ('NYSE Texas August 13 short-volume report', DIT_SHORT_VOLUME_URL,
+     'Covers short-volume activity. The report did not establish a DIT execution.'),
+    ('SEC June 30 notice on NYSE Texas trade reports', DIT_UTP_NOTICE_URL,
+     'NYSE Texas can trade securities listed elsewhere under unlisted trading privileges. Earlier DIT executions remain possible.'),
+)
 # Exact reviewed bytes bind the registration pair and the issuer's announcement.
 # Replacements require a fresh content review, even at the same URL.
 DIT_REVIEWED_DIGESTS = {
@@ -212,10 +229,11 @@ def _check_dit(user_agent, transport, observed_at, *, access_paused):
     filings = [dict(form=case.form, accession=case.accession, source_url=case.source_url) for case in DIT_FILINGS]
     today = (observed_at or datetime.now(timezone.utc)).astimezone(timezone.utc).date().isoformat()
     directory_date = DIT_DIRECTORY_REVIEW_DATE if today >= DIT_DIRECTORY_REVIEW_DATE else None
+    trade_review_date = DIT_FIRST_TRADE_REVIEW_DATE if today >= DIT_FIRST_TRADE_REVIEW_DATE else None
     row = dict(symbol=form.symbol, cik=form.cik, metadata_url=form.metadata_url, filings=filings,
                confirmed=False, security_type=None, reason='filing_metadata_unavailable',
                announced_effective_date=None, first_trade_date=None, directory_observed_on=directory_date,
-               announcement_reason='filing_metadata_unavailable')
+               first_trade_reviewed_on=trade_review_date, announcement_reason='filing_metadata_unavailable')
     if access_paused():
         row.update(reason='sec_access_paused', announcement_reason='sec_access_paused')
         return row
@@ -349,13 +367,20 @@ def _dit_trading_html(row):
     reviewed = row['directory_observed_on']
     directory = (f'Present when reviewed on {reviewed}. The directory gives no effective timestamp.'
                  if reviewed else 'Withheld · no reviewed directory observation by this cutoff.')
+    trade_review = ''
+    if row['first_trade_reviewed_on']:
+        sources = ''.join(f'<li><a href="{url}" target="_blank" rel="noopener noreferrer">{escape(label)}</a> '
+                          f'· {escape(finding)}</li>' for label, url, finding in DIT_FIRST_TRADE_SOURCES)
+        trade_review = (
+            f'<details><summary>First-trade sources checked · {escape(row["first_trade_reviewed_on"])}</summary>'
+            '<ul>' + sources + '</ul><p>A dated execution proves trading by that date. Confirming the first date requires '
+            'continuous venue coverage from initial eligibility or an exchange statement identifying the first execution.</p></details>'
+        )
     return (
         '<section aria-label="DIT trading and listing evidence">'
         f'<p><strong>Announced listing effective date</strong> · {escape(announced)}</p>' + notice
-        + '<p><strong>Actual first trade</strong> · Withheld. No venue-specific execution was verified. '
-        'The 2026-08-13 report covers short-volume activity and did not establish a DIT execution. '
-        f'<a href="{DIT_SHORT_VOLUME_URL}" target="_blank" rel="noopener noreferrer">NYSE Texas daily short-volume report</a>.</p>'
-        f'<p><strong>NYSE Texas directory</strong> · {escape(directory)} '
+        + '<p><strong>Actual first trade</strong> · Withheld. No dated NYSE Texas execution was verified for DIT.</p>'
+        + trade_review + f'<p><strong>NYSE Texas directory</strong> · {escape(directory)} '
         f'<a href="{DIT_DIRECTORY_URL}" target="_blank" rel="noopener noreferrer">Official dual-listing directory</a>.</p></section>'
     )
 

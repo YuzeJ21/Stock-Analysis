@@ -220,3 +220,15 @@ def test_dit_requires_reviewed_registration_and_certificate(fault, reason, ident
     assert 'Actual first trade</strong> · Withheld' in html
     assert ('Present when reviewed on 2026-11-04' in html) == (fault != 'past_directory_cutoff')
     assert 'First trade confirmed' not in html
+    if fault == 'past_directory_cutoff':
+        assert dit['first_trade_reviewed_on'] is None
+        assert 'First-trade sources checked' not in html
+    else:
+        assert dit['first_trade_reviewed_on'] == '2026-11-04'
+        assert 'First-trade sources checked · 2026-11-04' in html
+        assert 'July 1–2, 2026' in html
+        assert 'NYSE Texas can trade securities listed elsewhere' in html
+        for url in (audit.DIT_TAQ_URL, audit.DIT_TAQ_SAMPLE_URL, audit.DIT_TRADER_UPDATES_URL,
+                    audit.DIT_SHORT_VOLUME_URL, audit.DIT_UTP_NOTICE_URL):
+            assert f'href="{url}"' in html
+            assert url not in calls
