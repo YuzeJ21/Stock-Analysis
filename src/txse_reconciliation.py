@@ -6,6 +6,13 @@ SEC_ORDER = 'https://www.sec.gov/files/rules/other/2025/34-104146.pdf'
 TXSE = 'https://www.txse.com'
 TXSE_SCHEDULE = TXSE + '/alerts/july-2026-symbol-rollout-schedule'
 TXSE_LAUNCH = TXSE + '/press/texas-stock-exchange-celebrates-successful-launch-of-trading'
+TXSE_ALERT_ARCHIVE = TXSE + '/alerts-notices'
+TXSE_JULY_TEST_NOTICE = TXSE + '/alerts/5059533f-8b82-4a4f-944c-7b126dbb7176'
+TXSE_JULY_10_SYMBOLS = 'https://download.web.txse.com/historical/symbols/public_symbols_2026_07_10.txt'
+TXSE_MARKET_DATA = TXSE + '/market-data'
+TXSE_RULE_605 = TXSE + '/regulations/605-reports'
+TXSE_JULY_605 = 'https://download.web.txse.com/605reports/F202607.zip'
+CBOE_DAILY_VOLUME = 'https://cdn.cboe.com/resources/us/equities/market-statistics/historical-market-volume/market_history_2026.csv'
 TXSE_ETP_START = TXSE + '/press/texas-stock-exchange-celebrates-transfer-of-texas-capital-s-txs-and-oilt-exchange-traded-funds'
 TXSE_CORPORATE_START = TXSE + '/press/texas-stock-exchange-celebrates-move-of-energy-transfer-partnership-s-primary-listings'
 TXSE_DIRECTORY = TXSE + '/all-listings'
@@ -96,12 +103,24 @@ def txse_review_markdown() -> str:
     return f"""
 Reviewed {REVIEW_DATE} · Texas Stock Exchange LLC and NYSE Texas are separate venues.
 
-- **Live trading confirmed by 2026-07-31.** The SEC granted registration on 2025-09-30. The rollout began with test symbols on 2026-07-06 and scheduled the first live securities for 2026-07-10. TXSE confirmed the rollout was complete on 2026-07-31. First execution date remains unverified. [SEC order]({SEC_ORDER}) · [Rollout schedule]({TXSE_SCHEDULE}) · [TXSE launch confirmation]({TXSE_LAUNCH})
+- **Live trading confirmed by 2026-07-31.** The SEC granted registration on 2025-09-30. TXSE confirmed the July rollout was complete. [SEC order]({SEC_ORDER}) · [TXSE launch confirmation]({TXSE_LAUNCH})
+- **First execution date remains unverified.** TXSE began the rollout with test symbols on 2026-07-06 and scheduled live trading for 2026-07-10. Cboe reports 100 TXSE trades on 2026-07-10. The review found no TXSE trade-level record or notice explicitly confirming the first day of executions. [Rollout schedule]({TXSE_SCHEDULE}) · [Cboe daily trade counts]({CBOE_DAILY_VOLUME})
 - **Primary listings confirmed.** TXSE reported TXS and OILT began trading on 2026-09-16. It confirmed its first corporate primary listings on 2026-10-05. [ETF launch]({TXSE_ETP_START}) · [Corporate listing launch]({TXSE_CORPORATE_START})
 - **{len(TXSE_IDENTITIES)} of {DIRECTORY_LISTINGS} security identities verified.** The TXSE directory dated {DIRECTORY_DATE} contains {etfs} ETFs and {len(TXSE_IDENTITIES) - etfs} other securities. TXSE and Nasdaq files cross-check 22 primary listings on {REVIEW_DATE}. The TXSE symbol file included {EXCLUDED_TEST_ROWS} test rows, all excluded. [TXSE listing directory]({TXSE_DIRECTORY}) · [Dated TXSE symbol file]({TXSE_SYMBOLS}) · [Nasdaq directory]({NASDAQ_OTHER_LISTED})
 - **SCHW · Separate secondary listing.** TXSE recorded the common stock's admission effective 2026-10-07. The 2026-10-15 SEC cover shows NYSE and TXSE. The 22 flagged rows omit this secondary listing. [TXSE dual-listing notice]({SCHW_ALERT}) · [TXSE market action]({SCHW_ACTION}) · [SCHW SEC cover]({SCHW_COVER})
 
 This is a dated listing review. Changes after the directory date and continuous listing history require separate evidence. Symbols eligible to trade on TXSE include securities listed elsewhere.
+"""
+
+
+def txse_first_trade_markdown() -> str:
+    return f"""
+**First-trade sources reviewed {REVIEW_DATE}**
+
+- **TXSE notices.** The July 6 update kept July 10 on the schedule. No July notice reviewed confirms an execution on July 10. The July 31 release confirms the completed rollout. [Test-symbol update]({TXSE_JULY_TEST_NOTICE}) · [TXSE alerts archive]({TXSE_ALERT_ARCHIVE})
+- **TXSE symbol files.** July 6–9 contain only test symbols. The July 10 file adds PBA, PDFS, SPHD, SRRK and VCYT as non-test symbols. These files establish trading eligibility for the published symbols. [July 10 symbol file]({TXSE_JULY_10_SYMBOLS})
+- **TXSE execution data.** The Market Data Center describes the BALE and FEED execution feeds. The review found no public July 10 trade file there. The July Rule 605 download returned HTTP 403. Rule 605 reports aggregate executions by month. [TXSE Market Data Center]({TXSE_MARKET_DATA}) · [Rule 605 index]({TXSE_RULE_605}) · [July download]({TXSE_JULY_605})
+- **Cboe daily counts.** July 10 is the earliest positive TXSE row in the reviewed 2026 file. July 6–9 have missing rows for TXSE. The counts corroborate July 10 activity at venue level and supply neither individual executions nor complete earlier coverage. [Cboe daily trade counts]({CBOE_DAILY_VOLUME})
 """
 
 

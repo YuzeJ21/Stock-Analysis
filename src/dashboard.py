@@ -31346,8 +31346,10 @@ def render_online_coverage_study() -> None:
         from src.gix_reconciliation import gix_review_markdown
         st.markdown(gix_review_markdown())
     with st.expander("Texas Stock Exchange (TXSE) listing check", expanded=False):
-        from src.txse_reconciliation import txse_identity_markdown, txse_review_markdown
+        from src.txse_reconciliation import txse_first_trade_markdown, txse_identity_markdown, txse_review_markdown
         st.markdown(txse_review_markdown())
+        if st.checkbox("Show TXSE first-trade sources", key="txse-first-trade-sources"):
+            st.markdown(txse_first_trade_markdown())
         if st.checkbox("Show verified TXSE security identities", key="txse-identity-details"):
             st.markdown(txse_identity_markdown())
     with st.expander("Security types · online",expanded=False):
