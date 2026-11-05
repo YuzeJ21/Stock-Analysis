@@ -31352,6 +31352,11 @@ def render_online_coverage_study() -> None:
             st.markdown(txse_first_trade_markdown())
         if st.checkbox("Show verified TXSE security identities", key="txse-identity-details"):
             st.markdown(txse_identity_markdown())
+    with st.expander("Nasdaq Texas (NTX) listing check", expanded=False):
+        from src.nasdaq_texas_reconciliation import nasdaq_texas_detail_markdown, nasdaq_texas_review_markdown
+        st.markdown(nasdaq_texas_review_markdown())
+        if st.checkbox("Show Nasdaq Texas security evidence", key="nasdaq-texas-security-evidence"):
+            st.markdown(nasdaq_texas_detail_markdown())
     with st.expander("Security types · online",expanded=False):
         requested=st.button("Classify observed listings",key="security-classification-refresh")
         classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
