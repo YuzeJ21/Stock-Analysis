@@ -1766,6 +1766,12 @@ def test_monitor_return_link_is_explicitly_context_only():
     assert "does not filter Monitor" in link["purpose"]
 
 
+def test_monitor_return_link_keeps_online_company_and_selected_section():
+    link = research_workspace.research_monitor_return_link("AVGO", online=True, section="valuation")
+
+    assert link["href"] == "?mode=research&page=company-workbench&ticker=AVGO&online=1&section=valuation"
+
+
 def test_advanced_evidence_links_preserve_personal_research_mode_and_ticker():
     links = advanced_evidence_links("NVDA")
 

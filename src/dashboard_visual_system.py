@@ -1238,6 +1238,15 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus
   outline: 3px solid var(--sr-focus) !important;
   outline-offset: 3px !important;
 }}
+@media (max-width: 640px) and (forced-colors: none) {{
+  .stApp .st-key-monitor-return-to-workbench :is(button[data-testid="stBaseButton-secondary"], a) {{
+    background-color: var(--sr-nav) !important;
+    color: var(--sr-nav-text) !important;
+  }}
+  .stApp .st-key-monitor-return-to-workbench :is(button, a) p {{
+    color: var(--sr-nav-text) !important;
+  }}
+}}
 @media (max-width: 640px) {{
   [data-testid="stMainBlockContainer"],
   .stApp:has(.research-workflow-navigation) [data-testid="stMainBlockContainer"] {{

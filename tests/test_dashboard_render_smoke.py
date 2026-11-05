@@ -496,7 +496,9 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
     app.query_params.update(mode="research",page="company-workbench",ticker="NVDA",open="1")
     app.run()
     assert not app.exception
-    assert [button.label for button in app.button]==["更新财报与价格","只更新财报","只更新价格"]
+    assert [button.label for button in app.button if button.key != "research-nav-monitor"] == [
+        "更新财报与价格", "只更新财报", "只更新价格",
+    ]
     assert not any(e.label=="HTML Research Brief" for e in app.expander)
     _workbench_section(app,"valuation")
     saved_valuation = next(e for e in app.expander if e.label == "已保存的估值与情景分析")

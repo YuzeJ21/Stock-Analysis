@@ -81,6 +81,7 @@ STYLE='''<style>
 .online-peer-valuation{box-sizing:border-box;min-width:0;margin:12px 0 20px;padding:22px;border:1px solid #d7e1dc;border-radius:14px;background:#fff;color:#22372d;overflow-wrap:anywhere}
 .online-peer-valuation h3{font-size:1.4rem;line-height:1.4;margin:.35rem 0 .7rem}.online-peer-valuation h4{font-size:1.05rem;margin:1rem 0 .5rem}.online-peer-valuation p{line-height:1.6;margin:.55rem 0}
 .online-peer-valuation .peer-kicker{font-size:.85rem;color:#496253}.peer-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:18px 0}.peer-stats div{padding:14px;background:#f2f6f3;border:1px solid #dce5df;border-radius:10px;min-width:0}.peer-stats dt{font-size:.85rem;color:#496253}.peer-stats dd{font-size:1.35rem;font-weight:700;margin:.4rem 0 0}
+.online-peer-valuation.peer-comparison h3{padding:0}.online-peer-valuation .peer-comparison-stats{gap:8px;margin:10px 0}.peer-comparison-stats div{padding:8px 10px}.peer-comparison-stats dd{font-size:1.1rem;line-height:1.35;margin:.2rem 0 0}
 .online-peer-valuation details{border-top:1px solid #dce5df;margin-top:14px;padding-top:7px}.online-peer-valuation summary{cursor:pointer;min-height:44px;display:list-item;align-content:center;font-weight:650;line-height:1.5}.online-peer-valuation a{color:#245842;text-decoration:underline}.online-peer-valuation summary:focus-visible,.online-peer-valuation a:focus-visible{outline:2px solid #245842;outline-offset:3px}
 .online-peer-valuation table{width:100%;table-layout:fixed;border-collapse:collapse;margin:12px 0}.online-peer-valuation th,.online-peer-valuation td{padding:9px 6px;text-align:left;vertical-align:top;border-bottom:1px solid #dce5df;font-size:.88rem;overflow-wrap:anywhere}.online-peer-valuation code{white-space:normal;word-break:break-all;font-size:.78rem}.online-peer-valuation ul{padding-left:20px}.online-peer-valuation li{margin:.5rem 0}
 @media(max-width:640px){.online-peer-valuation{padding:15px}.peer-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.online-peer-valuation table,.online-peer-valuation tbody{display:block}.online-peer-valuation thead{display:none}.online-peer-valuation tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));border:1px solid #dce5df;border-radius:9px;margin:12px 0;padding:7px}.online-peer-valuation td{display:block;border:0;min-width:0}.online-peer-valuation td::before{content:attr(data-label);display:block;font-size:.78rem;color:#496253;margin-bottom:4px}.online-peer-valuation td:first-child,.online-peer-valuation td:last-child{grid-column:1/-1}}
@@ -270,7 +271,7 @@ def _history_html(identity):
     return '<p>历史 SEC 索引仅用于供应商身份核对；年度 EPS 仍使用当前选定的年度申报。'+_link(identity.get('history_source_ref'),'官方历史索引')+' · 观察 '+_text(identity.get('history_observed_at'))+' · SHA-256 <code>'+_text(identity.get('history_sha256'))+'</code></p>'
 
 
-def _listing_html(v,*,compact=False):
+def _listing_html(v):
     context=v.get('listing_context')
     if not isinstance(context,Mapping):return ''
     selection=context.get('selection')
@@ -282,24 +283,22 @@ def _listing_html(v,*,compact=False):
     html='<div class="peer-listing-context"><p><strong>'+answer+'</strong></p>'
     if context.get('observed_from'):
         html+='<p>上市观察：'+_text(context['observed_from'])+' → '+_text(context.get('observed_to'))+'。</p>'
-    if not compact:
-        html+='<details><summary>上市来源日期、摘要与本次获取记录</summary>'
-        html+='<p>上市获取尝试：'+_text(context.get('attempted_at'))+' → '+_text(context.get('completed_at'))+'。</p>'
-        for ref in context.get('source_receipts',[])[:4]:
-            html+='<p>'+_link(ref.get('source_url'),'上市或 SEC 关联来源')+' · 原始观察 '+_text(ref.get('observed_at'))
-            if ref.get('source_created_at'):html+=' · 目录创建 '+_text(ref['source_created_at'])+'（纽约时间）'
-            html+=' · SHA-256 <code>'+_text(ref.get('payload_sha256'))+'</code></p>'
-        failures={'directory_incomplete':'目录内容不完整','source_access_limited':'来源限制访问，未自动重试',
-                  'source_transport_unavailable':'来源暂不可访问','source_response_unverified':'响应地址或内容未核对',
-                  'directory_schema_invalid':'目录结构未通过核对','directory_date_invalid':'目录创建日期过旧或在未来'}
-        for attempt in context.get('source_attempts',[])[:4]:
-            message=failures.get(attempt.get('reason'),'仅收到响应；不代表整套上市证据已通过核对')
-            html+='<p>本次获取 '+_text(attempt.get('observed_at',context.get('attempted_at')))+' · '+_link(attempt.get('source_url'),'查询来源')+' · '+message
-            if type(attempt.get('byte_count')) is int:html+=' · '+str(attempt['byte_count'])+' bytes'
-            if attempt.get('payload_sha256'):html+=' · SHA-256 <code>'+_text(attempt['payload_sha256'])+'</code>'
-            html+='</p>'
-        html+='</details>'
-    return html+'</div>'
+    html+='<details><summary>上市来源日期、摘要与本次获取记录</summary>'
+    html+='<p>上市获取尝试：'+_text(context.get('attempted_at'))+' → '+_text(context.get('completed_at'))+'。</p>'
+    for ref in context.get('source_receipts',[])[:4]:
+        html+='<p>'+_link(ref.get('source_url'),'上市或 SEC 关联来源')+' · 原始观察 '+_text(ref.get('observed_at'))
+        if ref.get('source_created_at'):html+=' · 目录创建 '+_text(ref['source_created_at'])+'（纽约时间）'
+        html+=' · SHA-256 <code>'+_text(ref.get('payload_sha256'))+'</code></p>'
+    failures={'directory_incomplete':'目录内容不完整','source_access_limited':'来源限制访问，未自动重试',
+              'source_transport_unavailable':'来源暂不可访问','source_response_unverified':'响应地址或内容未核对',
+              'directory_schema_invalid':'目录结构未通过核对','directory_date_invalid':'目录创建日期过旧或在未来'}
+    for attempt in context.get('source_attempts',[])[:4]:
+        message=failures.get(attempt.get('reason'),'仅收到响应；不代表整套上市证据已通过核对')
+        html+='<p>本次获取 '+_text(attempt.get('observed_at',context.get('attempted_at')))+' · '+_link(attempt.get('source_url'),'查询来源')+' · '+message
+        if type(attempt.get('byte_count')) is int:html+=' · '+str(attempt['byte_count'])+' bytes'
+        if attempt.get('payload_sha256'):html+=' · SHA-256 <code>'+_text(attempt['payload_sha256'])+'</code>'
+        html+='</p>'
+    return html+'</details></div>'
 
 
 def _excluded_html(v):
@@ -316,7 +315,9 @@ def _excluded_html(v):
 
 
 def _disclosure(v,rows,*,include_excluded=True):
-    html=_listing_html(v)+'<p>自动筛选的行业参照组：同供应商行业、同 SEC 行业代码、普通股、独立发行人、同一价格日期。每家实际财年起止日期与本公司相差不超过 '+str(FISCAL_WINDOW_DAYS)+' 天；这不是完全相同的期间，也不是分析师审核的经济可比组。</p>'
+    html='<p>本次来源查询：'+_text(v['attempted_at'])+'</p>' if v.get('attempted_at') else ''
+    html+=_listing_html(v)+'<p>自动筛选的行业参照组：同供应商行业、同 SEC 行业代码、普通股、独立发行人、同一价格日期。每家实际财年起止日期与本公司相差不超过 '+str(FISCAL_WINDOW_DAYS)+' 天；这不是完全相同的期间，也不是分析师审核的经济可比组。</p>'
+    html+='<p>至少 '+str(MIN_PEERS)+' 家参照公司通过同口径核对后才比较倍数。</p>'
     html+='<p>候选列表共 '+_text(v.get('industry_candidate_total'))+' 个记录，本次最多核查 12 家其他公司，按供应商列表顺序保留；不是完整行业覆盖。</p>'
     if v.get('industry_source_ref'):
         html+='<p>'+_link(v['industry_source_ref'],'候选组来源')+' · 观察 '+_text(v.get('industry_observed_at'))+'</p>'
@@ -363,16 +364,17 @@ def online_peer_valuation_html(view,*,sources_only=False,show_coverage_link=True
         premium=v['premium_fraction'];amount=f'{abs(premium)*100:.1f}%' if abs(premium)>=.0005 else '<0.1%'
         headline=('年度 P/E 等于同行参照中位数' if premium==0 else '年度 P/E '+('高于' if premium>0 else '低于')+'同行参照 '+amount)
     kicker='在线来源 · 已披露年度稀释 P/E · 非 TTM / 非预测值'
-    html=STYLE+'<section class="online-peer-valuation" aria-label="Online peer valuation"><p class="peer-kicker">'+kicker+'</p><h3>'+_text(headline)+'</h3>'
-    if v.get('attempted_at'):html+='<p>本次来源查询：'+_text(v['attempted_at'])+'</p>'
-    html+=_listing_html(v,compact=True)
+    html=STYLE+'<section class="online-peer-valuation peer-comparison" aria-label="Online peer valuation"><h3>'+_text(headline)+'</h3>'
+    stats=[('价格日期',_text(subject.get('price_date')) if subject else '未取得'),
+           ('通过筛选的同行',str(len(peers))+' 家' if subject else '未核查'),
+           ('本公司年度 P/E',_multiple(subject.get('multiple')) if subject else '未取得'),
+           ('同行参照中位数',_multiple(v.get('peer_median')) if supported else '暂不显示')]
+    html+='<dl class="peer-stats peer-comparison-stats">'+''.join('<div><dt>'+label+'</dt><dd>'+value+'</dd></div>' for label,value in stats)+'</dl>'
     if not supported:html+='<p>'+_text(_reason(v.get('reason')))+'</p>'
+    html+='<p class="peer-kicker">'+kicker+'</p>'
     html+='<p>这是单一指标的相对比较，不是低估或高估结论。业务结构、增长、利润率、资本需求和风险差异尚未调整。</p>'
-    stats=[('本公司年度 P/E',_multiple(subject.get('multiple')) if subject else '未取得'),
-           ('同行参照中位数',_multiple(v.get('peer_median')) if supported else '暂不显示'),
-           ('通过筛选',str(len(peers))+' 家' if subject else '未核查'),('价格日期',_text(subject.get('price_date')) if subject else '未取得')]
-    html+='<dl class="peer-stats">'+''.join('<div><dt>'+label+'</dt><dd>'+value+'</dd></div>' for label,value in stats)+'</dl>'
     if subject:
+        html+='<details><summary>比较方法与盈利背景</summary>'
         html += '<p><strong>倍数怎么算</strong>　同日收盘价 ÷ 已披露年度稀释 EPS。</p>'
         if supported:
             html += ('<p><strong>差距怎么算</strong>　本公司 '+_multiple(subject.get('multiple'))
@@ -382,15 +384,11 @@ def online_peer_valuation_html(view,*,sources_only=False,show_coverage_link=True
             html += ('<p><strong>为什么纳入这些公司</strong>　'+members
                      +'。供应商行业与 SEC 行业代码均匹配，均为独立发行人的普通股，使用同日价格，'
                      +'财年起止各相差不超过 '+str(FISCAL_WINDOW_DAYS)+' 天。</p>')
-        html += _excluded_html(v)
-    scope=v.get('subject_source_context',{}).get('selected_security_scope',{}) if isinstance(v.get('subject_source_context'),Mapping) else {}
-    if not subject and isinstance(scope,Mapping) and scope.get('status')=='inspection_only':html+=_observations_html(scope,compact=True)
-    if subject:
         html+='<h4>盈利变化背景</h4><p><strong>'+_text(_earnings_phrase(subject))+'</strong> · 同一年度申报列示值。</p><p>历史变化不代表未来增长；同行倍数未按增长调整。展开下方可核对每家公司的本年、上年 EPS 与实际期间。</p>'
         if subject.get('amendment_scope'):html+='<p>EPS 采用已交叉核对的原始年度申报；具体修订范围、来源与标记差异见下方依据。</p>'
-    if not supported:
-        html+=('<p>至少 3 家同口径参照公司通过核对后才显示溢价或折价；当前 '+str(len(peers))+' 家。</p>' if subject
-               else '<p>本公司估值依据尚未通过核对，同行尚未核查。至少 3 家同口径参照公司通过核对后才显示溢价或折价。</p>')
+        html+='</details>'+_excluded_html(v)
+    scope=v.get('subject_source_context',{}).get('selected_security_scope',{}) if isinstance(v.get('subject_source_context'),Mapping) else {}
+    if not subject and isinstance(scope,Mapping) and scope.get('status')=='inspection_only':html+=_observations_html(scope,compact=True)
     html+='<details><summary>查看实际财年、价格与来源</summary>'+_disclosure(v,rows,include_excluded=not subject)+'</details>'
     html+='<details><summary>其他估值口径为什么尚未显示</summary><p>TTM / 预测 P/E、P/S、P/FCF、EV/EBITDA 还需要分别核对期间、股数、企业价值与成分定义；本次不会从股票存在或其他倍数推断。</p></details>'
     if show_coverage_link:

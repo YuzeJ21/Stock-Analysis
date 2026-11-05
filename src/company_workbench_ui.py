@@ -67,28 +67,36 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
     scope='online:'+str(expected_cik) if candidate else 'receipts' if saved_receipt_only else 'saved'
     if saved_available and candidate is None:
         retain_saved_tool_inputs(st_api.session_state,profile_scope,ticker)
-    header=st_api.empty()
-    update_all=st_api.button('更新财报与价格',key='company-refresh-all',type='primary')
-    with st_api.expander('分别更新',expanded=False):
-        update_financial=st_api.button('只更新财报',key='company-refresh-financials')
-        update_prices=st_api.button('只更新价格',key='company-refresh-prices')
-    bundle=load_workbench_observations(ticker,st_api.session_state,
-        refresh_financials=bool(update_all or update_financial),refresh_prices=bool(update_all or update_prices),
-        expected_cik=expected_cik)
-    financial,prices,projection=bundle['financial'],bundle['prices'],bundle['projection']
-    header.markdown(workbench_header_html(ticker,projection,saved_scope=candidate is None,
-        title=candidate.get('title') if candidate else None,saved_receipt_only=saved_receipt_only),unsafe_allow_html=True)
     nav_key=f'company-section:{profile_scope}:{ticker}:{scope}'
     if st_api.session_state.get(nav_key) not in dict(SECTIONS):
         st_api.session_state[nav_key]=section_key(st_api.query_params.get('section'))
+    valuation_first=st_api.session_state[nav_key]=='valuation'
+    header=st_api.empty()
+    if not valuation_first:
+        refresh_controls=st_api.container()
     st_api.markdown('<div id="company-research-sections"></div>',unsafe_allow_html=True)
     with st_api.container(key='company-section-navigation'):
         selected=st_api.radio('公司研究分区',tuple(dict(SECTIONS)),format_func=dict(SECTIONS).get,
                               horizontal=True,label_visibility='collapsed',key=nav_key)
     selected=section_key(selected)
-    if selected!='overview' or 'section' in st_api.query_params:
+    if (selected!='overview' or 'section' in st_api.query_params) and st_api.query_params.get('section')!=selected:
         st_api.query_params['section']=selected
-    with st_api.container(key='company-section-body'):
+    body=st_api.container(key='company-section-body')
+    if valuation_first:
+        refresh_controls=st_api.container()
+    with refresh_controls:
+        update_all=st_api.button('更新财报与价格',key='company-refresh-all',type='primary')
+        with st_api.expander('分别更新',expanded=False):
+            update_financial=st_api.button('只更新财报',key='company-refresh-financials')
+            update_prices=st_api.button('只更新价格',key='company-refresh-prices')
+    bundle=load_workbench_observations(ticker,st_api.session_state,
+        refresh_financials=bool(update_all or update_financial),refresh_prices=bool(update_all or update_prices),
+        expected_cik=expected_cik)
+    financial,prices,projection=bundle['financial'],bundle['prices'],bundle['projection']
+    header.markdown(workbench_header_html(ticker,projection,saved_scope=candidate is None,
+        title=candidate.get('title') if candidate else None,saved_receipt_only=saved_receipt_only,
+        compact=valuation_first),unsafe_allow_html=True)
+    with body:
         st_api.markdown('## '+dict(SECTIONS)[selected])
         if selected=='overview':
             st_api.markdown(workbench_facts_html(projection),unsafe_allow_html=True)
@@ -119,8 +127,6 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
             peer_view=None
             if selected=='valuation':
                 requested=st_api.button('更新在线同行估值',key=f'company-refresh-peers:{ticker}:{scope}')
-                with st_api.expander('上市来源暂不可用时', expanded=False):
-                    st_api.caption('可沿用本会话 24 小时内完整的上市观察，保留原始日期。财报和价格仍分别核查。')
                 if requested:
                     with st_api.spinner('正在核对公司、年度收益和同行来源…'):
                         peer_view=get_online_peer_valuation(ticker,st_api.session_state,refresh_requested=True,expected_cik=expected_cik)
@@ -130,6 +136,8 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                     st_api.markdown(online_peer_valuation_html(peer_view),unsafe_allow_html=True)
                 else:
                     st_api.caption('查询已披露年度 P/E 与行业参照。')
+                with st_api.expander('上市来源暂不可用时', expanded=False):
+                    st_api.caption('可沿用本会话 24 小时内完整的上市观察，保留原始日期。财报和价格仍分别核查。')
             if saved_available and candidate is None:
                 if selected=='valuation':
                     with st_api.expander('已保存的估值与情景分析',expanded=False):

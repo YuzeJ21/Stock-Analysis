@@ -87,20 +87,22 @@ STYLE='''<style>
 </style>'''
 
 
-def workbench_header_html(ticker, projection, saved_scope, title=None,saved_receipt_only=False):
+def workbench_header_html(ticker, projection, saved_scope, title=None,saved_receipt_only=False,*,compact=False):
     p=projection
     scope='已保存研究；在线查询结果独立展示' if saved_scope else '在线公司候选；与已保存研究的身份仍需核对'
     if saved_receipt_only:scope='已保存 SEC 证据；当前上市身份与本地模型资格仍需独立核对'
     scope+=' · Research-only'
+    heading=(STYLE+'<section class="company-workbench-primary-brief company-integrated-header" aria-label="Company Brief">'
+            '<h1>'+escape(ticker)+' Company Brief</h1>'
+            +('<p>'+escape(str(title)[:140])+'</p>' if title else '')+'<p>'+escape(scope)+'</p>')
     status=(f"可阅读财报：{p['annual_count']} 个年度 / {p['quarter_count']} 个季度 · 价格：{p['price_count']} 个日线观察"
             if any(p[k] for k in ('annual_count','quarter_count','price_count')) else '财报与价格尚未查询')
     if p.get('attempted') and not any(p[k] for k in ('annual_count','quarter_count','price_count')):
         status='暂无通过核对的财报趋势或日线历史；请在数据来源查看原因，或明确重试更新'
     if p['identity_conflict']:status='来源公司身份冲突；数值暂不展示'
-    return (STYLE+'<section class="company-workbench-primary-brief company-integrated-header" aria-label="Company Brief">'
-            '<h1>'+escape(ticker)+' Company Brief</h1>'
-            +('<p>'+escape(str(title)[:140])+'</p>' if title else '')
-            +'<p>'+escape(scope)+'</p><p>'+escape(status)+'</p>'
+    if compact:
+        return heading+'<p>'+escape(status)+'</p></section>'
+    return (heading+'<p>'+escape(status)+'</p>'
             '<p class="company-scope-note">模型资格独立：在线事实不更新已保存数据、已保存估值输入或研究记录。</p>'
             '<a class="public-primary-action" href="#company-research-sections" target="_self">选择研究分区</a></section>')
 

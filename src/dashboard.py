@@ -29,6 +29,15 @@ from src.online_company_search import (
     ONLINE_COMPANY_SESSION_KEY,
     online_company_candidate_for_route,
     online_company_results_html,
+    online_company_route_indices,
+    online_company_widget_token,
+)
+from src.research_session_navigation import (
+    MonitorOrigin,
+    RESEARCH_NAVIGATION_BRIDGE,
+    open_research_company,
+    open_research_monitor,
+    research_monitor_origin,
 )
 from src.providers.sec_company_discovery import search_sec_company_candidates
 from src.online_company_analysis import build_online_company_analysis, online_company_analysis_html
@@ -7628,13 +7637,32 @@ def render_public_workflow_skip_link(
     st_api.markdown(public_workflow_skip_link_html(skip_href), unsafe_allow_html=True)
 
 
-def render_research_workflow_navigation(selected_page: str, *, ticker: str = "") -> None:
+def render_research_workflow_navigation(
+    selected_page: str, *, ticker: str = "", profile_key: str = "", return_origin: MonitorOrigin | None = None,
+) -> None:
     if selected_page not in {*RESEARCH_PATH_PAGE_TITLES, "Data Health", PROOF_HISTORY_PATH_TITLE}:
         return
-    st.markdown(
-        research_workflow_navigation_html(active_page=selected_page, ticker=ticker),
-        unsafe_allow_html=True,
-    )
+    session_route = ""
+    workbench_href = ""
+    if selected_page == "Company Workbench" and ticker and profile_key:
+        session_route = "monitor"
+    elif selected_page == "Monitor" and return_origin:
+        session_route = "workbench"
+        workbench_href = research_monitor_return_link(
+            ticker, online=return_origin.online_cik is not None, section=return_origin.section,
+        )["href"]
+    if session_route:
+        st.html(RESEARCH_NAVIGATION_BRIDGE, unsafe_allow_javascript=True)
+    if session_route == "monitor":
+        st.button("Open Monitor in this session", key="research-nav-monitor",
+                  on_click=open_research_monitor, args=(st, ticker, profile_key))
+    elif return_origin:
+        st.button("Return to the company in this session", key="research-nav-workbench",
+                  on_click=open_research_company, args=(st, ticker),
+                  kwargs={"online": return_origin.online_cik is not None, "section": return_origin.section})
+    st.markdown(research_workflow_navigation_html(
+        active_page=selected_page, ticker=ticker, session_route=session_route, workbench_href=workbench_href,
+    ), unsafe_allow_html=True)
 
 
 def public_workflow_skip_target_html() -> str:
@@ -31301,8 +31329,17 @@ def render_online_company_search(*, saved_tickers: Iterable[str] = ()) -> None:
             user_agent=os.getenv("SEC_USER_AGENT"),
         )
     result = st.session_state.get(ONLINE_COMPANY_SESSION_KEY)
+    session_routes = online_company_route_indices(result)
+    if session_routes:
+        st.html(RESEARCH_NAVIGATION_BRIDGE, unsafe_allow_javascript=True)
+        with st.container(key="research-online-navigation"):
+            for ticker, cik in session_routes.values():
+                token = online_company_widget_token(ticker, cik)
+                st.button(f"Open {ticker} in this session", key=f"research-nav-company-{token}",
+                          on_click=open_research_company, args=(st, ticker),
+                          kwargs={"online": True, "expected_cik": cik})
     st.markdown(
-        online_company_results_html(result, saved_tickers=set(saved_tickers)),
+        online_company_results_html(result, saved_tickers=set(saved_tickers), session_routes=session_routes),
         unsafe_allow_html=True,
     )
 
@@ -37856,6 +37893,7 @@ def render_research_monitor(
     observation_recency: ObservationRecencySet | None = None,
     *,
     return_ticker: str = "",
+    return_origin: MonitorOrigin | None = None,
 ) -> None:
     render_research_workspace_header(
         "Monitor",
@@ -37908,14 +37946,19 @@ def render_research_monitor(
     )
     if return_ticker:
         return_link = research_monitor_return_link(return_ticker)
-        st.link_button(return_link["label"], return_link["href"])
+        if return_origin:
+            st.button(return_link["label"], key="monitor-return-to-workbench",
+                      on_click=open_research_company, args=(st, return_ticker),
+                      kwargs={"online": return_origin.online_cik is not None, "section": return_origin.section})
+        else:
+            st.link_button(return_link["label"], return_link["href"], key="monitor-return-to-workbench")
         st.caption(
             "Monitor remains focused-cohort-wide; "
             f"{str(return_ticker).strip().upper()} is only the return destination and "
             "does not filter these follow-up items."
         )
     from src.sec_research_review_ui import render_review_monitor
-    render_review_monitor(st,profile_key=context.profile_key)
+    render_review_monitor(st, profile_key=context.profile_key, return_origin=return_origin)
     st.markdown("## Follow-up Queue")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
     if queue.has_saved_follow_up or queue.has_freshness_attention:
@@ -38282,6 +38325,7 @@ def render_personal_research_route(
     ticker: str,
     review_date,
     return_ticker: str = "",
+    return_origin: MonitorOrigin | None = None,
 ) -> bool:
     """Load one local observation result and render one primary research route."""
     if selected_page not in RESEARCH_PATH_PAGE_TITLES:
@@ -38355,6 +38399,7 @@ def render_personal_research_route(
                 cohort,
                 observation_recency,
                 return_ticker=return_ticker,
+                return_origin=return_origin,
             )
         else:
             render_research_monitor(state, context, weekly_summary, cohort, observation_recency)
@@ -38407,18 +38452,23 @@ def main() -> None:
     catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
     monitor_return_ticker = ""
+    monitor_origin = None
     if research_mode and initial_page == "Monitor":
-        registered_tickers = (
-            provider.list_local_tickers()
-            if hasattr(provider, "list_local_tickers")
-            else ()
-        )
-        monitor_return_ticker = validated_research_return_ticker(
-            st.query_params.get("return_ticker"),
-            registered_tickers,
-        )
+        requested = str(st.query_params.get("return_ticker") or "").strip().upper()
+        profile_key = getattr(profile_context, "profile_key", "")
+        monitor_origin = research_monitor_origin(getattr(st, "session_state", {}), profile_key, requested)
+        if monitor_origin and monitor_origin.online_cik is not None:
+            monitor_return_ticker = monitor_origin.ticker
+        else:
+            registered_tickers = provider.list_local_tickers() if hasattr(provider, "list_local_tickers") else ()
+            monitor_return_ticker = validated_research_return_ticker(requested, registered_tickers)
+            if requested and not monitor_return_ticker:
+                from src.sec_research_review_ui import saved_review_route_available
+                if saved_review_route_available(requested, profile_key):
+                    monitor_return_ticker = requested
         if "return_ticker" in st.query_params and not monitor_return_ticker:
             del st.query_params["return_ticker"]
+            monitor_origin = None
     bootstrap_placeholder = (
         render_public_route_bootstrap(initial_page, initial_mode)
         if initial_mode == PUBLIC_DEMO_MODE
@@ -38579,7 +38629,10 @@ def main() -> None:
     else:
         if research_mode:
             navigation_ticker = monitor_return_ticker if selected_page == "Monitor" else ticker
-            render_research_workflow_navigation(selected_page, ticker=navigation_ticker)
+            render_research_workflow_navigation(
+                selected_page, ticker=navigation_ticker,
+                profile_key=getattr(profile_context, "profile_key", ""), return_origin=monitor_origin,
+            )
             render_public_workflow_skip_target()
             render_research_workspace_styles()
         else:
@@ -38622,6 +38675,7 @@ def main() -> None:
         ticker=ticker,
         review_date=pd.Timestamp.now(tz="UTC").date(),
         return_ticker=monitor_return_ticker,
+        return_origin=monitor_origin,
     ):
         return
     if content_page == "Home":

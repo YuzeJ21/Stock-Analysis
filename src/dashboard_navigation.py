@@ -220,6 +220,12 @@ def canonical_workspace_query(
     return canonical
 
 
+def company_workbench_query(ticker: str, *, online: bool = False, section: str = "") -> dict[str, str]:
+    """Build a company route without carrying unrelated query parameters."""
+    query = {"ticker": ticker.strip().upper(), "online" if online else "open": "1", "section": section}
+    return canonical_workspace_query(RESEARCH_MODE, "Company Workbench", query)
+
+
 def resolve_workspace_route(
     raw_mode: object,
     raw_page: object,

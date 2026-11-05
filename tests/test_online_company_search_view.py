@@ -11,6 +11,7 @@ from src.online_company_search import (
     ONLINE_COMPANY_SESSION_KEY,
     online_company_candidate_for_route,
     online_company_results_html,
+    online_company_route_indices,
 )
 
 
@@ -51,6 +52,13 @@ def test_ambiguous_sec_ticker_is_visible_but_has_no_workbench_link():
     assert rendered.count("Ambiguous SEC association") == 2
     assert "page=company-workbench" not in rendered
     assert online_company_candidate_for_route("DUP", {ONLINE_COMPANY_SESSION_KEY: result}) is None
+
+
+def test_same_search_row_slot_has_a_distinct_widget_key_for_each_issuer():
+    first = _result()
+    second = _result(candidates=[{**first["candidates"][0], "cik": "0000005678"}])
+
+    assert online_company_route_indices(first)[0] != online_company_route_indices(second)[0]
 
 
 def test_online_route_requires_valid_session_candidate_and_never_guesses_identity():
@@ -95,6 +103,7 @@ def test_online_search_runs_only_on_explicit_submit_and_survives_zero_saved_rows
 
     calls: list[str] = []
     rendered: list[str] = []
+    actions: list[tuple] = []
     session: dict[str, object] = {}
     submitted = [False, True]
     monkeypatch.setattr(
@@ -106,6 +115,9 @@ def test_online_search_runs_only_on_explicit_submit_and_survives_zero_saved_rows
             text_input=lambda *_args, **_kwargs: "FICT",
             form_submit_button=lambda *_args, **_kwargs: submitted.pop(0),
             markdown=lambda value, **kwargs: rendered.append(str(value)),
+            html=lambda *_args, **_kwargs: None,
+            container=lambda **kwargs: Form(),
+            button=lambda label, **kwargs: actions.append((label, kwargs["args"][-1], kwargs["kwargs"])),
         ),
     )
     monkeypatch.setattr(
@@ -120,6 +132,35 @@ def test_online_search_runs_only_on_explicit_submit_and_survives_zero_saved_rows
     assert calls == ["FICT"]
     assert session[ONLINE_COMPANY_SESSION_KEY]["status"] == "ready"
     assert any("page=company-workbench&amp;ticker=FICT&amp;online=1" in value for value in rendered)
+    assert actions == [("Open FICT in this session", "FICT", {"online": True, "expected_cik": "0000001234"})]
+
+
+def test_monitor_origin_requires_matching_profile_and_sec_identity():
+    from src.research_session_navigation import open_research_monitor, research_monitor_origin
+
+    class Query(dict):
+        def from_dict(self, values):
+            self.clear()
+            self.update(values)
+
+    st = SimpleNamespace(
+        query_params=Query(mode="research", page="company-workbench", ticker="FICT", online="1", section="valuation"),
+        session_state={ONLINE_COMPANY_SESSION_KEY: _result()},
+    )
+    open_research_monitor(st, "FICT", "demo")
+
+    assert st.query_params == {"mode": "research", "page": "monitor", "return_ticker": "FICT"}
+    origin = research_monitor_origin(st.session_state, "demo", "FICT")
+    assert origin.section == "valuation" and origin.online_cik == "0000001234"
+    assert research_monitor_origin(st.session_state, "other-profile", "FICT") is None
+    assert research_monitor_origin(st.session_state, "demo", "OTHER") is None
+    st.session_state[ONLINE_COMPANY_SESSION_KEY]["candidates"][0]["cik"] = "0000001235"
+    assert research_monitor_origin(st.session_state, "demo", "FICT") is None
+
+    st.query_params.from_dict({"mode": "research", "page": "company-workbench", "ticker": "FICT", "online": "1"})
+    st.session_state.clear()
+    open_research_monitor(st, "FICT", "demo")
+    assert st.query_params == {"mode": "research", "page": "monitor"}
 
 
 def test_online_workbench_route_retains_explicit_online_flag():

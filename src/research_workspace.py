@@ -6,7 +6,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 import html
 import pandas as pd
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from src.company_workbench_cash_generation_preview import (
     CompanyWorkbenchCashGenerationPreview,
@@ -23,6 +23,7 @@ from src.dashboard_visual_system import (
     legacy_research_accessibility_css,
     page_title_html,
 )
+from src.dashboard_navigation import company_workbench_query
 from src.focused_cohort_coverage import FocusedCohortCoverage
 from src.focused_research_cohort import FocusedCohort
 from src.quarterly_business_trend import QuarterlyTrendPacket
@@ -1516,19 +1517,20 @@ def validated_research_return_ticker(
     return requested if requested and requested in registered else ""
 
 
-def research_monitor_return_link(ticker: str) -> dict[str, str]:
+def research_monitor_return_link(ticker: str, *, online: bool = False, section: str = "") -> dict[str, str]:
     """Build the selected-company return action without changing Monitor scope."""
 
-    symbol = _quoted_ticker(ticker)
     label_ticker = str(ticker or "").strip().upper()
     return {
         "label": f"Return to {label_ticker} Company Workbench",
-        "href": f"?mode=research&page=company-workbench&ticker={symbol}&open=1",
+        "href": "?" + urlencode(company_workbench_query(label_ticker, online=online, section=section)),
         "purpose": "Return to the selected company; this context does not filter Monitor.",
     }
 
 
-def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> str:
+def research_workflow_navigation_html(
+    *, active_page: str, ticker: str = "", session_route: str = "", workbench_href: str = "",
+) -> str:
     """Render the deterministic Personal Research route sequence."""
 
     active_slug = str(active_page or "").strip().lower().replace(" ", "-")
@@ -1541,7 +1543,7 @@ def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> 
         (
             "Company Workbench",
             "company-workbench",
-            f"?mode=research&page=company-workbench&ticker={symbol}&open=1"
+            workbench_href or f"?mode=research&page=company-workbench&ticker={symbol}&open=1"
             if symbol
             else "",
         )
@@ -1564,9 +1566,12 @@ def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> 
             if active_slug == slug and active_slug not in {"data-health", "proof-history"}
             else ""
         )
+        session_action = f" data-research-session-route='{session_route}'" if (
+            (slug, session_route) in {("monitor", "monitor"), ("company-workbench", "workbench")}
+        ) else ""
         links.append(
             "<a class='research-workflow-link' "
-            f"href='{html.escape(href, quote=True)}' target='_self'{current}>"
+            f"href='{html.escape(href, quote=True)}' target='_self'{current}{session_action}>"
             f"{html.escape(label)}</a>"
         )
     evidence_label = {

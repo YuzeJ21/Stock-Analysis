@@ -23,6 +23,36 @@ def test_online_answer_leads_with_metric_qualified_difference_and_actual_source_
     assert 'SEC 收益' in html and 'https://data.sec.gov/' in html and view==before
 
 
+@pytest.mark.parametrize(
+    'loss_row,headline,price_date,count,blocker',
+    [
+        (None,'年度 P/E 高于同行参照 20.0%','2026-10-30','3 家',None),
+        (1,'暂不判断相对贵便宜','2026-10-30','2 家','至少 3 家'),
+        (0,'暂不判断相对贵便宜','未取得','未核查','为零、负值或无效'),
+    ],
+)
+def test_valuation_answer_and_key_facts_precede_source_disclosures(loss_row,headline,price_date,count,blocker):
+    from src.online_peer_valuation_ui import online_peer_valuation_html
+    from test_online_peer_sources import get
+
+    evidence=collection()
+    if loss_row is not None:
+        facts=evidence['issuers'][loss_row]['facts']['payload']['facts']['us-gaap']
+        facts['EarningsPerShareDiluted']['units']['USD/shares'][0]['val']=-1
+    deps,_=source_dependencies(evidence)
+    html=online_peer_valuation_html(get({},refresh=True,dependencies=deps))
+    first_view=html.split('<details>',1)[0]
+    assert first_view.index('<h3>'+headline+'</h3>') < first_view.index('<dt>价格日期</dt><dd>'+price_date+'</dd>')
+    assert '<dt>通过筛选的同行</dt><dd>'+count+'</dd>' in first_view
+    if blocker:
+        assert blocker in first_view and '20.0%' not in html
+    assert '本次来源查询' not in first_view and '上市观察' not in first_view
+    assert '同日收盘价 ÷ 已披露年度稀释 EPS' not in first_view
+    disclosure=html.split('查看实际财年、价格与来源',1)[1]
+    assert '本次来源查询' in disclosure and '上市观察' in disclosure
+    assert 'https://www.nasdaqtrader.com/' in disclosure
+
+
 @pytest.mark.parametrize('price,phrase',[(20,'低于同行参照 20.0%'),(25,'等于同行参照中位数')])
 def test_lower_and_equal_comparisons_use_plain_qualified_language(price,phrase):
     from src.online_peer_valuation_ui import online_peer_valuation_html

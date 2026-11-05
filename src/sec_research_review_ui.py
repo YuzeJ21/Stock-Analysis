@@ -9,6 +9,7 @@ from src.sec_research_review import (
     review_queue, _ticker,
 )
 from src.company_sec_online_preview import _utc_timestamp
+from src.research_session_navigation import open_research_company, open_research_monitor
 
 PROJECT_ROOT=Path(__file__).resolve().parent.parent
 
@@ -108,14 +109,16 @@ def _check_candidate(st, candidate, scope):
 
 
 CONTROL_STYLE='''<style>
-.st-key-sec-review-panel [data-testid="stDownloadButton"] button,
-.st-key-sec-review-panel [data-testid="stDownloadButton"] button p,
-.st-key-sec-review-panel [data-testid="stDownloadButton"] button span,
-.sec-review-link {background:#155e4b!important;color:#fff!important;}
-.st-key-sec-review-panel [data-testid="stDownloadButton"] button {min-height:44px!important;}
-.sec-review-link {display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;
-box-sizing:border-box;border-radius:7px;text-decoration:none!important;white-space:normal;}
-.sec-review-link:focus-visible {outline:3px solid #b45309;outline-offset:3px;}
+:is(.st-key-sec-review-panel [data-testid="stDownloadButton"],
+    .st-key-sec-review-open-monitor,.st-key-sec-review-monitor-return) button {
+    background:#155e4b!important;color:#fff!important;min-height:44px!important;}
+:is(.st-key-sec-review-panel [data-testid="stDownloadButton"],
+    .st-key-sec-review-open-monitor,.st-key-sec-review-monitor-return) button :is(p,span) {color:#fff!important;}
+:is(.st-key-sec-review-open-monitor,.st-key-sec-review-monitor-return) button:focus-visible {
+    outline:3px solid #b45309;outline-offset:3px;}
+@media (forced-colors:active) {
+    :is(.st-key-sec-review-open-monitor,.st-key-sec-review-monitor-return) button:focus-visible {outline-color:Highlight;}
+}
 </style>'''
 
 
@@ -169,7 +172,8 @@ def _render_company_review(st,ticker,view,*,profile_key):
     st.caption('当前显示来自已保存证据，没有重新查询网络。保存时间与 SEC 观察时间分开记录；新的保存时间不表示财报变化。')
     st.download_button('下载当前证据包',data=encode_review(current),file_name=ticker+'-SEC-'+current['receipt_id'][:12]+'.json',
         mime='application/json',key='sec-review-download:'+scope)
-    st.markdown('<a class="sec-review-link" href="?mode=research&amp;page=monitor&amp;return_ticker='+ticker+'" target="_self">在 Monitor 查看待核查事项</a>',unsafe_allow_html=True)
+    st.button('在 Monitor 查看待核查事项',key='sec-review-open-monitor',
+        on_click=open_research_monitor,args=(st,ticker,profile_key))
     with st.expander('证据来源与字段口径',expanded=False):
         st.write('报告期截至 '+current['period_end']+' · '+current['form'])
         st.write('申报发布日期 '+current['filing_date']+'（日期精度）')
@@ -190,7 +194,7 @@ def _render_company_review(st,ticker,view,*,profile_key):
             st.caption(row['taxonomy']+':'+row['concept']+' · '+row['period_start']+' 至 '+row['period_end'])
 
 
-def render_review_monitor(st,*,profile_key):
+def render_review_monitor(st,*,profile_key,return_origin=None):
     if _mode_reason('research'):return
     try:queue=review_queue(PROJECT_ROOT,profile_key)
     except (ValueError,OSError):
@@ -223,4 +227,10 @@ def render_review_monitor(st,*,profile_key):
     elif result['gaps']:st.caption('下一步：按字段缺失原因核对来源或口径；相同输入未变化，不表示缺口已补齐。')
     elif result['changes'] or result.get('review_changes'):st.caption('下一步：回到公司页检查前后两份证据及变化来源。')
     else:st.caption('当前保存范围无需因重复观察重开核查；出现新申报或新证据时再复核。')
-    st.markdown(CONTROL_STYLE+'<a class="sec-review-link" href="?mode=research&amp;page=company-workbench&amp;ticker='+selected+'&amp;section=notes" target="_self">返回 '+selected+' 证据复核</a>',unsafe_allow_html=True)
+    st.markdown(CONTROL_STYLE,unsafe_allow_html=True)
+    with st.container(key='sec-review-monitor-return'):
+        st.button('返回 '+selected+' 证据复核',key='sec-review-return:'+selected,
+            on_click=open_research_company,args=(st,selected),kwargs={
+                'online':bool(return_origin and return_origin.ticker==selected and return_origin.online_cik),
+                'section':'notes',
+            })

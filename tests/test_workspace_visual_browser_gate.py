@@ -10,6 +10,36 @@ from pathlib import Path
 import pytest
 
 
+def test_monitor_return_label_has_readable_contrast_on_a_dark_phone():
+    from playwright.sync_api import sync_playwright
+    from src.research_accessibility_browser_gate import _captured_local_demo_server
+    from src.workspace_visual_browser_gate import _contrast_ratio, find_chrome_executable
+
+    root = Path(__file__).resolve().parents[1]
+    with _captured_local_demo_server(root, timeout_seconds=45) as server:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(
+                executable_path=find_chrome_executable(), headless=True
+            )
+            page = browser.new_page(viewport={"width": 390, "height": 844}, color_scheme="dark")
+            page.goto(
+                server.base_url + "/?mode=research&page=monitor&return_ticker=AVGO",
+                wait_until="domcontentloaded",
+            )
+            label = page.get_by_text("Return to AVGO Company Workbench", exact=True)
+            label.wait_for(state="visible", timeout=45_000)
+            foreground, background = label.evaluate(
+                """label => [
+                    getComputedStyle(label).color,
+                    getComputedStyle(label.closest('button, a')).backgroundColor,
+                ]"""
+            )
+            contrast = _contrast_ratio(foreground, background)
+            assert contrast is not None and contrast >= 4.5, (
+                f"Return action contrast {contrast!r} for {foreground} on {background}"
+            )
+
+
 def test_company_workbench_sec_component_proof_requires_click_and_reflows_at_phone_size(
     tmp_path, monkeypatch
 ):

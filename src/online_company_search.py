@@ -79,8 +79,28 @@ def online_company_candidate_for_route(
     }
 
 
+def online_company_route_indices(result: object) -> dict[int, tuple[str, str]]:
+    """Only provide same-session actions for unambiguous association rows."""
+    trusted = _trusted_result(result)
+    if trusted is None:
+        return {}
+    state = {ONLINE_COMPANY_SESSION_KEY: trusted}
+    routes = {}
+    for index, row in enumerate(trusted["candidates"]):
+        ticker = row.get("ticker") if isinstance(row, Mapping) else None
+        candidate = online_company_candidate_for_route(ticker, state) if isinstance(ticker, str) else None
+        if candidate:
+            routes[index] = candidate["ticker"], candidate["cik"]
+    return routes
+
+
+def online_company_widget_token(ticker: str, cik: str) -> str:
+    return f"{ticker.encode('ascii').hex()}-{cik}"
+
+
 def online_company_results_html(
-    result: Mapping[str, Any] | None, *, saved_tickers: set[str] | tuple[str, ...]
+    result: Mapping[str, Any] | None, *, saved_tickers: set[str] | tuple[str, ...],
+    session_routes: Mapping[int, tuple[str, str]] | None = None,
 ) -> str:
     if result is None:
         return (
@@ -105,7 +125,7 @@ def online_company_results_html(
         )
     saved = {str(value).strip().upper() for value in saved_tickers}
     rows: list[str] = []
-    for candidate in trusted["candidates"]:
+    for index, candidate in enumerate(trusted["candidates"]):
         if not isinstance(candidate, Mapping):
             continue
         ticker = candidate.get("ticker")
@@ -134,7 +154,12 @@ def online_company_results_html(
             href = html.escape(
                 f"?mode=research&page=company-workbench&ticker={ticker}&online=1", quote=True
             )
-            action = f"<a class='selector-action-link' href='{href}' target='_self'>Open company evidence</a>"
+            token = online_company_widget_token(ticker, cik)
+            session_action = (
+                f" data-research-session-route='online-company' data-research-company-token='{token}'"
+                if session_routes and session_routes.get(index) == (ticker, cik) else ""
+            )
+            action = f"<a class='selector-action-link' href='{href}' target='_self'{session_action}>Open company evidence</a>"
         rows.append(
             "<div class='selector-result-row online-company-result'>"
             f"<div class='selector-result-identity'>{identity}</div>"

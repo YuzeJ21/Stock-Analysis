@@ -187,7 +187,7 @@ def test_main_validates_advanced_evidence_ticker_before_research_navigation(
     monkeypatch.setattr(
         dashboard,
         "render_research_workflow_navigation",
-        lambda page, *, ticker: navigation_calls.append((page, ticker)),
+        lambda page, *, ticker, **kwargs: navigation_calls.append((page, ticker)),
     )
     monkeypatch.setattr(dashboard, "render_public_workflow_skip_target", lambda: None)
     monkeypatch.setattr(dashboard, "render_research_workspace_styles", lambda: None)
@@ -265,7 +265,7 @@ def test_main_revalidates_advanced_evidence_ticker_after_operator_mode_switch(
     monkeypatch.setattr(
         dashboard,
         "render_research_workflow_navigation",
-        lambda page, *, ticker: navigation_calls.append((page, ticker)),
+        lambda page, *, ticker, **kwargs: navigation_calls.append((page, ticker)),
     )
     monkeypatch.setattr(dashboard, "render_public_workflow_skip_target", lambda: None)
     monkeypatch.setattr(dashboard, "render_research_workspace_styles", lambda: None)
@@ -406,7 +406,8 @@ def test_research_main_shell_keeps_one_workflow_nav_without_operator_readiness_c
     operator_shell = shell[operator_else:]
 
     assert "navigation_ticker = monitor_return_ticker if selected_page == \"Monitor\" else ticker" in research_shell
-    assert "render_research_workflow_navigation(selected_page, ticker=navigation_ticker)" in research_shell
+    assert research_shell.count("render_research_workflow_navigation(") == 1
+    assert "selected_page, ticker=navigation_ticker" in research_shell
     assert "render_public_workflow_skip_target()" in research_shell
     assert "render_research_workspace_styles()" in research_shell
     assert "render_app_header(" not in research_shell

@@ -28,7 +28,11 @@ def test_amd_save_twice_replay_and_monitor_company_selection(tmp_path,monkeypatc
     assert '已保存 2 家公司' in '\n'.join(c.value for c in at.caption)
     at.selectbox(key='sec-review-monitor-company:test').select('DUK').run()
     text='\n'.join(m.value for m in at.markdown)
-    assert 'DUK' in text and 'ticker=DUK' in text and '等待比较基线' in text
+    assert 'DUK' in text and '等待比较基线' in text
+    return_action = at.button(key='sec-review-return:DUK')
+    assert return_action.label == '返回 DUK 证据复核'
+    return_action.click().run()
+    assert at.query_params['ticker'] == ['DUK'] and at.query_params['section'] == ['notes']
     assert not (tmp_path/'data').exists()
     fresh=AppTest.from_function(app);fresh.session_state['test_ticker']='AMD';fresh.session_state['test_view']={};fresh.run()
     assert not fresh.exception and any('未变化' in s.value for s in fresh.success)
