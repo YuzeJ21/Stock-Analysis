@@ -10,6 +10,8 @@ SEC_OCTOBER_FORM_1 = 'https://www.sec.gov/Archives/edgar/vprr/2600/26000457.pdf'
 NASDAQ_LAUNCH = 'https://ir.nasdaq.com/news-releases/news-release-details/nasdaq-texas-launches-inaugural-dual-listings'
 NASDAQ_VOLUME = 'https://classic.nasdaqtrader.com/trader.aspx?id=marketshare'
 NASDAQ_VICTORY_NOTICE = 'https://www.nasdaqtrader.com/TraderNews.aspx?id=ETP2026-175'
+NASDAQ_ARCHIVE = 'https://www.nasdaqtrader.com/Trader.aspx?id=archiveheadlines&cat_id='
+NASDAQ_SYMBOL_DEFINITIONS = 'https://www.nasdaqtrader.com/Trader.aspx?id=SymbolDirDefs'
 REVIEW_DATE = '2026-11-04'
 
 
@@ -103,16 +105,31 @@ Reviewed {REVIEW_DATE} · Nasdaq Texas, LLC is a separate venue from TXSE and NY
 
 - **Operations after conversion confirmed.** Nasdaq BX became Nasdaq Texas on 2026-02-13. SEC approved new listing standards on 2026-02-27, and Nasdaq announced the dual-listing launch on 2026-03-05. Nasdaq Trader reports positive NTX matched volume for September 2026. [SEC conversion filing]({SEC_CONVERSION}) · [SEC order 34-104907]({SEC_STANDARDS}) · [Nasdaq launch]({NASDAQ_LAUNCH}) · [Nasdaq matched volume]({NASDAQ_VOLUME})
 - **{stocks + funds} securities with dated dual-listing evidence.** {stocks} stock classes appear on both venues in issuer covers. {funds} ETF identities match exchange certifications and published effective dates. These counts cover the reviewed records.
+- **Admission follow-up · 0 of 3 independently confirmed.** BWIN, CSTL and NUTX remain outside the reviewed count. The exchange-approved share classes and the available follow-up evidence are shown below.
 - **Full current roster remains unverified.** The September SEC notice gives a Q2 2027 primary-listing target, subject to a Nasdaq announcement. The review found no primary listing to confirm. Historical continuity and individual first executions also remain open. [SEC primary-listing notice]({SEC_PRIMARY_TARGET})
 """
 
 
 def nasdaq_texas_detail_markdown() -> str:
+    follow_up = f"""**Admission follow-up · Actual admission unconfirmed**
+
+The public Nasdaq Trader archives reviewed through {REVIEW_DATE} yielded no listing-effective notice for these three securities. The SEC follow-up was checked through the same date. [Equity Trader]({NASDAQ_ARCHIVE}2) · [Regulatory]({NASDAQ_ARCHIVE}6) · [Corporate Action]({NASDAQ_ARCHIVE}105) · [ETP]({NASDAQ_ARCHIVE}112)
+
+- **BWIN** · Class A common stock · Planned 2026-05-11. All seven subsequent SEC covers name only Nasdaq Global Select Market for this class, including the 2026-10-27 Form 8-K. Nasdaq Texas approval was subject to official notice of issuance. Admission remains open.
+  [Form 8-A]({SEC_ARCHIVE}1781755/000178175526000037/baldwin202657form8-a.htm) · [SEC exchange certification]({SEC_ARCHIVE}1781755/000087679626000012/BWIN_8A_Cert_1781755.pdf) · [Latest Form 8-K]({SEC_ARCHIVE}1781755/000178175526000062/bwin-20261027.htm)
+- **CSTL** · Common stock · Issuer-reported start 2026-08-17. The exchange approved the class subject to official notice of issuance. The reviewed SEC filings yielded no later SEC cover to corroborate Castle's reported start.
+  [Form 8-A]({SEC_ARCHIVE}1447362/000162828026056924/a8-axnasdaqtexaslistingxau.htm) · [SEC exchange certification]({SEC_ARCHIVE}1447362/000087679626000017/8A_CERT_CSTL_0001447362.pdf) · [Castle statement](https://www.linkedin.com/posts/castle-biosciences-inc-_castle-is-now-dually-listed-on-nasdaq-texas-activity-7497672747863560192-yI0J)
+- **NUTX** · Common stock · Planned 2026-09-23. The SEC issuer index shows no submissions from that date through {REVIEW_DATE}. The 2026-09-22 exchange certification records approval.
+  [Form 8-A]({SEC_ARCHIVE}1479681/000162828026063013/nutex_healthxformx8xa12b.htm) · [SEC exchange certification]({SEC_ARCHIVE}1479681/000087679626000018/NUTX_8A_Cert_0001479681.pdf) · [SEC issuer index](https://www.sec.gov/edgar/browse/?CIK=1479681)
+
+**Current roster**
+
+The 2026-11-04 public symbol directories have no Nasdaq Texas dual-listing field. Nasdaq Trader separately documents NTX trading-system changes. The venue's public pages and five June–October SEC Form 1 amendments did not yield a complete dated roster. [Nasdaq Texas](https://www.nasdaq.com/nasdaq-texas) · [Directory definitions]({NASDAQ_SYMBOL_DEFINITIONS}) · [October Form 1 amendment]({SEC_OCTOBER_FORM_1})"""
     equity = '\n'.join(
         f'- **{row.symbol}** · {row.security} · [10-Q, {row.filed}]({SEC_ARCHIVE + row.path})'
         for row in EQUITY_COVERS
     )
-    sections = [f'**Common stock · Dual registration as filed**\n\n{equity}']
+    sections = [follow_up, f'**Common stock · Dual registration as filed**\n\n{equity}']
     for group in FUND_COHORTS:
         members = '\n'.join(f'- **{symbol}** · {name}' for symbol, name in group.members)
         sections.append(
@@ -121,11 +138,4 @@ def nasdaq_texas_detail_markdown() -> str:
             f'[SEC exchange certificate]({SEC_ARCHIVE + group.certificate_path}) · '
             f'[{group.identity_label}]({group.identity_url})\n\n{members}'
         )
-    sections.append(f"""
-**Three additional identities · Actual admission unconfirmed**
-
-BWIN Class A common stock and CSTL and NUTX common stock have registration or approval evidence. The reviewed issuer covers and Nasdaq materials leave their actual admission open. [BWIN Form 8-A]({SEC_ARCHIVE}1781755/000178175526000037/baldwin202657form8-a.htm) · [CSTL Form 8-A]({SEC_ARCHIVE}1447362/000162828026056924/a8-axnasdaqtexaslistingxau.htm) · [NUTX Form 8-A]({SEC_ARCHIVE}1479681/000162828026063013/nutex_healthxformx8xa12b.htm)
-
-The June through October Form 1 amendments reviewed did not provide a complete dated listing roster. [October Form 1 amendment]({SEC_OCTOBER_FORM_1})
-""")
     return '\n\n'.join(sections)
