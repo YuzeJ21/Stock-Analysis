@@ -87,6 +87,17 @@ The review found no subsequent removal filing for the three classes. Baldwin's S
 
 The November 4 EDGAR submissions snapshots used for the bounded check had SHA-256 digests `b93e5ce8424fff120ce277e2a392409b73da7468b501e45badc1cbea13f43e3a` (BWIN), `92b4d16f85140a8e6025fefe43931086c3dec6d4669169941755b5e2e6555b37` (CSTL) and `fb00f41f3090686c2246ce90049ff3b0f8350f97c88ec14f4b00c0567d40bafa` (NUTX). The October 27 BWIN 8-K digest was `0a26b7c436b09d5bb6f93c7cce45194ddd1f1aed3c495d4182fd86f59f6b8609`. [BWIN index](https://data.sec.gov/submissions/CIK0001781755.json) · [CSTL index](https://data.sec.gov/submissions/CIK0001447362.json) · [NUTX index](https://data.sec.gov/submissions/CIK0001479681.json)
 
+#### Latest 10-Q cover check
+
+EDGAR was checked again on November 4 at 20:54 ET. Both latest 10-Qs cover the quarter ended June 30, 2026, and were filed before Nasdaq Texas approved the relevant common stock. Neither issuer index had a 10-Q or amendment filed on or after its planned start. The June covers leave both admissions unconfirmed and the reviewed count at 38.
+
+| Symbol | Filed | SEC accession | Exchange on the common-stock row |
+| --- | --- | --- | --- |
+| CSTL | 2026-07-30 | [0001628280-26-051052](https://www.sec.gov/Archives/edgar/data/1447362/000162828026051052/cstl-20260630.htm) | The Nasdaq Global Market |
+| NUTX | 2026-08-06 | [0001628280-26-054268](https://www.sec.gov/Archives/edgar/data/1479681/000162828026054268/nutx-20260630.htm) | The Nasdaq Stock Market LLC |
+
+Exact cover SHA-256 digests were `d491d4d724d78a46618f67da7bb466457a14410a6ff64997222b3f42f3e9adb4` (CSTL) and `85a7b5c415034b4c617a7e0a66f5e4373c7a6e9cc4d1ad589867bfb71b7a1d84` (NUTX). Castle announced its quarterly results for November 5 after market close. Nutex planned to file its 10-Q after the same close. [Castle schedule](https://ir.castlebiosciences.com/news-events/press-releases/detail/487/castle-biosciences-to-release-third-quarter-2026-financial-results-and-host-webcast-on-thursday-nov-5-2026) · [Nutex schedule](https://nutexhealth.com/nutex-health-schedules-2026-third-quarter-financial-results-release-and-conference-call/)
+
 ### Current roster gap
 
 The public Nasdaq Texas pages and five Form 1 amendments filed from June 29 through October 9 did not provide a complete dated listing roster. The public Nasdaq-listed and other-listed symbol files captured November 4 at 18:01 also lack a Nasdaq Texas dual-listing field. The three symbols appear as non-test Nasdaq issues in the former file. Nasdaq Trader documents NTX trading-system adds and deletes separately from the primary-listing market field. These sources leave current membership, continuous history and first executions by security open. The September 29 SEC notice describes a Q2 2027 primary-listing target that requires a separate Nasdaq operative announcement. The review found no primary listing to confirm. The evidence view records bounded findings and source links. Raw directories and filings were inspected without importing them into the project. [Nasdaq Texas](https://www.nasdaq.com/nasdaq-texas) · [Nasdaq Trader directory definitions](https://www.nasdaqtrader.com/Trader.aspx?id=SymbolDirDefs) · [SEC Form 1 index](https://www.sec.gov/cgi-bin/browse-edgar?CIK=0000876796&action=getcompany&type=1/a) · [October 9 amendment](https://www.sec.gov/Archives/edgar/vprr/2600/26000457.pdf) · [SEC primary-listing notice](https://www.sec.gov/files/rules/sro/nasdaqtx/2026/34-106520.pdf)

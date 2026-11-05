@@ -118,8 +118,10 @@ The public Nasdaq Trader archives reviewed through {REVIEW_DATE} yielded no list
 - **BWIN** · Class A common stock · Planned 2026-05-11. All seven subsequent SEC covers name only Nasdaq Global Select Market for this class, including the 2026-10-27 Form 8-K. Nasdaq Texas approval was subject to official notice of issuance. Admission remains open.
   [Form 8-A]({SEC_ARCHIVE}1781755/000178175526000037/baldwin202657form8-a.htm) · [SEC exchange certification]({SEC_ARCHIVE}1781755/000087679626000012/BWIN_8A_Cert_1781755.pdf) · [Latest Form 8-K]({SEC_ARCHIVE}1781755/000178175526000062/bwin-20261027.htm)
 - **CSTL** · Common stock · Issuer-reported start 2026-08-17. The exchange approved the class subject to official notice of issuance. The reviewed SEC filings yielded no later SEC cover to corroborate Castle's reported start.
+  [Latest 10-Q, filed 2026-07-30]({SEC_ARCHIVE}1447362/000162828026051052/cstl-20260630.htm) covers the period ended 2026-06-30 and lists only The Nasdaq Global Market for this class. The filing predates approval.
   [Form 8-A]({SEC_ARCHIVE}1447362/000162828026056924/a8-axnasdaqtexaslistingxau.htm) · [SEC exchange certification]({SEC_ARCHIVE}1447362/000087679626000017/8A_CERT_CSTL_0001447362.pdf) · [Castle statement](https://www.linkedin.com/posts/castle-biosciences-inc-_castle-is-now-dually-listed-on-nasdaq-texas-activity-7497672747863560192-yI0J)
 - **NUTX** · Common stock · Planned 2026-09-23. The SEC issuer index shows no submissions from that date through {REVIEW_DATE}. The 2026-09-22 exchange certification records approval.
+  [Latest 10-Q, filed 2026-08-06]({SEC_ARCHIVE}1479681/000162828026054268/nutx-20260630.htm) covers the period ended 2026-06-30 and lists only The Nasdaq Stock Market LLC for this class. The filing predates approval.
   [Form 8-A]({SEC_ARCHIVE}1479681/000162828026063013/nutex_healthxformx8xa12b.htm) · [SEC exchange certification]({SEC_ARCHIVE}1479681/000087679626000018/NUTX_8A_Cert_0001479681.pdf) · [SEC issuer index](https://www.sec.gov/edgar/browse/?CIK=1479681)
 
 **Current roster**

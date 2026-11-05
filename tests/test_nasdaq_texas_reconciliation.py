@@ -54,6 +54,12 @@ def test_candidate_followup_keeps_distinct_evidence_out_of_the_confirmed_count()
     assert '2026-09-23' in nutx and 'no submissions' in nutx
     assert all('Form 8-A' in row and 'exchange certification' in row for row in (bwin, cstl, nutx))
 
+    assert '[Latest 10-Q, filed 2026-07-30](https://www.sec.gov/Archives/edgar/data/1447362/000162828026051052/cstl-20260630.htm)' in cstl
+    assert 'The Nasdaq Global Market' in cstl
+    assert '[Latest 10-Q, filed 2026-08-06](https://www.sec.gov/Archives/edgar/data/1479681/000162828026054268/nutx-20260630.htm)' in nutx
+    assert 'The Nasdaq Stock Market LLC' in nutx
+    assert all('period ended 2026-06-30' in row and 'predates approval' in row for row in (cstl, nutx))
+
 
 def test_public_directory_presence_does_not_establish_nasdaq_texas_roster_membership():
     detail = nasdaq_texas_detail_markdown()
