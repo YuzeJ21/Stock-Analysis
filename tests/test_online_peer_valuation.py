@@ -199,6 +199,15 @@ def test_qcom_reviewed_sic_candidates_are_revalidated_and_still_require_vendor_i
     assert qualified['checked_candidate_count'] == 3 and qualified['pending_candidate_count'] == 0
     assert {peer['ticker'] for peer in qualified['peers']} == set(names[1:])
 
+    audited = dict(c, annual_audit_basis=valuation.QCOM_ANNUAL_AUDIT_BASIS)
+    with monkeypatch.context() as audit_patch:
+        audit_patch.setattr(valuation, 'known_annual_audit_scope', lambda ticker, cik: ticker == 'FA')
+        missing_audit = valuation.build_online_peer_valuation(audited, ticker='QCOM', as_of=NOW)
+        assert missing_audit['peer_count'] == 2 and missing_audit['peer_median'] is None
+        assert missing_audit['excluded'][0]['reason'] == 'annual_eps_exact_filing_unverified'
+        legacy = valuation.build_online_peer_valuation(c, ticker='QCOM', as_of=NOW)
+        assert legacy['peer_count'] == 3
+
     partial = deepcopy(c)
     partial['issuers'][3] = dict(ticker='FC', status='unavailable', reason='source_paused_after_repeated_failures')
     pending = valuation.build_online_peer_valuation(partial, ticker='QCOM', as_of=NOW)

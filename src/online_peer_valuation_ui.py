@@ -13,6 +13,14 @@ REASONS = {
     'latest_annual_eps_missing_including_amendment':'最新年度或修订申报没有匹配的稀释每股收益，保留缺口。',
     'annual_filing_tie_unresolved':'同日有多份年度申报，缺少可区分版本顺序的证据。',
     'annual_eps_nonpositive_or_invalid':'年度稀释每股收益为零、负值或无效；P/E 不适用。',
+    'annual_eps_confirmed_loss':'10-K 与 Companyfacts 均确认年度摊薄 EPS 为负，P/E 不适用。',
+    'annual_eps_confirmed_zero':'10-K 与 Companyfacts 均确认年度摊薄 EPS 为零，P/E 不适用。',
+    'annual_eps_confirmed_positive':'10-K 与 Companyfacts 均确认年度摊薄 EPS 为正。',
+    'annual_eps_filing_version_unreviewed':'当前年度申报或修订版本尚未完成原文核对。',
+    'annual_eps_exact_filing_unavailable':'核对年度摊薄 EPS 所需的 SEC 申报暂不可用。',
+    'annual_eps_exact_filing_unverified':'年度申报原文未通过核对，EPS 仍待确认。',
+    'annual_eps_companyfacts_not_matched':'已核对申报版本，缺少与同一财年和申报匹配的有效 Companyfacts EPS。',
+    'annual_eps_exact_filing_conflict':'10-K 与 Companyfacts 的年度摊薄 EPS 口径或数值不一致。',
     'annual_diluted_eps_usd_missing':'没有取得 USD/shares 口径的已披露年度稀释每股收益。',
     'annual_eps_conflict':'相同年度申报存在冲突的收益字段。',
     'annual_eps_filing_mismatch':'收益字段与选定申报的类型或发布日期不一致。',
@@ -167,6 +175,12 @@ def _diagnostic_html(d):
     html+=_selected_security_html(d.get('selected_security_scope'))
     html+=_vendor_filing_evidence_html(d.get('vendor_identity_observation'))
     html+=_listing_venue_evidence_html(d.get('listing_venue_evidence'))
+    audit=d.get('annual_eps_audit')
+    if isinstance(audit,Mapping):
+        html+='<p>'+_text(_reason(audit.get('reason')))
+        if audit.get('source_url'):
+            html+=' '+_link(audit['source_url'],'10-K 年度摊薄 EPS 原文')
+        html+='</p>'
     eps=d.get('annual_eps_observation')
     if isinstance(eps,Mapping) and _number(eps.get('eps')):
         html+='<p>申报稀释每股收益：'+_text(f'{eps["eps"]:,.6g}')+' USD/shares · '+_text(eps.get('period_start'))+' → '+_text(eps.get('period_end'))+' · 发布 '+_text(eps.get('filed'))+' · 观察 '+_text(eps.get('observed_at'))+' · '+_link(eps.get('source_ref'),'SEC 收益观察')+' · '+_link(eps.get('filing_ref'),'对应申报')+'</p>'

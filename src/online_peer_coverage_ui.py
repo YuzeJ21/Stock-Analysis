@@ -35,9 +35,17 @@ def qcom_candidate_display(row):
         if isinstance(item, Mapping) and _symbol(item.get('ticker')) and isinstance(item.get('reason'), str):
             reason = item['reason']
             text = _QCOM_PENDING.get(reason)
-            evidence = item.get('listing_venue_evidence')
-            source_url = evidence.get('source_url') if isinstance(evidence, Mapping) else None
-            outcomes.append((item['ticker'], text if text else f'未通过 · {_reason(reason)}', source_url))
+            description = text or f'未通过 · {_reason(reason)}'
+            audit = item.get('annual_eps_audit')
+            if isinstance(audit, Mapping) and audit.get('reason') and audit['reason'] != reason:
+                description += f' · {_reason(audit["reason"])}'
+            links = []
+            for key, label in (('listing_venue_evidence', 'NYSE American 交易所核对'),
+                               ('annual_eps_audit', '10-K 年度摊薄 EPS 原文')):
+                evidence = item.get(key)
+                if isinstance(evidence, Mapping) and evidence.get('source_url'):
+                    links.append((evidence['source_url'], label))
+            outcomes.append((item['ticker'], description, links))
     return progress, outcomes
 
 
@@ -48,8 +56,8 @@ def _qcom_candidate_detail_html(display):
     if outcomes:
         html += '<ul>'+''.join(
             f'<li><strong>{escape(ticker)}</strong> · {escape(text)}'
-            + (' · '+_link(source_url,'NYSE American 交易所核对') if source_url else '')+'</li>'
-            for ticker, text, source_url in outcomes)+'</ul>'
+            + ''.join(' · '+_link(url,label) for url, label in links)+'</li>'
+            for ticker, text, links in outcomes)+'</ul>'
     return html+'</section>'
 
 

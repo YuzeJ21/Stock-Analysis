@@ -26,7 +26,7 @@ _PRIORITY_SAMPLE=tuple(
 DISCOVER_SAMPLE=(*_PRIORITY_SAMPLE, *(ticker for ticker in DEFAULT_SAMPLE if ticker not in _PRIORITY_SAMPLE))
 _SOURCE_FAILURES={'vendor_context_source_unavailable','industry_candidate_source_unavailable','listing_classification_unavailable',
     'issuer_source_unavailable','sec_source_unavailable_or_mismatched','peer_source_unavailable','amendment_source_unavailable',
-    'vendor_cofiling_source_unavailable','listing_venue_source_unavailable'}
+    'vendor_cofiling_source_unavailable','listing_venue_source_unavailable','annual_eps_exact_filing_unavailable'}
 _STATE_KEYS={'schema_version','method_version','requested_tickers','packets','classifications','adapter_operation_count','source_failure_streak','digest'}
 
 
@@ -158,9 +158,10 @@ def _summary(state,as_of,workspace_mode,*,detail_ticker=None):
         exclusions = []
         for outcome in outcomes:
             exclusion = dict(ticker=outcome.get('ticker'), reason=outcome.get('reason'))
-            venue_evidence = (outcome.get('diagnostics') or {}).get('listing_venue_evidence')
-            if venue_evidence:
-                exclusion['listing_venue_evidence'] = venue_evidence
+            diagnostics = outcome.get('diagnostics') or {}
+            for key in ('listing_venue_evidence', 'annual_eps_audit'):
+                if evidence := diagnostics.get(key):
+                    exclusion[key] = evidence
             exclusions.append(exclusion)
         row=dict(ticker=ticker,attempted=attempted,attempted_at=packet.get('observed_at') if packet else None,
             selected_security_state=scope.get('status','unverified'),selected_security_reason=scope.get('reason'),
@@ -241,7 +242,8 @@ def get_peer_coverage(session_state,*,inspect_requested=False,inspect_ticker=Non
     deps=dict(classification=sources.fetch_classification,vendor=sources.observe_vendor,industry=sources.observe_industry,
               sec=sources.fetch_sec_json_receipt,prices=sources.fetch_online_company_prices,amendment=sources.fetch_amendment_evidence,
               security=sources.fetch_selected_security_evidence,history=sources.fetch_vendor_history_match,
-              cofiling=sources.fetch_vendor_cofiling_match,venue=sources.fetch_listing_venue_evidence)
+              cofiling=sources.fetch_vendor_cofiling_match,venue=sources.fetch_listing_venue_evidence,
+              annual_audit=sources.fetch_annual_eps_audit)
     if dependencies is not None:
         if not isinstance(dependencies,Mapping) or not set(dependencies)<=set(deps):return dict(status='unavailable',reason='invalid_peer_coverage_dependencies')
         deps.update(dependencies)

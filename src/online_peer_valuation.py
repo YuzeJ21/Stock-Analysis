@@ -20,6 +20,7 @@ from src.sec_selected_security import validate_selected_security_evidence,is_inv
 from src.online_peer_sec_cofiling import validated_vendor_cofiling_match
 from src.online_peer_sec_history import validated_vendor_history_match
 from src.online_peer_sec_venue import known_listing_venue_scope, validated_listing_venue_evidence
+from src.online_peer_annual_audit import QCOM_ANNUAL_AUDIT_BASIS, annual_eps_audit_result, known_annual_audit_scope
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
 
@@ -270,7 +271,7 @@ def _reviewed_listing_venue(row, ticker, cik, listings, info, prices, as_of):
                                             profile=row.get('profile'), as_of=as_of)
 
 
-def _issuer(row, classification, industry_key, as_of):
+def _issuer(row, classification, industry_key, as_of, *, require_annual_audit=False):
     ticker=row.get('ticker')
     _need(_symbol(ticker), 'issuer_symbol_invalid')
     cik,listings=_selected(classification,ticker,None)
@@ -340,7 +341,12 @@ def _issuer(row, classification, industry_key, as_of):
     eps=_resolved_annual_eps(row,facts,filings,price_date,ticker,cik,as_of)
     if supported:
         _need(all(eps[k]==scope['original_eps'][k] for k in ('period_start','period_end','eps')) and eps['accession']==scope['documents'][0]['accessionNumber'],'selected_security_eps_conflict')
-    _need(eps['eps']>0, 'annual_eps_nonpositive_or_invalid')
+    if require_annual_audit:
+        audit = annual_eps_audit_result(row.get('annual_eps_audit'), ticker=ticker, cik=cik,
+                                       profile=row['profile'], eps=eps, as_of=as_of)
+        _need(eps['eps'] > 0 and audit['reason'] == 'annual_eps_confirmed_positive', audit['reason'])
+    else:
+        _need(eps['eps']>0, 'annual_eps_nonpositive_or_invalid')
     _need(_iso_date(prices['bars'][0]['date'])<=_iso_date(eps['period_end']), 'split_history_does_not_cover_period_end')
     splits=prices.get('splits')
     _need(isinstance(splits,list) and len(splits)<=64, 'split_evidence_invalid')
@@ -443,6 +449,10 @@ def _exclusion_diagnostics(row,classification,ticker,industry_source_ref,as_of,o
             'source_ref':context['facts_query_ref'],'observed_at':row['facts']['observed_at'],
             'filing_ref':f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{eps["accession"].replace("-", "")}/{eps["primary_document"]}'}
     except (ValueError,TypeError,KeyError,AttributeError,OverflowError):pass
+    if 'annual_eps_audit' in row:
+        context['annual_eps_audit'] = annual_eps_audit_result(
+            row['annual_eps_audit'], ticker=ticker, cik=cik, profile=row.get('profile'),
+            eps=context.get('annual_eps_observation'), as_of=as_of)
     context['price_source_status']='unavailable'
     try:
         prices=validated_online_price_history(row.get('prices'),ticker=ticker)
@@ -486,6 +496,9 @@ def build_online_peer_valuation(collection, *, ticker, expected_cik=None, as_of=
         _need(isinstance(symbols,list) and len(symbols)<=200 and all(_symbol(s) for s in symbols), 'industry_candidate_schema_invalid')
         basis = collection.get('candidate_basis')
         candidates = _candidate_plan(ticker, symbols, basis)
+        annual_audit_basis = collection.get('annual_audit_basis')
+        _need(annual_audit_basis is None or (basis, annual_audit_basis) == (QCOM_SIC_BASIS, QCOM_ANNUAL_AUDIT_BASIS),
+              'peer_candidate_scope_unverified')
         result.update(candidate_count=len(candidates),industry_source_ref=collection['industry']['source_ref'],
                       industry_key=key,industry_candidate_total=len(symbols),candidate_limit=MAX_CANDIDATES,
                       industry_observed_at=collection['industry']['observed_at'],industry_normalized_sha256=collection['industry']['normalized_sha256'])
@@ -514,7 +527,8 @@ def build_online_peer_valuation(collection, *, ticker, expected_cik=None, as_of=
                 if reviewed_cik:
                     peer_key = rows[symbol].get('vendor', {}).get('payload', {}).get('info', {}).get('industryKey')
                     _need(isinstance(peer_key, str) and _KEY.fullmatch(peer_key), 'industry_metadata_missing')
-                peer=_issuer(rows[symbol],classification,peer_key,now)
+                require_audit = annual_audit_basis == QCOM_ANNUAL_AUDIT_BASIS and known_annual_audit_scope(symbol, reviewed_cik)
+                peer=_issuer(rows[symbol],classification,peer_key,now,require_annual_audit=require_audit)
                 _need(reviewed_cik is None or peer['sec_cik'] == reviewed_cik, 'peer_candidate_cik_mismatch')
                 _need(peer['sec_cik'] not in seen, 'duplicate_peer_issuer')
                 _need(peer['sic']==subject['sic'], 'sec_industry_differs')

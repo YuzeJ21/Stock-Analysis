@@ -23,6 +23,7 @@ from src.sec_selected_security import fetch_selected_security_evidence,known_sec
 from src.online_peer_sec_cofiling import PARENT_CIK as SO_CIK, fetch_vendor_cofiling_match
 from src.online_peer_sec_history import fetch_vendor_history_match
 from src.online_peer_sec_venue import LISTING_EVENT_FORMS, fetch_listing_venue_evidence, known_listing_venue_scope
+from src.online_peer_annual_audit import QCOM_ANNUAL_AUDIT_BASIS, fetch_annual_eps_audit, known_annual_audit_scope
 from src.online_listing_session import acquire_classification
 
 SESSION_KEY = 'online_peer_valuation_observation_v1'
@@ -214,7 +215,7 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
         deps=dict(classification=fetch_classification,vendor=observe_vendor,industry=observe_industry,
                   sec=fetch_sec_json_receipt,prices=fetch_online_company_prices,amendment=fetch_amendment_evidence,
                   security=fetch_selected_security_evidence,history=fetch_vendor_history_match,cofiling=fetch_vendor_cofiling_match,
-                  venue=fetch_listing_venue_evidence)
+                  venue=fetch_listing_venue_evidence, annual_audit=fetch_annual_eps_audit)
         if dependencies is not None:
             deps.update(dependencies)
         classification,listing_context=acquire_classification(state,
@@ -248,6 +249,7 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
                         issuers=[_collect_issuer(ticker,cik,deps,user_agent or os.getenv('SEC_USER_AGENT'),as_of,vendor)],observed_at=_stamp(as_of))
         if basis:
             collection['candidate_basis'] = basis
+            collection['annual_audit_basis'] = QCOM_ANNUAL_AUDIT_BASIS
         preview=build_online_peer_valuation(collection,ticker=ticker,expected_cik=expected_cik,as_of=_now(as_of))
         if preview['subject'] is not None:
             failures=0
@@ -262,6 +264,13 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
                     continue
                 try:
                     packet=_collect_issuer(candidate,peer_cik,deps,user_agent or os.getenv('SEC_USER_AGENT'),as_of)
+                    if basis and packet.get('status') != 'unavailable' and known_annual_audit_scope(candidate, peer_cik):
+                        audit = _attempt_source(
+                            deps['annual_audit'], candidate, peer_cik, packet['profile'],
+                            user_agent=user_agent or os.getenv('SEC_USER_AGENT'), observed_at=as_of)
+                        packet['annual_eps_audit'] = audit
+                        if isinstance(audit, Mapping) and audit.get('status') == 'unavailable':
+                            packet.update(status='unavailable', reason='annual_eps_exact_filing_unavailable')
                 except Exception:
                     packet=dict(ticker=candidate,status='unavailable',reason='issuer_source_unavailable')
                 failures=failures+1 if packet.get('status')=='unavailable' else 0
