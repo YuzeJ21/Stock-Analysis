@@ -12,8 +12,9 @@ import os
 from src.online_company_identity import _mode_reason
 from src.online_company_prices import fetch_online_company_prices
 from src.online_peer_valuation import (
-    SCHEMA, MAX_CANDIDATES, normalized_digest, build_online_peer_valuation,
+    SCHEMA, normalized_digest, build_online_peer_valuation,
     _empty, _symbol, _KEY, _Hold, _filings, _vendor_identity,
+    _candidate_basis, _candidate_plan,
 )
 from src.online_sec_receipt import fetch_sec_json_receipt
 from src.security_classification import fetch_classification, validated_classification, _selected
@@ -229,18 +230,21 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
         symbols=payload.get('symbols')
         if (industry.get('status')!='observed' or not isinstance(symbols,list) or len(symbols)>200 or not all(_symbol(s) for s in symbols)):
             return _read(_cache(state,ticker,None,'industry_candidate_source_unavailable',as_of,listing_context),ticker,expected_cik,as_of)
-        candidates=list(dict.fromkeys(s for s in symbols if s.replace('.','-')!=ticker.replace('.','-')))[:MAX_CANDIDATES]
+        basis = _candidate_basis(ticker, cik)
+        candidates = _candidate_plan(ticker, symbols, basis)
         collection=dict(schema_version=SCHEMA,ticker=ticker,classification=classification,industry=industry,
                         issuers=[_collect_issuer(ticker,cik,deps,user_agent or os.getenv('SEC_USER_AGENT'),as_of,vendor)],observed_at=_stamp(as_of))
+        if basis:
+            collection['candidate_basis'] = basis
         preview=build_online_peer_valuation(collection,ticker=ticker,expected_cik=expected_cik,as_of=_now(as_of))
         if preview['subject'] is not None:
             failures=0
-            for candidate in candidates:
+            for candidate, reviewed_cik in candidates.items():
                 if failures>=2:
                     collection['issuers'].append(dict(ticker=candidate,status='unavailable',reason='source_paused_after_repeated_failures'))
                     continue
                 try:
-                    peer_cik=_ordinary_identity(classification,candidate)
+                    peer_cik=_ordinary_identity(classification,candidate,reviewed_cik)
                 except (ValueError,KeyError,TypeError):
                     collection['issuers'].append(dict(ticker=candidate,status='unavailable',reason='peer_listing_or_share_basis_unverified'))
                     continue

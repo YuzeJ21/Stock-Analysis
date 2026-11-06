@@ -178,6 +178,51 @@ def test_route_cik_is_independently_enforced():
     assert build(expected_cik='0000099999')['status']=='withheld'
 
 
+def test_qcom_reviewed_sic_candidates_are_revalidated_and_still_require_vendor_industry(monkeypatch):
+    from src import online_peer_valuation as valuation
+
+    c = collection()
+    names = ('QCOM', 'FA', 'FB', 'FC')
+    c.update(ticker='QCOM', classification=classification(names))
+    c['issuers'][0] = issuer('QCOM', '0000001001', 30)
+    for row in c['issuers']:
+        row['profile']['payload']['sic'] = '3663'
+    c['industry']['payload']['symbols'] = ['OFFLIST']
+    c['industry']['normalized_sha256'] = digest(c['industry']['payload'])
+    c['candidate_basis'] = 'reviewed_qcom_sec_sic_3663'
+    monkeypatch.setattr(valuation, 'QCOM_SIC_CIK', '0000001001', raising=False)
+    monkeypatch.setattr(valuation, 'QCOM_SIC_CANDIDATES', tuple(zip(names[1:], ('0000001002', '0000001003', '0000001004'))), raising=False)
+
+    qualified = valuation.build_online_peer_valuation(c, ticker='QCOM', as_of=NOW)
+    assert qualified['status'] == 'research_comparison'
+    assert qualified['candidate_basis'] == 'reviewed_qcom_sec_sic_3663'
+    assert qualified['checked_candidate_count'] == 3 and qualified['pending_candidate_count'] == 0
+    assert {peer['ticker'] for peer in qualified['peers']} == set(names[1:])
+
+    partial = deepcopy(c)
+    partial['issuers'][3] = dict(ticker='FC', status='unavailable', reason='source_paused_after_repeated_failures')
+    pending = valuation.build_online_peer_valuation(partial, ticker='QCOM', as_of=NOW)
+    assert pending['checked_candidate_count'] == 2 and pending['pending_candidate_count'] == 1
+    assert pending['peer_median'] is None and pending['peer_count'] == 2
+
+    row = c['issuers'][1]
+    row['vendor']['payload']['info']['industryKey'] = 'communication-equipment'
+    rehash_vendor(row)
+    held = valuation.build_online_peer_valuation(c, ticker='QCOM', as_of=NOW)
+    assert held['status'] == 'withheld' and held['peer_count'] == 2 and held['peer_median'] is None
+    assert held['excluded'][0]['reason'] == 'provider_industry_differs'
+    assert held['excluded'][0]['diagnostics']['independent_observation_not_in_benchmark']['period_end'] == '2025-12-31'
+
+    monkeypatch.setattr(valuation, 'QCOM_SIC_CANDIDATES', (('FA', '0000009999'), ('FB', '0000001003'), ('FC', '0000001004')))
+    wrong_identity = valuation.build_online_peer_valuation(c, ticker='QCOM', as_of=NOW)
+    assert wrong_identity['excluded'][0]['reason'] == 'peer_candidate_cik_mismatch'
+
+    c['issuers'][0]['profile']['payload']['sic'] = '3674'
+    outside_scope = valuation.build_online_peer_valuation(c, ticker='QCOM', as_of=NOW)
+    assert outside_scope['reason'] == 'peer_candidate_scope_unverified'
+    assert outside_scope['checked_candidate_count'] == 0 and outside_scope['pending_candidate_count'] == 3
+
+
 def test_cofiling_identity_keeps_annual_earnings_and_never_masks_a_vendor_issuer_conflict(monkeypatch):
     from src import online_peer_valuation as valuation
 

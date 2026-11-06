@@ -1,5 +1,6 @@
 """Read-only Discover view of the observed issuer coverage report."""
 
+from src.online_peer_coverage_ui import qcom_candidate_display
 from src.online_peer_valuation_ui import REASONS as PEER_REASONS
 from src.online_us_universe import SOURCE_URLS
 
@@ -92,7 +93,13 @@ def _render_representatives(st, groups):
                     filing_text += (f" · [10-Q 身份依据（母公司）]({parent['source_url']})"
                                     f" · [联报公司副本]({co_registrant['source_url']})")
                 sic = f"SIC {member['sic']}" if member['sic'] else 'SEC 行业待核查'
-                st.markdown(f"- **{ticker}** · {sic} · 收盘价 {price_text} · 同行估值 {peer_text}{filing_text}")
+                line = f"- **{ticker}** · {sic} · 收盘价 {price_text} · 同行估值 {peer_text}{filing_text}"
+                if candidates := qcom_candidate_display(member):
+                    progress, outcomes = candidates
+                    line += f" · {progress}"
+                    if outcomes:
+                        line += "\n" + "\n".join(f"  - **{symbol}** · {reason}" for symbol, reason in outcomes)
+                st.markdown(line)
     st.caption("使用下方的单公司价格表单，或在上方「同行估值覆盖 · 行业样本」选择待核查公司。")
 
 

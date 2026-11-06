@@ -169,6 +169,9 @@ def _summary(state,as_of,workspace_mode,*,detail_ticker=None):
             excluded=[dict(ticker=r.get('ticker'),reason=r.get('reason')) for r in outcomes],source_refs=refs)
         if subject and subject.get('price_date') is not None:
             row['price_date'] = subject['price_date']
+        if view.get('candidate_basis'):
+            row.update(candidate_basis=view['candidate_basis'], checked_candidate_count=view['checked_candidate_count'],
+                       pending_candidate_count=view['pending_candidate_count'])
         vendor_identity = subject.get('vendor_filing') if subject else context.get('vendor_identity_observation') if isinstance(context, Mapping) else None
         if isinstance(vendor_identity, Mapping) and vendor_identity.get('cofiling_documents'):
             row['cofiling_documents'] = vendor_identity['cofiling_documents']

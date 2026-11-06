@@ -144,6 +144,9 @@ def build_industry_coverage(inventory, observations, peer_summary=None, price_ro
                 peer_references_partial=assessed and verified_peer_row.get('reference_state') == 'partially_assessed',
                 annual_common_filing=verified_peer_row.get('annual_common_filing'),
                 cofiling_documents=verified_peer_row.get('cofiling_documents'))
+            if verified_peer_row.get('candidate_basis'):
+                members[ticker].update({key: verified_peer_row[key] for key in ('candidate_basis', 'candidate_count',
+                    'checked_candidate_count', 'pending_candidate_count', 'excluded')})
         for evidence in (price if price_state is not None else None, peer_row):
             if evidence:
                 last = max(last, _utc_timestamp(evidence['attempted_at']))

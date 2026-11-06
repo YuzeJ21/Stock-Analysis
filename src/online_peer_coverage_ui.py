@@ -5,13 +5,48 @@ import os
 from urllib.parse import urlencode
 
 from src.online_peer_coverage import DEFAULT_SAMPLE, DISCOVER_SAMPLE, _coverage_session, get_peer_coverage
-from src.online_peer_valuation import _symbol
+from src.online_peer_valuation import QCOM_SIC_BASIS, _symbol
 from src.online_peer_valuation_ui import STYLE,_text,_reason,_link,online_peer_valuation_html
 
 _INDUSTRIES={'semiconductors':'半导体','software-infrastructure':'基础软件','drug-manufacturers-general':'综合制药',
  'household-personal-products':'家庭与个人用品','restaurants':'餐饮','farm-heavy-construction-machinery':'农业与工程机械',
  'utilities-regulated-electric':'受监管电力','reit-retail':'零售 REIT','telecom-services':'电信服务','banks-diversified':'多元化银行',
  'oil-gas-integrated':'综合油气','gold':'黄金'}
+_QCOM_PENDING = {
+    'peer_not_collected': '待核查 · 尚未取得此候选的来源。',
+    'source_paused_after_repeated_failures': '待核查 · 连续来源失败，候选核查已暂停。',
+}
+
+
+def qcom_candidate_display(row):
+    """Share the counts and reason labels across the two Discover views."""
+    if row.get('ticker') != 'QCOM' or row.get('candidate_basis') != QCOM_SIC_BASIS:
+        return None
+    total, checked, pending = (row.get(key) for key in (
+        'candidate_count', 'checked_candidate_count', 'pending_candidate_count',
+    ))
+    if any(type(value) is not int or value < 0 for value in (total, checked, pending)) or checked + pending != total:
+        return None
+    progress = f'SEC SIC 3663 候选 · 候选已核查 {checked} / {total}'
+    if pending:
+        progress += f' · 候选待核查 {pending} 家'
+    outcomes = []
+    for item in row.get('excluded') or ():
+        if isinstance(item, Mapping) and _symbol(item.get('ticker')) and isinstance(item.get('reason'), str):
+            reason = item['reason']
+            text = _QCOM_PENDING.get(reason)
+            outcomes.append((item['ticker'], text if text else f'未通过 · {_reason(reason)}'))
+    return progress, outcomes
+
+
+def _qcom_candidate_detail_html(display):
+    progress, outcomes = display
+    html = ('<section aria-label="QCOM SEC SIC 3663 候选"><p><strong>'+escape(progress)+'</strong></p>'
+            '<p>候选仍须通过相同供应商行业、同日收盘价和财年起止日期核对。至少 3 家通过后才显示比较。</p>')
+    if outcomes:
+        html += '<ul>'+''.join(f'<li><strong>{escape(ticker)}</strong> · {escape(text)}</li>'
+                               for ticker, text in outcomes)+'</ul>'
+    return html+'</section>'
 
 
 def _industry(row):
@@ -45,6 +80,8 @@ def peer_coverage_html(view):
         if not row['attempted']:html+='<p>尚未发起该对象的来源查询，同行尚未核查。</p>'
         elif row['reference_state']=='not_assessed_subject_blocked':html+='<p>同行尚未核查；先处理本公司来源或身份缺口，不能把未核查写成零家同行。</p>'
         else:html+='<p>通过的参照 '+str(row['accepted_reference_count'])+' 家；'+('参照核查未完成，保留暂停项。' if row['reference_state']=='partially_assessed' else '本次已检查有上限的参照候选。')+'</p>'
+        if candidates := qcom_candidate_display(row):
+            html += '<p>'+escape(candidates[0])+'</p>'
         if row['comparison_state']!='available':html+='<p>第一项阻碍：'+('尚未核查。' if not row['attempted'] else _text(_reason(row['primary_reason'])))+'</p>'
         if row.get('selected_security_state') in {'supported_common','inspection_only'}:
             html+='<p>所选证券依据：'+('已核对所选普通股与年度收益口径，估值资格仍分别检查。' if row['selected_security_state']=='supported_common' else _text(_reason(row.get('selected_security_reason'))))+'</p>'
@@ -97,6 +134,9 @@ def render_peer_coverage(st_api, *, tickers=DEFAULT_SAMPLE):
         result=get_peer_coverage(st_api.session_state,tickers=tickers,user_agent=os.getenv('SEC_USER_AGENT'),detail_ticker=selected)
         if detail := result.get('selected_detail'):
             st_api.caption(f"{detail['ticker']} · 本会话核查详情。按原观察时间重新校验。")
+            selected_row = next((row for row in result.get('rows', ()) if row.get('ticker') == detail['ticker']), None)
+            if selected_row and (candidates := qcom_candidate_display(selected_row)):
+                st_api.markdown(_qcom_candidate_detail_html(candidates), unsafe_allow_html=True)
             st_api.markdown(online_peer_valuation_html(detail, show_coverage_link=False),unsafe_allow_html=True)
         st_api.markdown(peer_coverage_html(result),unsafe_allow_html=True)
         return result

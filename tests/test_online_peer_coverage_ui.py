@@ -145,3 +145,40 @@ def test_discover_explicit_pending_selection_requests_only_on_button_click(monke
     assert "1 / 19" in text and "18 / 19" in text
     app.run()
     assert calls == ["classification"]
+
+
+def test_qcom_detail_shows_candidate_outcomes_without_fetching(monkeypatch):
+    import src.online_peer_coverage_ui as ui
+    from src.online_peer_coverage import DISCOVER_SESSION_KEY
+    from src.online_peer_valuation import _empty
+
+    view = audit({}, tickers=("QCOM",))
+    view["rows"][0].update(
+        attempted=True, comparison_state="withheld", subject_pe_state="available",
+        reference_state="partially_assessed", accepted_reference_count=0,
+        primary_reason="at_least_three_compatible_industry_references_required",
+        candidate_basis="reviewed_qcom_sec_sic_3663", candidate_count=2,
+        checked_candidate_count=1, pending_candidate_count=1,
+        excluded=[{"ticker": "UI", "reason": "peer_fiscal_window_differs"},
+                  {"ticker": "MSI", "reason": "source_paused_after_repeated_failures"}],
+    )
+    calls = []
+
+    def get(state, *, detail_ticker=None, **kwargs):
+        calls.append(kwargs)
+        detail = _empty("QCOM", "at_least_three_compatible_industry_references_required") if detail_ticker == "QCOM" else None
+        return {**view, "selected_detail": detail}
+
+    monkeypatch.setattr(ui, "get_peer_coverage", get)
+    app = AppTest.from_function(_discover_app)
+    app.session_state[DISCOVER_SESSION_KEY] = {"requested_tickers": ["QCOM"], "packets": {"QCOM": {}}}
+    app.run()
+    app.selectbox(key="peer-coverage-detail").select("QCOM").run()
+
+    assert not app.exception
+    detail = next(item.value for item in app.markdown if 'aria-label="QCOM SEC SIC 3663 候选"' in item.value)
+    assert "候选已核查 1 / 2 · 候选待核查 1 家" in detail
+    assert "UI</strong> · 未通过 · 实际财年起止日期差异超过 35 天" in detail
+    assert "MSI</strong> · 待核查 · 连续来源失败" in detail
+    assert "相同供应商行业" in detail and "至少 3 家" in detail
+    assert all(not any(call.get(key) for key in ("inspect_requested", "inspect_ticker", "retry_ticker")) for call in calls)

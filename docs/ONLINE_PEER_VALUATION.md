@@ -14,7 +14,11 @@ The five company sections remain the product workflow. Listing continuity improv
 
 The first connected metric is **price divided by directly reported annual diluted GAAP earnings per share**. It is neither trailing-twelve-month nor forecast P/E. Compare its company multiple with the median among at least three qualifying industry references. Premium/discount is company multiple divided by reference median, minus one. A higher multiple is not proof of overvaluation; a lower multiple is not proof of undervaluation. Business mix, growth, profitability, capital needs and risk are not adjusted.
 
-The industry reference group is automatically screened, not analyst-approved economic peers. Candidate discovery follows the price/context provider's industry list, preserving its order, and attempts at most12 other symbols. The page reports the list size, limit, accepted companies and every exclusion. This is not an exhaustive sector benchmark or an investment ranking.
+The industry reference group is automatically screened, not analyst-approved economic peers. Candidate discovery normally follows the price/context provider's industry list, preserving its order, and attempts at most 12 other symbols. The page reports the list size, limit, accepted companies and every exclusion. This is not an exhaustive sector benchmark or an investment ranking.
+
+### QCOM SEC SIC 3663 candidate review
+
+An explicit QCOM refresh for CIK `0000804328` screens a separate set of 12 ticker–CIK pairs from the October 30 issuer coverage inventory. The scope activates for a currently verified SIC `3663`. The list starts with the three issuers whose annual period ends were closest to QCOM's FY2026 end in the November 5 SEC recheck, then includes nine other reviewed listings. The screen covers this limited set of issuers. Each refresh rechecks the selected common share, current issuer and SIC, latest annual diluted EPS, price date and share basis. Nomination from the SEC list still requires the provider industry match, the existing 35-day financial window and at least three qualifying references. Discover lists the checked count, pending candidates and company-level reasons. Earlier provider-list observations keep their original candidate scope. [SEC SIC definitions](https://www.sec.gov/search-filings/standard-industrial-classification-sic-code-list) · [QCOM FY2026 10-K](https://www.sec.gov/Archives/edgar/data/804328/000080432826000128/qcom-20260927.htm)
 
 ## Consistent definitions and disclosed differences
 

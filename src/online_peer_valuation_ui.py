@@ -5,7 +5,7 @@ import math
 import re
 from urllib.parse import urlsplit
 
-from src.online_peer_valuation import FISCAL_WINDOW_DAYS, MIN_PEERS
+from src.online_peer_valuation import FISCAL_WINDOW_DAYS, MIN_PEERS, QCOM_SIC_BASIS
 
 REASONS = {
     'reported_annual_pe_industry_reference_only':'已取得通过规则核对的年度 P/E 行业参照，仅描述倍数差异。',
@@ -19,6 +19,8 @@ REASONS = {
     'annual_eps_unit_conflict':'同一年度收益字段存在币种或单位冲突。',
     'annual_period_or_publication_not_current_for_price':'年度期间过旧，或申报尚未在所用价格日期发布。',
     'peer_fiscal_window_differs':'实际财年起止日期差异超过 35 天。',
+    'peer_candidate_scope_unverified':'QCOM 的 CIK 或 SEC SIC 3663 候选范围未通过核对。',
+    'peer_candidate_cik_mismatch':'候选公司的当前 SEC CIK 与已核对名单不同。',
     'provider_industry_differs':'供应商行业分类不同。',
     'sec_industry_differs':'SEC 行业代码不同。',
     'post_period_split_requires_share_basis_review':'财报期间后发生拆股，缺少可核对的收益调整口径。',
@@ -324,16 +326,21 @@ def _excluded_html(v):
         +'</summary>'+_diagnostic_html(row.get('diagnostics'))+'</details></li>'
         for row in rows
     )
-    return '<details><summary>未纳入参照的公司与原因（'+str(len(rows))+' 家）</summary><ul>'+items+'</ul></details>'
+    label = '候选排除与待核查' if v.get('candidate_basis') == QCOM_SIC_BASIS else '未纳入参照的公司与原因'
+    return '<details><summary>'+label+'（'+str(len(rows))+' 家）</summary><ul>'+items+'</ul></details>'
 
 
 def _disclosure(v,rows,*,include_excluded=True):
     html='<p>本次来源查询：'+_text(v['attempted_at'])+'</p>' if v.get('attempted_at') else ''
     html+=_listing_html(v)+'<p>自动筛选的行业参照组：同供应商行业、同 SEC 行业代码、普通股、独立发行人、同一价格日期。每家实际财年起止日期与本公司相差不超过 '+str(FISCAL_WINDOW_DAYS)+' 天；这不是完全相同的期间，也不是分析师审核的经济可比组。</p>'
     html+='<p>至少 '+str(MIN_PEERS)+' 家参照公司通过同口径核对后才比较倍数。</p>'
-    html+='<p>候选列表共 '+_text(v.get('industry_candidate_total'))+' 个记录，本次最多核查 12 家其他公司，按供应商列表顺序保留；不是完整行业覆盖。</p>'
-    if v.get('industry_source_ref'):
-        html+='<p>'+_link(v['industry_source_ref'],'候选组来源')+' · 观察 '+_text(v.get('industry_observed_at'))+'</p>'
+    if v.get('candidate_basis') == QCOM_SIC_BASIS:
+        html+='<p>SEC SIC 3663 候选已核查 '+_text(v.get('checked_candidate_count'))+' / '+_text(v.get('candidate_count'))
+        html+=' · 待核查 '+_text(v.get('pending_candidate_count'))+'。这份名单来自已核对的有限样本；每家公司仍须通过供应商行业和其他比较条件。'+_link(v.get('candidate_source_ref'),'SEC SIC 分类')+'</p>'
+    else:
+        html+='<p>候选列表共 '+_text(v.get('industry_candidate_total'))+' 个记录，本次最多核查 12 家其他公司，按供应商列表顺序保留；不是完整行业覆盖。</p>'
+        if v.get('industry_source_ref'):
+            html+='<p>'+_link(v['industry_source_ref'],'候选组来源')+' · 观察 '+_text(v.get('industry_observed_at'))+'</p>'
     context=v.get('subject_source_context')
     if isinstance(context,Mapping) and context:
         html+='<h4>本公司申报元数据与收益字段线索</h4><p>CIK '+_text(context.get('sec_cik'))+' · '+_link(context.get('profile_source_ref'),'SEC 申报元数据')+' · '+_link(context.get('facts_query_ref'),'收益字段查询地址')+' · 观察 '+_text(context.get('profile_observed_at'))+'。列出元数据不代表对应收益字段已通过核对。</p><ul>'

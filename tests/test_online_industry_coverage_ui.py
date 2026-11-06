@@ -171,3 +171,35 @@ def test_sample_shows_checked_and_pending_separately_from_the_sic_population(rep
     assert f"[10-Q 身份依据（母公司）]({ARCHIVE_URLS[0]})" in text
     assert f"[联报公司副本]({ARCHIVE_URLS[1]})" in text
     assert "NEE** · 本次目录缺少唯一的代表代码与发行人关联" in text
+
+
+def test_qcom_representative_row_distinguishes_candidate_checks_from_pending(report):
+    cohort = _group("半导体", 3, {
+        "price": (0, 3, {}),
+        "peer": (0, 2, {"at_least_three_compatible_industry_references_required": 1}),
+    })
+    cohort["members"] = [
+        dict(ticker="AMD", scope_matched=False, price=None, peer=None),
+        dict(ticker="TXN", scope_matched=False, price=None, peer=None),
+        dict(ticker="QCOM", scope_matched=True, sic="3663", price=None,
+             peer="at_least_three_compatible_industry_references_required",
+             candidate_basis="reviewed_qcom_sec_sic_3663", candidate_count=3,
+             checked_candidate_count=1, pending_candidate_count=2,
+             excluded=[
+                 {"ticker": "UI", "reason": "provider_industry_differs"},
+                 {"ticker": "MSI", "reason": "source_paused_after_repeated_failures"},
+                 {"ticker": "HLIT", "reason": "peer_not_collected"},
+             ]),
+    ]
+    report["representative_groups"] = [cohort]
+    app = AppTest.from_function(_app)
+    app.session_state["fixture_coverage_report"] = report
+    app.run()
+
+    assert not app.exception
+    text = _text(app)
+    assert "SEC SIC 3663 候选 · 候选已核查 1 / 3 · 候选待核查 2 家" in text
+    assert "UI** · 未通过 · 供应商行业分类不同" in text
+    assert "MSI** · 待核查 · 连续来源失败" in text
+    assert "HLIT** · 待核查 · 尚未取得" in text
+    assert "同行估值** · 已核查 1 / 3 · 通过 0 / 3" in text

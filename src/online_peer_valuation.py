@@ -26,6 +26,16 @@ SCHEMA = 'online-peer-collection-v1'
 MAX_CANDIDATES = 12
 MIN_PEERS = 3
 FISCAL_WINDOW_DAYS = 35
+QCOM_SIC_CIK = '0000804328'
+QCOM_SIC_BASIS = 'reviewed_qcom_sec_sic_3663'
+QCOM_SIC_SOURCE = 'https://www.sec.gov/search-filings/standard-industrial-classification-sic-code-list'
+# A bounded set reviewed against the dated SEC coverage inventory. Live evidence decides eligibility.
+QCOM_SIC_CANDIDATES = (
+    ('CMTL', '0000023197'), ('AVNW', '0001377789'), ('UI', '0001511737'),
+    ('BKTI', '0000002186'), ('MSI', '0000068505'), ('HLIT', '0000851310'),
+    ('AIRG', '0001272842'), ('VISN', '0001517228'), ('VUZI', '0001463972'),
+    ('WATT', '0001575793'), ('ONDS', '0001646188'), ('UMAC', '0001956955'),
+)
 RIGHTS = 'personal_research_only_commercial_and_redistribution_unverified'
 _SYMBOL = re.compile(r'[A-Z0-9][A-Z0-9.-]{0,19}\Z')
 _KEY = re.compile(r'[a-z][a-z0-9-]{0,79}\Z')
@@ -40,6 +50,17 @@ class _Hold(ValueError):
 def _need(condition, reason):
     if not condition:
         raise _Hold(reason)
+
+
+def _candidate_basis(ticker, cik):
+    return QCOM_SIC_BASIS if (ticker, cik) == ('QCOM', QCOM_SIC_CIK) else None
+
+
+def _candidate_plan(ticker, symbols, basis):
+    if ticker == 'QCOM' and basis == QCOM_SIC_BASIS:
+        return dict(QCOM_SIC_CANDIDATES)
+    _need(basis is None, 'peer_candidate_scope_unverified')
+    return dict.fromkeys(list(dict.fromkeys(s for s in symbols if s.replace('.', '-') != ticker.replace('.', '-')))[:MAX_CANDIDATES])
 
 
 def normalized_digest(value):
@@ -425,10 +446,14 @@ def build_online_peer_valuation(collection, *, ticker, expected_cik=None, as_of=
         industry=_normalized(collection['industry'],f'https://finance.yahoo.com/sectors/{sector}/{key}/',now)
         symbols=industry.get('symbols')
         _need(isinstance(symbols,list) and len(symbols)<=200 and all(_symbol(s) for s in symbols), 'industry_candidate_schema_invalid')
-        candidates=list(dict.fromkeys(s for s in symbols if s.replace('.','-')!=ticker.replace('.','-')))[:MAX_CANDIDATES]
+        basis = collection.get('candidate_basis')
+        candidates = _candidate_plan(ticker, symbols, basis)
         result.update(candidate_count=len(candidates),industry_source_ref=collection['industry']['source_ref'],
                       industry_key=key,industry_candidate_total=len(symbols),candidate_limit=MAX_CANDIDATES,
                       industry_observed_at=collection['industry']['observed_at'],industry_normalized_sha256=collection['industry']['normalized_sha256'])
+        if basis:
+            result.update(candidate_basis=basis, candidate_source_ref=QCOM_SIC_SOURCE,
+                          checked_candidate_count=0, pending_candidate_count=len(candidates))
         packets=collection.get('issuers')
         _need(isinstance(packets,list) and 0<len(packets)<=MAX_CANDIDATES+1 and all(isinstance(p,Mapping) and _symbol(p.get('ticker')) for p in packets), 'issuer_collection_invalid')
         rows={p['ticker']:p for p in packets}
@@ -436,25 +461,39 @@ def build_online_peer_valuation(collection, *, ticker, expected_cik=None, as_of=
         result['subject_source_context']=_subject_source_context(rows[ticker],classification,ticker,expected_cik,now)
         subject=_issuer(rows[ticker],classification,key,now)
         _need(expected_cik is None or subject['sec_cik']==expected_cik, 'selected_company_cik_mismatch')
+        if basis:
+            _need(_candidate_basis(ticker, subject['sec_cik']) == basis and subject['sic'] == '3663',
+                  'peer_candidate_scope_unverified')
         result['subject']=subject
         seen={subject['sec_cik']}
-        for symbol in candidates:
+        for symbol, reviewed_cik in candidates.items():
             peer=None
             try:
                 _need(symbol in rows, 'peer_not_collected')
                 if rows[symbol].get('status')=='unavailable':
                     raise _Hold(str(rows[symbol].get('reason') or 'peer_source_unavailable'))
-                peer=_issuer(rows[symbol],classification,key,now)
+                peer_key = key
+                if reviewed_cik:
+                    peer_key = rows[symbol].get('vendor', {}).get('payload', {}).get('info', {}).get('industryKey')
+                    _need(isinstance(peer_key, str) and _KEY.fullmatch(peer_key), 'industry_metadata_missing')
+                peer=_issuer(rows[symbol],classification,peer_key,now)
+                _need(reviewed_cik is None or peer['sec_cik'] == reviewed_cik, 'peer_candidate_cik_mismatch')
                 _need(peer['sec_cik'] not in seen, 'duplicate_peer_issuer')
                 _need(peer['sic']==subject['sic'], 'sec_industry_differs')
                 _need(peer['price_date']==subject['price_date'], 'peer_price_date_differs')
                 _need(all(abs((_iso_date(peer[k])-_iso_date(subject[k])).days)<=FISCAL_WINDOW_DAYS for k in ('period_start','period_end')),
                       'peer_fiscal_window_differs')
+                _need(peer['industry_key'] == key, 'provider_industry_differs')
                 result['peers'].append(peer);seen.add(peer['sec_cik'])
             except (ValueError,TypeError,KeyError,AttributeError,OverflowError) as error:
                 result['excluded'].append(dict(ticker=symbol,reason=str(error) if isinstance(error,_Hold) else 'invalid_peer_source_evidence',
-                    diagnostics=_exclusion_diagnostics(rows.get(symbol),classification,symbol,result['industry_source_ref'],now,peer)))
+                    diagnostics=_exclusion_diagnostics(rows.get(symbol),classification,symbol,
+                        result.get('candidate_source_ref', result['industry_source_ref']),now,peer)))
         result['peer_count']=len(result['peers'])
+        if basis:
+            pending = sum(row['reason'] in {'peer_not_collected', 'source_paused_after_repeated_failures'}
+                          for row in result['excluded'])
+            result.update(checked_candidate_count=len(candidates) - pending, pending_candidate_count=pending)
         _need(result['peer_count']>=MIN_PEERS, 'at_least_three_compatible_industry_references_required')
         middle=float(median(p['multiple'] for p in result['peers']))
         premium=subject['multiple']/middle-1
