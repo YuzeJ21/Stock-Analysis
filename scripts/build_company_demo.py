@@ -9,16 +9,24 @@ from statistics import median
 
 
 _TITLE = "Stock Research Command Center | Guided Demo"
-_DESCRIPTION = "Follow a fictional company from search to financial trends, peer valuation, and research follow-up."
+_DESCRIPTION = "Research a fictional company, review business trends and peers, test valuation assumptions, and track a follow-up."
 _COMPANY = "Fogline Photonics"
 _TICKER = "FICT"
 _CLOSE_DATE = "Oct 30, 2026"
 _PRIOR_CLOSE_DATE = "Oct 29, 2026"
 _CLOSE = 48.0
+_SAMPLE_FILING_DATE = "Feb 12, 2026"
+_FOLLOW_UP = "Check whether revenue growth and operating income remain aligned in the next annual filing."
 _ANNUAL = (
     (2023, 78, 6, 0.95),
     (2024, 96, 11, 1.60),
     (2025, 120, 17, 2.00),
+)
+_QUARTERLY = (
+    ("Q1 FY2025", 26, 22, 3.4),
+    ("Q2 FY2025", 29, 24, 4.2),
+    ("Q3 FY2025", 31, 24, 4.4),
+    ("Q4 FY2025", 34, 26, 5.0),
 )
 _PEERS = (
     ("Peer A", 36.0, 2.0),
@@ -96,6 +104,7 @@ main, .panel { min-width: 0; }
 .case-file p:not(.eyebrow) { color: #e0eee6; font-size: .9rem; }
 .case-file ul { margin: .2rem 0 0; padding: 0; list-style: none; }
 .case-file li { padding: .52rem 0; border-top: 1px solid #527b6d; font-size: .87rem; }
+.case-file a { color: #e0eee6; font-weight: 750; }
 .search-form, .note-form { display: grid; gap: .5rem; }
 .field-label { font-weight: 750; font-size: .9rem; }
 .form-row, .actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
@@ -150,12 +159,26 @@ details li + li { margin-top: .3rem; }
   margin: 0 .4rem .25rem 0; border: 1px solid #789687; border-radius: .48rem; background: var(--paper); cursor: pointer; }
 .peer-controls label:has(input:checked) { background: var(--mint); border-color: var(--pine); color: var(--pine); font-weight: 750; }
 .peer-controls input { accent-color: var(--pine); }
-.peer-result { display: grid; gap: .55rem; border-left: .27rem solid #28634f; margin-bottom: .8rem; }
+.peer-result { display: grid; gap: .55rem; padding: 1rem; border-left: .27rem solid #28634f; }
 .peer-result--withheld { border-left-color: #ac7a23; }
 .demo-state--withheld { display: none; }
 body:has(#demo-withheld:checked) .demo-state--available { display: none; }
 body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
 .peer-evidence { margin-top: .15rem; }
+.tool-grid, .tool-list, .tool-body { display: grid; gap: .65rem; }
+.tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.tool-grid details { min-width: 0; }
+.tool-body > table, .tool-body > ul { margin-top: 0; }
+.tool-body > p, .decision-lanes dd { font-size: .9rem; }
+.business-trend-table :is(th,td) { padding-inline: .3rem; }
+.decision-lanes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem 1rem; margin: 0; }
+.decision-lanes dt { color: var(--pine); font-size: .84rem; font-weight: 750; }
+.decision-lanes dd { margin: 0; }
+.scenario-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem; }
+.scenario-values > div { min-width: 0; border-radius: .45rem; padding: .48rem .6rem; background: var(--mint); }
+.scenario-values strong, .scenario-values output { display: block; font-size: 1.12rem; font-weight: 780; }
+.scenario-control input { display: block; width: 100%; min-height: 2.75rem; margin: 0; accent-color: var(--pine); }
+.tool-body > .scenario-assumptions { font-size: .8rem; }
 .note-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .65fr); gap: .85rem; }
 .note-box ul { margin: 0; padding-left: 1.2rem; }
 .monitor-note { display: grid; gap: .65rem; border-left: .27rem solid #28634f; }
@@ -177,7 +200,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
   .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
   .layout { padding-top: .8rem; gap: 1rem; }
   .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hero, .trend-grid, .note-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes { grid-template-columns: minmax(0, 1fr); }
   .metrics { gap: .45rem; }
   .metric { padding: .6rem; }
   .metric-value { font-size: 1.12rem; }
@@ -248,10 +271,11 @@ def _discover():
       <h3>{_COMPANY}</h3>
       <p>Follow a fictional optical components company through the full research flow.</p>
       <ul>
-        <li>Three reported fiscal years</li>
+        <li>Three sample fiscal years</li>
         <li>One dated close and four peer candidates</li>
         <li>One follow-up to carry into Monitor</li>
       </ul>
+      <p><a href="./amd.html">Explore the real AMD filing case</a></p>
     </aside>
   </div>
 </section>"""
@@ -278,6 +302,27 @@ def _revenue_chart():
   </svg>
   <figcaption>Fiscal years ended December 31. USD millions.</figcaption>
 </figure>"""
+
+
+def _business_trend():
+    rows = "".join(
+        f'<tr><th scope="row">{quarter}</th><td>{revenue}M</td><td>{prior}M</td>'
+        f'<td>{(revenue / prior - 1) * 100:+.1f}%</td><td>{income / revenue:.1%}</td></tr>'
+        for quarter, revenue, prior, income in _QUARTERLY
+    )
+    return f"""<details>
+    <summary>Business Trend</summary>
+    <div class="tool-body">
+      <p>Revenue growth accelerated into the second half of FY2025. Compare the same quarters a year earlier
+        and check whether operating margin improved through the year.</p>
+      <table class="numbers business-trend-table">
+        <caption>Fictional quarterly statements · USD revenue · margin for FY2025</caption>
+        <thead><tr><th scope="col">Quarter</th><th scope="col">Revenue</th><th scope="col">Prior year</th><th scope="col">YoY</th>
+          <th scope="col">Op. margin</th></tr></thead>
+        <tbody>{rows}</tbody>
+      </table>
+    </div>
+  </details>"""
 
 
 def _financials(peer_summary):
@@ -316,10 +361,12 @@ def _financials(peer_summary):
       </table>
     </div>
   </div>
+  {_business_trend()}
   <details>
     <summary>View financial and price evidence</summary>
     <ul>
-      <li>Sample annual statement FY {year}, year ended Dec 31, {year}, filed Feb 12, 2026. Revenue USD {revenue}M, diluted EPS USD {eps:.2f}.</li>
+      <li>Fictional FY {year} statement, year ended Dec 31, {year}, dated {_SAMPLE_FILING_DATE}.
+        Revenue USD {revenue}M, diluted EPS USD {eps:.2f}.</li>
       <li>FY {year - 1} revenue USD {prior_revenue}M, same reporting currency and year-end. Change = {revenue}M ÷ {prior_revenue}M − 1.</li>
       <li>Sample daily price record dated {_CLOSE_DATE}: closing price USD {_CLOSE:.2f}.</li>
     </ul>
@@ -372,7 +419,7 @@ def _peer_scenario(withheld):
       <p class="metric-context">{multiple_summary}</p>
       <p class="metric-context">{count} eligible · {len(_PEERS) - count} excluded</p>
     </div>"""
-    evidence = f"""<div class="demo-state--{state}">
+    comparison = f"""<div class="demo-state--{state}">
     <article class="surface peer-result{' peer-result--withheld' if withheld else ''}" data-company-answer="valuation">
       {badge}<h3>{answer}</h3><p>{context}</p>
       <details class="peer-evidence">
@@ -386,6 +433,8 @@ def _peer_scenario(withheld):
         </ul>
       </details>
     </article>
+  </div>"""
+    table = f"""<div class="demo-state--{state}">
     <div class="surface">
       <h3>Peer candidates</h3>
       <table class="peer-table">
@@ -396,30 +445,114 @@ def _peer_scenario(withheld):
       </table>
     </div>
   </div>"""
-    return summary, evidence
+    return summary, comparison, table
 
 
-def _valuation(available_evidence, withheld_evidence):
+def _scenario_lab():
+    baseline_rate, growth, terminal, years = 9, 0.08, 0.03, 5
+    margin = 0.10
+    cash_flows = [_ANNUAL[-1][1] * margin * (1 + growth) ** year for year in range(1, years + 1)]
+    rates = range(7, 15)
+    values = []
+    for rate in rates:
+        discount = rate / 100
+        terminal_value = cash_flows[-1] * (1 + terminal) / (discount - terminal)
+        value = sum(cash / (1 + discount) ** year for year, cash in enumerate(cash_flows, start=1))
+        values.append(f"USD {value + terminal_value / (1 + discount) ** years:.1f}M")
+    baseline = values[baseline_rate - rates.start]
+    return f"""<details data-demo-scenario-values="{','.join(values)}">
+    <summary>Scenario Lab</summary>
+    <div class="tool-body">
+      <p>See how WACC affects the value of the same fictional cash flows.</p>
+      <div class="scenario-values" role="group" aria-label="Illustrative DCF values">
+        <div><p class="metric-label">Baseline at {baseline_rate}% WACC</p>
+          <strong data-demo-scenario-baseline>{baseline}</strong></div>
+        <div><p class="metric-label">Scenario</p>
+          <output for="demo-scenario-wacc" data-demo-scenario-value>{baseline}</output></div>
+      </div>
+      <div class="scenario-control" data-demo-scenario-control hidden>
+        <label class="field-label" for="demo-scenario-wacc">Scenario WACC</label>
+        <span class="helper" data-demo-scenario-rate aria-hidden="true">{baseline_rate}%</span>
+        <input id="demo-scenario-wacc" type="range" min="{rates.start}" max="{rates.stop - 1}" step="1"
+          value="{baseline_rate}" aria-valuetext="{baseline_rate}%" aria-describedby="demo-scenario-assumptions">
+      </div>
+      <p class="source-note" data-demo-scenario-static>This view shows the baseline at {baseline_rate}% WACC.
+        The interactive slider requires scripts.</p>
+      <p class="source-note scenario-assumptions" id="demo-scenario-assumptions">Fictional DCF · {years} years ·
+        {growth:.0%} annual growth · {margin:.0%} cash-flow margin · {terminal:.0%} terminal growth ·
+        USD model values.</p>
+    </div>
+  </details>"""
+
+
+def _valuation(comparisons, tables):
     content = f"""<fieldset class="peer-controls">
     <legend>Change the peer evidence</legend>
     <label><input type="radio" id="demo-available" name="demo-scenario" checked> 3 eligible peers</label>
     <label><input type="radio" id="demo-withheld" name="demo-scenario"> 2 eligible peers</label>
   </fieldset>
-  {available_evidence}
-  {withheld_evidence}
+  {comparisons}
+  <div class="tool-grid" role="group" aria-label="Valuation research tools">
+    <details>
+      <summary>Peer Read-Through</summary>
+      <div class="tool-body">
+        <p><strong>Peer A · comparable operating context.</strong> The sample relationship record shows the same
+          optical components business and calendar year. Revenue rose 18% from USD 50M to USD 59M. Fogline grew 25%.</p>
+        <p><strong>Peer B · operating read-through withheld.</strong> Its segment mix differs. The sample statement
+          combines industrial and optical sales without a breakdown. It can still qualify for annual P/E.</p>
+        <p class="source-note">Fictional FY2025 statements and peer relationship notes.</p>
+      </div>
+    </details>
+    {_scenario_lab()}
+  </div>
+  {tables}
   <div class="actions">{_step_link("notes", "Continue to Research Notes")}</div>"""
     return _panel("valuation", f"Step 3 of 5 · Company Workbench · {_TICKER}", "Peer Valuation",
-                  "Switch the sample to see how a different closing date changes which peers qualify.", content)
+                  f"Compare {_COMPANY} with its sample peers and test a valuation assumption.", content)
 
 
 def _notes():
-    content = f"""<div class="note-grid">
+    content = f"""<div class="tool-list" role="group" aria-label="Research tools">
+    <details>
+      <summary>Forward View</summary>
+      <div class="tool-body">
+        <p><strong>Question to test.</strong> Can Fogline keep growing revenue while protecting operating margin?</p>
+        <p>FY2025 revenue growth and higher operating income support the question. The next annual statement is
+          the check. Compare matching periods and look for any change in segment mix or expenses.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Catalysts</summary>
+      <div class="tool-body">
+        <ul>
+          <li><strong>Reviewed · {_SAMPLE_FILING_DATE}.</strong> The fictional FY2025 filing established the baseline.</li>
+          <li><strong>Waiting · FY2026 annual statement.</strong> The publication date is unconfirmed.
+            Revisit the note after the fictional filing becomes available.</li>
+        </ul>
+      </div>
+    </details>
+    <details>
+      <summary>Research Decision Lab</summary>
+      <div class="tool-body">
+        <dl class="decision-lanes">
+          <div><dt>Plan</dt><dd>Test whether growth and operating income move together.</dd></div>
+          <div><dt>Evidence</dt><dd>Compare the fictional FY2024 and FY2025 statements.</dd></div>
+          <div><dt>Invalidation</dt><dd>Revisit the thesis if revenue rises while comparable operating margin falls.</dd></div>
+          <div><dt>Scenario</dt><dd>Review the discount-rate sensitivity in {_step_link("valuation", "Peer Valuation", button=False)}.</dd></div>
+          <div><dt>Review trigger</dt><dd>Next fictional annual statement.</dd></div>
+          <div><dt>Learning</dt><dd>Record what explained any difference after the filing review.</dd></div>
+        </dl>
+        <p class="source-note">Use the draft below to carry the review question into Monitor.</p>
+      </div>
+    </details>
+  </div>
+  <div class="note-grid">
     <div class="surface note-box">
       <h3>Draft one follow-up</h3>
       <form class="note-form" id="demo-note-form" data-demo-note-form>
         <label class="field-label" for="demo-note-input">Research note</label>
         <textarea id="demo-note-input" data-demo-note-input rows="4" maxlength="500"
-          aria-describedby="demo-note-hint">Check whether revenue growth and operating income remain aligned in the next annual filing.</textarea>
+          aria-describedby="demo-note-hint">{_FOLLOW_UP}</textarea>
         <p class="helper" id="demo-note-hint">Edit the example if you like. This note lasts until you reload the demo.</p>
         <button class="button" type="submit" data-demo-pin>Add to Monitor</button>
         <p class="status" id="demo-note-status" data-demo-pin-status role="status"></p>
@@ -461,8 +594,8 @@ def _monitor():
 def build_demo_html():
     script = _SCRIPT_PATH.read_text(encoding="utf-8")
     digest = b64encode(sha256(script.encode("utf-8")).digest()).decode("ascii")
-    available_summary, available_evidence = _peer_scenario(False)
-    withheld_summary, withheld_evidence = _peer_scenario(True)
+    available_summary, available_comparison, available_table = _peer_scenario(False)
+    withheld_summary, withheld_comparison, withheld_table = _peer_scenario(True)
     steps = "".join(
         f'<li><a href="#{step}" data-demo-step="{step}" data-demo-go="{step}">'
         f'<span class="step-number" aria-hidden="true">{number}</span>{label}</a></li>'
@@ -499,7 +632,7 @@ def build_demo_html():
     <main id="demo-main" tabindex="-1">
       {_discover()}
       {_financials(available_summary + withheld_summary)}
-      {_valuation(available_evidence, withheld_evidence)}
+      {_valuation(available_comparison + withheld_comparison, available_table + withheld_table)}
       {_notes()}
       {_monitor()}
     </main>

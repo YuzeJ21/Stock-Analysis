@@ -18,22 +18,32 @@ class _Document(HTMLParser):
         super().__init__()
         self.elements = []
         self.scripts = []
+        self.links = []
         self.script = None
+        self.link = None
         self.feed(html)
 
     def handle_starttag(self, tag, attrs):
         self.elements.append((tag, dict(attrs)))
         if tag == "script":
             self.script = ""
+        if tag == "a":
+            self.link = (dict(attrs).get("href"), [])
 
     def handle_data(self, data):
         if self.script is not None:
             self.script += data
+        if self.link is not None:
+            self.link[1].append(data)
 
     def handle_endtag(self, tag):
         if tag == "script":
             self.scripts.append(self.script)
             self.script = None
+        if tag == "a" and self.link is not None:
+            href, content = self.link
+            self.links.append((href, " ".join("".join(content).split())))
+            self.link = None
 
 
 def test_demo_is_a_self_contained_explicit_cli_output(tmp_path):
@@ -71,8 +81,10 @@ def test_demo_is_a_self_contained_explicit_cli_output(tmp_path):
     assert not any(tag in {"img", "iframe", "object"} for tag, _ in document.elements)
     assert not any({"src", "srcset", "action"}.intersection(attrs) for _, attrs in document.elements)
     assert not any(name.startswith("on") for _, attrs in document.elements for name in attrs)
-    assert all(attrs["href"].startswith("#") and attrs["href"][1:] in ids
-               for tag, attrs in document.elements if tag == "a")
+    anchor_hrefs = [attrs["href"] for tag, attrs in document.elements if tag == "a"]
+    assert anchor_hrefs.count("./amd.html") == 1
+    assert all(href == "./amd.html" or (href.startswith("#") and href[1:] in ids)
+               for href in anchor_hrefs)
     assert all(attrs.get("rel") in {"canonical", "alternate"} for tag, attrs in document.elements if tag == "link")
     assert {attrs["data-demo-page"] for _, attrs in document.elements if "data-demo-page" in attrs} == {
         "discover", "financials", "valuation", "notes", "monitor",
@@ -105,6 +117,9 @@ def test_amd_case_uses_dated_filing_metrics_and_withholds_market_data():
     assert all(attrs["href"][1:] in ids for tag, attrs in document.elements
                if tag == "a" and attrs["href"].startswith("#"))
     assert any(tag == "a" and attrs["href"] == "./#notes" for tag, attrs in document.elements)
+    assert [text for href, text in document.links if href == "./#valuation"] == [
+        "Explore advanced research tools",
+    ]
 
 
 @contextmanager
@@ -135,6 +150,16 @@ def _browser(tmp_path, viewport, *, javascript=True):
 
 def _viewport_fits(page, viewport):
     assert page.locator("html").evaluate("e => e.scrollWidth") == viewport["width"]
+
+
+def _open_native_detail(panel, title, expect):
+    summary = panel.locator("summary").filter(has_text=re.compile(rf"^\s*{re.escape(title)}\s*$"))
+    expect(summary).to_be_visible()
+    detail = summary.locator("..")
+    expect(detail).not_to_have_attribute("open", "")
+    summary.press("Enter")
+    expect(detail).to_have_attribute("open", "")
+    return detail
 
 
 @pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}, {"width": 390, "height": 844}], ids=["desktop", "phone"])
@@ -171,6 +196,8 @@ def test_guided_demo_search_peer_withholding_and_follow_up_offline(tmp_path, vie
         expect(financials.locator("[data-demo-title]")).to_be_in_viewport()
         expect(financials).to_contain_text("2025")
         expect(financials).to_contain_text("2024")
+        trend = _open_native_detail(financials, "Business Trend", expect)
+        expect(trend.get_by_role("row").filter(has_text="Q4 FY2025")).to_contain_text("26M")
         _viewport_fits(page, viewport)
 
         nav = page.get_by_role("navigation")
@@ -223,6 +250,24 @@ def test_guided_demo_search_peer_withholding_and_follow_up_offline(tmp_path, vie
         expect(evidence).to_have_attribute("open", "")
         expect(evidence.locator("summary")).to_be_focused()
         expect(evidence).to_contain_text("Oct 29, 2026")
+        read_through = _open_native_detail(valuation, "Peer Read-Through", expect)
+        expect(read_through).to_contain_text("USD 50M to USD 59M")
+        scenario = _open_native_detail(valuation, "Scenario Lab", expect)
+        wacc = scenario.get_by_role("slider", name="Scenario WACC", exact=True)
+        baseline = scenario.locator("[data-demo-scenario-baseline]")
+        scenario_value = scenario.locator("[data-demo-scenario-value]")
+        expect(wacc).to_have_attribute("type", "range")
+        expect(wacc).to_have_value("9")
+        expect(baseline).to_be_visible()
+        expect(scenario_value).to_be_visible()
+        original_baseline = baseline.inner_text()
+        assert original_baseline.strip()
+        expect(scenario_value).to_have_text(original_baseline)
+        wacc.press("ArrowRight")
+        expect(wacc).to_have_value("10")
+        expect(scenario_value).to_have_text("USD 217.9M")
+        expect(baseline).to_have_text(original_baseline)
+        expect(withheld).to_be_checked()
         _viewport_fits(page, viewport)
         page.get_by_role("link", name="Skip to demo content").press("Enter")
         expect(page).to_have_url(re.compile(r"#demo-main$"))
@@ -234,6 +279,9 @@ def test_guided_demo_search_peer_withholding_and_follow_up_offline(tmp_path, vie
         nav.locator('[data-demo-go="notes"]').press("Enter")
         notes = page.locator('[data-demo-page="notes"]')
         expect(notes.locator("[data-demo-title]")).to_be_focused()
+        for title in ("Forward View", "Catalysts", "Research Decision Lab"):
+            _open_native_detail(notes, title, expect)
+        _viewport_fits(page, viewport)
         note = "<b>Check the fiscal-year comparison</b>"
         notes.locator("[data-demo-note-input]").fill(note)
         notes.locator("[data-demo-pin]").press("Enter")
@@ -281,4 +329,8 @@ def test_native_sections_and_peer_controls_remain_usable_without_scripts(tmp_pat
         expect(valuation.get_by_role("radio", name="2 eligible peers", exact=True)).to_be_checked()
         expect(callout).to_contain_text("Peer comparison withheld", use_inner_text=True)
         expect(callout).not_to_contain_text("20.0×", use_inner_text=True)
+        scenario = _open_native_detail(valuation, "Scenario Lab", expect)
+        expect(scenario.locator("[data-demo-scenario-baseline]")).to_be_visible()
+        expect(scenario.get_by_role("slider", name="Scenario WACC")).to_be_hidden()
+        expect(scenario).to_contain_text("The interactive slider requires scripts.")
         _viewport_fits(page, viewport)

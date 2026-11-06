@@ -117,7 +117,8 @@ def build_amd_demo_html():
         <p class="eyebrow">AMD · Q3 FY2026 · SEC Form 10-Q</p>
         <h2>Advanced Micro Devices</h2>
         <p class="case-source"><span>Quarter ended Sep 26, 2026</span><span>· Filed Nov 4, 2026</span>
-          <a href="#filing-source">Filing &amp; calculations</a></p>
+          <a href="#filing-source">Filing &amp; calculations</a>
+          <span><a href="./#valuation">Explore advanced research tools</a> <span class="source-note">· fictional case</span></span></p>
       </header>
       <div class="metrics" aria-label="Quarterly results">
         <article class="metric"><p class="metric-label">Revenue growth</p>

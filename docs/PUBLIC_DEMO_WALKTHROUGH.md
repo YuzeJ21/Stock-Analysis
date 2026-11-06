@@ -19,8 +19,8 @@ The [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) shows r
 
 ## Two-Minute External Review Path
 
-- Public interactive demo: search for `FICT`, inspect Financial Trends, and switch from three eligible peers to two in Peer Valuation. Open Research Notes, add the sample follow-up to Monitor, and return to the company.
-- Public AMD case: read the growth driver, open Quarterly Trends and Cash Flow, and see how the sample Monitor item turns those observations into a follow-up. Try adding a follow-up in the synthetic guided demo.
+- Public interactive demo: search for `FICT` and open Business Trend in Financial Trends. In Peer Valuation, switch from three eligible peers to two, inspect Peer Read-Through, and change WACC in the fictional Scenario Lab. In Research Notes, open Forward View, Catalysts, and Research Decision Lab. Carry the sample follow-up into Monitor and return to the company.
+- Public AMD case: read the growth driver, open Quarterly Trends and Cash Flow, and see how the sample Monitor item turns those observations into a follow-up. **Explore advanced research tools** opens the separate fictional Workbench example.
 - GitHub-only review: start with the README for the implementation and the saved examples below.
 - Live dashboard review: run `make dashboard` for Personal Research. For the compact local visitor snapshot, run `make demo-dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; use `make readiness-ops-center` for current lane truth, while `make status-check TOP_N=5` remains saved-snapshot context.

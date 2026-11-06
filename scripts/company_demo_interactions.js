@@ -75,6 +75,23 @@
         query.focus();
     });
 
+    const scenario = document.querySelector("[data-demo-scenario-values]");
+    const scenarioControl = scenario.querySelector("[data-demo-scenario-control]");
+    const wacc = scenarioControl.querySelector('input[type="range"]');
+    const waccLabel = scenarioControl.querySelector("[data-demo-scenario-rate]");
+    const scenarioValue = scenario.querySelector("[data-demo-scenario-value]");
+    const scenarioValues = scenario.dataset.demoScenarioValues.split(",");
+    function updateScenario() {
+        const rate = `${wacc.value}%`;
+        wacc.setAttribute("aria-valuetext", rate);
+        waccLabel.textContent = rate;
+        scenarioValue.value = scenarioValues[wacc.valueAsNumber - Number(wacc.min)];
+    }
+    wacc.addEventListener("input", updateScenario);
+    updateScenario();
+    scenario.querySelector("[data-demo-scenario-static]").hidden = true;
+    scenarioControl.hidden = false;
+
     const noteForm = document.querySelector("[data-demo-note-form]");
     const noteInput = noteForm.querySelector("[data-demo-note-input]");
     const noteStatus = document.querySelector("[data-demo-pin-status]");

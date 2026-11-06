@@ -8,9 +8,9 @@ An **Evidence-First Research Workbench** for serious individual equity researche
 
 ### Two-minute walkthrough
 
-1. **Find Fogline Photonics.** Search for `FICT` in Company Search and open its Workbench to see the dated close and financial trends.
-2. **Compare peers.** Review annual diluted P/E and the exclusion evidence. Switch from three eligible peers to two to see why the comparison is withheld.
-3. **Follow the evidence.** Open Research Notes, add the sample follow-up to Monitor, and return to the same company. The demo keeps interactions in the current tab.
+1. **Find Fogline Photonics.** Search for `FICT` and open Business Trend in Financial Trends to compare four fictional quarters.
+2. **Compare peers and test a scenario.** Switch from three eligible peers to two, open Peer Read-Through, and change the discount rate in Scenario Lab.
+3. **Follow the evidence.** Open Forward View, Catalysts, and Research Decision Lab in Research Notes. Add the sample follow-up to Monitor and return to the company. The demo keeps interactions in the current tab.
 
 <details><summary>Full workflow and reviewer resources</summary>
 
