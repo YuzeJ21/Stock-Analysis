@@ -134,10 +134,15 @@ def build_industry_coverage(inventory, observations, peer_summary=None, price_ro
                 price_state = True
         peer = _peer_result(peer_row, cik, sic)
         if ticker in representative_tickers and representative_counts[ticker] == 1:
+            verified_peer_row = peer_row if peer_row and peer_row.get('sec_cik') == cik else {}
+            assessed = peer is True or (peer == 'at_least_three_compatible_industry_references_required'
+                and verified_peer_row.get('reference_state') in {'assessed', 'partially_assessed'})
             members[ticker] = dict(ticker=ticker, scope_matched=True, sic=sic,
                 price=price_state, price_date=price['price_date'] if price_state is True else None,
-                peer=peer, peer_date=peer_row.get('price_date') if peer is True else None,
-                peer_count=peer_row['accepted_reference_count'] if peer is True else None)
+                peer=peer, peer_date=verified_peer_row.get('price_date') if assessed else None,
+                peer_count=verified_peer_row.get('accepted_reference_count') if assessed else None,
+                peer_references_partial=assessed and verified_peer_row.get('reference_state') == 'partially_assessed',
+                annual_common_filing=verified_peer_row.get('annual_common_filing'))
         for evidence in (price if price_state is not None else None, peer_row):
             if evidence:
                 last = max(last, _utc_timestamp(evidence['attempted_at']))

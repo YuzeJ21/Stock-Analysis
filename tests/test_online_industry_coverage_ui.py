@@ -138,12 +138,17 @@ def test_selecting_unknown_sic_shows_its_own_denominator_and_reasons(report):
 def test_sample_shows_checked_and_pending_separately_from_the_sic_population(report):
     cohort = _group("公用事业", 3, {
         "price": (1, 2, {}),
-        "peer": (0, 2, {"multiple_issuer_share_classes_unresolved": 1}),
+        "peer": (0, 1, {"multiple_issuer_share_classes_unresolved": 1,
+                        "at_least_three_compatible_industry_references_required": 1}),
     })
     cohort["members"] = [
         dict(ticker="DUK", scope_matched=True, sic="4931", price=True, price_date="2026-11-05",
              peer="multiple_issuer_share_classes_unresolved"),
-        dict(ticker="SO", scope_matched=True, sic=None, price=None, peer=None),
+        dict(ticker="SO", scope_matched=True, sic="4911", price=None,
+             peer="at_least_three_compatible_industry_references_required", peer_count=0, peer_date="2026-11-05",
+             peer_references_partial=True,
+             annual_common_filing=dict(period_end="2025-12-31",
+                 source_ref="https://www.sec.gov/Archives/edgar/data/92122/000009212226000006/so-20251231.htm")),
         dict(ticker="NEE", scope_matched=False, price=None, peer=None),
     ]
     report["representative_groups"] = [cohort]
@@ -155,7 +160,9 @@ def test_sample_shows_checked_and_pending_separately_from_the_sic_population(rep
     text = _text(app)
     assert "公用事业 · DUK、SO、NEE" in text
     assert "收盘价** · 已核查 1 / 3 · 通过 1 / 3 · 有缺口 0 · 待核查 2" in text
-    assert "同行估值** · 已核查 1 / 3 · 通过 0 / 3 · 有缺口 1 · 待核查 2" in text
+    assert "同行估值** · 已核查 2 / 3 · 通过 0 / 3 · 有缺口 2 · 待核查 1" in text
     assert "SIC 4931 · 收盘价 2026-11-05" in text
     assert "所选证券的每股收益口径尚未核对" in text
+    assert "0 家合格同行 · 参照核查未完成 · 2026-11-05" in text
+    assert "[10-K 普通股摊薄 EPS 原文（2025-12-31）](https://www.sec.gov/Archives/edgar/data/92122/" in text
     assert "NEE** · 本次目录缺少唯一的代表代码与发行人关联" in text

@@ -168,6 +168,10 @@ def _summary(state,as_of,workspace_mode,*,detail_ticker=None):
             excluded=[dict(ticker=r.get('ticker'),reason=r.get('reason')) for r in outcomes],source_refs=refs)
         if subject and subject.get('price_date') is not None:
             row['price_date'] = subject['price_date']
+        if scope.get('status') == 'supported_common':
+            annual = next((doc for doc in scope['documents'] if doc['role'] == 'annual' and doc['form'] == '10-K'), None)
+            if annual:
+                row['annual_common_filing'] = dict(period_end=annual['reportDate'], source_ref=annual['source_ref'])
         if sec_sic:
             row['sec_sic'] = sec_sic['sic']
         rows.append(row);groups[(row['industry_key'],row['sic'])].append(row)

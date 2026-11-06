@@ -127,3 +127,27 @@ def test_representative_cohorts_show_two_independent_lanes_and_keep_pending_targ
     assert financials['lanes']['peer']['reasons'] == {'annual_eps_nonpositive_or_invalid': 1}
     assert financials['lanes']['peer']['unprobed'] == 1
     assert [(group['sic'], group['denominator']) for group in report['groups']] == [('3571', 1), (None, 2)]
+
+
+def test_verified_common_filing_and_zero_qualified_peers_are_separate_evidence():
+    from src.online_industry_coverage import build_industry_coverage
+
+    inventory = _inventory()
+    when = inventory['observed_from']
+    filing = dict(period_end='2025-12-31', source_ref='https://www.sec.gov/Archives/edgar/data/1234/1/fict.htm')
+    rows = [
+        dict(ticker='FICT', sec_cik='0000001234', attempted=True, attempted_at=when,
+             annual_common_filing=filing, comparison_state='withheld',
+             primary_reason='at_least_three_compatible_industry_references_required',
+             subject_pe_state='available', reference_state='partially_assessed', accepted_reference_count=0, price_date='2026-10-30'),
+        dict(ticker='BANK', sec_cik='0000009999', attempted=True, attempted_at=when,
+             annual_common_filing=filing, comparison_state='withheld', accepted_reference_count=0),
+    ]
+    report = build_industry_coverage(inventory, [], dict(status='inspection_only', rows=rows),
+                                     representative_groups=(('Sample', ('FICT', 'BANK')),))
+    qualified, mismatch = report['representative_groups'][0]['members']
+    assert qualified['annual_common_filing'] == filing
+    assert qualified['peer_count'] == 0 and qualified['peer_date'] == '2026-10-30'
+    assert qualified['peer_references_partial'] is True
+    assert mismatch['annual_common_filing'] is None and mismatch['peer_count'] is None
+    assert report['total']['lanes']['peer']['available'] == 0

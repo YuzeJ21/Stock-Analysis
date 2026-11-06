@@ -75,10 +75,19 @@ def _render_representatives(st, groups):
                     continue
                 price, peer = member['price'], member['peer']
                 price_text = member['price_date'] if price is True else _reason_text(price) if price else '待核查'
-                peer_text = (f"{member['peer_count']} 家合格同行 · {member['peer_date'] or '查看核查详情'}"
-                             if peer is True else _reason_text(peer) if peer else '待核查')
+                peer_text = _reason_text(peer) if isinstance(peer, str) else '待核查' if peer is None else ''
+                if member.get('peer_count') is not None:
+                    summary = f"{member['peer_count']} 家合格同行"
+                    if member.get('peer_references_partial'):
+                        summary += " · 参照核查未完成"
+                    if member['peer_date']:
+                        summary += f" · {member['peer_date']}"
+                    peer_text = f"{summary} · {peer_text}" if peer_text else summary
+                filing = member.get('annual_common_filing')
+                filing_text = (f" · [10-K 普通股摊薄 EPS 原文（{filing['period_end']}）]({filing['source_ref']})"
+                               if filing else '')
                 sic = f"SIC {member['sic']}" if member['sic'] else 'SEC 行业待核查'
-                st.markdown(f"- **{ticker}** · {sic} · 收盘价 {price_text} · 同行估值 {peer_text}")
+                st.markdown(f"- **{ticker}** · {sic} · 收盘价 {price_text} · 同行估值 {peer_text}{filing_text}")
     st.caption("使用下方的单公司价格表单，或在上方「同行估值覆盖 · 行业样本」选择待核查公司。")
 
 

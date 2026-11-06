@@ -5,7 +5,7 @@ specified empty relative-path SEC tail script is excluded; all other bytes bind.
 Other raw symbols are not asserted to be equivalent aliases or legal approvals.
 """
 
-POLICIES = ({'policy_id': 'duk-selected-common-2026-v2',
+POLICIES = ({'policy_id': 'duk-selected-common-2026-v3',
   'ticker': 'DUK',
   'sec_cik': '0001326160',
   'kind': 'supported_common',
@@ -23,17 +23,17 @@ POLICIES = ({'policy_id': 'duk-selected-common-2026-v2',
                            'normalization': 'sec-empty-tail-script-v1',
                            'body_sha256': '638cd653df525f8be9ec031196a2cb9ae2b44f55d719911129f9a406b3974c8f'},
                 'cover': {'metadata': {'form': '8-K',
-                                       'reportDate': '2026-09-24',
-                                       'filingDate': '2026-09-25',
-                                       'acceptanceDateTime': '2026-09-25T10:30:27.000Z',
-                                       'accessionNumber': '0001104659-26-110588',
-                                       'primaryDocument': 'tm2626114d1_8k.htm',
+                                       'reportDate': '2026-11-05',
+                                       'filingDate': '2026-11-05',
+                                       'acceptanceDateTime': '2026-11-04T22:56:27.000Z',
+                                       'accessionNumber': '0001326160-26-000048',
+                                       'primaryDocument': 'duk-20261105.htm',
                                        'isInlineXBRL': 1,
                                        'isXBRL': 1},
-                          'sha256': 'cecea1c3e850e38ddfbc296bc9c840c789d6196854a13edb914c26a0bd68abf3',
-                          'cover_fact_ids': ['Fact000026', 'Fact000027', 'Fact000028'],
+                          'sha256': 'd71a2027d0d636b782bec7d571f79027c3f9664c619098cdac456e93abb4e439',
+                          'cover_fact_ids': ['f-17', 'f-18', 'f-19'],
                           'normalization': 'sec-empty-tail-script-v1',
-                          'body_sha256': '57d9404ad96d4001ff258f565965bf433e65d7d5a8527f2310bbc0f5a820fb9f'}},
+                          'body_sha256': 'd929433ea016d460a6bc44d2afa16691ffc7ee29ecd7b877af0b4c163201b255'}},
   'basis_fact_ids': ['f-463', 'f-8749', 'f-8750'],
   'reason': 'literal_common_scope_supported'},
  {'policy_id': 'jpm-selected-common-2026-v2',
@@ -153,7 +153,8 @@ POLICIES = ({'policy_id': 'duk-selected-common-2026-v2',
 
 
 from src.sec_bank_security_policies import BANK_POLICIES
-POLICIES += BANK_POLICIES
+from src.sec_utility_security_policies import UTILITY_POLICIES
+POLICIES += BANK_POLICIES + UTILITY_POLICIES
 
 
 from src.sec_cross_security_policies import INSPECTION_OBSERVATIONS
