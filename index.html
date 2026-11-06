@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-KjTEM4nlsownWcs4Jsuh1FZOD8X9UmvTWFlmNrgbbBU='; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ROvLFOuCDYIguHsw9jgq1r56MjUMpR0IPTMNIehS24M='; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
   <title>Stock Research Command Center | Guided Demo</title>
-  <meta name="description" content="Follow a fictional company from search to financial trends, peer valuation, and research follow-up.">
+  <meta name="description" content="Research a fictional company, review business trends and peers, test valuation assumptions, and track a follow-up.">
   <meta property="og:title" content="Stock Research Command Center | Guided Demo">
-  <meta property="og:description" content="Follow a fictional company from search to financial trends, peer valuation, and research follow-up.">
+  <meta property="og:description" content="Research a fictional company, review business trends and peers, test valuation assumptions, and track a follow-up.">
   <style>
 :root {
   color-scheme: light; --ink: #152b24; --muted: #496056; --line: #d3e0d7;
@@ -70,6 +70,7 @@ main, .panel { min-width: 0; }
 .case-file p:not(.eyebrow) { color: #e0eee6; font-size: .9rem; }
 .case-file ul { margin: .2rem 0 0; padding: 0; list-style: none; }
 .case-file li { padding: .52rem 0; border-top: 1px solid #527b6d; font-size: .87rem; }
+.case-file a { color: #e0eee6; font-weight: 750; }
 .search-form, .note-form { display: grid; gap: .5rem; }
 .field-label { font-weight: 750; font-size: .9rem; }
 .form-row, .actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
@@ -124,12 +125,26 @@ details li + li { margin-top: .3rem; }
   margin: 0 .4rem .25rem 0; border: 1px solid #789687; border-radius: .48rem; background: var(--paper); cursor: pointer; }
 .peer-controls label:has(input:checked) { background: var(--mint); border-color: var(--pine); color: var(--pine); font-weight: 750; }
 .peer-controls input { accent-color: var(--pine); }
-.peer-result { display: grid; gap: .55rem; border-left: .27rem solid #28634f; margin-bottom: .8rem; }
+.peer-result { display: grid; gap: .55rem; padding: 1rem; border-left: .27rem solid #28634f; }
 .peer-result--withheld { border-left-color: #ac7a23; }
 .demo-state--withheld { display: none; }
 body:has(#demo-withheld:checked) .demo-state--available { display: none; }
 body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
 .peer-evidence { margin-top: .15rem; }
+.tool-grid, .tool-list, .tool-body { display: grid; gap: .65rem; }
+.tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.tool-grid details { min-width: 0; }
+.tool-body > table, .tool-body > ul { margin-top: 0; }
+.tool-body > p, .decision-lanes dd { font-size: .9rem; }
+.business-trend-table :is(th,td) { padding-inline: .3rem; }
+.decision-lanes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem 1rem; margin: 0; }
+.decision-lanes dt { color: var(--pine); font-size: .84rem; font-weight: 750; }
+.decision-lanes dd { margin: 0; }
+.scenario-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem; }
+.scenario-values > div { min-width: 0; border-radius: .45rem; padding: .48rem .6rem; background: var(--mint); }
+.scenario-values strong, .scenario-values output { display: block; font-size: 1.12rem; font-weight: 780; }
+.scenario-control input { display: block; width: 100%; min-height: 2.75rem; margin: 0; accent-color: var(--pine); }
+.tool-body > .scenario-assumptions { font-size: .8rem; }
 .note-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .65fr); gap: .85rem; }
 .note-box ul { margin: 0; padding-left: 1.2rem; }
 .monitor-note { display: grid; gap: .65rem; border-left: .27rem solid #28634f; }
@@ -151,7 +166,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
   .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
   .layout { padding-top: .8rem; gap: 1rem; }
   .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hero, .trend-grid, .note-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes { grid-template-columns: minmax(0, 1fr); }
   .metrics { gap: .45rem; }
   .metric { padding: .6rem; }
   .metric-value { font-size: 1.12rem; }
@@ -220,10 +235,11 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
       <h3>Fogline Photonics</h3>
       <p>Follow a fictional optical components company through the full research flow.</p>
       <ul>
-        <li>Three reported fiscal years</li>
+        <li>Three sample fiscal years</li>
         <li>One dated close and four peer candidates</li>
         <li>One follow-up to carry into Monitor</li>
       </ul>
+      <p><a href="./amd.html">Explore the real AMD filing case</a></p>
     </aside>
   </div>
 </section>
@@ -282,9 +298,23 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
     </div>
   </div>
   <details>
+    <summary>Business Trend</summary>
+    <div class="tool-body">
+      <p>Revenue growth accelerated into the second half of FY2025. Compare the same quarters a year earlier
+        and check whether operating margin improved through the year.</p>
+      <table class="numbers business-trend-table">
+        <caption>Fictional quarterly statements · USD revenue · margin for FY2025</caption>
+        <thead><tr><th scope="col">Quarter</th><th scope="col">Revenue</th><th scope="col">Prior year</th><th scope="col">YoY</th>
+          <th scope="col">Op. margin</th></tr></thead>
+        <tbody><tr><th scope="row">Q1 FY2025</th><td>26M</td><td>22M</td><td>+18.2%</td><td>13.1%</td></tr><tr><th scope="row">Q2 FY2025</th><td>29M</td><td>24M</td><td>+20.8%</td><td>14.5%</td></tr><tr><th scope="row">Q3 FY2025</th><td>31M</td><td>24M</td><td>+29.2%</td><td>14.2%</td></tr><tr><th scope="row">Q4 FY2025</th><td>34M</td><td>26M</td><td>+30.8%</td><td>14.7%</td></tr></tbody>
+      </table>
+    </div>
+  </details>
+  <details>
     <summary>View financial and price evidence</summary>
     <ul>
-      <li>Sample annual statement FY 2025, year ended Dec 31, 2025, filed Feb 12, 2026. Revenue USD 120M, diluted EPS USD 2.00.</li>
+      <li>Fictional FY 2025 statement, year ended Dec 31, 2025, dated Feb 12, 2026.
+        Revenue USD 120M, diluted EPS USD 2.00.</li>
       <li>FY 2024 revenue USD 96M, same reporting currency and year-end. Change = 120M ÷ 96M − 1.</li>
       <li>Sample daily price record dated Oct 30, 2026: closing price USD 48.00.</li>
     </ul>
@@ -296,7 +326,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
   <header class="panel-intro">
     <p class="eyebrow">Step 3 of 5 · Company Workbench · FICT</p>
     <h2 id="valuation-title" data-demo-title tabindex="-1">Peer Valuation</h2>
-    <p>Switch the sample to see how a different closing date changes which peers qualify.</p>
+    <p>Compare Fogline Photonics with its sample peers and test a valuation assumption.</p>
   </header>
   <fieldset class="peer-controls">
     <legend>Change the peer evidence</legend>
@@ -317,6 +347,57 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
         </ul>
       </details>
     </article>
+  </div><div class="demo-state--withheld">
+    <article class="surface peer-result peer-result--withheld" data-company-answer="valuation">
+      <span class="badge badge--warning">2 eligible peers · 3 required</span><h3>Peer comparison withheld</h3><p>Company P/E 24.0×. A third eligible same-day reference is required.</p>
+      <details class="peer-evidence">
+        <summary>View peer evidence</summary>
+        <ul>
+          <li>Company P/E = USD 48.00 closing price ÷ USD 2.00 reported annual diluted EPS.</li>
+          <li>The sample requires same-day closes, positive annual diluted EPS, and fiscal-year start and end dates within 35 days of the company’s.</li>
+          <li>Peer C closed on Oct 29, 2026. It is outside the Oct 30, 2026 comparison.</li>
+          <li>Peer D is excluded because its annual diluted EPS is negative.</li>
+          <li>Evidence: the sample close records and annual statement fields in the peer table.</li>
+        </ul>
+      </details>
+    </article>
+  </div>
+  <div class="tool-grid" role="group" aria-label="Valuation research tools">
+    <details>
+      <summary>Peer Read-Through</summary>
+      <div class="tool-body">
+        <p><strong>Peer A · comparable operating context.</strong> The sample relationship record shows the same
+          optical components business and calendar year. Revenue rose 18% from USD 50M to USD 59M. Fogline grew 25%.</p>
+        <p><strong>Peer B · operating read-through withheld.</strong> Its segment mix differs. The sample statement
+          combines industrial and optical sales without a breakdown. It can still qualify for annual P/E.</p>
+        <p class="source-note">Fictional FY2025 statements and peer relationship notes.</p>
+      </div>
+    </details>
+    <details data-demo-scenario-values="USD 385.4M,USD 307.2M,USD 255.1M,USD 217.9M,USD 190.0M,USD 168.4M,USD 151.1M,USD 136.9M">
+    <summary>Scenario Lab</summary>
+    <div class="tool-body">
+      <p>See how WACC affects the value of the same fictional cash flows.</p>
+      <div class="scenario-values" role="group" aria-label="Illustrative DCF values">
+        <div><p class="metric-label">Baseline at 9% WACC</p>
+          <strong data-demo-scenario-baseline>USD 255.1M</strong></div>
+        <div><p class="metric-label">Scenario</p>
+          <output for="demo-scenario-wacc" data-demo-scenario-value>USD 255.1M</output></div>
+      </div>
+      <div class="scenario-control" data-demo-scenario-control hidden>
+        <label class="field-label" for="demo-scenario-wacc">Scenario WACC</label>
+        <span class="helper" data-demo-scenario-rate aria-hidden="true">9%</span>
+        <input id="demo-scenario-wacc" type="range" min="7" max="14" step="1"
+          value="9" aria-valuetext="9%" aria-describedby="demo-scenario-assumptions">
+      </div>
+      <p class="source-note" data-demo-scenario-static>This view shows the baseline at 9% WACC.
+        The interactive slider requires scripts.</p>
+      <p class="source-note scenario-assumptions" id="demo-scenario-assumptions">Fictional DCF · 5 years ·
+        8% annual growth · 10% cash-flow margin · 3% terminal growth ·
+        USD model values.</p>
+    </div>
+  </details>
+  </div>
+  <div class="demo-state--available">
     <div class="surface">
       <h3>Peer candidates</h3>
       <table class="peer-table">
@@ -338,21 +419,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
           <td data-label="Eligibility">Excluded · non-positive EPS</td></tr></tbody>
       </table>
     </div>
-  </div>
-  <div class="demo-state--withheld">
-    <article class="surface peer-result peer-result--withheld" data-company-answer="valuation">
-      <span class="badge badge--warning">2 eligible peers · 3 required</span><h3>Peer comparison withheld</h3><p>Company P/E 24.0×. A third eligible same-day reference is required.</p>
-      <details class="peer-evidence">
-        <summary>View peer evidence</summary>
-        <ul>
-          <li>Company P/E = USD 48.00 closing price ÷ USD 2.00 reported annual diluted EPS.</li>
-          <li>The sample requires same-day closes, positive annual diluted EPS, and fiscal-year start and end dates within 35 days of the company’s.</li>
-          <li>Peer C closed on Oct 29, 2026. It is outside the Oct 30, 2026 comparison.</li>
-          <li>Peer D is excluded because its annual diluted EPS is negative.</li>
-          <li>Evidence: the sample close records and annual statement fields in the peer table.</li>
-        </ul>
-      </details>
-    </article>
+  </div><div class="demo-state--withheld">
     <div class="surface">
       <h3>Peer candidates</h3>
       <table class="peer-table">
@@ -384,6 +451,40 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
     <h2 id="notes-title" data-demo-title tabindex="-1">Research Notes</h2>
     <p>Turn the evidence into a question you can revisit.</p>
   </header>
+  <div class="tool-list" role="group" aria-label="Research tools">
+    <details>
+      <summary>Forward View</summary>
+      <div class="tool-body">
+        <p><strong>Question to test.</strong> Can Fogline keep growing revenue while protecting operating margin?</p>
+        <p>FY2025 revenue growth and higher operating income support the question. The next annual statement is
+          the check. Compare matching periods and look for any change in segment mix or expenses.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Catalysts</summary>
+      <div class="tool-body">
+        <ul>
+          <li><strong>Reviewed · Feb 12, 2026.</strong> The fictional FY2025 filing established the baseline.</li>
+          <li><strong>Waiting · FY2026 annual statement.</strong> The publication date is unconfirmed.
+            Revisit the note after the fictional filing becomes available.</li>
+        </ul>
+      </div>
+    </details>
+    <details>
+      <summary>Research Decision Lab</summary>
+      <div class="tool-body">
+        <dl class="decision-lanes">
+          <div><dt>Plan</dt><dd>Test whether growth and operating income move together.</dd></div>
+          <div><dt>Evidence</dt><dd>Compare the fictional FY2024 and FY2025 statements.</dd></div>
+          <div><dt>Invalidation</dt><dd>Revisit the thesis if revenue rises while comparable operating margin falls.</dd></div>
+          <div><dt>Scenario</dt><dd>Review the discount-rate sensitivity in <a href="#valuation" data-demo-go="valuation">Peer Valuation</a>.</dd></div>
+          <div><dt>Review trigger</dt><dd>Next fictional annual statement.</dd></div>
+          <div><dt>Learning</dt><dd>Record what explained any difference after the filing review.</dd></div>
+        </dl>
+        <p class="source-note">Use the draft below to carry the review question into Monitor.</p>
+      </div>
+    </details>
+  </div>
   <div class="note-grid">
     <div class="surface note-box">
       <h3>Draft one follow-up</h3>
@@ -508,6 +609,23 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
         searchStatus.textContent = "";
         query.focus();
     });
+
+    const scenario = document.querySelector("[data-demo-scenario-values]");
+    const scenarioControl = scenario.querySelector("[data-demo-scenario-control]");
+    const wacc = scenarioControl.querySelector('input[type="range"]');
+    const waccLabel = scenarioControl.querySelector("[data-demo-scenario-rate]");
+    const scenarioValue = scenario.querySelector("[data-demo-scenario-value]");
+    const scenarioValues = scenario.dataset.demoScenarioValues.split(",");
+    function updateScenario() {
+        const rate = `${wacc.value}%`;
+        wacc.setAttribute("aria-valuetext", rate);
+        waccLabel.textContent = rate;
+        scenarioValue.value = scenarioValues[wacc.valueAsNumber - Number(wacc.min)];
+    }
+    wacc.addEventListener("input", updateScenario);
+    updateScenario();
+    scenario.querySelector("[data-demo-scenario-static]").hidden = true;
+    scenarioControl.hidden = false;
 
     const noteForm = document.querySelector("[data-demo-note-form]");
     const noteInput = noteForm.querySelector("[data-demo-note-input]");

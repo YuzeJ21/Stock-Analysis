@@ -68,6 +68,7 @@ main, .panel { min-width: 0; }
 .case-file p:not(.eyebrow) { color: #e0eee6; font-size: .9rem; }
 .case-file ul { margin: .2rem 0 0; padding: 0; list-style: none; }
 .case-file li { padding: .52rem 0; border-top: 1px solid #527b6d; font-size: .87rem; }
+.case-file a { color: #e0eee6; font-weight: 750; }
 .search-form, .note-form { display: grid; gap: .5rem; }
 .field-label { font-weight: 750; font-size: .9rem; }
 .form-row, .actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
@@ -122,12 +123,26 @@ details li + li { margin-top: .3rem; }
   margin: 0 .4rem .25rem 0; border: 1px solid #789687; border-radius: .48rem; background: var(--paper); cursor: pointer; }
 .peer-controls label:has(input:checked) { background: var(--mint); border-color: var(--pine); color: var(--pine); font-weight: 750; }
 .peer-controls input { accent-color: var(--pine); }
-.peer-result { display: grid; gap: .55rem; border-left: .27rem solid #28634f; margin-bottom: .8rem; }
+.peer-result { display: grid; gap: .55rem; padding: 1rem; border-left: .27rem solid #28634f; }
 .peer-result--withheld { border-left-color: #ac7a23; }
 .demo-state--withheld { display: none; }
 body:has(#demo-withheld:checked) .demo-state--available { display: none; }
 body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
 .peer-evidence { margin-top: .15rem; }
+.tool-grid, .tool-list, .tool-body { display: grid; gap: .65rem; }
+.tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.tool-grid details { min-width: 0; }
+.tool-body > table, .tool-body > ul { margin-top: 0; }
+.tool-body > p, .decision-lanes dd { font-size: .9rem; }
+.business-trend-table :is(th,td) { padding-inline: .3rem; }
+.decision-lanes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem 1rem; margin: 0; }
+.decision-lanes dt { color: var(--pine); font-size: .84rem; font-weight: 750; }
+.decision-lanes dd { margin: 0; }
+.scenario-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .45rem; }
+.scenario-values > div { min-width: 0; border-radius: .45rem; padding: .48rem .6rem; background: var(--mint); }
+.scenario-values strong, .scenario-values output { display: block; font-size: 1.12rem; font-weight: 780; }
+.scenario-control input { display: block; width: 100%; min-height: 2.75rem; margin: 0; accent-color: var(--pine); }
+.tool-body > .scenario-assumptions { font-size: .8rem; }
 .note-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .65fr); gap: .85rem; }
 .note-box ul { margin: 0; padding-left: 1.2rem; }
 .monitor-note { display: grid; gap: .65rem; border-left: .27rem solid #28634f; }
@@ -149,7 +164,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
   .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
   .layout { padding-top: .8rem; gap: 1rem; }
   .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hero, .trend-grid, .note-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes { grid-template-columns: minmax(0, 1fr); }
   .metrics { gap: .45rem; }
   .metric { padding: .6rem; }
   .metric-value { font-size: 1.12rem; }
@@ -216,7 +231,8 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
         <p class="eyebrow">AMD · Q3 FY2026 · SEC Form 10-Q</p>
         <h2>Advanced Micro Devices</h2>
         <p class="case-source"><span>Quarter ended Sep 26, 2026</span><span>· Filed Nov 4, 2026</span>
-          <a href="#filing-source">Filing &amp; calculations</a></p>
+          <a href="#filing-source">Filing &amp; calculations</a>
+          <span><a href="./#valuation">Explore advanced research tools</a> <span class="source-note">· fictional case</span></span></p>
       </header>
       <div class="metrics" aria-label="Quarterly results">
         <article class="metric"><p class="metric-label">Revenue growth</p>
