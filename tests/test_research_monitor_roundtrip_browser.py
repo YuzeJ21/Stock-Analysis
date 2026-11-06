@@ -67,9 +67,9 @@ def run_browser_fixture(root):
         if refresh_requested:
             record("peer-valuation")
             state["fixture-peer-valuation"] = {
-                "status": "research_comparison", "ticker": ticker,
+                "status": "research_comparison", "ticker": ticker, "metric": "reported_annual_diluted_pe",
                 "subject": {"ticker": ticker, "price_date": "2026-10-30", "multiple": 30},
-                "peers": [{"ticker": symbol} for symbol in ("FA", "FB", "FC")],
+                "peers": [{"ticker": symbol, "price_date": "2026-10-30"} for symbol in ("FA", "FB", "FC")],
                 "peer_count": 3, "peer_median": 25, "premium_fraction": 0.2,
             }
         return state.get("fixture-peer-valuation", {"status": "not_requested"})
@@ -256,15 +256,21 @@ def test_online_research_round_trip_keeps_live_evidence(
             key_facts = card.locator(".peer-comparison-stats > div")
             playwright.expect(key_facts.nth(0)).to_contain_text("2026-10-30")
             playwright.expect(key_facts.nth(1)).to_contain_text("3 家")
-            for field in (headline, key_facts.nth(0), key_facts.nth(1)):
+            answers = brief.get_by_role("region", name="公司研究摘要")
+            valuation_answer = answers.locator('[data-company-answer="valuation"]')
+            playwright.expect(valuation_answer).to_contain_text("年度 P/E 高于同行参照 20.0%")
+            playwright.expect(valuation_answer).to_contain_text("2026-10-30 收盘 · 3 家合格")
+            for field in answers.locator("[data-company-answer]").all():
                 box = field.bounding_box()
                 assert box and 0 <= box["y"] and box["y"] + box["height"] <= height, box
+            valuation_summary = valuation_answer.inner_text()
             valuation_evidence = card.inner_text()
             navigation = page.get_by_role("navigation", name="Personal research workflow")
             navigation.get_by_role("link", name="Monitor", exact=True).click()
             playwright.expect(page.get_by_role("heading", name="Follow-up Queue")).to_be_visible()
             navigation.get_by_role("link", name="Company Workbench", exact=True).click()
             playwright.expect(valuation).to_be_checked()
+            assert valuation_answer.inner_text() == valuation_summary
             assert card.inner_text() == valuation_evidence
             assert len(documents) == len(streams) == 1
             assert calls.read_text().splitlines() == [

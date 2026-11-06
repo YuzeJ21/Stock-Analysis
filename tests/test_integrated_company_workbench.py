@@ -40,6 +40,62 @@ def _app():
 def text(at):return '\n'.join(m.value for m in at.markdown)
 
 
+def _company_brief(at):
+    return next(m.value for m in at.markdown if 'aria-label="Company Brief"' in m.value)
+
+
+@pytest.mark.parametrize('section', ['overview','financials','valuation','notes','sources'])
+def test_company_answer_cards_precede_controls_on_every_section(monkeypatch, section):
+    calls=_sources(monkeypatch)
+    at=AppTest.from_function(_app)
+    at.query_params['section']=section
+    at.run()
+
+    assert not at.exception
+    brief=_company_brief(at)
+    assert brief.count('aria-label="公司研究摘要"')==1
+    for answer in ('price','financial','valuation'):
+        assert brief.count(f'data-company-answer="{answer}"')==1
+    assert brief.index('</h1>') < brief.index('aria-label="公司研究摘要"')
+    elements=list(at.main)
+    header_index=next(i for i,el in enumerate(elements) if el.type=='markdown' and el.value==brief)
+    update_index=next(i for i,el in enumerate(elements) if el.type=='button' and el.key=='company-refresh-all')
+    section_index=next(i for i,el in enumerate(elements) if el.type=='radio' and el.label=='公司研究分区')
+    assert header_index < min(update_index,section_index)
+    assert calls=={'financial':0,'prices':0}
+
+
+def test_company_valuation_answer_updates_on_refresh_and_reuses_peer_cache_in_other_sections(monkeypatch):
+    import src.online_peer_sources as sources
+    from test_online_peer_valuation_ui import _setup
+
+    calls,other=_setup(monkeypatch)
+    at=AppTest.from_function(_app).run()
+    at.radio[0].set_value('valuation').run()
+    before=_company_brief(at)
+    assert '2026-10-30' not in before and not calls
+
+    next(button for button in at.button if button.label=='更新在线同行估值').click().run()
+    refreshed=_company_brief(at)
+    assert '2026-10-30' in refreshed
+    assert '高于同行参照 20.0%' in text(at)
+    observed_calls=list(calls)
+    assert observed_calls
+
+    for section in ('sources','financials','notes','overview'):
+        at.radio[0].set_value(section).run()
+        assert not at.exception
+        assert '2026-10-30' in _company_brief(at)
+    assert calls==observed_calls and other=={'financial':0,'prices':0}
+
+    at.radio[0].set_value('valuation').run()
+    monkeypatch.setattr(sources,'observe_vendor',lambda *a,**kw:(_ for _ in ()).throw(OSError('private exception')))
+    next(button for button in at.button if button.label=='更新在线同行估值').click().run()
+    assert not at.exception
+    assert '2026-10-30' not in _company_brief(at)
+    assert '高于同行参照 20.0%' not in text(at)
+
+
 def test_five_sections_are_visible_without_loading_legacy_tools_or_fetching(monkeypatch):
     calls=_sources(monkeypatch)
     at=AppTest.from_function(_app).run()

@@ -4,6 +4,7 @@ from html import escape
 import os
 from urllib.parse import urlencode
 
+from src.company_answer_summary import build_company_answers, company_answers_html
 from src.company_sec_online_preview import get_company_sec_annual_preview
 from src.online_company_prices import get_online_company_prices
 from src.online_company_identity import get_price_filing_association, _mode_reason
@@ -93,11 +94,25 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
         refresh_financials=bool(update_all or update_financial),refresh_prices=bool(update_all or update_prices),
         expected_cik=expected_cik)
     financial,prices,projection=bundle['financial'],bundle['prices'],bundle['projection']
-    header.markdown(workbench_header_html(ticker,projection,saved_scope=candidate is None,
-        title=candidate.get('title') if candidate else None,saved_receipt_only=saved_receipt_only,
-        compact=valuation_first),unsafe_allow_html=True)
     with body:
         st_api.markdown('## '+dict(SECTIONS)[selected])
+        refresh_peers = selected=='valuation' and st_api.button(
+            '更新在线同行估值',key=f'company-refresh-peers:{ticker}:{scope}')
+        if refresh_peers:
+            with st_api.spinner('正在核对公司、年度收益和同行来源…'):
+                peer_view=get_online_peer_valuation(ticker,st_api.session_state,
+                    refresh_requested=True,expected_cik=expected_cik)
+        else:
+            peer_view=get_online_peer_valuation(ticker,st_api.session_state,
+                refresh_requested=False,expected_cik=expected_cik)
+
+        # The header placeholder precedes the controls, but receives the result of this rerun.
+        answers=build_company_answers(ticker,projection,financial,prices,bundle['association'],peer_view)
+        header.markdown(workbench_header_html(ticker,projection,saved_scope=candidate is None,
+            title=candidate.get('title') if candidate else None,saved_receipt_only=saved_receipt_only,
+            compact=valuation_first,
+            answers_html=company_answers_html(answers)),
+            unsafe_allow_html=True)
         if selected=='overview':
             st_api.markdown(workbench_facts_html(projection),unsafe_allow_html=True)
             if prices.get('status')!='not_requested':
@@ -124,14 +139,7 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
             if selected=='notes':
                 from src.sec_research_review_ui import render_company_review
                 render_company_review(st_api,ticker,financial,profile_key=profile_scope)
-            peer_view=None
             if selected=='valuation':
-                requested=st_api.button('更新在线同行估值',key=f'company-refresh-peers:{ticker}:{scope}')
-                if requested:
-                    with st_api.spinner('正在核对公司、年度收益和同行来源…'):
-                        peer_view=get_online_peer_valuation(ticker,st_api.session_state,refresh_requested=True,expected_cik=expected_cik)
-                else:
-                    peer_view=get_online_peer_valuation(ticker,st_api.session_state,refresh_requested=False,expected_cik=expected_cik)
                 if peer_view['status']!='not_requested':
                     st_api.markdown(online_peer_valuation_html(peer_view),unsafe_allow_html=True)
                 else:
@@ -158,7 +166,6 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
         else:
             st_api.caption('来源、期间、单位、观察日期与权限分别保留；在线查询不更新正式财务、readiness 或覆盖统计。')
             st_api.markdown(price_filing_association_html(bundle['association']),unsafe_allow_html=True)
-            peer_view=get_online_peer_valuation(ticker,st_api.session_state,refresh_requested=False,expected_cik=expected_cik)
             if peer_view['status']!='not_requested':
                 st_api.markdown(online_peer_valuation_html(peer_view,sources_only=True),unsafe_allow_html=True)
             render_sources(bundle)
