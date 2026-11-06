@@ -136,6 +136,8 @@ def test_selecting_unknown_sic_shows_its_own_denominator_and_reasons(report):
 
 
 def test_sample_shows_checked_and_pending_separately_from_the_sic_population(report):
+    from src.online_peer_sec_cofiling import ARCHIVE_URLS
+
     cohort = _group("公用事业", 3, {
         "price": (1, 2, {}),
         "peer": (0, 1, {"multiple_issuer_share_classes_unresolved": 1,
@@ -147,6 +149,7 @@ def test_sample_shows_checked_and_pending_separately_from_the_sic_population(rep
         dict(ticker="SO", scope_matched=True, sic="4911", price=None,
              peer="at_least_three_compatible_industry_references_required", peer_count=0, peer_date="2026-11-05",
              peer_references_partial=True,
+             cofiling_documents=[dict(source_url=url) for url in ARCHIVE_URLS],
              annual_common_filing=dict(period_end="2025-12-31",
                  source_ref="https://www.sec.gov/Archives/edgar/data/92122/000009212226000006/so-20251231.htm")),
         dict(ticker="NEE", scope_matched=False, price=None, peer=None),
@@ -165,4 +168,6 @@ def test_sample_shows_checked_and_pending_separately_from_the_sic_population(rep
     assert "所选证券的每股收益口径尚未核对" in text
     assert "0 家合格同行 · 参照核查未完成 · 2026-11-05" in text
     assert "[10-K 普通股摊薄 EPS 原文（2025-12-31）](https://www.sec.gov/Archives/edgar/data/92122/" in text
+    assert f"[10-Q 身份依据（母公司）]({ARCHIVE_URLS[0]})" in text
+    assert f"[联报公司副本]({ARCHIVE_URLS[1]})" in text
     assert "NEE** · 本次目录缺少唯一的代表代码与发行人关联" in text

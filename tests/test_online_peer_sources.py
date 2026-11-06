@@ -36,6 +36,33 @@ def test_ordinary_read_never_requests_a_source_and_success_reuses_the_same_evide
     assert again==v and calls==before and len([c for c in calls if c[0]=='vendor'])==4
 
 
+def test_so_cofiling_sources_are_needed_only_when_the_normal_vendor_match_fails():
+    from src.online_peer_sec_cofiling import FILING, PARENT_CIK, VENDOR_EXHIBIT, VENDOR_LINK
+    from src.online_peer_sources import _collect_issuer
+    from test_online_peer_valuation import issuer, rehash_vendor
+
+    row = issuer('SO', PARENT_CIK, 30)
+    normal, = row['vendor']['payload']['filings']
+    cofiling = dict(type='10-Q', date=FILING['filingDate'], edgarUrl=VENDOR_LINK, exhibits={'10-Q': VENDOR_EXHIBIT})
+    row['vendor']['payload']['filings'].append(cofiling)
+    rehash_vendor(row)
+    deps, calls = source_dependencies({'issuers': [row]})
+
+    def capture(*args, **kwargs):
+        calls.append(('cofiling',))
+        return {'status': 'not_applicable'}
+
+    deps.update(history=lambda *args, **kwargs: {'status': 'not_applicable'},
+                security=lambda *args, **kwargs: {'status': 'not_applicable'}, cofiling=capture)
+    _collect_issuer('SO', PARENT_CIK, deps, 'Synthetic contact', NOW, row['vendor'])
+    assert ('cofiling',) not in calls
+
+    row['vendor']['payload']['filings'].remove(normal)
+    rehash_vendor(row)
+    _collect_issuer('SO', PARENT_CIK, deps, 'Synthetic contact', NOW, row['vendor'])
+    assert calls.count(('cofiling',)) == 1
+
+
 def test_explicit_failed_retry_replaces_success_instead_of_showing_an_old_verdict():
     d,calls=source_dependencies();state={}
     assert get(state,refresh=True,dependencies=d)['status']=='research_comparison'

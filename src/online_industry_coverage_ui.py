@@ -86,6 +86,11 @@ def _render_representatives(st, groups):
                 filing = member.get('annual_common_filing')
                 filing_text = (f" · [10-K 普通股摊薄 EPS 原文（{filing['period_end']}）]({filing['source_ref']})"
                                if filing else '')
+                cofiling = member.get('cofiling_documents')
+                if cofiling and len(cofiling) == 2:
+                    parent, co_registrant = cofiling
+                    filing_text += (f" · [10-Q 身份依据（母公司）]({parent['source_url']})"
+                                    f" · [联报公司副本]({co_registrant['source_url']})")
                 sic = f"SIC {member['sic']}" if member['sic'] else 'SEC 行业待核查'
                 st.markdown(f"- **{ticker}** · {sic} · 收盘价 {price_text} · 同行估值 {peer_text}{filing_text}")
     st.caption("使用下方的单公司价格表单，或在上方「同行估值覆盖 · 行业样本」选择待核查公司。")

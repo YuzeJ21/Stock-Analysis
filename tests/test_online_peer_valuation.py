@@ -178,6 +178,29 @@ def test_route_cik_is_independently_enforced():
     assert build(expected_cik='0000099999')['status']=='withheld'
 
 
+def test_cofiling_identity_keeps_annual_earnings_and_never_masks_a_vendor_issuer_conflict(monkeypatch):
+    from src import online_peer_valuation as valuation
+
+    c = collection()
+    row = c['issuers'][0]
+    filing = row['vendor']['payload']['filings'][0]
+    filing['exhibits']['10-K'] = filing['exhibits']['10-K'].replace('0000001001/', '0000009999/')
+    rehash_vendor(row)
+    identity = dict(source_ref=filing['edgarUrl'], accession='0000001001-25-000010',
+                    filed='2025-10-30', financial_denominator_modified=False)
+    monkeypatch.setattr(valuation, 'validated_vendor_cofiling_match', lambda *args, **kwargs: identity, raising=False)
+
+    view = build(c)
+    assert view['status'] == 'research_comparison'
+    assert view['subject']['vendor_filing'] == identity
+    assert view['subject']['accession'] == '0000001001-26-000001'
+    assert view['subject']['form'] == '10-K' and view['subject']['eps'] == 1.0
+
+    filing['edgarUrl'] = filing['edgarUrl'].replace('_1001', '_9999')
+    rehash_vendor(row)
+    assert build(c)['reason'] == 'vendor_filing_issuer_conflict'
+
+
 @pytest.mark.parametrize('mode',['1','invalid'])
 def test_commercial_or_invalid_mode_cannot_read_a_research_comparison(monkeypatch,mode):
     monkeypatch.setenv('COMMERCIAL_RESEARCH_MODE',mode)

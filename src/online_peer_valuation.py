@@ -17,6 +17,7 @@ from src.online_company_identity import _mode_reason, _VENUES
 from src.online_peer_earnings import annual_eps_context
 from src.annual_amendment_evidence import validate_amendment_evidence
 from src.sec_selected_security import validate_selected_security_evidence,is_investment_company_form,valid_profile_metadata_shape
+from src.online_peer_sec_cofiling import validated_vendor_cofiling_match
 from src.online_peer_sec_history import validated_vendor_history_match
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
@@ -147,7 +148,22 @@ def _vendor_filing_match(filings, sec_filings, ticker, cik):
 
 def _vendor_identity(row,vendor,filings,ticker,cik,as_of):
     historical=validated_vendor_history_match(row.get('vendor_history'),cik=cik,profile=row.get('profile'),vendor=row.get('vendor'),as_of=as_of)
-    identity=_vendor_filing_match(vendor.get('filings'),filings+historical,ticker,cik)
+    try:
+        identity=_vendor_filing_match(vendor.get('filings'),filings+historical,ticker,cik)
+    except _Hold as error:
+        if str(error) != 'vendor_filing_not_matched_to_sec':
+            raise
+        packet = row.get('vendor_cofiling')
+        cofiling = validated_vendor_cofiling_match(packet, cik=cik, profile=row.get('profile'),
+                                                  vendor=row.get('vendor'), as_of=as_of)
+        if cofiling:
+            return cofiling
+        if isinstance(packet, Mapping):
+            if packet.get('reason') == 'vendor_cofiling_source_unavailable':
+                raise _Hold('vendor_cofiling_source_unavailable') from error
+            if packet.get('status') == 'observed' or packet.get('reason') == 'vendor_cofiling_scope_unverified':
+                raise _Hold('vendor_cofiling_scope_unverified') from error
+        raise
     if any(r['accessionNumber']==identity['accession'] for r in historical):
         receipt=row['vendor_history']['receipt'];identity.update(history_source_ref=receipt['source_url'],history_observed_at=receipt['observed_at'],history_sha256=receipt['payload_sha256'],financial_denominator_modified=False)
     return identity

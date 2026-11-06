@@ -73,6 +73,20 @@ def test_thin_group_keeps_count_reasons_and_source_links_without_a_premium():
     assert '差距怎么算' not in summary
 
 
+def test_cofiling_disclosure_keeps_the_quarterly_identity_and_annual_earnings_sources_separate():
+    from src.online_peer_sec_cofiling import ARCHIVE_URLS, FILING
+    from src.online_peer_valuation_ui import online_peer_valuation_html
+
+    view = build()
+    view['subject']['vendor_filing'].update(accession=FILING['accessionNumber'],
+        cofiling_documents=[dict(source_url=url, observed_at=NOW.isoformat(), payload_sha256='a' * 64,
+                                 body_sha256='b' * 64) for url in ARCHIVE_URLS])
+    html = online_peer_valuation_html(view)
+    assert '联报 10-Q 仅用于报价来源身份核对。年度摊薄 EPS 仍取自 10-K。' in html
+    assert all(url in html for url in ARCHIVE_URLS)
+    assert '0000001001-26-000001' in html
+
+
 def test_blocked_subject_does_not_present_unassessed_references_as_zero_results():
     from src.online_peer_valuation_ui import online_peer_valuation_html
     c=collection();c['issuers'][0]['facts']['payload']['facts']['us-gaap']['EarningsPerShareDiluted']['units']['USD/shares'][0]['val']=-1

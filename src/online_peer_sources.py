@@ -13,12 +13,13 @@ from src.online_company_identity import _mode_reason
 from src.online_company_prices import fetch_online_company_prices
 from src.online_peer_valuation import (
     SCHEMA, MAX_CANDIDATES, normalized_digest, build_online_peer_valuation,
-    _empty, _symbol, _KEY,
+    _empty, _symbol, _KEY, _Hold, _filings, _vendor_identity,
 )
 from src.online_sec_receipt import fetch_sec_json_receipt
 from src.security_classification import fetch_classification, validated_classification, _selected
 from src.annual_amendment_evidence import fetch_amendment_evidence, amendment_candidate
 from src.sec_selected_security import fetch_selected_security_evidence,known_security_scope,FINANCIAL_FORMS,IDENTITY_FORMS,is_investment_company_form,valid_profile_metadata_shape
+from src.online_peer_sec_cofiling import PARENT_CIK as SO_CIK, fetch_vendor_cofiling_match
 from src.online_peer_sec_history import fetch_vendor_history_match
 from src.online_listing_session import acquire_classification
 
@@ -139,6 +140,14 @@ def _collect_issuer(ticker,cik,deps,user_agent,as_of,vendor=None):
     prices=_attempt_source(deps['prices'],ticker,observed_at=as_of,history_range='2y',include_verified_session_close=True)
     result=dict(ticker=ticker,vendor=vendor,profile=profile,facts=facts,prices=prices)
     result['vendor_history']=_attempt_source(deps['history'],cik,profile,vendor,user_agent=user_agent,observed_at=as_of)
+    if (ticker, cik) == ('SO', SO_CIK) and isinstance(profile, Mapping) and profile.get('status') == 'ready':
+        try:
+            now = _now(as_of)
+            _vendor_identity(result, vendor['payload'], _filings(profile['payload'], now), ticker, cik, now)
+        except _Hold as error:
+            if str(error) == 'vendor_filing_not_matched_to_sec':
+                result['vendor_cofiling'] = _attempt_source(deps['cofiling'], cik, profile, vendor,
+                                                            user_agent=user_agent, observed_at=as_of)
     if known_security_scope(ticker,cik):
         result['selected_security_evidence']=_attempt_source(deps['security'],ticker,cik,profile,user_agent=user_agent,observed_at=as_of)
     if amendment_candidate(ticker,cik,profile,as_of=as_of):
@@ -191,7 +200,8 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
         # Clear a previous successful result before the first fallible request.
         _cache(state,ticker,None,'peer_refresh_incomplete',as_of)
         deps=dict(classification=fetch_classification,vendor=observe_vendor,industry=observe_industry,
-                  sec=fetch_sec_json_receipt,prices=fetch_online_company_prices,amendment=fetch_amendment_evidence,security=fetch_selected_security_evidence,history=fetch_vendor_history_match)
+                  sec=fetch_sec_json_receipt,prices=fetch_online_company_prices,amendment=fetch_amendment_evidence,
+                  security=fetch_selected_security_evidence,history=fetch_vendor_history_match,cofiling=fetch_vendor_cofiling_match)
         if dependencies is not None:
             deps.update(dependencies)
         classification,listing_context=acquire_classification(state,

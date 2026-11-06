@@ -31,6 +31,8 @@ REASONS = {
     'price_source_digest_missing':'缺少价格来源摘要。',
     'source_observation_stale_or_future':'来源观察已超过 24 小时或时间在未来，请重新更新。',
     'vendor_filing_not_matched_to_sec':'供应商申报链接未能与 SEC 申报元数据核对。',
+    'vendor_cofiling_scope_unverified':'SO 的指定联报 10-Q 未通过来源核对。',
+    'vendor_cofiling_source_unavailable':'SO 的指定联报 10-Q 来源暂不可用。',
     'vendor_filing_issuer_conflict':'供应商申报链接的发行人身份存在冲突。',
     'quote_identity_or_type_mismatch':'供应商代码或证券类型不一致。',
     'quote_exchange_mismatch':'供应商交易所与独立上市来源不一致。',
@@ -160,7 +162,7 @@ def _diagnostic_html(d):
     for filing in d.get('annual_versions',[]):
         html+='<p>'+_text(filing.get('form'))+' · '+_text(filing.get('accession'))+' · 期间末 '+_text(filing.get('period_end'))+' · 发布 '+_text(filing.get('filed'))+' · '+_link(filing.get('source_ref'),'具体申报')+'</p>'
     html+=_selected_security_html(d.get('selected_security_scope'))
-    html+=_history_html(d.get('vendor_identity_observation'))
+    html+=_vendor_filing_evidence_html(d.get('vendor_identity_observation'))
     eps=d.get('annual_eps_observation')
     if isinstance(eps,Mapping) and _number(eps.get('eps')):
         html+='<p>申报稀释每股收益：'+_text(f'{eps["eps"]:,.6g}')+' USD/shares · '+_text(eps.get('period_start'))+' → '+_text(eps.get('period_end'))+' · 发布 '+_text(eps.get('filed'))+' · 观察 '+_text(eps.get('observed_at'))+' · '+_link(eps.get('source_ref'),'SEC 收益观察')+' · '+_link(eps.get('filing_ref'),'对应申报')+'</p>'
@@ -266,9 +268,20 @@ def _selected_security_html(scope):
     return html+'<p>仅个人研究，不授予法律证券分类、来源商业权限或正式数据资格。</p></details>'
 
 
-def _history_html(identity):
-    if not isinstance(identity,Mapping) or not identity.get('history_source_ref'):return ''
-    return '<p>历史 SEC 索引仅用于供应商身份核对；年度 EPS 仍使用当前选定的年度申报。'+_link(identity.get('history_source_ref'),'官方历史索引')+' · 观察 '+_text(identity.get('history_observed_at'))+' · SHA-256 <code>'+_text(identity.get('history_sha256'))+'</code></p>'
+def _vendor_filing_evidence_html(identity):
+    if not isinstance(identity, Mapping):
+        return ''
+    if identity.get('history_source_ref'):
+        return '<p>历史 SEC 索引仅用于供应商身份核对；年度 EPS 仍使用当前选定的年度申报。'+_link(identity.get('history_source_ref'),'官方历史索引')+' · 观察 '+_text(identity.get('history_observed_at'))+' · SHA-256 <code>'+_text(identity.get('history_sha256'))+'</code></p>'
+    documents = identity.get('cofiling_documents')
+    if not isinstance(documents, list) or len(documents) != 2:
+        return ''
+    html = '<p>联报 10-Q 仅用于报价来源身份核对。年度摊薄 EPS 仍取自 10-K。申报编号 '+_text(identity.get('accession'))+'。</p>'
+    for document, label in zip(documents, ('SEC 母公司副本', 'SEC 联报公司副本'), strict=True):
+        html += ('<p>'+_link(document.get('source_url'),label)+' · 观察 '+_text(document.get('observed_at'))
+                 +' · 原始 SHA-256 <code>'+_text(document.get('payload_sha256'))+'</code></p>')
+    html += '<p>'+_link(identity.get('co_registrant_source_ref'),'联报公司 SEC 申报索引')+' · 已核对正文 SHA-256 <code>'+_text(documents[0].get('body_sha256'))+'</code></p>'
+    return html
 
 
 def _listing_html(v):
@@ -328,7 +341,7 @@ def _disclosure(v,rows,*,include_excluded=True):
             html+='<li>'+_text(filing.get('form'))+' · '+_text(filing.get('accession'))+' · 期间末 '+_text(filing.get('period_end'))+' · 发布 '+_text(filing.get('filed'))+' · 接收 '+_text(filing.get('accepted_at'))+' · '+_link(filing.get('source_ref'),'具体申报')+'</li>'
         html+='</ul>'
         html+=_selected_security_html(context.get('selected_security_scope'))
-        if not rows:html+=_history_html(context.get('vendor_identity_observation'))
+        if not rows:html+=_vendor_filing_evidence_html(context.get('vendor_identity_observation'))
     if rows:html+=_source_table(rows)+_earnings_table(rows)
     if include_excluded:html+=_excluded_html(v)
     html+='<details><summary>字段定义、观察日期与来源摘要</summary>'
@@ -340,7 +353,7 @@ def _disclosure(v,rows,*,include_excluded=True):
         html+='<p>价格与拆股观察请求 '+_text(row.get('price_history_range'))+'；实际 '+_text(row.get('price_history_first_date'))+' → '+_text(row.get('price_history_last_date'))+'；请求范围不保证历史完整。</p>'
         identity=row.get('vendor_filing') if isinstance(row.get('vendor_filing'),Mapping) else {}
         html+='<p>CIK '+_text(row.get('sec_cik'))+' · '+_link(identity.get('source_ref'),'供应商申报身份依据')+'。当前匹配不证明历史证券连续性或发行人所在地。</p>'
-        html+=_history_html(identity)
+        html+=_vendor_filing_evidence_html(identity)
         for key,label in [('facts_sha256','SEC 原始响应 SHA-256'),('price_sha256','价格原始响应 SHA-256'),('vendor_normalized_sha256','供应商 normalized SHA-256')]:
             value=row.get(key)
             html+='<p>'+label+'：<code>'+(_text(value) if isinstance(value,str) and re.fullmatch(r'[0-9a-f]{64}',value) else '未取得')+'</code></p>'
