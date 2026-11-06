@@ -322,14 +322,18 @@ def _subject_source_context(row,classification,ticker,expected_cik,as_of):
         context=dict(sec_cik=cik,profile_source_ref=url,profile_observed_at=row['profile']['observed_at'],
                     profile_sha256=row['profile']['payload_sha256'],
                     facts_query_ref=f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',annual_versions=versions)
+        sic = str(profile.get('sic'))
+        profile_tickers = profile.get('tickers')
+        if isinstance(profile_tickers, list) and ticker in profile_tickers and re.fullmatch(r'\d{4}', sic) and sic not in {'0000', '6770'}:
+            context['sec_sic_observation'] = dict(sic=sic, source_ref=url,
+                observed_at=row['profile']['observed_at'], payload_sha256=row['profile']['payload_sha256'])
         symbols={r['ticker'].replace('.','-') for r in classification['inventory']['map_receipt']['payload'].values() if _cik(r['cik_str'])==cik}
         scope=validate_selected_security_evidence(row.get('selected_security_evidence'),ticker=ticker,cik=cik,profile=row.get('profile'),issuer_symbols=symbols,as_of=as_of)
         if scope['status'] in {'supported_common','inspection_only'}:context['selected_security_scope']=scope
         try:
             vendor=_normalized(row.get('vendor'),f'https://finance.yahoo.com/quote/{ticker.replace(".","-")}/',as_of)
-            info=vendor.get('info',{});sic=str(profile.get('sic'))
-            _need(info.get('symbol')==ticker.replace('.','-') and ticker in profile.get('tickers',[])
-                  and re.fullmatch(r'\d{4}',sic) and sic not in {'0000','6770'}
+            info=vendor.get('info',{})
+            _need(info.get('symbol')==ticker.replace('.','-') and 'sec_sic_observation' in context
                   and isinstance(info.get('industryKey'),str) and _KEY.fullmatch(info['industryKey']),'industry_attribution_unverified')
             context['vendor_identity_observation']=_vendor_identity(row,vendor,_filings(profile,as_of),ticker,cik,as_of)
             context['industry_observation']=dict(industry_key=info['industryKey'],sic=sic,

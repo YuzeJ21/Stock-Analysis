@@ -2,6 +2,7 @@
 
 from collections import Counter, defaultdict
 from datetime import timedelta
+import re
 
 from src.company_sec_online_preview import _utc_timestamp
 from src.online_us_universe import build_universe_coverage, validated_us_universe
@@ -11,16 +12,15 @@ LANES = ('search', 'identity', 'financial', 'price', 'peer')
 REVENUE_FIELDS = ('annual_revenue', 'quarterly_revenue', 'interim_revenue')
 
 
-def _group(label, sic=None):
+def _group(label, sic=None, lanes=LANES):
     return dict(label=label, sic=sic, denominator=0, lanes={
-        lane: dict(available=0, failed=0, unprobed=0, reasons=Counter()) for lane in LANES
+        lane: dict(available=0, failed=0, unprobed=0, reasons=Counter()) for lane in lanes
     })
 
 
 def _count(group, results):
     group['denominator'] += 1
-    for key, outcome in zip(LANES, results):
-        lane = group['lanes'][key]
+    for lane, outcome in zip(group['lanes'].values(), results, strict=True):
         if outcome is True:
             lane['available'] += 1
         elif outcome is None:
@@ -53,7 +53,7 @@ def _peer_result(row, cik, sic):
         return None
     if row.get('sec_cik') not in (None, cik):
         return 'peer_issuer_mismatch'
-    if sic and row.get('sic') not in (None, sic):
+    if sic and (row.get('sec_sic') or row.get('sic')) not in (None, sic):
         return 'peer_sec_sic_mismatch'
     if row.get('comparison_state') == 'available':
         if row.get('sec_cik') != cik or type(row.get('accepted_reference_count')) is not int or row['accepted_reference_count'] < 3:
@@ -62,7 +62,35 @@ def _peer_result(row, cik, sic):
     return row.get('primary_reason') or 'peer_comparison_unavailable'
 
 
-def build_industry_coverage(inventory, observations, peer_summary=None, price_rows=()):
+def _verified_peer_sic(row, cik, inventory_start):
+    if not row or row.get('sec_cik') != cik:
+        return None
+    sic = row.get('sec_sic') or row.get('sic')
+    if not isinstance(sic, str) or sic == '0000' or not re.fullmatch(r'[0-9]{4}', sic):
+        return None
+    url = f'https://data.sec.gov/submissions/CIK{cik}.json'
+    for ref in row.get('source_refs', ()):
+        if ref.get('source_url') == url and re.fullmatch(r'[0-9a-f]{64}', ref.get('payload_sha256') or ''):
+            observed = _utc_timestamp(ref.get('observed_at'))
+            if observed and timedelta(0) <= observed - inventory_start <= timedelta(hours=24):
+                return sic
+    return None
+
+
+def _representatives(groups, members):
+    report = []
+    for label, tickers in groups:
+        group = _group(label, lanes=('price', 'peer'))
+        group['members'] = []
+        for ticker in tickers:
+            member = members.get(ticker, dict(ticker=ticker, scope_matched=False, price=None, peer=None))
+            group['members'].append(member)
+            _count(group, (member['price'], member['peer']))
+        report.append(group)
+    return report
+
+
+def build_industry_coverage(inventory, observations, peer_summary=None, price_rows=(), *, representative_groups=()):
     """Read validated issuer/financial observations and in-process price/peer projections."""
     inventory = validated_us_universe(inventory)
     coverage = build_universe_coverage(inventory, observations)
@@ -84,10 +112,16 @@ def build_industry_coverage(inventory, observations, peer_summary=None, price_ro
     total = _group('All issuer candidates')
     groups = {}
     descriptions = defaultdict(set)
+    representative_tickers = {ticker for _, tickers in representative_groups for ticker in tickers}
+    members = {}
     for cik, ticker in queue.items():
         financial = financial_by_cik.get(cik)
-        sic = financial['sic'] if financial else None
-        if sic and financial['sic_description']:
+        verified_financial_sic = financial['sic'] if financial else None
+        peer_row = peers.get(ticker)
+        if peer_row and representative_counts[ticker] > 1 and peer_row.get('sec_cik') != cik:
+            peer_row = None
+        sic = verified_financial_sic or _verified_peer_sic(peer_row, cik, first)
+        if verified_financial_sic and financial['sic_description']:
             descriptions[sic].add(financial['sic_description'])
         search = (True if cik in searchable else 'no_unambiguous_sec_search_route') if search_probed else None
         identity, financial_state = _financial_lanes(financial)
@@ -98,10 +132,12 @@ def build_industry_coverage(inventory, observations, peer_summary=None, price_ro
             if price['available'] and price.get('price_date'):
                 price_dates.add(price['price_date'])
                 price_state = True
-        peer_row = peers.get(ticker)
-        if peer_row and representative_counts[ticker] > 1 and peer_row.get('sec_cik') != cik:
-            peer_row = None
         peer = _peer_result(peer_row, cik, sic)
+        if ticker in representative_tickers and representative_counts[ticker] == 1:
+            members[ticker] = dict(ticker=ticker, scope_matched=True, sic=sic,
+                price=price_state, price_date=price['price_date'] if price_state is True else None,
+                peer=peer, peer_date=peer_row.get('price_date') if peer is True else None,
+                peer_count=peer_row['accepted_reference_count'] if peer is True else None)
         for evidence in (price if price_state is not None else None, peer_row):
             if evidence:
                 last = max(last, _utc_timestamp(evidence['attempted_at']))
@@ -119,6 +155,7 @@ def build_industry_coverage(inventory, observations, peer_summary=None, price_ro
     venues = [gap['venue'] for gap in inventory['venue_gaps']]
     venues.extend(venue for venue in inventory['by_venue'] if venue.lower().startswith('unresolved'))
     return dict(total=total, groups=[groups[sic] for sic in sorted(groups, key=lambda sic: sic or '99999')],
+                representative_groups=_representatives(representative_groups, members),
                 peer_sample_size=len(sample), scope=dict(
                     observed_from=inventory['observed_from'], observed_to=inventory['observed_to'],
                     latest_evidence_at=last.strftime('%Y-%m-%dT%H:%M:%SZ'),

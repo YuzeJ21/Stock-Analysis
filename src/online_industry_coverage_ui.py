@@ -32,9 +32,54 @@ _COVERAGE_REASONS = {
     "latest_reported_quarter_revenue_unavailable": "最新季度收入不可用。",
     "latest_reported_foreign_revenue_unavailable": "最新外国发行人收入不可用。",
     "peer_issuer_mismatch": "同行核查记录的发行人 CIK 与本目录不同。",
+    "peer_sec_sic_mismatch": "同行核查中的 SEC 行业与发行人行业证据不一致。",
     "price_source_unavailable": "日线价格来源暂不可用。",
+    "no_recent_completed_price": "未找到最近七天内已完成的收盘价。",
+    "price_exchange_mismatch": "报价来源的交易所与目录不一致。",
+    "price_symbol_or_security_type_mismatch": "报价代码或证券类型与目录不一致。",
+    "price_evidence_unverified": "日线价格来源未通过验证。",
 }
 _ALL = "All issuer candidates"
+
+
+def _reason_text(reason):
+    return ' / '.join(_COVERAGE_REASONS.get(part, part.replace('_', ' ')) for part in reason.split(' / '))
+
+
+def _sample_lane(counts, denominator):
+    checked = counts['available'] + counts['failed']
+    return (f"已核查 {checked} / {denominator} · 通过 {counts['available']} / {denominator}"
+            f" · 有缺口 {counts['failed']} · 待核查 {counts['unprobed']}")
+
+
+def _render_representatives(st, groups):
+    if not groups:
+        return
+    st.markdown("### 三行业代表样本")
+    st.caption("按预先选定的研究行业统计，每组分母为 3 家。下方逐家显示已核实的 SEC SIC。"
+               "价格和同行分别核查。同行估值仍要求同日收盘价和可比的年度摊薄每股收益。")
+    for group in groups:
+        lanes = group['lanes']
+        n = group['denominator']
+        tickers = '、'.join(member['ticker'] for member in group['members'])
+        st.markdown(f"**{group['label']} · {tickers}**\n\n"
+                    f"- **收盘价** · {_sample_lane(lanes['price'], n)}\n"
+                    f"- **同行估值** · {_sample_lane(lanes['peer'], n)}")
+    with st.expander("逐家查看价格、估值与缺口", expanded=False):
+        for group in groups:
+            st.markdown(f"**{group['label']}**")
+            for member in group['members']:
+                ticker = member['ticker']
+                if not member['scope_matched']:
+                    st.markdown(f"- **{ticker}** · 本次目录缺少唯一的代表代码与发行人关联，两项待核查。")
+                    continue
+                price, peer = member['price'], member['peer']
+                price_text = member['price_date'] if price is True else _reason_text(price) if price else '待核查'
+                peer_text = (f"{member['peer_count']} 家合格同行 · {member['peer_date'] or '查看核查详情'}"
+                             if peer is True else _reason_text(peer) if peer else '待核查')
+                sic = f"SIC {member['sic']}" if member['sic'] else 'SEC 行业待核查'
+                st.markdown(f"- **{ticker}** · {sic} · 收盘价 {price_text} · 同行估值 {peer_text}")
+    st.caption("使用下方的单公司价格表单，或在上方「同行估值覆盖 · 行业样本」选择待核查公司。")
 
 
 def render_industry_coverage(st, report):
@@ -78,7 +123,7 @@ def render_industry_coverage(st, report):
         for lane, (label, definition) in _LANES.items():
             reasons = summary["lanes"][lane]["reasons"]
             details = "\n".join(
-                f"- {' / '.join(_COVERAGE_REASONS.get(part, part.replace('_', ' ')) for part in reason.split(' / '))} · {count:,}"
+                f"- {_reason_text(reason)} · {count:,}"
                 for reason, count in sorted(reasons.items(), key=lambda item: (-item[1], item[0]))
             )
             st.markdown(f"**{label}**  \n{definition}\n\n" + (details or "本组无已记录的缺口原因。"))
@@ -103,3 +148,4 @@ def render_industry_coverage(st, report):
             url = receipt["source_url"]
             if url in _SOURCE_LABELS:
                 st.markdown(f"- [{_SOURCE_LABELS[url]}]({url}) · {receipt['observed_at']}")
+    _render_representatives(st, report.get("representative_groups"))

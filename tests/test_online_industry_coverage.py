@@ -96,3 +96,34 @@ def test_inventory_does_not_claim_searchability_above_discover_response_limit():
     assert search['reason'] == 'invalid_response_size'
     assert inventory['status'] == 'inspection_only'
     assert build_industry_coverage(inventory, [])['total']['lanes']['search']['available'] == 0
+
+
+def test_representative_cohorts_show_two_independent_lanes_and_keep_pending_targets():
+    from src.online_industry_coverage import build_industry_coverage
+
+    inventory = _inventory()
+    when = inventory['observed_from']
+    cik = '0000001234'
+    peer = {'status': 'inspection_only', 'rows': [
+        dict(ticker='FICT', sec_cik=cik, attempted=True, attempted_at=when,
+             comparison_state='available', accepted_reference_count=3, sic='3571', price_date='2026-10-30',
+             source_refs=[dict(source_url=f'https://data.sec.gov/submissions/CIK{cik}.json',
+                               observed_at=when, payload_sha256='a' * 64)]),
+        dict(ticker='BANK', sec_cik='0000005678', attempted=True, attempted_at=when,
+             comparison_state='withheld', primary_reason='annual_eps_nonpositive_or_invalid', sic='6021'),
+    ]}
+    prices = [dict(ticker='BANK', sec_cik='0000005678', attempted_at=when,
+                   available=True, price_date='2026-10-30', reason='completed_bar_available')]
+    report = build_industry_coverage(inventory, [], peer, prices, representative_groups=(
+        ('Selected hardware', ('FICT', 'FICT.B')), ('Selected financials', ('BANK', 'TEX')),
+    ))
+    hardware, financials = report['representative_groups']
+    assert hardware['denominator'] == financials['denominator'] == 2
+    assert hardware['lanes']['price']['unprobed'] == 2
+    assert hardware['lanes']['peer']['available'] == 1
+    assert hardware['members'][0]['peer_date'] == '2026-10-30'
+    assert hardware['members'][1]['scope_matched'] is False
+    assert financials['lanes']['price']['available'] == 1
+    assert financials['lanes']['peer']['reasons'] == {'annual_eps_nonpositive_or_invalid': 1}
+    assert financials['lanes']['peer']['unprobed'] == 1
+    assert [(group['sic'], group['denominator']) for group in report['groups']] == [('3571', 1), (None, 2)]

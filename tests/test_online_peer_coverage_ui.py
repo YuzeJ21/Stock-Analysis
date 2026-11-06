@@ -107,3 +107,41 @@ def test_inspected_company_detail_opens_without_another_source_request(monkeypat
     at.button(key="peer-coverage-reset").click().run(timeout=30)
     assert "年度 P/E 高于同行参照" not in "\n".join(item.value for item in at.markdown)
     assert calls == before and not at.exception
+
+
+def _discover_app():
+    import streamlit as st
+    from src.online_peer_coverage import DISCOVER_SAMPLE
+    from src.online_peer_coverage_ui import render_peer_coverage
+
+    render_peer_coverage(st, tickers=DISCOVER_SAMPLE)
+
+
+def test_discover_explicit_pending_selection_requests_only_on_button_click(monkeypatch):
+    import src.online_peer_coverage_ui as ui
+    from src.online_peer_coverage import get_peer_coverage
+
+    calls = []
+
+    def unavailable(**kwargs):
+        calls.append("classification")
+        return {"status": "unavailable", "reason": "classification_source_unavailable"}
+
+    def get(state, **kwargs):
+        return get_peer_coverage(state, **kwargs, dependencies={"classification": unavailable}, as_of=NOW)
+
+    monkeypatch.setattr(ui, "get_peer_coverage", get)
+    app = AppTest.from_function(_discover_app).run()
+    assert not app.exception and not calls
+    select = app.selectbox(key="peer-coverage-pending")
+    assert select.options[:9] == ["AMD", "JPM", "DUK", "TXN", "BAC", "SO", "QCOM", "WFC", "NEE"]
+    select.select("NEE").run()
+    assert not calls
+    app.button(key="peer-coverage-inspect-selected").click().run()
+    assert not app.exception and calls == ["classification"]
+    assert "NEE" not in app.selectbox(key="peer-coverage-pending").options
+    assert app.selectbox(key="peer-coverage-retry").options == ["NEE"]
+    text = "\n".join(item.value for item in app.markdown)
+    assert "1 / 19" in text and "18 / 19" in text
+    app.run()
+    assert calls == ["classification"]

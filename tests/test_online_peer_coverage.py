@@ -18,9 +18,9 @@ def dependencies():
     return deps,calls
 
 
-def audit(state,*,inspect=False,retry=None,reset=False,tickers=SYMBOLS,as_of=NOW,deps=None,mode='research'):
+def audit(state,*,inspect=False,select=None,retry=None,reset=False,tickers=SYMBOLS,as_of=NOW,deps=None,mode='research'):
     from src.online_peer_coverage import get_peer_coverage
-    return get_peer_coverage(state,inspect_requested=inspect,retry_ticker=retry,reset_requested=reset,
+    return get_peer_coverage(state,inspect_requested=inspect,inspect_ticker=select,retry_ticker=retry,reset_requested=reset,
         tickers=tickers,as_of=as_of,dependencies=deps,workspace_mode=mode,user_agent='Synthetic contact')
 
 
@@ -251,3 +251,79 @@ def test_selected_sample_detail_revalidates_without_fetch_or_state_mutation():
     assert expired["status"] == "withheld"
     assert expired["peer_median"] is None
     assert state == before and calls == requests
+
+
+def test_explicit_pending_selection_checks_only_that_target_and_preserves_order():
+    deps, calls = dependencies()
+    state = {}
+
+    selected = audit(state, select="FC", deps=deps)
+
+    assert selected["requested_tickers"] == list(SYMBOLS)
+    assert selected["attempted_count"] == 1
+    assert selected["pending_count"] == 3
+    assert [row["ticker"] for row in selected["rows"] if row["attempted"]] == ["FC"]
+    assert selected["rows"][-1]["price_date"] == "2026-10-30"
+    assert all("price_date" not in row for row in selected["rows"][:-1])
+    before = list(calls)
+    assert audit(state, select="FC", deps=deps)["status"] == "unavailable"
+    assert audit(state, select="OUTSIDE", deps=deps)["status"] == "unavailable"
+    assert audit(state, inspect=True, select="FB", deps=deps)["status"] == "unavailable"
+    assert calls == before
+    assert audit(state, inspect=True, deps=deps)["rows"][0]["attempted"] is True
+
+
+def test_explicit_pending_selection_respects_pause_mode_and_stale_price_date():
+    deps, calls = dependencies()
+    good_vendor = deps["vendor"]
+    deps["vendor"] = lambda *args, **kwargs: {"status": "unavailable"}
+    state = {}
+
+    audit(state, select="FB", deps=deps)
+    paused = audit(state, select="FC", deps=deps)
+    assert paused["paused"] and paused["attempted_count"] == 2
+    before = list(calls)
+    assert audit(state, select="FA", deps=deps) == paused
+    assert audit(state, select="FICT", deps=deps, mode="public")["status"] == "unavailable"
+    assert calls == before
+
+    deps["vendor"] = good_vendor
+    result = audit(state, retry="FC", deps=deps)
+    assert not result["paused"] and "price_date" in result["rows"][-1]
+    expired = audit(state, deps=deps, as_of=NOW + timedelta(days=2))
+    assert expired["attempted_count"] == 2
+    assert all("price_date" not in row for row in expired["rows"])
+
+
+def test_discover_sample_preserves_legacy_attempts_with_separate_reset_and_denominator():
+    from src.online_peer_coverage import DEFAULT_SAMPLE, DISCOVER_SAMPLE, REPRESENTATIVE_GROUPS
+
+    assert REPRESENTATIVE_GROUPS == (
+        ("半导体", ("AMD", "TXN", "QCOM")),
+        ("银行", ("JPM", "BAC", "WFC")),
+        ("公用事业", ("DUK", "SO", "NEE")),
+    )
+    assert DISCOVER_SAMPLE[:9] == ("AMD", "JPM", "DUK", "TXN", "BAC", "SO", "QCOM", "WFC", "NEE")
+    assert len(DISCOVER_SAMPLE) == 19 and set(DEFAULT_SAMPLE) < set(DISCOVER_SAMPLE)
+    calls = []
+
+    def unavailable(**kwargs):
+        calls.append("classification")
+        return {"status": "unavailable", "reason": "classification_source_unavailable"}
+
+    state = {}
+    deps = {"classification": unavailable}
+    legacy = audit(state, select="DUK", deps=deps, tickers=DEFAULT_SAMPLE)
+    before = deepcopy(state)
+    discover = audit(state, deps=deps, tickers=DISCOVER_SAMPLE)
+    row = next(row for row in discover["rows"] if row["ticker"] == "DUK")
+    assert row == next(row for row in legacy["rows"] if row["ticker"] == "DUK")
+    assert discover["attempted_count"] == 1 and discover["pending_count"] == 18
+    assert len(calls) == 1 and state == before
+    expanded = audit(state, select="NEE", deps=deps, tickers=DISCOVER_SAMPLE)
+    assert expanded["attempted_count"] == 2 and expanded["paused"]
+    reset = audit(state, reset=True, deps=deps, tickers=DISCOVER_SAMPLE)
+    assert reset["requested_count"] == 19 and reset["attempted_count"] == 0
+    assert audit(state, deps=deps, tickers=DISCOVER_SAMPLE) == reset
+    assert audit(state, deps=deps, tickers=DEFAULT_SAMPLE) == legacy
+    assert len(calls) == 2

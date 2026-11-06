@@ -133,3 +133,29 @@ def test_selecting_unknown_sic_shows_its_own_denominator_and_reasons(report):
     ]
     assert re.search(r"冲突[^\n]*\b1\b", text)
     assert not re.search(r"\b10\s*/\s*11\b", text)
+
+
+def test_sample_shows_checked_and_pending_separately_from_the_sic_population(report):
+    cohort = _group("公用事业", 3, {
+        "price": (1, 2, {}),
+        "peer": (0, 2, {"multiple_issuer_share_classes_unresolved": 1}),
+    })
+    cohort["members"] = [
+        dict(ticker="DUK", scope_matched=True, sic="4931", price=True, price_date="2026-11-05",
+             peer="multiple_issuer_share_classes_unresolved"),
+        dict(ticker="SO", scope_matched=True, sic=None, price=None, peer=None),
+        dict(ticker="NEE", scope_matched=False, price=None, peer=None),
+    ]
+    report["representative_groups"] = [cohort]
+    app = AppTest.from_function(_app)
+    app.session_state["fixture_coverage_report"] = report
+    app.run()
+
+    assert not app.exception
+    text = _text(app)
+    assert "公用事业 · DUK、SO、NEE" in text
+    assert "收盘价** · 已核查 1 / 3 · 通过 1 / 3 · 有缺口 0 · 待核查 2" in text
+    assert "同行估值** · 已核查 1 / 3 · 通过 0 / 3 · 有缺口 1 · 待核查 2" in text
+    assert "SIC 4931 · 收盘价 2026-11-05" in text
+    assert "所选证券的每股收益口径尚未核对" in text
+    assert "NEE** · 本次目录缺少唯一的代表代码与发行人关联" in text

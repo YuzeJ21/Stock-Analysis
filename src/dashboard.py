@@ -31349,8 +31349,9 @@ def render_online_coverage_study() -> None:
     from src.online_industry_coverage import build_industry_coverage
     from src.online_industry_coverage_ui import render_industry_coverage
     from src.online_industry_price_coverage import read_price_coverage, render_industry_price_control
+    from src.online_peer_coverage import DISCOVER_SAMPLE, REPRESENTATIVE_GROUPS
     from src.online_peer_coverage_ui import render_peer_coverage
-    peer_coverage = render_peer_coverage(st)
+    peer_coverage = render_peer_coverage(st, tickers=DISCOVER_SAMPLE)
     with st.expander("U.S. listing coverage · online", expanded=False):
         st.markdown("Load the full observed official listing inventory, then check financial coverage by issuer. Unprobed and unmatched records remain visible.")
         load_requested=st.button("Load U.S. listing inventory",key="online-us-universe-load")
@@ -31377,7 +31378,9 @@ def render_online_coverage_study() -> None:
             render_industry_price_control(st, inventory)
         prices = read_price_coverage(st.session_state, inventory) if inventory else ()
         with coverage_panel:
-            render_industry_coverage(st, build_industry_coverage(inventory, universe.get("observations", []), peer_coverage, prices))
+            report = build_industry_coverage(inventory, universe.get("observations", []), peer_coverage, prices,
+                                             representative_groups=REPRESENTATIVE_GROUPS)
+            render_industry_coverage(st, report)
         st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
     with st.expander("NYSE Texas listing check", expanded=False):
         from src.nyse_texas_reconciliation import get_nyse_texas, reconciliation_html

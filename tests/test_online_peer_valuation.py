@@ -105,6 +105,19 @@ def test_invalid_or_loss_eps_never_means_cheap(value):
     v=build(c); assert v['status']=='withheld' and v['premium_fraction'] is None
 
 
+def test_verified_sec_industry_survives_a_blocked_vendor_identity_without_promoting_valuation():
+    c = collection()
+    row = c['issuers'][0]
+    row['vendor']['payload']['filings'][0]['edgarUrl'] = 'https://finance.yahoo.com/invalid'
+    rehash_vendor(row)
+    view = build(c)
+    assert view['status'] == 'withheld' and view['subject'] is None
+    context = view['subject_source_context']
+    assert 'industry_observation' not in context
+    assert context['sec_sic_observation'] == dict(sic='3674', source_ref=row['profile']['source_url'],
+        observed_at=row['profile']['observed_at'], payload_sha256=row['profile']['payload_sha256'])
+
+
 @pytest.mark.parametrize('change',['cik','ticker','currency','venue','vendor_cik','vendor_doc','filing_date','facts_cik','unit','industry','sic','split','malformed_split','quote_date','quote_price','current_day','duplicate_eps','amendment','duration','source_time','raw_ref','vendor_digest','multi_class','investment','blank_check'])
 def test_subject_source_failures_remain_specific_and_withhold_every_verdict(change):
     c=collection(); r=c['issuers'][0]; info=r['vendor']['payload']['info']; f=r['facts']['payload']; p=r['profile']['payload']

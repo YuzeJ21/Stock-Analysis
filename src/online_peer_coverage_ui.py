@@ -4,7 +4,7 @@ from html import escape
 import os
 from urllib.parse import urlencode
 
-from src.online_peer_coverage import get_peer_coverage,SESSION_KEY,DEFAULT_SAMPLE
+from src.online_peer_coverage import DEFAULT_SAMPLE, DISCOVER_SAMPLE, _coverage_session, get_peer_coverage
 from src.online_peer_valuation import _symbol
 from src.online_peer_valuation_ui import STYLE,_text,_reason,_link,online_peer_valuation_html
 
@@ -62,22 +62,30 @@ def peer_coverage_html(view):
     return html
 
 
-def render_peer_coverage(st_api):
+def render_peer_coverage(st_api, *, tickers=DEFAULT_SAMPLE):
     """Callbacks finish before the rerender; ordinary rendering never requests sources."""
     def act(kind):
         with st_api.spinner('正在核对一个查询对象及其同行来源…'):
             get_peer_coverage(st_api.session_state,inspect_requested=kind=='next',reset_requested=kind=='reset',
+                inspect_ticker=st_api.session_state.get('peer-coverage-pending') if kind=='selected' else None,
                 retry_ticker=st_api.session_state.get('peer-coverage-retry') if kind=='retry' else None,
-                user_agent=os.getenv('SEC_USER_AGENT'))
+                tickers=tickers,user_agent=os.getenv('SEC_USER_AGENT'))
     st_api.markdown('<div id="peer-coverage-sample"></div>',unsafe_allow_html=True)
     with st_api.expander('同行估值覆盖 · 行业样本',expanded=False):
         st_api.caption('按公司逐项核查年度 P/E 与同行可比性；来源缺失、未核查对象都会保留。')
-        raw=st_api.session_state.get(SESSION_KEY,{});raw=raw if isinstance(raw,Mapping) else {}
-        requested=raw.get('requested_tickers',DEFAULT_SAMPLE);requested=requested if isinstance(requested,(list,tuple)) else DEFAULT_SAMPLE
+        _,raw=_coverage_session(st_api.session_state,list(tickers));raw=raw if isinstance(raw,Mapping) else {}
+        requested=raw.get('requested_tickers',tickers);requested=requested if isinstance(requested,(list,tuple)) else tickers
         packets=raw.get('packets',{});packets=packets if isinstance(packets,Mapping) else {}
         attempted=[t for t in requested if _symbol(t) and t in packets]
         paused=type(raw.get('source_failure_streak')) is int and raw['source_failure_streak']>=2
         st_api.button('核查下一家公司',key='peer-coverage-next',disabled=paused or len(attempted)==len(requested),on_click=act,args=('next',))
+        if tuple(tickers) == DISCOVER_SAMPLE:
+            pending = [ticker for ticker in tickers if ticker not in attempted]
+            if pending:
+                choice = st_api.selectbox('待核查公司',pending,index=None,key='peer-coverage-pending',
+                    placeholder='选择一个待核查的代码',disabled=paused)
+                st_api.button('核查所选公司',key='peer-coverage-inspect-selected',disabled=paused or choice is None,
+                    on_click=act,args=('selected',))
         if attempted:
             st_api.selectbox('重新核查公司',attempted,key='peer-coverage-retry')
             st_api.button('重试所选公司',key='peer-coverage-retry-action',on_click=act,args=('retry',))
@@ -86,7 +94,7 @@ def render_peer_coverage(st_api):
             '查看本次核查详情', attempted, index=None, key='peer-coverage-detail',
             placeholder='选择已核查公司',
         ) if attempted else None
-        result=get_peer_coverage(st_api.session_state,user_agent=os.getenv('SEC_USER_AGENT'),detail_ticker=selected)
+        result=get_peer_coverage(st_api.session_state,tickers=tickers,user_agent=os.getenv('SEC_USER_AGENT'),detail_ticker=selected)
         if detail := result.get('selected_detail'):
             st_api.caption(f"{detail['ticker']} · 本会话核查详情。按原观察时间重新校验。")
             st_api.markdown(online_peer_valuation_html(detail, show_coverage_link=False),unsafe_allow_html=True)

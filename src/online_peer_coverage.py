@@ -11,9 +11,19 @@ from src.company_sec_online_preview import _utc_timestamp
 from src.security_classification import validated_classification
 
 SESSION_KEY='online_peer_coverage_session_v1'
+DISCOVER_SESSION_KEY='online_peer_coverage_discover_v1'
 SCHEMA='online-peer-coverage-v1'
 METHOD='reported-annual-pe-selected-security-v1'
 DEFAULT_SAMPLE=('AMD','TXN','QCOM','MSFT','JPM','JNJ','XOM','PG','MCD','CAT','NEM','DUK','O','VZ','TSM')
+REPRESENTATIVE_GROUPS=(
+    ('半导体', ('AMD', 'TXN', 'QCOM')),
+    ('银行', ('JPM', 'BAC', 'WFC')),
+    ('公用事业', ('DUK', 'SO', 'NEE')),
+)
+_PRIORITY_SAMPLE=tuple(
+    ticker for rank in zip(*(members for _, members in REPRESENTATIVE_GROUPS)) for ticker in rank
+)
+DISCOVER_SAMPLE=(*_PRIORITY_SAMPLE, *(ticker for ticker in DEFAULT_SAMPLE if ticker not in _PRIORITY_SAMPLE))
 _SOURCE_FAILURES={'vendor_context_source_unavailable','industry_candidate_source_unavailable','listing_classification_unavailable',
     'issuer_source_unavailable','sec_source_unavailable_or_mismatched','peer_source_unavailable','amendment_source_unavailable'}
 _STATE_KEYS={'schema_version','method_version','requested_tickers','packets','classifications','adapter_operation_count','source_failure_streak','digest'}
@@ -52,6 +62,18 @@ def _valid(state,requested):
             and type(state.get('source_failure_streak')) is int and 0<=state['source_failure_streak']<=2
             and state.get('digest')==normalized_digest({k:v for k,v in state.items() if k!='digest'}))
     except (ValueError,TypeError,RecursionError,OverflowError):return False
+
+
+def _coverage_session(session_state, requested):
+    if tuple(requested) != DISCOVER_SAMPLE:
+        return SESSION_KEY, session_state.get(SESSION_KEY)
+    if DISCOVER_SESSION_KEY in session_state:
+        return DISCOVER_SESSION_KEY, session_state.get(DISCOVER_SESSION_KEY)
+    legacy = session_state.get(SESSION_KEY)
+    if _valid(legacy, list(DEFAULT_SAMPLE)):
+        # Keep receipts and their original dates. The first expanded action writes only its own slot.
+        return DISCOVER_SESSION_KEY, _seal({**legacy, 'requested_tickers': requested})
+    return DISCOVER_SESSION_KEY, None
 
 
 def _compact_packet(packet,state):
@@ -122,6 +144,9 @@ def _summary(state,as_of,workspace_mode,*,detail_ticker=None):
         if subject:
             reference_state='partially_assessed' if any(r.get('reason') in {'peer_not_collected','source_paused_after_repeated_failures'} for r in outcomes) else 'assessed'
         refs=list(attribution.get('source_refs',[]))
+        sec_sic = context.get('sec_sic_observation') if isinstance(context, Mapping) else None
+        if sec_sic and not sic:
+            refs.append(dict(source_url=sec_sic['source_ref'], observed_at=sec_sic['observed_at'], payload_sha256=sec_sic['payload_sha256']))
         scope=subject.get('selected_security_scope',{}) if subject else context.get('selected_security_scope',{})
         if not isinstance(scope,Mapping):scope={}
         refs.extend(dict(source_url=d['source_ref'],observed_at=d['observed_at'],payload_sha256=d['payload_sha256'],body_sha256=d.get('body_sha256')) for d in scope.get('documents',[]))
@@ -141,6 +166,10 @@ def _summary(state,as_of,workspace_mode,*,detail_ticker=None):
             primary_reason=reason,reason_gate=reason_gate(reason),candidate_count=view.get('candidate_count') if attempted else None,
             vendor_candidate_total=view.get('industry_candidate_total') if attempted else None,
             excluded=[dict(ticker=r.get('ticker'),reason=r.get('reason')) for r in outcomes],source_refs=refs)
+        if subject and subject.get('price_date') is not None:
+            row['price_date'] = subject['price_date']
+        if sec_sic:
+            row['sec_sic'] = sec_sic['sic']
         rows.append(row);groups[(row['industry_key'],row['sic'])].append(row)
         if attempted and row['comparison_state']!='available':primary[reason]+=1
         excluded.update(r['reason'] for r in row['excluded'])
@@ -163,24 +192,31 @@ def _summary(state,as_of,workspace_mode,*,detail_ticker=None):
         rights_status='personal_research_only_commercial_and_redistribution_unverified')
 
 
-def get_peer_coverage(session_state,*,inspect_requested=False,reset_requested=False,retry_ticker=None,tickers=DEFAULT_SAMPLE,
+def get_peer_coverage(session_state,*,inspect_requested=False,inspect_ticker=None,reset_requested=False,retry_ticker=None,tickers=DEFAULT_SAMPLE,
                       user_agent=None,dependencies=None,as_of=None,workspace_mode='research',detail_ticker=None):
     reason=_mode_reason(workspace_mode);requested=_targets(tickers)
     if reason or requested is None:return dict(status='unavailable',reason=reason or 'invalid_peer_coverage_sample')
     try:sources._now(as_of)
     except (ValueError,TypeError):return dict(status='unavailable',reason='invalid_observation')
-    existing=session_state.get(SESSION_KEY)
+    if inspect_ticker is not None and (inspect_requested or reset_requested or retry_ticker is not None):
+        return dict(status='unavailable',reason='ambiguous_peer_coverage_action')
+    session_key, existing = _coverage_session(session_state, requested)
     if reset_requested:existing=None
     if existing is not None and not _valid(existing,requested):return dict(status='unavailable',reason='peer_coverage_state_or_sample_changed')
     state=existing if existing is not None else _new(requested)
     if reset_requested:
-        session_state[SESSION_KEY]=state
+        session_state[session_key]=state
         return _summary(state,as_of,workspace_mode)
     if retry_ticker is not None and (retry_ticker not in requested or retry_ticker not in state['packets']):
         return dict(status='unavailable',reason='invalid_peer_coverage_retry')
+    if inspect_ticker is not None and (inspect_ticker not in requested or inspect_ticker in state['packets']):
+        return dict(status='unavailable',reason='invalid_peer_coverage_inspect_ticker')
     target=retry_ticker
-    if target is None and inspect_requested and state['source_failure_streak']<2:
-        target=next((t for t in requested if t not in state['packets']),None)
+    if target is None and state['source_failure_streak']<2:
+        if inspect_ticker is not None:
+            target = inspect_ticker
+        elif inspect_requested:
+            target=next((t for t in requested if t not in state['packets']),None)
     if target is None:return _summary(state,as_of,workspace_mode,detail_ticker=detail_ticker)
     state=deepcopy(state)
     deps=dict(classification=sources.fetch_classification,vendor=sources.observe_vendor,industry=sources.observe_industry,
@@ -205,5 +241,5 @@ def get_peer_coverage(session_state,*,inspect_requested=False,reset_requested=Fa
     state['adapter_operation_count']+=len(operations)
     streak=0 if retry_ticker is not None else state['source_failure_streak']
     state['source_failure_streak']=min(2,streak+1) if _subject_source_failure(view,slot[sources.SESSION_KEY]) else 0
-    session_state[SESSION_KEY]=_seal(state)
+    session_state[session_key]=_seal(state)
     return _summary(state,as_of,workspace_mode)
