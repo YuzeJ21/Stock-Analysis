@@ -186,7 +186,9 @@ def test_qcom_representative_row_distinguishes_candidate_checks_from_pending(rep
              candidate_basis="reviewed_qcom_sec_sic_3663", candidate_count=3,
              checked_candidate_count=1, pending_candidate_count=2,
              excluded=[
-                 {"ticker": "UI", "reason": "provider_industry_differs"},
+                 {"ticker": "BKTI", "reason": "peer_fiscal_window_differs",
+                  "listing_venue_evidence": {
+                      "source_url": "https://www.sec.gov/Archives/edgar/data/2186/000143774926032498/bkti20261012_8k.htm"}},
                  {"ticker": "MSI", "reason": "source_paused_after_repeated_failures"},
                  {"ticker": "HLIT", "reason": "peer_not_collected"},
              ]),
@@ -199,7 +201,9 @@ def test_qcom_representative_row_distinguishes_candidate_checks_from_pending(rep
     assert not app.exception
     text = _text(app)
     assert "SEC SIC 3663 候选 · 候选已核查 1 / 3 · 候选待核查 2 家" in text
-    assert "UI** · 未通过 · 供应商行业分类不同" in text
+    assert "BKTI** · 未通过 · 实际财年起止日期差异超过 35 天" in text
+    assert text.count("NYSE American 交易所核对") == 1
+    assert "[NYSE American 交易所核对](https://www.sec.gov/Archives/edgar/data/2186/000143774926032498/bkti20261012_8k.htm)" in text
     assert "MSI** · 待核查 · 连续来源失败" in text
     assert "HLIT** · 待核查 · 尚未取得" in text
     assert "同行估值** · 已核查 1 / 3 · 通过 0 / 3" in text

@@ -26,7 +26,7 @@ _PRIORITY_SAMPLE=tuple(
 DISCOVER_SAMPLE=(*_PRIORITY_SAMPLE, *(ticker for ticker in DEFAULT_SAMPLE if ticker not in _PRIORITY_SAMPLE))
 _SOURCE_FAILURES={'vendor_context_source_unavailable','industry_candidate_source_unavailable','listing_classification_unavailable',
     'issuer_source_unavailable','sec_source_unavailable_or_mismatched','peer_source_unavailable','amendment_source_unavailable',
-    'vendor_cofiling_source_unavailable'}
+    'vendor_cofiling_source_unavailable','listing_venue_source_unavailable'}
 _STATE_KEYS={'schema_version','method_version','requested_tickers','packets','classifications','adapter_operation_count','source_failure_streak','digest'}
 
 
@@ -120,6 +120,7 @@ def _subject_source_failure(view,packet):
     if not isinstance(issuers,list):return False
     for row in issuers:
         if not isinstance(row,Mapping) or row.get('ticker')!=view.get('ticker'):continue
+        if row.get('reason')=='listing_venue_source_unavailable':return True
         for key in ('prices','profile','facts','amendment_evidence','selected_security_evidence','vendor_history'):
             component=row.get(key)
             if (isinstance(component,Mapping) and component.get('status')=='unavailable'
@@ -154,6 +155,13 @@ def _summary(state,as_of,workspace_mode,*,detail_ticker=None):
         if subject:
             refs.extend([dict(source_url=subject['source_ref'],observed_at=subject['observed_at'],payload_sha256=subject['facts_sha256']),
                          dict(source_url=subject['price_source_ref'],observed_at=subject['price_observed_at'],payload_sha256=subject['price_sha256'])])
+        exclusions = []
+        for outcome in outcomes:
+            exclusion = dict(ticker=outcome.get('ticker'), reason=outcome.get('reason'))
+            venue_evidence = (outcome.get('diagnostics') or {}).get('listing_venue_evidence')
+            if venue_evidence:
+                exclusion['listing_venue_evidence'] = venue_evidence
+            exclusions.append(exclusion)
         row=dict(ticker=ticker,attempted=attempted,attempted_at=packet.get('observed_at') if packet else None,
             selected_security_state=scope.get('status','unverified'),selected_security_reason=scope.get('reason'),
             subject_source_failure=_subject_source_failure(view,packet) if attempted else False,
@@ -166,7 +174,7 @@ def _summary(state,as_of,workspace_mode,*,detail_ticker=None):
             comparison_state='available' if view.get('status')=='research_comparison' else 'withheld' if attempted else 'not_assessed',
             primary_reason=reason,reason_gate=reason_gate(reason),candidate_count=view.get('candidate_count') if attempted else None,
             vendor_candidate_total=view.get('industry_candidate_total') if attempted else None,
-            excluded=[dict(ticker=r.get('ticker'),reason=r.get('reason')) for r in outcomes],source_refs=refs)
+            excluded=exclusions,source_refs=refs)
         if subject and subject.get('price_date') is not None:
             row['price_date'] = subject['price_date']
         if view.get('candidate_basis'):
@@ -233,7 +241,7 @@ def get_peer_coverage(session_state,*,inspect_requested=False,inspect_ticker=Non
     deps=dict(classification=sources.fetch_classification,vendor=sources.observe_vendor,industry=sources.observe_industry,
               sec=sources.fetch_sec_json_receipt,prices=sources.fetch_online_company_prices,amendment=sources.fetch_amendment_evidence,
               security=sources.fetch_selected_security_evidence,history=sources.fetch_vendor_history_match,
-              cofiling=sources.fetch_vendor_cofiling_match)
+              cofiling=sources.fetch_vendor_cofiling_match,venue=sources.fetch_listing_venue_evidence)
     if dependencies is not None:
         if not isinstance(dependencies,Mapping) or not set(dependencies)<=set(deps):return dict(status='unavailable',reason='invalid_peer_coverage_dependencies')
         deps.update(dependencies)

@@ -223,6 +223,42 @@ def test_qcom_reviewed_sic_candidates_are_revalidated_and_still_require_vendor_i
     assert outside_scope['checked_candidate_count'] == 0 and outside_scope['pending_candidate_count'] == 3
 
 
+def test_nyse_american_cover_evidence_resolves_only_the_scoped_venue_conflict(monkeypatch):
+    from src import online_peer_valuation as valuation
+
+    ticker, cik = 'BKTI', '0000002186'
+    row = issuer(ticker, cik, 30)
+    row['profile']['payload']['exchanges'] = ['NYSE']
+    row['vendor']['payload']['info'].update(exchange='ASE', fullExchangeName='NYSE American')
+    row['prices'].update(exchange_code='ASE', full_exchange_name='NYSE American')
+    rehash_vendor(row)
+    listing = dict(symbol=ticker, sec_cik=cik, source='other', venue_code='A', venue='NYSE American',
+                   security_type='common_shares', etf=False)
+    snapshot = {'inventory': {'map_receipt': {'payload': {'0': dict(ticker=ticker, cik_str=2186)}}}, 'rows': [listing]}
+    row['listing_venue_evidence'] = {'status': 'observed'}
+    proof = dict(reported_exchange='NYSE', confirmed_exchange='NYSE American', source_url='https://www.sec.gov/test')
+    monkeypatch.setattr(valuation, 'validated_listing_venue_evidence',
+                        lambda packet, **scope: proof if packet == {'status': 'observed'} else None, raising=False)
+
+    peer = valuation._issuer(row, snapshot, 'semiconductors', NOW)
+    assert peer['listing_venue_evidence'] == proof and peer['price_date'] == '2026-10-30'
+    assert row['profile']['payload']['exchanges'] == ['NYSE']
+    for target, key, value in (
+        (row['prices'], 'full_exchange_name', 'NYSE'),
+        (row['prices'], 'exchange_code', 'NYQ'),
+        (listing, 'venue_code', 'N'),
+        (listing, 'security_type', 'preferred_shares'),
+    ):
+        with monkeypatch.context() as patch:
+            patch.setitem(target, key, value)
+            with pytest.raises(ValueError):
+                valuation._issuer(row, snapshot, 'semiconductors', NOW)
+
+    row['listing_venue_evidence'] = None
+    with pytest.raises(ValueError, match='quote_exchange_mismatch'):
+        valuation._issuer(row, snapshot, 'semiconductors', NOW)
+
+
 def test_cofiling_identity_keeps_annual_earnings_and_never_masks_a_vendor_issuer_conflict(monkeypatch):
     from src import online_peer_valuation as valuation
 

@@ -98,7 +98,10 @@ def _render_representatives(st, groups):
                     progress, outcomes = candidates
                     line += f" · {progress}"
                     if outcomes:
-                        line += "\n" + "\n".join(f"  - **{symbol}** · {reason}" for symbol, reason in outcomes)
+                        for symbol, reason, source_url in outcomes:
+                            line += f"\n  - **{symbol}** · {reason}"
+                            if source_url:
+                                line += f" · [NYSE American 交易所核对]({source_url})"
                 st.markdown(line)
     st.caption("使用下方的单公司价格表单，或在上方「同行估值覆盖 · 行业样本」选择待核查公司。")
 

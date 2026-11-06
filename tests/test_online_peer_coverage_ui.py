@@ -159,7 +159,9 @@ def test_qcom_detail_shows_candidate_outcomes_without_fetching(monkeypatch):
         primary_reason="at_least_three_compatible_industry_references_required",
         candidate_basis="reviewed_qcom_sec_sic_3663", candidate_count=2,
         checked_candidate_count=1, pending_candidate_count=1,
-        excluded=[{"ticker": "UI", "reason": "peer_fiscal_window_differs"},
+        excluded=[{"ticker": "BKTI", "reason": "peer_fiscal_window_differs",
+                   "listing_venue_evidence": {
+                       "source_url": "https://www.sec.gov/Archives/edgar/data/2186/000143774926032498/bkti20261012_8k.htm"}},
                   {"ticker": "MSI", "reason": "source_paused_after_repeated_failures"}],
     )
     calls = []
@@ -178,7 +180,9 @@ def test_qcom_detail_shows_candidate_outcomes_without_fetching(monkeypatch):
     assert not app.exception
     detail = next(item.value for item in app.markdown if 'aria-label="QCOM SEC SIC 3663 候选"' in item.value)
     assert "候选已核查 1 / 2 · 候选待核查 1 家" in detail
-    assert "UI</strong> · 未通过 · 实际财年起止日期差异超过 35 天" in detail
+    assert "BKTI</strong> · 未通过 · 实际财年起止日期差异超过 35 天" in detail
+    assert detail.count("NYSE American 交易所核对") == 1
+    assert 'href="https://www.sec.gov/Archives/edgar/data/2186/000143774926032498/bkti20261012_8k.htm"' in detail
     assert "MSI</strong> · 待核查 · 连续来源失败" in detail
     assert "相同供应商行业" in detail and "至少 3 家" in detail
     assert all(not any(call.get(key) for key in ("inspect_requested", "inspect_ticker", "retry_ticker")) for call in calls)

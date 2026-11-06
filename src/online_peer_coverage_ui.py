@@ -35,7 +35,9 @@ def qcom_candidate_display(row):
         if isinstance(item, Mapping) and _symbol(item.get('ticker')) and isinstance(item.get('reason'), str):
             reason = item['reason']
             text = _QCOM_PENDING.get(reason)
-            outcomes.append((item['ticker'], text if text else f'未通过 · {_reason(reason)}'))
+            evidence = item.get('listing_venue_evidence')
+            source_url = evidence.get('source_url') if isinstance(evidence, Mapping) else None
+            outcomes.append((item['ticker'], text if text else f'未通过 · {_reason(reason)}', source_url))
     return progress, outcomes
 
 
@@ -44,8 +46,10 @@ def _qcom_candidate_detail_html(display):
     html = ('<section aria-label="QCOM SEC SIC 3663 候选"><p><strong>'+escape(progress)+'</strong></p>'
             '<p>候选仍须通过相同供应商行业、同日收盘价和财年起止日期核对。至少 3 家通过后才显示比较。</p>')
     if outcomes:
-        html += '<ul>'+''.join(f'<li><strong>{escape(ticker)}</strong> · {escape(text)}</li>'
-                               for ticker, text in outcomes)+'</ul>'
+        html += '<ul>'+''.join(
+            f'<li><strong>{escape(ticker)}</strong> · {escape(text)}'
+            + (' · '+_link(source_url,'NYSE American 交易所核对') if source_url else '')+'</li>'
+            for ticker, text, source_url in outcomes)+'</ul>'
     return html+'</section>'
 
 

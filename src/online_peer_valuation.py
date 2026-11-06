@@ -19,6 +19,7 @@ from src.annual_amendment_evidence import validate_amendment_evidence
 from src.sec_selected_security import validate_selected_security_evidence,is_investment_company_form,valid_profile_metadata_shape
 from src.online_peer_sec_cofiling import validated_vendor_cofiling_match
 from src.online_peer_sec_history import validated_vendor_history_match
+from src.online_peer_sec_venue import known_listing_venue_scope, validated_listing_venue_evidence
 from src.online_research_history_view import validated_online_price_history
 from src.security_classification import validated_classification, _selected
 
@@ -246,6 +247,29 @@ def _resolved_annual_eps(row,facts,filings,price_date,ticker,cik,as_of):
     return eps
 
 
+def _nyse_american_quotes(info, prices):
+    return (isinstance(info, Mapping) and isinstance(prices, Mapping)
+            and info.get('quoteType') == 'EQUITY' and info.get('exchange') == 'ASE'
+            and info.get('fullExchangeName') == 'NYSE American' and prices.get('exchange_code') == 'ASE'
+            and prices.get('full_exchange_name') == 'NYSE American')
+
+
+def _reviewed_listing_venue(row, ticker, cik, listings, info, prices, as_of):
+    if not known_listing_venue_scope(ticker, cik) or not _nyse_american_quotes(info, prices):
+        return None
+    explicit = [listing for listing in listings if listing['source'] != 'sec']
+    if len(explicit) != 1:
+        return None
+    listing = explicit[0]
+    if (listing['source'] != 'other' or listing['symbol'] != ticker or listing['sec_cik'] != cik
+        or listing.get('venue_code') != 'A' or listing['venue'] != 'NYSE American'
+        or listing['security_type'] != 'common_shares' or listing.get('etf') is not False):
+        return None
+    _observed(prices.get('observed_at'), as_of)
+    return validated_listing_venue_evidence(row.get('listing_venue_evidence'), ticker=ticker, cik=cik,
+                                            profile=row.get('profile'), as_of=as_of)
+
+
 def _issuer(row, classification, industry_key, as_of):
     ticker=row.get('ticker')
     _need(_symbol(ticker), 'issuer_symbol_invalid')
@@ -277,12 +301,20 @@ def _issuer(row, classification, industry_key, as_of):
     _need(info.get('currency')=='USD' and info.get('financialCurrency')=='USD', 'unsupported_quote_or_financial_currency')
     _need(info.get('industryKey')==industry_key, 'provider_industry_differs')
     venue=_VENUES.get(info.get('exchange'))
-    _need(venue is not None and profile['exchanges'][profile['tickers'].index(ticker)]==venue[0] and all(r['venue']==venue[0] for r in explicit), 'quote_exchange_mismatch')
+    _need(venue is not None and all(r['venue']==venue[0] for r in explicit), 'quote_exchange_mismatch')
+    reported_venue = profile['exchanges'][profile['tickers'].index(ticker)]
+    prices = venue_evidence = None
+    if reported_venue != venue[0]:
+        if reported_venue == 'NYSE' and venue[0] == 'NYSE American' and known_listing_venue_scope(ticker, cik):
+            _need(row.get('reason') != 'listing_venue_source_unavailable', 'listing_venue_source_unavailable')
+            prices = validated_online_price_history(row.get('prices'), ticker=ticker)
+            venue_evidence = _reviewed_listing_venue(row, ticker, cik, listings, info, prices, as_of)
+        _need(venue_evidence is not None, 'quote_exchange_mismatch')
     if supported:
         covers=[d for d in scope['documents'] if d['role'] in {'annual','cover'}]
         _need(len(covers)==2 and all(d['selected_common']['venue']==venue[0] for d in covers),'quote_exchange_mismatch')
     identity=_vendor_identity(row,vendor,filings,ticker,cik,as_of)
-    prices=validated_online_price_history(row.get('prices'),ticker=ticker)
+    prices=prices or validated_online_price_history(row.get('prices'),ticker=ticker)
     _need(prices is not None, 'completed_price_source_unverified')
     price_observed=_observed(prices.get('observed_at'),as_of)
     _need(isinstance(prices.get('payload_sha256'),str) and re.fullmatch(r'[0-9a-f]{64}',prices['payload_sha256']), 'price_source_digest_missing')
@@ -331,7 +363,9 @@ def _issuer(row, classification, industry_key, as_of):
                 price_history_range=prices.get('history_range','1y'),
                 price_history_first_date=prices['bars'][0]['date'],price_history_last_date=prices['bars'][-1]['date'],
                 facts_sha256=row['facts']['payload_sha256'],price_sha256=prices.get('payload_sha256'),
-                vendor_normalized_sha256=row['vendor']['normalized_sha256'],rights_status=RIGHTS,**({'selected_security_scope':scope} if supported else {}))
+                vendor_normalized_sha256=row['vendor']['normalized_sha256'],rights_status=RIGHTS,
+                **({'selected_security_scope':scope} if supported else {}),
+                **({'listing_venue_evidence': venue_evidence} if venue_evidence else {}))
 
 
 def _empty(ticker, reason):
@@ -344,7 +378,7 @@ def _empty(ticker, reason):
 def _subject_source_context(row,classification,ticker,expected_cik,as_of):
     """Keep exact filing metadata traceable even when its EPS cannot be used."""
     try:
-        cik,_=_selected(classification,ticker,expected_cik)
+        cik,listings=_selected(classification,ticker,expected_cik)
         url=f'https://data.sec.gov/submissions/CIK{cik}.json'
         profile=_receipt(row.get('profile'),url,as_of)
         _need(_cik(profile.get('cik'))==cik,'issuer_identity_mismatch')
@@ -372,6 +406,10 @@ def _subject_source_context(row,classification,ticker,expected_cik,as_of):
             info=vendor.get('info',{})
             _need(info.get('symbol')==ticker.replace('.','-') and 'sec_sic_observation' in context
                   and isinstance(info.get('industryKey'),str) and _KEY.fullmatch(info['industryKey']),'industry_attribution_unverified')
+            if known_listing_venue_scope(ticker, cik):
+                prices = validated_online_price_history(row.get('prices'), ticker=ticker)
+                if venue_evidence := _reviewed_listing_venue(row, ticker, cik, listings, info, prices, as_of):
+                    context['listing_venue_evidence'] = venue_evidence
             context['vendor_identity_observation']=_vendor_identity(row,vendor,_filings(profile,as_of),ticker,cik,as_of)
             context['industry_observation']=dict(industry_key=info['industryKey'],sic=sic,
                 industry_label=info.get('industry') if isinstance(info.get('industry'),str) and len(info['industry'])<=160 else info['industryKey'],

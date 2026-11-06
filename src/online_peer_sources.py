@@ -14,7 +14,7 @@ from src.online_company_prices import fetch_online_company_prices
 from src.online_peer_valuation import (
     SCHEMA, normalized_digest, build_online_peer_valuation,
     _empty, _symbol, _KEY, _Hold, _filings, _vendor_identity,
-    _candidate_basis, _candidate_plan,
+    _candidate_basis, _candidate_plan, _nyse_american_quotes,
 )
 from src.online_sec_receipt import fetch_sec_json_receipt
 from src.security_classification import fetch_classification, validated_classification, _selected
@@ -22,10 +22,11 @@ from src.annual_amendment_evidence import fetch_amendment_evidence, amendment_ca
 from src.sec_selected_security import fetch_selected_security_evidence,known_security_scope,FINANCIAL_FORMS,IDENTITY_FORMS,is_investment_company_form,valid_profile_metadata_shape
 from src.online_peer_sec_cofiling import PARENT_CIK as SO_CIK, fetch_vendor_cofiling_match
 from src.online_peer_sec_history import fetch_vendor_history_match
+from src.online_peer_sec_venue import LISTING_EVENT_FORMS, fetch_listing_venue_evidence, known_listing_venue_scope
 from src.online_listing_session import acquire_classification
 
 SESSION_KEY = 'online_peer_valuation_observation_v1'
-_INFO_FIELDS = ('symbol','quoteType','currency','financialCurrency','exchange','exchangeTimezoneName',
+_INFO_FIELDS = ('symbol','quoteType','currency','financialCurrency','exchange','fullExchangeName','exchangeTimezoneName',
                 'industryKey','industry','sectorKey','regularMarketTime','regularMarketPrice')
 
 
@@ -107,7 +108,11 @@ def _reduce_sec(receipt, kind):
         if 'isInlineXBRL' in recent or 'isXBRL' in recent:columns+=('isInlineXBRL','isXBRL')
         if not valid_profile_metadata_shape(recent,max_rows=50000):
             return dict(status='unavailable',reason='filing_metadata_schema_invalid',source_url=result.get('source_url'))
-        indices=[i for i,f in enumerate(recent['form']) if f in FINANCIAL_FORMS|IDENTITY_FORMS or is_investment_company_form(f)]
+        forms = FINANCIAL_FORMS | IDENTITY_FORMS
+        tickers = body.get('tickers')
+        if isinstance(tickers, list) and any(known_listing_venue_scope(ticker, str(body.get('cik')).zfill(10)) for ticker in tickers):
+            forms |= LISTING_EVENT_FORMS
+        indices=[i for i,f in enumerate(recent['form']) if f in forms or is_investment_company_form(f)]
         files=body.get('filings',{}).get('files')
         body={k:body.get(k) for k in ('cik','entityType','sic','sicDescription','tickers','exchanges')}
         body['filings']={'recent':{k:[recent[k][i] for i in indices] for k in columns}}
@@ -140,6 +145,12 @@ def _collect_issuer(ticker,cik,deps,user_agent,as_of,vendor=None):
     facts=_reduce_sec(_attempt_source(deps['sec'],f'https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json',user_agent=user_agent,observed_at=as_of),'facts')
     prices=_attempt_source(deps['prices'],ticker,observed_at=as_of,history_range='2y',include_verified_session_close=True)
     result=dict(ticker=ticker,vendor=vendor,profile=profile,facts=facts,prices=prices)
+    if known_listing_venue_scope(ticker, cik) and _nyse_american_quotes(vendor.get('payload', {}).get('info'), prices):
+        venue = _attempt_source(deps['venue'], ticker, cik, profile, user_agent=user_agent, observed_at=as_of)
+        result['listing_venue_evidence'] = venue
+        if (isinstance(venue, Mapping) and venue.get('status') == 'unavailable'
+            and venue.get('reason') in {'listing_venue_source_unavailable', 'source_component_unavailable'}):
+            result.update(status='unavailable', reason='listing_venue_source_unavailable')
     result['vendor_history']=_attempt_source(deps['history'],cik,profile,vendor,user_agent=user_agent,observed_at=as_of)
     if (ticker, cik) == ('SO', SO_CIK) and isinstance(profile, Mapping) and profile.get('status') == 'ready':
         try:
@@ -202,7 +213,8 @@ def get_online_peer_valuation(ticker,state,*,refresh_requested,expected_cik=None
         _cache(state,ticker,None,'peer_refresh_incomplete',as_of)
         deps=dict(classification=fetch_classification,vendor=observe_vendor,industry=observe_industry,
                   sec=fetch_sec_json_receipt,prices=fetch_online_company_prices,amendment=fetch_amendment_evidence,
-                  security=fetch_selected_security_evidence,history=fetch_vendor_history_match,cofiling=fetch_vendor_cofiling_match)
+                  security=fetch_selected_security_evidence,history=fetch_vendor_history_match,cofiling=fetch_vendor_cofiling_match,
+                  venue=fetch_listing_venue_evidence)
         if dependencies is not None:
             deps.update(dependencies)
         classification,listing_context=acquire_classification(state,

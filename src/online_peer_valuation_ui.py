@@ -59,6 +59,7 @@ REASONS = {
     'industry_metadata_missing':'本公司的行业分类缺失。',
     'listing_classification_unavailable':'独立上市与证券类型来源暂不可用。',
     'issuer_source_unavailable':'该公司的申报或价格来源暂不可用。',
+    'listing_venue_source_unavailable':'核对交易所所需的 SEC 申报暂不可用。',
     'peer_not_collected':'尚未采集；先处理本公司来源缺口。',
     'source_paused_after_repeated_failures':'连续来源失败后暂停后续请求，保留未完成项。',
     'cached_observation_changed':'缓存内容与来源摘要不一致，请重新更新。',
@@ -165,6 +166,7 @@ def _diagnostic_html(d):
         html+='<p>'+_text(filing.get('form'))+' · '+_text(filing.get('accession'))+' · 期间末 '+_text(filing.get('period_end'))+' · 发布 '+_text(filing.get('filed'))+' · '+_link(filing.get('source_ref'),'具体申报')+'</p>'
     html+=_selected_security_html(d.get('selected_security_scope'))
     html+=_vendor_filing_evidence_html(d.get('vendor_identity_observation'))
+    html+=_listing_venue_evidence_html(d.get('listing_venue_evidence'))
     eps=d.get('annual_eps_observation')
     if isinstance(eps,Mapping) and _number(eps.get('eps')):
         html+='<p>申报稀释每股收益：'+_text(f'{eps["eps"]:,.6g}')+' USD/shares · '+_text(eps.get('period_start'))+' → '+_text(eps.get('period_end'))+' · 发布 '+_text(eps.get('filed'))+' · 观察 '+_text(eps.get('observed_at'))+' · '+_link(eps.get('source_ref'),'SEC 收益观察')+' · '+_link(eps.get('filing_ref'),'对应申报')+'</p>'
@@ -286,6 +288,16 @@ def _vendor_filing_evidence_html(identity):
     return html
 
 
+def _listing_venue_evidence_html(evidence):
+    if not isinstance(evidence, Mapping):
+        return ''
+    return ('<p>SEC 摘要标为 '+_text(evidence.get('reported_exchange'))
+            +'。申报可见封面、上市目录及报价均核对为 '+_text(evidence.get('confirmed_exchange'))+'。'
+            +_link(evidence.get('source_url'),'NYSE American 交易所核对')+' · 提交 '+_text(evidence.get('filed'))
+            +' · 观察 '+_text(evidence.get('observed_at'))+' · 已核对正文 SHA-256 <code>'
+            +_text(evidence.get('body_sha256'))+'</code></p>')
+
+
 def _listing_html(v):
     context=v.get('listing_context')
     if not isinstance(context,Mapping):return ''
@@ -348,7 +360,9 @@ def _disclosure(v,rows,*,include_excluded=True):
             html+='<li>'+_text(filing.get('form'))+' · '+_text(filing.get('accession'))+' · 期间末 '+_text(filing.get('period_end'))+' · 发布 '+_text(filing.get('filed'))+' · 接收 '+_text(filing.get('accepted_at'))+' · '+_link(filing.get('source_ref'),'具体申报')+'</li>'
         html+='</ul>'
         html+=_selected_security_html(context.get('selected_security_scope'))
-        if not rows:html+=_vendor_filing_evidence_html(context.get('vendor_identity_observation'))
+        if not rows:
+            html+=_vendor_filing_evidence_html(context.get('vendor_identity_observation'))
+            html+=_listing_venue_evidence_html(context.get('listing_venue_evidence'))
     if rows:html+=_source_table(rows)+_earnings_table(rows)
     if include_excluded:html+=_excluded_html(v)
     html+='<details><summary>字段定义、观察日期与来源摘要</summary>'
@@ -361,6 +375,7 @@ def _disclosure(v,rows,*,include_excluded=True):
         identity=row.get('vendor_filing') if isinstance(row.get('vendor_filing'),Mapping) else {}
         html+='<p>CIK '+_text(row.get('sec_cik'))+' · '+_link(identity.get('source_ref'),'供应商申报身份依据')+'。当前匹配不证明历史证券连续性或发行人所在地。</p>'
         html+=_vendor_filing_evidence_html(identity)
+        html+=_listing_venue_evidence_html(row.get('listing_venue_evidence'))
         for key,label in [('facts_sha256','SEC 原始响应 SHA-256'),('price_sha256','价格原始响应 SHA-256'),('vendor_normalized_sha256','供应商 normalized SHA-256')]:
             value=row.get(key)
             html+='<p>'+label+'：<code>'+(_text(value) if isinstance(value,str) and re.fullmatch(r'[0-9a-f]{64}',value) else '未取得')+'</code></p>'
