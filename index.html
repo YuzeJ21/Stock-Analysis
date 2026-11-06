@@ -1,67 +1,499 @@
 <!doctype html>
-<html lang="zh-Hans">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
-  <title>Stock Research Command Center · 公司研究演示</title>
-  <meta name="description" content="Stock Research Command Center 的合成数据演示。查看虚构公司的收盘价、财报变化和同行估值。">
-  <meta property="og:title" content="Stock Research Command Center · 公司研究演示">
-  <meta property="og:description" content="Stock Research Command Center 的合成数据演示。查看虚构公司的收盘价、财报变化和同行估值。">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Y+VoBMPAyzDevrGp+FCDb0k1Xh2o0qNLqT+kdM18ips='; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>Stock Research Command Center | Guided Demo</title>
+  <meta name="description" content="Follow a fictional company from search to financial trends, peer valuation, and research follow-up.">
+  <meta property="og:title" content="Stock Research Command Center | Guided Demo">
+  <meta property="og:description" content="Follow a fictional company from search to financial trends, peer valuation, and research follow-up.">
   <style>
-.company-answer-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0;min-width:0}
-.company-answer-summary .company-answer{min-width:0;padding:12px 14px;background:#fff;color:#172522;border:1px solid #dce3de;border-radius:8px;overflow-wrap:anywhere}
-.company-answer-summary .company-answer h2{margin:0 0 4px!important;padding:0!important;font-size:.88rem!important;line-height:1.35;color:#42564e}
-.company-answer-summary .company-answer p{margin:0 0 4px;line-height:1.4}
-.company-answer-summary .company-answer-value{font-size:1.1rem;font-weight:750}
-.company-answer-summary .company-answer-context{font-size:.82rem;color:#42564e}
-.company-answer-summary summary{display:list-item;align-content:center;width:fit-content;min-height:44px;cursor:pointer;font-size:.83rem;color:#245842}
-.company-answer-summary ul{margin:4px 0 0;padding-left:20px;font-size:.83rem}
-.company-answer-summary li{margin:4px 0}
-.company-answer-summary a{color:#245842;text-decoration:underline}
-.company-answer-summary summary:focus-visible,.company-answer-summary a:focus-visible{outline:3px solid #245842;outline-offset:2px}
-@media(max-width:700px){
-  .company-answer-summary{grid-template-columns:minmax(0,1fr);gap:6px;margin:10px 0}
-  .company-answer-summary .company-answer{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;padding:8px 10px}
-  .company-answer-summary .company-answer h2,.company-answer-summary .company-answer-value,.company-answer-summary .company-answer-context{grid-column:1}
-  .company-answer-summary .company-answer details{grid-column:1/-1}
-  .company-answer-summary .company-answer details:not([open]){grid-column:2;grid-row:1/4;align-self:center}
-  .company-answer-summary .company-answer-value{font-size:1rem}
+:root {
+  color-scheme: light; --ink: #152b24; --muted: #496056; --line: #d3e0d7;
+  --pine: #144c3d; --mint: #e8f3ed; --paper: #fff; --ground: #f4f7f3;
+  --amber: #775112; --amber-bg: #f9f1dd;
+  font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-@media(max-width:300px){.company-answer-summary .company-answer{display:block}}
-@media(forced-colors:active){.company-answer-summary summary:focus-visible,.company-answer-summary a:focus-visible{outline-color:Highlight}}
-
-body { margin: 0; background: #f5f7f6; color: #1c302a;
-       font: 1rem/1.5 system-ui, sans-serif; }
-main { max-width: 65rem; margin-inline: auto; padding: 1.5rem 1.25rem; }
-h1 { font-size: clamp(1.65rem, 4vw, 2.25rem); line-height: 1.2; margin: .2rem 0; }
-.demo-label { color: #275d45; font-weight: 700; }
-.demo-label, .demo-note { margin: 0; }
-.demo-controls { margin: 1rem 0; padding: 0; border: 0; min-inline-size: 0; }
-.demo-controls legend { padding: 0; font-size: .9rem; font-weight: 650; }
-.demo-controls label { display: inline-flex; align-items: center; gap: .45rem;
-                       min-height: 2.75rem; margin-inline-end: .8rem; cursor: pointer; }
-.demo-controls input { margin: 0; accent-color: #275d45; }
-.demo-controls input:focus-visible { outline: 2px solid #275d45; outline-offset: 3px; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; color: var(--ink); background: var(--ground); }
+a { color: var(--pine); text-underline-offset: .18em; }
+:focus-visible { outline: 3px solid #196853; outline-offset: 4px; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+p, figure { margin: 0; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.16; }
+h1 { font-size: clamp(1rem, 2.5vw, 1.23rem); letter-spacing: -.02em; }
+h2 { font-size: clamp(2rem, 5vw, 3.35rem); letter-spacing: -.05em; overflow-wrap: anywhere; }
+h3 { font-size: 1.25rem; letter-spacing: -.025em; }
+.skip-link { position: absolute; z-index: 2; top: 0; left: 1rem; padding: .6rem 1rem;
+  background: var(--paper); transform: translateY(-120%); }
+.skip-link:focus { transform: translateY(.5rem); }
+.masthead { border-bottom: 1px solid var(--line); background: var(--paper); }
+.masthead-inner, .layout, .page-footer { max-width: 79rem; margin-inline: auto;
+  padding-inline: clamp(1rem, 4vw, 2.75rem); }
+.masthead-inner { min-height: 5.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.brand { display: flex; gap: .8rem; align-items: center; }
+.brand-mark { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem;
+  border-radius: .65rem; color: #fff; background: var(--pine); font-size: .75rem; font-weight: 800; letter-spacing: .06em; }
+.eyebrow { color: var(--pine); font-weight: 750; font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; }
+.badge { display: inline-flex; width: fit-content; align-items: center; border-radius: 999px; padding: .26rem .64rem;
+  color: var(--pine); background: var(--mint); font-size: .8rem; font-weight: 750; line-height: 1.35; }
+.badge--warning { color: var(--amber); background: var(--amber-bg); }
+.layout { display: grid; grid-template-columns: minmax(10.75rem, .23fr) minmax(0, 1fr);
+  gap: clamp(1.4rem, 4vw, 3rem); padding-block: clamp(1.4rem, 4vw, 3rem); }
+.steps { position: sticky; top: 1.5rem; align-self: start; }
+.steps-title { margin: 0 0 .65rem .55rem; }
+.steps ol { list-style: none; padding: 0; margin: 0; display: grid; gap: .3rem; }
+.steps a { display: flex; min-height: 2.9rem; align-items: center; gap: .65rem; padding: .4rem .55rem;
+  border: 1px solid transparent; border-radius: .62rem; color: var(--ink); font-size: .91rem; text-decoration: none; font-weight: 650; }
+.steps a:hover, .steps a[aria-current] { color: var(--pine); background: var(--mint); border-color: #bbd6c7; }
+.step-number { display: grid; flex: none; place-items: center; width: 1.55rem; height: 1.55rem;
+  color: var(--pine); background: var(--paper); border: 1px solid #c5d9cd; border-radius: 50%; font-size: .74rem; font-weight: 800; }
+.scope-note { margin-top: 1.2rem; padding: .75rem .6rem; border-top: 1px solid var(--line);
+  color: var(--muted); font-size: .8rem; }
+main, .panel { min-width: 0; }
+.panel { display: grid; align-content: start; gap: 1.25rem; scroll-margin-top: 1rem; }
+.panel + .panel { margin-top: 2rem; }
+.panel[hidden] + .panel { margin-top: 0; }
+.panel-intro { display: grid; gap: .5rem; }
+.panel-intro p:last-child { color: var(--muted); max-width: 60ch; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(14rem, .55fr); gap: clamp(1rem, 4vw, 2.2rem);
+  padding: clamp(1.2rem, 4vw, 2.4rem); background: var(--paper); border: 1px solid var(--line);
+  border-top: .3rem solid #28634f; border-radius: 1rem; }
+.hero-content, .case-file, .note-box { min-width: 0; display: grid; align-content: start; gap: .85rem; }
+.hero-content .panel-intro { margin-bottom: .35rem; }
+.case-file { align-self: stretch; padding: 1.15rem; color: #f2f9f5;
+  background: #163f34; border-radius: .8rem; }
+.case-file .eyebrow { color: #c3e6d2; }
+.case-file p:not(.eyebrow) { color: #e0eee6; font-size: .9rem; }
+.case-file ul { margin: .2rem 0 0; padding: 0; list-style: none; }
+.case-file li { padding: .52rem 0; border-top: 1px solid #527b6d; font-size: .87rem; }
+.search-form, .note-form { display: grid; gap: .5rem; }
+.field-label { font-weight: 750; font-size: .9rem; }
+.form-row, .actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
+.form-row input { flex: 1 1 10rem; min-width: 0; }
+input[type="search"], textarea { min-height: 2.85rem; border: 1px solid #789687; border-radius: .48rem;
+  padding: .6rem .75rem; background: var(--paper); }
+textarea { width: 100%; resize: vertical; }
+.button { display: inline-flex; align-items: center; justify-content: center; width: fit-content; min-height: 2.8rem;
+  padding: .55rem .85rem; border: 1px solid var(--pine); border-radius: .48rem; background: var(--pine);
+  color: #fff; text-decoration: none; font-weight: 750; font-size: .9rem; }
+.button:hover { background: #103c31; }
+.button--secondary { color: var(--pine); background: var(--paper); border-color: #789687; }
+.button--secondary:hover { background: var(--mint); }
+.helper, .status, .metric-context, .source-note { color: var(--muted); font-size: .87rem; }
+.status:not(:empty) { padding: .35rem 0; }
+.result, .surface { min-width: 0; padding: clamp(.9rem, 2.8vw, 1.35rem); background: var(--paper);
+  border: 1px solid var(--line); border-radius: .75rem; }
+.result { display: grid; gap: .45rem; background: var(--mint); }
+.result .button { margin-top: .3rem; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.metric { min-width: 0; display: grid; align-content: start; gap: .2rem; padding: 1rem;
+  border: 1px solid var(--line); border-radius: .65rem; background: var(--paper); }
+.metric-label { font-size: .84rem; color: var(--muted); font-weight: 700; }
+.metric-value { font-size: clamp(1.2rem, 3vw, 1.7rem); font-weight: 780; letter-spacing: -.035em; }
+.trend-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); gap: .8rem; }
+.chart svg { width: 100%; height: auto; display: block; margin-top: .7rem; }
+.chart text { font: 12px system-ui, sans-serif; fill: var(--muted); }
+.chart .chart-value { fill: var(--ink); font-weight: 750; }
+.chart .chart-bar { fill: #80b29b; }
+.chart .chart-bar:last-of-type { fill: #28634f; }
+.chart-line { stroke: #bbcfc4; stroke-width: 1; }
+.chart figcaption { margin-top: .25rem; color: var(--muted); font-size: .82rem; }
+table { width: 100%; border-collapse: collapse; margin-top: .6rem; font-size: .88rem; }
+caption { text-align: left; margin-bottom: .45rem; color: var(--muted); font-size: .82rem; }
+th, td { padding: .62rem .45rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { font-size: .78rem; color: var(--muted); }
+tbody th { color: var(--ink); }
+.numbers :is(th,td):not(:first-child) { text-align: right; }
+details { background: var(--paper); border: 1px solid var(--line); border-radius: .55rem; padding-inline: .9rem; }
+summary { min-height: 2.8rem; padding-block: .62rem; font-weight: 750; color: var(--pine); cursor: pointer; }
+details[open] { padding-bottom: .8rem; }
+details ul { margin: .45rem 0 0; padding-inline-start: 1.15rem; }
+details li + li { margin-top: .3rem; }
+.peer-controls { border: 0; margin: 0; padding: 0; min-width: 0; }
+.peer-controls legend { font-size: .9rem; font-weight: 750; margin-bottom: .4rem; }
+.peer-controls label { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.85rem; padding: .3rem .65rem;
+  margin: 0 .4rem .25rem 0; border: 1px solid #789687; border-radius: .48rem; background: var(--paper); cursor: pointer; }
+.peer-controls label:has(input:checked) { background: var(--mint); border-color: var(--pine); color: var(--pine); font-weight: 750; }
+.peer-controls input { accent-color: var(--pine); }
+.peer-result { display: grid; gap: .55rem; border-left: .27rem solid #28634f; margin-bottom: .8rem; }
+.peer-result--withheld { border-left-color: #ac7a23; }
 .demo-state--withheld { display: none; }
-.demo-controls:has(#demo-withheld:checked) ~ .demo-state--available { display: none; }
-.demo-controls:has(#demo-withheld:checked) ~ .demo-state--withheld { display: block; }
+.peer-controls:has(#demo-withheld:checked) ~ .demo-state--available { display: none; }
+.peer-controls:has(#demo-withheld:checked) ~ .demo-state--withheld { display: block; }
+.peer-evidence { margin-top: .15rem; }
+.note-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .65fr); gap: .85rem; }
+.note-box ul { margin: 0; padding-left: 1.2rem; }
+.monitor-note { display: grid; gap: .65rem; border-left: .27rem solid #28634f; }
+.monitor-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.page-footer { padding-block: 1rem 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+@media (max-width: 800px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .steps { position: static; }
+  .steps-title, .scope-note { display: none; }
+  .steps ol { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
+  .steps a { padding-inline: .45rem; font-size: .82rem; gap: .35rem; border-color: var(--line); background: var(--paper); }
+  .step-number { width: 1.3rem; height: 1.3rem; font-size: .7rem; }
+}
+@media (max-width: 600px) {
+  .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
+  .layout { padding-top: .8rem; gap: 1rem; }
+  .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero, .trend-grid, .note-grid { grid-template-columns: minmax(0, 1fr); }
+  .metrics { gap: .45rem; }
+  .metric { padding: .6rem; }
+  .metric-value { font-size: 1.12rem; }
+  .metric-context { font-size: .77rem; }
+  .peer-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .peer-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .15rem; padding: .6rem 0; border-bottom: 1px solid var(--line); }
+  .peer-table :is(th,td) { padding: .24rem; border: 0; }
+  .peer-table td::before { display: block; content: attr(data-label); color: var(--muted); font-size: .72rem; font-weight: 750; }
+  .peer-table tbody th, .peer-table td:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 330px) {
+  .metrics { grid-template-columns: minmax(0, 1fr); }
+}
+@media (forced-colors: active) {
+  :focus-visible { outline-color: Highlight; }
+}
 </style>
 </head>
 <body>
-  <main>
-    <header>
-      <p class="demo-label">合成数据演示 · 虚构公司</p>
-      <h1>雾岬光路</h1>
-      <p class="demo-note">公司、价格、财务和同行数据均为示例。</p>
-    </header>
-    <fieldset class="demo-controls">
-      <legend>切换同行样本</legend>
-      <label><input type="radio" name="demo-scenario" checked> 3 家符合</label>
-      <label><input type="radio" name="demo-scenario" id="demo-withheld"> 2 家符合</label>
-    </fieldset>
-    <div class="demo-state--available"><section class="company-answer-summary" aria-label="公司研究摘要"><article class="company-answer" data-company-answer="price"><h2>最近收盘</h2><p class="company-answer-value">USD 48.00</p><p class="company-answer-context">2026-10-30 · 已完成收盘</p><details><summary>查看最近收盘依据</summary><ul><li>示例日线收盘记录，2026-10-30，48.00 USD。</li></ul></details></article><article class="company-answer" data-company-answer="financial"><h2>财报变化</h2><p class="company-answer-value">营收 USD 1.20 亿</p><p class="company-answer-context">截至 2025-12-31 · 较上财年增加</p><details><summary>查看财报变化依据</summary><ul><li>示例年度财务记录。2025 年营收为 1.20 亿 USD，2024 年为 0.96 亿 USD。</li><li>2025 年度摊薄 EPS 为 2.00 USD，用于示例估值。</li></ul></details></article><article class="company-answer" data-company-answer="valuation"><h2>同行估值</h2><p class="company-answer-value">24.0× · 同行中位 20.0×</p><p class="company-answer-context">3 家符合 · 高于同行中位数 20%</p><details><summary>查看同行估值依据</summary><ul><li>本公司 P/E 为 2026-10-30 的示例收盘价 48.00 USD 除以年度摊薄 EPS 2.00 USD。</li><li>三家参照使用同日收盘价与相同财年。参照 A、B、C 的收盘价分别为 36.00、40.00、44.00 USD，摊薄 EPS 均为 2.00 USD。</li><li>同行中位数取三个 P/E 的中间值。相对差异按 24.0 ÷ 20.0 − 1 计算。</li></ul></details></article></section></div>
-    <div class="demo-state--withheld"><section class="company-answer-summary" aria-label="公司研究摘要"><article class="company-answer" data-company-answer="price"><h2>最近收盘</h2><p class="company-answer-value">USD 48.00</p><p class="company-answer-context">2026-10-30 · 已完成收盘</p><details><summary>查看最近收盘依据</summary><ul><li>示例日线收盘记录，2026-10-30，48.00 USD。</li></ul></details></article><article class="company-answer" data-company-answer="financial"><h2>财报变化</h2><p class="company-answer-value">营收 USD 1.20 亿</p><p class="company-answer-context">截至 2025-12-31 · 较上财年增加</p><details><summary>查看财报变化依据</summary><ul><li>示例年度财务记录。2025 年营收为 1.20 亿 USD，2024 年为 0.96 亿 USD。</li><li>2025 年度摊薄 EPS 为 2.00 USD，用于示例估值。</li></ul></details></article><article class="company-answer" data-company-answer="valuation"><h2>同行估值</h2><p class="company-answer-value">同行比较暂缺</p><p class="company-answer-context">本公司 24.0× · 2 家符合 · 至少需 3 家</p><details><summary>查看同行估值依据</summary><ul><li>参照 A 和参照 B 的示例收盘日均为 2026-10-30，年度摊薄 EPS 口径可比。</li><li>参照 C 的示例收盘日为 2026-10-29，未通过同日收盘价核对。</li><li>达到三家合格参照后，才显示同行中位数及相对倍数差异。</li></ul></details></article></section></div>
-  </main>
+  <a class="skip-link" href="#demo-main">Skip to demo content</a>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">SR</span>
+        <div><p class="eyebrow">Guided product demo</p><h1>Stock Research Command Center</h1></div>
+      </div>
+      <p class="badge">Synthetic data · Fictional company</p>
+    </div>
+  </header>
+  <div class="layout">
+    <nav class="steps" aria-label="Demo steps">
+      <p class="steps-title eyebrow">Research workflow</p>
+      <ol><li><a href="#discover" data-demo-step="discover" data-demo-go="discover"><span class="step-number" aria-hidden="true">1</span>Company Search</a></li><li><a href="#financials" data-demo-step="financials" data-demo-go="financials"><span class="step-number" aria-hidden="true">2</span>Financial Trends</a></li><li><a href="#valuation" data-demo-step="valuation" data-demo-go="valuation"><span class="step-number" aria-hidden="true">3</span>Peer Valuation</a></li><li><a href="#notes" data-demo-step="notes" data-demo-go="notes"><span class="step-number" aria-hidden="true">4</span>Research Notes</a></li><li><a href="#monitor" data-demo-step="monitor" data-demo-go="monitor"><span class="step-number" aria-hidden="true">5</span>Monitor</a></li></ol>
+      <p class="scope-note">A guided research case. Search and follow-up work entirely in this page.</p>
+    </nav>
+    <main id="demo-main" tabindex="-1">
+      <section class="panel" id="discover" data-demo-page="discover" data-demo-panel
+  aria-labelledby="discover-title" tabindex="-1">
+  <div class="hero">
+    <div class="hero-content">
+      <header class="panel-intro">
+        <p class="eyebrow">Step 1 of 5 · Discover</p>
+        <h2 id="discover-title" data-demo-title tabindex="-1">Find a company</h2>
+        <p>Start with one company and follow the evidence from its reported results to a research follow-up.</p>
+      </header>
+      <form class="search-form" id="demo-search-form" data-demo-search data-demo-company-name="Fogline Photonics" data-demo-company-ticker="FICT">
+        <label class="field-label" for="demo-search-input">Company name or ticker</label>
+        <div class="form-row">
+          <input id="demo-search-input" data-demo-query type="search" maxlength="80"
+            autocomplete="off" placeholder="e.g. Fogline Photonics" aria-describedby="demo-search-hint">
+          <button class="button" type="submit">Search</button>
+          <button class="button button--secondary" type="reset">Clear</button>
+        </div>
+        <p class="helper" id="demo-search-hint">Try Fogline Photonics or FICT.</p>
+        <p class="status" id="demo-search-status" data-demo-search-status role="status"></p>
+      </form>
+      <div class="result" id="demo-search-result" data-demo-result hidden>
+        <span class="badge">FICT · Fictional company</span>
+        <h3>Fogline Photonics</h3>
+        <p>Photonics and optical components</p>
+        <a class="button" href="#financials" data-demo-go="financials">Open Company Workbench</a>
+      </div>
+      <noscript><p class="helper">Use the step links to review the sample without interactive search.</p></noscript>
+    </div>
+    <aside class="case-file" aria-label="Included company case">
+      <p class="eyebrow">Included case · FICT</p>
+      <h3>Fogline Photonics</h3>
+      <p>Follow a fictional optical components company through the full research flow.</p>
+      <ul>
+        <li>Three reported fiscal years</li>
+        <li>One dated close and four peer candidates</li>
+        <li>One follow-up to carry into Monitor</li>
+      </ul>
+    </aside>
+  </div>
+</section>
+      <section class="panel" id="financials" data-demo-page="financials" data-demo-panel
+  aria-labelledby="financials-title" tabindex="-1">
+  <header class="panel-intro">
+    <p class="eyebrow">Step 2 of 5 · Financial Trends · FICT</p>
+    <h2 id="financials-title" data-demo-title tabindex="-1">Fogline Photonics</h2>
+    <p>Review the reported trend, period, and closing price before comparing multiples.</p>
+  </header>
+  <div class="metrics" aria-label="Company snapshot">
+    <article class="metric" data-company-answer="price">
+      <p class="metric-label">Dated close</p><p class="metric-value">USD 48.00</p><p class="metric-context">Oct 30, 2026</p>
+    </article>
+    <article class="metric" data-company-answer="financial">
+      <p class="metric-label">Annual revenue</p><p class="metric-value">USD 120M</p>
+      <p class="metric-context">FY 2025 · up 25% year over year</p>
+    </article>
+    <article class="metric">
+      <p class="metric-label">Annual diluted EPS</p><p class="metric-value">USD 2.00</p><p class="metric-context">FY 2025 · reported</p>
+    </article>
+  </div>
+  <div class="trend-grid">
+    <figure class="surface chart">
+  <h3>Annual revenue</h3>
+  <svg viewBox="0 0 330 200" role="img" aria-labelledby="revenue-title revenue-desc">
+    <title id="revenue-title">Reported annual revenue</title>
+    <desc id="revenue-desc">fiscal 2023: 78 million dollars, fiscal 2024: 96 million dollars, fiscal 2025: 120 million dollars.</desc>
+    <path class="chart-line" d="M18 172H314"/>
+    <rect class="chart-bar" x="34" y="81" width="58" height="91" rx="5"/><text class="chart-value" x="63" y="73" text-anchor="middle">78M</text><text x="63" y="193" text-anchor="middle">FY 2023</text><rect class="chart-bar" x="138" y="60" width="58" height="112" rx="5"/><text class="chart-value" x="167" y="52" text-anchor="middle">96M</text><text x="167" y="193" text-anchor="middle">FY 2024</text><rect class="chart-bar" x="242" y="32" width="58" height="140" rx="5"/><text class="chart-value" x="271" y="24" text-anchor="middle">120M</text><text x="271" y="193" text-anchor="middle">FY 2025</text>
+  </svg>
+  <figcaption>Fiscal years ended December 31. USD millions.</figcaption>
+</figure>
+    <div class="surface">
+      <h3>Reported financials</h3>
+      <table class="numbers">
+        <caption>Fictional annual statements · USD</caption>
+        <thead><tr><th scope="col">FY</th><th scope="col">Revenue</th><th scope="col">Operating income</th><th scope="col">Diluted EPS</th></tr></thead>
+        <tbody><tr><th scope="row">2023</th><td>78M</td><td>6M</td><td>0.95</td></tr><tr><th scope="row">2024</th><td>96M</td><td>11M</td><td>1.60</td></tr><tr><th scope="row">2025</th><td>120M</td><td>17M</td><td>2.00</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <details>
+    <summary>View financial and price evidence</summary>
+    <ul>
+      <li>Sample annual statement FY 2025, year ended Dec 31, 2025, filed Feb 12, 2026. Revenue USD 120M, diluted EPS USD 2.00.</li>
+      <li>FY 2024 revenue USD 96M, same reporting currency and year-end. Change = 120M ÷ 96M − 1.</li>
+      <li>Sample daily price record dated Oct 30, 2026: closing price USD 48.00.</li>
+    </ul>
+  </details>
+  <div class="actions"><a class="button" href="#valuation" data-demo-go="valuation">Continue to Peer Valuation</a></div>
+</section>
+      <section class="panel" id="valuation" data-demo-page="valuation" data-demo-panel
+  aria-labelledby="valuation-title" tabindex="-1">
+  <header class="panel-intro">
+    <p class="eyebrow">Step 3 of 5 · Company Workbench · FICT</p>
+    <h2 id="valuation-title" data-demo-title tabindex="-1">Peer Valuation</h2>
+    <p>Switch the sample to see how a different closing date changes which peers qualify.</p>
+  </header>
+  <fieldset class="peer-controls">
+    <legend>Change the peer evidence</legend>
+    <label><input type="radio" id="demo-available" name="demo-scenario" checked> 3 eligible peers</label>
+    <label><input type="radio" id="demo-withheld" name="demo-scenario"> 2 eligible peers</label>
+  </fieldset>
+  <div class="demo-state--available">
+    <article class="surface peer-result" data-company-answer="valuation">
+      <span class="badge">3 eligible peers · comparison available</span><h3>Annual P/E is 20.0% above the peer median</h3><p>Company P/E 24.0× · Peer median 20.0× · Oct 30, 2026 closes.</p>
+      <details class="peer-evidence">
+        <summary>View peer evidence</summary>
+        <ul>
+          <li>Company P/E = USD 48.00 closing price ÷ USD 2.00 reported annual diluted EPS.</li>
+          <li>The sample requires same-day closes, positive annual diluted EPS, and fiscal-year start and end dates within 35 days of the company’s.</li>
+          <li>Relative difference = 24.0× ÷ 20.0× − 1.</li>
+          <li>Peer D is excluded because its annual diluted EPS is negative.</li>
+          <li>Evidence: the sample close records and annual statement fields in the peer table.</li>
+        </ul>
+      </details>
+    </article>
+    <div class="surface">
+      <h3>Peer candidates</h3>
+      <table class="peer-table">
+        <caption>Fictional source records · FY 2025 ended Dec 31 · USD</caption>
+        <thead><tr><th scope="col">Peer</th><th scope="col">Close date</th><th scope="col">Close</th>
+          <th scope="col">Annual diluted EPS</th><th scope="col">Annual P/E</th><th scope="col">Eligibility</th></tr></thead>
+        <tbody><tr><th scope="row">Peer A</th>
+          <td data-label="Close date">Oct 30, 2026</td><td data-label="Close">36.00</td>
+          <td data-label="Annual diluted EPS">2.00</td><td data-label="Annual P/E">18.0×</td>
+          <td data-label="Eligibility">Eligible</td></tr><tr><th scope="row">Peer B</th>
+          <td data-label="Close date">Oct 30, 2026</td><td data-label="Close">40.00</td>
+          <td data-label="Annual diluted EPS">2.00</td><td data-label="Annual P/E">20.0×</td>
+          <td data-label="Eligibility">Eligible</td></tr><tr><th scope="row">Peer C</th>
+          <td data-label="Close date">Oct 30, 2026</td><td data-label="Close">44.00</td>
+          <td data-label="Annual diluted EPS">2.00</td><td data-label="Annual P/E">22.0×</td>
+          <td data-label="Eligibility">Eligible</td></tr><tr><th scope="row">Peer D</th>
+          <td data-label="Close date">Oct 30, 2026</td><td data-label="Close">30.00</td>
+          <td data-label="Annual diluted EPS">-0.50</td><td data-label="Annual P/E">—</td>
+          <td data-label="Eligibility">Excluded · non-positive EPS</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="demo-state--withheld">
+    <article class="surface peer-result peer-result--withheld" data-company-answer="valuation">
+      <span class="badge badge--warning">2 eligible peers · 3 required</span><h3>Peer comparison withheld</h3><p>Company P/E 24.0×. A third eligible same-day reference is required.</p>
+      <details class="peer-evidence">
+        <summary>View peer evidence</summary>
+        <ul>
+          <li>Company P/E = USD 48.00 closing price ÷ USD 2.00 reported annual diluted EPS.</li>
+          <li>The sample requires same-day closes, positive annual diluted EPS, and fiscal-year start and end dates within 35 days of the company’s.</li>
+          <li>Peer C closed on Oct 29, 2026. It is outside the Oct 30, 2026 comparison.</li>
+          <li>Peer D is excluded because its annual diluted EPS is negative.</li>
+          <li>Evidence: the sample close records and annual statement fields in the peer table.</li>
+        </ul>
+      </details>
+    </article>
+    <div class="surface">
+      <h3>Peer candidates</h3>
+      <table class="peer-table">
+        <caption>Fictional source records · FY 2025 ended Dec 31 · USD</caption>
+        <thead><tr><th scope="col">Peer</th><th scope="col">Close date</th><th scope="col">Close</th>
+          <th scope="col">Annual diluted EPS</th><th scope="col">Annual P/E</th><th scope="col">Eligibility</th></tr></thead>
+        <tbody><tr><th scope="row">Peer A</th>
+          <td data-label="Close date">Oct 30, 2026</td><td data-label="Close">36.00</td>
+          <td data-label="Annual diluted EPS">2.00</td><td data-label="Annual P/E">18.0×</td>
+          <td data-label="Eligibility">Eligible</td></tr><tr><th scope="row">Peer B</th>
+          <td data-label="Close date">Oct 30, 2026</td><td data-label="Close">40.00</td>
+          <td data-label="Annual diluted EPS">2.00</td><td data-label="Annual P/E">20.0×</td>
+          <td data-label="Eligibility">Eligible</td></tr><tr><th scope="row">Peer C</th>
+          <td data-label="Close date">Oct 29, 2026</td><td data-label="Close">44.00</td>
+          <td data-label="Annual diluted EPS">2.00</td><td data-label="Annual P/E">—</td>
+          <td data-label="Eligibility">Excluded · different close date</td></tr><tr><th scope="row">Peer D</th>
+          <td data-label="Close date">Oct 30, 2026</td><td data-label="Close">30.00</td>
+          <td data-label="Annual diluted EPS">-0.50</td><td data-label="Annual P/E">—</td>
+          <td data-label="Eligibility">Excluded · non-positive EPS</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="actions"><a class="button" href="#notes" data-demo-go="notes">Continue to Research Notes</a></div>
+</section>
+      <section class="panel" id="notes" data-demo-page="notes" data-demo-panel
+  aria-labelledby="notes-title" tabindex="-1">
+  <header class="panel-intro">
+    <p class="eyebrow">Step 4 of 5 · Company Workbench · FICT</p>
+    <h2 id="notes-title" data-demo-title tabindex="-1">Research Notes</h2>
+    <p>Turn the evidence into a question you can revisit.</p>
+  </header>
+  <div class="note-grid">
+    <div class="surface note-box">
+      <h3>Draft one follow-up</h3>
+      <form class="note-form" id="demo-note-form" data-demo-note-form>
+        <label class="field-label" for="demo-note-input">Research note</label>
+        <textarea id="demo-note-input" data-demo-note-input rows="4" maxlength="500"
+          aria-describedby="demo-note-hint">Check whether revenue growth and operating income remain aligned in the next annual filing.</textarea>
+        <p class="helper" id="demo-note-hint">Edit the example if you like. This note lasts until you reload the demo.</p>
+        <button class="button" type="submit" data-demo-pin>Add to Monitor</button>
+        <p class="status" id="demo-note-status" data-demo-pin-status role="status"></p>
+      </form>
+    </div>
+    <aside class="surface note-box" aria-label="Research context">
+      <span class="badge">Research only</span>
+      <h3>What to carry forward</h3>
+      <ul>
+        <li>Evidence already checked: reported FY 2025 revenue and operating income.</li>
+        <li>Next evidence: the next reported annual period.</li>
+      </ul>
+    </aside>
+  </div>
+  <div class="actions"><a class="button" href="#monitor" data-demo-go="monitor">Open Monitor</a></div>
+</section>
+      <section class="panel" id="monitor" data-demo-page="monitor" data-demo-panel
+  aria-labelledby="monitor-title" tabindex="-1">
+  <header class="panel-intro">
+    <p class="eyebrow">Step 5 of 5 · Follow-up queue</p>
+    <h2 id="monitor-title" data-demo-title tabindex="-1">Monitor</h2>
+    <p>Review the question you carried forward and return to the company evidence when it is time to revisit it.</p>
+  </header>
+  <div class="surface note-box" id="demo-monitor-empty" data-demo-monitor-empty>
+    <span class="badge">Follow-up queue</span>
+    <h3>No follow-up in this demo session</h3>
+    <p class="source-note">Add a note from Research Notes to see it here.</p>
+    <a class="button" href="#notes" data-demo-go="notes">Return to Research Notes</a>
+  </div>
+  <article class="surface monitor-note" id="demo-monitor-note" data-demo-monitor-item hidden>
+    <span class="badge badge--warning">Waiting on evidence</span>
+    <h3>Fogline Photonics · FICT</h3>
+    <p id="demo-monitor-note-text" class="monitor-note-text" data-demo-monitor-note></p>
+    <p class="source-note">Trigger: next reported annual period. This follow-up lasts until reload.</p>
+    <a class="button" href="#notes" data-demo-go="notes">Return to Research Notes</a>
+  </article>
+  <div class="actions"><a href="#financials" data-demo-go="financials">Reopen Company Workbench</a></div>
+</section>
+    </main>
+  </div>
+  <footer class="page-footer">Stock Research Command Center · Synthetic research case</footer>
+  <script>(() => {
+    "use strict";
+
+    const panels = Array.from(document.querySelectorAll("[data-demo-page]"));
+    const panelByPage = new Map(panels.map((panel) => [panel.dataset.demoPage, panel]));
+    const steps = document.querySelectorAll("nav [data-demo-go]");
+
+    function showCurrentPage(moveFocus) {
+        const requested = location.hash.slice(1);
+        if (moveFocus && requested && !panelByPage.has(requested)) {
+            return;
+        }
+        const page = panelByPage.has(requested) ? requested : "discover";
+        for (const panel of panels) {
+            panel.hidden = panel.dataset.demoPage !== page;
+        }
+        for (const step of steps) {
+            if (step.dataset.demoGo === page) {
+                step.setAttribute("aria-current", "step");
+            } else {
+                step.removeAttribute("aria-current");
+            }
+        }
+        if (moveFocus) {
+            window.scrollTo(0, 0);
+            panelByPage.get(page).querySelector("[data-demo-title]").focus({preventScroll: true});
+        }
+    }
+
+    for (const link of document.querySelectorAll("[data-demo-go]")) {
+        link.addEventListener("click", (event) => {
+            const page = link.dataset.demoGo;
+            if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || !panelByPage.has(page)) {
+                return;
+            }
+            event.preventDefault();
+            if (location.hash === `#${page}`) {
+                showCurrentPage(true);
+            } else {
+                location.hash = page;
+            }
+        });
+    }
+    window.addEventListener("hashchange", () => showCurrentPage(true));
+    showCurrentPage(false);
+
+    const search = document.querySelector("[data-demo-search]");
+    const query = search.querySelector("[data-demo-query]");
+    const searchStatus = document.querySelector("[data-demo-search-status]");
+    const result = document.querySelector("[data-demo-result]");
+    const companyName = search.dataset.demoCompanyName.toLowerCase();
+    const companyTicker = search.dataset.demoCompanyTicker.toLowerCase();
+    search.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const term = query.value.trim().toLowerCase();
+        const matched = term !== "" && (term === companyTicker || companyName.includes(term));
+        result.hidden = !matched;
+        searchStatus.textContent = matched ? "One fictional company found."
+            : term ? "No fictional company matches that search." : "Enter a company name or ticker.";
+    });
+    search.addEventListener("reset", () => {
+        result.hidden = true;
+        searchStatus.textContent = "";
+        query.focus();
+    });
+
+    const noteForm = document.querySelector("[data-demo-note-form]");
+    const noteInput = noteForm.querySelector("[data-demo-note-input]");
+    const noteStatus = document.querySelector("[data-demo-pin-status]");
+    const monitorNote = document.querySelector("[data-demo-monitor-note]");
+    const monitorItem = document.querySelector("[data-demo-monitor-item]");
+    const monitorEmpty = document.querySelector("[data-demo-monitor-empty]");
+    noteForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const note = noteInput.value.trim();
+        if (!note) {
+            noteStatus.textContent = "Enter a follow-up note first.";
+            noteInput.focus();
+            return;
+        }
+        monitorNote.textContent = note;
+        monitorItem.hidden = false;
+        monitorEmpty.hidden = true;
+        noteStatus.textContent = "Follow-up added for this page.";
+    });
+})();
+</script>
 </body>
 </html>
