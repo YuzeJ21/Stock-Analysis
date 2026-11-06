@@ -49,6 +49,76 @@ def _source_defaults() -> ScenarioParameters:
     return default_scenario_parameters(scenario_lab_input_from_report(_report_payload()))
 
 
+@pytest.mark.parametrize(
+    ("asset_type", "issuer_name", "price_ref", "financial_ref", "expected", "extra"),
+    [
+        ("company", "Sample Instruments Corp", "fixture:price", "fixture:annual", "calculated", ""),
+        ("company", "Sample Instruments Corp", "", "fixture:annual", "blocked", ""),
+        ("company", "Sample Instruments Corp", "fixture:price", "", "blocked", ""),
+        ("etf", "Sample Index ETF", "fixture:price", "fixture:annual", "excluded", ""),
+        ("company", "Sample Insurance Corp", "fixture:price", "fixture:annual", "excluded", ""),
+        ("", "Sample Instruments Corp", "fixture:price", "fixture:annual", "excluded", ""),
+        ("company", "Sample Instruments Corp", "fixture:price", "fixture:annual", "blocked", "same period"),
+        ("company", "Sample Instruments Corp", "fixture:price", "fixture:annual", "blocked", "older last"),
+        ("company", "Sample Instruments Corp", "fixture:price", "fixture:annual", "excluded", "saved exclusion"),
+    ],
+)
+def test_saved_scenario_requires_exact_instrument_and_both_selected_source_rows(
+    tmp_path, asset_type, issuer_name, price_ref, financial_ref, expected, extra,
+):
+    from src.dashboard import stock_report_inferred_asset_type
+    from src.providers.local_market_data import LocalCSVMarketDataProvider
+    from src.scenario_lab_session import run_scenario_lab_from_state
+    from src.stock_report import build_stock_report
+
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "universe_master.csv").write_text(
+        f"ticker,name,asset_type\nSYN1,{issuer_name},{asset_type}\n", encoding="utf-8",
+    )
+    (data / "prices.csv").write_text(
+        "ticker,date,close,volume,currency,source,source_ref\n"
+        "SYN1,2026-06-29,99,1000,USD,constructed_price,fixture:old-price\n"
+        f"SYN1,2026-06-30,100,1200,USD,constructed_price,{price_ref}\n", encoding="utf-8",
+    )
+    prior = "SYN1,2024-12-31,900,0.10,180,0.20,10,100,50,USD,constructed_filing,fixture:old-annual\n"
+    latest = f"SYN1,2025-12-31,1000,0.10,200,0.20,10,100,50,USD,constructed_filing,{financial_ref}\n"
+    if extra == "same period":
+        prior = prior.replace("2024-12-31", "2025-12-31")
+    elif extra == "older last":
+        prior, latest = latest, prior
+    (data / "fundamentals.csv").write_text(
+        "ticker,as_of_date,revenue,revenue_growth,free_cash_flow,fcf_margin,shares_outstanding,"
+        "cash,debt,currency,source,source_ref\n" + prior + latest, encoding="utf-8",
+    )
+    if extra == "saved exclusion":
+        (data / "reports").mkdir()
+        (data / "reports" / "ticker_readiness_report.csv").write_text(
+            'ticker,excluded_features\nSYN1,"portfolio, DCF"\n', encoding="utf-8",
+        )
+    report = build_stock_report("SYN1", LocalCSVMarketDataProvider(base_dir=tmp_path)).to_dict()
+    assert report["valuation_readiness"]["dcf_ready"] is True
+    assert stock_report_inferred_asset_type(report) == asset_type
+    session = run_scenario_lab_from_state(
+        report, {}, profile_key="synthetic", dcf_ready=True,
+        asset_type=stock_report_inferred_asset_type(report),
+    )
+
+    assert session.result is not None
+    assert session.state == expected
+    if expected == "calculated":
+        assert session.result.scenario_result.fair_value_per_share > 0
+        assert [(row["source"], row["source_ref"]) for row in session.result.source_metadata] == [
+            ("constructed_price", "fixture:price"),
+            ("constructed_filing", "fixture:annual"),
+        ]
+        assert all("retrieved_at" not in row for row in session.result.source_metadata)
+    else:
+        assert session.result.scenario_result is None
+        if expected == "blocked":
+            assert "source provenance" in session.blocker
+
+
 def test_widget_keys_are_stable_and_scoped_by_profile_and_ticker():
     from src.scenario_lab_session import scenario_lab_widget_keys
 

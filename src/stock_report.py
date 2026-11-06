@@ -108,6 +108,7 @@ class StockReport:
     dataset_coverage: list[dict[str, Any]] = field(default_factory=list)
     local_data_validation: list[dict[str, Any]] = field(default_factory=list)
     screener_context: dict[str, dict[str, Any]] = field(default_factory=dict)
+    asset_type: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         source_records = [note.to_dict() for note in self.data_freshness]
@@ -123,6 +124,7 @@ class StockReport:
         }
         return {
             "ticker": self.ticker,
+            "asset_type": self.asset_type,
             "generated_at": self.generated_at,
             "provider_name": self.provider_name,
             "price_snapshot": self.price_snapshot,
@@ -621,6 +623,11 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
     financials = provider.get_financials(ticker)
     earnings = provider.get_earnings(ticker)
     estimates = provider.get_analyst_estimates(ticker)
+    asset_type, scenario_dcf_excluded = (
+        provider.get_ticker_valuation_scope(ticker)
+        if isinstance(provider, LocalCSVMarketDataProvider)
+        else ("", False)
+    )
 
     performance = _performance_from_history(history)
     data_freshness = [_metadata_from_source(quote.source)]
@@ -715,12 +722,16 @@ def build_stock_report(ticker: str, provider: MarketDataProvider) -> StockReport
         key_risks=_build_risks(performance, financials, earnings, estimates),
         missing_data_warnings=missing_data_warnings,
         data_freshness=data_freshness,
-        valuation_readiness=_valuation_readiness_dict(valuation, earnings, estimates, peer_summary),
+        valuation_readiness={
+            **_valuation_readiness_dict(valuation, earnings, estimates, peer_summary),
+            "scenario_dcf_excluded": scenario_dcf_excluded,
+        },
         review_metrics=review_metrics,
         quant_interpretation=quant_interpretation,
         dataset_coverage=dataset_coverage,
         local_data_validation=local_data_validation,
         screener_context=screener_context,
+        asset_type=asset_type,
     )
 
 

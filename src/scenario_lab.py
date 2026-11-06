@@ -216,6 +216,7 @@ def run_scenario_lab(
     profile_key: str,
     dcf_ready: bool,
     asset_type: str,
+    dcf_excluded: bool = False,
 ) -> ScenarioLabResult:
     """Calculate a session-local scenario without mutating source-backed inputs."""
 
@@ -224,6 +225,14 @@ def run_scenario_lab(
         return _empty_result(
             status="excluded",
             reason="Scenario Lab is limited to DCF-eligible operating companies.",
+            profile_key=profile_key,
+            valuation_input=valuation_input,
+            source_metadata=source_metadata,
+        )
+    if dcf_excluded:
+        return _empty_result(
+            status="excluded",
+            reason="The selected instrument is excluded by the saved DCF scope.",
             profile_key=profile_key,
             valuation_input=valuation_input,
             source_metadata=source_metadata,

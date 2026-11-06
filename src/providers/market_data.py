@@ -15,9 +15,16 @@ class SourceMetadata:
     retrieved_at: str
     official: bool
     notes: list[str] = field(default_factory=list)
+    source: str | None = None
+    source_ref: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        data = asdict(self)
+        if self.source is None:
+            del data["source"]
+        if self.source_ref is None:
+            del data["source_ref"]
+        return data
 
 
 @dataclass

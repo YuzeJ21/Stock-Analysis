@@ -1288,37 +1288,42 @@ def test_company_workbench_html_brief_renders_complete_partial_and_withheld_brid
     assert bridge_text in bridge
 
 
-def test_company_workbench_html_brief_renders_the_prepared_modified_session_result():
+def test_company_workbench_html_brief_renders_the_prepared_modified_session_result(tmp_path):
     """Catches ignoring the prepared session result or recalculating from canonical report state."""
 
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "universe_master.csv").write_text(
+        "ticker,name,asset_type\nSYN1,Sample Instruments Corp,company\n", encoding="utf-8",
+    )
+    (data / "prices.csv").write_text(
+        "ticker,date,close,volume,currency,source,source_ref\n"
+        "SYN1,2026-06-30,100,1200,USD,constructed_price,fixture:price\n", encoding="utf-8",
+    )
+    (data / "fundamentals.csv").write_text(
+        "ticker,as_of_date,revenue,revenue_growth,free_cash_flow,fcf_margin,shares_outstanding,"
+        "cash,debt,currency,source,source_ref\n"
+        "SYN1,2025-12-31,1000,0.10,200,0.20,10,100,50,USD,constructed_filing,fixture:annual\n",
+        encoding="utf-8",
+    )
     app = AppTest.from_string(
-        """
+        f"""
 from pathlib import Path
 import streamlit as st
 from src.dashboard import (
     build_profile_context,
     build_provider,
-    build_stock_report,
     render_single_stock_report,
 )
 from src.scenario_lab_session import scenario_lab_widget_keys
 
-context = build_profile_context(project_root=Path('.'))
-provider = build_provider('local', base_dir=Path('.'))
-report = build_stock_report('NVDA', provider).to_dict()
-report['asset_type'] = 'company'
-report['valuation_snapshot']['source_metadata'] = [{
-    'source': 'synthetic-test-only-reviewed-source',
-    'source_ref': 'https://example.com/nvda-source',
-    'as_of_date': '2026-06-30',
-}]
-st.session_state['single_stock_report_payload'] = report
-st.session_state['single_stock_report_ticker'] = 'NVDA'
-st.session_state['single_stock_report_provider'] = 'local'
-keys = scenario_lab_widget_keys(context.profile_key, 'NVDA')
+root = Path({str(tmp_path)!r})
+context = build_profile_context(project_root=root)
+provider = build_provider('local', base_dir=root)
+keys = scenario_lab_widget_keys(context.profile_key, 'SYN1')
 st.session_state[keys['wacc']] = 0.15
 render_single_stock_report(
-    None,
+    provider,
     False,
     public_mode=True,
     profile_context=context,
@@ -1327,7 +1332,7 @@ render_single_stock_report(
 """,
         default_timeout=120,
     )
-    app.query_params.update({"ticker": "NVDA", "open": "1"})
+    app.query_params.update({"ticker": "SYN1", "open": "1"})
     app.run(timeout=120)
     next(
         item

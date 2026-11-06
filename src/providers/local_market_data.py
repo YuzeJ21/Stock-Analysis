@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
+from src.company_analysis_scope import COMPANY_DCF_EXCLUDED_ASSET_TYPES, excludes_company_dcf
 from src.peer_evidence_quality import assess_peer_evidence, is_valuation_anchor_eligible
 from src.providers.local_data_catalog import LocalDataCatalog
 from src.providers.market_data import (
@@ -14,6 +16,7 @@ from src.providers.market_data import (
     MarketDataProvider,
     OptionsChainSummary,
     QuoteSnapshot,
+    SourceMetadata,
     make_source_metadata,
 )
 
@@ -156,6 +159,28 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
         matches = frame.loc[tickers == ticker]
         return matches.iloc[-1] if not matches.empty else pd.Series(dtype=object)
 
+    def _instrument_rows(self, dataset_name: str, ticker: str) -> pd.DataFrame:
+        frame = self.catalog.load_dataframe(dataset_name)
+        if frame is None or "ticker" not in frame:
+            return pd.DataFrame()
+        tickers = frame["ticker"].astype("string").str.strip().str.upper()
+        return frame.loc[tickers == ticker.strip().upper()]
+
+    def get_ticker_valuation_scope(self, ticker: str) -> tuple[str, bool]:
+        """Read explicit instrument identity and DCF exclusions from this profile."""
+        identities = self._instrument_rows("universe_master", ticker)
+        identity = identities.iloc[0] if len(identities) == 1 else pd.Series(dtype=object)
+        asset_type = (self._string_value(identity, "asset_type") or "").strip().lower()
+        security_type = (self._string_value(identity, "security_type") or "").strip().lower()
+        readiness = self._instrument_rows("ticker_readiness", ticker)
+        excluded_features = readiness.get("excluded_features", pd.Series(dtype="string")).dropna()
+        excluded = (
+            any("dcf" in {feature.strip() for feature in str(value).lower().split(",")} for value in excluded_features)
+            or security_type in COMPANY_DCF_EXCLUDED_ASSET_TYPES | {"adr", "preferred"}
+            or excludes_company_dcf(asset_type, identity)
+        )
+        return asset_type, excluded
+
     def _select_ticker_row_from_dataset(self, dataset_name: str, ticker: str) -> pd.Series:
         ticker = ticker.upper().strip()
         if not ticker:
@@ -186,6 +211,13 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
                     return value.date().isoformat() if value.time().isoformat() == "00:00:00" else value.isoformat()
                 return str(value)
         return None
+
+    def _with_saved_row_reference(self, metadata: SourceMetadata, row: pd.Series) -> SourceMetadata:
+        source = row.get("source")
+        reference = row.get("source_ref")
+        if isinstance(source, str) and source.strip() and isinstance(reference, str) and reference.strip():
+            return replace(metadata, source=source.strip(), source_ref=reference.strip())
+        return metadata
 
     def list_local_tickers(self) -> list[str]:
         return self.catalog.list_tickers(
@@ -508,6 +540,8 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
             freshness=f"daily CSV through {latest['date'].date().isoformat()}",
             notes=["Saved local research data."],
         )
+        if previous is None or previous["date"] != latest["date"]:
+            source = self._with_saved_row_reference(source, latest)
         return QuoteSnapshot(
             ticker=ticker,
             price=float(latest["close"]) if pd.notna(latest["close"]) else None,
@@ -556,6 +590,12 @@ class LocalCSVMarketDataProvider(MarketDataProvider):
                 ["No trusted fundamentals CSV has been added yet."],
             )
         )
+        row_source = self._with_saved_row_reference(source, row)
+        as_of = row.get("as_of_date")
+        if row_source.source_ref and pd.notna(as_of):
+            dates = self._instrument_rows("fundamentals", ticker)["as_of_date"]
+            if as_of == dates.max() and dates.eq(as_of).sum() == 1:
+                source = row_source
         return FinancialSnapshot(
             ticker=ticker,
             revenue=self._float_value(row, "revenue"),

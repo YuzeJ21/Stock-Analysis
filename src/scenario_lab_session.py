@@ -45,6 +45,18 @@ def scenario_lab_input_from_report(report_payload: dict[str, object]) -> Valuati
     price = report_payload.get("price_snapshot", {}) or {}
     financials = report_payload.get("financial_summary", {}) or {}
     valuation = report_payload.get("valuation_snapshot", {}) or {}
+    if "source" in price or "source" in financials:
+        source_metadata = []
+        for snapshot, date_field in ((price, "market_time"), (financials, "as_of_date")):
+            source = snapshot.get("source")
+            source = source if isinstance(source, Mapping) else {}
+            source_metadata.append({
+                "source": source.get("source"),
+                "source_ref": source.get("source_ref"),
+                "as_of_date": snapshot.get(date_field),
+            })
+    else:
+        source_metadata = [dict(row) for row in (valuation.get("source_metadata") or [])]
     return ValuationInput(
         ticker=str(report_payload.get("ticker") or "").strip().upper(),
         current_price=price.get("price"),
@@ -64,7 +76,7 @@ def scenario_lab_input_from_report(report_payload: dict[str, object]) -> Valuati
         trailing_pe=financials.get("trailing_pe"),
         forward_pe=financials.get("forward_pe"),
         price_to_book=financials.get("price_to_book"),
-        source_metadata=[dict(row) for row in (valuation.get("source_metadata") or [])],
+        source_metadata=source_metadata,
         screener_context=dict(report_payload.get("screener_context", {}) or {}),
     )
 
@@ -140,6 +152,19 @@ def run_scenario_lab_from_state(
     valuation_input = scenario_lab_input_from_report(report_payload)
     widget_keys = scenario_lab_widget_keys(profile_key, valuation_input.ticker)
     frozen_widget_keys = tuple((field, widget_keys[field]) for field in _SCENARIO_FIELDS)
+    readiness = report_payload.get("valuation_readiness")
+    if isinstance(readiness, Mapping) and readiness.get("scenario_dcf_excluded") is True:
+        result = run_scenario_lab(
+            valuation_input, _FALLBACK_PARAMETERS, profile_key=profile_key,
+            dcf_ready=dcf_ready, asset_type=asset_type, dcf_excluded=True,
+        )
+        return ScenarioLabSessionSnapshot(
+            state=result.status,
+            blocker=result.reason,
+            parameters=_FALLBACK_PARAMETERS,
+            result=result,
+            widget_keys=frozen_widget_keys,
+        )
     try:
         defaults = default_scenario_parameters(valuation_input)
     except (ArithmeticError, TypeError, ValueError):
