@@ -17,7 +17,8 @@ from src.company_sec_online_preview import _utc_timestamp
 from src.online_company_identity import _mode_reason
 from src.online_research_coverage import METRICS, run_online_coverage_study, validated_coverage_summary
 from src.online_sec_receipt import fetch_sec_json_receipt, open_exact_source as urlopen
-from src.providers.sec_company_discovery import _modified_at
+from src.providers.sec_company_discovery import MAX_RESPONSE_BYTES as SEARCH_DIRECTORY_MAX_BYTES, _modified_at
+from src.sec_association_receipt import _rows as _search_directory_rows
 from src.us_listing_receipt_audit import _SOURCES, _parse_directory, _MAX_DIRECTORY_BYTES
 
 MAP_URL = 'https://www.sec.gov/files/company_tickers.json'
@@ -115,7 +116,17 @@ def load_online_us_universe(*, user_agent, fetcher=None, observed_at=None, works
                              source_last_modified=_modified_at(headers, now), payload_sha256=hashlib.sha256(raw).hexdigest()))
             directory_rows.extend(parsed); excluded += tests
         mapping = fetch_sec_json_receipt(MAP_URL, user_agent=user_agent, fetcher=fetcher, observed_at=observed_at)
-        exchange = fetch_sec_json_receipt(EXCHANGE_URL, user_agent=user_agent, fetcher=fetcher, observed_at=observed_at)
+        exchange_size = 0
+
+        def fetch_exchange(url, agent):
+            from src.online_sec_receipt import _fetch_raw
+            nonlocal exchange_size
+            response = (fetcher or _fetch_raw)(url, agent)
+            raw, _, _ = response
+            exchange_size = len(raw) if isinstance(raw, bytes) else 0
+            return response
+
+        exchange = fetch_sec_json_receipt(EXCHANGE_URL, user_agent=user_agent, fetcher=fetch_exchange, observed_at=observed_at)
         if mapping['status'] != 'ready' or exchange['status'] != 'ready': raise ValueError('sec_listing_receipt_unavailable')
         map_rows, exchange_rows = _sec_records(mapping['payload'], exchange['payload'])
         refs.extend({k: receipt[k] for k in ('source_url', 'observed_at', 'source_last_modified', 'payload_sha256')} for receipt in (mapping, exchange))
@@ -150,6 +161,17 @@ def load_online_us_universe(*, user_agent, fetcher=None, observed_at=None, works
                 association_reason='sec_exchange_only_type_and_directory_status_unverified'))
         rows.sort(key=lambda row: row['listing_id'])
         if len({r['listing_id'] for r in rows}) != len(rows): raise ValueError('duplicate_listing_identity')
+        # The financial ticker map and the Discover search directory are separate sources.
+        try:
+            search_rows = _search_directory_rows(exchange['payload']) if 0 < exchange_size <= SEARCH_DIRECTORY_MAX_BYTES else None
+        except ValueError:
+            search_rows = None
+        if search_rows is not None:
+            search_ciks = defaultdict(set)
+            for candidate in search_rows:
+                search_ciks[candidate['ticker']].add(str(candidate['cik']).zfill(10))
+            for row in rows:
+                row['discover_searchable'] = search_ciks.get(row['sec_ticker']) == {row['sec_cik']}
         return _finish_inventory(rows, refs, excluded, otc, unknown_exchange, mapping)
     except (ValueError, TypeError, KeyError, OSError, RuntimeError, OverflowError):
         return held
@@ -164,9 +186,14 @@ def validated_us_universe(inventory):
         if (not isinstance(ref, Mapping) or ref.get('source_url') != url or _utc_timestamp(ref.get('observed_at')) is None
             or not isinstance(ref.get('payload_sha256'), str) or not re.fullmatch(r'[0-9a-f]{64}', ref['payload_sha256'])): return None
     if any(mapping.get(k) != refs[2].get(k) for k in ('source_url', 'observed_at', 'payload_sha256')): return None
-    ids = set()
+    ids = set(); search_proof = None
     for row in rows:
         if not isinstance(row, Mapping): return None
+        has_search_proof = 'discover_searchable' in row
+        if search_proof is not None and search_proof != has_search_proof: return None
+        search_proof = has_search_proof
+        if has_search_proof and (type(row['discover_searchable']) is not bool
+            or row['discover_searchable'] and not row.get('sec_ticker')): return None
         if (not isinstance(row.get('listing_id'), str) or row['listing_id'] in ids
             or not isinstance(row.get('symbol'), str) or not re.fullmatch(r'[A-Z0-9][A-Z0-9.$-]{0,19}', row['symbol'])
             or row.get('source') not in {'nasdaq', 'other', 'sec'} or row.get('etf') not in {True, False, None}

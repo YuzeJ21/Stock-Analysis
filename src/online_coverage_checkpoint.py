@@ -56,7 +56,8 @@ def _reduced_state(state,now):
     inventory=validated_us_universe(state.get('inventory'));observations=state.get('observations',[])
     coverage=build_universe_coverage(inventory,observations)
     if inventory is None or coverage.get('status')!='inspection_only':raise CheckpointError('invalid_checkpoint_state')
-    if any(set(row)!=LISTING_KEYS for row in inventory['rows']):raise CheckpointError('checkpoint_not_reduced')
+    if any(set(row) not in (LISTING_KEYS, LISTING_KEYS | {'discover_searchable'}) for row in inventory['rows']):
+        raise CheckpointError('checkpoint_not_reduced')
     for item in inventory['map_receipt']['payload'].values():
         if (not isinstance(item,Mapping) or not set(item)<={'ticker','cik_str','title'}
             or not isinstance(item.get('ticker'),str) or not re.fullmatch(r'[A-Z0-9][A-Z0-9.-]{0,19}',item['ticker'])

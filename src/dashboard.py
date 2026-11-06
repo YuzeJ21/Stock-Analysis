@@ -31346,15 +31346,18 @@ def render_online_company_search(*, saved_tickers: Iterable[str] = ()) -> None:
 
 def render_online_coverage_study() -> None:
     """Run a declared SEC industry sample only after an explicit Personal action."""
+    from src.online_industry_coverage import build_industry_coverage
+    from src.online_industry_coverage_ui import render_industry_coverage
+    from src.online_industry_price_coverage import read_price_coverage, render_industry_price_control
     from src.online_peer_coverage_ui import render_peer_coverage
-    render_peer_coverage(st)
+    peer_coverage = render_peer_coverage(st)
     with st.expander("U.S. listing coverage · online", expanded=False):
         st.markdown("Load the full observed official listing inventory, then check financial coverage by issuer. Unprobed and unmatched records remain visible.")
         load_requested=st.button("Load U.S. listing inventory",key="online-us-universe-load")
         restore_requested=st.button("Restore saved coverage",key="online-us-universe-restore")
         save_requested=st.button("Save coverage progress",key="online-us-universe-save")
         checkpoint_action=handle_coverage_checkpoint_action(st.session_state,save_requested=save_requested,restore_requested=restore_requested,new_run_requested=load_requested)
-        if checkpoint_action['status']=="saved":st.caption("Coverage progress saved on this computer; the previous checkpoint is backed up.")
+        if checkpoint_action['status']=="saved":st.caption("Listing and SEC financial coverage saved on this computer. The previous checkpoint is backed up. Price and peer checks stay in this session.")
         elif checkpoint_action['status']=="restored":st.caption("Saved coverage restored. Its original source dates still apply.")
         elif checkpoint_action['status']=="unavailable":st.caption("Coverage checkpoint unavailable: "+str(checkpoint_action.get("reason","validation required")).replace("_"," "))
         with st.spinner("Loading dated listing inventory…"):
@@ -31363,7 +31366,18 @@ def render_online_coverage_study() -> None:
         inspect_requested=st.button("Check next 20 issuers",key="online-us-universe-inspect",disabled=not can_inspect)
         if inspect_requested:
             with st.spinner("Checking the next issuer batch…"):
-                universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),inspect_requested=True)
+                inspected = get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),inspect_requested=True)
+            if inspected.get("status") == "inspection_only":
+                universe = inspected
+            else:
+                st.caption("Issuer check unavailable: " + str(inspected.get("reason", "validation required")).replace("_", " "))
+        inventory = universe.get("inventory")
+        coverage_panel = st.container()
+        if inventory:
+            render_industry_price_control(st, inventory)
+        prices = read_price_coverage(st.session_state, inventory) if inventory else ()
+        with coverage_panel:
+            render_industry_coverage(st, build_industry_coverage(inventory, universe.get("observations", []), peer_coverage, prices))
         st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
     with st.expander("NYSE Texas listing check", expanded=False):
         from src.nyse_texas_reconciliation import get_nyse_texas, reconciliation_html

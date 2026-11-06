@@ -8,6 +8,20 @@ All non-test directory rows are retained, including known ETFs, unknown venues a
 
 Listing records, resolved CIKs, financial-probe issuer candidates, attempted, failed and unprobed counts remain separate. Known ETF records are excluded from the financial queue; non-ETF and SEC-only status does not prove operating-company eligibility. Unprobed and unknown-industry candidates remain in their denominator. Field coverage uses the latest observed reporting period found in Companyfacts and compatible submissions metadata; older supported values never replace a newer gap.
 
+### Issuer coverage by industry
+
+Discover shows five independent coverage rates for the same set of distinct CIKs. Select a verified SEC SIC or **Unknown SIC**. Each rate uses all issuer candidates in that selection as its denominator, including companies that failed a check or have yet to be checked. Industry comes from SEC submissions linked to the same issuer and current ticker in the financial audit. The unknown group keeps candidates whose industry evidence is missing, withheld or unprobed.
+
+| Coverage lane | What counts |
+| --- | --- |
+| Search | An exact ticker for a non-ETF-flagged queue listing matches only that CIK in Discover’s dated SEC exchange directory. The older ticker map alone is insufficient. |
+| Issuer identity | SEC Companyfacts and current-ticker SEC submissions agree with the queue CIK. This verifies the issuer for research and leaves security class and listing status to separate checks. |
+| Financials | At least one supported revenue field in the latest observed annual, direct-quarter or interim reporting period for the matched issuer. Other fields can still be unavailable. |
+| Dated closing price | An explicitly requested check finds a completed daily close within the preceding seven days for the representative ticker and matching supported exchange. The price provider supplies no independent CIK. |
+| Same-basis peer valuation | An observed subject comparison from the bounded Discover peer sample passes the existing reported annual P/E rules with at least three qualified references, including a common closing date and compatible earnings and security basis. |
+
+The price action requests one company at a time on Nasdaq, NYSE or NYSE American, with one attempt per issuer and a session limit of 20 issuers. Price and peer observations join only within 24 hours of the inventory observation and apply to its representative ticker. Price checks also bind to the inventory fingerprint. They remain in the session, separate from the saved inventory and financial checkpoint. Restoring an older financial checkpoint preserves its original scope and dates. Checkpoints created before search-route verification show search as unprobed until a new inventory is loaded. The rules panel lists failure reasons, observed source dates and exclusions. The peer sample does not estimate market-wide readiness.
+
 This is a full **observed inventory**, not a verified census of every U.S. company. The full LTSE and NYSE Texas listing populations, Green Impact Exchange and remaining registered-venue scope retain explicit reconciliation gates. The separate TXSE review covers one dated venue roster. The two Nasdaq directories alone cannot prove every venue or dual listing. Presence establishes neither U.S. domicile, current listing activity, security type, analysis eligibility nor historical point-in-time membership.
 
 ## LTSE filing reconciliation
