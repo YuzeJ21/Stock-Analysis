@@ -139,10 +139,12 @@ def online_price_history_html(result):
         return '<section class="online-price-inspection"><p>Price evidence is unavailable.</p></section>'
     ticker, symbol, bars = result["ticker"], result["provider_symbol"], result["bars"]
     split_dates = ", ".join(str(x.get("date", "unknown")) for x in result.get("splits", [])) or "none reported in this response"
+    day_scope = ("The observation day passed the completed regular-session check." if result.get("completed_regular_session")
+                 else "The observation day is excluded to avoid an incomplete daily bar.")
     return (
         STYLE + '<section class="online-price-inspection" aria-label="Daily price history"><h3>Daily price history · personal research</h3>'
         f'<p><strong>USD {_amount(bars[-1]["close"])}</strong> · provider daily close dated {escape(bars[-1]["date"])} · {len(bars)} completed daily bars.</p>'
-        f'<p>{escape(str(result.get("observation_state", "unavailable")).replace("_", " "))}. The observation day is excluded to avoid an incomplete daily bar. This is a dated observation, not a real-time quote.</p>'
+        f'<p>{escape(str(result.get("observation_state", "unavailable")).replace("_", " "))}. {day_scope} This is a dated observation, not a real-time quote.</p>'
         + _line([(r["date"], r["close"]) for r in bars], "Yahoo provider daily closing prices in USD")
         + '<p>Adjustment basis is unverified. Splits and dividends can affect comparisons; no total-return calculation is shown. The issuer link is assessed separately below; a symbol match is not an independently verified vendor issuer identifier. Commercial use and redistribution remain held for this exact unregistered source.</p>'
         + f'<details><summary>Price source evidence</summary><p>Source: yahoo_chart · requested {escape(ticker)} · provider symbol {escape(symbol)} · observed {escape(result["observed_at"])} · timezone {escape(str(result.get("exchange_timezone", "unknown")))}.</p>'

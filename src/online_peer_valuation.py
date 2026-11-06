@@ -304,6 +304,18 @@ def _empty(ticker, reason):
                 fiscal_window_days=FISCAL_WINDOW_DAYS,minimum_peers=MIN_PEERS,candidate_count=0)
 
 
+def _dated_price_observation(row, ticker, as_of):
+    prices = validated_online_price_history(row.get('prices'), ticker=ticker)
+    _need(prices is not None, 'price_source_unverified')
+    _observed(prices.get('observed_at'), as_of)
+    _need(isinstance(prices.get('payload_sha256'), str) and re.fullmatch(r'[0-9a-f]{64}', prices['payload_sha256']),
+          'price_source_digest_missing')
+    return dict(price=prices['bars'][-1]['close'], date=prices['last_price_date'],
+                provider_symbol=prices['provider_symbol'], source_ref=prices['source_url'],
+                observed_at=prices['observed_at'], history_range=prices.get('history_range', '1y'),
+                first_date=prices['bars'][0]['date'], last_date=prices['bars'][-1]['date'])
+
+
 def _subject_source_context(row,classification,ticker,expected_cik,as_of):
     """Keep exact filing metadata traceable even when its EPS cannot be used."""
     try:
@@ -326,7 +338,8 @@ def _subject_source_context(row,classification,ticker,expected_cik,as_of):
         scope=validate_selected_security_evidence(row.get('selected_security_evidence'),ticker=ticker,cik=cik,profile=row.get('profile'),issuer_symbols=symbols,as_of=as_of)
         if scope['status'] in {'supported_common','inspection_only'}:context['selected_security_scope']=scope
         try:
-            vendor=_normalized(row.get('vendor'),f'https://finance.yahoo.com/quote/{ticker.replace(".","-")}/',as_of)
+            source_ref = f'https://finance.yahoo.com/quote/{ticker.replace(".", "-")}/'
+            vendor = _normalized(row.get('vendor'), source_ref, as_of)
             info=vendor.get('info',{});sic=str(profile.get('sic'))
             _need(info.get('symbol')==ticker.replace('.','-') and ticker in profile.get('tickers',[])
                   and re.fullmatch(r'\d{4}',sic) and sic not in {'0000','6770'}
@@ -336,7 +349,16 @@ def _subject_source_context(row,classification,ticker,expected_cik,as_of):
                 industry_label=info.get('industry') if isinstance(info.get('industry'),str) and len(info['industry'])<=160 else info['industryKey'],
                 source_refs=[dict(source_url=url,observed_at=row['profile']['observed_at'],payload_sha256=row['profile']['payload_sha256']),
                     dict(source_url=row['vendor']['source_ref'],observed_at=row['vendor']['observed_at'],normalized_sha256=row['vendor']['normalized_sha256'])])
-        except (ValueError,TypeError,KeyError,AttributeError,OverflowError):pass
+            stamp = info.get('regularMarketTime')
+            observed = _utc_timestamp(row['vendor']['observed_at'])
+            _need(info.get('quoteType') == 'EQUITY' and type(stamp) is int and 0 < stamp <= observed.timestamp(),
+                  'quote_time_invalid')
+            day = datetime.fromtimestamp(stamp, timezone.utc).astimezone(ZoneInfo(info['exchangeTimezoneName'])).date()
+            price = _dated_price_observation(row, ticker, as_of)
+            _need(row['prices'].get('exchange_timezone') == info['exchangeTimezoneName'], 'price_timezone_mismatch')
+            context['close_date_observation'] = dict(quote_day=day.isoformat(), close_day=price['date'],
+                quote_source_ref=source_ref, close_source_ref=price['source_ref'])
+        except (ValueError,TypeError,KeyError,AttributeError,OverflowError,OSError):pass
         return context
     except (ValueError,TypeError,KeyError,AttributeError,OverflowError):
         return {}
@@ -366,15 +388,9 @@ def _exclusion_diagnostics(row,classification,ticker,industry_source_ref,as_of,o
     except (ValueError,TypeError,KeyError,AttributeError,OverflowError):pass
     context['price_source_status']='unavailable'
     try:
-        prices=validated_online_price_history(row.get('prices'),ticker=ticker)
-        _need(prices is not None,'price_source_unverified')
-        _observed(prices.get('observed_at'),as_of)
-        _need(isinstance(prices.get('payload_sha256'),str) and re.fullmatch(r'[0-9a-f]{64}',prices['payload_sha256']),'price_source_digest_missing')
+        context['price_observation'] = _dated_price_observation(row, ticker, as_of)
         context['price_source_status']='observed_not_used_for_valuation'
-        context['price_observation']=dict(price=prices['bars'][-1]['close'],date=prices['last_price_date'],
-            provider_symbol=prices['provider_symbol'],source_ref=prices['source_url'],observed_at=prices['observed_at'],
-            history_range=prices.get('history_range','1y'),first_date=prices['bars'][0]['date'],last_date=prices['bars'][-1]['date'])
-        splits=prices.get('splits')
+        splits=row['prices'].get('splits')
         if (isinstance(splits,list) and len(splits)<=64 and all(isinstance(s,Mapping) and _iso_date(s.get('date')) is not None
                 and _iso_date(s['date'])<=as_of.date() and _positive(s.get('numerator')) and _positive(s.get('denominator')) for s in splits)):
             context['splits_observed']=[dict(s) for s in splits]

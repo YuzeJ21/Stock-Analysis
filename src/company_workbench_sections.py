@@ -72,7 +72,8 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None):
         kind,row,unit=max(candidates,key=lambda item:item[1]['period_end'])
         fields=row['fields'];fields={f['field']:f for f in fields} if isinstance(fields,list) else fields
         result.update(facts={k:dict(v) for k,v in fields.items() if k in FIELD_LABELS},
-                      period_start=row['period_start'],period_end=row['period_end'],period_kind=kind,unit=unit)
+                      period_start=row['period_start'],period_end=row['period_end'],period_kind=kind,unit=unit,
+                      filed=row.get('filed'))
     result['withheld_periods']=[row for row in result['withheld_periods']
                                if result['period_end'] is None or row['period_end']>result['period_end']]
     return result

@@ -31,6 +31,8 @@ def test_first_answers_use_verified_close_and_comparable_revenue_direction():
     assert result['financial']['value'] == '营收 USD 150'
     assert '较上财年增加' in result['financial']['context']
     assert '2025-12-31' in result['financial']['context']
+    assert any(line.startswith('申报日期 ') for line in result['financial']['evidence'])
+    assert any(label == 'SEC 申报详情' and url.endswith('-index.htm') for label, url in result['financial']['links'])
     assert '未核查' in result['valuation']['value']
 
 
@@ -41,6 +43,16 @@ def test_first_answers_never_use_another_tickers_prices_or_an_identity_conflict(
     assert result['price']['value'] == '收盘价待核对'
     result = _answers(peer=_peer(3), expected_cik='0000009999')
     assert all('身份冲突' in card['context'] for card in result.values())
+
+
+def test_stale_close_and_unrequested_financials_are_labelled_separately():
+    prices = price_view()
+    prices['observation_state'] = 'stale_observation'
+    cards = _answers(prices=prices, financial={'ticker': 'FICT', 'status': 'not_requested'})
+    assert '日期过旧' in cards['price']['context']
+    assert '2026-10-29' in cards['price']['context']
+    assert '尚未查询财报' in cards['financial']['context']
+    assert '已请求' not in cards['financial']['context']
 
 
 def test_quarter_change_requires_a_comparable_prior_year_direct_period():
@@ -63,11 +75,51 @@ def test_comparison_with_too_few_or_mixed_price_dates_stays_withheld():
     assert '4 家已核查' in two['context'] and '2 家合格' in two['context']
     assert '20.0×' not in str(two)
     peer = _peer(3)
+    peer['peers'][0]['price_source_ref'] = 'https://query1.finance.yahoo.com/v8/finance/chart/F0'
     good = _answers(peer=peer)['valuation']
     assert '高于同行参照 20.0%' in good['value']
+    assert ('F0 日线来源', peer['peers'][0]['price_source_ref']) in good['links']
     changed = deepcopy(peer)
     changed['peers'][0]['price_date'] = '2026-10-28'
     assert '暂无法比较' in _answers(peer=changed)['valuation']['value']
+
+
+def test_valuation_gap_keeps_annual_filing_sources_when_subject_is_blocked():
+    peer = _peer(0, status='withheld')
+    peer.update(subject=None, reason='quote_not_same_recent_completed_day', checked_candidate_count=0)
+    filing_url = 'https://www.sec.gov/Archives/edgar/data/1234/000000123426000001/fict.htm'
+    directory_url = 'https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt'
+    peer['subject_source_context'] = {'annual_versions': [{
+        'form': '10-K', 'period_end': '2025-12-31', 'filed': '2026-02-04', 'source_ref': filing_url,
+    }]}
+    peer['listing_context'] = {'source_attempts': [{'source_url': directory_url}]}
+    card = _answers(peer=peer)['valuation']
+    assert '报价不是同一已完成交易日' in card['context']
+    assert '本公司依据未通过核对，同行尚未核查。' in card['evidence']
+    assert ('本公司 10-K（申报记录）', filing_url) in card['links']
+    assert ('上市来源查询', directory_url) not in card['links']
+    peer['reason'] = 'listing_classification_unavailable'
+    assert ('上市来源查询', directory_url) in _answers(peer=peer)['valuation']['links']
+
+
+def test_valuation_lists_every_exclusion_and_its_available_source():
+    peer = _peer(2, status='withheld')
+    peer.pop('checked_candidate_count')
+    filing_url = 'https://www.sec.gov/Archives/edgar/data/1234/000000123426000001/peer.htm'
+    price_url = 'https://query1.finance.yahoo.com/v8/finance/chart/F2'
+    peer['excluded'] = [
+        {'ticker': 'F2', 'reason': 'duplicate_peer_issuer', 'diagnostics': {
+            'annual_eps_observation': {'filing_ref': filing_url},
+            'price_observation': {'source_ref': price_url},
+        }},
+        {'ticker': 'F3', 'reason': 'future_unmapped_reason'},
+    ]
+    card = _answers(peer=peer)['valuation']
+    assert '2 家合格' in card['context']
+    assert any(line.startswith('F2 · 与已纳入证券属于同一发行人') for line in card['evidence'])
+    assert any(line.startswith('F3 · 来源、身份或字段记录未通过核对') for line in card['evidence'])
+    assert ('F2 年度申报（未纳入）', filing_url) in card['links']
+    assert ('F2 日线来源（未纳入）', price_url) in card['links']
 
 
 def test_render_has_three_native_disclosures_and_escapes_untrusted_values():

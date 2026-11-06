@@ -106,6 +106,29 @@ def test_public_mode_cannot_activate_personal_price_inspection():
     assert result["status"] == "unavailable"
 
 
+def test_workbench_session_can_admit_a_verified_close_on_observation_day():
+    from src.online_company_prices import get_online_company_prices
+    from src.online_research_history_view import online_price_history_html
+
+    payload = _payload()
+    chart = payload["chart"]["result"][0]
+    start = chart["timestamp"][-1]
+    end = int(OBSERVED.replace(hour=20).timestamp())
+    chart["meta"].update(
+        currentTradingPeriod={"regular": {"start": start, "end": end}},
+        regularMarketTime=end, regularMarketPrice=11,
+    )
+    state = {}
+    view = get_online_company_prices(
+        "FICT", state, refresh_requested=True, observed_at=OBSERVED.replace(hour=21),
+        fetcher=_fetch(payload), include_verified_session_close=True,
+    )
+    assert view["last_price_date"] == "2026-10-30"
+    assert get_online_company_prices("FICT", state, refresh_requested=False) == view
+    assert "The observation day is excluded" not in online_price_history_html(view)
+    assert "The observation day passed the completed regular-session check." in online_price_history_html(view)
+
+
 @pytest.mark.parametrize("case,accepted", [
     ("completed", True), ("before_close", False), ("wrong_day", False),
     ("quote_before_close", False), ("price_mismatch", False), ("default", False),

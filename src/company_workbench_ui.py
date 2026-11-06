@@ -43,7 +43,8 @@ def load_workbench_observations(ticker, state, *, refresh_financials=False, refr
         financial=prices={'ticker':ticker,'status':'unavailable','reason':reason}
     else:
         financial=get_company_sec_annual_preview(ticker,state,refresh_requested=refresh_financials,user_agent=user_agent)
-        prices=get_online_company_prices(ticker,state,refresh_requested=refresh_prices)
+        prices=get_online_company_prices(ticker,state,refresh_requested=refresh_prices,
+            include_verified_session_close=True)
     projection=workbench_projection(ticker,financial,prices,expected_cik=expected_cik)
     if projection['identity_conflict']:
         financial={'ticker':ticker,'status':'unavailable','reason':'sec_identity_mismatch','safe_to_apply':False}

@@ -6,9 +6,10 @@ import re
 
 from src.company_sec_online_preview import _iso_date
 from src.online_company_identity import _mode_reason, validated_price_filing_association
+from src.online_company_prices import price_source_url
 from src.online_history_contract import validated_annual_history
 from src.online_peer_valuation import FISCAL_WINDOW_DAYS, MIN_PEERS
-from src.online_peer_valuation_ui import REASONS, _link, _multiple, _number
+from src.online_peer_valuation_ui import _link, _multiple, _number, _reason
 from src.online_research_history_view import validated_online_price_history
 from src.sec_quarterly_history import validated_quarterly_history
 
@@ -41,8 +42,13 @@ _TITLES = {'price': '最近收盘', 'financial': '财报变化', 'valuation': '�
 _GAP_VALUES = {'price': '收盘价待核对', 'financial': '财报变化待核对', 'valuation': '同行估值暂无法比较'}
 _PRICE_GAPS = {
     'price_source_unavailable': '报价来源暂不可用',
-    'no_recent_completed_price': '未取得近期已完成的收盘价',
+    'no_completed_daily_prices': '未取得已完成的日线收盘价',
     'price_symbol_or_security_type_mismatch': '报价代码或证券类型未通过核对',
+    'unsupported_price_currency': '报价币种未通过核对',
+}
+_FINANCIAL_GAPS = {
+    'sec_user_agent_required': 'SEC 查询缺少访问标识。',
+    'sec_fetch_unavailable': 'SEC 财报来源暂不可用。',
 }
 
 
@@ -57,14 +63,17 @@ def _price_answer(ticker, prices, association):
         if source.get('status') in {None, 'not_requested'}:
             return _card('price', '尚未查询收盘价', '使用「更新财报与价格」取得观察。',
                          ('查询后显示已完成的日线收盘价及交易日。',))
-        reason = _PRICE_GAPS.get(source.get('reason'), '收盘价来源尚未通过核对')
-        return _card('price', _GAP_VALUES['price'], reason, (reason,))
+        reason = _PRICE_GAPS.get(source.get('reason'))
+        links = (('Yahoo 日线查询', price_source_url(ticker.replace('.', '-'))),) if reason and source.get('ticker') == ticker else ()
+        reason = reason or '收盘价来源尚未通过核对'
+        return _card('price', _GAP_VALUES['price'], reason, (reason,), links)
     bar = price['bars'][-1]
     listing = validated_price_filing_association(association)
     matched = listing and listing['ticker'] == ticker and all(
         listing['source_receipts'][1].get(key) == price.get(key) for key in ('observed_at', 'payload_sha256'))
     scope = '报价场所与上市记录已核对。' if matched else '报价代码已核对，上市关联仍单独核查。'
-    return _card('price', f"{price['currency']} {bar['close']:,.2f}", f"{bar['date']} · 已完成收盘",
+    status = '日期过旧，近期收盘待核对' if price.get('observation_state') == 'stale_observation' else '已完成收盘'
+    return _card('price', f"{price['currency']} {bar['close']:,.2f}", f"{bar['date']} · {status}",
                  (f"观察时间 {price['observed_at']} · 供应商代码 {price['provider_symbol']}", scope,
                   '历史收盘观察。拆股及股息调整口径单独核对。'),
                  (('Yahoo 日线来源', price['source_url']),))
@@ -113,10 +122,13 @@ def _money(currency, value):
 
 
 def _financial_answer(projection, financial):
+    financial = financial if isinstance(financial, Mapping) else {}
     fact = projection.get('facts', {}).get('revenue')
     if not fact:
-        message = ('已请求数据，尚无通过核对的财报收入。' if projection.get('attempted')
-                   else '使用「更新财报与价格」取得可核对期间。')
+        if financial.get('status') in {None, 'not_requested'}:
+            message = '尚未查询财报。使用「更新财报与价格」取得可核对期间。'
+        else:
+            message = _FINANCIAL_GAPS.get(financial.get('reason'), '已请求数据，尚无通过核对的财报收入。')
         return _card('financial', _GAP_VALUES['financial'], message, (message,))
     start, end, kind = (projection[key] for key in ('period_start', 'period_end', 'period_kind'))
     unit, value = fact['unit'], fact['value']
@@ -125,12 +137,13 @@ def _financial_answer(projection, financial):
     evidence = [f"{'直接季度' if kind == 'quarterly' else '报告年度'} {start} 至 {end} · {unit} {value:,}",
                 f"字段 {fact.get('taxonomy', '')}:{fact.get('concept', '')}",
                 f"申报 {accession or '未取得'} · 观察 {observed or '未取得'}"]
-    if fact.get('filed'):
-        evidence.append(f"申报日期 {fact['filed']}")
+    filed = projection.get('filed') or fact.get('filed')
+    if _iso_date(filed):
+        evidence.append(f'申报日期 {filed}')
     links = [('SEC 财报字段', fact['source_ref'])] if fact.get('source_ref') else []
     cik = financial.get('sec_cik')
     if isinstance(cik, str) and re.fullmatch(r'\d{10}', cik) and isinstance(accession, str) and re.fullmatch(r'\d{10}-\d{2}-\d{6}', accession):
-        links.append(('SEC 完整申报', f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-", "")}/{accession}.txt'))
+        links.append(('SEC 申报详情', f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-", "")}/{accession}-index.htm'))
     comparison = _comparable_revenue(financial, end, kind)
     context = f'截至 {end}'
     if comparison:
@@ -146,6 +159,16 @@ def _financial_answer(projection, financial):
         evidence.extend(f"较新期间截至 {row['period_end']}，详情见数据来源。" for row in projection['withheld_periods'])
     label = '扣除利息费用后营收' if fact.get('concept') == 'RevenuesNetOfInterestExpense' else '营收'
     return _card('financial', f'{label} {_money(unit, value)}', context, tuple(evidence), tuple(links))
+
+
+def _annual_filing_links(label, context):
+    if not isinstance(context, Mapping):
+        return []
+    return [
+        (f"{label} {row['form']}（申报记录）", row['source_ref'])
+        for row in context.get('annual_versions', ())
+        if isinstance(row, Mapping) and row.get('form') and row.get('source_ref')
+    ]
 
 
 def _valuation_answer(ticker, view):
@@ -168,10 +191,31 @@ def _valuation_answer(ticker, view):
     if subject and valid_count:
         context_parts.append(f'{count} 家合格')
     evidence = [method]
-    links = []
+    links = [('同行候选组来源', view['industry_source_ref'])] if view.get('industry_source_ref') else []
     for label, key in (('本公司年度申报', 'filing_ref'), ('本公司价格来源', 'price_source_ref')):
         if subject.get(key):
             links.append((label, subject[key]))
+    if not subject:
+        source = view.get('subject_source_context')
+        links.extend(_annual_filing_links('本公司', source))
+        dates = source.get('close_date_observation') if isinstance(source, Mapping) else None
+        if isinstance(dates, Mapping) and _iso_date(dates.get('quote_day')) and _iso_date(dates.get('close_day')):
+            evidence.append(f"供应商报价日期 {dates['quote_day']} · 日线收盘 {dates['close_day']}。")
+            for label, key in (('本公司供应商报价来源', 'quote_source_ref'), ('本公司日线来源', 'close_source_ref')):
+                if dates.get(key):
+                    links.append((label, dates[key]))
+        listing = view.get('listing_context')
+        if isinstance(listing, Mapping) and view.get('reason') in {
+            'listing_classification_unavailable', 'selected_listing_or_cik_unverified',
+        }:
+            for label, key in (('上市来源查询', 'source_attempts'), ('上市核对来源', 'source_receipts')):
+                links.extend((label, row['source_url']) for row in listing.get(key, ())
+                             if isinstance(row, Mapping) and row.get('source_url'))
+    amendment = subject.get('amendment_scope')
+    if isinstance(amendment, Mapping) and amendment.get('status') == 'supported':
+        receipts = amendment.get('source_receipts', ())
+        if len(receipts) == 2 and isinstance(receipts[1], Mapping) and receipts[1].get('source_url'):
+            links.append(('本公司年度申报修订原文', receipts[1]['source_url']))
     if subject and _number(subject.get('multiple')) and subject['multiple'] > 0:
         evidence.append(f"本公司年度 P/E {_multiple(subject['multiple'])}。")
     supported = (
@@ -187,21 +231,39 @@ def _valuation_answer(ticker, view):
         value = ('年度 P/E 等于同行参照' if premium == 0 else
                  f"年度 P/E {'高于' if premium > 0 else '低于'}同行参照 {magnitude}")
         evidence.append(f"同行参照中位数 {_multiple(view['peer_median'])} · " + '、'.join(row['ticker'] for row in peers))
+        for peer in peers:
+            for label, key in (('年度申报', 'filing_ref'), ('日线来源', 'price_source_ref')):
+                if peer.get(key):
+                    links.append((f"{peer['ticker']} {label}", peer[key]))
     else:
-        reason = REASONS.get(view.get('reason'), '同口径比较所需的证据尚未通过核对。')
+        reason = _reason(view.get('reason'))
         if view.get('status') == 'research_comparison':
             reason = '同行数量、倍数或同日收盘证据尚未通过核对。'
         value = _GAP_VALUES['valuation']
         if not subject or not context_parts:
             context_parts.append(reason)
         evidence.append(reason)
+        if not subject:
+            evidence.append('本公司依据未通过核对，同行尚未核查。')
     for row in view.get('excluded') or ():
-        if isinstance(row, Mapping) and row.get('ticker') and row.get('reason') in REASONS:
-            evidence.append(f"{row['ticker']} · {REASONS[row['reason']]}")
-            diagnostics = row.get('diagnostics')
-            audit = diagnostics.get('annual_eps_audit') if isinstance(diagnostics, Mapping) else None
-            if isinstance(audit, Mapping) and audit.get('source_url'):
-                links.append((f"{row['ticker']} 年度 EPS 原文", audit['source_url']))
+        if not isinstance(row, Mapping) or not row.get('ticker'):
+            continue
+        symbol = row['ticker']
+        evidence.append(f"{symbol} · {_reason(row.get('reason'))}")
+        diagnostics = row.get('diagnostics')
+        if not isinstance(diagnostics, Mapping):
+            continue
+        eps = diagnostics.get('annual_eps_observation')
+        if isinstance(eps, Mapping) and eps.get('filing_ref'):
+            links.append((f'{symbol} 年度申报（未纳入）', eps['filing_ref']))
+        else:
+            links.extend(_annual_filing_links(symbol, diagnostics))
+        price = diagnostics.get('price_observation')
+        if isinstance(price, Mapping) and price.get('source_ref'):
+            links.append((f'{symbol} 日线来源（未纳入）', price['source_ref']))
+        audit = diagnostics.get('annual_eps_audit')
+        if isinstance(audit, Mapping) and audit.get('source_url'):
+            links.append((f'{symbol} 年度 EPS 原文', audit['source_url']))
     return _card('valuation', value, ' · '.join(context_parts), tuple(evidence), tuple(links))
 
 

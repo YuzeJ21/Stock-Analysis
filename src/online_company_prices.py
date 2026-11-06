@@ -189,7 +189,7 @@ def fetch_online_company_prices(
 
 def get_online_company_prices(
     ticker: str, session_state: MutableMapping[str, Any], *, refresh_requested: bool,
-    workspace_mode: str = "research", fetcher=None, observed_at=None,
+    workspace_mode: str = "research", fetcher=None, observed_at=None, include_verified_session_close=False,
 ) -> dict[str, Any]:
     ticker = str(ticker or "").strip().upper()
     reason = _scope(workspace_mode)
@@ -200,6 +200,7 @@ def get_online_company_prices(
         if isinstance(cached, Mapping) and cached.get("ticker") == ticker:
             return dict(cached)
         return {"status": "not_requested", "ticker": ticker, "bars": []}
-    result = fetch_online_company_prices(ticker, workspace_mode=workspace_mode, fetcher=fetcher, observed_at=observed_at)
+    result = fetch_online_company_prices(ticker, workspace_mode=workspace_mode, fetcher=fetcher, observed_at=observed_at,
+                                        include_verified_session_close=include_verified_session_close)
     session_state[SESSION_KEY] = result
     return result
