@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>Stock Research Command Center · 公司研究演示</title>
+  <meta name="description" content="Stock Research Command Center 的合成数据演示。查看虚构公司的收盘价、财报变化和同行估值。">
+  <meta property="og:title" content="Stock Research Command Center · 公司研究演示">
+  <meta property="og:description" content="Stock Research Command Center 的合成数据演示。查看虚构公司的收盘价、财报变化和同行估值。">
+  <style>
+.company-answer-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0;min-width:0}
+.company-answer-summary .company-answer{min-width:0;padding:12px 14px;background:#fff;color:#172522;border:1px solid #dce3de;border-radius:8px;overflow-wrap:anywhere}
+.company-answer-summary .company-answer h2{margin:0 0 4px!important;padding:0!important;font-size:.88rem!important;line-height:1.35;color:#42564e}
+.company-answer-summary .company-answer p{margin:0 0 4px;line-height:1.4}
+.company-answer-summary .company-answer-value{font-size:1.1rem;font-weight:750}
+.company-answer-summary .company-answer-context{font-size:.82rem;color:#42564e}
+.company-answer-summary summary{display:list-item;align-content:center;width:fit-content;min-height:44px;cursor:pointer;font-size:.83rem;color:#245842}
+.company-answer-summary ul{margin:4px 0 0;padding-left:20px;font-size:.83rem}
+.company-answer-summary li{margin:4px 0}
+.company-answer-summary a{color:#245842;text-decoration:underline}
+.company-answer-summary summary:focus-visible,.company-answer-summary a:focus-visible{outline:3px solid #245842;outline-offset:2px}
+@media(max-width:700px){
+  .company-answer-summary{grid-template-columns:minmax(0,1fr);gap:6px;margin:10px 0}
+  .company-answer-summary .company-answer{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;padding:8px 10px}
+  .company-answer-summary .company-answer h2,.company-answer-summary .company-answer-value,.company-answer-summary .company-answer-context{grid-column:1}
+  .company-answer-summary .company-answer details{grid-column:1/-1}
+  .company-answer-summary .company-answer details:not([open]){grid-column:2;grid-row:1/4;align-self:center}
+  .company-answer-summary .company-answer-value{font-size:1rem}
+}
+@media(max-width:300px){.company-answer-summary .company-answer{display:block}}
+@media(forced-colors:active){.company-answer-summary summary:focus-visible,.company-answer-summary a:focus-visible{outline-color:Highlight}}
+
+body { margin: 0; background: #f5f7f6; color: #1c302a;
+       font: 1rem/1.5 system-ui, sans-serif; }
+main { max-width: 65rem; margin-inline: auto; padding: 1.5rem 1.25rem; }
+h1 { font-size: clamp(1.65rem, 4vw, 2.25rem); line-height: 1.2; margin: .2rem 0; }
+.demo-label { color: #275d45; font-weight: 700; }
+.demo-label, .demo-note { margin: 0; }
+.demo-controls { margin: 1rem 0; padding: 0; border: 0; min-inline-size: 0; }
+.demo-controls legend { padding: 0; font-size: .9rem; font-weight: 650; }
+.demo-controls label { display: inline-flex; align-items: center; gap: .45rem;
+                       min-height: 2.75rem; margin-inline-end: .8rem; cursor: pointer; }
+.demo-controls input { margin: 0; accent-color: #275d45; }
+.demo-controls input:focus-visible { outline: 2px solid #275d45; outline-offset: 3px; }
+.demo-state--withheld { display: none; }
+.demo-controls:has(#demo-withheld:checked) ~ .demo-state--available { display: none; }
+.demo-controls:has(#demo-withheld:checked) ~ .demo-state--withheld { display: block; }
+</style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="demo-label">合成数据演示 · 虚构公司</p>
+      <h1>雾岬光路</h1>
+      <p class="demo-note">公司、价格、财务和同行数据均为示例。</p>
+    </header>
+    <fieldset class="demo-controls">
+      <legend>切换同行样本</legend>
+      <label><input type="radio" name="demo-scenario" checked> 3 家符合</label>
+      <label><input type="radio" name="demo-scenario" id="demo-withheld"> 2 家符合</label>
+    </fieldset>
+    <div class="demo-state--available"><section class="company-answer-summary" aria-label="公司研究摘要"><article class="company-answer" data-company-answer="price"><h2>最近收盘</h2><p class="company-answer-value">USD 48.00</p><p class="company-answer-context">2026-10-30 · 已完成收盘</p><details><summary>查看最近收盘依据</summary><ul><li>示例日线收盘记录，2026-10-30，48.00 USD。</li></ul></details></article><article class="company-answer" data-company-answer="financial"><h2>财报变化</h2><p class="company-answer-value">营收 USD 1.20 亿</p><p class="company-answer-context">截至 2025-12-31 · 较上财年增加</p><details><summary>查看财报变化依据</summary><ul><li>示例年度财务记录。2025 年营收为 1.20 亿 USD，2024 年为 0.96 亿 USD。</li><li>2025 年度摊薄 EPS 为 2.00 USD，用于示例估值。</li></ul></details></article><article class="company-answer" data-company-answer="valuation"><h2>同行估值</h2><p class="company-answer-value">24.0× · 同行中位 20.0×</p><p class="company-answer-context">3 家符合 · 高于同行中位数 20%</p><details><summary>查看同行估值依据</summary><ul><li>本公司 P/E 为 2026-10-30 的示例收盘价 48.00 USD 除以年度摊薄 EPS 2.00 USD。</li><li>三家参照使用同日收盘价与相同财年。参照 A、B、C 的收盘价分别为 36.00、40.00、44.00 USD，摊薄 EPS 均为 2.00 USD。</li><li>同行中位数取三个 P/E 的中间值。相对差异按 24.0 ÷ 20.0 − 1 计算。</li></ul></details></article></section></div>
+    <div class="demo-state--withheld"><section class="company-answer-summary" aria-label="公司研究摘要"><article class="company-answer" data-company-answer="price"><h2>最近收盘</h2><p class="company-answer-value">USD 48.00</p><p class="company-answer-context">2026-10-30 · 已完成收盘</p><details><summary>查看最近收盘依据</summary><ul><li>示例日线收盘记录，2026-10-30，48.00 USD。</li></ul></details></article><article class="company-answer" data-company-answer="financial"><h2>财报变化</h2><p class="company-answer-value">营收 USD 1.20 亿</p><p class="company-answer-context">截至 2025-12-31 · 较上财年增加</p><details><summary>查看财报变化依据</summary><ul><li>示例年度财务记录。2025 年营收为 1.20 亿 USD，2024 年为 0.96 亿 USD。</li><li>2025 年度摊薄 EPS 为 2.00 USD，用于示例估值。</li></ul></details></article><article class="company-answer" data-company-answer="valuation"><h2>同行估值</h2><p class="company-answer-value">同行比较暂缺</p><p class="company-answer-context">本公司 24.0× · 2 家符合 · 至少需 3 家</p><details><summary>查看同行估值依据</summary><ul><li>参照 A 和参照 B 的示例收盘日均为 2026-10-30，年度摊薄 EPS 口径可比。</li><li>参照 C 的示例收盘日为 2026-10-29，未通过同日收盘价核对。</li><li>达到三家合格参照后，才显示同行中位数及相对倍数差异。</li></ul></details></article></section></div>
+  </main>
+</body>
+</html>
