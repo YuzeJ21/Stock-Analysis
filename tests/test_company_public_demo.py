@@ -88,13 +88,23 @@ def test_amd_case_uses_dated_filing_metrics_and_withholds_market_data():
     html = build_amd_demo_html()
     document = _Document(html)
     for text in ("Advanced Micro Devices", "Sep 26, 2026", "Nov 4, 2026", "+44.7%", "21.2%",
-                 "13.7%", "+7.4 pp", "Peer comparison withheld", "View why"):
+                 "13.7%", "+7.4 pp", "Peer comparison withheld", "View why",
+                 "What drove the quarter", "63.9%", "47.0%", "Quarterly trends", "Q4 FY2025",
+                 "Q1 FY2026", "Q2 FY2026", "130.3", "Cash generation", "Nine months ended",
+                 "4.678", "3.437", "Sample Monitor follow-up"):
         assert text in html
     assert not document.scripts
     assert "Synthetic data" not in html and "13,377" not in html and "9,246" not in html
     assert {attrs["href"] for tag, attrs in document.elements if tag == "a" and attrs["href"].startswith("https:")} == {
+        "https://www.sec.gov/Archives/edgar/data/2488/000000248826000014/q42025991.htm",
+        "https://www.sec.gov/Archives/edgar/data/2488/000000248826000076/amd-20260328.htm",
+        "https://www.sec.gov/Archives/edgar/data/2488/000000248826000123/amd-20260627.htm",
         "https://www.sec.gov/Archives/edgar/data/2488/000000248826000191/amd-20260926.htm",
     }
+    ids = {attrs["id"] for _, attrs in document.elements if "id" in attrs}
+    assert all(attrs["href"][1:] in ids for tag, attrs in document.elements
+               if tag == "a" and attrs["href"].startswith("#"))
+    assert any(tag == "a" and attrs["href"] == "./#notes" for tag, attrs in document.elements)
 
 
 @contextmanager

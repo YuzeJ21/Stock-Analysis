@@ -2,6 +2,8 @@
 
 Share the [interactive English company research demo](https://yuzej21.github.io/Stock-Analysis/) from GitHub or LinkedIn. It uses a fictional company and synthetic data. The local Streamlit walkthrough below uses the bundled demo profile.
 
+The [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) shows real quarter drivers, four directly reported quarters, a separate nine-month cash comparison, and a sample Monitor follow-up. The filing links explain the calculations and the public peer valuation gap.
+
 ## Share Boundary
 
 - Screenshots are product evidence only; they do not prove data freshness or unlock blocked inputs.
@@ -9,7 +11,7 @@ Share the [interactive English company research demo](https://yuzej21.github.io/
 - Share under the controlled portfolio/demo license; do not describe the repository as open source or reusable software.
 - Keep the demo research-only: no investment advice, broker action, order routing, auto-trading, or direct buy/sell instructions.
 - Saved source labels and screenshots do not establish source rights, current-market freshness, or commercial permission.
-- GitHub Pages hosts the guided synthetic case. Use `docs/HOSTED_DEMO_DEPLOYMENT.md` when preparing a separate Streamlit deployment.
+- GitHub Pages hosts the guided synthetic case and the dated AMD filing case. Use `docs/HOSTED_DEMO_DEPLOYMENT.md` when preparing a separate Streamlit deployment.
 - Public UX status is `share_review_ready` for the local GitHub/demo workflow: public checks, browser evidence, and repeated local cold/warm evidence pass. Hosted-route verification and external reviewer workflow evidence remain pending before calling it a hosted or externally validated product.
 - FMP, Alpha Vantage, and Finnhub are optional provider fallbacks and are not configured by default. Provider setup does not prove coverage until a reviewed source-backed smoke, validation, preview, and readiness rebuild pass.
 - Coverage is intentionally readiness-gated rather than complete. Fundamentals, share count, peer mapping, earnings, and analyst estimates can remain blocked or locked while the product is still useful.
@@ -18,6 +20,7 @@ Share the [interactive English company research demo](https://yuzej21.github.io/
 ## Two-Minute External Review Path
 
 - Public interactive demo: search for `FICT`, inspect Financial Trends, and switch from three eligible peers to two in Peer Valuation. Open Research Notes, add the sample follow-up to Monitor, and return to the company.
+- Public AMD case: read the growth driver, open Quarterly Trends and Cash Flow, and see how the sample Monitor item turns those observations into a follow-up. Try adding a follow-up in the synthetic guided demo.
 - GitHub-only review: start with the README for the implementation and the saved examples below.
 - Live dashboard review: run `make dashboard` for Personal Research. For the compact local visitor snapshot, run `make demo-dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; use `make readiness-ops-center` for current lane truth, while `make status-check TOP_N=5` remains saved-snapshot context.
