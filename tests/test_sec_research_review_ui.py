@@ -8,7 +8,7 @@ def app():
     from src.sec_research_review_ui import render_company_review,render_review_monitor
     page=st.radio('Test route',['company','monitor'])
     if page=='company':render_company_review(st,'NEM',st.session_state['test_view'],profile_key='test')
-    else:render_review_monitor(st,profile_key='test')
+    else:render_review_monitor(st,profile_key='test',monitor_origin=st.session_state.get('test_monitor_origin'))
 
 
 def test_save_twice_replay_and_monitor_survive_fresh_session(tmp_path,monkeypatch):
@@ -40,6 +40,65 @@ def test_monitor_reports_gaps_without_process_records(tmp_path,monkeypatch):
     assert not at.exception
     assert '资本支出' in '\n'.join(x.value for x in at.markdown)
     assert not (tmp_path/'data').exists()
+
+
+def test_nem_monitor_pins_pair_and_persists_disposition(tmp_path, monkeypatch):
+    from src import sec_research_review_ui as ui
+    from src.research_workspace import MonitorOrigin
+    from src.sec_research_review import capture_review, save_review
+
+    monkeypatch.setattr(ui, 'PROJECT_ROOT', tmp_path)
+    first, second = (capture_review(view(), profile_key='test', saved_at=stamp)
+                     for stamp in ('2026-11-02T22:00:00Z', '2026-11-02T22:01:00Z'))
+    original = {path: path.read_bytes() for path in (save_review(first, tmp_path), save_review(second, tmp_path))}
+    at = AppTest.from_function(app)
+    at.session_state['test_view'] = {'status': 'not_requested'}
+    at.session_state['test_monitor_origin'] = MonitorOrigin('test', 'NEM', 'notes', '0001164727')
+    at.run().radio[0].set_value('monitor').run()
+    at.button('sec-review-open-pair').click().run()
+    token = first['receipt_id'] + '.' + second['receipt_id']
+    assert at.query_params['sec_pair'] == [token]
+    assert 'online' not in at.query_params
+
+    online = AppTest.from_function(app)
+    online.session_state['test_view'] = {'status': 'not_requested'}
+    online.query_params.update(sec_pair=token, online='1')
+    online.run()
+    assert online.warning
+    assert not any('已固定的 SEC 证据比较' in e.value for e in online.markdown)
+
+    third = capture_review(view(), profile_key='test', saved_at='2026-11-02T22:02:00Z')
+    save_review(third, tmp_path)
+    at.radio[0].set_value('company').run()
+    visible = '\n'.join(e.value for e in at.caption)
+    assert first['receipt_id'] in visible and second['receipt_id'] in visible
+    assert third['receipt_id'] not in visible
+    assert any('未变化' in e.value for e in at.success)
+
+    at.radio[0].set_value('monitor').run()
+    at.radio[1].set_value('still_open')
+    next(b for b in at.button if b.label == '保存复核状态').click().run()
+    assert at.error
+    at.text_area[0].set_value('  Keep the source gap open.  ')
+    next(b for b in at.button if b.label == '保存复核状态').click().run()
+    assert any('Keep the source gap open.' == e.value for e in at.text)
+    assert not at.exception
+
+    fresh = AppTest.from_function(app)
+    fresh.session_state['test_view'] = {'status': 'not_requested'}
+    fresh.query_params['sec_pair'] = token
+    fresh.run().radio[0].set_value('monitor').run()
+    assert any('Keep the source gap open.' == e.value for e in fresh.text)
+    fresh.radio[1].set_value('reviewed')
+    fresh.text_area[0].set_value('Reviewed the evidence.')
+    next(b for b in fresh.button if b.label == '保存复核状态').click().run()
+    assert any('Reviewed the evidence.' == e.value for e in fresh.text)
+    assert all(path.read_bytes() == raw for path, raw in original.items())
+
+    fresh.query_params['sec_pair'] = first['receipt_id'] + '.' + 'f' * 64
+    fresh.run()
+    assert fresh.warning
+    assert not any(b.label == '保存复核状态' for b in fresh.button)
 
 
 def test_other_company_without_observation_has_disabled_receipt_controls(tmp_path,monkeypatch):

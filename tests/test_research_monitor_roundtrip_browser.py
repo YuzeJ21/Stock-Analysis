@@ -64,7 +64,7 @@ def run_browser_fixture(root):
         return {"status": "unavailable", "reason": "sec_profile_unavailable"}
 
     def peer_valuation(ticker, state, *, refresh_requested, expected_cik):
-        if (ticker, expected_cik) == ("NVDA", None) and not refresh_requested:
+        if ticker in {"NEM", "NVDA"} and expected_cik is None and not refresh_requested:
             return {"status": "not_requested"}
         assert (ticker, expected_cik) == ("FICT", "0000001234")
         if refresh_requested:
@@ -137,6 +137,80 @@ def research_browser_server(tmp_path):
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(timeout=5)
+
+
+@pytest.mark.parametrize("width,height", [(1280, 900), (390, 844)], ids=["desktop", "phone"])
+def test_nem_monitor_reopens_and_reviews_exact_pair(research_browser_server, tmp_path, width, height):
+    from src.sec_research_review import capture_review, save_review
+    from tests.test_sec_research_review import view
+
+    if (chrome := find_chrome_executable()) is None:
+        pytest.skip("Chrome-compatible browser is unavailable")
+    playwright = pytest.importorskip("playwright.sync_api")
+    before_view, after_view = view(), view()
+    for observation in (before_view, after_view):
+        observation["approved_direct_fields"].pop()
+    after_view["approved_direct_fields"][0]["value"] = 110
+    after_view["companyfacts_identity"]["payload_sha256"] = "c" * 64
+    before = capture_review(before_view, profile_key="demo", saved_at="2026-11-02T22:00:00Z")
+    after = capture_review(after_view, profile_key="demo", saved_at="2026-11-02T22:01:00Z")
+    receipt_paths = (save_review(before, tmp_path), save_review(after, tmp_path))
+    original_bytes = [path.read_bytes() for path in receipt_paths]
+    token = before["receipt_id"] + "." + after["receipt_id"]
+
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(executable_path=str(chrome), headless=True)
+        try:
+            page = browser.new_page(viewport={"width": width, "height": height},
+                                    color_scheme="dark" if width < 640 else "light")
+            page.set_default_timeout(15_000)
+            page.route("**/*", lambda route: route.continue_()
+                       if route.request.url.startswith(research_browser_server + "/") else route.abort())
+            errors = []
+            page.on("pageerror", lambda error: errors.append(str(error)))
+            page.goto(research_browser_server + "/?mode=research&page=monitor")
+            open_pair = page.get_by_role("button", name="打开这两份证据", exact=True)
+            playwright.expect(open_pair).to_be_visible()
+            open_pair.click()
+            panel = page.locator(".st-key-sec-review-panel")
+            playwright.expect(panel.get_by_role("heading", name="已固定的 SEC 证据比较")).to_be_visible()
+            assert parse_qs(urlsplit(page.url).query)["sec_pair"] == [token]
+            for receipt in (before, after):
+                playwright.expect(panel).to_contain_text(receipt["receipt_id"])
+            playwright.expect(panel).to_contain_text("100 → 110 USD")
+            playwright.expect(panel).to_contain_text("资本支出")
+            for label in ("较早证据的来源", "较新证据的来源"):
+                panel.get_by_text(label, exact=False).click()
+            assert panel.get_by_role("link", name="SEC Companyfacts 原始来源").count() == 2
+            assert panel.evaluate("(panel) => panel.scrollWidth <= panel.clientWidth + 1")
+
+            third = capture_review(after_view, profile_key="demo", saved_at="2026-11-02T22:02:00Z")
+            save_review(third, tmp_path)
+            panel.get_by_role("link", name="返回 Monitor 的这项复核").click()
+            playwright.expect(open_pair).to_be_visible()
+            assert parse_qs(urlsplit(page.url).query)["sec_pair"] == [token]
+            save = page.get_by_role("button", name="保存复核状态")
+            for label, reason in (("Reviewed", "Checked the two original observations."),
+                                  ("Still open", "Verify the missing capex source.")):
+                radio = page.get_by_role("radio", name=label, exact=True)
+                page.locator("label").filter(has=radio).click()
+                playwright.expect(radio).to_be_checked()
+                page.get_by_role("textbox", name="复核原因").fill(reason)
+                save.click()
+                playwright.expect(page.get_by_text("已保存复核状态。", exact=True)).to_be_visible()
+                playwright.expect(page.locator('[data-testid="stText"]').get_by_text(reason, exact=True)).to_be_visible()
+            page.reload()
+            playwright.expect(page.locator('[data-testid="stText"]').get_by_text(
+                "Verify the missing capex source.", exact=True)).to_be_visible()
+            playwright.expect(page.get_by_text("资本支出", exact=True)).to_be_visible()
+            page.get_by_role("button", name="查看最新证据对", exact=True).click()
+            playwright.expect(page.get_by_text("待复核", exact=True)).to_be_visible()
+            assert "sec_pair" not in parse_qs(urlsplit(page.url).query)
+            assert not errors
+            assert not (tmp_path / "provider-calls.txt").exists()
+            assert [path.read_bytes() for path in receipt_paths] == original_bytes
+        finally:
+            browser.close()
 
 
 @pytest.mark.parametrize(

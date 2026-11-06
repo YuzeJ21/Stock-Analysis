@@ -82,8 +82,8 @@ WORKSPACE_ROUTE_QUERY_KEYS = {
     (PUBLIC_DEMO_MODE, PROOF_HISTORY_PATH_TITLE): ("ticker",),
     (RESEARCH_MODE, "Research Desk"): (),
     (RESEARCH_MODE, "Discover"): (),
-    (RESEARCH_MODE, "Company Workbench"): ("ticker", "open", "cash_preview", "online", "section"),
-    (RESEARCH_MODE, "Monitor"): ("return_ticker", "return_online"),
+    (RESEARCH_MODE, "Company Workbench"): ("ticker", "open", "cash_preview", "online", "section", "sec_pair"),
+    (RESEARCH_MODE, "Monitor"): ("return_ticker", "return_online", "sec_pair"),
     (RESEARCH_MODE, "Data Health"): DATA_HEALTH_QUERY_KEYS,
     (RESEARCH_MODE, PROOF_HISTORY_PATH_TITLE): ("ticker",),
 }
@@ -215,6 +215,10 @@ def canonical_workspace_query(
     for key in WORKSPACE_ROUTE_QUERY_KEYS.get((normalized_mode, normalized_page), ()):
         if key in retained:
             if key == "section" and retained[key] not in {"overview", "financials", "valuation", "notes", "sources"}:
+                continue
+            if key == "sec_pair" and normalized_page == "Company Workbench" and (
+                retained.get("ticker") != "NEM" or retained.get("section") != "notes"
+            ):
                 continue
             canonical[key] = retained[key]
     return canonical

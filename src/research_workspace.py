@@ -1560,6 +1560,8 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
         query["return_ticker"] = ticker
         if online:
             query["return_online"] = "1"
+    if not online and ticker == "NEM" and params.get("section") == "notes" and params.get("sec_pair"):
+        query["sec_pair"] = params["sec_pair"]
     params.from_dict(query)
 
 
@@ -1635,9 +1637,13 @@ def research_monitor_return_link(ticker: str, *, origin: MonitorOrigin | None = 
     }
 
 
-def research_monitor_handoff_href(ticker: str, *, online: bool = False) -> str:
-    href = "?mode=research&page=monitor"
-    return f"{href}&return_ticker={_quoted_ticker(ticker)}" if ticker and not online else href
+def research_monitor_handoff_href(ticker: str, *, online: bool = False, sec_pair: str = "") -> str:
+    query = {"mode": "research", "page": "monitor"}
+    if ticker and not online:
+        query["return_ticker"] = str(ticker).strip().upper()
+    if ticker == "NEM" and sec_pair:
+        query["sec_pair"] = sec_pair
+    return "?" + urlencode(query)
 
 
 def research_workflow_navigation_html(

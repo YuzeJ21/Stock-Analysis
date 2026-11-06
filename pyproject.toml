@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "stock-research-command-center"
 version = "0.1.0"
-description = "CSV-first, research-only stock command center with readiness gates, single-stock reports, and transparent valuation blockers."
+description = "Research-only stock workbench with online SEC filings, dated prices, peer valuation checks, and saved evidence review."
 readme = "README.md"
 requires-python = ">=3.10"
-keywords = ["stocks", "research", "streamlit", "readiness", "valuation", "csv"]
+keywords = ["stocks", "research", "streamlit", "sec", "valuation", "filings"]
 dependencies = [
   "numpy>=1.26",
   "pandas>=2.2",

@@ -185,7 +185,8 @@ def build_amd_demo_html():
         <p>At the next AMD filing, compare Data Center’s revenue share and cash after PP&amp;E using matching
           periods. Review working capital and cash spending if the two trends diverge.</p>
         <div class="actions"><a href="#cash-generation">Review the baseline</a>
-          <a href="./#notes">Try adding a follow-up in the guided demo</a></div>
+          <a href="./#notes">Try adding a follow-up in the guided demo</a>
+          <a href="./#monitor">Try the fictional evidence review</a></div>
       </section>
       <details id="filing-source"><summary>Filing &amp; calculations</summary>
         <p><a href="{_FILING}">Read AMD’s Form 10-Q on SEC EDGAR</a> · Accession {_ACCESSION}</p>

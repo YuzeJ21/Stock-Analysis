@@ -4,14 +4,16 @@
     const panels = Array.from(document.querySelectorAll("[data-demo-page]"));
     const panelByPage = new Map(panels.map((panel) => [panel.dataset.demoPage, panel]));
     const steps = document.querySelectorAll("nav [data-demo-go]");
+    const evidencePair = document.querySelector("#demo-evidence-pair");
     let openPeerEvidence = false;
 
     function showCurrentPage(moveFocus) {
         const requested = location.hash.slice(1);
-        if (moveFocus && requested && !panelByPage.has(requested)) {
+        const reviewingEvidence = requested === evidencePair.id;
+        if (moveFocus && requested && !reviewingEvidence && !panelByPage.has(requested)) {
             return;
         }
-        const page = panelByPage.has(requested) ? requested : "discover";
+        const page = reviewingEvidence ? "notes" : panelByPage.has(requested) ? requested : "discover";
         for (const panel of panels) {
             panel.hidden = panel.dataset.demoPage !== page;
         }
@@ -25,7 +27,10 @@
         if (moveFocus) {
             window.scrollTo(0, 0);
             const panel = panelByPage.get(page);
-            if (page === "valuation" && openPeerEvidence) {
+            if (reviewingEvidence) {
+                evidencePair.querySelector("h3").focus({preventScroll: true});
+                evidencePair.scrollIntoView({block: "start"});
+            } else if (page === "valuation" && openPeerEvidence) {
                 const state = panel.querySelector("#demo-withheld").checked ? "withheld" : "available";
                 const evidence = panel.querySelector(`.demo-state--${state} .peer-evidence`);
                 evidence.open = true;
@@ -110,5 +115,37 @@
         monitorItem.hidden = false;
         monitorEmpty.hidden = true;
         noteStatus.textContent = "Follow-up added for this page.";
+    });
+
+    const reviewForm = document.querySelector("[data-demo-review-form]");
+    const reviewReason = reviewForm.querySelector("textarea");
+    const reviewFeedback = reviewForm.querySelector("[data-demo-review-feedback]");
+    const dispositionLabels = document.querySelectorAll("[data-demo-review-status]");
+    const reasonLines = document.querySelectorAll("[data-demo-review-reason-line]");
+    reviewForm.reset();
+    document.querySelector("[data-demo-review-controls]").hidden = false;
+    reviewForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const disposition = new FormData(reviewForm).get("disposition");
+        const reason = reviewReason.value.trim();
+        if (!reason) {
+            reviewReason.setAttribute("aria-invalid", "true");
+            reviewFeedback.textContent = "Enter a reason first.";
+            reviewReason.focus();
+            return;
+        }
+        if (!disposition) {
+            return;
+        }
+        reviewReason.value = reason;
+        reviewReason.removeAttribute("aria-invalid");
+        for (const label of dispositionLabels) {
+            label.textContent = disposition;
+        }
+        for (const line of reasonLines) {
+            line.querySelector("[data-demo-review-reason]").textContent = reason;
+            line.hidden = false;
+        }
+        reviewFeedback.textContent = "Disposition saved for this page.";
     });
 })();

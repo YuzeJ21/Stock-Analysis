@@ -2794,11 +2794,11 @@ def test_package_metadata_matches_public_research_only_positioning():
 
     for phrase in (
         'name = "stock-research-command-center"',
-        "CSV-first, research-only stock command center",
-        "readiness gates",
-        "single-stock reports",
-        "transparent valuation blockers",
-        'keywords = ["stocks", "research", "streamlit", "readiness", "valuation", "csv"]',
+        "Research-only stock workbench",
+        "online SEC filings",
+        "peer valuation checks",
+        "saved evidence review",
+        'keywords = ["stocks", "research", "streamlit", "sec", "valuation", "filings"]',
         "[project.urls]",
         'Repository = "https://github.com/YuzeJ21/Stock-Analysis"',
     ):

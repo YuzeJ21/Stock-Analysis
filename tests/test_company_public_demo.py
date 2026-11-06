@@ -120,6 +120,9 @@ def test_amd_case_uses_dated_filing_metrics_and_withholds_market_data():
     assert [text for href, text in document.links if href == "./#valuation"] == [
         "Explore advanced research tools",
     ]
+    assert [text for href, text in document.links if href == "./#monitor"] == [
+        "Try the fictional evidence review",
+    ]
 
 
 @contextmanager
@@ -333,4 +336,99 @@ def test_native_sections_and_peer_controls_remain_usable_without_scripts(tmp_pat
         expect(scenario.locator("[data-demo-scenario-baseline]")).to_be_visible()
         expect(scenario.get_by_role("slider", name="Scenario WACC")).to_be_hidden()
         expect(scenario).to_contain_text("The interactive slider requires scripts.")
+        monitor = page.locator('[data-demo-page="monitor"]')
+        monitor.get_by_role("link", name="Review saved evidence", exact=True).press("Enter")
+        expect(page).to_have_url(re.compile(r"#demo-evidence-pair$"))
+        pair = page.get_by_role("region", name="Saved evidence comparison", exact=True)
+        expect(pair).to_contain_text("FICT-FY25-01")
+        expect(pair).to_contain_text("FICT-FY25-02")
+        expect(monitor.get_by_role("button", name="Save disposition", exact=True)).to_be_hidden()
         _viewport_fits(page, viewport)
+
+
+@pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}, {"width": 390, "height": 844}], ids=["desktop", "phone"])
+def test_monitor_reopens_exact_fictional_pair_and_records_a_disposition(tmp_path, viewport):
+    with _browser(tmp_path, viewport) as (page, expect):
+        nav = page.get_by_role("navigation", name="Demo steps")
+        nav.get_by_role("link", name="Monitor", exact=True).press("Enter")
+        item = page.get_by_role("region", name="Sample evidence follow-up", exact=True)
+        pair = page.get_by_role("region", name="Saved evidence comparison", exact=True)
+        review = item.get_by_role("link", name="Review saved evidence", exact=True)
+        expect(item).to_contain_text("Pending review")
+        expect(item).to_contain_text("Fictional sample")
+        expect(review).to_have_attribute("href", "#demo-evidence-pair")
+        review.press("Enter")
+        expect(page).to_have_url(re.compile(r"#demo-evidence-pair$"))
+        expect(pair.get_by_role("heading", name="Saved evidence comparison", exact=True)).to_be_focused()
+        observations = pair.locator("[data-demo-evidence-observation]")
+        expect(observations).to_have_count(2)
+        expect(observations.nth(0)).to_contain_text("FICT-FY25-01")
+        expect(observations.nth(1)).to_contain_text("FICT-FY25-02")
+        for observation in observations.all():
+            expect(observation).to_contain_text("Jan 1–Dec 31, 2025")
+            expect(observation).to_contain_text("Fictional FY2025 annual statement")
+            expect(observation).to_contain_text("USD 120M revenue")
+        expect(observations.nth(0)).to_contain_text("Operating income line pending")
+        expect(observations.nth(1)).to_contain_text("USD 17M operating income")
+        expect(observations.nth(0)).to_be_in_viewport(ratio=1)
+        expect(observations.nth(1)).to_be_in_viewport(ratio=1)
+        original_observations = observations.all_inner_texts()
+        _viewport_fits(page, viewport)
+
+        back = pair.get_by_role("link", name="Back to Monitor", exact=True)
+        back.press("Enter")
+        expect(item).to_be_visible()
+        detail = _open_native_detail(item, "Record a disposition", expect)
+        still_open = detail.get_by_role("radio", name="Still open", exact=True)
+        reviewed = detail.get_by_role("radio", name="Reviewed", exact=True)
+        reason = detail.get_by_role("textbox", name="Reason", exact=True)
+        save = detail.get_by_role("button", name="Save disposition", exact=True)
+        status = item.locator("[data-demo-review-status]")
+        saved_reason = item.locator("[data-demo-review-reason]")
+
+        still_open.press("Space")
+        expect(still_open).to_be_checked()
+        reason.fill("   ")
+        save.press("Enter")
+        expect(detail.get_by_role("status")).to_have_text("Enter a reason first.")
+        expect(reason).to_be_focused()
+        expect(status).to_have_text("Pending review")
+        expect(saved_reason).to_be_hidden()
+        reason.fill("  Check the source line again.  ")
+        save.press("Enter")
+        expect(status).to_have_text("Still open")
+        expect(saved_reason).to_have_text("Check the source line again.")
+        assert saved_reason.text_content() == "Check the source line again."
+        expect(reason).to_have_value("Check the source line again.")
+        expect(page.locator("[data-demo-monitor-empty]")).to_be_visible()
+        _viewport_fits(page, viewport)
+
+        review.press("Enter")
+        expect(pair.locator("[data-demo-review-status]")).to_have_text("Still open")
+        expect(pair.locator("[data-demo-review-reason]")).to_have_text("Check the source line again.")
+        assert observations.all_inner_texts() == original_observations
+        back.press("Enter")
+        reviewed.press("Space")
+        expect(reviewed).to_be_checked()
+        reason.fill("   ")
+        save.press("Enter")
+        expect(detail.get_by_role("status")).to_have_text("Enter a reason first.")
+        expect(status).to_have_text("Still open")
+        expect(saved_reason).to_have_text("Check the source line again.")
+        literal_reason = "<b>Operating income line verified</b>"
+        reason.fill(f"  {literal_reason}  ")
+        save.press("Enter")
+        expect(status).to_have_text("Reviewed")
+        expect(saved_reason).to_have_text(literal_reason)
+        assert saved_reason.text_content() == literal_reason
+        expect(saved_reason.locator("b")).to_have_count(0)
+        review.press("Enter")
+        expect(pair.locator("[data-demo-review-status]")).to_have_text("Reviewed")
+        expect(pair.locator("[data-demo-review-reason]")).to_have_text(literal_reason)
+        assert observations.all_inner_texts() == original_observations
+
+        page.reload()
+        expect(pair).to_be_visible()
+        expect(pair.locator("[data-demo-review-status]")).to_have_text("Pending review")
+        expect(pair.locator("[data-demo-review-reason]")).to_be_hidden()
+        assert observations.all_inner_texts() == original_observations

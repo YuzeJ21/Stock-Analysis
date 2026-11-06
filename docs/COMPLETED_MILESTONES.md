@@ -2,6 +2,12 @@
 
 This document is the historical completion log for Stock Research Command Center. The active delivery sequence lives in [ROADMAP.md](../ROADMAP.md); exact implementation history remains available through Git commits and tests.
 
+## 2026-11-06 — Company workflow and bounded NEM disposition
+
+- The local default route presents Research Desk -> Discover -> Company Workbench -> Monitor. Saved Business Trend, valuation scenarios, peer read-through, forward view, catalysts, Decision Lab history and the offline HTML brief remain under named Workbench disclosures. The English GitHub Pages demo mirrors their questions with fictional data, while its separate AMD page is a dated read-only SEC filing case.
+- The NEM Monitor path pins an exact ordered pair of saved annual SEC observations and records a reasoned **Reviewed** or **Still open** disposition in a profile-scoped ignored local sidecar. A missing pair remains unavailable. Saving a decision does not edit immutable evidence receipts, change financial gaps/readiness or grant source rights. The fictional public example has tab-only decision state.
+- Legacy picks, portfolio, ranking and watchlist surfaces remain Operator-only compatibility utilities. The synthetic Earnings Nowcast pilot does not establish a real-company prediction. Revisit a parked investing view only after independent researcher sessions show a repeated decision need, permitted inputs and a no-ranking/no-trading design. Real-company nowcasting additionally needs point-in-time consensus and actuals rights, leakage-safe backtests and calibration. See the active [Roadmap](../ROADMAP.md) and the [NEM method](NEM_SEC_REVIEW.md).
+
 ## Product Foundation
 
 - Readiness-first, CSV-first architecture with central readiness and source-status reporting.

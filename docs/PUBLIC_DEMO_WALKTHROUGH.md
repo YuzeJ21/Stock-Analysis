@@ -2,7 +2,7 @@
 
 Share the [interactive English company research demo](https://yuzej21.github.io/Stock-Analysis/) from GitHub or LinkedIn. It uses a fictional company and synthetic data. The local Streamlit walkthrough below uses the bundled demo profile.
 
-The [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) shows real quarter drivers, four directly reported quarters, a separate nine-month cash comparison, and a sample Monitor follow-up. The filing links explain the calculations and the public peer valuation gap.
+The [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) shows real quarter drivers, four directly reported quarters, a separate nine-month cash comparison, and a sample Monitor follow-up. The filing links explain the calculations and the public peer valuation gap. Its **Try the fictional evidence review** shortcut opens the separate synthetic demo at Monitor; no AMD evidence is imported into that example.
 
 ## Share Boundary
 
@@ -11,7 +11,7 @@ The [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) shows r
 - Share under the controlled portfolio/demo license; do not describe the repository as open source or reusable software.
 - Keep the demo research-only: no investment advice, broker action, order routing, auto-trading, or direct buy/sell instructions.
 - Saved source labels and screenshots do not establish source rights, current-market freshness, or commercial permission.
-- GitHub Pages hosts the guided synthetic case and the dated AMD filing case. Use `docs/HOSTED_DEMO_DEPLOYMENT.md` when preparing a separate Streamlit deployment.
+- GitHub Pages hosts the guided synthetic case and the dated AMD filing case. Use [Hosted Demo Deployment](HOSTED_DEMO_DEPLOYMENT.md) when preparing a separate Streamlit deployment.
 - Public UX status is `share_review_ready` for the local GitHub/demo workflow: public checks, browser evidence, and repeated local cold/warm evidence pass. Hosted-route verification and external reviewer workflow evidence remain pending before calling it a hosted or externally validated product.
 - FMP, Alpha Vantage, and Finnhub are optional provider fallbacks and are not configured by default. Provider setup does not prove coverage until a reviewed source-backed smoke, validation, preview, and readiness rebuild pass.
 - Coverage is intentionally readiness-gated rather than complete. Fundamentals, share count, peer mapping, earnings, and analyst estimates can remain blocked or locked while the product is still useful.
@@ -19,8 +19,8 @@ The [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) shows r
 
 ## Two-Minute External Review Path
 
-- Public interactive demo: search for `FICT` and open Business Trend in Financial Trends. In Peer Valuation, switch from three eligible peers to two, inspect Peer Read-Through, and change WACC in the fictional Scenario Lab. In Research Notes, open Forward View, Catalysts, and Research Decision Lab. Carry the sample follow-up into Monitor and return to the company.
-- Public AMD case: read the growth driver, open Quarterly Trends and Cash Flow, and see how the sample Monitor item turns those observations into a follow-up. **Explore advanced research tools** opens the separate fictional Workbench example.
+- Public interactive demo: search for `FICT` and open Business Trend in Financial Trends. In Peer Valuation, switch from three eligible peers to two, inspect Peer Read-Through, and change WACC in the fictional Scenario Lab. In Research Notes, open Forward View, Catalysts, and Research Decision Lab. In Monitor, choose **Review saved evidence**, compare `FICT-FY25-01` and `FICT-FY25-02` in **Saved evidence comparison**, then return and save **Reviewed** or **Still open** with a reason. The separate personal note and this disposition reset on reload; the two observations are fixed synthetic examples.
+- Public AMD case: read the growth driver, open Quarterly Trends and Cash Flow, and see how the sample Monitor item turns those observations into a follow-up. **Try the fictional evidence review** opens the separate demo at Monitor; **Explore advanced research tools** opens its Workbench. Neither shortcut turns AMD into saved or live research data.
 - GitHub-only review: start with the README for the implementation and the saved examples below.
 - Live dashboard review: run `make dashboard` for Personal Research. For the compact local visitor snapshot, run `make demo-dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; use `make readiness-ops-center` for current lane truth, while `make status-check TOP_N=5` remains saved-snapshot context.

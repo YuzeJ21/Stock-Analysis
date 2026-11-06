@@ -213,7 +213,8 @@ def test_readme_product_tour_matches_v1_public_route_model():
     assert "read-only GitHub Pages demo uses a fictional company and synthetic data" in readme
     assert LOCAL_WORKSPACE_START in readme
     assert "[Data Profiles](docs/DATA_PROFILES.md)" in readme
-    assert "| What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
+    assert "| What workflow should I follow locally? | Research Desk -> Discover -> Company Workbench -> Monitor." in readme
+    assert "The separate controlled Public workspace follows Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History." in readme
     assert "| What should I run when I ask what is next? | Run `make next-stage` for the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |" in readme
     assert "| What does the public demo cover? | The public demo uses synthetic data. The full workspace runs locally for research, and the root license governs reuse. |" in readme
     assert "First review move: open Stock Selector" in readme
@@ -519,7 +520,7 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
     linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
 
     assert "docs/HOSTED_DEMO_DEPLOYMENT.md" in checklist
-    assert "docs/HOSTED_DEMO_DEPLOYMENT.md" in walkthrough
+    assert "[Hosted Demo Deployment](HOSTED_DEMO_DEPLOYMENT.md)" in walkthrough
     assert "docs/HOSTED_DEMO_DEPLOYMENT.md" in linkedin
     assert "[Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md)" in readme
 
@@ -599,7 +600,7 @@ def test_readme_has_external_reviewer_handoff_before_operator_detail():
     checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
 
     assert "## External Reviewer Start Here" in readme
-    assert f"| What should I open first? | Start with the [public company demo]({PUBLIC_COMPANY_DEMO}), then use `docs/PUBLIC_DEMO_WALKTHROUGH.md` for the local five-page workflow. |" in readme
+    assert f"| What should I open first? | Start with the [public company demo]({PUBLIC_COMPANY_DEMO}). The [walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md) explains the fictional demo, dated AMD case, and local workspace. |" in readme
     assert LOCAL_WORKSPACE_START in readme
     assert "| What proves current local readiness? | Run `make readiness-ops-center` for lane truth. `make status-check TOP_N=5` can describe a saved generated snapshot; screenshots are product evidence only. |" in readme
     assert "## External Reviewer Handoff" in readme

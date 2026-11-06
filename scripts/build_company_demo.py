@@ -183,6 +183,14 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
 .note-box ul { margin: 0; padding-left: 1.2rem; }
 .monitor-note { display: grid; gap: .65rem; border-left: .27rem solid #28634f; }
 .monitor-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.saved-evidence { scroll-margin-top: 1rem; }
+.evidence-observations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+.evidence-observations article { min-width: 0; display: grid; gap: .3rem; padding: .75rem;
+  border: 1px solid var(--line); border-radius: .48rem; }
+.evidence-observations h4 { overflow-wrap: anywhere; }
+.review-choices { border: 0; margin: 0; padding: 0; }
+.review-choices label { display: inline-flex; gap: .35rem; align-items: center; min-height: 2.75rem; }
+.review-choices input { accent-color: var(--pine); }
 .page-footer { padding-block: 1rem 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
 @media (max-width: 1000px) {
   .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -200,7 +208,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
   .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
   .layout { padding-top: .8rem; gap: 1rem; }
   .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes { grid-template-columns: minmax(0, 1fr); }
+  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes, .evidence-observations { grid-template-columns: minmax(0, 1fr); }
   .metrics { gap: .45rem; }
   .metric { padding: .6rem; }
   .metric-value { font-size: 1.12rem; }
@@ -511,6 +519,39 @@ def _valuation(comparisons, tables):
                   f"Compare {_COMPANY} with its sample peers and test a valuation assumption.", content)
 
 
+def _review_disposition():
+    return """<p><strong data-demo-review-status>Pending review</strong></p>
+    <p class="monitor-note-text" data-demo-review-reason-line hidden><strong>Reason:</strong> <span data-demo-review-reason></span></p>"""
+
+
+def _saved_evidence_pair():
+    return f"""<section class="surface note-box saved-evidence" id="demo-evidence-pair"
+      aria-labelledby="demo-evidence-pair-title">
+    <span class="badge">Fictional sample</span>
+    <h3 id="demo-evidence-pair-title" tabindex="-1">Saved evidence comparison</h3>
+    <p>Two fixed observations of the same Fogline Photonics filing. The newer observation adds a checked
+      operating-income line. Reported revenue stays the same.</p>
+    <div class="evidence-observations">
+      <article data-demo-evidence-observation>
+        <p class="eyebrow">Baseline · Saved Feb 13, 2026</p>
+        <h4>FICT-FY25-01</h4>
+        <p>Jan 1–Dec 31, 2025</p>
+        <p class="source-note">Fictional FY2025 annual statement</p>
+        <p>USD 120M revenue · Operating income line pending</p>
+      </article>
+      <article data-demo-evidence-observation>
+        <p class="eyebrow">Latest · Saved Feb 20, 2026</p>
+        <h4>FICT-FY25-02</h4>
+        <p>Jan 1–Dec 31, 2025</p>
+        <p class="source-note">Fictional FY2025 annual statement</p>
+        <p>USD 120M revenue · USD 17M operating income</p>
+      </article>
+    </div>
+    {_review_disposition()}
+    {_step_link("monitor", "Back to Monitor")}
+  </section>"""
+
+
 def _notes():
     content = f"""<div class="tool-list" role="group" aria-label="Research tools">
     <details>
@@ -567,15 +608,42 @@ def _notes():
       </ul>
     </aside>
   </div>
-  <div class="actions">{_step_link("monitor", "Open Monitor")}</div>"""
+  <div class="actions">{_step_link("monitor", "Open Monitor")}</div>
+  {_saved_evidence_pair()}"""
     return _panel("notes", f"Step 4 of 5 · Company Workbench · {_TICKER}", "Research Notes",
                   "Turn the evidence into a question you can revisit.", content)
 
 
 def _monitor():
-    content = f"""<div class="surface note-box" id="demo-monitor-empty" data-demo-monitor-empty>
+    content = f"""<section class="surface monitor-note" aria-labelledby="demo-evidence-follow-up-title">
+    <span class="badge">Fictional sample</span>
+    <h3 id="demo-evidence-follow-up-title">Sample evidence follow-up</h3>
+    <p>Fogline Photonics · FY2025 annual statement</p>
+    {_review_disposition()}
+    <a class="button" href="#demo-evidence-pair">Review saved evidence</a>
+    <details data-demo-review-controls hidden>
+      <summary>Record a disposition</summary>
+      <form class="note-form" data-demo-review-form autocomplete="off">
+        <fieldset class="review-choices">
+          <legend class="field-label">Disposition</legend>
+          <div class="actions">
+            <label><input type="radio" name="disposition" value="Reviewed" required> Reviewed</label>
+            <label><input type="radio" name="disposition" value="Still open" required> Still open</label>
+          </div>
+        </fieldset>
+        <label class="field-label" for="demo-review-reason">Reason</label>
+        <textarea id="demo-review-reason" rows="2" maxlength="500" required
+          aria-describedby="demo-review-hint"></textarea>
+        <p class="helper" id="demo-review-hint">A reason is required. Review status and reason reset on reload.</p>
+        <button class="button" type="submit">Save disposition</button>
+        <p class="status" role="status" data-demo-review-feedback></p>
+      </form>
+    </details>
+    <noscript><p class="source-note">Recording a disposition requires scripts.</p></noscript>
+  </section>
+  <div class="surface note-box" id="demo-monitor-empty" data-demo-monitor-empty>
     <span class="badge">Follow-up queue</span>
-    <h3>No follow-up in this demo session</h3>
+    <h3>No personal follow-up yet</h3>
     <p class="source-note">Add a note from Research Notes to see it here.</p>
     {_step_link("notes", "Return to Research Notes")}
   </div>
@@ -588,7 +656,7 @@ def _monitor():
   </article>
   <div class="actions">{_step_link("financials", "Reopen Company Workbench", button=False)}</div>"""
     return _panel("monitor", "Step 5 of 5 · Follow-up queue", "Monitor",
-                  "Review the question you carried forward and return to the company evidence when it is time to revisit it.", content)
+                  "Review a saved evidence comparison and revisit the question you carried forward.", content)
 
 
 def build_demo_html():
