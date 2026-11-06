@@ -82,6 +82,21 @@ def test_demo_is_a_self_contained_explicit_cli_output(tmp_path):
     }
 
 
+def test_amd_case_uses_dated_filing_metrics_and_withholds_market_data():
+    from scripts.build_amd_demo import build_amd_demo_html
+
+    html = build_amd_demo_html()
+    document = _Document(html)
+    for text in ("Advanced Micro Devices", "Sep 26, 2026", "Nov 4, 2026", "+44.7%", "21.2%",
+                 "13.7%", "+7.4 pp", "Peer comparison withheld", "View why"):
+        assert text in html
+    assert not document.scripts
+    assert "Synthetic data" not in html and "13,377" not in html and "9,246" not in html
+    assert {attrs["href"] for tag, attrs in document.elements if tag == "a" and attrs["href"].startswith("https:")} == {
+        "https://www.sec.gov/Archives/edgar/data/2488/000000248826000191/amd-20260926.htm",
+    }
+
+
 @contextmanager
 def _browser(tmp_path, viewport, *, javascript=True):
     from scripts.build_company_demo import build_demo_html

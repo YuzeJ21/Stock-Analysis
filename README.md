@@ -4,7 +4,7 @@ An **Evidence-First Research Workbench** for serious individual equity researche
 
 ## External Reviewer Start Here
 
-[**Open the public company research demo**](https://yuzej21.github.io/Stock-Analysis/). This read-only GitHub Pages demo uses a fictional company and synthetic data. Follow the English workflow in your browser without signing in.
+[**Open the public company research demo**](https://yuzej21.github.io/Stock-Analysis/). This read-only GitHub Pages demo uses a fictional company and synthetic data. Follow the English workflow in your browser without signing in, or [see the real AMD filing example](https://yuzej21.github.io/Stock-Analysis/amd.html).
 
 ### Two-minute walkthrough
 
