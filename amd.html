@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>AMD Filing Case | Stock Research Command Center</title>
+  <meta name="description" content="Review AMD’s Q3 FY2026 revenue growth, operating margin, and peer valuation evidence gap.">
+  <style>
+:root {
+  color-scheme: light; --ink: #152b24; --muted: #496056; --line: #d3e0d7;
+  --pine: #144c3d; --mint: #e8f3ed; --paper: #fff; --ground: #f4f7f3;
+  --amber: #775112; --amber-bg: #f9f1dd;
+  font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; color: var(--ink); background: var(--ground); }
+a { color: var(--pine); text-underline-offset: .18em; }
+:focus-visible { outline: 3px solid #196853; outline-offset: 4px; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+p, figure { margin: 0; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.16; }
+h1 { font-size: clamp(1rem, 2.5vw, 1.23rem); letter-spacing: -.02em; }
+h2 { font-size: clamp(2rem, 5vw, 3.35rem); letter-spacing: -.05em; overflow-wrap: anywhere; }
+h3 { font-size: 1.25rem; letter-spacing: -.025em; }
+.skip-link { position: absolute; z-index: 2; top: 0; left: 1rem; padding: .6rem 1rem;
+  background: var(--paper); transform: translateY(-120%); }
+.skip-link:focus { transform: translateY(.5rem); }
+.masthead { border-bottom: 1px solid var(--line); background: var(--paper); }
+.masthead-inner, .layout, .page-footer { max-width: 79rem; margin-inline: auto;
+  padding-inline: clamp(1rem, 4vw, 2.75rem); }
+.masthead-inner { min-height: 5.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.brand { display: flex; gap: .8rem; align-items: center; }
+.brand-mark { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem;
+  border-radius: .65rem; color: #fff; background: var(--pine); font-size: .75rem; font-weight: 800; letter-spacing: .06em; }
+.eyebrow { color: var(--pine); font-weight: 750; font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; }
+.badge { display: inline-flex; width: fit-content; align-items: center; border-radius: 999px; padding: .26rem .64rem;
+  color: var(--pine); background: var(--mint); font-size: .8rem; font-weight: 750; line-height: 1.35; }
+.badge--warning { color: var(--amber); background: var(--amber-bg); }
+.layout { display: grid; grid-template-columns: minmax(10.75rem, .23fr) minmax(0, 1fr);
+  gap: clamp(1.4rem, 4vw, 3rem); padding-block: clamp(1.4rem, 4vw, 3rem); }
+.steps { position: sticky; top: 1.5rem; align-self: start; }
+.steps-title { margin: 0 0 .65rem .55rem; }
+.steps ol { list-style: none; padding: 0; margin: 0; display: grid; gap: .3rem; }
+.steps a { display: flex; min-height: 2.9rem; align-items: center; gap: .65rem; padding: .4rem .55rem;
+  border: 1px solid transparent; border-radius: .62rem; color: var(--ink); font-size: .91rem; text-decoration: none; font-weight: 650; }
+.steps a:hover, .steps a[aria-current] { color: var(--pine); background: var(--mint); border-color: #bbd6c7; }
+.step-number { display: grid; flex: none; place-items: center; width: 1.55rem; height: 1.55rem;
+  color: var(--pine); background: var(--paper); border: 1px solid #c5d9cd; border-radius: 50%; font-size: .74rem; font-weight: 800; }
+.scope-note { margin-top: 1.2rem; padding: .75rem .6rem; border-top: 1px solid var(--line);
+  color: var(--muted); font-size: .8rem; }
+main, .panel { min-width: 0; }
+.panel { display: grid; align-content: start; gap: 1.25rem; scroll-margin-top: 1rem; }
+.panel + .panel { margin-top: 2rem; }
+.panel[hidden] + .panel { margin-top: 0; }
+.panel-intro { display: grid; gap: .5rem; }
+.panel-intro p:last-child { color: var(--muted); max-width: 60ch; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(14rem, .55fr); gap: clamp(1rem, 4vw, 2.2rem);
+  padding: clamp(1.2rem, 4vw, 2.4rem); background: var(--paper); border: 1px solid var(--line);
+  border-top: .3rem solid #28634f; border-radius: 1rem; }
+.hero-content, .case-file, .note-box { min-width: 0; display: grid; align-content: start; gap: .85rem; }
+.hero-content .panel-intro { margin-bottom: .35rem; }
+.case-file { align-self: stretch; padding: 1.15rem; color: #f2f9f5;
+  background: #163f34; border-radius: .8rem; }
+.case-file .eyebrow { color: #c3e6d2; }
+.case-file p:not(.eyebrow) { color: #e0eee6; font-size: .9rem; }
+.case-file ul { margin: .2rem 0 0; padding: 0; list-style: none; }
+.case-file li { padding: .52rem 0; border-top: 1px solid #527b6d; font-size: .87rem; }
+.search-form, .note-form { display: grid; gap: .5rem; }
+.field-label { font-weight: 750; font-size: .9rem; }
+.form-row, .actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
+.form-row input { flex: 1 1 10rem; min-width: 0; }
+input[type="search"], textarea { min-height: 2.85rem; border: 1px solid #789687; border-radius: .48rem;
+  padding: .6rem .75rem; background: var(--paper); }
+textarea { width: 100%; resize: vertical; }
+.button { display: inline-flex; align-items: center; justify-content: center; width: fit-content; min-height: 2.8rem;
+  padding: .55rem .85rem; border: 1px solid var(--pine); border-radius: .48rem; background: var(--pine);
+  color: #fff; text-decoration: none; font-weight: 750; font-size: .9rem; }
+.button:hover { background: #103c31; }
+.button--secondary { color: var(--pine); background: var(--paper); border-color: #789687; }
+.button--secondary:hover { background: var(--mint); }
+.helper, .status, .metric-context, .source-note { color: var(--muted); font-size: .87rem; }
+.status:not(:empty) { padding: .35rem 0; }
+.result, .surface { min-width: 0; padding: clamp(.9rem, 2.8vw, 1.35rem); background: var(--paper);
+  border: 1px solid var(--line); border-radius: .75rem; }
+.result { display: grid; gap: .45rem; background: var(--mint); }
+.result .button { margin-top: .3rem; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.45fr); gap: .75rem; }
+.metric { min-width: 0; display: grid; align-content: start; gap: .2rem; padding: 1rem;
+  border: 1px solid var(--line); border-radius: .65rem; background: var(--paper); }
+.metric-label { font-size: .84rem; color: var(--muted); font-weight: 700; }
+.metric-value { font-size: clamp(1.2rem, 3vw, 1.7rem); font-weight: 780; letter-spacing: -.035em; }
+.peer-callout { background: var(--mint); border-color: #bbd6c7; }
+.peer-callout-title { color: var(--pine); font-size: .84rem; letter-spacing: normal; line-height: 1.55; }
+.peer-callout-answer { font-weight: 780; font-size: 1.16rem; line-height: 1.35; }
+.peer-callout-link { display: inline-flex; width: fit-content; align-items: center; min-height: 2.75rem;
+  font-size: .88rem; font-weight: 750; }
+.trend-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); gap: .8rem; }
+.chart svg { width: 100%; height: auto; display: block; margin-top: .7rem; }
+.chart text { font: 12px system-ui, sans-serif; fill: var(--muted); }
+.chart .chart-value { fill: var(--ink); font-weight: 750; }
+.chart .chart-bar { fill: #80b29b; }
+.chart .chart-bar:last-of-type { fill: #28634f; }
+.chart-line { stroke: #bbcfc4; stroke-width: 1; }
+.chart figcaption { margin-top: .25rem; color: var(--muted); font-size: .82rem; }
+table { width: 100%; border-collapse: collapse; margin-top: .6rem; font-size: .88rem; }
+caption { text-align: left; margin-bottom: .45rem; color: var(--muted); font-size: .82rem; }
+th, td { padding: .62rem .45rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { font-size: .78rem; color: var(--muted); }
+tbody th { color: var(--ink); }
+.numbers :is(th,td):not(:first-child) { text-align: right; }
+details { background: var(--paper); border: 1px solid var(--line); border-radius: .55rem; padding-inline: .9rem; }
+summary { min-height: 2.8rem; padding-block: .62rem; font-weight: 750; color: var(--pine); cursor: pointer; }
+details[open] { padding-bottom: .8rem; }
+details ul { margin: .45rem 0 0; padding-inline-start: 1.15rem; }
+details li + li { margin-top: .3rem; }
+.peer-controls { border: 0; margin: 0; padding: 0; min-width: 0; }
+.peer-controls legend { font-size: .9rem; font-weight: 750; margin-bottom: .4rem; }
+.peer-controls label { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.85rem; padding: .3rem .65rem;
+  margin: 0 .4rem .25rem 0; border: 1px solid #789687; border-radius: .48rem; background: var(--paper); cursor: pointer; }
+.peer-controls label:has(input:checked) { background: var(--mint); border-color: var(--pine); color: var(--pine); font-weight: 750; }
+.peer-controls input { accent-color: var(--pine); }
+.peer-result { display: grid; gap: .55rem; border-left: .27rem solid #28634f; margin-bottom: .8rem; }
+.peer-result--withheld { border-left-color: #ac7a23; }
+.demo-state--withheld { display: none; }
+body:has(#demo-withheld:checked) .demo-state--available { display: none; }
+body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
+.peer-evidence { margin-top: .15rem; }
+.note-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .65fr); gap: .85rem; }
+.note-box ul { margin: 0; padding-left: 1.2rem; }
+.monitor-note { display: grid; gap: .65rem; border-left: .27rem solid #28634f; }
+.monitor-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.page-footer { padding-block: 1rem 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+@media (max-width: 1000px) {
+  .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .peer-callout { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; }
+}
+@media (max-width: 800px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .steps { position: static; }
+  .steps-title, .scope-note { display: none; }
+  .steps ol { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
+  .steps a { padding-inline: .45rem; font-size: .82rem; gap: .35rem; border-color: var(--line); background: var(--paper); }
+  .step-number { width: 1.3rem; height: 1.3rem; font-size: .7rem; }
+}
+@media (max-width: 600px) {
+  .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
+  .layout { padding-top: .8rem; gap: 1rem; }
+  .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero, .trend-grid, .note-grid { grid-template-columns: minmax(0, 1fr); }
+  .metrics { gap: .45rem; }
+  .metric { padding: .6rem; }
+  .metric-value { font-size: 1.12rem; }
+  .metric-context { font-size: .77rem; }
+  .peer-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .peer-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .15rem; padding: .6rem 0; border-bottom: 1px solid var(--line); }
+  .peer-table :is(th,td) { padding: .24rem; border: 0; }
+  .peer-table td::before { display: block; content: attr(data-label); color: var(--muted); font-size: .72rem; font-weight: 750; }
+  .peer-table tbody th, .peer-table td:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 330px) {
+  .metrics { grid-template-columns: minmax(0, 1fr); }
+}
+@media (forced-colors: active) {
+  :focus-visible { outline-color: Highlight; }
+}
+
+.case-valuation { display: block; }
+.case-valuation details { margin-top: .28rem; padding-inline: 0; background: transparent; border: 0; }
+.case-valuation summary { min-height: 2.75rem; font-size: .88rem; text-decoration: underline; }
+.case-valuation details p { margin-top: .4rem; }
+.case-source { display: flex; flex-wrap: wrap; gap: .25rem .7rem; }
+.case-source a { font-weight: 750; }
+#filing-source { overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+  <a class="skip-link" href="#case-main">Skip to AMD research</a>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">SR</span>
+        <div><p class="eyebrow">Company Workbench</p><h1>Stock Research Command Center</h1></div>
+      </div>
+      <p class="badge">Real company · SEC filing snapshot</p>
+    </div>
+  </header>
+  <div class="layout">
+    <nav class="steps" aria-label="Research case">
+      <p class="steps-title eyebrow">Research case</p>
+      <ol>
+        <li><a href="#case-main" aria-current="page">Financial overview</a></li>
+        <li><a href="#peer-valuation">Peer valuation</a></li>
+        <li><a href="#filing-source">Filing source</a></li>
+        <li><a href="./">Guided demo</a></li>
+      </ol>
+      <p class="scope-note">A dated, read-only example based on one SEC filing.</p>
+    </nav>
+    <main id="case-main" class="panel" tabindex="-1">
+      <header class="panel-intro">
+        <p class="eyebrow">AMD · Q3 FY2026 · SEC Form 10-Q</p>
+        <h2>Advanced Micro Devices</h2>
+        <p class="case-source"><span>Quarter ended Sep 26, 2026</span><span>· Filed Nov 4, 2026</span>
+          <a href="#filing-source">Filing &amp; calculations</a></p>
+      </header>
+      <div class="metrics" aria-label="Quarterly results">
+        <article class="metric"><p class="metric-label">Revenue growth</p>
+          <p class="metric-value">+44.7%</p><p class="metric-context">Year over year</p></article>
+        <article class="metric"><p class="metric-label">Operating margin</p>
+          <p class="metric-value">21.2%</p><p class="metric-context">+7.4 pp year over year</p></article>
+        <article class="metric"><p class="metric-label">Data Center growth</p>
+          <p class="metric-value">+96.9%</p><p class="metric-context">Revenue year over year</p></article>
+        <article id="peer-valuation" class="metric peer-callout case-valuation" aria-labelledby="peer-case-title">
+          <h3 id="peer-case-title" class="peer-callout-title">Peer valuation</h3>
+          <p class="peer-callout-answer">Peer comparison withheld</p>
+          <p class="metric-context">Same-day closes needed</p>
+          <details><summary>View why</summary>
+            <p class="metric-context">The price feed is cleared for personal research only. This public case has no approved
+              same-day closes to compare annual diluted P/E for AMD and at least three eligible peers.</p>
+          </details>
+        </article>
+      </div>
+      <div class="trend-grid">
+        <figure class="surface chart">
+  <h3>Operating margin</h3>
+  <svg viewBox="0 0 330 196" role="img" aria-labelledby="margin-title margin-desc">
+    <title id="margin-title">Quarterly operating margin</title>
+    <desc id="margin-desc">Q3 FY2025 13.7%, Q3 FY2026 21.2%</desc>
+    <path class="chart-line" d="M18 170H314"/>
+    <rect class="chart-bar" x="55" y="94.65" width="72" height="75.35" rx="5"/><text class="chart-value" x="91" y="86.65" text-anchor="middle">13.7%</text><text x="91" y="190" text-anchor="middle">Q3 FY2025</text><rect class="chart-bar" x="201" y="53.4" width="72" height="116.6" rx="5"/><text class="chart-value" x="237" y="45.4" text-anchor="middle">21.2%</text><text x="237" y="190" text-anchor="middle">Q3 FY2026</text>
+  </svg>
+  <figcaption>Calculated as GAAP operating income divided by net revenue.</figcaption>
+</figure>
+        <section class="surface" aria-labelledby="segment-title">
+          <h3 id="segment-title">Segment revenue growth</h3>
+          <table class="numbers">
+            <caption>Q3 FY2026 vs. Q3 FY2025</caption>
+            <thead><tr><th scope="col">Segment</th><th scope="col">Change</th></tr></thead>
+            <tbody><tr><th scope="row">Data Center</th><td>+96.9%</td></tr><tr><th scope="row">Client and Gaming</th><td>-8.1%</td></tr><tr><th scope="row">Embedded</th><td>+29.4%</td></tr></tbody>
+          </table>
+        </section>
+      </div>
+      <details id="filing-source"><summary>Filing &amp; calculations</summary>
+        <p><a href="https://www.sec.gov/Archives/edgar/data/2488/000000248826000191/amd-20260926.htm">Read AMD’s Form 10-Q on SEC EDGAR</a> · Accession 0000002488-26-000191</p>
+        <ul>
+          <li>The consolidated statements and Note 4 compare the three months ended Sep 26, 2026
+            with the three months ended Sep 27, 2025.</li>
+          <li>Revenue growth is current divided by prior revenue minus one. Operating margin is operating income
+            divided by net revenue. The margin change uses the unrounded ratios.</li>
+        </ul>
+      </details>
+    </main>
+  </div>
+  <footer class="page-footer">Stock Research Command Center · Historical filing case</footer>
+</body>
+</html>
