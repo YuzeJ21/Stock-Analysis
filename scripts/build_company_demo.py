@@ -1,104 +1,482 @@
-"""Build a standalone company research page using only synthetic examples."""
+"""Build an offline, English-language company research demo from synthetic data."""
 
 import argparse
+from base64 import b64encode
+from hashlib import sha256
+from html import escape
 from pathlib import Path
+from statistics import median
 
-from src.company_answer_summary import COMPANY_ANSWERS_STYLE, company_answers_html
 
-
-_TITLE = "Stock Research Command Center · 公司研究演示"
-_DESCRIPTION = "Stock Research Command Center 的合成数据演示。查看虚构公司的收盘价、财报变化和同行估值。"
-_PRICE_DATE = "2026-10-30"
-_ANSWERS = (
-    {
-        "key": "price",
-        "title": "最近收盘",
-        "value": "USD 48.00",
-        "context": f"{_PRICE_DATE} · 已完成收盘",
-        "evidence": (f"示例日线收盘记录，{_PRICE_DATE}，48.00 USD。",),
-    },
-    {
-        "key": "financial",
-        "title": "财报变化",
-        "value": "营收 USD 1.20 亿",
-        "context": "截至 2025-12-31 · 较上财年增加",
-        "evidence": (
-            "示例年度财务记录。2025 年营收为 1.20 亿 USD，2024 年为 0.96 亿 USD。",
-            "2025 年度摊薄 EPS 为 2.00 USD，用于示例估值。",
-        ),
-    },
+_TITLE = "Stock Research Command Center | Guided Demo"
+_DESCRIPTION = "Follow a fictional company from search to financial trends, peer valuation, and research follow-up."
+_COMPANY = "Fogline Photonics"
+_TICKER = "FICT"
+_CLOSE_DATE = "Oct 30, 2026"
+_PRIOR_CLOSE_DATE = "Oct 29, 2026"
+_CLOSE = 48.0
+_ANNUAL = (
+    (2023, 78, 6, 0.95),
+    (2024, 96, 11, 1.60),
+    (2025, 120, 17, 2.00),
 )
-_VALUATION = {
-    "key": "valuation",
-    "title": "同行估值",
-    "value": "24.0× · 同行中位 20.0×",
-    "context": "3 家符合 · 高于同行中位数 20%",
-    "evidence": (
-        f"本公司 P/E 为 {_PRICE_DATE} 的示例收盘价 48.00 USD 除以年度摊薄 EPS 2.00 USD。",
-        "三家参照使用同日收盘价与相同财年。参照 A、B、C 的收盘价分别为 36.00、40.00、44.00 USD，摊薄 EPS 均为 2.00 USD。",
-        "同行中位数取三个 P/E 的中间值。相对差异按 24.0 ÷ 20.0 − 1 计算。",
-    ),
+_PEERS = (
+    ("Peer A", 36.0, 2.0),
+    ("Peer B", 40.0, 2.0),
+    ("Peer C", 44.0, 2.0),
+    ("Peer D", 30.0, -0.5),
+)
+_STEPS = (
+    ("discover", "Company Search"),
+    ("financials", "Financial Trends"),
+    ("valuation", "Peer Valuation"),
+    ("notes", "Research Notes"),
+    ("monitor", "Monitor"),
+)
+_SCRIPT_PATH = Path(__file__).with_name("company_demo_interactions.js")
+_STYLE = """
+:root {
+  color-scheme: light; --ink: #152b24; --muted: #496056; --line: #d3e0d7;
+  --pine: #144c3d; --mint: #e8f3ed; --paper: #fff; --ground: #f4f7f3;
+  --amber: #775112; --amber-bg: #f9f1dd;
+  font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-_WITHHELD = {
-    "key": "valuation",
-    "title": "同行估值",
-    "value": "同行比较暂缺",
-    "context": "本公司 24.0× · 2 家符合 · 至少需 3 家",
-    "evidence": (
-        f"参照 A 和参照 B 的示例收盘日均为 {_PRICE_DATE}，年度摊薄 EPS 口径可比。",
-        "参照 C 的示例收盘日为 2026-10-29，未通过同日收盘价核对。",
-        "达到三家合格参照后，才显示同行中位数及相对倍数差异。",
-    ),
-}
-_PAGE_STYLE = """
-body { margin: 0; background: #f5f7f6; color: #1c302a;
-       font: 1rem/1.5 system-ui, sans-serif; }
-main { max-width: 65rem; margin-inline: auto; padding: 1.5rem 1.25rem; }
-h1 { font-size: clamp(1.65rem, 4vw, 2.25rem); line-height: 1.2; margin: .2rem 0; }
-.demo-label { color: #275d45; font-weight: 700; }
-.demo-label, .demo-note { margin: 0; }
-.demo-controls { margin: 1rem 0; padding: 0; border: 0; min-inline-size: 0; }
-.demo-controls legend { padding: 0; font-size: .9rem; font-weight: 650; }
-.demo-controls label { display: inline-flex; align-items: center; gap: .45rem;
-                       min-height: 2.75rem; margin-inline-end: .8rem; cursor: pointer; }
-.demo-controls input { margin: 0; accent-color: #275d45; }
-.demo-controls input:focus-visible { outline: 2px solid #275d45; outline-offset: 3px; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; color: var(--ink); background: var(--ground); }
+a { color: var(--pine); text-underline-offset: .18em; }
+:focus-visible { outline: 3px solid #196853; outline-offset: 4px; }
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+p, figure { margin: 0; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.16; }
+h1 { font-size: clamp(1rem, 2.5vw, 1.23rem); letter-spacing: -.02em; }
+h2 { font-size: clamp(2rem, 5vw, 3.35rem); letter-spacing: -.05em; overflow-wrap: anywhere; }
+h3 { font-size: 1.25rem; letter-spacing: -.025em; }
+.skip-link { position: absolute; z-index: 2; top: 0; left: 1rem; padding: .6rem 1rem;
+  background: var(--paper); transform: translateY(-120%); }
+.skip-link:focus { transform: translateY(.5rem); }
+.masthead { border-bottom: 1px solid var(--line); background: var(--paper); }
+.masthead-inner, .layout, .page-footer { max-width: 79rem; margin-inline: auto;
+  padding-inline: clamp(1rem, 4vw, 2.75rem); }
+.masthead-inner { min-height: 5.25rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.brand { display: flex; gap: .8rem; align-items: center; }
+.brand-mark { flex: none; display: grid; place-items: center; width: 2.4rem; height: 2.4rem;
+  border-radius: .65rem; color: #fff; background: var(--pine); font-size: .75rem; font-weight: 800; letter-spacing: .06em; }
+.eyebrow { color: var(--pine); font-weight: 750; font-size: .76rem; letter-spacing: .1em; text-transform: uppercase; }
+.badge { display: inline-flex; width: fit-content; align-items: center; border-radius: 999px; padding: .26rem .64rem;
+  color: var(--pine); background: var(--mint); font-size: .8rem; font-weight: 750; line-height: 1.35; }
+.badge--warning { color: var(--amber); background: var(--amber-bg); }
+.layout { display: grid; grid-template-columns: minmax(10.75rem, .23fr) minmax(0, 1fr);
+  gap: clamp(1.4rem, 4vw, 3rem); padding-block: clamp(1.4rem, 4vw, 3rem); }
+.steps { position: sticky; top: 1.5rem; align-self: start; }
+.steps-title { margin: 0 0 .65rem .55rem; }
+.steps ol { list-style: none; padding: 0; margin: 0; display: grid; gap: .3rem; }
+.steps a { display: flex; min-height: 2.9rem; align-items: center; gap: .65rem; padding: .4rem .55rem;
+  border: 1px solid transparent; border-radius: .62rem; color: var(--ink); font-size: .91rem; text-decoration: none; font-weight: 650; }
+.steps a:hover, .steps a[aria-current] { color: var(--pine); background: var(--mint); border-color: #bbd6c7; }
+.step-number { display: grid; flex: none; place-items: center; width: 1.55rem; height: 1.55rem;
+  color: var(--pine); background: var(--paper); border: 1px solid #c5d9cd; border-radius: 50%; font-size: .74rem; font-weight: 800; }
+.scope-note { margin-top: 1.2rem; padding: .75rem .6rem; border-top: 1px solid var(--line);
+  color: var(--muted); font-size: .8rem; }
+main, .panel { min-width: 0; }
+.panel { display: grid; align-content: start; gap: 1.25rem; scroll-margin-top: 1rem; }
+.panel + .panel { margin-top: 2rem; }
+.panel[hidden] + .panel { margin-top: 0; }
+.panel-intro { display: grid; gap: .5rem; }
+.panel-intro p:last-child { color: var(--muted); max-width: 60ch; }
+.hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(14rem, .55fr); gap: clamp(1rem, 4vw, 2.2rem);
+  padding: clamp(1.2rem, 4vw, 2.4rem); background: var(--paper); border: 1px solid var(--line);
+  border-top: .3rem solid #28634f; border-radius: 1rem; }
+.hero-content, .case-file, .note-box { min-width: 0; display: grid; align-content: start; gap: .85rem; }
+.hero-content .panel-intro { margin-bottom: .35rem; }
+.case-file { align-self: stretch; padding: 1.15rem; color: #f2f9f5;
+  background: #163f34; border-radius: .8rem; }
+.case-file .eyebrow { color: #c3e6d2; }
+.case-file p:not(.eyebrow) { color: #e0eee6; font-size: .9rem; }
+.case-file ul { margin: .2rem 0 0; padding: 0; list-style: none; }
+.case-file li { padding: .52rem 0; border-top: 1px solid #527b6d; font-size: .87rem; }
+.search-form, .note-form { display: grid; gap: .5rem; }
+.field-label { font-weight: 750; font-size: .9rem; }
+.form-row, .actions { display: flex; flex-wrap: wrap; gap: .65rem; align-items: center; }
+.form-row input { flex: 1 1 10rem; min-width: 0; }
+input[type="search"], textarea { min-height: 2.85rem; border: 1px solid #789687; border-radius: .48rem;
+  padding: .6rem .75rem; background: var(--paper); }
+textarea { width: 100%; resize: vertical; }
+.button { display: inline-flex; align-items: center; justify-content: center; width: fit-content; min-height: 2.8rem;
+  padding: .55rem .85rem; border: 1px solid var(--pine); border-radius: .48rem; background: var(--pine);
+  color: #fff; text-decoration: none; font-weight: 750; font-size: .9rem; }
+.button:hover { background: #103c31; }
+.button--secondary { color: var(--pine); background: var(--paper); border-color: #789687; }
+.button--secondary:hover { background: var(--mint); }
+.helper, .status, .metric-context, .source-note { color: var(--muted); font-size: .87rem; }
+.status:not(:empty) { padding: .35rem 0; }
+.result, .surface { min-width: 0; padding: clamp(.9rem, 2.8vw, 1.35rem); background: var(--paper);
+  border: 1px solid var(--line); border-radius: .75rem; }
+.result { display: grid; gap: .45rem; background: var(--mint); }
+.result .button { margin-top: .3rem; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.metric { min-width: 0; display: grid; align-content: start; gap: .2rem; padding: 1rem;
+  border: 1px solid var(--line); border-radius: .65rem; background: var(--paper); }
+.metric-label { font-size: .84rem; color: var(--muted); font-weight: 700; }
+.metric-value { font-size: clamp(1.2rem, 3vw, 1.7rem); font-weight: 780; letter-spacing: -.035em; }
+.trend-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); gap: .8rem; }
+.chart svg { width: 100%; height: auto; display: block; margin-top: .7rem; }
+.chart text { font: 12px system-ui, sans-serif; fill: var(--muted); }
+.chart .chart-value { fill: var(--ink); font-weight: 750; }
+.chart .chart-bar { fill: #80b29b; }
+.chart .chart-bar:last-of-type { fill: #28634f; }
+.chart-line { stroke: #bbcfc4; stroke-width: 1; }
+.chart figcaption { margin-top: .25rem; color: var(--muted); font-size: .82rem; }
+table { width: 100%; border-collapse: collapse; margin-top: .6rem; font-size: .88rem; }
+caption { text-align: left; margin-bottom: .45rem; color: var(--muted); font-size: .82rem; }
+th, td { padding: .62rem .45rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { font-size: .78rem; color: var(--muted); }
+tbody th { color: var(--ink); }
+.numbers :is(th,td):not(:first-child) { text-align: right; }
+details { background: var(--paper); border: 1px solid var(--line); border-radius: .55rem; padding-inline: .9rem; }
+summary { min-height: 2.8rem; padding-block: .62rem; font-weight: 750; color: var(--pine); cursor: pointer; }
+details[open] { padding-bottom: .8rem; }
+details ul { margin: .45rem 0 0; padding-inline-start: 1.15rem; }
+details li + li { margin-top: .3rem; }
+.peer-controls { border: 0; margin: 0; padding: 0; min-width: 0; }
+.peer-controls legend { font-size: .9rem; font-weight: 750; margin-bottom: .4rem; }
+.peer-controls label { display: inline-flex; align-items: center; gap: .45rem; min-height: 2.85rem; padding: .3rem .65rem;
+  margin: 0 .4rem .25rem 0; border: 1px solid #789687; border-radius: .48rem; background: var(--paper); cursor: pointer; }
+.peer-controls label:has(input:checked) { background: var(--mint); border-color: var(--pine); color: var(--pine); font-weight: 750; }
+.peer-controls input { accent-color: var(--pine); }
+.peer-result { display: grid; gap: .55rem; border-left: .27rem solid #28634f; margin-bottom: .8rem; }
+.peer-result--withheld { border-left-color: #ac7a23; }
 .demo-state--withheld { display: none; }
-.demo-controls:has(#demo-withheld:checked) ~ .demo-state--available { display: none; }
-.demo-controls:has(#demo-withheld:checked) ~ .demo-state--withheld { display: block; }
+.peer-controls:has(#demo-withheld:checked) ~ .demo-state--available { display: none; }
+.peer-controls:has(#demo-withheld:checked) ~ .demo-state--withheld { display: block; }
+.peer-evidence { margin-top: .15rem; }
+.note-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .65fr); gap: .85rem; }
+.note-box ul { margin: 0; padding-left: 1.2rem; }
+.monitor-note { display: grid; gap: .65rem; border-left: .27rem solid #28634f; }
+.monitor-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.page-footer { padding-block: 1rem 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+@media (max-width: 800px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .steps { position: static; }
+  .steps-title, .scope-note { display: none; }
+  .steps ol { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
+  .steps a { padding-inline: .45rem; font-size: .82rem; gap: .35rem; border-color: var(--line); background: var(--paper); }
+  .step-number { width: 1.3rem; height: 1.3rem; font-size: .7rem; }
+}
+@media (max-width: 600px) {
+  .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
+  .layout { padding-top: .8rem; gap: 1rem; }
+  .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero, .trend-grid, .note-grid { grid-template-columns: minmax(0, 1fr); }
+  .metrics { gap: .45rem; }
+  .metric { padding: .6rem; }
+  .metric-value { font-size: 1.12rem; }
+  .metric-context { font-size: .77rem; }
+  .peer-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .peer-table tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .15rem; padding: .6rem 0; border-bottom: 1px solid var(--line); }
+  .peer-table :is(th,td) { padding: .24rem; border: 0; }
+  .peer-table td::before { display: block; content: attr(data-label); color: var(--muted); font-size: .72rem; font-weight: 750; }
+  .peer-table tbody th, .peer-table td:last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 330px) {
+  .metrics { grid-template-columns: minmax(0, 1fr); }
+}
+@media (forced-colors: active) {
+  :focus-visible { outline-color: Highlight; }
+}
 """
 
 
+def _step_link(step, label, *, button=True):
+    button_class = ' class="button"' if button else ""
+    return f'<a{button_class} href="#{step}" data-demo-go="{step}">{label}</a>'
+
+
+def _panel(step, eyebrow, title, intro, content):
+    return f"""<section class="panel" id="{step}" data-demo-page="{step}" data-demo-panel
+  aria-labelledby="{step}-title" tabindex="-1">
+  <header class="panel-intro">
+    <p class="eyebrow">{eyebrow}</p>
+    <h2 id="{step}-title" data-demo-title tabindex="-1">{title}</h2>
+    <p>{intro}</p>
+  </header>
+  {content}
+</section>"""
+
+
+def _discover():
+    return f"""<section class="panel" id="discover" data-demo-page="discover" data-demo-panel
+  aria-labelledby="discover-title" tabindex="-1">
+  <div class="hero">
+    <div class="hero-content">
+      <header class="panel-intro">
+        <p class="eyebrow">Step 1 of 5 · Discover</p>
+        <h2 id="discover-title" data-demo-title tabindex="-1">Find a company</h2>
+        <p>Start with one company and follow the evidence from its reported results to a research follow-up.</p>
+      </header>
+      <form class="search-form" id="demo-search-form" data-demo-search data-demo-company-name="{_COMPANY}" data-demo-company-ticker="{_TICKER}">
+        <label class="field-label" for="demo-search-input">Company name or ticker</label>
+        <div class="form-row">
+          <input id="demo-search-input" data-demo-query type="search" maxlength="80"
+            autocomplete="off" placeholder="e.g. {_COMPANY}" aria-describedby="demo-search-hint">
+          <button class="button" type="submit">Search</button>
+          <button class="button button--secondary" type="reset">Clear</button>
+        </div>
+        <p class="helper" id="demo-search-hint">Try {_COMPANY} or {_TICKER}.</p>
+        <p class="status" id="demo-search-status" data-demo-search-status role="status"></p>
+      </form>
+      <div class="result" id="demo-search-result" data-demo-result hidden>
+        <span class="badge">{_TICKER} · Fictional company</span>
+        <h3>{_COMPANY}</h3>
+        <p>Photonics and optical components</p>
+        {_step_link("financials", "Open Company Workbench")}
+      </div>
+      <noscript><p class="helper">Use the step links to review the sample without interactive search.</p></noscript>
+    </div>
+    <aside class="case-file" aria-label="Included company case">
+      <p class="eyebrow">Included case · {_TICKER}</p>
+      <h3>{_COMPANY}</h3>
+      <p>Follow a fictional optical components company through the full research flow.</p>
+      <ul>
+        <li>Three reported fiscal years</li>
+        <li>One dated close and four peer candidates</li>
+        <li>One follow-up to carry into Monitor</li>
+      </ul>
+    </aside>
+  </div>
+</section>"""
+
+
+def _revenue_chart():
+    bars = []
+    peak_revenue = max(row[1] for row in _ANNUAL)
+    for index, (year, revenue, _, _) in enumerate(_ANNUAL):
+        x = 34 + index * 104
+        height = revenue * 140 / peak_revenue
+        y = 172 - height
+        bars.append(f'<rect class="chart-bar" x="{x}" y="{y:g}" width="58" height="{height:g}" rx="5"/>'
+                    f'<text class="chart-value" x="{x+29}" y="{y-8:g}" text-anchor="middle">{revenue}M</text>'
+                    f'<text x="{x+29}" y="193" text-anchor="middle">FY {year}</text>')
+    description = ", ".join(f"fiscal {year}: {revenue} million dollars" for year, revenue, _, _ in _ANNUAL)
+    return f"""<figure class="surface chart">
+  <h3>Annual revenue</h3>
+  <svg viewBox="0 0 330 200" role="img" aria-labelledby="revenue-title revenue-desc">
+    <title id="revenue-title">Reported annual revenue</title>
+    <desc id="revenue-desc">{description}.</desc>
+    <path class="chart-line" d="M18 172H314"/>
+    {''.join(bars)}
+  </svg>
+  <figcaption>Fiscal years ended December 31. USD millions.</figcaption>
+</figure>"""
+
+
+def _financials():
+    year, revenue, _, eps = _ANNUAL[-1]
+    _, prior_revenue, _, _ = _ANNUAL[-2]
+    revenue_change = (revenue / prior_revenue - 1) * 100
+    rows = "".join(f'<tr><th scope="row">{fy}</th><td>{sales}M</td><td>{income}M</td><td>{earnings:.2f}</td></tr>'
+                   for fy, sales, income, earnings in _ANNUAL)
+    content = f"""<div class="metrics" aria-label="Company snapshot">
+    <article class="metric" data-company-answer="price">
+      <p class="metric-label">Dated close</p><p class="metric-value">USD {_CLOSE:.2f}</p><p class="metric-context">{_CLOSE_DATE}</p>
+    </article>
+    <article class="metric" data-company-answer="financial">
+      <p class="metric-label">Annual revenue</p><p class="metric-value">USD {revenue}M</p>
+      <p class="metric-context">FY {year} · up {revenue_change:g}% year over year</p>
+    </article>
+    <article class="metric">
+      <p class="metric-label">Annual diluted EPS</p><p class="metric-value">USD {eps:.2f}</p><p class="metric-context">FY {year} · reported</p>
+    </article>
+  </div>
+  <div class="trend-grid">
+    {_revenue_chart()}
+    <div class="surface">
+      <h3>Reported financials</h3>
+      <table class="numbers">
+        <caption>Fictional annual statements · USD</caption>
+        <thead><tr><th scope="col">FY</th><th scope="col">Revenue</th><th scope="col">Operating income</th><th scope="col">Diluted EPS</th></tr></thead>
+        <tbody>{rows}</tbody>
+      </table>
+    </div>
+  </div>
+  <details>
+    <summary>View financial and price evidence</summary>
+    <ul>
+      <li>Sample annual statement FY {year}, year ended Dec 31, {year}, filed Feb 12, 2026. Revenue USD {revenue}M, diluted EPS USD {eps:.2f}.</li>
+      <li>FY {year - 1} revenue USD {prior_revenue}M, same reporting currency and year-end. Change = {revenue}M ÷ {prior_revenue}M − 1.</li>
+      <li>Sample daily price record dated {_CLOSE_DATE}: closing price USD {_CLOSE:.2f}.</li>
+    </ul>
+  </details>
+  <div class="actions">{_step_link("valuation", "Continue to Peer Valuation")}</div>"""
+    return _panel("financials", f"Step 2 of 5 · Financial Trends · {_TICKER}",
+                  _COMPANY, "Review the reported trend, period, and closing price before comparing multiples.", content)
+
+
+def _peer_scenario(withheld):
+    company_eps = _ANNUAL[-1][3]
+    company_pe = _CLOSE / company_eps
+    rows, eligible_multiples = [], []
+    for name, price, eps in _PEERS:
+        close_date = _PRIOR_CLOSE_DATE if withheld and name == "Peer C" else _CLOSE_DATE
+        if eps <= 0:
+            multiple, eligibility = "—", "Excluded · non-positive EPS"
+        elif close_date != _CLOSE_DATE:
+            multiple, eligibility = "—", "Excluded · different close date"
+        else:
+            eligible_multiples.append(price / eps)
+            multiple, eligibility = f"{price / eps:.1f}×", "Eligible"
+        rows.append(f"""<tr><th scope="row">{name}</th>
+          <td data-label="Close date">{close_date}</td><td data-label="Close">{price:.2f}</td>
+          <td data-label="Annual diluted EPS">{eps:.2f}</td><td data-label="Annual P/E">{multiple}</td>
+          <td data-label="Eligibility">{eligibility}</td></tr>""")
+    count = len(eligible_multiples)
+    if count < 3:
+        badge = f'<span class="badge badge--warning">{count} eligible peers · 3 required</span>'
+        answer = "Peer comparison withheld"
+        context = f"Company P/E {company_pe:.1f}×. A third eligible same-day reference is required."
+        extra_evidence = f"<li>Peer C closed on {_PRIOR_CLOSE_DATE}. It is outside the {_CLOSE_DATE} comparison.</li>"
+    else:
+        peer_median = median(eligible_multiples)
+        relative_pct = (company_pe / peer_median - 1) * 100
+        badge = f'<span class="badge">{count} eligible peers · comparison available</span>'
+        direction = "above" if relative_pct > 0 else "below"
+        answer = (f"Annual P/E is {abs(relative_pct):.1f}% {direction} the peer median"
+                  if relative_pct else "Annual P/E matches the peer median")
+        context = f"Company P/E {company_pe:.1f}× · Peer median {peer_median:.1f}× · {_CLOSE_DATE} closes."
+        extra_evidence = f"<li>Relative difference = {company_pe:.1f}× ÷ {peer_median:.1f}× − 1.</li>"
+    state = "withheld" if withheld else "available"
+    return f"""<div class="demo-state--{state}">
+    <article class="surface peer-result{' peer-result--withheld' if withheld else ''}" data-company-answer="valuation">
+      {badge}<h3>{answer}</h3><p>{context}</p>
+      <details class="peer-evidence">
+        <summary>View peer evidence</summary>
+        <ul>
+          <li>Company P/E = USD {_CLOSE:.2f} closing price ÷ USD {company_eps:.2f} reported annual diluted EPS.</li>
+          <li>The sample requires same-day closes, positive annual diluted EPS, and fiscal-year start and end dates within 35 days of the company’s.</li>
+          {extra_evidence}
+          <li>Peer D is excluded because its annual diluted EPS is negative.</li>
+          <li>Evidence: the sample close records and annual statement fields in the peer table.</li>
+        </ul>
+      </details>
+    </article>
+    <div class="surface">
+      <h3>Peer candidates</h3>
+      <table class="peer-table">
+        <caption>Fictional source records · FY 2025 ended Dec 31 · USD</caption>
+        <thead><tr><th scope="col">Peer</th><th scope="col">Close date</th><th scope="col">Close</th>
+          <th scope="col">Annual diluted EPS</th><th scope="col">Annual P/E</th><th scope="col">Eligibility</th></tr></thead>
+        <tbody>{''.join(rows)}</tbody>
+      </table>
+    </div>
+  </div>"""
+
+
+def _valuation():
+    content = f"""<fieldset class="peer-controls">
+    <legend>Change the peer evidence</legend>
+    <label><input type="radio" id="demo-available" name="demo-scenario" checked> 3 eligible peers</label>
+    <label><input type="radio" id="demo-withheld" name="demo-scenario"> 2 eligible peers</label>
+  </fieldset>
+  {_peer_scenario(False)}
+  {_peer_scenario(True)}
+  <div class="actions">{_step_link("notes", "Continue to Research Notes")}</div>"""
+    return _panel("valuation", f"Step 3 of 5 · Company Workbench · {_TICKER}", "Peer Valuation",
+                  "Switch the sample to see how a different closing date changes which peers qualify.", content)
+
+
+def _notes():
+    content = f"""<div class="note-grid">
+    <div class="surface note-box">
+      <h3>Draft one follow-up</h3>
+      <form class="note-form" id="demo-note-form" data-demo-note-form>
+        <label class="field-label" for="demo-note-input">Research note</label>
+        <textarea id="demo-note-input" data-demo-note-input rows="4" maxlength="500"
+          aria-describedby="demo-note-hint">Check whether revenue growth and operating income remain aligned in the next annual filing.</textarea>
+        <p class="helper" id="demo-note-hint">Edit the example if you like. This note lasts until you reload the demo.</p>
+        <button class="button" type="submit" data-demo-pin>Add to Monitor</button>
+        <p class="status" id="demo-note-status" data-demo-pin-status role="status"></p>
+      </form>
+    </div>
+    <aside class="surface note-box" aria-label="Research context">
+      <span class="badge">Research only</span>
+      <h3>What to carry forward</h3>
+      <ul>
+        <li>Evidence already checked: reported FY 2025 revenue and operating income.</li>
+        <li>Next evidence: the next reported annual period.</li>
+      </ul>
+    </aside>
+  </div>
+  <div class="actions">{_step_link("monitor", "Open Monitor")}</div>"""
+    return _panel("notes", f"Step 4 of 5 · Company Workbench · {_TICKER}", "Research Notes",
+                  "Turn the evidence into a question you can revisit.", content)
+
+
+def _monitor():
+    content = f"""<div class="surface note-box" id="demo-monitor-empty" data-demo-monitor-empty>
+    <span class="badge">Follow-up queue</span>
+    <h3>No follow-up in this demo session</h3>
+    <p class="source-note">Add a note from Research Notes to see it here.</p>
+    {_step_link("notes", "Return to Research Notes")}
+  </div>
+  <article class="surface monitor-note" id="demo-monitor-note" data-demo-monitor-item hidden>
+    <span class="badge badge--warning">Waiting on evidence</span>
+    <h3>{_COMPANY} · {_TICKER}</h3>
+    <p id="demo-monitor-note-text" class="monitor-note-text" data-demo-monitor-note></p>
+    <p class="source-note">Trigger: next reported annual period. This follow-up lasts until reload.</p>
+    {_step_link("notes", "Return to Research Notes")}
+  </article>
+  <div class="actions">{_step_link("financials", "Reopen Company Workbench", button=False)}</div>"""
+    return _panel("monitor", "Step 5 of 5 · Follow-up queue", "Monitor",
+                  "Review the question you carried forward and return to the company evidence when it is time to revisit it.", content)
+
+
 def build_demo_html():
-    available = company_answers_html((*_ANSWERS, _VALUATION))
-    withheld = company_answers_html((*_ANSWERS, _WITHHELD))
+    script = _SCRIPT_PATH.read_text(encoding="utf-8")
+    digest = b64encode(sha256(script.encode("utf-8")).digest()).decode("ascii")
+    steps = "".join(
+        f'<li><a href="#{step}" data-demo-step="{step}" data-demo-go="{step}">'
+        f'<span class="step-number" aria-hidden="true">{number}</span>{label}</a></li>'
+        for number, (step, label) in enumerate(_STEPS, start=1)
+    )
     return f"""<!doctype html>
-<html lang="zh-Hans">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
-  <title>{_TITLE}</title>
-  <meta name="description" content="{_DESCRIPTION}">
-  <meta property="og:title" content="{_TITLE}">
-  <meta property="og:description" content="{_DESCRIPTION}">
-  <style>{COMPANY_ANSWERS_STYLE}{_PAGE_STYLE}</style>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-{digest}'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <title>{escape(_TITLE)}</title>
+  <meta name="description" content="{escape(_DESCRIPTION, quote=True)}">
+  <meta property="og:title" content="{escape(_TITLE, quote=True)}">
+  <meta property="og:description" content="{escape(_DESCRIPTION, quote=True)}">
+  <style>{_STYLE}</style>
 </head>
 <body>
-  <main>
-    <header>
-      <p class="demo-label">合成数据演示 · 虚构公司</p>
-      <h1>雾岬光路</h1>
-      <p class="demo-note">公司、价格、财务和同行数据均为示例。</p>
-    </header>
-    <fieldset class="demo-controls">
-      <legend>切换同行样本</legend>
-      <label><input type="radio" name="demo-scenario" checked> 3 家符合</label>
-      <label><input type="radio" name="demo-scenario" id="demo-withheld"> 2 家符合</label>
-    </fieldset>
-    <div class="demo-state--available">{available}</div>
-    <div class="demo-state--withheld">{withheld}</div>
-  </main>
+  <a class="skip-link" href="#demo-main">Skip to demo content</a>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">SR</span>
+        <div><p class="eyebrow">Guided product demo</p><h1>Stock Research Command Center</h1></div>
+      </div>
+      <p class="badge">Synthetic data · Fictional company</p>
+    </div>
+  </header>
+  <div class="layout">
+    <nav class="steps" aria-label="Demo steps">
+      <p class="steps-title eyebrow">Research workflow</p>
+      <ol>{steps}</ol>
+      <p class="scope-note">A guided research case. Search and follow-up work entirely in this page.</p>
+    </nav>
+    <main id="demo-main" tabindex="-1">
+      {_discover()}
+      {_financials()}
+      {_valuation()}
+      {_notes()}
+      {_monitor()}
+    </main>
+  </div>
+  <footer class="page-footer">Stock Research Command Center · Synthetic research case</footer>
+  <script>{script}</script>
 </body>
 </html>
 """

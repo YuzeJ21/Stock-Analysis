@@ -1,8 +1,12 @@
 """Verify the public company demo file and its offline browser controls."""
 
+from base64 import b64encode
+from contextlib import contextmanager
+from hashlib import sha256
 from html.parser import HTMLParser
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -13,10 +17,23 @@ class _Document(HTMLParser):
     def __init__(self, html):
         super().__init__()
         self.elements = []
+        self.scripts = []
+        self.script = None
         self.feed(html)
 
     def handle_starttag(self, tag, attrs):
         self.elements.append((tag, dict(attrs)))
+        if tag == "script":
+            self.script = ""
+
+    def handle_data(self, data):
+        if self.script is not None:
+            self.script += data
+
+    def handle_endtag(self, tag):
+        if tag == "script":
+            self.scripts.append(self.script)
+            self.script = None
 
 
 def test_demo_is_a_self_contained_explicit_cli_output(tmp_path):
@@ -34,78 +51,176 @@ def test_demo_is_a_self_contained_explicit_cli_output(tmp_path):
     html = path.read_text(encoding="utf-8")
     assert list(tmp_path.iterdir()) == [path]
     assert html == build_demo_html()
-    assert "虚构公司" in html and "合成数据" in html
-    elements = _Document(html).elements
-    assert "<title>Stock Research Command Center · 公司研究演示</title>" in html
+    document = _Document(html)
+    source = (project / "scripts" / "company_demo_interactions.js").read_text(encoding="utf-8")
+    assert document.scripts == [source]
+    policy, = [attrs["content"] for tag, attrs in document.elements
+               if tag == "meta" and attrs.get("http-equiv") == "Content-Security-Policy"]
+    digest = b64encode(sha256(source.encode("utf-8")).digest()).decode("ascii")
+    directives = {part.strip().partition(" ")[0]: part.strip().partition(" ")[2]
+                  for part in policy.split(";") if part.strip()}
+    assert directives["default-src"] == directives["base-uri"] == directives["form-action"] == "'none'"
+    assert directives["script-src"] == f"'sha256-{digest}'"
+    assert "synthetic" in html.lower() and "fictional" in html.lower()
     metadata = {attrs.get("name") or attrs.get("property"): attrs.get("content")
-                for tag, attrs in elements if tag == "meta"}
-    assert "Stock Research Command Center" in metadata["description"]
-    assert metadata["og:title"] == "Stock Research Command Center · 公司研究演示"
+                for tag, attrs in document.elements if tag == "meta"}
+    assert "Stock Research Command Center" in metadata["og:title"]
     assert metadata["og:description"] == metadata["description"]
-    assert "og:image" not in metadata
-    ids = [attrs["id"] for _, attrs in elements if "id" in attrs]
+    ids = [attrs["id"] for _, attrs in document.elements if "id" in attrs]
     assert len(ids) == len(set(ids))
-    assert not any(tag in {"script", "form", "img", "iframe", "link", "object"} for tag, _ in elements)
-    assert not any({"src", "srcset", "action", "href"}.intersection(attrs) for _, attrs in elements)
-    assert [attrs["data-company-answer"] for _, attrs in elements if "data-company-answer" in attrs] == [
-        "price", "financial", "valuation", "price", "financial", "valuation",
-    ]
-    assert sum(tag == "details" for tag, _ in elements) == 6
+    assert not any(tag in {"img", "iframe", "object"} for tag, _ in document.elements)
+    assert not any({"src", "srcset", "action"}.intersection(attrs) for _, attrs in document.elements)
+    assert not any(name.startswith("on") for _, attrs in document.elements for name in attrs)
+    assert all(attrs["href"].startswith("#") and attrs["href"][1:] in ids
+               for tag, attrs in document.elements if tag == "a")
+    assert all(attrs.get("rel") in {"canonical", "alternate"} for tag, attrs in document.elements if tag == "link")
+    assert {attrs["data-demo-page"] for _, attrs in document.elements if "data-demo-page" in attrs} == {
+        "discover", "financials", "valuation", "notes", "monitor",
+    }
+    assert {attrs["data-company-answer"] for _, attrs in document.elements if "data-company-answer" in attrs} == {
+        "price", "financial", "valuation",
+    }
 
 
-@pytest.mark.parametrize("viewport", [{"width": 1280, "height": 720}, {"width": 390, "height": 844}], ids=["desktop", "phone"])
-def test_demo_keyboard_switch_and_evidence_work_offline(tmp_path, viewport):
+@contextmanager
+def _browser(tmp_path, viewport, *, javascript=True):
     from scripts.build_company_demo import build_demo_html
     from src.public_performance_gate import find_chrome_executable
 
     playwright = pytest.importorskip("playwright.sync_api")
     if (chrome := find_chrome_executable()) is None:
         pytest.skip("Chrome-compatible browser is unavailable")
-
     path = tmp_path / "demo.html"
     path.write_text(build_demo_html(), encoding="utf-8")
+
     with playwright.sync_playwright() as runtime:
         browser = runtime.chromium.launch(executable_path=str(chrome), headless=True)
         try:
-            page = browser.new_page(viewport=viewport, java_script_enabled=False)
-            requests = []
+            page = browser.new_page(viewport=viewport, java_script_enabled=javascript)
+            requests, errors = [], []
             page.route("http*://**", lambda route: (requests.append(route.request.url), route.abort()))
+            page.on("pageerror", lambda error: errors.append(str(error)))
+            page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
             page.goto(path.as_uri())
-            cards = page.locator("[data-company-answer]:visible")
-            playwright.expect(cards).to_have_count(3)
-            for card in cards.all():
-                box = card.bounding_box()
-                assert box["y"] >= 0 and box["y"] + box["height"] <= viewport["height"]
-            assert page.locator("html").evaluate("e => e.scrollWidth") == viewport["width"]
-            price, financial, valuation = cards.all()
-            before = [price.inner_text(), financial.inner_text()]
-            playwright.expect(price).to_contain_text("2026-10-30")
-            playwright.expect(valuation).to_contain_text("20.0×")
-            playwright.expect(valuation).to_contain_text("3 家符合")
-
-            available = page.get_by_role("radio", name="3 家符合", exact=True)
-            withheld = page.get_by_role("radio", name="2 家符合", exact=True)
-            playwright.expect(available).to_be_checked()
-            page.keyboard.press("Tab")
-            playwright.expect(available).to_be_focused()
-            page.keyboard.press("ArrowRight")
-            playwright.expect(withheld).to_be_checked()
-            playwright.expect(cards).to_have_count(3)
-            price, financial, valuation = cards.all()
-            assert [price.inner_text(), financial.inner_text()] == before
-            playwright.expect(valuation).to_contain_text("同行比较暂缺")
-            playwright.expect(valuation).to_contain_text("本公司 24.0×")
-            playwright.expect(valuation).to_contain_text("至少需 3 家")
-            playwright.expect(valuation).not_to_contain_text("20.0×")
-            summary = valuation.locator("summary")
-            summary.focus()
-            page.keyboard.press("Enter")
-            playwright.expect(valuation.locator("details")).to_have_attribute("open", "")
-            playwright.expect(valuation).to_contain_text("2026-10-29")
-            withheld.focus()
-            page.keyboard.press("ArrowLeft")
-            playwright.expect(available).to_be_checked()
-            playwright.expect(cards.last).to_contain_text("20.0×")
-            assert not requests
+            yield page, playwright.expect
+            assert not requests and not errors, (requests, errors)
         finally:
             browser.close()
+
+
+def _viewport_fits(page, viewport):
+    assert page.locator("html").evaluate("e => e.scrollWidth") == viewport["width"]
+
+
+@pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}, {"width": 390, "height": 844}], ids=["desktop", "phone"])
+def test_guided_demo_search_peer_withholding_and_follow_up_offline(tmp_path, viewport):
+    with _browser(tmp_path, viewport) as (page, expect):
+        panels = page.locator("[data-demo-page]:visible")
+        discover = page.locator('[data-demo-page="discover"]')
+        query = page.locator("[data-demo-query]")
+        status = page.locator("[data-demo-search-status]")
+        result = page.locator("[data-demo-result]")
+        expect(panels).to_have_count(1)
+        expect(discover).to_be_visible()
+        _viewport_fits(page, viewport)
+
+        query.fill("no-such-company")
+        query.press("Enter")
+        expect(status).to_have_text("No fictional company matches that search.")
+        expect(result).to_be_hidden()
+        query.fill("  fIcT  ")
+        query.press("Enter")
+        expect(result).to_contain_text("Fogline Photonics")
+        expect(result).to_be_visible()
+        page.locator('[data-demo-search] button[type="reset"]').press("Enter")
+        expect(query).to_have_value("")
+        expect(query).to_be_focused()
+        expect(result).to_be_hidden()
+        expect(status).to_be_empty()
+
+        query.fill("fogline photonics")
+        query.press("Enter")
+        result.get_by_role("link").first.press("Enter")
+        financials = page.locator('[data-demo-page="financials"]')
+        expect(financials.locator("[data-demo-title]")).to_be_focused()
+        expect(financials.locator("[data-demo-title]")).to_be_in_viewport()
+        expect(financials).to_contain_text("2025")
+        expect(financials).to_contain_text("2024")
+        _viewport_fits(page, viewport)
+
+        nav = page.get_by_role("navigation")
+        nav.locator('[data-demo-go="valuation"]').press("Enter")
+        valuation = page.locator('[data-demo-page="valuation"]')
+        expect(valuation.locator("[data-demo-title]")).to_be_focused()
+        available = valuation.get_by_role("radio", name="3 eligible peers", exact=True)
+        withheld = valuation.get_by_role("radio", name="2 eligible peers", exact=True)
+        comparison = valuation.locator('[data-company-answer="valuation"]:visible')
+        expect(comparison).to_contain_text("20.0×")
+        expect(comparison).to_contain_text("3 eligible peers · comparison available")
+        available.press("ArrowRight")
+        expect(withheld).to_be_checked()
+        expect(comparison).to_contain_text("24.0×")
+        expect(comparison).to_contain_text("2 eligible peers · 3 required")
+        expect(comparison).not_to_contain_text("20.0×")
+        peer_c = valuation.get_by_role("row").filter(has_text="Peer C")
+        expect(peer_c).to_contain_text("Excluded · different close date")
+        evidence = valuation.locator("details:visible")
+        evidence.locator("summary").press("Enter")
+        expect(evidence).to_have_attribute("open", "")
+        expect(evidence).to_contain_text("Oct 29, 2026")
+        expect(evidence).to_contain_text(re.compile(r"same[- ]day", re.IGNORECASE))
+        _viewport_fits(page, viewport)
+        page.get_by_role("link", name="Skip to demo content").press("Enter")
+        expect(page).to_have_url(re.compile(r"#demo-main$"))
+        expect(page.locator("#demo-main")).to_be_focused()
+        expect(valuation).to_be_visible()
+
+        nav.locator('[data-demo-go="monitor"]').press("Enter")
+        expect(page.locator("[data-demo-monitor-empty]")).to_be_visible()
+        nav.locator('[data-demo-go="notes"]').press("Enter")
+        notes = page.locator('[data-demo-page="notes"]')
+        expect(notes.locator("[data-demo-title]")).to_be_focused()
+        note = "<b>Check the fiscal-year comparison</b>"
+        notes.locator("[data-demo-note-input]").fill(note)
+        notes.locator("[data-demo-pin]").press("Enter")
+        expect(notes.locator("[data-demo-pin-status]")).to_have_text("Follow-up added for this page.")
+        nav.locator('[data-demo-go="monitor"]').press("Enter")
+        monitor = page.locator('[data-demo-page="monitor"]')
+        expect(monitor.locator("[data-demo-title]")).to_be_focused()
+        expect(nav.locator('[data-demo-go="monitor"]')).to_have_attribute("aria-current", "step")
+        expect(monitor.locator("[data-demo-monitor-item]")).to_contain_text("Fogline Photonics · FICT")
+        expect(monitor.locator("[data-demo-monitor-note]")).to_have_text(note)
+        expect(monitor.locator("[data-demo-monitor-note] b")).to_have_count(0)
+        expect(monitor.locator("[data-demo-monitor-empty]")).to_be_hidden()
+        _viewport_fits(page, viewport)
+
+        monitor.locator('[data-demo-go="notes"]:visible').press("Enter")
+        expect(notes.locator("[data-demo-title]")).to_be_focused()
+        expect(notes.locator("[data-demo-note-input]")).to_have_value(note)
+        page.go_back()
+        expect(monitor).to_be_visible()
+        expect(monitor.locator("[data-demo-monitor-note]")).to_have_text(note)
+        nav.locator('[data-demo-go="valuation"]').press("Enter")
+        expect(withheld).to_be_checked()
+        expect(comparison).not_to_contain_text("20.0×")
+        nav.locator('[data-demo-go="discover"]').press("Enter")
+        expect(query).to_have_value("fogline photonics")
+        expect(result).to_be_visible()
+        nav.locator('[data-demo-go="monitor"]').press("Enter")
+        expect(monitor.locator("[data-demo-monitor-note]")).to_have_text(note)
+        page.reload()
+        expect(panels).to_have_count(1)
+        expect(monitor).to_be_visible()
+        expect(page.locator("[data-demo-monitor-empty]")).to_be_visible()
+
+
+def test_native_sections_and_peer_controls_remain_usable_without_scripts(tmp_path):
+    viewport = {"width": 390, "height": 844}
+    with _browser(tmp_path, viewport, javascript=False) as (page, expect):
+        page.get_by_role("navigation").locator('[data-demo-go="valuation"]').press("Enter")
+        expect(page).to_have_url(re.compile(r"#valuation$"))
+        valuation = page.locator('[data-demo-page="valuation"]')
+        expect(valuation).to_be_visible()
+        valuation.get_by_role("radio", name="3 eligible peers", exact=True).press("ArrowRight")
+        expect(valuation.get_by_role("radio", name="2 eligible peers", exact=True)).to_be_checked()
+        _viewport_fits(page, viewport)

@@ -4,13 +4,13 @@ An **Evidence-First Research Workbench** for serious individual equity researche
 
 ## External Reviewer Start Here
 
-[**Open the public company research demo**](https://yuzej21.github.io/Stock-Analysis/). This read-only GitHub Pages demo uses a fictional company and synthetic data. It opens directly in a browser without sign-in or setup.
+[**Open the public company research demo**](https://yuzej21.github.io/Stock-Analysis/). This read-only GitHub Pages demo uses a fictional company and synthetic data. Follow the English workflow in your browser without signing in.
 
 ### Two-minute walkthrough
 
-1. **Open the company page.** See the dated close, the latest reported revenue change, and the annual P/E comparison in the first view.
-2. **Switch the peer sample.** With three eligible peers, the demo shows the comparison. With two, it explains the missing peer evidence and withholds the comparison.
-3. **Check the basis.** Expand each answer to see the sample period, data, and calculation.
+1. **Find Fogline Photonics.** Search for `FICT` in Company Search and open its Workbench to see the dated close and financial trends.
+2. **Compare peers.** Review annual diluted P/E and the exclusion evidence. Switch from three eligible peers to two to see why the comparison is withheld.
+3. **Follow the evidence.** Open Research Notes, add the sample follow-up to Monitor, and return to the same company. The demo keeps interactions in the current tab.
 
 <details><summary>Full workflow and reviewer resources</summary>
 
@@ -25,7 +25,7 @@ The full Streamlit workspace is a **local Commercial Research Beta foundation**.
 | Question | Short answer |
 | --- | --- |
 | What should I open first? | Start with the [public company demo](https://yuzej21.github.io/Stock-Analysis/), then use `docs/PUBLIC_DEMO_WALKTHROUGH.md` for the local five-page workflow. |
-| How do I run the full workspace locally? | Run `make demo-dashboard`, then open `http://localhost:8501/?mode=public`. |
+| How do I run the full workspace locally? | Run `make dashboard`, then open `http://localhost:8501/` for Personal Research. |
 | What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |
 | What should I run when I ask what is next? | Run `make next-stage` for the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |
 | What is the current roadmap? | Read `ROADMAP.md` for the sole active priority order, dependencies, and stop rules. |

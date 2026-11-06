@@ -1,6 +1,6 @@
 # Public Demo Walkthrough
 
-Use this when sharing the project from GitHub or LinkedIn. The walkthrough is read-only until you intentionally run local report commands, and it does not refresh broad data or import trusted rows.
+Share the [interactive English company research demo](https://yuzej21.github.io/Stock-Analysis/) from GitHub or LinkedIn. It uses a fictional company and synthetic data. The local Streamlit walkthrough below uses the bundled demo profile.
 
 ## Share Boundary
 
@@ -9,7 +9,7 @@ Use this when sharing the project from GitHub or LinkedIn. The walkthrough is re
 - Share under the controlled portfolio/demo license; do not describe the repository as open source or reusable software.
 - Keep the demo research-only: no investment advice, broker action, order routing, auto-trading, or direct buy/sell instructions.
 - Saved source labels and screenshots do not establish source rights, current-market freshness, or commercial permission.
-- No public hosted Streamlit URL is configured yet; the shareable path is the GitHub project, curated screenshots, and tracked `make demo-dashboard` instructions. Use `docs/HOSTED_DEMO_DEPLOYMENT.md` only when preparing a verified hosted app link.
+- GitHub Pages hosts the guided synthetic case. Use `docs/HOSTED_DEMO_DEPLOYMENT.md` when preparing a separate Streamlit deployment.
 - Public UX status is `share_review_ready` for the local GitHub/demo workflow: public checks, browser evidence, and repeated local cold/warm evidence pass. Hosted-route verification and external reviewer workflow evidence remain pending before calling it a hosted or externally validated product.
 - FMP, Alpha Vantage, and Finnhub are optional provider fallbacks and are not configured by default. Provider setup does not prove coverage until a reviewed source-backed smoke, validation, preview, and readiness rebuild pass.
 - Coverage is intentionally readiness-gated rather than complete. Fundamentals, share count, peer mapping, earnings, and analyst estimates can remain blocked or locked while the product is still useful.
@@ -17,8 +17,9 @@ Use this when sharing the project from GitHub or LinkedIn. The walkthrough is re
 
 ## Two-Minute External Review Path
 
-- GitHub-only review: start with the preview image, the five-page workflow map, and this walkthrough script.
-- Live dashboard review: run `make demo-dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
+- Public interactive demo: search for `FICT`, inspect Financial Trends, and switch from three eligible peers to two in Peer Valuation. Open Research Notes, add the sample follow-up to Monitor, and return to the company.
+- GitHub-only review: start with the README for the implementation and the saved examples below.
+- Live dashboard review: run `make dashboard` for Personal Research. For the compact local visitor snapshot, run `make demo-dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; use `make readiness-ops-center` for current lane truth, while `make status-check TOP_N=5` remains saved-snapshot context.
 - Responsive evidence: desktop and phone-width public-flow checks are summarized in `docs/DASHBOARD_QA.md`; they prove layout behavior, not data freshness.
 - Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof.
@@ -27,7 +28,7 @@ Use this when sharing the project from GitHub or LinkedIn. The walkthrough is re
 
 This project is a local research command center. It checks data readiness before analysis, shows what can be reviewed now, and keeps missing or non-applicable analysis visibly locked or excluded.
 
-Best visitor path:
+Local visitor path:
 
 1. Open the README and dashboard preview.
 2. Run `make demo` to print the safe walkthrough without changing local data.
@@ -97,7 +98,7 @@ Read the outcome in three states: `Supported` means rebuilt readiness and the re
 - Do not call this investment advice.
 - Do not describe the output as a buy/sell system.
 - Do not imply broad fundamentals, peer valuation, earnings, or estimates are complete.
-- Do not imply there is a public hosted app link until one is deployed and verified.
+- Describe GitHub Pages as a synthetic company case and Streamlit as the separate full workspace.
 - Do not imply FMP, Alpha Vantage, or Finnhub provider keys are configured unless they are actually set locally and a reviewed smoke has passed.
 - Do not claim blocked sections are negative company signals.
 - Do not say the app places orders, has broker integration, or automates execution.

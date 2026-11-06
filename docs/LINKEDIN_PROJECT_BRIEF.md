@@ -8,14 +8,14 @@ The product separates the main research answer from technical evidence. Company 
 
 The main idea remains simple: data readiness first, analysis second, research decision last. Empty or unverified valuation, catalyst, outcome, consensus, and calibration lanes stay withheld rather than displaying fabricated content.
 
-Best first click for the complete product: run the local app and follow Research Desk -> Discover -> Company Workbench -> Monitor. The shorter controlled Public demo remains Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
+Start with the [English company research demo](https://yuzej21.github.io/Stock-Analysis/). It follows a fictional company from Company Search through Financial Trends, Peer Valuation, Research Notes, and Monitor. The local Streamlit app includes the wider research and Operator tools. Its controlled Public mode follows Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
 
 Two-minute external review path:
 
 - GitHub-only review: start with the Workbench answer preview, the four-step Personal Research workflow, and `README.md`.
 - Controlled reviewer handoff: send `docs/PILOT_REVIEW_INVITATION.md` for one under-three-minute workflow review before sharing the detailed feedback template.
 - Live dashboard review: run `make dashboard`, open `http://localhost:8501/`, then follow Research Desk -> Discover -> Company Workbench -> Monitor. Use `http://localhost:8501/?mode=public` for the five-page controlled demo.
-- Hosted app status: no public hosted Streamlit URL is configured yet; share the GitHub project, curated screenshots, and local run instructions unless you separately deploy the app and complete `docs/HOSTED_DEMO_DEPLOYMENT.md`.
+- Hosted app status: GitHub Pages hosts the synthetic case, and no public hosted Streamlit URL is configured yet. A separate Streamlit deployment follows `docs/HOSTED_DEMO_DEPLOYMENT.md`.
 - Evidence boundary: `docs/assets/linkedin-public-dashboard.png` is a real Workbench answer-first screenshot; screenshots are product evidence only. Do not publish data-readiness claims from the image.
 - Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof.
 - Coverage boundary: price coverage is broad, but fundamentals, share count, peer mapping, earnings, and analyst estimates still have blocked or locked areas. The product shows those gaps instead of treating them as complete.
@@ -75,7 +75,9 @@ LinkedIn Featured title:
 
 LinkedIn Featured description:
 
-`A local Python + Streamlit portfolio project for evidence-first company research. Research Desk -> Discover -> Company Workbench -> Monitor shows what can be used now, what remains withheld, and why. Research-only; no broker integration, auto-trading, or investment advice.`
+`Follow a fictional company from search to Monitor. Inspect financial trends, see why a peer valuation appears or stays withheld, and add a research follow-up. The English demo uses synthetic data.`
+
+Featured link: [Open the English company research demo](https://yuzej21.github.io/Stock-Analysis/).
 
 GitHub About description:
 
@@ -98,7 +100,7 @@ What not to claim:
 - Do not call it an investment-advice tool, stock picker, broker integration, execution system, account-action workflow, or data-freshness proof.
 - Do not imply blocked fundamentals, peer valuation, earnings, or analyst-estimate lanes are complete.
 - Do not describe the repository as open source or reusable software under the current controlled demo license.
-- Do not imply there is a public hosted app link until a hosted Streamlit deployment exists and has passed the public share gates.
+- Describe GitHub Pages as a synthetic company case and Streamlit as the separate full workspace.
 - Do not imply FMP, Alpha Vantage, or Finnhub provider fallbacks are configured unless local keys are actually set and a reviewed one-ticker smoke has passed.
 
 Featured thumbnail: use `docs/assets/linkedin-public-dashboard.png`. It is a real Workbench answer-first screenshot showing one selected-company answer, usable and withheld evidence, the Data Health handoff, and the stop condition without publishing changing coverage figures. Keep `docs/assets/operator-data-health-metrics-real.jpg` only for deeper operator-mode discussion. The plain GitHub URL card can use GitHub's generated OpenGraph image, so use LinkedIn Featured when you want the curated product screenshot.

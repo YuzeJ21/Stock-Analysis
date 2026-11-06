@@ -8,8 +8,8 @@ PUBLIC_V1_ROUTE = (
 )
 PUBLIC_COMPANY_DEMO = "https://yuzej21.github.io/Stock-Analysis/"
 LOCAL_WORKSPACE_START = (
-    "| How do I run the full workspace locally? | Run `make demo-dashboard`, "
-    "then open `http://localhost:8501/?mode=public`. |"
+    "| How do I run the full workspace locally? | Run `make dashboard`, "
+    "then open `http://localhost:8501/` for Personal Research. |"
 )
 
 
@@ -684,7 +684,7 @@ def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     assert PUBLIC_V1_ROUTE in walkthrough
     assert "Run `make next-stage` when you want the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, push, deploy, or expose secrets." in walkthrough
     assert "make next-stage                  # print the current package/provider/hosted/source-queue ladder without changing local data" in walkthrough
-    best_path = walkthrough.split("Best visitor path:", 1)[1].split("What each page answers:", 1)[0]
+    best_path = walkthrough.split("Local visitor path:", 1)[1].split("What each page answers:", 1)[0]
     assert best_path.index("make demo") < best_path.index("make next-stage")
     assert best_path.index("make next-stage") < best_path.index("make status-check TOP_N=5")
     assert "Stock Selector" in walkthrough
@@ -706,6 +706,8 @@ def test_external_review_story_is_consistent_across_public_docs():
     assert LOCAL_WORKSPACE_START in readme
     assert "This is not an open-source release." in readme
     for doc in (walkthrough, linkedin):
+        assert PUBLIC_COMPANY_DEMO in doc
+        assert "Financial Trends" in doc and "Research Notes" in doc and "Monitor" in doc
         assert "GitHub-only review" in doc
         assert "Live dashboard review" in doc
         assert "data-freshness proof" in doc or "data freshness proof" in doc
