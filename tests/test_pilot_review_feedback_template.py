@@ -208,8 +208,8 @@ def test_commercial_beta_pilot_contract_is_task_based_and_truthful():
 
     assert "## Now: Commercial Research Beta Foundation" in roadmap
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in roadmap
-    assert "local Commercial Research Beta foundation" in readme
-    assert "not a hosted or commercially launched product" in readme
+    assert "The full Streamlit workspace is a **local Commercial Research Beta foundation**." in readme
+    assert "operated data rights, real beta users, and repeatable provider operations remain separate gates" in readme
     assert "10 to 20" in runbook
     for metric in (
         "Task success",

@@ -4,17 +4,13 @@ An **Evidence-First Research Workbench** for serious individual equity researche
 
 ## External Reviewer Start Here
 
-[**Open the public company research demo**](https://yuzej21.github.io/Stock-Analysis/)
-
-The read-only demo uses a fictional company and synthetic data. It opens directly in a browser without sign-in or setup.
+[**Open the public company research demo**](https://yuzej21.github.io/Stock-Analysis/). This read-only GitHub Pages demo uses a fictional company and synthetic data. It opens directly in a browser without sign-in or setup.
 
 ### Two-minute walkthrough
 
 1. **Open the company page.** See the dated close, the latest reported revenue change, and the annual P/E comparison in the first view.
 2. **Switch the peer sample.** With three eligible peers, the demo shows the comparison. With two, it explains the missing peer evidence and withholds the comparison.
 3. **Check the basis.** Expand each answer to see the sample period, data, and calculation.
-
-For the full local Streamlit workflow, run `make demo-dashboard` and open the [AVGO Company Workbench](http://localhost:8501/?mode=research&page=company-workbench&ticker=AVGO&section=valuation).
 
 <details><summary>Full workflow and reviewer resources</summary>
 
@@ -79,7 +75,7 @@ Visitor status: the product workflow, dashboard, single-stock reports, readiness
 Use this as the short GitHub/LinkedIn review path before reading operator detail:
 | Question | Short answer |
 | --- | --- |
-| Review first | Dashboard preview, then Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |
+| Review first | [Public company demo](https://yuzej21.github.io/Stock-Analysis/), then Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History for the local walkthrough. |
 | Use as evidence | Public pages, committed real screenshots, sample Markdown reports, methodology docs, and `make public-check` output. |
 | Responsive proof | Desktop and phone-width workflow evidence is recorded in `docs/DASHBOARD_QA.md`; screenshots are still product evidence only. |
 | Skip unless operating locally | Broad CSV/report churn, provider setup, validate/preview/apply commands, and raw proof ledgers. |

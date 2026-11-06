@@ -1690,7 +1690,9 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     public_demo = Path("docs/PUBLIC_DEMO_WALKTHROUGH.md").read_text(encoding="utf-8")
 
     assert len(readme.splitlines()) < 180
-    assert "![Company Workbench answer preview](docs/assets/linkedin-public-dashboard.png)" in readme
+    demo = "[**Open the public company research demo**](https://yuzej21.github.io/Stock-Analysis/)"
+    preview_image = "![Local Company Workbench preview](docs/assets/linkedin-public-dashboard.png)"
+    assert readme.index(demo) < readme.index(preview_image) < readme.index("## Quick Start")
     assert "make readiness-ops-center` for lane truth" in readme
     for preview_phrase in (
         "plain-language stock analysis modes",

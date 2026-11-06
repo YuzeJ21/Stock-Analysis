@@ -6,6 +6,11 @@ import subprocess
 PUBLIC_V1_ROUTE = (
     "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History"
 )
+PUBLIC_COMPANY_DEMO = "https://yuzej21.github.io/Stock-Analysis/"
+LOCAL_WORKSPACE_START = (
+    "| How do I run the full workspace locally? | Run `make demo-dashboard`, "
+    "then open `http://localhost:8501/?mode=public`. |"
+)
 
 
 def _read(path: str) -> str:
@@ -204,13 +209,13 @@ def test_readme_product_tour_matches_v1_public_route_model():
     readme = _read("README.md")
 
     assert "## External Reviewer Start Here" in readme
-    assert "This repository is ready to review as a controlled GitHub/LinkedIn portfolio demo." in readme
-    assert "It is not currently published as a hosted Streamlit app." in readme
-    assert "| What is the live app path? | Run `make demo-dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
+    assert f"[**Open the public company research demo**]({PUBLIC_COMPANY_DEMO})" in readme
+    assert "read-only GitHub Pages demo uses a fictional company and synthetic data" in readme
+    assert LOCAL_WORKSPACE_START in readme
     assert "[Data Profiles](docs/DATA_PROFILES.md)" in readme
     assert "| What workflow should I follow? | Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
     assert "| What should I run when I ask what is next? | Run `make next-stage` for the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |" in readme
-    assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
+    assert "| What does the public demo cover? | The public demo uses synthetic data. The full workspace runs locally for research, and the root license governs reuse. |" in readme
     assert "First review move: open Stock Selector" in readme
     assert "screenshots are product evidence only" in readme
     assert "| What proves current local readiness? | Run `make readiness-ops-center` for lane truth. `make status-check TOP_N=5` can describe a saved generated snapshot; screenshots are product evidence only. |" in readme
@@ -300,8 +305,8 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     readme = _read("README.md")
 
     assert "## External Reviewer Start Here" in readme
-    assert "not currently published as a hosted Streamlit app" in readme
-    assert "No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof." in readme
+    assert "screenshots are product evidence only" in readme
+    assert "This is not an open-source release." in readme
     assert "## Pilot Share Status" in readme
     assert "Share as controlled portfolio/demo evidence under the root `LICENSE`" in readme
     assert "do not describe the repository as open source or reusable software" in readme
@@ -309,7 +314,8 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     assert "`make project-status-check` -> `make provider-setup-checklist` -> a reviewed one-ticker smoke command" in readme
     assert "Use `make project-status` only when you intentionally want to refresh the dashboard-ready status snapshot." in readme
     assert "No broad coverage batch should run from setup alone." in readme
-    assert "no public Streamlit URL is configured in this repository" in readme
+    assert f"The [public company demo]({PUBLIC_COMPANY_DEMO}) is hosted on GitHub Pages" in readme
+    assert "The full Streamlit workspace runs locally through `make demo-dashboard`" in readme
     assert "`make linkedin-share-check` for the final LinkedIn Featured-card checklist" in readme
     assert readme.index("## External Reviewer Start Here") < readme.index("## Pilot Share Status")
     assert readme.index("## Pilot Share Status") < readme.index("## Local Data Hygiene")
@@ -336,8 +342,8 @@ def test_readme_has_compact_current_next_stages_for_external_reviewers():
     assert "save and restore reduced coverage progress" in readme
     assert "| Later | Carry permitted snapshot changes" in readme
     assert "Hosting, full coverage, calibration, and commercial operation require their own direct evidence" in readme
-    assert "local Commercial Research Beta foundation" in readme
-    assert "not a hosted or commercially launched product" in readme
+    assert "The full Streamlit workspace is a **local Commercial Research Beta foundation**." in readme
+    assert "The public link opens a standalone synthetic demo." in readme
     assert "Authentication, private workspaces, operated data rights, real beta users, and repeatable provider operations remain separate gates" in readme
     assert readme.index("## External Reviewer Start Here") < readme.index("## Now / Next / Later")
     assert readme.index("## Now / Next / Later") < readme.index("## What You Can Analyze")
@@ -356,12 +362,12 @@ def test_readme_explains_no_key_sec_preview_without_claiming_activation():
     assert "derived, mixed-unit, out-of-scope, and incoherent-period fields remain blocked" in readme
 
 
-def test_public_status_language_keeps_share_review_ready_local_only():
+def test_public_status_language_separates_hosted_demo_from_local_workspace():
     readme = _read("README.md")
 
-    assert "This repository is ready to review as a controlled GitHub/LinkedIn portfolio demo." in readme
-    assert "It is not currently published as a hosted Streamlit app." in readme
-    assert "Hosting remains external until a URL is verified" in readme
+    assert f"The [public company demo]({PUBLIC_COMPANY_DEMO}) is hosted on GitHub Pages and uses only synthetic data." in readme
+    assert "The full Streamlit workspace runs locally through `make demo-dashboard`." in readme
+    assert "A separate Streamlit deployment follows the [Hosted Demo Deployment]" in readme
     assert "make public-performance-gate" in readme
 
 
@@ -593,12 +599,11 @@ def test_readme_has_external_reviewer_handoff_before_operator_detail():
     checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
 
     assert "## External Reviewer Start Here" in readme
-    assert "| What should I open first? | Start with this README preview, then use `docs/PUBLIC_DEMO_WALKTHROUGH.md` for the five-page workflow. |" in readme
-    assert "| What is the live app path? | Run `make demo-dashboard`, then open `http://localhost:8501/?mode=public`. |" in readme
+    assert f"| What should I open first? | Start with the [public company demo]({PUBLIC_COMPANY_DEMO}), then use `docs/PUBLIC_DEMO_WALKTHROUGH.md` for the local five-page workflow. |" in readme
+    assert LOCAL_WORKSPACE_START in readme
     assert "| What proves current local readiness? | Run `make readiness-ops-center` for lane truth. `make status-check TOP_N=5` can describe a saved generated snapshot; screenshots are product evidence only. |" in readme
-    assert "| What should I not claim? | No hosted app yet, no open-source reuse, no investment advice, no broker integration, no auto-trading, and no screenshot-based data freshness proof. |" in readme
     assert "## External Reviewer Handoff" in readme
-    assert "| Review first | Dashboard preview, then Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |" in readme
+    assert f"| Review first | [Public company demo]({PUBLIC_COMPANY_DEMO}), then {PUBLIC_V1_ROUTE} for the local walkthrough. |" in readme
     assert "| Skip unless operating locally | Broad CSV/report churn, provider setup, validate/preview/apply commands, and raw proof ledgers. |" in readme
     assert "| Do not claim | Screenshots prove data freshness, blocked inputs are ready, the repo is open source, or the product gives buy/sell instructions. |" in readme
     assert "| Best next question | Can a reviewer understand what is ready, blocked, excluded, and proof-backed before opening advanced details? |" in readme
@@ -698,17 +703,18 @@ def test_external_review_story_is_consistent_across_public_docs():
     assert "## Two-Minute External Review Path" in walkthrough
     assert "Two-minute external review path:" in linkedin
     assert "What should I open first?" in readme
-    assert "What is the live app path?" in readme
+    assert LOCAL_WORKSPACE_START in readme
+    assert "This is not an open-source release." in readme
     for doc in (walkthrough, linkedin):
         assert "GitHub-only review" in doc
         assert "Live dashboard review" in doc
+        assert "data-freshness proof" in doc or "data freshness proof" in doc
+        assert "open-source reuse" in doc
     for doc in (readme, walkthrough, linkedin):
         assert PUBLIC_V1_ROUTE in doc
         assert "screenshots show product UI only" in doc or "screenshots are product evidence only" in doc
         assert "make status-check TOP_N=5" in doc
         assert "controlled portfolio/demo" in doc
-        assert "data-freshness proof" in doc or "data freshness proof" in doc
-        assert "open-source reuse" in doc
     assert walkthrough.index("## Two-Minute External Review Path") < walkthrough.index("## Demo Examples")
 
 
