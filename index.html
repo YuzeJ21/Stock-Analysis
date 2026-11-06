@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Y+VoBMPAyzDevrGp+FCDb0k1Xh2o0qNLqT+kdM18ips='; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-KjTEM4nlsownWcs4Jsuh1FZOD8X9UmvTWFlmNrgbbBU='; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
   <title>Stock Research Command Center | Guided Demo</title>
   <meta name="description" content="Follow a fictional company from search to financial trends, peer valuation, and research follow-up.">
   <meta property="og:title" content="Stock Research Command Center | Guided Demo">
@@ -89,11 +89,16 @@ textarea { width: 100%; resize: vertical; }
   border: 1px solid var(--line); border-radius: .75rem; }
 .result { display: grid; gap: .45rem; background: var(--mint); }
 .result .button { margin-top: .3rem; }
-.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.45fr); gap: .75rem; }
 .metric { min-width: 0; display: grid; align-content: start; gap: .2rem; padding: 1rem;
   border: 1px solid var(--line); border-radius: .65rem; background: var(--paper); }
 .metric-label { font-size: .84rem; color: var(--muted); font-weight: 700; }
 .metric-value { font-size: clamp(1.2rem, 3vw, 1.7rem); font-weight: 780; letter-spacing: -.035em; }
+.peer-callout { background: var(--mint); border-color: #bbd6c7; }
+.peer-callout-title { color: var(--pine); font-size: .84rem; letter-spacing: normal; line-height: 1.55; }
+.peer-callout-answer { font-weight: 780; font-size: 1.16rem; line-height: 1.35; }
+.peer-callout-link { display: inline-flex; width: fit-content; align-items: center; min-height: 2.75rem;
+  font-size: .88rem; font-weight: 750; }
 .trend-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); gap: .8rem; }
 .chart svg { width: 100%; height: auto; display: block; margin-top: .7rem; }
 .chart text { font: 12px system-ui, sans-serif; fill: var(--muted); }
@@ -122,14 +127,18 @@ details li + li { margin-top: .3rem; }
 .peer-result { display: grid; gap: .55rem; border-left: .27rem solid #28634f; margin-bottom: .8rem; }
 .peer-result--withheld { border-left-color: #ac7a23; }
 .demo-state--withheld { display: none; }
-.peer-controls:has(#demo-withheld:checked) ~ .demo-state--available { display: none; }
-.peer-controls:has(#demo-withheld:checked) ~ .demo-state--withheld { display: block; }
+body:has(#demo-withheld:checked) .demo-state--available { display: none; }
+body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
 .peer-evidence { margin-top: .15rem; }
 .note-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .65fr); gap: .85rem; }
 .note-box ul { margin: 0; padding-left: 1.2rem; }
 .monitor-note { display: grid; gap: .65rem; border-left: .27rem solid #28634f; }
 .monitor-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .page-footer { padding-block: 1rem 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+@media (max-width: 1000px) {
+  .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .peer-callout { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; }
+}
 @media (max-width: 800px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .steps { position: static; }
@@ -235,6 +244,21 @@ details li + li { margin-top: .3rem; }
     </article>
     <article class="metric">
       <p class="metric-label">Annual diluted EPS</p><p class="metric-value">USD 2.00</p><p class="metric-context">FY 2025 · reported</p>
+    </article>
+    <article class="metric peer-callout" data-demo-peer-callout aria-labelledby="peer-callout-title">
+      <div>
+        <h3 id="peer-callout-title" class="peer-callout-title">Peer valuation</h3>
+        <div class="demo-state--available">
+      <p class="peer-callout-answer">20.0% above peers</p>
+      <p class="metric-context">24.0× annual P/E · 20.0× peer median</p>
+      <p class="metric-context">3 eligible · 1 excluded</p>
+    </div><div class="demo-state--withheld">
+      <p class="peer-callout-answer">Peer comparison withheld</p>
+      <p class="metric-context">24.0× annual P/E</p>
+      <p class="metric-context">2 eligible · 2 excluded</p>
+    </div>
+      </div>
+      <a class="peer-callout-link" href="#valuation" data-demo-go="valuation" data-demo-peer-evidence>View why</a>
     </article>
   </div>
   <div class="trend-grid">
@@ -414,6 +438,7 @@ details li + li { margin-top: .3rem; }
     const panels = Array.from(document.querySelectorAll("[data-demo-page]"));
     const panelByPage = new Map(panels.map((panel) => [panel.dataset.demoPage, panel]));
     const steps = document.querySelectorAll("nav [data-demo-go]");
+    let openPeerEvidence = false;
 
     function showCurrentPage(moveFocus) {
         const requested = location.hash.slice(1);
@@ -433,7 +458,16 @@ details li + li { margin-top: .3rem; }
         }
         if (moveFocus) {
             window.scrollTo(0, 0);
-            panelByPage.get(page).querySelector("[data-demo-title]").focus({preventScroll: true});
+            const panel = panelByPage.get(page);
+            if (page === "valuation" && openPeerEvidence) {
+                const state = panel.querySelector("#demo-withheld").checked ? "withheld" : "available";
+                const evidence = panel.querySelector(`.demo-state--${state} .peer-evidence`);
+                evidence.open = true;
+                evidence.querySelector("summary").focus();
+            } else {
+                panel.querySelector("[data-demo-title]").focus({preventScroll: true});
+            }
+            openPeerEvidence = false;
         }
     }
 
@@ -444,6 +478,7 @@ details li + li { margin-top: .3rem; }
                 return;
             }
             event.preventDefault();
+            openPeerEvidence = link.hasAttribute("data-demo-peer-evidence");
             if (location.hash === `#${page}`) {
                 showCurrentPage(true);
             } else {
