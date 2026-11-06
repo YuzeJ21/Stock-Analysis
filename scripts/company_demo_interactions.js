@@ -4,6 +4,7 @@
     const panels = Array.from(document.querySelectorAll("[data-demo-page]"));
     const panelByPage = new Map(panels.map((panel) => [panel.dataset.demoPage, panel]));
     const steps = document.querySelectorAll("nav [data-demo-go]");
+    let openPeerEvidence = false;
 
     function showCurrentPage(moveFocus) {
         const requested = location.hash.slice(1);
@@ -23,7 +24,16 @@
         }
         if (moveFocus) {
             window.scrollTo(0, 0);
-            panelByPage.get(page).querySelector("[data-demo-title]").focus({preventScroll: true});
+            const panel = panelByPage.get(page);
+            if (page === "valuation" && openPeerEvidence) {
+                const state = panel.querySelector("#demo-withheld").checked ? "withheld" : "available";
+                const evidence = panel.querySelector(`.demo-state--${state} .peer-evidence`);
+                evidence.open = true;
+                evidence.querySelector("summary").focus();
+            } else {
+                panel.querySelector("[data-demo-title]").focus({preventScroll: true});
+            }
+            openPeerEvidence = false;
         }
     }
 
@@ -34,6 +44,7 @@
                 return;
             }
             event.preventDefault();
+            openPeerEvidence = link.hasAttribute("data-demo-peer-evidence");
             if (location.hash === `#${page}`) {
                 showCurrentPage(true);
             } else {

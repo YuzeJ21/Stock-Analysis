@@ -115,11 +115,16 @@ textarea { width: 100%; resize: vertical; }
   border: 1px solid var(--line); border-radius: .75rem; }
 .result { display: grid; gap: .45rem; background: var(--mint); }
 .result .button { margin-top: .3rem; }
-.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.45fr); gap: .75rem; }
 .metric { min-width: 0; display: grid; align-content: start; gap: .2rem; padding: 1rem;
   border: 1px solid var(--line); border-radius: .65rem; background: var(--paper); }
 .metric-label { font-size: .84rem; color: var(--muted); font-weight: 700; }
 .metric-value { font-size: clamp(1.2rem, 3vw, 1.7rem); font-weight: 780; letter-spacing: -.035em; }
+.peer-callout { background: var(--mint); border-color: #bbd6c7; }
+.peer-callout-title { color: var(--pine); font-size: .84rem; letter-spacing: normal; line-height: 1.55; }
+.peer-callout-answer { font-weight: 780; font-size: 1.16rem; line-height: 1.35; }
+.peer-callout-link { display: inline-flex; width: fit-content; align-items: center; min-height: 2.75rem;
+  font-size: .88rem; font-weight: 750; }
 .trend-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); gap: .8rem; }
 .chart svg { width: 100%; height: auto; display: block; margin-top: .7rem; }
 .chart text { font: 12px system-ui, sans-serif; fill: var(--muted); }
@@ -148,14 +153,18 @@ details li + li { margin-top: .3rem; }
 .peer-result { display: grid; gap: .55rem; border-left: .27rem solid #28634f; margin-bottom: .8rem; }
 .peer-result--withheld { border-left-color: #ac7a23; }
 .demo-state--withheld { display: none; }
-.peer-controls:has(#demo-withheld:checked) ~ .demo-state--available { display: none; }
-.peer-controls:has(#demo-withheld:checked) ~ .demo-state--withheld { display: block; }
+body:has(#demo-withheld:checked) .demo-state--available { display: none; }
+body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
 .peer-evidence { margin-top: .15rem; }
 .note-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .65fr); gap: .85rem; }
 .note-box ul { margin: 0; padding-left: 1.2rem; }
 .monitor-note { display: grid; gap: .65rem; border-left: .27rem solid #28634f; }
 .monitor-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 .page-footer { padding-block: 1rem 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
+@media (max-width: 1000px) {
+  .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .peer-callout { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .8rem; }
+}
 @media (max-width: 800px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
   .steps { position: static; }
@@ -271,7 +280,7 @@ def _revenue_chart():
 </figure>"""
 
 
-def _financials():
+def _financials(peer_summary):
     year, revenue, _, eps = _ANNUAL[-1]
     _, prior_revenue, _, _ = _ANNUAL[-2]
     revenue_change = (revenue / prior_revenue - 1) * 100
@@ -287,6 +296,13 @@ def _financials():
     </article>
     <article class="metric">
       <p class="metric-label">Annual diluted EPS</p><p class="metric-value">USD {eps:.2f}</p><p class="metric-context">FY {year} · reported</p>
+    </article>
+    <article class="metric peer-callout" data-demo-peer-callout aria-labelledby="peer-callout-title">
+      <div>
+        <h3 id="peer-callout-title" class="peer-callout-title">Peer valuation</h3>
+        {peer_summary}
+      </div>
+      <a class="peer-callout-link" href="#valuation" data-demo-go="valuation" data-demo-peer-evidence>View why</a>
     </article>
   </div>
   <div class="trend-grid">
@@ -331,9 +347,11 @@ def _peer_scenario(withheld):
           <td data-label="Annual diluted EPS">{eps:.2f}</td><td data-label="Annual P/E">{multiple}</td>
           <td data-label="Eligibility">{eligibility}</td></tr>""")
     count = len(eligible_multiples)
+    multiple_summary = f"{company_pe:.1f}× annual P/E"
     if count < 3:
         badge = f'<span class="badge badge--warning">{count} eligible peers · 3 required</span>'
         answer = "Peer comparison withheld"
+        short_answer = answer
         context = f"Company P/E {company_pe:.1f}×. A third eligible same-day reference is required."
         extra_evidence = f"<li>Peer C closed on {_PRIOR_CLOSE_DATE}. It is outside the {_CLOSE_DATE} comparison.</li>"
     else:
@@ -343,10 +361,18 @@ def _peer_scenario(withheld):
         direction = "above" if relative_pct > 0 else "below"
         answer = (f"Annual P/E is {abs(relative_pct):.1f}% {direction} the peer median"
                   if relative_pct else "Annual P/E matches the peer median")
+        short_answer = (f"{abs(relative_pct):.1f}% {direction} peers"
+                        if relative_pct else "In line with peers")
+        multiple_summary += f" · {peer_median:.1f}× peer median"
         context = f"Company P/E {company_pe:.1f}× · Peer median {peer_median:.1f}× · {_CLOSE_DATE} closes."
         extra_evidence = f"<li>Relative difference = {company_pe:.1f}× ÷ {peer_median:.1f}× − 1.</li>"
     state = "withheld" if withheld else "available"
-    return f"""<div class="demo-state--{state}">
+    summary = f"""<div class="demo-state--{state}">
+      <p class="peer-callout-answer">{short_answer}</p>
+      <p class="metric-context">{multiple_summary}</p>
+      <p class="metric-context">{count} eligible · {len(_PEERS) - count} excluded</p>
+    </div>"""
+    evidence = f"""<div class="demo-state--{state}">
     <article class="surface peer-result{' peer-result--withheld' if withheld else ''}" data-company-answer="valuation">
       {badge}<h3>{answer}</h3><p>{context}</p>
       <details class="peer-evidence">
@@ -370,16 +396,17 @@ def _peer_scenario(withheld):
       </table>
     </div>
   </div>"""
+    return summary, evidence
 
 
-def _valuation():
+def _valuation(available_evidence, withheld_evidence):
     content = f"""<fieldset class="peer-controls">
     <legend>Change the peer evidence</legend>
     <label><input type="radio" id="demo-available" name="demo-scenario" checked> 3 eligible peers</label>
     <label><input type="radio" id="demo-withheld" name="demo-scenario"> 2 eligible peers</label>
   </fieldset>
-  {_peer_scenario(False)}
-  {_peer_scenario(True)}
+  {available_evidence}
+  {withheld_evidence}
   <div class="actions">{_step_link("notes", "Continue to Research Notes")}</div>"""
     return _panel("valuation", f"Step 3 of 5 · Company Workbench · {_TICKER}", "Peer Valuation",
                   "Switch the sample to see how a different closing date changes which peers qualify.", content)
@@ -434,6 +461,8 @@ def _monitor():
 def build_demo_html():
     script = _SCRIPT_PATH.read_text(encoding="utf-8")
     digest = b64encode(sha256(script.encode("utf-8")).digest()).decode("ascii")
+    available_summary, available_evidence = _peer_scenario(False)
+    withheld_summary, withheld_evidence = _peer_scenario(True)
     steps = "".join(
         f'<li><a href="#{step}" data-demo-step="{step}" data-demo-go="{step}">'
         f'<span class="step-number" aria-hidden="true">{number}</span>{label}</a></li>'
@@ -469,8 +498,8 @@ def build_demo_html():
     </nav>
     <main id="demo-main" tabindex="-1">
       {_discover()}
-      {_financials()}
-      {_valuation()}
+      {_financials(available_summary + withheld_summary)}
+      {_valuation(available_evidence, withheld_evidence)}
       {_notes()}
       {_monitor()}
     </main>
