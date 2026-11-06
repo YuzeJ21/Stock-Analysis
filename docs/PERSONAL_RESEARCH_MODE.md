@@ -14,9 +14,13 @@ Personal Research uses one in-content Personal research workflow navigation for 
 
    Direct SEC fields remain personal research inspection; online facts never update canonical financials, readiness, saved scenarios, recommendations or the coverage checkpoint. Prices remain dated provider observations with adjustment, independent vendor identity and redistribution limitations. Data Health and Proof History are reached from sources. Missing peer inputs remain visible gaps.
 
+   For a saved company, open **Business Trend (saved evidence)** in Financial Trends for quarterly evidence and any ledger-wide validation gaps. In Valuation, **Peer Read-Through (saved evidence)** shows the relationship and comparability checks separately from **Saved Valuation & Scenarios**. In Research Notes, **Forward View & Catalysts (saved evidence)** and **Research Decision Lab & History** show the saved evidence, unresolved items, and review history.
+
 4. **Monitor** now answers one question through one **Follow-up Queue**: **Since the last review**, **Needs verification**, **Waiting on evidence**, **Scheduled context**, and **Evidence freshness**. When opened from a selected Company Workbench, it provides an explicit return action but keeps the same focused-cohort-wide follow-up scope; the return company does not filter cards, rows, counts, freshness, or evidence. When saved actionable evidence exists, five compact panels render once and any due process rows stay in focused-cohort order. When no saved research item is due but a saved-source freshness condition needs attention, the same five categories remain visible, the answer explicitly separates that condition from a saved item or live alert, and one **Open Data Health** action leads to evidence review. Only when neither a saved item nor a saved-source freshness condition needs attention does Monitor render the concise empty state, explicitly say this does not prove that no external event, risk, or research need exists, and provide one **Open Discover** action.
 
 The Follow-up Queue reuses the fixed seven-day summary, unresolved saved source-change rows, existing discipline precedence, and independent readiness/observation freshness. Full process rows, stable identities, and source-change evidence remain under `Advanced: Monitor evidence`. Monitor-only rows are retained there; they are not deleted, promoted, rescored, or reinterpreted. Five-company Earnings Nowcast readiness remains a separate collapsed Advanced section. Ordinary route use writes nothing.
+
+When you open Monitor from Company Workbench, **Return to Company Workbench** takes you back in the same tab with the company, section, and loaded online evidence from that session. A separate browser session needs its own online lookup.
 
 Company Workbench arbitrates one overall next task. Its change context is explicitly `none`, `snapshot_only`, or `source_backed`, so an empty queue receives a neutral no-queued-change badge and is never mislabeled as snapshot evidence. Only a change carrying separate explicit source-backed eligibility can win: open review keeps the event's suggested task, `still_blocked` keeps its `wait_for_evidence` condition, and `intentionally_deferred` keeps its `monitor` condition. Snapshot-only context receives no source-backed badge and cannot outrank the existing ordered Research Conclusion priority. Forward View guidance stays lane-specific and does not compete for the overall task. This presentation leaves readiness and evidence states independent and unchanged.
 
@@ -39,7 +43,7 @@ These are workflow states. They are not rankings, expected-return claims, invest
 
 ## Research Decision Lab
 
-Company Workbench shows exactly one compact six-lane research-process summary for Plan, Evidence, Invalidation, Scenario, Review trigger, and Learning after `What Changed`. It composes saved evidence only and cannot replace `Use now`, `Still withheld`, the Data Health handoff, Research Conclusion, or Next Research Task. Identities, evidence summaries, and technical details remain under `Advanced: Decision Lab evidence`.
+In Research Notes, **Research Decision Lab & History** contains the six-lane summary for Plan, Evidence, Invalidation, Scenario, Review trigger, and Learning alongside its evidence rows and identity. It composes saved evidence only and cannot replace `Use now`, `Still withheld`, the Data Health handoff, Research Conclusion, or Next Research Task.
 
 Monitor derives the same contract independently for each saved focused-cohort ticker. One invalid ticker becomes unavailable without changing another ticker, and display order remains the existing cohort order rather than process severity, market value, or expected return. Source-change evidence remains independently preserved inside `Advanced: Monitor evidence`; the primary Follow-up Queue composes it without changing its review state.
 
@@ -99,7 +103,7 @@ Its success state is deliberately narrow: **accepted_for_review is not productio
 
 ## Explicit Company Workbench Cash-Generation Preview
 
-The bounded route `?mode=research&page=company-workbench&ticker=NVDA&open=1&cash_preview=1` adds one explicit, read-only **Cash-generation review preview — not production evidence** below the canonical Business Trend answer. The fixed review cutoff is `2026-07-20T23:59:59-04:00`. The normal Company Workbench route does not call the preview loader and continues to show only canonical production evidence and its existing withheld states.
+The bounded route `?mode=research&page=company-workbench&ticker=NVDA&open=1&cash_preview=1&section=sources` adds one explicit, read-only **Cash-generation review preview — not production evidence** under **保存研究的来源与复核状态** in Data Sources. The fixed review cutoff is `2026-07-20T23:59:59-04:00`. Normal Company Workbench routes continue to show canonical evidence and its existing withheld states.
 
 AMD Q1 FY2026 accession `0000002488-26-000076` is the second exact filing available through the explicit `cash_preview=1` route. NVIDIA and AMD now provide bounded two-company portability through the same immutable loader, complete-withholding contract, preview-only cards, and Advanced lineage. Normal Company Workbench routes remain canonical and never load the preview.
 

@@ -118,7 +118,7 @@ def test_combined_update_loads_once_and_pane_changes_reuse_same_source_attempts(
     at.radio[0].set_value('financials').run()
     assert 'Historical annual financials' in text(at)
     assert 'No source-backed quarterly actual is available' not in text(at)
-    assert 'SAVED-TOOL' not in text(at)
+    assert 'SAVED-TOOL-financials' in text(at)
     at.radio[0].set_value('valuation').run()
     assert 'SAVED-TOOL-valuation' in text(at)
     at.radio[0].set_value('notes').run()
@@ -145,6 +145,8 @@ def test_online_identity_cannot_open_same_symbol_saved_models_or_authoring(monke
     calls=_sources(monkeypatch)
     at=AppTest.from_function(_app)
     at.query_params['online']='1';at.run()
+    at.radio[0].set_value('financials').run()
+    assert 'SAVED-TOOL' not in text(at)
     at.radio[0].set_value('valuation').run()
     assert 'SAVED-TOOL' not in text(at)
     assert 'No supported peer comparison yet' in text(at)
@@ -212,16 +214,81 @@ def test_real_workbench_route_is_lazy_and_reuses_saved_tools_when_requested(monk
     assert calls==[], 'Overview must not build the saved DCF report'
     nav=[r for r in at.radio if r.options==['概览','财务趋势','估值与同行','研究记录','数据来源']]
     assert len(nav)==1
+    nav[0].set_value('financials').run()
+    assert not at.exception
+    assert calls==[], 'Financial Trends must not require the saved quote-backed report'
+    assert any(e.label=='Business Trend (saved evidence)' for e in at.expander)
     nav[0].set_value('valuation').run()
     assert not at.exception
     assert calls==['AMD']
     assert 'Scenario Lab' in text(at)
+    assert any(e.label=='Peer Read-Through (saved evidence)' for e in at.expander)
     at.radio[0].set_value('notes').run()
     assert not at.exception
     assert calls==['AMD']
-    assert any(e.label=='研究过程、历史记录与跟进' for e in at.expander)
+    assert any(e.label=='Research Decision Lab & History' for e in at.expander)
+    assert any(e.label=='Forward View & Catalysts (saved evidence)' for e in at.expander)
     assert any(e.label=='Add a reviewed research record' for e in at.expander)
     assert any(e.label=='HTML Research Brief' for e in at.expander)
+
+
+def test_saved_quarterly_trend_remains_visible_without_local_quote(tmp_path, monkeypatch):
+    import pandas as pd
+    from src import dashboard
+
+    data_dir = tmp_path / 'data'
+    (data_dir / 'earnings_nowcast').mkdir(parents=True)
+    pd.DataFrame([{'ticker':'SYN1','name':'Sample Company','asset_type':'company'}]).to_csv(
+        data_dir / 'universe_master.csv', index=False)
+    pd.DataFrame([{
+        'ticker':'SYN1','theme':'sample','default_purpose':'research',
+        'market_cap_bucket':'unknown','notes':'Constructed test company',
+    }]).to_csv(data_dir / 'universe.csv', index=False)
+    rows = []
+    for period, end, revenue, eps in (
+        ('2024-Q1', '2024-03-31', 100.0, 1.0),
+        ('2025-Q1', '2025-03-31', 150.0, 1.5),
+    ):
+        rows.append({
+            'ticker':'SYN1','fiscal_period':period,'period_end_date':end,
+            'reported_at':period[:4]+'-05-01T00:00:00Z',
+            'revenue_actual':revenue,'eps_actual':eps,'source':'sec_companyfacts',
+            'source_ref':'sec:SYN1:'+period,'retrieved_at':period[:4]+'-05-02T00:00:00Z',
+            'revenue_currency':'USD','revenue_unit_scale':1.0,'revenue_basis':'gaap',
+            'eps_currency':'USD','eps_basis':'gaap','eps_share_basis':'diluted',
+            'eps_operations_basis':'continuing','split_adjustment_basis':'as_reported',
+        })
+    pd.DataFrame(rows).to_csv(data_dir / 'earnings_nowcast' / 'quarterly_actuals.csv', index=False)
+    assert not (data_dir / 'prices.csv').exists()
+    assert 'SYN1' in dashboard.build_provider('local', base_dir=tmp_path).list_local_tickers()
+    monkeypatch.setattr(dashboard, 'DATA_DIR', data_dir)
+    calls = []
+    original = dashboard.build_stock_report
+    def tracked(*args, **kwargs):
+        calls.append(args[0])
+        return original(*args, **kwargs)
+    monkeypatch.setattr(dashboard, 'build_stock_report', tracked)
+
+    at = AppTest.from_string(
+        "from pathlib import Path\n"
+        "from src import dashboard\n"
+        f"root = Path({str(tmp_path)!r})\n"
+        "context = dashboard.build_profile_context(project_root=root)\n"
+        "provider = dashboard.build_provider('local', base_dir=root)\n"
+        "dashboard.render_company_workbench(provider, context, {'queue': []}, None)\n",
+        default_timeout=30,
+    )
+    at.query_params.update(mode='research', page='company-workbench', ticker='SYN1')
+    at.run()
+    at.radio[0].set_value('financials').run()
+
+    assert not at.exception
+    assert calls == []
+    assert any(e.label == 'Business Trend (saved evidence)' for e in at.expander)
+    trend = next(frame.value for frame in at.dataframe if 'Latest period' in frame.value.columns)
+    revenue = trend.loc[trend['Metric'] == 'Revenue'].iloc[0]
+    assert revenue['Latest period'] == '2025-Q1'
+    assert float(revenue['Latest value']) == 150.0
 
 
 def test_saved_scenario_assumptions_survive_section_roundtrip_without_cross_company_reuse(monkeypatch):

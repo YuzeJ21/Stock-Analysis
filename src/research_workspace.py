@@ -6,11 +6,12 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 import html
 import pandas as pd
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from src.company_workbench_cash_generation_preview import (
     CompanyWorkbenchCashGenerationPreview,
 )
+from src.company_workbench_sections import section_key
 from src.dashboard_visual_system import (
     EvidenceRow,
     SafeRouteAction,
@@ -25,6 +26,7 @@ from src.dashboard_visual_system import (
 )
 from src.focused_cohort_coverage import FocusedCohortCoverage
 from src.focused_research_cohort import FocusedCohort
+from src.online_company_search import online_company_candidate_for_route
 from src.quarterly_business_trend import QuarterlyTrendPacket
 from src.research_decision_lab import ResearchDisciplineRow
 from src.weekly_research_summary import WeeklyResearchSummary
@@ -1516,19 +1518,132 @@ def validated_research_return_ticker(
     return requested if requested and requested in registered else ""
 
 
-def research_monitor_return_link(ticker: str) -> dict[str, str]:
+_MONITOR_ORIGIN_KEY = "research_monitor_origin"
+
+
+@dataclass(frozen=True)
+class MonitorOrigin:
+    profile_key: str
+    ticker: str
+    section: str
+    online_cik: str | None
+
+    def workbench_query(self) -> dict[str, str]:
+        query = {
+            "mode": "research", "page": "company-workbench", "ticker": self.ticker, "open": "1",
+        }
+        if self.online_cik is not None:
+            query["online"] = "1"
+        query["section"] = self.section
+        return query
+
+
+def open_research_monitor(st, ticker: str, profile_key: str) -> None:
+    """Capture the active Workbench section before its widget is removed."""
+    params = st.query_params
+    if (
+        params.get("mode") != "research"
+        or params.get("page") != "company-workbench"
+        or str(params.get("ticker") or "").strip().upper() != ticker
+    ):
+        return
+    online = params.get("online") == "1"
+    candidate = online_company_candidate_for_route(ticker, st.session_state) if online else None
+    query = {"mode": "research", "page": "monitor"}
+    if online and candidate is None:
+        st.session_state.pop(_MONITOR_ORIGIN_KEY, None)
+    else:
+        st.session_state[_MONITOR_ORIGIN_KEY] = MonitorOrigin(
+            profile_key, ticker, section_key(params.get("section")),
+            candidate["cik"] if candidate else None,
+        )
+        query["return_ticker"] = ticker
+        if online:
+            query["return_online"] = "1"
+    params.from_dict(query)
+
+
+def research_monitor_origin(state, profile_key: str, ticker: str) -> MonitorOrigin | None:
+    """Resolve a return from the same profile and, online, the same verified company."""
+    origin = state.get(_MONITOR_ORIGIN_KEY)
+    if not isinstance(origin, MonitorOrigin) or origin.profile_key != profile_key or origin.ticker != ticker:
+        return None
+    if origin.online_cik is not None:
+        candidate = online_company_candidate_for_route(ticker, state)
+        if candidate is None or candidate["cik"] != origin.online_cik:
+            return None
+    return origin
+
+
+def research_monitor_requires_online(state, params, ticker: str) -> bool:
+    """Keep an expired online detour from resolving to a saved ticker with the same symbol."""
+    if "return_online" in params:
+        return True
+    origin = state.get(_MONITOR_ORIGIN_KEY)
+    return isinstance(origin, MonitorOrigin) and origin.ticker == ticker and origin.online_cik is not None
+
+
+def return_to_research_workbench(st, origin: MonitorOrigin) -> None:
+    params = st.query_params
+    if (
+        params.get("mode") != "research"
+        or params.get("page") != "monitor"
+        or str(params.get("return_ticker") or "").strip().upper() != origin.ticker
+        or (params.get("return_online") == "1") != (origin.online_cik is not None)
+        or research_monitor_origin(st.session_state, origin.profile_key, origin.ticker) != origin
+    ):
+        return
+    params.from_dict(origin.workbench_query())
+    st.session_state.pop(_MONITOR_ORIGIN_KEY, None)
+
+
+# A widget callback keeps the WebSocket alive. The links still work as ordinary
+# deep links for modified clicks or when the Streamlit control is unavailable.
+RESEARCH_MONITOR_NAVIGATION_BRIDGE = """<style>
+.st-key-research-nav-monitor {display:none!important}
+</style>
+<script>
+(() => {
+  if (window.__stockResearchMonitorNavigation) return;
+  window.__stockResearchMonitorNavigation = true;
+  document.addEventListener('click', (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const link = event.target?.closest?.('nav.research-workflow-navigation a[data-research-session-route], a.sec-review-link[data-research-session-route]');
+    const route = link?.dataset.researchSessionRoute;
+    const selector = route === 'monitor' ? '.st-key-research-nav-monitor button'
+      : route === 'workbench' ? '.st-key-monitor-return-to-workbench button' : null;
+    const button = selector && document.querySelector(selector);
+    if (!button || button.disabled) return;
+    event.preventDefault();
+    button.click();
+  });
+})();
+</script>"""
+
+
+def research_monitor_return_link(ticker: str, *, origin: MonitorOrigin | None = None) -> dict[str, str]:
     """Build the selected-company return action without changing Monitor scope."""
 
-    symbol = _quoted_ticker(ticker)
     label_ticker = str(ticker or "").strip().upper()
+    href = f"?mode=research&page=company-workbench&ticker={_quoted_ticker(ticker)}&open=1"
+    if origin is not None and origin.ticker == label_ticker:
+        href = "?" + urlencode(origin.workbench_query())
     return {
         "label": f"Return to {label_ticker} Company Workbench",
-        "href": f"?mode=research&page=company-workbench&ticker={symbol}&open=1",
+        "href": href,
         "purpose": "Return to the selected company; this context does not filter Monitor.",
     }
 
 
-def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> str:
+def research_monitor_handoff_href(ticker: str, *, online: bool = False) -> str:
+    href = "?mode=research&page=monitor"
+    return f"{href}&return_ticker={_quoted_ticker(ticker)}" if ticker and not online else href
+
+
+def research_workflow_navigation_html(
+    *, active_page: str, ticker: str = "", monitor_handoff: bool = False, online_workbench: bool = False,
+    monitor_origin: MonitorOrigin | None = None,
+) -> str:
     """Render the deterministic Personal Research route sequence."""
 
     active_slug = str(active_page or "").strip().lower().replace(" ", "-")
@@ -1537,18 +1652,11 @@ def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> 
         ("Research Desk", "research-desk", "?mode=research&page=research-desk"),
         ("Discover", "discover", "?mode=research&page=discover"),
     ]
-    routes.append(
-        (
-            "Company Workbench",
-            "company-workbench",
-            f"?mode=research&page=company-workbench&ticker={symbol}&open=1"
-            if symbol
-            else "",
-        )
-    )
-    monitor_href = "?mode=research&page=monitor"
-    if symbol:
-        monitor_href = f"{monitor_href}&return_ticker={symbol}"
+    workbench_href = research_monitor_return_link(ticker, origin=monitor_origin)["href"] if symbol else ""
+    if monitor_origin is not None and monitor_origin.online_cik is not None:
+        workbench_href = "?mode=research&page=company-workbench"
+    routes.append(("Company Workbench", "company-workbench", workbench_href))
+    monitor_href = research_monitor_handoff_href(ticker, online=online_workbench)
     routes.append(("Monitor", "monitor", monitor_href))
     links: list[str] = []
     for label, slug, href in routes:
@@ -1564,9 +1672,14 @@ def research_workflow_navigation_html(*, active_page: str, ticker: str = "") -> 
             if active_slug == slug and active_slug not in {"data-health", "proof-history"}
             else ""
         )
+        session_route = ""
+        if slug == "monitor" and monitor_handoff:
+            session_route = " data-research-session-route='monitor'"
+        elif slug == "company-workbench" and monitor_origin is not None:
+            session_route = " data-research-session-route='workbench'"
         links.append(
             "<a class='research-workflow-link' "
-            f"href='{html.escape(href, quote=True)}' target='_self'{current}>"
+            f"href='{html.escape(href, quote=True)}' target='_self'{current}{session_route}>"
             f"{html.escape(label)}</a>"
         )
     evidence_label = {

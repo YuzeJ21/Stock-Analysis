@@ -53,7 +53,7 @@ Results stay in session memory and are revalidated on each read. Protected finan
 
 ## Separate saved work and remaining gaps
 
-After an online attempt, **已保存的估值与情景分析** retains the prior saved tools, qualifications and input dates separately. Online-only company identities do not read same-symbol saved tools. The offline HTML brief remains a snapshot of its existing saved scope.
+After an online attempt, **Saved Valuation & Scenarios** retains the prior saved tools, qualifications and input dates separately. Online-only company identities do not read same-symbol saved tools. The offline HTML brief remains a snapshot of its existing saved scope.
 
 TTM/forward P/E, P/S, P/FCF and EV/EBITDA need independent financial, share-count, enterprise-value and component definitions. Custom economic-peer approval, source distribution rights and complete all-company coverage remain separate work. The next evidence expansion should address measured exclusion reasons and specific missing filings, rather than manufacture values for the other measures.
 

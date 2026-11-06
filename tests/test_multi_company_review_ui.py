@@ -86,6 +86,7 @@ def test_monitor_honors_company_return_route(tmp_path,monkeypatch):
     at=AppTest.from_function(app);at.session_state['test_ticker']='AMD';at.session_state['test_view']={};at.query_params['return_ticker']='DUK';at.run()
     at.radio[0].set_value('monitor').run()
     assert at.selectbox(key='sec-review-monitor-company:test').value=='DUK'
+    assert any('>查看 DUK 的已保存证据</a>' in item.value for item in at.markdown)
 
 
 def test_saved_online_only_company_has_offline_route_without_registration(tmp_path,monkeypatch):

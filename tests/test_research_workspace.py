@@ -1766,6 +1766,72 @@ def test_monitor_return_link_is_explicitly_context_only():
     assert "does not filter Monitor" in link["purpose"]
 
 
+def test_monitor_round_trip_binds_online_origin_to_profile_and_sec_identity():
+    from src.online_company_search import ONLINE_COMPANY_SESSION_KEY
+    from tests.test_online_company_search_view import _result
+
+    class Query(dict):
+        def from_dict(self, values):
+            self.clear()
+            self.update(values)
+
+    association = _result()
+    state = {ONLINE_COMPANY_SESSION_KEY: association}
+    query = Query(mode="research", page="company-workbench", ticker="fict", online="1", section="notes")
+    streamlit = SimpleNamespace(query_params=query, session_state=state)
+    profile = "demo-profile"
+
+    research_workspace.open_research_monitor(streamlit, "OTHER", profile)
+    assert query["page"] == "company-workbench"
+    research_workspace.open_research_monitor(streamlit, "FICT", profile)
+    assert query == {
+        "mode": "research", "page": "monitor", "return_ticker": "FICT", "return_online": "1",
+    }
+    origin = research_workspace.research_monitor_origin(state, profile, "FICT")
+    assert origin is not None
+    assert origin.online_cik == "0000001234"
+    assert research_workspace.research_monitor_origin(state, "other-profile", "FICT") is None
+    assert research_workspace.research_monitor_origin(state, profile, "OTHER") is None
+
+    state[ONLINE_COMPANY_SESSION_KEY] = _result(candidates=[
+        {**association["candidates"][0], "cik": "0000005678"},
+    ])
+    assert research_workspace.research_monitor_origin(state, profile, "FICT") is None
+    assert research_workspace.research_monitor_requires_online(state, query, "FICT")
+    assert research_workspace.research_monitor_requires_online(state, {}, "FICT")
+    assert not research_workspace.research_monitor_requires_online(state, {}, "OTHER")
+    assert research_workspace.research_monitor_requires_online({}, query, "FICT")
+    research_workspace.return_to_research_workbench(streamlit, origin)
+    assert query["page"] == "monitor"
+
+    state[ONLINE_COMPANY_SESSION_KEY] = association
+    research_workspace.return_to_research_workbench(streamlit, origin)
+    assert query == {
+        "mode": "research", "page": "company-workbench", "ticker": "FICT",
+        "open": "1", "online": "1", "section": "notes",
+    }
+    assert state == {ONLINE_COMPANY_SESSION_KEY: association}
+
+
+def test_monitor_round_trip_keeps_saved_company_route_without_online_identity():
+    class Query(dict):
+        def from_dict(self, values):
+            self.clear()
+            self.update(values)
+
+    query = Query(mode="research", page="company-workbench", ticker="BRK/B", section="financials")
+    streamlit = SimpleNamespace(query_params=query, session_state={})
+
+    research_workspace.open_research_monitor(streamlit, "BRK/B", "saved-profile")
+    origin = research_workspace.research_monitor_origin(streamlit.session_state, "saved-profile", "BRK/B")
+    assert origin is not None and origin.online_cik is None
+    link = research_workspace.research_monitor_return_link("BRK/B", origin=origin)
+    assert link["href"] == "?mode=research&page=company-workbench&ticker=BRK%2FB&open=1&section=financials"
+    research_workspace.return_to_research_workbench(streamlit, origin)
+    assert query["section"] == "financials"
+    assert "online" not in query
+
+
 def test_advanced_evidence_links_preserve_personal_research_mode_and_ticker():
     links = advanced_evidence_links("NVDA")
 

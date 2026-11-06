@@ -496,10 +496,12 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
     app.query_params.update(mode="research",page="company-workbench",ticker="NVDA",open="1")
     app.run()
     assert not app.exception
-    assert [button.label for button in app.button]==["更新财报与价格","只更新财报","只更新价格"]
+    assert [button.label for button in app.button if button.key != "research-nav-monitor"]==[
+        "更新财报与价格","只更新财报","只更新价格",
+    ]
     assert not any(e.label=="HTML Research Brief" for e in app.expander)
     _workbench_section(app,"valuation")
-    saved_valuation = next(e for e in app.expander if e.label == "已保存的估值与情景分析")
+    saved_valuation = next(e for e in app.expander if e.label == "Saved Valuation & Scenarios")
     assert any(m.value == "#### Scenario Lab" for m in saved_valuation.markdown)
     assert not any(e.label=="Add a reviewed research record" for e in app.expander)
     _workbench_section(app,"notes")
@@ -509,6 +511,33 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
     assert not any(m.value == "## Research Decision Lab" for m in app.markdown)
     assert sum("<h1>NVDA Company Brief</h1>" in str(m.value) for m in app.markdown)==1
     assert not any(b.label=="Open evidence and analysis modules" for b in app.button)
+
+
+@pytest.mark.parametrize("typed", (True, False))
+def test_monitor_does_not_alias_a_changed_online_identity_to_registered_amd(monkeypatch, typed):
+    from src.dashboard import build_profile_context
+    from src.online_company_search import ONLINE_COMPANY_SESSION_KEY
+    from src.research_workspace import MonitorOrigin, _MONITOR_ORIGIN_KEY
+    from tests.test_online_company_search_view import _result
+
+    monkeypatch.setenv("STOCK_RESEARCH_DATA_PROFILE", "demo")
+    profile_key = build_profile_context(project_root=PROJECT_ROOT).profile_key
+    app = AppTest.from_file(str(DASHBOARD_APP), default_timeout=120)
+    app.session_state[_MONITOR_ORIGIN_KEY] = MonitorOrigin(profile_key, "AMD", "valuation", "0000002488")
+    app.session_state[ONLINE_COMPANY_SESSION_KEY] = _result(candidates=[
+        {"ticker": "AMD", "cik": "0000009999", "title": "Other issuer", "ambiguous": False},
+    ])
+    app.query_params.update(mode="research", page="monitor", return_ticker="AMD")
+    if typed:
+        app.query_params["return_online"] = "1"
+    app.run()
+
+    assert not app.exception
+    assert any(block.value == "## Follow-up Queue" for block in app.markdown)
+    assert not any("Return to AMD Company Workbench" in block.value for block in app.markdown)
+    assert not any(button.key == "monitor-return-to-workbench" for button in app.button)
+    assert "return_ticker" not in app.query_params
+    assert "return_online" not in app.query_params
 
 
 def test_fixed_semantic_main_bridge_html_renders_once_across_all_workspaces(
@@ -1510,7 +1539,7 @@ def test_avgo_company_workbench_renders_one_six_lane_decision_lab_after_selected
     assert not app.exception
     assert [lane.key for lane in snapshot.decision_lanes]==[
         "plan","evidence","invalidation","scenario","review-trigger","learning"]
-    assert [e.label for e in app.expander].count("研究过程、历史记录与跟进") == 1
+    assert [e.label for e in app.expander].count("Research Decision Lab & History") == 1
     assert not any(e.proto.expanded for e in app.expander)
     assert len([answer for answer in snapshot.answers if answer.label=="Next research task"])==1
 

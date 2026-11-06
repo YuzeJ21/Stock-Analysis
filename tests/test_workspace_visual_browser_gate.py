@@ -291,7 +291,7 @@ def test_task4_production_report_cold_transition_is_neutral_then_resolved(
                     if "mode=research" in route:
                         final.wait_for(state="attached", timeout=30000)
                         assert not final.is_visible()
-                        page.get_by_text("已保存的估值与情景分析", exact=True).click()
+                        page.get_by_text("Saved Valuation & Scenarios", exact=True).click()
                     final.wait_for(state="visible", timeout=30000)
                     observed = page.evaluate("() => window.__cold")
                     loader = [row for row in observed if row["loader"]]

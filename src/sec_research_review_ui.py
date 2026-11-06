@@ -169,7 +169,13 @@ def _render_company_review(st,ticker,view,*,profile_key):
     st.caption('当前显示来自已保存证据，没有重新查询网络。保存时间与 SEC 观察时间分开记录；新的保存时间不表示财报变化。')
     st.download_button('下载当前证据包',data=encode_review(current),file_name=ticker+'-SEC-'+current['receipt_id'][:12]+'.json',
         mime='application/json',key='sec-review-download:'+scope)
-    st.markdown('<a class="sec-review-link" href="?mode=research&amp;page=monitor&amp;return_ticker='+ticker+'" target="_self">在 Monitor 查看待核查事项</a>',unsafe_allow_html=True)
+    from src.research_workspace import research_monitor_handoff_href
+    monitor_href = research_monitor_handoff_href(ticker, online=st.query_params.get("online") == "1")
+    st.markdown(
+        '<a class="sec-review-link" data-research-session-route="monitor" '
+        f'href="{escape(monitor_href, quote=True)}" target="_self">在 Monitor 查看待核查事项</a>',
+        unsafe_allow_html=True,
+    )
     with st.expander('证据来源与字段口径',expanded=False):
         st.write('报告期截至 '+current['period_end']+' · '+current['form'])
         st.write('申报发布日期 '+current['filing_date']+'（日期精度）')
@@ -190,7 +196,7 @@ def _render_company_review(st,ticker,view,*,profile_key):
             st.caption(row['taxonomy']+':'+row['concept']+' · '+row['period_start']+' 至 '+row['period_end'])
 
 
-def render_review_monitor(st,*,profile_key):
+def render_review_monitor(st, *, profile_key, monitor_origin=None):
     if _mode_reason('research'):return
     try:queue=review_queue(PROJECT_ROOT,profile_key)
     except (ValueError,OSError):
@@ -223,4 +229,16 @@ def render_review_monitor(st,*,profile_key):
     elif result['gaps']:st.caption('下一步：按字段缺失原因核对来源或口径；相同输入未变化，不表示缺口已补齐。')
     elif result['changes'] or result.get('review_changes'):st.caption('下一步：回到公司页检查前后两份证据及变化来源。')
     else:st.caption('当前保存范围无需因重复观察重开核查；出现新申报或新证据时再复核。')
-    st.markdown(CONTROL_STYLE+'<a class="sec-review-link" href="?mode=research&amp;page=company-workbench&amp;ticker='+selected+'&amp;section=notes" target="_self">返回 '+selected+' 证据复核</a>',unsafe_allow_html=True)
+    notes_href = f"?mode=research&page=company-workbench&ticker={selected}&section=notes"
+    notes_label = f"查看 {selected} 的已保存证据"
+    session_route = ""
+    if monitor_origin is not None and monitor_origin.ticker == selected and monitor_origin.section == "notes":
+        notes_label = f"返回 {selected} 证据复核"
+        session_route = ' data-research-session-route="workbench"'
+        if monitor_origin.online_cik is not None:
+            notes_href = "?mode=research&page=company-workbench"
+    st.markdown(
+        CONTROL_STYLE + f'<a class="sec-review-link"{session_route} href="{escape(notes_href, quote=True)}" '
+        f'target="_self">{escape(notes_label)}</a>',
+        unsafe_allow_html=True,
+    )

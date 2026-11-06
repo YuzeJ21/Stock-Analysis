@@ -441,6 +441,8 @@ from src.cohort_field_study import (
     study_monitor_html,
 )
 from src.research_workspace import (
+    RESEARCH_MONITOR_NAVIGATION_BRIDGE,
+    MonitorOrigin,
     advanced_evidence_links_html,
     build_monitor_follow_up_queue,
     build_research_desk_brief,
@@ -461,10 +463,14 @@ from src.research_workspace import (
     research_desk_brief_html,
     research_accessibility_media_preferences_css,
     research_evidence_return_link,
+    research_monitor_origin,
+    research_monitor_requires_online,
     research_monitor_return_link,
     research_monitor_frame,
     monitor_freshness_condition_label,
     monitor_primary_answer,
+    open_research_monitor,
+    return_to_research_workbench,
     saved_readiness_display_label,
     validated_research_return_ticker,
     research_workflow_navigation_html,
@@ -7628,13 +7634,29 @@ def render_public_workflow_skip_link(
     st_api.markdown(public_workflow_skip_link_html(skip_href), unsafe_allow_html=True)
 
 
-def render_research_workflow_navigation(selected_page: str, *, ticker: str = "") -> None:
+def render_research_workflow_navigation(
+    selected_page: str, *, ticker: str = "", monitor_profile_key: str = "",
+    monitor_origin: MonitorOrigin | None = None,
+) -> None:
     if selected_page not in {*RESEARCH_PATH_PAGE_TITLES, "Data Health", PROOF_HISTORY_PATH_TITLE}:
         return
+    monitor_handoff = selected_page == "Company Workbench" and bool(ticker and monitor_profile_key)
+    online_workbench = monitor_handoff and st.query_params.get("online") == "1"
     st.markdown(
-        research_workflow_navigation_html(active_page=selected_page, ticker=ticker),
+        research_workflow_navigation_html(
+            active_page=selected_page, ticker=ticker,
+            monitor_handoff=monitor_handoff, online_workbench=online_workbench,
+            monitor_origin=monitor_origin,
+        ),
         unsafe_allow_html=True,
     )
+    if monitor_handoff or monitor_origin is not None:
+        st.html(RESEARCH_MONITOR_NAVIGATION_BRIDGE, unsafe_allow_javascript=True)
+    if monitor_handoff:
+        st.button(
+            "Open Monitor", key="research-nav-monitor", on_click=open_research_monitor,
+            args=(st, ticker, monitor_profile_key),
+        )
 
 
 def public_workflow_skip_target_html() -> str:
@@ -32980,7 +33002,8 @@ def render_single_stock_report(
                 single_answer_frame=single_answer_frame, answer_snapshot=report_one_answer_snapshot,
                 authoritative_task=authoritative_task, change_answer=change_answer,
                 trend_packet=trend_packet, forward_view_packet=forward_view_packet,
-                valuation_regime=valuation_regime, catalyst_timeline=catalyst_timeline,
+                valuation_regime=valuation_regime, peer_read_through=peer_read_through,
+                catalyst_timeline=catalyst_timeline,
                 nowcast_packet=nowcast_packet, observation_recency=observation_recency,
             )
             return
@@ -37827,6 +37850,7 @@ def render_research_monitor(
     observation_recency: ObservationRecencySet | None = None,
     *,
     return_ticker: str = "",
+    monitor_origin: MonitorOrigin | None = None,
 ) -> None:
     render_research_workspace_header(
         "Monitor",
@@ -37878,15 +37902,24 @@ def render_research_monitor(
         unsafe_allow_html=True,
     )
     if return_ticker:
-        return_link = research_monitor_return_link(return_ticker)
-        st.link_button(return_link["label"], return_link["href"])
+        return_link = research_monitor_return_link(return_ticker, origin=monitor_origin)
+        if monitor_origin is not None:
+            st.button(
+                return_link["label"], key="monitor-return-to-workbench",
+                on_click=return_to_research_workbench, args=(st, monitor_origin),
+            )
+        else:
+            st.markdown(
+                evidence_action_html(SafeRouteAction(return_link["label"], return_link["href"])).value,
+                unsafe_allow_html=True,
+            )
         st.caption(
             "Monitor remains focused-cohort-wide; "
             f"{str(return_ticker).strip().upper()} is only the return destination and "
             "does not filter these follow-up items."
         )
     from src.sec_research_review_ui import render_review_monitor
-    render_review_monitor(st,profile_key=context.profile_key)
+    render_review_monitor(st, profile_key=context.profile_key, monitor_origin=monitor_origin)
     st.markdown("## Follow-up Queue")
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
     if queue.has_saved_follow_up or queue.has_freshness_attention:
@@ -38060,26 +38093,91 @@ def render_company_online_prices(ticker: str, *, sec_refresh_requested: bool = F
             st.markdown(price_filing_association_html(link),unsafe_allow_html=True)
 
 
+def _render_company_saved_business_trend(trend_packet: QuarterlyTrendPacket) -> None:
+    """Show canonical quarterly evidence without requiring a saved quote or report."""
+    with st.expander("Business Trend (saved evidence)", expanded=False):
+        st.caption(
+            "Saved quarterly observations have their own source and readiness gates. "
+            "This panel does not adopt the current online filing inspection."
+        )
+        render_signal_cards(
+            quarterly_trend_cards(trend_packet), show_commands=False, variant="queue"
+        )
+        st.dataframe(
+            pd.DataFrame(quarterly_trend_rows(trend_packet)),
+            width="stretch",
+            hide_index=True,
+        )
+        if trend_packet.canonical_rejected_rows:
+            st.dataframe(
+                pd.DataFrame(
+                    {
+                        "Canonical row": [row["row_number"] for row in trend_packet.canonical_rejected_rows],
+                        "Rejection reason": [row["reason"] for row in trend_packet.canonical_rejected_rows],
+                    }
+                ),
+                width="stretch",
+                hide_index=True,
+            )
+        st.caption(
+            "Q4 is never derived. Only explicit versioned quarterly source rows can unlock a comparison."
+        )
+
+
 def _render_company_saved_section(
     section, *, ticker, report_payload, context, scenario_session, journal_state,
     journal_error, decision_lab_state, outcome_status, single_answer_frame, answer_snapshot,
     authoritative_task, change_answer, trend_packet, forward_view_packet, valuation_regime,
-    catalyst_timeline, nowcast_packet, observation_recency,
+    peer_read_through, catalyst_timeline, nowcast_packet, observation_recency,
 ):
     """Reuse saved model and record tools without joining online facts into them."""
+    if section == "financials":
+        _render_company_saved_business_trend(trend_packet)
+        return
     if section == "valuation":
-        st.caption("已保存研究集合 · 输入日期与资格独立。此处不自动采用本次在线财报或价格。")
-        from src.company_valuation_overview import build_valuation_overview, valuation_overview_html
-        security=get_company_security_context(ticker,st.session_state,refresh_requested=False,user_agent=None)
-        view=build_valuation_overview(ticker,report_payload,research_context=security)
-        st.markdown(valuation_overview_html(view,compact=True),unsafe_allow_html=True)
-        st.markdown("### 已保存输入的情景分析")
-        st.caption("保存来源状态："+saved_readiness_display_label(context.freshness_state)+"。陈旧输入仅供历史复核；情景结果不是当前目标价。")
-        render_scenario_lab(scenario_session)
-        with st.expander("模型定义、来源与历史估值",expanded=False):
-            render_signal_cards(stock_report_valuation_boundary_cards(report_payload),show_commands=False,variant="queue")
-            render_signal_cards(valuation_regime_cards(valuation_regime),show_commands=False,variant="queue")
-            render_signal_cards(stock_report_quant_interpretation_cards(report_payload),show_commands=False,variant="queue")
+        with st.expander("Saved Valuation & Scenarios", expanded=False):
+            st.caption("已保存研究集合 · 输入日期与资格独立。此处不自动采用本次在线财报或价格。")
+            from src.company_valuation_overview import build_valuation_overview, valuation_overview_html
+            security = get_company_security_context(
+                ticker, st.session_state, refresh_requested=False, user_agent=None
+            )
+            view = build_valuation_overview(ticker, report_payload, research_context=security)
+            st.markdown(valuation_overview_html(view, compact=True), unsafe_allow_html=True)
+            st.markdown("### 已保存输入的情景分析")
+            st.caption(
+                "保存来源状态：" + saved_readiness_display_label(context.freshness_state)
+                + "。陈旧输入仅供历史复核；情景结果不是当前目标价。"
+            )
+            render_scenario_lab(scenario_session)
+        with st.expander("Peer Read-Through (saved evidence)", expanded=False):
+            render_context_note(
+                "Which peer results can be reviewed as context?",
+                "Relationship provenance, peer role, economic comparability, valuation-anchor "
+                "eligibility, source-backed actual results, and fiscal periods are checked separately. "
+                "Candidate peers never become trusted automatically.",
+            )
+            render_signal_cards(
+                peer_read_through_summary_cards(peer_read_through),
+                show_commands=False,
+                variant="queue",
+            )
+            frame = peer_read_through_frame(peer_read_through)
+            if not frame.empty:
+                st.dataframe(frame, width="stretch", hide_index=True)
+            st.caption(f"Map identity: {peer_read_through.map_identity}")
+            st.caption(peer_read_through.boundary)
+            if peer_read_through.edges:
+                st.dataframe(
+                    pd.DataFrame([asdict(edge) for edge in peer_read_through.edges]),
+                    width="stretch",
+                    hide_index=True,
+                )
+            else:
+                st.caption("No peer relationship evidence is available for this ticker.")
+        with st.expander("Valuation Methods (saved evidence)", expanded=False):
+            render_signal_cards(stock_report_valuation_boundary_cards(report_payload), show_commands=False, variant="queue")
+            render_signal_cards(valuation_regime_cards(valuation_regime), show_commands=False, variant="queue")
+            render_signal_cards(stock_report_quant_interpretation_cards(report_payload), show_commands=False, variant="queue")
         return
     if journal_state is not None:
         summary=research_thesis_journal_summary(journal_state)
@@ -38094,12 +38192,42 @@ def _render_company_saved_section(
     render_research_record_authoring(st_api=st,profile_key=context.profile_key,ticker=ticker,
         paths=AuthoringPaths(journal=DATA_DIR/"research_thesis_journal.csv",
                             catalysts=DATA_DIR/"catalyst_evidence.csv",outcomes=DATA_DIR/"research_outcome_reviews.csv"))
-    with st.expander("研究过程、历史记录与跟进",expanded=False):
+    with st.expander("Research Decision Lab & History", expanded=False):
         st.caption("研究过程记录与财务就绪度分别判断；填写记录不会解除模型或来源限制。")
         render_signal_cards(decision_lab_cards(decision_lab_state),show_commands=False,variant="queue")
         render_signal_cards(outcome_status_cards(outcome_status),show_commands=False,variant="queue")
+        st.dataframe(
+            pd.DataFrame(decision_lab_rows(decision_lab_state)), width="stretch", hide_index=True
+        )
+        st.caption(f"Decision Lab identity: {decision_lab_state.identity}")
+        st.caption(decision_lab_state.boundary)
         if journal_state is not None and journal_state.entries:
             st.dataframe(pd.DataFrame(research_thesis_journal_detail_rows(journal_state)),width="stretch",hide_index=True)
+    with st.expander("Forward View & Catalysts (saved evidence)", expanded=False):
+        render_signal_cards(forward_view_cards(forward_view_packet), show_commands=False, variant="queue")
+        render_signal_cards(catalyst_timeline_cards(catalyst_timeline), show_commands=False, variant="queue")
+        st.dataframe(
+            pd.DataFrame(forward_view_rows(forward_view_packet)), width="stretch", hide_index=True
+        )
+        if catalyst_timeline.upcoming or catalyst_timeline.recent:
+            st.dataframe(
+                pd.DataFrame(
+                    [asdict(row) for row in (*catalyst_timeline.upcoming, *catalyst_timeline.recent)]
+                ),
+                width="stretch",
+                hide_index=True,
+            )
+        if catalyst_timeline.commercial_blockers:
+            st.dataframe(
+                pd.DataFrame({"Commercial blocker": list(catalyst_timeline.commercial_blockers)}),
+                width="stretch",
+                hide_index=True,
+            )
+        st.caption(
+            f"Model {forward_view_packet.model_version}; cutoff "
+            f"{forward_view_packet.source_cutoff or 'unavailable'}. "
+            "Candidate context never changes numerical scenarios."
+        )
     selected_answer=single_answer_frame.iloc[0].to_dict()
     selected_answer["state"]=answer_snapshot["status"]
     snapshot=build_company_workbench_html_snapshot(CompanyWorkbenchHtmlInputs(
@@ -38203,6 +38331,9 @@ def render_company_workbench(
         return
     expected_cik=online_candidate["cik"] if online_candidate else None
     def saved_section(section):
+        if section == "financials":
+            _render_company_saved_business_trend(load_dashboard_quarterly_trend(ticker))
+            return
         render_single_stock_report(provider,False,public_mode=True,profile_context=context,
             research_mode=True,research_review_items=state.get("queue") or (),
             observation_recency=observation_recency,workbench_section=section)
@@ -38253,6 +38384,7 @@ def render_personal_research_route(
     ticker: str,
     review_date,
     return_ticker: str = "",
+    monitor_origin: MonitorOrigin | None = None,
 ) -> bool:
     """Load one local observation result and render one primary research route."""
     if selected_page not in RESEARCH_PATH_PAGE_TITLES:
@@ -38326,6 +38458,7 @@ def render_personal_research_route(
                 cohort,
                 observation_recency,
                 return_ticker=return_ticker,
+                **({"monitor_origin": monitor_origin} if monitor_origin is not None else {}),
             )
         else:
             render_research_monitor(state, context, weekly_summary, cohort, observation_recency)
@@ -38377,19 +38510,36 @@ def main() -> None:
     )
     catalog = LocalDataCatalog(BASE_DIR, data_dir=DATA_DIR, outputs_dir=OUTPUTS_DIR)
     provider = get_local_provider()
+    profile_key = getattr(profile_context, "profile_key", "")
     monitor_return_ticker = ""
+    monitor_origin = None
     if research_mode and initial_page == "Monitor":
-        registered_tickers = (
-            provider.list_local_tickers()
-            if hasattr(provider, "list_local_tickers")
-            else ()
-        )
-        monitor_return_ticker = validated_research_return_ticker(
-            st.query_params.get("return_ticker"),
-            registered_tickers,
-        )
-        if "return_ticker" in st.query_params and not monitor_return_ticker:
-            del st.query_params["return_ticker"]
+        requested_return = str(st.query_params.get("return_ticker") or "").strip().upper()
+        session_state = getattr(st, "session_state", {})
+        monitor_origin = research_monitor_origin(session_state, profile_key, requested_return)
+        if research_monitor_requires_online(session_state, st.query_params, requested_return):
+            if (st.query_params.get("return_online") == "1" and monitor_origin is not None
+                    and monitor_origin.online_cik is not None):
+                monitor_return_ticker = monitor_origin.ticker
+            else:
+                monitor_origin = None
+        else:
+            registered_tickers = (
+                provider.list_local_tickers()
+                if hasattr(provider, "list_local_tickers")
+                else ()
+            )
+            monitor_return_ticker = validated_research_return_ticker(requested_return, registered_tickers)
+            if monitor_origin is not None and not monitor_return_ticker:
+                from src.sec_research_review_ui import saved_review_route_available
+                if saved_review_route_available(requested_return, profile_key):
+                    monitor_return_ticker = requested_return
+                else:
+                    monitor_origin = None
+        if not monitor_return_ticker:
+            for return_key in ("return_ticker", "return_online"):
+                if return_key in st.query_params:
+                    del st.query_params[return_key]
     bootstrap_placeholder = (
         render_public_route_bootstrap(initial_page, initial_mode)
         if initial_mode == PUBLIC_DEMO_MODE
@@ -38550,7 +38700,12 @@ def main() -> None:
     else:
         if research_mode:
             navigation_ticker = monitor_return_ticker if selected_page == "Monitor" else ticker
-            render_research_workflow_navigation(selected_page, ticker=navigation_ticker)
+            navigation_context = {}
+            if selected_page == "Company Workbench" and navigation_ticker and profile_key:
+                navigation_context["monitor_profile_key"] = profile_key
+            if monitor_origin is not None:
+                navigation_context["monitor_origin"] = monitor_origin
+            render_research_workflow_navigation(selected_page, ticker=navigation_ticker, **navigation_context)
             render_public_workflow_skip_target()
             render_research_workspace_styles()
         else:
@@ -38593,6 +38748,7 @@ def main() -> None:
         ticker=ticker,
         review_date=pd.Timestamp.now(tz="UTC").date(),
         return_ticker=monitor_return_ticker,
+        **({"monitor_origin": monitor_origin} if monitor_origin is not None else {}),
     ):
         return
     if content_page == "Home":

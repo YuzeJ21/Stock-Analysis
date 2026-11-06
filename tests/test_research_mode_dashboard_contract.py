@@ -70,6 +70,13 @@ def test_dashboard_resolves_raw_route_before_loading_workspace_state():
             1,
         ),
         (
+            {"mode": "research", "page": "monitor", "return_ticker": "NVDA", "return_online": "1"},
+            ("NVDA",),
+            "",
+            {"mode": "research", "page": "monitor"},
+            0,
+        ),
+        (
             {"mode": "research", "page": "research-desk", "return_ticker": "NVDA"},
             ("NVDA",),
             "",
@@ -130,7 +137,8 @@ def test_main_resolves_monitor_return_context_only_after_provider_availability(
 
     assert provider.registered_calls == expected_registered_calls
     assert fake_streamlit.query_params == expected_query
-    assert dispatched[0]["selected_page"] == ("Monitor" if expected_registered_calls else "Research Desk")
+    expected_page = "Monitor" if expected_query["page"] == "monitor" else "Research Desk"
+    assert dispatched[0]["selected_page"] == expected_page
     assert dispatched[0]["return_ticker"] == expected_return_ticker
 
 
@@ -406,7 +414,7 @@ def test_research_main_shell_keeps_one_workflow_nav_without_operator_readiness_c
     operator_shell = shell[operator_else:]
 
     assert "navigation_ticker = monitor_return_ticker if selected_page == \"Monitor\" else ticker" in research_shell
-    assert "render_research_workflow_navigation(selected_page, ticker=navigation_ticker)" in research_shell
+    assert "render_research_workflow_navigation(selected_page, ticker=navigation_ticker, **navigation_context)" in research_shell
     assert "render_public_workflow_skip_target()" in research_shell
     assert "render_research_workspace_styles()" in research_shell
     assert "render_app_header(" not in research_shell
@@ -1703,10 +1711,15 @@ def test_monitor_return_context_renders_once_without_changing_monitor_scope(monk
     with_context = (list(rendered), list(cards), list(frames), list(actions))
 
     assert with_context[1:3] == without_context[1:3]
-    assert with_context[3] == [("Return to NVDA Company Workbench", "?mode=research&page=company-workbench&ticker=NVDA&open=1")]
+    assert with_context[3] == without_context[3] == []
+    return_action = [value for value in with_context[0] if "Return to NVDA Company Workbench" in value]
+    assert len(return_action) == 1
+    assert "href='?mode=research&amp;page=company-workbench&amp;ticker=NVDA&amp;open=1'" in return_action[0]
+    assert "target='_self'" in return_action[0]
     context_copy = " ".join(with_context[0])
     assert context_copy.count("Monitor remains focused-cohort-wide; NVDA is only the return destination and does not filter these follow-up items.") == 1
-    assert [value for value in with_context[0] if "return destination" not in value] == without_context[0]
+    assert [value for value in with_context[0]
+            if value not in return_action and "return destination" not in value] == without_context[0]
 
 
 def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_health(

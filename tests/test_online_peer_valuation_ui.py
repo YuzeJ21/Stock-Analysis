@@ -148,7 +148,7 @@ def test_real_compositor_fetches_only_on_peer_action_and_reuses_sources_across_p
     _peer_button(at).click().run(timeout=30)
     assert not at.exception and '高于同行参照 20.0%' in _text(at)
     assert 'SAVED-valuation' in _text(at)
-    assert any(e.label=='已保存的估值与情景分析' for e in at.expander)
+    assert not any(e.label=='Saved Valuation & Scenarios' for e in at.expander)
     before=list(calls)
     at.radio[0].set_value('sources').run()
     assert '在线同行估值来源' in _text(at) and 'EXISTING-SOURCES' in _text(at)

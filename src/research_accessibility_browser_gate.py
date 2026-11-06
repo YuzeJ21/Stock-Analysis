@@ -3449,7 +3449,7 @@ def _open_company_workbench_modules(
 ) -> dict[str, object]:
     section_radio=page.get_by_role('radio',name='研究记录',exact=True)
     integrated=section_radio.count()==1
-    module_label = "研究过程、历史记录与跟进" if integrated else "Research Decision Lab"
+    module_label = "Research Decision Lab & History" if integrated else "Research Decision Lab"
     button = (page.locator('.st-key-company-section-navigation label').filter(has=section_radio) if integrated else page.get_by_role(
         "button", name="Open evidence and analysis modules", exact=True))
     if button.count() != 1 or not button.first.is_visible():

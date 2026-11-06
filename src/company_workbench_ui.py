@@ -128,6 +128,8 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                     else:st_api.info('该期间的直接申报字段尚未取得或未通过核对；可在数据来源检查原始申报和原因。')
                 with st_api.expander('财务观察与可用分析',expanded=False):
                     st_api.markdown(online_company_analysis_html(build_online_company_analysis(financial)),unsafe_allow_html=True)
+            if saved_available and candidate is None:
+                render_saved(selected)
         elif selected in ('valuation','notes'):
             if selected=='notes':
                 from src.sec_research_review_ui import render_company_review
@@ -140,10 +142,7 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                 else:
                     st_api.caption('查询已披露年度 P/E 与行业参照。')
             if saved_available and candidate is None:
-                if selected=='valuation':
-                    with st_api.expander('已保存的估值与情景分析',expanded=False):
-                        render_saved(selected)
-                else:render_saved(selected)
+                render_saved(selected)
             elif selected=='valuation':
                 if peer_view['status']=='not_requested':
                     research_context=get_company_security_context(ticker,st_api.session_state,
