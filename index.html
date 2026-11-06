@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ROvLFOuCDYIguHsw9jgq1r56MjUMpR0IPTMNIehS24M='; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-GobT3kPOSed03M/M4H85wlXo2KOk+qKYKQk656P+7PA='; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
   <title>Stock Research Command Center | Guided Demo</title>
   <meta name="description" content="Research a fictional company, review business trends and peers, test valuation assumptions, and track a follow-up.">
   <meta property="og:title" content="Stock Research Command Center | Guided Demo">
@@ -149,6 +149,14 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
 .note-box ul { margin: 0; padding-left: 1.2rem; }
 .monitor-note { display: grid; gap: .65rem; border-left: .27rem solid #28634f; }
 .monitor-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.saved-evidence { scroll-margin-top: 1rem; }
+.evidence-observations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+.evidence-observations article { min-width: 0; display: grid; gap: .3rem; padding: .75rem;
+  border: 1px solid var(--line); border-radius: .48rem; }
+.evidence-observations h4 { overflow-wrap: anywhere; }
+.review-choices { border: 0; margin: 0; padding: 0; }
+.review-choices label { display: inline-flex; gap: .35rem; align-items: center; min-height: 2.75rem; }
+.review-choices input { accent-color: var(--pine); }
 .page-footer { padding-block: 1rem 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
 @media (max-width: 1000px) {
   .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -166,7 +174,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
   .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
   .layout { padding-top: .8rem; gap: 1rem; }
   .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes { grid-template-columns: minmax(0, 1fr); }
+  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes, .evidence-observations { grid-template-columns: minmax(0, 1fr); }
   .metrics { gap: .45rem; }
   .metric { padding: .6rem; }
   .metric-value { font-size: 1.12rem; }
@@ -507,17 +515,70 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
     </aside>
   </div>
   <div class="actions"><a class="button" href="#monitor" data-demo-go="monitor">Open Monitor</a></div>
+  <section class="surface note-box saved-evidence" id="demo-evidence-pair"
+      aria-labelledby="demo-evidence-pair-title">
+    <span class="badge">Fictional sample</span>
+    <h3 id="demo-evidence-pair-title" tabindex="-1">Saved evidence comparison</h3>
+    <p>Two fixed observations of the same Fogline Photonics filing. The newer observation adds a checked
+      operating-income line. Reported revenue stays the same.</p>
+    <div class="evidence-observations">
+      <article data-demo-evidence-observation>
+        <p class="eyebrow">Baseline · Saved Feb 13, 2026</p>
+        <h4>FICT-FY25-01</h4>
+        <p>Jan 1–Dec 31, 2025</p>
+        <p class="source-note">Fictional FY2025 annual statement</p>
+        <p>USD 120M revenue · Operating income line pending</p>
+      </article>
+      <article data-demo-evidence-observation>
+        <p class="eyebrow">Latest · Saved Feb 20, 2026</p>
+        <h4>FICT-FY25-02</h4>
+        <p>Jan 1–Dec 31, 2025</p>
+        <p class="source-note">Fictional FY2025 annual statement</p>
+        <p>USD 120M revenue · USD 17M operating income</p>
+      </article>
+    </div>
+    <p><strong data-demo-review-status>Pending review</strong></p>
+    <p class="monitor-note-text" data-demo-review-reason-line hidden><strong>Reason:</strong> <span data-demo-review-reason></span></p>
+    <a class="button" href="#monitor" data-demo-go="monitor">Back to Monitor</a>
+  </section>
 </section>
       <section class="panel" id="monitor" data-demo-page="monitor" data-demo-panel
   aria-labelledby="monitor-title" tabindex="-1">
   <header class="panel-intro">
     <p class="eyebrow">Step 5 of 5 · Follow-up queue</p>
     <h2 id="monitor-title" data-demo-title tabindex="-1">Monitor</h2>
-    <p>Review the question you carried forward and return to the company evidence when it is time to revisit it.</p>
+    <p>Review a saved evidence comparison and revisit the question you carried forward.</p>
   </header>
+  <section class="surface monitor-note" aria-labelledby="demo-evidence-follow-up-title">
+    <span class="badge">Fictional sample</span>
+    <h3 id="demo-evidence-follow-up-title">Sample evidence follow-up</h3>
+    <p>Fogline Photonics · FY2025 annual statement</p>
+    <p><strong data-demo-review-status>Pending review</strong></p>
+    <p class="monitor-note-text" data-demo-review-reason-line hidden><strong>Reason:</strong> <span data-demo-review-reason></span></p>
+    <a class="button" href="#demo-evidence-pair">Review saved evidence</a>
+    <details data-demo-review-controls hidden>
+      <summary>Record a disposition</summary>
+      <form class="note-form" data-demo-review-form autocomplete="off">
+        <fieldset class="review-choices">
+          <legend class="field-label">Disposition</legend>
+          <div class="actions">
+            <label><input type="radio" name="disposition" value="Reviewed" required> Reviewed</label>
+            <label><input type="radio" name="disposition" value="Still open" required> Still open</label>
+          </div>
+        </fieldset>
+        <label class="field-label" for="demo-review-reason">Reason</label>
+        <textarea id="demo-review-reason" rows="2" maxlength="500" required
+          aria-describedby="demo-review-hint"></textarea>
+        <p class="helper" id="demo-review-hint">A reason is required. Review status and reason reset on reload.</p>
+        <button class="button" type="submit">Save disposition</button>
+        <p class="status" role="status" data-demo-review-feedback></p>
+      </form>
+    </details>
+    <noscript><p class="source-note">Recording a disposition requires scripts.</p></noscript>
+  </section>
   <div class="surface note-box" id="demo-monitor-empty" data-demo-monitor-empty>
     <span class="badge">Follow-up queue</span>
-    <h3>No follow-up in this demo session</h3>
+    <h3>No personal follow-up yet</h3>
     <p class="source-note">Add a note from Research Notes to see it here.</p>
     <a class="button" href="#notes" data-demo-go="notes">Return to Research Notes</a>
   </div>
@@ -539,14 +600,16 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
     const panels = Array.from(document.querySelectorAll("[data-demo-page]"));
     const panelByPage = new Map(panels.map((panel) => [panel.dataset.demoPage, panel]));
     const steps = document.querySelectorAll("nav [data-demo-go]");
+    const evidencePair = document.querySelector("#demo-evidence-pair");
     let openPeerEvidence = false;
 
     function showCurrentPage(moveFocus) {
         const requested = location.hash.slice(1);
-        if (moveFocus && requested && !panelByPage.has(requested)) {
+        const reviewingEvidence = requested === evidencePair.id;
+        if (moveFocus && requested && !reviewingEvidence && !panelByPage.has(requested)) {
             return;
         }
-        const page = panelByPage.has(requested) ? requested : "discover";
+        const page = reviewingEvidence ? "notes" : panelByPage.has(requested) ? requested : "discover";
         for (const panel of panels) {
             panel.hidden = panel.dataset.demoPage !== page;
         }
@@ -560,7 +623,10 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
         if (moveFocus) {
             window.scrollTo(0, 0);
             const panel = panelByPage.get(page);
-            if (page === "valuation" && openPeerEvidence) {
+            if (reviewingEvidence) {
+                evidencePair.querySelector("h3").focus({preventScroll: true});
+                evidencePair.scrollIntoView({block: "start"});
+            } else if (page === "valuation" && openPeerEvidence) {
                 const state = panel.querySelector("#demo-withheld").checked ? "withheld" : "available";
                 const evidence = panel.querySelector(`.demo-state--${state} .peer-evidence`);
                 evidence.open = true;
@@ -645,6 +711,38 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
         monitorItem.hidden = false;
         monitorEmpty.hidden = true;
         noteStatus.textContent = "Follow-up added for this page.";
+    });
+
+    const reviewForm = document.querySelector("[data-demo-review-form]");
+    const reviewReason = reviewForm.querySelector("textarea");
+    const reviewFeedback = reviewForm.querySelector("[data-demo-review-feedback]");
+    const dispositionLabels = document.querySelectorAll("[data-demo-review-status]");
+    const reasonLines = document.querySelectorAll("[data-demo-review-reason-line]");
+    reviewForm.reset();
+    document.querySelector("[data-demo-review-controls]").hidden = false;
+    reviewForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const disposition = new FormData(reviewForm).get("disposition");
+        const reason = reviewReason.value.trim();
+        if (!reason) {
+            reviewReason.setAttribute("aria-invalid", "true");
+            reviewFeedback.textContent = "Enter a reason first.";
+            reviewReason.focus();
+            return;
+        }
+        if (!disposition) {
+            return;
+        }
+        reviewReason.value = reason;
+        reviewReason.removeAttribute("aria-invalid");
+        for (const label of dispositionLabels) {
+            label.textContent = disposition;
+        }
+        for (const line of reasonLines) {
+            line.querySelector("[data-demo-review-reason]").textContent = reason;
+            line.hidden = false;
+        }
+        reviewFeedback.textContent = "Disposition saved for this page.";
     });
 })();
 </script>

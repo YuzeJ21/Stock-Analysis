@@ -147,6 +147,14 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
 .note-box ul { margin: 0; padding-left: 1.2rem; }
 .monitor-note { display: grid; gap: .65rem; border-left: .27rem solid #28634f; }
 .monitor-note-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.saved-evidence { scroll-margin-top: 1rem; }
+.evidence-observations { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
+.evidence-observations article { min-width: 0; display: grid; gap: .3rem; padding: .75rem;
+  border: 1px solid var(--line); border-radius: .48rem; }
+.evidence-observations h4 { overflow-wrap: anywhere; }
+.review-choices { border: 0; margin: 0; padding: 0; }
+.review-choices label { display: inline-flex; gap: .35rem; align-items: center; min-height: 2.75rem; }
+.review-choices input { accent-color: var(--pine); }
 .page-footer { padding-block: 1rem 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .82rem; }
 @media (max-width: 1000px) {
   .metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -164,7 +172,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
   .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
   .layout { padding-top: .8rem; gap: 1rem; }
   .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes { grid-template-columns: minmax(0, 1fr); }
+  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes, .evidence-observations { grid-template-columns: minmax(0, 1fr); }
   .metrics { gap: .45rem; }
   .metric { padding: .6rem; }
   .metric-value { font-size: 1.12rem; }
@@ -308,7 +316,8 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
         <p>At the next AMD filing, compare Data Center’s revenue share and cash after PP&amp;E using matching
           periods. Review working capital and cash spending if the two trends diverge.</p>
         <div class="actions"><a href="#cash-generation">Review the baseline</a>
-          <a href="./#notes">Try adding a follow-up in the guided demo</a></div>
+          <a href="./#notes">Try adding a follow-up in the guided demo</a>
+          <a href="./#monitor">Try the fictional evidence review</a></div>
       </section>
       <details id="filing-source"><summary>Filing &amp; calculations</summary>
         <p><a href="https://www.sec.gov/Archives/edgar/data/2488/000000248826000191/amd-20260926.htm">Read AMD’s Form 10-Q on SEC EDGAR</a> · Accession 0000002488-26-000191</p>
