@@ -1273,14 +1273,15 @@ def test_linkedin_share_check_prints_read_only_final_checklist():
     output = result.stdout
     assert "LinkedIn Share Check" in output
     assert "Read-only: this target prints the final LinkedIn visual checklist only." in output
-    assert "Stock Research Command Center | Interactive Company Research" in output
+    assert "Stock Research Command Center | Company Research, Valuation & Monitoring" in output
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in output
     assert "https://yuzej21.github.io/Stock-Analysis/" in output
     assert "Review saved evidence and record Reviewed or Still open." in output
     assert "The choice resets on reload." in output
     assert "docs/assets/linkedin-public-dashboard.png" in output
     assert "screenshot of the linked English demo" in output
-    assert "https://yuzej21.github.io/Stock-Analysis/amd.html as the separate dated SEC filing example." in output
+    assert "docs/assets/amd-sec-filing-case.jpg as the Featured image for the linked filing case." in output
+    assert "https://yuzej21.github.io/Stock-Analysis/amd.html as the primary dated SEC filing example." in output
     assert "hosting" in output
     assert "screenshots prove current data freshness" in output
     assert "provider-key activation" in output
@@ -2452,7 +2453,7 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
 
     for phrase in (
-        "Stock Research Command Center | Interactive Company Research",
+        "Stock Research Command Center | Company Research, Valuation & Monitoring",
         "local Python and Streamlit portfolio beta",
         "Research Desk -> Discover -> Company Workbench -> Monitor",
         "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History",

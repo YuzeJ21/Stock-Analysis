@@ -504,7 +504,7 @@ def test_product_direction_decision_stays_provisional_until_external_evidence_ex
 def test_linkedin_brief_has_now_next_not_yet_share_framing():
     linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
 
-    assert "Stock Research Command Center | Interactive Company Research" in linkedin
+    assert "Stock Research Command Center | Company Research, Valuation & Monitoring" in linkedin
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in linkedin
     assert "https://yuzej21.github.io/Stock-Analysis/" in linkedin
     assert "https://yuzej21.github.io/Stock-Analysis/amd.html" in linkedin
@@ -512,9 +512,10 @@ def test_linkedin_brief_has_now_next_not_yet_share_framing():
     assert "The disposition, scenario changes, and personal note reset on reload." in linkedin
     assert "readiness counts" not in linkedin.lower()
     assert "Use the [English company demo screenshot](assets/english-company-research-demo.png)" in linkedin
+    assert "Use the [real SEC filing case screenshot](assets/amd-sec-filing-case.jpg) for the Featured image." in linkedin
     assert "Company Search → Overview → Financial Trends → Valuation & Peers → Research Notes → Data Sources → Monitor" in linkedin
     assert "## Now / Next / Not Yet" in linkedin
-    assert "| Now | Share the guided fictional Pages demo first" in linkedin
+    assert "| Now | Share the dated SEC filing case as the Featured example" in linkedin
     assert "| Next | Review one named peer relationship" in linkedin
     assert "qualify a new issuer or period" in linkedin
     assert "financial or filing changes" in linkedin
@@ -808,11 +809,12 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     assert "Optional current-count proof" not in makefile
     assert "Proves: current readiness counts" not in makefile
     assert "make linkedin-share-check" in makefile
-    assert "Stock Research Command Center | Interactive Company Research" in makefile
+    assert "Stock Research Command Center | Company Research, Valuation & Monitoring" in makefile
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in makefile
     assert "In Monitor, use Review saved evidence and record Reviewed or Still open." in makefile
     assert "Use a screenshot of the linked English demo." in makefile
-    assert f"{PUBLIC_COMPANY_DEMO}amd.html as the separate dated SEC filing example." in makefile
+    assert "docs/assets/amd-sec-filing-case.jpg as the Featured image for the linked filing case." in makefile
+    assert f"{PUBLIC_COMPANY_DEMO}amd.html as the primary dated SEC filing example." in makefile
     assert "docs/LINKEDIN_PROJECT_BRIEF.md for the current copy." in makefile
 
 

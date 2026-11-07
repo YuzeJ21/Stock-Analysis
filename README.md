@@ -7,11 +7,22 @@ An evidence-first equity research workbench built with Python and Streamlit. Rev
 | Start here | What you can explore |
 | --- | --- |
 | [Interactive English demo](https://yuzej21.github.io/Stock-Analysis/) | A static, offline-capable fictional company case from search through five company sections and Monitor. |
-| [Real AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) | A separate, dated Q3 FY2026 SEC filing walkthrough with quarterly drivers, operating margin, cash flow, and an open research question. |
+| [Real AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) | A separate, dated Q3 FY2026 SEC filing walkthrough with quarterly drivers, operating margin, cash flow, and an open research question. [English screenshot](docs/assets/amd-sec-filing-case.jpg). |
 
 ![English synthetic company research demo](docs/assets/english-company-research-demo.png)
 
 *The screenshot shows the fictional public demo. The full research workspace runs locally.*
+
+<details>
+<summary>Real company example: AMD SEC filing case</summary>
+
+[Open the real AMD case](https://yuzej21.github.io/Stock-Analysis/amd.html) · [Download the English screenshot](docs/assets/amd-sec-filing-case.jpg)
+
+![Real AMD SEC filing research example](docs/assets/amd-sec-filing-case.jpg)
+
+*Quarter ended September 26, 2026; filed November 4, 2026. This is a dated filing case, with public peer valuation withheld pending approved same-day price evidence. Its advanced-tool links open the separately labelled fictional workflow.*
+
+</details>
 
 ### Two-minute walkthrough
 

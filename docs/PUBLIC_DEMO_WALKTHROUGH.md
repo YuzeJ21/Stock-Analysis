@@ -1,6 +1,6 @@
 # Public Demo Walkthrough
 
-Share the [interactive English company research demo](https://yuzej21.github.io/Stock-Analysis/) as the first public link. It is a static, offline-capable case with a fictional company and synthetic data. It fetches no live filings or prices. The separate local Streamlit walkthrough uses the bundled demo profile.
+Use the [real AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) and its [English screenshot](assets/amd-sec-filing-case.jpg) for the real-company LinkedIn Featured example. The [interactive English company research demo](https://yuzej21.github.io/Stock-Analysis/) shows the full workflow separately. It is a static, offline-capable case with a fictional company and synthetic data. It fetches no live filings or prices. The separate local Streamlit walkthrough uses the bundled demo profile.
 
 ![English synthetic company research demo](assets/english-company-research-demo.png)
 
