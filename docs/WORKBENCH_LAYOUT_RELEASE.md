@@ -28,6 +28,14 @@ Local live observations and screenshots remain outside Git under `/tmp/stock-cle
 
 The final review found no remaining actionable code issues. The GitHub workflow is pull-request triggered; a direct main sync does not create a hosted CI run. Local verification and the Pages build are separate evidence.
 
+## Published verification
+
+- Tested source commit: [`883ed121f06b278daaa701fad669644913703dc6`](https://github.com/YuzeJ21/Stock-Analysis/commit/883ed121f06b278daaa701fad669644913703dc6). A fresh post-commit presentation, source-boundary, navigation and performance-contract group passed 81 tests.
+- Pages commit: [`717263f202698fcaec27ed113659906ce9420a17`](https://github.com/YuzeJ21/Stock-Analysis/commit/717263f202698fcaec27ed113659906ce9420a17), built successfully from that source. Both public HTML responses returned HTTP 200 and matched the reviewed build bytes by SHA-256.
+- The hosted [English Overview](https://yuzej21.github.io/Stock-Analysis/#overview) was inspected in the browser. Three eligible peers produce the sample comparison; two retain the explicit comparison gap. “View why” opens the matching evidence and exclusions. The separately dated [AMD case](https://yuzej21.github.io/Stock-Analysis/amd.html) matches its reviewed build and retains its market-data hold.
+- Current synthetic screenshot: [English company research demo](assets/english-company-research-demo.png). Real live screenshots remain local.
+- This verification follow-up changes documentation only; it does not alter the tested application or generated demo.
+
 ## Data and distribution boundary
 
 No canonical data or source-rights configuration is changed by this package. Refresh remains explicit, and changing sections reuses loaded observations. The same-day completed-close requirement, annual reported diluted EPS, 35-day fiscal window and minimum three qualified references are unchanged.

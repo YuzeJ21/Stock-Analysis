@@ -52,5 +52,7 @@
 - [x] Independently review the full diff for preserved functions and source gates.
 - [x] Inspect real AMD and QCOM on desktop and phone, including price date, financial trend, peer result/gap, source details and section continuity.
 - [x] Capture a clean synthetic English screenshot; update current walkthrough and roadmap with completed scope and remaining gaps.
-- [ ] Run required code, demo and release checks; commit only reviewed files and sync GitHub using the existing workflow.
-- [ ] Confirm resulting GitHub state and hosted demo; report exact tested commit/results and public links.
+- [x] Run required code, demo and release checks; commit only reviewed files and sync GitHub using the existing workflow.
+- [x] Confirm resulting GitHub state and hosted demo; report exact tested commit/results and public links.
+
+Verification: see `docs/WORKBENCH_LAYOUT_RELEASE.md`. Source commit `883ed121f06b278daaa701fad669644913703dc6`; Pages commit `717263f202698fcaec27ed113659906ce9420a17`. The final verification follow-up is documentation only.
