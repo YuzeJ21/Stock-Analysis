@@ -23,29 +23,29 @@ def saved_review_route_available(ticker,profile_key):
     except (ValueError,OSError):return False
 
 
-LABELS={'revenue':'收入','operating_income':'营业利润','cash_from_operations':'经营现金流',
-        'capital_expenditures':'资本支出','all':'整个证据包'}
-REASONS={'source_evidence_unreviewed':'直接来源证据尚未通过核查，需检查具体申报字段',
-    'direct_field_missing':'没有同一申报、同一期间的直接字段，需核对原文',
-    'prior_direct_field_missing':'上一份证据缺少直接字段', 'baseline_missing':'尚缺第二份可比较的保存证据',
-    'duration_mismatch':'期间长度或起止日期不一致', 'period_end_mismatch':'报告期不同',
-    'concept_mismatch':'财务定义不同', 'unit_mismatch':'单位或币种不同',
-    'rights_policy_changed':'来源权限登记已变化，需重新核查', 'profile_key_mismatch':'研究集合不同',
-    'same_source_digest_conflict':'相同来源摘要对应不同字段，需核查证据一致性',
-    'rights_mismatch':'字段权限不一致', 'raw_source_conflict':'原始来源包含冲突值，需核查申报语境',
-    'raw_source_value_invalid':'原始来源数值无法通过核查'}
+LABELS={'revenue':'Revenue','operating_income':'Operating income','cash_from_operations':'Cash from operations',
+        'capital_expenditures':'Capital expenditures','all':'Entire evidence package'}
+REASONS={'source_evidence_unreviewed':'Direct source evidence needs review. Check the exact filing field.',
+    'direct_field_missing':'No direct field for the same filing and period. Check the original filing.',
+    'prior_direct_field_missing':'The earlier evidence lacks this direct field.', 'baseline_missing':'A second comparable saved observation is required.',
+    'duration_mismatch':'Duration or period dates differ.', 'period_end_mismatch':'Reporting periods differ.',
+    'concept_mismatch':'Financial definitions differ', 'unit_mismatch':'Units or currencies differ.',
+    'rights_policy_changed':'The source rights registry changed. Review permissions again.', 'profile_key_mismatch':'Research profiles differ.',
+    'same_source_digest_conflict':'The same source checksum has conflicting fields. Check evidence consistency.',
+    'rights_mismatch':'Field permissions differ.', 'raw_source_conflict':'The original source has conflicting values. Check the filing context.',
+    'raw_source_value_invalid':'The original source value failed validation.'}
 REASONS.update({
-    'matching_direct_native_unit_fact_unavailable':'具体申报中没有匹配的标准营业利润直接事实；税前收益、分部指标和 EBITDA 不能代替',
-    'conflicting_direct_facts':'具体申报中有冲突的营业利润直接事实，暂不取值',
-    'exact_direct_fact_rights_held':'原文存在直接字段，但该档案来源的字段权限尚未登记，暂不取值',
-    'exact_direct_fact_unusable':'原文直接字段未通过数值或来源核验，暂不取值'})
-STATUS={'unchanged':'未变化','changed':'发现变化，需核查','withheld':'口径不一致，保留缺口',
-        'gaps_changed':'缺口状态变化，需核查','baseline_missing':'已保存，等待比较基线'}
-STATUS['review_changed']='核查依据变化，财务数值未变'
+    'matching_direct_native_unit_fact_unavailable':'No matching direct standard operating income fact in this filing. Pretax income, segment measures and EBITDA have different definitions.',
+    'conflicting_direct_facts':'Conflicting direct operating income facts in this filing. Value withheld.',
+    'exact_direct_fact_rights_held':'A direct fact exists, but archive field rights are unregistered. Value withheld.',
+    'exact_direct_fact_unusable':'The direct filing fact failed value or source validation. Value withheld.'})
+STATUS={'unchanged':'No change','changed':'Changed, review required','withheld':'Comparison basis differs, gaps retained',
+        'gaps_changed':'Evidence gaps changed, review required','baseline_missing':'Saved, awaiting a comparison baseline'}
+STATUS['review_changed']='Source review changed, financial values unchanged'
 DISPOSITIONS = {'reviewed': 'Reviewed', 'still_open': 'Still open'}
-PAIR_UNAVAILABLE = '无法打开这两份已保存的证据。请核对当前研究集合和证据编号。'
-REASONS.update({'ticker_mismatch':'公司不同，不能作为同公司财报变化比较',
-    'sec_cik_mismatch':'发行人身份不同，需独立核对衔接关系'})
+PAIR_UNAVAILABLE = 'This saved evidence pair is unavailable. Check the research profile and full evidence IDs.'
+REASONS.update({'ticker_mismatch':'The evidence belongs to different companies. A same-company comparison is required.',
+    'sec_cik_mismatch':'Issuer identities differ. Their relationship requires independent review.'})
 
 
 def _label(packet):
@@ -55,38 +55,38 @@ def _label(packet):
 
 def _gaps_html(result):
     rows=''.join('<li><strong>'+escape(LABELS.get(g['field'],g['field']))+'</strong> · '+
-        escape(REASONS.get(g['reason'],g['reason']))+'</li>' for g in result['gaps'])
-    return '<ul>'+rows+'</ul>' if rows else '<p>这四个直接字段没有待核查缺口。完整估值及投资判断仍需其他证据。</p>'
+        escape(REASONS.get(g['reason'],g['reason'].replace('_',' ').capitalize()))+'</li>' for g in result['gaps'])
+    return '<ul>'+rows+'</ul>' if rows else '<p>These four direct fields have no open evidence gaps. Full valuation and investment decisions require additional evidence.</p>'
 
 
 def _render_comparison(st,result):
     label=STATUS[result['status']]
-    if result['status']=='unchanged':st.success(label+' · 已保存的字段数值与口径一致。')
+    if result['status']=='unchanged':st.success(label+' · Saved field values and reporting basis match.')
     elif result['status']=='changed':st.warning(label)
     else:st.info(label)
-    if result.get('review_changes'):st.caption('来源核查依据已更新；这本身不是财务数值修订。')
+    if result.get('review_changes'):st.caption('Source review evidence changed. Financial value changes are shown separately.')
     for change in result['changes']:
         left,right=change['before'],change['after']
         st.markdown('**'+LABELS[change['field']]+'**')
         st.write(f"{left['value']:,} → {right['value']:,} {right['unit']}")
-        st.caption('变化维度：'+', '.join(change['changed_dimensions'])+
-            ' · 原申报 '+left['accession']+' · 当前申报 '+right['accession'])
+        st.caption('Changed dimensions · '+', '.join(change['changed_dimensions'])+
+            ' · Earlier filing '+left['accession']+' · Later filing '+right['accession'])
     st.markdown(_gaps_html(result),unsafe_allow_html=True)
 
 
 def _render_exact_check(st, packet, *, show_reason=True):
     check=packet.get('operating_income_check')
     if not check:return
-    st.markdown('**营业利润 · 原始申报已核查，缺口保留**')
+    st.markdown('**Operating income · original filing checked, gap retained**')
     if show_reason:st.markdown(REASONS[check['reason']])
-    st.markdown('[查看已核查的 SEC 原始申报]('+check['source_url']+')')
-    st.caption(check['form']+' · '+check['accession']+' · '+check['period_start']+' 至 '+check['period_end']+
+    st.markdown('[View the reviewed SEC filing]('+check['source_url']+')')
+    st.caption(check['form']+' · '+check['accession']+' · '+check['period_start']+' to '+check['period_end']+
         ' · '+check['taxonomy']+':'+check['concept']+' · '+check['unit'])
-    st.caption('申报日 '+check['filed']+' · 接收时间 '+check['accepted_at']+' · 核查观察 '+check['observed_at'])
-    st.caption('原文仅供个人研究核查；本包只保存核查元数据，不纳入档案数值，也未扩大来源权限。')
-    with st.expander('原始申报核查摘要',expanded=False):
+    st.caption('Filed '+check['filed']+' · Accepted '+check['accepted_at']+' · Review observed '+check['observed_at'])
+    st.caption('Archive inspection is for personal research. This filing check retains review metadata only. Archive values and additional source rights require separate approval.')
+    with st.expander('Original filing check checksum',expanded=False):
         st.code(check['payload_sha256'],language=None)
-        st.caption('来源权限：'+check['rights_status'])
+        st.caption('Source rights · '+check['rights_status'])
 
 
 def _check_candidate(st, candidate, scope):
@@ -94,9 +94,9 @@ def _check_candidate(st, candidate, scope):
     key='sec-review-exact-result:'+scope
     # Bind the action to this Companyfacts observation, not just a ticker or year.
     anchor={k:v for k,v in candidate.items() if k not in {'saved_at','receipt_id'}} if eligible else None
-    if st.button('核查营业利润原始申报',key='sec-review-exact:'+scope,disabled=not eligible):
+    if st.button('Check the operating income filing',key='sec-review-exact:'+scope,disabled=not eligible):
         st.session_state[key]={'anchor':anchor,'preview':{'status':'withheld'}}
-        with st.spinner('正在核对 SEC 具体申报与当前财报口径…'):
+        with st.spinner('Checking the exact SEC filing against the current financial basis…'):
             source=get_company_filing_preview('NEM',st.session_state,period_kind='annual',
                 refresh_requested=True,user_agent=os.getenv('SEC_USER_AGENT'),expected_cik='0001164727')
         st.session_state[key]={'anchor':anchor,'preview':source}
@@ -104,11 +104,11 @@ def _check_candidate(st, candidate, scope):
     if eligible and isinstance(cached,dict) and cached.get('anchor')==anchor:
         try:
             candidate=attach_operating_income_check(candidate,cached['preview'])
-            st.info('原始申报核查已完成。点击下方保存，将本次核查随证据一起保留。')
-            with st.expander('本次待保存的核查详情',expanded=False):
+            st.info('Original filing check complete. Save below to retain this check with the evidence.')
+            with st.expander('Filing check ready to save',expanded=False):
                 _render_exact_check(st,candidate)
         except (ValueError,TypeError,KeyError):
-            st.warning('本次原始申报核查未接入：来源不可用或申报、期间、单位不匹配。原缺口保留，请核对「数据来源」。')
+            st.warning('The filing check could not be attached. Source access, filing, period or unit validation failed. The gap remains open. Check Data Sources.')
     return candidate
 
 
@@ -133,12 +133,12 @@ def render_company_review(st,ticker,view,*,profile_key):
 
 
 def _render_company_review(st,ticker,view,*,profile_key):
-    st.markdown('### SEC 财报证据复核')
-    st.caption(f'{ticker} · 支持 US-GAAP / USD 年度 10-K、10-K/A 直接字段。显式保存后可离线重放；不会修改正式财务、来源权限或研究日志。')
+    st.markdown('### Saved SEC evidence review')
+    st.caption(f'{ticker} · Supports direct US-GAAP / USD annual 10-K and 10-K/A fields. Save explicitly for offline replay. Canonical financials, source permissions and research journal updates require separate actions.')
     token = st.query_params.get('sec_pair')
     if ticker in SUPPORTED_DISPOSITION_COMPANIES and token:
         if st.query_params.get('online') == '1':
-            st.warning(f'请从 Monitor 在已保存的 {ticker} 公司页打开这两份证据。')
+            st.warning(f'Open this evidence pair from Monitor on the saved {ticker} company page.')
         else:
             _render_pinned_pair(st, profile_key, ticker, token)
         return
@@ -148,48 +148,48 @@ def _render_company_review(st,ticker,view,*,profile_key):
         if candidate['ticker']!=ticker:candidate=None
     except (ValueError,TypeError,OSError):candidate=None
     if ticker=='NEM':candidate=_check_candidate(st,candidate,scope)
-    if st.button('保存当前 SEC 证据',key='sec-review-save:'+scope,disabled=candidate is None):
-        try:save_review(candidate,PROJECT_ROOT);st.success('已保存本次观察。')
-        except (ValueError,OSError):st.error('证据未保存。请检查来源口径或保存目录；每家公司最多 100 份、每个研究集合最多 100 家公司。')
-    if candidate is None:st.caption(f'先使用上方「只更新财报」取得合格的 {ticker} SEC 观察。其他申报形式、币种或缺少直接收入基准时保留缺口；已有证据仍可重放。')
-    with st.expander('导入证据包',expanded=False):
-        st.caption(f'只接受本研究集合的 {ticker} 证据 JSON，内容上限 64 KB。文件校验确认内容一致性，不能证明文件未经他人重新生成；导入不会向 SEC 重新认证。')
-        upload=st.file_uploader('选择已导出的证据包',type=['json'],max_upload_size=1,key='sec-review-upload:'+scope)
-        if st.button('导入并保存证据包',key='sec-review-import:'+scope,disabled=upload is None):
+    if st.button('Save current SEC evidence',key='sec-review-save:'+scope,disabled=candidate is None):
+        try:save_review(candidate,PROJECT_ROOT);st.success('Observation saved.')
+        except (ValueError,OSError):st.error('Evidence was not saved. Check the source basis or storage folder. Limits are 100 receipts per company and 100 companies per research profile.')
+    if candidate is None:st.caption(f'Use Refresh financials above to obtain an eligible {ticker} SEC observation. Unsupported filing forms, currencies or a missing direct revenue anchor retain their gaps. Saved evidence remains available for replay.')
+    with st.expander('Import evidence package',expanded=False):
+        st.caption(f'Accepts {ticker} evidence JSON for this research profile, up to 64 KB. A checksum verifies content consistency. Imported evidence is user supplied and requires independent source authentication.')
+        upload=st.file_uploader('Choose an exported evidence package',type=['json'],max_upload_size=1,key='sec-review-upload:'+scope)
+        if st.button('Import and save evidence package',key='sec-review-import:'+scope,disabled=upload is None):
             try:
                 upload.seek(0);packet=load_review(upload.read(MAX_BYTES+1))
                 if packet['profile_key']!=profile_key or packet['ticker']!=ticker:raise ValueError('selected_scope_mismatch')
-                save_review(packet,PROJECT_ROOT);st.success('证据包已导入，以下内容由保存文件重放。')
-            except (ValueError,OSError):st.error('导入未完成。文件损坏、公司或研究集合不符、目录不可用或保存数量已达上限；原文件未更改。')
+                save_review(packet,PROJECT_ROOT);st.success('Evidence package imported. The saved file is replayed below.')
+            except (ValueError,OSError):st.error('Import failed. Check for a damaged file, company or research profile mismatch, unavailable storage or a full receipt history.')
     try:packets=list_reviews(PROJECT_ROOT,profile_key,ticker)
-    except (ValueError,OSError):st.error('已保存证据无法完整核验，比较暂停。请保留文件并检查保存目录。');return
-    if not packets:st.info('尚未保存证据。保存第一次观察后，可再次保存或导入另一份证据进行比较。');return
-    st.markdown('#### 已保存证据重放')
-    st.caption('选择项显示报告期、保存时间（UTC）和证据编号；完整时间在下方来源详情中。')
+    except (ValueError,OSError):st.error('Saved evidence could not be fully verified. Comparison is paused. Retain the files and check the storage folder.');return
+    if not packets:st.info('No evidence saved yet. Save the first observation, then save or import another observation to compare.');return
+    st.markdown('#### Replay saved evidence')
+    st.caption('Each option shows the reporting period, UTC save time and evidence ID. Full timestamps appear in the source details below.')
     options=list(range(len(packets)))
-    current_index=st.selectbox('重放哪份证据',options,index=len(packets)-1,
+    current_index=st.selectbox('Evidence to replay',options,index=len(packets)-1,
         format_func=lambda i:_label(packets[i]),key=f'sec-review-current:{scope}:{len(packets)}')
     current=packets[current_index]
     baseline_options=[None]+options
-    prior_index=st.selectbox('与哪份已保存证据比较',baseline_options,index=(current_index if current_index else 0),
-        format_func=lambda i:'尚未选择基线' if i is None else _label(packets[i]),
+    prior_index=st.selectbox('Compare with saved evidence',baseline_options,index=(current_index if current_index else 0),
+        format_func=lambda i:'No baseline selected' if i is None else _label(packets[i]),
         key=f'sec-review-before:{scope}:{len(packets)}:{current_index}')
     before=None if prior_index is None else packets[prior_index]
     result=compare_reviews(before,current)
-    st.caption(f"本份证据：{len(current['fields'])}/4 个直接字段 · {len(current['gaps'])} 个字段缺口；不代表完整财报或估值资格。")
+    st.caption(f"This evidence · {len(current['fields'])}/4 direct fields · {len(current['gaps'])} field gaps. Complete financial coverage and valuation eligibility require further evidence.")
     _render_comparison(st,result)
     _render_exact_check(st,current,show_reason=False)
-    st.caption('当前显示来自已保存证据，没有重新查询网络。保存时间与 SEC 观察时间分开记录；新的保存时间不表示财报变化。')
-    st.download_button('下载当前证据包',data=encode_review(current),file_name=ticker+'-SEC-'+current['receipt_id'][:12]+'.json',
+    st.caption('Replaying saved evidence offline. Save time and SEC observation time are recorded separately. A later save time alone carries no financial revision.')
+    st.download_button('Download current evidence package',data=encode_review(current),file_name=ticker+'-SEC-'+current['receipt_id'][:12]+'.json',
         mime='application/json',key='sec-review-download:'+scope)
     _render_monitor_link(st, ticker)
-    _render_receipt_sources(st, current, '证据来源与字段口径')
+    _render_receipt_sources(st, current, 'Evidence sources and field definitions')
 
 
 def _render_monitor_link(st, ticker, *, token=''):
     from src.research_workspace import research_monitor_handoff_href
     monitor_href = research_monitor_handoff_href(ticker, online=st.query_params.get('online') == '1', sec_pair=token)
-    label = '返回 Monitor 的这项复核' if token else '在 Monitor 查看待核查事项'
+    label = 'Return to this review in Monitor' if token else 'View review items in Monitor'
     st.markdown(
         '<a class="sec-review-link" data-research-session-route="monitor" '
         f'href="{escape(monitor_href, quote=True)}" target="_self">{label}</a>',
@@ -199,24 +199,24 @@ def _render_monitor_link(st, ticker, *, token=''):
 
 def _render_receipt_sources(st, current, title, *, show_values=True):
     with st.expander(title, expanded=False):
-        st.write('报告期截至 '+current['period_end']+' · '+current['form'])
-        st.write('申报发布日期 '+current['filing_date']+'（日期精度）')
-        st.write('SEC 观察时间 '+current['source_observed_at'])
-        st.write('保存时间 '+current['saved_at'])
-        st.markdown('[SEC Companyfacts 原始来源]('+current['source_url']+')')
-        st.caption('申报编号 '+current['accession']+' · CIK '+current['sec_cik'])
-        st.caption('原始响应 SHA-256 '+current['raw_payload_sha256'])
-        st.caption('来源权限登记 SHA-256 '+current['rights_registry_sha256'])
+        st.write('Period ended '+current['period_end']+' · '+current['form'])
+        st.write('Filing publication date '+current['filing_date']+' (day precision)')
+        st.write('SEC observation time '+current['source_observed_at'])
+        st.write('Saved at '+current['saved_at'])
+        st.markdown('[SEC Companyfacts source]('+current['source_url']+')')
+        st.caption('Accession '+current['accession']+' · CIK '+current['sec_cik'])
+        st.caption('Raw response SHA-256 '+current['raw_payload_sha256'])
+        st.caption('Source rights registry SHA-256 '+current['rights_registry_sha256'])
         if current.get('companyfacts_identity'):
             identity=current['companyfacts_identity']
-            st.markdown('[SEC 公司与 CIK 关联来源]('+identity['association_source_url']+')')
-            st.caption('关联观察 '+identity['association_observed_at']+' · SHA-256 '+identity['association_payload_sha256'])
-        st.caption('这里记录发行人财报事实；不证明证券类别、发行人住所、上市状态、股价匹配或时间点覆盖。')
-        st.caption('权限仅涵盖登记的规范化字段；原始响应、价格、派生自由现金流和分发许可未随此包开放。')
+            st.markdown('[SEC issuer-to-CIK association source]('+identity['association_source_url']+')')
+            st.caption('Association observed '+identity['association_observed_at']+' · SHA-256 '+identity['association_payload_sha256'])
+        st.caption('Scope is issuer financial facts. Security class, domicile, listing status, price matching and point-in-time coverage each require separate evidence.')
+        st.caption('Permissions cover the registered normalized fields. Raw responses, prices, derived free cash flow and redistribution require separate permission.')
         if show_values:
             for row in current['fields']:
                 st.markdown('**'+LABELS[row['field']]+'** · '+format(row['value'],',')+' '+row['unit'])
-                st.caption(row['taxonomy']+':'+row['concept']+' · '+row['period_start']+' 至 '+row['period_end'])
+                st.caption(row['taxonomy']+':'+row['concept']+' · '+row['period_start']+' to '+row['period_end'])
 
 
 def _pinned_pair(profile_key, ticker, token):
@@ -231,17 +231,17 @@ def _render_pinned_pair(st, profile_key, ticker, token):
         st.warning(PAIR_UNAVAILABLE)
         _render_monitor_link(st, ticker)
         return
-    st.markdown('#### 已固定的 SEC 证据比较')
-    st.caption('比较使用这两份已保存证据，无需重新请求 SEC。后续保存的观察不会替换它们。')
-    st.caption('较早证据 '+before['receipt_id'])
-    st.caption('较新证据 '+after['receipt_id'])
+    st.markdown('#### Pinned SEC evidence comparison')
+    st.caption('This comparison replays the selected saved pair offline. Later observations have their own evidence IDs and comparisons.')
+    st.caption('Earlier evidence '+before['receipt_id'])
+    st.caption('Later evidence '+after['receipt_id'])
     result = compare_reviews(before, after)
     _render_comparison(st, result)
     _render_monitor_link(st, ticker, token=token)
     show_values = not any(gap['reason'] == 'rights_policy_changed' for gap in result['gaps'])
-    for title, packet in (('较早证据', before), ('较新证据', after)):
+    for title, packet in (('Earlier evidence', before), ('Later evidence', after)):
         _render_exact_check(st, packet)
-        _render_receipt_sources(st, packet, title+'的来源 · '+_label(packet), show_values=show_values)
+        _render_receipt_sources(st, packet, title+' source · '+_label(packet), show_values=show_values)
 
 
 def _render_pair_disposition(st, profile_key, ticker, before, after):
@@ -254,75 +254,75 @@ def _render_pair_disposition(st, profile_key, ticker, before, after):
     token = before_id+'.'+after_id
     query = {'mode': 'research', 'page': 'company-workbench', 'ticker': ticker, 'open': '1',
              'section': 'notes', 'sec_pair': token}
-    st.caption('较早证据 '+_label(before)+' → 较新证据 '+_label(after))
-    st.button('打开这两份证据', key='sec-review-open-pair', on_click=st.query_params.from_dict, args=(query,))
+    st.caption('Earlier evidence '+_label(before)+' → Later evidence '+_label(after))
+    st.button('Open this evidence pair', key='sec-review-open-pair', on_click=st.query_params.from_dict, args=(query,))
     try:
         decision = load_disposition(PROJECT_ROOT, profile_key, before_id, after_id, ticker=ticker)
     except (ValueError, OSError):
-        st.warning('此证据对的复核状态无法读取。请先检查本地复核记录。')
+        st.warning('The review status for this pair cannot be read. Check the local review record.')
         return
-    st.caption('复核状态只适用于这两份证据。Reviewed 表示已看过，已报告的证据缺口会继续显示。')
+    st.caption('The review status applies only to this pair. Reviewed records that you examined the evidence. Reported gaps remain visible.')
     form_key = 'sec-review-disposition:'+profile_key+':'+ticker+':'+token
     with st.form(form_key):
-        status = st.radio('复核状态', tuple(DISPOSITIONS), format_func=DISPOSITIONS.get,
+        status = st.radio('Review status', tuple(DISPOSITIONS), format_func=DISPOSITIONS.get,
                           index=tuple(DISPOSITIONS).index(decision['status']) if decision else None,
                           key=form_key+':status')
-        reason = st.text_area('复核原因', value=decision['reason'] if decision else '',
+        reason = st.text_area('Review reason', value=decision['reason'] if decision else '',
                               max_chars=MAX_REASON_LENGTH, key=form_key+':reason')
-        submitted = st.form_submit_button('保存复核状态')
+        submitted = st.form_submit_button('Save review status')
     if submitted:
         if status is None or not reason.strip():
-            st.error('请选择复核状态并填写原因。')
+            st.error('Choose a review status and enter a reason.')
         else:
             try:
                 decision = save_disposition(PROJECT_ROOT, profile_key, before_id, after_id, status, reason, ticker=ticker)
             except (ValueError, OSError):
-                st.error('复核状态未保存。请检查原因或本地证据。')
+                st.error('Review status was not saved. Check the reason or local evidence.')
             else:
-                st.success('已保存复核状态。')
+                st.success('Review status saved.')
     if decision:
         st.markdown('**'+DISPOSITIONS[decision['status']]+'**')
         st.text(decision['reason'])
-        st.caption('复核时间 '+decision['reviewed_at'])
+        st.caption('Reviewed at '+decision['reviewed_at'])
     else:
-        st.caption('待复核')
+        st.caption('Pending review')
 
 
 def render_review_monitor(st, *, profile_key, monitor_origin=None):
     if _mode_reason('research'):return
     try:queue=review_queue(PROJECT_ROOT,profile_key)
     except (ValueError,OSError):
-        st.warning('SEC 证据目录无法核验或超过 100 家公司的保存上限，数据复核队列暂不可读。');return
+        st.warning('The SEC evidence folder cannot be verified or exceeds the 100-company limit. The review queue is unavailable.');return
     if queue['store_errors']:
-        st.warning(f"SEC 证据目录有 {len(queue['store_errors'])} 个名称无法核验的条目，已单独保留且未读取。请检查目录；这些条目不计入公司数量，正常公司的记录仍可查看和保存。")
+        st.warning(f"Unverified entries in the SEC evidence folder · {len(queue['store_errors'])}. Check the folder. These entries are excluded from company counts. Valid company records remain available.")
     token = st.query_params.get('sec_pair')
     if not queue['items'] and not token:return
-    st.markdown('### SEC 财报证据复核队列')
-    st.caption(f"已保存 {queue['companies']} 家公司 · 字段缺口 {queue['field_gap_companies']} 家 · 等待基线 {queue['baseline_companies']} 家 · 发现变化 {queue['changed_companies']} 家 · 不可读 {queue['unreadable_companies']} 家")
-    st.caption('仅统计本研究集合主动保存的 SEC 证据；不是全市场覆盖率，也不计入下方研究流程事项或投资信号。')
+    st.markdown('### Saved SEC evidence review queue')
+    st.caption(f"Saved companies {queue['companies']} · With field gaps {queue['field_gap_companies']} · Awaiting baseline {queue['baseline_companies']} · Changed {queue['changed_companies']} · Unreadable {queue['unreadable_companies']}")
+    st.caption('Counts include explicitly saved SEC evidence in this research profile. Market coverage, research process items below and investment signals have separate scopes.')
     items={i['ticker']:i for i in queue['items']};symbols=list(items)
     if token:
         selected = st.query_params.get('sec_ticker', 'NEM')
         latest_query = {'mode': 'research', 'page': 'monitor'}
         if selected in SUPPORTED_DISPOSITION_COMPANIES:
             latest_query['return_ticker'] = selected
-        st.button('查看最新证据对', on_click=st.query_params.from_dict, args=(latest_query,))
+        st.button('View latest evidence pair', on_click=st.query_params.from_dict, args=(latest_query,))
         if selected not in SUPPORTED_DISPOSITION_COMPANIES or selected not in items:
             st.warning(PAIR_UNAVAILABLE)
             return
     else:
         requested=st.query_params.get('return_ticker') or st.query_params.get('ticker')
-        selected=st.selectbox('选择要复核的公司',symbols,index=symbols.index(requested) if requested in symbols else 0,
-            format_func=lambda t:t+' · '+('保存文件待核验' if items[t]['error'] else STATUS[items[t]['comparison']['status']]),
+        selected=st.selectbox('Select a company to review',symbols,index=symbols.index(requested) if requested in symbols else 0,
+            format_func=lambda t:t+' · '+('Saved files need verification' if items[t]['error'] else STATUS[items[t]['comparison']['status']]),
             key='sec-review-monitor-company:'+profile_key)
     item=items[selected]
-    st.markdown('#### '+selected+' SEC 证据复核')
+    st.markdown('#### '+selected+' SEC evidence review')
     if item['error']:
-        st.warning(selected+' 的保存文件无法核验。请保留文件并检查目录；其他公司的记录仍可查看。')
+        st.warning(selected+' saved files cannot be verified. Retain the files and check the folder. Other company records remain available.')
         return
     before, current = item['previous'], item['latest']
     result = item['comparison']
-    context = '最近两次保存的年度财报复核' if before else '首次保存的年度财报'
+    context = 'Latest two saved annual observations' if before else 'First saved annual observation'
     if token:
         try:
             before, current = _pinned_pair(profile_key, selected, token)
@@ -330,25 +330,25 @@ def render_review_monitor(st, *, profile_key, monitor_origin=None):
             st.warning(PAIR_UNAVAILABLE)
             return
         result = compare_reviews(before, current)
-        context = '已固定的两份年度财报证据'
+        context = 'Pinned pair of saved annual observations'
     st.markdown('**'+STATUS[result['status']]+'** · '+context)
-    st.caption('较新证据保存时间 '+current['saved_at']+' · 报告期 '+current['period_end'])
+    st.caption('Later evidence saved at '+current['saved_at']+' · Reporting period '+current['period_end'])
     st.markdown(_gaps_html(result),unsafe_allow_html=True)
     _render_exact_check(st,current,show_reason=False)
-    if result.get('review_changes'):st.caption('来源核查依据发生变化；不表示财务数值修订。')
-    for change in result['changes']:st.markdown('- '+LABELS[change['field']]+' · 已保存字段有变化，请核对两份申报来源。')
-    if result['status']=='baseline_missing':st.caption('下一步：回到公司页，保存另一份同公司、同期间的独立观察。重复保存只验证重放稳定性。')
-    elif result['gaps']:st.caption('下一步：按字段缺失原因核对来源或口径；相同输入未变化，不表示缺口已补齐。')
-    elif result['changes'] or result.get('review_changes'):st.caption('下一步：回到公司页检查前后两份证据及变化来源。')
-    else:st.caption('当前保存范围无需因重复观察重开核查；出现新申报或新证据时再复核。')
+    if result.get('review_changes'):st.caption('Source review evidence changed. Financial value changes are shown separately.')
+    for change in result['changes']:st.markdown('- '+LABELS[change['field']]+' · Saved field changed. Check both filing sources.')
+    if result['status']=='baseline_missing':st.caption('Next, return to the company page and save an independent observation for the same issuer and period. Saving the same observation again tests replay stability.')
+    elif result['gaps']:st.caption('Next, check the source and reporting basis for each field gap. Identical inputs retain their existing gaps.')
+    elif result['changes'] or result.get('review_changes'):st.caption('Next, return to the company page to inspect both observations and the source of each change.')
+    else:st.caption('The saved inputs are stable. Review again when a new filing or new evidence arrives.')
     if selected in SUPPORTED_DISPOSITION_COMPANIES and before is not None:
         _render_pair_disposition(st, profile_key, selected, before, current)
         return
     notes_href = f"?mode=research&page=company-workbench&ticker={selected}&section=notes"
-    notes_label = f"查看 {selected} 的已保存证据"
+    notes_label = f"View saved {selected} evidence"
     session_route = ""
     if monitor_origin is not None and monitor_origin.ticker == selected and monitor_origin.section == "notes":
-        notes_label = f"返回 {selected} 证据复核"
+        notes_label = f"Return to {selected} evidence review"
         session_route = ' data-research-session-route="workbench"'
         if monitor_origin.online_cik is not None:
             notes_href = "?mode=research&page=company-workbench"

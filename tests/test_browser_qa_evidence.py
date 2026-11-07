@@ -89,8 +89,8 @@ def test_linkedin_asset_contract_is_count_safe_workbench_answer_evidence():
     assert asset.name == "LinkedIn Company Workbench thumbnail"
     assert asset.route.endswith("?mode=research&page=company-workbench&ticker=AVGO&section=valuation")
     assert asset.expected_markers == (
-        "AVGO Company Brief", "Research-only", "财务趋势", "估值与同行",
-        "研究记录", "数据来源", "更新在线同行估值",
+        "AVGO Company Brief", "Research-only", "Financial Trends", "Valuation & Peers",
+        "Research Notes", "Data Sources", "Refresh peer valuation",
     )
     assert (asset.min_width, asset.min_height) == (1200, 627)
     assert "answer-first" in asset.use.lower()
@@ -572,7 +572,7 @@ def test_default_route_checks_cover_workflow_fit_proof_loading_and_queue_routing
     workbench = next(row for row in rows if row["Route Check"] == "Research Company Workbench")
     assert "Company Workbench" in str(workbench["First View Markers"])
     assert "Company Brief" in str(workbench["First View Markers"])
-    for label in ("概览","财务趋势","估值与同行","研究记录","数据来源","更新财报与价格"):
+    for label in ("Overview","Financial Trends","Valuation & Peers","Research Notes","Data Sources","Refresh financials and prices"):
         assert label in str(workbench["First View Markers"])
     assert "Research Decision Lab" not in str(workbench["First View Markers"])
     assert "Selected Company" not in str(workbench["First View Markers"])
@@ -731,7 +731,7 @@ def test_company_workbench_browser_qa_keeps_secondary_modules_behind_explicit_op
 
     assert "Add a reviewed research record" not in route.first_view_markers
     assert (
-        "Only the selected company section renders. Financial trends reuse online observations; valuation retains saved scenarios; Research Decision Lab, authoring and the HTML brief are in 研究记录; raw proof and Data Health are in 数据来源."
+        "Only the selected company section renders. Financial trends reuse online observations; valuation retains saved scenarios; Research Decision Lab, authoring and the HTML brief are in Research Notes; raw proof and Data Health are in Data Sources."
         == route.details_boundary
     )
     assert (

@@ -660,12 +660,12 @@ def evaluate_integrated_company_workbench(observation, *, expected_ticker="NVDA"
         or len(observation.get('section_heights',[]))!=5
         or any(not isinstance(h,(int,float)) or h<44 for h in observation.get('section_heights',[]))):
         failures.append('expected five ordered visible 44px sections')
-    if observation.get('selected')!=['概览'] or observation.get('body_headings')!=['概览']:
+    if observation.get('selected')!=['Overview'] or observation.get('body_headings')!=['Overview']:
         failures.append('expected only the selected overview body')
     if number('update_count')!=1 or observation.get('update_visible') is not True or number('update_height')<44:
         failures.append('expected one usable combined update action')
     scope=str(observation.get('scope_text',''))
-    if any(token not in scope for token in ('模型资格独立','在线事实不更新已保存数据','估值输入或研究记录')):
+    if 'Online observations and saved models have separate eligibility.' not in scope:
         failures.append('missing online-versus-saved model boundary')
     if number('legacy_module_count')!=0:
         failures.append('saved modules rendered before explicit selection')
@@ -3314,7 +3314,7 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
     )
     if brief.locator(".company-scope-note").count() and page.locator(".st-key-company-section-navigation").count():
         nav=page.locator('.st-key-company-section-navigation label:has(input[type="radio"])')
-        update=page.get_by_role("button",name="更新财报与价格",exact=True)
+        update=page.get_by_role("button",name="Refresh financials and prices",exact=True)
         observation=dict(brief_count=brief.count(),brief_visible=brief.count()==1 and brief.first.is_visible(),
             display_title=brief.first.locator('h1').inner_text().strip() if brief.count()==1 and brief.first.locator('h1').count()==1 else '',
             h1_count=page.get_by_role("heading",level=1).count(),
@@ -3326,7 +3326,7 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
             body_headings=page.locator('.st-key-company-section-body h2').all_text_contents(),
             update_count=update.count(),update_visible=update.count()==1 and update.first.is_visible(),
             update_height=(update.first.bounding_box() or {}).get('height',0) if update.count()==1 else 0,
-            scope_text=brief.inner_text(),
+            scope_text=brief.text_content(),
             legacy_module_count=page.get_by_role('heading',name='Research Decision Lab',exact=True).count()
                 +page.get_by_role('heading',name='Scenario Lab',exact=True).count())
         observation['selected']=[text.strip() for text in observation['selected']]
@@ -3447,7 +3447,7 @@ def _open_company_workbench_modules(
     *,
     timeout_seconds: float,
 ) -> dict[str, object]:
-    section_radio=page.get_by_role('radio',name='研究记录',exact=True)
+    section_radio=page.get_by_role('radio',name='Research Notes',exact=True)
     integrated=section_radio.count()==1
     module_label = "Research Decision Lab & History" if integrated else "Research Decision Lab"
     button = (page.locator('.st-key-company-section-navigation label').filter(has=section_radio) if integrated else page.get_by_role(

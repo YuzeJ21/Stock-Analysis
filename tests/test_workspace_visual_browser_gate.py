@@ -134,17 +134,17 @@ def test_company_workbench_sec_component_proof_requires_click_and_reflows_at_pho
                         wait_until="domcontentloaded",
                         timeout=45_000,
                     )
-                    page.get_by_role("heading",name="数据来源",exact=True).wait_for(state="visible")
-                    page.get_by_text("分别更新",exact=True).click()
-                    check = page.get_by_role("button", name="只更新财报",exact=True)
+                    page.get_by_role("heading",name="Data Sources",exact=True).wait_for(state="visible")
+                    page.get_by_text("Refresh options",exact=True).click()
+                    check = page.get_by_role("button", name="Financials only",exact=True)
                     check.wait_for(state="visible", timeout=45_000)
                     before_click = call_count()
-                    assert page.get_by_text("使用上方更新操作取得本公司的字段证据。",exact=True).count()==1
+                    assert page.get_by_text("Refresh financials and prices to load this company’s field evidence.",exact=True).count()==1
                     assert page.get_by_role("heading", name="Annual filing field evidence").count() == 0
                     assert call_count() == before_click
 
                     check.click()
-                    page.get_by_text("财报字段与原始来源",exact=True).click()
+                    page.get_by_text("Financial fields and original sources",exact=True).click()
                     page.get_by_role("heading", name="Annual filing field evidence").wait_for(
                         state="visible", timeout=45_000
                     )

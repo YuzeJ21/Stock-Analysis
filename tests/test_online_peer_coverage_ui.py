@@ -1,4 +1,5 @@
 from copy import deepcopy
+import re
 
 import pytest
 from streamlit.testing.v1 import AppTest
@@ -7,16 +8,26 @@ from test_online_peer_coverage import audit,dependencies
 from test_online_peer_valuation import SYMBOLS,NOW
 
 
+def test_peer_coverage_renders_english_with_denominator_and_three_reference_gate():
+    from src.online_peer_coverage_ui import peer_coverage_html
+    d,_=dependencies();view=audit({},inspect=True,deps=d)
+    html=peer_coverage_html(view)
+    assert not re.search(r'[\u3400-\u9fff]',html)
+    assert '1 / 4' in html
+    assert 'at least 3' in html.lower()
+    assert 'session' in html.lower() and 'personal research' in html.lower()
+
+
 def test_coverage_summary_names_its_denominator_pending_and_separate_eligibility():
     from src.online_peer_coverage_ui import peer_coverage_html
     d,calls=dependencies();state={};view=audit(state,inspect=True,deps=d);before=deepcopy(view)
     html=peer_coverage_html(view)
-    assert '行业同行估值覆盖' in html and '指定查询对象' in html and '完整美国市场' in html
-    assert '本公司年度 P/E 可用' in html and '同行比较可用' in html
-    assert '1 / 4' in html and '待核查' in html and '3 / 4' in html
-    assert '会话内' in html and '行业待核对' in html
+    assert 'Industry peer valuation coverage' in html and 'specified companies' in html and 'full US market' in html
+    assert 'Selected-company annual P/E available' in html and 'Reference comparison available' in html
+    assert '1 / 4' in html and 'Pending' in html and '3 / 4' in html
+    assert 'within this session' in html and 'Industry unverified' in html
     assert 'semiconductors' in html and '3674' in html and 'FICT' in html
-    assert '已完成参照核查' in html and 'not_assessed' not in html
+    assert 'References assessed' in html and 'not_assessed' not in html
     assert 'ticker=FICT' in html and 'online=1' in html and 'section=valuation' in html
     assert view==before
 
@@ -25,9 +36,9 @@ def test_blocked_subject_and_candidate_reasons_are_not_conflated():
     from src.online_peer_coverage_ui import peer_coverage_html
     d,calls=dependencies();d['vendor']=lambda *a,**kw:dict(status='unavailable')
     html=peer_coverage_html(audit({},inspect=True,deps=d))
-    assert '同行尚未核查' in html and '供应商' in html and '未取得' in html
-    assert '主要缺口' in html and '候选参照排除原因' in html
-    assert '第一项阻碍' in html and '唯一发行人数量' in html
+    assert 'References remain unassessed' in html and 'Provider' in html and 'unavailable' in html
+    assert 'Main gaps' in html and 'Candidate exclusions' in html
+    assert 'First blocker' in html and 'unique-issuer count' in html
 
 
 def test_coverage_links_and_text_are_escaped_without_executing_source_markup():
@@ -59,18 +70,18 @@ def setup(monkeypatch):
 def test_real_coverage_controls_only_fetch_on_explicit_next_or_retry(monkeypatch):
     calls=setup(monkeypatch);at=AppTest.from_function(_app).run()
     assert not calls and not at.exception
-    next(b for b in at.button if b.label=='核查下一家公司').click().run(timeout=30)
+    next(b for b in at.button if b.label=='Inspect next company').click().run(timeout=30)
     assert calls and not at.exception and '1 / 4' in '\n'.join(m.value for m in at.markdown)
     before=list(calls);at.run();assert calls==before
-    assert any(s.label=='重新核查公司' for s in at.selectbox)
-    next(b for b in at.button if b.label=='重试所选公司').click().run(timeout=30)
+    assert any(s.label=='Company to retry' for s in at.selectbox)
+    next(b for b in at.button if b.label=='Retry selected company').click().run(timeout=30)
     assert len(calls)>len(before) and not at.exception
 
 
 def test_reset_clears_session_progress_without_fetching(monkeypatch):
     calls=setup(monkeypatch);at=AppTest.from_function(_app).run()
-    next(b for b in at.button if b.label=='核查下一家公司').click().run(timeout=30)
-    before=list(calls);next(b for b in at.button if b.label=='重新开始样本').click().run()
+    next(b for b in at.button if b.label=='Inspect next company').click().run(timeout=30)
+    before=list(calls);next(b for b in at.button if b.label=='Restart sample').click().run()
     assert calls==before and '0 / 4' in '\n'.join(m.value for m in at.markdown) and not at.exception
 
 
@@ -80,8 +91,8 @@ def test_amendment_scope_sources_and_flag_discrepancy_are_visible_in_both_compan
     from test_online_peer_valuation import build
     from src.online_peer_valuation_ui import online_peer_valuation_html
     c,p,policy=fixture(monkeypatch);html=online_peer_valuation_html(build(c),sources_only=sources_only)
-    assert '原始年度申报 EPS' in html and '修订范围' in html
-    assert 'AmendmentFlag=false' in html and '技术证据解释' in html
+    assert 'Original annual EPS' in html and 'Amendment scope' in html
+    assert 'AmendmentFlag=false' in html and 'bounded technical evidence interpretation' in html
     assert policy['original_sha256'] in html and policy['amendment_sha256'] in html
     assert '0000001001-26-000001' in html and '0000001001-26-000002' in html
 
@@ -90,4 +101,4 @@ def test_company_valuation_links_directly_to_the_industry_audit():
     from test_online_peer_valuation import build
     from src.online_peer_valuation_ui import online_peer_valuation_html
     html=online_peer_valuation_html(build())
-    assert '查看跨行业同行覆盖' in html and 'page=discover#peer-coverage-sample' in html
+    assert 'View cross-industry peer coverage' in html and 'page=discover#peer-coverage-sample' in html

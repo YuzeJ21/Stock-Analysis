@@ -34,7 +34,7 @@ def test_reported_facts_and_prices_do_not_promote_saved_models_or_mutate_inputs(
     rendered = workbench_header_html('FICT', result, saved_scope=True)
     assert rendered.count('<h1') == 1
     assert 'FICT Company Brief' in rendered
-    assert '模型资格独立' in rendered
+    assert 'Online observations and saved models have separate eligibility' in rendered
     assert 'Research-only' in rendered
 
 
@@ -90,7 +90,7 @@ def test_unknown_section_recovers_to_overview_and_exact_section_order_is_visible
     from src.company_workbench_sections import section_key, SECTIONS
     assert section_key('not-a-section')=='overview'
     assert section_key('financials')=='financials'
-    assert [label for key,label in SECTIONS]==['概览','财务趋势','估值与同行','研究记录','数据来源']
+    assert [label for key,label in SECTIONS]==['Overview','Financial Trends','Valuation & Peers','Research Notes','Data Sources']
 
 
 def test_direct_quarter_coverage_survives_unsupported_annual_without_inventing_quarter_cash():
@@ -131,8 +131,8 @@ def test_failed_source_attempt_is_not_presented_as_not_requested():
     unavailable={'ticker':'FICT','status':'unavailable','reason':'source_timeout'}
     projection=workbench_projection('FICT',unavailable,unavailable)
     rendered=workbench_header_html('FICT',projection,True)
-    assert '财报趋势与日线历史尚未请求' not in rendered
-    assert '暂无通过核对的财报趋势或日线历史' in rendered
+    assert 'Financials and prices have not been requested' not in rendered
+    assert 'No verified financial trend or daily price history is available' in rendered
 
 
 @pytest.mark.parametrize('status',['unavailable','not_requested'])
@@ -156,8 +156,8 @@ def test_summary_preserves_customer_contract_and_continuing_operations_scope():
     rendered=workbench_facts_html(projection)
     assert 'Revenue · customer contracts, excluding assessed tax' in rendered
     assert 'Operating cash flow · continuing operations' in rendered
-    assert '最新报告值' not in rendered
-    assert '当前可核对期间' in rendered
+    assert 'Latest reported values' not in rendered
+    assert 'Available verified period' in rendered
 
 
 def test_older_annual_summary_discloses_newer_withheld_quarter_and_reason():
@@ -177,4 +177,4 @@ def test_older_annual_summary_discloses_newer_withheld_quarter_and_reason():
     rendered=workbench_facts_html(projection)
     assert '2026-09-30' in rendered
     assert 'latest_reported_quarter_revenue_unavailable' in rendered
-    assert '较新申报期间' in rendered
+    assert 'Newer reported period' in rendered

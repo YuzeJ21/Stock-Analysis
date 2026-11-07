@@ -11,11 +11,11 @@ from src.online_research_history_view import validated_online_price_history
 from src.online_research_expansion_view import financial_field_label
 
 SECTIONS = (
-    ('overview', '概览'), ('financials', '财务趋势'), ('valuation', '估值与同行'),
-    ('notes', '研究记录'), ('sources', '数据来源'),
+    ('overview', 'Overview'), ('financials', 'Financial Trends'), ('valuation', 'Valuation & Peers'),
+    ('notes', 'Research Notes'), ('sources', 'Data Sources'),
 )
-FIELD_LABELS = {'revenue':'营收', 'operating_income':'经营利润',
-                'cash_from_operations':'经营现金流', 'capital_expenditures':'资本支出'}
+FIELD_LABELS = {'revenue':'Revenue', 'operating_income':'Operating income',
+                'cash_from_operations':'Operating cash flow', 'capital_expenditures':'Capital expenditures'}
 
 
 def section_key(value):
@@ -85,14 +85,15 @@ STYLE='''<style>
 .company-integrated-header h1{font-size:2rem!important;line-height:1.2!important;margin:0 0 8px!important;padding:0!important}.company-integrated-header p{margin:5px 0;font-size:.9rem}.company-integrated-header .public-primary-action{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border:1px solid #b8c9be;border-radius:7px;color:#173e30!important;background:#f1f6f3;text-decoration:none}
 .company-fact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr));gap:10px;margin:12px 0}.company-fact-grid div{background:#fff;border:1px solid #dce3de;padding:14px;border-radius:8px;min-width:0;overflow-wrap:anywhere}.company-fact-grid dt{font-size:.85rem;color:#52615c}.company-fact-grid dd{font-weight:700;margin:6px 0 0;font-size:1.15rem}.company-fact-grid small{display:block;color:#52615c;font-size:.78rem;margin-top:6px}.company-scope-note{font-size:.86rem;color:#52615c;overflow-wrap:anywhere}
 .st-key-company-section-navigation [role="radiogroup"]{display:flex;flex-wrap:wrap;gap:6px}.st-key-company-section-navigation label{min-height:44px;padding:8px 12px!important;border:1px solid #dce3de;border-radius:7px;background:#fff;box-sizing:border-box}.st-key-company-section-navigation label:has(input:checked){background:#e6f0e9;border-color:#426a55}.st-key-company-section-navigation label p{color:#173e30!important;margin:0!important}.st-key-company-section-navigation input{accent-color:#155e4b}
-@media(max-width:640px){.company-integrated-header h1{font-size:1.55rem!important}.st-key-company-section-navigation label{flex:1 1 25%;justify-content:center;padding:8px 5px!important}.company-fact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:260px){.company-fact-grid{grid-template-columns:1fr}.st-key-company-section-navigation label{flex-basis:40%}}
+.st-key-company-update-actions{margin-bottom:8px}.st-key-company-update-actions button{min-height:44px}.st-key-company-section-navigation label{min-width:0}.st-key-company-section-navigation label p{white-space:normal;line-height:1.3!important}
+@media(max-width:640px){.company-integrated-header h1{font-size:1.55rem!important}.st-key-company-section-navigation label{flex:1 1 40%;justify-content:center;padding:8px 6px!important}.company-fact-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:260px){.company-fact-grid{grid-template-columns:1fr}.st-key-company-section-navigation label{flex-basis:100%}}
 </style>'''
 
 
 def workbench_header_html(ticker, projection, saved_scope, title=None,saved_receipt_only=False,*,answers_html=''):
     p=projection
-    scope='已保存研究；在线查询结果独立展示' if saved_scope else '在线公司候选；与已保存研究的身份仍需核对'
-    if saved_receipt_only:scope='已保存 SEC 证据；当前上市身份与本地模型资格仍需独立核对'
+    scope='Saved research with separate online observations' if saved_scope else 'Online company candidate; saved research identity needs its own check'
+    if saved_receipt_only:scope='Saved SEC evidence; current listing identity and local model eligibility need their own checks'
     scope+=' · Research-only'
     stylesheet=STYLE
     if answers_html:
@@ -102,40 +103,40 @@ def workbench_header_html(ticker, projection, saved_scope, title=None,saved_rece
     heading=(stylesheet+'<section class="company-workbench-primary-brief company-integrated-header" aria-label="Company Brief">'
             '<h1>'+escape(ticker)+' Company Brief</h1>'
             +('<p>'+escape(str(title)[:140])+'</p>' if title else '')
-            +answers_html+'<p>'+escape(scope)+'</p>')
-    status=(f"可阅读财报：{p['annual_count']} 个年度 / {p['quarter_count']} 个季度 · 价格：{p['price_count']} 个日线观察"
-            if any(p[k] for k in ('annual_count','quarter_count','price_count')) else '财报与价格尚未查询')
+            +answers_html)
+    status=(f"Available observations: {p['annual_count']} annual / {p['quarter_count']} quarterly periods · {p['price_count']} daily prices"
+            if any(p[k] for k in ('annual_count','quarter_count','price_count')) else 'Financials and prices have not been requested')
     if p.get('attempted') and not any(p[k] for k in ('annual_count','quarter_count','price_count')):
-        status='暂无通过核对的财报趋势或日线历史；请在数据来源查看原因，或明确重试更新'
-    if p['identity_conflict']:status='来源公司身份冲突；数值暂不展示'
+        status='No verified financial trend or daily price history is available. Check Data Sources for the reason or refresh explicitly.'
+    if p['identity_conflict']:status='Company identity conflicts across sources. Values are withheld.'
     status_html='<p>'+escape(status)+'</p>'
-    if answers_html and not p['identity_conflict']:
-        status_html=('<details class="company-coverage-details"><summary>财报与价格核对范围</summary>'
-                     +status_html+'</details>')
-    return (heading+status_html
-            +'<p class="company-scope-note">模型资格独立：在线事实不更新已保存数据、已保存估值输入或研究记录。</p>'
-            '<a class="public-primary-action" href="#company-research-sections" target="_self">选择研究分区</a></section>')
+    if p['identity_conflict']:
+        heading+=status_html
+    return (heading+'<details class="company-coverage-details"><summary>Evidence scope</summary>'
+            +'<p>'+escape(scope)+'</p>'+status_html
+            +'<p class="company-scope-note">Online observations and saved models have separate eligibility. Saved financials, model inputs, and research records retain their original sources.</p>'
+            '</details></section>')
 
 
 def workbench_facts_html(projection):
     p=projection
-    reasons={'latest_reported_quarter_revenue_unavailable':'该报告季度缺少可核对的收入字段',
-             'raw_source_conflict':'来源字段存在冲突',
-             'matching_direct_fact_unavailable':'缺少期间匹配的直接申报字段',
-             'ambiguous_quarter_context':'申报期间或上下文仍有歧义'}
+    reasons={'latest_reported_quarter_revenue_unavailable':'Verified revenue is unavailable for this reported quarter',
+             'raw_source_conflict':'Source facts conflict',
+             'matching_direct_fact_unavailable':'A matching directly reported fact is unavailable',
+             'ambiguous_quarter_context':'The reporting period or context is ambiguous'}
     gaps=''.join('<p class="company-scope-note" data-withheld-reason="'+escape(row['reason'],quote=True)
-        +'">较新申报期间 · '+('季度' if row['kind']=='quarterly' else '年度')+' '+escape(row['period_end'])
-        +' 仍待补充：'+escape(reasons.get(row['reason'],row['reason'].replace('_',' ')))
-        +'。较早的可读数值不代表该期间已覆盖；来源与原因见数据来源。</p>' for row in p.get('withheld_periods',[]))
+        +'">Newer reported period · '+('Quarter' if row['kind']=='quarterly' else 'Annual')+' '+escape(row['period_end'])
+        +' · Gap: '+escape(reasons.get(row['reason'],row['reason'].replace('_',' ')))
+        +'. Earlier available values apply to their own periods. Check Data Sources for details.</p>' for row in p.get('withheld_periods',[]))
     if not p['facts']:
-        return gaps+'<p class="company-scope-note">财报事实尚未取得或来源未通过核对。使用上方更新操作；逐字段原因可在数据来源查看。</p>'
+        return gaps+'<p class="company-scope-note">Verified financial facts are unavailable. Refresh financials and prices, then check Data Sources for field-level reasons.</p>'
     cards=[]
     for key,label in FIELD_LABELS.items():
         field=p['facts'].get(key)
-        amount=format(field['value'],',.0f') if field else '待补充'
-        scope=financial_field_label(key,field) if field else '该期间没有可核对的直接字段'
+        amount=format(field['value'],',.0f') if field else 'Unavailable'
+        scope=financial_field_label(key,field) if field else 'No verified directly reported fact for this period'
         definition=scope+(' · '+field.get('concept','') if field else '')
         cards.append('<div><dt>'+label+'</dt><dd>'+escape(amount)+'</dd><small>'+escape(definition)+'</small></div>')
-    kind='直接报告季度' if p['period_kind']=='quarterly' else '报告年度'
-    return (gaps+'<h3>可核对财报摘要</h3><p class="company-scope-note">'+escape(kind+' · '+p['period_start']+' → '+p['period_end']+' · '+p['unit'])
-            +' · 当前可核对期间，不代表最新申报已覆盖，也不是点时历史。</p><dl class="company-fact-grid">'+''.join(cards)+'</dl>')
+    kind='Directly reported quarter' if p['period_kind']=='quarterly' else 'Reported annual period'
+    return (gaps+'<h3>Reported financial summary</h3><p class="company-scope-note">'+escape(kind+' · '+p['period_start']+' → '+p['period_end']+' · '+p['unit'])
+            +' · Available verified period. Newer filings and point-in-time coverage require separate evidence.</p><dl class="company-fact-grid">'+''.join(cards)+'</dl>')

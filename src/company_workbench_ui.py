@@ -58,7 +58,7 @@ def load_workbench_observations(ticker, state, *, refresh_financials=False, refr
 
 def _separate_saved_link(ticker):
     url='?'+urlencode({'mode':'research','page':'company-workbench','ticker':ticker,'open':'1'})
-    return '<p><a href="'+escape(url,quote=True)+'" target="_self">打开独立的已保存研究集合</a></p>'
+    return '<p><a href="'+escape(url,quote=True)+'" target="_self">Open the saved research workspace</a></p>'
 
 
 def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
@@ -70,10 +70,14 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
     if saved_available and candidate is None:
         retain_saved_tool_inputs(st_api.session_state,profile_scope,ticker)
     header=st_api.empty()
-    update_all=st_api.button('更新财报与价格',key='company-refresh-all',type='primary')
-    with st_api.expander('分别更新',expanded=False):
-        update_financial=st_api.button('只更新财报',key='company-refresh-financials')
-        update_prices=st_api.button('只更新价格',key='company-refresh-prices')
+    with st_api.container(key='company-update-actions'):
+        primary, secondary=st_api.columns((2,1),gap='small')
+        with primary:
+            update_all=st_api.button('Refresh financials and prices',key='company-refresh-all',type='primary',width='stretch')
+        with secondary:
+            with st_api.expander('Refresh options',expanded=False):
+                update_financial=st_api.button('Financials only',key='company-refresh-financials',width='stretch')
+                update_prices=st_api.button('Prices only',key='company-refresh-prices',width='stretch')
     bundle=load_workbench_observations(ticker,st_api.session_state,
         refresh_financials=bool(update_all or update_financial),refresh_prices=bool(update_all or update_prices),
         expected_cik=expected_cik)
@@ -83,17 +87,24 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
         st_api.session_state[nav_key]=section_key(st_api.query_params.get('section'))
     st_api.markdown('<div id="company-research-sections"></div>',unsafe_allow_html=True)
     with st_api.container(key='company-section-navigation'):
-        selected=st_api.radio('公司研究分区',tuple(dict(SECTIONS)),format_func=dict(SECTIONS).get,
+        selected=st_api.radio('Company research sections',tuple(dict(SECTIONS)),format_func=dict(SECTIONS).get,
                               horizontal=True,label_visibility='collapsed',key=nav_key)
     selected=section_key(selected)
     if selected!='overview' or 'section' in st_api.query_params:
         st_api.query_params['section']=selected
     with st_api.container(key='company-section-body'):
         st_api.markdown('## '+dict(SECTIONS)[selected])
+        st_api.caption({
+            'overview':'Review the reported result and its market context.',
+            'financials':'Compare directly reported periods and inspect the drivers.',
+            'valuation':'Check the multiple, price date, and qualifying industry references.',
+            'notes':'Review saved evidence and record the next research question.',
+            'sources':'Inspect company identity, reporting periods, units, and source permissions.',
+        }[selected])
         refresh_peers = selected=='valuation' and st_api.button(
-            '更新在线同行估值',key=f'company-refresh-peers:{ticker}:{scope}')
+            'Refresh peer valuation',key=f'company-refresh-peers:{ticker}:{scope}')
         if refresh_peers:
-            with st_api.spinner('正在核对公司、年度收益和同行来源…'):
+            with st_api.spinner('Checking company identity, annual earnings, and industry sources…'):
                 peer_view=get_online_peer_valuation(ticker,st_api.session_state,
                     refresh_requested=True,expected_cik=expected_cik)
         else:
@@ -107,26 +118,27 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
             answers_html=company_answers_html(answers)),
             unsafe_allow_html=True)
         if selected=='overview':
-            st_api.markdown(workbench_facts_html(projection),unsafe_allow_html=True)
+            if projection['attempted'] or projection['facts']:
+                st_api.markdown(workbench_facts_html(projection),unsafe_allow_html=True)
             if prices.get('status')!='not_requested':
                 st_api.markdown(online_price_history_html(prices),unsafe_allow_html=True)
-            with st_api.expander('身份与模型使用范围',expanded=False):
+            with st_api.expander('Identity and model scope',expanded=False):
                 st_api.markdown(price_filing_association_html(bundle['association']),unsafe_allow_html=True)
-                st_api.caption('当前上市关联不等于独立供应商发行人身份、历史连续性、证券类型或估值资格。')
+                st_api.caption('Vendor issuer identity, historical continuity, security type, and model eligibility each require their own evidence.')
         elif selected=='financials':
             if financial.get('status')=='not_requested':
-                st_api.info('使用上方更新操作取得财报。')
+                st_api.info('Refresh financials and prices to load reported periods.')
             else:
                 foreign=validated_foreign_financials(financial)
                 if foreign:
                     st_api.markdown(foreign_financials_html(financial),unsafe_allow_html=True)
                 else:
-                    kind=st_api.radio('财报期间',('annual','quarterly'),format_func=lambda x:'年度' if x=='annual' else '季度',
+                    kind=st_api.radio('Reporting period',('annual','quarterly'),format_func=lambda x:'Annual' if x=='annual' else 'Quarterly',
                                       horizontal=True,key=f'company-financial-period:{profile_scope}:{ticker}:{scope}')
                     content=annual_history_html(financial,compact=True) if kind=='annual' else quarterly_history_html(financial,compact=True)
                     if content:st_api.markdown(content,unsafe_allow_html=True)
-                    else:st_api.info('该期间的直接申报字段尚未取得或未通过核对；可在数据来源检查原始申报和原因。')
-                with st_api.expander('财务观察与可用分析',expanded=False):
+                    else:st_api.info('Verified directly reported fields are unavailable for this period. Check Data Sources for the filing and specific gaps.')
+                with st_api.expander('Financial observations and available analysis',expanded=False):
                     st_api.markdown(online_company_analysis_html(build_online_company_analysis(financial)),unsafe_allow_html=True)
             if saved_available and candidate is None:
                 render_saved(selected)
@@ -135,12 +147,12 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                 from src.sec_research_review_ui import render_company_review
                 render_company_review(st_api,ticker,financial,profile_key=profile_scope)
             if selected=='valuation':
-                with st_api.expander('上市来源暂不可用时', expanded=False):
-                    st_api.caption('可沿用本会话 24 小时内完整的上市观察，保留原始日期。财报和价格仍分别核查。')
                 if peer_view['status']!='not_requested':
                     st_api.markdown(online_peer_valuation_html(peer_view),unsafe_allow_html=True)
                 else:
-                    st_api.caption('查询已披露年度 P/E 与行业参照。')
+                    st_api.caption('Refresh to compare reported annual diluted P/E with qualifying industry references.')
+                with st_api.expander('Listing source continuity', expanded=False):
+                    st_api.caption('A complete listing observation from this session can be reused for up to 24 hours with its original dates. Financials and prices are checked independently.')
             if saved_available and candidate is None:
                 render_saved(selected)
             elif selected=='valuation':
@@ -149,14 +161,14 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
                         refresh_requested=False,user_agent=None,expected_cik=expected_cik)
                     st_api.markdown(valuation_overview_html(build_valuation_overview(ticker,
                         research_context=research_context),compact=True),unsafe_allow_html=True)
-                    st_api.info('在线财报与价格仅供分别阅读。估值还需要核对股类、财务定义、价格日期、来源权限和同行依据。')
+                    st_api.info('Valuation requires a matched share class, financial definition, price date, source rights, and comparison basis.')
                 if saved_available:st_api.markdown(_separate_saved_link(ticker),unsafe_allow_html=True)
             else:
-                st_api.info('本页重放已保存的 SEC 事实；这不建立本地模型、研究日志资格或当前上市身份。' if saved_receipt_only else
-                    '在线公司身份尚未与已保存研究集合核对，当前页面不会自动读取或写入同代码的本地模型和研究日志。SEC 证据保存独立处理。')
+                st_api.info('This page replays saved SEC facts. Local models, research journals, and current listing identity require separate qualification.' if saved_receipt_only else
+                    'Saved models and journals require a separately matched research identity. SEC evidence can be saved independently.')
                 if saved_available:st_api.markdown(_separate_saved_link(ticker),unsafe_allow_html=True)
         else:
-            st_api.caption('来源、期间、单位、观察日期与权限分别保留；在线查询不更新正式财务、readiness 或覆盖统计。')
+            st_api.caption('Each source retains its period, unit, observation date, and permission scope. Saved financials, readiness, and coverage keep their own review process.')
             st_api.markdown(price_filing_association_html(bundle['association']),unsafe_allow_html=True)
             if peer_view['status']!='not_requested':
                 st_api.markdown(online_peer_valuation_html(peer_view,sources_only=True),unsafe_allow_html=True)

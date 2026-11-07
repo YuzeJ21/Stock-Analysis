@@ -1,4 +1,5 @@
 import pytest
+import re
 from selected_security_fixtures import scoped_collection,install
 from test_online_peer_valuation import build
 from src.online_peer_valuation_ui import online_peer_valuation_html
@@ -7,26 +8,35 @@ from src.online_peer_valuation_ui import online_peer_valuation_html
 @pytest.mark.parametrize('sources',[False,True])
 def test_company_shows_selected_common_scope_without_asserting_other_symbol_aliases(monkeypatch,sources):
     policy,c=scoped_collection();install(monkeypatch,policy);html=online_peer_valuation_html(build(c),sources_only=sources)
-    assert '所选证券与其他关联代码' in html and 'FICT、FP' in html
-    assert '不代表这些代码已逐一完成证券映射' in html and 'annual.htm' in html and 'cover.htm' in html
+    assert 'Selected security and related issuer symbols' in html and 'FICT, FP' in html
+    assert 'not individually mapped to securities' in html and 'annual.htm' in html and 'cover.htm' in html
     assert c['issuers'][0]['selected_security_evidence']['documents']['annual']['payload_sha256'] in html
 
 
+def test_selected_security_disclosure_uses_english_without_promoting_related_symbols(monkeypatch):
+    policy,c=scoped_collection();install(monkeypatch,policy)
+    html=online_peer_valuation_html(build(c),sources_only=True)
+    assert not re.search(r'[\u3400-\u9fff]',html)
+    assert 'Related issuer symbols' in html
+    assert 'not individually mapped' in html
+    assert 'FICT' in html and 'FP' in html
+
+
 @pytest.mark.parametrize('reason,phrase',[
-    ('selected_common_other_security_basis_unresolved','其他关联证券的收益口径仍未核对'),
+    ('selected_common_other_security_basis_unresolved','EPS basis for other related securities remains unverified'),
     ('depositary_security_requires_separate_method','ADS'),
-    ('successor_annual_basis_unverified','旧 CIK'),
+    ('successor_annual_basis_unverified','old CIK'),
 ])
 def test_independent_identity_observations_explain_remaining_gaps_without_valuation(monkeypatch,reason,phrase):
     policy,c=scoped_collection();policy.update(kind='inspection_only',reason=reason);install(monkeypatch,policy);v=build(c);html=online_peer_valuation_html(v,sources_only=True)
-    assert phrase in html and 'cover.htm' in html and '来源权限' in html
+    assert phrase in html and 'cover.htm' in html and 'source rights' in html
     if reason!='successor_annual_basis_unverified':assert v['subject'] is None
 
 
 def test_history_identity_disclosure_keeps_current_annual_denominator_explicit():
     from test_online_peer_sec_history import history_fixture,fetch
     c,row,raw=history_fixture();row['vendor_history']=fetch(row,raw);v=build(c);html=online_peer_valuation_html(v,sources_only=True)
-    assert '历史 SEC 索引仅用于供应商身份核对' in html and 'submissions-001.json' in html
+    assert 'historical SEC index is used only for provider identity review' in html and 'submissions-001.json' in html
     assert v['subject']['accession']=='0000001001-26-000001'
 
 
@@ -68,12 +78,12 @@ def test_sample_accepts_and_counts_security_and_history_components(monkeypatch):
 def test_bank_source_disclosure_distinguishes_incorporated_roles_and_actual_fact_resources(monkeypatch,sources):
     from test_bank_peer_security import bank_collection
     v=build(bank_collection(monkeypatch));html=online_peer_valuation_html(v,sources_only=sources)
-    assert '同次申报附件' in html and 'EX-13' in html and 'EX-99.01' in html
-    assert '主文件引用' in html and 'annual-linked.htm#eps-fact' in html
+    assert 'Companion exhibit in the same annual filing' in html and 'EX-13' in html and 'EX-99.01' in html
+    assert 'Parent document reference' in html and 'annual-linked.htm#eps-fact' in html
     assert 'annual-linked.htm#base' in html and 'annual-linked.htm#eps' in html
     assert 'annual-linked.htm#title' in html and 'annual.htm#common' in html
-    assert 'EPS 原始事实' in html and '事实期间与单位' in html
-    assert v['peer_count']==3 and '来源权限' in html
+    assert 'Original EPS fact' in html and 'Fact period and unit' in html
+    assert v['peer_count']==3 and 'source rights' in html
 
 
 def test_bank_link_labels_escape_untrusted_parent_text_and_reject_unsafe_fact_urls(monkeypatch):
@@ -98,7 +108,7 @@ def inspected_view(monkeypatch):
 def test_inspected_ads_currency_and_complete_note_sources_remain_outside_pe(monkeypatch,sources):
     v=inspected_view(monkeypatch);html=online_peer_valuation_html(v,sources_only=sources)
     assert '15.21' in html and '0.49' in html and 'TWD/ADS' in html and 'USD/ADS' in html
-    assert '原始单位' in html and '便利折算' in html and '不参与 P/E' in html
+    assert 'original unit' in html and 'convenience USD translation' in html and 'excluded from P/E' in html
     assert 'annual.htm#ads-native' in html and 'annual.htm#ads' in html and 'annual.htm#twd' in html
     assert 'annual.htm#note-tail' in html and '/html[1]/div[1]' in html
     assert v['subject'] is None and v['premium_fraction'] is None
@@ -114,7 +124,7 @@ def test_inspection_labels_and_source_locations_are_escaped(monkeypatch):
 def test_unknown_sibling_mapping_does_not_erase_qualified_literal_common(monkeypatch):
     from test_cross_security_evidence import dimensionless
     policy,c=dimensionless();install(monkeypatch,policy);v=build(c);html=online_peer_valuation_html(v,sources_only=True)
-    assert '尚未逐一建立证券映射' in html and 'FP' in html and v['status']=='research_comparison'
+    assert 'not individually mapped' in html and 'FP' in html and v['status']=='research_comparison'
 
 
 def test_note_only_inspection_summary_shows_verified_evidence_instead_of_empty_heading(monkeypatch):
@@ -122,4 +132,4 @@ def test_note_only_inspection_summary_shows_verified_evidence_instead_of_empty_h
     v=inspected_view(monkeypatch);scope=v['subject_source_context']['selected_security_scope'];scope['evidence_observations']=[o for o in scope['evidence_observations'] if o['kind']=='note']
     html=_observations_html(scope,compact=True)
     assert 'Convenience basis' in html and 'annual.htm#fx-note' in html
-    assert '不参与 P/E' in html
+    assert 'excluded from P/E' in html

@@ -12,6 +12,15 @@ def app():
     else:render_review_monitor(st,profile_key='test',monitor_origin=st.session_state.get('test_monitor_origin'))
 
 
+def test_unknown_gap_reason_is_readable_and_escaped():
+    from src.sec_research_review_ui import _gaps_html
+
+    rendered = _gaps_html({'gaps': [{'field': 'revenue', 'reason': 'source_<review>_pending'}]})
+    assert '<strong>Revenue</strong>' in rendered
+    assert 'Source &lt;review&gt; pending' in rendered
+    assert '<review>' not in rendered
+
+
 def test_save_twice_replay_and_monitor_survive_fresh_session(tmp_path,monkeypatch):
     from src import sec_research_review_ui as ui
     monkeypatch.setattr(ui,'PROJECT_ROOT',tmp_path)
@@ -20,14 +29,14 @@ def test_save_twice_replay_and_monitor_survive_fresh_session(tmp_path,monkeypatc
     at.button(key='sec-review-save:test:NEM').click().run()
     at.button(key='sec-review-save:test:NEM').click().run()
     assert not at.exception
-    assert any('未变化' in e.value for e in at.success)
+    assert any('No change' in e.value for e in at.success)
     assert len(list(tmp_path.rglob('*.json')))==2
     at.radio[0].set_value('monitor').run()
     assert not at.exception
-    assert '未变化' in '\n'.join(x.value for x in at.markdown)
+    assert 'No change' in '\n'.join(x.value for x in at.markdown)
     fresh=AppTest.from_function(app);fresh.session_state['test_view']={'status':'not_requested'};fresh.run()
     assert not fresh.exception
-    assert any('未变化' in e.value for e in fresh.success)
+    assert any('No change' in e.value for e in fresh.success)
     assert fresh.button(key='sec-review-save:test:NEM').disabled
 
 
@@ -39,7 +48,7 @@ def test_monitor_reports_gaps_without_process_records(tmp_path,monkeypatch):
     at.button(key='sec-review-save:test:NEM').click().run()
     at.radio[0].set_value('monitor').run()
     assert not at.exception
-    assert '资本支出' in '\n'.join(x.value for x in at.markdown)
+    assert 'Capital expenditures' in '\n'.join(x.value for x in at.markdown)
     assert not (tmp_path/'data').exists()
 
 
@@ -66,7 +75,7 @@ def test_nem_monitor_pins_pair_and_persists_disposition(tmp_path, monkeypatch):
     online.query_params.update(sec_pair=token, online='1')
     online.run()
     assert online.warning
-    assert not any('已固定的 SEC 证据比较' in e.value for e in online.markdown)
+    assert not any('Pinned SEC evidence comparison' in e.value for e in online.markdown)
 
     third = capture_review(view(), profile_key='test', saved_at='2026-11-02T22:02:00Z')
     save_review(third, tmp_path)
@@ -74,14 +83,14 @@ def test_nem_monitor_pins_pair_and_persists_disposition(tmp_path, monkeypatch):
     visible = '\n'.join(e.value for e in at.caption)
     assert first['receipt_id'] in visible and second['receipt_id'] in visible
     assert third['receipt_id'] not in visible
-    assert any('未变化' in e.value for e in at.success)
+    assert any('No change' in e.value for e in at.success)
 
     at.radio[0].set_value('monitor').run()
     at.radio[1].set_value('still_open')
-    next(b for b in at.button if b.label == '保存复核状态').click().run()
+    next(b for b in at.button if b.label == 'Save review status').click().run()
     assert at.error
     at.text_area[0].set_value('  Keep the source gap open.  ')
-    next(b for b in at.button if b.label == '保存复核状态').click().run()
+    next(b for b in at.button if b.label == 'Save review status').click().run()
     assert any('Keep the source gap open.' == e.value for e in at.text)
     assert not at.exception
 
@@ -92,14 +101,14 @@ def test_nem_monitor_pins_pair_and_persists_disposition(tmp_path, monkeypatch):
     assert any('Keep the source gap open.' == e.value for e in fresh.text)
     fresh.radio[1].set_value('reviewed')
     fresh.text_area[0].set_value('Reviewed the evidence.')
-    next(b for b in fresh.button if b.label == '保存复核状态').click().run()
+    next(b for b in fresh.button if b.label == 'Save review status').click().run()
     assert any('Reviewed the evidence.' == e.value for e in fresh.text)
     assert all(path.read_bytes() == raw for path, raw in original.items())
 
     fresh.query_params['sec_pair'] = first['receipt_id'] + '.' + 'f' * 64
     fresh.run()
     assert fresh.warning
-    assert not any(b.label == '保存复核状态' for b in fresh.button)
+    assert not any(b.label == 'Save review status' for b in fresh.button)
 
 
 def test_amd_pinned_review_keeps_basis_gaps_and_rejects_another_issuer(tmp_path, monkeypatch):
@@ -127,13 +136,13 @@ def test_amd_pinned_review_keeps_basis_gaps_and_rejects_another_issuer(tmp_path,
     at.run().radio[0].set_value('monitor').run()
     assert not at.exception
     summary = '\n'.join(element.value for element in at.markdown)
-    assert 'AMD SEC 证据复核' in summary
-    assert '口径不一致，保留缺口' in summary
-    assert '财务定义不同' in summary and '资本支出' in summary
+    assert 'AMD SEC evidence review' in summary
+    assert 'Comparison basis differs, gaps retained' in summary
+    assert 'Financial definitions differ' in summary and 'Capital expenditures' in summary
     assert not at.selectbox
     at.radio[1].set_value('still_open')
     at.text_area[0].set_value('Verify the reporting basis.')
-    next(b for b in at.button if b.label == '保存复核状态').click().run()
+    next(b for b in at.button if b.label == 'Save review status').click().run()
     assert any(e.value == 'Verify the reporting basis.' for e in at.text)
     at.button('sec-review-open-pair').click().run()
     assert at.query_params['ticker'] == ['AMD']
@@ -145,7 +154,7 @@ def test_amd_pinned_review_keeps_basis_gaps_and_rejects_another_issuer(tmp_path,
     at.query_params.update(sec_pair=token, sec_ticker='NEM')
     at.radio[0].set_value('monitor').run()
     assert at.warning
-    assert not any(b.label in {'打开这两份证据', '保存复核状态'} for b in at.button)
+    assert not any(b.label in {'Open this evidence pair', 'Save review status'} for b in at.button)
 
 
 def test_other_company_without_observation_has_disabled_receipt_controls(tmp_path,monkeypatch):
@@ -158,7 +167,7 @@ def test_other_company_without_observation_has_disabled_receipt_controls(tmp_pat
     at=AppTest.from_function(other).run()
     assert not at.exception
     assert at.button(key='sec-review-save:test:AMD').disabled
-    assert not any('核查营业利润原始申报'==b.label for b in at.button)
+    assert not any('Check the operating income filing'==b.label for b in at.button)
 
 
 def test_normal_nem_company_route_exposes_receipts_without_fetch(tmp_path,monkeypatch):
@@ -175,7 +184,7 @@ def test_normal_nem_company_route_exposes_receipts_without_fetch(tmp_path,monkey
     assert not at.exception
     assert at.button(key='sec-review-save:test:NEM').disabled
     assert at.selectbox[0].value==0
-    assert any('SEC 财报证据复核' in x.value for x in at.markdown)
+    assert any('Saved SEC evidence review' in x.value for x in at.markdown)
 
 
 def test_exact_gap_check_save_replay_and_monitor(tmp_path,monkeypatch):
@@ -194,8 +203,8 @@ def test_exact_gap_check_save_replay_and_monitor(tmp_path,monkeypatch):
     at.button(key='sec-review-save:test:NEM').click().run()
     at.button(key='sec-review-save:test:NEM').click().run()
     assert not at.exception and len(calls)==1
-    assert any('未变化' in e.value for e in at.success)
-    assert '没有匹配的标准营业利润直接事实' in '\n'.join(e.value for e in at.markdown)
+    assert any('No change' in e.value for e in at.success)
+    assert 'No matching direct standard operating income fact' in '\n'.join(e.value for e in at.markdown)
     at.radio[0].set_value('monitor').run()
     assert 'nem-synthetic.htm' in '\n'.join(e.value for e in at.markdown)
     assert not (tmp_path/'data').exists()
@@ -207,7 +216,7 @@ def test_exact_gap_check_save_replay_and_monitor(tmp_path,monkeypatch):
     at.radio[0].set_value('company').run()
     monkeypatch.setattr(ui,'get_company_filing_preview',lambda *a,**k:{'status':'withheld','reason':'sec_filing_unavailable'})
     at.button(key='sec-review-exact:test:NEM').click().run()
-    assert any('未接入' in e.value for e in at.warning)
+    assert any('could not be attached' in e.value for e in at.warning)
     at.button(key='sec-review-save:test:NEM').click().run()
     from src.sec_research_review import list_reviews
     assert list_reviews(tmp_path,'test')[-1]['schema_version']=='sec-research-review-v1'

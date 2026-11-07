@@ -210,7 +210,7 @@ def test_company_workbench_renders_independent_observation_states_for_avgo_spy_a
             "SPY",
             "QQQ",
             "Company Brief",
-            "数据来源",
+            "Data Sources",
             "Research-only",
         ),
     )
@@ -278,9 +278,9 @@ def test_research_routes_keep_observation_summary_and_advanced_evidence_responsi
         ),
         (
             "/?mode=research&page=company-workbench&ticker=AVGO&open=1&section=sources",
-            "数据来源",
+            "Data Sources",
             "AVGO",
-            "保存研究的来源与复核状态",
+            "Saved research sources and review status",
             False,
         ),
         (
@@ -418,7 +418,7 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     )
     for marker in (
         "Company Brief",
-        "概览", "财务趋势", "估值与同行", "研究记录", "数据来源", "更新财报与价格",
+        "Overview", "Financial Trends", "Valuation & Peers", "Research Notes", "Data Sources", "Refresh financials and prices",
     ):
         assert marker in workbench_route.required_markers
     evidence_contracts = {
@@ -465,7 +465,7 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     )
     workbench = next(result for result in results if result.name == "Company Workbench")
     workbench_blocks = "\n".join(workbench.rendered_blocks)
-    assert "更新财报与价格" in workbench_blocks
+    assert "Refresh financials and prices" in workbench_blocks
     assert "Open evidence and analysis modules" not in workbench_blocks
     for gated_heading in (
         "## Research Decision Lab",
@@ -478,8 +478,8 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
         assert gated_heading not in workbench_blocks
     assert "HTML Research Brief" not in workbench_blocks
     for retained_detail in (
-        "概览", "财务趋势", "估值与同行", "研究记录", "数据来源",
-        "模型资格独立", "Research-only",
+        "Overview", "Financial Trends", "Valuation & Peers", "Research Notes", "Data Sources",
+        "Online observations and saved models have separate eligibility", "Research-only",
     ):
         assert retained_detail in workbench_blocks
     for evidence_name in ("Research Data Health", "Research Proof History"):
@@ -497,7 +497,7 @@ def test_company_workbench_opens_secondary_modules_only_after_explicit_action():
     app.run()
     assert not app.exception
     assert [button.label for button in app.button if button.key != "research-nav-monitor"]==[
-        "更新财报与价格","只更新财报","只更新价格",
+        "Refresh financials and prices","Financials only","Prices only",
     ]
     assert not any(e.label=="HTML Research Brief" for e in app.expander)
     _workbench_section(app,"valuation")
@@ -1197,7 +1197,7 @@ def test_company_workbench_unavailable_rail_restores_the_normal_report_builders(
 
 
 def _workbench_section(app,section):
-    radio=next(r for r in app.radio if r.label=="公司研究分区")
+    radio=next(r for r in app.radio if r.label=="Company research sections")
     radio.set_value(section).run(timeout=120)
     return app
 
@@ -1651,7 +1651,7 @@ def test_normal_company_workbench_route_never_loads_cash_preview():
         required_markers=(
             "Company Workbench",
             "Company Brief",
-            "更新财报与价格",
+            "Refresh financials and prices",
             "Research-only",
         ),
     )
@@ -1678,7 +1678,7 @@ def test_normal_amd_company_workbench_route_never_loads_cash_preview():
             ("ticker", "AMD"),
             ("open", "1"),
         ),
-        required_markers=("Company Workbench", "概览", "Research-only"),
+        required_markers=("Company Workbench", "Overview", "Research-only"),
     )
     with patch(
         "src.company_workbench_cash_generation_preview_loader."

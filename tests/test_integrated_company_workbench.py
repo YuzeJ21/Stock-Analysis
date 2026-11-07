@@ -53,14 +53,14 @@ def test_company_answer_cards_precede_controls_on_every_section(monkeypatch, sec
 
     assert not at.exception
     brief=_company_brief(at)
-    assert brief.count('aria-label="公司研究摘要"')==1
+    assert brief.count('aria-label="Company research summary"')==1
     for answer in ('price','financial','valuation'):
         assert brief.count(f'data-company-answer="{answer}"')==1
-    assert brief.index('</h1>') < brief.index('aria-label="公司研究摘要"')
+    assert brief.index('</h1>') < brief.index('aria-label="Company research summary"')
     elements=list(at.main)
     header_index=next(i for i,el in enumerate(elements) if el.type=='markdown' and el.value==brief)
     update_index=next(i for i,el in enumerate(elements) if el.type=='button' and el.key=='company-refresh-all')
-    section_index=next(i for i,el in enumerate(elements) if el.type=='radio' and el.label=='公司研究分区')
+    section_index=next(i for i,el in enumerate(elements) if el.type=='radio' and el.label=='Company research sections')
     assert header_index < min(update_index,section_index)
     assert calls=={'financial':0,'prices':0}
 
@@ -75,10 +75,10 @@ def test_company_valuation_answer_updates_on_refresh_and_reuses_peer_cache_in_ot
     before=_company_brief(at)
     assert '2026-10-30' not in before and not calls
 
-    next(button for button in at.button if button.label=='更新在线同行估值').click().run()
+    next(button for button in at.button if button.label=='Refresh peer valuation').click().run()
     refreshed=_company_brief(at)
     assert '2026-10-30' in refreshed
-    assert '高于同行参照 20.0%' in text(at)
+    assert 'Annual P/E 20.0% above industry references' in text(at)
     observed_calls=list(calls)
     assert observed_calls
 
@@ -90,10 +90,10 @@ def test_company_valuation_answer_updates_on_refresh_and_reuses_peer_cache_in_ot
 
     at.radio[0].set_value('valuation').run()
     monkeypatch.setattr(sources,'observe_vendor',lambda *a,**kw:(_ for _ in ()).throw(OSError('private exception')))
-    next(button for button in at.button if button.label=='更新在线同行估值').click().run()
+    next(button for button in at.button if button.label=='Refresh peer valuation').click().run()
     assert not at.exception
     assert '2026-10-30' not in _company_brief(at)
-    assert '高于同行参照 20.0%' not in text(at)
+    assert 'Annual P/E 20.0% above industry references' not in text(at)
 
 
 def test_five_sections_are_visible_without_loading_legacy_tools_or_fetching(monkeypatch):
@@ -101,7 +101,7 @@ def test_five_sections_are_visible_without_loading_legacy_tools_or_fetching(monk
     at=AppTest.from_function(_app).run()
     assert not at.exception
     assert 'section' not in at.query_params
-    assert at.radio[0].options==['概览','财务趋势','估值与同行','研究记录','数据来源']
+    assert at.radio[0].options==['Overview','Financial Trends','Valuation & Peers','Research Notes','Data Sources']
     assert text(at).count('<h1')==1
     assert 'SAVED-TOOL' not in text(at)
     assert 'Open evidence and analysis modules' not in text(at)
@@ -152,7 +152,7 @@ def test_online_identity_cannot_open_same_symbol_saved_models_or_authoring(monke
     assert 'No supported peer comparison yet' in text(at)
     at.radio[0].set_value('notes').run()
     assert 'SAVED-TOOL' not in text(at)
-    assert '身份' in text(at)
+    assert 'identity' in text(at)
     assert calls=={'financial':0,'prices':0}
     assert not at.exception
 
@@ -212,7 +212,7 @@ def test_real_workbench_route_is_lazy_and_reuses_saved_tools_when_requested(monk
     at.run()
     assert not at.exception
     assert calls==[], 'Overview must not build the saved DCF report'
-    nav=[r for r in at.radio if r.options==['概览','财务趋势','估值与同行','研究记录','数据来源']]
+    nav=[r for r in at.radio if r.options==['Overview','Financial Trends','Valuation & Peers','Research Notes','Data Sources']]
     assert len(nav)==1
     nav[0].set_value('financials').run()
     assert not at.exception

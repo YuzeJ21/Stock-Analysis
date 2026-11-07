@@ -131,8 +131,8 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
             ("open", "1"),
         ),
         required_markers=(
-            "Company Workbench", "Company Brief", "概览", "财务趋势", "估值与同行",
-            "研究记录", "数据来源", "更新财报与价格", "模型资格独立", "Research-only",
+            "Company Workbench", "Company Brief", "Overview", "Financial Trends", "Valuation & Peers",
+            "Research Notes", "Data Sources", "Refresh financials and prices", "Online observations and saved models have separate eligibility", "Research-only",
         ),
     ),
     DashboardRenderRoute(
@@ -210,7 +210,7 @@ def _rendered_blocks(app: AppTest) -> tuple[str, ...]:
             if value:
                 values.append(str(value))
     for radio in app.radio:
-        if radio.label=="公司研究分区":
+        if radio.label=="Company research sections":
             values.extend(str(option) for option in radio.options)
     for item in app.button:
         label = getattr(item, "label", "")

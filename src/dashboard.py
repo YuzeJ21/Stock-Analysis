@@ -32827,7 +32827,7 @@ def render_single_stock_report(
             st.rerun()
 
     if workbench_section is not None and not report_payload:
-        st.info("已保存模型暂不可读；在线财报与价格仍可在概览和财务趋势中独立查看。")
+        st.info("The saved model is unavailable. Online financials and prices remain available in Overview and Financial Trends.")
         return
     if report_payload:
         if not compact_public_open_report and workbench_section is None:
@@ -38136,17 +38136,17 @@ def _render_company_saved_section(
         return
     if section == "valuation":
         with st.expander("Saved Valuation & Scenarios", expanded=False):
-            st.caption("已保存研究集合 · 输入日期与资格独立。此处不自动采用本次在线财报或价格。")
+            st.caption("Saved research inputs retain their own dates and eligibility. This model does not automatically use the current online observations.")
             from src.company_valuation_overview import build_valuation_overview, valuation_overview_html
             security = get_company_security_context(
                 ticker, st.session_state, refresh_requested=False, user_agent=None
             )
             view = build_valuation_overview(ticker, report_payload, research_context=security)
             st.markdown(valuation_overview_html(view, compact=True), unsafe_allow_html=True)
-            st.markdown("### 已保存输入的情景分析")
+            st.markdown("### Scenarios using saved inputs")
             st.caption(
-                "保存来源状态：" + saved_readiness_display_label(context.freshness_state)
-                + "。陈旧输入仅供历史复核；情景结果不是当前目标价。"
+                "Saved source status: " + saved_readiness_display_label(context.freshness_state)
+                + ". Stale inputs support historical review only. Scenario results are not current price targets."
             )
             render_scenario_lab(scenario_session)
         with st.expander("Peer Read-Through (saved evidence)", expanded=False):
@@ -38186,14 +38186,14 @@ def _render_company_saved_section(
                  "answer":"The selected-profile journal could not be verified.","evidence":"No record claim is shown.",
                  "boundary":journal_error,"confidence":"","primary_action":"Review journal source"}
     if summary["status"] == "not_started":
-        st.caption("尚无研究假设记录。")
+        st.caption("No research thesis has been recorded.")
     else:
         st.markdown(research_thesis_journal_html(summary),unsafe_allow_html=True)
     render_research_record_authoring(st_api=st,profile_key=context.profile_key,ticker=ticker,
         paths=AuthoringPaths(journal=DATA_DIR/"research_thesis_journal.csv",
                             catalysts=DATA_DIR/"catalyst_evidence.csv",outcomes=DATA_DIR/"research_outcome_reviews.csv"))
     with st.expander("Research Decision Lab & History", expanded=False):
-        st.caption("研究过程记录与财务就绪度分别判断；填写记录不会解除模型或来源限制。")
+        st.caption("Research records and financial readiness are assessed separately. Adding a record does not clear model or source restrictions.")
         render_signal_cards(decision_lab_cards(decision_lab_state),show_commands=False,variant="queue")
         render_signal_cards(outcome_status_cards(outcome_status),show_commands=False,variant="queue")
         st.dataframe(
@@ -38238,7 +38238,7 @@ def _render_company_saved_section(
         decision_lab_state=decision_lab_state,quarterly_trend=trend_packet,forward_view=forward_view_packet,
         journal_state=journal_state,valuation_regime=valuation_regime,catalyst_timeline=catalyst_timeline))
     with st.expander("HTML Research Brief",expanded=False):
-        st.caption("已保存证据与情景计算的离线快照，不含本次在线查询；来源使用权限仍独立保留。")
+        st.caption("An offline snapshot of saved evidence and scenarios, excluding this online request. Each source retains its own permission scope.")
         st.html(render_company_workbench_html_fragment(snapshot),unsafe_allow_javascript=False)
         download=company_workbench_html_download_spec(snapshot)
         st.download_button("Download HTML Research Brief",data=download.data,file_name=download.file_name,
@@ -38344,17 +38344,17 @@ def render_company_workbench(
                 " · observed "+html.escape(online_candidate["observed_at"])+
                 " · SHA-256 "+html.escape(online_candidate["payload_sha256"])+
                 ". Identity association rights require review before distribution.</p>",unsafe_allow_html=True)
-        with st.expander("财报字段与原始来源",expanded=False):
-            if view.get("status")=="not_requested":st.caption("使用上方更新操作取得本公司的字段证据。")
+        with st.expander("Financial fields and original sources",expanded=False):
+            if view.get("status")=="not_requested":st.caption("Refresh financials and prices to load this company’s field evidence.")
             else:st.markdown(company_sec_annual_preview_html(view),unsafe_allow_html=True)
         render_company_sec_filing_check(ticker,expected_cik=expected_cik)
         render_company_security_check(ticker,expected_cik=expected_cik)
-        with st.expander("价格证据与使用范围",expanded=False):
+        with st.expander("Price evidence and usage scope",expanded=False):
             st.markdown(online_price_history_html(bundle["prices"]),unsafe_allow_html=True)
         field_study=load_dashboard_bounded_field_study(context)
         st.markdown(study_company_html(field_study,ticker),unsafe_allow_html=True)
-        with st.expander("保存研究的来源与复核状态",expanded=False):
-            st.caption("保存来源状态："+saved_readiness_display_label(context.freshness_state))
+        with st.expander("Saved research sources and review status",expanded=False):
+            st.caption("Saved source status: "+saved_readiness_display_label(context.freshness_state))
             render_signal_cards(focused_ticker_coverage_cards(coverage,ticker),show_commands=False,variant="queue")
             if observation_recency is not None:
                 st.markdown(observation_recency_summary_html(observation_recency,include_selected=True),unsafe_allow_html=True)

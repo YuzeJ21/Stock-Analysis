@@ -17,21 +17,21 @@ def test_amd_save_twice_replay_and_monitor_company_selection(tmp_path,monkeypatc
     monkeypatch.setattr(ui,'PROJECT_ROOT',tmp_path)
     at=AppTest.from_function(app);at.session_state['test_ticker']='AMD';at.session_state['test_view']=issuer_view();at.run()
     assert not at.exception
-    assert not any('核查营业利润原始申报'==b.label for b in at.button)
+    assert not any('Check the operating income filing'==b.label for b in at.button)
     at.button(key='sec-review-save:test:AMD').click().run()
     at.button(key='sec-review-save:test:AMD').click().run()
-    assert not at.exception and any('未变化' in s.value for s in at.success)
+    assert not at.exception and any('No change' in s.value for s in at.success)
     assert len(list_reviews(tmp_path,'test','AMD'))==2
     save_review(capture('DUK','0001326160'),tmp_path)
     at.radio[0].set_value('monitor').run()
     assert not at.exception
-    assert '已保存 2 家公司' in '\n'.join(c.value for c in at.caption)
+    assert 'Saved companies 2' in '\n'.join(c.value for c in at.caption)
     at.selectbox(key='sec-review-monitor-company:test').select('DUK').run()
     text='\n'.join(m.value for m in at.markdown)
-    assert 'DUK' in text and 'ticker=DUK' in text and '等待比较基线' in text
+    assert 'DUK' in text and 'ticker=DUK' in text and 'awaiting a comparison baseline' in text
     assert not (tmp_path/'data').exists()
     fresh=AppTest.from_function(app);fresh.session_state['test_ticker']='AMD';fresh.session_state['test_view']={};fresh.run()
-    assert not fresh.exception and any('未变化' in s.value for s in fresh.success)
+    assert not fresh.exception and any('No change' in s.value for s in fresh.success)
 
 
 def test_selected_company_cannot_save_another_cached_issuer(tmp_path,monkeypatch):
@@ -57,11 +57,11 @@ def test_corrupt_company_visible_without_hiding_healthy_company(tmp_path,monkeyp
     at=AppTest.from_function(app);at.session_state['test_ticker']='AMD';at.session_state['test_view']={};at.run()
     at.radio[0].set_value('monitor').run()
     assert not at.exception
-    assert '不可读 1' in '\n'.join(c.value for c in at.caption)
+    assert 'Unreadable 1' in '\n'.join(c.value for c in at.caption)
     at.selectbox(key='sec-review-monitor-company:test').select('DUK').run()
-    assert any('无法核验' in w.value for w in at.warning)
+    assert any('cannot be verified' in w.value for w in at.warning)
     at.selectbox(key='sec-review-monitor-company:test').select('AMD').run()
-    assert not at.exception and any('等待比较基线' in m.value for m in at.markdown)
+    assert not at.exception and any('awaiting a comparison baseline' in m.value for m in at.markdown)
 
 
 def test_wrong_company_import_is_rejected_before_any_write(tmp_path,monkeypatch):
@@ -75,7 +75,7 @@ def test_wrong_company_import_is_rejected_before_any_write(tmp_path,monkeypatch)
     at=AppTest.from_function(app);at.session_state['test_ticker']='AMD';at.session_state['test_view']={};at.run()
     at.button(key='sec-review-import:test:AMD').click().run()
     assert not at.exception
-    assert any('公司或研究集合不符' in e.value for e in at.error)
+    assert any('company or research profile mismatch' in e.value for e in at.error)
     assert not list(tmp_path.rglob('*.json'))
 
 
@@ -86,7 +86,7 @@ def test_monitor_honors_company_return_route(tmp_path,monkeypatch):
     at=AppTest.from_function(app);at.session_state['test_ticker']='AMD';at.session_state['test_view']={};at.query_params['return_ticker']='DUK';at.run()
     at.radio[0].set_value('monitor').run()
     assert at.selectbox(key='sec-review-monitor-company:test').value=='DUK'
-    assert any('>查看 DUK 的已保存证据</a>' in item.value for item in at.markdown)
+    assert any('>View saved DUK evidence</a>' in item.value for item in at.markdown)
 
 
 def test_saved_online_only_company_has_offline_route_without_registration(tmp_path,monkeypatch):
@@ -124,7 +124,7 @@ def test_offline_unregistered_receipt_renders_without_company_csv_or_network(tmp
         render_company_workbench(SimpleNamespace(list_local_tickers=lambda:[]),SimpleNamespace(profile_key='test',freshness_state='stale'),{},None)
     at=AppTest.from_function(offline_app);at.query_params.update(ticker='FICT',section='notes');at.run()
     assert not at.exception
-    assert any('已保存 SEC 证据' in m.value for m in at.markdown)
+    assert any('Saved SEC evidence' in m.value for m in at.markdown)
     assert at.button(key='sec-review-save:test:FICT').disabled
     assert at.selectbox(key='sec-review-current:test:FICT:1').value==0
     assert not (tmp_path/'data').exists()
@@ -139,6 +139,6 @@ def test_malformed_inventory_entry_is_visible_separately_from_company_counts(tmp
     at=AppTest.from_function(app);at.session_state['test_ticker']='AMD';at.session_state['test_view']={};at.run()
     at.radio[0].set_value('monitor').run()
     assert not at.exception
-    assert '已保存 1 家公司' in '\n'.join(c.value for c in at.caption)
-    assert any('1 个名称无法核验' in w.value for w in at.warning)
+    assert 'Saved companies 1' in '\n'.join(c.value for c in at.caption)
+    assert any('Unverified entries in the SEC evidence folder · 1' in w.value for w in at.warning)
     assert at.selectbox(key='sec-review-monitor-company:test').value=='AMD'

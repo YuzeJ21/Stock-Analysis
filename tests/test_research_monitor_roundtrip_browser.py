@@ -14,6 +14,15 @@ from src.public_performance_gate import _free_port, _wait_for_health, find_chrom
 from src.workspace_visual_browser_gate import _contrast_ratio
 
 
+def assert_rendered_english(surface):
+    rendered = surface.inner_text() + "\n" + surface.aria_snapshot()
+    untranslated = [
+        line for line in rendered.splitlines()
+        if re.search(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\U00020000-\U0003134f]", line)
+    ]
+    assert not untranslated, "Untranslated visible copy:\n" + "\n".join(untranslated[:12])
+
+
 def run_browser_fixture(root):
     """Run the dashboard with qualified synthetic observations and disposable receipt storage."""
     from src import company_workbench_ui, dashboard, online_company_identity, online_company_prices
@@ -143,6 +152,63 @@ def research_browser_server(tmp_path):
 
 
 @pytest.mark.parametrize("width,height", [(1280, 900), (390, 844)], ids=["desktop", "phone"])
+def test_workbench_sections_and_source_failures_remain_english_without_refetch(
+    research_browser_server, tmp_path, width, height,
+):
+    if (chrome := find_chrome_executable()) is None:
+        pytest.skip("Chrome-compatible browser is unavailable")
+    playwright = pytest.importorskip("playwright.sync_api")
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(executable_path=str(chrome), headless=True)
+        try:
+            page = browser.new_page(viewport={"width": width, "height": height})
+            page.set_default_timeout(15_000)
+            page.route("**/*", lambda route: route.continue_()
+                       if route.request.url.startswith(research_browser_server + "/") else route.abort())
+            page_errors = []
+            page.on("pageerror", lambda error: page_errors.append(str(error)))
+            page.goto(f"{research_browser_server}/?mode=research&page=company-workbench&ticker=FICT&online=1")
+            refresh = page.get_by_role("button", name="Refresh financials and prices", exact=True)
+            playwright.expect(refresh).to_be_visible()
+            assert_rendered_english(page.locator("body"))
+            page.screenshot(path=str(tmp_path / f"english-initial-{width}.png"))
+            refresh.click()
+            playwright.expect(page.get_by_role("region", name="Daily price history")).to_contain_text("USD 11")
+            original_calls = (tmp_path / "provider-calls.txt").read_text().splitlines()
+            assert original_calls == ["search", "financial", "prices", "company-profile"]
+            for title in ("Overview", "Financial Trends", "Valuation & Peers", "Research Notes", "Data Sources"):
+                radio = page.get_by_role("radio", name=title, exact=True)
+                page.locator("label").filter(has=radio).click()
+                body = page.locator(".st-key-company-section-body")
+                playwright.expect(body.get_by_role("heading", name=title, exact=True)).to_be_visible()
+                for summary in page.locator(
+                    ".st-key-company-section-body details > summary, .company-integrated-header details > summary"
+                ).all():
+                    if summary.locator("..").get_attribute("open") is None:
+                        summary.click()
+                assert_rendered_english(page.locator("body"))
+                if title == "Financial Trends":
+                    for period in ("Quarterly", "Annual"):
+                        period_radio = page.get_by_role("radio", name=period, exact=True)
+                        page.locator("label").filter(has=period_radio).click()
+                        playwright.expect(period_radio).to_be_checked()
+                        assert_rendered_english(page.locator("body"))
+                if title == "Data Sources":
+                    playwright.expect(body).to_contain_text(
+                        re.compile(r"unavailable|could not|not available", re.IGNORECASE),
+                    )
+                assert page.locator("html").evaluate("node => node.scrollWidth") == width
+                assert body.evaluate("node => node.scrollWidth <= node.clientWidth + 1")
+                filename = title.replace(" & ", "-").replace(" ", "-").lower()
+                page.screenshot(path=str(tmp_path / f"english-{filename}-{width}.png"), full_page=True)
+            assert (tmp_path / "provider-calls.txt").read_text().splitlines() == original_calls
+            assert not page_errors
+            assert not page.get_by_test_id("stException").count()
+        finally:
+            browser.close()
+
+
+@pytest.mark.parametrize("width,height", [(1280, 900), (390, 844)], ids=["desktop", "phone"])
 @pytest.mark.parametrize("ticker", ["NEM", "AMD", "DUK"])
 def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, tmp_path, width, height, ticker):
     from src.sec_research_review import capture_review, save_review
@@ -154,7 +220,7 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
     playwright = pytest.importorskip("playwright.sync_api")
     nem_before, nem_after = view(), view()
     for observation in (nem_before, nem_after):
-        observation["approved_direct_fields"].pop()
+        observation["approved_direct_fields"].pop(1)
     nem_after["approved_direct_fields"][0]["value"] = 110
     nem_after["companyfacts_identity"]["payload_sha256"] = "c" * 64
     duk_before, duk_after = (issuer_view("DUK", "0001326160") for _ in range(2))
@@ -195,21 +261,21 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
 
             monitor_url = research_browser_server + "/?mode=research&page=monitor"
             page.goto(monitor_url if width >= 640 else f"{monitor_url}&return_ticker={ticker}")
-            company_selector = page.get_by_test_id("stSelectbox").filter(has_text="选择要复核的公司")
-            playwright.expect(page.get_by_text("已保存 3 家公司", exact=False)).to_be_visible()
+            company_selector = page.get_by_test_id("stSelectbox").filter(has_text="Select a company to review")
+            playwright.expect(page.get_by_text("Saved companies 3", exact=False)).to_be_visible()
             playwright.expect(company_selector).to_be_visible()
             if width >= 640:
                 company_selector.get_by_role("combobox").press("ArrowDown")
                 for symbol in observations:
                     playwright.expect(page.get_by_role("option", name=re.compile(rf"^{symbol} · "))).to_be_visible()
                 page.get_by_role("option", name=re.compile(rf"^{ticker} · ")).click()
-            issuer_heading = page.get_by_role("heading", name=f"{ticker} SEC 证据复核", exact=True)
+            issuer_heading = page.get_by_role("heading", name=f"{ticker} SEC evidence review", exact=True)
             playwright.expect(issuer_heading).to_be_visible()
-            open_pair = page.get_by_role("button", name="打开这两份证据", exact=True)
+            open_pair = page.get_by_role("button", name="Open this evidence pair", exact=True)
             playwright.expect(open_pair).to_be_visible()
             open_pair.click()
             panel = page.locator(".st-key-sec-review-panel")
-            pinned_heading = panel.get_by_role("heading", name="已固定的 SEC 证据比较")
+            pinned_heading = panel.get_by_role("heading", name="Pinned SEC evidence comparison")
             playwright.expect(pinned_heading).to_be_visible()
             wait_for_query(page="company-workbench", section="notes", ticker=ticker, sec_pair=token)
             for receipt in (before, after):
@@ -218,23 +284,25 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
                 playwright.expect(panel).not_to_contain_text(receipt["receipt_id"])
             if ticker == "NEM":
                 playwright.expect(panel).to_contain_text("100 → 110 USD")
-                playwright.expect(panel).to_contain_text("资本支出")
+                playwright.expect(panel).to_contain_text("Operating income")
             elif ticker == "DUK":
-                playwright.expect(panel).to_contain_text("核查依据变化，财务数值未变")
+                playwright.expect(panel).to_contain_text("Source review changed, financial values unchanged")
             else:
-                playwright.expect(panel).to_contain_text("未变化")
-            for label in ("较早证据的来源", "较新证据的来源"):
+                playwright.expect(panel).to_contain_text("No change")
+            for label in ("Earlier evidence source", "Later evidence source"):
                 panel.get_by_text(label, exact=False).click()
-            sources = panel.get_by_role("link", name="SEC Companyfacts 原始来源")
+            sources = panel.get_by_role("link", name="SEC Companyfacts source")
             playwright.expect(sources).to_have_count(2)
             for index in range(2):
                 playwright.expect(sources.nth(index)).to_have_attribute("href", before["source_url"])
+            assert_rendered_english(page.locator("body"))
             assert panel.evaluate("(panel) => panel.scrollWidth <= panel.clientWidth + 1")
+            page.screenshot(path=str(tmp_path / f"{ticker.lower()}-pinned-pair-{width}.png"), full_page=True)
 
             third = capture_review(observations[ticker][1], profile_key="demo", saved_at="2026-11-02T22:02:00Z")
             third_path = save_review(third, tmp_path)
             original_bytes[third_path] = third_path.read_bytes()
-            panel.get_by_role("link", name="返回 Monitor 的这项复核").click()
+            panel.get_by_role("link", name="Return to this review in Monitor").click()
             playwright.expect(open_pair).to_be_visible()
             playwright.expect(issuer_heading).to_be_visible()
             playwright.expect(company_selector).to_have_count(0)
@@ -244,15 +312,16 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
             for receipt in (before, after):
                 playwright.expect(panel).to_contain_text(receipt["receipt_id"])
             playwright.expect(panel).not_to_contain_text(third["receipt_id"])
-            panel.get_by_role("link", name="返回 Monitor 的这项复核").click()
+            panel.get_by_role("link", name="Return to this review in Monitor").click()
             playwright.expect(issuer_heading).to_be_visible()
-            save = page.get_by_role("button", name="保存复核状态")
-            reason_input = page.get_by_role("textbox", name="复核原因")
+            save = page.get_by_role("button", name="Save review status")
+            reason_input = page.get_by_role("textbox", name="Review reason")
             page.locator("label").filter(has=page.get_by_role("radio", name="Reviewed", exact=True)).click()
             reason_input.fill("   ")
             save.click()
-            playwright.expect(page.get_by_text("请选择复核状态并填写原因。", exact=True)).to_be_visible()
-            playwright.expect(page.get_by_text("待复核", exact=True)).to_be_visible()
+            playwright.expect(page.get_by_text("Choose a review status and enter a reason.", exact=True)).to_be_visible()
+            playwright.expect(page.get_by_text("Pending review", exact=True)).to_be_visible()
+            assert_rendered_english(page.locator("body"))
             assert not list((tmp_path / "outputs" / "local" / "sec-review-dispositions").rglob("*.json"))
             still_open_reason = f"Revisit the original {ticker} evidence pair."
             for label, reason in (("Reviewed", f"Checked both saved {ticker} observations."),
@@ -262,18 +331,20 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
                 playwright.expect(radio).to_be_checked()
                 reason_input.fill(f"  {reason}  ")
                 save.click()
-                playwright.expect(page.get_by_text("已保存复核状态。", exact=True)).to_be_visible()
+                playwright.expect(page.get_by_text("Review status saved.", exact=True)).to_be_visible()
                 saved_reason = page.get_by_test_id("stText").get_by_text(reason, exact=True)
                 playwright.expect(saved_reason).to_be_visible()
                 assert saved_reason.text_content() == reason
+                assert_rendered_english(page.locator("body"))
+            page.screenshot(path=str(tmp_path / f"{ticker.lower()}-monitor-disposition-{width}.png"), full_page=True)
             page.reload()
             playwright.expect(issuer_heading).to_be_visible()
             playwright.expect(page.get_by_test_id("stText").get_by_text(still_open_reason, exact=True)).to_be_visible()
             playwright.expect(page.get_by_role("radio", name="Still open", exact=True)).to_be_checked()
             if ticker == "NEM":
-                playwright.expect(page.get_by_text("资本支出", exact=True)).to_be_visible()
-            page.get_by_role("button", name="查看最新证据对", exact=True).click()
-            playwright.expect(page.get_by_text("待复核", exact=True)).to_be_visible()
+                playwright.expect(page.get_by_text("Operating income", exact=True)).to_be_visible()
+            page.get_by_role("button", name="View latest evidence pair", exact=True).click()
+            playwright.expect(page.get_by_text("Pending review", exact=True)).to_be_visible()
             playwright.expect(issuer_heading).to_be_visible()
             playwright.expect(company_selector).to_be_visible()
             playwright.expect(reason_input).to_have_value("")
@@ -287,7 +358,7 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
             if ticker != "NEM":
                 wrong_marker = "&sec_ticker=AMD" if ticker == "DUK" else ""
                 page.goto(f"{monitor_url}&sec_pair={token}{wrong_marker}")
-                playwright.expect(page.get_by_text("无法打开这两份已保存的证据。", exact=False)).to_be_visible()
+                playwright.expect(page.get_by_text("This saved evidence pair is unavailable.", exact=False)).to_be_visible()
                 playwright.expect(open_pair).to_have_count(0)
                 playwright.expect(save).to_have_count(0)
             assert not errors
@@ -299,8 +370,8 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
 
 @pytest.mark.parametrize(
     ("width", "height", "section_label", "section", "monitor_handoff"),
-    [(1280, 900, "估值与同行", "valuation", "navigation"),
-     (390, 844, "研究记录", "notes", "receipt")],
+    [(1280, 900, "Valuation & Peers", "valuation", "navigation"),
+     (390, 844, "Research Notes", "notes", "receipt")],
     ids=["desktop-valuation", "phone-sec-receipt"],
 )
 def test_online_research_round_trip_keeps_section_and_evidence(
@@ -334,30 +405,31 @@ def test_online_research_round_trip_keeps_section_and_evidence(
             page.goto(f"{research_browser_server}/?mode=research&page=company-workbench&ticker=FICT&online=1")
             brief = page.get_by_role("region", name="Company Brief", exact=True)
             playwright.expect(brief.get_by_role("heading", name="FICT Company Brief")).to_be_visible()
-            page.get_by_role("button", name="更新财报与价格", exact=True).click()
+            page.get_by_role("button", name="Refresh financials and prices", exact=True).click()
             prices = page.get_by_role("region", name="Daily price history", exact=True)
             playwright.expect(prices).to_contain_text("USD 11")
+            assert_rendered_english(brief)
             original_prices = prices.inner_text()
 
             selected = page.get_by_role("radio", name=section_label, exact=True)
             page.locator("label").filter(has=selected).click()
             navigation = page.get_by_role("navigation", name="Personal research workflow")
             if monitor_handoff == "navigation":
-                page.get_by_role("button", name="更新在线同行估值", exact=True).click()
+                page.get_by_role("button", name="Refresh peer valuation", exact=True).click()
                 evidence = page.get_by_role("region", name="Online peer valuation", exact=True)
-                playwright.expect(evidence).to_contain_text("年度 P/E 高于同行参照 20.0%")
+                playwright.expect(evidence).to_contain_text("Annual P/E is 20.0% above the industry reference median")
                 handoff = navigation.get_by_role("link", name="Monitor", exact=True)
             else:
-                page.get_by_role("button", name="保存当前 SEC 证据", exact=True).click()
+                page.get_by_role("button", name="Save current SEC evidence", exact=True).click()
                 evidence = page.locator(".st-key-sec-review-panel")
-                playwright.expect(evidence.get_by_role("heading", name="已保存证据重放")).to_be_visible()
-                download = evidence.get_by_role("button", name="下载当前证据包", exact=True)
+                playwright.expect(evidence.get_by_role("heading", name="Replay saved evidence")).to_be_visible()
+                download = evidence.get_by_role("button", name="Download current evidence package", exact=True)
                 playwright.expect(download).to_be_enabled()
-                handoff = page.get_by_role("link", name="在 Monitor 查看待核查事项", exact=True)
+                handoff = page.get_by_role("link", name="View review items in Monitor", exact=True)
             playwright.expect(handoff).to_have_attribute("href", "?mode=research&page=monitor")
             original_brief = brief.inner_text()
             original_evidence = tuple(line for line in evidence.inner_text().splitlines()
-                                      if line and line != "已保存本次观察。")
+                                      if line and line != "Observation saved.")
             original_receipts = {path: path.read_bytes() for path in tmp_path.rglob("*.json")}
             if monitor_handoff == "receipt":
                 assert original_receipts
@@ -384,7 +456,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
             if monitor_handoff == "navigation":
                 return_button.click()
             else:
-                playwright.expect(page.get_by_role("heading", name="FICT SEC 证据复核")).to_be_visible()
+                playwright.expect(page.get_by_role("heading", name="FICT SEC evidence review")).to_be_visible()
                 foreground, background = return_button.get_by_text(return_label, exact=True).evaluate(
                     """label => [
                         getComputedStyle(label).color,
@@ -405,7 +477,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
             assert {path: path.read_bytes() for path in tmp_path.rglob("*.json")} == original_receipts
             if monitor_handoff == "receipt":
                 handoff.click()
-                notes_return = page.get_by_role("link", name="返回 FICT 证据复核", exact=True)
+                notes_return = page.get_by_role("link", name="Return to FICT evidence review", exact=True)
                 playwright.expect(notes_return).to_have_attribute("href", "?mode=research&page=company-workbench")
                 notes_return.click()
                 playwright.expect(brief.get_by_role("heading", name="FICT Company Brief")).to_be_visible()
@@ -417,7 +489,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
             route = parse_qs(urlsplit(page.url).query)
             assert {key: route.get(key) for key in expected_route} == expected_route
 
-            overview = page.get_by_role("radio", name="概览", exact=True)
+            overview = page.get_by_role("radio", name="Overview", exact=True)
             page.locator("label").filter(has=overview).click()
             playwright.expect(prices).to_be_visible()
             assert prices.inner_text() == original_prices
