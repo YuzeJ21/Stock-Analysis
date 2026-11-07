@@ -9,7 +9,9 @@ from src.sec_research_review import (
     review_queue, _ticker,
 )
 from src.company_sec_online_preview import _utc_timestamp
-from src.sec_review_disposition import MAX_REASON_LENGTH, load_disposition, resolve_pair, save_disposition
+from src.sec_review_disposition import (
+    MAX_REASON_LENGTH, SUPPORTED_DISPOSITION_COMPANIES, load_disposition, resolve_pair, save_disposition,
+)
 
 PROJECT_ROOT=Path(__file__).resolve().parent.parent
 
@@ -134,11 +136,11 @@ def _render_company_review(st,ticker,view,*,profile_key):
     st.markdown('### SEC 财报证据复核')
     st.caption(f'{ticker} · 支持 US-GAAP / USD 年度 10-K、10-K/A 直接字段。显式保存后可离线重放；不会修改正式财务、来源权限或研究日志。')
     token = st.query_params.get('sec_pair')
-    if ticker == 'NEM' and token:
+    if ticker in SUPPORTED_DISPOSITION_COMPANIES and token:
         if st.query_params.get('online') == '1':
-            st.warning('请从 Monitor 在已保存的 NEM 公司页打开这两份证据。')
+            st.warning(f'请从 Monitor 在已保存的 {ticker} 公司页打开这两份证据。')
         else:
-            _render_pinned_pair(st, profile_key, token)
+            _render_pinned_pair(st, profile_key, ticker, token)
         return
     scope=f'{profile_key}:{ticker}'
     try:
@@ -217,17 +219,17 @@ def _render_receipt_sources(st, current, title, *, show_values=True):
                 st.caption(row['taxonomy']+':'+row['concept']+' · '+row['period_start']+' 至 '+row['period_end'])
 
 
-def _pinned_pair(profile_key, token):
+def _pinned_pair(profile_key, ticker, token):
     before_id, _, after_id = token.partition('.')
-    return resolve_pair(list_reviews(PROJECT_ROOT, profile_key, 'NEM'), before_id, after_id)
+    return resolve_pair(list_reviews(PROJECT_ROOT, profile_key, ticker), before_id, after_id, ticker=ticker)
 
 
-def _render_pinned_pair(st, profile_key, token):
+def _render_pinned_pair(st, profile_key, ticker, token):
     try:
-        before, after = _pinned_pair(profile_key, token)
+        before, after = _pinned_pair(profile_key, ticker, token)
     except (ValueError, OSError):
         st.warning(PAIR_UNAVAILABLE)
-        _render_monitor_link(st, 'NEM')
+        _render_monitor_link(st, ticker)
         return
     st.markdown('#### 已固定的 SEC 证据比较')
     st.caption('比较使用这两份已保存证据，无需重新请求 SEC。后续保存的观察不会替换它们。')
@@ -235,27 +237,32 @@ def _render_pinned_pair(st, profile_key, token):
     st.caption('较新证据 '+after['receipt_id'])
     result = compare_reviews(before, after)
     _render_comparison(st, result)
-    _render_monitor_link(st, 'NEM', token=token)
+    _render_monitor_link(st, ticker, token=token)
     show_values = not any(gap['reason'] == 'rights_policy_changed' for gap in result['gaps'])
     for title, packet in (('较早证据', before), ('较新证据', after)):
         _render_exact_check(st, packet)
         _render_receipt_sources(st, packet, title+'的来源 · '+_label(packet), show_values=show_values)
 
 
-def _render_pair_disposition(st, profile_key, before, after):
+def _render_pair_disposition(st, profile_key, ticker, before, after):
     before_id, after_id = before['receipt_id'], after['receipt_id']
+    try:
+        resolve_pair((before, after), before_id, after_id, ticker=ticker)
+    except ValueError:
+        st.warning(PAIR_UNAVAILABLE)
+        return
     token = before_id+'.'+after_id
-    query = {'mode': 'research', 'page': 'company-workbench', 'ticker': 'NEM', 'open': '1',
+    query = {'mode': 'research', 'page': 'company-workbench', 'ticker': ticker, 'open': '1',
              'section': 'notes', 'sec_pair': token}
     st.caption('较早证据 '+_label(before)+' → 较新证据 '+_label(after))
     st.button('打开这两份证据', key='sec-review-open-pair', on_click=st.query_params.from_dict, args=(query,))
     try:
-        decision = load_disposition(PROJECT_ROOT, profile_key, before_id, after_id)
+        decision = load_disposition(PROJECT_ROOT, profile_key, before_id, after_id, ticker=ticker)
     except (ValueError, OSError):
         st.warning('此证据对的复核状态无法读取。请先检查本地复核记录。')
         return
     st.caption('复核状态只适用于这两份证据。Reviewed 表示已看过，已报告的证据缺口会继续显示。')
-    form_key = 'sec-review-disposition:'+profile_key+':'+token
+    form_key = 'sec-review-disposition:'+profile_key+':'+ticker+':'+token
     with st.form(form_key):
         status = st.radio('复核状态', tuple(DISPOSITIONS), format_func=DISPOSITIONS.get,
                           index=tuple(DISPOSITIONS).index(decision['status']) if decision else None,
@@ -268,7 +275,7 @@ def _render_pair_disposition(st, profile_key, before, after):
             st.error('请选择复核状态并填写原因。')
         else:
             try:
-                decision = save_disposition(PROJECT_ROOT, profile_key, before_id, after_id, status, reason)
+                decision = save_disposition(PROJECT_ROOT, profile_key, before_id, after_id, status, reason, ticker=ticker)
             except (ValueError, OSError):
                 st.error('复核状态未保存。请检查原因或本地证据。')
             else:
@@ -289,17 +296,25 @@ def render_review_monitor(st, *, profile_key, monitor_origin=None):
     if queue['store_errors']:
         st.warning(f"SEC 证据目录有 {len(queue['store_errors'])} 个名称无法核验的条目，已单独保留且未读取。请检查目录；这些条目不计入公司数量，正常公司的记录仍可查看和保存。")
     token = st.query_params.get('sec_pair')
-    if token and not any(item['ticker'] == 'NEM' for item in queue['items']):
-        st.warning(PAIR_UNAVAILABLE)
-    if not queue['items']:return
+    if not queue['items'] and not token:return
     st.markdown('### SEC 财报证据复核队列')
     st.caption(f"已保存 {queue['companies']} 家公司 · 字段缺口 {queue['field_gap_companies']} 家 · 等待基线 {queue['baseline_companies']} 家 · 发现变化 {queue['changed_companies']} 家 · 不可读 {queue['unreadable_companies']} 家")
     st.caption('仅统计本研究集合主动保存的 SEC 证据；不是全市场覆盖率，也不计入下方研究流程事项或投资信号。')
     items={i['ticker']:i for i in queue['items']};symbols=list(items)
-    requested='NEM' if token else st.query_params.get('return_ticker') or st.query_params.get('ticker')
-    selected=st.selectbox('选择要复核的公司',symbols,index=symbols.index(requested) if requested in symbols else 0,
-        format_func=lambda t:t+' · '+('保存文件待核验' if items[t]['error'] else STATUS[items[t]['comparison']['status']]),
-        key='sec-review-monitor-company:'+profile_key)
+    if token:
+        selected = st.query_params.get('sec_ticker', 'NEM')
+        latest_query = {'mode': 'research', 'page': 'monitor'}
+        if selected in SUPPORTED_DISPOSITION_COMPANIES:
+            latest_query['return_ticker'] = selected
+        st.button('查看最新证据对', on_click=st.query_params.from_dict, args=(latest_query,))
+        if selected not in SUPPORTED_DISPOSITION_COMPANIES or selected not in items:
+            st.warning(PAIR_UNAVAILABLE)
+            return
+    else:
+        requested=st.query_params.get('return_ticker') or st.query_params.get('ticker')
+        selected=st.selectbox('选择要复核的公司',symbols,index=symbols.index(requested) if requested in symbols else 0,
+            format_func=lambda t:t+' · '+('保存文件待核验' if items[t]['error'] else STATUS[items[t]['comparison']['status']]),
+            key='sec-review-monitor-company:'+profile_key)
     item=items[selected]
     st.markdown('#### '+selected+' SEC 证据复核')
     if item['error']:
@@ -308,11 +323,9 @@ def render_review_monitor(st, *, profile_key, monitor_origin=None):
     before, current = item['previous'], item['latest']
     result = item['comparison']
     context = '最近两次保存的年度财报复核' if before else '首次保存的年度财报'
-    if selected == 'NEM' and token:
-        latest_query = {k: v for k, v in st.query_params.to_dict().items() if k != 'sec_pair'}
-        st.button('查看最新证据对', on_click=st.query_params.from_dict, args=(latest_query,))
+    if token:
         try:
-            before, current = _pinned_pair(profile_key, token)
+            before, current = _pinned_pair(profile_key, selected, token)
         except (ValueError, OSError):
             st.warning(PAIR_UNAVAILABLE)
             return
@@ -328,8 +341,8 @@ def render_review_monitor(st, *, profile_key, monitor_origin=None):
     elif result['gaps']:st.caption('下一步：按字段缺失原因核对来源或口径；相同输入未变化，不表示缺口已补齐。')
     elif result['changes'] or result.get('review_changes'):st.caption('下一步：回到公司页检查前后两份证据及变化来源。')
     else:st.caption('当前保存范围无需因重复观察重开核查；出现新申报或新证据时再复核。')
-    if selected == 'NEM' and before is not None:
-        _render_pair_disposition(st, profile_key, before, current)
+    if selected in SUPPORTED_DISPOSITION_COMPANIES and before is not None:
+        _render_pair_disposition(st, profile_key, selected, before, current)
         return
     notes_href = f"?mode=research&page=company-workbench&ticker={selected}&section=notes"
     notes_label = f"查看 {selected} 的已保存证据"

@@ -83,7 +83,7 @@ WORKSPACE_ROUTE_QUERY_KEYS = {
     (RESEARCH_MODE, "Research Desk"): (),
     (RESEARCH_MODE, "Discover"): (),
     (RESEARCH_MODE, "Company Workbench"): ("ticker", "open", "cash_preview", "online", "section", "sec_pair"),
-    (RESEARCH_MODE, "Monitor"): ("return_ticker", "return_online", "sec_pair"),
+    (RESEARCH_MODE, "Monitor"): ("return_ticker", "return_online", "sec_pair", "sec_ticker"),
     (RESEARCH_MODE, "Data Health"): DATA_HEALTH_QUERY_KEYS,
     (RESEARCH_MODE, PROOF_HISTORY_PATH_TITLE): ("ticker",),
 }
@@ -216,11 +216,21 @@ def canonical_workspace_query(
         if key in retained:
             if key == "section" and retained[key] not in {"overview", "financials", "valuation", "notes", "sources"}:
                 continue
-            if key == "sec_pair" and normalized_page == "Company Workbench" and (
-                retained.get("ticker") != "NEM" or retained.get("section") != "notes"
-            ):
+            if key == "sec_pair" and normalized_page == "Company Workbench":
+                from src.sec_review_disposition import SUPPORTED_DISPOSITION_COMPANIES
+
+                if retained.get("ticker") not in SUPPORTED_DISPOSITION_COMPANIES or retained.get("section") != "notes":
+                    continue
+            if key == "sec_ticker" and "sec_pair" not in retained:
                 continue
             canonical[key] = retained[key]
+    if normalized_page == "Monitor" and "sec_pair" in canonical:
+        from src.sec_review_disposition import SUPPORTED_DISPOSITION_COMPANIES
+
+        pinned_ticker = canonical.get("sec_ticker", "NEM")
+        if pinned_ticker not in SUPPORTED_DISPOSITION_COMPANIES or canonical.get("return_ticker") != pinned_ticker:
+            canonical.pop("return_ticker", None)
+        canonical.pop("return_online", None)
     return canonical
 
 

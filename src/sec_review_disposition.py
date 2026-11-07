@@ -1,4 +1,4 @@
-"""Private, mutable decisions for an exact pair of immutable NEM receipts."""
+"""Private, mutable decisions for bounded pairs of immutable SEC receipts."""
 
 from __future__ import annotations
 
@@ -16,17 +16,22 @@ from uuid import uuid4
 
 from src.company_sec_online_preview import _utc_timestamp
 from src.sec_association_receipt import _json_object
-from src.sec_research_review import CIK, _hex, list_reviews
+from src.sec_research_review import CIK, COMPANY_SCHEMA, _hex, _validate, list_reviews
 
 
 DISPOSITION_STATUSES = ("reviewed", "still_open")
 MAX_REASON_LENGTH = 500
 _MAX_RECORD_BYTES = 4096
 _SCHEMA = "sec-review-disposition-v1"
+SUPPORTED_DISPOSITION_COMPANIES = {"NEM": CIK, "AMD": "0000002488"}
 
 
-def resolve_pair(packets: Sequence[dict], before_id: str, after_id: str) -> tuple[dict, dict]:
+def resolve_pair(
+    packets: Sequence[dict], before_id: str, after_id: str, *, ticker: str = "NEM",
+) -> tuple[dict, dict]:
     """Resolve full IDs in an ordered list of validated saved receipts."""
+    if ticker not in SUPPORTED_DISPOSITION_COMPANIES:
+        raise ValueError("unsupported_disposition_company")
     if not _hex(before_id) or not _hex(after_id) or before_id == after_id:
         raise ValueError("invalid_disposition_pair_ids")
     if not isinstance(packets, Sequence) or any(
@@ -43,9 +48,18 @@ def resolve_pair(packets: Sequence[dict], before_id: str, after_id: str) -> tupl
     profile = before.get("profile_key")
     if (
         not isinstance(profile, str) or not profile or profile != after.get("profile_key")
-        or any(packet.get("ticker") != "NEM" or packet.get("sec_cik") != CIK for packet in matches)
+        or any(
+            packet.get("ticker") != ticker
+            or packet.get("sec_cik") != SUPPORTED_DISPOSITION_COMPANIES[ticker]
+            for packet in matches
+        )
     ):
         raise ValueError("invalid_disposition_pair_scope")
+    if ticker == "AMD":
+        for packet in matches:
+            if packet.get("schema_version") != COMPANY_SCHEMA:
+                raise ValueError("unsupported_disposition_receipt_schema")
+            _validate(packet)
     return before, after
 
 
@@ -62,18 +76,25 @@ def _validate_reason(status: str, reason: str) -> str:
     return cleaned
 
 
-def _scope(root: Path, profile_key: str, before_id: str, after_id: str) -> dict:
-    resolve_pair(list_reviews(root, profile_key, "NEM"), before_id, after_id)
-    return dict(schema_version=_SCHEMA, profile_key=profile_key, ticker="NEM", sec_cik=CIK,
+def _scope(root: Path, profile_key: str, before_id: str, after_id: str, *, ticker: str = "NEM") -> dict:
+    if ticker not in SUPPORTED_DISPOSITION_COMPANIES:
+        raise ValueError("unsupported_disposition_company")
+    resolve_pair(list_reviews(root, profile_key, ticker), before_id, after_id, ticker=ticker)
+    return dict(schema_version=_SCHEMA, profile_key=profile_key, ticker=ticker,
+                sec_cik=SUPPORTED_DISPOSITION_COMPANIES[ticker],
                 before_id=before_id, after_id=after_id)
 
 
 @contextmanager
-def _directory(root: Path, profile_key: str, *, create: bool = False):
+def _directory(root: Path, profile_key: str, *, ticker: str = "NEM", create: bool = False):
     # Walk through pinned directory descriptors so none of the components can redirect via symlink.
+    if ticker not in SUPPORTED_DISPOSITION_COMPANIES:
+        raise ValueError("unsupported_disposition_company")
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
     descriptor = os.open(root, flags)
     parts = ("outputs", "local", "sec-review-dispositions", hashlib.sha256(profile_key.encode()).hexdigest())
+    if ticker != "NEM":
+        parts += (ticker,)
     try:
         for name in parts:
             if create:
@@ -130,22 +151,25 @@ def _read(directory: int, scope: dict) -> dict | None:
     return record
 
 
-def load_disposition(root: Path | str, profile_key: str, before_id: str, after_id: str) -> dict | None:
+def load_disposition(
+    root: Path | str, profile_key: str, before_id: str, after_id: str, *, ticker: str = "NEM",
+) -> dict | None:
     """Load a decision only while both exact receipts remain valid in the profile."""
     root = Path(root).resolve()
-    scope = _scope(root, profile_key, before_id, after_id)
-    with _directory(root, profile_key) as directory:
+    scope = _scope(root, profile_key, before_id, after_id, ticker=ticker)
+    with _directory(root, profile_key, ticker=ticker) as directory:
         return _read(directory, scope) if directory is not None else None
 
 
 def save_disposition(
     root: Path | str, profile_key: str, before_id: str, after_id: str, status: str, reason: str,
+    *, ticker: str = "NEM",
 ) -> dict:
     """Replace the latest decision for the exact pair, or return an identical saved decision."""
     reason = _validate_reason(status, reason)
     root = Path(root).resolve()
-    scope = _scope(root, profile_key, before_id, after_id)
-    with _directory(root, profile_key, create=True) as directory:
+    scope = _scope(root, profile_key, before_id, after_id, ticker=ticker)
+    with _directory(root, profile_key, ticker=ticker, create=True) as directory:
         # Serializes retries and updates for this profile across local processes.
         fcntl.flock(directory, fcntl.LOCK_EX)
         existing = _read(directory, scope)

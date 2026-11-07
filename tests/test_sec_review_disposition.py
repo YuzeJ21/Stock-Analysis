@@ -9,7 +9,7 @@ import pytest
 
 from src import sec_research_review as review
 from src import sec_review_disposition as disposition
-from tests.test_multi_company_sec_review import capture as capture_other_issuer
+from tests.test_multi_company_sec_review import capture as capture_other_issuer, issuer_view
 from tests.test_sec_research_review import view
 
 
@@ -28,6 +28,105 @@ def pair(tmp_path):
 
 def _decision_files(root):
     return list((root / "outputs" / "local" / "sec-review-dispositions").glob("*/*.json"))
+
+
+def _save_amd_receipt(root, profile, minute, *, concept=None):
+    observation = issuer_view()
+    if concept is not None:
+        observation["approved_direct_fields"][0]["concept"] = concept
+        observation["companyfacts_identity"]["payload_sha256"] = "c" * 64
+    packet = review.capture_review(
+        observation, profile_key=profile, saved_at=f"2026-11-02T22:{minute:02d}:00Z"
+    )
+    assert packet["schema_version"] == "sec-research-review-v3"
+    review.save_review(packet, root)
+    return packet
+
+
+def test_amd_pair_saves_without_changing_existing_nem_sidecar(tmp_path, pair):
+    nem = disposition.save_disposition(tmp_path, "research", *pair, "still_open", "Check NEM gap.")
+    nem_file, = _decision_files(tmp_path)
+    nem_bytes = nem_file.read_bytes()
+    before = _save_amd_receipt(tmp_path, "research", 3)
+    after = _save_amd_receipt(tmp_path, "research", 4)
+    amd_ids = (before["receipt_id"], after["receipt_id"])
+
+    assert disposition.resolve_pair(review.list_reviews(tmp_path, "research", "AMD"), *amd_ids, ticker="AMD") == (before, after)
+    assert disposition.load_disposition(tmp_path, "research", *amd_ids, ticker="AMD") is None
+    saved = disposition.save_disposition(
+        tmp_path, "research", *amd_ids, "reviewed", "Checked both AMD receipts.", ticker="AMD"
+    )
+    assert saved["ticker"] == "AMD" and saved["sec_cik"] == "0000002488"
+    assert disposition.load_disposition(tmp_path, "research", *amd_ids, ticker="AMD") == saved
+    assert disposition.load_disposition(tmp_path, "research", *pair) == nem
+    assert nem_file.read_bytes() == nem_bytes
+    assert json.loads(nem_bytes)["schema_version"] == "sec-review-disposition-v1"
+
+
+def test_amd_disposition_can_hold_an_incompatible_but_valid_pair(tmp_path):
+    before = _save_amd_receipt(tmp_path, "research", 1)
+    after = _save_amd_receipt(tmp_path, "research", 2, concept="SalesRevenueNet")
+    assert review.compare_reviews(before, after)["status"] == "withheld"
+
+    saved = disposition.save_disposition(
+        tmp_path, "research", before["receipt_id"], after["receipt_id"],
+        "still_open", "The revenue concepts differ.", ticker="AMD",
+    )
+    assert saved["status"] == "still_open"
+    assert disposition.load_disposition(
+        tmp_path, "research", before["receipt_id"], after["receipt_id"], ticker="AMD"
+    ) == saved
+
+
+@pytest.mark.parametrize("difference", ["missing_field", "different_period"])
+def test_amd_review_keeps_individual_field_and_period_gaps(tmp_path, difference):
+    before = _save_amd_receipt(tmp_path, "research", 1)
+    observation = issuer_view()
+    if difference == "missing_field":
+        observation["approved_direct_fields"].pop()
+    else:
+        observation.update(period_end="2024-12-31", filing_date="2025-02-19",
+                           accession="0000002488-25-000001")
+        for row in observation["approved_direct_fields"]:
+            row.update(period_start="2024-01-01", period_end="2024-12-31",
+                       accession="0000002488-25-000001")
+    after = review.capture_review(observation, profile_key="research", saved_at="2026-11-02T22:02:00Z")
+    review.save_review(after, tmp_path)
+    comparison = review.compare_reviews(before, after)
+    assert comparison["gaps"]
+
+    saved = disposition.save_disposition(
+        tmp_path, "research", before["receipt_id"], after["receipt_id"],
+        "still_open", "Investigate the evidence basis.", ticker="AMD",
+    )
+    assert saved["status"] == "still_open"
+
+
+def test_amd_pair_rejects_wrong_company_missing_and_forged_receipts(tmp_path, pair):
+    before = _save_amd_receipt(tmp_path, "research", 1)
+    after = _save_amd_receipt(tmp_path, "research", 2)
+    amd_ids = (before["receipt_id"], after["receipt_id"])
+    wrong_company = capture_other_issuer("DUK", "0001326160", profile="research")
+    review.save_review(wrong_company, tmp_path)
+    wrong_amd_cik = capture_other_issuer("AMD", "0000009999", profile="research")
+    review.save_review(wrong_amd_cik, tmp_path)
+
+    for ticker, ids in (
+        ("NEM", amd_ids), ("AMD", pair),
+        ("AMD", (wrong_company["receipt_id"], after["receipt_id"])),
+        ("AMD", (wrong_amd_cik["receipt_id"], after["receipt_id"])),
+        ("AMD", ("a" * 64, after["receipt_id"])),
+        ("AMD", amd_ids[::-1]),
+        ("NVDA", amd_ids),
+    ):
+        with pytest.raises(ValueError):
+            disposition.save_disposition(tmp_path, "research", *ids, "reviewed", "Checked.", ticker=ticker)
+    with pytest.raises(ValueError):
+        disposition.load_disposition(tmp_path, "other", *amd_ids, ticker="AMD")
+    with pytest.raises(ValueError):
+        disposition.resolve_pair([before, {**after, "sec_cik": "0000000001"}], *amd_ids, ticker="AMD")
+    with pytest.raises(ValueError):
+        disposition.resolve_pair([before, {**after, "form": "20-F"}], *amd_ids, ticker="AMD")
 
 
 def test_disposition_persists_and_updates_only_its_exact_pair(tmp_path, pair):

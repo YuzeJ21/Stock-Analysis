@@ -38530,7 +38530,7 @@ def main() -> None:
                 else ()
             )
             monitor_return_ticker = validated_research_return_ticker(requested_return, registered_tickers)
-            if monitor_origin is not None and not monitor_return_ticker:
+            if requested_return and not monitor_return_ticker:
                 from src.sec_research_review_ui import saved_review_route_available
                 if saved_review_route_available(requested_return, profile_key):
                     monitor_return_ticker = requested_return

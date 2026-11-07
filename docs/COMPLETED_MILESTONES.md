@@ -2,10 +2,11 @@
 
 This document is the historical completion log for Stock Research Command Center. The active delivery sequence lives in [ROADMAP.md](../ROADMAP.md); exact implementation history remains available through Git commits and tests.
 
-## 2026-11-06 — Company workflow and bounded NEM disposition
+## 2026-11-06 — Company workflow and bounded SEC pair dispositions
 
 - The local default route presents Research Desk -> Discover -> Company Workbench -> Monitor. Saved Business Trend, valuation scenarios, peer read-through, forward view, catalysts, Decision Lab history and the offline HTML brief remain under named Workbench disclosures. The English GitHub Pages demo mirrors their questions with fictional data, while its separate AMD page is a dated read-only SEC filing case.
-- The NEM Monitor path pins an exact ordered pair of saved annual SEC observations and records a reasoned **Reviewed** or **Still open** disposition in a profile-scoped ignored local sidecar. A missing pair remains unavailable. Saving a decision does not edit immutable evidence receipts, change financial gaps/readiness or grant source rights. The fictional public example has tab-only decision state.
+- Monitor pins an exact ordered pair of saved annual SEC observations for NEM or AMD. A reasoned **Reviewed** or **Still open** disposition is scoped to the issuer, pair and selected research profile in an ignored local sidecar. The immutable receipts and evidence gaps remain inspectable. The fictional public example has tab-only decision state. [Saved SEC company reviews](SEC_RESEARCH_REVIEWS.md)
+- The November 6 independent NEM annual recheck found zero financial changes and one retained operating-income gap. A changed archive digest affected source-review metadata. AMD replayed two saves of the same FY2025 observation with four supported fields unchanged and zero gaps. [NEM SEC evidence review](NEM_SEC_REVIEW.md), [Saved SEC company reviews](SEC_RESEARCH_REVIEWS.md)
 - Legacy picks, portfolio, ranking and watchlist surfaces remain Operator-only compatibility utilities. The synthetic Earnings Nowcast pilot does not establish a real-company prediction. Revisit a parked investing view only after independent researcher sessions show a repeated decision need, permitted inputs and a no-ranking/no-trading design. Real-company nowcasting additionally needs point-in-time consensus and actuals rights, leakage-safe backtests and calibration. See the active [Roadmap](../ROADMAP.md) and the [NEM method](NEM_SEC_REVIEW.md).
 
 ## Product Foundation

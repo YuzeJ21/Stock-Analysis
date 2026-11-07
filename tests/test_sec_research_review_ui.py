@@ -7,7 +7,8 @@ def app():
     import streamlit as st
     from src.sec_research_review_ui import render_company_review,render_review_monitor
     page=st.radio('Test route',['company','monitor'])
-    if page=='company':render_company_review(st,'NEM',st.session_state['test_view'],profile_key='test')
+    if page=='company':render_company_review(st,st.session_state.get('test_ticker','NEM'),
+        st.session_state['test_view'],profile_key='test')
     else:render_review_monitor(st,profile_key='test',monitor_origin=st.session_state.get('test_monitor_origin'))
 
 
@@ -99,6 +100,52 @@ def test_nem_monitor_pins_pair_and_persists_disposition(tmp_path, monkeypatch):
     fresh.run()
     assert fresh.warning
     assert not any(b.label == '保存复核状态' for b in fresh.button)
+
+
+def test_amd_pinned_review_keeps_basis_gaps_and_rejects_another_issuer(tmp_path, monkeypatch):
+    from src import sec_research_review_ui as ui
+    from src.sec_research_review import capture_review, save_review
+    from tests.test_multi_company_sec_review import issuer_view
+
+    monkeypatch.setattr(ui, 'PROJECT_ROOT', tmp_path)
+    first = capture_review(issuer_view(), profile_key='test', saved_at='2026-11-02T22:00:00Z')
+    changed_basis = issuer_view()
+    changed_basis['companyfacts_identity']['payload_sha256'] = 'c' * 64
+    changed_basis['approved_direct_fields'][0]['concept'] = 'SalesRevenueNet'
+    changed_basis['approved_direct_fields'].pop()
+    second = capture_review(changed_basis, profile_key='test', saved_at='2026-11-02T22:01:00Z')
+    for packet in (first, second):
+        save_review(packet, tmp_path)
+    nem = capture_review(view(), profile_key='test', saved_at='2026-11-02T22:00:00Z')
+    save_review(nem, tmp_path)
+    token = first['receipt_id'] + '.' + second['receipt_id']
+
+    at = AppTest.from_function(app)
+    at.session_state['test_view'] = {'status': 'not_requested'}
+    at.session_state['test_ticker'] = 'AMD'
+    at.query_params.update(sec_pair=token, sec_ticker='AMD')
+    at.run().radio[0].set_value('monitor').run()
+    assert not at.exception
+    summary = '\n'.join(element.value for element in at.markdown)
+    assert 'AMD SEC 证据复核' in summary
+    assert '口径不一致，保留缺口' in summary
+    assert '财务定义不同' in summary and '资本支出' in summary
+    assert not at.selectbox
+    at.radio[1].set_value('still_open')
+    at.text_area[0].set_value('Verify the reporting basis.')
+    next(b for b in at.button if b.label == '保存复核状态').click().run()
+    assert any(e.value == 'Verify the reporting basis.' for e in at.text)
+    at.button('sec-review-open-pair').click().run()
+    assert at.query_params['ticker'] == ['AMD']
+    assert at.query_params['sec_pair'] == [token]
+    at.radio[0].set_value('company').run()
+    assert any(first['receipt_id'] in c.value for c in at.caption)
+    assert any('sec_ticker=AMD' in e.value for e in at.markdown)
+
+    at.query_params.update(sec_pair=token, sec_ticker='NEM')
+    at.radio[0].set_value('monitor').run()
+    assert at.warning
+    assert not any(b.label in {'打开这两份证据', '保存复核状态'} for b in at.button)
 
 
 def test_other_company_without_observation_has_disabled_receipt_controls(tmp_path,monkeypatch):

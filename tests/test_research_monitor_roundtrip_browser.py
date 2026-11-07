@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+import re
 import socket
 import subprocess
 import sys
@@ -64,7 +65,7 @@ def run_browser_fixture(root):
         return {"status": "unavailable", "reason": "sec_profile_unavailable"}
 
     def peer_valuation(ticker, state, *, refresh_requested, expected_cik):
-        if ticker in {"NEM", "NVDA"} and expected_cik is None and not refresh_requested:
+        if ticker in {"AMD", "NEM", "NVDA"} and expected_cik is None and not refresh_requested:
             return {"status": "not_requested"}
         assert (ticker, expected_cik) == ("FICT", "0000001234")
         if refresh_requested:
@@ -86,6 +87,9 @@ def run_browser_fixture(root):
             raise AssertionError("The browser regression must not access external providers.")
         return original_connect(sock, address)
 
+    # The app subprocess owns this receipt store for its lifetime. A page reload
+    # can overlap the teardown of the previous Streamlit session.
+    sec_research_review_ui.PROJECT_ROOT = root
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(socket.socket, "connect", local_connect)
         patch.setattr(dashboard, "search_sec_company_candidates", search)
@@ -93,7 +97,6 @@ def run_browser_fixture(root):
         patch.setattr(online_company_prices, "fetch_online_company_prices", prices)
         patch.setattr(online_company_identity, "fetch_sec_company_profile", company_profile)
         patch.setattr(company_workbench_ui, "get_online_peer_valuation", peer_valuation)
-        patch.setattr(sec_research_review_ui, "PROJECT_ROOT", root)
         dashboard.main()
 
 
@@ -140,22 +143,31 @@ def research_browser_server(tmp_path):
 
 
 @pytest.mark.parametrize("width,height", [(1280, 900), (390, 844)], ids=["desktop", "phone"])
-def test_nem_monitor_reopens_and_reviews_exact_pair(research_browser_server, tmp_path, width, height):
+@pytest.mark.parametrize("ticker", ["NEM", "AMD"])
+def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, tmp_path, width, height, ticker):
     from src.sec_research_review import capture_review, save_review
+    from tests.test_multi_company_sec_review import issuer_view
     from tests.test_sec_research_review import view
 
     if (chrome := find_chrome_executable()) is None:
         pytest.skip("Chrome-compatible browser is unavailable")
     playwright = pytest.importorskip("playwright.sync_api")
-    before_view, after_view = view(), view()
-    for observation in (before_view, after_view):
+    nem_before, nem_after = view(), view()
+    for observation in (nem_before, nem_after):
         observation["approved_direct_fields"].pop()
-    after_view["approved_direct_fields"][0]["value"] = 110
-    after_view["companyfacts_identity"]["payload_sha256"] = "c" * 64
-    before = capture_review(before_view, profile_key="demo", saved_at="2026-11-02T22:00:00Z")
-    after = capture_review(after_view, profile_key="demo", saved_at="2026-11-02T22:01:00Z")
-    receipt_paths = (save_review(before, tmp_path), save_review(after, tmp_path))
-    original_bytes = [path.read_bytes() for path in receipt_paths]
+    nem_after["approved_direct_fields"][0]["value"] = 110
+    nem_after["companyfacts_identity"]["payload_sha256"] = "c" * 64
+    observations = {"NEM": (nem_before, nem_after), "AMD": (issuer_view(), issuer_view())}
+    receipts = {
+        symbol: tuple(capture_review(observation, profile_key="demo", saved_at=f"2026-11-02T22:0{index}:00Z")
+                      for index, observation in enumerate(pair))
+        for symbol, pair in observations.items()
+    }
+    receipt_paths = [save_review(receipt, tmp_path) for pair in receipts.values() for receipt in pair]
+    original_bytes = {path: path.read_bytes() for path in receipt_paths}
+    before, after = receipts[ticker]
+    other_ticker = "NEM" if ticker == "AMD" else "AMD"
+    other_receipts = receipts[other_ticker]
     token = before["receipt_id"] + "." + after["receipt_id"]
 
     with playwright.sync_playwright() as runtime:
@@ -168,47 +180,111 @@ def test_nem_monitor_reopens_and_reviews_exact_pair(research_browser_server, tmp
                        if route.request.url.startswith(research_browser_server + "/") else route.abort())
             errors = []
             page.on("pageerror", lambda error: errors.append(str(error)))
-            page.goto(research_browser_server + "/?mode=research&page=monitor")
+
+            def wait_for_query(**expected):
+                def matches(url):
+                    query = parse_qs(urlsplit(url).query)
+                    return all(query.get(key) == ([value] if value is not None else None)
+                               for key, value in expected.items())
+                page.wait_for_url(matches)
+
+            monitor_url = research_browser_server + "/?mode=research&page=monitor"
+            page.goto(monitor_url if width >= 640 else f"{monitor_url}&return_ticker={ticker}")
+            company_selector = page.get_by_test_id("stSelectbox").filter(has_text="选择要复核的公司")
+            playwright.expect(page.get_by_text("已保存 2 家公司", exact=False)).to_be_visible()
+            playwright.expect(company_selector).to_be_visible()
+            if width >= 640:
+                company_selector.get_by_role("combobox").press("ArrowDown")
+                for symbol in ("AMD", "NEM"):
+                    playwright.expect(page.get_by_role("option", name=re.compile(rf"^{symbol} · "))).to_be_visible()
+                page.get_by_role("option", name=re.compile(rf"^{ticker} · ")).click()
+            issuer_heading = page.get_by_role("heading", name=f"{ticker} SEC 证据复核", exact=True)
+            playwright.expect(issuer_heading).to_be_visible()
             open_pair = page.get_by_role("button", name="打开这两份证据", exact=True)
             playwright.expect(open_pair).to_be_visible()
             open_pair.click()
             panel = page.locator(".st-key-sec-review-panel")
-            playwright.expect(panel.get_by_role("heading", name="已固定的 SEC 证据比较")).to_be_visible()
-            assert parse_qs(urlsplit(page.url).query)["sec_pair"] == [token]
+            pinned_heading = panel.get_by_role("heading", name="已固定的 SEC 证据比较")
+            playwright.expect(pinned_heading).to_be_visible()
+            wait_for_query(page="company-workbench", section="notes", ticker=ticker, sec_pair=token)
             for receipt in (before, after):
                 playwright.expect(panel).to_contain_text(receipt["receipt_id"])
-            playwright.expect(panel).to_contain_text("100 → 110 USD")
-            playwright.expect(panel).to_contain_text("资本支出")
+            for receipt in other_receipts:
+                playwright.expect(panel).not_to_contain_text(receipt["receipt_id"])
+            if ticker == "NEM":
+                playwright.expect(panel).to_contain_text("100 → 110 USD")
+                playwright.expect(panel).to_contain_text("资本支出")
+            else:
+                playwright.expect(panel).to_contain_text("未变化")
             for label in ("较早证据的来源", "较新证据的来源"):
                 panel.get_by_text(label, exact=False).click()
-            assert panel.get_by_role("link", name="SEC Companyfacts 原始来源").count() == 2
+            sources = panel.get_by_role("link", name="SEC Companyfacts 原始来源")
+            playwright.expect(sources).to_have_count(2)
+            for index in range(2):
+                playwright.expect(sources.nth(index)).to_have_attribute("href", before["source_url"])
             assert panel.evaluate("(panel) => panel.scrollWidth <= panel.clientWidth + 1")
 
-            third = capture_review(after_view, profile_key="demo", saved_at="2026-11-02T22:02:00Z")
-            save_review(third, tmp_path)
+            third = capture_review(observations[ticker][1], profile_key="demo", saved_at="2026-11-02T22:02:00Z")
+            third_path = save_review(third, tmp_path)
+            original_bytes[third_path] = third_path.read_bytes()
             panel.get_by_role("link", name="返回 Monitor 的这项复核").click()
             playwright.expect(open_pair).to_be_visible()
-            assert parse_qs(urlsplit(page.url).query)["sec_pair"] == [token]
+            playwright.expect(issuer_heading).to_be_visible()
+            playwright.expect(company_selector).to_have_count(0)
+            wait_for_query(page="monitor", sec_pair=token, sec_ticker="AMD" if ticker == "AMD" else None)
+            open_pair.click()
+            playwright.expect(pinned_heading).to_be_visible()
+            for receipt in (before, after):
+                playwright.expect(panel).to_contain_text(receipt["receipt_id"])
+            playwright.expect(panel).not_to_contain_text(third["receipt_id"])
+            panel.get_by_role("link", name="返回 Monitor 的这项复核").click()
+            playwright.expect(issuer_heading).to_be_visible()
             save = page.get_by_role("button", name="保存复核状态")
-            for label, reason in (("Reviewed", "Checked the two original observations."),
-                                  ("Still open", "Verify the missing capex source.")):
+            reason_input = page.get_by_role("textbox", name="复核原因")
+            page.locator("label").filter(has=page.get_by_role("radio", name="Reviewed", exact=True)).click()
+            reason_input.fill("   ")
+            save.click()
+            playwright.expect(page.get_by_text("请选择复核状态并填写原因。", exact=True)).to_be_visible()
+            playwright.expect(page.get_by_text("待复核", exact=True)).to_be_visible()
+            assert not list((tmp_path / "outputs" / "local" / "sec-review-dispositions").rglob("*.json"))
+            still_open_reason = f"Revisit the original {ticker} evidence pair."
+            for label, reason in (("Reviewed", f"Checked both saved {ticker} observations."),
+                                  ("Still open", still_open_reason)):
                 radio = page.get_by_role("radio", name=label, exact=True)
                 page.locator("label").filter(has=radio).click()
                 playwright.expect(radio).to_be_checked()
-                page.get_by_role("textbox", name="复核原因").fill(reason)
+                reason_input.fill(f"  {reason}  ")
                 save.click()
                 playwright.expect(page.get_by_text("已保存复核状态。", exact=True)).to_be_visible()
-                playwright.expect(page.locator('[data-testid="stText"]').get_by_text(reason, exact=True)).to_be_visible()
+                saved_reason = page.get_by_test_id("stText").get_by_text(reason, exact=True)
+                playwright.expect(saved_reason).to_be_visible()
+                assert saved_reason.text_content() == reason
             page.reload()
-            playwright.expect(page.locator('[data-testid="stText"]').get_by_text(
-                "Verify the missing capex source.", exact=True)).to_be_visible()
-            playwright.expect(page.get_by_text("资本支出", exact=True)).to_be_visible()
+            playwright.expect(issuer_heading).to_be_visible()
+            playwright.expect(page.get_by_test_id("stText").get_by_text(still_open_reason, exact=True)).to_be_visible()
+            playwright.expect(page.get_by_role("radio", name="Still open", exact=True)).to_be_checked()
+            if ticker == "NEM":
+                playwright.expect(page.get_by_text("资本支出", exact=True)).to_be_visible()
             page.get_by_role("button", name="查看最新证据对", exact=True).click()
             playwright.expect(page.get_by_text("待复核", exact=True)).to_be_visible()
-            assert "sec_pair" not in parse_qs(urlsplit(page.url).query)
+            playwright.expect(issuer_heading).to_be_visible()
+            playwright.expect(company_selector).to_be_visible()
+            playwright.expect(reason_input).to_have_value("")
+            playwright.expect(page.get_by_role("radio", name="Still open", exact=True)).not_to_be_checked()
+            playwright.expect(page.get_by_test_id("stText").get_by_text(still_open_reason, exact=True)).to_have_count(0)
+            wait_for_query(page="monitor", sec_pair=None, sec_ticker=None)
+            open_pair.click()
+            playwright.expect(pinned_heading).to_be_visible()
+            wait_for_query(page="company-workbench", section="notes", ticker=ticker,
+                           sec_pair=after["receipt_id"] + "." + third["receipt_id"])
+            if ticker == "AMD":
+                page.goto(research_browser_server + f"/?mode=research&page=monitor&sec_pair={token}")
+                playwright.expect(page.get_by_text("无法打开这两份已保存的证据。", exact=False)).to_be_visible()
+                playwright.expect(open_pair).to_have_count(0)
+                playwright.expect(save).to_have_count(0)
             assert not errors
             assert not (tmp_path / "provider-calls.txt").exists()
-            assert [path.read_bytes() for path in receipt_paths] == original_bytes
+            assert {path: path.read_bytes() for path in original_bytes} == original_bytes
         finally:
             browser.close()
 

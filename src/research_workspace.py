@@ -1560,8 +1560,8 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
         query["return_ticker"] = ticker
         if online:
             query["return_online"] = "1"
-    if not online and ticker == "NEM" and params.get("section") == "notes" and params.get("sec_pair"):
-        query["sec_pair"] = params["sec_pair"]
+    if not online and params.get("section") == "notes":
+        query.update(_monitor_pair_query(ticker, params.get("sec_pair")))
     params.from_dict(query)
 
 
@@ -1637,12 +1637,24 @@ def research_monitor_return_link(ticker: str, *, origin: MonitorOrigin | None = 
     }
 
 
+def _monitor_pair_query(ticker: str, sec_pair: str | None) -> dict[str, str]:
+    if not sec_pair:
+        return {}
+    from src.sec_review_disposition import SUPPORTED_DISPOSITION_COMPANIES
+
+    if ticker not in SUPPORTED_DISPOSITION_COMPANIES:
+        return {}
+    if ticker == "NEM":
+        return {"sec_pair": sec_pair}
+    return {"sec_pair": sec_pair, "sec_ticker": ticker}
+
+
 def research_monitor_handoff_href(ticker: str, *, online: bool = False, sec_pair: str = "") -> str:
     query = {"mode": "research", "page": "monitor"}
     if ticker and not online:
         query["return_ticker"] = str(ticker).strip().upper()
-    if ticker == "NEM" and sec_pair:
-        query["sec_pair"] = sec_pair
+    if not online:
+        query.update(_monitor_pair_query(ticker, sec_pair))
     return "?" + urlencode(query)
 
 
