@@ -134,6 +134,25 @@ def test_render_has_three_native_disclosures_and_escapes_untrusted_values():
     assert 'aria-label="View financial changes evidence">View evidence</summary>' in html
 
 
+def test_compact_context_preserves_loaded_dates_staleness_and_escaped_sources():
+    from src.company_answer_summary import company_answers_html
+
+    prices = price_view()
+    prices['observation_state'] = 'stale_observation'
+    answers = _answers(prices=prices, peer=_peer(3))
+    rendered = company_answers_html(tuple(answers.values()), compact=True)
+    assert 'aria-label="Loaded company observations"' in rendered
+    assert 'USD 11.00' in rendered and '2026-10-29' in rendered and 'Stale date' in rendered
+    assert '2025-12-31' in rendered and '3 eligible references' in rendered
+    assert '<article' not in rendered and '<details' not in rendered
+    assert 'data-company-answer=' not in rendered
+    assert 'Revenue USD 150' not in rendered
+    assert prices['source_url'].replace('&', '&amp;') in rendered
+    answers['price'].update(value='<script>bad</script>', links=(('unsafe', 'javascript:alert(1)'),))
+    unsafe = company_answers_html((answers['price'],), compact=True)
+    assert '<script>' not in unsafe and 'javascript:' not in unsafe
+
+
 def test_english_amount_scaling_keeps_the_unscaled_source_value_in_evidence():
     financial = financial_view()
     latest = financial['annual_history']['periods'][-1]

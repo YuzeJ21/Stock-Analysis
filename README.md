@@ -28,8 +28,8 @@ The full local workspace follows **Research Desk → Discover → Company Workbe
 
 | Destination | Research task |
 | --- | --- |
-| **Research Desk** | Resume saved work and see which follow-ups or evidence checks need attention. |
-| **Discover** | Search SEC company identities online or browse saved companies. Inspect dated coverage and unresolved identity gaps. |
+| **Research Desk** | Search for a company online, resume saved SEC research, or open Monitor. |
+| **Discover** | Switch between online company search and saved companies. Open optional coverage studies when needed. |
 | **Company Workbench** | Review one company through five connected sections, with financial, price, and source context. |
 | **Monitor** | Use the Follow-up Queue to revisit saved questions and evidence changes, then return to the company or its exact saved comparison. |
 

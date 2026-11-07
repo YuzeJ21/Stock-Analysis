@@ -30,11 +30,12 @@ def _app():
     import streamlit as st
     from src.company_workbench_ui import render_integrated_company
     ticker=st.query_params.get('ticker','FICT')
-    candidate={'cik':'0000001234','title':'Synthetic online company'} if st.query_params.get('online')=='1' else None
+    candidate={'cik':st.query_params.get('expected_cik','0000001234'),'title':'Synthetic online company'} if st.query_params.get('online')=='1' else None
     def saved(section):st.markdown('SAVED-TOOL-'+section)
     def sources(bundle):st.markdown('SOURCE-PROOF-'+str(bundle['financial'].get('status')))
-    render_integrated_company(st,ticker,profile_scope='synthetic',saved_available=True,
-                              online_candidate=candidate,render_saved=saved,render_sources=sources)
+    render_integrated_company(st,ticker,profile_scope='synthetic',saved_available=st.query_params.get('receipt_only')!='1',
+                              online_candidate=candidate,render_saved=saved,render_sources=sources,
+                              saved_receipt_only=st.query_params.get('receipt_only')=='1')
 
 
 def text(at):return '\n'.join(m.value for m in at.markdown)
@@ -45,7 +46,7 @@ def _company_brief(at):
 
 
 @pytest.mark.parametrize('section', ['overview','financials','valuation','notes','sources'])
-def test_company_answer_cards_precede_controls_on_every_section(monkeypatch, section):
+def test_initial_company_prompt_precedes_controls_without_repetitive_answer_cards(monkeypatch, section):
     calls=_sources(monkeypatch)
     at=AppTest.from_function(_app)
     at.query_params['section']=section
@@ -53,16 +54,127 @@ def test_company_answer_cards_precede_controls_on_every_section(monkeypatch, sec
 
     assert not at.exception
     brief=_company_brief(at)
-    assert brief.count('aria-label="Company research summary"')==1
-    for answer in ('price','financial','valuation'):
-        assert brief.count(f'data-company-answer="{answer}"')==1
-    assert brief.index('</h1>') < brief.index('aria-label="Company research summary"')
+    assert brief.count('Refresh financials and prices to load company observations.')==1
+    assert 'data-company-answer=' not in brief
+    assert 'Loaded company observations' not in brief
     elements=list(at.main)
     header_index=next(i for i,el in enumerate(elements) if el.type=='markdown' and el.value==brief)
     update_index=next(i for i,el in enumerate(elements) if el.type=='button' and el.key=='company-refresh-all')
     section_index=next(i for i,el in enumerate(elements) if el.type=='radio' and el.label=='Company research sections')
     assert header_index < min(update_index,section_index)
     assert calls=={'financial':0,'prices':0}
+
+
+@pytest.mark.parametrize('section', ['overview','financials','valuation','notes','sources'])
+def test_loaded_answer_cards_only_appear_on_overview_and_context_reuses_cached_sources(monkeypatch, section):
+    calls=_sources(monkeypatch)
+    at=AppTest.from_function(_app).run()
+    at.button(key='company-refresh-all').click().run()
+    at.radio[0].set_value(section).run()
+    assert not at.exception
+    brief=_company_brief(at)
+    assert 'load company observations' not in brief
+    if section=='overview':
+        assert brief.count('data-company-answer=')==3
+        assert 'Company research summary' in brief
+    else:
+        assert 'data-company-answer=' not in brief and 'Company research summary' not in brief
+        assert 'Loaded company observations' in brief
+        assert '2025-12-31' in brief and 'Stale date' in brief
+        assert 'Peer valuation not checked' not in brief
+    assert calls=={'financial':1,'prices':1}
+
+
+def test_secondary_refresh_options_keep_each_source_action_explicit(monkeypatch):
+    calls=_sources(monkeypatch)
+    at=AppTest.from_function(_app).run()
+    assert at.button(key='company-refresh-all').proto.type=='secondary'
+    at.button(key='company-refresh-financials').click().run()
+    assert calls=={'financial':1,'prices':0}
+    at.radio[0].set_value('sources').run()
+    brief=_company_brief(at)
+    assert '2025-12-31' in brief and 'USD 11' not in brief
+    assert 'Close not requested' not in brief
+    at.button(key='company-refresh-prices').click().run()
+    assert calls=={'financial':1,'prices':1}
+    at.radio[0].set_value('overview').run()
+    history=next(expander for expander in at.expander if expander.label=='Price history')
+    assert history.proto.expanded is False
+    assert any('Daily price history' in element.value for element in history.markdown)
+    assert calls=={'financial':1,'prices':1}
+
+
+def test_saved_notes_lead_with_research_tools_and_disclose_sec_replay(tmp_path,monkeypatch):
+    from src import sec_research_review_ui
+
+    monkeypatch.setattr(sec_research_review_ui,'PROJECT_ROOT',tmp_path)
+    calls=_sources(monkeypatch)
+    at=AppTest.from_function(_app)
+    at.query_params['section']='notes'
+    at.run()
+    assert not at.exception
+    content=text(at)
+    assert content.index('SAVED-TOOL-notes') < content.index('### Saved SEC evidence review')
+    saved_evidence=next(expander for expander in at.expander if expander.label=='Saved SEC evidence')
+    assert saved_evidence.proto.expanded is False
+    assert any(button.key=='sec-review-save:synthetic:FICT' for button in saved_evidence.button)
+    assert calls=={'financial':0,'prices':0}
+
+
+def test_pinned_notes_keep_exact_pair_before_saved_tools(tmp_path,monkeypatch):
+    from src import sec_research_review_ui
+    from src.sec_research_review import save_review
+    from tests.test_multi_company_sec_review import capture
+
+    monkeypatch.setattr(sec_research_review_ui,'PROJECT_ROOT',tmp_path)
+    calls=_sources(monkeypatch)
+    receipts=[capture(profile='synthetic',when=stamp) for stamp in ('2026-11-02T22:00:00Z','2026-11-02T22:01:00Z')]
+    for packet in receipts:save_review(packet,tmp_path)
+    token='.'.join(packet['receipt_id'] for packet in receipts)
+    at=AppTest.from_function(_app)
+    at.query_params.update(ticker='AMD',section='notes',sec_pair=token)
+    at.run()
+    assert not at.exception
+    assert text(at).index('Pinned SEC evidence comparison') < text(at).index('SAVED-TOOL-notes')
+    assert not any(expander.label=='Saved SEC evidence' for expander in at.expander)
+    assert all(packet['receipt_id'] in '\n'.join(caption.value for caption in at.caption) for packet in receipts)
+    assert at.query_params['sec_pair']==[token]
+    assert calls=={'financial':0,'prices':0}
+
+
+@pytest.mark.parametrize('route', ['online','receipt_only'])
+def test_online_or_receipt_only_notes_keep_sec_actions_visible(tmp_path,monkeypatch,route):
+    from src import sec_research_review_ui
+
+    monkeypatch.setattr(sec_research_review_ui,'PROJECT_ROOT',tmp_path)
+    calls=_sources(monkeypatch)
+    at=AppTest.from_function(_app)
+    at.query_params.update(section='notes',**{route:'1'})
+    at.run()
+    assert not at.exception
+    assert at.button(key='sec-review-save:synthetic:FICT').disabled
+    assert not any(expander.label=='Saved SEC evidence' for expander in at.expander)
+    assert 'SAVED-TOOL-notes' not in text(at)
+    assert calls=={'financial':0,'prices':0}
+
+
+def test_identity_conflict_remains_visible_without_numbers_in_every_section(tmp_path,monkeypatch):
+    from src import sec_research_review_ui
+
+    monkeypatch.setattr(sec_research_review_ui,'PROJECT_ROOT',tmp_path)
+    calls=_sources(monkeypatch)
+    at=AppTest.from_function(_app)
+    at.query_params.update(online='1',expected_cik='0000009999')
+    at.run()
+    at.button(key='company-refresh-all').click().run()
+    for section in ('overview','financials','valuation','notes','sources'):
+        at.radio[0].set_value(section).run()
+        assert not at.exception
+        brief=_company_brief(at)
+        assert brief.index('Company identity conflicts across sources. Values are withheld.') < brief.index('<details')
+        assert 'USD 11' not in text(at) and 'Revenue USD 150' not in text(at)
+        assert 'data-company-answer=' not in brief and 'Loaded company observations' not in brief
+    assert calls=={'financial':1,'prices':1}
 
 
 def test_company_valuation_answer_updates_on_refresh_and_reuses_peer_cache_in_other_sections(monkeypatch):

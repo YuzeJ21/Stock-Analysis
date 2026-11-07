@@ -70,14 +70,11 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
     if saved_available and candidate is None:
         retain_saved_tool_inputs(st_api.session_state,profile_scope,ticker)
     header=st_api.empty()
-    with st_api.container(key='company-update-actions'):
-        primary, secondary=st_api.columns((2,1),gap='small')
-        with primary:
-            update_all=st_api.button('Refresh financials and prices',key='company-refresh-all',type='primary',width='stretch')
-        with secondary:
-            with st_api.expander('Refresh options',expanded=False):
-                update_financial=st_api.button('Financials only',key='company-refresh-financials',width='stretch')
-                update_prices=st_api.button('Prices only',key='company-refresh-prices',width='stretch')
+    with st_api.container(key='company-update-actions',horizontal=True,vertical_alignment='center'):
+        update_all=st_api.button('Refresh financials and prices',key='company-refresh-all',type='secondary',width='content')
+        with st_api.popover('Refresh options'):
+            update_financial=st_api.button('Financials only',key='company-refresh-financials',width='content')
+            update_prices=st_api.button('Prices only',key='company-refresh-prices',width='content')
     bundle=load_workbench_observations(ticker,st_api.session_state,
         refresh_financials=bool(update_all or update_financial),refresh_prices=bool(update_all or update_prices),
         expected_cik=expected_cik)
@@ -113,15 +110,26 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
 
         # The header placeholder precedes the controls, but receives the result of this rerun.
         answers=build_company_answers(ticker,projection,financial,prices,bundle['association'],peer_view)
+        attempted={key for key,source in (('financial',financial),('price',prices),('valuation',peer_view))
+                   if source.get('status') not in (None,'not_requested')}
+        if projection['identity_conflict']:
+            answers_html=''
+        elif not attempted:
+            answers_html='<p class="company-load-prompt">Refresh financials and prices to load company observations.</p>'
+        elif selected=='overview':
+            answers_html=company_answers_html(answers)
+        else:
+            answers_html=company_answers_html(tuple(answer for answer in answers if answer['key'] in attempted),compact=True)
         header.markdown(workbench_header_html(ticker,projection,saved_scope=candidate is None,
             title=candidate.get('title') if candidate else None,saved_receipt_only=saved_receipt_only,
-            answers_html=company_answers_html(answers)),
+            answers_html=answers_html),
             unsafe_allow_html=True)
         if selected=='overview':
             if projection['attempted'] or projection['facts']:
                 st_api.markdown(workbench_facts_html(projection),unsafe_allow_html=True)
             if prices.get('status')!='not_requested':
-                st_api.markdown(online_price_history_html(prices),unsafe_allow_html=True)
+                with st_api.expander('Price history',expanded=False):
+                    st_api.markdown(online_price_history_html(prices),unsafe_allow_html=True)
             with st_api.expander('Identity and model scope',expanded=False):
                 st_api.markdown(price_filing_association_html(bundle['association']),unsafe_allow_html=True)
                 st_api.caption('Vendor issuer identity, historical continuity, security type, and model eligibility each require their own evidence.')
@@ -145,6 +153,11 @@ def render_integrated_company(st_api, ticker, *, profile_scope, saved_available,
         elif selected in ('valuation','notes'):
             if selected=='notes':
                 from src.sec_research_review_ui import render_company_review
+                if saved_available and candidate is None and not saved_receipt_only and not st_api.query_params.get('sec_pair'):
+                    render_saved(selected)
+                    with st_api.expander('Saved SEC evidence',expanded=False):
+                        render_company_review(st_api,ticker,financial,profile_key=profile_scope)
+                    return bundle
                 render_company_review(st_api,ticker,financial,profile_key=profile_scope)
             if selected=='valuation':
                 if peer_view['status']!='not_requested':

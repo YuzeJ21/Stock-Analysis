@@ -264,9 +264,9 @@ def test_research_routes_keep_observation_summary_and_advanced_evidence_responsi
     routes = (
         (
             "/?mode=research&page=research-desk",
-            "What needs my attention today?",
+            "Find a company",
             "selected_ticker",
-            "Advanced Evidence",
+            "Workspace data details",
             True,
         ),
         (
@@ -285,7 +285,7 @@ def test_research_routes_keep_observation_summary_and_advanced_evidence_responsi
         ),
         (
             "/?mode=research&page=monitor",
-            "Follow-up Queue",
+            "Monitor",
             "selected_ticker",
             "Advanced: Monitor evidence",
             False,
@@ -391,17 +391,19 @@ def test_research_routes_render_without_exceptions_and_keep_answer_first_markers
     desk_route = next(
         route for route in RESEARCH_RENDER_ROUTES if route.name == "Research Desk"
     )
-    assert "Today's Research Brief" in desk_route.required_markers
-    assert "What needs my attention today?" in desk_route.required_markers
-    assert "Open Data Health" in desk_route.required_markers
+    assert "Find a company" in desk_route.required_markers
+    assert "Search company" in desk_route.required_markers
+    assert "Saved SEC research" in desk_route.required_markers
+    assert "Today's Research Brief" not in desk_route.required_markers
+    assert "Workspace details" in desk_route.required_markers
     assert "Open Discover" not in desk_route.required_markers
     assert "Weekly research summary" not in desk_route.required_markers
     assert "What should I review next?" not in desk_route.required_markers
     discover_route = next(
         route for route in RESEARCH_RENDER_ROUTES if route.name == "Discover"
     )
-    assert "Find a Company Online" in discover_route.required_markers
-    assert "Search SEC ticker and company-name associations." in discover_route.required_markers
+    assert "Find a company" in discover_route.required_markers
+    assert "Search company" in discover_route.required_markers
     assert "strict-screen eligible" in discover_route.required_markers
     assert "Screen eligibility — when supported" not in discover_route.required_markers
     assert "Browse saved companies" in discover_route.required_markers
@@ -533,7 +535,7 @@ def test_monitor_does_not_alias_a_changed_online_identity_to_registered_amd(monk
     app.run()
 
     assert not app.exception
-    assert any(block.value == "## Follow-up Queue" for block in app.markdown)
+    assert any("data-monitor-process-state=" in block.value for block in app.markdown)
     assert not any("Return to AMD Company Workbench" in block.value for block in app.markdown)
     assert not any(button.key == "monitor-return-to-workbench" for button in app.button)
     assert "return_ticker" not in app.query_params
@@ -607,6 +609,7 @@ def test_research_desk_render_smoke_requires_each_shared_region_once():
     assert result.missing_regions == ()
     for region in route.required_regions:
         assert rendered.count(f"data-sr-region='{region}'") == 1
+    assert result.rendered_blocks.count("Search company") == 1
 
 
 def test_research_skip_link_is_first_in_main_and_sidebar_has_no_navigation_controls():
@@ -772,7 +775,7 @@ def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors(
                         )
                         _wait_for_visible_text(
                             page,
-                            "What needs my attention today?",
+                            "Company name or ticker",
                             timeout_seconds=60,
                         )
                         _wait_for_dom_stability(page, timeout_seconds=60)
@@ -783,9 +786,8 @@ def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors(
                               const selectors = [
                                 "[data-sr-region='workflow-nav']",
                                 "[data-sr-region='primary-answer']",
-                                "[data-sr-region='primary-action']",
+                                ".st-key-research-company-search [data-testid='stFormSubmitButton'] button",
                                 "[data-sr-region='stop-rule']",
-                                "[data-sr-region='supporting-evidence']",
                                 "[data-sr-region='advanced-detail']"
                               ];
                               const nodes = selectors.map((selector) => document.querySelector(selector));
@@ -822,7 +824,9 @@ def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors(
                                   let role = "other";
                                   if (element.matches("a.public-skip-link")) role = "skip";
                                   else if (element.closest("nav[aria-label='Personal research workflow']")) role = "navigation";
-                                  else if (element.matches("[data-sr-region='primary-action']")) role = "primary-action";
+                                  else if (element.matches("summary") && element.textContent.trim() === "Workspace details") role = "workspace-details";
+                                  else if (element.matches("input[aria-label='Company name or ticker']")) role = "company-query";
+                                  else if (element.matches(".st-key-research-company-search [data-testid='stFormSubmitButton'] button")) role = "primary-action";
                                   else if (element.matches("summary")) role = "advanced-detail";
                                   const style = getComputedStyle(element);
                                   return {
@@ -843,8 +847,9 @@ def test_research_desk_uses_natural_multi_tab_order_in_normal_and_forced_colors(
                         action_index = roles.index("primary-action")
                         assert roles[0] == "skip"
                         assert action_index > 1
-                        assert set(roles[1:action_index]) == {"navigation"}
-                        assert roles[action_index + 1] == "advanced-detail"
+                        assert set(roles[1:action_index]) == {"navigation", "workspace-details", "company-query"}
+                        assert roles.index("workspace-details") < roles.index("company-query") < action_index
+                        assert roles[-1] == "advanced-detail"
                         assert all(style not in {"", "none"} for style, _ in outlines)
                         assert all(width >= 3 for _, width in outlines)
                     finally:
@@ -1458,12 +1463,7 @@ def test_monitor_renders_one_follow_up_queue_without_competing_primary_summaries
         name="Monitor Follow-up Queue",
         query_params=(("mode", "research"), ("page", "monitor")),
         required_markers=(
-            "Follow-up Queue",
-            "SINCE LAST REVIEW",
-            "NEEDS VERIFICATION",
-            "WAITING ON EVIDENCE",
-            "SCHEDULED CONTEXT",
-            "EVIDENCE FRESHNESS",
+            "data-monitor-process-state=",
             "Advanced: Monitor evidence",
             "Research-only",
         ),
@@ -1473,11 +1473,15 @@ def test_monitor_renders_one_follow_up_queue_without_competing_primary_summaries
     rendered = "\n".join(result.rendered_blocks)
 
     assert result.exceptions == ()
-    assert rendered.index("Follow-up Queue") < rendered.index("SINCE LAST REVIEW")
-    assert rendered.index("SINCE LAST REVIEW") < rendered.index("NEEDS VERIFICATION")
-    assert rendered.index("NEEDS VERIFICATION") < rendered.index("WAITING ON EVIDENCE")
-    assert rendered.index("WAITING ON EVIDENCE") < rendered.index("SCHEDULED CONTEXT")
-    assert rendered.index("SCHEDULED CONTEXT") < rendered.index("EVIDENCE FRESHNESS")
+    if "data-monitor-process-state='follow-up'" in rendered:
+        labels = ("Follow-up Queue", "SINCE LAST REVIEW", "NEEDS VERIFICATION",
+                  "WAITING ON EVIDENCE", "SCHEDULED CONTEXT", "EVIDENCE FRESHNESS")
+        assert [rendered.index(label) for label in labels] == sorted(rendered.index(label) for label in labels)
+    else:
+        assert "data-monitor-process-state='empty'" in rendered
+        assert "No saved process follow-up is due." in rendered
+        assert "## Follow-up Queue" not in rendered
+        assert "evidence-monitor-grid" not in rendered
     assert "Evidence Monitor Brief" not in rendered
     assert "Research Discipline Review" not in rendered
     assert "Research change monitor" not in rendered

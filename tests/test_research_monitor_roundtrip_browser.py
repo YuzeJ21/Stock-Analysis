@@ -106,6 +106,39 @@ def run_browser_fixture(root):
         patch.setattr(online_company_prices, "fetch_online_company_prices", prices)
         patch.setattr(online_company_identity, "fetch_sec_company_profile", company_profile)
         patch.setattr(company_workbench_ui, "get_online_peer_valuation", peer_valuation)
+        if (root / "hierarchy-state.txt").exists():
+            from dataclasses import replace
+            from src import sec_research_review
+            from src.research_decision_lab import ResearchDisciplineRow
+            from src.weekly_research_summary import WeeklyResearchSummary
+
+            original_route = dashboard.render_personal_research_route
+            original_review_queue = sec_research_review.review_queue
+
+            def hierarchy_route(**kwargs):
+                kwargs["state"] = {"queue": (), "events": (), "status": "no_changes"}
+                kwargs["context"] = replace(kwargs["context"], freshness_state="stale",
+                    freshness_message="Synthetic saved model inputs need a dated review.")
+                kwargs["weekly_summary"] = WeeklyResearchSummary(
+                    status="no_changes", as_of="2026-11-06T12:00:00Z", cohort_size=1,
+                    unique_event_count=0, items=(), message="No saved source change is due.",
+                )
+                return original_route(**kwargs)
+
+            def discipline(*_args, **_kwargs):
+                if (root / "hierarchy-state.txt").read_text() != "follow-up":
+                    return ()
+                return (ResearchDisciplineRow(
+                    cohort_order=0, ticker="FICT", status="ready", due_lanes=("Evidence",),
+                    next_process_step="Inspect the saved synthetic evidence.", identity="fixture-fict",
+                    attention_state="conflicting_evidence", attention_label="Needs review",
+                    attention_reason="The saved synthetic evidence needs review.", attention_source="evidence",
+                ),)
+
+            patch.setattr(dashboard, "render_personal_research_route", hierarchy_route)
+            patch.setattr(dashboard, "load_dashboard_research_discipline_rows", discipline)
+            patch.setattr(sec_research_review, "review_queue", lambda _root, profile_key:
+                          original_review_queue(root, profile_key))
         dashboard.main()
 
 
@@ -152,6 +185,125 @@ def research_browser_server(tmp_path):
 
 
 @pytest.mark.parametrize("width,height", [(1280, 900), (390, 844)], ids=["desktop", "phone"])
+def test_research_pages_start_with_company_search_and_keep_diagnostics_folded(
+    research_browser_server, tmp_path, width, height,
+):
+    """Exercise the actual page composition without providers or canonical writes."""
+    from src.sec_research_review import capture_review, save_review
+    from tests.test_multi_company_sec_review import issuer_view
+
+    if (chrome := find_chrome_executable()) is None:
+        pytest.skip("Chrome-compatible browser is unavailable")
+    playwright = pytest.importorskip("playwright.sync_api")
+    state_file = tmp_path / "hierarchy-state.txt"
+    state_file.write_text("empty")
+    paths = [save_review(capture_review(issuer_view(), profile_key="demo",
+        saved_at=f"2026-11-06T12:0{index}:00Z"), tmp_path) for index in range(2)]
+    original_receipts = {path: path.read_bytes() for path in paths}
+
+    with playwright.sync_playwright() as runtime:
+        browser = runtime.chromium.launch(executable_path=str(chrome), headless=True)
+        try:
+            page = browser.new_page(viewport={"width": width, "height": height})
+            page.set_default_timeout(15_000)
+            blocked, errors = [], []
+
+            def local_only(route):
+                if route.request.url.startswith(research_browser_server + "/"):
+                    route.continue_()
+                else:
+                    blocked.append(route.request.url)
+                    route.abort()
+
+            page.route("**/*", local_only)
+            page.on("pageerror", lambda error: errors.append(str(error)))
+
+            def calls():
+                path = tmp_path / "provider-calls.txt"
+                return path.read_text().splitlines() if path.exists() else []
+
+            def check_surface(label):
+                assert_rendered_english(page.locator("body"))
+                assert page.locator("html").evaluate("node => node.scrollWidth") == width
+                assert not page.get_by_test_id("stException").count()
+                page.screenshot(path=str(tmp_path / f"hierarchy-{label}-{width}.png"), full_page=True)
+
+            def closed_details(label):
+                summary = page.locator("details > summary").filter(has_text=label)
+                playwright.expect(summary).to_have_count(1)
+                playwright.expect(summary.locator("..")).not_to_have_attribute("open", "")
+                return summary
+
+            page.goto(research_browser_server + "/?mode=research&page=research-desk")
+            query = page.get_by_role("textbox", name="Company name or ticker", exact=True)
+            submit = page.get_by_role("button", name="Search company", exact=True)
+            playwright.expect(query).to_be_visible()
+            for control in (query, submit):
+                box = control.bounding_box()
+                assert box and 0 <= box["y"] and box["y"] + box["height"] <= height
+            workspace = closed_details("Workspace details")
+            workspace.focus()
+            page.keyboard.press("Enter")
+            playwright.expect(workspace.locator("..")).to_contain_text("Saved readiness")
+            playwright.expect(workspace.locator("..")).to_contain_text("Personal research")
+            page.keyboard.press("Enter")
+            closed_details("Workspace data details")
+            playwright.expect(page.get_by_role("link", name="Open AMD saved evidence", exact=True)).to_have_count(1)
+            assert calls() == []
+            check_surface("desk")
+            query.fill("FICT")
+            submit.click()
+            result = page.get_by_role("region", name="SEC online company results", exact=True)
+            playwright.expect(result).to_contain_text("FICT")
+            playwright.expect(result.get_by_role("link", name="Open company evidence", exact=True)).to_have_attribute(
+                "href", "?mode=research&page=company-workbench&ticker=FICT&online=1")
+            assert calls() == ["search"]
+
+            page.goto(research_browser_server + "/?mode=research&page=discover")
+            playwright.expect(page.get_by_role("tab", name="Find company online", exact=True)).to_have_attribute("aria-selected", "true")
+            playwright.expect(page.get_by_role("textbox", name="Company name or ticker", exact=True)).to_be_visible()
+            coverage = closed_details("Coverage studies")
+            check_surface("discover")
+            page.get_by_role("tab", name="Saved companies", exact=True).click()
+            playwright.expect(page.get_by_role("textbox", name="Search saved companies", exact=True)).to_be_visible()
+            coverage.focus()
+            page.keyboard.press("Enter")
+            playwright.expect(coverage.locator("..").get_by_role("tab")).to_have_count(4)
+            for tab in coverage.locator("..").get_by_role("tab").all():
+                tab.click()
+            assert calls() == ["search"]
+            check_surface("coverage")
+
+            page.goto(research_browser_server + "/?mode=research&page=monitor&return_ticker=AMD")
+            playwright.expect(page.get_by_role("heading", name="Monitor", exact=True)).to_be_visible()
+            playwright.expect(page.get_by_role("heading", name="AMD SEC evidence review", exact=True)).to_be_visible()
+            playwright.expect(page.get_by_role("heading", name="Follow-up Queue", exact=True)).to_have_count(0)
+            playwright.expect(page.get_by_text("No saved process follow-up is due.", exact=True)).to_be_visible()
+            freshness = page.locator(".research-monitor-freshness")
+            playwright.expect(freshness).to_have_count(1)
+            playwright.expect(freshness).to_be_visible()
+            playwright.expect(freshness.get_by_role("link", name="Review data dates", exact=True)).to_have_attribute(
+                "href", "?mode=research&page=data-health")
+            assert freshness.evaluate("node => !node.closest('details')")
+            assert "data-sr-region='primary-answer'" not in freshness.evaluate("node => node.outerHTML")
+            closed_details("Advanced: Monitor evidence")
+            closed_details("Advanced: five-company Earnings Nowcast readiness")
+            playwright.expect(page.locator("details > summary").filter(has_text=re.compile(r"^Advanced Evidence$"))).to_have_count(0)
+            check_surface("monitor-saved-only")
+            state_file.write_text("follow-up")
+            page.reload()
+            playwright.expect(page.get_by_role("heading", name="Follow-up Queue", exact=True)).to_be_visible()
+            playwright.expect(page.locator(".research-discipline-table")).to_contain_text("FICT")
+            playwright.expect(page.get_by_role("heading", name="AMD SEC evidence review", exact=True)).to_be_visible()
+            check_surface("monitor-follow-up")
+            assert calls() == ["search"]
+            assert not errors and not blocked
+            assert {path: path.read_bytes() for path in paths} == original_receipts
+        finally:
+            browser.close()
+
+
+@pytest.mark.parametrize("width,height", [(1280, 900), (390, 844)], ids=["desktop", "phone"])
 def test_workbench_sections_and_source_failures_remain_english_without_refetch(
     research_browser_server, tmp_path, width, height,
 ):
@@ -170,9 +322,12 @@ def test_workbench_sections_and_source_failures_remain_english_without_refetch(
             page.goto(f"{research_browser_server}/?mode=research&page=company-workbench&ticker=FICT&online=1")
             refresh = page.get_by_role("button", name="Refresh financials and prices", exact=True)
             playwright.expect(refresh).to_be_visible()
+            playwright.expect(page.get_by_role("region", name="Company research summary")).to_have_count(0)
+            playwright.expect(page.get_by_text("Refresh financials and prices to load company observations.", exact=True)).to_have_count(1)
             assert_rendered_english(page.locator("body"))
             page.screenshot(path=str(tmp_path / f"english-initial-{width}.png"))
             refresh.click()
+            page.get_by_text("Price history", exact=True).click()
             playwright.expect(page.get_by_role("region", name="Daily price history")).to_contain_text("USD 11")
             original_calls = (tmp_path / "provider-calls.txt").read_text().splitlines()
             assert original_calls == ["search", "financial", "prices", "company-profile"]
@@ -181,6 +336,12 @@ def test_workbench_sections_and_source_failures_remain_english_without_refetch(
                 page.locator("label").filter(has=radio).click()
                 body = page.locator(".st-key-company-section-body")
                 playwright.expect(body.get_by_role("heading", name=title, exact=True)).to_be_visible()
+                cards = page.locator('[data-company-answer]')
+                if title == "Overview":
+                    playwright.expect(cards).to_have_count(3)
+                else:
+                    playwright.expect(cards).to_have_count(0)
+                    playwright.expect(page.get_by_label("Loaded company observations", exact=True)).to_be_visible()
                 for summary in page.locator(
                     ".st-key-company-section-body details > summary, .company-integrated-header details > summary"
                 ).all():
@@ -406,6 +567,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
             brief = page.get_by_role("region", name="Company Brief", exact=True)
             playwright.expect(brief.get_by_role("heading", name="FICT Company Brief")).to_be_visible()
             page.get_by_role("button", name="Refresh financials and prices", exact=True).click()
+            page.get_by_text("Price history", exact=True).click()
             prices = page.get_by_role("region", name="Daily price history", exact=True)
             playwright.expect(prices).to_contain_text("USD 11")
             assert_rendered_english(brief)
@@ -442,7 +604,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
             assert len(documents) == len(streams) == 1
 
             handoff.click()
-            playwright.expect(page.get_by_role("heading", name="Follow-up Queue")).to_be_visible()
+            playwright.expect(page.get_by_role("heading", name="Monitor", exact=True)).to_be_visible()
             assert len(documents) == len(streams) == 1, "Opening Monitor replaced the research session"
             assert parse_qs(urlsplit(page.url).query) == {
                 "mode": ["research"], "page": ["monitor"], "return_ticker": ["FICT"], "return_online": ["1"],
@@ -491,6 +653,7 @@ def test_online_research_round_trip_keeps_section_and_evidence(
 
             overview = page.get_by_role("radio", name="Overview", exact=True)
             page.locator("label").filter(has=overview).click()
+            page.get_by_text("Price history", exact=True).click()
             playwright.expect(prices).to_be_visible()
             assert prices.inner_text() == original_prices
             assert len(documents) == len(streams) == 1, "Returning replaced the research session"

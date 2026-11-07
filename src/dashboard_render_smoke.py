@@ -92,10 +92,10 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         query_params=(("mode", "research"),),
         required_markers=(
             "Research Desk",
-            "Today's Research Brief",
-            "What needs my attention today?",
-            "Open Data Health",
-            "market-complete event feed",
+            "Find a company",
+            "Search company",
+            "Saved SEC research",
+            "Workspace details",
             "Research-only",
         ),
         required_regions=(
@@ -103,9 +103,7 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
             "context",
             "page-title",
             "primary-answer",
-            "primary-action",
             "stop-rule",
-            "supporting-evidence",
             "advanced-detail",
         ),
     ),
@@ -115,8 +113,8 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
         required_markers=(
             "Discover",
             "Focused cohort",
-            "Find a Company Online",
-            "Search SEC ticker and company-name associations.",
+            "Find a company",
+            "Search company",
             "strict-screen eligible",
             "Browse saved companies",
             "Research-only",
@@ -138,7 +136,7 @@ RESEARCH_RENDER_ROUTES: tuple[DashboardRenderRoute, ...] = (
     DashboardRenderRoute(
         name="Monitor",
         query_params=(("mode", "research"), ("page", "monitor")),
-        required_markers=("Monitor", "Follow-up Queue", "Research-only"),
+        required_markers=("Monitor", "data-monitor-process-state=", "Workspace details", "Research-only"),
     ),
     DashboardRenderRoute(
         name="Research Data Health",

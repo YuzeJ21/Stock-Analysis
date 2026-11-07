@@ -186,18 +186,18 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
     ResearchRoute(
         "Research Desk",
         "/?mode=research&page=research-desk",
-        "What needs my attention today?",
+        "Find a company",
         "Research Desk",
-        '.research-desk-brief[aria-label="Today\'s Research Brief"]',
-        ".research-desk-brief .public-primary-action",
+        ".st-key-research-company-search",
+        ".st-key-research-company-search [data-testid='stFormSubmitButton'] button",
     ),
     ResearchRoute(
         "Discover",
         "/?mode=research&page=discover",
-        "Search saved companies",
+        "Company name or ticker",
         "Discover",
-        ".selector-result-table.research-discover-result",
-        "[data-testid='stTextInput'] input[aria-label='Search saved companies']",
+        ".st-key-research-company-search",
+        ".st-key-research-company-search [data-testid='stFormSubmitButton'] button",
     ),
     ResearchRoute(
         "Company Workbench",
@@ -205,15 +205,15 @@ RESEARCH_ROUTES: tuple[ResearchRoute, ...] = (
         "Company Brief",
         "NVDA Company Brief",
         ".company-workbench-primary-brief[aria-label='Company Brief']",
-        ".company-workbench-primary-brief .public-primary-action",
+        ".st-key-company-update-actions button",
     ),
     ResearchRoute(
         "Monitor",
         "/?mode=research&page=monitor",
-        "Follow-up Queue",
         "Monitor",
-        ".signal-grid.evidence-monitor-grid",
-        "[data-sr-region='primary-action']",
+        "Monitor",
+        ".research-monitor-task",
+        ".research-task-details > summary",
     ),
     ResearchRoute(
         "Research Data Health",
@@ -1601,9 +1601,10 @@ def _forced_colors_observation(
   const currents = [...document.querySelectorAll(
     ".research-workflow-link[aria-current='page']"
   )];
-  const boundaries = [...document.querySelectorAll(
+  const taskBoundaries = [...document.querySelectorAll("[data-sr-region='stop-rule']")].filter(visible);
+  const boundaries = taskBoundaries.length ? taskBoundaries : [...document.querySelectorAll(
     ".research-workspace-boundary"
-  )];
+  )].filter(visible);
   const routeMarkers = [...document.querySelectorAll(markerSelector)];
   const routeNextActions = [...document.querySelectorAll(nextActionSelector)];
   const skipStyle = skips.length === 1 ? getComputedStyle(skips[0]) : null;
@@ -2904,6 +2905,9 @@ def _discover_action_assertion(page: Any) -> dict[str, object]:
 def _discover_evidence_access_assertion(page: Any) -> dict[str, object]:
     """Read the search-first Discover sequence and its actual saved result."""
 
+    saved_tab = page.get_by_role("tab", name="Saved companies", exact=True)
+    if saved_tab.count() == 1:
+        saved_tab.click()
     observed = page.evaluate(
         """
 () => {
@@ -3056,6 +3060,17 @@ def _monitor_brief_assertion(
     viewport_width: int,
 ) -> dict[str, object]:
     grid = page.locator(".signal-grid.evidence-monitor-grid")
+    task = page.locator(".research-monitor-task[data-monitor-process-state]")
+    if task.count():
+        state = task.first.get_attribute("data-monitor-process-state")
+        if state == "empty":
+            passed = (task.count() == 1 and task.first.is_visible() and grid.count() == 0
+                      and "No saved process follow-up is due." in task.first.inner_text())
+            return _assertion("monitor_brief_geometry", passed,
+                "explicit idle process state; SEC reviews remain independent" if passed else
+                "idle process state must be unique, visible and contain no empty card grid")
+        if state != "follow-up" or task.count() != 1:
+            return _assertion("monitor_brief_geometry", False, "invalid process task state")
     neutral = page.locator(".follow-up-queue-empty:visible")
     if grid.count() == 0 and neutral.count() == 1:
         boundary = "does not prove that no external event, risk, or research need exists"
@@ -3146,7 +3161,7 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
                 "reason": cells[1] if len(cells) > 1 else "",
             }
         )
-    neutral = page.locator(".research-monitor-neutral:visible")
+    neutral = page.locator(".research-monitor-neutral:visible, .research-monitor-task[data-monitor-process-state='empty']:visible")
     if neutral.count() > 1:
         return _assertion(
             "monitor_process_rows",
@@ -3172,6 +3187,14 @@ def _monitor_rows_assertion(page: Any) -> dict[str, object]:
             )
         except ValueError:
             pass
+    task_count = page.locator("[data-monitor-identity-count]")
+    if task_count.count() == 1:
+        try:
+            total = int(task_count.get_attribute("data-monitor-identity-count") or "")
+            remaining = total - len(observed)
+            collapsed_monitor_counts = [remaining] if remaining >= 0 else []
+        except ValueError:
+            collapsed_monitor_counts = []
     if len(collapsed_monitor_counts) != 1:
         return _assertion(
             "monitor_process_rows",
@@ -3251,7 +3274,7 @@ def _monitor_return_context_assertion(
             wait_until="domcontentloaded",
             timeout=int(timeout_seconds * 1000),
         )
-        _wait_for_visible_text(page, "Follow-up Queue", timeout_seconds=timeout_seconds)
+        _wait_for_visible_text(page, "Monitor", timeout_seconds=timeout_seconds)
         _wait_for_dom_stability(page, timeout_seconds=timeout_seconds)
 
     load("/?mode=research&page=monitor")

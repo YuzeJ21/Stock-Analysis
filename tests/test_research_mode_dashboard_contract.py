@@ -1435,24 +1435,27 @@ def test_dashboard_blocks_partially_rejected_canonical_quarterly_ledger(tmp_path
     assert states["quarterly_eps"] == "blocked"
 
 
-def test_research_desk_renders_one_brief_before_advanced_supporting_evidence():
+def test_research_desk_starts_with_search_and_keeps_the_readiness_brief_in_closed_details():
     source = dashboard.Path(dashboard.__file__).read_text(encoding="utf-8")
     desk_start = source.index("def render_research_desk(")
     desk_end = source.index("def render_research_monitor(", desk_start)
     desk = source[desk_start:desk_end]
 
-    brief = desk.index("brief = build_research_desk_brief(")
-    brief_html = desk.index("research_desk_brief_html(", brief)
-    advanced_region = desk.index("research_advanced_detail_marker_html()", brief_html)
-    advanced = desk.index('with st.expander("Advanced Evidence", expanded=False):', advanced_region)
-    weekly_cards = desk.index("weekly_summary_cards(weekly_summary)", advanced)
+    search = desk.index("render_online_company_search(")
+    saved = desk.index("saved_research_cards_html(saved_queue)", search)
+    brief = desk.index("brief = build_research_desk_brief(", saved)
+    advanced_region = desk.index("research_advanced_detail_marker_html()", brief)
+    advanced = desk.index('with st.expander("Workspace data details", expanded=False):', advanced_region)
+    brief_html = desk.index("research_desk_brief_html(", advanced)
+    weekly_cards = desk.index("weekly_summary_cards(weekly_summary)", brief_html)
     cohort = desk.index("focused_cohort_cards(cohort)", weekly_cards)
     coverage = desk.index("focused_cohort_coverage_cards(coverage)", cohort)
     cohort_frame = desk.index("focused_cohort_frame(cohort)", coverage)
     coverage_frame = desk.index("focused_cohort_coverage_frame(coverage)", cohort_frame)
     change_detail = desk.index('render_research_change_route_summary("Research Desk", state)', coverage_frame)
 
-    assert brief < brief_html < advanced_region < advanced < weekly_cards
+    assert search < saved < brief < advanced_region < advanced < brief_html < weekly_cards
+    assert '.replace("data-sr-region=", "data-saved-detail-region=")' in desk[brief_html:weekly_cards]
     assert weekly_cards < cohort < coverage < cohort_frame < coverage_frame < change_detail
     assert "research_desk_cards(" not in desk
     assert "research_desk_cards_html(" not in desk
@@ -1568,6 +1571,9 @@ def test_monitor_and_workbench_integrate_new_evidence_layers_without_new_routes(
 
     assert "cohort_readiness_cards(nowcast_cohort)" in monitor
     assert 'st.expander("Advanced: five-company Earnings Nowcast readiness", expanded=False)' in monitor
+    advanced = monitor.index('with st.expander("Advanced: Monitor evidence", expanded=False):')
+    assert monitor.index("study_monitor_html(") > advanced
+    assert 'with st.expander("Advanced Evidence", expanded=False):' not in monitor
     assert "valuation_regime_cards(valuation_regime)" in report
     assert "catalyst_timeline_cards(catalyst_timeline)" in report
     assert "outcome_status_cards(outcome_status)" in report
@@ -1641,11 +1647,14 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     )
 
     headings = [value for value in rendered if value.startswith("## ")]
-    assert headings == ["## Follow-up Queue"]
+    assert headings == []
     assert all(variant != "evidence-monitor" for _, variant in cards)
     assert actions == []
     copy = " ".join(rendered)
     assert "No saved verification, evidence-wait, scheduled, or source-change item is currently due." in copy
+    assert "No saved process follow-up is due." in copy
+    assert "data-monitor-process-state='empty'" in copy
+    assert "Follow-up Queue" not in copy
     assert "Open Discover" in copy
     assert "saved follow-up item(s)" not in copy
     assert "does not prove that no external event" in copy
@@ -1654,7 +1663,7 @@ def test_monitor_renders_one_follow_up_queue_and_one_empty_return_action(monkeyp
     assert "Research change monitor" not in copy
     assert "Advanced: Monitor evidence" in expanders
     assert copy.count("data-sr-region='primary-answer'") == 1
-    assert copy.count("data-sr-region='primary-action'") == 1
+    assert copy.count("data-sr-region='primary-action'") == 0
     assert copy.count("data-sr-region='stop-rule'") == 1
 
 
@@ -1796,22 +1805,22 @@ def test_monitor_freshness_only_attention_is_nonnumeric_and_routes_to_data_healt
     assert "saved-source freshness condition" not in copy.lower()
     assert "1 saved follow-up item" not in copy
     assert "Open Data Health" in copy
-    assert len(cards) == 5
-    assert {str(card.get("key") or "") for card in cards} == {
-        "since_last_review",
-        "needs_verification",
-        "waiting_on_evidence",
-        "scheduled_context",
-        "evidence_freshness",
-    }
-    queue_heading = rendered.index("## Follow-up Queue")
-    queue_cards = next(index for index, value in enumerate(rendered) if "evidence-monitor-grid" in value)
+    assert cards == []
+    assert "Follow-up Queue" not in copy
+    idle = next(index for index, value in enumerate(rendered) if "No saved process follow-up is due." in value)
     advanced = rendered.index("BEGIN Advanced: Monitor evidence")
     explanation = next(
         index for index, value in enumerate(rendered)
         if "The named saved-readiness or market-observation condition" in value
     )
-    assert queue_heading < queue_cards < advanced < explanation
+    assert idle < advanced < explanation
+    notes = [value for value in rendered if "research-monitor-freshness" in value]
+    assert len(notes) == 1
+    assert "Market observation dates need a freshness check." in notes[0]
+    assert notes[0].count(">Review data dates</a>") == 1
+    assert "?mode=research&amp;page=data-health" in notes[0]
+    assert "data-sr-region" not in notes[0]
+    assert idle < rendered.index(notes[0]) < advanced
 
 
 def test_direct_tickerless_company_workbench_fails_closed_without_report_or_default_ticker(

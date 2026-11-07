@@ -62,7 +62,7 @@ def peer_coverage_html(view):
     return html
 
 
-def render_peer_coverage(st_api):
+def render_peer_coverage(st_api, *, embedded=False):
     """Callbacks finish before the rerender; ordinary rendering never requests sources."""
     def act(kind):
         with st_api.spinner('Checking one company and its industry references…'):
@@ -70,7 +70,8 @@ def render_peer_coverage(st_api):
                 retry_ticker=st_api.session_state.get('peer-coverage-retry') if kind=='retry' else None,
                 user_agent=os.getenv('SEC_USER_AGENT'))
     st_api.markdown('<div id="peer-coverage-sample"></div>',unsafe_allow_html=True)
-    with st_api.expander('Peer valuation coverage · industry sample',expanded=False):
+    region = st_api.container() if embedded else st_api.expander('Peer valuation coverage · industry sample',expanded=False)
+    with region:
         st_api.caption('Inspect annual P/E and reference comparability one company at a time. Missing sources and unassessed companies remain visible.')
         raw=st_api.session_state.get(SESSION_KEY,{});raw=raw if isinstance(raw,Mapping) else {}
         requested=raw.get('requested_tickers',DEFAULT_SAMPLE);requested=requested if isinstance(requested,(list,tuple)) else DEFAULT_SAMPLE

@@ -362,13 +362,13 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
     ] == [
         (
             "/?mode=research&page=research-desk",
-            "What needs my attention today?",
+            "Find a company",
             "Research Desk",
             True,
         ),
         (
             "/?mode=research&page=discover",
-            "Search saved companies",
+            "Company name or ticker",
             "Discover",
             True,
         ),
@@ -380,7 +380,7 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
         ),
         (
             "/?mode=research&page=monitor",
-            "Follow-up Queue",
+            "Monitor",
             "Monitor",
             True,
         ),
@@ -406,18 +406,18 @@ def test_accessibility_browser_gate_covers_both_viewports_and_all_six_research_r
         True,
     ]
     assert RESEARCH_ROUTES[0].media_marker_selector == (
-        '.research-desk-brief[aria-label="Today\'s Research Brief"]'
+        ".st-key-research-company-search"
     )
     assert RESEARCH_ROUTES[0].media_next_action_selector == (
-        ".research-desk-brief .public-primary-action"
+        ".st-key-research-company-search [data-testid='stFormSubmitButton'] button"
     )
     assert [
         route.media_next_action_selector for route in RESEARCH_ROUTES
     ] == [
-        ".research-desk-brief .public-primary-action",
-        "[data-testid='stTextInput'] input[aria-label='Search saved companies']",
-        ".company-workbench-primary-brief .public-primary-action",
-        "[data-sr-region='primary-action']",
+        ".st-key-research-company-search [data-testid='stFormSubmitButton'] button",
+        ".st-key-research-company-search [data-testid='stFormSubmitButton'] button",
+        ".st-key-company-update-actions button",
+        ".research-task-details > summary",
         "[data-sr-region='primary-action']",
         "[data-sr-region='primary-action']",
     ]
@@ -3507,3 +3507,24 @@ def test_makefile_exposes_non_writing_browser_gate():
 
     assert "research-accessibility-browser-check:" in makefile
     assert "python3 -m src.research_accessibility_browser_gate" in makefile
+
+
+@pytest.mark.parametrize('state,grids,visible,expected',[
+    ('empty',0,True,True),('empty',1,True,False),('empty',0,False,False),('unverified',0,True,False),
+])
+def test_monitor_task_idle_state_requires_explicit_visible_state_without_a_grid(state,grids,visible,expected):
+    from src.research_accessibility_browser_gate import _monitor_brief_assertion
+    class Nodes:
+        def __init__(self,count,*,task=False):self.n=count;self.task=task
+        def count(self):return self.n
+        @property
+        def first(self):return self
+        def get_attribute(self,key):return state
+        def is_visible(self):return visible
+        def inner_text(self):return 'No saved process follow-up is due.'
+    class Page:
+        def locator(self,selector):
+            if selector=='.signal-grid.evidence-monitor-grid':return Nodes(grids)
+            if selector=='.research-monitor-task[data-monitor-process-state]':return Nodes(1,task=True)
+            raise AssertionError(selector)
+    assert _monitor_brief_assertion(Page(),390)['passed'] is expected

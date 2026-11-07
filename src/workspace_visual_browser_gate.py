@@ -54,7 +54,7 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
         "research-desk",
         "Research Desk",
         "/?mode=research&page=research-desk",
-        "What needs my attention today?",
+        "Company name or ticker",
         "Research Desk",
         "research",
     ),
@@ -62,7 +62,7 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
         "discover",
         "Discover",
         "/?mode=research&page=discover",
-        "Search saved companies",
+        "Company name or ticker",
         "Discover",
         "research",
     ),
@@ -78,7 +78,7 @@ ROUTE_FIXTURES: tuple[WorkspaceVisualRoute, ...] = (
         "monitor",
         "Monitor",
         "/?mode=research&page=monitor&return_ticker=NVDA",
-        "Follow-up Queue",
+        "Monitor",
         "Monitor",
         "research",
     ),
@@ -933,13 +933,14 @@ def evaluate_focus_sequence(
     region_order: tuple[str, ...],
     outline_widths: tuple[float, ...],
     positive_tabindex_count: int,
+    compact_task: bool = False,
 ) -> BrowserEvaluation:
     required_regions = (
         "workflow-nav",
         "primary-answer",
         "primary-action",
-        "stop-rule",
-        "supporting-evidence",
+        *(("stop-rule",) if not compact_task else ()),
+        *(("supporting-evidence",) if not compact_task else ()),
         "advanced-detail",
     )
     try:
@@ -954,7 +955,8 @@ def evaluate_focus_sequence(
         bool(focused_roles)
         and focused_roles[0] == "skip"
         and 0 < navigation_index < action_index < advanced_index
-        and all(role == "navigation" for role in focused_roles[1:action_index])
+        and all(role in ({"navigation", "workspace-details", "company-query"} if compact_task else {"navigation"})
+                for role in focused_roles[1:action_index])
         and "navigation" not in focused_roles[action_index + 1 : advanced_index]
     )
     try:
@@ -962,6 +964,10 @@ def evaluate_focus_sequence(
         region_order_passed = all(
             left < right for left, right in zip(region_indexes, region_indexes[1:])
         )
+        if compact_task:
+            region_order_passed = region_order_passed and (
+                region_order.index("primary-answer") < region_order.index("stop-rule")
+                < region_order.index("advanced-detail"))
     except ValueError:
         region_order_passed = False
     passed = (
@@ -1237,6 +1243,45 @@ def evaluate_task4_focus_sequence(
     )
 
 
+def evaluate_workspace_details_disclosure(observation: dict[str, object]) -> BrowserEvaluation:
+    """Allow folded workspace context only behind one usable native disclosure."""
+    text = str(observation.get("text") or "")
+    passed = (
+        observation.get("count") == 1
+        and observation.get("visible") is True
+        and observation.get("focusable") is True
+        and observation.get("closed") is True
+        and observation.get("context_count") == 1
+        and observation.get("context_visible_count") == 0
+        and all(label in text for label in ("Data profile", "Saved readiness", "Mode", "Personal research"))
+    )
+    return BrowserEvaluation(passed, f"workspace details={observation!r}")
+
+
+def evaluate_company_search_first_viewport(observation: dict[str, object], *, viewport_height: float,
+                                           viewport_width: float) -> BrowserEvaluation:
+    """Require both controls in the actual company-search form in the first view."""
+    passed = all(observation.get(key) == 1 for key in ("form_count", "query_count", "submit_count"))
+    for name in ("query", "submit"):
+        box = observation.get(name)
+        if not isinstance(box, dict):
+            passed = False
+            continue
+        try:
+            values = {key: float(box[key]) for key in ("top", "bottom", "left", "right", "height")}
+        except (KeyError, TypeError, ValueError):
+            passed = False
+            continue
+        passed = passed and (
+            box.get("focusable") is True
+            and all(math.isfinite(value) for value in values.values())
+            and 0 <= values["top"] < values["bottom"] <= viewport_height + 1
+            and 0 <= values["left"] < values["right"] <= viewport_width + 1
+            and values["height"] >= 44
+        )
+    return BrowserEvaluation(passed, f"company search={observation!r}; viewport={viewport_width}x{viewport_height}")
+
+
 def evaluate_personal_route_hierarchy(
     *,
     slug: str,
@@ -1246,29 +1291,33 @@ def evaluate_personal_route_hierarchy(
     visible_region_order: tuple[str, ...],
     primary_action_focusable_count: int,
     legacy_pre_answer_action_count: int,
+    workspace_details: dict[str, object] | None = None,
 ) -> BrowserEvaluation:
     """Require each personal route's observed answer and action hierarchy."""
 
     if slug not in {"research-desk", "discover", "company-workbench", "monitor"}:
         return BrowserEvaluation(False, f"unsupported personal route {slug!r}")
+    compact_task = workspace_details is not None
     answer_and_action = (
+        ("primary-answer", "stop-rule", "primary-action")
+        if compact_task and slug == "monitor"
+        else
         ("primary-action", "primary-answer")
-        if slug == "discover"
+        if slug == "discover" and not compact_task
         else ("primary-answer", "primary-action")
     )
     required = (
         "workflow-nav",
-        "context",
+        *(("context",) if not compact_task else ()),
         *(("page-title",) if slug != "company-workbench" else ()),
         *answer_and_action,
-        "stop-rule",
+        *(("stop-rule",) if "stop-rule" not in answer_and_action else ()),
         "advanced-detail",
     )
     required_counts_passed = all(int(region_counts.get(name, 0)) == 1 for name in required)
     supporting_count = int(region_counts.get("supporting-evidence", 0))
-    supporting_count_passed = (
-        supporting_count == 1 if slug == "research-desk" else supporting_count in {0, 1}
-    )
+    supporting_count_passed = supporting_count in {0, 1} if compact_task else (
+        supporting_count == 1 if slug == "research-desk" else supporting_count in {0, 1})
     try:
         indexes = {name: region_order.index(name) for name in required}
         required_order_passed = all(
@@ -1277,7 +1326,9 @@ def evaluate_personal_route_hierarchy(
         )
         supporting_order_passed = (
             supporting_count == 0
-            or indexes["stop-rule"]
+            or compact_task and indexes["advanced-detail"] < region_order.index("supporting-evidence")
+            or not compact_task and
+            indexes["stop-rule"]
             < region_order.index("supporting-evidence")
             < indexes["advanced-detail"]
         )
@@ -1292,7 +1343,9 @@ def evaluate_personal_route_hierarchy(
     )
     visible_supporting_count_passed = (
         supporting_count == 1 and visible_supporting_count == 0
-        if slug == "discover"
+        if slug == "discover" and not compact_task
+        else visible_supporting_count == 0
+        if compact_task
         else visible_supporting_count == supporting_count
     )
     try:
@@ -1323,6 +1376,10 @@ def evaluate_personal_route_hierarchy(
         and visible_supporting_order_passed
         and primary_action_focusable_count == 1
         and legacy_pre_answer_action_count == 0
+        and (not compact_task or (
+            region_counts.get("context") == 1
+            and evaluate_workspace_details_disclosure(workspace_details).passed
+        ))
     )
     return BrowserEvaluation(
         passed,
@@ -1921,7 +1978,9 @@ def _browser_observation(page: Any) -> dict[str, object]:
         height: box.height,
       };
     });
-  const nativePrimaryAction = [...document.querySelectorAll("[data-testid='stTextInput']")]
+  const companySearch = document.querySelector(".st-key-research-company-search");
+  const companySubmit = companySearch?.querySelector("[data-testid='stFormSubmitButton'] button");
+  const nativePrimaryAction = companySubmit || [...document.querySelectorAll("[data-testid='stTextInput']")]
     .find((node) =>
       node.innerText.includes("Search saved companies") ||
       node.innerText.includes("Search this review queue")
@@ -1940,6 +1999,15 @@ def _browser_observation(page: Any) -> dict[str, object]:
       height: box.height,
     };
   };
+  const controlBox = (node) => node && visible(node) ? {
+    ...boxFor(node, "company-search-control"),
+    focusable: node.tabIndex >= 0 && !node.matches("[disabled], [aria-disabled='true']"),
+  } : {};
+  const workspaceSummaries = [...document.querySelectorAll("details > summary")]
+    .filter((node) => node.textContent.trim() === "Workspace details");
+  const workspaceSummary = workspaceSummaries.length === 1 ? workspaceSummaries[0] : null;
+  const workspaceDetails = workspaceSummary?.parentElement;
+  const workspaceContexts = workspaceDetails ? [...workspaceDetails.querySelectorAll("[data-sr-region='context']")] : [];
   const textNodes = [...document.querySelectorAll(
     "h1, nav a, nav [aria-disabled='true'], label, .sr-status-chip, " +
     ".command-top-link, [data-sr-region='primary-action'], [data-sr-region='stop-rule']"
@@ -2164,6 +2232,22 @@ def _browser_observation(page: Any) -> dict[str, object]:
     main_client_width: main ? main.clientWidth : null,
     regions,
     region_counts: regionCounts,
+    workspace_details: {
+      count: workspaceSummaries.length,
+      visible: visible(workspaceSummary),
+      focusable: Boolean(workspaceSummary && workspaceSummary.tabIndex >= 0),
+      closed: Boolean(workspaceDetails && !workspaceDetails.hasAttribute("open")),
+      context_count: workspaceContexts.length,
+      context_visible_count: workspaceContexts.filter(visible).length,
+      text: workspaceDetails?.textContent.trim() || "",
+    },
+    company_search: {
+      form_count: companySearch?.querySelectorAll("[data-testid='stForm']").length || 0,
+      query_count: companySearch?.querySelectorAll("input[aria-label='Company name or ticker']").length || 0,
+      submit_count: companySearch?.querySelectorAll("[data-testid='stFormSubmitButton'] button").length || 0,
+      query: controlBox(companySearch?.querySelector("input[aria-label='Company name or ticker']")),
+      submit: controlBox(companySubmit),
+    },
     text_nodes: textNodes,
     controls,
     inner_width: window.innerWidth,
@@ -2352,7 +2436,7 @@ def _discover_evidence_access_observation(page: Any) -> dict[str, object]:
     );
   };
   const byRegion = (name) => [...document.querySelectorAll(
-    `[data-sr-region='${name}']`
+    `[data-sr-region='${name}'], [data-saved-detail-region='${name}']`
   )].filter(visible);
   const primaryAnswers = byRegion("primary-answer");
   const quickLinks = document.querySelectorAll(".discover-quick-company-links a[href]");
@@ -2366,7 +2450,7 @@ def _discover_evidence_access_observation(page: Any) -> dict[str, object]:
   });
   const stopRules = byRegion("stop-rule");
   const supportingEvidence = [...document.querySelectorAll(
-    "[data-sr-region='supporting-evidence']"
+    "[data-sr-region='supporting-evidence'], [data-saved-detail-region='supporting-evidence']"
   )];
   const advancedFilters = [...document.querySelectorAll("summary")].filter(
     (node) => visible(node) && node.textContent.trim().includes(
@@ -2474,6 +2558,9 @@ def _focus_sequence_observation(page: Any) -> dict[str, object]:
     })();
   let role = "other";
   if (element.matches("a.public-skip-link")) role = "skip";
+  else if (element.matches("summary") && element.textContent.trim() === "Workspace details") role = "workspace-details";
+  else if (element.matches("input[aria-label='Company name or ticker']")) role = "company-query";
+  else if (element.matches(".st-key-research-company-search [data-testid='stFormSubmitButton'] button")) role = "primary-action";
   else if (element.matches("[data-sr-region='primary-action']")) role = "primary-action";
   else if (element.matches(".research-discover-result .selector-result-row a.selector-action-link[href]")) role = "result-link";
   else if (selectorSearch) role = window.location.search.includes("page=discover")
@@ -2949,7 +3036,11 @@ def _evaluate_observation(
                 or observation.get("client_height")
                 or 0
             )
-            if route.slug == "discover":
+            if route.slug in {"research-desk", "discover"} and (observation.get("workspace_details") or {}).get("count") == 1:
+                add("initial_viewport_hierarchy", evaluate_company_search_first_viewport(
+                    dict(observation.get("company_search") or {}), viewport_height=observed_height,
+                    viewport_width=observed_width))
+            elif route.slug == "discover":
                 add(
                     "initial_viewport_hierarchy",
                     evaluate_discover_initial_viewport_hierarchy(
@@ -3010,6 +3101,9 @@ def _evaluate_observation(
                 legacy_pre_answer_action_count=int(
                     observation.get("legacy_pre_answer_action_count") or 0
                 ),
+                workspace_details=(dict(observation.get("workspace_details") or {})
+                    if route.slug in {"research-desk", "discover", "monitor"}
+                    and observation.get("workspace_details") is not None else None),
             ),
         )
     if route.slug == "company-workbench":
@@ -3230,6 +3324,7 @@ def _evaluate_observation(
                     positive_tabindex_count=int(
                         observation.get("positive_tabindex_count") or 0
                     ),
+                    compact_task=(observation.get("workspace_details") or {}).get("count") == 1,
                 )
             add(
                 f"natural_focus_sequence_{media_mode}",
@@ -3539,6 +3634,11 @@ def _run_matrix_cell(
                                 timeout=int(max(5.0, timeout_seconds) * 1000),
                             )
 
+                        def open_saved_companies() -> None:
+                            if route.slug == "discover":
+                                page.get_by_role("tab", name="Saved companies", exact=True).click()
+                                page.get_by_role("textbox", name="Search saved companies", exact=True).wait_for()
+
                         page.emulate_media(
                             reduced_motion="no-preference",
                             forced_colors="none",
@@ -3547,9 +3647,12 @@ def _run_matrix_cell(
                         _reset_initial_scroll(page)
                         observation = _browser_observation(page)
                         if route.slug == "discover":
+                            open_saved_companies()
                             observation["discover_evidence_access"] = (
                                 _discover_evidence_access_observation(page)
                             )
+                            page.get_by_role("tab", name="Find company online", exact=True).click()
+                            _reset_initial_scroll(page)
                         screenshot_bytes = page.screenshot(
                             path=output_dir / screenshot_name,
                             full_page=False,
@@ -3574,6 +3677,7 @@ def _run_matrix_cell(
                             "personal-proof-history",
                         }
                         if route.slug in focus_route_slugs:
+                            open_saved_companies()
                             focus_sequences["normal"] = _focus_sequence_observation(page)
                             load_route()
                             _reset_initial_scroll(page)
@@ -3594,6 +3698,7 @@ def _run_matrix_cell(
                         forced_colors = _forced_colors_observation(page)
                         if route.slug in focus_route_slugs:
                             load_route()
+                            open_saved_companies()
                             focus_sequences["forced-colors"] = _focus_sequence_observation(page)
                         observation = apply_final_runtime_observation(
                             observation,

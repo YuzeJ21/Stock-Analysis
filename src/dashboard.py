@@ -30620,6 +30620,7 @@ def discover_primary_answer_html(
     strict_eligible_count: int,
     *,
     research_boundary: str | None = None,
+    task_detail: bool = False,
 ) -> str:
     """Keep saved access, strict eligibility, and the boundary in one short strip."""
 
@@ -30635,7 +30636,7 @@ def discover_primary_answer_html(
         if boundary
         else ""
     )
-    return (
+    rendered = (
         "<section class='research-discover-scope' data-sr-region='primary-answer' "
         "aria-label='Saved company scope'>"
         "<div class='research-discover-scope-counts'>"
@@ -30647,6 +30648,8 @@ def discover_primary_answer_html(
         f"{scope_detail}"
         "</section>"
     )
+
+    return rendered.replace("data-sr-region=", "data-saved-detail-region=") if task_detail else rendered
 
 
 def discover_quick_company_links_html(frame: pd.DataFrame, *, limit: int = 4) -> str:
@@ -31301,65 +31304,68 @@ def discover_saved_browser_jump_html() -> str:
 
 
 def render_online_company_search(*, saved_tickers: Iterable[str] = ()) -> None:
-    """Search SEC associations on explicit request without changing saved evidence."""
-
-    st.markdown(
-        "<h2>Find a Company Online</h2>"
-        "<p>Search SEC ticker and company-name associations. "
-        "The saved research browser below remains a separate evidence collection.</p>",
-        unsafe_allow_html=True,
-    )
-    with st.form("online-company-search-form"):
-        query = st.text_input(
-            "Search SEC companies online",
-            placeholder="Company name or ticker",
-            help="Fetches the SEC association directory only after you press Search SEC now.",
-            key="online-company-query",
-        ).strip()
-        requested = st.form_submit_button("Search SEC now")
-    if requested:
-        st.session_state[ONLINE_COMPANY_SESSION_KEY] = search_sec_company_candidates(
-            query,
-            user_agent=os.getenv("SEC_USER_AGENT"),
+    """Reuse one explicit online search entry across company research routes."""
+    with st.container(key="research-company-search"):
+        st.markdown(
+            "<section data-sr-region='primary-answer' aria-label='Company search'>"
+            "<h2>Find a company</h2></section>",
+            unsafe_allow_html=True,
         )
-    result = st.session_state.get(ONLINE_COMPANY_SESSION_KEY)
-    st.markdown(
-        online_company_results_html(result, saved_tickers=set(saved_tickers)),
-        unsafe_allow_html=True,
-    )
+        with st.form("online-company-search-form", border=False):
+            query = st.text_input(
+                "Company name or ticker", placeholder="e.g. AMD or Duke Energy",
+                key="online-company-query",
+            ).strip()
+            requested = st.form_submit_button("Search company", type="primary")
+        if requested:
+            st.session_state[ONLINE_COMPANY_SESSION_KEY] = search_sec_company_candidates(
+                query, user_agent=os.getenv("SEC_USER_AGENT"),
+            )
+        result = st.session_state.get(ONLINE_COMPANY_SESSION_KEY)
+        if result is not None:
+            st.markdown(online_company_results_html(result, saved_tickers=set(saved_tickers)),
+                        unsafe_allow_html=True)
+        st.markdown(
+            "<p class='company-scope-note' data-sr-region='stop-rule'>"
+            "Research-only · SEC directory matches. Listing identity, financials and prices are checked separately.</p>",
+            unsafe_allow_html=True,
+        )
 
 
 def render_online_coverage_study() -> None:
     """Run a declared SEC industry sample only after an explicit Personal action."""
     from src.online_peer_coverage_ui import render_peer_coverage
-    render_peer_coverage(st)
-    with st.expander("U.S. listing coverage · online", expanded=False):
-        st.markdown("Load the full observed official listing inventory, then check financial coverage by issuer. Unprobed and unmatched records remain visible.")
-        load_requested=st.button("Load U.S. listing inventory",key="online-us-universe-load")
-        restore_requested=st.button("Restore saved coverage",key="online-us-universe-restore")
-        save_requested=st.button("Save coverage progress",key="online-us-universe-save")
-        checkpoint_action=handle_coverage_checkpoint_action(st.session_state,save_requested=save_requested,restore_requested=restore_requested,new_run_requested=load_requested)
-        if checkpoint_action['status']=="saved":st.caption("Coverage progress saved on this computer; the previous checkpoint is backed up.")
-        elif checkpoint_action['status']=="restored":st.caption("Saved coverage restored. Its original source dates still apply.")
-        elif checkpoint_action['status']=="unavailable":st.caption("Coverage checkpoint unavailable: "+str(checkpoint_action.get("reason","validation required")).replace("_"," "))
-        with st.spinner("Loading dated listing inventory…"):
-            universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),load_requested=load_requested)
-        can_inspect=universe.get("status")=="inspection_only" and universe.get("coverage",{}).get("unprobed_issuer_count",0)>0
-        inspect_requested=st.button("Check next 20 issuers",key="online-us-universe-inspect",disabled=not can_inspect)
-        if inspect_requested:
-            with st.spinner("Checking the next issuer batch…"):
-                universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),inspect_requested=True)
-        st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
-    with st.expander("Security types · online",expanded=False):
-        requested=st.button("Classify observed listings",key="security-classification-refresh")
-        classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
-        query=st.text_input("Filter classified listings",key="security-classification-query") if classified.get("status")=="inspection_only" else ""
-        st.markdown(classification_html(classified,query),unsafe_allow_html=True)
-    with st.expander("Cross-industry coverage · online sample", expanded=False):
-        st.markdown("A bounded sample of " + str(len(DEFAULT_SAMPLE)) + " tickers across SEC industries. This is a field-availability study, not a market-wide census; prices are not queried.")
-        requested=st.button("Run online coverage sample",key="online-coverage-sample-refresh")
-        result=get_online_coverage_study(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
-        st.markdown(coverage_study_html(result),unsafe_allow_html=True)
+    with st.expander("Coverage studies", expanded=False):
+        tabs = st.tabs(("Peer valuation", "U.S. listings", "Security types", "Industry financials"))
+        with tabs[0]:
+            render_peer_coverage(st, embedded=True)
+        with tabs[1]:
+            st.markdown("Load the full observed official listing inventory, then check financial coverage by issuer. Unprobed and unmatched records remain visible.")
+            load_requested=st.button("Load U.S. listing inventory",key="online-us-universe-load")
+            restore_requested=st.button("Restore saved coverage",key="online-us-universe-restore")
+            save_requested=st.button("Save coverage progress",key="online-us-universe-save")
+            checkpoint_action=handle_coverage_checkpoint_action(st.session_state,save_requested=save_requested,restore_requested=restore_requested,new_run_requested=load_requested)
+            if checkpoint_action['status']=="saved":st.caption("Coverage progress saved on this computer; the previous checkpoint is backed up.")
+            elif checkpoint_action['status']=="restored":st.caption("Saved coverage restored. Its original source dates still apply.")
+            elif checkpoint_action['status']=="unavailable":st.caption("Coverage checkpoint unavailable: "+str(checkpoint_action.get("reason","validation required")).replace("_"," "))
+            with st.spinner("Loading dated listing inventory…"):
+                universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),load_requested=load_requested)
+            can_inspect=universe.get("status")=="inspection_only" and universe.get("coverage",{}).get("unprobed_issuer_count",0)>0
+            inspect_requested=st.button("Check next 20 issuers",key="online-us-universe-inspect",disabled=not can_inspect)
+            if inspect_requested:
+                with st.spinner("Checking the next issuer batch…"):
+                    universe=get_online_us_universe(st.session_state,user_agent=os.getenv("SEC_USER_AGENT"),inspect_requested=True)
+            st.markdown(universe_coverage_html(universe),unsafe_allow_html=True)
+        with tabs[2]:
+            requested=st.button("Classify observed listings",key="security-classification-refresh")
+            classified=get_listing_classification(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
+            query=st.text_input("Filter classified listings",key="security-classification-query") if classified.get("status")=="inspection_only" else ""
+            st.markdown(classification_html(classified,query),unsafe_allow_html=True)
+        with tabs[3]:
+            st.markdown("A bounded sample of " + str(len(DEFAULT_SAMPLE)) + " tickers across SEC industries. This is a field-availability study, not a market-wide census; prices are not queried.")
+            requested=st.button("Run online coverage sample",key="online-coverage-sample-refresh")
+            result=get_online_coverage_study(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
+            st.markdown(coverage_study_html(result),unsafe_allow_html=True)
 
 
 def render_stock_selector(
@@ -31373,6 +31379,7 @@ def render_stock_selector(
     strict_eligible_count: int | None = None,
     field_study: BoundedFieldStudy | None = None,
     registered_tickers: tuple[str, ...] | None = None,
+    include_online_search: bool = True,
 ) -> None:
     research_discover = (
         str(target_mode).strip().lower() == RESEARCH_MODE
@@ -31423,7 +31430,8 @@ def render_stock_selector(
                 saved_tickers = tuple(
                     ticker_readiness_frame[ticker_column].dropna().astype(str).str.upper()
                 )
-        render_online_company_search(saved_tickers=saved_tickers)
+        if include_online_search:
+            render_online_company_search(saved_tickers=saved_tickers)
 
     saved_presets = stock_selector_saved_filter_presets()
     current_filter_values = stock_selector_current_filter_values(saved_presets, st.session_state)
@@ -31442,6 +31450,7 @@ def render_stock_selector(
                 len(selector_frame),
                 0 if strict_eligible_count is None else strict_eligible_count,
                 research_boundary=research_boundary,
+                task_detail=not include_online_search,
             ),
             unsafe_allow_html=True,
         )
@@ -37745,6 +37754,12 @@ def render_research_workspace_header(
     observation_recency: ObservationRecencySet | None = None,
     include_selected_observation: bool = False,
 ) -> None:
+    if page_title in {"Research Desk", "Discover", "Monitor"}:
+        from src.research_task_layout import task_page_header_html
+        st.markdown(task_page_header_html(page_title, profile_label=context.profile_label,
+                    freshness=saved_readiness_display_label(context.freshness_state)),
+                    unsafe_allow_html=True)
+        return
     st.markdown(
         research_workspace_header_html(
             page_title,
@@ -37772,6 +37787,7 @@ def render_research_desk(
     coverage: FocusedCohortCoverage,
     weekly_summary: WeeklyResearchSummary,
     observation_recency: ObservationRecencySet | None = None,
+    *, registered_tickers: tuple[str, ...] = (),
 ) -> None:
     render_research_workspace_header(
         "Research Desk",
@@ -37779,6 +37795,22 @@ def render_research_desk(
         primary_action="Review the brief below",
         compact=True,
         include_boundary=False,
+    )
+    render_online_company_search(saved_tickers=registered_tickers)
+    from src.research_task_layout import saved_research_cards_html
+    from src.sec_research_review import review_queue
+    st.markdown("<h2 class='research-task-section-title'>Saved SEC research</h2>", unsafe_allow_html=True)
+    try:
+        saved_queue = review_queue(BASE_DIR, context.profile_key)
+    except (ValueError, OSError):
+        st.info("Saved SEC research is unavailable. You can still search for a company online.")
+    else:
+        st.markdown(saved_research_cards_html(saved_queue), unsafe_allow_html=True)
+    st.markdown(
+        "<p class='research-desk-secondary-actions'>"
+        "<a href='?mode=research&amp;page=discover'>Browse companies</a> · "
+        "<a href='?mode=research&amp;page=monitor'>Review evidence in Monitor</a></p>",
+        unsafe_allow_html=True,
     )
     brief = build_research_desk_brief(
         weekly_summary,
@@ -37797,15 +37829,12 @@ def render_research_desk(
             else ""
         ),
     )
-    st.markdown(
-        research_desk_brief_html(
-            brief,
-            freshness_state=context.freshness_state,
-        ),
-        unsafe_allow_html=True,
-    )
+    if brief.attention_count:
+        st.caption(f"Saved process follow-ups to review: {brief.attention_count}. Open Monitor for the evidence.")
     st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
-    with st.expander("Advanced Evidence", expanded=False):
+    with st.expander("Workspace data details", expanded=False):
+        st.markdown(research_desk_brief_html(brief, freshness_state=context.freshness_state)
+                    .replace("data-sr-region=", "data-saved-detail-region="), unsafe_allow_html=True)
         if observation_recency is not None:
             render_observation_recency(
                 observation_recency,
@@ -37883,24 +37912,24 @@ def render_research_monitor(
             else "Market observation is unavailable."
         ),
     )
+    process_state = "follow-up" if queue.has_saved_follow_up else "empty"
+    process_message = ("Saved process follow-ups are listed below." if queue.has_saved_follow_up
+                       else "No saved process follow-up is due.")
     st.markdown(
-        answer_panel_html(
-            question="What saved research follow-up is due?",
-            answer=(
-                monitor_primary_answer(queue)
-            ),
-            reason=queue.primary_reason,
-            action=SafeRouteAction(
-                label=queue.next_action_label,
-                href=queue.next_action_url,
-            ),
-            stop_rule=(
-                "Research-only. "
-                f"{queue.empty_boundary} Saved process state is not a recommendation or alert feed."
-            ),
-        ).value,
+        "<section class='research-monitor-task' data-sr-region='primary-answer' "
+        f"data-monitor-process-state='{process_state}'><p>{process_message}</p></section>"
+        "<p class='company-scope-note' data-sr-region='stop-rule'>"
+        "Research-only · Saved evidence and process follow-ups. This is not a live market alert feed.</p>",
         unsafe_allow_html=True,
     )
+    if queue.has_freshness_attention:
+        freshness_note = ("Saved inputs and market observations need a freshness check."
+            if queue.has_readiness_attention and queue.has_observation_attention else
+            "Saved model inputs need a freshness check." if queue.has_readiness_attention else
+            "Market observation dates need a freshness check.")
+        st.markdown("<p class='company-scope-note research-monitor-freshness'>" + freshness_note
+                    + " <a href='?mode=research&amp;page=data-health'>Review data dates</a></p>",
+                    unsafe_allow_html=True)
     if return_ticker:
         return_link = research_monitor_return_link(return_ticker, origin=monitor_origin)
         if monitor_origin is not None:
@@ -37920,9 +37949,10 @@ def render_research_monitor(
         )
     from src.sec_research_review_ui import render_review_monitor
     render_review_monitor(st, profile_key=context.profile_key, monitor_origin=monitor_origin)
-    st.markdown("## Follow-up Queue")
+    if queue.has_saved_follow_up:
+        st.markdown("<h2 class='research-task-section-title'>Follow-up Queue</h2>", unsafe_allow_html=True)
     discipline_frame = pd.DataFrame(research_discipline_rows(discipline))
-    if queue.has_saved_follow_up or queue.has_freshness_attention:
+    if queue.has_saved_follow_up:
         render_signal_cards(
             [asdict(panel) for panel in queue.panels],
             show_commands=False,
@@ -37934,13 +37964,28 @@ def render_research_monitor(
             unsafe_allow_html=True,
         )
 
-    st.markdown(
-        study_monitor_html(load_dashboard_bounded_field_study(context)),
-        unsafe_allow_html=True,
-    )
-
     st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
     with st.expander("Advanced: Monitor evidence", expanded=False):
+        st.markdown(f"<div data-monitor-identity-count='{len(discipline)}'></div>", unsafe_allow_html=True)
+        st.markdown(study_monitor_html(load_dashboard_bounded_field_study(context)), unsafe_allow_html=True)
+        st.markdown(
+            answer_panel_html(
+                question="What saved research follow-up is due?",
+                answer=(
+                    monitor_primary_answer(queue)
+                ),
+                reason=queue.primary_reason,
+                action=SafeRouteAction(
+                    label=queue.next_action_label,
+                    href=queue.next_action_url,
+                ),
+                stop_rule=(
+                    "Research-only. "
+                    f"{queue.empty_boundary} Saved process state is not a recommendation or alert feed."
+                ),
+            ).value.replace("data-sr-region=", "data-saved-detail-region="),
+            unsafe_allow_html=True,
+        )
         if queue.has_saved_follow_up:
             st.markdown(
                 supporting_detail_html(
@@ -38009,8 +38054,6 @@ def render_research_monitor(
         render_signal_cards(cohort_readiness_cards(nowcast_cohort), show_commands=False, variant="queue")
         st.dataframe(pd.DataFrame([asdict(row) for row in nowcast_cohort]), width="stretch", hide_index=True)
         st.caption("This board creates no forecast. Missing consensus, Q4, split, backtest, and calibration evidence remain separate blockers.")
-    with st.expander("Advanced Evidence", expanded=False):
-        st.caption("Source identifiers and raw change rows remain in the separate evidence drawer below.")
 
 
 def render_company_valuation_summary(ticker: str, report_payload=None, *, target=None) -> None:
@@ -38396,7 +38439,10 @@ def render_personal_research_route(
         as_of=review_date,
     )
     if selected_page == "Research Desk":
-        render_research_desk(state, context, cohort, coverage, weekly_summary, observation_recency)
+        registered = (tuple(provider.list_local_tickers())
+                      if provider is not None and hasattr(provider, "list_local_tickers") else ())
+        render_research_desk(state, context, cohort, coverage, weekly_summary, observation_recency,
+                             registered_tickers=registered)
     elif selected_page == "Discover":
         render_research_workspace_header(
             "Discover",
@@ -38406,21 +38452,24 @@ def render_personal_research_route(
             include_boundary=False,
         )
         daily_queue = load_dashboard_daily_research_queue(context, as_of=review_date)
-        render_stock_selector(
-            {},
-            public_mode=True,
-            target_mode=RESEARCH_MODE,
-            target_page="company-workbench",
-            allowed_tickers=tuple(member.ticker for member in cohort.members),
-            research_boundary=QUEUE_BOUNDARY,
-            strict_eligible_count=len(daily_queue.result.eligible),
-            field_study=load_dashboard_bounded_field_study(context),
-            registered_tickers=(
-                tuple(provider.list_local_tickers())
-                if provider is not None and hasattr(provider, "list_local_tickers")
-                else ()
-            ),
-        )
+        registered = (tuple(provider.list_local_tickers())
+                      if provider is not None and hasattr(provider, "list_local_tickers") else ())
+        online_tab, saved_tab = st.tabs(("Find company online", "Saved companies"))
+        with online_tab:
+            render_online_company_search(saved_tickers=registered)
+        with saved_tab:
+            render_stock_selector(
+                {},
+                public_mode=True,
+                target_mode=RESEARCH_MODE,
+                target_page="company-workbench",
+                allowed_tickers=tuple(member.ticker for member in cohort.members),
+                research_boundary=QUEUE_BOUNDARY,
+                strict_eligible_count=len(daily_queue.result.eligible),
+                field_study=load_dashboard_bounded_field_study(context),
+                registered_tickers=registered,
+                include_online_search=False,
+            )
         render_online_coverage_study()
         st.markdown(research_advanced_detail_marker_html(), unsafe_allow_html=True)
         with st.expander("Advanced: cohort readiness context", expanded=False):

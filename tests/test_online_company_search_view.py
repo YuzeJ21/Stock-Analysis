@@ -102,6 +102,7 @@ def test_online_search_runs_only_on_explicit_submit_and_survives_zero_saved_rows
         "st",
         SimpleNamespace(
             session_state=session,
+            container=lambda *_args, **_kwargs: Form(),
             form=lambda *_args, **_kwargs: Form(),
             text_input=lambda *_args, **_kwargs: "FICT",
             form_submit_button=lambda *_args, **_kwargs: submitted.pop(0),

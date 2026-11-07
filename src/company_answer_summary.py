@@ -26,6 +26,11 @@ COMPANY_ANSWERS_STYLE = """
 .company-answer-summary li{margin:4px 0}
 .company-answer-summary a{color:#245842;text-decoration:underline}
 .company-answer-summary summary:focus-visible,.company-answer-summary a:focus-visible{outline:3px solid #245842;outline-offset:2px}
+.company-observation-context{display:flex;flex-wrap:wrap;gap:6px 18px;margin:8px 0}
+.company-observation-context div{flex:1 1 15rem;min-width:0;overflow-wrap:anywhere}
+.company-observation-context dt{font-size:.78rem;font-weight:600}
+.company-observation-context dd{margin:3px 0;font-size:.85rem;line-height:1.4}
+.company-observation-context a{font-size:.78rem;text-decoration:underline}
 @media(max-width:700px){
   .company-answer-summary{grid-template-columns:minmax(0,1fr);gap:6px;margin:10px 0}
   .company-answer-summary .company-answer{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:8px;padding:8px 10px}
@@ -275,8 +280,17 @@ def build_company_answers(ticker, projection, financial, prices, association, pe
             _valuation_answer(ticker, peer_view))
 
 
-def company_answers_html(answers):
+def company_answers_html(answers, *, compact=False):
     """Render escaped cards and native evidence disclosures in both surfaces."""
+    if compact:
+        rows = []
+        for answer in answers:
+            value = answer['context'] if answer['key'] == 'financial' else answer['value'] + ' · ' + answer['context']
+            links = answer.get('links', ())
+            source = _link(links[0][1], 'Source') if links else ''
+            rows.append('<div><dt>' + escape(answer['title']) + '</dt><dd>' + escape(value)
+                        + ' ' + source + '</dd></div>')
+        return '<dl class="company-observation-context" aria-label="Loaded company observations">' + ''.join(rows) + '</dl>'
     cards = []
     for answer in answers:
         title, value, context = (escape(answer[key]) for key in ('title', 'value', 'context'))

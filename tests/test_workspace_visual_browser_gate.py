@@ -2141,6 +2141,72 @@ def test_research_desk_uses_the_same_complete_answer_hierarchy_contract():
     ).passed
 
 
+def test_task_header_disclosure_retains_context_without_hiding_the_main_task():
+    from src.workspace_visual_browser_gate import evaluate_workspace_details_disclosure
+
+    valid = dict(count=1, visible=True, focusable=True, closed=True,
+                 context_count=1, context_visible_count=0,
+                 text="Data profile Demo Saved readiness Current Mode Personal research")
+    assert evaluate_workspace_details_disclosure(valid).passed
+    for mutation in (
+        {"count": 0}, {"count": 2}, {"visible": False}, {"focusable": False},
+        {"closed": False}, {"context_count": 0}, {"context_count": 2},
+        {"context_visible_count": 1}, {"text": "Ready"},
+    ):
+        assert not evaluate_workspace_details_disclosure({**valid, **mutation}).passed
+
+
+def test_task_header_keyboard_sequence_allows_only_named_context_and_query_before_search():
+    from src.workspace_visual_browser_gate import evaluate_focus_sequence
+
+    valid = dict(focused_roles=("skip", "navigation", "workspace-details", "company-query", "primary-action", "advanced-detail"),
+                 region_order=("workflow-nav", "primary-answer", "primary-action", "stop-rule", "advanced-detail"),
+                 outline_widths=(3, 3, 3, 3, 3, 3), positive_tabindex_count=0, compact_task=True)
+    assert evaluate_focus_sequence(**valid).passed
+    assert not evaluate_focus_sequence(**{**valid, "focused_roles": ("skip", "navigation", "other", "company-query", "primary-action", "advanced-detail")}).passed
+    assert not evaluate_focus_sequence(**{**valid, "outline_widths": (3, 3, 2, 3, 3, 3)}).passed
+    assert not evaluate_focus_sequence(**{**valid, "region_order": ("workflow-nav", "primary-answer", "primary-action", "advanced-detail")}).passed
+
+
+def test_task_header_hierarchy_only_allows_hidden_context_in_verified_disclosure():
+    from src.workspace_visual_browser_gate import evaluate_personal_route_hierarchy
+
+    order = ("workflow-nav", "page-title", "context", "primary-answer", "primary-action", "stop-rule", "advanced-detail")
+    counts = dict.fromkeys(order, 1)
+    details = dict(count=1, visible=True, focusable=True, closed=True, context_count=1,
+                   context_visible_count=0, text="Data profile Demo Saved readiness Current Mode Personal research")
+    valid = dict(slug="research-desk", region_counts=counts, region_order=order,
+                 visible_region_counts={**counts, "context": 0},
+                 visible_region_order=tuple(name for name in order if name != "context"),
+                 primary_action_focusable_count=1, legacy_pre_answer_action_count=0,
+                 workspace_details=details)
+    assert evaluate_personal_route_hierarchy(**valid).passed
+    assert not evaluate_personal_route_hierarchy(**{**valid, "workspace_details": {**details, "focusable": False}}).passed
+    assert not evaluate_personal_route_hierarchy(**{**valid, "visible_region_counts": {**counts, "primary-answer": 0}}).passed
+    assert not evaluate_personal_route_hierarchy(**{**valid, "primary_action_focusable_count": 0}).passed
+    assert not evaluate_personal_route_hierarchy(**{**valid, "region_counts": {**counts, "primary-answer": 2}}).passed
+    advanced_support = {**valid, "region_counts": {**counts, "supporting-evidence": 1},
+                        "region_order": order + ("supporting-evidence",)}
+    assert evaluate_personal_route_hierarchy(**advanced_support).passed
+    assert not evaluate_personal_route_hierarchy(**{**advanced_support,
+        "visible_region_counts": {**valid["visible_region_counts"], "supporting-evidence": 1}}).passed
+
+
+def test_company_search_first_viewport_requires_the_real_form_and_usable_controls():
+    from src.workspace_visual_browser_gate import evaluate_company_search_first_viewport
+
+    valid = dict(form_count=1, query_count=1, submit_count=1,
+                 query=dict(top=200, bottom=244, left=12, right=378, height=44, focusable=True),
+                 submit=dict(top=252, bottom=296, left=12, right=180, height=44, focusable=True))
+    assert evaluate_company_search_first_viewport(valid, viewport_height=844, viewport_width=390).passed
+    for mutation in ({"form_count": 0}, {"query_count": 2}, {"submit_count": 0},
+                     {"query": {**valid["query"], "focusable": False}},
+                     {"submit": {**valid["submit"], "bottom": 846}},
+                     {"query": {**valid["query"], "right": 400}},
+                     {"submit": {**valid["submit"], "height": 30}}):
+        assert not evaluate_company_search_first_viewport({**valid, **mutation}, viewport_height=844, viewport_width=390).passed
+
+
 def test_public_home_phone_geometry_requires_complete_stop_at_100_and_ordered_reflow_at_200():
     from src.workspace_visual_browser_gate import evaluate_public_home_geometry
 
