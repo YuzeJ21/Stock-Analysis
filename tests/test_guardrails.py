@@ -108,12 +108,15 @@ def test_internal_agent_reference_files_are_not_public_release_artifacts():
 def test_public_readme_contains_research_only_guardrails():
     readme_text = Path("README.md").read_text(encoding="utf-8").lower()
     expected_phrases = (
-        "research-only guardrails",
-        "not a trading system",
-        "connect to brokers",
-        "recommend option trades",
-        "provide direct buy/sell instructions",
-        "fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations",
+        "research-only",
+        "investment advice",
+        "broker account actions",
+        "order routing",
+        "trading automation",
+        "direct buy or sell instructions",
+        "are outside its scope",
+        "missing fields and unsupported comparisons stay withheld",
+        "source rights apply independently",
     )
     for phrase in expected_phrases:
         assert phrase in readme_text
@@ -123,11 +126,13 @@ def test_public_docs_explain_single_stock_reader_guide():
     readme_text = Path("README.md").read_text(encoding="utf-8").lower()
     methodology_text = Path("docs/METHODOLOGY.md").read_text(encoding="utf-8").lower()
     expected_readme_phrases = (
-        "plain-english reader guide",
-        "what can be analyzed now",
-        "what is still locked or excluded",
-        "what trusted input matters next",
-        "read-only proof step",
+        "company search → overview → financial trends → valuation & peers → research notes → data sources → monitor",
+        "filing links, concepts, units, periods",
+        "source and observation dates stay visible",
+        "missing fields and unsupported comparisons stay withheld",
+        "data health",
+        "proof history",
+        "docs/methodology.md",
     )
     for phrase in expected_readme_phrases:
         assert phrase in readme_text

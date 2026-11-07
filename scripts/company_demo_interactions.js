@@ -4,6 +4,7 @@
     const panels = Array.from(document.querySelectorAll("[data-demo-page]"));
     const panelByPage = new Map(panels.map((panel) => [panel.dataset.demoPage, panel]));
     const steps = document.querySelectorAll("nav [data-demo-go]");
+    const companyHeading = document.querySelector("[data-demo-company-heading]");
     const evidencePair = document.querySelector("#demo-evidence-pair");
     let openPeerEvidence = false;
 
@@ -14,12 +15,13 @@
             return;
         }
         const page = reviewingEvidence ? "notes" : panelByPage.has(requested) ? requested : "discover";
+        companyHeading.hidden = page === "discover" || page === "monitor";
         for (const panel of panels) {
             panel.hidden = panel.dataset.demoPage !== page;
         }
         for (const step of steps) {
             if (step.dataset.demoGo === page) {
-                step.setAttribute("aria-current", "step");
+                step.setAttribute("aria-current", "page");
             } else {
                 step.removeAttribute("aria-current");
             }

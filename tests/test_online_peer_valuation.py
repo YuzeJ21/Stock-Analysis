@@ -295,9 +295,9 @@ def test_mismatched_quote_and_close_dates_are_disclosed_without_admitting_peers(
     assert view['reason'] == 'quote_not_same_recent_completed_day'
     assert view['subject'] is None and view['excluded'] == []
     card = build_company_answers('FICT', {}, {}, {}, {}, view)[-1]
-    assert '供应商报价日期 2026-10-31 · 日线收盘 2026-10-30。' in card['evidence']
-    assert ('本公司供应商报价来源', subject['vendor']['source_ref']) in card['links']
-    assert ('本公司日线来源', subject['prices']['source_url']) in card['links']
+    assert 'Provider quote date 2026-10-31 · Daily close 2026-10-30.' in card['evidence']
+    assert ('Company provider quote source', subject['vendor']['source_ref']) in card['links']
+    assert ('Company daily price source', subject['prices']['source_url']) in card['links']
 
 
 @pytest.mark.parametrize("proof_kind", ["matching", "missing", "wrong_date", "mismatched_price"])

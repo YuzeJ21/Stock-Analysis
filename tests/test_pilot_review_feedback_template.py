@@ -161,6 +161,8 @@ def test_commercial_beta_feedback_log_captures_complete_validation_and_consent_c
 def test_pilot_feedback_closeout_checklist_keeps_feedback_out_of_data_gates():
     body = Path("docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md").read_text(encoding="utf-8")
     readme = Path("README.md").read_text(encoding="utf-8")
+    operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
+    invitation = Path("docs/PILOT_REVIEW_INVITATION.md").read_text(encoding="utf-8")
     runbook = Path("docs/PILOT_RUNBOOK.md").read_text(encoding="utf-8")
 
     for outcome in (
@@ -175,8 +177,10 @@ def test_pilot_feedback_closeout_checklist_keeps_feedback_out_of_data_gates():
 
     assert "not data proof" in body.lower()
     assert "Do not expand coverage, add providers, or apply imports from reviewer feedback alone." in body
-    assert "make pilot-feedback-closeout" in readme
-    assert "docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md" in readme
+    assert "docs/OPERATOR_GUIDE.md" in readme
+    assert "(PILOT_REVIEW_INVITATION.md)" in operator_guide
+    assert "(PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md)" in invitation
+    assert "(PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md)" in runbook
     assert "make pilot-feedback-closeout" in runbook
     assert "make public-check" in body
 
@@ -184,6 +188,7 @@ def test_pilot_feedback_closeout_checklist_keeps_feedback_out_of_data_gates():
 def test_pilot_review_invitation_is_a_short_privacy_safe_entry_point():
     invitation = Path("docs/PILOT_REVIEW_INVITATION.md").read_text(encoding="utf-8")
     readme = Path("README.md").read_text(encoding="utf-8")
+    operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
     linkedin_brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
 
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in invitation
@@ -196,8 +201,12 @@ def test_pilot_review_invitation_is_a_short_privacy_safe_entry_point():
     assert "docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md" in invitation
     assert "docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md" in invitation
     assert "not data proof" in invitation.lower()
-    assert "docs/PILOT_REVIEW_INVITATION.md" in readme
-    assert "docs/PILOT_REVIEW_INVITATION.md" in linkedin_brief
+    assert "Participation is voluntary." in invitation
+    assert "ask the operator to delete your anonymous row" in invitation
+    assert "deletion date" in invitation
+    assert "[README](../README.md)" in linkedin_brief
+    assert "docs/OPERATOR_GUIDE.md" in readme
+    assert "(PILOT_REVIEW_INVITATION.md)" in operator_guide
 
 
 def test_commercial_beta_pilot_contract_is_task_based_and_truthful():
@@ -208,8 +217,20 @@ def test_commercial_beta_pilot_contract_is_task_based_and_truthful():
 
     assert "## Now: Commercial Research Beta Foundation" in roadmap
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in roadmap
-    assert "The full Streamlit workspace is a **local Commercial Research Beta foundation**." in readme
-    assert "operated data rights, real beta users, and repeatable provider operations remain separate gates" in readme
+    assert "A local research beta" in readme
+    for gate in (
+        "Hosted full-workspace operation",
+        "authentication and private workspaces",
+        "operated data rights",
+        "provider reliability",
+        "independent user evidence",
+        "commercial validation",
+    ):
+        assert gate in readme
+    assert "Source rights apply independently" in readme
+    assert "Missing fields and unsupported comparisons stay withheld" in readme
+    assert "Independent beta sessions completed: zero." in roadmap
+    assert "Automated evidence is not independent human review." in roadmap
     assert "10 to 20" in runbook
     for metric in (
         "Task success",

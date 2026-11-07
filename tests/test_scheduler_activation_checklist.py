@@ -39,7 +39,9 @@ def test_scheduler_activation_docs_are_linked_from_reviewer_and_operator_paths()
     readme = Path("README.md").read_text(encoding="utf-8")
     operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
 
-    assert "make scheduler-activation-checklist" in readme
-    assert "Scheduler maturity starts as status-only monitoring" in readme
+    assert "docs/OPERATOR_GUIDE.md" in readme
+    assert "[Scheduler Activation Checklist](SCHEDULER_ACTIVATION_CHECKLIST.md)" in operator_guide
+    assert "default scheduler posture is status-only monitoring" in operator_guide
+    assert "Automatic application remains disabled even when review preconditions pass." in operator_guide
     assert "make scheduler-activation-checklist" in operator_guide
     assert "Provider setup alone is never scheduling proof." in operator_guide

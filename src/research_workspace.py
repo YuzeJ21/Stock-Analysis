@@ -1527,6 +1527,7 @@ class MonitorOrigin:
     ticker: str
     section: str
     online_cik: str | None
+    section_widget_key: str | None = None
 
     def workbench_query(self) -> dict[str, str]:
         query = {
@@ -1553,9 +1554,16 @@ def open_research_monitor(st, ticker: str, profile_key: str) -> None:
     if online and candidate is None:
         st.session_state.pop(_MONITOR_ORIGIN_KEY, None)
     else:
+        section = section_key(params.get("section"))
+        scopes = ("online:" + candidate["cik"],) if candidate else ("saved", "receipts")
+        widget_keys = [f"company-section:{profile_key}:{ticker}:{scope}" for scope in scopes]
+        widget_keys = [key for key in widget_keys if key in st.session_state]
+        if len(widget_keys) > 1:
+            widget_keys = [key for key in widget_keys if st.session_state.get(key) == section]
         st.session_state[_MONITOR_ORIGIN_KEY] = MonitorOrigin(
-            profile_key, ticker, section_key(params.get("section")),
+            profile_key, ticker, section,
             candidate["cik"] if candidate else None,
+            widget_keys[0] if len(widget_keys) == 1 else None,
         )
         query["return_ticker"] = ticker
         if online:
@@ -1595,6 +1603,12 @@ def return_to_research_workbench(st, origin: MonitorOrigin) -> None:
         or research_monitor_origin(st.session_state, origin.profile_key, origin.ticker) != origin
     ):
         return
+    scopes = ("online:" + origin.online_cik,) if origin.online_cik is not None else ("saved", "receipts")
+    if origin.section_widget_key in {
+        f"company-section:{origin.profile_key}:{origin.ticker}:{scope}" for scope in scopes
+    }:
+        # The returned section must also replace a retained widget default.
+        st.session_state[origin.section_widget_key] = origin.section
     params.from_dict(origin.workbench_query())
     st.session_state.pop(_MONITOR_ORIGIN_KEY, None)
 

@@ -95,7 +95,8 @@ def test_monitor_study_comparison_is_separate_from_follow_up_queue(monkeypatch, 
     )
 
     copy = " ".join(rendered)
-    assert rendered.count("## Follow-up Queue") == 1
+    assert "Follow-up Queue" not in copy
+    assert "No saved process follow-up is due." in copy
     assert "Six-company saved-field comparison" in copy
     assert "No field difference" in copy
     assert "adds no Monitor follow-up event" in copy

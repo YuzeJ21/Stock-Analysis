@@ -660,7 +660,8 @@ def evaluate_integrated_company_workbench(observation, *, expected_ticker="NVDA"
         or len(observation.get('section_heights',[]))!=5
         or any(not isinstance(h,(int,float)) or h<44 for h in observation.get('section_heights',[]))):
         failures.append('expected five ordered visible 44px sections')
-    if observation.get('selected')!=['Overview'] or observation.get('body_headings')!=['Overview']:
+    if (observation.get('selected')!=['Overview'] or observation.get('body_headings')!=[]
+        or observation.get('body_section')!='overview'):
         failures.append('expected only the selected overview body')
     if number('update_count')!=1 or observation.get('update_visible') is not True or number('update_height')<44:
         failures.append('expected one usable combined update action')
@@ -3347,6 +3348,7 @@ def _company_workbench_primary_brief_assertion(page: Any) -> dict[str, object]:
             selected=page.locator(".st-key-company-section-navigation label").filter(
                 has=page.locator('input:checked')).all_text_contents(),
             body_headings=page.locator('.st-key-company-section-body h2').all_text_contents(),
+            body_section=page.locator('.st-key-company-section-body [data-company-section]').get_attribute('data-company-section'),
             update_count=update.count(),update_visible=update.count()==1 and update.first.is_visible(),
             update_height=(update.first.bounding_box() or {}).get('height',0) if update.count()==1 else 0,
             scope_text=brief.text_content(),

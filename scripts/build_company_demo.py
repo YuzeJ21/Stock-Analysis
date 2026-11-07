@@ -35,11 +35,11 @@ _PEERS = (
     ("Peer D", 30.0, -0.5),
 )
 _STEPS = (
-    ("discover", "Company Search"),
+    ("overview", "Overview"),
     ("financials", "Financial Trends"),
-    ("valuation", "Peer Valuation"),
+    ("valuation", "Valuation &amp; Peers"),
     ("notes", "Research Notes"),
-    ("monitor", "Monitor"),
+    ("sources", "Data Sources"),
 )
 _SCRIPT_PATH = Path(__file__).with_name("company_demo_interactions.js")
 _STYLE = """
@@ -78,6 +78,18 @@ h3 { font-size: 1.25rem; letter-spacing: -.025em; }
 .layout { display: grid; grid-template-columns: minmax(10.75rem, .23fr) minmax(0, 1fr);
   gap: clamp(1.4rem, 4vw, 3rem); padding-block: clamp(1.4rem, 4vw, 3rem); }
 .steps { position: sticky; top: 1.5rem; align-self: start; }
+.workspace-rail { position: sticky; top: 1.5rem; align-self: start; display: grid; gap: 1.4rem; }
+.workspace-rail .steps { position: static; }
+.workflow-links { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.company-heading { display: grid; gap: .45rem; margin-bottom: 1rem; }
+.company-heading p:last-child { color: var(--muted); }
+.company-heading h2 { font-size: clamp(2rem, 5vw, 2.8rem); }
+.company-section-title { font-size: clamp(1.5rem, 4vw, 1.9rem); letter-spacing: -.035em; }
+.panel-intro--compact .company-section-title { font-size: 1.1rem; letter-spacing: -.02em; }
+.table-scroll { min-width: 0; overflow-x: auto; }
+.table-scroll table { min-width: 26rem; }
+.analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+.analysis-grid .surface { display: grid; align-content: start; gap: .55rem; }
 .steps-title { margin: 0 0 .65rem .55rem; }
 .steps ol { list-style: none; padding: 0; margin: 0; display: grid; gap: .3rem; }
 .steps a { display: flex; min-height: 2.9rem; align-items: center; gap: .65rem; padding: .4rem .55rem;
@@ -198,7 +210,9 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
 }
 @media (max-width: 800px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
-  .steps { position: static; }
+  .steps, .workspace-rail { position: static; }
+  .workspace-rail { gap: .6rem; }
+  .workflow-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .steps-title, .scope-note { display: none; }
   .steps ol { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
   .steps a { padding-inline: .45rem; font-size: .82rem; gap: .35rem; border-color: var(--line); background: var(--paper); }
@@ -208,7 +222,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
   .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
   .layout { padding-top: .8rem; gap: 1rem; }
   .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes, .evidence-observations { grid-template-columns: minmax(0, 1fr); }
+  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes, .evidence-observations, .analysis-grid { grid-template-columns: minmax(0, 1fr); }
   .metrics { gap: .45rem; }
   .metric { padding: .6rem; }
   .metric-value { font-size: 1.12rem; }
@@ -233,13 +247,15 @@ def _step_link(step, label, *, button=True):
     return f'<a{button_class} href="#{step}" data-demo-go="{step}">{label}</a>'
 
 
-def _panel(step, eyebrow, title, intro, content):
+def _panel(step, eyebrow, title, intro, content, *, compact=False):
+    eyebrow_html = "" if compact else f'<p class="eyebrow">{eyebrow}</p>'
+    intro_html = "" if compact else f"<p>{intro}</p>"
     return f"""<section class="panel" id="{step}" data-demo-page="{step}" data-demo-panel
   aria-labelledby="{step}-title" tabindex="-1">
-  <header class="panel-intro">
-    <p class="eyebrow">{eyebrow}</p>
-    <h2 id="{step}-title" data-demo-title tabindex="-1">{title}</h2>
-    <p>{intro}</p>
+  <header class="panel-intro{' panel-intro--compact' if compact else ''}">
+    {eyebrow_html}
+    <h2 class="company-section-title" id="{step}-title" data-demo-title tabindex="-1">{title}</h2>
+    {intro_html}
   </header>
   {content}
 </section>"""
@@ -251,7 +267,7 @@ def _discover():
   <div class="hero">
     <div class="hero-content">
       <header class="panel-intro">
-        <p class="eyebrow">Step 1 of 5 · Discover</p>
+        <p class="eyebrow">Company Search</p>
         <h2 id="discover-title" data-demo-title tabindex="-1">Find a company</h2>
         <p>Start with one company and follow the evidence from its reported results to a research follow-up.</p>
       </header>
@@ -270,9 +286,9 @@ def _discover():
         <span class="badge">{_TICKER} · Fictional company</span>
         <h3>{_COMPANY}</h3>
         <p>Photonics and optical components</p>
-        {_step_link("financials", "Open Company Workbench")}
+        {_step_link("overview", "Open Company Workbench")}
       </div>
-      <noscript><p class="helper">Use the step links to review the sample without interactive search.</p></noscript>
+      <noscript><p class="helper">Use the company section links to review the sample without interactive search.</p></noscript>
     </div>
     <aside class="case-file" aria-label="Included company case">
       <p class="eyebrow">Included case · {_TICKER}</p>
@@ -333,7 +349,7 @@ def _business_trend():
   </details>"""
 
 
-def _financials(peer_summary):
+def _overview(peer_summary):
     year, revenue, _, eps = _ANNUAL[-1]
     _, prior_revenue, _, _ = _ANNUAL[-2]
     revenue_change = (revenue / prior_revenue - 1) * 100
@@ -369,7 +385,6 @@ def _financials(peer_summary):
       </table>
     </div>
   </div>
-  {_business_trend()}
   <details>
     <summary>View financial and price evidence</summary>
     <ul>
@@ -379,9 +394,71 @@ def _financials(peer_summary):
       <li>Sample daily price record dated {_CLOSE_DATE}: closing price USD {_CLOSE:.2f}.</li>
     </ul>
   </details>
-  <div class="actions">{_step_link("valuation", "Continue to Peer Valuation")}</div>"""
-    return _panel("financials", f"Step 2 of 5 · Financial Trends · {_TICKER}",
-                  _COMPANY, "Review the reported trend, period, and closing price before comparing multiples.", content)
+  <div class="actions">{_step_link("financials", "Explore Financial Trends")}
+    {_step_link("sources", "View Data Sources", button=False)}</div>"""
+    return _panel("overview", "Company snapshot", "Overview",
+                  "The reported business, dated close, and peer result in one view.", content, compact=True)
+
+
+def _financials():
+    annual_rows = "".join(
+        f'<tr><th scope="row">{year}</th><td>{income / revenue:.1%}</td>'
+        f'<td>{(revenue / _ANNUAL[index - 1][1] - 1):+.1%}</td>'
+        f'<td>{(income / _ANNUAL[index - 1][2] - 1):+.1%}</td></tr>'
+        if index else f'<tr><th scope="row">{year}</th><td>{income / revenue:.1%}</td><td>—</td><td>—</td></tr>'
+        for index, (year, revenue, income, _) in enumerate(_ANNUAL)
+    )
+    bars = []
+    for index, (quarter, revenue, _, income) in enumerate(_QUARTERLY):
+        margin = income / revenue * 100
+        x = 31 + index * 92
+        height = margin * 7
+        y = 141 - height
+        bars.append(f'<rect class="chart-bar" x="{x}" y="{y:g}" width="52" height="{height:g}" rx="5"/>'
+                    f'<text class="chart-value" x="{x + 26}" y="{y - 7:g}" text-anchor="middle">{margin:.1f}%</text>'
+                    f'<text x="{x + 26}" y="161" text-anchor="middle">{quarter}</text>')
+    description = ", ".join(f"{quarter}: {income / revenue:.1%}" for quarter, revenue, _, income in _QUARTERLY)
+    content = f"""<div class="trend-grid">
+    <figure class="surface chart">
+      <h3>Quarterly operating margin</h3>
+      <svg viewBox="0 0 390 175" role="img" aria-labelledby="margin-title margin-desc">
+        <title id="margin-title">Fictional quarterly operating margin</title><desc id="margin-desc">{description}.</desc>
+        <path class="chart-line" d="M16 141H374"/>{''.join(bars)}
+      </svg>
+      <figcaption>FY2025 standalone quarters. Operating income ÷ revenue.</figcaption>
+    </figure>
+    <section class="surface" aria-labelledby="annual-performance-title">
+      <h3 id="annual-performance-title">Annual operating performance</h3>
+      <div class="table-scroll"><table class="numbers">
+        <caption>Fictional annual statements · year ended December 31</caption>
+        <thead><tr><th scope="col">FY</th><th scope="col">Op. margin</th><th scope="col">Revenue YoY</th>
+          <th scope="col">Op. income YoY</th></tr></thead><tbody>{annual_rows}</tbody>
+      </table></div>
+      <p class="source-note">No FY2022 comparison is included; FY2023 growth is unavailable.</p>
+    </section>
+  </div>
+  {_business_trend()}
+  <div class="analysis-grid">
+    <section class="surface" aria-labelledby="operating-analysis-title">
+      <h3 id="operating-analysis-title">What changed in the business</h3>
+      <p>FY2025 revenue rose 25.0%, while operating income rose 54.5%. Operating margin improved
+        from 11.5% to 14.2%. The sample supports improving operating profitability.</p>
+      <p class="source-note">Segment mix, customer concentration, and expense drivers are not included.
+        These observations do not establish why profitability improved.</p>
+    </section>
+    <section class="surface" aria-labelledby="cash-flow-title">
+      <h3 id="cash-flow-title">Cash flow</h3>
+      <span class="badge badge--warning">Evidence gap</span>
+      <p>Reported cash flow is unavailable in this fictional statement set. Operating income is not cash flow.</p>
+      <p class="source-note">The Scenario Lab's 10% cash-flow margin is an assumption. It does not establish
+        reported operating cash flow, capital expenditure, or free cash flow.</p>
+      <p>{_step_link("valuation", "Open Scenario Lab and valuation tools", button=False)}</p>
+    </section>
+  </div>
+  <div class="actions">{_step_link("valuation", "Explore Valuation &amp; Peers")}
+    {_step_link("sources", "View financial sources", button=False)}</div>"""
+    return _panel("financials", "Business performance", "Financial Trends",
+                  "Compare matching annual and quarterly periods, then separate operating performance from cash generation.", content)
 
 
 def _peer_scenario(withheld):
@@ -468,6 +545,8 @@ def _scenario_lab():
         value = sum(cash / (1 + discount) ** year for year, cash in enumerate(cash_flows, start=1))
         values.append(f"USD {value + terminal_value / (1 + discount) ** years:.1f}M")
     baseline = values[baseline_rate - rates.start]
+    sensitivity_rows = "".join(f'<tr><th scope="row">{rate}%</th><td>{value}</td></tr>'
+                               for rate, value in zip(rates, values))
     return f"""<details data-demo-scenario-values="{','.join(values)}">
     <summary>Scenario Lab</summary>
     <div class="tool-body">
@@ -490,6 +569,17 @@ def _scenario_lab():
         {growth:.0%} annual growth · {margin:.0%} cash-flow margin · {terminal:.0%} terminal growth ·
         USD model values.</p>
     </div>
+  </details>
+  <details>
+    <summary>Sensitivity analysis</summary>
+    <div class="tool-body">
+      <p>Hold growth, cash-flow margin, terminal growth, and forecast length constant. Only WACC changes.</p>
+      <table class="numbers"><caption>Same fictional DCF assumptions as Scenario Lab</caption>
+        <thead><tr><th scope="col">WACC</th><th scope="col">Model value</th></tr></thead>
+        <tbody>{sensitivity_rows}</tbody>
+      </table>
+      <p class="source-note">Model values are not a reported metric or a per-share price target.</p>
+    </div>
   </details>"""
 
 
@@ -501,6 +591,17 @@ def _valuation(comparisons, tables):
   </fieldset>
   {comparisons}
   <div class="tool-grid" role="group" aria-label="Valuation research tools">
+    <details>
+      <summary>Valuation methods</summary>
+      <div class="tool-body">
+        <p><strong>Annual diluted P/E.</strong> USD {_CLOSE:.2f} close ÷ USD {_ANNUAL[-1][3]:.2f} FY2025 diluted EPS =
+          {_CLOSE / _ANNUAL[-1][3]:.1f}×. The peer result requires at least three qualifying same-day references.</p>
+        <p><strong>Illustrative DCF.</strong> Scenario Lab uses explicit growth, cash-flow margin, and discount-rate
+          assumptions. Keep this illustrative model separate from reported financial observations.</p>
+        <p class="source-note">No reported cash-flow statement, net-debt bridge, or share-count evidence is included.
+          A DCF per-share result is unavailable.</p>
+      </div>
+    </details>
     <details>
       <summary>Peer Read-Through</summary>
       <div class="tool-body">
@@ -515,7 +616,7 @@ def _valuation(comparisons, tables):
   </div>
   {tables}
   <div class="actions">{_step_link("notes", "Continue to Research Notes")}</div>"""
-    return _panel("valuation", f"Step 3 of 5 · Company Workbench · {_TICKER}", "Peer Valuation",
+    return _panel("valuation", "Multiples and assumptions", "Valuation &amp; Peers",
                   f"Compare {_COMPANY} with its sample peers and test a valuation assumption.", content)
 
 
@@ -579,11 +680,20 @@ def _notes():
           <div><dt>Plan</dt><dd>Test whether growth and operating income move together.</dd></div>
           <div><dt>Evidence</dt><dd>Compare the fictional FY2024 and FY2025 statements.</dd></div>
           <div><dt>Invalidation</dt><dd>Revisit the thesis if revenue rises while comparable operating margin falls.</dd></div>
-          <div><dt>Scenario</dt><dd>Review the discount-rate sensitivity in {_step_link("valuation", "Peer Valuation", button=False)}.</dd></div>
+          <div><dt>Scenario</dt><dd>Review the discount-rate sensitivity in {_step_link("valuation", "Valuation &amp; Peers", button=False)}.</dd></div>
           <div><dt>Review trigger</dt><dd>Next fictional annual statement.</dd></div>
           <div><dt>Learning</dt><dd>Record what explained any difference after the filing review.</dd></div>
         </dl>
         <p class="source-note">Use the draft below to carry the review question into Monitor.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Research brief</summary>
+      <div class="tool-body">
+        <p><strong>Business.</strong> FY2025 revenue grew 25.0%; operating income grew faster. Check the next matching period.</p>
+        <p><strong>Valuation.</strong> Annual diluted P/E is 24.0×. Review the selected peer evidence before using its comparison.</p>
+        <p><strong>Open questions.</strong> Reported cash generation, segment mix, and the next filing date are unavailable.</p>
+        <p class="source-note">Fictional research summary. The draft note below is the editable follow-up.</p>
       </div>
     </details>
   </div>
@@ -610,8 +720,45 @@ def _notes():
   </div>
   <div class="actions">{_step_link("monitor", "Open Monitor")}</div>
   {_saved_evidence_pair()}"""
-    return _panel("notes", f"Step 4 of 5 · Company Workbench · {_TICKER}", "Research Notes",
+    return _panel("notes", "Thesis and follow-up", "Research Notes",
                   "Turn the evidence into a question you can revisit.", content)
+
+
+def _sources():
+    content = f"""<section class="surface note-box" aria-labelledby="source-register-title">
+    <span class="badge">Synthetic provenance</span>
+    <h3 id="source-register-title">Evidence used in this company case</h3>
+    <p>Every Fogline observation and peer record is fictional and bundled in this offline page.
+      Nothing here was fetched from a live company filing or market feed.</p>
+    <div class="table-scroll"><table>
+      <caption>Context for the observations and assumptions shown in the workspace</caption>
+      <thead><tr><th scope="col">Source</th><th scope="col">Scope</th><th scope="col">Use and limitation</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Annual statements</th><td>FY2023–FY2025 · Dec 31 year-end · USD</td>
+          <td>Revenue, operating income, annual diluted EPS. FY2025 sample dated {_SAMPLE_FILING_DATE}.</td></tr>
+        <tr><th scope="row">Quarterly statements</th><td>Q1–Q4 FY2025 · standalone quarters · USD</td>
+          <td>Revenue, matching prior-year revenue, and operating income. No cumulative cash flow is treated as a quarter.</td></tr>
+        <tr><th scope="row">Daily close records</th><td>{_CLOSE_DATE} · USD</td>
+          <td>FICT close USD {_CLOSE:.2f}. The two-peer state dates Peer C to {_PRIOR_CLOSE_DATE} and excludes it.</td></tr>
+        <tr><th scope="row">Peer records</th><td>Four candidates · FY2025</td>
+          <td>Positive annual diluted EPS, same-day closes, fiscal start/end within 35 days. Three eligible peers are required.</td></tr>
+        <tr><th scope="row">Saved evidence pair</th><td>FICT-FY25-01 and FICT-FY25-02</td>
+          <td>Fixed observations of the same filing; Monitor preserves the exact pair and its review disposition.</td></tr>
+        <tr><th scope="row">Scenario assumptions</th><td>5 years · 8% growth · 10% cash-flow margin · 3% terminal growth</td>
+          <td>Illustrative DCF inputs, independent of reported evidence. WACC range: 7%–14%.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <section class="surface note-box" aria-labelledby="source-gaps-title">
+    <h3 id="source-gaps-title">Evidence still missing</h3>
+    <p>Reported operating cash flow, capital expenditure, net debt, share count, segment breakdown,
+      and the next filing date are unavailable. Missing observations stay unavailable.</p>
+    <p class="source-note">Changing sections reuses this page's bundled evidence. A reload resets draft follow-ups,
+      the scenario control, and review status; it does not refresh any source.</p>
+  </section>
+  <div class="actions">{_step_link("overview", "Return to Overview")}</div>"""
+    return _panel("sources", "Source context and gaps", "Data Sources",
+                  "Check the period, unit, provenance, and limits behind each part of the research.", content)
 
 
 def _monitor():
@@ -654,8 +801,8 @@ def _monitor():
     <p class="source-note">Trigger: next reported annual period. This follow-up lasts until reload.</p>
     {_step_link("notes", "Return to Research Notes")}
   </article>
-  <div class="actions">{_step_link("financials", "Reopen Company Workbench", button=False)}</div>"""
-    return _panel("monitor", "Step 5 of 5 · Follow-up queue", "Monitor",
+  <div class="actions">{_step_link("overview", "Reopen Company Workbench", button=False)}</div>"""
+    return _panel("monitor", "Follow-up queue", "Monitor",
                   "Review a saved evidence comparison and revisit the question you carried forward.", content)
 
 
@@ -665,7 +812,7 @@ def build_demo_html():
     available_summary, available_comparison, available_table = _peer_scenario(False)
     withheld_summary, withheld_comparison, withheld_table = _peer_scenario(True)
     steps = "".join(
-        f'<li><a href="#{step}" data-demo-step="{step}" data-demo-go="{step}">'
+        f'<li><a href="#{step}" data-demo-section="{step}" data-demo-go="{step}">'
         f'<span class="step-number" aria-hidden="true">{number}</span>{label}</a></li>'
         for number, (step, label) in enumerate(_STEPS, start=1)
     )
@@ -692,16 +839,32 @@ def build_demo_html():
     </div>
   </header>
   <div class="layout">
-    <nav class="steps" aria-label="Demo steps">
+    <aside class="workspace-rail" aria-label="Workspace navigation">
+    <nav class="steps" aria-label="Research workflow">
       <p class="steps-title eyebrow">Research workflow</p>
+      <ul class="workflow-links">
+        <li><a href="#discover" data-demo-workflow="discover" data-demo-go="discover">Company Search</a></li>
+        <li><a href="#monitor" data-demo-workflow="monitor" data-demo-go="monitor">Monitor</a></li>
+      </ul>
+    </nav>
+    <nav class="steps" aria-label="Company sections">
+      <p class="steps-title eyebrow">Company Workbench</p>
       <ol>{steps}</ol>
       <p class="scope-note">A guided research case. Search and follow-up work entirely in this page.</p>
     </nav>
+    </aside>
     <main id="demo-main" tabindex="-1">
+      <header class="company-heading" data-demo-company-heading>
+        <p class="eyebrow">{_TICKER} · Company Workbench</p>
+        <h2>{_COMPANY}</h2>
+        <p>Photonics and optical components · Fictional research case</p>
+      </header>
       {_discover()}
-      {_financials(available_summary + withheld_summary)}
+      {_overview(available_summary + withheld_summary)}
+      {_financials()}
       {_valuation(available_comparison + withheld_comparison, available_table + withheld_table)}
       {_notes()}
+      {_sources()}
       {_monitor()}
     </main>
   </div>

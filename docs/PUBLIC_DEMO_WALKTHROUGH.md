@@ -1,6 +1,8 @@
 # Public Demo Walkthrough
 
-Share the [interactive English company research demo](https://yuzej21.github.io/Stock-Analysis/) as the first public link. It uses a fictional company and synthetic data. The local Streamlit walkthrough below uses the bundled demo profile.
+Share the [interactive English company research demo](https://yuzej21.github.io/Stock-Analysis/) as the first public link. It is a static, offline-capable case with a fictional company and synthetic data. It fetches no live filings or prices. The separate local Streamlit walkthrough uses the bundled demo profile.
+
+![English synthetic company research demo](assets/english-company-research-demo.png)
 
 The [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) shows real quarter drivers, four directly reported quarters, a separate nine-month cash comparison, and a sample Monitor follow-up. The filing links explain the calculations and the public peer valuation gap. Its **Try the fictional evidence review** shortcut opens the separate synthetic demo at Monitor; no AMD evidence is imported into that example.
 
@@ -12,27 +14,38 @@ The [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) shows r
 - Keep the demo research-only: no investment advice, broker action, order routing, auto-trading, or direct buy/sell instructions.
 - Saved source labels and screenshots do not establish source rights, current-market freshness, or commercial permission.
 - GitHub Pages hosts the guided synthetic case and the dated AMD filing case. Use [Hosted Demo Deployment](HOSTED_DEMO_DEPLOYMENT.md) when preparing a separate Streamlit deployment.
-- Public UX status is `share_review_ready` for the local GitHub/demo workflow. Public checks, browser evidence, and repeated local cold/warm checks pass. The linked GitHub Pages cases are live, while full Streamlit hosting and external reviewer workflow evidence remain pending.
+- Read current public UX and release status from the current release evidence. GitHub Pages delivery does not establish full Streamlit hosting or external reviewer workflow evidence; those remain separate gates.
 - FMP, Alpha Vantage, and Finnhub are optional provider fallbacks and are not configured by default. Provider setup does not prove coverage until a reviewed source-backed smoke, validation, preview, and readiness rebuild pass.
 - Coverage is intentionally readiness-gated rather than complete. Fundamentals, share count, peer mapping, earnings, and analyst estimates can remain blocked or locked while the product is still useful.
 - Stop before claiming a blocked lane is ready unless source proof, validation, preview, apply, rebuilt readiness, and proof history all support it.
 
 ## Two-Minute External Review Path
 
-- Public interactive demo: search for `FICT` and open Business Trend in Financial Trends. In Peer Valuation, switch from three eligible peers to two, inspect Peer Read-Through, and change WACC in the fictional Scenario Lab. In Research Notes, open Forward View, Catalysts, and Research Decision Lab. In Monitor, choose **Review saved evidence**, compare `FICT-FY25-01` and `FICT-FY25-02` in **Saved evidence comparison**, then return and save **Reviewed** or **Still open** with a reason. The separate personal note and this disposition reset on reload; the two observations are fixed synthetic examples.
-- Public AMD case: read the growth driver, open Quarterly Trends and Cash Flow, and see how the sample Monitor item turns those observations into a follow-up. **Try the fictional evidence review** opens the separate demo at Monitor; **Explore advanced research tools** opens its Workbench. Neither shortcut turns AMD into saved or live research data.
+Follow **Company Search → Overview → Financial Trends → Valuation & Peers → Research Notes → Data Sources → Monitor**.
+
+1. Search for **FICT** or **Fogline Photonics** and open the company. **Overview** puts the reported business, dated close, and peer result or gap together.
+2. In **Financial Trends**, compare annual and quarterly performance, inspect chart and table evidence, and open **Business Trend**. Reported cash flow remains unavailable in this sample.
+3. In **Valuation & Peers**, switch from three eligible peers to two and inspect why the comparison becomes withheld. Open **Valuation methods**, **Peer Read-Through**, and **Scenario Lab**; change its discount-rate assumption and inspect the sensitivity table.
+4. In **Research Notes**, open **Forward View**, **Catalysts**, **Research Decision Lab**, and the **Research brief**, then add a follow-up to Monitor.
+5. In **Data Sources**, inspect periods, units, provenance, scenario assumptions, and missing evidence. All company and peer records in this page are synthetic.
+6. In **Monitor**, choose **Review saved evidence**, compare `FICT-FY25-01` and `FICT-FY25-02`, then return and save **Reviewed** or **Still open** with a reason. The two observations are fixed examples; personal notes, scenario changes, and the disposition reset on reload.
+
+The separate **AMD filing case** uses a Q3 FY2026 filing dated November 4, 2026. Read the growth driver, Quarterly Trends, Cash Flow, and sample follow-up. Its public peer comparison remains withheld pending approved same-day close evidence. **Try the fictional evidence review** opens the synthetic Monitor; **Explore advanced research tools** opens the fictional Valuation & Peers section. These shortcuts do not import AMD evidence.
+
+For other review paths:
+
 - Local exact-pair review. NEM, AMD, and DUK can retain a reasoned **Reviewed** or **Still open** disposition for an exact ordered pair of saved annual SEC observations in the selected local research profile. The ignored local disposition file is separate from immutable evidence. A repeated retrieval or changed issuer-association digest does not by itself prove a financial or filing change. The next research step is to qualify another issuer or period with its own source evidence.
 - GitHub-only review: start with the README for the implementation and the saved examples below.
 - Live dashboard review: run `make dashboard` for Personal Research. For the compact local visitor snapshot, run `make demo-dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
-- Evidence boundary: `docs/assets/linkedin-public-dashboard.png` and screenshots show product UI only; use `make readiness-ops-center` for current lane truth, while `make status-check TOP_N=5` remains saved-snapshot context.
-- Responsive evidence: desktop and phone-width public-flow checks are summarized in `docs/DASHBOARD_QA.md`; they prove layout behavior, not data freshness.
+- Evidence boundary: the [English demo screenshot](assets/english-company-research-demo.png) shows product UI only; use `make readiness-ops-center` for current lane truth, while `make status-check TOP_N=5` remains saved-snapshot context.
+- Responsive evidence: inspect the current release packet and [Dashboard QA](DASHBOARD_QA.md) for the tested routes and viewports. Layout evidence does not establish data freshness.
 - Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof.
 
 ## One-Minute Story
 
-This project is a local research command center. It checks data readiness before analysis, shows what can be reviewed now, and keeps missing or non-applicable analysis visibly locked or excluded.
+This project is an evidence-first equity research workbench. It connects company performance, peer comparisons, valuation assumptions, research notes, sources, and follow-ups while keeping missing or non-applicable analysis visible. The English public demo illustrates that workflow; the wider Python and Streamlit workspace runs locally.
 
-Local visitor path:
+Separate controlled local Public-mode path:
 
 1. Open the README and dashboard preview.
 2. Run `make demo` to print the safe walkthrough without changing local data.

@@ -8,31 +8,36 @@
 
 **Description**
 
-`Explore a fictional company’s financial trends, peer valuation, and research notes. In Monitor, compare two saved observations and record why the follow-up is Reviewed or Still open. A separate AMD walkthrough uses a real SEC filing.`
+`An evidence-first equity research workbench for company financial trends, peer comparisons, valuation scenarios, source review, and research follow-ups. Explore the interactive synthetic demo, a dated SEC filing case, and the local Python and Streamlit workspace.`
 
 **Primary link**
 
 [Open the interactive English company research demo](https://yuzej21.github.io/Stock-Analysis/).
 
-Use a current screenshot of the linked English demo for the Featured image. The [local Workbench screenshot](assets/linkedin-public-dashboard.png) can accompany a separate discussion of the full workspace. A screenshot shows the interface. Check readiness and source rights separately.
+Use the [English company demo screenshot](assets/english-company-research-demo.png) for the Featured image. It shows the synthetic public interface. Check readiness and source rights separately.
 
 ## What Visitors Can Review
 
 ### Two-minute external review path
 
-1. Search for fictional `FICT` and open **Business Trend** in **Financial Trends**.
-2. Compare eligible peers, open **Peer Read-Through**, and change the discount rate in the fictional **Scenario Lab**.
-3. Open **Forward View**, **Catalysts**, and **Research Decision Lab** in **Research Notes**.
-4. In **Monitor**, choose **Review saved evidence**. Compare the fixed `FICT-FY25-01` and `FICT-FY25-02` observations in **Saved evidence comparison**.
-5. Return to Monitor and record **Reviewed** or **Still open** with a reason. The disposition and separate personal note reset on reload.
+Follow **Company Search → Overview → Financial Trends → Valuation & Peers → Research Notes → Data Sources → Monitor**.
 
-The secondary [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) uses a dated real SEC 10-Q. It shows quarter drivers, a nine-month cash comparison, a sample follow-up, and why public peer valuation remains withheld. **Try the fictional evidence review** opens the synthetic Monitor with its fixed evidence pair.
+1. Search for fictional **FICT** or **Fogline Photonics** and open **Overview** for the business results, dated close, and peer result or gap.
+2. In **Financial Trends**, compare annual and quarterly performance and open **Business Trend**.
+3. In **Valuation & Peers**, switch between three and two eligible peers, inspect exclusions, open **Valuation methods** and **Peer Read-Through**, and change the discount rate in **Scenario Lab**.
+4. In **Research Notes**, open **Forward View**, **Catalysts**, **Research Decision Lab**, and the **Research brief**, then add a follow-up.
+5. Inspect **Data Sources** for periods, units, synthetic provenance, assumptions, and missing observations.
+6. In **Monitor**, choose **Review saved evidence**. Compare the fixed `FICT-FY25-01` and `FICT-FY25-02` observations, then return and record **Reviewed** or **Still open** with a reason.
+
+This static demo fetches no live data. The disposition, scenario changes, and personal note reset on reload.
+
+The secondary [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) uses the Q3 FY2026 SEC 10-Q filed November 4, 2026. It shows quarter drivers, a nine-month cash comparison, a sample follow-up, and why public peer valuation remains withheld pending approved same-day price evidence. **Try the fictional evidence review** opens the synthetic Monitor with its fixed evidence pair; **Explore advanced research tools** opens the fictional Valuation & Peers section.
 
 GitHub-only review starts with the [README](../README.md) and its product map. Live dashboard review starts with `make dashboard` at `http://localhost:8501/`. The local Personal Research route is Research Desk -> Discover -> Company Workbench -> Monitor. The separately controlled Public route is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History and opens with `make demo-dashboard` at `http://localhost:8501/?mode=public`.
 
 ## What the Full Workspace Adds
 
-The local Python and Streamlit portfolio beta checks what evidence can be used now, keeps unsupported conclusions withheld, and lets a researcher revisit source-backed changes. Company Workbench groups business trend, valuation, forward context, uncertainty, and the next research task. Data Health and Proof History remain available for missing inputs and provenance.
+The local Python and Streamlit portfolio beta checks what evidence can be used now, keeps unsupported conclusions withheld, and lets a researcher revisit source-backed changes. Company Workbench uses the same five sections: **Overview**, **Financial Trends**, **Valuation & Peers**, **Research Notes**, and **Data Sources**. It adds explicit source refresh, annual/quarterly metric charts and tables, separately qualified saved Business Trend, Scenario Lab and sensitivities, Peer Read-Through, Valuation Methods, and Historical Valuation Regime. Notes retain journal authoring, Decision Lab and outcome history, Forward View, catalysts, and the offline HTML Research Brief. Data Health and Proof History remain available for missing inputs and provenance. Online observations do not automatically qualify saved models; each tool retains its company, profile, source, and readiness requirements.
 
 For NEM, AMD, and DUK, the local Monitor can reopen an exact saved annual SEC observation pair and retain a reasoned **Reviewed** or **Still open** disposition in an ignored local file scoped to the issuer, ordered pair, and selected research profile. Saved evidence stays immutable. The fictional browser demo keeps its decision in page state until reload. See [Saved SEC company reviews](SEC_RESEARCH_REVIEWS.md).
 
@@ -43,14 +48,14 @@ The full Streamlit workspace runs locally. GitHub Pages hosts the fictional Engl
 | Stage | Current answer | Boundary |
 | --- | --- | --- |
 | Now | Share the guided fictional Pages demo first, the dated AMD case second, and the local workspace through the repository. | These are controlled portfolio/demo examples. They do not prove current-market coverage or outside reviewer demand. |
-| Next | Qualify a new issuer or period and clarify evidence comparisons. | Distinguish an actual annual financial or filing change from a new retrieval or issuer-association metadata change. |
+| Next | Review one named peer relationship and explain price/financial comparability; qualify a new issuer or period when new source evidence is available. | Keep economic rationale, fiscal periods, price dates, exclusions, and source rights explicit. Distinguish financial or filing changes from retrieval or issuer-association metadata changes. |
 | Not yet | Host the full Streamlit workspace or claim broad fundamentals, peers, earnings, estimates, predictive validation, or commercial operation. | Each needs source rights, repeatable operations, and direct validation. |
 
 The active sequence is in the [Roadmap](../ROADMAP.md). `make next-stage` prints the current package and source-proof decision ladder without changing local data. Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted. Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates.
 
 ## Suggested LinkedIn Post
 
-I built Stock Research Command Center to make evidence gaps visible during company research. The [interactive English demo](https://yuzej21.github.io/Stock-Analysis/) follows a fictional company through financial trends, peer context, a valuation assumption, research notes, and a Monitor follow-up. You can compare two fixed observations and record why the follow-up is Reviewed or Still open. That decision resets on reload.
+I built Stock Research Command Center to connect company performance, peer comparisons, valuation assumptions, sources, and research follow-ups in one workspace. The [interactive English demo](https://yuzej21.github.io/Stock-Analysis/) illustrates the workflow with synthetic data. It includes business trends, Scenario Lab, Peer Read-Through, Forward View, catalysts, and a research brief. In Monitor, you can compare two fixed observations and record why a follow-up is Reviewed or Still open. The demo's notes and decisions reset on reload.
 
 A [separate AMD case](https://yuzej21.github.io/Stock-Analysis/amd.html) uses a dated SEC filing and keeps unsupported public peer valuation withheld. The wider Python and Streamlit workspace runs locally. I built it as a research-only portfolio project.
 

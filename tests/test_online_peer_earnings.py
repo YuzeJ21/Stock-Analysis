@@ -132,4 +132,4 @@ def test_excluded_earnings_context_retains_the_bound_facts_receipt_digest():
     assert diagnostic['annual_eps_observation']['facts_sha256']==row['facts']['payload_sha256']
     from src.online_peer_valuation_ui import _diagnostic_html
     html=_diagnostic_html(diagnostic)
-    assert 'SEC 原始响应 SHA-256' in html and row['facts']['payload_sha256'] in html
+    assert 'Raw SEC response SHA-256' in html and row['facts']['payload_sha256'] in html

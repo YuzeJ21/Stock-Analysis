@@ -2,6 +2,7 @@
 
 Use this guide when you want to run the command center locally after reading the short README.
 For the higher-level data coverage strategy, see `docs/DATA_STRATEGY.md`.
+For independent workflow reviews, start with the [privacy-safe Pilot Review Invitation](PILOT_REVIEW_INVITATION.md), which links the capture and closeout guides.
 
 The product principle stays the same:
 
@@ -291,3 +292,9 @@ Review and guard are read-only. Record is the only writer and appends one exact-
 Stop and rerun review if any candidate byte, source input, rights registry, proof ledger, Git head, path set, review axis, decision, or staged state changes. A passing guard prints the exact named candidate and record paths; inspect those paths before staging.
 
 This workflow does not change readiness and does not grant source rights. It does not replace independent review, legal or distribution approval, source-owner evidence, current-market data, accessibility review, hosted validation, calibration, or pilot evidence.
+
+## Supporting Review Guides
+
+- [Performance Release Gate](PERFORMANCE_RELEASE_GATE.md) records the local timing method and historical baseline. Performance evidence does not establish data freshness, source rights, hosted operation, or independent human validation.
+- [Scheduler Activation Checklist](SCHEDULER_ACTIVATION_CHECKLIST.md) defines status-only monitoring and the evidence required for a separate manual action. Automatic application remains disabled even when review preconditions pass.
+- The [Pilot Runbook](PILOT_RUNBOOK.md) routes the [Trusted Peer Pilot Source Template](TRUSTED_PEER_PILOT_SOURCE_TEMPLATE.csv) through `make peer-mapping-writeback-guard` before source-backed relationships can enter the reviewed import workflow. Candidate rows remain `candidate_context_only`; candidate context stays out of trusted proof, and guessed peers or file row counts do not become valuation evidence. The sheet and guard do not activate readiness or peer valuation.

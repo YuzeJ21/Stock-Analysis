@@ -62,7 +62,7 @@ def test_readme_preserves_company_tools_and_distinguishes_historical_tools():
     for capability in ("annual diluted P/E", "Peer Read-Through", "Business Trend", "Forward View",
                        "Catalysts", "Research Decision Lab", "thesis journal", "HTML research brief",
                        "exact preview", "explicit confirmation", "Reviewed", "Still open", "required reason"):
-        assert capability in tools
+        assert capability.lower() in tools.lower()
     assert "NEM, AMD, and DUK" in tools
     assert "Advanced and historical research tools" in readme
     assert "Operator-only compatibility utilities" in readme
@@ -247,10 +247,13 @@ def test_readme_public_demo_tour_preserves_fictional_and_real_case_routes():
     assert PUBLIC_COMPANY_DEMO in demo
     assert PUBLIC_COMPANY_DEMO + "amd.html" in demo
     assert "fictional" in demo.lower()
-    assert "dated SEC filing" in demo
-    for feature in ("Financial Trends", "Business Trend", "Peer Valuation", "Scenario Lab",
+    assert "Q3 FY2026 SEC filing" in demo
+    assert "filing dated November 4, 2026" in demo
+    assert "The page fetches no live data." in demo
+    assert "public peer comparison remains withheld" in demo
+    for feature in ("Overview", "Financial Trends", "Business Trend", "Valuation & Peers", "Scenario Lab",
                     "Research Notes", "Forward View", "Catalysts", "Research Decision Lab",
-                    "Monitor", "Review saved evidence", "Reviewed", "Still open"):
+                    "Data Sources", "Monitor", "Review saved evidence", "Reviewed", "Still open"):
         assert feature in demo
     assert "reset on reload" in demo
     assert "docs/PUBLIC_DEMO_WALKTHROUGH.md" in demo
@@ -506,15 +509,16 @@ def test_linkedin_brief_has_now_next_not_yet_share_framing():
     assert "https://yuzej21.github.io/Stock-Analysis/" in linkedin
     assert "https://yuzej21.github.io/Stock-Analysis/amd.html" in linkedin
     assert "FICT-FY25-01" in linkedin and "FICT-FY25-02" in linkedin
-    assert "The disposition and separate personal note reset on reload" in linkedin
+    assert "The disposition, scenario changes, and personal note reset on reload." in linkedin
     assert "readiness counts" not in linkedin.lower()
-    assert "Use a current screenshot of the linked English demo" in linkedin
-    assert "The [local Workbench screenshot]" in linkedin
+    assert "Use the [English company demo screenshot](assets/english-company-research-demo.png)" in linkedin
+    assert "Company Search → Overview → Financial Trends → Valuation & Peers → Research Notes → Data Sources → Monitor" in linkedin
     assert "## Now / Next / Not Yet" in linkedin
     assert "| Now | Share the guided fictional Pages demo first" in linkedin
-    assert "| Next | Qualify a new issuer or period" in linkedin
-    assert "actual annual financial or filing change" in linkedin
-    assert "issuer-association metadata change" in linkedin
+    assert "| Next | Review one named peer relationship" in linkedin
+    assert "qualify a new issuer or period" in linkedin
+    assert "financial or filing changes" in linkedin
+    assert "issuer-association metadata changes" in linkedin
     assert "| Not yet | Host the full Streamlit workspace" in linkedin
     assert "A public full Streamlit deployment remains a separate gate" in linkedin
     assert "stable GitHub repository link only after" not in linkedin
@@ -686,7 +690,9 @@ def test_public_walkthrough_uses_stock_selector_before_single_stock_report():
     assert PUBLIC_V1_ROUTE in walkthrough
     assert "Run `make next-stage` when you want the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, push, deploy, or expose secrets." in walkthrough
     assert "make next-stage                  # print the current package/provider/hosted/source-queue ladder without changing local data" in walkthrough
-    best_path = walkthrough.split("Local visitor path:", 1)[1].split("What each page answers:", 1)[0]
+    assert "Company Search → Overview → Financial Trends → Valuation & Peers → Research Notes → Data Sources → Monitor" in walkthrough
+    assert walkthrough.index("Company Search → Overview") < walkthrough.index("Separate controlled local Public-mode path:")
+    best_path = walkthrough.split("Separate controlled local Public-mode path:", 1)[1].split("What each page answers:", 1)[0]
     assert best_path.index("make demo") < best_path.index("make next-stage")
     assert best_path.index("make next-stage") < best_path.index("make status-check TOP_N=5")
     assert "Stock Selector" in walkthrough
@@ -787,8 +793,9 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     assert "A public full Streamlit deployment remains a separate gate" in brief
     assert "Coverage boundary" in brief
     assert "Provider boundary" in brief
-    assert "Use a current screenshot of the linked English demo" in brief
-    assert "The disposition and separate personal note reset on reload" in brief
+    assert "Use the [English company demo screenshot](assets/english-company-research-demo.png)" in brief
+    assert "Company Search → Overview → Financial Trends → Valuation & Peers → Research Notes → Data Sources → Monitor" in brief
+    assert "The disposition, scenario changes, and personal note reset on reload." in brief
     assert "readiness-backed selection comes first" in makefile
     assert "Review one stock, Improve data coverage, and Inspect proof" not in makefile
     assert "make next-stage                 Print the current next-stage decision ladder" in makefile
@@ -1074,8 +1081,9 @@ def test_scenario_lab_docs_define_session_local_readiness_gated_boundary():
 
     assert "Scenario Lab" in readme
     valuation_row = next(line for line in readme.splitlines() if line.startswith("| **Valuation & Peers**"))
-    for scope in ("qualified", "saved", "valuation scenarios"):
+    for scope in ("qualified", "saved", "Scenario Lab", "sensitivities"):
         assert scope in valuation_row
+    assert "Online observations do not automatically qualify a saved model" in readme
     assert "P2: Scenario Lab - Implemented" in roadmap
     assert "revenue growth from -50% to 40%" in methodology
     assert "terminal growth must remain below WACC" in methodology
@@ -1089,7 +1097,8 @@ def test_source_freshness_timeline_docs_preserve_timestamp_truth():
     methodology = _read("docs/METHODOLOGY.md")
     provenance = _read("docs/PROVENANCE_CONTRACT.md")
 
-    assert "source-freshness detail" in readme
+    assert "Source Freshness Timeline" in readme
+    assert "Their data, identity, and readiness requirements apply independently." in readme
     assert "Source Freshness Timeline - Implemented" in roadmap
     assert "never substitutes retrieval time" in methodology
     assert "Source Freshness Timeline Contract" in provenance
@@ -1288,7 +1297,8 @@ def test_active_maturity_handoff_matches_current_sync_priority_and_ui_contracts(
     assert "contained horizontal phone strip" not in personal
     assert "wrapped phone grid" in personal
     assert "contained phone strip" not in roadmap
-    assert "wrapped phone grid" in roadmap
+    assert "desktop company rail and stacked phone layout" in roadmap
+    assert "Discover, Research Desk and Monitor retain their separate purposes." in roadmap
     for text in (dashboard_qa,):
         assert "contained phone strip" not in text
         assert "wrapped phone grid" in text
@@ -2243,7 +2253,7 @@ def test_html_research_brief_public_and_methodology_docs_keep_the_verified_bound
         "## Company Workbench HTML Research Brief Method",
     )
 
-    assert "offline HTML research brief" in readme
+    assert "offline html research brief" in readme.lower()
     assert "exact preview and explicit confirmation" in readme
     _assert_html_brief_section_has_no_affirmative_overclaim(readme)
 
@@ -2707,13 +2717,17 @@ def test_release_docs_describe_the_monitor_follow_up_queue_without_market_or_tra
 
     assert "Follow-up Queue" in readme
     assert "saved questions and evidence changes" in readme
-    assert "since the last review" in personal.lower()
-    assert "needs verification" in personal.lower()
-    assert "waiting on evidence" in personal.lower()
-    assert "scheduled context" in personal.lower()
-    assert "evidence freshness" in personal.lower()
+    assert "saved sec evidence review queue" in personal.lower()
+    assert "actual saved process follow-ups" in personal.lower()
+    assert "five established categories and cohort order" in personal.lower()
+    assert "fixed seven-day summary" in personal.lower()
+    assert "no saved process follow-up is due" in personal.lower()
+    assert "a zero-item message does not prove that no external event, risk, or research need exists" in personal.lower()
+    assert "saved-source freshness condition" in personal.lower()
+    assert "never a fabricated process item or live alert" in personal.lower()
     assert "monitor-only rows are retained" in personal.lower()
-    assert "follow-up queue" in roadmap.lower()
+    assert "saved SEC reviews" in roadmap
+    assert "actual process follow-ups" in roadmap
     assert "follow-up queue" in qa.lower()
     assert "confidence percentage" not in combined
     assert "risk budget" not in combined

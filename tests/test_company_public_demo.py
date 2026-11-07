@@ -87,11 +87,34 @@ def test_demo_is_a_self_contained_explicit_cli_output(tmp_path):
                for href in anchor_hrefs)
     assert all(attrs.get("rel") in {"canonical", "alternate"} for tag, attrs in document.elements if tag == "link")
     assert {attrs["data-demo-page"] for _, attrs in document.elements if "data-demo-page" in attrs} == {
-        "discover", "financials", "valuation", "notes", "monitor",
+        "discover", "overview", "financials", "valuation", "notes", "sources", "monitor",
     }
     assert {attrs["data-company-answer"] for _, attrs in document.elements if "data-company-answer" in attrs} == {
         "price", "financial", "valuation",
     }
+
+
+def test_company_sections_keep_workflow_entries_and_named_tools_separate():
+    from scripts.build_company_demo import build_demo_html
+
+    html = build_demo_html()
+    document = _Document(html)
+    section_links = [(attrs["data-demo-section"], attrs["href"])
+                     for tag, attrs in document.elements if tag == "a" and "data-demo-section" in attrs]
+    assert section_links == [(name, f"#{name}") for name in (
+        "overview", "financials", "valuation", "notes", "sources",
+    )]
+    assert [attrs["data-demo-workflow"] for tag, attrs in document.elements
+            if tag == "a" and "data-demo-workflow" in attrs] == ["discover", "monitor"]
+    assert {attrs.get("aria-label") for tag, attrs in document.elements if tag == "nav"} == {
+        "Company sections", "Research workflow",
+    }
+    for title in ("Overview", "Financial Trends", "Valuation &amp; Peers", "Research Notes", "Data Sources",
+                  "Business Trend", "Cash flow", "Scenario Lab", "Sensitivity analysis", "Valuation methods",
+                  "Peer Read-Through", "Forward View", "Catalysts", "Research Decision Lab", "Research brief"):
+        assert title in html
+    assert "Reported cash flow is unavailable" in html
+    assert "10% cash-flow margin is an assumption" in html
 
 
 def test_amd_case_uses_dated_filing_metrics_and_withholds_market_data():
@@ -126,7 +149,7 @@ def test_amd_case_uses_dated_filing_metrics_and_withholds_market_data():
 
 
 @contextmanager
-def _browser(tmp_path, viewport, *, javascript=True):
+def _browser(tmp_path, viewport, *, javascript=True, html=None):
     from scripts.build_company_demo import build_demo_html
     from src.public_performance_gate import find_chrome_executable
 
@@ -134,7 +157,7 @@ def _browser(tmp_path, viewport, *, javascript=True):
     if (chrome := find_chrome_executable()) is None:
         pytest.skip("Chrome-compatible browser is unavailable")
     path = tmp_path / "demo.html"
-    path.write_text(build_demo_html(), encoding="utf-8")
+    path.write_text(build_demo_html() if html is None else html, encoding="utf-8")
 
     with playwright.sync_playwright() as runtime:
         browser = runtime.chromium.launch(executable_path=str(chrome), headless=True)
@@ -166,6 +189,24 @@ def _open_native_detail(panel, title, expect):
 
 
 @pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}, {"width": 390, "height": 844}], ids=["desktop", "phone"])
+def test_shared_demo_style_preserves_dated_amd_case_layout_and_source_holds(tmp_path, viewport):
+    from scripts.build_amd_demo import build_amd_demo_html
+
+    with _browser(tmp_path, viewport, javascript=False, html=build_amd_demo_html()) as (page, expect):
+        expect(page.get_by_role("heading", name="Advanced Micro Devices", exact=True)).to_be_visible()
+        valuation = page.locator("#peer-valuation")
+        expect(valuation).to_contain_text("Peer comparison withheld")
+        _open_native_detail(valuation, "View why", expect)
+        expect(valuation).to_contain_text("at least three eligible peers")
+        page.get_by_role("navigation").get_by_role("link", name="Cash flow", exact=True).press("Enter")
+        cash = page.locator("#cash-generation")
+        expect(cash).to_contain_text("Nine months ended")
+        expect(cash).to_contain_text("4.678")
+        expect(cash).to_contain_text("3.437")
+        _viewport_fits(page, viewport)
+
+
+@pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}, {"width": 390, "height": 844}], ids=["desktop", "phone"])
 def test_guided_demo_search_peer_withholding_and_follow_up_offline(tmp_path, viewport):
     with _browser(tmp_path, viewport) as (page, expect):
         panels = page.locator("[data-demo-page]:visible")
@@ -175,6 +216,8 @@ def test_guided_demo_search_peer_withholding_and_follow_up_offline(tmp_path, vie
         result = page.locator("[data-demo-result]")
         expect(panels).to_have_count(1)
         expect(discover).to_be_visible()
+        company_heading = page.locator("[data-demo-company-heading]")
+        expect(company_heading).to_be_hidden()
         _viewport_fits(page, viewport)
 
         query.fill("no-such-company")
@@ -194,6 +237,14 @@ def test_guided_demo_search_peer_withholding_and_follow_up_offline(tmp_path, vie
         query.fill("fogline photonics")
         query.press("Enter")
         result.get_by_role("link").first.press("Enter")
+        overview = page.locator('[data-demo-page="overview"]')
+        expect(overview.locator("[data-demo-title]")).to_be_focused()
+        expect(overview.locator("[data-demo-title]")).to_be_in_viewport()
+        expect(company_heading).to_be_visible()
+        expect(overview.get_by_role("img", name="Reported annual revenue")).to_be_visible()
+        expect(overview.get_by_role("table")).to_contain_text("120M")
+        nav = page.get_by_role("navigation")
+        nav.locator('[data-demo-go="financials"]').press("Enter")
         financials = page.locator('[data-demo-page="financials"]')
         expect(financials.locator("[data-demo-title]")).to_be_focused()
         expect(financials.locator("[data-demo-title]")).to_be_in_viewport()
@@ -201,10 +252,13 @@ def test_guided_demo_search_peer_withholding_and_follow_up_offline(tmp_path, vie
         expect(financials).to_contain_text("2024")
         trend = _open_native_detail(financials, "Business Trend", expect)
         expect(trend.get_by_role("row").filter(has_text="Q4 FY2025")).to_contain_text("26M")
+        expect(financials.get_by_role("img", name="Fictional quarterly operating margin")).to_be_visible()
+        expect(financials).to_contain_text("Reported cash flow is unavailable")
+        expect(financials).to_contain_text("FY2023 growth is unavailable")
         _viewport_fits(page, viewport)
 
-        nav = page.get_by_role("navigation")
-        callout = financials.locator("[data-demo-peer-callout]")
+        nav.locator('[data-demo-go="overview"]').press("Enter")
+        callout = overview.locator("[data-demo-peer-callout]")
         expect(callout).to_be_visible()
         expect(callout).to_contain_text("20.0% above peers", use_inner_text=True)
         expect(callout).to_contain_text("24.0×", use_inner_text=True)
@@ -241,7 +295,7 @@ def test_guided_demo_search_peer_withholding_and_follow_up_offline(tmp_path, vie
         expect(evidence).to_contain_text(re.compile(r"same[- ]day", re.IGNORECASE))
         evidence.locator("summary").press("Enter")
         expect(evidence).not_to_have_attribute("open", "")
-        nav.locator('[data-demo-go="financials"]').press("Enter")
+        nav.locator('[data-demo-go="overview"]').press("Enter")
         expect(callout).to_contain_text("Peer comparison withheld", use_inner_text=True)
         expect(callout).to_contain_text("24.0×", use_inner_text=True)
         expect(callout).not_to_contain_text("20.0×", use_inner_text=True)
@@ -271,6 +325,10 @@ def test_guided_demo_search_peer_withholding_and_follow_up_offline(tmp_path, vie
         expect(scenario_value).to_have_text("USD 217.9M")
         expect(baseline).to_have_text(original_baseline)
         expect(withheld).to_be_checked()
+        sensitivity = _open_native_detail(valuation, "Sensitivity analysis", expect)
+        expect(sensitivity.get_by_role("row").filter(has_text="10%")).to_contain_text("USD 217.9M")
+        methods = _open_native_detail(valuation, "Valuation methods", expect)
+        expect(methods).to_contain_text("A DCF per-share result is unavailable")
         _viewport_fits(page, viewport)
         page.get_by_role("link", name="Skip to demo content").press("Enter")
         expect(page).to_have_url(re.compile(r"#demo-main$"))
@@ -278,21 +336,35 @@ def test_guided_demo_search_peer_withholding_and_follow_up_offline(tmp_path, vie
         expect(valuation).to_be_visible()
 
         nav.locator('[data-demo-go="monitor"]').press("Enter")
+        expect(company_heading).to_be_hidden()
         expect(page.locator("[data-demo-monitor-empty]")).to_be_visible()
         nav.locator('[data-demo-go="notes"]').press("Enter")
         notes = page.locator('[data-demo-page="notes"]')
         expect(notes.locator("[data-demo-title]")).to_be_focused()
-        for title in ("Forward View", "Catalysts", "Research Decision Lab"):
+        for title in ("Forward View", "Catalysts", "Research Decision Lab", "Research brief"):
             _open_native_detail(notes, title, expect)
         _viewport_fits(page, viewport)
         note = "<b>Check the fiscal-year comparison</b>"
         notes.locator("[data-demo-note-input]").fill(note)
+        nav.locator('[data-demo-go="sources"]').press("Enter")
+        sources = page.locator('[data-demo-page="sources"]')
+        expect(sources.locator("[data-demo-title]")).to_be_focused()
+        expect(sources).to_contain_text("No cumulative cash flow is treated as a quarter")
+        expect(sources).to_contain_text("FICT-FY25-01 and FICT-FY25-02")
+        expect(company_heading).to_be_visible()
+        _viewport_fits(page, viewport)
+        nav.locator('[data-demo-go="valuation"]').press("Enter")
+        expect(wacc).to_have_value("10")
+        expect(withheld).to_be_checked()
+        nav.locator('[data-demo-go="notes"]').press("Enter")
+        expect(notes.locator("[data-demo-title]")).to_be_focused()
+        expect(notes.locator("[data-demo-note-input]")).to_have_value(note)
         notes.locator("[data-demo-pin]").press("Enter")
         expect(notes.locator("[data-demo-pin-status]")).to_have_text("Follow-up added for this page.")
         nav.locator('[data-demo-go="monitor"]').press("Enter")
         monitor = page.locator('[data-demo-page="monitor"]')
         expect(monitor.locator("[data-demo-title]")).to_be_focused()
-        expect(nav.locator('[data-demo-go="monitor"]')).to_have_attribute("aria-current", "step")
+        expect(nav.locator('[data-demo-go="monitor"]')).to_have_attribute("aria-current", "page")
         expect(monitor.locator("[data-demo-monitor-item]")).to_contain_text("Fogline Photonics · FICT")
         expect(monitor.locator("[data-demo-monitor-note]")).to_have_text(note)
         expect(monitor.locator("[data-demo-monitor-note] b")).to_have_count(0)
@@ -349,7 +421,7 @@ def test_native_sections_and_peer_controls_remain_usable_without_scripts(tmp_pat
 @pytest.mark.parametrize("viewport", [{"width": 1280, "height": 900}, {"width": 390, "height": 844}], ids=["desktop", "phone"])
 def test_monitor_reopens_exact_fictional_pair_and_records_a_disposition(tmp_path, viewport):
     with _browser(tmp_path, viewport) as (page, expect):
-        nav = page.get_by_role("navigation", name="Demo steps")
+        nav = page.get_by_role("navigation", name="Research workflow")
         nav.get_by_role("link", name="Monitor", exact=True).press("Enter")
         item = page.get_by_role("region", name="Sample evidence follow-up", exact=True)
         pair = page.get_by_role("region", name="Saved evidence comparison", exact=True)

@@ -352,7 +352,7 @@ def _disclosure(v,rows,*,include_excluded=True):
     return html
 
 
-def online_peer_valuation_html(view,*,sources_only=False):
+def online_peer_valuation_html(view,*,sources_only=False,compact=False):
     v=view if isinstance(view,Mapping) else {}
     if v.get('status')=='not_requested':return ''
     subject=v.get('subject') if isinstance(v.get('subject'),Mapping) else None
@@ -369,8 +369,8 @@ def online_peer_valuation_html(view,*,sources_only=False):
         headline=('Annual P/E equals the industry reference median' if premium==0 else 'Annual P/E is '+amount+(' above' if premium>0 else ' below')+' the industry reference median')
     kicker='Online sources · reported annual diluted P/E · not TTM or forecast'
     html=STYLE+'<section class="online-peer-valuation" aria-label="Online peer valuation"><p class="peer-kicker">'+kicker+'</p><h3>'+_text(headline)+'</h3>'
-    if v.get('attempted_at'):html+='<p>Source query attempted '+_text(v['attempted_at'])+'</p>'
-    html+=_listing_html(v,compact=True)
+    source_context=('<p>Source query attempted '+_text(v['attempted_at'])+'</p>' if v.get('attempted_at') else '')+_listing_html(v,compact=True)
+    if not compact:html+=source_context
     if not supported:html+='<p>'+_text(_reason(v.get('reason')))+'</p>'
     html+='<p>This single-metric comparison is not an undervalued or overvalued conclusion. It does not adjust for business mix, growth, margins, capital needs, or risk.</p>'
     stats=[('Selected annual P/E',_multiple(subject.get('multiple')) if subject else 'Unavailable'),
@@ -396,6 +396,6 @@ def online_peer_valuation_html(view,*,sources_only=False):
     if not supported:
         html+=('<p>At least 3 compatible industry references must qualify before a premium or discount is shown. Currently '+str(len(peers))+' qualify.</p>' if subject
                else '<p>Selected-company valuation evidence remains unverified, so references have not been assessed. At least 3 compatible industry references must qualify before a premium or discount is shown.</p>')
-    html+='<details><summary>View actual fiscal periods, prices, and sources</summary>'+_disclosure(v,rows,include_excluded=not subject)+'</details>'
+    html+='<details><summary>View actual fiscal periods, prices, and sources</summary>'+(source_context if compact else '')+_disclosure(v,rows,include_excluded=not subject)+'</details>'
     html+='<details><summary>Why other valuation methods are withheld</summary><p>TTM or forecast P/E, P/S, P/FCF, and EV/EBITDA each require separate checks of period, share count, enterprise value, and component definitions. No method is inferred from a listing or another multiple.</p></details><p><a href="?mode=research&amp;page=discover#peer-coverage-sample" target="_self">View cross-industry peer coverage</a></p></section>'
     return html

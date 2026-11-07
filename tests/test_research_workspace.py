@@ -1776,7 +1776,8 @@ def test_monitor_round_trip_binds_online_origin_to_profile_and_sec_identity():
             self.update(values)
 
     association = _result()
-    state = {ONLINE_COMPANY_SESSION_KEY: association}
+    section_widget = "company-section:demo-profile:FICT:online:0000001234"
+    state = {ONLINE_COMPANY_SESSION_KEY: association, section_widget: "overview"}
     query = Query(mode="research", page="company-workbench", ticker="fict", online="1", section="notes")
     streamlit = SimpleNamespace(query_params=query, session_state=state)
     profile = "demo-profile"
@@ -1803,6 +1804,7 @@ def test_monitor_round_trip_binds_online_origin_to_profile_and_sec_identity():
     assert research_workspace.research_monitor_requires_online({}, query, "FICT")
     research_workspace.return_to_research_workbench(streamlit, origin)
     assert query["page"] == "monitor"
+    assert state[section_widget] == "overview"
 
     state[ONLINE_COMPANY_SESSION_KEY] = association
     research_workspace.return_to_research_workbench(streamlit, origin)
@@ -1810,7 +1812,7 @@ def test_monitor_round_trip_binds_online_origin_to_profile_and_sec_identity():
         "mode": "research", "page": "company-workbench", "ticker": "FICT",
         "open": "1", "online": "1", "section": "notes",
     }
-    assert state == {ONLINE_COMPANY_SESSION_KEY: association}
+    assert state == {ONLINE_COMPANY_SESSION_KEY: association, section_widget: "notes"}
 
 
 def test_monitor_round_trip_keeps_saved_company_route_without_online_identity():
@@ -1830,6 +1832,54 @@ def test_monitor_round_trip_keeps_saved_company_route_without_online_identity():
     research_workspace.return_to_research_workbench(streamlit, origin)
     assert query["section"] == "financials"
     assert "online" not in query
+
+
+@pytest.mark.parametrize("scope", ["saved", "receipts", "online:0000001234"])
+def test_monitor_return_restores_only_origin_section_widget(scope):
+    """A retained default cannot replace the section captured for this detour."""
+    from src.online_company_search import ONLINE_COMPANY_SESSION_KEY
+    from src.research_record_authoring_ui import authoring_session_key
+    from src.scenario_lab_session import scenario_lab_widget_keys
+    from tests.test_online_company_search_view import _result
+
+    class Query(dict):
+        def from_dict(self, values):
+            self.clear()
+            self.update(values)
+
+    profile, ticker = "demo-profile", "FICT"
+    section_widget = f"company-section:{profile}:{ticker}:{scope}"
+    state = {
+        section_widget: "notes",
+        f"company-section:other-profile:{ticker}:{scope}": "financials",
+        f"company-section:{profile}:OTHER:{scope}": "valuation",
+        f"company-section:{profile}:{ticker}:online:0000005678": "sources",
+        scenario_lab_widget_keys(profile, ticker)["wacc"]: .12,
+        authoring_session_key(profile, ticker, "confirmed"): True,
+        authoring_session_key(profile, ticker, "validate"): True,
+        authoring_session_key(profile, ticker, "field:thesis:summary"): "Unsaved research note",
+    }
+    other_scope = "receipts" if scope == "saved" else "saved"
+    state[f"company-section:{profile}:{ticker}:{other_scope}"] = "overview"
+    query = Query(mode="research", page="company-workbench", ticker=ticker, section="notes")
+    if scope.startswith("online:"):
+        state[ONLINE_COMPANY_SESSION_KEY] = _result()
+        query["online"] = "1"
+    streamlit = SimpleNamespace(query_params=query, session_state=state)
+    research_workspace.open_research_monitor(streamlit, ticker, profile)
+    origin = research_workspace.research_monitor_origin(state, profile, ticker)
+    assert origin is not None
+    assert origin.online_cik == ("0000001234" if scope.startswith("online:") else None)
+    state[section_widget] = "overview"
+    untouched = {key: value for key, value in state.items()
+                 if key not in {section_widget, research_workspace._MONITOR_ORIGIN_KEY}}
+
+    research_workspace.return_to_research_workbench(streamlit, origin)
+
+    assert query["section"] == "notes"
+    assert state[section_widget] == "notes"
+    assert research_workspace._MONITOR_ORIGIN_KEY not in state
+    assert {key: value for key, value in state.items() if key != section_widget} == untouched
 
 
 def test_advanced_evidence_links_preserve_personal_research_mode_and_ticker():

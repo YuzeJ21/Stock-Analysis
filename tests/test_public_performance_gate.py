@@ -38,60 +38,57 @@ def test_research_performance_contract_covers_the_commercial_beta_workflow():
         "Monitor",
     ]
     assert all(route.critical for route in RESEARCH_ROUTE_SPECS)
-    assert RESEARCH_ROUTE_SPECS[0].first_useful_marker == "What needs my attention today?"
+    assert all(route.full_reveal_action == "" for route in RESEARCH_ROUTE_SPECS)
+    assert RESEARCH_ROUTE_SPECS[0].first_useful_marker == "Find a company"
     assert RESEARCH_ROUTE_SPECS[0].full_markers == (
-        "What needs my attention today?",
-        "Freshness",
-        "Open Discover",
-        "market-complete event feed",
+        "Research Desk",
+        "Find a company",
+        "Company name or ticker",
+        "Search company",
+        "Saved SEC research",
+        "Workspace data details",
         "Research-only",
     )
-    assert RESEARCH_ROUTE_SPECS[1].first_useful_marker == "Find a Company"
+    assert RESEARCH_ROUTE_SPECS[1].first_useful_marker == "Find a company"
     assert RESEARCH_ROUTE_SPECS[1].full_markers == (
         "Discover",
-        "Screen eligibility — when supported",
-        "Browse saved companies",
-        "Search saved companies",
+        "Find company online",
+        "Saved companies",
+        "Company name or ticker",
+        "Search company",
+        "Coverage studies",
         "Advanced: cohort readiness context",
         "Research-only",
     )
+    assert RESEARCH_ROUTE_SPECS[2].route == "/?mode=research&page=company-workbench&ticker=NVDA&open=1"
+    assert RESEARCH_ROUTE_SPECS[2].first_useful_marker == "NVDA Company Brief"
     assert RESEARCH_ROUTE_SPECS[2].full_markers == (
-        "Company Workbench",
-        "Advanced: selected-company lane coverage",
-        "WHAT CHANGED",
-        "Research Decision Lab",
-        "Business Trend",
-        "Valuation",
-        "Forward View",
-        "What Remains Withheld",
-        "Research Conclusion",
-        "NEXT RESEARCH TASK",
-        "Research-only",
+        "NVDA Company Brief",
+        "Overview",
+        "Financial Trends",
+        "Valuation & Peers",
+        "Research Notes",
+        "Data Sources",
+        "Refresh financials and prices",
+        "Refresh financials and prices to load company observations.",
+        "Evidence scope",
+        "Identity and model scope",
     )
-    assert RESEARCH_ROUTE_SPECS[3].first_useful_marker == "Follow-up Queue"
+    assert RESEARCH_ROUTE_SPECS[3].first_useful_marker == "Saved evidence and process follow-ups."
     assert RESEARCH_ROUTE_SPECS[3].full_markers == (
-        "Follow-up Queue",
-        "SINCE LAST REVIEW",
-        "NEEDS VERIFICATION",
-        "WAITING ON EVIDENCE",
-        "SCHEDULED CONTEXT",
-        "EVIDENCE FRESHNESS",
+        "Monitor",
+        "Review saved SEC evidence and research follow-ups.",
+        "Saved evidence and process follow-ups.",
+        "This is not a live market alert feed.",
         "Advanced: Monitor evidence",
         "Advanced: five-company Earnings Nowcast readiness",
         "Research-only",
     )
-    assert RESEARCH_ROUTE_SPECS[2].route == "/?mode=research&page=company-workbench&ticker=NVDA&open=1"
-    assert RESEARCH_ROUTE_SPECS[2].first_useful_marker == "USE NOW"
-    assert RESEARCH_ROUTE_SPECS[2].full_reveal_action == "Open evidence and analysis modules"
-    assert "Selected Company" not in RESEARCH_ROUTE_SPECS[2].full_markers
-    assert "Forward View" in RESEARCH_ROUTE_SPECS[2].full_markers
-    assert "What Remains Withheld" in RESEARCH_ROUTE_SPECS[2].full_markers
-    assert RESEARCH_ROUTE_SPECS[3].full_markers[0] == "Follow-up Queue"
 
 
 @pytest.mark.parametrize("run_kind", ("cold", "warm"))
 @pytest.mark.parametrize("viewport_index", (0, 1))
-def test_company_workbench_route_measurement_accepts_its_rendered_answer_markers(
+def test_company_workbench_route_measurement_accepts_its_initial_frame_without_clicks(
     run_kind,
     viewport_index,
 ):
@@ -104,25 +101,19 @@ def test_company_workbench_route_measurement_accepts_its_rendered_answer_markers
     initial_body = " ".join(
         (
             "Company Workbench",
-            "USE NOW",
-            "Advanced: selected-company lane coverage",
-            "WHAT CHANGED",
-            "Open evidence and analysis modules",
-            "Research-only",
+            "NVDA Company Brief",
+            "Overview",
+            "Financial Trends",
+            "Valuation & Peers",
+            "Research Notes",
+            "Data Sources",
+            "Refresh financials and prices",
+            "Refresh financials and prices to load company observations.",
+            "Evidence scope",
+            "Identity and model scope",
         )
     )
-    revealed_body = " ".join(
-        (
-            initial_body,
-            "Research Decision Lab",
-            "Business Trend",
-            "Valuation",
-            "Forward View",
-            "What Remains Withheld",
-            "Research Conclusion",
-            "NEXT RESEARCH TASK",
-        )
-    )
+    requested_controls = []
 
     class Locator:
         def __init__(self, *, body=False):
@@ -140,14 +131,6 @@ def test_company_workbench_route_measurement_accepts_its_rendered_answer_markers
         def count(self):
             return 0
 
-    class Button:
-        def __init__(self, page):
-            self.page = page
-
-        def click(self, *, timeout):
-            assert timeout == 1000
-            self.page.rendered_body = revealed_body
-
     class Page:
         def __init__(self):
             self.url = "http://127.0.0.1:8501/?mode=research&page=company-workbench&ticker=NVDA&open=1"
@@ -164,10 +147,8 @@ def test_company_workbench_route_measurement_accepts_its_rendered_answer_markers
             return locator
 
         def get_by_role(self, role, *, name, exact):
-            assert role == "button"
-            assert name == "Open evidence and analysis modules"
-            assert exact is True
-            return Button(self)
+            requested_controls.append((role, name, exact))
+            raise AssertionError("Initial-frame measurement must not click controls")
 
         def wait_for_function(self, expression, *, arg, timeout):
             assert "document.body.innerText.includes(marker)" in expression
@@ -212,6 +193,7 @@ def test_company_workbench_route_measurement_accepts_its_rendered_answer_markers
     assert sample.failure == ""
     assert sample.viewport == DEFAULT_VIEWPORTS[viewport_index].label
     assert sample.run_kind == run_kind
+    assert requested_controls == []
 
 
 def test_nearest_rank_percentile_does_not_select_the_best_run():
@@ -615,9 +597,11 @@ def test_horizontal_overflow_check_uses_document_widths():
 
 def test_reviewed_performance_baseline_documents_reproducible_evidence_boundary():
     readme = Path("README.md").read_text(encoding="utf-8")
+    operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
     baseline = Path("docs/PERFORMANCE_RELEASE_GATE.md").read_text(encoding="utf-8")
 
-    assert "[Performance Release Gate](docs/PERFORMANCE_RELEASE_GATE.md)" in readme
+    assert "docs/OPERATOR_GUIDE.md" in readme
+    assert "[Performance Release Gate](PERFORMANCE_RELEASE_GATE.md)" in operator_guide
     assert "fb86bd3edef72a1e35064ecc03ca8e7fb63ec34a" in baseline
     assert "4f6f28d3a6b2df3c3c459fad325d75e2f2ee45dc398616e3c638ead91819549d" in baseline
     assert "2026-07-14" in baseline

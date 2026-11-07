@@ -335,10 +335,15 @@ def test_workbench_sections_and_source_failures_remain_english_without_refetch(
                 radio = page.get_by_role("radio", name=title, exact=True)
                 page.locator("label").filter(has=radio).click()
                 body = page.locator(".st-key-company-section-body")
-                playwright.expect(body.get_by_role("heading", name=title, exact=True)).to_be_visible()
+                if title == "Overview":
+                    playwright.expect(body.locator('[data-company-section="overview"]')).to_have_count(1)
+                    playwright.expect(body.get_by_role("region", name="Reported annual financials", exact=True)).to_be_visible()
+                    playwright.expect(body.get_by_role("heading", name="Overview", exact=True)).to_have_count(0)
+                else:
+                    playwright.expect(body.get_by_role("heading", name=title, exact=True)).to_be_visible()
                 cards = page.locator('[data-company-answer]')
                 if title == "Overview":
-                    playwright.expect(cards).to_have_count(3)
+                    playwright.expect(cards).to_have_count(4)
                 else:
                     playwright.expect(cards).to_have_count(0)
                     playwright.expect(page.get_by_label("Loaded company observations", exact=True)).to_be_visible()
@@ -360,6 +365,9 @@ def test_workbench_sections_and_source_failures_remain_english_without_refetch(
                     )
                 assert page.locator("html").evaluate("node => node.scrollWidth") == width
                 assert body.evaluate("node => node.scrollWidth <= node.clientWidth + 1")
+                if width <= 640:
+                    bounds=page.locator('.st-key-company-section-navigation [role="radiogroup"]').bounding_box()
+                    assert bounds['x'] >= -1 and bounds['x']+bounds['width'] <= width+1
                 filename = title.replace(" & ", "-").replace(" ", "-").lower()
                 page.screenshot(path=str(tmp_path / f"english-{filename}-{width}.png"), full_page=True)
             assert (tmp_path / "provider-calls.txt").read_text().splitlines() == original_calls

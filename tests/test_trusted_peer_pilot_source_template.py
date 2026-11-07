@@ -41,16 +41,20 @@ def test_trusted_peer_pilot_template_keeps_source_review_separate_from_imports()
 
 def test_peer_pilot_docs_route_template_through_writeback_guard():
     readme = Path("README.md").read_text(encoding="utf-8")
+    operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
     runbook = Path("docs/PILOT_RUNBOOK.md").read_text(encoding="utf-8")
 
-    for body in (readme, runbook):
-        assert "docs/TRUSTED_PEER_PILOT_SOURCE_TEMPLATE.csv" in body
+    assert "docs/OPERATOR_GUIDE.md" in readme
+    assert "[Pilot Runbook](PILOT_RUNBOOK.md)" in operator_guide
+    assert "[Trusted Peer Pilot Source Template](TRUSTED_PEER_PILOT_SOURCE_TEMPLATE.csv)" in operator_guide
+    for body in (operator_guide, runbook):
         assert "make peer-mapping-writeback-guard" in body
         assert "candidate_context_only" in body
         assert "source-backed" in body
 
-    assert "guessed peers or file row counts do not become valuation" in readme
-    assert "candidate context stays out of trusted proof" in readme
+    assert "guessed peers or file row counts do not become valuation" in operator_guide
+    assert "candidate context stays out of trusted proof" in operator_guide
+    assert "The sheet and guard do not activate readiness or peer valuation." in operator_guide
     assert "cp docs/TRUSTED_PEER_PILOT_SOURCE_TEMPLATE.csv /tmp/stock-command-center-trusted-peer-pilot.csv" in runbook
     assert "only source-backed relationships with a reviewed peer role" in runbook
     assert "`valuation_anchor_eligible=yes` may enter peer medians" in runbook

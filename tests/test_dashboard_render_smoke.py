@@ -271,7 +271,7 @@ def test_research_routes_keep_observation_summary_and_advanced_evidence_responsi
         ),
         (
             "/?mode=research&page=discover",
-            "Find a Company",
+            "Find a company",
             "selected_ticker",
             "Advanced: cohort readiness context",
             False,
@@ -674,7 +674,7 @@ def test_focused_skip_link_is_a_visible_horizontal_banner_in_public_and_research
     playwright = pytest.importorskip("playwright.sync_api")
     cases = (
         ("/?mode=public", "What is this product and where do I start?"),
-        ("/?mode=research&page=research-desk", "What needs my attention today?"),
+        ("/?mode=research&page=research-desk", "Company name or ticker"),
     )
 
     with _local_demo_server(Path("."), timeout_seconds=60) as base_url:

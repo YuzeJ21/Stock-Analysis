@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from datetime import date
 from pathlib import Path
 from types import SimpleNamespace
@@ -452,7 +453,7 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
     monkeypatch.setattr(
         dashboard,
         "render_research_desk",
-        lambda *args: rendered.append(("Research Desk", args[-1])),
+        lambda *args, registered_tickers: rendered.append(("Research Desk", args[-1])),
     )
     monkeypatch.setattr(
         dashboard,
@@ -471,6 +472,8 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
     )
     monkeypatch.setattr(dashboard, "dashboard_output_frames_for_page", lambda page: {})
     monkeypatch.setattr(dashboard, "render_stock_selector", lambda *args, **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_online_company_search", lambda **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_online_coverage_study", lambda: None)
     monkeypatch.setattr(
         dashboard,
         "load_dashboard_daily_research_queue",
@@ -509,6 +512,7 @@ def test_personal_research_route_loads_once_from_selected_profile_and_passes_one
             return False
 
     monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+    monkeypatch.setattr(dashboard.st, "tabs", lambda labels: tuple(Expander() for _ in labels))
 
     for selected_page in ("Research Desk", "Discover", "Company Workbench", "Monitor"):
         assert dashboard.render_personal_research_route(
@@ -747,6 +751,7 @@ def test_research_discover_can_limit_selector_rows_to_the_focused_cohort():
 def test_research_discover_separates_strict_eligibility_from_saved_company_browsing(
     monkeypatch,
 ):
+    native_form_data = dashboard.st._main._form_data
     calls: list[str] = []
     headings: list[str] = []
     context = SimpleNamespace(data_dir=Path("/selected-profile/data"))
@@ -786,6 +791,7 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
         "render_stock_selector",
         lambda *args, **kwargs: calls.append("saved browsing"),
     )
+    monkeypatch.setattr(dashboard, "render_online_company_search", lambda **kwargs: None)
     monkeypatch.setattr(dashboard,"render_online_coverage_study",lambda:calls.append("coverage sample"))
     monkeypatch.setattr(
         dashboard,
@@ -804,6 +810,7 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
     )
     monkeypatch.setattr(dashboard.st, "caption", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+    monkeypatch.setattr(dashboard.st, "tabs", lambda labels: tuple(nullcontext() for _ in labels))
 
     dashboard.render_personal_research_route(
         selected_page="Discover",
@@ -820,9 +827,11 @@ def test_research_discover_separates_strict_eligibility_from_saved_company_brows
     assert all(value != "## Find a Company" for value in headings)
     assert all("Browse saved companies" not in value for value in headings)
     assert calls == ["saved browsing", "coverage sample", "advanced"]
+    assert dashboard.st._main._form_data is native_form_data
 
 
 def test_discover_search_first_keeps_strict_queue_in_advanced_context(monkeypatch):
+    native_form_data = dashboard.st._main._form_data
     events: list[tuple[str, object]] = []
     context = SimpleNamespace(data_dir=Path("/selected-profile/data"))
     tickers = ("NVDA", "AMD", "AVGO", "COHR", "TSLA", "XOM", "PLTR", "ZZZ")
@@ -878,6 +887,7 @@ def test_discover_search_first_keeps_strict_queue_in_advanced_context(monkeypatc
         lambda: ({"label": "All", "state": "All", "readiness": "All", "detail": "All", "theme": "All", "search": ""},),
     )
     monkeypatch.setattr(dashboard, "render_stock_selector", render_selector)
+    monkeypatch.setattr(dashboard, "render_online_coverage_study", lambda: None)
     monkeypatch.setattr(dashboard, "focused_cohort_cards", lambda *args, **kwargs: [])
     monkeypatch.setattr(dashboard, "focused_cohort_coverage_cards", lambda *args, **kwargs: [])
     monkeypatch.setattr(dashboard, "render_signal_cards", lambda *args, **kwargs: None)
@@ -894,6 +904,8 @@ def test_discover_search_first_keeps_strict_queue_in_advanced_context(monkeypatc
     )
     monkeypatch.setattr(dashboard.st, "expander", lambda label, **kwargs: ContextManager(label))
     monkeypatch.setattr(dashboard.st, "form", lambda label, **kwargs: ContextManager(label))
+    monkeypatch.setattr(dashboard.st, "container", lambda **kwargs: nullcontext())
+    monkeypatch.setattr(dashboard.st, "tabs", lambda labels: tuple(nullcontext() for _ in labels))
     monkeypatch.setattr(dashboard.st, "columns", lambda widths: [dashboard.st] * len(widths))
     monkeypatch.setattr(dashboard.st, "selectbox", lambda label, options, **kwargs: options[0])
     monkeypatch.setattr(dashboard.st, "form_submit_button", lambda *args, **kwargs: False)
@@ -944,6 +956,7 @@ def test_discover_search_first_keeps_strict_queue_in_advanced_context(monkeypatc
     )
     assert advanced_index < strict_detail_index
     assert selector_counts == [0]
+    assert dashboard.st._main._form_data is native_form_data
 
 
 def test_discover_browsing_guidance_follows_the_saved_company_result():
@@ -962,6 +975,7 @@ def test_discover_browsing_guidance_follows_the_saved_company_result():
 def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser(
     monkeypatch,
 ):
+    native_form_data = dashboard.st._main._form_data
     calls: list[tuple[str, object]] = []
     recency = object()
     context = SimpleNamespace(data_dir=Path("/selected-profile/data"))
@@ -992,6 +1006,8 @@ def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser
         lambda *args, **kwargs: None,
     )
     monkeypatch.setattr(dashboard, "render_stock_selector", lambda *args, **kwargs: calls.append(("saved", kwargs)))
+    monkeypatch.setattr(dashboard, "render_online_company_search", lambda **kwargs: None)
+    monkeypatch.setattr(dashboard, "render_online_coverage_study", lambda: None)
     monkeypatch.setattr(
         dashboard,
         "observation_recency_summary_html",
@@ -1004,6 +1020,7 @@ def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser
     monkeypatch.setattr(dashboard.st, "markdown", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard.st, "caption", lambda *args, **kwargs: None)
     monkeypatch.setattr(dashboard.st, "expander", lambda *args, **kwargs: Expander())
+    monkeypatch.setattr(dashboard.st, "tabs", lambda labels: tuple(nullcontext() for _ in labels))
 
     dashboard.render_personal_research_route(
         selected_page="Discover",
@@ -1027,6 +1044,7 @@ def test_discover_route_owns_one_boundary_and_places_recency_after_saved_browser
     )
     saved_kwargs = next(value for name, value in calls if name == "saved")
     assert saved_kwargs["research_boundary"] == dashboard.QUEUE_BOUNDARY
+    assert dashboard.st._main._form_data is native_form_data
 
 
 def test_daily_queue_renderer_is_ticker_bound_and_keeps_blockers_in_advanced(
@@ -1917,7 +1935,7 @@ def test_registered_company_workbench_renders_one_document_with_inline_evidence_
     assert not at.exception
     assert text(at).count("<h1")==1
     assert any(e.label=="Exact SEC filing evidence" for e in at.expander)
-    assert any(e.label=="保存研究的来源与复核状态" for e in at.expander)
+    assert any(e.label=="Saved research sources and review status" for e in at.expander)
     assert "No source-backed quarterly actual is available" not in text(at)
 
 
@@ -2495,7 +2513,9 @@ def test_monitor_discipline_empty_state_is_process_only():
     assert "monitor_primary_answer(queue)" in monitor
     assert "queue.empty_boundary" in monitor
     assert "answer_panel_html(" in monitor
-    assert "data-sr-region='primary-answer'" not in monitor
+    assert monitor.count("data-sr-region='primary-answer'") == 1
+    assert 'value.replace("data-sr-region=", "data-saved-detail-region=")' in monitor
+    assert "No saved process follow-up is due." in monitor
     removed_helper = "research_discipline_" + "summary_cards"
     assert removed_helper not in monitor
     assert '"Process attention"' in Path("src/research_decision_lab.py").read_text(encoding="utf-8")
@@ -2793,7 +2813,8 @@ def test_research_primary_sections_follow_route_h1_with_level_two_headings():
     )
 
     for heading in expected_level_two:
-        assert f'st.markdown("## {heading}")' in source
+        assert (f'st.markdown("## {heading}")' in source
+                or f"<h2 class='research-task-section-title'>{heading}</h2>" in source)
         assert f'st.markdown("### {heading}")' not in source
     assert 'question="Find a Company · Screen eligibility — when supported"' in source
 

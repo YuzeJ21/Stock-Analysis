@@ -46,7 +46,7 @@ def _company_brief(at):
 
 
 @pytest.mark.parametrize('section', ['overview','financials','valuation','notes','sources'])
-def test_initial_company_prompt_precedes_controls_without_repetitive_answer_cards(monkeypatch, section):
+def test_initial_company_frame_has_one_prompt_and_five_sections_without_fetch(monkeypatch, section):
     calls=_sources(monkeypatch)
     at=AppTest.from_function(_app)
     at.query_params['section']=section
@@ -57,11 +57,10 @@ def test_initial_company_prompt_precedes_controls_without_repetitive_answer_card
     assert brief.count('Refresh financials and prices to load company observations.')==1
     assert 'data-company-answer=' not in brief
     assert 'Loaded company observations' not in brief
-    elements=list(at.main)
-    header_index=next(i for i,el in enumerate(elements) if el.type=='markdown' and el.value==brief)
-    update_index=next(i for i,el in enumerate(elements) if el.type=='button' and el.key=='company-refresh-all')
-    section_index=next(i for i,el in enumerate(elements) if el.type=='radio' and el.label=='Company research sections')
-    assert header_index < min(update_index,section_index)
+    assert len([r for r in at.radio if r.label=='Company research sections'])==1
+    assert at.radio[0].proto.horizontal is False
+    assert len([b for b in at.button if b.key=='company-refresh-all'])==1
+    assert not any(m.value=='## Overview' for m in at.markdown)
     assert calls=={'financial':0,'prices':0}
 
 
@@ -75,8 +74,11 @@ def test_loaded_answer_cards_only_appear_on_overview_and_context_reuses_cached_s
     brief=_company_brief(at)
     assert 'load company observations' not in brief
     if section=='overview':
-        assert brief.count('data-company-answer=')==3
+        assert brief.count('data-company-answer=')==4
         assert 'Company research summary' in brief
+        assert 'Annual diluted EPS' in brief
+        assert 'company-analysis-grid' in text(at)
+        assert 'Reported financial summary' not in text(at)
     else:
         assert 'data-company-answer=' not in brief and 'Company research summary' not in brief
         assert 'Loaded company observations' in brief
