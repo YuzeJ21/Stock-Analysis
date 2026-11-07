@@ -23,7 +23,7 @@ DISPOSITION_STATUSES = ("reviewed", "still_open")
 MAX_REASON_LENGTH = 500
 _MAX_RECORD_BYTES = 4096
 _SCHEMA = "sec-review-disposition-v1"
-SUPPORTED_DISPOSITION_COMPANIES = {"NEM": CIK, "AMD": "0000002488"}
+SUPPORTED_DISPOSITION_COMPANIES = {"NEM": CIK, "AMD": "0000002488", "DUK": "0001326160"}
 
 
 def resolve_pair(
@@ -55,7 +55,7 @@ def resolve_pair(
         )
     ):
         raise ValueError("invalid_disposition_pair_scope")
-    if ticker == "AMD":
+    if ticker != "NEM":
         for packet in matches:
             if packet.get("schema_version") != COMPANY_SCHEMA:
                 raise ValueError("unsupported_disposition_receipt_schema")

@@ -192,23 +192,24 @@ def test_research_monitor_canonical_query_preserves_return_ticker_only():
     }
 
 
-def test_amd_exact_pair_keys_are_scoped_to_research_notes_and_monitor():
+@pytest.mark.parametrize("ticker", ["AMD", "DUK"])
+def test_exact_pair_keys_are_scoped_to_research_notes_and_monitor(ticker):
     token = "a" * 64 + "." + "b" * 64
-    notes = {"ticker": "AMD", "section": "notes", "sec_pair": token, "sec_ticker": "NEM"}
+    notes = {"ticker": ticker, "section": "notes", "sec_pair": token, "sec_ticker": "NEM"}
     assert nav.canonical_workspace_query("research", "Company Workbench", notes) == {
-        "mode": "research", "page": "company-workbench", "ticker": "AMD", "section": "notes", "sec_pair": token,
+        "mode": "research", "page": "company-workbench", "ticker": ticker, "section": "notes", "sec_pair": token,
     }
     assert "sec_pair" not in nav.canonical_workspace_query("research", "Company Workbench",
-                                                          {**notes, "ticker": "DUK"})
+                                                          {**notes, "ticker": "NVDA"})
     assert "sec_pair" not in nav.canonical_workspace_query("research", "Company Workbench",
                                                           {**notes, "section": "sources"})
-    assert nav.canonical_workspace_query("research", "Monitor", {"sec_ticker": "AMD", "sec_pair": token}) == {
-        "mode": "research", "page": "monitor", "sec_ticker": "AMD", "sec_pair": token,
+    assert nav.canonical_workspace_query("research", "Monitor", {"sec_ticker": ticker, "sec_pair": token}) == {
+        "mode": "research", "page": "monitor", "sec_ticker": ticker, "sec_pair": token,
     }
     assert nav.canonical_workspace_query("research", "Monitor", {
-        "return_ticker": "NEM", "return_online": "1", "sec_ticker": "AMD", "sec_pair": token,
-    }) == {"mode": "research", "page": "monitor", "sec_ticker": "AMD", "sec_pair": token}
-    assert "sec_ticker" not in nav.canonical_workspace_query("research", "Monitor", {"sec_ticker": "AMD"})
+        "return_ticker": "NEM", "return_online": "1", "sec_ticker": ticker, "sec_pair": token,
+    }) == {"mode": "research", "page": "monitor", "sec_ticker": ticker, "sec_pair": token}
+    assert "sec_ticker" not in nav.canonical_workspace_query("research", "Monitor", {"sec_ticker": ticker})
 
 
 def test_public_advanced_redirect_clears_route_specific_state():

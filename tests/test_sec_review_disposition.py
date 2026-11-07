@@ -102,6 +102,30 @@ def test_amd_review_keeps_individual_field_and_period_gaps(tmp_path, difference)
     assert saved["status"] == "still_open"
 
 
+def test_duk_disposition_requires_the_parent_issuer_and_preserves_a_field_gap(tmp_path):
+    parent_cik = "0001326160"
+    before = capture_other_issuer("DUK", parent_cik, profile="research")
+    observation = issuer_view("DUK", parent_cik)
+    observation["approved_direct_fields"].pop()
+    observation["companyfacts_identity"]["payload_sha256"] = "c" * 64
+    after = review.capture_review(observation, profile_key="research", saved_at="2026-11-02T22:01:00Z")
+    subsidiary = capture_other_issuer("DUK", "0000030371", profile="research", when="2026-11-02T22:02:00Z")
+    for receipt in (before, after, subsidiary):
+        review.save_review(receipt, tmp_path)
+
+    ids = (before["receipt_id"], after["receipt_id"])
+    result = review.compare_reviews(before, after)
+    assert result["changes"] == []
+    assert result["gaps"] == [{"field": "capital_expenditures", "reason": "direct_field_missing"}]
+    saved = disposition.save_disposition(tmp_path, "research", *ids, "still_open",
+                                        "Verify the parent company capex field.", ticker="DUK")
+    assert saved["sec_cik"] == parent_cik
+    assert disposition.load_disposition(tmp_path, "research", *ids, ticker="DUK") == saved
+    assert review.compare_reviews(before, after) == result
+    with pytest.raises(ValueError, match="invalid_disposition_pair_scope"):
+        disposition.load_disposition(tmp_path, "research", ids[1], subsidiary["receipt_id"], ticker="DUK")
+
+
 def test_amd_pair_rejects_wrong_company_missing_and_forged_receipts(tmp_path, pair):
     before = _save_amd_receipt(tmp_path, "research", 1)
     after = _save_amd_receipt(tmp_path, "research", 2)

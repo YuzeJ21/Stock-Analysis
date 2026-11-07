@@ -65,7 +65,7 @@ def run_browser_fixture(root):
         return {"status": "unavailable", "reason": "sec_profile_unavailable"}
 
     def peer_valuation(ticker, state, *, refresh_requested, expected_cik):
-        if ticker in {"AMD", "NEM", "NVDA"} and expected_cik is None and not refresh_requested:
+        if ticker in {"AMD", "DUK", "NEM", "NVDA"} and expected_cik is None and not refresh_requested:
             return {"status": "not_requested"}
         assert (ticker, expected_cik) == ("FICT", "0000001234")
         if refresh_requested:
@@ -143,7 +143,7 @@ def research_browser_server(tmp_path):
 
 
 @pytest.mark.parametrize("width,height", [(1280, 900), (390, 844)], ids=["desktop", "phone"])
-@pytest.mark.parametrize("ticker", ["NEM", "AMD"])
+@pytest.mark.parametrize("ticker", ["NEM", "AMD", "DUK"])
 def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, tmp_path, width, height, ticker):
     from src.sec_research_review import capture_review, save_review
     from tests.test_multi_company_sec_review import issuer_view
@@ -157,7 +157,13 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
         observation["approved_direct_fields"].pop()
     nem_after["approved_direct_fields"][0]["value"] = 110
     nem_after["companyfacts_identity"]["payload_sha256"] = "c" * 64
-    observations = {"NEM": (nem_before, nem_after), "AMD": (issuer_view(), issuer_view())}
+    duk_before, duk_after = (issuer_view("DUK", "0001326160") for _ in range(2))
+    duk_after["companyfacts_identity"]["association_payload_sha256"] = "d" * 64
+    observations = {
+        "NEM": (nem_before, nem_after),
+        "AMD": (issuer_view(), issuer_view()),
+        "DUK": (duk_before, duk_after),
+    }
     receipts = {
         symbol: tuple(capture_review(observation, profile_key="demo", saved_at=f"2026-11-02T22:0{index}:00Z")
                       for index, observation in enumerate(pair))
@@ -166,8 +172,7 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
     receipt_paths = [save_review(receipt, tmp_path) for pair in receipts.values() for receipt in pair]
     original_bytes = {path: path.read_bytes() for path in receipt_paths}
     before, after = receipts[ticker]
-    other_ticker = "NEM" if ticker == "AMD" else "AMD"
-    other_receipts = receipts[other_ticker]
+    other_receipts = [receipt for symbol, pair in receipts.items() if symbol != ticker for receipt in pair]
     token = before["receipt_id"] + "." + after["receipt_id"]
 
     with playwright.sync_playwright() as runtime:
@@ -191,11 +196,11 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
             monitor_url = research_browser_server + "/?mode=research&page=monitor"
             page.goto(monitor_url if width >= 640 else f"{monitor_url}&return_ticker={ticker}")
             company_selector = page.get_by_test_id("stSelectbox").filter(has_text="选择要复核的公司")
-            playwright.expect(page.get_by_text("已保存 2 家公司", exact=False)).to_be_visible()
+            playwright.expect(page.get_by_text("已保存 3 家公司", exact=False)).to_be_visible()
             playwright.expect(company_selector).to_be_visible()
             if width >= 640:
                 company_selector.get_by_role("combobox").press("ArrowDown")
-                for symbol in ("AMD", "NEM"):
+                for symbol in observations:
                     playwright.expect(page.get_by_role("option", name=re.compile(rf"^{symbol} · "))).to_be_visible()
                 page.get_by_role("option", name=re.compile(rf"^{ticker} · ")).click()
             issuer_heading = page.get_by_role("heading", name=f"{ticker} SEC 证据复核", exact=True)
@@ -214,6 +219,8 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
             if ticker == "NEM":
                 playwright.expect(panel).to_contain_text("100 → 110 USD")
                 playwright.expect(panel).to_contain_text("资本支出")
+            elif ticker == "DUK":
+                playwright.expect(panel).to_contain_text("核查依据变化，财务数值未变")
             else:
                 playwright.expect(panel).to_contain_text("未变化")
             for label in ("较早证据的来源", "较新证据的来源"):
@@ -231,7 +238,7 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
             playwright.expect(open_pair).to_be_visible()
             playwright.expect(issuer_heading).to_be_visible()
             playwright.expect(company_selector).to_have_count(0)
-            wait_for_query(page="monitor", sec_pair=token, sec_ticker="AMD" if ticker == "AMD" else None)
+            wait_for_query(page="monitor", sec_pair=token, sec_ticker=ticker if ticker != "NEM" else None)
             open_pair.click()
             playwright.expect(pinned_heading).to_be_visible()
             for receipt in (before, after):
@@ -277,8 +284,9 @@ def test_monitor_reopens_and_reviews_exact_issuer_pair(research_browser_server, 
             playwright.expect(pinned_heading).to_be_visible()
             wait_for_query(page="company-workbench", section="notes", ticker=ticker,
                            sec_pair=after["receipt_id"] + "." + third["receipt_id"])
-            if ticker == "AMD":
-                page.goto(research_browser_server + f"/?mode=research&page=monitor&sec_pair={token}")
+            if ticker != "NEM":
+                wrong_marker = "&sec_ticker=AMD" if ticker == "DUK" else ""
+                page.goto(f"{monitor_url}&sec_pair={token}{wrong_marker}")
                 playwright.expect(page.get_by_text("无法打开这两份已保存的证据。", exact=False)).to_be_visible()
                 playwright.expect(open_pair).to_have_count(0)
                 playwright.expect(save).to_have_count(0)
