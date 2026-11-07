@@ -42,6 +42,18 @@ h3 { font-size: 1.25rem; letter-spacing: -.025em; }
 .layout { display: grid; grid-template-columns: minmax(10.75rem, .23fr) minmax(0, 1fr);
   gap: clamp(1.4rem, 4vw, 3rem); padding-block: clamp(1.4rem, 4vw, 3rem); }
 .steps { position: sticky; top: 1.5rem; align-self: start; }
+.workspace-rail { position: sticky; top: 1.5rem; align-self: start; display: grid; gap: 1.4rem; }
+.workspace-rail .steps { position: static; }
+.workflow-links { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.company-heading { display: grid; gap: .45rem; margin-bottom: 1rem; }
+.company-heading p:last-child { color: var(--muted); }
+.company-heading h2 { font-size: clamp(2rem, 5vw, 2.8rem); }
+.company-section-title { font-size: clamp(1.5rem, 4vw, 1.9rem); letter-spacing: -.035em; }
+.panel-intro--compact .company-section-title { font-size: 1.1rem; letter-spacing: -.02em; }
+.table-scroll { min-width: 0; overflow-x: auto; }
+.table-scroll table { min-width: 26rem; }
+.analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+.analysis-grid .surface { display: grid; align-content: start; gap: .55rem; }
 .steps-title { margin: 0 0 .65rem .55rem; }
 .steps ol { list-style: none; padding: 0; margin: 0; display: grid; gap: .3rem; }
 .steps a { display: flex; min-height: 2.9rem; align-items: center; gap: .65rem; padding: .4rem .55rem;
@@ -162,7 +174,9 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
 }
 @media (max-width: 800px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
-  .steps { position: static; }
+  .steps, .workspace-rail { position: static; }
+  .workspace-rail { gap: .6rem; }
+  .workflow-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .steps-title, .scope-note { display: none; }
   .steps ol { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
   .steps a { padding-inline: .45rem; font-size: .82rem; gap: .35rem; border-color: var(--line); background: var(--paper); }
@@ -172,7 +186,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
   .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
   .layout { padding-top: .8rem; gap: 1rem; }
   .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes, .evidence-observations { grid-template-columns: minmax(0, 1fr); }
+  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes, .evidence-observations, .analysis-grid { grid-template-columns: minmax(0, 1fr); }
   .metrics { gap: .45rem; }
   .metric { padding: .6rem; }
   .metric-value { font-size: 1.12rem; }

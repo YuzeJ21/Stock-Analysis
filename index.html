@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-GobT3kPOSed03M/M4H85wlXo2KOk+qKYKQk656P+7PA='; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-16zEZXYs+Xwodh3TEKlEdrlhqJ55XXaXFkr4KRGkhVs='; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
   <title>Stock Research Command Center | Guided Demo</title>
   <meta name="description" content="Research a fictional company, review business trends and peers, test valuation assumptions, and track a follow-up.">
   <meta property="og:title" content="Stock Research Command Center | Guided Demo">
@@ -44,6 +44,18 @@ h3 { font-size: 1.25rem; letter-spacing: -.025em; }
 .layout { display: grid; grid-template-columns: minmax(10.75rem, .23fr) minmax(0, 1fr);
   gap: clamp(1.4rem, 4vw, 3rem); padding-block: clamp(1.4rem, 4vw, 3rem); }
 .steps { position: sticky; top: 1.5rem; align-self: start; }
+.workspace-rail { position: sticky; top: 1.5rem; align-self: start; display: grid; gap: 1.4rem; }
+.workspace-rail .steps { position: static; }
+.workflow-links { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.company-heading { display: grid; gap: .45rem; margin-bottom: 1rem; }
+.company-heading p:last-child { color: var(--muted); }
+.company-heading h2 { font-size: clamp(2rem, 5vw, 2.8rem); }
+.company-section-title { font-size: clamp(1.5rem, 4vw, 1.9rem); letter-spacing: -.035em; }
+.panel-intro--compact .company-section-title { font-size: 1.1rem; letter-spacing: -.02em; }
+.table-scroll { min-width: 0; overflow-x: auto; }
+.table-scroll table { min-width: 26rem; }
+.analysis-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+.analysis-grid .surface { display: grid; align-content: start; gap: .55rem; }
 .steps-title { margin: 0 0 .65rem .55rem; }
 .steps ol { list-style: none; padding: 0; margin: 0; display: grid; gap: .3rem; }
 .steps a { display: flex; min-height: 2.9rem; align-items: center; gap: .65rem; padding: .4rem .55rem;
@@ -164,7 +176,9 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
 }
 @media (max-width: 800px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
-  .steps { position: static; }
+  .steps, .workspace-rail { position: static; }
+  .workspace-rail { gap: .6rem; }
+  .workflow-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .steps-title, .scope-note { display: none; }
   .steps ol { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .35rem; }
   .steps a { padding-inline: .45rem; font-size: .82rem; gap: .35rem; border-color: var(--line); background: var(--paper); }
@@ -174,7 +188,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
   .masthead-inner { align-items: flex-start; flex-direction: column; justify-content: center; gap: .45rem; padding-block: .8rem; }
   .layout { padding-top: .8rem; gap: 1rem; }
   .steps ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes, .evidence-observations { grid-template-columns: minmax(0, 1fr); }
+  .hero, .trend-grid, .note-grid, .tool-grid, .decision-lanes, .evidence-observations, .analysis-grid { grid-template-columns: minmax(0, 1fr); }
   .metrics { gap: .45rem; }
   .metric { padding: .6rem; }
   .metric-value { font-size: 1.12rem; }
@@ -204,18 +218,32 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
     </div>
   </header>
   <div class="layout">
-    <nav class="steps" aria-label="Demo steps">
+    <aside class="workspace-rail" aria-label="Workspace navigation">
+    <nav class="steps" aria-label="Research workflow">
       <p class="steps-title eyebrow">Research workflow</p>
-      <ol><li><a href="#discover" data-demo-step="discover" data-demo-go="discover"><span class="step-number" aria-hidden="true">1</span>Company Search</a></li><li><a href="#financials" data-demo-step="financials" data-demo-go="financials"><span class="step-number" aria-hidden="true">2</span>Financial Trends</a></li><li><a href="#valuation" data-demo-step="valuation" data-demo-go="valuation"><span class="step-number" aria-hidden="true">3</span>Peer Valuation</a></li><li><a href="#notes" data-demo-step="notes" data-demo-go="notes"><span class="step-number" aria-hidden="true">4</span>Research Notes</a></li><li><a href="#monitor" data-demo-step="monitor" data-demo-go="monitor"><span class="step-number" aria-hidden="true">5</span>Monitor</a></li></ol>
+      <ul class="workflow-links">
+        <li><a href="#discover" data-demo-workflow="discover" data-demo-go="discover">Company Search</a></li>
+        <li><a href="#monitor" data-demo-workflow="monitor" data-demo-go="monitor">Monitor</a></li>
+      </ul>
+    </nav>
+    <nav class="steps" aria-label="Company sections">
+      <p class="steps-title eyebrow">Company Workbench</p>
+      <ol><li><a href="#overview" data-demo-section="overview" data-demo-go="overview"><span class="step-number" aria-hidden="true">1</span>Overview</a></li><li><a href="#financials" data-demo-section="financials" data-demo-go="financials"><span class="step-number" aria-hidden="true">2</span>Financial Trends</a></li><li><a href="#valuation" data-demo-section="valuation" data-demo-go="valuation"><span class="step-number" aria-hidden="true">3</span>Valuation &amp; Peers</a></li><li><a href="#notes" data-demo-section="notes" data-demo-go="notes"><span class="step-number" aria-hidden="true">4</span>Research Notes</a></li><li><a href="#sources" data-demo-section="sources" data-demo-go="sources"><span class="step-number" aria-hidden="true">5</span>Data Sources</a></li></ol>
       <p class="scope-note">A guided research case. Search and follow-up work entirely in this page.</p>
     </nav>
+    </aside>
     <main id="demo-main" tabindex="-1">
+      <header class="company-heading" data-demo-company-heading>
+        <p class="eyebrow">FICT · Company Workbench</p>
+        <h2>Fogline Photonics</h2>
+        <p>Photonics and optical components · Fictional research case</p>
+      </header>
       <section class="panel" id="discover" data-demo-page="discover" data-demo-panel
   aria-labelledby="discover-title" tabindex="-1">
   <div class="hero">
     <div class="hero-content">
       <header class="panel-intro">
-        <p class="eyebrow">Step 1 of 5 · Discover</p>
+        <p class="eyebrow">Company Search</p>
         <h2 id="discover-title" data-demo-title tabindex="-1">Find a company</h2>
         <p>Start with one company and follow the evidence from its reported results to a research follow-up.</p>
       </header>
@@ -234,9 +262,9 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
         <span class="badge">FICT · Fictional company</span>
         <h3>Fogline Photonics</h3>
         <p>Photonics and optical components</p>
-        <a class="button" href="#financials" data-demo-go="financials">Open Company Workbench</a>
+        <a class="button" href="#overview" data-demo-go="overview">Open Company Workbench</a>
       </div>
-      <noscript><p class="helper">Use the step links to review the sample without interactive search.</p></noscript>
+      <noscript><p class="helper">Use the company section links to review the sample without interactive search.</p></noscript>
     </div>
     <aside class="case-file" aria-label="Included company case">
       <p class="eyebrow">Included case · FICT</p>
@@ -251,12 +279,12 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
     </aside>
   </div>
 </section>
-      <section class="panel" id="financials" data-demo-page="financials" data-demo-panel
-  aria-labelledby="financials-title" tabindex="-1">
-  <header class="panel-intro">
-    <p class="eyebrow">Step 2 of 5 · Financial Trends · FICT</p>
-    <h2 id="financials-title" data-demo-title tabindex="-1">Fogline Photonics</h2>
-    <p>Review the reported trend, period, and closing price before comparing multiples.</p>
+      <section class="panel" id="overview" data-demo-page="overview" data-demo-panel
+  aria-labelledby="overview-title" tabindex="-1">
+  <header class="panel-intro panel-intro--compact">
+    
+    <h2 class="company-section-title" id="overview-title" data-demo-title tabindex="-1">Overview</h2>
+    
   </header>
   <div class="metrics" aria-label="Company snapshot">
     <article class="metric" data-company-answer="price">
@@ -306,6 +334,44 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
     </div>
   </div>
   <details>
+    <summary>View financial and price evidence</summary>
+    <ul>
+      <li>Fictional FY 2025 statement, year ended Dec 31, 2025, dated Feb 12, 2026.
+        Revenue USD 120M, diluted EPS USD 2.00.</li>
+      <li>FY 2024 revenue USD 96M, same reporting currency and year-end. Change = 120M ÷ 96M − 1.</li>
+      <li>Sample daily price record dated Oct 30, 2026: closing price USD 48.00.</li>
+    </ul>
+  </details>
+  <div class="actions"><a class="button" href="#financials" data-demo-go="financials">Explore Financial Trends</a>
+    <a href="#sources" data-demo-go="sources">View Data Sources</a></div>
+</section>
+      <section class="panel" id="financials" data-demo-page="financials" data-demo-panel
+  aria-labelledby="financials-title" tabindex="-1">
+  <header class="panel-intro">
+    <p class="eyebrow">Business performance</p>
+    <h2 class="company-section-title" id="financials-title" data-demo-title tabindex="-1">Financial Trends</h2>
+    <p>Compare matching annual and quarterly periods, then separate operating performance from cash generation.</p>
+  </header>
+  <div class="trend-grid">
+    <figure class="surface chart">
+      <h3>Quarterly operating margin</h3>
+      <svg viewBox="0 0 390 175" role="img" aria-labelledby="margin-title margin-desc">
+        <title id="margin-title">Fictional quarterly operating margin</title><desc id="margin-desc">Q1 FY2025: 13.1%, Q2 FY2025: 14.5%, Q3 FY2025: 14.2%, Q4 FY2025: 14.7%.</desc>
+        <path class="chart-line" d="M16 141H374"/><rect class="chart-bar" x="31" y="49.4615" width="52" height="91.5385" rx="5"/><text class="chart-value" x="57" y="42.4615" text-anchor="middle">13.1%</text><text x="57" y="161" text-anchor="middle">Q1 FY2025</text><rect class="chart-bar" x="123" y="39.6207" width="52" height="101.379" rx="5"/><text class="chart-value" x="149" y="32.6207" text-anchor="middle">14.5%</text><text x="149" y="161" text-anchor="middle">Q2 FY2025</text><rect class="chart-bar" x="215" y="41.6452" width="52" height="99.3548" rx="5"/><text class="chart-value" x="241" y="34.6452" text-anchor="middle">14.2%</text><text x="241" y="161" text-anchor="middle">Q3 FY2025</text><rect class="chart-bar" x="307" y="38.0588" width="52" height="102.941" rx="5"/><text class="chart-value" x="333" y="31.0588" text-anchor="middle">14.7%</text><text x="333" y="161" text-anchor="middle">Q4 FY2025</text>
+      </svg>
+      <figcaption>FY2025 standalone quarters. Operating income ÷ revenue.</figcaption>
+    </figure>
+    <section class="surface" aria-labelledby="annual-performance-title">
+      <h3 id="annual-performance-title">Annual operating performance</h3>
+      <div class="table-scroll"><table class="numbers">
+        <caption>Fictional annual statements · year ended December 31</caption>
+        <thead><tr><th scope="col">FY</th><th scope="col">Op. margin</th><th scope="col">Revenue YoY</th>
+          <th scope="col">Op. income YoY</th></tr></thead><tbody><tr><th scope="row">2023</th><td>7.7%</td><td>—</td><td>—</td></tr><tr><th scope="row">2024</th><td>11.5%</td><td>+23.1%</td><td>+83.3%</td></tr><tr><th scope="row">2025</th><td>14.2%</td><td>+25.0%</td><td>+54.5%</td></tr></tbody>
+      </table></div>
+      <p class="source-note">No FY2022 comparison is included; FY2023 growth is unavailable.</p>
+    </section>
+  </div>
+  <details>
     <summary>Business Trend</summary>
     <div class="tool-body">
       <p>Revenue growth accelerated into the second half of FY2025. Compare the same quarters a year earlier
@@ -318,22 +384,31 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
       </table>
     </div>
   </details>
-  <details>
-    <summary>View financial and price evidence</summary>
-    <ul>
-      <li>Fictional FY 2025 statement, year ended Dec 31, 2025, dated Feb 12, 2026.
-        Revenue USD 120M, diluted EPS USD 2.00.</li>
-      <li>FY 2024 revenue USD 96M, same reporting currency and year-end. Change = 120M ÷ 96M − 1.</li>
-      <li>Sample daily price record dated Oct 30, 2026: closing price USD 48.00.</li>
-    </ul>
-  </details>
-  <div class="actions"><a class="button" href="#valuation" data-demo-go="valuation">Continue to Peer Valuation</a></div>
+  <div class="analysis-grid">
+    <section class="surface" aria-labelledby="operating-analysis-title">
+      <h3 id="operating-analysis-title">What changed in the business</h3>
+      <p>FY2025 revenue rose 25.0%, while operating income rose 54.5%. Operating margin improved
+        from 11.5% to 14.2%. The sample supports improving operating profitability.</p>
+      <p class="source-note">Segment mix, customer concentration, and expense drivers are not included.
+        These observations do not establish why profitability improved.</p>
+    </section>
+    <section class="surface" aria-labelledby="cash-flow-title">
+      <h3 id="cash-flow-title">Cash flow</h3>
+      <span class="badge badge--warning">Evidence gap</span>
+      <p>Reported cash flow is unavailable in this fictional statement set. Operating income is not cash flow.</p>
+      <p class="source-note">The Scenario Lab's 10% cash-flow margin is an assumption. It does not establish
+        reported operating cash flow, capital expenditure, or free cash flow.</p>
+      <p><a href="#valuation" data-demo-go="valuation">Open Scenario Lab and valuation tools</a></p>
+    </section>
+  </div>
+  <div class="actions"><a class="button" href="#valuation" data-demo-go="valuation">Explore Valuation &amp; Peers</a>
+    <a href="#sources" data-demo-go="sources">View financial sources</a></div>
 </section>
       <section class="panel" id="valuation" data-demo-page="valuation" data-demo-panel
   aria-labelledby="valuation-title" tabindex="-1">
   <header class="panel-intro">
-    <p class="eyebrow">Step 3 of 5 · Company Workbench · FICT</p>
-    <h2 id="valuation-title" data-demo-title tabindex="-1">Peer Valuation</h2>
+    <p class="eyebrow">Multiples and assumptions</p>
+    <h2 class="company-section-title" id="valuation-title" data-demo-title tabindex="-1">Valuation &amp; Peers</h2>
     <p>Compare Fogline Photonics with its sample peers and test a valuation assumption.</p>
   </header>
   <fieldset class="peer-controls">
@@ -372,6 +447,17 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
   </div>
   <div class="tool-grid" role="group" aria-label="Valuation research tools">
     <details>
+      <summary>Valuation methods</summary>
+      <div class="tool-body">
+        <p><strong>Annual diluted P/E.</strong> USD 48.00 close ÷ USD 2.00 FY2025 diluted EPS =
+          24.0×. The peer result requires at least three qualifying same-day references.</p>
+        <p><strong>Illustrative DCF.</strong> Scenario Lab uses explicit growth, cash-flow margin, and discount-rate
+          assumptions. Keep this illustrative model separate from reported financial observations.</p>
+        <p class="source-note">No reported cash-flow statement, net-debt bridge, or share-count evidence is included.
+          A DCF per-share result is unavailable.</p>
+      </div>
+    </details>
+    <details>
       <summary>Peer Read-Through</summary>
       <div class="tool-body">
         <p><strong>Peer A · comparable operating context.</strong> The sample relationship record shows the same
@@ -402,6 +488,17 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
       <p class="source-note scenario-assumptions" id="demo-scenario-assumptions">Fictional DCF · 5 years ·
         8% annual growth · 10% cash-flow margin · 3% terminal growth ·
         USD model values.</p>
+    </div>
+  </details>
+  <details>
+    <summary>Sensitivity analysis</summary>
+    <div class="tool-body">
+      <p>Hold growth, cash-flow margin, terminal growth, and forecast length constant. Only WACC changes.</p>
+      <table class="numbers"><caption>Same fictional DCF assumptions as Scenario Lab</caption>
+        <thead><tr><th scope="col">WACC</th><th scope="col">Model value</th></tr></thead>
+        <tbody><tr><th scope="row">7%</th><td>USD 385.4M</td></tr><tr><th scope="row">8%</th><td>USD 307.2M</td></tr><tr><th scope="row">9%</th><td>USD 255.1M</td></tr><tr><th scope="row">10%</th><td>USD 217.9M</td></tr><tr><th scope="row">11%</th><td>USD 190.0M</td></tr><tr><th scope="row">12%</th><td>USD 168.4M</td></tr><tr><th scope="row">13%</th><td>USD 151.1M</td></tr><tr><th scope="row">14%</th><td>USD 136.9M</td></tr></tbody>
+      </table>
+      <p class="source-note">Model values are not a reported metric or a per-share price target.</p>
     </div>
   </details>
   </div>
@@ -455,8 +552,8 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
       <section class="panel" id="notes" data-demo-page="notes" data-demo-panel
   aria-labelledby="notes-title" tabindex="-1">
   <header class="panel-intro">
-    <p class="eyebrow">Step 4 of 5 · Company Workbench · FICT</p>
-    <h2 id="notes-title" data-demo-title tabindex="-1">Research Notes</h2>
+    <p class="eyebrow">Thesis and follow-up</p>
+    <h2 class="company-section-title" id="notes-title" data-demo-title tabindex="-1">Research Notes</h2>
     <p>Turn the evidence into a question you can revisit.</p>
   </header>
   <div class="tool-list" role="group" aria-label="Research tools">
@@ -485,11 +582,20 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
           <div><dt>Plan</dt><dd>Test whether growth and operating income move together.</dd></div>
           <div><dt>Evidence</dt><dd>Compare the fictional FY2024 and FY2025 statements.</dd></div>
           <div><dt>Invalidation</dt><dd>Revisit the thesis if revenue rises while comparable operating margin falls.</dd></div>
-          <div><dt>Scenario</dt><dd>Review the discount-rate sensitivity in <a href="#valuation" data-demo-go="valuation">Peer Valuation</a>.</dd></div>
+          <div><dt>Scenario</dt><dd>Review the discount-rate sensitivity in <a href="#valuation" data-demo-go="valuation">Valuation &amp; Peers</a>.</dd></div>
           <div><dt>Review trigger</dt><dd>Next fictional annual statement.</dd></div>
           <div><dt>Learning</dt><dd>Record what explained any difference after the filing review.</dd></div>
         </dl>
         <p class="source-note">Use the draft below to carry the review question into Monitor.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Research brief</summary>
+      <div class="tool-body">
+        <p><strong>Business.</strong> FY2025 revenue grew 25.0%; operating income grew faster. Check the next matching period.</p>
+        <p><strong>Valuation.</strong> Annual diluted P/E is 24.0×. Review the selected peer evidence before using its comparison.</p>
+        <p><strong>Open questions.</strong> Reported cash generation, segment mix, and the next filing date are unavailable.</p>
+        <p class="source-note">Fictional research summary. The draft note below is the editable follow-up.</p>
       </div>
     </details>
   </div>
@@ -542,11 +648,51 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
     <a class="button" href="#monitor" data-demo-go="monitor">Back to Monitor</a>
   </section>
 </section>
+      <section class="panel" id="sources" data-demo-page="sources" data-demo-panel
+  aria-labelledby="sources-title" tabindex="-1">
+  <header class="panel-intro">
+    <p class="eyebrow">Source context and gaps</p>
+    <h2 class="company-section-title" id="sources-title" data-demo-title tabindex="-1">Data Sources</h2>
+    <p>Check the period, unit, provenance, and limits behind each part of the research.</p>
+  </header>
+  <section class="surface note-box" aria-labelledby="source-register-title">
+    <span class="badge">Synthetic provenance</span>
+    <h3 id="source-register-title">Evidence used in this company case</h3>
+    <p>Every Fogline observation and peer record is fictional and bundled in this offline page.
+      Nothing here was fetched from a live company filing or market feed.</p>
+    <div class="table-scroll"><table>
+      <caption>Context for the observations and assumptions shown in the workspace</caption>
+      <thead><tr><th scope="col">Source</th><th scope="col">Scope</th><th scope="col">Use and limitation</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Annual statements</th><td>FY2023–FY2025 · Dec 31 year-end · USD</td>
+          <td>Revenue, operating income, annual diluted EPS. FY2025 sample dated Feb 12, 2026.</td></tr>
+        <tr><th scope="row">Quarterly statements</th><td>Q1–Q4 FY2025 · standalone quarters · USD</td>
+          <td>Revenue, matching prior-year revenue, and operating income. No cumulative cash flow is treated as a quarter.</td></tr>
+        <tr><th scope="row">Daily close records</th><td>Oct 30, 2026 · USD</td>
+          <td>FICT close USD 48.00. The two-peer state dates Peer C to Oct 29, 2026 and excludes it.</td></tr>
+        <tr><th scope="row">Peer records</th><td>Four candidates · FY2025</td>
+          <td>Positive annual diluted EPS, same-day closes, fiscal start/end within 35 days. Three eligible peers are required.</td></tr>
+        <tr><th scope="row">Saved evidence pair</th><td>FICT-FY25-01 and FICT-FY25-02</td>
+          <td>Fixed observations of the same filing; Monitor preserves the exact pair and its review disposition.</td></tr>
+        <tr><th scope="row">Scenario assumptions</th><td>5 years · 8% growth · 10% cash-flow margin · 3% terminal growth</td>
+          <td>Illustrative DCF inputs, independent of reported evidence. WACC range: 7%–14%.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <section class="surface note-box" aria-labelledby="source-gaps-title">
+    <h3 id="source-gaps-title">Evidence still missing</h3>
+    <p>Reported operating cash flow, capital expenditure, net debt, share count, segment breakdown,
+      and the next filing date are unavailable. Missing observations stay unavailable.</p>
+    <p class="source-note">Changing sections reuses this page's bundled evidence. A reload resets draft follow-ups,
+      the scenario control, and review status; it does not refresh any source.</p>
+  </section>
+  <div class="actions"><a class="button" href="#overview" data-demo-go="overview">Return to Overview</a></div>
+</section>
       <section class="panel" id="monitor" data-demo-page="monitor" data-demo-panel
   aria-labelledby="monitor-title" tabindex="-1">
   <header class="panel-intro">
-    <p class="eyebrow">Step 5 of 5 · Follow-up queue</p>
-    <h2 id="monitor-title" data-demo-title tabindex="-1">Monitor</h2>
+    <p class="eyebrow">Follow-up queue</p>
+    <h2 class="company-section-title" id="monitor-title" data-demo-title tabindex="-1">Monitor</h2>
     <p>Review a saved evidence comparison and revisit the question you carried forward.</p>
   </header>
   <section class="surface monitor-note" aria-labelledby="demo-evidence-follow-up-title">
@@ -589,7 +735,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
     <p class="source-note">Trigger: next reported annual period. This follow-up lasts until reload.</p>
     <a class="button" href="#notes" data-demo-go="notes">Return to Research Notes</a>
   </article>
-  <div class="actions"><a href="#financials" data-demo-go="financials">Reopen Company Workbench</a></div>
+  <div class="actions"><a href="#overview" data-demo-go="overview">Reopen Company Workbench</a></div>
 </section>
     </main>
   </div>
@@ -600,6 +746,7 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
     const panels = Array.from(document.querySelectorAll("[data-demo-page]"));
     const panelByPage = new Map(panels.map((panel) => [panel.dataset.demoPage, panel]));
     const steps = document.querySelectorAll("nav [data-demo-go]");
+    const companyHeading = document.querySelector("[data-demo-company-heading]");
     const evidencePair = document.querySelector("#demo-evidence-pair");
     let openPeerEvidence = false;
 
@@ -610,12 +757,13 @@ body:has(#demo-withheld:checked) .demo-state--withheld { display: block; }
             return;
         }
         const page = reviewingEvidence ? "notes" : panelByPage.has(requested) ? requested : "discover";
+        companyHeading.hidden = page === "discover" || page === "monitor";
         for (const panel of panels) {
             panel.hidden = panel.dataset.demoPage !== page;
         }
         for (const step of steps) {
             if (step.dataset.demoGo === page) {
-                step.setAttribute("aria-current", "step");
+                step.setAttribute("aria-current", "page");
             } else {
                 step.removeAttribute("aria-current");
             }
