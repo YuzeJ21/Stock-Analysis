@@ -43,7 +43,7 @@ The full Streamlit workspace runs locally. GitHub Pages hosts the fictional Engl
 | Stage | Current answer | Boundary |
 | --- | --- | --- |
 | Now | Share the guided fictional Pages demo first, the dated AMD case second, and the local workspace through the repository. | These are controlled portfolio/demo examples. They do not prove current-market coverage or outside reviewer demand. |
-| Next | Qualify a new issuer or period and make the evidence comparison clearer. | Distinguish an actual annual financial or filing change from a new retrieval or issuer-association metadata change. |
+| Next | Qualify a new issuer or period and clarify evidence comparisons. | Distinguish an actual annual financial or filing change from a new retrieval or issuer-association metadata change. |
 | Not yet | Host the full Streamlit workspace or claim broad fundamentals, peers, earnings, estimates, predictive validation, or commercial operation. | Each needs source rights, repeatable operations, and direct validation. |
 
 The active sequence is in the [Roadmap](../ROADMAP.md). `make next-stage` prints the current package and source-proof decision ladder without changing local data. Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted. Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates.

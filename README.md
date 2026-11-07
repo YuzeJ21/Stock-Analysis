@@ -1,179 +1,136 @@
 # Stock Research Command Center
-An **Evidence-First Research Workbench** for serious individual equity researchers and small research teams performing repeated company research, valuation review, forward-scenario analysis, and truthful data-readiness decisions.
-> Data readiness first, analysis second, research decision last.
 
-## External Reviewer Start Here
+An evidence-first equity research workbench built with Python and Streamlit. Review what drove a company's results, trace findings to SEC filings, and keep open questions with the evidence behind them.
 
-[**Open the public company research demo**](https://yuzej21.github.io/Stock-Analysis/). This read-only GitHub Pages demo uses a fictional company and synthetic data. Its interactions stay in the browser tab and write no research data. Follow the English workflow without signing in, or [see the dated real AMD filing example](https://yuzej21.github.io/Stock-Analysis/amd.html). [LinkedIn Featured copy](docs/LINKEDIN_PROJECT_BRIEF.md)
+## Try the Public Demo
+
+| Start here | What you can explore |
+| --- | --- |
+| [Interactive English demo](https://yuzej21.github.io/Stock-Analysis/) | A fictional company from search through financial trends, peer valuation, research notes, and Monitor. |
+| [Real AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) | A dated SEC filing walkthrough with quarterly drivers, operating margin, cash flow, and an open research question. |
+
+![English company research demo showing financial trends and peer valuation](docs/assets/english-company-research-demo.png)
+
+*The screenshot shows the fictional public demo. The full research workspace runs locally.*
 
 ### Two-minute walkthrough
 
-1. **Find Fogline Photonics.** Search for `FICT` and open Business Trend in Financial Trends to compare four fictional quarters.
-2. **Compare peers and test a scenario.** Switch from three eligible peers to two, open Peer Read-Through, and change the discount rate in Scenario Lab.
-3. **Follow and resolve the evidence.** Open Forward View, Catalysts, and Research Decision Lab in Research Notes. Add a personal note to Monitor. Choose **Review saved evidence**, compare the two fixed fictional FY2025 observations, then return to Monitor and save **Reviewed** or **Still open** with a reason. The note and disposition last only until reload. The separate dated AMD filing case has a **Try the fictional evidence review** shortcut into this synthetic Monitor, without importing AMD data.
+1. Search for **FICT** and open **Financial Trends**. Inspect the reported periods and **Business Trend**.
+2. Open **Peer Valuation**. Switch between three and two eligible peers, inspect exclusions, and try a discount-rate assumption in **Scenario Lab**.
+3. Use **Research Notes** to explore **Forward View**, **Catalysts**, and **Research Decision Lab**.
+4. In **Monitor**, select **Review saved evidence**, compare the two fixed fictional observations, and record **Reviewed** or **Still open** with a reason.
 
-<details><summary>Full workflow and reviewer resources</summary>
+The fictional note and review decision reset on reload. The separate AMD page uses a dated real filing and links into the fictional workflow. [Public walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md) · [LinkedIn Featured copy](docs/LINKEDIN_PROJECT_BRIEF.md)
 
-![Local Company Workbench preview](docs/assets/linkedin-public-dashboard.png)
+## Research Workflow
 
-**Primary product workflow:** Research Desk -> Discover -> Company Workbench -> Monitor. Personal Research is the default local workspace: run `make dashboard`, then open `http://localhost:8501/`. One in-content workflow navigation becomes a compact desktop rail and a wrapped phone grid; its workspace-mode disclosure replaces the retired Personal/Public/Operator sidebar selector. Broad command, profile, and readiness chrome no longer precedes the route answer. Research Desk starts with one read-only **Today's Research Brief** answering what saved work needs attention, why, how fresh the saved readiness is, and one truthful action: Monitor for saved follow-up items, Data Health for a separate saved-source freshness condition, or Discover when neither is due. It does not claim to be a market-complete event feed; weekly, cohort, observation, coverage, and source-change detail remains under **Advanced Evidence**. Discover keeps strict screen eligibility separate from alphabetical saved-company evidence browsing: a company can be inspectable without passing the screen, and neither path is a recommendation or expected-return ranking. Company Workbench has one company header and five sections: **概览、财务趋势、估值与同行、研究记录、数据来源**. One explicit **更新财报与价格** operation reuses existing online sources across sections; no per-company CSV preparation is required. Online observations stay separate from saved model inputs and journals. Valuation adds **更新在线同行估值** for a source-bound annual diluted P/E industry reference with dates and exclusions, while retaining separately gated saved Scenario Lab controls; missing comparisons remain withheld. See [Online Peer Valuation](docs/ONLINE_PEER_VALUATION.md). Notes retains Research Decision Lab, exact-preview authoring and the offline HTML brief; Sources retains exact filings, raw fields, independent observation dates and Data Health. Monitor uses one **Follow-up Queue** for **Since last review**, **Needs verification**, **Waiting on evidence**, **Scheduled context**, and **Evidence freshness**. A zero queue appears once, does not claim that no external event exists, and returns to Discover; complete process identities and source-change evidence remain under **Advanced: Monitor evidence**. Data Health and Proof History remain available from Company Workbench **数据来源**. For NEM, AMD and DUK, Monitor opens the exact saved SEC observation pair and accepts a reasoned **Reviewed** or **Still open** disposition scoped to that issuer, pair and local research profile. [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md), [Saved SEC company reviews](docs/SEC_RESEARCH_REVIEWS.md)
+The full local workspace follows **Research Desk → Discover → Company Workbench → Monitor**.
 
-**Secondary controlled demo:** Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. This is the shorter public-review path for visitors who do not need the complete company-research workspace. First review move: open Stock Selector, choose a saved ticker, and inspect its Single-Stock Report.
-
-The full Streamlit workspace is a **local Commercial Research Beta foundation**. The public link opens a standalone synthetic demo. Operator context remains the source/proof workspace. Authentication, private workspaces, operated data rights, real beta users, and repeatable provider operations remain separate gates. A local contract pass does not prove hosting, licensed operation, or external validation.
-
-| Question | Short answer |
+| Destination | Research task |
 | --- | --- |
-| What should I open first? | Start with the [public company demo](https://yuzej21.github.io/Stock-Analysis/). The [walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md) explains the fictional demo, dated AMD case, and local workspace. |
-| How do I run the full workspace locally? | Run `make dashboard`, then open `http://localhost:8501/` for Personal Research. |
-| What workflow should I follow locally? | Research Desk -> Discover -> Company Workbench -> Monitor. The separate controlled Public workspace follows Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. |
-| What should I run when I ask what is next? | Run `make next-stage` for the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |
-| What is the current roadmap? | Read [Roadmap](ROADMAP.md) for the active priority order and [Completed Milestones](docs/COMPLETED_MILESTONES.md) for dated history. Older design and evidence notes are not live data or release-status checks. |
-| What proves local route performance? | Read the [Performance Release Gate](docs/PERFORMANCE_RELEASE_GATE.md), then rerun `make public-performance-gate` against the fixed demo profile. |
-| How will the project choose its next operating model? | Use the [Product Direction Decision](docs/PRODUCT_DIRECTION_DECISION.md); the choice remains provisional until hosted and external-review evidence exists. |
-| How should I collect pilot feedback? | Send [Pilot Review Invitation](docs/PILOT_REVIEW_INVITATION.md), then use `make pilot-review-feedback`, `docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md`, and `docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv` for anonymous workflow-clarity notes only; use `make pilot-feedback-closeout` before turning notes into fixes or deferrals. |
-| What can I share on LinkedIn? | Link to the [public company demo](https://yuzej21.github.io/Stock-Analysis/). `docs/assets/linkedin-public-dashboard.png` shows the local workspace. |
-| What proves current local readiness? | Run `make readiness-ops-center` for lane truth. `make status-check TOP_N=5` can describe a saved generated snapshot; screenshots are product evidence only. |
-| What does the public demo cover? | The public demo uses synthetic data. The full workspace runs locally for research, and the root license governs reuse. |
+| **Research Desk** | Resume saved work and see which follow-ups or evidence checks need attention. |
+| **Discover** | Search SEC company identities online or browse saved companies. Inspect dated coverage and unresolved identity gaps. |
+| **Company Workbench** | Review one company through five connected sections, with financial, price, and source context. |
+| **Monitor** | Use the Follow-up Queue to revisit saved questions and evidence changes, then return to the company or its exact saved comparison. |
 
-First personal-research move: open Research Desk, use Discover to choose a saved company or an online SEC candidate, then open Company Workbench. Update financials and prices explicitly, inspect annual/direct-quarter trends, and open valuation, notes or sources as the question requires. Company facts, financial coverage, model eligibility and point-in-time coverage are distinct. The online financial review does not derive missing quarter values or populate saved models. Use Monitor for saved follow-up and Data Health for separately qualified input gaps. Saved inputs keep their selected-profile context; see [Data Profiles](docs/DATA_PROFILES.md). The append-only Research Thesis Journal, session-local Scenario Lab, Source Freshness Timeline, operator-only Research Comparison View, Peer Read-Through Map, and Decision-Process Scorecard preserve their existing evidence and no-ranking boundaries; see [Methodology](docs/METHODOLOGY.md). Thesis, evidence, catalyst, and outcome records are all available in the collapsed Company Workbench composer. The composer appears only in **研究记录**. A valid record requires an exact preview and explicit confirmation before save. Drafts are untrusted and preview receipts are session-only. Production tests never append repository ledgers; persistence tests use temporary ledgers. A saved record cannot change readiness, forecasts, probabilities, recommendations, or any other ledger. Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete. Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent. Complete the direct local matrix and current-head local evidence first; then follow the Product Decision outcome order in ROADMAP.md. Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization. Broad-review repairs must be evaluated only through direct current-head local and exact-head CI evidence; their presence alone establishes neither gate. Final integrity commit `e3a090dba` ensures confirmation appends only the receipt-matched recomputed record and enforces one readable active thesis lineage: revisions must supersede the exact active entry and preserve its thesis ID. The Company Workbench locks and explains that relationship, with temporary-ledger create -> revise -> reload coverage. Confirmation-integrity commit `5a6c55921` binds every displayed preview field, preview time, and destination label to the exact receipt. If an append raises after it may have written, confirmation returns one-shot `save_pending_reload` with the exact record ID unless the locked ledger is provably unchanged; it never invites a blind duplicate retry.
+Company search accepts a name or ticker, including companies absent from local CSVs. Refresh financials and prices explicitly. Source and observation dates stay visible across the company review.
 
-Older Monthly Picks, Momentum Leaders, Portfolio Review, Value / Re-rating, and Final Watchlist views are retained only behind the Operator boundary **Legacy research utility — not part of Personal Research Mode**. They are compatibility and regression aids, not supported investing features. They cannot feed Research Decision Lab, cannot change readiness, and cannot produce recommendations, sizing, or transaction behavior. Public and Personal Research deep links fail closed to their safe start pages; legacy details require an explicit collapsed Operator control.
+## What You Can Do
+
+| Company section | Included tools |
+| --- | --- |
+| **Overview** | Dated price context, reported financial changes, and a peer valuation result or its missing-evidence explanation. |
+| **Financial Trends** | Annual and directly reported quarterly history, growth, margins, cash generation, and separately qualified saved Business Trend. Cumulative cash-flow periods are labelled separately. |
+| **Valuation & Peers** | Source-bound annual diluted P/E with eligible and excluded industry references, plus separately qualified saved Peer Read-Through, valuation scenarios, and sensitivities. |
+| **Research Notes** | For a qualified saved company/profile, research questions, Forward View, Catalysts, Research Decision Lab, an append-only thesis journal, and an offline HTML research brief. Saved authoring uses an exact preview and explicit confirmation. |
+| **Data Sources** | Filing links, concepts, units, periods, publication and observation dates, source-rights context, and Data Health or Proof History when deeper verification is needed. |
+
+### Saved SEC evidence review
+
+For **NEM, AMD, and DUK**, reopen an exact ordered pair from Monitor after two qualified annual SEC observations have been saved in the selected local profile. Real receipts stay private under ignored `outputs/local/`. Capture or import your own qualified observations when starting from a fresh clone.
+
+- Compare supported fields and source-review metadata.
+- Identical supported facts and source-review inputs show **Unchanged**. Source-review metadata changes are labelled separately. Incompatible identities, periods, units, or concepts retain their specific gaps.
+- Record **Reviewed** or **Still open** with a required reason scoped to the company, pair, and research profile.
+- A newer capture has its own review status. Existing receipts remain immutable, and a review decision leaves unresolved financial gaps visible.
+
+The portable scope covers direct annual US-GAAP/USD revenue, operating income, operating cash flow, and capital expenditures when qualified. A changed source checksum or issuer-directory record is identified separately from a financial revision. [Saved SEC review method](docs/SEC_RESEARCH_REVIEWS.md)
+
+## Run Locally
+
+Use Python 3.10 or later and run these commands from the repository root.
+
+```bash
+python -m pip install -e '.[research]'
+export SEC_USER_AGENT="Your Name your.email@example.com"
+make dashboard
+```
+
+Open [http://localhost:8501/](http://localhost:8501/) for the Personal Research workspace. Use an identifying SEC user agent for online retrieval. Financial and price refreshes require network access.
+
+The repository's saved data, ignored local research files, and synthetic demo profile have separate contexts. Check the selected profile before comparing observations. [Data Profiles](docs/DATA_PROFILES.md) · [Online Company Research](docs/ONLINE_COMPANY_RESEARCH.md)
+
+<details>
+<summary>Controlled local demo and engineering checks</summary>
+
+The separate controlled Public workspace follows Home → Stock Selector → Single-Stock Report → Data Health → Proof History.
+
+```bash
+make demo                  # print the local visitor walkthrough
+make demo-dashboard        # start the bundled demo profile
+# Open http://localhost:8501/?mode=public
+
+python -m pip install -e '.[dev]'
+make test                  # run the automated suite
+make dashboard-smoke       # check dashboard startup
+```
+
+Data Health and Proof History remain available as Advanced Evidence. Operator mode contains maintenance and legacy compatibility tools. [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md) · [Local Workflow Guide](docs/OPERATOR_GUIDE.md)
+
 </details>
 
-## What It Does
-This project turns a broad stock universe into a readiness-first research dashboard. It checks market data before analysis, separates `Research Now`, `Monitor`, and `Blocked by Data` review states, explains missing prices, fundamentals, DCF inputs, peers, earnings, and analyst estimates, and produces Streamlit pages plus single-stock reports with At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps.
-### Earnings Nowcast Pilot
-The repository includes a readiness-gated, deterministic synthetic-fixture workflow for quarterly Revenue/EPS ranges and consensus-relative classification. It records fiscal period, forecast cutoff, expected report date, forecast horizon, provenance, model version, input hash, freshness, metric definitions, and withheld states; peer/news signals are directional evidence only and cannot change forecast numbers. Duplicate fiscal periods cannot inflate history, unresolved revisions fail closed per metric, and Revenue/EPS definitions must match on currency, unit scale, accounting basis, share basis, operations basis, and split treatment. Run `make earnings-nowcast-walkthrough` for six clearly synthetic reviewer scenarios, or `FIXTURE=1 make earnings-nowcast-pilot TICKER=SYN1 AS_OF=2026-01-31T23:59:59Z` to inspect one offline packet. Read-only templates, validation, preview, readiness, and prospective collection planning are documented in [Earnings Nowcast Pilot](docs/EARNINGS_NOWCAST_PILOT.md); there is no automatic apply path.
-This infrastructure does not establish real-company coverage or predictive accuracy. Real semiconductor output remains blocked until append-only point-in-time consensus and quarterly actual histories are source-backed. Numerical Beat/Miss probability is withheld until at least 100 leakage-safe out-of-sample events pass calibration and benchmark gates. The pilot does not predict post-earnings price movement and remains research-only, not investment advice. The activation layer adds a five-company readiness board, prospective consensus collection, point-in-time valuation context, outcome learning, and catalyst evidence inside the existing research workflow; see the pilot and methodology docs for their fail-closed contracts. Stage A is prospective-only: `make prospective-field-proof-status`, read-only `make prospective-field-proof-audit`, `make prospective-field-proof-preview INPUT=<reviewed_field_proof.csv> AS_OF=<utc-cutoff>`, and explicit `make prospective-field-proof-record INPUT=<same-file> AS_OF=<same-cutoff> PREVIEW_RECEIPT=<exact-receipt> CONFIRM_REVIEWED=1` preserve `technical_write_eligible` and `commercial_evidence_eligible` independently. The preview receipt binds ledger, input, cutoff, commercial mode, and source-rights registry. Audit exposes append history and active-head blockers with `preview_receipt_persisted=false` and `receipt_revalidation_required=true`; it does not activate readiness, update canonical data, or activate Company Workbench. An absent ledger is a valid empty state, and legacy narrative proof is not upgraded. No sample field-proof rows are checked in. Detailed operation and locking limits are in [Local Workflow Guide](docs/OPERATOR_GUIDE.md).
-```mermaid
-flowchart LR
-    Desk["Research Desk: changed evidence"] --> Discover["Discover: strict eligibility or saved evidence"]
-    Discover --> Workbench["Company Workbench: Company Brief first"]
-    Workbench --> Monitor["Monitor: unresolved research changes"]
-    Workbench -. advanced evidence .-> Health["Data Health and Proof History"]
-```
-### Download HTML Research Brief
-The existing HTML Research Brief begins with an Evidence One-Pager that projects only the already-frozen saved evidence, scenario assumptions, blockers, process status, and next research task; the complete evidence report follows in the same offline artifact. The summary adds no source, calculation engine, readiness promotion, recommendation, target price, probability, or second download. No new route is added; withheld evidence remains independently visible, and the summary carries no `Certified` badge, target-price or upside framing, or probability claim. Company Workbench can prepare **Download HTML Research Brief** from existing saved evidence and Python scenario math already shown in the selected research session. The download is an immutable, offline, research-only review snapshot: missing, partial, stale, mismatched, or unsupported fields remain independently labelled or withheld instead of being inferred. It does not refresh data or acquire a new source, change readiness, create a recommendation, or add a second valuation engine. No repository HTML or PDF artifact is written; the browser receives deterministic UTF-8 download bytes only. Modal modifiers and active exposure fail closed. Broad-review repairs must be evaluated only through direct current-head local and exact-head CI evidence; their presence alone establishes neither gate. Local engineering evidence does not establish source rights, current-market data, readiness activation, a new or professional line-item model, hosted operation, human or screen-reader conformance, independent validation, market fit, screening alpha, or probability calibration.
-## Now / Next / Later
-This is the current product sequence. The [active roadmap](ROADMAP.md) defines the acceptance results and source gates for each stage.
-| Stage | Answer | Guardrail |
-| --- | --- | --- |
-| Now | Local controlled demo with explicit live SEC company lookup in Discover, separate saved-evidence browsing, click-only SEC annual facts, annual and quarterly financial review, measured industry coverage and qualified price association in Workbench, including companies absent from local CSVs. NEM, AMD and DUK support a reasoned Monitor disposition for an exact saved evidence pair in the selected local research profile. | Online ticker associations are candidates; they do not establish U.S. domicile, active listing, financial coverage, or analysis eligibility. Online inspection and a Monitor disposition do not refresh saved readiness or change evidence. Use `make public-check` before sharing; keep generated churn excluded. |
-| Next | Expand exact-filing support from measured source gaps, continue recoverable issuer checks, and reconcile remaining dated venue/security-identity gaps. Qualify another issuer and period independently. Revisit NEM when a newly reported or amended annual observation supplies a source-supported change. | Show exact field source, period, rights, and withheld reasons; keep listing membership distinct from financial coverage. Identical captures do not prove a filing revision. |
-| Later | Carry permitted snapshot changes into a separate data-gap handoff; review consensus and peers; then consider controlled hosting and independent validation. | Hosting, full coverage, calibration, and commercial operation require their own direct evidence. No human testing is required for the next local engineering stage. |
-To look up a company missing from local CSVs, open Discover, enter its name or ticker under **Find a Company Online**, and press **Search SEC now**. Open an unambiguous SEC candidate in Company Workbench, then press **更新财报与价格** (or **只更新财报** under **分别更新**). The company page rechecks its SEC association and reads annual facts independently of local CSV files. Its online financial review describes the operating result, operating cash flow, and the relationship to reported PP&E spending when exact source and period match. The same SEC response supports up to six annual and twelve directly reported quarterly periods, with cumulative cash flows labelled separately. Discover offers a full observed official U.S. listing inventory with separate issuer, ETF, unmatched, failed and unprobed counts, plus explicit issuer batches and a cross-industry diagnostic sample. Bank net revenue, utility operating revenue and a separate native-currency IFRS statement view retain their exact definitions. **Exact SEC filing evidence** adds a separate latest-quarter/latest-annual primary-document check when Companyfacts is incomplete, including a qualified IBN non-XBRL Indian-GAAP annual view; issuer contexts, dimensions, scales and source fragments remain inspectable. Discover can explicitly save and restore reduced coverage progress with a previous-checkpoint backup. Its separate **Security types** action classifies dated directory descriptions and ETF flags; the company page independently checks issuer reporting forms. Source labels and as-filed disclosures retain unresolved legal type, domicile, activity and financial eligibility. Remaining venues and unsupported current periods stay visible; this does not establish complete all-company analysis. **只更新价格** separately inspects one year of dated provider closes for personal research, with a qualified SEC ticker/exchange association; an independent vendor issuer identifier, adjustment basis and commercial redistribution remain held. Percentage growth, valuation, peers and forecasts retain explicit input and source-scope gates; saved analysis stays separate. See [Online Company Research](docs/ONLINE_COMPANY_RESEARCH.md).
-## What You Can Analyze
-When trusted local data is available, the supported workflow can produce price and benchmark context, drawdown, volatility, beta, Sharpe/Sortino review metrics, liquidity, market-direction context, thesis-review flags, DCF readiness, conservative scenario valuation, source-backed peer context, ETF/index monitor reports, and single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes. Historical ranked, picks, portfolio, and final-watchlist calculations remain operator-only compatibility utilities. Most blocked rows are not errors. They are data gaps the command center exposes instead of hiding.
-## How Analysis Works
-The report is not a black box: local data rows provide inputs, and project rules decide what can be analyzed. Price-ready rows can support setup/risk context and benchmark/risk review metrics, DCF-ready rows can support assumptions and sensitivity, and peer-ready rows can support source-backed relative context. Missing fundamentals, peer inputs, earnings, or estimates stay locked; company valuation is excluded for ETF/index/fund monitor rows, not failed.
-## Current Snapshot
-The local sample tracks a broad stock universe, with a smaller subset ready for each analysis feature. Exact universe and ready counts can change after local refresh/import work, so use `make readiness-ops-center` for current lane truth. Treat `make status-check TOP_N=5` and dashboard counts as saved generated-snapshot context, not current-market freshness proof.
-Read the counts in three layers: master universe for broad coverage planning, active universe for the demo/research workflow, and analysis-ready subsets for DCF, peer context, or candidate review. A tracked ticker is not automatically ready for every analysis family; blocked rows stay visibly locked.
-Visitor status: the product workflow, dashboard, single-stock reports, readiness gates, visitor path, and public checks are working. Broad fundamentals, DCF, peers, earnings, and analyst estimates remain visibly blocked by missing trusted data until trusted rows exist, so those gaps should be read as source-proof work rather than broken analysis. **No-key SEC actuals inspection:** run `make sec-fundamentals-preview TICKERS=AAPL,NVDA,AMD` to compare annual facts from official SEC endpoints for at most five explicit tickers. The command is inspection-only: it writes no cache, import, canonical, readiness, or output files and does not authorize a data apply. The packet records field-level period, unit, retrieval, source-rights, schema, delta, and owner-action evidence. Only direct fields already allowed by the registered source scope can become future owner-review candidates; derived, mixed-unit, out-of-scope, and incoherent-period fields remain blocked, and the result does not activate product readiness.
-## External Reviewer Handoff
-Use this as the short GitHub/LinkedIn review path before reading operator detail:
-| Question | Short answer |
+## Coverage and Evidence
+
+- **Coverage is measured by capability.** Listing identity, issuer domicile, security type, active status, financial availability, analysis eligibility, and point-in-time coverage are distinct. Discover keeps unsupported and unverified records visible.
+- **Peer comparisons have explicit gates.** The online annual P/E path requires compatible reported diluted EPS, verified issuer and security identity, same-day closing prices, and at least three qualifying industry references. Selection rationale and exclusions remain inspectable. [Peer valuation method](docs/ONLINE_PEER_VALUATION.md)
+- **Each observation keeps its dates.** Annual, quarterly, and cumulative periods retain their definitions. Saved observations describe the evidence captured at that time.
+- **Source rights apply independently.** SEC fact retention, archive inspection, and price-provider permissions have separate scopes. The current price path is for personal research, with commercial operation and redistribution held for separate review. [Data Strategy](docs/DATA_STRATEGY.md)
+- **Evidence gaps remain visible.** Missing fields and unsupported comparisons stay withheld. A screenshot demonstrates the interface. Current readiness and source permissions require their own checks.
+
+The supported workflow is research-only. Investment advice, broker account actions, order routing, trading automation, and direct buy or sell instructions are outside its scope.
+
+## Project Status and Roadmap
+
+| Stage | Current focus |
 | --- | --- |
-| Review first | [Public company demo](https://yuzej21.github.io/Stock-Analysis/), then Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History for the local walkthrough. |
-| Use as evidence | Public pages, committed real screenshots, sample Markdown reports, methodology docs, and `make public-check` output. |
-| Responsive proof | Desktop and phone-width workflow evidence is recorded in `docs/DASHBOARD_QA.md`; screenshots are still product evidence only. |
-| Skip unless operating locally | Broad CSV/report churn, provider setup, validate/preview/apply commands, and raw proof ledgers. |
-| Do not claim | Screenshots prove data freshness, blocked inputs are ready, the repo is open source, or the product gives buy/sell instructions. |
-| Best next question | Can a reviewer understand what is ready, blocked, excluded, and proof-backed before opening advanced details? |
-## Data Coverage Strategy
-| Data lane | Best next move | Why it matters |
-| --- | --- | --- |
-| Prices | Start with `make price-history-proof-queue TOP_N=25` for unreviewed executable candidates. Use `INCLUDE_REVIEWED=1 make price-history-proof-queue TOP_N=25` only to audit reviewed source-limited items, then `make price-history-batch-closeout TOP_N=25` for a read-only batch closeout. `PROVIDER=auto` uses Stooq, Yahoo, optional IBKR read-only when configured, then configured FMP/Alpha Vantage/Finnhub fallbacks. | The closeout does not record proof rows, stage, commit, or push; it does not prove data freshness or coverage growth. |
-| Fundamentals / DCF | Use `make dcf-input-proof-queue TOP_N=25` to see whether DCF is blocked by shares outstanding, revenue, free cash flow, FCF margin, price, or an input bundle. | Company valuation only appears after required source fields, validation, preview, rejected-row review, apply decision, and readiness proof pass. |
-| Shares outstanding proof | Use `make share-count-proof-queue TOP_N=10` when DCF is blocked specifically by `shares_outstanding`. | Share count must come from SEC/manual source proof or trusted local rows; the product does not infer it from price, market cap, or peers. |
-| Peers | Use `DRY_RUN=1 make peer-batch-proof TOP_N=10` and `docs/TRUSTED_PEER_PILOT_SOURCE_TEMPLATE.csv` to collect reviewed 25-50 company source rows outside the import file; use `make peer-mapping-writeback-guard ...` before copy/paste, and use the ranked pilot packet first when a peer-input lane leads. | Peer trend and peer valuation stay separate; guessed peers or file row counts do not become valuation, and candidate context stays out of trusted proof as `candidate_context_only` until source-backed proof passes. |
-| Earnings / estimates | Keep locked until trusted local rows exist. | Empty optional context is intentional, not a broken chart. |
-Pilot packaging is read-only first, but not entirely read-only: start with `make pilot-readiness-check TOP_N=10`, which checks sync, hygiene, freshness, source-proof queues, proof ledger, screenshot evidence, public-check, and guardrails. `make pilot-share-brief` writes the concise public/demo share brief at `outputs/pilot_share_brief.md`; `make pilot-readiness-packet` writes `outputs/pilot_readiness_packet.md` for a fuller reviewer packet. `make pilot-readiness-packet` is not read-only. The generated packet does not refresh data or unlock blocked inputs.
-When proof queues are exhausted, use `make project-status-check` and then `make provider-setup-checklist`. Provider setup is only an activation boundary: it can activate a source, but readiness changes still require validate, preview, rejected-row review, source provenance, apply/skip decision, rebuilt readiness, and proof ledger evidence. No broad coverage batch should run from setup alone. Do not retry exhausted proof queues until new source-backed rows, keyed provider data, reviewed manual rows, or changed blockers exist.
-Operator runbooks live outside the first-review README: use `docs/OPERATOR_GUIDE.md` for reviewed batch execution, `docs/DATA_STRATEGY.md` for lane mechanics, and `docs/SOURCE_ACTIVATION_GUIDE.md` for provider/source setup. Before turning any refresh path into a recurring job, run `make scheduler-activation-checklist`. Scheduler maturity starts as status-only monitoring; mutating refresh or apply paths stay off until provider smoke or source proof, validation, preview, zero rejected rows, provenance, no-fabrication checks, rebuilt readiness, proof history, and proof recording pass.
-## What Works Today
-This is a working local research prototype with deterministic outputs, dashboard smoke coverage, and regression tests. Strongest today: readiness gates, single-stock explanations, ETF/index monitor context, and DCF-ready company review. Main modes: `DCF-ready review`, `Standalone DCF review`, `Price/setup review only`, `Monitor-only context`, and `Data needed before analysis`. The bounded six-company field comparison reads two saved local inspections when available; a clean checkout omits those ignored reports and withholds field changes. This read-only view does not update readiness or financial data.
-Useful with limits: price/momentum, fundamentals/DCF, peer review, and final decision buckets when trusted local data exists. Intentionally locked: broad-universe fundamentals, peer comparison, earnings, and analyst estimates until trusted rows are imported. Not built to be: a full-market data vendor, real-time recommendation service, broker/execution system, or auto-refreshing trading system.
-## Product Tour
-For repeated local use, start with the four Personal Research destinations:
-| Path | Use it when | First answer |
-| --- | --- | --- |
-| Research Desk | You want one saved-evidence briefing before choosing where to work. | What saved work needs attention today, why, and where do I go next? |
-| Discover | You want to separate strict screen eligibility from saved-company evidence access without a buy ranking. | Which company is inspectable, and which qualifies when all screen evidence is ready? |
-| Company Workbench | You want one company answer spanning data usability, business trend, valuation, forward context, uncertainty, and next review work. | What can I use now, and what remains withheld? |
-| Monitor | You want saved follow-ups, source-backed changes, and wait conditions. | What needs review, and what remains open after a recorded disposition? |
+| **Available today** | A local research beta, an English interactive public demo, a dated real AMD filing case, and exact-pair annual SEC review for NEM, AMD, and DUK. |
+| **Next** | Qualify another issuer or period independently, expand exact-filing support from measured gaps, and improve peer comparability and coverage explanations. |
+| **Later gates** | Hosted full-workspace operation, authentication and private workspaces, operated data rights, provider reliability, independent user evidence, and commercial validation. |
 
-The controlled Public workspace keeps its existing five-page path:
-| Path | Use it when | First place to open |
-| --- | --- | --- |
-| Home | You want the workflow question, next safe action, stop rule, and then readiness context before choosing a route. | `Home` |
-| Stock Selector | You want to filter readiness-backed candidates before opening a one-ticker report. | `Stock Selector` |
-| Single-Stock Report | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |
-| Data Health | You want to understand what trusted input is missing and which proof path should be reviewed next. | `Data Health` |
-| Proof History | You want one evidence answer before opening raw proof ledger details. | `Proof History` |
-The dashboard starts in Personal Research mode at `http://localhost:8501/` and canonicalizes to `http://localhost:8501/?mode=research&page=research-desk`. Public review remains explicit at `http://localhost:8501/?mode=public`; Operator remains explicit at `http://localhost:8501/?mode=operator`.
-- Home answers what the product is, where to start, and when to stop.
-- Stock Selector filters readiness-backed candidates without framing the queue as advice.
-- Single-Stock Report shows selected-ticker readiness, usable sections, blocked inputs, and one next step before detailed report sections.
-- Data Health starts with Coverage Summary / What Can I Use, one answer per lane, and advanced proof drawers collapsed.
-- Proof History is evidence-only before trusting a changed readiness state.
+The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the current local decision ladder.
 
-Choose Operator only for detailed boards, local proof commands, and validate / preview / apply guidance. Advanced pages remain secondary, and watchlist-style outputs stay readiness-state output, not an action list.
-## Quick Start
-Run these from the repository root so `make` can find the project targets. Open the product before proof packets or report commands so reviewers see the guided workflow before operator detail.
+For current selected-profile readiness, use `make readiness-ops-center`. A saved `make status-check TOP_N=5` snapshot can be stale.
 
-```bash
-pip install -e '.[dev]'
-make demo       # print the safe visitor path without changing local data
-make demo-dashboard  # open the compact tracked profile at http://localhost:8501/?mode=public
-```
+## Documentation
 
-Optional saved generated-snapshot inspection after the app flow is clear starts with `make status-check TOP_N=5` and can be stale; run `make readiness-ops-center` for current selected-profile readiness and lane truth. `make pilot-readiness-check TOP_N=10` remains a fail-closed diagnostic; `make pilot-readiness-packet` and `make stock-report-md TICKER=NVDA` intentionally write their documented Markdown outputs.
+| Topic | Guide |
+| --- | --- |
+| Public demo and sharing | [Public walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md) · [LinkedIn project brief](docs/LINKEDIN_PROJECT_BRIEF.md) |
+| Local research workflow | [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md) · [Data Profiles](docs/DATA_PROFILES.md) |
+| Financials and valuation | [Online Company Research](docs/ONLINE_COMPANY_RESEARCH.md) · [Online Peer Valuation](docs/ONLINE_PEER_VALUATION.md) |
+| Evidence and calculations | [Saved SEC Reviews](docs/SEC_RESEARCH_REVIEWS.md) · [Research Methodology](docs/METHODOLOGY.md) · [Analysis Capability Audit](docs/analysis_capability_audit.md) |
+| Coverage and sources | [Online Coverage Method](docs/ONLINE_RESEARCH_COVERAGE.md) · [Data Strategy](docs/DATA_STRATEGY.md) |
+| Setup, maintenance, and release | [Local Workflow Guide](docs/OPERATOR_GUIDE.md) · [Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md) · [Public Release Checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) |
 
-`make dashboard` starts Personal Research at the root/default workspace. Public and Operator remain explicit URL modes (`?mode=public` and `?mode=operator`); legacy mutable utilities stay quarantined in Operator compatibility surfaces.
+<details>
+<summary>Advanced and historical research tools</summary>
 
-When you want to run a controlled pilot, use the [Pilot Runbook](docs/PILOT_RUNBOOK.md). When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps.
+The local workspace retains Data Health, Proof History, source-freshness detail, and the deeper research tools described in the guides. Legacy picks, momentum rankings, portfolio views, and historical outputs remain Operator-only compatibility utilities.
 
-For 10-20 external reviewer sessions, run `make pilot-review-feedback` and use [Controlled Pilot Review Feedback](docs/PILOT_REVIEW_FEEDBACK_TEMPLATE.md) plus the structured [feedback log template](docs/PILOT_REVIEW_FEEDBACK_LOG_TEMPLATE.csv). Then run `make pilot-feedback-closeout` and follow the [Pilot Feedback Closeout Checklist](docs/PILOT_FEEDBACK_CLOSEOUT_CHECKLIST.md) to classify each row as `clear`, `reproducible_ui_issue`, `documentation_gap`, `environment_limited`, or `intentionally_deferred`. Capture route clarity and reproducible UX issues only; keep the working log outside Git until it is anonymized and intentionally reviewed; feedback does not prove data freshness, source readiness, investment conclusions, or coverage completion.
-## Try This Visitor Workflow
-Open the product first and follow the five-page path. Use terminal commands only when you want to inspect the same proof artifacts locally.
-```bash
-make demo                         # print the visitor path without changing local data
-make demo-dashboard               # open the compact tracked demo profile
-make profile-context              # verify selected profile, identity, freshness, and matching counts
-make stock-report-md TICKER=NVDA  # ready company report with DCF assumptions
-make stock-report-md TICKER=ACIC  # price context with DCF still gated
-make stock-report-md TICKER=QQQ   # ETF/index report with DCF excluded
-make stock-report-md TICKER=MU    # DCF-ready company with peer context
-make stock-report-md TICKER=AACI  # fundamentals-blocked company example
-```
+The Earnings Nowcast pilot uses synthetic fixtures and has separate source, point-in-time, and calibration gates. [Pilot walkthrough](docs/EARNINGS_NOWCAST_PILOT.md) · [Operator guide](docs/OPERATOR_GUIDE.md)
 
-Optional local proof checks: `make project-status-check && make provider-setup-checklist && make universe-scope TICKERS=NVDA,ACIC TOP_N=10 && make risk-context`; use `make trusted-data-pilot-candidates TOP_N=10` only when status shows executable company candidates, then inspect `make trusted-data-pilot-packet TICKER=MU` or `make trusted-data-pilot-packet TICKER=AACI`.
+</details>
 
-The shortest public walkthrough uses NVDA, ACIC, AACI, QQQ, and MU only as optional state examples. That shows the core idea quickly: filter by readiness, analyze ready data, explain blocked data, exclude methods that do not apply, and show the trusted-data proof path without pretending missing rows exist.
-
-Example map: [NVDA](outputs/stock_reports/nvda.md) and `MU` show DCF-ready company review with source-backed peer context; `ACIC` shows price context with the DCF path still gated; `AACI` shows a fundamentals-blocked company; [QQQ](outputs/stock_reports/qqq.md) and [SMH](outputs/stock_reports/smh.md) show ETF/index context where operating-company DCF is excluded, not failed. Generate the current local examples with `make stock-report-md TICKER=ACIC`, `make stock-report-md TICKER=AACI`, and `make stock-report-md TICKER=SMH`.
-
-In the dashboard, start on `Home`, open `Stock Selector` to narrow the next readiness-backed candidate, then open `Single-Stock Report` for one ticker or `Data Health` when the selected row says analysis is blocked. Check `Proof History` before trusting a changed readiness state. Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path` so readers know what can be analyzed now, what is still locked or excluded, what valuation is supported or blocked, what trusted input matters next, what evidence proves the current mode, what to read first, and which read-only proof step comes next. They show `Copyable Proof Commands` only when local data gaps block analysis; use `make stock-report TICKER=NVDA` only when you also want optional local report data for inspection.
-
-For a share-ready walkthrough, use the [Visitor Workflow Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md). The pilot candidate command may rank a peer-input example such as `MU` first and also name a fundamentals/DCF example such as `CRDO`; both remain read-only proof packets until source review and rebuilt readiness prove a lane changed. The broader read-only checklist is still available as `make trusted-data-pilot TOP_N=10` when you want the general pilot sequence before choosing tickers. For deeper local missing-data details, use the [Local Workflow Guide](docs/OPERATOR_GUIDE.md). For the coverage strategy behind prices, fundamentals, peers, earnings, and analyst estimates, read [Data Strategy](docs/DATA_STRATEGY.md).
-## Pilot Share Status
-Share as controlled portfolio/demo evidence under the root `LICENSE`; do not describe the repository as open source or reusable software. Generated CSV/JSON/report churn stays local unless an exact artifact is reviewed as evidence. When source-proof queues are exhausted, use `make project-status-check` -> `make provider-setup-checklist` -> a reviewed one-ticker smoke command. Use `make project-status` only when you intentionally want to refresh the dashboard-ready status snapshot. No broad coverage batch should run from setup alone.
-
-The [public company demo](https://yuzej21.github.io/Stock-Analysis/) is hosted on GitHub Pages and uses only synthetic data. The separate [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) uses a dated SEC filing. The full Streamlit workspace runs locally through `make dashboard`. A separate Streamlit deployment follows the [Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md) checklist.
-## Local Data Hygiene
-Small example reports are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and report CSVs are local working data by default. Review them before committing; do not publish broad refresh changes unless intentionally selected.
-
-Before sharing or committing, run `make public-check`, then `make public-release-package` for the compact branch status, package status, staging, generated-exclusion, final-check, commit, and push checklist. Use `make public-release-handoff` when you want the exact terminal sequence for verify, pilot gate, stage, staged-file inspection, commit, branch-status check, and push. Use `make browser-qa-evidence` to see the current public-share screenshot recommendation, current real-app capture status, and the compact closeout table with route, first-view markers, save path, verify command, and reviewed-asset staging command; use `make public-ux-review-checklist` before a normal-browser desktop/mobile visual pass; use `make project-status-check` for a no-write project status read during review; use `make project-status` only when the dashboard-ready status snapshot should be refreshed; use `make linkedin-share-check` for the final LinkedIn Featured-card checklist; use `make browser-qa-capture-plan` only when replacing GitHub or LinkedIn screenshots with new real app captures. Use `make diff-hygiene` when you need the full file list. For a large dirty tree, run `make diff-hygiene-files` and review the ignored local pathspec files under `outputs/staging/`; the generated README there also shows whether the package is product-pending, generated-churn-only, or clean before staging. After staging, run `make staged-hygiene-check`, `git diff --cached --check`, and `git diff --cached --name-only` before committing. The public check includes `make public-wording-check`, which scans visitor-facing docs, dashboard/report copy, and sample reports for unsupported advice, execution language, internal development notes, and stale repo links. Use the safe staging suggestion for product files and reviewed Markdown reports, and leave large generated CSV/JSON changes out unless they are the specific artifact you intend to publish.
-
-The tracked `data/holdings.csv` file is a zero-position sample for portfolio-review demos. Keep real holdings, account exports, and personal cost-basis details out of the public branch.
 ## License
-This repository is shared under a controlled portfolio-demo license. Visitors may review the code, screenshots, docs, and product design for evaluation, but copying, redistribution, sublicensing, hosted reuse, and modified-publication rights are not granted without written permission. This is not an open-source release. Run `make license-status` for the current read-only reuse gate, and see [License Decision Guide](docs/LICENSE_DECISION_GUIDE.md) before changing reuse terms.
-## Analysis Methodology
-The stock-analysis method is implemented in this repository: readiness gates, momentum rules, DCF assumptions, relative-valuation checks, peer readiness, and report wording live under `src/`. Standard Python packages support data handling and UI; optional `yfinance` is an unofficial research-grade adapter, and configured FMP/Alpha Vantage/Finnhub keys can serve as research-grade fallback sources for price and fundamentals staging. The analysis rules, valuation gates, decision buckets, and research-only guardrails come from project code plus local CSV inputs. Fundamentals-ready means trusted company fields can be reviewed, DCF-ready means scenario math can be reviewed, and peer-ready means source-backed relative context can be reviewed. See [Research Methodology](docs/METHODOLOGY.md) for the calculation flow and [Analysis Capability Audit](docs/analysis_capability_audit.md) for what is strong today, what remains limited, and where the method lives.
-## Core Outputs
-The main build retains deterministic historical files under `outputs/`, including purpose classification, market direction, momentum leaders, portfolio review, valuation-readiness context, final watchlist, and research decisions. Momentum, portfolio, value/re-rating, and final-watchlist files are compatibility outputs rather than current Personal Research capabilities. `undervalued_candidates.csv` is a legacy filename for valuation-readiness and re-rating context, not automatic undervalued calls. Readiness and source-health reports live under `data/reports/`.
-## Research-Only Guardrails
-This is investment research software, not investment advice and not a trading system. It does not place orders, connect to brokers, route trades, auto-trade, recommend option trades, provide direct buy/sell instructions, or fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations.
-That constraint is intentional. The product is useful because it says when data is missing instead of pretending every ticker is ready.
+
+The root [LICENSE](LICENSE) governs this controlled portfolio-demo release. Visitors may inspect the code, documentation, and product design for evaluation. Copying, redistribution, sublicensing, hosting, and modified publication require written permission. [License Decision Guide](docs/LICENSE_DECISION_GUIDE.md)

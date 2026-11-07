@@ -1686,16 +1686,31 @@ def test_price_refresh_loop_can_record_provider_failure_without_blocking(tmp_pat
     assert recorded_calls[-2:] == ["readiness-preview TOP_N=20", "status-check TOP_N=5"]
 
 
-def test_readme_public_landing_page_is_short_visual_and_command_focused():
+def test_readme_landing_page_prioritizes_demo_image_and_local_quickstart():
     readme = Path("README.md").read_text(encoding="utf-8")
+    assert len(readme.splitlines()) <= 180
+    demo = "https://yuzej21.github.io/Stock-Analysis/"
+    image = "docs/assets/english-company-research-demo.png"
+    assert readme.index(demo) < readme.index(image) < readme.index("## Run Locally")
+    assert demo + "amd.html" in readme
+    local = readme.split("## Run Locally", 1)[1].split("## Coverage and Evidence", 1)[0]
+    primary_commands = local.split("```bash", 1)[1].split("```", 1)[0]
+    assert "python -m pip install -e '.[research]'" in primary_commands
+    assert "SEC_USER_AGENT" in primary_commands
+    assert primary_commands.index("pip install") < primary_commands.index("SEC_USER_AGENT") < primary_commands.index("make dashboard")
+    assert "http://localhost:8501/" in local
+    assert "python -m pip install -e '.[dev]'" in local
+    assert "pip install -e .[dev]" not in local
+    assert "make pipeline" not in primary_commands
+    assert "make imports-apply" not in primary_commands
+    assert "docs/OPERATOR_GUIDE.md" in local
+    assert "docs/METHODOLOGY.md" in readme
+    assert "docs/analysis_capability_audit.md" in readme
+
+
+def test_saved_preview_and_operating_guides_keep_detailed_review_contracts():
     preview = Path("docs/assets/dashboard-preview.svg").read_text(encoding="utf-8")
     public_demo = Path("docs/PUBLIC_DEMO_WALKTHROUGH.md").read_text(encoding="utf-8")
-
-    assert len(readme.splitlines()) < 180
-    demo = "[**Open the public company research demo**](https://yuzej21.github.io/Stock-Analysis/)"
-    preview_image = "![Local Company Workbench preview](docs/assets/linkedin-public-dashboard.png)"
-    assert readme.index(demo) < readme.index(preview_image) < readme.index("## Quick Start")
-    assert "make readiness-ops-center` for lane truth" in readme
     for preview_phrase in (
         "plain-language stock analysis modes",
         "At A Glance single-stock status",
@@ -1724,41 +1739,6 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         assert preview_phrase in preview
     for stale_preview_phrase in ("Analysis modes before tables", "Standalone DCF</text>", "Price/setup only", "Monitor-only</text>", "Explore ready names: Home filters and sample reports"):
         assert stale_preview_phrase not in preview
-    assert "## Quick Start" in readme
-    assert "flowchart LR" in readme
-    assert 'Desk["Research Desk: changed evidence"] --> Discover["Discover: strict eligibility or saved evidence"]' in readme
-    assert 'Discover --> Workbench["Company Workbench: Company Brief first"]' in readme
-    assert 'Workbench --> Monitor["Monitor: unresolved research changes"]' in readme
-    assert 'Workbench -. advanced evidence .-> Health["Data Health and Proof History"]' in readme
-    assert "Open the product before proof packets or report commands" in readme
-    quick_start = readme[readme.index("## Quick Start") : readme.index("## Try This Visitor Workflow")]
-    assert quick_start.index("make demo-dashboard") < quick_start.index("make status-check TOP_N=5")
-    assert quick_start.index("make demo-dashboard") < quick_start.index("make pilot-readiness-check TOP_N=10")
-    assert quick_start.index("make demo-dashboard") < quick_start.index("make stock-report-md TICKER=NVDA")
-    assert "Optional saved generated-snapshot inspection after the app flow is clear" in quick_start
-    assert "When you want to rebuild local outputs after changing data, use the deeper [Local Workflow Guide](docs/OPERATOR_GUIDE.md) for rebuild, import, refresh, and proof steps." in readme
-    assert "## What You Can Analyze" in readme
-    assert "## How Analysis Works" in readme
-    assert "Read the counts in three layers:" in readme
-    assert "master universe for broad coverage planning" in readme
-    assert "active universe for the demo/research workflow" in readme
-    assert "analysis-ready subsets for DCF, peer context, or candidate review" in readme
-    assert "A tracked ticker is not automatically ready for every analysis family" in readme
-    assert "## What Works Today" in readme
-    assert "## Try This Visitor Workflow" in readme
-    assert "Open the product first and follow the five-page path." in readme
-    assert "Stock Selector filters readiness-backed candidates without framing the queue as advice." in readme
-    assert "Use terminal commands only when you want to inspect the same proof artifacts locally." in readme
-    assert "Optional local proof checks:" in readme
-    assert "| Home | You want the workflow question, next safe action, stop rule, and then readiness context before choosing a route. | `Home` |" in readme
-    assert "| Stock Selector | You want to filter readiness-backed candidates before opening a one-ticker report. | `Stock Selector` |" in readme
-    assert "| Single-Stock Report | You want a ticker-level research note with ready, blocked, excluded, and data-confidence states. | `Single-Stock Report` |" in readme
-    assert "| Proof History | You want one evidence answer before opening raw proof ledger details. | `Proof History` |" in readme
-    assert "| Proof History | You want to see the proof ledger" not in readme
-    assert "`Home`, then focused review pages" not in readme
-    assert "The shortest public walkthrough uses NVDA, ACIC, AACI, QQQ, and MU only as optional state examples." in readme
-    assert "[Visitor Workflow Walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md)" in readme
-    assert "validate/apply step, rejected-row report, and rebuild-proof packet" not in readme
     local_commands = public_demo[public_demo.index("## Local Commands") : public_demo.index("The dashboard defaults")]
     assert local_commands.index("make demo-dashboard") < local_commands.index("make status-check TOP_N=5")
     assert local_commands.index("make demo-dashboard") < local_commands.index("make stock-report-md TICKER=NVDA")
@@ -1774,125 +1754,15 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
     assert "Use the operator guide only after project-status-check shows executable source-backed candidates" in public_demo
     assert "use when project-status-check says source-proof queues are exhausted" in public_demo_commands
     assert "open source-proof queues only when project-status-check shows executable proof candidates" not in public_demo
-    assert "make project-status && make data-coverage-proof-queues TOP_N=10" not in readme
-    assert "make project-status-check && make provider-setup-checklist" in readme
     assert "make trusted-data-pilot-packet TICKER=MU" not in local_commands
     assert "make trusted-data-pilot-packet TICKER=AACI" not in local_commands
     assert "Local file presence, row counts, staged files, and rejected-row reports are inspection cues, not proof" in public_demo
     assert "Peer context is distinct from optional earnings and estimate lanes" in public_demo
     assert "Missing data is not a product failure here" in public_demo
-    assert "snapshot the baseline, review source proof, validate/preview and check rejected rows, rebuild readiness and the stock report, then compare the after report" not in readme
     assert "snapshot the baseline, review source proof, validate/preview and check rejected rows, rebuild readiness and the stock report, then compare the after report" in public_demo
-    assert "Read the outcome in three states: `Supported` means rebuilt readiness and the regenerated report show the lane is ready" not in readme
     assert "Read the outcome in three states: `Supported` means rebuilt readiness and the regenerated report show the lane is ready" in public_demo
-    assert "`Still blocked` means validation failed, rejected rows appeared, or the report stayed locked" not in readme
     assert "`Still blocked` means validation failed, rejected rows appeared, or the report stayed locked" in public_demo
-    assert "`Skip` means source proof is unavailable, so no placeholder rows are applied" not in readme
     assert "`Skip` means source proof is unavailable, so no placeholder rows are applied" in public_demo
-    assert readme.index("make stock-report-md TICKER=NVDA") < readme.index("make stock-report-md TICKER=ACIC")
-    assert readme.index("make stock-report-md TICKER=ACIC") < readme.index("make stock-report-md TICKER=QQQ")
-    main_path = readme.split("## Try This Visitor Workflow", 1)[1].split("Optional local proof checks:", 1)[0]
-    proof_checks = readme.split("Optional local proof checks:", 1)[1].split("The shortest public walkthrough", 1)[0]
-    assert "make trusted-data-pilot-candidates TOP_N=10" not in main_path
-    assert proof_checks.index("make project-status-check") < proof_checks.index("make trusted-data-pilot-candidates TOP_N=10")
-    assert proof_checks.index("make trusted-data-pilot-candidates TOP_N=10") < proof_checks.index("make trusted-data-pilot-packet TICKER=MU")
-    assert proof_checks.index("make trusted-data-pilot-packet TICKER=MU") < proof_checks.index("make trusted-data-pilot-packet TICKER=AACI")
-    assert "## Local Data Hygiene" in readme
-    assert "## License" in readme
-    assert "## Analysis Methodology" in readme
-    assert "docs/METHODOLOGY.md" in readme
-    assert "docs/analysis_capability_audit.md" in readme
-    assert "[Local Workflow Guide](docs/OPERATOR_GUIDE.md)" in readme
-    assert "[Data Strategy](docs/DATA_STRATEGY.md)" in readme
-    assert "pip install -e '.[dev]'" in readme
-    assert "pip install -e .[dev]" not in readme
-    for phrase in (
-        "make demo",
-        "make trusted-data-pilot TOP_N=10",
-        "make trusted-data-pilot-packet TICKER=MU",
-        "make trusted-data-pilot-packet TICKER=AACI",
-        "make public-check",
-        "make stock-report-md TICKER=NVDA",
-        "make stock-report-md TICKER=ACIC",
-        "make stock-report-md TICKER=AACI",
-        "make stock-report-md TICKER=QQQ",
-        "make stock-report-md TICKER=SMH",
-        "price context with DCF still gated",
-        "make stock-report TICKER=NVDA",
-        "make dashboard",
-        "make status-check TOP_N=5",
-        "not investment advice",
-        "review states",
-        "Example map",
-        "operating-company DCF is excluded, not failed",
-        "fundamentals-blocked company",
-        "ranked pilot packet first when a peer-input lane leads",
-        "guessed peers or file row counts do not become valuation",
-        "The pilot candidate command may rank a peer-input example such as `MU` first and also name a fundamentals/DCF example such as `CRDO`",
-        "both remain read-only proof packets until source review and rebuilt readiness prove a lane changed",
-        "At A Glance status, a plain-English Reader Guide, an Evaluation Snapshot, a Proof Checklist, Best Review Path, data-confidence cues, source readiness notes, and read-only proof steps",
-            "single-stock reports with reader guidance, proof checklists, blockers, read-only proof steps, and source readiness notes",
-        "The report is not a black box",
-        "project rules decide what can be analyzed",
-        "Price-ready rows can support setup/risk context",
-        "DCF-ready rows can support assumptions and sensitivity",
-        "peer-ready rows can support source-backed relative context",
-        "Missing fundamentals, peer inputs, earnings, or estimates stay locked",
-        "company valuation is excluded for ETF/index/fund monitor rows, not failed",
-        "Markdown reports start with a visitor scan cue, then `At A Glance`, a `Reader Guide`, an `Evaluation Snapshot`, a `Proof Checklist`, and `Best Review Path`",
-        "what evidence proves the current mode",
-        "what valuation is supported or blocked",
-        "what to read first",
-        "Copyable Proof Commands",
-        "readiness-state output, not an action list",
-        "Review them before committing",
-            "Before sharing or committing, run `make public-check`, then `make public-release-package`",
-            "compact branch status, package status, staging, generated-exclusion, final-check, commit, and push checklist",
-            "staged-file inspection, commit, branch-status check, and push",
-            "Use `make diff-hygiene` when you need the full file list",
-        "For a large dirty tree, run `make diff-hygiene-files`",
-        "product-pending, generated-churn-only, or clean before staging",
-        "make staged-hygiene-check",
-        "git diff --cached --check",
-        "git diff --cached --name-only",
-        "outputs/staging/",
-        "internal development notes, and stale repo links",
-        "safe staging suggestion for product files and reviewed Markdown reports",
-        "large generated CSV/JSON changes",
-        "controlled portfolio-demo license",
-        "copying, redistribution, sublicensing, hosted reuse",
-        "[License Decision Guide](docs/LICENSE_DECISION_GUIDE.md)",
-        "where the method lives",
-        "analysis rules, valuation gates, decision buckets",
-        "Strongest today",
-        "Main modes",
-        "DCF-ready review",
-        "Standalone DCF review",
-        "Price/setup review only",
-        "Monitor-only context",
-        "Data needed before analysis",
-        "DCF-ready company review with source-backed peer context",
-        "price context with the DCF path still gated",
-        "fundamentals-blocked company",
-        "[NVDA](outputs/stock_reports/nvda.md)",
-        "[QQQ](outputs/stock_reports/qqq.md)",
-        "[SMH](outputs/stock_reports/smh.md)",
-        "Useful with limits",
-        "Intentionally locked",
-        "Not built to be",
-        "Visitor status: the product workflow, dashboard, single-stock reports, readiness gates, visitor path, and public checks are working",
-        "remain visibly blocked by missing trusted data until trusted rows exist",
-        "source-proof work rather than broken analysis",
-        "`undervalued_candidates.csv` is a legacy filename for valuation-readiness and re-rating context",
-        "not automatic undervalued calls",
-    ):
-        assert phrase in readme
-    quick_start = readme.split("## Quick Start", 1)[1].split("## Try This Visitor Workflow", 1)[0]
-    assert "make pipeline" not in quick_start
-    assert "\nmake readiness\n" not in quick_start
-    assert quick_start.index("make demo") < quick_start.index("make demo-dashboard")
-    assert quick_start.index("make demo-dashboard") < quick_start.index("make status-check TOP_N=5")
-    assert quick_start.index("make status-check TOP_N=5") < quick_start.index("make stock-report-md TICKER=NVDA")
     operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
     for phrase in (
         "make price-history-proof-queue TOP_N=10",
@@ -1905,33 +1775,15 @@ def test_readme_public_landing_page_is_short_visual_and_command_focused():
         "make optional-context-worklist TOP_N=10",
         "make templates",
         "make imports-validate",
-            "make imports-preview",
-            "make imports-apply",
-            "Large refreshed CSVs are local working data",
-            "Provider boundary: price refreshes can improve research-grade local price rows",
-            "they do not create fundamentals, source-backed peers, optional context, DCF inputs, or research conclusions",
-            "Optional earnings and analyst-estimate rows can be staged through the optional-context source ladder",
-        ):
-            assert phrase in operator_guide
-    for visitor_clutter in (
-        "http://localhost:8501/?page=single-stock-report",
-        "make price-refresh-loop MAX_CANDIDATES=3500 TOP_N=100 PROVIDER=auto SLEEP_SECONDS=30",
-        "Targeted missing-data examples",
-        "Preview-first import flow",
+        "make imports-preview",
+        "make imports-apply",
+        "Large refreshed CSVs are local working data",
+        "Provider boundary: price refreshes can improve research-grade local price rows",
+        "they do not create fundamentals, source-backed peers, optional context, DCF inputs, or research conclusions",
+        "Optional earnings and analyst-estimate rows can be staged through the optional-context source ladder",
     ):
-        assert visitor_clutter not in readme
-    for old_phrase in (
-        "operator console",
-        "deeper local runbook",
-        "refreshed generated CSV churn",
-        "generated data churn",
-        "generated CSV/JSON churn",
-        "broad refresh churn",
-        "generated report CSVs",
-        "operator workflow",
-        "source/freshness auditability",
-    ):
-        assert old_phrase not in readme
+        assert phrase in operator_guide
+
 
 
 def test_public_markdown_links_resolve_to_tracked_local_files():
@@ -2517,14 +2369,13 @@ def test_public_docs_avoid_machine_readable_first_read_copy():
         assert "machine-readable" not in text, path
 
 
-def test_readme_points_to_pilot_share_brief_for_concise_public_handoff():
+def test_readme_links_operating_guide_while_detailed_docs_keep_pilot_share_contract():
     readme = Path("README.md").read_text(encoding="utf-8")
     data_strategy = Path("docs/DATA_STRATEGY.md").read_text(encoding="utf-8")
     public_release = Path("docs/PUBLIC_RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
 
-    assert "make pilot-share-brief" in readme
-    assert "concise public/demo share brief" in readme
-    assert "does not refresh data or unlock blocked inputs" in readme
+    assert "docs/OPERATOR_GUIDE.md" in readme
+    assert "docs/PUBLIC_RELEASE_CHECKLIST.md" in readme
     for doc in (data_strategy, public_release):
         assert "make pilot-share-brief" in doc
         assert "outputs/pilot_share_brief.md" in doc
@@ -2548,9 +2399,11 @@ def test_license_decision_guide_names_current_controlled_demo_license():
         "Do not claim the project is open source unless `LICENSE` is replaced",
     ):
         assert phrase in guide
-    assert "controlled portfolio-demo license" in readme
-    assert "copying, redistribution, sublicensing, hosted reuse" in readme
-    assert "make license-status" in readme
+    assert "controlled portfolio-demo release" in readme
+    assert "[LICENSE](LICENSE)" in readme
+    for activity in ("Copying", "redistribution", "sublicensing", "hosting", "modified publication"):
+        assert activity in readme
+    assert "written permission" in readme
     assert "make license-status" in release_checklist
     assert "MIT License" not in readme
     assert "Apache License" not in readme
@@ -2929,13 +2782,18 @@ def test_stock_report_cli_help_uses_readable_report_language():
     assert "structured report data" not in source
     assert "full JSON payload" not in source
 
-def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
+def test_readme_preserves_research_scope_and_guides_preserve_import_gates():
     readme = Path("README.md").read_text(encoding="utf-8")
+    assert "research-only" in readme
+    for boundary in ("Investment advice", "broker account actions", "order routing",
+                     "trading automation", "direct buy or sell instructions"):
+        assert boundary in readme
+    assert "Missing fields and unsupported comparisons stay withheld" in readme
+    assert "Source rights apply independently" in readme
+    assert "docs/DATA_STRATEGY.md" in readme
+
     operator_guide = Path("docs/OPERATOR_GUIDE.md").read_text(encoding="utf-8")
     data_strategy = Path("docs/DATA_STRATEGY.md").read_text(encoding="utf-8")
-
-    assert "Research-Only Guardrails" in readme
-    assert "not a trading system" in readme
     assert "docs/DATA_STRATEGY.md" in operator_guide
     assert "Public Visitor FAQ" in data_strategy
     assert "The product analysis comes from this repository's readiness gates, DCF calculations, peer gates, decision buckets, and report wording." in data_strategy
@@ -2948,8 +2806,6 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "run `make project-status-check` first" in data_strategy
     assert "Only run `make trusted-data-pilot-candidates TOP_N=10` when project-status-check shows executable company candidates" in data_strategy
     assert "run `make provider-setup-checklist` instead" in data_strategy
-    assert "make universe-scope TICKERS=NVDA,ACIC TOP_N=10" in readme
-    assert "make risk-context" in readme
     assert "make universe-scope TICKERS=NVDA,META TOP_N=10" in data_strategy
     assert "make risk-context" in data_strategy
     assert "active, ticker-list, sector/theme, ready-only, and missing-data scopes" in data_strategy
@@ -3044,15 +2900,6 @@ def test_readme_preserves_research_only_guardrails_and_preview_first_imports():
     assert "Keep the public branch clean with `make diff-hygiene`" in data_strategy
     assert "Applying SEC/manual fundamentals rows without validation and preview" in data_strategy
     assert "Peer relationships inferred only from sector labels" in data_strategy
-    for phrase in (
-        "place orders",
-        "connect to brokers",
-        "auto-trade",
-        "recommend option trades",
-        "provide direct buy/sell instructions",
-        "fabricate prices, fundamentals, peers, earnings, analyst estimates, valuation inputs, or recommendations",
-    ):
-        assert phrase in readme
     for phrase in (
         "make templates",
         "make imports-validate",

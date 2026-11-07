@@ -7,10 +7,6 @@ PUBLIC_V1_ROUTE = (
     "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History"
 )
 PUBLIC_COMPANY_DEMO = "https://yuzej21.github.io/Stock-Analysis/"
-LOCAL_WORKSPACE_START = (
-    "| How do I run the full workspace locally? | Run `make dashboard`, "
-    "then open `http://localhost:8501/` for Personal Research. |"
-)
 
 
 def _read(path: str) -> str:
@@ -26,12 +22,52 @@ def _markdown_section(text: str, heading: str) -> str:
         raise AssertionError(f"missing Markdown section: {heading}") from exc
     level = len(heading) - len(heading.lstrip("#"))
     section: list[str] = []
+    in_fence = False
     for line in lines[start + 1 :]:
-        match = re.match(r"^(#{1,6})\s+", line)
+        if line.lstrip().startswith(("```", "~~~")):
+            in_fence = not in_fence
+        match = None if in_fence else re.match(r"^(#{1,6})\s+", line)
         if match and len(match.group(1)) <= level:
             break
         section.append(line)
     return "\n".join(section).strip()
+
+
+def test_readme_uses_english_sections_and_primary_research_navigation():
+    readme = _read("README.md")
+    assert re.search(r"[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\U00020000-\U0003134f]", readme) is None
+    headings = (
+        "## Try the Public Demo",
+        "## Research Workflow",
+        "## What You Can Do",
+        "## Run Locally",
+        "## Coverage and Evidence",
+        "## Project Status and Roadmap",
+        "## Documentation",
+        "## License",
+    )
+    assert [line for line in readme.splitlines() if line.startswith("## ")] == list(headings)
+    assert len(readme.splitlines()) <= 180
+    workflow = _markdown_section(readme, "## Research Workflow")
+    for route in ("Research Desk", "Discover", "Company Workbench", "Monitor"):
+        assert route in workflow
+    assert "docs/assets/english-company-research-demo.png" in readme
+
+
+def test_readme_preserves_company_tools_and_distinguishes_historical_tools():
+    readme = _read("README.md")
+    tools = _markdown_section(readme, "## What You Can Do")
+    for section in ("Overview", "Financial Trends", "Valuation & Peers", "Research Notes", "Data Sources"):
+        assert f"**{section}**" in tools
+    for capability in ("annual diluted P/E", "Peer Read-Through", "Business Trend", "Forward View",
+                       "Catalysts", "Research Decision Lab", "thesis journal", "HTML research brief",
+                       "exact preview", "explicit confirmation", "Reviewed", "Still open", "required reason"):
+        assert capability in tools
+    assert "NEM, AMD, and DUK" in tools
+    assert "Advanced and historical research tools" in readme
+    assert "Operator-only compatibility utilities" in readme
+    assert "Earnings Nowcast pilot uses synthetic fixtures" in readme
+    assert "source, point-in-time, and calibration gates" in readme
 
 
 def _assert_html_brief_section_has_no_affirmative_overclaim(section: str) -> None:
@@ -205,38 +241,19 @@ def test_makefile_exposes_stdout_only_readiness_preview_contract():
     )
 
 
-def test_readme_product_tour_matches_v1_public_route_model():
+def test_readme_public_demo_tour_preserves_fictional_and_real_case_routes():
     readme = _read("README.md")
-
-    assert "## External Reviewer Start Here" in readme
-    assert f"[**Open the public company research demo**]({PUBLIC_COMPANY_DEMO})" in readme
-    assert "read-only GitHub Pages demo uses a fictional company and synthetic data" in readme
-    assert LOCAL_WORKSPACE_START in readme
-    assert "[Data Profiles](docs/DATA_PROFILES.md)" in readme
-    assert "| What workflow should I follow locally? | Research Desk -> Discover -> Company Workbench -> Monitor." in readme
-    assert "The separate controlled Public workspace follows Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History." in readme
-    assert "| What should I run when I ask what is next? | Run `make next-stage` for the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder; it is read-only and does not refresh data, import rows, stage files, commit, push, deploy, or expose secrets. |" in readme
-    assert "| What does the public demo cover? | The public demo uses synthetic data. The full workspace runs locally for research, and the root license governs reuse. |" in readme
-    assert "First review move: open Stock Selector" in readme
-    assert "screenshots are product evidence only" in readme
-    assert "| What proves current local readiness? | Run `make readiness-ops-center` for lane truth. `make status-check TOP_N=5` can describe a saved generated snapshot; screenshots are product evidence only. |" in readme
-    assert "The controlled Public workspace keeps its existing five-page path" in readme
-    assert "| Home |" in readme
-    assert "| Stock Selector |" in readme
-    assert "| Single-Stock Report |" in readme
-    assert "| Data Health |" in readme
-    assert "| Proof History |" in readme
-    assert "| Stock Selector | You want to filter readiness-backed candidates" in readme
-    assert "| Proof History | You want one evidence answer before opening raw proof ledger details." in readme
-    assert "| Proof History | You want to see the proof ledger" not in readme
-    assert "| Proof History |" in readme and "| `Proof History` |" in readme
-    assert PUBLIC_V1_ROUTE in readme
-    assert "Data Health source-proof lane" not in readme
-    assert "Proof History is the public proof-inspection surface" not in readme
-    assert "Operator context" in readme
-    assert "Home readiness snapshot ->" not in readme
-    assert "Home readiness snapshot -> Single-Stock Report -> Data Health source-proof lane -> proof history" not in readme
-    assert "Start with the three paths" not in readme
+    demo = _markdown_section(readme, "## Try the Public Demo")
+    assert PUBLIC_COMPANY_DEMO in demo
+    assert PUBLIC_COMPANY_DEMO + "amd.html" in demo
+    assert "fictional" in demo.lower()
+    assert "dated SEC filing" in demo
+    for feature in ("Financial Trends", "Business Trend", "Peer Valuation", "Scenario Lab",
+                    "Research Notes", "Forward View", "Catalysts", "Research Decision Lab",
+                    "Monitor", "Review saved evidence", "Reviewed", "Still open"):
+        assert feature in demo
+    assert "reset on reload" in demo
+    assert "docs/PUBLIC_DEMO_WALKTHROUGH.md" in demo
 
 
 def test_readme_and_roadmap_keep_active_planning_separate_from_completed_history():
@@ -244,10 +261,8 @@ def test_readme_and_roadmap_keep_active_planning_separate_from_completed_history
     roadmap = _read("ROADMAP.md")
     completed = _read("docs/COMPLETED_MILESTONES.md")
 
-    assert "Pilot packaging is read-only first" in readme
-    assert "make pilot-share-brief" in readme
-    assert "does not refresh data or unlock blocked inputs" in readme
-    assert "Provider setup is only an activation boundary" in readme
+    assert "[Roadmap](ROADMAP.md)" in readme
+    assert "docs/COMPLETED_MILESTONES.md" in readme
 
     assert "## Now" in roadmap
     assert "## Next" in roadmap
@@ -299,77 +314,69 @@ def test_public_docs_do_not_reintroduce_old_three_path_navigation():
         assert "three main paths" not in body
         assert "three simple paths" not in body
         assert "More pages" not in body
-        assert PUBLIC_V1_ROUTE in body
+        assert PUBLIC_V1_ROUTE in body.replace("→", "->")
 
 
-def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
+def test_readme_makes_source_coverage_and_controlled_license_limits_visible():
     readme = _read("README.md")
+    evidence = _markdown_section(readme, "## Coverage and Evidence")
+    license_section = _markdown_section(readme, "## License")
+    for boundary in ("point-in-time coverage", "same-day closing prices", "at least three",
+                     "Source rights", "personal research", "commercial operation",
+                     "redistribution", "withheld", "readiness", "research-only",
+                     "Investment advice", "broker account actions", "order routing"):
+        assert boundary.lower() in evidence.lower()
+    assert "[LICENSE](LICENSE)" in license_section
+    assert "controlled portfolio-demo" in license_section
+    assert "evaluation" in license_section
+    for activity in ("Copying", "redistribution", "sublicensing", "hosting", "modified publication"):
+        assert activity in license_section
+    assert "written permission" in license_section
+    assert "MIT License" not in license_section
+    assert "Apache License" not in license_section
 
-    assert "## External Reviewer Start Here" in readme
-    assert "screenshots are product evidence only" in readme
-    assert "This is not an open-source release." in readme
-    assert "## Pilot Share Status" in readme
-    assert "Share as controlled portfolio/demo evidence under the root `LICENSE`" in readme
-    assert "do not describe the repository as open source or reusable software" in readme
-    assert "Generated CSV/JSON/report churn stays local unless an exact artifact is reviewed as evidence." in readme
-    assert "`make project-status-check` -> `make provider-setup-checklist` -> a reviewed one-ticker smoke command" in readme
-    assert "Use `make project-status` only when you intentionally want to refresh the dashboard-ready status snapshot." in readme
-    assert "No broad coverage batch should run from setup alone." in readme
-    assert f"The [public company demo]({PUBLIC_COMPANY_DEMO}) is hosted on GitHub Pages" in readme
-    assert "The full Streamlit workspace runs locally through `make dashboard`" in readme
-    assert "`make linkedin-share-check` for the final LinkedIn Featured-card checklist" in readme
-    assert readme.index("## External Reviewer Start Here") < readme.index("## Pilot Share Status")
-    assert readme.index("## Pilot Share Status") < readme.index("## Local Data Hygiene")
 
-
-def test_readme_has_compact_current_next_stages_for_external_reviewers():
+def test_readme_current_and_future_work_have_distinct_status_and_roadmap_links():
     readme = _read("README.md")
-
-    assert readme.count("## External Reviewer Start Here") == 1
-    assert "## Personal Research Start Here" not in readme
-    assert "Primary product workflow" in readme
-    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in readme
-    assert "Secondary controlled demo" in readme
-    assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in readme
-    assert "Data Health and Proof History remain available from Company Workbench **数据来源**" in readme
-    assert "## Now / Next / Later" in readme
-    assert "| Now | Local controlled demo" in readme
-    assert "explicit live SEC company lookup" in readme
-    assert "including companies absent from local CSVs" in readme
-    assert "| Next | Expand exact-filing support from measured source gaps" in readme
-    assert "continue recoverable issuer checks" in readme
-    assert "remaining dated venue/security-identity gaps" in readme
-    assert "**Exact SEC filing evidence**" in readme
-    assert "save and restore reduced coverage progress" in readme
-    assert "| Later | Carry permitted snapshot changes" in readme
-    assert "Hosting, full coverage, calibration, and commercial operation require their own direct evidence" in readme
-    assert "The full Streamlit workspace is a **local Commercial Research Beta foundation**." in readme
-    assert "The public link opens a standalone synthetic demo." in readme
-    assert "Authentication, private workspaces, operated data rights, real beta users, and repeatable provider operations remain separate gates" in readme
-    assert readme.index("## External Reviewer Start Here") < readme.index("## Now / Next / Later")
-    assert readme.index("## Now / Next / Later") < readme.index("## What You Can Analyze")
+    status = _markdown_section(readme, "## Project Status and Roadmap")
+    for stage in ("Available today", "Next", "Later gates"):
+        assert stage in status
+    for scope in ("local research beta", "public demo", "AMD filing case", "NEM, AMD, and DUK",
+                  "Hosted full-workspace operation", "authentication", "private workspaces",
+                  "operated data rights", "independent user evidence", "commercial validation"):
+        assert scope in status
+    assert "[Roadmap](ROADMAP.md)" in status
+    assert "docs/COMPLETED_MILESTONES.md" in status
+    assert "make next-stage" in status
 
 
-def test_readme_explains_no_key_sec_preview_without_claiming_activation():
+def test_readme_routes_detailed_financial_source_scope_to_methods():
     readme = _read("README.md")
+    methods = _markdown_section(readme, "## Documentation")
+    for guide in ("docs/ONLINE_COMPANY_RESEARCH.md", "docs/ONLINE_PEER_VALUATION.md",
+                  "docs/SEC_RESEARCH_REVIEWS.md", "docs/METHODOLOGY.md",
+                  "docs/ONLINE_RESEARCH_COVERAGE.md", "docs/DATA_STRATEGY.md"):
+        assert guide in methods
+    features = _markdown_section(readme, "## What You Can Do")
+    assert "US-GAAP/USD" in features
+    assert "qualified" in features
+    assert "changed source checksum" in features
+    assert "financial revision" in features
 
-    assert "**No-key SEC actuals inspection:**" in readme
-    assert "`make sec-fundamentals-preview TICKERS=AAPL,NVDA,AMD`" in readme
-    assert "official SEC endpoints" in readme
-    assert "at most five explicit tickers" in readme
-    assert "writes no cache, import, canonical, readiness, or output files" in readme
-    assert "does not authorize a data apply" in readme
-    assert "field-level period, unit, retrieval, source-rights, schema, delta, and owner-action evidence" in readme
-    assert "derived, mixed-unit, out-of-scope, and incoherent-period fields remain blocked" in readme
 
-
-def test_public_status_language_separates_hosted_demo_from_local_workspace():
+def test_public_status_language_identifies_demo_and_local_workspace():
     readme = _read("README.md")
-
-    assert f"The [public company demo]({PUBLIC_COMPANY_DEMO}) is hosted on GitHub Pages and uses only synthetic data." in readme
-    assert "The full Streamlit workspace runs locally through `make dashboard`." in readme
-    assert "A separate Streamlit deployment follows the [Hosted Demo Deployment]" in readme
-    assert "make public-performance-gate" in readme
+    demo = _markdown_section(readme, "## Try the Public Demo")
+    local = _markdown_section(readme, "## Run Locally")
+    assert "fictional public demo" in demo
+    assert "full research workspace runs locally" in demo
+    assert "make dashboard" in local
+    assert "http://localhost:8501/" in local
+    assert "Personal Research workspace" in local
+    assert "Controlled local demo and engineering checks" in local
+    assert PUBLIC_V1_ROUTE in local.replace("→", "->")
+    assert "mode=public" in local
+    assert "Operator mode" in local
 
 
 def test_active_roadmap_keeps_completed_performance_separate_from_external_gates():
@@ -460,17 +467,16 @@ def test_roadmap_and_readme_describe_nowcast_infrastructure_without_claiming_rea
 
     assert "Earnings Nowcast real-data safety infrastructure" in roadmap
     assert "Real semiconductor nowcast coverage remains `awaiting_point_in_time_consensus`" in roadmap
-    assert "Earnings Nowcast Pilot" in readme
-    assert "deterministic synthetic-fixture workflow" in readme
-    assert "does not establish real-company coverage or predictive accuracy" in readme
+    advanced = readme.split("<summary>Advanced and historical research tools</summary>", 1)[1]
+    assert "Earnings Nowcast pilot" in advanced
+    assert "synthetic fixtures" in advanced
+    assert "source, point-in-time, and calibration gates" in advanced
 
 
 def test_product_direction_decision_stays_provisional_until_external_evidence_exists():
-    readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
     decision = _read("docs/PRODUCT_DIRECTION_DECISION.md")
 
-    assert "[Product Direction Decision](docs/PRODUCT_DIRECTION_DECISION.md)" in readme
     assert "docs/PRODUCT_DIRECTION_DECISION.md" in roadmap
     for path in (
         "Portfolio-quality research prototype",
@@ -587,12 +593,11 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
 
 
 def test_public_docs_match_auto_price_ladder_order():
-    readme = _read("README.md")
     strategy = _read("docs/DATA_STRATEGY.md")
     operator_guide = _read("docs/OPERATOR_GUIDE.md")
     roadmap = _read("ROADMAP.md")
 
-    for doc in (readme, strategy, operator_guide, roadmap):
+    for doc in (strategy, operator_guide, roadmap):
         assert "PROVIDER=auto" in doc
         assert "Stooq, Yahoo" in doc
         assert "optional IBKR read-only" in doc
@@ -600,22 +605,14 @@ def test_public_docs_match_auto_price_ladder_order():
         assert "Yahoo, Stooq" not in doc
 
 
-def test_readme_has_external_reviewer_handoff_before_operator_detail():
+def test_readme_places_demo_before_local_operations_and_links_advanced_guides():
     readme = _read("README.md")
     checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
-
-    assert "## External Reviewer Start Here" in readme
-    assert f"| What should I open first? | Start with the [public company demo]({PUBLIC_COMPANY_DEMO}). The [walkthrough](docs/PUBLIC_DEMO_WALKTHROUGH.md) explains the fictional demo, dated AMD case, and local workspace. |" in readme
-    assert LOCAL_WORKSPACE_START in readme
-    assert "| What proves current local readiness? | Run `make readiness-ops-center` for lane truth. `make status-check TOP_N=5` can describe a saved generated snapshot; screenshots are product evidence only. |" in readme
-    assert "## External Reviewer Handoff" in readme
-    assert f"| Review first | [Public company demo]({PUBLIC_COMPANY_DEMO}), then {PUBLIC_V1_ROUTE} for the local walkthrough. |" in readme
-    assert "| Skip unless operating locally | Broad CSV/report churn, provider setup, validate/preview/apply commands, and raw proof ledgers. |" in readme
-    assert "| Do not claim | Screenshots prove data freshness, blocked inputs are ready, the repo is open source, or the product gives buy/sell instructions. |" in readme
-    assert "| Best next question | Can a reviewer understand what is ready, blocked, excluded, and proof-backed before opening advanced details? |" in readme
-    assert readme.index("## External Reviewer Start Here") < readme.index("## External Reviewer Handoff")
-    assert readme.index("## External Reviewer Handoff") < readme.index("## Data Coverage Strategy")
-    assert "Confirm `README.md` starts with `External Reviewer Start Here`" in checklist
+    assert readme.index("## Try the Public Demo") < readme.index("## Run Locally")
+    assert readme.index("## Run Locally") < readme.index("## Documentation")
+    assert "docs/OPERATOR_GUIDE.md" in _markdown_section(readme, "## Documentation")
+    assert "docs/PUBLIC_RELEASE_CHECKLIST.md" in readme
+    assert "Confirm `README.md` starts with `Try the Public Demo`" in checklist
     assert "then Research Desk -> Discover -> Company Workbench -> Monitor" in checklist
     assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History as the secondary controlled Public demo" in checklist
     assert "Keep terminal proof commands secondary" in checklist
@@ -623,11 +620,10 @@ def test_readme_has_external_reviewer_handoff_before_operator_detail():
 
 
 def test_public_docs_share_same_coverage_gate_rule():
-    readme = _read("README.md")
     checklist = _read("docs/PUBLIC_RELEASE_CHECKLIST.md")
     runbook = _read("docs/PILOT_RUNBOOK.md")
 
-    for doc in (readme, checklist, runbook):
+    for doc in (checklist, runbook):
         assert "No broad coverage batch should run from setup alone" in doc
         assert "Provider setup is only an activation boundary" in doc
         assert "it can activate a source" in doc
@@ -705,12 +701,12 @@ def test_external_review_story_is_consistent_across_public_docs():
     walkthrough = _read("docs/PUBLIC_DEMO_WALKTHROUGH.md")
     linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
 
-    assert "## External Reviewer Start Here" in readme
+    assert "## Try the Public Demo" in readme
     assert "## Two-Minute External Review Path" in walkthrough
     assert "### Two-minute external review path" in linkedin
-    assert "What should I open first?" in readme
-    assert LOCAL_WORKSPACE_START in readme
-    assert "This is not an open-source release." in readme
+    assert PUBLIC_COMPANY_DEMO in readme
+    assert "http://localhost:8501/" in readme
+    assert "[LICENSE](LICENSE)" in readme
     for doc in (walkthrough, linkedin):
         assert PUBLIC_COMPANY_DEMO in doc
         assert "Financial Trends" in doc and "Research Notes" in doc and "Monitor" in doc
@@ -718,7 +714,7 @@ def test_external_review_story_is_consistent_across_public_docs():
         assert "Live dashboard review" in doc
         assert "data-freshness proof" in doc or "data freshness proof" in doc
         assert "open-source reuse" in doc
-    for doc in (readme, walkthrough, linkedin):
+    for doc in (walkthrough, linkedin):
         assert PUBLIC_V1_ROUTE in doc
         lowered = doc.lower()
         assert "screenshots show product ui only" in lowered or "screenshots are product evidence only" in lowered
@@ -835,9 +831,7 @@ def test_active_roadmap_and_price_history_maintenance_are_finite_and_read_only()
     assert "batch compatible proof evidence intentionally" in roadmap
     assert "never commit or push one proof row per ticker by default" in roadmap
     assert "pivot to the next roadmap item when no executable candidates" in roadmap
-    assert "make price-history-proof-queue TOP_N=25" in readme
-    assert "make price-history-batch-closeout TOP_N=25" in readme
-    assert "read-only batch closeout" in readme
+    assert "docs/OPERATOR_GUIDE.md" in readme
 
 
 def test_commercial_beta_continuation_prompt_is_persistent_but_evidence_bound():
@@ -1061,7 +1055,7 @@ def test_thesis_journal_docs_preserve_append_only_research_boundary():
     provenance = _read("docs/PROVENANCE_CONTRACT.md")
     operator = _read("docs/OPERATOR_GUIDE.md")
 
-    assert "append-only Research Thesis Journal" in readme
+    assert "append-only thesis journal" in readme
     assert "P0: Research Thesis And Evidence Journal" in roadmap
     assert "P2: Scenario Lab" in roadmap
     assert "generated thesis text is context only" in methodology
@@ -1078,7 +1072,10 @@ def test_scenario_lab_docs_define_session_local_readiness_gated_boundary():
     methodology = _read("docs/METHODOLOGY.md")
     provenance = _read("docs/PROVENANCE_CONTRACT.md")
 
-    assert "session-local Scenario Lab" in readme
+    assert "Scenario Lab" in readme
+    valuation_row = next(line for line in readme.splitlines() if line.startswith("| **Valuation & Peers**"))
+    for scope in ("qualified", "saved", "valuation scenarios"):
+        assert scope in valuation_row
     assert "P2: Scenario Lab - Implemented" in roadmap
     assert "revenue growth from -50% to 40%" in methodology
     assert "terminal growth must remain below WACC" in methodology
@@ -1092,7 +1089,7 @@ def test_source_freshness_timeline_docs_preserve_timestamp_truth():
     methodology = _read("docs/METHODOLOGY.md")
     provenance = _read("docs/PROVENANCE_CONTRACT.md")
 
-    assert "Source Freshness Timeline" in readme
+    assert "source-freshness detail" in readme
     assert "Source Freshness Timeline - Implemented" in roadmap
     assert "never substitutes retrieval time" in methodology
     assert "Source Freshness Timeline Contract" in provenance
@@ -1100,12 +1097,10 @@ def test_source_freshness_timeline_docs_preserve_timestamp_truth():
 
 
 def test_research_comparison_docs_preserve_non_ranking_boundary():
-    readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
     methodology = _read("docs/METHODOLOGY.md")
     provenance = _read("docs/PROVENANCE_CONTRACT.md")
 
-    assert "Research Comparison View" in readme
     assert "Research Comparison View - Implemented" in roadmap
     assert "two or three selected tickers" in methodology
     assert "never calculates a score or winner" in methodology
@@ -1179,7 +1174,6 @@ def test_evidence_integrity_docs_preserve_fail_closed_valuation_and_cutoff_backt
 
 
 def test_prospective_field_proof_docs_preserve_stage_a_recording_boundary():
-    readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
     operator = _read("docs/OPERATOR_GUIDE.md")
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
@@ -1189,7 +1183,7 @@ def test_prospective_field_proof_docs_preserve_stage_a_recording_boundary():
         "make prospective-field-proof-preview",
         "make prospective-field-proof-record",
     )
-    for text in (readme, roadmap, operator, prompt):
+    for text in (roadmap, operator, prompt):
         for command in commands:
             assert command in text
         lowered = text.lower()
@@ -1202,7 +1196,6 @@ def test_prospective_field_proof_docs_preserve_stage_a_recording_boundary():
         assert "ledger, input, cutoff, commercial mode, and source-rights registry" in lowered
         assert "does not activate readiness" in lowered
 
-    assert "No sample field-proof rows are checked in" in readme
     assert "No sample field-proof rows are checked in" in roadmap
     assert (
         "The implemented structured per-ticker/per-field record is prospective-only"
@@ -1226,13 +1219,8 @@ def test_prospective_field_proof_docs_preserve_stage_a_recording_boundary():
 
 
 def test_release_docs_distinguish_tracked_and_excluded_readiness_snapshots():
-    readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
 
-    assert "For 10-20 external reviewer sessions" in readme
-    assert "For 5-10 external reviewer sessions" not in readme
-    assert "`make pilot-readiness-packet` writes `outputs/pilot_readiness_packet.md`" in readme
-    assert "`make pilot-readiness-packet` is not read-only" in readme
 
     assert "tracked June 7 readiness snapshot" in roadmap
     assert "excluded local generated working-data snapshot" in roadmap
@@ -1259,7 +1247,6 @@ def test_release_docs_distinguish_tracked_and_excluded_readiness_snapshots():
 
 
 def test_active_maturity_handoff_matches_current_sync_priority_and_ui_contracts():
-    readme = _read("README.md")
     roadmap = _read("ROADMAP.md")
     continuation = _read(
         "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
@@ -1302,7 +1289,7 @@ def test_active_maturity_handoff_matches_current_sync_priority_and_ui_contracts(
     assert "wrapped phone grid" in personal
     assert "contained phone strip" not in roadmap
     assert "wrapped phone grid" in roadmap
-    for text in (readme, dashboard_qa):
+    for text in (dashboard_qa,):
         assert "contained phone strip" not in text
         assert "wrapped phone grid" in text
     assert "canonical query allowlists strip unsupported route state" in personal.lower()
@@ -1605,7 +1592,7 @@ def test_research_decision_lab_release_docs_bind_local_completion_to_current_evi
     assert "研究记录" in browser_contract and "数据来源" in browser_contract
     assert '"Follow-up Queue"' in browser_contract
     assert "Research Decision Lab" in readme
-    assert "Follow-up Queue" in readme
+    assert "Monitor" in readme
 
     external_boundary = (
         "does not prove source coverage, predictive accuracy, investment performance, independent adoption, "
@@ -1624,10 +1611,10 @@ def test_legacy_research_utility_quarantine_is_consistent_across_product_docs():
     design = _read("docs/superpowers/specs/2026-07-22-legacy-research-utility-quarantine-design.md")
 
     boundary = "Legacy research utility — not part of Personal Research Mode"
-    for text in (readme, product_spec, readiness, roadmap, prompt, design):
+    for text in (product_spec, readiness, roadmap, prompt, design):
         assert boundary in text
 
-    assert "Research Desk -> Discover -> Company Workbench -> Monitor" in readme
+    assert "Operator-only compatibility utilities" in readme
     assert "Operator-only legacy compatibility utilities" in product_spec
     assert "compatibility-only readiness rows" in readiness
     assert "Priority 1 — completed locally" in roadmap
@@ -1635,7 +1622,7 @@ def test_legacy_research_utility_quarantine_is_consistent_across_product_docs():
     assert "Priority 1 is complete locally" in prompt
     assert "Priority 2 is complete locally" in prompt
 
-    for text in (readme, product_spec, readiness):
+    for text in (product_spec, readiness):
         lowered = text.lower()
         assert "cannot feed research decision lab" in lowered
         assert "cannot change readiness" in lowered
@@ -1643,13 +1630,12 @@ def test_legacy_research_utility_quarantine_is_consistent_across_product_docs():
 
 
 def test_stage_b_field_proof_audit_is_documented_as_read_only_and_no_mapping():
-    readme = _read("README.md")
     operator = _read("docs/OPERATOR_GUIDE.md")
     roadmap = _read("ROADMAP.md")
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
     design = _read("docs/superpowers/specs/2026-07-22-field-proof-stage-b-audit-design.md")
 
-    for text in (readme, operator, roadmap, prompt, design):
+    for text in (operator, roadmap, prompt, design):
         assert "make prospective-field-proof-audit" in text
         assert "preview_receipt_persisted=false" in text
         assert "receipt_revalidation_required=true" in text
@@ -1671,7 +1657,6 @@ def test_priority_three_authoring_release_docs_require_current_runtime_evidence_
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
     design = _read("docs/superpowers/specs/2026-07-22-in-app-research-record-authoring-design.md")
     plan = _read("docs/superpowers/plans/2026-07-22-in-app-research-record-authoring.md")
-    readme = _read("README.md")
     product_spec = _read("PRODUCT_SPEC.md")
 
     assert "# In-App Research-Record Authoring Implementation Plan" in plan
@@ -1690,7 +1675,7 @@ def test_priority_three_authoring_release_docs_require_current_runtime_evidence_
         "Priority 4 exit requires one bounded permitted point-in-time dataset with rights, identity, corporate-action, delisting, survivorship, cutoff, reproduction, and leakage gates all passing.",
     )
 
-    for text in (readme, product_spec, roadmap, prompt, design):
+    for text in (product_spec, roadmap, prompt, design):
         for statement in release_contract:
             assert statement in text
 
@@ -1701,7 +1686,7 @@ def test_priority_three_authoring_release_docs_require_current_runtime_evidence_
         "Priority 4's local validator is frozen; its permitted real-data exit gate remains externally incomplete.",
         "Priority 6's provider-neutral authorization contract is complete locally; hosted implementation remains environment-dependent.",
     )
-    for text in (readme, product_spec, roadmap, prompt):
+    for text in (product_spec, roadmap, prompt):
         for statement in current_priority_contract:
             assert statement in text
         assert historical_priority_contract[0] not in text
@@ -1716,8 +1701,7 @@ def test_active_product_docs_use_evidence_first_positioning_and_current_stage_tr
     methodology = _read("docs/METHODOLOGY.md")
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
 
-    assert "Evidence-First Research Workbench" in readme
-    assert "serious individual equity researchers and small research teams" in readme
+    assert "evidence-first equity research workbench" in readme.lower()
 
     for text in (readme, roadmap, methodology, prompt):
         assert "Priority 4 is next and incomplete" not in text
@@ -1882,7 +1866,6 @@ def test_accessibility_evidence_records_same_page_skip_fix_without_overclaim():
 
 
 def test_priority_three_release_docs_record_controller_runtime_evidence_without_claiming_production_persistence():
-    readme = _read("README.md")
     product_spec = _read("PRODUCT_SPEC.md")
     roadmap = _read("ROADMAP.md")
     prompt = _read("docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md")
@@ -1915,7 +1898,7 @@ def test_priority_three_release_docs_record_controller_runtime_evidence_without_
         "Workbench locks and explains that relationship, with temporary-ledger create -> revise "
         "-> reload coverage."
     )
-    for text in (readme, product_spec, roadmap, prompt, design):
+    for text in (product_spec, roadmap, prompt, design):
         assert integrity in text
 
     confirmation_integrity = (
@@ -1925,7 +1908,7 @@ def test_priority_three_release_docs_record_controller_runtime_evidence_without_
         "record ID unless the locked ledger is provably unchanged; it never invites a blind "
         "duplicate retry."
     )
-    for text in (readme, product_spec, roadmap, prompt, design):
+    for text in (product_spec, roadmap, prompt, design):
         assert confirmation_integrity in text
 
 
@@ -2253,19 +2236,15 @@ def test_priority_four_resource_budgets_and_review_state_are_documented_truthful
 
 def test_html_research_brief_public_and_methodology_docs_keep_the_verified_boundary():
     readme = _markdown_section(
-        _read("README.md"), "### Download HTML Research Brief"
+        _read("README.md"), "## What You Can Do"
     )
     methodology = _markdown_section(
         _read("docs/METHODOLOGY.md"),
         "## Company Workbench HTML Research Brief Method",
     )
 
-    assert "Download HTML Research Brief" in readme
-    assert "existing saved evidence and Python scenario math" in readme
-    assert "does not refresh data or acquire a new source" in readme
-    assert "No repository HTML or PDF artifact is written" in readme
-    assert "research-only" in readme.lower()
-    assert HTML_BRIEF_LOCAL_EVIDENCE_BOUNDARY in " ".join(readme.split())
+    assert "offline HTML research brief" in readme
+    assert "exact preview and explicit confirmation" in readme
     _assert_html_brief_section_has_no_affirmative_overclaim(readme)
 
     normalized = " ".join(methodology.split())
@@ -2288,9 +2267,6 @@ def test_html_research_brief_public_and_methodology_docs_keep_the_verified_bound
 
 def test_evidence_one_pager_active_docs_keep_the_additive_withheld_boundary():
     sections = (
-        _markdown_section(
-            _read("README.md"), "### Download HTML Research Brief"
-        ),
         _markdown_section(
             _read("ROADMAP.md"), "### Company Workbench HTML Research Brief"
         ),
@@ -2390,9 +2366,6 @@ def test_broad_review_docs_use_durable_release_routing_and_fail_closed_boundarie
         assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in document
     for document in (readme, roadmap, continuation):
         assert durable_routing not in document
-    for document in (readme,):
-        assert "Complete the direct local matrix and current-head local evidence first" in document
-        assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in document
     assert "The prior engineering closure is incorporated in the default branch" in roadmap
     assert "Do not repeat that completed engineering slice" in roadmap
     assert "Complete the direct local matrix and current-head local evidence first" not in roadmap
@@ -2405,7 +2378,7 @@ def test_broad_review_docs_use_durable_release_routing_and_fail_closed_boundarie
         "Broad-review repairs must be evaluated only through direct current-head local "
         "and exact-head CI evidence; their presence alone establishes neither gate."
     )
-    for document in (readme, product_spec, roadmap, next_stage, methodology, continuation):
+    for document in (product_spec, roadmap, next_stage, methodology, continuation):
         assert broad_review_boundary in document
 
     fail_closed_boundaries = (
@@ -2529,10 +2502,10 @@ def test_workspace_modernization_docs_share_one_default_and_explicit_mode_contra
         "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md"
     )
 
-    assert len(readme.splitlines()) < 180
+    assert len(readme.splitlines()) <= 180
     assert len(roadmap.splitlines()) <= 320
-    assert "Personal Research is the default local workspace" in readme
-    assert "http://localhost:8501/?mode=research&page=research-desk" in readme
+    assert "Personal Research workspace" in readme
+    assert "http://localhost:8501/" in readme
     assert "http://localhost:8501/?mode=public" in readme
     assert "http://localhost:8501/?mode=operator" in operator
     assert "The dashboard defaults to Public visitor mode" not in public
@@ -2553,16 +2526,16 @@ def test_workspace_modernization_docs_share_one_default_and_explicit_mode_contra
     assert "Do not push" in continuation
     assert "separate owner authorization" in continuation
     assert "mutable default operator workspace" not in readme
-    assert "make dashboard` starts Personal Research" in readme
-    assert "Public and Operator remain explicit URL modes" in readme
+    assert "make dashboard" in readme
+    assert "mode=public" in readme
+    assert "Operator mode contains maintenance and legacy compatibility tools" in readme
     release_first_claim = (
         "If the current branch head lacks direct local matrix, branch synchronization, "
         "draft-PR update, or exact-head CI evidence, complete those release steps first"
     )
     assert release_first_claim not in readme
     assert release_first_claim not in roadmap
-    assert "Complete the direct local matrix and current-head local evidence first" in readme
-    assert "Remote synchronization, draft-PR updates, and exact-head CI require separate owner authorization" in readme
+    assert "docs/PUBLIC_RELEASE_CHECKLIST.md" in readme
     assert "The prior engineering closure is incorporated in the default branch" in roadmap
     assert "Do not repeat that completed engineering slice" in roadmap
     assert "Sidebar navigation remains the single public route chooser" not in dashboard_qa
@@ -2631,9 +2604,11 @@ def test_active_status_check_copy_never_claims_current_lane_truth():
     assert "current selected-profile readiness and lane truth" in makefile
     assert "saved generated-snapshot" in makefile
     assert "can be stale" in makefile
-    assert "saved generated snapshot" in readme
-    assert "Optional saved generated-snapshot inspection" in readme
-    assert "run `make readiness-ops-center` for current selected-profile readiness and lane truth" in readme
+    status = _markdown_section(readme, "## Project Status and Roadmap")
+    assert "current selected-profile readiness" in status
+    assert "make readiness-ops-center" in status
+    assert "status-check TOP_N=5" in status
+    assert "snapshot can be stale" in status
     assert "saved generated-snapshot" in roadmap
     assert "saved generated-snapshot" in public
     assert "saved generated-snapshot context that can be stale" in release_checklist
@@ -2730,7 +2705,8 @@ def test_release_docs_describe_the_monitor_follow_up_queue_without_market_or_tra
     qa = Path("docs/DASHBOARD_QA.md").read_text(encoding="utf-8")
     combined = "\n".join((readme, roadmap, personal, qa)).lower()
 
-    assert "follow-up queue" in readme.lower()
+    assert "Follow-up Queue" in readme
+    assert "saved questions and evidence changes" in readme
     assert "since the last review" in personal.lower()
     assert "needs verification" in personal.lower()
     assert "waiting on evidence" in personal.lower()
@@ -2746,7 +2722,6 @@ def test_release_docs_describe_the_monitor_follow_up_queue_without_market_or_tra
 
 def test_active_personal_research_docs_route_saved_items_freshness_and_zero_truthfully():
     for path in (
-        "README.md",
         "ROADMAP.md",
         "docs/PERSONAL_RESEARCH_MODE.md",
         "docs/internal/COMMERCIAL_RESEARCH_BETA_CONTINUATION_GOAL_PROMPT.md",
