@@ -316,7 +316,7 @@ def test_readme_surfaces_compact_pilot_share_status_before_local_hygiene():
     assert "Use `make project-status` only when you intentionally want to refresh the dashboard-ready status snapshot." in readme
     assert "No broad coverage batch should run from setup alone." in readme
     assert f"The [public company demo]({PUBLIC_COMPANY_DEMO}) is hosted on GitHub Pages" in readme
-    assert "The full Streamlit workspace runs locally through `make demo-dashboard`" in readme
+    assert "The full Streamlit workspace runs locally through `make dashboard`" in readme
     assert "`make linkedin-share-check` for the final LinkedIn Featured-card checklist" in readme
     assert readme.index("## External Reviewer Start Here") < readme.index("## Pilot Share Status")
     assert readme.index("## Pilot Share Status") < readme.index("## Local Data Hygiene")
@@ -367,7 +367,7 @@ def test_public_status_language_separates_hosted_demo_from_local_workspace():
     readme = _read("README.md")
 
     assert f"The [public company demo]({PUBLIC_COMPANY_DEMO}) is hosted on GitHub Pages and uses only synthetic data." in readme
-    assert "The full Streamlit workspace runs locally through `make demo-dashboard`." in readme
+    assert "The full Streamlit workspace runs locally through `make dashboard`." in readme
     assert "A separate Streamlit deployment follows the [Hosted Demo Deployment]" in readme
     assert "make public-performance-gate" in readme
 
@@ -495,18 +495,23 @@ def test_product_direction_decision_stays_provisional_until_external_evidence_ex
 def test_linkedin_brief_has_now_next_not_yet_share_framing():
     linkedin = _read("docs/LINKEDIN_PROJECT_BRIEF.md")
 
-    assert "Stock Research Command Center | Evidence-First Company Research" in linkedin
+    assert "Stock Research Command Center | Interactive Company Research" in linkedin
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in linkedin
-    assert "stable GitHub repository link only after this reviewed feature reaches the default branch" in linkedin
-    assert "Draft engineering preview" in linkedin
+    assert "https://yuzej21.github.io/Stock-Analysis/" in linkedin
+    assert "https://yuzej21.github.io/Stock-Analysis/amd.html" in linkedin
+    assert "FICT-FY25-01" in linkedin and "FICT-FY25-02" in linkedin
+    assert "The disposition and separate personal note reset on reload" in linkedin
     assert "readiness counts" not in linkedin.lower()
-    assert "Workbench answer-first screenshot" in linkedin
+    assert "Use a current screenshot of the linked English demo" in linkedin
+    assert "The [local Workbench screenshot]" in linkedin
     assert "## Now / Next / Not Yet" in linkedin
-    assert "| Now | GitHub/LinkedIn portfolio demo with the guided public workflow, screenshots, methodology, and local run commands. | Share the GitHub link and curated screenshot after GitHub is synced and `make public-check` passes. |" in linkedin
-    assert "| Next | Source-backed Earnings Nowcast evidence pilot, plus optional hosted preview and controlled review. | Keep synthetic fixtures separate from real evidence; do not imply a hosted URL, private access, predictive validation, or provider-backed automation before verification. |" in linkedin
-    assert "| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim complete coverage, data freshness proof, or automated provider-backed readiness. |" in linkedin
-    assert "Use this framing when someone asks whether the project is ready: it is ready to review as a controlled portfolio demo, while hosting and deeper coverage remain verified next stages." in linkedin
-    assert "If someone asks what to do next, run `make next-stage` before opening operator proof queues; it prints the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets." in linkedin
+    assert "| Now | Share the guided fictional Pages demo first" in linkedin
+    assert "| Next | Qualify a new issuer or period" in linkedin
+    assert "actual annual financial or filing change" in linkedin
+    assert "issuer-association metadata change" in linkedin
+    assert "| Not yet | Host the full Streamlit workspace" in linkedin
+    assert "A public full Streamlit deployment remains a separate gate" in linkedin
+    assert "stable GitHub repository link only after" not in linkedin
     assert linkedin.index("make next-stage") < linkedin.index("Run `make project-status-check` first")
 
 
@@ -521,7 +526,7 @@ def test_hosted_demo_deployment_doc_keeps_hosting_optional_and_secret_safe():
 
     assert "docs/HOSTED_DEMO_DEPLOYMENT.md" in checklist
     assert "[Hosted Demo Deployment](HOSTED_DEMO_DEPLOYMENT.md)" in walkthrough
-    assert "docs/HOSTED_DEMO_DEPLOYMENT.md" in linkedin
+    assert "[Hosted Demo Deployment](HOSTED_DEMO_DEPLOYMENT.md)" in linkedin
     assert "[Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md)" in readme
 
     assert "No public hosted Streamlit URL is configured in this repository." in hosted
@@ -702,7 +707,7 @@ def test_external_review_story_is_consistent_across_public_docs():
 
     assert "## External Reviewer Start Here" in readme
     assert "## Two-Minute External Review Path" in walkthrough
-    assert "Two-minute external review path:" in linkedin
+    assert "### Two-minute external review path" in linkedin
     assert "What should I open first?" in readme
     assert LOCAL_WORKSPACE_START in readme
     assert "This is not an open-source release." in readme
@@ -715,7 +720,8 @@ def test_external_review_story_is_consistent_across_public_docs():
         assert "open-source reuse" in doc
     for doc in (readme, walkthrough, linkedin):
         assert PUBLIC_V1_ROUTE in doc
-        assert "screenshots show product UI only" in doc or "screenshots are product evidence only" in doc
+        lowered = doc.lower()
+        assert "screenshots show product ui only" in lowered or "screenshots are product evidence only" in lowered
         assert "make status-check TOP_N=5" in doc
         assert "controlled portfolio/demo" in doc
     assert walkthrough.index("## Two-Minute External Review Path") < walkthrough.index("## Demo Examples")
@@ -782,11 +788,11 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
 
     assert PUBLIC_V1_ROUTE in makefile
     assert PUBLIC_V1_ROUTE in brief
-    assert "no public hosted Streamlit URL is configured yet" in brief
+    assert "A public full Streamlit deployment remains a separate gate" in brief
     assert "Coverage boundary" in brief
     assert "Provider boundary" in brief
-    assert "GitHub demo with real product screenshots and local run instructions" in brief
-    assert "provider-key activation" in brief
+    assert "Use a current screenshot of the linked English demo" in brief
+    assert "The disposition and separate personal note reset on reload" in brief
     assert "readiness-backed selection comes first" in makefile
     assert "Review one stock, Improve data coverage, and Inspect proof" not in makefile
     assert "make next-stage                 Print the current next-stage decision ladder" in makefile
@@ -799,12 +805,12 @@ def test_public_demo_and_linkedin_copy_use_v1_route_sequence():
     assert "Optional current-count proof" not in makefile
     assert "Proves: current readiness counts" not in makefile
     assert "make linkedin-share-check" in makefile
-    assert "Stock Research Command Center | Evidence-First Company Research" in makefile
+    assert "Stock Research Command Center | Interactive Company Research" in makefile
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in makefile
-    assert "stable GitHub repository link only after this reviewed feature reaches the default branch" in makefile
-    assert "Draft engineering preview" in makefile
-    assert "count-safe Company Workbench answer visual" in makefile
-    assert "GitHub's generated OpenGraph card" in makefile
+    assert "In Monitor, use Review saved evidence and record Reviewed or Still open." in makefile
+    assert "Use a screenshot of the linked English demo." in makefile
+    assert f"{PUBLIC_COMPANY_DEMO}amd.html as the separate dated SEC filing example." in makefile
+    assert "docs/LINKEDIN_PROJECT_BRIEF.md for the current copy." in makefile
 
 
 def test_active_roadmap_and_price_history_maintenance_are_finite_and_read_only():

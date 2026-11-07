@@ -1,152 +1,73 @@
 # LinkedIn Project Brief
 
-## Short Version
+## Featured Item
 
-I built a local Python and Streamlit portfolio beta for evidence-first company research. Its primary workflow is Research Desk -> Discover -> Company Workbench -> Monitor: choose a reviewable company, see what evidence can be used now, keep unsupported conclusions withheld, and monitor source-backed changes.
+**Title**
 
-The product separates the main research answer from technical evidence. Company Workbench brings business trend, valuation, forward context, uncertainty, conclusion, and the next research task into one review surface; Data Health and Proof History remain available when the missing input or provenance is the question.
+`Stock Research Command Center | Interactive Company Research`
 
-The main idea remains simple: data readiness first, analysis second, research decision last. Empty or unverified valuation, catalyst, outcome, consensus, and calibration lanes stay withheld rather than displaying fabricated content.
+**Description**
 
-Start with the [English company research demo](https://yuzej21.github.io/Stock-Analysis/). It follows a fictional company from Company Search through Financial Trends, Peer Valuation, Research Notes, and Monitor. The local Streamlit app includes the wider research and Operator tools. Its controlled Public mode follows Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History.
+`Explore a fictional company’s financial trends, peer valuation, and research notes. In Monitor, compare two saved observations and record why the follow-up is Reviewed or Still open. A separate AMD walkthrough uses a real SEC filing.`
 
-Two-minute external review path:
+**Primary link**
 
-- GitHub-only review: start with the Workbench answer preview, the four-step Personal Research workflow, and `README.md`.
-- Controlled reviewer handoff: send `docs/PILOT_REVIEW_INVITATION.md` for one under-three-minute workflow review before sharing the detailed feedback template.
-- Live dashboard review: run `make dashboard`, open `http://localhost:8501/`, then follow Research Desk -> Discover -> Company Workbench -> Monitor. Use `http://localhost:8501/?mode=public` for the five-page controlled demo.
-- Hosted app status: GitHub Pages hosts the synthetic case, and no public hosted Streamlit URL is configured yet. A separate Streamlit deployment follows `docs/HOSTED_DEMO_DEPLOYMENT.md`.
-- Evidence boundary: `docs/assets/linkedin-public-dashboard.png` is a real Workbench answer-first screenshot; screenshots are product evidence only. Do not publish data-readiness claims from the image.
-- Share boundary: controlled portfolio/demo evidence only, not open-source reuse, investment advice, broker integration, or data-freshness proof.
-- Coverage boundary: price coverage is broad, but fundamentals, share count, peer mapping, earnings, and analyst estimates still have blocked or locked areas. The product shows those gaps instead of treating them as complete.
-- Provider boundary: FMP, Alpha Vantage, and Finnhub are optional local provider fallbacks and are not configured by default. Do not claim full automated fundamentals, estimates, or provider-backed coverage unless a reviewed source path proves it.
-- Link boundary: use the stable GitHub repository link only after this reviewed feature reaches the default branch. Until then, keep an existing stable Featured item or label any non-default review link `Draft engineering preview`.
+[Open the interactive English company research demo](https://yuzej21.github.io/Stock-Analysis/).
 
-Each research destination opens with a usable answer, a withheld boundary, or a truthful wait state before Advanced Evidence. The four-step workflow and the five-page Public demo are checked at desktop and mobile widths.
+Use a current screenshot of the linked English demo for the Featured image. The [local Workbench screenshot](assets/linkedin-public-dashboard.png) can accompany a separate discussion of the full workspace. A screenshot shows the interface. Check readiness and source rights separately.
 
-Current review status is `share_review_ready` for the local GitHub/demo workflow: deterministic public checks, browser evidence, and repeated local cold/warm route timings pass. External reviewer evidence and hosted-route verification are still unavailable, so this remains a controlled-demo status, not a hosted-product or data-freshness claim.
+## What Visitors Can Review
 
-The first story is company research, not operator automation. Keep reviewed batch packets, provider setup, validate / preview / apply mechanics, and provider-key activation as operator detail after the visitor understands the product.
+### Two-minute external review path
 
-Operator details stay collapsed until someone intentionally leaves the public path.
+1. Search for fictional `FICT` and open **Business Trend** in **Financial Trends**.
+2. Compare eligible peers, open **Peer Read-Through**, and change the discount rate in the fictional **Scenario Lab**.
+3. Open **Forward View**, **Catalysts**, and **Research Decision Lab** in **Research Notes**.
+4. In **Monitor**, choose **Review saved evidence**. Compare the fixed `FICT-FY25-01` and `FICT-FY25-02` observations in **Saved evidence comparison**.
+5. Return to Monitor and record **Reviewed** or **Still open** with a reason. The disposition and separate personal note reset on reload.
 
-Use the reviewed `docs/assets/linkedin-public-dashboard.png` Workbench thumbnail for the LinkedIn Featured card only after the feature is present at the link target.
+The secondary [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) uses a dated real SEC 10-Q. It shows quarter drivers, a nine-month cash comparison, a sample follow-up, and why public peer valuation remains withheld. **Try the fictional evidence review** opens the synthetic Monitor with its fixed evidence pair.
+
+GitHub-only review starts with the [README](../README.md) and its product map. Live dashboard review starts with `make dashboard` at `http://localhost:8501/`. The local Personal Research route is Research Desk -> Discover -> Company Workbench -> Monitor. The separately controlled Public route is Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History and opens with `make demo-dashboard` at `http://localhost:8501/?mode=public`.
+
+## What the Full Workspace Adds
+
+The local Python and Streamlit portfolio beta checks what evidence can be used now, keeps unsupported conclusions withheld, and lets a researcher revisit source-backed changes. Company Workbench groups business trend, valuation, forward context, uncertainty, and the next research task. Data Health and Proof History remain available for missing inputs and provenance.
+
+For NEM, AMD, and DUK, the local Monitor can reopen an exact saved annual SEC observation pair and retain a reasoned **Reviewed** or **Still open** disposition in an ignored local file scoped to the issuer, ordered pair, and selected research profile. Saved evidence stays immutable. The fictional browser demo keeps its decision in page state until reload. See [Saved SEC company reviews](SEC_RESEARCH_REVIEWS.md).
+
+The full Streamlit workspace runs locally. GitHub Pages hosts the fictional English demo and dated AMD case. A public full Streamlit deployment remains a separate gate in [Hosted Demo Deployment](HOSTED_DEMO_DEPLOYMENT.md).
 
 ## Now / Next / Not Yet
 
-Use this framing when someone asks whether the project is ready: it is ready to review as a controlled portfolio demo, while hosting and deeper coverage remain verified next stages.
-
-If someone asks what to do next, run `make next-stage` before opening operator proof queues; it prints the current package answer, hosted-demo state, provider-key state, source-proof queue status, and decision ladder without refreshing data, importing rows, staging files, pushing, deploying, or exposing secrets.
-
-| Stage | Answer | Guardrail |
+| Stage | Current answer | Boundary |
 | --- | --- | --- |
-| Now | GitHub/LinkedIn portfolio demo with the guided public workflow, screenshots, methodology, and local run commands. | Share the GitHub link and curated screenshot after GitHub is synced and `make public-check` passes. |
-| Next | Source-backed Earnings Nowcast evidence pilot, plus optional hosted preview and controlled review. | Keep synthetic fixtures separate from real evidence; do not imply a hosted URL, private access, predictive validation, or provider-backed automation before verification. |
-| Not yet | Full hosted data product, complete fundamentals/peer/optional coverage, or provider-backed automation across the universe. | Do not claim complete coverage, data freshness proof, or automated provider-backed readiness. |
+| Now | Share the guided fictional Pages demo first, the dated AMD case second, and the local workspace through the repository. | These are controlled portfolio/demo examples. They do not prove current-market coverage or outside reviewer demand. |
+| Next | Qualify a new issuer or period and make the evidence comparison clearer. | Distinguish an actual annual financial or filing change from a new retrieval or issuer-association metadata change. |
+| Not yet | Host the full Streamlit workspace or claim broad fundamentals, peers, earnings, estimates, predictive validation, or commercial operation. | Each needs source rights, repeatable operations, and direct validation. |
+
+The active sequence is in the [Roadmap](../ROADMAP.md). `make next-stage` prints the current package and source-proof decision ladder without changing local data. Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted. Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates.
 
 ## Suggested LinkedIn Post
 
-I built a local Python and Streamlit Stock Research Command Center around one principle:
+I built Stock Research Command Center to make evidence gaps visible during company research. The [interactive English demo](https://yuzej21.github.io/Stock-Analysis/) follows a fictional company through financial trends, peer context, a valuation assumption, research notes, and a Monitor follow-up. You can compare two fixed observations and record why the follow-up is Reviewed or Still open. That decision resets on reload.
 
-Data readiness first. Analysis second. Research decision last.
+A [separate AMD case](https://yuzej21.github.io/Stock-Analysis/amd.html) uses a dated SEC filing and keeps unsupported public peer valuation withheld. The wider Python and Streamlit workspace runs locally. I built it as a research-only portfolio project.
 
-The core workflow is Research Desk -> Discover -> Company Workbench -> Monitor. It helps me choose a reviewable company, bring business trend, valuation, forward evidence, uncertainty, and the next research task into one place, then monitor only source-backed changes.
+## Share and Source Boundaries
 
-What matters most is what the product refuses to invent. If actuals, consensus, valuation, catalysts, outcomes, backtesting, or calibration evidence is unavailable, the relevant conclusion stays withheld and the missing proof remains visible. Technical provenance stays under Advanced Evidence unless it is needed to understand the research answer.
-
-What it includes:
-
-- Research Desk for a bounded weekly research queue.
-- Discover for readiness-backed company selection without a buy ranking.
-- Company Workbench for an answer-first one-company review.
-- Monitor for source-backed evidence changes and truthful wait states.
-- Advanced Data Health and Proof History for provenance and missing-input review.
-- Research-only guardrails: no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions.
-
-This is a local portfolio beta, not a hosted product or market-validated service. The project demonstrates how I approach research workflow, evidence quality, product boundaries, and fail-closed decision support.
-
-GitHub: https://github.com/YuzeJ21/Stock-Analysis
-
-## Copy/Paste LinkedIn Profile Updates
-
-LinkedIn Featured title:
-
-`Stock Research Command Center | Evidence-First Company Research`
-
-LinkedIn Featured description:
-
-`Follow a fictional company from search to Monitor. Inspect financial trends, see why a peer valuation appears or stays withheld, and add a research follow-up. The English demo uses synthetic data.`
-
-Featured link: [Open the English company research demo](https://yuzej21.github.io/Stock-Analysis/).
-
-GitHub About description:
-
-`Readiness-first local stock research dashboard for source-gated analysis workflows`
-
-GitHub topics:
-
-`python`, `research-tool`, `streamlit`, `data-readiness`, `equity-research`, `stock-research`
-
-About-section sentence:
-
-`I also build portfolio projects that turn messy data-readiness problems into guided product workflows, including a readiness-first Stock Research Command Center for equity research review.`
-
-Optional LinkedIn post:
-
-`I have been building a Stock Research Command Center as a local Python and Streamlit portfolio project. The core workflow is Research Desk -> Discover -> Company Workbench -> Monitor: select a reviewable company, see the evidence that can be used now, keep unsupported conclusions withheld, and monitor verified changes. The app stays research-only with no broker integration, auto-trading, order routing, or investment advice. It is a GitHub demo with real product screenshots and local run instructions, not a hosted-product, complete-coverage, or market-validation claim.`
-
-What not to claim:
-
-- Do not call it an investment-advice tool, stock picker, broker integration, execution system, account-action workflow, or data-freshness proof.
-- Do not imply blocked fundamentals, peer valuation, earnings, or analyst-estimate lanes are complete.
-- Do not describe the repository as open source or reusable software under the current controlled demo license.
-- Describe GitHub Pages as a synthetic company case and Streamlit as the separate full workspace.
-- Do not imply FMP, Alpha Vantage, or Finnhub provider fallbacks are configured unless local keys are actually set and a reviewed one-ticker smoke has passed.
-
-Featured thumbnail: use `docs/assets/linkedin-public-dashboard.png`. It is a real Workbench answer-first screenshot showing one selected-company answer, usable and withheld evidence, the Data Health handoff, and the stop condition without publishing changing coverage figures. Keep `docs/assets/operator-data-health-metrics-real.jpg` only for deeper operator-mode discussion. The plain GitHub URL card can use GitHub's generated OpenGraph image, so use LinkedIn Featured when you want the curated product screenshot.
-
-LinkedIn can cache older GitHub preview images. If the Featured card still shows the old screenshot after GitHub is pushed, remove and re-add the Featured link, or refresh the URL through LinkedIn's post inspector before adding it again.
-
-## Final LinkedIn Visual Checklist
-
-Use this after the reviewed feature is present at the link target:
-
-1. Open your LinkedIn profile and confirm the Featured card title matches `Stock Research Command Center | Evidence-First Company Research`.
-2. Confirm the Featured card description names Research Desk -> Discover -> Company Workbench -> Monitor and keeps the research-only, no-broker, no-auto-trading, and no-investment-advice boundaries.
-3. Confirm the Featured image is the reviewed Workbench answer-first screenshot at `docs/assets/linkedin-public-dashboard.png`.
-4. If LinkedIn shows a generated GitHub URL card instead, leave it only if you are okay with GitHub's OpenGraph image; otherwise remove and re-add the Featured item with the curated screenshot.
-5. Use the stable GitHub repository link only after this feature reaches the default branch. Until then, keep the stable item or label any non-default review link `Draft engineering preview`.
-6. Open the GitHub link from LinkedIn and confirm the README starts with `External Reviewer Start Here` and names the GitHub/local-app boundary before deeper operator detail.
-7. Stop before claiming screenshots prove current data freshness, changing coverage figures, provider-key activation, hosting, market validation, or investment advice.
-
-## Resume Bullet Options
-
-- Built a Python and Streamlit stock research command center that evaluates market-wide ticker readiness before generating research decisions.
-- Designed a CSV-first data pipeline covering price, momentum, liquidity, correlation, fundamentals, DCF, peer mapping, earnings, and analyst-estimate readiness.
-- Implemented readiness-aware decision outputs that separate `Research Now`, `Monitor`, and `Blocked by Data` states with explicit blockers and next actions.
-- Added single-stock At A Glance, Reader Guide, Evaluation Snapshot, Proof Checklist, Best Review Path, Analysis Quality, Methodology, Evaluation Function Check, and Copyable Proof Commands sections to explain whether each report supports DCF-ready review, standalone DCF review, monitor-only context, price/setup review, or data-needed-before-analysis work, with the valuation boundary and DCF method path visible before detailed report tables.
-- Added source readiness checks, preview-first local import validation, rejected-row reporting, and research-only guardrails to prevent overclaims.
-- Documented which parts are original analysis rules, which parts are support libraries, and which actions remain permanently out of scope.
-- Created deterministic tests for report wording, dashboard helpers, readiness gates, decision consistency, and no broker/order/trading language.
+- Screenshots are product evidence only. They are not data-freshness proof and do not establish source rights or complete coverage. `make readiness-ops-center` reports current selected-profile lane truth. `make status-check TOP_N=5` describes a saved generated snapshot that can be stale.
+- Coverage boundary. Prices have broader local coverage, while fundamentals, share count, peer mapping, earnings, and analyst estimates can remain blocked or locked.
+- Provider boundary. FMP, Alpha Vantage, and Finnhub are optional local fallbacks and are not configured by default. Provider setup alone does not establish a qualified source-backed lane.
+- Share under the controlled portfolio/demo license. Do not describe the repository as open-source reuse or a commercial data product.
+- The project does not provide investment advice, connect to a broker, route orders, auto-trade, or give direct buy or sell instructions. It is research-only.
 
 ## Demo Talking Points
 
-- In GitHub, start with the README example map and click the tracked sample reports under `outputs/stock_reports/`.
-- Use `docs/PUBLIC_DEMO_WALKTHROUGH.md` as the short live-demo script.
-- Start with `make status-check TOP_N=5` to show the read-only command-center summary without refreshing local artifacts.
-- Open `outputs/stock_reports/nvda.md` to show a company report with At A Glance status, Evaluation Snapshot, Proof Checklist, Best Review Path, method cue, DCF assumptions, DCF formula path, Analysis Quality notes, Methodology, Evaluation Function Check, and Copyable Proof Commands.
-- Open `outputs/stock_reports/a.md` or `outputs/stock_reports/mu.md` to show standalone DCF review where peer-relative valuation is still locked; `MU` now shows mapped-peer valuation inputs as the next proof path.
-- Open `outputs/stock_reports/meta.md` to show price/setup review where valuation remains gated until trusted fundamentals and DCF inputs are ready.
-- Open `outputs/stock_reports/qqq.md` or `outputs/stock_reports/smh.md` to show ETF/index monitor handling where DCF and peer valuation are excluded, not failed.
-- Open `outputs/stock_reports/apld.md` or `outputs/stock_reports/crdo.md` to show how the product handles blocked data without inventing valuation conclusions, including the exact copyable local commands for the next proof step and one-company pilot packet.
-- Run `make next-stage` before operator proof queues when someone asks what the current safest next move is.
-- Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted.
-- Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates.
-- Keep lane-level operator views, coverage frontier details, reviewed batch packets, and validate / preview / apply guidance as follow-up context after the public workflow is clear.
-- Run `DRY_RUN=1 make reviewed-batch LANE=prices TOP_N=10` to preview a copy-only reviewed batch packet with dry-run, capped execution, validation, rollback, and proof fields before intentionally writing packet artifacts.
-- Use the one-company evidence packet to explain that a useful coverage win needs before/after proof, source evidence, and a rebuilt report, not just a new CSV row.
-- Explain that the pilot is intentionally small: pick 5-10 operating companies where the missing input can be source-reviewed, and leave the rest visibly blocked by missing data until trusted rows exist.
-- Mention that `QQQ` and `SMH` demonstrate monitor context; the company pilot should use operating-company tickers.
-- Run `make dashboard` locally and open `http://localhost:8501/?mode=public` to show the clean visitor workflow: Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History. Turn off Public visitor mode only when you want Operator context, coverage frontier details, reviewed batch packets, and validate / preview / apply guidance.
-- Point to `docs/METHODOLOGY.md` when someone asks how the analysis is calculated, to `docs/analysis_capability_audit.md` when someone asks what is strong or intentionally limited today, and to `docs/DATA_STRATEGY.md` when someone asks how coverage can improve without fabricating fundamentals, peers, earnings, or estimates.
-- Mention that the project is intentionally research-only and does not connect to a broker or place trades.
+- Begin with the linked English demo. Use the [Public Demo Walkthrough](PUBLIC_DEMO_WALKTHROUGH.md) for the short path.
+- If asked about real evidence, open the dated AMD case and its SEC filing links. Do not present the fictional disposition as an AMD decision.
+- If asked about the full product, explain the local Research Desk -> Discover -> Company Workbench -> Monitor path and the exact-pair NEM, AMD, and DUK review scope.
+- Keep lane-level operator views, reviewed batch packets, provider setup, and validate / preview / apply guidance as follow-up context. The [Data Strategy](DATA_STRATEGY.md) and [Analysis Capability Audit](analysis_capability_audit.md) explain missing inputs and method limits.
+- Historical picks, portfolio, ranking, and watchlist views are Operator-only compatibility utilities. They are not current Personal Research features.
+
+Project repository [Stock Research Command Center](https://github.com/YuzeJ21/Stock-Analysis)

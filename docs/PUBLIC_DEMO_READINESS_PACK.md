@@ -1,6 +1,8 @@
 # Public Demo Readiness Pack
 
-This pack is research-only. It shows readiness states, blocked inputs, and proof commands; it is not investment advice and it does not connect to brokers or route orders.
+This pack is research-only. It shows readiness states, blocked inputs, and proof commands. It is not investment advice and it does not connect to brokers or route orders.
+
+Start public sharing with the [fictional English company demo](https://yuzej21.github.io/Stock-Analysis/). The [dated AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) is separate. The local five-page visitor path below is a controlled Streamlit snapshot, while Personal Research opens by default at `make dashboard`.
 
 Start with the product flow before opening operator proof commands:
 
@@ -14,7 +16,7 @@ Use the table below as evidence after the visitor can already explain what is re
 
 | Slot | Artifact / command | What it proves |
 | --- | --- | --- |
-| Visitor workflow | `make dashboard` then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History | First-screen product path and readiness-first route sequence. |
+| Visitor workflow | `make demo-dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History | First-screen controlled visitor route sequence. |
 | Status gate | `make project-status-check` | Current safest proof path, provider setup boundary, and whether company candidates are executable. |
 | Provider setup | `make provider-setup-checklist` | Source setup steps when source-proof queues are exhausted; no imports or generated data are applied. |
 | Scope selection | `make universe-scope TOP_N=10` | Choose active-universe, ticker-list, sector/theme, ready-only, or missing-data scope before deeper review. |

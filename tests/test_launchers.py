@@ -1273,12 +1273,14 @@ def test_linkedin_share_check_prints_read_only_final_checklist():
     output = result.stdout
     assert "LinkedIn Share Check" in output
     assert "Read-only: this target prints the final LinkedIn visual checklist only." in output
-    assert "Stock Research Command Center | Evidence-First Company Research" in output
+    assert "Stock Research Command Center | Interactive Company Research" in output
     assert "Research Desk -> Discover -> Company Workbench -> Monitor" in output
-    assert "stable GitHub repository link only after this reviewed feature reaches the default branch" in output
-    assert "Draft engineering preview" in output
+    assert "https://yuzej21.github.io/Stock-Analysis/" in output
+    assert "Review saved evidence and record Reviewed or Still open." in output
+    assert "The choice resets on reload." in output
     assert "docs/assets/linkedin-public-dashboard.png" in output
-    assert "GitHub's generated OpenGraph card" in output
+    assert "screenshot of the linked English demo" in output
+    assert "https://yuzej21.github.io/Stock-Analysis/amd.html as the separate dated SEC filing example." in output
     assert "hosting" in output
     assert "screenshots prove current data freshness" in output
     assert "provider-key activation" in output
@@ -2597,46 +2599,29 @@ def test_linkedin_project_brief_uses_current_demo_path_and_analysis_quality():
     brief = Path("docs/LINKEDIN_PROJECT_BRIEF.md").read_text(encoding="utf-8")
 
     for phrase in (
-        "Stock Research Command Center | Evidence-First Company Research",
-        "local Python and Streamlit portfolio beta for evidence-first company research",
+        "Stock Research Command Center | Interactive Company Research",
+        "local Python and Streamlit portfolio beta",
         "Research Desk -> Discover -> Company Workbench -> Monitor",
         "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History",
         "what evidence can be used now",
-        "keep unsupported conclusions withheld",
+        "keeps unsupported conclusions withheld",
         "Data Health and Proof History remain available",
-        "real Workbench answer-first screenshot",
-        "screenshots are product evidence only",
-        "stable GitHub repository link only after this reviewed feature reaches the default branch",
-        "Draft engineering preview",
-        "Operator details stay collapsed until someone intentionally leaves the public path.",
-        "The first story is company research, not operator automation.",
-        "reviewed batch packets, provider setup, validate / preview / apply mechanics",
-        "Use the reviewed `docs/assets/linkedin-public-dashboard.png` Workbench thumbnail",
-        "no broker integration, no order routing, no auto-trading, and no direct buy/sell instructions",
-        "local portfolio beta, not a hosted product or market-validated service",
+        "Use a current screenshot of the linked English demo",
+        "Screenshots are product evidence only",
+        "The [local Workbench screenshot]",
+        "FICT-FY25-01",
+        "FICT-FY25-02",
+        "The disposition and separate personal note reset on reload",
+        "A public full Streamlit deployment remains a separate gate",
         "Run `make project-status-check` first and use `make provider-setup-checklist` when source-proof queues are exhausted.",
         "Do not run trusted-data pilot queues as a LinkedIn demo talking point unless project-status-check shows executable source-backed candidates.",
-        "Keep lane-level operator views, coverage frontier details, reviewed batch packets, and validate / preview / apply guidance as follow-up context after the public workflow is clear.",
-        "one-company evidence packet",
-        "source evidence, and a rebuilt report",
-        "leave the rest visibly blocked by missing data until trusted rows exist",
-        "docs/DATA_STRATEGY.md",
-        "docs/analysis_capability_audit.md",
-        "outputs/stock_reports/nvda.md",
-        "outputs/stock_reports/a.md",
-        "outputs/stock_reports/meta.md",
-        "outputs/stock_reports/qqq.md",
-        "outputs/stock_reports/smh.md",
-        "outputs/stock_reports/apld.md",
+        "Keep lane-level operator views, reviewed batch packets, provider setup, and validate / preview / apply guidance as follow-up context.",
+        "Data Strategy",
+        "Analysis Capability Audit",
         "research-only",
-        "does not connect to a broker or place trades",
-        "README example map",
-        "click the tracked sample reports under `outputs/stock_reports/`",
+        "does not provide investment advice, connect to a broker, route orders, auto-trade",
+        "GitHub-only review",
         "make status-check TOP_N=5",
-        "read-only command-center summary without refreshing local artifacts",
-        "exact copyable local commands for the next proof step",
-        "Readiness-first local stock research dashboard for source-gated analysis workflows",
-        "`python`, `research-tool`, `streamlit`, `data-readiness`, `equity-research`, `stock-research`",
     ):
         assert phrase in brief
 
@@ -3082,7 +3067,7 @@ def test_public_demo_readiness_pack_uses_live_proof_commands_not_stale_snapshot(
 
     assert "Start with the product flow before opening operator proof commands" in pack
     assert "Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in pack
-    assert "Visitor workflow | `make dashboard` then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in pack
+    assert "Visitor workflow | `make demo-dashboard`, open `http://localhost:8501/?mode=public`, then follow Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History" in pack
     assert "operator evidence; they do not refresh data, unlock blocked inputs, or replace the public workflow" in pack
     assert "Current proof timeline" in pack
     assert "Use `make reviewed-data-proof`" in pack

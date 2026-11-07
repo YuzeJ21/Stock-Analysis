@@ -4,7 +4,7 @@ An **Evidence-First Research Workbench** for serious individual equity researche
 
 ## External Reviewer Start Here
 
-[**Open the public company research demo**](https://yuzej21.github.io/Stock-Analysis/). This read-only GitHub Pages demo uses a fictional company and synthetic data; its interactions stay in the browser tab and write no research data. Follow the English workflow without signing in, or [see the dated real AMD filing example](https://yuzej21.github.io/Stock-Analysis/amd.html).
+[**Open the public company research demo**](https://yuzej21.github.io/Stock-Analysis/). This read-only GitHub Pages demo uses a fictional company and synthetic data. Its interactions stay in the browser tab and write no research data. Follow the English workflow without signing in, or [see the dated real AMD filing example](https://yuzej21.github.io/Stock-Analysis/amd.html). [LinkedIn Featured copy](docs/LINKEDIN_PROJECT_BRIEF.md)
 
 ### Two-minute walkthrough
 
@@ -161,7 +161,7 @@ For a share-ready walkthrough, use the [Visitor Workflow Walkthrough](docs/PUBLI
 ## Pilot Share Status
 Share as controlled portfolio/demo evidence under the root `LICENSE`; do not describe the repository as open source or reusable software. Generated CSV/JSON/report churn stays local unless an exact artifact is reviewed as evidence. When source-proof queues are exhausted, use `make project-status-check` -> `make provider-setup-checklist` -> a reviewed one-ticker smoke command. Use `make project-status` only when you intentionally want to refresh the dashboard-ready status snapshot. No broad coverage batch should run from setup alone.
 
-The [public company demo](https://yuzej21.github.io/Stock-Analysis/) is hosted on GitHub Pages and uses only synthetic data. The full Streamlit workspace runs locally through `make demo-dashboard`. A separate Streamlit deployment follows the [Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md) checklist.
+The [public company demo](https://yuzej21.github.io/Stock-Analysis/) is hosted on GitHub Pages and uses only synthetic data. The separate [AMD filing case](https://yuzej21.github.io/Stock-Analysis/amd.html) uses a dated SEC filing. The full Streamlit workspace runs locally through `make dashboard`. A separate Streamlit deployment follows the [Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md) checklist.
 ## Local Data Hygiene
 Small example reports are included for review. Large refreshed files such as `data/prices.csv`, readiness CSVs, and report CSVs are local working data by default. Review them before committing; do not publish broad refresh changes unless intentionally selected.
 
