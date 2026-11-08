@@ -76,6 +76,49 @@ def _timestamp(value):
     return parsed.astimezone(timezone.utc)
 
 
+def _eps_numeric_proof(value):
+    """Recognize a bounded numeric provenance token, never a transport body.
+
+    The existing inline parser rederives the amount from text/scale/sign. This
+    permits exact replay of normalized EPS evidence without approving a source
+    or treating a stored proof as a substitute for its original filing receipt.
+    """
+    required = {'value', 'raw_text', 'scale', 'sign', 'decimals', 'transformation',
+        'context_id', 'unit_id', 'unit', 'concept', 'namespace_uri', 'source_ref'}
+    optional = {'context_source_ref', 'unit_source_ref'}
+    if (not isinstance(value, dict) or not required <= value.keys()
+            or not value.keys() <= required | optional
+            or value.get('concept') != 'EarningsPerShareDiluted' or value.get('unit') != 'USD/shares'
+            or not isinstance(value.get('namespace_uri'), str)
+            or re.fullmatch(r'https?://fasb.org/us-gaap/\d{4}', value['namespace_uri']) is None
+            or type(value.get('value')) not in {int, float}):
+        return False
+    token = value.get('raw_text')
+    if not isinstance(token, str) or not 0 <= len(token) <= 100 or token != token.strip():
+        return False
+    if value.get('transformation') == 'fixed-zero' and token not in {'', '-', '\u2013', '\u2014'}:
+        if re.fullmatch(r'[+-]?0+(?:\.0+)?', token) is None:
+            return False
+    for name in ('context_id', 'unit_id'):
+        if not isinstance(value.get(name), str) or re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.:-]{0,199}', value[name]) is None:
+            return False
+    pattern = (r'https://www\.sec\.gov/Archives/edgar/data/[1-9]\d{0,9}/\d{18}/'
+               r'([A-Za-z0-9][A-Za-z0-9_.-]{0,180}\.(?:htm|html|xhtml))#([A-Za-z0-9_][A-Za-z0-9_.:-]{0,199})')
+    for key in ('source_ref', *optional):
+        if key not in value:
+            continue
+        match = re.fullmatch(pattern, value[key]) if isinstance(value[key], str) else None
+        if match is None or '..' in match[1]:
+            return False
+        if key in optional and match[2] != value['context_id' if key == 'context_source_ref' else 'unit_id']:
+            return False
+    try:
+        from src.sec_inline_filing import valid_numeric_proof
+        return math.isfinite(value['value']) and abs(value['value']) <= 1e20 and valid_numeric_proof(value)
+    except (TypeError, ValueError, OverflowError, AttributeError):
+        return False
+
+
 def _normalized(value):
     """Bound complexity before serializing, reject transport bodies at every level."""
     active = set()
@@ -108,8 +151,9 @@ def _normalized(value):
                 if not isinstance(key, str) or not key or len(key) > 200:
                     raise ValueError('Invalid normalized research context key')
                 name = key.lower()
+                numeric_token = name == 'raw_text' and _eps_numeric_proof(item)
                 if (name in _RAW_KEYS or 'base64' in name or name.endswith('_body')
-                        or name.endswith('_bytes') or name.startswith('raw_') and not name.endswith(('_sha256', '_digest'))):
+                        or name.endswith('_bytes') or name.startswith('raw_') and not name.endswith(('_sha256', '_digest')) and not numeric_token):
                     raise ValueError('Research context must contain normalized observations, not raw/archive fields')
                 visit(child, depth + 1)
         else:

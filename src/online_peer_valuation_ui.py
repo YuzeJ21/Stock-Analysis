@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from src.online_peer_valuation import FISCAL_WINDOW_DAYS, MIN_PEERS
 
 REASONS = {
+    'online_peer_update_not_requested':'Peer research has not been requested for this company.',
     'latest_annual_filing_not_corroborated':'The latest annual SEC filing has not been matched to the current structured financial facts. Refresh financials and peer evidence.',
     'peer_subject_annual_period_differs_from_current_financials':'The peer comparison uses a different annual period from the current company evidence. Refresh peer evidence.',
     'peer_subject_filing_version_differs_from_current_financials':'The peer EPS uses a different annual filing version from the current company evidence. Refresh peer evidence.',

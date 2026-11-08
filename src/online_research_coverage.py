@@ -185,10 +185,17 @@ def run_online_coverage_study(tickers=DEFAULT_SAMPLE,*,user_agent,source_fetcher
     requested=_tickers(tickers); reason=_mode_reason(workspace_mode)
     if reason or requested is None: return {'status':'unavailable','reason':reason or 'invalid_sample'}
     from src.online_sec_receipt import _fetch_raw
-    calls=[];access_limit={}
+    calls=[];access_limit={};profile_cache={}
     def fetch(url,agent):
+        if url in profile_cache:return profile_cache[url]
         calls.append(url)
-        try:return (source_fetcher or _fetch_raw)(url,agent)
+        try:
+            result=(source_fetcher or _fetch_raw)(url,agent)
+            if (re.fullmatch(r'https://data\.sec\.gov/submissions/CIK\d{10}\.json',url)
+                and isinstance(result,tuple) and len(result)==3 and isinstance(result[0],bytes)
+                and len(result[0])<=16*1024*1024):
+                profile_cache[url]=result
+            return result
         except HTTPError as error:
             if error.code in {403,429,503}:
                 retry=error.headers.get('Retry-After') if error.headers else None
@@ -199,6 +206,9 @@ def run_online_coverage_study(tickers=DEFAULT_SAMPLE,*,user_agent,source_fetcher
     if not isinstance(mapping,Mapping) or mapping.get('source_url')!=MAP_URL or mapping.get('status') not in {'ready','unavailable'}: return {'status':'invalid','reason':'invalid_map_receipt'}
     observations=[]
     for ticker in requested:
+        # The financial view and industry projection inspect the same exact
+        # submissions response. Keep only this company's in-attempt raw bytes.
+        profile_cache.clear()
         view={'status':'unavailable','ticker':ticker,'reason':_reason(mapping.get('reason'),'sec_ticker_map_unavailable')}
         profile=None
         if mapping['status']=='ready':

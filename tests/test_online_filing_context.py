@@ -271,7 +271,7 @@ def test_validator_rejects_bad_source_path_after_both_seals_are_recomputed():
         anchor['source_url']='https://www.sec.gov/Archives/edgar/data/1234/000000123426000001/../../report.htm'
     for trigger in inventory['review_triggers']:
         trigger['anchor']=deepcopy(inventory['latest']['annual'])
-    normalized={k:inventory[k] for k in ('issuer','latest','periods','earnings_reports','review_triggers')}
+    normalized={k:inventory[k] for k in ('issuer','latest','periods','earnings_reports','review_triggers','metadata_gaps')}
     inventory['normalized_sha256']=hashlib.sha256(json.dumps(normalized,sort_keys=True,separators=(',',':')).encode()).hexdigest()
     inventory['packet_digest']=hashlib.sha256(json.dumps({k:v for k,v in inventory.items() if k!='packet_digest'},sort_keys=True,separators=(',',':')).encode()).hexdigest()
     assert validated_filing_inventory(inventory,ticker='FICT',expected_cik=CIK,as_of=NOW) is None
@@ -330,3 +330,214 @@ def test_sec_acceptance_precedes_official_filing_date_across_weekend():
     row=_filing('2025-12-31','2026-03-02')
     row['acceptanceDateTime']='2026-02-27T23:44:31Z'
     assert _inventory([row])['status']=='inspection_only'
+
+
+def test_large_raw_catalog_filters_unrelated_forms_before_normalized_limit():
+    rows=[_filing(form='4') for _ in range(3000)]+[_filing()]
+    receipt=_receipt(_profile(rows)); before=deepcopy(receipt)
+    inventory=build_filing_inventory(receipt,ticker='FICT',expected_cik=CIK,as_of=NOW)
+    assert inventory['status']=='inspection_only'
+    assert len(inventory['periods']['annual'])==1
+    assert inventory['source_receipt']['payload_sha256']==receipt['payload_sha256']
+    assert receipt==before
+    assert validated_filing_inventory(inventory,ticker='FICT',expected_cik=CIK,as_of=NOW)
+
+
+@pytest.mark.parametrize('row_count,relevant', [(100001,False),(2001,True)])
+def test_raw_and_relevant_catalog_limits_fail_closed(row_count,relevant):
+    rows=[_filing(form='10-K' if relevant else '4') for _ in range(row_count)]
+    assert _inventory(rows)['status']=='withheld'
+
+
+def test_current_report_event_date_stays_separate_from_financial_chronology():
+    event=_filing('2026-11-05','2026-11-05','0000001234-26-000031','8-K')
+    event['acceptanceDateTime']='2026-11-04T22:00:00Z'
+    inventory=_inventory([_filing(),event])
+    assert inventory['status']=='inspection_only'
+    report=inventory['earnings_reports'][0]
+    assert report['period_end'] is None and report['report_date']=='2026-11-05'
+    assert inventory['latest']['annual']['period_end']=='2025-12-31'
+    assert validated_filing_inventory(inventory,ticker='FICT',expected_cik=CIK,as_of=NOW)
+    event['form']='10-Q'
+    assert _inventory([_filing(),event])['status']=='withheld'
+
+
+@pytest.mark.parametrize('document',['report.xml','report.txt','report.pdf','paper','report.xhtml'])
+def test_safe_legacy_document_metadata_never_claims_parser_support(document):
+    event=_filing('2026-08-20','2026-08-01','0000001234-26-000031','6-K')
+    event['primaryDocument']=document
+    inventory=_inventory([_filing(),event])
+    assert inventory['status']=='inspection_only'
+    report=inventory['earnings_reports'][0]
+    assert report['primary_document']==document and report['period_end'] is None
+    assert report['source_url'].endswith('/'+document)
+    assert 'parser_supported' not in report
+    assert validated_filing_inventory(inventory,ticker='FICT',expected_cik=CIK,as_of=NOW)
+
+
+@pytest.mark.parametrize('document',['../report.pdf','%2e%2e/report.pdf','sub/report.xml','report.txt?x=1','report.pdf#x','report.exe'])
+def test_metadata_extension_support_does_not_accept_unsafe_or_unknown_paths(document):
+    event=_filing('2026-08-20','2026-08-01','0000001234-26-000031','6-K')
+    event['primaryDocument']=document
+    assert _inventory([_filing(),event])['status']=='withheld'
+
+
+def test_malformed_latest_financial_row_cannot_restore_older_annual():
+    latest=_filing('2026-06-30','2026-08-01','0000001234-26-000099')
+    latest['acceptanceDateTime']='2026-06-01T12:00:00Z'
+    assert _inventory([_filing(),latest])['status']=='withheld'
+
+
+def _foreign_financial_and_inventory(*, amendment=False):
+    from test_sec_industry_financials import _foreign_payload
+    from src.sec_foreign_financials import build_sec_foreign_financials
+    financial=_financial(); financial.pop('annual_history'); financial.pop('quarterly_history')
+    financial['status']='unavailable'
+    financial['foreign_financials']=build_sec_foreign_financials('FICT',_foreign_payload(),expected_cik=CIK,
+        observed_at=financial['companyfacts_identity']['observed_at'],source_url=FACTS,payload_sha256='a'*64)
+    rows=[_filing(form='20-F'),_filing('2026-08-20','2026-08-01','0000001234-26-000002','6-K')]
+    if amendment:
+        rows.append(_filing('2026-08-20','2026-10-01','0000001234-26-000003','6-K/A'))
+    return financial,_inventory(rows)
+
+
+def test_validated_6k_quarter_and_interim_join_exact_source_without_event_date_inference():
+    financial,inventory=_foreign_financial_and_inventory()
+    assert inventory['latest']['quarterly'] is None
+    coverage=corroborate_online_financials(financial,inventory,as_of=NOW)
+    for kind,start in [('quarterly','2026-04-01'),('interim','2026-01-01')]:
+        state=coverage['periods'][kind]['2026-06-30']
+        assert state['status']=='corroborated'
+        assert state['reason']=='exact_structured_duration_and_filing'
+        assert state['anchor']['period_start']==start
+        assert state['anchor']['period_end']=='2026-06-30'
+        assert state['anchor']['report_date']=='2026-08-20'
+        assert coverage['current'][kind]==state
+    assert coverage['current']['annual']['status']=='corroborated'
+
+
+@pytest.mark.parametrize('change',['missing_source','wrong_filed'])
+def test_6k_financial_duration_cannot_corroborate_without_exact_metadata(change):
+    financial,inventory=_foreign_financial_and_inventory()
+    rows=[_filing(form='20-F')]
+    if change=='wrong_filed': rows.append(_filing('2026-08-20','2026-08-02','0000001234-26-000002','6-K'))
+    inventory=_inventory(rows)
+    coverage=corroborate_online_financials(financial,inventory,as_of=NOW)
+    for kind in ('quarterly','interim'):
+        assert coverage['periods'][kind]['2026-06-30']['status']=='withheld'
+        assert coverage['current'][kind]['status']=='withheld'
+
+
+def test_unresolved_6k_amendment_holds_only_its_structured_period():
+    financial,inventory=_foreign_financial_and_inventory(amendment=True)
+    coverage=corroborate_online_financials(financial,inventory,as_of=NOW)
+    assert coverage['current']['annual']['status']=='corroborated'
+    assert coverage['current']['quarterly']['status']=='amendment_unresolved'
+    assert coverage['current']['interim']['status']=='amendment_unresolved'
+
+
+def test_later_6k_event_alone_does_not_fabricate_a_new_financial_period():
+    financial,inventory=_foreign_financial_and_inventory()
+    rows=[_filing(form='20-F'),_filing('2026-08-20','2026-08-01','0000001234-26-000002','6-K'),
+          _filing('2026-11-01','2026-11-01','0000001234-26-000033','6-K')]
+    inventory=_inventory(rows)
+    coverage=corroborate_online_financials(financial,inventory,as_of=NOW)
+    assert coverage['current']['quarterly']['anchor']['period_end']=='2026-06-30'
+    assert '2026-11-01' not in coverage['periods']['quarterly']
+    assert inventory['latest']['quarterly'] is None
+    assert any(t['anchor']['accession']=='0000001234-26-000033' for t in inventory['review_triggers'])
+
+
+def test_safe_paper_suffix_is_metadata_only():
+    row=_filing('2024-12-01','2025-01-01','0000001234-25-000033','6-K')
+    row['primaryDocument']='0000001234-25-000033.paper'
+    assert _inventory([_filing(),row])['status']=='inspection_only'
+
+
+def test_old_missing_document_is_explicit_gap_without_holding_current_annual():
+    row=_filing('1999-12-31','2000-03-01','0000001234-00-000001','20-F')
+    row['primaryDocument']=''
+    inventory=_inventory([_filing(),row])
+    assert inventory['status']=='inspection_only'
+    assert inventory['latest']['annual']['period_end']=='2025-12-31'
+    assert inventory['metadata_gaps'][0]['reason']=='primary_document_unavailable'
+    assert inventory['metadata_gaps'][0]['source_url'] is None
+    assert validated_filing_inventory(inventory,ticker='FICT',expected_cik=CIK,as_of=NOW)
+
+
+@pytest.mark.parametrize('form,end', [('10-K','2026-06-30'),('10-Q','2026-06-30')])
+def test_latest_financial_missing_document_holds_catalog_without_older_fallback(form,end):
+    row=_filing(end,'2026-08-01','0000001234-26-000099',form)
+    row['primaryDocument']=''
+    inventory=_inventory([_filing(),row])
+    assert inventory['status']=='withheld'
+    assert inventory['latest']['annual'] is None and inventory['latest']['quarterly'] is None
+
+
+def test_old_period_missing_amendment_document_holds_only_affected_period():
+    row=_filing('2024-12-31','2026-10-01','0000001234-26-000019','10-K/A')
+    row['primaryDocument']=''
+    inventory=_inventory([_filing(),_filing('2024-12-31','2025-03-01','0000001234-25-000001'),row])
+    coverage=corroborate_online_financials(_financial(),inventory,as_of=NOW)
+    assert coverage['current']['annual']['status']=='corroborated'
+    assert coverage['periods']['annual']['2024-12-31']['status']=='withheld'
+    assert coverage['periods']['annual']['2024-12-31']['reason']=='filing_document_metadata_unavailable'
+
+
+def test_hundred_thousand_raw_rows_with_one_period_remain_bounded_and_usable():
+    rows=[_filing(form='4') for _ in range(99999)]+[_filing()]
+    assert _inventory(rows)['status']=='inspection_only'
+
+
+def test_ambiguous_newer_10q_cannot_fall_back_to_older_6k_structured_quarter():
+    financial,_=_foreign_financial_and_inventory()
+    rows=[_filing(form='20-F'),_filing('2026-08-20','2026-08-01','0000001234-26-000002','6-K'),
+          _filing('2026-09-30','2026-10-20','0000001234-26-000010','10-Q'),
+          _filing('2026-09-30','2026-10-20','0000001234-26-000011','10-Q')]
+    coverage=corroborate_online_financials(financial,_inventory(rows),as_of=NOW)
+    assert coverage['current']['quarterly']['status']=='withheld'
+    assert coverage['current']['quarterly']['reason']=='ambiguous_filing_version'
+
+
+def test_newer_foreign_period_missing_revenue_does_not_restore_older_6k_success():
+    from test_sec_industry_financials import _foreign_payload, _record
+    from src.sec_foreign_financials import build_sec_foreign_financials
+    financial,_=_foreign_financial_and_inventory()
+    payload=_foreign_payload()
+    payload['facts']['ifrs-full']['ProfitLossFromOperatingActivities']['units']['EUR'].append(
+        _record('2026-07-01','2026-09-30',9,'2026-10-20','6-K','0000001234-26-000003'))
+    financial['foreign_financials']=build_sec_foreign_financials('FICT',payload,expected_cik=CIK,
+        observed_at=financial['companyfacts_identity']['observed_at'],source_url=FACTS,payload_sha256='a'*64)
+    rows=[_filing(form='20-F'),_filing('2026-08-20','2026-08-01','0000001234-26-000002','6-K'),
+          _filing('2026-10-20','2026-10-20','0000001234-26-000003','6-K')]
+    coverage=corroborate_online_financials(financial,_inventory(rows),as_of=NOW)
+    assert coverage['periods']['quarterly']['2026-06-30']['status']=='corroborated'
+    assert coverage['periods']['quarterly']['2026-09-30']['status']=='withheld'
+    assert coverage['current']['quarterly']['status']=='withheld'
+
+
+def test_unrelated_older_6k_amendment_does_not_hold_newer_financial_duration():
+    financial,_=_foreign_financial_and_inventory()
+    rows=[_filing(form='20-F'),_filing('2026-08-20','2026-08-01','0000001234-26-000002','6-K'),
+          _filing('2025-08-20','2026-10-20','0000001234-26-000003','6-K/A')]
+    coverage=corroborate_online_financials(financial,_inventory(rows),as_of=NOW)
+    assert coverage['current']['quarterly']['status']=='corroborated'
+    assert coverage['current']['interim']['status']=='corroborated'
+
+
+def test_older_source_qualified_6k_periods_remain_history_when_newer_annual_is_known():
+    financial,_=_foreign_financial_and_inventory()
+    rows=[_filing(form='20-F'),_filing('2026-08-20','2026-08-01','0000001234-26-000002','6-K'),
+          _filing('2026-09-30','2026-10-20','0000001234-26-000099','20-F')]
+    coverage=corroborate_online_financials(financial,_inventory(rows),as_of=NOW)
+    for kind in ('quarterly','interim'):
+        assert coverage['periods'][kind]['2026-06-30']['status']=='corroborated'
+        assert coverage['current'][kind]['status']=='withheld'
+        assert coverage['current'][kind]['reason']=='newer_reporting_period_known'
+        assert coverage['current'][kind]['anchor']['period_end']=='2026-06-30'
+
+
+def test_latest_missing_financial_document_returns_precise_held_reason():
+    row=_filing('2026-06-30','2026-08-01','0000001234-26-000099')
+    row['primaryDocument']=''
+    assert _inventory([_filing(),row])['reason']=='latest_filing_document_metadata_unavailable'

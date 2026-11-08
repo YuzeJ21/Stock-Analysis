@@ -84,10 +84,10 @@ def _price_answer(ticker, prices, association):
                  (('Yahoo daily price source', price['source_url']),))
 
 
-def _comparable_revenue(financial, period, kind):
+def _comparable_revenue(financial, period, kind, unit='USD'):
     if kind == 'annual':
         history = validated_annual_history(financial) if financial.get('status') == 'inspection_only' else None
-        if history:
+        if history and history['unit'] == unit:
             for comparison in history['comparisons']:
                 if comparison['to_period'] == period and comparison['status'] == 'comparable':
                     prior = next(row for row in history['periods'] if row['period_end'] == comparison['from_period'])
@@ -95,7 +95,7 @@ def _comparable_revenue(financial, period, kind):
     if kind != 'quarterly':
         return None
     history = validated_quarterly_history(financial)
-    if not history:
+    if not history or history['unit'] != unit:
         return None
     periods = history['periods']
     current = next((row for row in periods if row['period_end'] == period and row['status'] == 'available'), None)
@@ -148,7 +148,7 @@ def _financial_answer(projection, financial):
     cik = financial.get('sec_cik')
     if isinstance(cik, str) and re.fullmatch(r'\d{10}', cik) and isinstance(accession, str) and re.fullmatch(r'\d{10}-\d{2}-\d{6}', accession):
         links.append(('SEC filing index', f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-", "")}/{accession}-index.htm'))
-    comparison = _comparable_revenue(financial, end, kind)
+    comparison = _comparable_revenue(financial, end, kind, unit)
     context = f'Period ended {end}'
     if comparison:
         basis, direction, prior_date, prior_value = comparison

@@ -44,11 +44,13 @@ The full local workspace follows **Research Desk → Discover → Company Workbe
 | Destination | Research task |
 | --- | --- |
 | **Research Desk** | Search for a company online, resume saved SEC research, or open Monitor. |
-| **Discover** | Switch between online company search and saved companies. Open optional coverage studies when needed. |
+| **Discover** | Switch between online company search and saved companies. Optional **Coverage studies → Self-service** inspects twelve declared companies and keeps failures and exclusions visible. |
 | **Company Workbench** | Review one company through five connected sections, with financial, price, and source context. |
 | **Monitor** | Revisit saved questions and evidence changes: User-authored follow-ups for notes, saved SEC comparisons, and the Follow-up Queue for legacy process items. Return to the company or exact pair. |
 
 Company search accepts a name or ticker, including companies absent from local CSVs. Press **Research company** to collect online SEC financials, check the latest annual and quarterly filings, load dated prices and attempt the existing peer comparison. The company rail keeps five sections beside a focused analysis area, with a stacked layout on phones. Separate refresh options remain available; changing sections reuses loaded observations without new requests. **No coding session or prepared company CSVs are required for the supported online workflow.**
+
+The optional self-service study uses **Inspect next company**, **Recheck company** and **Restart study**. It reports ten separate capabilities for a fixed semiconductor, bank, utility and foreign-issuer sample; navigation makes no source requests. Its replay check uses disposable private storage and writes no user notes or evidence. [Sample, measured results and boundaries](docs/CROSS_INDUSTRY_SELF_SERVICE.md)
 
 ## What You Can Do
 
@@ -136,8 +138,8 @@ The supported workflow is research-only. Investment advice, broker account actio
 
 | Stage | Current focus |
 | --- | --- |
-| **Available today** | A local research beta with self-service online filing checks, trends, hypothetical scenarios, issuer notes and private snapshot/Monitor replay. Existing saved tools, the bounded MRVL review, English public demo, dated AMD filing case and annual review for NEM, AMD, and DUK remain available. |
-| **Next** | Measure the generic filing-and-tool workflow across the semiconductor, bank, utility and foreign-issuer sample, then address the largest verified gap. Preserve price, identity, period, definition and rights requirements. |
+| **Available today** | A local research beta with online filing checks, trends, hypothetical scenarios, issuer notes, private snapshot/Monitor replay and a fixed twelve-company capability study. Existing saved tools, bounded MRVL review, English public demo, dated AMD filing case and annual review for NEM, AMD, and DUK remain available. |
+| **Next** | Resolve measured peer-source/retention failures, inspect exact filed facts for current gaps, and extend native-currency and bounded replay support. Preserve price, identity, period, definition, size and rights requirements. |
 | **Later gates** | Hosted full-workspace operation, authentication and private workspaces, operated data rights, provider reliability, independent user evidence, and commercial validation. |
 
 The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the current local decision ladder.
@@ -152,7 +154,7 @@ For current selected-profile readiness, use `make readiness-ops-center`. A saved
 | Local research workflow | [Personal Research Mode](docs/PERSONAL_RESEARCH_MODE.md) · [Data Profiles](docs/DATA_PROFILES.md) |
 | Financials and valuation | [Online Company Research](docs/ONLINE_COMPANY_RESEARCH.md) · [Online Peer Valuation](docs/ONLINE_PEER_VALUATION.md) |
 | Evidence and calculations | [Saved SEC Reviews](docs/SEC_RESEARCH_REVIEWS.md) · [Research Methodology](docs/METHODOLOGY.md) · [Analysis Capability Audit](docs/analysis_capability_audit.md) |
-| Coverage and sources | [Online Coverage Method](docs/ONLINE_RESEARCH_COVERAGE.md) · [Data Strategy](docs/DATA_STRATEGY.md) |
+| Coverage and sources | [Self-service capability study](docs/CROSS_INDUSTRY_SELF_SERVICE.md) · [Online Coverage Method](docs/ONLINE_RESEARCH_COVERAGE.md) · [Data Strategy](docs/DATA_STRATEGY.md) |
 | Setup, maintenance, and release | [Local Workflow Guide](docs/OPERATOR_GUIDE.md) · [Hosted Demo Deployment](docs/HOSTED_DEMO_DEPLOYMENT.md) · [Public Release Checklist](docs/PUBLIC_RELEASE_CHECKLIST.md) |
 
 <details>

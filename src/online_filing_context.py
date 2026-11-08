@@ -15,12 +15,17 @@ import re
 
 from src.company_sec_online_preview import ANNUAL_FORMS, _iso_date, _utc_timestamp, _finite_direct_number
 from src.online_company_identity import _mode_reason, financial_identity_valid
+from src.online_sec_receipt import MAX_SEC_RESPONSE_BYTES
 
 SCHEMA = 'online-filing-inventory-v1'
 COMPONENT_SCHEMA = 'online-earnings-components-v1'
 RIGHTS = 'personal_inspection_only'
 MAX_NORMALIZED_BYTES = 2 * 1024 * 1024
+MAX_CATALOG_ROWS = 100000
+MAX_RELEVANT_REPORTS = 2000
 _FORMS = {'annual': ANNUAL_FORMS, 'quarterly': frozenset({'10-Q', '10-Q/A'})}
+_CURRENT_FORMS = frozenset({'8-K', '8-K/A', '6-K', '6-K/A'})
+_RELEVANT_FORMS = ANNUAL_FORMS | _FORMS['quarterly'] | _CURRENT_FORMS
 _COLUMNS = ('accessionNumber', 'form', 'reportDate', 'filingDate', 'acceptanceDateTime', 'primaryDocument')
 _ANCHOR_KEYS = {'accession', 'form', 'period_end', 'report_date', 'filed', 'accepted_at', 'primary_document', 'source_url', 'amendment'}
 _FIELDS = {
@@ -83,21 +88,26 @@ def _safe_text(value, maximum=240):
     return isinstance(value, str) and 0 < len(value) <= maximum and value == value.strip() and not any(ord(c) < 32 or ord(c) == 127 for c in value)
 
 
-def _valid_anchor(anchor, cik, observed, forms):
+def _valid_anchor(anchor, cik, observed, forms, *, allow_absent_document=False):
     if not isinstance(anchor, Mapping) or set(anchor) != _ANCHOR_KEYS:
         return False
     end, filed = _iso_date(anchor.get('period_end')), _iso_date(anchor.get('filed'))
     accepted = _utc_timestamp(anchor.get('accepted_at'))
     accession, document = anchor.get('accession'), anchor.get('primary_document')
-    event_without_date = anchor.get('form') in {'8-K', '8-K/A', '6-K', '6-K/A'} and anchor.get('period_end') is None
-    if ((not end and not event_without_date) or not filed or not accepted
+    current_report = isinstance(anchor.get('form'), str) and anchor['form'] in _CURRENT_FORMS
+    report_date = _iso_date(anchor.get('report_date'))
+    if ((not current_report and not end) or not filed or not accepted
             or not filed <= observed.date() or not accepted.date() <= observed.date() or accepted > observed
-            or end is not None and (end > filed or end > accepted.date())
-            or anchor.get('report_date') != anchor.get('period_end')
+            or not current_report and (end > filed or end > accepted.date() or anchor.get('report_date') != anchor.get('period_end'))
+            or current_report and (anchor.get('report_date') is not None and report_date is None
+                                   or anchor.get('period_end') is not None)
             or not isinstance(anchor.get('form'), str) or anchor['form'] not in forms
             or type(anchor.get('amendment')) is not bool or anchor['amendment'] != anchor['form'].endswith('/A')
-            or not isinstance(accession, str) or re.fullmatch(r'\d{10}-\d{2}-\d{6}', accession) is None
-            or not isinstance(document, str) or re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]{0,180}\.(?:htm|html|xhtml)', document) is None
+            or not isinstance(accession, str) or re.fullmatch(r'\d{10}-\d{2}-\d{6}', accession) is None):
+        return False
+    if document is None or anchor.get('source_url') is None:
+        return allow_absent_document and document is None and anchor.get('source_url') is None
+    if (not isinstance(document, str) or re.fullmatch(r'(?:[A-Za-z0-9][A-Za-z0-9_.-]{0,180}\.(?:htm|html|xhtml|xml|txt|pdf|paper)|paper)', document) is None
             or '..' in document):
         return False
     return anchor.get('source_url') == f'https://www.sec.gov/Archives/edgar/data/{int(cik)}/{accession.replace("-", "")}/{document}'
@@ -120,7 +130,18 @@ def _latest(rows):
 
 
 def _normalized(packet):
-    return {k: packet[k] for k in ('issuer', 'latest', 'periods', 'earnings_reports', 'review_triggers')}
+    keys = ('issuer', 'latest', 'periods', 'earnings_reports', 'review_triggers')
+    return {k: packet[k] for k in (*keys, 'metadata_gaps') if k in packet}
+
+
+def _valid_metadata_gap(gap, cik, observed):
+    """Validate metadata with an absent document without creating a source URL."""
+    if (not isinstance(gap, Mapping) or set(gap) != _ANCHOR_KEYS | {'reason'}
+            or gap.get('reason') != 'primary_document_unavailable'
+            or gap.get('primary_document') is not None or gap.get('source_url') is not None):
+        return False
+    metadata = {k: gap[k] for k in _ANCHOR_KEYS}
+    return _valid_anchor(metadata, cik, observed, _RELEVANT_FORMS, allow_absent_document=True)
 
 
 def _seal(packet):
@@ -134,7 +155,7 @@ def _empty(ticker, cik, reason):
     return _seal(dict(schema_version=SCHEMA, status='withheld', reason=reason, ticker=ticker if isinstance(ticker, str) else None,
         sec_cik=cik if isinstance(cik, str) else None, observed_at=None, source_receipt=None, source_receipts=[],
         issuer=dict(name=None, sic=None, entity_type=None, fiscal_year_end=None),
-        latest=dict(annual=None, quarterly=None), periods=dict(annual=[], quarterly=[]), earnings_reports=[], review_triggers=[],
+        latest=dict(annual=None, quarterly=None), periods=dict(annual=[], quarterly=[]), earnings_reports=[], review_triggers=[], metadata_gaps=[],
         rights_status=RIGHTS, commercial_eligible=False, saved_readiness_promoted=False))
 
 
@@ -177,23 +198,35 @@ def build_filing_inventory(receipt, *, ticker, expected_cik, as_of=None):
         if not isinstance(recent, Mapping) or any(not isinstance(recent.get(k), list) for k in _COLUMNS):
             raise ValueError('filing_metadata_schema_invalid')
         length = len(recent['form'])
-        if not 0 <= length <= 2000 or any(len(recent[k]) != length for k in _COLUMNS):
+        if not 0 <= length <= MAX_CATALOG_ROWS or any(len(recent[k]) != length for k in _COLUMNS):
             raise ValueError('filing_metadata_schema_invalid')
+        if any(not isinstance(form, str) for form in recent['form']):
+            raise ValueError('filing_form_invalid')
+        if sum(form in _RELEVANT_FORMS for form in recent['form']) > MAX_RELEVANT_REPORTS:
+            raise ValueError('filing_metadata_scope_oversized')
+        if len(_json(body)) > MAX_SEC_RESPONSE_BYTES:
+            raise ValueError('filing_metadata_source_oversized')
         observed = _utc_timestamp(ref['observed_at'])
         periods = dict(annual=[], quarterly=[])
         reports = []
+        gaps = []
         for i, form in enumerate(recent['form']):
-            if not isinstance(form, str): raise ValueError('filing_form_invalid')
             kind = next((k for k, forms in _FORMS.items() if form in forms), None)
-            if not kind and form not in {'8-K', '8-K/A', '6-K', '6-K/A'}:
+            if not kind and form not in _CURRENT_FORMS:
                 continue
             accession, document = recent['accessionNumber'][i], recent['primaryDocument'][i]
             report_date = recent['reportDate'][i]
             if not kind and report_date in ('', None): report_date = None
-            anchor = dict(accession=accession, form=form, period_end=report_date, report_date=report_date,
+            anchor = dict(accession=accession, form=form, period_end=report_date if kind else None, report_date=report_date,
                 filed=recent['filingDate'][i], accepted_at=recent['acceptanceDateTime'][i], primary_document=document,
                 source_url=f'https://www.sec.gov/Archives/edgar/data/{int(expected_cik)}/{accession.replace("-", "")}/{document}' if isinstance(accession, str) else None,
                 amendment=form.endswith('/A'))
+            if document in ('', None):
+                gap = dict(anchor, primary_document=None, source_url=None, reason='primary_document_unavailable')
+                if not _valid_metadata_gap(gap, expected_cik, observed):
+                    raise ValueError('filing_metadata_invalid')
+                gaps.append(gap)
+                continue
             if not _valid_anchor(anchor, expected_cik, observed, _FORMS[kind] if kind else {form}):
                 raise ValueError('filing_metadata_invalid')
             target = periods[kind] if kind else reports
@@ -201,24 +234,31 @@ def build_filing_inventory(receipt, *, ticker, expected_cik, as_of=None):
         for rows in (*periods.values(), reports): rows.sort(key=_sort)
         # Ambiguous versions remain in their own period; no accession tie-break.
         latest = {kind: _latest(rows) for kind, rows in periods.items()}
+        for kind, forms in _FORMS.items():
+            for gap in gaps:
+                if gap['form'] not in forms:
+                    continue
+                current = latest[kind]
+                if current is None or _sort(gap)[:3] >= _sort(current)[:3]:
+                    raise ValueError('latest_filing_document_metadata_unavailable')
         triggers = [dict(trigger_type='newly_observed_filing', anchor=deepcopy(a)) for a in latest.values() if a]
-        triggers += [dict(trigger_type='reported_earnings_filing' if _earnings_item(recent, a) else 'current_report_filing', anchor=deepcopy(a)) for a in reversed(reports)]
+        items = recent.get('items')
+        earnings = {recent['accessionNumber'][i] for i, value in enumerate(items)
+                    if isinstance(value, str) and '2.02' in re.split(r'[,;\s]+', value)} if isinstance(items, list) and len(items) == length else set()
+        triggers += [dict(trigger_type='reported_earnings_filing' if a['accession'] in earnings else 'current_report_filing', anchor=deepcopy(a)) for a in reversed(reports)]
         packet = dict(schema_version=SCHEMA, status='inspection_only', reason=None, ticker=ticker, sec_cik=expected_cik,
             observed_at=ref['observed_at'], source_receipt=ref, source_receipts=[ref], issuer=issuer, latest=latest,
-            periods=periods, earnings_reports=reports, review_triggers=triggers, rights_status=RIGHTS,
+            periods=periods, earnings_reports=reports, review_triggers=triggers, metadata_gaps=sorted(gaps, key=_sort), rights_status=RIGHTS,
             commercial_eligible=False, saved_readiness_promoted=False)
         if len(_json(packet)) > MAX_NORMALIZED_BYTES: raise ValueError('filing_inventory_oversized')
         return _seal(packet)
-    except (ValueError, TypeError, AttributeError, OverflowError, RecursionError):
+    except ValueError as error:
+        reasons = {'submissions_ticker_mismatch', 'issuer_metadata_invalid', 'filing_metadata_schema_invalid',
+                   'filing_form_invalid', 'filing_metadata_scope_oversized', 'filing_metadata_source_oversized',
+                   'filing_metadata_invalid', 'latest_filing_document_metadata_unavailable', 'filing_inventory_oversized'}
+        return _empty(ticker, expected_cik, str(error) if str(error) in reasons else 'filing_metadata_invalid')
+    except (TypeError, AttributeError, OverflowError, RecursionError):
         return _empty(ticker, expected_cik, 'filing_metadata_invalid')
-
-
-def _earnings_item(recent, anchor):
-    items = recent.get('items')
-    if not isinstance(items, list) or len(items) != len(recent['form']):
-        return False
-    return any(recent['accessionNumber'][index] == anchor['accession'] and isinstance(value, str)
-               and '2.02' in re.split(r'[,;\s]+', value) for index, value in enumerate(items))
 
 
 def validated_filing_inventory(inventory, *, ticker, expected_cik, as_of=None, allow_historical=False):
@@ -254,6 +294,11 @@ def validated_filing_inventory(inventory, *, ticker, expected_cik, as_of=None, a
         reports = inventory.get('earnings_reports')
         if not isinstance(reports, list) or len(reports) > 2000 or any(not _valid_anchor(r, expected_cik, observed, {'8-K', '8-K/A', '6-K', '6-K/A'}) for r in reports): return None
         if reports != sorted(reports, key=_sort) or len({_digest(r) for r in reports}) != len(reports): return None
+        gaps = inventory.get('metadata_gaps', [])
+        if not isinstance(gaps, list) or any(not _valid_metadata_gap(gap, expected_cik, observed) for gap in gaps): return None
+        if len(anchors) + len(reports) + len(gaps) > MAX_RELEVANT_REPORTS or gaps != sorted(gaps, key=_sort): return None
+        for kind, forms in _FORMS.items():
+            if any(gap['form'] in forms and (latest[kind] is None or _sort(gap)[:3] >= _sort(latest[kind])[:3]) for gap in gaps): return None
         triggers = inventory.get('review_triggers')
         if not isinstance(triggers, list) or len(triggers) != len(reports) + sum(a is not None for a in latest.values()): return None
         for trigger in triggers:
@@ -270,9 +315,11 @@ def _coverage_state(status, reason, anchor=None):
 
 
 def corroborate_online_financials(financial, inventory, *, as_of=None):
-    """Keep filing freshness separate from amounts; never rewrite history rows."""
+    """Join validated financial durations to exact sources, without event-date inference."""
+    kinds = ('annual', 'quarterly', 'interim')
     held = _coverage_state('withheld', 'filing_inventory_or_financial_identity_unavailable')
-    result = dict(status='withheld', current={k: deepcopy(held) for k in _FORMS}, periods={k: {} for k in _FORMS}, gaps=[])
+    result = dict(status='withheld', current={k: deepcopy(held) for k in kinds},
+                  periods={k: {} for k in kinds}, gaps=[])
     if not isinstance(financial, Mapping): return result
     ticker = financial.get('ticker')
     identity = financial.get('companyfacts_identity')
@@ -286,7 +333,7 @@ def corroborate_online_financials(financial, inventory, *, as_of=None):
     from src.sec_quarterly_history import validated_quarterly_history
     from src.sec_foreign_financials import validated_foreign_financials
     from src.online_company_analysis import build_online_company_analysis
-    histories = {'annual': [], 'quarterly': []}
+    histories = {k: [] for k in kinds}
     annual = validated_annual_history(financial)
     quarterly = validated_quarterly_history(financial)
     foreign = validated_foreign_financials(financial)
@@ -296,41 +343,107 @@ def corroborate_online_financials(financial, inventory, *, as_of=None):
             accession=financial['accession'], form=financial['annual_form'], filed=financial['filing_date']))
     if quarterly: histories['quarterly'].extend(quarterly['periods'])
     if foreign:
-        for kind in _FORMS: histories[kind].extend(foreign[kind])
+        for kind in kinds: histories[kind].extend(foreign[kind])
     known = [a for rows in verified['periods'].values() for a in rows]
-    def state(kind, end, anchor):
-        rows = [r for r in histories[kind] if r.get('period_end') == end and r.get('status') == 'available']
-        period_versions = [a for a in verified['periods'][kind] if a['period_end'] == end]
-        if anchor is None and period_versions:
-            return _coverage_state('withheld', 'ambiguous_filing_version')
-        exact = [r for r in rows if anchor and all(r.get(k) == anchor[k] for k in ('accession', 'form', 'filed'))]
-        if exact: return _coverage_state('corroborated', 'exact_reporting_period_and_filing', anchor)
+    events = [a for a in verified['earnings_reports'] if a['form'] in {'6-K', '6-K/A'}]
+    metadata_gaps = verified.get('metadata_gaps', [])
+
+    def publication(anchor):
+        return anchor['filed'], _utc_timestamp(anchor['accepted_at'])
+
+    def matching(row, source):
+        return all(row.get(k) == source[k] for k in ('accession', 'form', 'filed'))
+
+    def source_current(source):
+        kind = next(k for k, forms in _FORMS.items() if source['form'] in forms)
+        versions = [a for a in verified['periods'][kind] if a['period_end'] == source['period_end']]
+        missing = [g for g in metadata_gaps if g['form'] in _FORMS[kind] and g['period_end'] == source['period_end']]
+        return _latest(versions) == source and not any(publication(g) >= publication(source) for g in missing)
+
+    def structured_state(kind, end, rows):
+        """Only validated IFRS rows may supply a 6-K financial duration."""
+        candidates = []
         for row in rows:
-            sources = [a for a in known if all(row.get(k) == a[k] for k in ('accession', 'form', 'filed'))]
+            if row.get('form') not in {'6-K', '6-K/A'}: continue
+            sources = [a for a in events if matching(row, a)]
             if len(sources) != 1: continue
             source = sources[0]
-            source_kind = next(k for k, forms in _FORMS.items() if source['form'] in forms)
-            versions = [a for a in verified['periods'][source_kind] if a['period_end'] == source['period_end']]
-            # Later amendments to the comparative source invalidate that source,
-            # independent of revisions of the older comparison period itself.
-            if _latest(versions) != source: continue
-            if source['period_end'] > end and (anchor is None or source['filed'] >= anchor['filed']):
+            anchor = dict(source, period_start=row.get('period_start'), period_end=end,
+                          period_kind=kind, period_basis='validated_structured_duration')
+            missing = [g for g in metadata_gaps if g['form'] == '6-K/A'
+                       and g['report_date'] == source['report_date'] and publication(g) >= publication(source)]
+            revisions = [a for a in events if a['form'] == '6-K/A'
+                         and a['report_date'] == source['report_date'] and publication(a) >= publication(source)]
+            if missing or any(a != source for a in revisions):
+                candidates.append(_coverage_state('amendment_unresolved', 'amended_6k_structured_facts_unresolved', anchor))
+            elif row.get('status') != 'available':
+                candidates.append(_coverage_state('withheld', row.get('reason') or 'structured_financial_facts_unavailable', anchor))
+            else:
+                candidates.append(_coverage_state('corroborated', 'exact_structured_duration_and_filing', anchor))
+        if not candidates:
+            return None
+        versions = {(c['anchor']['accession'], c['anchor']['form'], c['anchor']['filed']) for c in candidates}
+        # Conflicting contexts are not resolved by taking the first taxonomy row.
+        if len(versions) != 1:
+            return _coverage_state('withheld', 'ambiguous_structured_filing_source')
+        return next((c for c in candidates if c['status'] != 'corroborated'), candidates[0])
+
+    def state(kind, end, anchor):
+        all_rows = [r for r in histories[kind] if r.get('period_end') == end]
+        rows = [r for r in all_rows if r.get('status') == 'available']
+        period_versions = [a for a in verified['periods'].get(kind, []) if a['period_end'] == end]
+        period_gaps = [g for g in metadata_gaps if g['form'] in _FORMS.get(kind, ()) and g['period_end'] == end]
+        blocking_gap = any(anchor is None or publication(g) >= publication(anchor) for g in period_gaps)
+        if anchor is None and period_versions:
+            return _coverage_state('withheld', 'ambiguous_filing_version')
+        exact = [r for r in rows if anchor and matching(r, anchor)]
+        if exact and not blocking_gap:
+            return _coverage_state('corroborated', 'exact_reporting_period_and_filing', anchor)
+        for row in rows:
+            sources = [a for a in known if matching(row, a)]
+            if len(sources) != 1 or not source_current(sources[0]): continue
+            source = sources[0]
+            minimum_date = anchor['filed'] if anchor else '0001-01-01'
+            if period_gaps: minimum_date = max(minimum_date, max(g['filed'] for g in period_gaps))
+            if source['period_end'] > end and source['filed'] >= minimum_date:
                 return _coverage_state('corroborated', 'comparative_fact_in_later_known_filing', anchor or source)
+        if blocking_gap:
+            return _coverage_state('withheld', 'filing_document_metadata_unavailable', anchor)
+        if kind in {'quarterly', 'interim'} and foreign:
+            native_rows = [r for r in foreign[kind] if r['period_end'] == end]
+            structured = structured_state(kind, end, native_rows)
+            if structured is not None: return structured
         if anchor is None:
-            return _coverage_state('withheld', 'reporting_period_not_in_submissions')
+            return _coverage_state('withheld', 'structured_financial_source_unresolved' if kind == 'interim' else 'reporting_period_not_in_submissions')
         if anchor['amendment']:
             return _coverage_state('amendment_unresolved', 'amended_filing_structured_facts_unresolved', anchor)
         return _coverage_state('facts_pending', 'new_filing_structured_facts_pending', anchor)
-    for kind in _FORMS:
-        ends = {r['period_end'] for r in verified['periods'][kind]} | {r['period_end'] for r in histories[kind]}
+
+    for kind in kinds:
+        scoped = verified['periods'].get(kind, [])
+        missing = [g for g in metadata_gaps if g['form'] in _FORMS.get(kind, ())]
+        ends = {r['period_end'] for r in scoped + missing} | {r['period_end'] for r in histories[kind]}
         for end in sorted(ends):
-            versions = [a for a in verified['periods'][kind] if a['period_end'] == end]
+            versions = [a for a in scoped if a['period_end'] == end]
             result['periods'][kind][end] = state(kind, end, _latest(versions))
-        latest = verified['latest'][kind]
-        result['current'][kind] = result['periods'][kind][latest['period_end']] if latest else _coverage_state('withheld', 'ambiguous_filing_version' if verified['periods'][kind] else 'supported_filing_form_unavailable')
-        if result['current'][kind]['status'] != 'corroborated':
+        target_end = max(r['period_end'] for r in scoped) if scoped else None
+        if kind in {'quarterly', 'interim'} and foreign and foreign[kind]:
+            native_end = max(r['period_end'] for r in foreign[kind])
+            if target_end is None or native_end > target_end: target_end = native_end
+        current_state = deepcopy(result['periods'][kind][target_end]) if target_end else _coverage_state('withheld', 'ambiguous_filing_version' if scoped else 'supported_filing_form_unavailable')
+        anchor = current_state.get('anchor') or {}
+        if anchor.get('period_basis') == 'validated_structured_duration':
+            # Source-qualified historical amounts do not become current merely
+            # because a newer report has not supplied matching structured facts.
+            latest_period = max((a['period_end'] for a in known), default=None)
+            if latest_period and anchor['period_end'] < latest_period:
+                current_state = _coverage_state('withheld', 'newer_reporting_period_known', anchor)
+        result['current'][kind] = current_state
+        if result['current'][kind]['status'] != 'corroborated' and (kind != 'interim' or histories[kind]):
             result['gaps'].append(kind + ':' + result['current'][kind]['reason'])
-    result['status'] = 'corroborated' if all(s['status'] == 'corroborated' for s in result['current'].values()) else 'partial' if any(s['status'] == 'corroborated' for s in result['current'].values()) else 'withheld'
+    expected = ['annual', 'quarterly'] + (['interim'] if histories['interim'] else [])
+    states = [result['current'][kind]['status'] for kind in expected]
+    result['status'] = 'corroborated' if all(s == 'corroborated' for s in states) else 'partial' if any(s == 'corroborated' for s in states) else 'withheld'
     return result
 
 

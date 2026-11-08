@@ -13,9 +13,17 @@ The supported local application workflow is **search → Research company → tr
 
 The public GitHub Pages pages remain static, labelled examples. Running the full app locally does not require a coding session, but does require a running app server. No hosting or background polling service is introduced.
 
+## Optional cross-industry study
+
+In **Discover → Coverage studies → Self-service**, use **Inspect next company** to inspect the next member of the fixed twelve-company sample. **Recheck company** explicitly replaces that company's observation; **Restart study** clears session progress without fetching sources. Changing tabs, selecting company evidence and ordinary rerenders revalidate retained observations without new requests.
+
+The four declared groups contain AMD/NVDA/QCOM, JPM/BAC/C, DUK/SO/NEE and TSM/SAP/IBN. They are study groups, not a market, industry or domicile census. Ten capabilities have separate available, partial, held, excluded, failed or unattempted states. A bank's excluded FCFF scenario does not erase useful financial observations, and a dated close does not establish P/E eligibility. The exact-replay check uses disposable private storage without reading user notes or writing user evidence stores. [Capabilities, measured results and source boundaries](CROSS_INDUSTRY_SELF_SERVICE.md)
+
 ## What happens when a filing arrives
 
 Every financial refresh checks the issuer's SEC submissions metadata as well as Companyfacts. The inventory retains the current version for each annual/quarterly reporting period, accession, form, document, filing date, acceptance time and observation receipt. It validates issuer identity and exact SEC paths. Acceptance time and official filing date remain separate; neither is invented from the other.
+
+The shared filing catalog now handles large bank submissions catalogs by bounding the raw input and selecting relevant report forms before validating the reduced inventory. Event report dates remain separate from financial periods. Valid legacy document metadata is retained; an absent document stays an explicit gap, and missing current-document metadata cannot revive an older filing. Validated native-currency 6-K facts require an exact source accession, filing date and structured duration before a quarter or interim period can be corroborated. A 6-K event date alone remains insufficient, and known newer reporting periods retain current-data holds.
 
 When the latest filing and its structured facts align, normal supported annual/quarterly periods feed the same tools without new company-specific code. A filing can arrive before Companyfacts has updated. That state is **facts pending**. An unresolved amendment remains a version gap. Prior observations stay available as dated history, while current financial/scenario/peer claims affected by the gap are withheld. An older-period amendment is evaluated for that period rather than automatically blocking an unrelated newer period. Comparative facts in a later known filing remain comparative history.
 
@@ -35,4 +43,4 @@ Normalized context snapshots live under ignored `outputs/local/online-research-c
 
 These snapshots do not replace the existing four-field SEC receipt schema or the NEM/AMD/DUK exact-pair review dispositions. Monitor presents each lane separately. User-authored notes retain their existing append-only storage and review controls.
 
-[Online source methods](ONLINE_COMPANY_RESEARCH.md) · [Peer method](ONLINE_PEER_VALUATION.md) · [Roadmap](../ROADMAP.md) · [Release evidence](SELF_SERVICE_RESEARCH_RELEASE.md)
+[Online source methods](ONLINE_COMPANY_RESEARCH.md) · [Capability study](CROSS_INDUSTRY_SELF_SERVICE.md) · [Peer method](ONLINE_PEER_VALUATION.md) · [Roadmap](../ROADMAP.md) · [Release evidence](SELF_SERVICE_RESEARCH_RELEASE.md)

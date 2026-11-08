@@ -167,6 +167,8 @@ def reseal_inventory(inventory):
     from src.online_filing_context import _seal
     inventory['review_triggers'] = [dict(trigger_type='newly_observed_filing',anchor=a)
         for a in inventory['latest'].values() if a]
+    inventory['review_triggers'] += [dict(trigger_type='current_report_filing',anchor=a)
+        for a in reversed(inventory.get('earnings_reports',[]))]
     return _seal({k:v for k,v in inventory.items() if k not in {'normalized_sha256','packet_digest'}})
 
 
@@ -232,6 +234,12 @@ def test_actual_peer_collection_is_revalidated_and_pending_or_price_changes_hold
     assert c['peer_read_through']['status']=='research_comparison'
     assert c['peer_read_through']['peer_count']==3
     assert '"payload":' not in json.dumps(c)
+    serialized_close=deepcopy(prices)
+    serialized_close['bars'][-1]['close'] += .0000006
+    assert build(p=serialized_close)['peer_read_through']['status']=='research_comparison'
+    changed_close=deepcopy(prices)
+    changed_close['bars'][-1]['close'] += .01
+    assert build(p=changed_close)['peer_read_through']['reason']=='peer_subject_price_differs_from_current_prices'
     peers['issuers'][1]['facts']['payload_sha256']='e'*64
     metadata_refresh=build()
     assert metadata_refresh['source_revision']==c['source_revision']
@@ -327,6 +335,10 @@ def test_foreign_validated_currency_stays_native_and_interim_cash_is_not_a_direc
     inventory=v['filing_inventory']; anchor=inventory['latest']['annual']
     anchor['form']='20-F';inventory['periods']['annual']=[anchor]
     inventory['periods']['quarterly']=[]; inventory['latest']['quarterly']=None
+    inventory['earnings_reports']=[dict(accession='0000001234-26-000002',form='6-K',period_end=None,
+        report_date='2026-08-01',filed='2026-08-01',accepted_at='2026-08-01T12:00:00Z',
+        primary_document='quarter.htm',source_url='https://www.sec.gov/Archives/edgar/data/1234/000000123426000002/quarter.htm',
+        amendment=False)]
     v['filing_inventory']=reseal_inventory(inventory)
     c=context(v)
     assert metric(c,'cfo_less_ppe')['value']==15

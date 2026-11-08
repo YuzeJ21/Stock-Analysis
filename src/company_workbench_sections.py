@@ -66,6 +66,8 @@ def workbench_projection(ticker, financial_view, prices, expected_cik=None):
     if foreign is not None:
         for kind,key in (('annual','annual_count'),('quarterly','quarter_count')):
             rows=foreign[kind]
+            if rows and foreign['unit'] != 'USD':
+                candidates=[candidate for candidate in candidates if candidate[0] != kind]
             result[key]=len([r for r in rows if r['status']=='available'])
             inspect_latest(kind,rows,foreign)
     if candidates:

@@ -31341,7 +31341,7 @@ def render_online_coverage_study() -> None:
     """Run a declared SEC industry sample only after an explicit Personal action."""
     from src.online_peer_coverage_ui import render_peer_coverage
     with st.expander("Coverage studies", expanded=False):
-        tabs = st.tabs(("Peer valuation", "U.S. listings", "Security types", "Industry financials"))
+        tabs = st.tabs(("Peer valuation", "U.S. listings", "Security types", "Industry financials", "Self-service"))
         with tabs[0]:
             render_peer_coverage(st, embedded=True)
         with tabs[1]:
@@ -31371,6 +31371,9 @@ def render_online_coverage_study() -> None:
             requested=st.button("Run online coverage sample",key="online-coverage-sample-refresh")
             result=get_online_coverage_study(st.session_state,refresh_requested=requested,user_agent=os.getenv("SEC_USER_AGENT"))
             st.markdown(coverage_study_html(result),unsafe_allow_html=True)
+        with tabs[4]:
+            from src.self_service_research_coverage_ui import render_self_service_coverage
+            render_self_service_coverage(st)
 
 
 def render_stock_selector(

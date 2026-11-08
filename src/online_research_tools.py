@@ -184,8 +184,13 @@ def _trend(histories, coverage):
             period.update(kind=kind, currency=currency, fields=_fields(source),
                 cumulative_fields=_json(source.get('cumulative_fields', {})),
                 filing_status=state.get('status', 'unverified'), current=False)
-            anchor = coverage.get('current', {}).get(kind, {}).get('anchor') or {}
-            period['current'] = state.get('status') == 'corroborated' and anchor.get('period_end', anchor.get('report_date')) == period['period_end']
+            if kind == 'interim' and not state:
+                period.update(status='withheld',reason='interim_filing_source_unverified')
+            current = coverage.get('current', {}).get(kind, {})
+            anchor = current.get('anchor') or {}
+            period['current'] = (current.get('status') == 'corroborated'
+                and state.get('status') == 'corroborated'
+                and anchor.get('period_end', anchor.get('report_date')) == period['period_end'])
             if state.get('status') in {'facts_pending', 'amendment_unresolved', 'withheld'}:
                 period.update(status='withheld', reason=state.get('reason') or state['status'])
             rows.append(period); periods.append(period)
@@ -249,8 +254,15 @@ def _receipt_rows(financial, prices, inventory, peers):
 
 
 def _peer_context(peers, *, ticker, cik, now, coverage, prices):
-    collection = peers.get('collection', peers) if isinstance(peers, Mapping) else None
-    result = build_online_peer_valuation(collection, ticker=ticker, expected_cik=cik, as_of=now)
+    if peers is None:
+        from src.online_peer_valuation import _empty
+        result = {**_empty(ticker,'online_peer_update_not_requested'),'status':'not_requested'}
+    elif isinstance(peers,Mapping) and 'packet_digest' in peers:
+        from src.online_peer_sources import _read
+        result = _read(peers,ticker,cik,now)
+    else:
+        collection = peers.get('collection', peers) if isinstance(peers, Mapping) else None
+        result = build_online_peer_valuation(collection, ticker=ticker, expected_cik=cik, as_of=now)
     # Keep normalized accepted/excluded observations, never their source archives.
     result = _json(result)
     result['relationship'] = 'observed_industry_references_not_trusted_economic_peers'
@@ -266,7 +278,7 @@ def _peer_context(peers, *, ticker, cik, now, coverage, prices):
             reason = 'peer_subject_filing_version_differs_from_current_financials'
         elif prices.get('status') != 'inspection_only' or prices.get('last_price_date') != subject.get('price_date'):
             reason = 'peer_subject_price_date_differs_from_current_prices'
-        elif prices.get('close') != subject.get('price'):
+        elif not math.isclose(prices.get('close'),subject.get('price'),rel_tol=1e-7,abs_tol=1e-6):
             reason = 'peer_subject_price_differs_from_current_prices'
     if reason:
         result.update(status='withheld', reason=reason, peer_median=None, premium_fraction=None)
@@ -405,7 +417,10 @@ def build_online_research_context(financial, prices, peers=None, association=Non
             histories.append(('quarterly', quarterly['periods'], quarterly['unit']))
         if foreign:
             for kind in ('annual', 'quarterly', 'interim'):
-                if foreign[kind] and not any(h[0] == kind for h in histories):
+                if foreign[kind] and foreign['unit'] != 'USD':
+                    histories = [h for h in histories if h[0] != kind]
+                    histories.append((kind, foreign[kind], foreign['unit']))
+                elif foreign[kind] and not any(h[0] == kind for h in histories):
                     histories.append((kind, foreign[kind], foreign['unit']))
     else:
         gaps.append('Current financial source identity is unavailable, stale or mismatched.')

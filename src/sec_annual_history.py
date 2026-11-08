@@ -156,7 +156,9 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
         identity.update(status='source_matched',ticker=ticker,sec_cik=cik,
                         association_source_url=mapping['source_url'],association_payload_sha256=mapping['payload_sha256'],
                         association_observed_at=mapping['observed_at'])
-        view['companyfacts_identity']=identity
+        # Issuer identity belongs to the matched source observation, independent
+        # of whether the narrower USD annual preview has a supported field set.
+        view.update(ticker=ticker, sec_cik=cik, companyfacts_identity=identity)
         if ticker == 'MRVL' and cik == '0001835632':
             from src.mrvl_earnings_sources import fetch_mrvl_earnings_review
             try:

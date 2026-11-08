@@ -74,11 +74,11 @@ def filing_status_html(context):
     inventory = context.get('filing_inventory') or {}
     latest = inventory.get('latest') or {}
     rows = []
-    for kind in ('annual', 'quarterly'):
-        anchor = latest.get(kind)
+    for kind in ('annual', 'quarterly', 'interim'):
         state = current.get(kind) or {}
+        anchor = state.get('anchor') or latest.get(kind)
         if anchor:
-            rows.append(f"{kind.title()} {anchor.get('period_end')}: {_label(state.get('status'))}")
+            rows.append(f"{kind.title()} {anchor.get('period_end') or 'period unverified'}: {_label(state.get('status'))}")
     if not rows:
         return '<p class="company-scope-note">Latest filing status has not been verified. Use Research company to check SEC reports and structured facts.</p>'
     return '<p class="company-scope-note" data-online-filing-status="1">' + escape(' · '.join(rows)) + '</p>'
