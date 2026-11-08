@@ -45,3 +45,11 @@ The tested commit and exact GitHub synchronization are recorded below after comp
 Next inspect the filed quarterly evidence behind C/DUK/SO/NEE gaps, then remaining identity/foreign-issuer exclusions and meaningful subsequent-filing changes. TSM's separate normalized-context size hold, IBN's financial support gap, source permissions and unsupported valuation methods remain separate. No purchases, credentials, canonical rows or source-rights decisions were changed.
 
 [Self-service method](SELF_SERVICE_COMPANY_RESEARCH.md) · [Bank peer retention](BANK_PEER_EVIDENCE_RELEASE.md) · [Roadmap](../ROADMAP.md)
+
+## Tested commit and GitHub state
+
+Verified implementation: [`5cf08bfe191e1ff2f01763b62595e06865d4b960`](https://github.com/YuzeJ21/Stock-Analysis/commit/5cf08bfe191e1ff2f01763b62595e06865d4b960). GitHub main accepted the fast-forward from the stated baseline. The Git remote and independent GitHub branch read matched that full commit; remote README and release-document blob IDs matched their local files. This documentation-only follow-up records those checks without changing tested runtime code or protected assets.
+
+Staged hygiene and whitespace passed with zero canonical/generated data staged. The implementation checkout was clean after commit. The owned local app restarted on port 8536 and returned health `ok`; other checkouts were preserved. The repository workflow runs on pull requests, so no resulting-main hosted CI pass is asserted for this authorized direct synchronization.
+
+The ignored local review packet is `outputs/local/releases/bank-research-snapshots-20261108/`: reduced before/after results, unchanged-data manifest, regression/review logs and constructed browser screenshots. Actual financial snapshots and full original source packets remain private temporary captures, outside public distribution. No user notes or user evidence stores were written during verification.
