@@ -45,8 +45,6 @@ The readiness continuation gate follows declared source dates, never file mtimes
 
 Primary research flow: **Research Desk -> Discover -> Company Workbench -> Monitor**.
 
-The 2026-10-29 local research-dossier revision makes this flow easier to scan: compact task navigation, shorter Discover rows, a visible Company Brief next task, a five-lane saved-evidence map before the online SEC action, and an SEC annual-field table that exposes direct fields and withheld reasons. The saved-evidence map names an input path only when its metadata supports that label; unavailable optional rows do not become source proof. These presentation changes keep saved local readiness separate from the on-demand SEC inspection, do not refresh canonical data, and do not establish source rights or current-market coverage. Desktop, tablet, phone, zoom, and accessibility results belong to the exact local release packet, not to older screenshot anchors.
-
 Static public demo flow: **Company Search → Overview → Financial Trends → Valuation & Peers → Research Notes → Data Sources → Monitor**. Its fictional company, peer records, source register, and exact saved pair are bundled in the page; it fetches no live data. Draft notes, scenarios, and review dispositions reset on reload. The separate AMD case is a dated, read-only Q3 FY2026 filing walkthrough; its public peer comparison remains withheld pending approved same-day price evidence. Controlled local Public-mode flow: **Home -> Stock Selector -> Single-Stock Report -> Data Health -> Proof History**.
 
 Operator source/proof work remains separate. Data Health and Proof History are Advanced Evidence in Personal Research mode. Empty ledgers stay empty; candidate context stays untrusted.

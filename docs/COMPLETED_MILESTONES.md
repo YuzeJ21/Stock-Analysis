@@ -19,6 +19,10 @@ The CSV-first foundation described below is historical saved-model infrastructur
 - The November 6 independent DUK annual recheck at 19:35 ET matched all four supported FY2025 fields with zero gaps. The issuer-directory digest changed and the comparison recorded zero financial changes. [Saved SEC company reviews](SEC_RESEARCH_REVIEWS.md)
 - Legacy picks, portfolio, ranking and watchlist surfaces remain Operator-only compatibility utilities. The synthetic Earnings Nowcast pilot does not establish a real-company prediction. Revisit a parked investing view only after independent researcher sessions show a repeated decision need, permitted inputs and a no-ranking/no-trading design. Real-company nowcasting additionally needs point-in-time consensus and actuals rights, leakage-safe backtests and calibration. See the active [Roadmap](../ROADMAP.md) and the [NEM method](NEM_SEC_REVIEW.md).
 
+## 2026-10-29 — Historical research-dossier presentation
+
+The 2026-10-29 local research-dossier revision makes this flow easier to scan: compact task navigation, shorter Discover rows, a visible Company Brief next task, a five-lane saved-evidence map before the online SEC action, and an SEC annual-field table that exposes direct fields and withheld reasons. The saved-evidence map names an input path only when its metadata supports that label; unavailable optional rows do not become source proof. These presentation changes keep saved local readiness separate from the on-demand SEC inspection, do not refresh canonical data, and do not establish source rights or current-market coverage. Desktop, tablet, phone, zoom, and accessibility results belong to the exact local release packet, not to older screenshot anchors.
+
 ## Product Foundation
 
 - Readiness-first, CSV-first architecture with central readiness and source-status reporting.
