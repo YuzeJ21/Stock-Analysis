@@ -1,6 +1,6 @@
 # Self-service research release evidence
 
-Date: November 8, 2026. Baseline: `3026da8a473905e662a69703b91d181784fb5113`. Implementation used the existing isolated worktree. The tested code commit and final synchronization are recorded below after verification.
+Date: November 8, 2026. Baseline: `3026da8a473905e662a69703b91d181784fb5113`. Implementation used the existing isolated worktree. The tested code commit and verified synchronization are recorded below.
 
 ## Delivered behavior
 
@@ -42,4 +42,6 @@ Measure the generic filing-and-tool workflow across the existing cross-industry 
 
 ## Commit and synchronization record
 
-Verification and authorized GitHub synchronization are pending the final documentation checks. This paragraph is replaced with the exact tested code commit and remote result before completion.
+Tested code commit: [`afacbba216b1bfaed7b864643d60ac87eead9684`](https://github.com/YuzeJ21/Stock-Analysis/commit/afacbba216b1bfaed7b864643d60ac87eead9684). On that committed tree, the seven-file filing/tool/store/financial/UI/workflow/navigation regression passed **231 tests in 18.86 seconds**. The earlier final browser run passed both viewports in 62.37 seconds on the same executable implementation; subsequent test-file EOF cleanup changed no executable source.
+
+The tested commit was fast-forwarded to GitHub `main`; both `git ls-remote` and the GitHub branch API returned its full SHA. This documentation-only follow-up records those results and completes the execution ledger. The existing Commercial Research Beta workflow triggers on pull requests, so no exact-head hosted CI result is claimed for the direct authorized main synchronization. No pull request, release, new hosting or manual deployment was created.

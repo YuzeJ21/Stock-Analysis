@@ -64,7 +64,7 @@
 - [x] Validate real online company paths across industries and preserve private source observations.
 - [x] Run affected regression, mathematical checks, browser matrix, render/health, rights, wording/hygiene and unchanged-data checks; fix actual failures and review findings.
 - [x] Update actual product/run instructions, method, roadmap, gaps and release packet with honest self-service/unsupported boundaries.
-- [ ] Commit and synchronize verified main; independently verify remote commit and clean worktree.
+- [x] Commit and synchronize verified main; independently verify remote commit and clean worktree.
 
 ## Execution ledger
 
@@ -79,3 +79,4 @@
 - Real MSFT and MRVL latest annual/quarterly filings corroborated; each supplies 18 supported periods and an actual hypothetical scenario. MRVL normalized receipt ~284KB saves/replays unchanged. Live evidence stays /tmp/stock-self-service-live; synthetic browser evidence /tmp/self-service-browser-proof-2026-11-08.
 - Protected-data manifest: 89 tracked data/config/assets/docs-assets files unchanged against 3026da8a; aggregate SHA256 6dea65bec009270b132211724f426c1fdb557979a8903a5f5cc93b92d9edb373.
 - Ruling: scope regression to changed source/tool/navigation/notes/store/browser/method contracts, rather than repeating the unchanged 9330-test baseline suite. No full-suite pass or external validation inferred.
+- Tested code commit afacbba216b1bfaed7b864643d60ac87eead9684: 231 focused regression cases passed in18.86s on the committed tree. The source commit was fast-forwarded to main and independently matched by ls-remote and the GitHub branch API. Documentation-only follow-up records final evidence; PR-only CI was not invoked or claimed. Fresh running app restarted on8535 with final source. Final branch/worktree equality is checked after the documentation push.
