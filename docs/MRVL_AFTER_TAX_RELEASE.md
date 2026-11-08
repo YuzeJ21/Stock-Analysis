@@ -1,6 +1,6 @@
 # MRVL issuer after-tax reconciliation: release evidence
 
-Date: November 8, 2026 (Toronto). Baseline: `f6e84abb3614f81dc7028df71f0a666e600cc131`. Local implementation verification is complete. The tested commit and GitHub synchronization will be recorded after publication; no remote completion is claimed yet.
+Date: November 8, 2026 (Toronto). Baseline: `f6e84abb3614f81dc7028df71f0a666e600cc131`. Tested implementation: [`be265b0caafa94dba0157c8b4d6b7e40a7477ca3`](https://github.com/YuzeJ21/Stock-Analysis/commit/be265b0caafa94dba0157c8b4d6b7e40a7477ca3), published to GitHub main and independently confirmed through the remote ref. The final verification ledger is a documentation-only follow-up; runtime code and tests remain identical to that tested commit.
 
 ## Supported outcome
 
@@ -45,7 +45,8 @@ Annual GAAP EPS, same-day completed closes, 35-day fiscal windows and minimum th
 | Live layouts | 1440×1000 desktop and 390×844 phone; English, source links, correct million-share scale, exact monetary precision and no horizontal overflow |
 | Monitor return | MRVL, Data Sources and loaded observations retained; constructed browser request count remains eight through navigation |
 | Unchanged-data proof | All 78 tracked data/config/assets files match baseline; protected data/outputs/docs-assets guard passed |
-| Public documentation | README 165 lines; roadmap 320 lines; wording check passed across 64 public files |
+| Public documentation | **97 contract checks passed**; README 165 lines; roadmap 320 lines; wording check passed across 64 public files |
+| Staged hygiene | Passed; 19 code/docs/test paths, zero generated CSV/JSON, canonical data or manual-review paths |
 
 The affected regression includes the new reconciliation and collector, original annual review, financial history, unchanged peer engines, integrated Workbench, online notes/evidence workflow and public documentation contracts. Its one warning is the existing python-dateutil UTC deprecation. No tests were skipped in these selected commands.
 

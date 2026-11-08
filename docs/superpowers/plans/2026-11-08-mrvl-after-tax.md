@@ -53,7 +53,7 @@
 
 - [x] Reconcile live SEC evidence with implemented output; preserve source rights and canonical hashes.
 - [x] Run affected regression, desktop/phone, render/health and public/hygiene checks. Review independently and resolve actual findings.
-- [ ] Update README, roadmap, method and release packet; commit verified code and synchronize main without force; confirm exact remote head.
+- [x] Update README, roadmap, method and release packet; commit verified code and synchronize main without force; confirm exact remote head.
 
 ## Execution ledger
 
@@ -70,3 +70,5 @@
 - Protected affected-system regression: **537 passed in 58.65s**, one existing dependency warning, no skips; guard exit 0. Final browser/UI/Workbench regression: **24 passed in 29.92s**.
 - Current real SEC replay: fifteen annual observations, zero subtotal/net-income residuals, separate GAAP/non-GAAP EPS rounding checks passed, both eligibility flags false. Raw observations stay outside Git.
 - Six research renders, fresh HTTP health, commercial-beta and 64-file wording checks passed. All 78 tracked data/config/assets files match baseline. Live desktop/phone and Monitor return passed without a human tester.
+
+- Tested implementation commit `be265b0caafa94dba0157c8b4d6b7e40a7477ca3` published to main; independent remote ref matched. All implementation tasks are complete. Final metadata follow-up contains only documentation; runtime/test/data trees remain identical.
