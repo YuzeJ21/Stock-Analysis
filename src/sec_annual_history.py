@@ -148,6 +148,15 @@ def fetch_sec_online_research_view(ticker: str, *, user_agent: str, ticker_map_r
                         association_source_url=mapping['source_url'],association_payload_sha256=mapping['payload_sha256'],
                         association_observed_at=mapping['observed_at'])
         view['companyfacts_identity']=identity
+        if ticker == 'MRVL' and cik == '0001835632':
+            from src.mrvl_earnings_sources import fetch_mrvl_earnings_review
+            try:
+                view['mrvl_earnings_review'] = fetch_mrvl_earnings_review(
+                    receipt, ticker=ticker, expected_cik=cik, user_agent=user_agent,
+                    source_fetcher=source_fetcher, observed_at=observed_at,
+                )
+            except (OSError, RuntimeError, ValueError, TypeError, TimeoutError, AttributeError, RecursionError):
+                view['mrvl_earnings_review'] = {'status': 'unavailable', 'reason': 'mrvl_review_unavailable'}
         if view['status']=='inspection_only':
             view['annual_history']=build_sec_annual_history(view,payload)
         anchor=next(((f['taxonomy'],f['concept']) for f in view.get('approved_direct_fields',[]) if f['field']=='revenue'),None)

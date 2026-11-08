@@ -70,6 +70,10 @@ Use **Saved SEC evidence** to save eligible annual observations, replay them and
 
 The application retrieves data online while running locally. GitHub Pages hosts the demonstrations, not the full Streamlit workspace. [Online research workflow](docs/ONLINE_COMPANY_RESEARCH.md) · [Workflow release evidence](docs/ONLINE_COMPANY_WORKFLOW_RELEASE.md)
 
+### MRVL earnings quality and peer fit
+
+MRVL's **Valuation & Peers** section explains the reported annual denominator, business-sale gains, cash versus net income, compensation and amortization using online SEC evidence. A named Broadcom comparison shows the business rationale, different business mix and the annual-period exclusion. Fields, dates, sources and missing reasons expand on demand. Adjusted earnings and numerical peer eligibility retain their own gates. [Method and scope](docs/ONLINE_PEER_VALUATION.md#mrvl-annual-earnings-quality-and-named-avgo-context)
+
 ### Saved SEC evidence review
 
 For **NEM, AMD, and DUK**, reopen an exact ordered pair from Monitor after two qualified annual SEC observations have been saved in the selected local profile. Real receipts stay private under ignored `outputs/local/`. Capture or import your own qualified observations when starting from a fresh clone.

@@ -2,6 +2,11 @@
 
 This document is the historical completion log for Stock Research Command Center. The active delivery sequence lives in [ROADMAP.md](../ROADMAP.md); exact implementation history remains available through Git commits and tests.
 
+## 2026-11-07 — MRVL annual earnings and AVGO comparison context
+
+- MRVL's financial refresh supports an independent, in-memory review of seven exact annual components and both named annual documents. The compact Workbench explanation retains sources, dates, units, rights and per-field gaps without preparing company CSVs.
+- AVGO is a source-backed business comparison with different business mix. Its annual period remains outside the existing window; this adds no numerical admission, trusted peer role, adjusted EPS or model readiness. Saved notes, immutable SEC receipts and existing research tools retain their own scope. [Method](ONLINE_PEER_VALUATION.md), [Release evidence](MRVL_PEER_EARNINGS_RELEASE.md)
+
 ## 2026-11-07 — Online company research continuity
 
 - Company notes and eligible SEC evidence no longer require a local price-dependent report. Online notes are scoped to the selected profile, ticker and CIK; existing ticker-scoped journals remain separate and accessible without company/model rows.

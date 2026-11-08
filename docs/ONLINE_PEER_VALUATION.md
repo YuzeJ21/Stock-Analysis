@@ -1,6 +1,6 @@
 # Online annual P/E and industry references
 
-Open a company, choose **估值与同行**, and select **更新在线同行估值**. The page requests source observations on that action only. Switching sections reuses the same attempt, including its failures. **数据来源** shows the same field definitions, actual periods, source links, observation dates and digests. An explicit failed retry withdraws the prior answer.
+Open a company, choose **Valuation & Peers**, and select **Refresh peer valuation**. The page requests source observations on that action only. Switching sections reuses the same attempt, including its failures. **Data Sources** shows the same field definitions, actual periods, source links, observation dates and digests. An explicit failed retry withdraws the prior answer.
 
 ## Listing-source continuity
 
@@ -8,7 +8,7 @@ Before the action, the page explains that a temporarily unavailable listing sour
 
 The result distinguishes the latest attempt from the original listing-observation range and directory creation dates. Source details retain safe response status, URL, size and raw digest when available; exceptions and headers are not exposed. Recovery never renews dates or reinstates an earlier financial verdict. The company identity, current financial/price observations and peer rules are checked again. A subsequent financial failure withdraws the old answer even when listing recovery succeeded. Discover uses the same freshness validator for its existing bounded session classification pool.
 
-The five company sections remain the product workflow. Listing continuity improves the acquisition prerequisite; persistent online review history, cross-session replay and a Monitor change handoff remain later deliverables with separate source permissions.
+The five company sections remain the product workflow. Peer-source observations remain session-bound. Company Notes, saved SEC financial receipts and Monitor have their own persistence method; that does not grant retention or distribution rights for peer-source packets.
 
 ## What the answer means
 
@@ -35,7 +35,7 @@ The amendment has DocumentType10-K/A but AmendmentFlag=false. The page discloses
 
 ## Earnings context beside the multiple
 
-The page also shows **盈利变化背景**: reported current/prior annual diluted EPS from the **same selected accession, form and publication date**. The prior period must end exactly one day before the current period begins and span350–380 days. An older filing's value never substitutes for the comparative printed in the selected filing. Values are latest reported in that observed filing, not point-in-time history or organic earnings growth.
+The page also shows **Earnings change context**: reported current/prior annual diluted EPS from the **same selected accession, form and publication date**. The prior period must end exactly one day before the current period begins and span350–380 days. An older filing's value never substitutes for the comparative printed in the selected filing. Values are latest reported in that observed filing, not point-in-time history or organic earnings growth.
 
 EPS change is current EPS divided by positive prior EPS, minus one. The page shows both values, actual dates and the same source links. A zero/negative base, absent comparative, conflicting value/period/unit or invalid metadata withholds the percentage with a reason. Missing growth context does not remove a valid P/E or change median membership. Historical EPS change is not a forecast, sustainable-growth estimate, PEG or growth-adjusted valuation; business differences remain unadjusted.
 
@@ -79,3 +79,17 @@ NEM has a separate exact literal-common scope with explicitly declared dimension
 TSM's exact annual source exposes ordinary and ADS diluted IFRS EPS separately, including native TWD and source-reported USD convenience presentation, with actual class context and units. The source directly reports ADS EPS; the app does not multiply rounded ordinary EPS or apply FX. The ratio and complete convenience/nontrading notes have their own source locations. These are inspection observations and do not enter the ordinary US-GAAP USD annual P/E denominator, median or saved readiness. A general ADS/IFRS/FX comparison method remains separate work.
 
 XOM's exact successor8-K12B and quarter Note1 expose security exchange, registration and financial-reporting continuity. Non-inline prose is located by a body-bound paragraph ordinal and normalized-text digest, with a full-document link rather than an invented DOM fragment. Continued inline notes preserve every actual source fragment. The quarter's predecessor entity context remains distinct from current filing CIK. Current-CIK annual absence and vendor issuer conflict remain independent blockers; predecessor/quarter EPS is not spliced into the current annual method.
+
+## MRVL annual earnings quality and named AVGO context
+
+After **Refresh financials and prices** or **Financials only**, MRVL has a separate **Earnings quality behind annual P/E** review in Valuation & Peers. Data Sources shows the same revalidated evidence. It reuses the financial action's Companyfacts response and requests at most two SEC submissions and two exact annual documents. Quote/listing failures cannot hide independently verified financial components. Section changes and Monitor return reuse the session observation without fetching again.
+
+The first named scope is MRVL FY2026, accession `0001835632-26-000011`, February 2, 2025–January 31, 2026, filed March 11, 2026. Every component matches that accession, annual interval, form, publication date and exact unit: diluted EPS, net income, total operating cash flow, PP&E purchases, share-based compensation, intangible amortization and business-sale gain. Missing or conflicting components retain their own reasons; reported losses and zero values remain observations. Current submissions must still select this exact annual. A changed annual or amendment opens a scope-review gap.
+
+The review explains why a disposal gain can affect reported P/E and why cash flow, compensation and amortization need separate interpretation. It does not subtract a pretax gain from after-tax earnings, construct adjusted EPS, infer a cash-flow multiple or mix the latest quarter with annual/YTD observations. A qualified after-tax reconciliation remains a gap.
+
+MRVL's exact annual names Broadcom in direct competition. AVGO's exact FY2025 annual, accession `0001730168-25-000121`, reports semiconductor and infrastructure-software segments. These affirmative visible disclosures support research relevance with a business-mix caveat. Negated, incidental or hidden text does not establish the relationship. Source links and raw document digests stay available. This does not populate a trusted core-peer role or valuation anchor.
+
+MRVL's January 31, 2026 annual end and AVGO's November 2, 2025 annual end are 90 days apart. The unchanged annual method therefore excludes AVGO under its 35-day rule. The existing peer result continues to own every actual admission, exclusion, same-day price and minimum-three check. Economic relevance is distinct from numerical eligibility.
+
+New quality fields and archive documents retain Personal Research inspection status. The rights registry, registered direct fields, canonical data, saved four-field SEC receipts, exports, peer membership and readiness remain unchanged. No real observations, raw documents or provider screenshots are published by this slice. [MRVL release evidence](MRVL_PEER_EARNINGS_RELEASE.md)

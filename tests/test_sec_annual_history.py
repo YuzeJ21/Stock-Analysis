@@ -170,3 +170,91 @@ def test_history_does_not_retain_a_preview_builder_replaced_during_import(monkey
         assert [row["revenue"] for row in result["periods"]] == [100, 120, 150]
     finally:
         importlib.reload(sec_annual_history)
+
+
+def test_mrvl_financial_action_attaches_independent_review_once_and_cached_reads_do_not_fetch(monkeypatch):
+    from test_mrvl_earnings_sources import _facts_payload, _sources, MRVL_FACTS
+    from src.company_sec_online_preview import get_company_sec_annual_preview
+    from src import online_sec_receipt, sec_exact_filing
+    import json
+
+    monkeypatch.delenv('COMMERCIAL_RESEARCH_MODE', raising=False)
+    sources = _sources()
+    sources[MRVL_FACTS] = _facts_payload()
+    sources['https://www.sec.gov/files/company_tickers.json'] = {'0': {'ticker': 'MRVL', 'cik_str': 1835632}}
+    calls = []
+    def fetch(url, _agent):
+        calls.append(url)
+        body = sources[url]
+        return json.dumps(body).encode() if isinstance(body, dict) else body, {}, url
+    monkeypatch.setattr(online_sec_receipt, '_fetch_raw', fetch)
+    monkeypatch.setattr(sec_exact_filing, '_fetch_html', fetch)
+    session = {}
+    view = get_company_sec_annual_preview('MRVL', session, refresh_requested=True, user_agent='Research contact')
+    assert view['mrvl_earnings_review']['facts']['status'] == 'ready'
+    assert view['annual_history']['periods'][0]['revenue'] == 1000
+    assert {row['field'] for row in view['approved_direct_fields']} == {
+        'revenue', 'filing_dates', 'operating_income', 'cash_from_operations', 'capital_expenditures',
+    }
+    assert len(calls) == 6
+    assert calls.count(MRVL_FACTS) == 1
+    before = list(calls)
+    cached = get_company_sec_annual_preview('MRVL', session, refresh_requested=False, user_agent='Research contact')
+    assert cached['mrvl_earnings_review'] == view['mrvl_earnings_review']
+    assert cached['approved_direct_fields'] == view['approved_direct_fields']
+    assert calls == before
+
+
+def test_mrvl_failed_peer_document_retains_annual_history_and_approved_scope(monkeypatch):
+    from test_mrvl_earnings_sources import _facts_payload, _sources, NOW, MRVL_FACTS, AVGO_DOCUMENT
+    from src.sec_annual_history import fetch_sec_online_research_view
+    import json
+
+    monkeypatch.delenv('COMMERCIAL_RESEARCH_MODE', raising=False)
+    sources = _sources()
+    sources[MRVL_FACTS] = _facts_payload()
+    sources['https://www.sec.gov/files/company_tickers.json'] = {'0': {'ticker': 'MRVL', 'cik_str': 1835632}}
+    calls = []
+    def fetch(url, _agent):
+        calls.append(url)
+        if url == AVGO_DOCUMENT:
+            raise OSError('private unreachable host detail')
+        body = sources[url]
+        return json.dumps(body).encode() if isinstance(body, dict) else body, {}, url
+    view = fetch_sec_online_research_view('MRVL', user_agent='Research contact', source_fetcher=fetch, observed_at=NOW)
+    review = view['mrvl_earnings_review']
+    assert len(calls) == 6
+    assert review['facts']['status'] == review['documents']['MRVL']['status'] == 'ready'
+    assert review['documents']['AVGO']['status'] == 'unavailable'
+    assert view['status'] == 'inspection_only'
+    assert view['annual_history']['periods'][0]['revenue'] == 1000
+    assert {row['field'] for row in view['approved_direct_fields']} == {
+        'revenue', 'filing_dates', 'operating_income', 'cash_from_operations', 'capital_expenditures',
+    }
+    assert 'private unreachable host detail' not in json.dumps(view)
+
+
+@pytest.mark.parametrize('change', ['wrong_cik', 'non_mrvl', 'commercial', 'invalid_mode'])
+def test_financial_identity_and_mode_guards_prevent_mrvl_source_requests(monkeypatch, change):
+    from test_mrvl_earnings_sources import _facts_payload, NOW, MRVL_FACTS
+    from src.sec_annual_history import fetch_sec_online_research_view
+    import json
+
+    monkeypatch.delenv('COMMERCIAL_RESEARCH_MODE', raising=False)
+    ticker, cik = ('FICT', 1234) if change == 'non_mrvl' else ('MRVL', 1835632)
+    if change in {'commercial', 'invalid_mode'}:
+        monkeypatch.setenv('COMMERCIAL_RESEARCH_MODE', '1' if change == 'commercial' else 'invalid')
+    payload = _payload() if ticker == 'FICT' else _facts_payload()
+    if change == 'wrong_cik': payload['cik'] = 9999
+    calls = []
+    def fetch(url, _agent):
+        calls.append(url)
+        body = payload if 'companyfacts/' in url else {'0': {'ticker': ticker, 'cik_str': cik}}
+        return json.dumps(body).encode(), {}, url
+    view = fetch_sec_online_research_view(ticker, user_agent='Research contact', source_fetcher=fetch, observed_at=NOW)
+    assert len(calls) == 2
+    assert not any('/submissions/' in url or '/Archives/' in url for url in calls)
+    if change in {'wrong_cik', 'non_mrvl'}:
+        assert 'mrvl_earnings_review' not in view
+    else:
+        assert view['mrvl_earnings_review']['reason']

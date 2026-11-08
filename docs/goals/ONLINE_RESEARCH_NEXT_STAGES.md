@@ -20,9 +20,13 @@ Exit: clean-checkout replay works with the declared permitted input; an unchange
 
 Execute [the multi-company goal](MULTI_COMPANY_REVIEW_GOAL.md): reuse qualified annual US-GAAP/USD Companyfacts capture, import and comparison across issuers, preserve NEM v1/v2, and show saved-company data gaps separately from research-process counts in Monitor. Validate real AMD and DUK observations alongside NEM; report exact scope, unsupported bases and unchanged protected data. No universally complete analysis claim follows from this software scope.
 
+## Completed bounded case: MRVL annual earnings and AVGO context
+
+MRVL's explicit financial refresh now supports a seven-component annual earnings review and named AVGO research context from current SEC metadata and exact annual documents. Sources, periods, units, component gaps and inspection rights remain visible. The AVGO annual mismatch stays excluded under the existing window; no economic-peer approval, adjusted EPS or other multiple follows. [Method](../ONLINE_PEER_VALUATION.md), [Release evidence](../MRVL_PEER_EARNINGS_RELEASE.md)
+
 ## Following stages and exit gates
 
-The online notes/evidence/Monitor continuity slice is implemented separately from model eligibility. See [its release evidence](../ONLINE_COMPANY_WORKFLOW_RELEASE.md). Existing journals and model tools remain available in their own scopes; saved notes are not current listing proof. The next executable milestone is one named economic-peer relationship with an earnings-quality and comparability explanation, as prioritized by the active roadmap.
+The online notes/evidence/Monitor continuity slice is implemented separately from model eligibility. See [its release evidence](../ONLINE_COMPANY_WORKFLOW_RELEASE.md). Existing journals and model tools remain available in their own scopes; saved notes are not current listing proof. The first named MRVL/AVGO context is implemented. The next executable evidence step is one exact-source after-tax reconciliation, keeping issuer-adjusted, normalized, reported annual, quarterly and forecast definitions distinct. A new valuation method still needs its own identity, period, share-basis and rights checks.
 
 | Stage | Executable outcome | Gate before expanding |
 | --- | --- | --- |

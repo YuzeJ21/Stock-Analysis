@@ -22,6 +22,7 @@ from src.scenario_lab_session import scenario_lab_widget_keys
 from src.research_record_authoring_ui import FIELD_CONTRACTS, authoring_session_key
 from src.online_peer_sources import get_online_peer_valuation
 from src.online_peer_valuation_ui import online_peer_valuation_html
+from src.mrvl_earnings_review_ui import mrvl_earnings_review_html, mrvl_earnings_caution_html
 from src.company_workbench_presentation import (
     WORKBENCH_STYLE, METRICS, financial_workspace_html, workbench_metrics_html,
 )
@@ -192,10 +193,16 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
                     return bundle
                 render_company_review(st_api,ticker,financial,profile_key=profile_scope)
             if selected=='valuation':
+                earnings_caution = mrvl_earnings_caution_html(financial, expected_cik=expected_cik)
+                if earnings_caution:
+                    st_api.markdown(earnings_caution, unsafe_allow_html=True)
                 if peer_view['status']!='not_requested':
                     st_api.markdown(online_peer_valuation_html(peer_view,compact=True),unsafe_allow_html=True)
                 else:
                     st_api.caption('Refresh to compare reported annual diluted P/E with qualifying industry references.')
+                earnings_review = mrvl_earnings_review_html(financial, expected_cik=expected_cik)
+                if earnings_review:
+                    st_api.markdown(earnings_review, unsafe_allow_html=True)
                 with st_api.expander('Listing source continuity', expanded=False):
                     st_api.caption('A complete listing observation from this session can be reused for up to 24 hours with its original dates. Financials and prices are checked independently.')
             if saved_available and scope=='saved':
@@ -217,5 +224,8 @@ def _render_company_content(st_api,ticker,*,profile_scope,scope,candidate,expect
             st_api.markdown(price_filing_association_html(bundle['association']),unsafe_allow_html=True)
             if peer_view['status']!='not_requested':
                 st_api.markdown(online_peer_valuation_html(peer_view,sources_only=True),unsafe_allow_html=True)
+            earnings_review = mrvl_earnings_review_html(financial, expected_cik=expected_cik, sources_only=True)
+            if earnings_review:
+                st_api.markdown(earnings_review, unsafe_allow_html=True)
             render_sources(bundle)
     return bundle
