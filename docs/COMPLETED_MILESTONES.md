@@ -2,6 +2,11 @@
 
 This document is the historical completion log for Stock Research Command Center. The active delivery sequence lives in [ROADMAP.md](../ROADMAP.md); exact implementation history remains available through Git commits and tests.
 
+## 2026-11-08 — MRVL issuer after-tax reconciliation
+
+- Exact SEC 8-K/Exhibit 99.1 linkage supports the issuer's annual aggregate GAAP-to-non-GAAP reconciliation, with signed components, tax effect, source precision and independent share/EPS checks.
+- The existing Workbench reuses this optional evidence in Valuation & Peers and Data Sources. Bad sources retain independent annual evidence; no extra Companyfacts/submissions fetch, canonical field, saved schema, valuation denominator or rights promotion follows. Gain-only after-tax allocation and normalized earnings remain gaps. [Method](ONLINE_PEER_VALUATION.md#mrvl-issuer-after-tax-reconciliation), [Release evidence](MRVL_AFTER_TAX_RELEASE.md)
+
 ## 2026-11-07 — MRVL annual earnings and AVGO comparison context
 
 - MRVL's financial refresh supports an independent, in-memory review of seven exact annual components and both named annual documents. The compact Workbench explanation retains sources, dates, units, rights and per-field gaps without preparing company CSVs.

@@ -1,5 +1,7 @@
 # MRVL peer valuation and earnings review: release evidence
 
+This records the original annual/AVGO stage. The subsequent [issuer after-tax reconciliation stage](MRVL_AFTER_TAX_RELEASE.md) closes the aggregate-bridge gap while retaining the independent normalized-earnings and tax-allocation gaps.
+
 Completed: November 8, 2026 (Toronto); implementation began November 7. Baseline: `15b04442a0e4660d2091f786df5013f6b4a64105`. Tested code commit: [`adefcdbdd54821401914749952312b9406da9c15`](https://github.com/YuzeJ21/Stock-Analysis/commit/adefcdbdd54821401914749952312b9406da9c15), synchronized to GitHub main and independently confirmed by the remote ref. The final README and verification ledger follow as a documentation-only commit; runtime code and tests are unchanged.
 
 ## Delivered scope

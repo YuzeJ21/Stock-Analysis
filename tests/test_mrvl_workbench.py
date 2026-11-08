@@ -5,17 +5,23 @@ import json
 from streamlit.testing.v1 import AppTest
 
 
-def install_sources(monkeypatch, *, failure=None, calls=None):
+def install_sources(monkeypatch, *, failure=None, calls=None, after_tax=False):
     from src import company_workbench_ui, online_sec_receipt, sec_exact_filing
     from tests.test_mrvl_earnings_sources import _facts_payload, _sources, MRVL_FACTS, AVGO_DOCUMENT
-    sources = _sources()
-    sources[MRVL_FACTS] = _facts_payload()
+    if after_tax:
+        from tests.test_mrvl_after_tax_review_integration import qualified_sources
+        sources = qualified_sources()
+    else:
+        sources = _sources()
+        sources[MRVL_FACTS] = _facts_payload()
     sources['https://www.sec.gov/files/company_tickers.json'] = {'0': {'ticker':'MRVL', 'cik_str':1835632}}
     calls = [] if calls is None else calls
     def fetch(url, _agent):
         calls.append(url)
         if failure == 'peer_document' and url == AVGO_DOCUMENT:
             raise OSError('Synthetic unavailable document')
+        if failure == 'after_tax_exhibit' and url.endswith('q426_8kx1312026ex-991.htm'):
+            raise OSError('Synthetic unavailable earnings exhibit')
         body = sources[url]
         return (json.dumps(body).encode() if isinstance(body, dict) else body), {}, url
     monkeypatch.setattr(online_sec_receipt, '_fetch_raw', fetch)
@@ -45,14 +51,14 @@ def rendered(at):
     return '\n'.join(str(item.value) for item in at.markdown)
 
 
-def load_review(monkeypatch, *, failure=None):
-    calls = install_sources(monkeypatch, failure=failure)
+def load_review(monkeypatch, *, failure=None, after_tax=False):
+    calls = install_sources(monkeypatch, failure=failure, after_tax=after_tax)
     at = AppTest.from_function(app, default_timeout=30)
     at.query_params.update(section='valuation',ticker='MRVL',online='1')
     at.run()
     assert calls == [] and not at.exception
     at.button(key='company-refresh-all').click().run()
-    assert not at.exception and len(calls) == 6
+    assert not at.exception and len(calls) == (8 if after_tax else 6)
     return at, calls
 
 
@@ -91,3 +97,35 @@ def test_presentation_does_not_mutate_financial_fields_or_saved_eligibility(monk
     snapshot = deepcopy(at.session_state[SESSION_KEY])
     at.radio[0].set_value('sources').run()
     assert not at.exception and at.session_state[SESSION_KEY] == snapshot
+
+
+def test_actual_refresh_explains_verified_issuer_bridge_with_price_sources_unavailable(monkeypatch):
+    at, calls = load_review(monkeypatch, after_tax=True)
+    html = rendered(at)
+    assert 'Issuer after-tax reconciliation — verified' in html
+    assert 'USD 176.0M' in html and 'USD 1.76' in html and '100.0M shares' in html
+    assert 'business-sale gain alone' in html and 'not recurring or normalized earnings' in html
+    assert 'Relative valuation withheld' in html and '90 days' in html
+    assert len(calls) == 8
+
+
+def test_loaded_issuer_bridge_survives_sections_without_retrieval_or_mutation(monkeypatch):
+    from src.company_sec_online_preview import SESSION_KEY
+    at, calls = load_review(monkeypatch, after_tax=True)
+    snapshot = deepcopy(at.session_state[SESSION_KEY])
+    at.radio[0].set_value('sources').run()
+    assert 'MRVL earnings review sources' in rendered(at)
+    assert 'Issuer after-tax reconciliation — verified' in rendered(at)
+    at.radio[0].set_value('overview').run()
+    assert 'Issuer after-tax reconciliation' not in rendered(at)
+    at.radio[0].set_value('valuation').run()
+    assert not at.exception and len(calls) == 8
+    assert at.session_state[SESSION_KEY] == snapshot
+
+
+def test_missing_earnings_exhibit_keeps_independent_annual_and_peer_evidence(monkeypatch):
+    at, calls = load_review(monkeypatch, failure='after_tax_exhibit', after_tax=True)
+    html = rendered(at)
+    assert 'Issuer after-tax reconciliation — withheld' in html
+    assert 'earnings exhibit was unavailable' in html and 'USD 176.0M' not in html
+    assert 'business-sale gain' in html and 'direct competitor' in html and len(calls) == 8

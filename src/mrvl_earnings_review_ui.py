@@ -1,5 +1,6 @@
 """Compact personal-research explanation; source validation owns every observation."""
 from collections.abc import Mapping
+from decimal import Decimal, InvalidOperation
 from html import escape
 import math
 from urllib.parse import urlsplit
@@ -45,6 +46,44 @@ REASONS = {
     'review_annual_fields_incomplete': 'One or more annual components remain withheld; independently verified fields are retained.',
     'review_document_unavailable': 'The exact annual document was unavailable.',
     'review_annual_scope_unavailable': 'The current annual metadata did not match this named evidence scope.',
+    'review_reconciliation_document_oversized': 'The reconciliation source exceeds the supported document-size limit.',
+    'sale_specific_tax_allocation_unavailable': 'The aggregate tax adjustment does not establish tax on the business-sale gain alone.',
+    'item_specific_after_tax_eps_unavailable': 'The issuer does not provide an item-by-item after-tax EPS bridge in this table.',
+    'normalized_earnings_not_qualified': 'Issuer non-GAAP results are not recurring or normalized earnings.',
+    'adjusted_valuation_denominator_not_qualified': 'Issuer non-GAAP EPS is not qualified as another valuation denominator.',
+}
+
+AFTER_TAX_REASONS = {
+    'reconciliation_not_requested': 'Refresh financials and prices to inspect the exact issuer reconciliation.',
+    'reconciliation_annual_scope_unavailable': 'The annual filing context did not qualify for this reconciliation.',
+    'reconciliation_primary_unavailable': 'The exact SEC earnings report was unavailable.',
+    'reconciliation_exhibit_unavailable': 'The exact SEC earnings exhibit was unavailable.',
+    'primary_source_unavailable': 'The exact SEC earnings report was unavailable.',
+    'exhibit_source_unavailable': 'The exact SEC earnings exhibit was unavailable.',
+    'exact_8k_missing_or_conflicting': 'The exact earnings report is absent or ambiguous in the current SEC submissions.',
+    'exact_8k_metadata_mismatch': 'The earnings report identity, date or document did not match the reviewed source.',
+    '8k_metadata_invalid': 'The earnings report dates could not be verified.',
+    '8k_amendment_unreviewed': 'An amendment to this earnings report requires a separate source review.',
+    'profile_identity_mismatch': 'The SEC profile does not establish the same MRVL issuer.',
+    'profile_schema_invalid': 'The SEC submissions metadata could not be validated.',
+    'primary_metadata_mismatch': 'The earnings document does not match the expected issuer, form and report date.',
+    'primary_amendment_unreviewed': 'The earnings document is an unreviewed amendment.',
+    'primary_visible_identity_missing': 'The earnings report identity was not established from its visible content.',
+    'primary_item_202_missing': 'The required Item 2.02 earnings disclosure was not verified.',
+    'primary_furnished_status_missing': 'The report did not establish the furnished status of Exhibit 99.1.',
+    'primary_exact_exhibit_link_missing': 'The earnings report did not verify its exact Exhibit 99.1 link.',
+    'evidence_schema_invalid': 'The exact reconciliation evidence has not been collected or could not be validated.',
+    'raw_bytes_missing_or_oversized': 'The original source bytes are missing or exceed the supported size.',
+    'raw_digest_changed': 'The original document no longer matches its recorded digest.',
+    'document_malformed_markup': 'The document structure could not support unambiguous extraction.',
+    'net_income_arithmetic_mismatch': 'The signed adjustments do not reconcile at the disclosed reporting precision.',
+    'disclosed_eps_rounding_mismatch': 'Reported EPS does not agree with its own income and diluted-share observations at source precision.',
+    'gaap_shares_invalid': 'The source share observations could not be verified.',
+    'diluted_shares_invalid': 'The source diluted-share denominator could not be verified.',
+    'extra_reconciliation_row': 'The table contains an additional adjustment outside this reviewed source definition.',
+    'reconciliation_rows_missing_extra_or_conflicting': 'The reconciliation rows are missing, repeated or conflicting.',
+    'reconciliation_rows_incomplete': 'The annual reconciliation is incomplete.',
+    'conflicting_section_context': 'A section heading conflicts with the reviewed currency, units or annual duration.',
 }
 
 
@@ -138,6 +177,79 @@ def _sources_html(refs):
     return '<ul>'+''.join(items)+'</ul>'
 
 
+def _after_tax_reason(reason):
+    while isinstance(reason, str) and reason.startswith('after_tax_'):
+        reason = reason[len('after_tax_'):]
+    return AFTER_TAX_REASONS.get(reason, REASONS.get(reason,
+        'The exact issuer reconciliation could not be verified. The annual fields retain their own evidence status.'))
+
+
+def _after_tax_amount(component):
+    """Keep source precision and a consistent million-dollar basis for the bridge."""
+    try:
+        value = Decimal(str(component.get('source_value')))
+        if not value.is_finite():
+            return 'Withheld'
+        text = format(value, ',f')
+        if component.get('unit') == 'shares' and component.get('scale') == 1_000_000:
+            return text+'M shares'
+        if component.get('unit') == 'USD' and component.get('scale') == 1_000_000:
+            return 'USD '+text+'M'
+        if component.get('unit') == 'USD/shares' and component.get('scale') == 1:
+            return 'USD '+text
+    except (ValueError, TypeError, InvalidOperation):
+        pass
+    return 'Withheld'
+
+
+def _after_tax_html(reconciliation):
+    r = reconciliation if isinstance(reconciliation, Mapping) else {}
+    valid = r.get('status') == 'verified_issuer_reconciliation'
+    title = 'Issuer after-tax reconciliation — '+('verified' if valid else 'withheld')
+    body = '<details class="mrvl-after-tax"><summary>'+title+'</summary>'
+    if not valid:
+        return body+'<p>'+_text(_after_tax_reason(r.get('reason')))+('</p><p>The annual fields and peer context retain their independent evidence status. '
+            'A pretax gain cannot be subtracted from after-tax net income or EPS to establish normalized earnings.</p></details>')
+    filing = r.get('filing') if isinstance(r.get('filing'), Mapping) else {}
+    period = r.get('annual_period') if isinstance(r.get('annual_period'), Mapping) else {}
+    body += ('<p><strong>Issuer-reported GAAP to non-GAAP, not recurring or normalized earnings.</strong></p>'
+             '<p>Year ended '+_text(period.get('period_end'))+' · annual interval '
+             +_text(period.get('period_start'))+' to '+_text(period.get('period_end'))
+             +' anchored to the independently verified 10-K.</p><p>Form '+_text(filing.get('form'))
+             +' · filed '+_text(filing.get('filed'))+' · '+_text(filing.get('accession'))
+             +' · Exhibit 99.1 furnished under Item 2.02 · '+_link(filing.get('primary_url'), 'SEC earnings report')
+             +' · '+_link(filing.get('exhibit_url'), 'SEC reconciliation exhibit')+'</p>')
+    rows = []
+    adjustment_fields = {'stock_based_compensation','amortization_of_acquired_intangibles','restructuring_related_charges',
+                         'other_cost_of_goods_sold','gain_on_sale_of_business','other','pretax_special_items_total','tax_effects'}
+    for component in r.get('components', []):
+        if not isinstance(component, Mapping):
+            continue
+        amount = _after_tax_amount(component)
+        if component.get('field') in adjustment_fields and _number(component.get('value')) and component['value'] > 0:
+            amount = amount.replace('USD ', 'USD +', 1)
+        meta = ('<details><summary>Source observation</summary><p>Exact displayed number: '
+                +_text(component.get('source_value'))+' · source scale '+_text(component.get('scale'))
+                +' · normalized unit '+_text(component.get('unit'))+'</p><p>Original cell: '
+                +_text(component.get('raw_text'))+' · table '+_text(component.get('table_index'))
+                +' · row '+_text(component.get('row_index'))+' · source column span '
+                +_text(component.get('column_span'))+' (zero-based, end exclusive)</p><p>Observed '
+                +_text(component.get('observed_at'))+' · '+_link(component.get('source_ref'), 'Exact SEC exhibit')
+                +'</p><p>Original response SHA-256 <code>'+_text(component.get('payload_sha256'))+'</code></p></details>')
+        rows.append('<tr><td data-label="Reported item">'+_text(component.get('label'))+'</td>'
+                    '<td data-label="Value">'+amount+'</td><td data-label="Evidence">'+meta+'</td></tr>')
+    body += ('<table><caption>Reported annual reconciliation. Monetary amounts and shares are in millions in the source; EPS is per share. '
+             'USD is bound to the matching annual GAAP observations.</caption><thead><tr><th>Reported item</th><th>Value</th><th>Evidence</th>'
+             '</tr></thead><tbody>'+''.join(rows)+'</tbody></table>')
+    checks = r.get('checks') if isinstance(r.get('checks'), Mapping) else {}
+    body += '<p>The signed special items and aggregate tax adjustment reconcile at the reported precision. No item-specific EPS adjustment is derived.</p>'
+    if all(isinstance(checks.get(k), Mapping) and checks[k].get('passed') is True for k in ('gaap_eps','issuer_non_gaap_eps')):
+        body += '<p>Reported GAAP and issuer non-GAAP EPS are consistent with their respective disclosed diluted-share observations at source precision.</p>'
+    body += '<ul>'+''.join('<li>'+_text(_reason(g))+'</li>' for g in r.get('gaps', []))+'</ul>'
+    body += _sources_html(r.get('source_refs', []))+'</details>'
+    return body
+
+
 def _review_html(review, *, sources_only=False):
     """Present a validated review. The public wrapper always revalidates the source packet."""
     review = review if isinstance(review, Mapping) else {}
@@ -169,6 +281,8 @@ def _review_html(review, *, sources_only=False):
     body += ('<p>The business-sale gain is pre-tax. Subtracting it from after-tax net income or EPS would not establish normalized earnings. '
              'Cash-flow addbacks for share-based compensation and amortization do not by themselves provide an after-tax reconciliation. '
              'Operating cash flow and PP&E purchases are separate observations; no free-cash-flow multiple is inferred.</p></details>')
+    reconciliation = quality.get('after_tax_reconciliation') if valid else None
+    body += _after_tax_html(reconciliation)
     supported_peer = (valid and peer.get('status') == 'research_context'
                       and peer.get('relationship_supported') is True and peer.get('business_mix_difference') is True)
     body += '<h4>Broadcom: economic relevance and valuation eligibility</h4>'
@@ -192,8 +306,11 @@ def _review_html(review, *, sources_only=False):
     body += '</details><details><summary>Remaining earnings-quality gaps and source permissions</summary>'
     gaps = quality.get('gaps') if isinstance(quality.get('gaps'), list) else []
     body += '<ul>'+''.join('<li>'+_text(_reason(gap))+'</li>' for gap in gaps)+'</ul>'
-    body += ('<p>No adjusted EPS or additional multiple is calculated. A validated after-tax reconciliation is needed before recurring or issuer-adjusted earnings can support another method.</p>'
-             '<p>Personal Research inspection only. These observations do not grant commercial approval, source redistribution rights, '
+    if isinstance(reconciliation, Mapping) and reconciliation.get('status') == 'verified_issuer_reconciliation':
+        body += '<p>Issuer non-GAAP EPS is an inspected source observation. No adjusted multiple or recurring-earnings estimate is calculated.</p>'
+    else:
+        body += '<p>No adjusted EPS or additional multiple is calculated. A validated after-tax reconciliation is needed before recurring or issuer-adjusted earnings can support another method.</p>'
+    body += ('<p>Personal Research inspection only. These observations do not grant commercial approval, source redistribution rights, '
              'canonical-field approval, saved-receipt eligibility or model readiness.</p>')
     body += _sources_html(review.get('source_refs', []))+'</details></section>'
     return body

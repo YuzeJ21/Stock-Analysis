@@ -42,7 +42,9 @@ def run_mrvl_fixture(root):
     company_research_notes.PROJECT_ROOT = root
     sec_research_review_ui.PROJECT_ROOT = root
     with pytest.MonkeyPatch.context() as patch:
-        install_sources(patch, failure='peer_document' if (root/'fail-peer-document').exists() else None, calls=Calls())
+        failure = ('after_tax_exhibit' if (root/'fail-after-tax-exhibit').exists() else
+                   'peer_document' if (root/'fail-peer-document').exists() else None)
+        install_sources(patch, failure=failure, calls=Calls(), after_tax=True)
         patch.setattr(dashboard, 'search_sec_company_candidates', search)
         patch.setattr(socket.socket, 'connect', local_only)
         dashboard.main()
@@ -122,14 +124,14 @@ def test_mrvl_annual_explanation_sources_monitor_and_failed_retry_keep_their_bou
             expect(review.get_by_role('heading',name='Earnings quality behind annual P/E',exact=True)).to_be_visible()
             expect(review).to_contain_text('business-sale gain')
             expect(review).to_contain_text('direct competitor')
-            assert len(_calls(tmp_path)) == 6
+            assert len(_calls(tmp_path)) == 8
             basis_link = page.get_by_role('link',name='View earnings basis',exact=True)
             assert basis_link.bounding_box()['height'] >= 44
             basis_link.click()
             assert review.bounding_box()['y'] < height
-            assert len(_calls(tmp_path)) == 6
+            assert len(_calls(tmp_path)) == 8
             _details(review,'Inspect annual earnings and cash-flow evidence')
-            caption = review.locator('caption')
+            caption = review.locator('caption').filter(has_text='Annual observations; rounded display values.')
             caption_box = caption.bounding_box()
             assert caption_box['width'] >= review.bounding_box()['width']*.7
             assert caption_box['height'] <= 150
@@ -141,6 +143,21 @@ def test_mrvl_annual_explanation_sources_monitor_and_failed_retry_keep_their_bou
             expect(field_row).to_contain_text('2025-02-02 to 2026-01-31')
             expect(field_row).to_contain_text('2026-03-11')
             assert field_row.get_by_role('link',name='SEC Companyfacts',exact=True).get_attribute('href').endswith('CIK0001835632.json')
+            _details(review,'Issuer after-tax reconciliation — verified')
+            reconciliation = review.locator('details.mrvl-after-tax')
+            expect(reconciliation).to_contain_text('USD 176.0M')
+            expect(reconciliation).to_contain_text('USD 1.76')
+            expect(reconciliation).to_contain_text('100.0M shares')
+            expect(reconciliation).to_contain_text('not recurring or normalized earnings')
+            expect(reconciliation).to_contain_text('gain alone')
+            expect(reconciliation).to_contain_text('furnished under Item 2.02')
+            assert reconciliation.get_by_role('link',name='SEC earnings report',exact=True).get_attribute('href').endswith('mrvl-20260305.htm')
+            assert reconciliation.get_by_role('link',name='SEC reconciliation exhibit',exact=True).get_attribute('href').endswith('q426_8kx1312026ex-991.htm')
+            share_row = reconciliation.locator('tr').filter(has_text='Non-GAAP weighted-average shares')
+            _details(share_row,'Source observation')
+            expect(share_row).to_contain_text('source scale 1000000')
+            expect(share_row).to_contain_text('source column span [24, 27]')
+            assert reconciliation.locator('caption').bounding_box()['width'] >= review.bounding_box()['width']*.7
             _details(review,'Why consider AVGO, and why is the annual comparison held?')
             expect(review).to_contain_text('90 days apart')
             expect(review).to_contain_text('35-day window')
@@ -150,7 +167,7 @@ def test_mrvl_annual_explanation_sources_monitor_and_failed_retry_keep_their_bou
             assert page.locator('html').evaluate('node=>node.scrollWidth') <= width+1
             _section(page,'Data Sources')
             expect(page.get_by_role('heading',name='MRVL earnings review sources',exact=True)).to_be_visible()
-            assert len(_calls(tmp_path)) == 6
+            assert len(_calls(tmp_path)) == 8
             nav = page.get_by_role('navigation',name='Personal research workflow',exact=True)
             nav.get_by_role('link',name='Monitor',exact=True).click()
             back = page.get_by_role('button',name='Return to MRVL Company Workbench',exact=True)
@@ -159,18 +176,30 @@ def test_mrvl_annual_explanation_sources_monitor_and_failed_retry_keep_their_bou
             back.click()
             expect(page.get_by_role('heading',name='MRVL earnings review sources',exact=True)).to_be_visible()
             assert parse_qs(urlsplit(page.url).query)['section'] == ['sources']
-            assert len(_calls(tmp_path)) == 6
+            assert len(_calls(tmp_path)) == 8
+            expect(page.get_by_text('Issuer after-tax reconciliation — verified',exact=True)).to_be_visible()
             _section(page,'Overview')
             expect(page.get_by_role('heading',name='Earnings quality behind annual P/E',exact=True)).to_have_count(0)
             _section(page,'Valuation & Peers')
             expect(page.get_by_role('heading',name='Earnings quality behind annual P/E',exact=True)).to_be_visible()
-            assert len(_calls(tmp_path)) == 6
+            assert len(_calls(tmp_path)) == 8
             (tmp_path/'fail-peer-document').write_text('Constructed retry failure')
             refresh.click()
             expect(review).to_contain_text('AVGO comparison context remains incomplete')
             expect(review).to_contain_text('business-sale gain')
             expect(review).not_to_contain_text('direct competitor')
-            assert len(_calls(tmp_path)) == 12
+            assert len(_calls(tmp_path)) == 16
+            expect(review).to_contain_text('Issuer after-tax reconciliation — verified')
+            (tmp_path/'fail-peer-document').unlink()
+            (tmp_path/'fail-after-tax-exhibit').write_text('Constructed earnings source failure')
+            refresh.click()
+            expect(review).to_contain_text('Issuer after-tax reconciliation — withheld')
+            _details(review,'Issuer after-tax reconciliation — withheld')
+            expect(review).to_contain_text('earnings exhibit was unavailable')
+            expect(review).not_to_contain_text('USD 176.0M')
+            expect(review).to_contain_text('direct competitor')
+            expect(review).to_contain_text('business-sale gain')
+            assert len(_calls(tmp_path)) == 24
             assert page.locator('html').evaluate('node=>node.scrollWidth') <= width+1
             assert not page.get_by_test_id('stException').count()
             assert_rendered_english(page.locator('body'))

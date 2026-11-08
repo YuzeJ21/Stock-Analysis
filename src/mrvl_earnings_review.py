@@ -400,7 +400,8 @@ def _empty(reason):
     return dict(status='withheld', reason=reason, ticker='MRVL', sec_cik=MRVL_CIK,
         rights_status=RIGHTS, commercial_eligible=False, readiness_promoted=False,
         quality=dict(status='withheld', reason=reason, filing=None,
-            fields=_field_rows({}, MRVL, reason), flags=[], gaps=[reason]),
+            fields=_field_rows({}, MRVL, reason), flags=[], gaps=[reason],
+            after_tax_reconciliation=dict(status='withheld', reason=reason, components=[], source_refs=[])),
         peer_context=dict(status='withheld', reason=reason, subject_filing=None, peer_filing=None,
             relationship_supported=False, business_mix_difference=False, period_end_gap_days=None,
             fiscal_window_days=FISCAL_WINDOW_DAYS, numerical_admission='not_granted'), source_refs=[])
@@ -418,6 +419,13 @@ def build_mrvl_earnings_review(packet, *, expected_cik=None, as_of=None):
         for receipt in packet.get('documents', {}).values():
             if isinstance(receipt, Mapping) and isinstance(receipt.get('payload_raw_base64'), str):
                 _need(len(receipt['payload_raw_base64']) <= 4*((MAX_FILING_BYTES+2)//3), 'review_document_oversized')
+        extension = packet.get('after_tax_reconciliation')
+        if isinstance(extension, Mapping):
+            for name in ('primary', 'exhibit'):
+                receipt = extension.get(name)
+                if isinstance(receipt, Mapping) and isinstance(receipt.get('payload_raw_base64'), str):
+                    _need(len(receipt['payload_raw_base64']) <= 4*((MAX_FILING_BYTES+2)//3),
+                          'review_reconciliation_document_oversized')
         _need(packet.get('packet_digest') == _digest({k: v for k, v in packet.items() if k != 'packet_digest'}),
               'review_packet_changed')
         _fresh(packet.get('observed_at'), now)
@@ -474,6 +482,18 @@ def build_mrvl_earnings_review(packet, *, expected_cik=None, as_of=None):
             relationship_supported=True, business_mix_difference=True, period_end_gap_days=gap)
     else:
         peer['reason'] = source_gaps[0] if source_gaps else 'review_relationship_evidence_unavailable'
+    from src.mrvl_after_tax_reconciliation import build_mrvl_after_tax_reconciliation
+    reconciliation = build_mrvl_after_tax_reconciliation(
+        packet.get('after_tax_reconciliation'), profile_receipt=profiles['MRVL'],
+        annual_fields=quality['fields'], annual_filing=quality['filing'], as_of=now,
+    )
+    quality['after_tax_reconciliation'] = reconciliation
+    if reconciliation.get('status') == 'verified_issuer_reconciliation':
+        quality['gaps'] = [g for g in quality['gaps'] if g != 'adjusted_after_tax_reconciliation_unresolved']
+        quality['gaps'] += reconciliation['gaps']
+        for reference in reconciliation.get('source_refs', []):
+            if reference not in refs:
+                refs.append(deepcopy(reference))
     quality['gaps'] += source_gaps
     supported = bool(available) or peer['status'] == 'research_context'
     result.update(status='inspection_only' if supported else 'withheld',

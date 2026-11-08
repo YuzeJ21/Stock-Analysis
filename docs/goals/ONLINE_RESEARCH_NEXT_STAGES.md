@@ -22,11 +22,11 @@ Execute [the multi-company goal](MULTI_COMPANY_REVIEW_GOAL.md): reuse qualified 
 
 ## Completed bounded case: MRVL annual earnings and AVGO context
 
-MRVL's explicit financial refresh now supports a seven-component annual earnings review and named AVGO research context from current SEC metadata and exact annual documents. Sources, periods, units, component gaps and inspection rights remain visible. The AVGO annual mismatch stays excluded under the existing window; no economic-peer approval, adjusted EPS or other multiple follows. [Method](../ONLINE_PEER_VALUATION.md), [Release evidence](../MRVL_PEER_EARNINGS_RELEASE.md)
+MRVL's explicit financial refresh now supports a seven-component annual earnings review and named AVGO research context from current SEC metadata and exact annual documents. Sources, periods, units, component gaps and inspection rights remain visible. The follow-on issuer aggregate after-tax reconciliation is verified separately, with gain-only tax and normalized earnings still withheld. [After-tax evidence](../MRVL_AFTER_TAX_RELEASE.md) The AVGO annual mismatch stays excluded under the existing window; no economic-peer approval, adjusted EPS or other multiple follows. [Method](../ONLINE_PEER_VALUATION.md), [Release evidence](../MRVL_PEER_EARNINGS_RELEASE.md)
 
 ## Following stages and exit gates
 
-The online notes/evidence/Monitor continuity slice is implemented separately from model eligibility. See [its release evidence](../ONLINE_COMPANY_WORKFLOW_RELEASE.md). Existing journals and model tools remain available in their own scopes; saved notes are not current listing proof. The first named MRVL/AVGO context is implemented. The next executable evidence step is one exact-source after-tax reconciliation, keeping issuer-adjusted, normalized, reported annual, quarterly and forecast definitions distinct. A new valuation method still needs its own identity, period, share-basis and rights checks.
+The online notes/evidence/Monitor continuity slice is implemented separately from model eligibility. See [its release evidence](../ONLINE_COMPANY_WORKFLOW_RELEASE.md). Existing journals and model tools remain available in their own scopes; saved notes are not current listing proof. The first named MRVL/AVGO context is implemented. MRVL's exact annual issuer aggregate after-tax reconciliation is now verified for inspection. The next executable step is one eligible industry reference's exact annual earnings definitions and adjustment choices, keeping issuer-adjusted, normalized, reported annual, quarterly and forecast definitions distinct. A new valuation method still needs its own identity, period, share-basis and rights checks.
 
 | Stage | Executable outcome | Gate before expanding |
 | --- | --- | --- |

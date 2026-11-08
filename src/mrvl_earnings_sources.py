@@ -63,11 +63,43 @@ def _fetch_document(url, *, user_agent, source_fetcher, observed_at):
         return held
 
 
+def _after_tax_sources(profile, *, annual_qualified, user_agent, source_fetcher, observed_at):
+    """Reuse the profile; collect only fixed documents after its exact scope qualifies."""
+    extension = {
+        'schema_version': 'mrvl-after-tax-reconciliation-v1',
+        'status': 'unavailable', 'reason': 'reconciliation_annual_scope_unavailable',
+        'primary': _unavailable('reconciliation_primary_unavailable'),
+        'exhibit': _unavailable('reconciliation_exhibit_unavailable'),
+    }
+    if not annual_qualified:
+        return extension
+    from src.mrvl_after_tax_reconciliation import RECONCILIATION_POLICY, select_mrvl_after_tax_source
+    selection = select_mrvl_after_tax_source(profile, as_of=observed_at)
+    if selection.get('status') != 'selected':
+        extension['reason'] = selection.get('reason', 'reconciliation_8k_scope_unavailable')
+        return extension
+    extension['primary'] = _fetch_document(
+        RECONCILIATION_POLICY['primary_url'], user_agent=user_agent,
+        source_fetcher=source_fetcher, observed_at=observed_at,
+    )
+    extension['reason'] = 'reconciliation_primary_unavailable'
+    if extension['primary'].get('status') != 'ready':
+        return extension
+    extension['exhibit'] = _fetch_document(
+        RECONCILIATION_POLICY['exhibit_url'], user_agent=user_agent,
+        source_fetcher=source_fetcher, observed_at=observed_at,
+    )
+    extension['reason'] = 'reconciliation_exhibit_unavailable'
+    if extension['exhibit'].get('status') == 'ready':
+        extension.update(status='unverified_sources', reason=None)
+    return extension
+
+
 def fetch_mrvl_earnings_review(
     facts_receipt, *, ticker, expected_cik, user_agent,
     source_fetcher=None, observed_at=None,
 ):
-    """Reuse Companyfacts; request at most two current profiles and two exact documents.
+    """Reuse Companyfacts; at most two profiles, two annual and two earnings documents.
 
     These research receipts carry no registered field or document permissions. Each
     issuer's source failure is independent, and no request is retried or saved.
@@ -100,6 +132,7 @@ def fetch_mrvl_earnings_review(
     if packet['facts'].get('status') != 'ready':
         packet['reason'] = 'review_facts_unavailable'
         return seal_review_packet(packet)
+    mrvl_annual_qualified = False
     for name in ('MRVL', 'AVGO'):
         policy = POLICIES[name]
         profile_url = f"https://data.sec.gov/submissions/CIK{policy['sec_cik']}.json"
@@ -116,8 +149,14 @@ def fetch_mrvl_earnings_review(
                 ))):
             packet['documents'][name] = _unavailable('review_annual_scope_unavailable', policy['source_url'])
             continue
+        if name == 'MRVL':
+            mrvl_annual_qualified = True
         packet['documents'][name] = _fetch_document(
             policy['source_url'], user_agent=user_agent.strip(), source_fetcher=source_fetcher, observed_at=observed_at,
         )
+    packet['after_tax_reconciliation'] = _after_tax_sources(
+        packet['profiles'].get('MRVL'), annual_qualified=mrvl_annual_qualified,
+        user_agent=user_agent.strip(), source_fetcher=source_fetcher, observed_at=observed_at,
+    )
     packet['observed_at'] = (observed_at or datetime.now(timezone.utc)).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
     return seal_review_packet(packet)

@@ -138,3 +138,95 @@ def test_validated_annual_caution_links_to_evidence_and_holds_an_identity_confli
     held = mrvl_earnings_caution_html(view, expected_cik='0001730168', as_of=NOW)
     assert 'source gaps' in held and 'business-sale gain' not in held
     assert view == before
+
+
+def after_tax_review():
+    """Constructed presentation fixture, independently different from live data."""
+    result = review()
+    url = 'https://www.sec.gov/Archives/edgar/data/1835632/000183563226000006/q426_8kx1312026ex-991.htm'
+    components = []
+    for field, label, value, unit, scale in (
+        ('gaap_net_income', 'GAAP net income (loss)', 250_000_000, 'USD', 1_000_000),
+        ('pretax_special_items_total', 'Pre-tax total special items', 30_000_000, 'USD', 1_000_000),
+        ('tax_effects', 'Other income tax effects and adjustments (d)', -5_000_000, 'USD', 1_000_000),
+        ('issuer_non_gaap_net_income', 'Non-GAAP net income', 275_000_000, 'USD', 1_000_000),
+        ('gaap_diluted_shares', 'GAAP weighted-average shares — diluted', 100_000_000, 'shares', 1_000_000),
+        ('issuer_non_gaap_diluted_eps', 'Non-GAAP diluted net income per share', 2.75, 'USD/shares', 1),
+    ):
+        components.append(dict(field=field, label=label, value=value, unit=unit, scale=scale,
+            source_value=str(value/scale), raw_text=str(value/scale), source_ref=url,
+            observed_at='2026-11-07T18:00:00Z', payload_sha256='c'*64,
+            table_index=3, row_index=len(components)+10, column_span=[24,27]))
+    result['quality']['after_tax_reconciliation'] = dict(status='verified_issuer_reconciliation', reason=None,
+        basis='issuer_reported_non_gaap', components=components,
+        filing=dict(accession='0001835632-26-000006', form='8-K', filed='2026-03-05',
+                    primary_url=url.replace('q426_8kx1312026ex-991.htm','mrvl-20260305.htm'), exhibit_url=url),
+        annual_period=dict(period_start='2025-02-02', period_end='2026-01-31'),
+        checks=dict(pretax_components_residual_usd=0, net_income_residual_usd=0,
+                    gaap_eps={'passed':True}, issuer_non_gaap_eps={'passed':True}),
+        gaps=['sale_specific_tax_allocation_unavailable','item_specific_after_tax_eps_unavailable',
+              'normalized_earnings_not_qualified','adjusted_valuation_denominator_not_qualified'],
+        source_refs=[dict(source_url=url, observed_at='2026-11-07T18:00:00Z',payload_sha256='c'*64)])
+    result['quality']['gaps'] = ['latest_quarter_outside_annual_review']
+    return result
+
+
+def test_verified_issuer_bridge_is_distinct_from_normalized_earnings_and_keeps_signed_tax():
+    from src.mrvl_earnings_review_ui import _review_html
+    result = after_tax_review(); before = deepcopy(result)
+    html = _review_html(result)
+    assert 'Issuer after-tax reconciliation — verified' in html
+    assert 'USD 275.0M' in html and 'USD -5.0M' in html and 'USD 2.75' in html
+    assert '100.0M shares' in html and 'Year ended 2026-01-31' in html
+    assert 'furnished' in html.lower() and '0001835632-26-000006' in html
+    assert 'source column' in html.lower() and 'c'*64 in html
+    assert 'gain alone' in html and 'not recurring or normalized earnings' in html
+    assert 'An adjusted after-tax reconciliation remains unresolved' not in html
+    assert 'before recurring or issuer-adjusted earnings can support another method' not in html
+    assert 'No adjusted EPS or additional multiple is calculated' not in html
+    assert result == before
+
+
+def test_failed_issuer_bridge_drops_its_numbers_and_explains_local_source_gap():
+    from src.mrvl_earnings_review_ui import _review_html
+    result = after_tax_review()
+    result['quality']['after_tax_reconciliation'].update(status='withheld', reason='reconciliation_exhibit_unavailable')
+    html = _review_html(result)
+    assert 'Issuer after-tax reconciliation — withheld' in html
+    assert 'earnings exhibit was unavailable' in html
+    assert 'USD 275.0M' not in html and 'USD 2.75' not in html
+    assert 'USD 250.0M' in html and 'direct competitor' in html
+
+
+def test_source_mode_reuses_exact_bridge_and_escapes_untrusted_metadata():
+    from src.mrvl_earnings_review_ui import _review_html
+    result = after_tax_review()
+    result['quality']['after_tax_reconciliation']['components'][0]['label'] = '<script>unsafe</script>'
+    html = _review_html(result, sources_only=True)
+    assert 'MRVL earnings review sources' in html and 'Issuer after-tax reconciliation — verified' in html
+    assert '<script>unsafe</script>' not in html and '&lt;script&gt;unsafe&lt;/script&gt;' in html
+    assert 'Personal Research inspection only' in html
+
+
+def test_actual_builder_output_preserves_millions_in_the_rendered_share_count():
+    from src.mrvl_earnings_review_ui import _review_html
+    from src.mrvl_earnings_review import build_mrvl_earnings_review
+    from tests.test_mrvl_after_tax_review_integration import qualified_packet, NOW
+    result = build_mrvl_earnings_review(qualified_packet(), as_of=NOW)
+    assert result['quality']['after_tax_reconciliation']['status'] == 'verified_issuer_reconciliation'
+    html = _review_html(result)
+    assert '100.0M shares' in html and '>100.0 shares<' not in html
+    assert 'source scale 1000000' in html and 'USD 1.76' in html
+
+
+def test_bridge_money_keeps_original_millions_precision_for_readable_arithmetic():
+    from src.mrvl_earnings_review_ui import _after_tax_html
+    r = after_tax_review()['quality']['after_tax_reconciliation']
+    for row in r['components']:
+        if row['field'] == 'gaap_net_income':
+            row.update(value=1_234_500_000, source_value='1234.5')
+        elif row['field'] == 'issuer_non_gaap_net_income':
+            row.update(value=1_340_600_000, source_value='1340.6')
+    html = _after_tax_html(r)
+    assert 'USD 1,234.5M' in html and 'USD 1,340.6M' in html
+    assert 'USD 1.23B' not in html and 'USD 1.34B' not in html

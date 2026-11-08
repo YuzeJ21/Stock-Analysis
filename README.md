@@ -72,7 +72,7 @@ The application retrieves data online while running locally. GitHub Pages hosts 
 
 ### MRVL earnings quality and peer fit
 
-MRVL's **Valuation & Peers** section explains the reported annual denominator, business-sale gains, cash versus net income, compensation and amortization using online SEC evidence. A named Broadcom comparison shows the business rationale, different business mix and the annual-period exclusion. Fields, dates, sources and missing reasons expand on demand. Adjusted earnings and numerical peer eligibility retain their own gates. [Method and scope](docs/ONLINE_PEER_VALUATION.md#mrvl-annual-earnings-quality-and-named-avgo-context)
+MRVL's **Valuation & Peers** section explains the reported annual denominator, business-sale gains, cash versus net income, compensation and amortization using online SEC evidence. A named Broadcom comparison shows the business rationale, different business mix and the annual-period exclusion. The issuer's exact annual GAAP-to-non-GAAP after-tax reconciliation is available for inspection, with signed adjustments, tax effects, source precision and separate share/EPS checks. Fields, dates, sources and missing reasons expand on demand. Gain-only tax allocation, normalized earnings and another valuation denominator remain unqualified. [Method and scope](docs/ONLINE_PEER_VALUATION.md#mrvl-annual-earnings-quality-and-named-avgo-context)
 
 ### Saved SEC evidence review
 
@@ -133,7 +133,7 @@ The supported workflow is research-only. Investment advice, broker account actio
 | Stage | Current focus |
 | --- | --- |
 | **Available today** | A local research beta with the five-section company workspace, online MRVL annual earnings quality and peer context, an English synthetic public demo, a separate dated AMD filing case, and exact-pair annual SEC review for NEM, AMD, and DUK. |
-| **Next** | Verify an exact-source after-tax earnings reconciliation before adding a normalized or forecast denominator. Extend issuer and period support from measured gaps while preserving price, identity, financial-period and rights requirements. |
+| **Next** | Review one eligible industry reference's exact annual earnings definitions and issuer adjustments before proposing another valuation measure. Extend issuer and period support from measured gaps while preserving price, identity, financial-period and rights requirements. |
 | **Later gates** | Hosted full-workspace operation, authentication and private workspaces, operated data rights, provider reliability, independent user evidence, and commercial validation. |
 
 The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the current local decision ladder.
