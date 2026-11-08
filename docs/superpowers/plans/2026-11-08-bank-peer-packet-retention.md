@@ -12,7 +12,7 @@ Design: docs/superpowers/specs/2026-11-08-bank-peer-packet-retention-design.md.
 - [x] Root: capture BAC/C through the same production adapters, compare unchanged source objects/documents and recomputed valuation/exclusion results. Keep all gaps and denominators visible.
 - [x] Browser agent: constructed six-attempt study with three banks, explicit recheck, source-free reads, desktop/phone screenshots and unchanged-data checks.
 - [x] Root/reviewer: affected regression, six route renders, preserved 89-file manifest, wording/hygiene, independent review and bounded fix wave.
-- [ ] Root: update current method/roadmap/release evidence, commit, synchronize GitHub main and verify exact remote content.
+- [x] Root: update current method/roadmap/release evidence, commit, synchronize GitHub main and verify exact remote content.
 
 ## Execution ledger
 
@@ -23,3 +23,5 @@ Design: docs/superpowers/specs/2026-11-08-bank-peer-packet-retention-design.md.
 - The codec's 92 adversarial cases and five integration cases pass. The final affected group passed 855 tests in 33.73 seconds; desktop/phone passed two cases in 96.49 seconds; all six research renders passed. Source-rule files remain unchanged.
 - JPM/BAC/C each restore a complete 74.1 MB original packet from approximately 7.03 MB stored evidence, with all twelve embedded raw receipts preserved, identical original conclusions and three eligible references. A fresh production JPM retry also passed.
 - The review's company-scope mismatch was fixed with a red/green regression. Phone proof contrast was repaired without changing legacy provenance. Normalized snapshot acceptance of raw_cover_observations/raw_symbol remains a separate next stage; no acceptance gate or user store was changed. All 89 protected files remain unchanged.
+
+- Implementation 88e9d5eb0c0ba70054a8813541cb02d0b1d556f3 fast-forwarded GitHub main. Independent GitHub branch read and Git remote matched; remote README/release blobs matched local files. This documentation follow-up changes no runtime code. The owned local app restarted on port8536 with health ok; all other checkouts were preserved.

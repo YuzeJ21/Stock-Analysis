@@ -49,3 +49,11 @@ The tested commit and exact GitHub synchronization are recorded below after comp
 Next inspect the exact normalized-store proof gap separately, then the filed quarterly evidence for C, DUK, SO and NEE and the remaining share-class/foreign-issuer exclusions. Preserve the complete source packet and existing financial rules in every step.
 
 [Study method](CROSS_INDUSTRY_SELF_SERVICE.md) · [Prior stage evidence](CROSS_INDUSTRY_SELF_SERVICE_RELEASE.md) · [Roadmap](../ROADMAP.md)
+
+## Tested commit and GitHub state
+
+Verified implementation: [`88e9d5eb0c0ba70054a8813541cb02d0b1d556f3`](https://github.com/YuzeJ21/Stock-Analysis/commit/88e9d5eb0c0ba70054a8813541cb02d0b1d556f3). GitHub main accepted the fast-forward from the stated baseline. The Git remote and independent GitHub branch read matched that full commit; remote README and release-document blob IDs matched their local files. A documentation-only follow-up records these checks without changing tested runtime code or protected assets.
+
+Staged hygiene and whitespace passed with zero generated/canonical data staged. The implementation checkout was clean after commit. The local app was restarted on port 8536 and returned health `ok`. Existing checkouts were preserved. The repository workflow runs on pull requests, so no resulting-main hosted CI pass is claimed for this direct authorized synchronization.
+
+The ignored local packet is `outputs/local/releases/bank-peer-evidence-20261108/`: reduced source results, original document digest/byte comparisons, unchanged-data manifest, test/review logs and constructed browser screenshots. Complete real source packets remain private temporary captures and are not distributed.
