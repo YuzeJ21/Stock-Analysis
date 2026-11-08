@@ -55,7 +55,7 @@ Reprocessing the same twelve captured source observations before and after the s
 
 All three banks remained excluded from operating-company FCFF scenarios. TSM's normalized context was **758,318 bytes**, above the unchanged **524,288-byte** replay bound, so exact replay stayed held. IBN's Companyfacts source was unavailable; missing financial evidence and replay did not become zero or success. Source-specific gaps remain visible for the other incomplete lanes.
 
-The separate fresh peer-source collection has its own observation dates and exclusions. This method guide makes no final fresh-peer count claim. See the [current release evidence](CROSS_INDUSTRY_SELF_SERVICE_RELEASE.md) for the recorded source pass and verification scope. Do not combine historical field-study, controlled tool and fresh peer counts into one success rate.
+The separate fresh peer-source collection has its own observation dates and exclusions. This method guide makes no final fresh-peer count claim. See the [initial release evidence](CROSS_INDUSTRY_SELF_SERVICE_RELEASE.md) for that recorded source pass and [bank retention evidence](BANK_PEER_EVIDENCE_RELEASE.md) for the later bounded repair. Do not combine historical field-study, controlled tool and fresh peer counts into one success rate.
 
 ## Shared source repair
 
@@ -63,12 +63,18 @@ The filing catalog accepts bounded large submissions catalogs and filters releva
 
 8-K/6-K event report dates stay separate from financial period ends. Valid legacy document metadata can be retained; absent documents remain explicit gaps without invented URLs. Missing current-document metadata cannot silently select an older report. Native-currency 6-K quarter/interim evidence requires validated structured durations and an exact filing accession/date match. A newer known reporting period can still hold an otherwise usable historical duration.
 
+## Lossless bank peer sources
+
+JPM, BAC and C collections can exceed the retained limit because they contain exact SEC documents. Large eligible packets now use bounded lossless storage, then restore every original value and original packet digest before the existing source/valuation checks. The retained-company and study limits stay unchanged. The selected-company source details show a separate retained-evidence proof; this is not valuation approval. Wrong-company or damaged restoration stays a precise peer gap, with independent financials and prices preserved. Both classification-pruning paths retain older packet references.
+
+The [bank release evidence](BANK_PEER_EVIDENCE_RELEASE.md) records exact source-byte comparisons, eligible/excluded references, resource bounds and the separate normalized research-snapshot gap. Ordinary navigation remains source-free.
+
 ## Privacy, rights and next work
 
 The study retains source packets in session memory and displays reduced capability states and provenance. Its replay probe uses disposable private storage, reads no user notes and writes no user evidence stores; the temporary store is removed after the check. The normal **Save research snapshot** workflow remains a separate explicit user action. Raw responses, real captures and screenshots remain private; this documentation does not publish them.
 
 Personal inspection permissions are unchanged. Metadata, archive inspection and price observations do not inherit broader Companyfacts field rights. The study changes no canonical rows, saved-model readiness, source-rights decision or commercial eligibility. Annual P/E still requires the existing identity/share checks, same-day completed closes, compatible annual diluted EPS, the 35-day fiscal window and at least three qualifying references. No FX/ADS conversion, missing quarter, tax allocation, normalized earnings or reviewed economic-peer relationship is inferred.
 
-Next work is bounded: examine exact peer-source retention and access failures; inspect actual filed facts for C/DUK/SO/NEE gaps; qualify TSM native-currency durations and the separate IBN non-XBRL path; and improve exact replay within explicit size limits. A catalog or test count does not establish universal coverage, human validation, accessibility conformance, hosted reliability or commercial operation.
+Next work is bounded: qualify the separate normalized bank proof/snapshot gap and remaining identity/access failures; inspect actual filed facts for C/DUK/SO/NEE gaps; qualify TSM native-currency durations and the separate IBN non-XBRL path; and improve exact replay within explicit size limits. A catalog or test count does not establish universal coverage, human validation, accessibility conformance, hosted reliability or commercial operation.
 
 [Self-service workflow](SELF_SERVICE_COMPANY_RESEARCH.md) · [Online source methods](ONLINE_COMPANY_RESEARCH.md) · [Coverage methods](ONLINE_RESEARCH_COVERAGE.md) · [Roadmap](../ROADMAP.md)

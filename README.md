@@ -101,7 +101,7 @@ make dashboard
 
 Open [http://localhost:8501/](http://localhost:8501/) for the Personal Research workspace. Use an identifying SEC user agent for online retrieval. Financial and price refreshes require network access.
 
-After starting the app, use its browser interface directly; no ongoing coding session is needed. If `SEC_USER_AGENT` is not set, **SEC access** in company search accepts session-only request identification. The public Pages links above remain static demonstrations, not a hosted self-service research server. Unsupported custom/non-XBRL definitions, tax reconciliations, consensus and current share-class capital structure retain visible gaps. [Self-service method and boundaries](docs/SELF_SERVICE_COMPANY_RESEARCH.md)
+After starting the app, use its browser interface directly; no ongoing coding session is needed. If `SEC_USER_AGENT` is not set, **SEC access** in company search accepts session-only request identification. The public Pages links above remain static demonstrations, not a hosted self-service research server. Unsupported custom/non-XBRL definitions, tax reconciliations, consensus and current share-class capital structure retain visible gaps. [Self-service method and boundaries](docs/SELF_SERVICE_COMPANY_RESEARCH.md) · [Bank peer evidence](docs/BANK_PEER_EVIDENCE_RELEASE.md)
 
 The repository's saved data, ignored local research files, and synthetic demo profile have separate contexts. Check the selected profile before comparing observations. [Data Profiles](docs/DATA_PROFILES.md) · [Online Company Research](docs/ONLINE_COMPANY_RESEARCH.md)
 
@@ -138,8 +138,8 @@ The supported workflow is research-only. Investment advice, broker account actio
 
 | Stage | Current focus |
 | --- | --- |
-| **Available today** | A local research beta with online filing checks, trends, hypothetical scenarios, issuer notes, private snapshot/Monitor replay and a fixed twelve-company capability study. Existing saved tools, bounded MRVL review, English public demo, dated AMD filing case and annual review for NEM, AMD, and DUK remain available. |
-| **Next** | Resolve measured peer-source/retention failures, inspect exact filed facts for current gaps, and extend native-currency and bounded replay support. Preserve price, identity, period, definition, size and rights requirements. |
+| **Available today** | A local research beta with online filing checks, trends, hypothetical scenarios, issuer notes, private snapshot/Monitor replay and a fixed twelve-company capability study with complete bank peer-source retention. Existing saved tools, bounded MRVL review, English public demo, dated AMD filing case and annual review for NEM, AMD, and DUK remain available. |
+| **Next** | Resolve the separate bank proof/snapshot gap, inspect exact filed facts for current quarters, and extend qualified identity, native-currency and bounded replay support. Preserve price, identity, period, definition, size and rights requirements. |
 | **Later gates** | Hosted full-workspace operation, authentication and private workspaces, operated data rights, provider reliability, independent user evidence, and commercial validation. |
 
 The [Roadmap](ROADMAP.md) is the active priority list. [Completed Milestones](docs/COMPLETED_MILESTONES.md) records shipped work and the evidence required to revisit parked features. Use `make next-stage` for the current local decision ladder.

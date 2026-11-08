@@ -18,6 +18,10 @@ STYLE = '''<style>
 .self-service-coverage .coverage-group-table{min-width:36rem}
 .self-service-coverage details{margin:.7rem 0}.self-service-coverage summary{min-height:44px;align-content:center;cursor:pointer}
 .self-service-coverage a{color:#144c3d;text-decoration:underline}
+[data-peer-source-storage]{padding:1rem;border:1px solid #d3e0d7;border-radius:.6rem;background:#fff!important;color:#18372b!important;overflow-wrap:anywhere}
+[data-peer-source-storage] dt,[data-peer-source-storage] dd,[data-peer-source-storage] code{color:#18372b!important}
+[data-peer-source-storage] dt{font-weight:600;margin-top:.6rem}[data-peer-source-storage] dd{margin:0}
+[data-peer-source-storage] code{background:#edf4ef!important;white-space:normal;overflow-wrap:anywhere}
 @media(max-width:700px){.self-service-coverage .coverage-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>'''
 
@@ -71,7 +75,13 @@ def _company_details(st,row):
     st.markdown('<section class="self-service-coverage"><div class="coverage-table-scroll" role="region" aria-label="Selected company capabilities" tabindex="0"><table><thead><tr><th scope="col">Capability</th><th scope="col">State</th><th scope="col">Evidence or gap</th></tr></thead><tbody>'+''.join(rows)+'</tbody></table></div></section>',unsafe_allow_html=True)
     if row.get('price_date'):
         st.caption('Completed closing-price date: '+row['price_date'])
+    storage = row.get('peer_storage') or {}
+    if storage.get('status')=='retained' and storage.get('source_evidence_unchanged') is True:
+        st.markdown('<p class="company-scope-note" data-peer-evidence-retained="1">Full peer source evidence retained · exact restoration verified.</p>',unsafe_allow_html=True)
     with st.expander('Reporting periods and original source receipts',expanded=False):
+        if storage:
+            st.caption('Peer source retention. Storage does not establish valuation eligibility.')
+            st.markdown(peer_storage_proof_html(storage),unsafe_allow_html=True)
         st.json(row.get('periods') or {},expanded=False)
         for ref in row.get('source_receipts') or []:
             st.markdown(_link(ref.get('source_url') or ref.get('source_ref'),'Original source'),unsafe_allow_html=True)
@@ -85,6 +95,20 @@ def _company_details(st,row):
             st.caption('Industry references excluded from this observation')
             st.json(row['peer_exclusions'],expanded=False)
         st.json(row.get('snapshot_replay') or {},expanded=False)
+
+
+def peer_storage_proof_html(storage):
+    html = '<section data-peer-source-storage="1" aria-label="Peer source storage proof"><strong>Peer source retention</strong><dl>'
+    fields = [('State',_label(storage.get('status'))),('Encoding',storage.get('encoding'))]
+    for label,key in [('Restored source bytes','expanded_bytes'),('Stored packet bytes','stored_bytes')]:
+        value = storage.get(key)
+        if type(value) is int:
+            fields.append((label,f'{value:,}'))
+    fields.append(('Original packet digest',storage.get('packet_digest') or 'Not verified'))
+    for label,value in fields:
+        html += '<dt>'+escape(label)+'</dt><dd>'+escape(str(value or 'Not verified'))+'</dd>'
+    html += '</dl><p>'+escape(_label(storage.get('reason')))+'</p></section>'
+    return html
 
 
 def render_self_service_coverage(st):

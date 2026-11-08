@@ -23,6 +23,16 @@ def test_malformed_reduced_counts_never_reach_the_display():
     html = self_service_coverage_html(view)
     assert '999' not in html
 
+
+def test_storage_proof_uses_readable_scoped_surface_and_escaped_metadata():
+    from src.self_service_research_coverage_ui import STYLE,peer_storage_proof_html
+    html=peer_storage_proof_html(dict(status='retained',encoding='zlib+base64',expanded_bytes=74100090,
+        stored_bytes=7032521,packet_digest='<script>changed</script>',reason='full_original_peer_packet_restored'))
+    assert 'aria-label="Peer source storage proof"' in html
+    assert '74,100,090' in html and '7,032,521' in html
+    assert '<script>' not in html and '&lt;script&gt;' in html
+    assert '[data-peer-source-storage]' in STYLE and 'background:#fff!important' in STYLE
+
 def test_paused_study_keeps_manual_recheck_available(monkeypatch):
     from src import self_service_research_coverage_ui as ui
     buttons = {}

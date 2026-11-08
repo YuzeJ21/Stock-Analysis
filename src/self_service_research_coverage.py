@@ -24,6 +24,10 @@ from src.online_company_prices import fetch_online_company_prices
 from src.online_filing_context import validated_filing_inventory
 from src.online_listing_session import fresh_classification, SESSION_KEY as LISTING_SESSION_KEY, SCHEMA as LISTING_SCHEMA
 from src.online_peer_valuation import normalized_digest
+from src.online_peer_packet_storage import (
+    SCHEMA as PEER_STORAGE_SCHEMA, MAX_EXPANDED_BYTES as MAX_EXPANDED_PEER_BYTES,
+    pack_peer_packet, unpack_peer_packet, peer_classification_ref,
+)
 from src.online_research_tools import build_online_research_context, run_online_scenario
 from src.online_sec_receipt import fetch_sec_json_receipt, _fetch_raw
 from src.online_us_universe import _fetch_directory
@@ -125,6 +129,11 @@ def _valid(state):
             if not isinstance(packet, Mapping) or packet.get('ticker') != ticker or len(_bytes(packet)) > MAX_PACKET_BYTES:
                 return False
             peer = packet.get('peer_packet')
+            if isinstance(peer, Mapping) and peer.get('schema_version') == PEER_STORAGE_SCHEMA:
+                reference = peer_classification_ref(peer)
+                if reference is not None and reference not in state['classifications']:
+                    return False
+                continue
             collection = peer.get('collection') if isinstance(peer, Mapping) else None
             if isinstance(collection, Mapping) and ('classification' in collection
                 or collection.get('classification_ref') not in state['classifications']):
@@ -152,7 +161,9 @@ def _compact_peer(packet, state):
 
 def _expand_peer(packet, state):
     try:
-        result = deepcopy(packet)
+        result = unpack_peer_packet(packet) if packet.get('schema_version') == PEER_STORAGE_SCHEMA else deepcopy(packet)
+        if not isinstance(result, Mapping):
+            return None
         collection = result.get('collection')
         if isinstance(collection, Mapping):
             key = collection.pop('classification_ref')
@@ -162,6 +173,22 @@ def _expand_peer(packet, state):
         return result
     except (ValueError, TypeError, KeyError, AttributeError):
         return None
+
+
+def _referenced_classifications(state):
+    return {reference for packet in state['packets'].values()
+        if (reference := peer_classification_ref(packet.get('peer_packet'))) is not None}
+
+
+def _peer_storage_evidence(stored, restored):
+    if not isinstance(stored, Mapping) or stored.get('schema_version') != PEER_STORAGE_SCHEMA:
+        return None
+    if restored is None:
+        return dict(status='held',reason='peer_source_retention_invalid',encoding='zlib+base64',
+            source_evidence_unchanged=False)
+    return dict(status='retained',reason='full_original_peer_packet_restored',encoding='zlib+base64',
+        stored_bytes=len(_bytes(stored)),expanded_bytes=stored['expanded_bytes'],
+        packet_digest=restored['packet_digest'],source_evidence_unchanged=True)
 
 
 def _recent_classification(state, now):
@@ -295,6 +322,14 @@ def _row(ticker, group, packet, state, now, mode_reason=None, *, collect_replay=
         and financial.get('sec_cik', identity.get('sec_cik')) == identity.get('sec_cik') and _fresh(identity.get('observed_at'), now))
     cik = catalog['sec_cik'] if catalog else identity.get('sec_cik') if identity_ok else None
     peer_packet = _expand_peer(packet.get('peer_packet'), state) if isinstance(packet.get('peer_packet'), Mapping) else None
+    if (isinstance(packet.get('peer_packet'),Mapping)
+        and packet['peer_packet'].get('schema_version') == PEER_STORAGE_SCHEMA
+        and peer_packet is not None and peer_packet.get('ticker') != ticker):
+        peer_packet = None
+    storage = _peer_storage_evidence(packet.get('peer_packet'),peer_packet)
+    if storage and storage['status'] == 'held':
+        peer_packet = peer_sources._cache({},ticker,None,'peer_source_retention_invalid',
+            _utc_timestamp(packet.get('observed_at')) or now)
     context = build_online_research_context(financial, prices, peer_packet, packet.get('association'),
         ticker=ticker, profile_key=PROBE_PROFILE, expected_cik=cik, notes=None, scenario=None, as_of=now)
     financial_failure = any('/companyfacts/' in value.get('source_url','') or 'company_tickers.json' in value.get('source_url','')
@@ -360,6 +395,8 @@ def _row(ticker, group, packet, state, now, mode_reason=None, *, collect_replay=
         row['periods'][kind] = {key:anchor.get(key) for key in ('period_start','period_end','report_date','accession','form','filed','accepted_at','source_url')}
         row['periods'][kind].update(status=current.get('status'),reason=current.get('reason'))
     row['price_date'] = price_context.get('last_price_date')
+    if storage:
+        row['peer_storage'] = storage
     return row
 
 
@@ -429,6 +466,21 @@ def validated_coverage_view(value):
                 return None
             for receipt in row['source_receipts']:
                 if not isinstance(receipt,Mapping) or any(v is not None and not isinstance(v,str) for v in receipt.values()):
+                    return None
+            storage = row.get('peer_storage')
+            if storage is not None:
+                if (not row['attempted'] or not isinstance(storage,Mapping) or storage.get('encoding')!='zlib+base64'
+                    or storage.get('status') not in {'retained','held'}):
+                    return None
+                if storage['status']=='retained':
+                    if (set(storage)!={'status','reason','encoding','stored_bytes','expanded_bytes','packet_digest','source_evidence_unchanged'}
+                        or storage.get('reason')!='full_original_peer_packet_restored' or storage.get('source_evidence_unchanged') is not True
+                        or type(storage.get('stored_bytes')) is not int or not 0<storage['stored_bytes']<=MAX_PACKET_BYTES
+                        or type(storage.get('expanded_bytes')) is not int or not 0<storage['expanded_bytes']<=MAX_EXPANDED_PEER_BYTES
+                        or not isinstance(storage.get('packet_digest'),str) or re.fullmatch(r'[0-9a-f]{64}',storage['packet_digest']) is None):
+                        return None
+                elif (set(storage)!={'status','reason','encoding','source_evidence_unchanged'}
+                    or storage.get('reason')!='peer_source_retention_invalid' or storage.get('source_evidence_unchanged') is not False):
                     return None
         result = deepcopy(dict(value))
         rows = result['rows']
@@ -532,6 +584,15 @@ def _collect(ticker, state, deps, now, user_agent):
         peer_packet=_compact_peer(slot.get(peer_sources.SESSION_KEY,{}),state), source_access_limit=access or None,
         source_failures=list(failures.values()))
     if len(_bytes(packet)) > MAX_PACKET_BYTES:
+        # Retain all original source values, including exact filing bodies.
+        # Reserve room for the small hash-bound replay proof added below.
+        fixed_bytes = len(_bytes({**packet,'peer_packet':None}))-4
+        budget = MAX_PACKET_BYTES-fixed_bytes-4096
+        if budget > 0:
+            retained = pack_peer_packet(packet['peer_packet'],max_stored_bytes=budget)
+            if retained is not None:
+                packet['peer_packet'] = retained
+    if len(_bytes(packet)) > MAX_PACKET_BYTES:
         # Peer retention cannot erase independently successful financial/price
         # observations. Discard the whole peer collection with its real sealed
         # failure contract; never trim source arrays into a claimed PE verdict.
@@ -544,8 +605,7 @@ def _collect(ticker, state, deps, now, user_agent):
     state['packets'][ticker] = packet
     group = next(group for group,tickers in SAMPLE_GROUPS if ticker in tickers)
     _row(ticker,group,packet,state,now,collect_replay=True)
-    referenced = {packet['peer_packet']['collection']['classification_ref'] for packet in state['packets'].values()
-        if isinstance(packet.get('peer_packet'),Mapping) and isinstance(packet['peer_packet'].get('collection'),Mapping)}
+    referenced = _referenced_classifications(state)
     if state['listing_ref']:
         referenced.add(state['listing_ref'])
     state['classifications'] = {key:value for key,value in state['classifications'].items() if key in referenced}
@@ -608,8 +668,7 @@ def get_self_service_coverage(session_state, *, inspect_requested=False, retry_t
         state['adapter_operation_count'] = attempted_state['adapter_operation_count']
         state['source_request_count'] = attempted_state['source_request_count']
         state['source_access_limit'] = attempted_state['source_access_limit']
-        referenced = {packet['peer_packet']['collection']['classification_ref'] for packet in state['packets'].values()
-            if isinstance(packet.get('peer_packet'),Mapping) and isinstance(packet['peer_packet'].get('collection'),Mapping)}
+        referenced = _referenced_classifications(state)
         state['classifications'] = {key:value for key,value in state['classifications'].items() if key in referenced}
         state['listing_ref'] = next(iter(state['classifications']),None)
         if len(_bytes(state)) > MAX_STATE_BYTES:
